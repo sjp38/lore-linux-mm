@@ -1,242 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id E85B06B0004
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 09:49:23 -0500 (EST)
-Date: Mon, 21 Jan 2013 15:49:19 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 4/6] memcg: replace cgroup_lock with memcg specific
- memcg_lock
-Message-ID: <20130121144919.GO7798@dhcp22.suse.cz>
-References: <1358766813-15095-1-git-send-email-glommer@parallels.com>
- <1358766813-15095-5-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 12C736B0004
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 10:03:51 -0500 (EST)
+Message-ID: <50FD5844.1010201@web.de>
+Date: Mon, 21 Jan 2013 16:01:24 +0100
+From: Soeren Moch <smoch@web.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1358766813-15095-5-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
+ calls
+References: <20121119144826.f59667b2.akpm@linux-foundation.org> <201301172026.45514.arnd@arndb.de> <50FABBED.1020905@web.de> <201301192005.20093.arnd@arndb.de>
+In-Reply-To: <201301192005.20093.arnd@arndb.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Jason Cooper <jason@lakedaemon.net>, Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 
-On Mon 21-01-13 15:13:31, Glauber Costa wrote:
-> After the preparation work done in earlier patches, the cgroup_lock can
-> be trivially replaced with a memcg-specific lock. This is an automatic
-> translation in every site the values involved were queried.
-> 
-> The sites were values are written, however, used to be naturally called
-> under cgroup_lock. This is the case for instance of the css_online
-> callback. For those, we now need to explicitly add the memcg_lock.
-> 
-> Also, now that the memcg_mutex is available, there is no need to abuse
-> the set_limit mutex in kmemcg value setting. The memcg_mutex will do a
-> better job, and we now resort to it.
+On 01/19/13 21:05, Arnd Bergmann wrote:
+> I found at least one source line that incorrectly uses an atomic
+> allocation, in ehci_mem_init():
+>
+>                  dma_alloc_coherent (ehci_to_hcd(ehci)->self.controller,
+>                          ehci->periodic_size * sizeof(__le32),
+>                          &ehci->periodic_dma, 0);
+>
+> The last argument is the GFP_ flag, which should never be zero, as
+> that is implicit !wait. This function is called only once, so it
+> is not the actual culprit, but there could be other instances
+> where we accidentally allocate something as GFP_ATOMIC.
+>
+> The total number of allocations I found for each type are
+>
+> sata_mv: 66 pages (270336 bytes)
+> mv643xx_eth: 4 pages == (16384 bytes)
+> orion_ehci: 154 pages (630784 bytes)
+> orion_ehci (atomic): 256 pages (1048576 bytes)
+>
+> from the distribution of the numbers, it seems that there is exactly 1 MB
+> of data allocated between bus addresses 0x1f90000 and 0x1f9ffff, allocated
+> in individual pages. This matches the size of your pool, so it's definitely
+> something coming from USB, and no single other allocation, but it does not
+> directly point to a specific line of code.
+Very interesting, so this is no fragmentation problem nor something 
+caused by sata or ethernet.
+> One thing I found was that the ARM dma-mapping code seems buggy in the way
+> that it does a bitwise and between the gfp mask and GFP_ATOMIC, which does
+> not work because GFP_ATOMIC is defined by the absence of __GFP_WAIT.
+>
+> I believe we need the patch below, but it is not clear to me if that issue
+> is related to your problem or now.
+Out of curiosity I checked include/linux/gfp.h. GFP_ATOMIC is defined as 
+__GFP_HIGH (which means 'use emergency pool', and no wait), so this 
+patch should not make any difference for "normal" (GPF_ATOMIC / 
+GFP_KERNEL) allocations, only for gfp_flags accidentally set to zero. 
+So, can a new test with this patch help to debug the pool exhaustion?
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index 6b2fb87..c57975f 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -640,7 +641,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+>   
+>   	if (is_coherent || nommu())
+>   		addr = __alloc_simple_buffer(dev, size, gfp, &page);
+> -	else if (gfp & GFP_ATOMIC)
+> +	else if (!(gfp & __GFP_WAIT))
+>   		addr = __alloc_from_pool(size, &page);
+>   	else if (!IS_ENABLED(CONFIG_CMA))
+>   		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
+> @@ -1272,7 +1273,7 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
+>   	*handle = DMA_ERROR_CODE;
+>   	size = PAGE_ALIGN(size);
+>   
+> -	if (gfp & GFP_ATOMIC)
+> +	if (!(gfp & __GFP_WAIT))
+>   		return __iommu_alloc_atomic(dev, size, handle);
+>   
+>   	pages = __iommu_alloc_buffer(dev, size, gfp, attrs);
+> 8<-------
+>
+> There is one more code path I could find, which is usb_submit_urb() =>
+> usb_hcd_submit_urb => ehci_urb_enqueue() => submit_async() =>
+> qh_append_tds() => qh_make(GFP_ATOMIC) => ehci_qh_alloc() =>
+> dma_pool_alloc() => pool_alloc_page() => dma_alloc_coherent()
+>
+> So even for a GFP_KERNEL passed into usb_submit_urb, the ehci driver
+> causes the low-level allocation to be GFP_ATOMIC, because
+> qh_append_tds() is called under a spinlock. If we have hundreds
+> of URBs in flight, that will exhaust the pool rather quickly.
+>
+Maybe there are hundreds of URBs in flight in my application, I have no 
+idea how to check this. It seems to me that bad reception conditions 
+(lost lock / regained lock messages for some dvb channels) accelerate 
+the buffer exhaustion. But even with a 4MB coherent pool I see the 
+error. Is there any chance to fix this in the usb or dvb subsystem (or 
+wherever)? Should I try to further increase the pool size, or what else 
+can I do besides using an older kernel?
 
-You will hate me for this because I should have said that in the
-previous round already (but I will use "I shown a mercy on you and
-that blinded me" for my defense).
-I am not so sure it will do a better job (it is only kmem that uses both
-locks). I thought that memcg_mutex is just a first step and that we move
-to a more finer grained locking later (a too general documentation of
-the lock even asks for it).  So I would keep the limit mutex and figure
-whether memcg_mutex could be split up even further.
-
-Other than that the patch looks good to me
- 
-> With this, all the calls to cgroup_lock outside cgroup core are gone.
-
-OK, Tejun will be happy ;)
-
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> ---
->  mm/memcontrol.c | 52 ++++++++++++++++++++++++++++------------------------
->  1 file changed, 28 insertions(+), 24 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 6d3ad21..d3b78b9 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -470,6 +470,13 @@ enum res_type {
->  #define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
->  #define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
->  
-> +/*
-> + * The memcg mutex needs to be held for any globally visible cgroup change.
-> + * Group creation and tunable propagation, as well as any change that depends
-> + * on the tunables being in a consistent state.
-> + */
-> +static DEFINE_MUTEX(memcg_mutex);
-> +
->  static void mem_cgroup_get(struct mem_cgroup *memcg);
->  static void mem_cgroup_put(struct mem_cgroup *memcg);
->  
-> @@ -2902,7 +2909,7 @@ int memcg_cache_id(struct mem_cgroup *memcg)
->   * operation, because that is its main call site.
->   *
->   * But when we create a new cache, we can call this as well if its parent
-> - * is kmem-limited. That will have to hold set_limit_mutex as well.
-> + * is kmem-limited. That will have to hold memcg_mutex as well.
->   */
->  int memcg_update_cache_sizes(struct mem_cgroup *memcg)
->  {
-> @@ -2917,7 +2924,7 @@ int memcg_update_cache_sizes(struct mem_cgroup *memcg)
->  	 * the beginning of this conditional), is no longer 0. This
->  	 * guarantees only one process will set the following boolean
->  	 * to true. We don't need test_and_set because we're protected
-> -	 * by the set_limit_mutex anyway.
-> +	 * by the memcg_mutex anyway.
->  	 */
->  	memcg_kmem_set_activated(memcg);
->  
-> @@ -3258,9 +3265,9 @@ void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
->  	 *
->  	 * Still, we don't want anyone else freeing memcg_caches under our
->  	 * noses, which can happen if a new memcg comes to life. As usual,
-> -	 * we'll take the set_limit_mutex to protect ourselves against this.
-> +	 * we'll take the memcg_mutex to protect ourselves against this.
->  	 */
-> -	mutex_lock(&set_limit_mutex);
-> +	mutex_lock(&memcg_mutex);
->  	for (i = 0; i < memcg_limited_groups_array_size; i++) {
->  		c = s->memcg_params->memcg_caches[i];
->  		if (!c)
-> @@ -3283,7 +3290,7 @@ void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
->  		cancel_work_sync(&c->memcg_params->destroy);
->  		kmem_cache_destroy(c);
->  	}
-> -	mutex_unlock(&set_limit_mutex);
-> +	mutex_unlock(&memcg_mutex);
->  }
->  
->  struct create_work {
-> @@ -4730,7 +4737,7 @@ static inline bool __memcg_has_children(struct mem_cgroup *memcg)
->  }
->  
->  /*
-> - * must be called with cgroup_lock held, unless the cgroup is guaranteed to be
-> + * must be called with memcg_mutex held, unless the cgroup is guaranteed to be
->   * already dead (like in mem_cgroup_force_empty, for instance).  This is
->   * different than mem_cgroup_count_children, in the sense that we don't really
->   * care how many children we have, we only need to know if we have any. It is
-> @@ -4811,7 +4818,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
->  	if (parent)
->  		parent_memcg = mem_cgroup_from_cont(parent);
->  
-> -	cgroup_lock();
-> +	mutex_lock(&memcg_mutex);
->  
->  	if (memcg->use_hierarchy == val)
->  		goto out;
-> @@ -4834,7 +4841,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
->  		retval = -EINVAL;
->  
->  out:
-> -	cgroup_unlock();
-> +	mutex_unlock(&memcg_mutex);
->  
->  	return retval;
->  }
-> @@ -4934,14 +4941,10 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
->  	 * After it first became limited, changes in the value of the limit are
->  	 * of course permitted.
->  	 *
-> -	 * Taking the cgroup_lock is really offensive, but it is so far the only
-> -	 * way to guarantee that no children will appear. There are plenty of
-> -	 * other offenders, and they should all go away. Fine grained locking
-> -	 * is probably the way to go here. When we are fully hierarchical, we
-> -	 * can also get rid of the use_hierarchy check.
-> +	 * We are protected by the memcg_mutex, so no other cgroups can appear
-> +	 * in the mean time.
->  	 */
-> -	cgroup_lock();
-> -	mutex_lock(&set_limit_mutex);
-> +	mutex_lock(&memcg_mutex);
->  	if (!memcg->kmem_account_flags && val != RESOURCE_MAX) {
->  		if (cgroup_task_count(cont) || memcg_has_children(memcg)) {
->  			ret = -EBUSY;
-> @@ -4966,8 +4969,7 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
->  	} else
->  		ret = res_counter_set_limit(&memcg->kmem, val);
->  out:
-> -	mutex_unlock(&set_limit_mutex);
-> -	cgroup_unlock();
-> +	mutex_unlock(&memcg_mutex);
->  
->  	/*
->  	 * We are by now familiar with the fact that we can't inc the static
-> @@ -5024,9 +5026,9 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
->  	mem_cgroup_get(memcg);
->  	static_key_slow_inc(&memcg_kmem_enabled_key);
->  
-> -	mutex_lock(&set_limit_mutex);
-> +	mutex_lock(&memcg_mutex);
->  	ret = memcg_update_cache_sizes(memcg);
-> -	mutex_unlock(&set_limit_mutex);
-> +	mutex_unlock(&memcg_mutex);
->  #endif
->  out:
->  	return ret;
-> @@ -5356,17 +5358,17 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
->  
->  	parent = mem_cgroup_from_cont(cgrp->parent);
->  
-> -	cgroup_lock();
-> +	mutex_lock(&memcg_mutex);
->  
->  	/* If under hierarchy, only empty-root can set this value */
->  	if ((parent->use_hierarchy) || memcg_has_children(memcg)) {
-> -		cgroup_unlock();
-> +		mutex_unlock(&memcg_mutex);
->  		return -EINVAL;
->  	}
->  
->  	memcg->swappiness = val;
->  
-> -	cgroup_unlock();
-> +	mutex_unlock(&memcg_mutex);
->  
->  	return 0;
->  }
-> @@ -5692,7 +5694,7 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
->  
->  	parent = mem_cgroup_from_cont(cgrp->parent);
->  
-> -	cgroup_lock();
-> +	mutex_lock(&memcg_mutex);
->  	/* oom-kill-disable is a flag for subhierarchy. */
->  	if ((parent->use_hierarchy) ||
->  	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
-> @@ -5702,7 +5704,7 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
->  	memcg->oom_kill_disable = val;
->  	if (!val)
->  		memcg_oom_recover(memcg);
-> -	cgroup_unlock();
-> +	mutex_unlock(&memcg_mutex);
->  	return 0;
->  }
->  
-> @@ -6140,6 +6142,7 @@ mem_cgroup_css_online(struct cgroup *cont)
->  	if (!cont->parent)
->  		return 0;
->  
-> +	mutex_lock(&memcg_mutex);
->  	memcg = mem_cgroup_from_cont(cont);
->  	parent = mem_cgroup_from_cont(cont->parent);
->  
-> @@ -6173,6 +6176,7 @@ mem_cgroup_css_online(struct cgroup *cont)
->  	}
->  
->  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
-> +	mutex_unlock(&memcg_mutex);
->  	if (error) {
->  		/*
->  		 * We call put now because our (and parent's) refcnts
-> -- 
-> 1.8.1
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+   Soeren
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
