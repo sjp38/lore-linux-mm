@@ -1,81 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 56C9C6B0002
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 17:47:01 -0500 (EST)
-Date: Tue, 22 Jan 2013 14:46:59 -0800
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 4FA726B0005
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 18:07:28 -0500 (EST)
+Date: Tue, 22 Jan 2013 15:07:26 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 5/6] mm: Fold page->_last_nid into page->flags where
- possible
-Message-Id: <20130122144659.d512e05c.akpm@linux-foundation.org>
-In-Reply-To: <1358874762-19717-6-git-send-email-mgorman@suse.de>
-References: <1358874762-19717-1-git-send-email-mgorman@suse.de>
-	<1358874762-19717-6-git-send-email-mgorman@suse.de>
+Subject: Re: [patch 3/3 v2]swap: add per-partition lock for swapfile
+Message-Id: <20130122150726.9d94c198.akpm@linux-foundation.org>
+In-Reply-To: <20130122023028.GC12293@kernel.org>
+References: <20130122023028.GC12293@kernel.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Simon Jeons <simon.jeons@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, minchan@kernel.org
 
-On Tue, 22 Jan 2013 17:12:41 +0000
-Mel Gorman <mgorman@suse.de> wrote:
+On Tue, 22 Jan 2013 10:30:28 +0800
+Shaohua Li <shli@kernel.org> wrote:
 
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> swap_lock is heavily contended when I test swap to 3 fast SSD (even slightly
+> slower than swap to 2 such SSD). The main contention comes from
+> swap_info_get(). This patch tries to fix the gap with adding a new
+> per-partition lock.
 > 
-> page->_last_nid fits into page->flags on 64-bit. The unlikely 32-bit NUMA
-> configuration with NUMA Balancing will still need an extra page field.
-> As Peter notes "Completely dropping 32bit support for CONFIG_NUMA_BALANCING
-> would simplify things, but it would also remove the warning if we grow
-> enough 64bit only page-flags to push the last-cpu out."
+> global data like nr_swapfiles, total_swap_pages, least_priority and swap_list are
+> still protected by swap_lock.
+> 
+> nr_swap_pages is an atomic now, it can be changed without swap_lock. In theory,
+> it's possible get_swap_page() finds no swap pages but actually there are free
+> swap pages. But sounds not a big problem.
+> 
+> accessing partition specific data (like scan_swap_map and so on) is only
+> protected by swap_info_struct.lock.
+> 
+> Changing swap_info_struct.flags need hold swap_lock and swap_info_struct.lock,
+> because scan_scan_map() will check it. read the flags is ok with either the
+> locks hold.
+> 
+> If both swap_lock and swap_info_struct.lock must be hold, we always hold the
+> former first to avoid deadlock.
+> 
+> swap_entry_free() can change swap_list. To delete that code, we add a new
+> highest_priority_index. Whenever get_swap_page() is called, we check it. If
+> it's valid, we use it.
+> 
+> It's a pitty get_swap_page() still holds swap_lock(). But in practice,
+> swap_lock() isn't heavily contended in my test with this patch (or I can say
+> there are other much more heavier bottlenecks like TLB flush). And BTW, looks
+> get_swap_page() doesn't really need the lock. We never free swap_info[] and we
+> check SWAP_WRITEOK flag. The only risk without the lock is we could swapout to
+> some low priority swap, but we can quickly recover after several rounds of
+> swap, so sounds not a big deal to me. But I'd prefer to fix this if it's a real
 
-How much space remains in the 64-bit page->flags?
+I had to move a few things around due to changes in
+drivers/staging/zcache/.
 
-Was this the best possible use of the remaining space?
-
-It's good that we can undo this later by flipping
-LAST_NID_NOT_IN_PAGE_FLAGS.
-
-> [mgorman@suse.de: Minor modifications]
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-
-Several of these patches are missing signoffs (Peter and Hugh).
-
->
-> ...
->
-> +static inline int page_last_nid(struct page *page)
-> +{
-> +	return (page->flags >> LAST_NID_PGSHIFT) & LAST_NID_MASK;
-> +}
-> +
-> +static inline int page_xchg_last_nid(struct page *page, int nid)
-> +{
-> +	unsigned long old_flags, flags;
-> +	int last_nid;
-> +
-> +	do {
-> +		old_flags = flags = page->flags;
-> +		last_nid = page_last_nid(page);
-> +
-> +		flags &= ~(LAST_NID_MASK << LAST_NID_PGSHIFT);
-> +		flags |= (nid & LAST_NID_MASK) << LAST_NID_PGSHIFT;
-> +	} while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags));
-> +
-> +	return last_nid;
-> +}
-> +
-> +static inline void reset_page_last_nid(struct page *page)
-> +{
-> +	page_xchg_last_nid(page, (1 << LAST_NID_SHIFT) - 1);
-> +}
-
-page_xchg_last_nid() and reset_page_last_nid() are getting nuttily
-large.  Please investigate uninlining them?
-
-reset_page_last_nid() is poorly named.  page_reset_last_nid() would be
-better, and consistent.
-
+Do you have any performance testing results for this patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
