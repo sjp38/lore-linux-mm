@@ -1,44 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id CD4676B0005
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 12:04:55 -0500 (EST)
-MIME-Version: 1.0
-Message-ID: <a5f4ae75-9283-4edd-8275-9b5f7bf13af3@default>
-Date: Tue, 22 Jan 2013 09:04:30 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 2/5] staging: zcache: rename ramster to zcache
-References: <1358544267-9104-1-git-send-email-dan.magenheimer@oracle.com>
- <1358544267-9104-3-git-send-email-dan.magenheimer@oracle.com>
- <20130119195720.GP4584@mwanda>
-In-Reply-To: <20130119195720.GP4584@mwanda>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id C82756B0009
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 12:12:40 -0500 (EST)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 0/6] Follow up work on NUMA Balancing
+Date: Tue, 22 Jan 2013 17:12:36 +0000
+Message-Id: <1358874762-19717-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com, minchan@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Simon Jeons <simon.jeons@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> From: Dan Carpenter
-> Sent: Saturday, January 19, 2013 12:57 PM
-> To: Dan Magenheimer
-> Cc: devel@linuxdriverproject.org; linux-kernel@vger.kernel.org; gregkh@li=
-nuxfoundation.org; linux-
-> mm@kvack.org; ngupta@vflare.org; Konrad Wilk; sjenning@linux.vnet.ibm.com=
-; minchan@kernel.org
-> Subject: Re: [PATCH 2/5] staging: zcache: rename ramster to zcache
->=20
-> On Fri, Jan 18, 2013 at 01:24:24PM -0800, Dan Magenheimer wrote:
-> > [V2: no code changes, patchset now generated via git format-patch -M]
->=20
-> If you put these comments below the --- cut off line (together with
-> the diffstat) then "git am" won't add them to the commit log.
->=20
-> regards,
-> dan carpenter
+The following series is a few follow-up patches left over from NUMA
+balancing. The three three patches are tiny fixes. Patches 4 and 5 fold
+page->_last_nid into page->flags and is entirely based on work from Peter
+Zijlstra. The final patch is a cleanup by Hugh Dickins that he had marked
+as a prototype but on examination and testing I could not find any problems
+with it (famous last words).
 
-Will do next time.  Thanks for the pointer!
+ include/linux/mm.h                |   73 ++++++++++++---------------
+ include/linux/mm_types.h          |    9 ++--
+ include/linux/mmzone.h            |   22 +--------
+ include/linux/page-flags-layout.h |   88 +++++++++++++++++++++++++++++++++
+ include/linux/vmstat.h            |    2 +-
+ mm/huge_memory.c                  |   28 ++++-------
+ mm/memory.c                       |    4 ++
+ mm/migrate.c                      |   99 +++++++++++++++++--------------------
+ 8 files changed, 186 insertions(+), 139 deletions(-)
+ create mode 100644 include/linux/page-flags-layout.h
 
-Dan
+-- 
+1.7.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
