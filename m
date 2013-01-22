@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 2CB136B000E
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 0C0516B0010
 	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 12:12:42 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/6] mm: numa: Take THP into account when migrating pages for NUMA balancing
-Date: Tue, 22 Jan 2013 17:12:38 +0000
-Message-Id: <1358874762-19717-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 3/6] mm: numa: Handle side-effects in count_vm_numa_events() for !CONFIG_NUMA_BALANCING
+Date: Tue, 22 Jan 2013 17:12:39 +0000
+Message-Id: <1358874762-19717-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1358874762-19717-1-git-send-email-mgorman@suse.de>
 References: <1358874762-19717-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,44 +13,33 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Simon Jeons <simon.jeons@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Wanpeng Li pointed out that numamigrate_isolate_page() assumes that only one
-base page is being migrated when in fact it can also be checking THP. The
-consequences are that a migration will be attempted when a target node
-is nearly full and fail later. It's unlikely to be user-visible but it
-should be fixed. While we are there, migrate_balanced_pgdat() should treat
-nr_migrate_pages as an unsigned long as it is treated as a watermark.
+The current definitions for count_vm_numa_events() is wrong for
+!CONFIG_NUMA_BALANCING as the following would miss the side-effect.
 
-Suggested-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+	count_vm_numa_events(NUMA_FOO, bar++);
+
+There are no such users of count_vm_numa_events() but it is a potential
+pitfall. This patch fixes it and converts count_vm_numa_event() so that
+the definitions look similar.
+
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/migrate.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ include/linux/vmstat.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index c387786..73e432d 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1459,7 +1459,7 @@ int migrate_vmas(struct mm_struct *mm, const nodemask_t *to,
-  * pages. Currently it only checks the watermarks which crude
-  */
- static bool migrate_balanced_pgdat(struct pglist_data *pgdat,
--				   int nr_migrate_pages)
-+				   unsigned long nr_migrate_pages)
- {
- 	int z;
- 	for (z = pgdat->nr_zones - 1; z >= 0; z--) {
-@@ -1557,8 +1557,10 @@ int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
- {
- 	int ret = 0;
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index a13291f..5fd71a7 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -85,7 +85,7 @@ static inline void vm_events_fold_cpu(int cpu)
+ #define count_vm_numa_events(x, y) count_vm_events(x, y)
+ #else
+ #define count_vm_numa_event(x) do {} while (0)
+-#define count_vm_numa_events(x, y) do {} while (0)
++#define count_vm_numa_events(x, y) do { (void)(y); } while (0)
+ #endif /* CONFIG_NUMA_BALANCING */
  
-+	VM_BUG_ON(compound_order(page) && !PageTransHuge(page));
-+
- 	/* Avoid migrating to a node that is nearly full */
--	if (migrate_balanced_pgdat(pgdat, 1)) {
-+	if (migrate_balanced_pgdat(pgdat, 1UL << compound_order(page))) {
- 		int page_lru;
- 
- 		if (isolate_lru_page(page)) {
+ #define __count_zone_vm_events(item, zone, delta) \
 -- 
 1.7.9.2
 
