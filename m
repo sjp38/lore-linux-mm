@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id C7F6A6B0004
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 08:47:37 -0500 (EST)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id A3D376B0005
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 08:47:38 -0500 (EST)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v4 3/6] memcg: fast hierarchy-aware child test.
-Date: Tue, 22 Jan 2013 17:47:38 +0400
-Message-Id: <1358862461-18046-4-git-send-email-glommer@parallels.com>
+Subject: [PATCH v4 4/6] memcg: replace cgroup_lock with memcg specific memcg_lock
+Date: Tue, 22 Jan 2013 17:47:39 +0400
+Message-Id: <1358862461-18046-5-git-send-email-glommer@parallels.com>
 In-Reply-To: <1358862461-18046-1-git-send-email-glommer@parallels.com>
 References: <1358862461-18046-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,92 +13,148 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Glauber Costa <glommer@parallels.com>
 
-Currently, we use cgroups' provided list of children to verify if it is
-safe to proceed with any value change that is dependent on the cgroup
-being empty.
+After the preparation work done in earlier patches, the cgroup_lock can
+be trivially replaced with a memcg-specific lock. This is an automatic
+translation in every site the values involved were queried.
 
-This is less than ideal, because it enforces a dependency over cgroup
-core that we would be better off without. The solution proposed here is
-to iterate over the child cgroups and if any is found that is already
-online, we bounce and return: we don't really care how many children we
-have, only if we have any.
+The sites were values are written, however, used to be naturally called
+under cgroup_lock. This is the case for instance of the css_online
+callback. For those, we now need to explicitly add the memcg lock.
 
-This is also made to be hierarchy aware. IOW, cgroups with  hierarchy
-disabled, while they still exist, will be considered for the purpose of
-this interface as having no children.
+With this, all the calls to cgroup_lock outside cgroup core are gone.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c | 34 +++++++++++++++++++++++++++++-----
- 1 file changed, 29 insertions(+), 5 deletions(-)
+ mm/memcontrol.c | 37 ++++++++++++++++++++-----------------
+ 1 file changed, 20 insertions(+), 17 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6c72204..6d3ad21 100644
+index 6d3ad21..f5decb7 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -4716,6 +4716,32 @@ static void mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
+@@ -470,6 +470,13 @@ enum res_type {
+ #define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
+ #define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
+ 
++/*
++ * The memcg_create_mutex will be held whenever a new cgroup is created.
++ * As a consequence, any change that needs to protect against new child cgroups
++ * appearing has to hold it as well.
++ */
++static DEFINE_MUTEX(memcg_create_mutex);
++
+ static void mem_cgroup_get(struct mem_cgroup *memcg);
+ static void mem_cgroup_put(struct mem_cgroup *memcg);
+ 
+@@ -4730,8 +4737,8 @@ static inline bool __memcg_has_children(struct mem_cgroup *memcg)
  }
  
  /*
-+ * this mainly exists for tests during set of use_hierarchy. Since this is
-+ * the very setting we are changing, the current hierarchy value is meaningless
-+ */
-+static inline bool __memcg_has_children(struct mem_cgroup *memcg)
-+{
-+	struct cgroup *pos;
-+
-+	/* bounce at first found */
-+	cgroup_for_each_child(pos, memcg->css.cgroup)
-+		return true;
-+	return false;
-+}
-+
-+/*
-+ * must be called with cgroup_lock held, unless the cgroup is guaranteed to be
-+ * already dead (like in mem_cgroup_force_empty, for instance).  This is
-+ * different than mem_cgroup_count_children, in the sense that we don't really
-+ * care how many children we have, we only need to know if we have any. It is
-+ * also count any memcg without hierarchy as infertile for that matter.
-+ */
-+static inline bool memcg_has_children(struct mem_cgroup *memcg)
-+{
-+	return memcg->use_hierarchy && __memcg_has_children(memcg);
-+}
-+
-+/*
-  * Reclaims as many pages from the given memcg as possible and moves
-  * the rest to the parent.
-  *
-@@ -4800,7 +4826,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+- * must be called with cgroup_lock held, unless the cgroup is guaranteed to be
+- * already dead (like in mem_cgroup_force_empty, for instance).  This is
++ * must be called with memcg_create_mutex held, unless the cgroup is guaranteed
++ * to be already dead (like in mem_cgroup_force_empty, for instance).  This is
+  * different than mem_cgroup_count_children, in the sense that we don't really
+  * care how many children we have, we only need to know if we have any. It is
+  * also count any memcg without hierarchy as infertile for that matter.
+@@ -4811,7 +4818,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+ 	if (parent)
+ 		parent_memcg = mem_cgroup_from_cont(parent);
+ 
+-	cgroup_lock();
++	mutex_lock(&memcg_create_mutex);
+ 
+ 	if (memcg->use_hierarchy == val)
+ 		goto out;
+@@ -4834,7 +4841,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+ 		retval = -EINVAL;
+ 
+ out:
+-	cgroup_unlock();
++	mutex_unlock(&memcg_create_mutex);
+ 
+ 	return retval;
+ }
+@@ -4933,14 +4940,8 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
+ 	 *
+ 	 * After it first became limited, changes in the value of the limit are
+ 	 * of course permitted.
+-	 *
+-	 * Taking the cgroup_lock is really offensive, but it is so far the only
+-	 * way to guarantee that no children will appear. There are plenty of
+-	 * other offenders, and they should all go away. Fine grained locking
+-	 * is probably the way to go here. When we are fully hierarchical, we
+-	 * can also get rid of the use_hierarchy check.
  	 */
- 	if ((!parent_memcg || !parent_memcg->use_hierarchy) &&
- 				(val == 1 || val == 0)) {
--		if (list_empty(&cont->children))
-+		if (!__memcg_has_children(memcg))
- 			memcg->use_hierarchy = val;
- 		else
- 			retval = -EBUSY;
-@@ -4917,8 +4943,7 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- 	cgroup_lock();
+-	cgroup_lock();
++	mutex_lock(&memcg_create_mutex);
  	mutex_lock(&set_limit_mutex);
  	if (!memcg->kmem_account_flags && val != RESOURCE_MAX) {
--		if (cgroup_task_count(cont) || (memcg->use_hierarchy &&
--						!list_empty(&cont->children))) {
-+		if (cgroup_task_count(cont) || memcg_has_children(memcg)) {
- 			ret = -EBUSY;
- 			goto out;
- 		}
-@@ -5334,8 +5359,7 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
- 	cgroup_lock();
+ 		if (cgroup_task_count(cont) || memcg_has_children(memcg)) {
+@@ -4967,7 +4968,7 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
+ 		ret = res_counter_set_limit(&memcg->kmem, val);
+ out:
+ 	mutex_unlock(&set_limit_mutex);
+-	cgroup_unlock();
++	mutex_unlock(&memcg_create_mutex);
+ 
+ 	/*
+ 	 * We are by now familiar with the fact that we can't inc the static
+@@ -5356,17 +5357,17 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+ 
+ 	parent = mem_cgroup_from_cont(cgrp->parent);
+ 
+-	cgroup_lock();
++	mutex_lock(&memcg_create_mutex);
  
  	/* If under hierarchy, only empty-root can set this value */
--	if ((parent->use_hierarchy) ||
--	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
-+	if ((parent->use_hierarchy) || memcg_has_children(memcg)) {
- 		cgroup_unlock();
+ 	if ((parent->use_hierarchy) || memcg_has_children(memcg)) {
+-		cgroup_unlock();
++		mutex_unlock(&memcg_create_mutex);
  		return -EINVAL;
  	}
+ 
+ 	memcg->swappiness = val;
+ 
+-	cgroup_unlock();
++	mutex_unlock(&memcg_create_mutex);
+ 
+ 	return 0;
+ }
+@@ -5692,7 +5693,7 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
+ 
+ 	parent = mem_cgroup_from_cont(cgrp->parent);
+ 
+-	cgroup_lock();
++	mutex_lock(&memcg_create_mutex);
+ 	/* oom-kill-disable is a flag for subhierarchy. */
+ 	if ((parent->use_hierarchy) ||
+ 	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
+@@ -5702,7 +5703,7 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
+ 	memcg->oom_kill_disable = val;
+ 	if (!val)
+ 		memcg_oom_recover(memcg);
+-	cgroup_unlock();
++	mutex_unlock(&memcg_create_mutex);
+ 	return 0;
+ }
+ 
+@@ -6140,6 +6141,7 @@ mem_cgroup_css_online(struct cgroup *cont)
+ 	if (!cont->parent)
+ 		return 0;
+ 
++	mutex_lock(&memcg_create_mutex);
+ 	memcg = mem_cgroup_from_cont(cont);
+ 	parent = mem_cgroup_from_cont(cont->parent);
+ 
+@@ -6173,6 +6175,7 @@ mem_cgroup_css_online(struct cgroup *cont)
+ 	}
+ 
+ 	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
++	mutex_unlock(&memcg_create_mutex);
+ 	if (error) {
+ 		/*
+ 		 * We call put now because our (and parent's) refcnts
 -- 
 1.8.1
 
