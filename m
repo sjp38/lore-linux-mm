@@ -1,73 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 4CE0F6B0006
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 247A66B000C
 	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 08:47:40 -0500 (EST)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v4 0/6] replace cgroup_lock with memcg specific locking
-Date: Tue, 22 Jan 2013 17:47:35 +0400
-Message-Id: <1358862461-18046-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH v4 1/6] memcg: prevent changes to move_charge_at_immigrate during task attach
+Date: Tue, 22 Jan 2013 17:47:36 +0400
+Message-Id: <1358862461-18046-2-git-send-email-glommer@parallels.com>
+In-Reply-To: <1358862461-18046-1-git-send-email-glommer@parallels.com>
+References: <1358862461-18046-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Glauber Costa <glommer@parallels.com>
 
-Hi,
+Currently, we rely on the cgroup_lock() to prevent changes to
+move_charge_at_immigrate during task migration. However, this is only
+needed because the current strategy keeps checking this value throughout
+the whole process. Since all we need is serialization, one needs only to
+guarantee that whatever decision we made in the beginning of a specific
+migration is respected throughout the process.
 
-In memcg, we use the cgroup_lock basically to synchronize against
-attaching new children to a cgroup. We do this because we rely on cgroup core to
-provide us with this information.
+We can achieve this by just saving it in mc. By doing this, no kind of
+locking is needed.
 
-We need to guarantee that upon child creation, our tunables are consistent.
-For those, the calls to cgroup_lock() all live in handlers like
-mem_cgroup_hierarchy_write(), where we change a tunable in the group that is
-hierarchy-related. For instance, the use_hierarchy flag cannot be changed if
-the cgroup already have children.
+[ v2: change flag name to avoid confusion ]
 
-Furthermore, those values are propageted from the parent to the child when a
-new child is created. So if we don't lock like this, we can end up with the
-following situation:
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/memcontrol.c | 32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)
 
-A                                   B
- memcg_css_alloc()                       mem_cgroup_hierarchy_write()
- copy use hierarchy from parent          change use hierarchy in parent
- finish creation.
-
-This is mainly because during create, we are still not fully connected to the
-css tree. So all iterators and the such that we could use, will fail to show
-that the group has children.
-
-My observation is that all of creation can proceed in parallel with those
-tasks, except value assignment. So what this patchseries does is to first move
-all value assignment that is dependent on parent values from css_alloc to
-css_online, where the iterators all work, and then we lock only the value
-assignment. This will guarantee that parent and children always have consistent
-values. Together with an online test, that can be derived from the observation
-that the refcount of an online memcg can be made to be always positive, we
-should be able to synchronize our side without the cgroup lock.
-
-*v4:
- - revert back to using the set_limit_mutex for kmemcg limit setting.
-
-*v3:
- - simplified test for presence of children, and no longer using refcnt for
-   online testing
- - some cleanups as suggested by Michal
-
-*v2:
- - sanitize kmemcg assignment in the light of the current locking change.
- - don't grab locks on immigrate charges by caching the value during can_attach
-
-Glauber Costa (6):
-  memcg: prevent changes to move_charge_at_immigrate during task attach
-  memcg: split part of memcg creation to css_online
-  memcg: fast hierarchy-aware child test.
-  memcg: replace cgroup_lock with memcg specific memcg_lock
-  memcg: increment static branch right after limit set.
-  memcg: avoid dangling reference count in creation failure.
-
- mm/memcontrol.c | 193 +++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 114 insertions(+), 79 deletions(-)
-
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 09255ec..91d90a0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -398,8 +398,8 @@ static bool memcg_kmem_test_and_clear_dead(struct mem_cgroup *memcg)
+ 
+ /* Stuffs for move charges at task migration. */
+ /*
+- * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
+- * left-shifted bitmap of these types.
++ * Types of charges to be moved. "move_charge_at_immitgrate" and
++ * "immigrate_flags" are treated as a left-shifted bitmap of these types.
+  */
+ enum move_type {
+ 	MOVE_CHARGE_TYPE_ANON,	/* private anonymous page and swap of it */
+@@ -412,6 +412,7 @@ static struct move_charge_struct {
+ 	spinlock_t	  lock; /* for from, to */
+ 	struct mem_cgroup *from;
+ 	struct mem_cgroup *to;
++	unsigned long immigrate_flags;
+ 	unsigned long precharge;
+ 	unsigned long moved_charge;
+ 	unsigned long moved_swap;
+@@ -424,14 +425,12 @@ static struct move_charge_struct {
+ 
+ static bool move_anon(void)
+ {
+-	return test_bit(MOVE_CHARGE_TYPE_ANON,
+-					&mc.to->move_charge_at_immigrate);
++	return test_bit(MOVE_CHARGE_TYPE_ANON, &mc.immigrate_flags);
+ }
+ 
+ static bool move_file(void)
+ {
+-	return test_bit(MOVE_CHARGE_TYPE_FILE,
+-					&mc.to->move_charge_at_immigrate);
++	return test_bit(MOVE_CHARGE_TYPE_FILE, &mc.immigrate_flags);
+ }
+ 
+ /*
+@@ -5146,15 +5145,14 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
+ 
+ 	if (val >= (1 << NR_MOVE_TYPE))
+ 		return -EINVAL;
++
+ 	/*
+-	 * We check this value several times in both in can_attach() and
+-	 * attach(), so we need cgroup lock to prevent this value from being
+-	 * inconsistent.
++	 * No kind of locking is needed in here, because ->can_attach() will
++	 * check this value once in the beginning of the process, and then carry
++	 * on with stale data. This means that changes to this value will only
++	 * affect task migrations starting after the change.
+ 	 */
+-	cgroup_lock();
+ 	memcg->move_charge_at_immigrate = val;
+-	cgroup_unlock();
+-
+ 	return 0;
+ }
+ #else
+@@ -6530,8 +6528,15 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
+ 	struct task_struct *p = cgroup_taskset_first(tset);
+ 	int ret = 0;
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
++	unsigned long move_charge_at_immigrate;
+ 
+-	if (memcg->move_charge_at_immigrate) {
++	/*
++	 * We are now commited to this value whatever it is. Changes in this
++	 * tunable will only affect upcoming migrations, not the current one.
++	 * So we need to save it, and keep it going.
++	 */
++	move_charge_at_immigrate  = memcg->move_charge_at_immigrate;
++	if (move_charge_at_immigrate) {
+ 		struct mm_struct *mm;
+ 		struct mem_cgroup *from = mem_cgroup_from_task(p);
+ 
+@@ -6551,6 +6556,7 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
+ 			spin_lock(&mc.lock);
+ 			mc.from = from;
+ 			mc.to = memcg;
++			mc.immigrate_flags = move_charge_at_immigrate;
+ 			spin_unlock(&mc.lock);
+ 			/* We set mc.moving_task later */
+ 
 -- 
 1.8.1
 
