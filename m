@@ -1,62 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 4FA726B0005
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 18:07:28 -0500 (EST)
-Date: Tue, 22 Jan 2013 15:07:26 -0800
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 803986B0005
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 18:38:04 -0500 (EST)
+Date: Tue, 22 Jan 2013 15:38:03 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 3/3 v2]swap: add per-partition lock for swapfile
-Message-Id: <20130122150726.9d94c198.akpm@linux-foundation.org>
-In-Reply-To: <20130122023028.GC12293@kernel.org>
-References: <20130122023028.GC12293@kernel.org>
+Subject: Re: [PATCH] Subtract min_free_kbytes from dirtyable memory
+Message-Id: <20130122153803.550ddb14.akpm@linux-foundation.org>
+In-Reply-To: <201301210315.r0L3FnGV021298@como.maths.usyd.edu.au>
+References: <201301210315.r0L3FnGV021298@como.maths.usyd.edu.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, minchan@kernel.org
+To: paul.szabo@sydney.edu.au
+Cc: linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org
 
-On Tue, 22 Jan 2013 10:30:28 +0800
-Shaohua Li <shli@kernel.org> wrote:
+On Mon, 21 Jan 2013 14:15:49 +1100
+paul.szabo@sydney.edu.au wrote:
 
-> swap_lock is heavily contended when I test swap to 3 fast SSD (even slightly
-> slower than swap to 2 such SSD). The main contention comes from
-> swap_info_get(). This patch tries to fix the gap with adding a new
-> per-partition lock.
-> 
-> global data like nr_swapfiles, total_swap_pages, least_priority and swap_list are
-> still protected by swap_lock.
-> 
-> nr_swap_pages is an atomic now, it can be changed without swap_lock. In theory,
-> it's possible get_swap_page() finds no swap pages but actually there are free
-> swap pages. But sounds not a big problem.
-> 
-> accessing partition specific data (like scan_swap_map and so on) is only
-> protected by swap_info_struct.lock.
-> 
-> Changing swap_info_struct.flags need hold swap_lock and swap_info_struct.lock,
-> because scan_scan_map() will check it. read the flags is ok with either the
-> locks hold.
-> 
-> If both swap_lock and swap_info_struct.lock must be hold, we always hold the
-> former first to avoid deadlock.
-> 
-> swap_entry_free() can change swap_list. To delete that code, we add a new
-> highest_priority_index. Whenever get_swap_page() is called, we check it. If
-> it's valid, we use it.
-> 
-> It's a pitty get_swap_page() still holds swap_lock(). But in practice,
-> swap_lock() isn't heavily contended in my test with this patch (or I can say
-> there are other much more heavier bottlenecks like TLB flush). And BTW, looks
-> get_swap_page() doesn't really need the lock. We never free swap_info[] and we
-> check SWAP_WRITEOK flag. The only risk without the lock is we could swapout to
-> some low priority swap, but we can quickly recover after several rounds of
-> swap, so sounds not a big deal to me. But I'd prefer to fix this if it's a real
+> When calculating amount of dirtyable memory, min_free_kbytes should be
+> subtracted because it is not intended for dirty pages.
 
-I had to move a few things around due to changes in
-drivers/staging/zcache/.
+Makes sense.
 
-Do you have any performance testing results for this patch?
+> Using an "extern int" because that is the only interface to some such
+> sysctl values.
+
+urgh, not that way.  Let's do it properly:
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: page-writebackc-subtract-min_free_kbytes-from-dirtyable-memory-fix
+
+fix up min_free_kbytes extern declarations
+
+Cc: Paul Szabo <psz@maths.usyd.edu.au>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ include/linux/mm.h  |    3 +++
+ kernel/sysctl.c     |    1 -
+ mm/huge_memory.c    |    1 -
+ mm/page-writeback.c |    1 -
+ 4 files changed, 3 insertions(+), 3 deletions(-)
+
+--- a/mm/page-writeback.c~page-writebackc-subtract-min_free_kbytes-from-dirtyable-memory-fix
++++ a/mm/page-writeback.c
+@@ -233,7 +233,6 @@ static unsigned long highmem_dirtyable_m
+ static unsigned long global_dirtyable_memory(void)
+ {
+ 	unsigned long x;
+-	extern int min_free_kbytes;
+ 
+ 	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
+ 	x -= min(x, dirty_balance_reserve);
+--- a/include/linux/mm.h~page-writebackc-subtract-min_free_kbytes-from-dirtyable-memory-fix
++++ a/include/linux/mm.h
+@@ -1387,6 +1387,9 @@ extern void setup_per_cpu_pageset(void);
+ extern void zone_pcp_update(struct zone *zone);
+ extern void zone_pcp_reset(struct zone *zone);
+ 
++/* page_alloc.c */
++extern int min_free_kbytes;
++
+ /* nommu.c */
+ extern atomic_long_t mmap_pages_allocated;
+ extern int nommu_shrink_inode_mappings(struct inode *, size_t, size_t);
+--- a/mm/huge_memory.c~page-writebackc-subtract-min_free_kbytes-from-dirtyable-memory-fix
++++ a/mm/huge_memory.c
+@@ -105,7 +105,6 @@ static int set_recommended_min_free_kbyt
+ 	struct zone *zone;
+ 	int nr_zones = 0;
+ 	unsigned long recommended_min;
+-	extern int min_free_kbytes;
+ 
+ 	if (!khugepaged_enabled())
+ 		return 0;
+--- a/kernel/sysctl.c~page-writebackc-subtract-min_free_kbytes-from-dirtyable-memory-fix
++++ a/kernel/sysctl.c
+@@ -104,7 +104,6 @@ extern char core_pattern[];
+ extern unsigned int core_pipe_limit;
+ #endif
+ extern int pid_max;
+-extern int min_free_kbytes;
+ extern int pid_max_min, pid_max_max;
+ extern int sysctl_drop_caches;
+ extern int percpu_pagelist_fraction;
+_
+
+
+> (This patch does not solve the PAE OOM issue.)
+> 
+> Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
+> School of Mathematics and Statistics   University of Sydney    Australia
+> 
+> Reported-by: Paul Szabo <psz@maths.usyd.edu.au>
+
+Reported-by isn't needed in such cases.  It is assumed that finder==fixer.
+
+> Reference: http://bugs.debian.org/695182
+> Signed-off-by: Paul Szabo <psz@maths.usyd.edu.au>
+> 
+> --- mm/page-writeback.c.old	2012-12-06 22:20:40.000000000 +1100
+> +++ mm/page-writeback.c	2013-01-21 13:57:05.000000000 +1100
+
+Please prepare patches in `patch -p1' form.  This should be covered in
+Documentation/SubmittingPatches, but isn't. 
+Documentation/applying-patches.txt mentions it.
+
+> @@ -343,12 +343,16 @@
+>  unsigned long determine_dirtyable_memory(void)
+
+You appear to be patching an old kernel.  But the change is still
+applicable, to global_dirtyable_memory().
+
+>  {
+>  	unsigned long x;
+> +	extern int min_free_kbytes;
+>  
+>  	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
+>  
+>  	if (!vm_highmem_is_dirtyable)
+>  		x -= highmem_dirtyable_memory(x);
+>  
+> +	/* Subtract min_free_kbytes */
+> +	x -= min(x, min_free_kbytes >> (PAGE_SHIFT - 10));
+
+Generates
+
+mm/page-writeback.c:244: warning: comparison of distinct pointer types lacks a cast
+
+because of the problematic min(int, unsigned long).  min_free_kbytes
+should have an unsigned (long?) type, but I can't be bothered fixing
+that right now..
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: page-writebackc-subtract-min_free_kbytes-from-dirtyable-memory-fix-fix
+
+fix min() warning
+
+Cc: Paul Szabo <psz@maths.usyd.edu.au>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/page-writeback.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/mm/page-writeback.c~page-writebackc-subtract-min_free_kbytes-from-dirtyable-memory-fix-fix
++++ a/mm/page-writeback.c
+@@ -241,7 +241,7 @@ static unsigned long global_dirtyable_me
+ 		x -= highmem_dirtyable_memory(x);
+ 
+ 	/* Subtract min_free_kbytes */
+-	x -= min(x, min_free_kbytes >> (PAGE_SHIFT - 10));
++	x -= min_t(unsigned long, x, min_free_kbytes >> (PAGE_SHIFT - 10));
+ 
+ 	return x + 1;	/* Ensure that we never return 0 */
+ }
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
