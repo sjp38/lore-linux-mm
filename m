@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id A7C9D6B0008
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 18:52:29 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 747026B0009
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 18:52:31 -0500 (EST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v5 2/4] zram: force disksize setting before using zram
-Date: Wed, 23 Jan 2013 08:52:23 +0900
-Message-Id: <1358898745-4873-2-git-send-email-minchan@kernel.org>
+Subject: [PATCH v5 3/4] zram: give up lazy initialization of zram metadata
+Date: Wed, 23 Jan 2013 08:52:24 +0900
+Message-Id: <1358898745-4873-3-git-send-email-minchan@kernel.org>
 In-Reply-To: <1358898745-4873-1-git-send-email-minchan@kernel.org>
 References: <1358898745-4873-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,212 +13,116 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, jmarchan@redhat.com, Minchan Kim <minchan@kernel.org>
 
-Now zram document syas "set disksize is optional"
-but partly it's wrong. When you try to use zram firstly after
-booting, you must set disksize, otherwise zram can't work because
-zram gendisk's size is 0. But once you do it, you can use zram freely
-after reset because reset doesn't reset to zero paradoxically.
-So in this time, disksize setting is optional.:(
-It's inconsitent for user behavior and not straightforward.
+1) User of zram normally do mkfs.xxx or mkswap before using
+   the zram block device(ex, normally, do it at booting time)
+   It ends up allocating such metadata of zram before real usage so
+   benefit of lazy initialzation would be mitigated.
 
-This patch forces always setting disksize firstly before using zram.
-Yes. It changes current behavior so someone could complain when
-he upgrades zram. Apparently it could be a problem if zram is mainline
-but it still lives in staging so behavior could be changed for right
-way to go. Let them excuse.
+2) Some user want to use zram when memory pressure is high.(ie, load zram
+   dynamically, NOT booting time). It does make sense because people don't
+   want to waste memory until memory pressure is high(ie, where zram is really
+   helpful time). In this case, lazy initialzation could be failed easily
+   because we will use GFP_NOIO instead of GFP_KERNEL for avoiding deadlock.
+   So the benefit of lazy initialzation would be mitigated, too.
+
+3) Metadata overhead is not critical and Nitin has a plan to diet it.
+   4K : 12 byte(64bit machine) -> 64G : 192M so 0.3% isn't big overhead
+   If insane user use such big zram device up to 20, it could consume 6% of ram
+   but efficieny of zram will cover the waste.
+
+So this patch gives up lazy initialization and instead we initialize metadata
+at disksize setting time.
 
 Cc: Jerome Marchand <jmarchan@redhat.com>
 Acked-by: Nitin Gupta <ngupta@vflare.org>
-Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- drivers/staging/zram/zram.txt     |   27 ++++++++++----------
- drivers/staging/zram/zram_drv.c   |   51 +++++++++++++------------------------
- drivers/staging/zram/zram_drv.h   |    5 +---
- drivers/staging/zram/zram_sysfs.c |    6 +----
- 4 files changed, 34 insertions(+), 55 deletions(-)
+ drivers/staging/zram/zram_drv.c   |   20 ++++----------------
+ drivers/staging/zram/zram_sysfs.c |    1 +
+ 2 files changed, 5 insertions(+), 16 deletions(-)
 
-diff --git a/drivers/staging/zram/zram.txt b/drivers/staging/zram/zram.txt
-index 5f75d29..765d790 100644
---- a/drivers/staging/zram/zram.txt
-+++ b/drivers/staging/zram/zram.txt
-@@ -23,17 +23,17 @@ Following shows a typical sequence of steps for using zram.
- 	This creates 4 devices: /dev/zram{0,1,2,3}
- 	(num_devices parameter is optional. Default: 1)
- 
--2) Set Disksize (Optional):
--	Set disk size by writing the value to sysfs node 'disksize'
--	(in bytes). If disksize is not given, default value of 25%
--	of RAM is used.
--
--	# Initialize /dev/zram0 with 50MB disksize
--	echo $((50*1024*1024)) > /sys/block/zram0/disksize
--
--	NOTE: disksize cannot be changed if the disk contains any
--	data. So, for such a disk, you need to issue 'reset' (see below)
--	before you can change its disksize.
-+2) Set Disksize
-+        Set disk size by writing the value to sysfs node 'disksize'.
-+        The value can be either in bytes or you can use mem suffixes.
-+        Examples:
-+            # Initialize /dev/zram0 with 50MB disksize
-+            echo $((50*1024*1024)) > /sys/block/zram0/disksize
-+
-+            # Using mem suffixes
-+            echo 256K > /sys/block/zram0/disksize
-+            echo 512M > /sys/block/zram0/disksize
-+            echo 1G > /sys/block/zram0/disksize
- 
- 3) Activate:
- 	mkswap /dev/zram0
-@@ -65,8 +65,9 @@ Following shows a typical sequence of steps for using zram.
- 	echo 1 > /sys/block/zram0/reset
- 	echo 1 > /sys/block/zram1/reset
- 
--	(This frees all the memory allocated for the given device).
--
-+	This frees all the memory allocated for the given device and
-+	resets the disksize to zero. You must set the disksize again
-+	before reusing the device.
- 
- Please report any problems at:
-  - Mailing list: linux-mm-cc at laptop dot org
 diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-index b285b3a..f8ae1bf 100644
+index f8ae1bf..4264121 100644
 --- a/drivers/staging/zram/zram_drv.c
 +++ b/drivers/staging/zram/zram_drv.c
-@@ -94,34 +94,6 @@ static int page_zero_filled(void *ptr)
- 	return 1;
+@@ -440,16 +440,13 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
+ {
+ 	struct zram *zram = queue->queuedata;
+ 
+-	if (unlikely(!zram->init_done) && zram_init_device(zram))
+-		goto error;
+-
+ 	down_read(&zram->init_lock);
+ 	if (unlikely(!zram->init_done))
+-		goto error_unlock;
++		goto error;
+ 
+ 	if (!valid_io_request(zram, bio)) {
+ 		zram_stat64_inc(zram, &zram->stats.invalid_io);
+-		goto error_unlock;
++		goto error;
+ 	}
+ 
+ 	__zram_make_request(zram, bio, bio_data_dir(bio));
+@@ -457,9 +454,8 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
+ 
+ 	return;
+ 
+-error_unlock:
+-	up_read(&zram->init_lock);
+ error:
++	up_read(&zram->init_lock);
+ 	bio_io_error(bio);
  }
  
--static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
--{
--	if (!zram->disksize) {
--		pr_info(
--		"disk size not provided. You can use disksize_kb module "
--		"param to specify size.\nUsing default: (%u%% of RAM).\n",
--		default_disksize_perc_ram
--		);
--		zram->disksize = default_disksize_perc_ram *
--					(totalram_bytes / 100);
--	}
--
--	if (zram->disksize > 2 * (totalram_bytes)) {
--		pr_info(
--		"There is little point creating a zram of greater than "
--		"twice the size of memory since we expect a 2:1 compression "
--		"ratio. Note that zram uses about 0.1%% of the size of "
--		"the disk when not in use so a huge zram is "
--		"wasteful.\n"
--		"\tMemory Size: %zu kB\n"
--		"\tSize you selected: %llu kB\n"
--		"Continuing anyway ...\n",
--		totalram_bytes >> 10, zram->disksize >> 10);
--	}
--
--	zram->disksize &= PAGE_MASK;
--}
--
- static void zram_free_page(struct zram *zram, size_t index)
- {
- 	unsigned long handle = zram->table[index].handle;
-@@ -495,6 +467,9 @@ void __zram_reset_device(struct zram *zram)
- {
- 	size_t index;
- 
-+	if (!zram->init_done)
-+		return;
-+
- 	zram->init_done = 0;
- 
- 	/* Free various per-device buffers */
-@@ -523,6 +498,7 @@ void __zram_reset_device(struct zram *zram)
- 	memset(&zram->stats, 0, sizeof(zram->stats));
- 
- 	zram->disksize = 0;
-+	set_capacity(zram->disk, 0);
+@@ -508,18 +504,12 @@ void zram_reset_device(struct zram *zram)
+ 	up_write(&zram->init_lock);
  }
  
- void zram_reset_device(struct zram *zram)
-@@ -544,7 +520,19 @@ int zram_init_device(struct zram *zram)
- 		return 0;
- 	}
- 
--	zram_set_disksize(zram, totalram_pages << PAGE_SHIFT);
-+	if (zram->disksize > 2 * (totalram_pages << PAGE_SHIFT)) {
-+		pr_info(
-+		"There is little point creating a zram of greater than "
-+		"twice the size of memory since we expect a 2:1 compression "
-+		"ratio. Note that zram uses about 0.1%% of the size of "
-+		"the disk when not in use so a huge zram is "
-+		"wasteful.\n"
-+		"\tMemory Size: %zu kB\n"
-+		"\tSize you selected: %llu kB\n"
-+		"Continuing anyway ...\n",
-+		(totalram_pages << PAGE_SHIFT) >> 10, zram->disksize >> 10
-+		);
-+	}
- 
- 	zram->compress_workmem = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
- 	if (!zram->compress_workmem) {
-@@ -569,8 +557,6 @@ int zram_init_device(struct zram *zram)
- 		goto fail_no_table;
- 	}
- 
--	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
--
- 	/* zram devices sort of resembles non-rotational disks */
- 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
- 
-@@ -749,8 +735,7 @@ static void __exit zram_exit(void)
- 		zram = &zram_devices[i];
- 
- 		destroy_device(zram);
--		if (zram->init_done)
--			zram_reset_device(zram);
-+		zram_reset_device(zram);
- 	}
- 
- 	unregister_blkdev(zram_major, "zram");
-diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
-index df2eec4..5b671d1 100644
---- a/drivers/staging/zram/zram_drv.h
-+++ b/drivers/staging/zram/zram_drv.h
-@@ -28,9 +28,6 @@ static const unsigned max_num_devices = 32;
- 
- /*-- Configurable parameters */
- 
--/* Default zram disk size: 25% of total RAM */
--static const unsigned default_disksize_perc_ram = 25;
--
- /*
-  * Pages that compress to size greater than this are stored
-  * uncompressed in memory.
-@@ -115,6 +112,6 @@ extern struct attribute_group zram_disk_attr_group;
- #endif
- 
- extern int zram_init_device(struct zram *zram);
--extern void __zram_reset_device(struct zram *zram);
-+extern void zram_reset_device(struct zram *zram);
- 
- #endif
-diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/staging/zram/zram_sysfs.c
-index de1eacf..4143af9 100644
---- a/drivers/staging/zram/zram_sysfs.c
-+++ b/drivers/staging/zram/zram_sysfs.c
-@@ -110,11 +110,7 @@ static ssize_t reset_store(struct device *dev,
- 	if (bdev)
- 		fsync_bdev(bdev);
++/* zram->init_lock should be held */
+ int zram_init_device(struct zram *zram)
+ {
+ 	int ret;
+ 	size_t num_pages;
  
 -	down_write(&zram->init_lock);
--	if (zram->init_done)
--		__zram_reset_device(zram);
--	up_write(&zram->init_lock);
 -
-+	zram_reset_device(zram);
- 	return len;
- }
+-	if (zram->init_done) {
+-		up_write(&zram->init_lock);
+-		return 0;
+-	}
+-
+ 	if (zram->disksize > 2 * (totalram_pages << PAGE_SHIFT)) {
+ 		pr_info(
+ 		"There is little point creating a zram of greater than "
+@@ -568,7 +558,6 @@ int zram_init_device(struct zram *zram)
+ 	}
  
+ 	zram->init_done = 1;
+-	up_write(&zram->init_lock);
+ 
+ 	pr_debug("Initialization done!\n");
+ 	return 0;
+@@ -578,7 +567,6 @@ fail_no_table:
+ 	zram->disksize = 0;
+ fail:
+ 	__zram_reset_device(zram);
+-	up_write(&zram->init_lock);
+ 	pr_err("Initialization failed: err=%d\n", ret);
+ 	return ret;
+ }
+diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/staging/zram/zram_sysfs.c
+index 4143af9..369db12 100644
+--- a/drivers/staging/zram/zram_sysfs.c
++++ b/drivers/staging/zram/zram_sysfs.c
+@@ -71,6 +71,7 @@ static ssize_t disksize_store(struct device *dev,
+ 
+ 	zram->disksize = PAGE_ALIGN(disksize);
+ 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
++	zram_init_device(zram);
+ 	up_write(&zram->init_lock);
+ 
+ 	return len;
 -- 
 1.7.9.5
 
