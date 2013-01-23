@@ -1,161 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 3F3076B0005
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 00:15:45 -0500 (EST)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 23 Jan 2013 15:11:41 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 411AD2BB004A
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:15:39 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0N5FapB66912388
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:15:38 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0N5FafW018522
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:15:37 +1100
-Date: Wed, 23 Jan 2013 13:15:34 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 1/3] slub: correct to calculate num of acquired
- objects in get_partial_node()
-Message-ID: <20130123051534.GB29207@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1358755287-3899-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 669166B0008
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 00:42:21 -0500 (EST)
+Message-ID: <50FF75D1.6070303@cn.fujitsu.com>
+Date: Wed, 23 Jan 2013 13:32:01 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1358755287-3899-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: Build error of mmotm-2013-01-18-15-48
+References: <20130123041101.GC2723@blaptop>
+In-Reply-To: <20130123041101.GC2723@blaptop>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, js1304@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
 
-On Mon, Jan 21, 2013 at 05:01:25PM +0900, Joonsoo Kim wrote:
->There is a subtle bug when calculating a number of acquired objects.
+On 01/23/2013 12:11 PM, Minchan Kim wrote:
+> Hi Tang Chen,
 >
->Currently, we calculate "available = page->objects - page->inuse",
->after acquire_slab() is called in get_partial_node().
+> I encountered build error from mmotm-2013-01-18-15-48 when I try to
+> build ARM config. I know you sent a bunch of patches but not sure
+> it was fixed via them.
 >
->In acquire_slab() with mode = 1, we always set new.inuse = page->objects.
->So,
+> Thanks.
 >
->	acquire_slab(s, n, page, object == NULL);
->
->	if (!object) {
->		c->page = page;
->		stat(s, ALLOC_FROM_PARTIAL);
->		object = t;
->		available = page->objects - page->inuse;
->
->		!!! availabe is always 0 !!!
->	...
->
->Therfore, "available > s->cpu_partial / 2" is always false and
->we always go to second iteration.
->This patch correct this problem.
->
->After that, we don't need return value of put_cpu_partial().
->So remove it.
->
->v2: calculate nr of objects using new.objects and new.inuse.
->It is more accurate way than before.
+>    CHK     include/generated/uapi/linux/version.h
+>    CHK     include/generated/utsrelease.h
+> make[1]: `include/generated/mach-types.h' is up to date.
+>    CALL    scripts/checksyscalls.sh
+>    CC      mm/memblock.o
+> mm/memblock.c: In function 'memblock_find_in_range_node':
+> mm/memblock.c:104: error: invalid use of undefined type 'struct movablecore_map'
+> mm/memblock.c:123: error: invalid use of undefined type 'struct movablecore_map'
+> mm/memblock.c:130: error: invalid use of undefined type 'struct movablecore_map'
+> mm/memblock.c:131: error: invalid use of undefined type 'struct movablecore_map'
 >
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Hi Minchan,
 
->Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
->diff --git a/mm/slub.c b/mm/slub.c
->index ba2ca53..7204c74 100644
->--- a/mm/slub.c
->+++ b/mm/slub.c
->@@ -1493,7 +1493,7 @@ static inline void remove_partial(struct kmem_cache_node *n,
->  */
-> static inline void *acquire_slab(struct kmem_cache *s,
-> 		struct kmem_cache_node *n, struct page *page,
->-		int mode)
->+		int mode, int *objects)
-> {
-> 	void *freelist;
-> 	unsigned long counters;
->@@ -1507,6 +1507,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
-> 	freelist = page->freelist;
-> 	counters = page->counters;
-> 	new.counters = counters;
->+	*objects = new.objects - new.inuse;
-> 	if (mode) {
-> 		new.inuse = page->objects;
-> 		new.freelist = NULL;
->@@ -1528,7 +1529,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
-> 	return freelist;
-> }
->
->-static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
->+static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
-> static inline bool pfmemalloc_match(struct page *page, gfp_t gfpflags);
->
-> /*
->@@ -1539,6 +1540,8 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
-> {
-> 	struct page *page, *page2;
-> 	void *object = NULL;
->+	int available = 0;
->+	int objects;
->
-> 	/*
-> 	 * Racy check. If we mistakenly see no partial slabs then we
->@@ -1552,22 +1555,21 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
-> 	spin_lock(&n->list_lock);
-> 	list_for_each_entry_safe(page, page2, &n->partial, lru) {
-> 		void *t;
->-		int available;
->
-> 		if (!pfmemalloc_match(page, flags))
-> 			continue;
->
->-		t = acquire_slab(s, n, page, object == NULL);
->+		t = acquire_slab(s, n, page, object == NULL, &objects);
-> 		if (!t)
-> 			break;
->
->+		available += objects;
-> 		if (!object) {
-> 			c->page = page;
-> 			stat(s, ALLOC_FROM_PARTIAL);
-> 			object = t;
->-			available =  page->objects - page->inuse;
-> 		} else {
->-			available = put_cpu_partial(s, page, 0);
->+			put_cpu_partial(s, page, 0);
-> 			stat(s, CPU_PARTIAL_NODE);
-> 		}
-> 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
->@@ -1946,7 +1948,7 @@ static void unfreeze_partials(struct kmem_cache *s,
->  * If we did not find a slot then simply move all the partials to the
->  * per node partial list.
->  */
->-static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
->+static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
-> {
-> 	struct page *oldpage;
-> 	int pages;
->@@ -1984,7 +1986,6 @@ static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
-> 		page->next = oldpage;
->
-> 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
->-	return pobjects;
-> }
->
-> static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
->-- 
->1.7.9.5
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thank you for reporting this. :)
+
+I think this problem has been fixed by the following patch I sent yesterday.
+But it is weird, I cannot access to the LKML site of 2013/1/22. So I didn't
+get an url for you. :)
+
+This patch was merged into -mm tree this morning.
+
+And since I don't have an ARM platform, so I didn't test it on ARM.
+Please tell me if your problem is not solved after applying this patch.
+
+Thanks. :)
+
+
+
+[PATCH Bug fix 1/4] Bug fix: Use CONFIG_HAVE_MEMBLOCK_NODE_MAP to 
+protect movablecore_map in memblock_overlaps_region().
+
+The definition of struct movablecore_map is protected by
+CONFIG_HAVE_MEMBLOCK_NODE_MAP but its use in memblock_overlaps_region()
+is not. So add CONFIG_HAVE_MEMBLOCK_NODE_MAP to protect the use of
+movablecore_map in memblock_overlaps_region().
+
+Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+---
+  include/linux/memblock.h |    3 ++-
+  mm/memblock.c            |   34 ++++++++++++++++++++++++++++++++++
+  2 files changed, 36 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 6e25597..ac52bbc 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -42,7 +42,6 @@ struct memblock {
+
+  extern struct memblock memblock;
+  extern int memblock_debug;
+-extern struct movablecore_map movablecore_map;
+
+  #define memblock_dbg(fmt, ...) \
+  	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+@@ -61,6 +60,8 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+  void memblock_trim_memory(phys_addr_t align);
+
+  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
++extern struct movablecore_map movablecore_map;
++
+  void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+  			  unsigned long *out_end_pfn, int *out_nid);
+
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 1e48774..0218231 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -92,9 +92,13 @@ static long __init_memblock 
+memblock_overlaps_region(struct memblock_type *type,
+   *
+   * Find @size free area aligned to @align in the specified range and node.
+   *
++ * If we have CONFIG_HAVE_MEMBLOCK_NODE_MAP defined, we need to check 
+if the
++ * memory we found if not in hotpluggable ranges.
++ *
+   * RETURNS:
+   * Found address on success, %0 on failure.
+   */
++#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+  phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
+  					phys_addr_t end, phys_addr_t size,
+  					phys_addr_t align, int nid)
+@@ -139,6 +143,36 @@ restart:
+
+  	return 0;
+  }
++#else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
++phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
++					phys_addr_t end, phys_addr_t size,
++					phys_addr_t align, int nid)
++{
++	phys_addr_t this_start, this_end, cand;
++	u64 i;
++
++	/* pump up @end */
++	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
++		end = memblock.current_limit;
++
++	/* avoid allocating the first page */
++	start = max_t(phys_addr_t, start, PAGE_SIZE);
++	end = max(start, end);
++
++	for_each_free_mem_range_reverse(i, nid, &this_start, &this_end, NULL) {
++		this_start = clamp(this_start, start, end);
++		this_end = clamp(this_end, start, end);
++
++		if (this_end < size)
++			continue;
++
++		cand = round_down(this_end - size, align);
++		if (cand >= this_start)
++			return cand;
++	}
++	return 0;
++}
++#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+
+  /**
+   * memblock_find_in_range - find free area in given range
+-- 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
