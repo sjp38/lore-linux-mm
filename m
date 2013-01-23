@@ -1,109 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id C0C1B6B0008
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:12:57 -0500 (EST)
-Date: Wed, 23 Jan 2013 13:12:55 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2013-01-18-15-48 uploaded (memory_hotplug.c)
-Message-Id: <20130123131255.756b65b2.akpm@linux-foundation.org>
-In-Reply-To: <50FAF197.5010700@infradead.org>
-References: <20130118234944.5C99C31C240@corp2gmr1-1.hot.corp.google.com>
-	<50FAF197.5010700@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 765EA6B0008
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:37:57 -0500 (EST)
+Received: by mail-ie0-f172.google.com with SMTP id c13so14322569ieb.17
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2013 13:37:56 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20130123042714.GD2723@blaptop>
+References: <1358848018-3679-1-git-send-email-ezequiel.garcia@free-electrons.com>
+	<20130123042714.GD2723@blaptop>
+Date: Wed, 23 Jan 2013 18:37:56 -0300
+Message-ID: <CALF0-+V6D1Ka9SNyrgRAgTSGLUTp_9y4vYwauSx1qCfU-JOwjA@mail.gmail.com>
+Subject: Re: [RFC/PATCH] scripts/tracing: Add trace_analyze.py tool
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Ezequiel Garcia <ezequiel.garcia@free-electrons.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tim Bird <tim.bird@am.sony.com>, Pekka Enberg <penberg@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Ingo Molnar <mingo@redhat.com>
 
-On Sat, 19 Jan 2013 11:18:47 -0800
-Randy Dunlap <rdunlap@infradead.org> wrote:
+Hi Minchan,
 
-> On 01/18/13 15:49, akpm@linux-foundation.org wrote:
-> > The mm-of-the-moment snapshot 2013-01-18-15-48 has been uploaded to
-> > 
-> >    http://www.ozlabs.org/~akpm/mmotm/
-> > 
-> > mmotm-readme.txt says
-> > 
-> > README for mm-of-the-moment:
-> > 
-> > http://www.ozlabs.org/~akpm/mmotm/
-> > 
-> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> > more than once a week.
-> > 
-> 
-> 
-> mm/memory_hotplug.c:1092:29: warning: the address of 'contig_page_data' will always evaluate as 'true' [-Waddress]
-> 
+On Wed, Jan 23, 2013 at 1:27 AM, Minchan Kim <minchan@kernel.org> wrote:
+> Hi Ezequiel,
+>
+> On Tue, Jan 22, 2013 at 06:46:58AM -0300, Ezequiel Garcia wrote:
+>> From: Ezequiel Garcia <elezegarcia@gmail.com>
+>>
+>> The purpose of trace_analyze.py tool is to perform static
+>> and dynamic memory analysis using a kmem ftrace
+>> log file and a built kernel tree.
+>>
+>> This script and related work has been done on the CEWG/2012 project:
+>> "Kernel dynamic memory allocation tracking and reduction"
+>> (More info here [1])
+>>
+>> It produces mainly two kinds of outputs:
+>>  * an account-like output, similar to the one given by Perf, example below.
+>>  * a ring-char output, examples here [2].
+>>
+>> $ ./scripts/tracing/trace_analyze.py -k linux -f kmem.log --account-file account.txt
+>> $ ./scripts/tracing/trace_analyze.py -k linux -f kmem.log -c account.txt
+>>
+>> This will produce an account file like this:
+>>
+>>     current bytes allocated:     669696
+>>     current bytes requested:     618823
+>>     current wasted bytes:         50873
+>>     number of allocs:              7649
+>>     number of frees:               2563
+>>     number of callers:              115
+>>
+>>      total    waste      net alloc/free  caller
+>>     ---------------------------------------------
+>>     299200        0   298928  1100/1     alloc_inode+0x4fL
+>>     189824        0   140544  1483/385   __d_alloc+0x22L
+>>      51904        0    47552   811/68    sysfs_new_dirent+0x4eL
+>>     [...]
+>>
+>> [1] http://elinux.org/Kernel_dynamic_memory_analysis
+>> [2] http://elinux.org/Kernel_dynamic_memory_analysis#Current_dynamic_footprint
+>
+> First of all, Thanks for nice work! It could be very useful for
+> embedded side.
+>
+> Questions.
+>
+> 1. Can we detect different call path but same function?
+>    I mean
+>
+>         A       C
+>          \     /
+>           B   D
+>            \ /
+>             E
+>             |
+>          kmalloc
+>
+> In this case, E could be called by A or C. I would like to know the call path.
+> It could point out exact culprit of memory hogger.
+>
 
-yup, due to
+I'm sorry, I'm not following you:
+How can I know which caller in the call path is the 'real' responsible
+for the allocation?
 
-	new_pgdat = NODE_DATA(nid) ? 0 : 1;
+The only way I can think of achieving something like this is by using
+kmalloc_track_caller() instead of kmalloc().
+This is done in cases where an allocer is known to alloc memory on
+behalf of its caller.
 
-and
+> 2. Does it support alloc_pages family?
+>    kmem event trace already supports it. If it supports, maybe we can replace
+>    CONFIG_PAGE_OWNER hack.
+>
 
-	#ifndef CONFIG_NEED_MULTIPLE_NODES
+Mmm.. no, it doesn't support alloc_pages and friends, for we found
+no reason to do it.
+However, it sounds like a nice idea, on a first thought.
 
-	extern struct pglist_data contig_page_data;
-	#define NODE_DATA(nid)		(&contig_page_data)
+I'll review CONFIG_PAGE_OWNER patches and see if I can come up with something.
 
+Meantime, and given this is just a script submission, is there anything
+preventing to merge this? We can move it to perf, and/or add it
+features, etc. later,
+on top of this. Does this make sense?
 
-This fixes it and removes a couple of unneeded initialisations.
-
-
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: memory-hotplug-do-not-allocate-pdgat-if-it-was-not-freed-when-offline-fix
-
-fix warning when CONFIG_NEED_MULTIPLE_NODES=n
-
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Jiang Liu <jiang.liu@huawei.com>
-Cc: Jianguo Wu <wujianguo@huawei.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Wen Congyang <wency@cn.fujitsu.com>
-Cc: Wu Jianguo <wujianguo@huawei.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/memory_hotplug.c |    7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
-
-diff -puN mm/memory_hotplug.c~memory-hotplug-do-not-allocate-pdgat-if-it-was-not-freed-when-offline-fix mm/memory_hotplug.c
---- a/mm/memory_hotplug.c~memory-hotplug-do-not-allocate-pdgat-if-it-was-not-freed-when-offline-fix
-+++ a/mm/memory_hotplug.c
-@@ -1077,7 +1077,8 @@ out:
- int __ref add_memory(int nid, u64 start, u64 size)
- {
- 	pg_data_t *pgdat = NULL;
--	int new_pgdat = 0, new_node = 0;
-+	bool new_pgdat;
-+	bool new_node;
- 	struct resource *res;
- 	int ret;
- 
-@@ -1088,8 +1089,8 @@ int __ref add_memory(int nid, u64 start,
- 	if (!res)
- 		goto out;
- 
--	new_pgdat = NODE_DATA(nid) ? 0 : 1;
--	new_node = node_online(nid) ? 0 : 1;
-+	new_pgdat = (NODE_DATA(nid) == NULL);
-+	new_node = !node_online(nid);
- 	if (new_node) {
- 		pgdat = hotadd_new_pgdat(nid, start);
- 		ret = -ENOMEM;
-_
+-- 
+    Ezequiel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
