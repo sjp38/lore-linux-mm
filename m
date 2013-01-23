@@ -1,17 +1,9 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] [Patch] mmu_notifier_unregister NULL Pointer deref fix.
-Date: Wed, 23 Jan 2013 10:00:15 +0800
-Message-ID: <37702.935076277$1358906448@news.gmane.org>
-References: <50F765CC.9040608@linux.vnet.ibm.com>
- <20130117111213.GM3438@sgi.com>
- <50F7EC6B.6030401@linux.vnet.ibm.com>
- <20130117134523.GN3438@sgi.com>
- <50F8B67F.4090901@linux.vnet.ibm.com>
- <20130118024856.GC3460@sgi.com>
- <50F8BBAA.1020904@linux.vnet.ibm.com>
- <20130118121439.GR3438@sgi.com>
- <50F94562.6010909@linux.vnet.ibm.com>
- <20130118151430.GD3460@sgi.com>
+Subject: Re: [PATCH v2 1/3] slub: correct to calculate num of acquired
+ objects in get_partial_node()
+Date: Wed, 23 Jan 2013 13:15:34 +0800
+Message-ID: <28272.8921891705$1358918174@news.gmane.org>
+References: <1358755287-3899-1-git-send-email-iamjoonsoo.kim@lge.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -19,151 +11,149 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1Txpds-0004l9-M1
-	for glkm-linux-mm-2@m.gmane.org; Wed, 23 Jan 2013 03:00:44 +0100
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 1FE476B0005
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 21:00:25 -0500 (EST)
+	id 1Txsgv-0006jk-DL
+	for glkm-linux-mm-2@m.gmane.org; Wed, 23 Jan 2013 06:16:05 +0100
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 3F3076B0005
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 00:15:45 -0500 (EST)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 23 Jan 2013 07:28:32 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 8AD29394004C
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 07:30:17 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0N20FqW46661714
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 07:30:16 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0N20GV1025389
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 13:00:16 +1100
+	Wed, 23 Jan 2013 15:11:41 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 411AD2BB004A
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:15:39 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0N5FapB66912388
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:15:38 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0N5FafW018522
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:15:37 +1100
 Content-Disposition: inline
-In-Reply-To: <20130118151430.GD3460@sgi.com>
+In-Reply-To: <1358755287-3899-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Avi Kivity <avi@redhat.com>, Hugh Dickins <hughd@google.com>, Marcelo Tosatti <mtosatti@redhat.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Sagi Grimberg <sagig@mellanox.co.il>, Haggai Eran <haggaie@mellanox.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, js1304@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri, Jan 18, 2013 at 09:14:30AM -0600, Robin Holt wrote:
->On Fri, Jan 18, 2013 at 08:51:46PM +0800, Xiao Guangrong wrote:
->> On 01/18/2013 08:14 PM, Robin Holt wrote:
->> > On Fri, Jan 18, 2013 at 11:04:10AM +0800, Xiao Guangrong wrote:
->> >> On 01/18/2013 10:48 AM, Robin Holt wrote:
->> >>> On Fri, Jan 18, 2013 at 10:42:07AM +0800, Xiao Guangrong wrote:
->> >>>> On 01/17/2013 09:45 PM, Robin Holt wrote:
->> >>>>> On Thu, Jan 17, 2013 at 08:19:55PM +0800, Xiao Guangrong wrote:
->> >>>>>> On 01/17/2013 07:12 PM, Robin Holt wrote:
->> >>>>>>> On Thu, Jan 17, 2013 at 10:45:32AM +0800, Xiao Guangrong wrote:
->> >>>>>>>> On 01/17/2013 05:01 AM, Robin Holt wrote:
->> >>>>>>>>>
->> >>>>>>>>> There is a race condition between mmu_notifier_unregister() and
->> >>>>>>>>> __mmu_notifier_release().
->> >>>>>>>>>
->> >>>>>>>>> Assume two tasks, one calling mmu_notifier_unregister() as a result
->> >>>>>>>>> of a filp_close() ->flush() callout (task A), and the other calling
->> >>>>>>>>> mmu_notifier_release() from an mmput() (task B).
->> >>>>>>>>>
->> >>>>>>>>>                 A                               B
->> >>>>>>>>> t1                                              srcu_read_lock()
->> >>>>>>>>> t2              if (!hlist_unhashed())
->> >>>>>>>>> t3                                              srcu_read_unlock()
->> >>>>>>>>> t4              srcu_read_lock()
->> >>>>>>>>> t5                                              hlist_del_init_rcu()
->> >>>>>>>>> t6                                              synchronize_srcu()
->> >>>>>>>>> t7              srcu_read_unlock()
->> >>>>>>>>> t8              hlist_del_rcu()  <--- NULL pointer deref.
->> >>>>>>>>
->> >>>>>>>> The detailed code here is:
->> >>>>>>>> 	hlist_del_rcu(&mn->hlist);
->> >>>>>>>>
->> >>>>>>>> Can mn be NULL? I do not think so since mn is always the embedded struct
->> >>>>>>>> of the caller, it be freed after calling mmu_notifier_unregister.
->> >>>>>>>
->> >>>>>>> If you look at __mmu_notifier_release() it is using hlist_del_init_rcu()
->> >>>>>>> which will set the hlist->pprev to NULL.  When hlist_del_rcu() is called,
->> >>>>>>> it attempts to update *hlist->pprev = hlist->next and that is where it
->> >>>>>>> takes the NULL pointer deref.
->> >>>>>>
->> >>>>>> Yes, sorry for my careless. So, That can not be fixed by using
->> >>>>>> hlist_del_init_rcu instead?
->> >>>>>
->> >>>>> The problem is the race described above.  Thread 'A' has checked to see
->> >>>>> if n->pprev != NULL.  Based upon that, it did called the mn->release()
->> >>>>> method.  While it was trying to call the release method, thread 'B' ended
->> >>>>> up calling hlist_del_init_rcu() which set n->pprev = NULL.  Then thread
->> >>>>> 'A' got to run again and now it tries to do the hlist_del_rcu() which, as
->> >>>>> part of __hlist_del(), the pprev will be set to n->pprev (which is NULL)
->> >>>>> and then *pprev = n->next; hits the NULL pointer deref hits.
->> >>>>
->> >>>> I mean using hlist_del_init_rcu instead of hlist_del_rcu in
->> >>>> mmu_notifier_unregister(), hlist_del_init_rcu is aware of ->pprev.
->> >>>
->> >>> How does that address the calling of the ->release() method twice?
->> >>
->> >> Hmm, what is the problem of it? If it is just for "performance issue", i think
->> >> it is not worth introducing so complex lock rule just for the really rare case.
->> > 
->> > Complex lock rule?  We merely moved the lock up earlier in code path.
->> > Without this, we have some cases where you get called on ->release()
->> > twice, while the majority of cases your notifier gets called once and
->> > it hits a NULL pointer deref at that.  What is so complex about that?
->> 
->> 
->> Aha, if we use hlist_del_init_rcu() instead of hlist_del_rcu, can the NULL deref
->> bug be fixed?
->> 
->> - If yes, you'd better make it as a simple patch, it is good for backport. Then
->>   make the second patch to fix the "problem" of calling ->release twice.
->> 
->> - if no. Could you please detail the changelog. From the changelog, i only see
->>   the bug is cased by calling hlist_del_rcu on the unhashed node.
+On Mon, Jan 21, 2013 at 05:01:25PM +0900, Joonsoo Kim wrote:
+>There is a subtle bug when calculating a number of acquired objects.
 >
->What is it about this patch makes you think it is complex?  There are:
+>Currently, we calculate "available = page->objects - page->inuse",
+>after acquire_slab() is called in get_partial_node().
 >
->1) 11 Lines relocated.
->2) 5 new lines added (4 four an optimization, 1 for "else" case).
->3) 5 blank line introduced.
->4) 1 comment line fixed.
+>In acquire_slab() with mode = 1, we always set new.inuse = page->objects.
+>So,
 >
->I would happily remove the optimization which brings us down to an else
->case.  That could be removed by introducing a temporary variable as well,
->but that seems pointless.
+>	acquire_slab(s, n, page, object == NULL);
 >
->Bottom line, I do not see how this patch, as-is or with some slight
->tweaking, is not already candidate material for the -stable trees.
->It is certainly not complex and significantly improves an inconsistency
->with how the unregister notifier has worked for a few years.  It is a new
->behavior which is contrary to the comments in mmu_notifier.h which says:
+>	if (!object) {
+>		c->page = page;
+>		stat(s, ALLOC_FROM_PARTIAL);
+>		object = t;
+>		available = page->objects - page->inuse;
 >
->         * Called either by mmu_notifier_unregister or when the mm is
->         * being destroyed by exit_mmap, always before all pages are
->...
->        void (*release)(struct mmu_notifier *mn,
+>		!!! availabe is always 0 !!!
+>	...
 >
->That does not say "and/or", it says "or" which used to be "once and
->only once", but is now "once, unless it is twice".  This new behavior
->was affecting some of our test jobs, but the failures were so sporadic
->that we were not making any progress on identifying the failures until we
->stumbled on a test case which more frequently failed, then refined that
->test to trigger easily.
+>Therfore, "available > s->cpu_partial / 2" is always false and
+>we always go to second iteration.
+>This patch correct this problem.
 >
->My reluctance to not improving the double callout is I would need to repeat
->a significant amount of testing to ensure the other problems are also
->fixed with just the removal of the NULL pointer deref.  I believe they
->are, but I am not certain.
+>After that, we don't need return value of put_cpu_partial().
+>So remove it.
+>
+>v2: calculate nr of objects using new.objects and new.inuse.
+>It is more accurate way than before.
+>
 
-Hi Robin,
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-It seems that the race lead to both NULL pointer deref and call release
-twice, however, title and changelog just mentioned NULL pointer deref. 
-Otherwise, fair enough to me. :)
-
-Regards,
-Wanpeng Li 
-
+>Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >
->Thanks,
->Robin
+>diff --git a/mm/slub.c b/mm/slub.c
+>index ba2ca53..7204c74 100644
+>--- a/mm/slub.c
+>+++ b/mm/slub.c
+>@@ -1493,7 +1493,7 @@ static inline void remove_partial(struct kmem_cache_node *n,
+>  */
+> static inline void *acquire_slab(struct kmem_cache *s,
+> 		struct kmem_cache_node *n, struct page *page,
+>-		int mode)
+>+		int mode, int *objects)
+> {
+> 	void *freelist;
+> 	unsigned long counters;
+>@@ -1507,6 +1507,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
+> 	freelist = page->freelist;
+> 	counters = page->counters;
+> 	new.counters = counters;
+>+	*objects = new.objects - new.inuse;
+> 	if (mode) {
+> 		new.inuse = page->objects;
+> 		new.freelist = NULL;
+>@@ -1528,7 +1529,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
+> 	return freelist;
+> }
+>
+>-static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
+>+static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
+> static inline bool pfmemalloc_match(struct page *page, gfp_t gfpflags);
+>
+> /*
+>@@ -1539,6 +1540,8 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+> {
+> 	struct page *page, *page2;
+> 	void *object = NULL;
+>+	int available = 0;
+>+	int objects;
+>
+> 	/*
+> 	 * Racy check. If we mistakenly see no partial slabs then we
+>@@ -1552,22 +1555,21 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+> 	spin_lock(&n->list_lock);
+> 	list_for_each_entry_safe(page, page2, &n->partial, lru) {
+> 		void *t;
+>-		int available;
+>
+> 		if (!pfmemalloc_match(page, flags))
+> 			continue;
+>
+>-		t = acquire_slab(s, n, page, object == NULL);
+>+		t = acquire_slab(s, n, page, object == NULL, &objects);
+> 		if (!t)
+> 			break;
+>
+>+		available += objects;
+> 		if (!object) {
+> 			c->page = page;
+> 			stat(s, ALLOC_FROM_PARTIAL);
+> 			object = t;
+>-			available =  page->objects - page->inuse;
+> 		} else {
+>-			available = put_cpu_partial(s, page, 0);
+>+			put_cpu_partial(s, page, 0);
+> 			stat(s, CPU_PARTIAL_NODE);
+> 		}
+> 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
+>@@ -1946,7 +1948,7 @@ static void unfreeze_partials(struct kmem_cache *s,
+>  * If we did not find a slot then simply move all the partials to the
+>  * per node partial list.
+>  */
+>-static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>+static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+> {
+> 	struct page *oldpage;
+> 	int pages;
+>@@ -1984,7 +1986,6 @@ static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+> 		page->next = oldpage;
+>
+> 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
+>-	return pobjects;
+> }
+>
+> static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+>-- 
+>1.7.9.5
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
