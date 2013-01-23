@@ -1,56 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 4CA9F6B0008
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 14:04:33 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 23 Jan 2013 14:04:31 -0500
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 7867B38C803F
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 14:04:29 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0NJ4Sbf322244
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 14:04:29 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0NJ4RjU020710
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 14:04:28 -0500
-Message-ID: <51003439.2070505@linux.vnet.ibm.com>
-Date: Wed, 23 Jan 2013 13:04:25 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
-References: <20130122065341.GA1850@kernel.org> <20130123075808.GH2723@blaptop>
-In-Reply-To: <20130123075808.GH2723@blaptop>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id C0C1B6B0008
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:12:57 -0500 (EST)
+Date: Wed, 23 Jan 2013 13:12:55 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mmotm 2013-01-18-15-48 uploaded (memory_hotplug.c)
+Message-Id: <20130123131255.756b65b2.akpm@linux-foundation.org>
+In-Reply-To: <50FAF197.5010700@infradead.org>
+References: <20130118234944.5C99C31C240@corp2gmr1-1.hot.corp.google.com>
+	<50FAF197.5010700@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Shaohua Li <shli@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>
 
-On 01/23/2013 01:58 AM, Minchan Kim wrote:
-> Currently, the page table entries that have swapped out pages
-> associated with them contain a swap entry, pointing directly
-> at the swap device and swap slot containing the data. Meanwhile,
-> the swap count lives in a separate array.
+On Sat, 19 Jan 2013 11:18:47 -0800
+Randy Dunlap <rdunlap@infradead.org> wrote:
+
+> On 01/18/13 15:49, akpm@linux-foundation.org wrote:
+> > The mm-of-the-moment snapshot 2013-01-18-15-48 has been uploaded to
+> > 
+> >    http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > mmotm-readme.txt says
+> > 
+> > README for mm-of-the-moment:
+> > 
+> > http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> > more than once a week.
+> > 
 > 
-> The redesign we are considering moving the swap entry to the
-> page cache radix tree for the swapper_space and having the pte
-> contain only the offset into the swapper_space.  The swap count
-> info can also fit inside the swapper_space page cache radix
-> tree (at least on 64 bits - on 32 bits we may need to get
-> creative or accept a smaller max amount of swap space).
+> 
+> mm/memory_hotplug.c:1092:29: warning: the address of 'contig_page_data' will always evaluate as 'true' [-Waddress]
+> 
 
-Correct me if I'm wrong, but this recent patchset creating a
-swapper_space per type would mess this up right?  The offset alone
-would no longer be sufficient to access the proper swapper_space.
+yup, due to
 
-Why not just continue to store the entire swap entry (type and offset)
-in the pte?  Where you planning to use the type space in the pte for
-something else?
+	new_pgdat = NODE_DATA(nid) ? 0 : 1;
 
-Seth
+and
+
+	#ifndef CONFIG_NEED_MULTIPLE_NODES
+
+	extern struct pglist_data contig_page_data;
+	#define NODE_DATA(nid)		(&contig_page_data)
+
+
+This fixes it and removes a couple of unneeded initialisations.
+
+
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: memory-hotplug-do-not-allocate-pdgat-if-it-was-not-freed-when-offline-fix
+
+fix warning when CONFIG_NEED_MULTIPLE_NODES=n
+
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@elte.hu>
+Cc: Jiang Liu <jiang.liu@huawei.com>
+Cc: Jianguo Wu <wujianguo@huawei.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Lai Jiangshan <laijs@cn.fujitsu.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Wu Jianguo <wujianguo@huawei.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/memory_hotplug.c |    7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff -puN mm/memory_hotplug.c~memory-hotplug-do-not-allocate-pdgat-if-it-was-not-freed-when-offline-fix mm/memory_hotplug.c
+--- a/mm/memory_hotplug.c~memory-hotplug-do-not-allocate-pdgat-if-it-was-not-freed-when-offline-fix
++++ a/mm/memory_hotplug.c
+@@ -1077,7 +1077,8 @@ out:
+ int __ref add_memory(int nid, u64 start, u64 size)
+ {
+ 	pg_data_t *pgdat = NULL;
+-	int new_pgdat = 0, new_node = 0;
++	bool new_pgdat;
++	bool new_node;
+ 	struct resource *res;
+ 	int ret;
+ 
+@@ -1088,8 +1089,8 @@ int __ref add_memory(int nid, u64 start,
+ 	if (!res)
+ 		goto out;
+ 
+-	new_pgdat = NODE_DATA(nid) ? 0 : 1;
+-	new_node = node_online(nid) ? 0 : 1;
++	new_pgdat = (NODE_DATA(nid) == NULL);
++	new_node = !node_online(nid);
+ 	if (new_node) {
+ 		pgdat = hotadd_new_pgdat(nid, start);
+ 		ret = -ENOMEM;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
