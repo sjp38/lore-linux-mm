@@ -1,62 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 273B66B0008
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 09:39:22 -0500 (EST)
-Message-ID: <50FFF5C0.60000@web.de>
-Date: Wed, 23 Jan 2013 15:37:52 +0100
-From: Soeren Moch <smoch@web.de>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id BC1476B0008
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 10:23:50 -0500 (EST)
+Date: Wed, 23 Jan 2013 15:23:31 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: uninline page_xchg_last_nid()
+Message-ID: <20130123152330.GJ13304@suse.de>
+References: <1358874762-19717-1-git-send-email-mgorman@suse.de>
+ <1358874762-19717-6-git-send-email-mgorman@suse.de>
+ <20130122144659.d512e05c.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
- calls
-References: <20121119144826.f59667b2.akpm@linux-foundation.org> <201301211855.25455.arnd@arndb.de> <20130121210150.GA9184@kroah.com> <201301221813.57741.arnd@arndb.de>
-In-Reply-To: <201301221813.57741.arnd@arndb.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130122144659.d512e05c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Greg KH <gregkh@linuxfoundation.org>, Jason Cooper <jason@lakedaemon.net>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Simon Jeons <simon.jeons@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 22.01.2013 19:13, Arnd Bergmann wrote:
-> On Monday 21 January 2013, Greg KH wrote:
->>>
->>> I don't know a lot about USB, but I always assumed that this was not
->>> a normal condition and that there are only a couple of URBs per endpoint
->>> used at a time. Maybe Greg or someone else with a USB background can
->>> shed some light on this.
->>
->> There's no restriction on how many URBs a driver can have outstanding at
->> once, and if you have a system with a lot of USB devices running at the
->> same time, there could be lots of URBs in flight depending on the number
->> of host controllers and devices and drivers being used.
+Andrew Morton pointed out that page_xchg_last_nid() and reset_page_last_nid()
+were "getting nuttily large" and asked that it be investigated.
 
-I only use one host controller and (in this test) two usb devices with
-the same driver.
+reset_page_last_nid() is on the page free path and it would be unfortunate
+to make that path more expensive than it needs to be. Due to the internal
+use of page_xchg_last_nid() it is already too expensive but fortunately,
+it should also be impossible for the page->flags to be updated in parallel
+when we call reset_page_last_nid(). Instead of unlining the function,
+it uses a simplier implementation that assumes no parallel updates and
+should now be sufficiently short for inlining.
 
-> Ok, thanks for clarifying that. I read some more of the em28xx driver,
-> and while it does have a bunch of URBs in flight, there are only five
-> audio and five video URBs that I see simultaneously being submitted,
-> and then resubmitted from their completion handlers. I think this
-> means that there should be 10 URBs active at any given time in this
-> driver, which does not explain why we get 256 allocations.
+page_xchg_last_nid() is called in paths that are already quite expensive
+(splitting huge page, fault handling, migration) and it is reasonable to
+uninline. There was not really a good place to place the function but
+mm/mmzone.c was the closest fit IMO.
 
-I think the audio part of the em28xx bridge is not used in my DVB tests.
+This patch saved 128 bytes of text in the vmlinux file for the kernel
+configuration I used for testing automatic NUMA balancing.
 
-Are there other allocations from orion-ehci directly? Maybe something
-special for isochronous transfers (since there is no problem with my 
-other dvb sticks using bulk transfers)?
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/linux/mm.h |   21 +++++----------------
+ mm/mmzone.c        |   20 +++++++++++++++++++-
+ 2 files changed, 24 insertions(+), 17 deletions(-)
 
-> I also noticed that the initial submissions are all atomic but don't
-> need to, so it may be worth trying the patch below, which should also
-> help in low-memory situations. We could also try moving the resubmission
-> into a workqueue in order to let those be GFP_KERNEL, but I don't think
-> that will help.
-
-I built a linux-3.7.4 with the em28xx patch and both of your dma-mapping.c
-patches. I still see the
-   ERROR: 1024 KiB atomic DMA coherent pool is too small!
-
-Soeren
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index e25d47f..6e4468f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -676,25 +676,14 @@ static inline int page_last_nid(struct page *page)
+ 	return (page->flags >> LAST_NID_PGSHIFT) & LAST_NID_MASK;
+ }
+ 
+-static inline int page_xchg_last_nid(struct page *page, int nid)
+-{
+-	unsigned long old_flags, flags;
+-	int last_nid;
+-
+-	do {
+-		old_flags = flags = page->flags;
+-		last_nid = page_last_nid(page);
+-
+-		flags &= ~(LAST_NID_MASK << LAST_NID_PGSHIFT);
+-		flags |= (nid & LAST_NID_MASK) << LAST_NID_PGSHIFT;
+-	} while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags));
+-
+-	return last_nid;
+-}
++extern int page_xchg_last_nid(struct page *page, int nid);
+ 
+ static inline void reset_page_last_nid(struct page *page)
+ {
+-	page_xchg_last_nid(page, (1 << LAST_NID_SHIFT) - 1);
++	int nid = (1 << LAST_NID_SHIFT) - 1;
++
++	page->flags &= ~(LAST_NID_MASK << LAST_NID_PGSHIFT);
++	page->flags |= (nid & LAST_NID_MASK) << LAST_NID_PGSHIFT;
+ }
+ #endif /* LAST_NID_NOT_IN_PAGE_FLAGS */
+ #else
+diff --git a/mm/mmzone.c b/mm/mmzone.c
+index 4596d81..bce796e 100644
+--- a/mm/mmzone.c
++++ b/mm/mmzone.c
+@@ -1,7 +1,7 @@
+ /*
+  * linux/mm/mmzone.c
+  *
+- * management codes for pgdats and zones.
++ * management codes for pgdats, zones and page flags
+  */
+ 
+ 
+@@ -96,3 +96,21 @@ void lruvec_init(struct lruvec *lruvec)
+ 	for_each_lru(lru)
+ 		INIT_LIST_HEAD(&lruvec->lists[lru]);
+ }
++
++#if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_NID_NOT_IN_PAGE_FLAGS)
++int page_xchg_last_nid(struct page *page, int nid)
++{
++	unsigned long old_flags, flags;
++	int last_nid;
++
++	do {
++		old_flags = flags = page->flags;
++		last_nid = page_last_nid(page);
++
++		flags &= ~(LAST_NID_MASK << LAST_NID_PGSHIFT);
++		flags |= (nid & LAST_NID_MASK) << LAST_NID_PGSHIFT;
++	} while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags));
++
++	return last_nid;
++}
++#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
