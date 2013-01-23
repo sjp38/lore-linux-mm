@@ -1,76 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id B30406B0005
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 19:41:14 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fb10so4398098pad.16
-        for <linux-mm@kvack.org>; Tue, 22 Jan 2013 16:41:14 -0800 (PST)
-Date: Wed, 23 Jan 2013 08:40:57 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [patch 3/3 v2]swap: add per-partition lock for swapfile
-Message-ID: <20130123004057.GA17418@kernel.org>
-References: <20130122023028.GC12293@kernel.org>
- <20130122150726.9d94c198.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 7464D6B0008
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 20:50:02 -0500 (EST)
+Date: Wed, 23 Jan 2013 10:49:59 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] Subtract min_free_kbytes from dirtyable memory
+Message-ID: <20130123014959.GB2723@blaptop>
+References: <201301210315.r0L3FnGV021298@como.maths.usyd.edu.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130122150726.9d94c198.akpm@linux-foundation.org>
+In-Reply-To: <201301210315.r0L3FnGV021298@como.maths.usyd.edu.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, minchan@kernel.org
+To: paul.szabo@sydney.edu.au
+Cc: linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org
 
-On Tue, Jan 22, 2013 at 03:07:26PM -0800, Andrew Morton wrote:
-> On Tue, 22 Jan 2013 10:30:28 +0800
-> Shaohua Li <shli@kernel.org> wrote:
-> 
-> > swap_lock is heavily contended when I test swap to 3 fast SSD (even slightly
-> > slower than swap to 2 such SSD). The main contention comes from
-> > swap_info_get(). This patch tries to fix the gap with adding a new
-> > per-partition lock.
-> > 
-> > global data like nr_swapfiles, total_swap_pages, least_priority and swap_list are
-> > still protected by swap_lock.
-> > 
-> > nr_swap_pages is an atomic now, it can be changed without swap_lock. In theory,
-> > it's possible get_swap_page() finds no swap pages but actually there are free
-> > swap pages. But sounds not a big problem.
-> > 
-> > accessing partition specific data (like scan_swap_map and so on) is only
-> > protected by swap_info_struct.lock.
-> > 
-> > Changing swap_info_struct.flags need hold swap_lock and swap_info_struct.lock,
-> > because scan_scan_map() will check it. read the flags is ok with either the
-> > locks hold.
-> > 
-> > If both swap_lock and swap_info_struct.lock must be hold, we always hold the
-> > former first to avoid deadlock.
-> > 
-> > swap_entry_free() can change swap_list. To delete that code, we add a new
-> > highest_priority_index. Whenever get_swap_page() is called, we check it. If
-> > it's valid, we use it.
-> > 
-> > It's a pitty get_swap_page() still holds swap_lock(). But in practice,
-> > swap_lock() isn't heavily contended in my test with this patch (or I can say
-> > there are other much more heavier bottlenecks like TLB flush). And BTW, looks
-> > get_swap_page() doesn't really need the lock. We never free swap_info[] and we
-> > check SWAP_WRITEOK flag. The only risk without the lock is we could swapout to
-> > some low priority swap, but we can quickly recover after several rounds of
-> > swap, so sounds not a big deal to me. But I'd prefer to fix this if it's a real
-> 
-> I had to move a few things around due to changes in
-> drivers/staging/zcache/.
+On Mon, Jan 21, 2013 at 02:15:49PM +1100, paul.szabo@sydney.edu.au wrote:
+> When calculating amount of dirtyable memory, min_free_kbytes should be
+> subtracted because it is not intended for dirty pages.
 
+So what's the effect for user?
+It would be better to include that in description if possible.
+
+> 
+> Using an "extern int" because that is the only interface to some such
+> sysctl values.
+> 
+> (This patch does not solve the PAE OOM issue.)
+> 
+> Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
+> School of Mathematics and Statistics   University of Sydney    Australia
+> 
+> Reported-by: Paul Szabo <psz@maths.usyd.edu.au>
+> Reference: http://bugs.debian.org/695182
+> Signed-off-by: Paul Szabo <psz@maths.usyd.edu.au>
+> 
+> --- mm/page-writeback.c.old	2012-12-06 22:20:40.000000000 +1100
+> +++ mm/page-writeback.c	2013-01-21 13:57:05.000000000 +1100
+> @@ -343,12 +343,16 @@
+>  unsigned long determine_dirtyable_memory(void)
+>  {
+>  	unsigned long x;
+> +	extern int min_free_kbytes;
+>  
+>  	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
+>  
+>  	if (!vm_highmem_is_dirtyable)
+>  		x -= highmem_dirtyable_memory(x);
+>  
+> +	/* Subtract min_free_kbytes */
+> +	x -= min(x, min_free_kbytes >> (PAGE_SHIFT - 10));
+
+It seems you saw old kernel.
+Current kernel includes following logic.
+
+static unsigned long global_dirtyable_memory(void)
+{
+        unsigned long x;
+
+        x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
+        x -= min(x, dirty_balance_reserve);
+
+        if (!vm_highmem_is_dirtyable)
+                x -= highmem_dirtyable_memory(x);
+
+        return x + 1;   /* Ensure that we never return 0 */
+}
+
+And dirty_lanace_reserve already includes high_wmark_pages.
+Look at calculate_totalreserve_pages.
+
+So I think we don't need this patch.
 Thanks.
 
-> Do you have any performance testing results for this patch?
+> +
+>  	return x + 1;	/* Ensure that we never return 0 */
+>  }
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Sorry, I forgot writing it down. Last patch improved the swapout speed from
-1.7G/s to 2G/s, this one further improved the speed to 2.3G/s, so around 15%
-improvement. It's multi-process test, so TLB flush isn't the biggest bottleneck
-before the patches.
-
-Thanks,
-Shaohua
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
