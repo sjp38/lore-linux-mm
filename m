@@ -1,50 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id BDFDD6B0010
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 19:04:37 -0500 (EST)
-Date: Tue, 22 Jan 2013 16:04:36 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] MAX_PAUSE to be at least 4
-Message-Id: <20130122160436.f0fa8352.akpm@linux-foundation.org>
-In-Reply-To: <201301210307.r0L37YuG018834@como.maths.usyd.edu.au>
-References: <201301210307.r0L37YuG018834@como.maths.usyd.edu.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id C201D6B0011
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 19:06:49 -0500 (EST)
+Date: Wed, 23 Jan 2013 09:06:48 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v5 1/4] zram: Fix deadlock bug in partial write
+Message-ID: <20130123000648.GA2723@blaptop>
+References: <1358898745-4873-1-git-send-email-minchan@kernel.org>
+ <CAPkvG_f2mDr2p=ypqcikeNMRoE3tK1-kDjLWyz6bb9yQUpGgZQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPkvG_f2mDr2p=ypqcikeNMRoE3tK1-kDjLWyz6bb9yQUpGgZQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paul.szabo@sydney.edu.au
-Cc: linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, jmarchan@redhat.com, stable@vger.kernel.org
 
-On Mon, 21 Jan 2013 14:07:34 +1100
-paul.szabo@sydney.edu.au wrote:
+Hi Nitin,
 
-> Ensure MAX_PAUSE is 4 or larger, so limits in
-> 	return clamp_val(t, 4, MAX_PAUSE);
-> (the only use of it) are not back-to-front.
-
-MAX_PAUSE is not used in this fashion in current kernels.
-
-> (This patch does not solve the PAE OOM issue.)
+On Tue, Jan 22, 2013 at 03:58:10PM -0800, Nitin Gupta wrote:
+> On Tue, Jan 22, 2013 at 3:52 PM, Minchan Kim <minchan@kernel.org> wrote:
+> > Now zram allocates new page with GFP_KERNEL in zram I/O path
+> > if IO is partial. Unfortunately, It may cuase deadlock with
+> > reclaim path so this patch solves the problem.
+> >
+> > Cc: Jerome Marchand <jmarchan@redhat.com>
+> > Cc: stable@vger.kernel.org
+> > Acked-by: Nitin Gupta <ngupta@vflare.org>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  drivers/staging/zram/zram_drv.c |    4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> >
 > 
-> Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
-> School of Mathematics and Statistics   University of Sydney    Australia
+> Changelog for v4 vs v5?
+
+It's just adding your Acked-by in whole series.
+I thought it's minor.
+
+Thanks for the review, Nitin.
+
 > 
-> Reported-by: Paul Szabo <psz@maths.usyd.edu.au>
-> Reference: http://bugs.debian.org/695182
-> Signed-off-by: Paul Szabo <psz@maths.usyd.edu.au>
+> Thanks,
+> Nitin
 > 
-> --- mm/page-writeback.c.old	2012-12-06 22:20:40.000000000 +1100
-> +++ mm/page-writeback.c	2013-01-21 13:57:05.000000000 +1100
-> @@ -39,7 +39,7 @@
->  /*
->   * Sleep at most 200ms at a time in balance_dirty_pages().
->   */
-> -#define MAX_PAUSE		max(HZ/5, 1)
-> +#define MAX_PAUSE		max(HZ/5, 4)
->  
->  /*
->   * Estimate write bandwidth at 200ms intervals.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
