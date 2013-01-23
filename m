@@ -1,35 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id D8D2A6B0008
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:45:33 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id eh20so8889295obb.9
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2013 13:45:33 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20130123131713.GG13304@suse.de>
-References: <1358874762-19717-1-git-send-email-mgorman@suse.de>
- <1358874762-19717-6-git-send-email-mgorman@suse.de> <20130122144659.d512e05c.akpm@linux-foundation.org>
- <20130123131713.GG13304@suse.de>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Wed, 23 Jan 2013 16:45:12 -0500
-Message-ID: <CAHGf_=qG+dUDbzgMxq5tsd5u5thmD4iYDGKmmyvSJt3-1va3vQ@mail.gmail.com>
-Subject: Re: [PATCH 5/6] mm: Fold page->_last_nid into page->flags where possible
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id A08626B000C
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:45:49 -0500 (EST)
+Message-Id: <0000013c695fbd30-9023bc55-f780-4d44-965f-ab4507e483d5-000000@email.amazonses.com>
+Date: Wed, 23 Jan 2013 21:45:47 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: FIX [1/2] slub: Do not dereference NULL pointer in node_match
+References: <20130123214514.370647954@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Simon Jeons <simon.jeons@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R. Goncalves" <lgoncalv@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-> Good question.
->
-> There are 19 free bits in my configuration but it's related to
-> CONFIG_NODES_SHIFT which is 9 for me (512 nodes) and very heavily affected
-> by options such as CONFIG_SPARSEMEM_VMEMMAP. Memory hot-remove does not work
-> with CONFIG_SPARSEMEM_VMEMMAP and enterprise distribution configs may be
-> taking the performance hit to enable memory hot-remove. If I disable this
-> option to enable memory hot-remove then there are 0 free bits in page->flags.
+The variables accessed in slab_alloc are volatile and therefore
+the page pointer passed to node_match can be NULL. The processing
+of data in slab_alloc is tentative until either the cmpxhchg
+succeeds or the __slab_alloc slowpath is invoked. Both are
+able to perform the same allocation from the freelist.
 
-FWIW, when using current mmotm, memory hot memory remove does work w/
-CONFIG_SPARSEMEM_VMEMMAP. Recently Fujitsu changed.
+Check for the NULL pointer in node_match.
+
+A false positive will lead to a retry of the loop in __slab_alloc.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2013-01-18 08:47:29.198954250 -0600
++++ linux/mm/slub.c	2013-01-18 08:47:40.579126371 -0600
+@@ -2041,7 +2041,7 @@ static void flush_all(struct kmem_cache
+ static inline int node_match(struct page *page, int node)
+ {
+ #ifdef CONFIG_NUMA
+-	if (node != NUMA_NO_NODE && page_to_nid(page) != node)
++	if (!page || (node != NUMA_NO_NODE && page_to_nid(page) != node))
+ 		return 0;
+ #endif
+ 	return 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
