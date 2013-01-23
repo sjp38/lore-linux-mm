@@ -1,82 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 6AB2E6B0008
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 12:22:03 -0500 (EST)
-Message-ID: <51001BEE.9020201@web.de>
-Date: Wed, 23 Jan 2013 18:20:46 +0100
-From: Soeren Moch <smoch@web.de>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
- calls
-References: <20121119144826.f59667b2.akpm@linux-foundation.org> <201301171049.30415.arnd@arndb.de> <50F800EB.6040104@web.de> <201301172026.45514.arnd@arndb.de> <50FABBED.1020905@web.de> <20130119185907.GA20719@lunn.ch> <5100022D.9050106@web.de> <20130123162515.GK13482@lunn.ch> <510018B4.9040903@web.de>
-In-Reply-To: <510018B4.9040903@web.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 918A46B0009
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 12:33:44 -0500 (EST)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH] memcg: reduce the size of struct memcg 244-fold.
+Date: Wed, 23 Jan 2013 21:33:46 +0400
+Message-Id: <1358962426-8738-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Lunn <andrew@lunn.ch>
-Cc: Arnd Bergmann <arnd@arndb.de>, Jason Cooper <jason@lakedaemon.net>, Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-On 23.01.2013 18:07, Soeren Moch wrote:
-> On 23.01.2013 17:25, Andrew Lunn wrote:
->> On Wed, Jan 23, 2013 at 04:30:53PM +0100, Soeren Moch wrote:
->>> On 19.01.2013 19:59, Andrew Lunn wrote:
->>>>> Please find attached a debug log generated with your patch.
->>>>>
->>>>> I used the sata disk and two em28xx dvb sticks, no other usb devices,
->>>>> no ethernet cable connected, tuners on saa716x-based card not used.
->>>>>
->>>>> What I can see in the log: a lot of coherent mappings from sata_mv
->>>>> and orion_ehci, a few from mv643xx_eth, no other coherent mappings.
->>>>> All coherent mappings are page aligned, some of them (from orion_ehci)
->>>>> are not really small (as claimed in __alloc_from_pool).
->>>>>
->>>>> I don't believe in a memory leak. When I restart vdr (the application
->>>>> utilizing the dvb sticks) then there is enough dma memory available
->>>>> again.
->>>>
->>>> Hi Soeren
->>>>
->>>> We should be able to rule out a leak. Mount debugfg and then:
->>>>
->>>> while [ /bin/true ] ; do cat /debug/dma-api/num_free_entries ; sleep
->>>> 60 ; done
->>>>
->>>> while you are capturing. See if the number goes down.
->>>>
->>>>        Andrew
->>>
->>> Now I built a kernel with debugfs enabled.
->>> It is not clear to me what I can see from the
->>> dma-api/num_free_entries output. After reboot (vdr running) I see
->>> decreasing numbers (3453 3452 3445 3430...), min_free_entries is
->>> lower (3390). Sometimes the output is constant for several minutes (
->>> 3396 3396 3396 3396 3396,...)
->>
->> We are interesting in the long term behavior. Does it gradually go
->> down? Or is it stable? If it goes down over time, its clearly a leak
->> somewhere.
->>
->
-> Now (in the last hour) stable, occasionally lower numbers:
-> 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396
-> 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396
-> 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396
-> 3396 3396 3396 3396 3396 3396 3396 3396 3396 3365 3396 3394 3396 3396
-> 3396 3396 3373 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396
-> 3396 3353 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396 3396
-> 3394 3396 3396 3396 3396 3396 3396 3396
->
-> Before the last pool exhaustion going down:
-> 3395 3395 3389 3379 3379 3374 3367 3360 3352 3343 3343 3343 3342 3336
-> 3332 3324 3318 3314 3310 3307 3305 3299 3290 3283 3279 3272 3266 3265
-> 3247 3247 3247 3242 3236 3236
->
-Here I stopped vdr (and so closed all dvb_demux devices), the number was 
-remaining the same 3236, even after restart of vdr (and restart of 
-streaming).
+In order to maintain all the memcg bookkeeping, we need per-node
+descriptors, which will in turn contain a per-zone descriptor.
 
-> Soeren
+Because we want to statically allocate those, this array ends up being
+very big. Part of the reason is that we allocate something large enough
+to hold MAX_NUMNODES, the compile time constant that holds the maximum
+number of nodes we would ever consider.
+
+However, we can do better in some cases if the firmware help us. This is
+true for modern x86 machines; coincidentally one of the architectures in
+which MAX_NUMNODES tends to be very big.
+
+By using the firmware-provided maximum number of nodes instead of
+MAX_NUMNODES, we can reduce the memory footprint of struct memcg
+considerably. In the extreme case in which we have only one node, this
+reduces the size of the structure from ~ 64k to ~2k. This is
+particularly important because it means that we will no longer resort to
+the vmalloc area for the struct memcg on defconfigs. We also have enough
+room for an extra node and still be outside vmalloc.
+
+One also has to keep in mind that with the industry's ability to fit
+more processors in a die as fast as the FED prints money, a nodes = 2
+configuration is already respectably big.
+
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Greg Thelen <gthelen@google.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Ying Han <yinghan@google.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+---
+ mm/memcontrol.c | 40 +++++++++++++++++++++++++---------------
+ 1 file changed, 25 insertions(+), 15 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 09255ec..9972fbf 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -172,7 +172,7 @@ struct mem_cgroup_per_node {
+ };
+ 
+ struct mem_cgroup_lru_info {
+-	struct mem_cgroup_per_node *nodeinfo[MAX_NUMNODES];
++	struct mem_cgroup_per_node *nodeinfo[0];
+ };
+ 
+ /*
+@@ -276,17 +276,6 @@ struct mem_cgroup {
+ 	 */
+ 	struct res_counter kmem;
+ 	/*
+-	 * Per cgroup active and inactive list, similar to the
+-	 * per zone LRU lists.
+-	 */
+-	struct mem_cgroup_lru_info info;
+-	int last_scanned_node;
+-#if MAX_NUMNODES > 1
+-	nodemask_t	scan_nodes;
+-	atomic_t	numainfo_events;
+-	atomic_t	numainfo_updating;
+-#endif
+-	/*
+ 	 * Should the accounting and control be hierarchical, per subtree?
+ 	 */
+ 	bool use_hierarchy;
+@@ -349,8 +338,29 @@ struct mem_cgroup {
+         /* Index in the kmem_cache->memcg_params->memcg_caches array */
+ 	int kmemcg_id;
+ #endif
++
++	int last_scanned_node;
++#if MAX_NUMNODES > 1
++	nodemask_t	scan_nodes;
++	atomic_t	numainfo_events;
++	atomic_t	numainfo_updating;
++#endif
++	/*
++	 * Per cgroup active and inactive list, similar to the
++	 * per zone LRU lists.
++	 *
++	 * WARNING: This has to be the last element of the struct. Don't
++	 * add new fields after this point.
++	 */
++	struct mem_cgroup_lru_info info;
+ };
+ 
++static inline int memcg_size(void)
++{
++	return sizeof(struct mem_cgroup) +
++		nr_node_ids * sizeof(struct mem_cgroup_per_node);
++}
++
+ /* internal only representation about the status of kmem accounting. */
+ enum {
+ 	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
+@@ -5894,9 +5904,9 @@ static void free_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+ static struct mem_cgroup *mem_cgroup_alloc(void)
+ {
+ 	struct mem_cgroup *memcg;
+-	int size = sizeof(struct mem_cgroup);
++	int size = memcg_size();
+ 
+-	/* Can be very big if MAX_NUMNODES is very big */
++	/* Can be very big if nr_node_ids is very big */
+ 	if (size < PAGE_SIZE)
+ 		memcg = kzalloc(size, GFP_KERNEL);
+ 	else
+@@ -5933,7 +5943,7 @@ out_free:
+ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ {
+ 	int node;
+-	int size = sizeof(struct mem_cgroup);
++	int size = memcg_size();
+ 
+ 	mem_cgroup_remove_from_trees(memcg);
+ 	free_css_id(&mem_cgroup_subsys, &memcg->css);
+-- 
+1.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
