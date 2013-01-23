@@ -1,74 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 6E1626B0009
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:45:49 -0500 (EST)
-Message-Id: <0000013c695fbea7-9472355c-ccb3-4aa3-ba3d-2ecd6afb2e5a-000000@email.amazonses.com>
-Date: Wed, 23 Jan 2013 21:45:48 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: FIX [2/2] slub: tid must be retrieved from the percpu area of the current processor.
-References: <20130123214514.370647954@linux.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id B04246B0008
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:46:45 -0500 (EST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [PATCH 1/2] staging: zcache: fix ppc64 and other arches where PAGE_SIZE!=4K
+Date: Wed, 23 Jan 2013 13:46:30 -0800
+Message-Id: <1358977591-24485-1-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R. Goncalves" <lgoncalv@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, dan.magenheimer@oracle.com
 
-As Steven Rostedt has pointer out: Rescheduling could occur on a differnet processor
-after the determination of the per cpu pointer and before the tid is retrieved.
-This could result in allocation from the wrong node in slab_alloc.
+Replace raw constant 12 with PAGE_SHIFT to fix non-x86 arches and
+provoke build failure if PAGE_SHIFT is too big
 
-The effect is much more severe in slab_free() where we could free to the freelist
-of the wrong page.
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+---
+ drivers/staging/zcache/zbud.c |    7 +++++--
+ 1 files changed, 5 insertions(+), 2 deletions(-)
 
-The window for something like that occurring is pretty small but it is possible.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c	2013-01-23 15:06:39.805154107 -0600
-+++ linux/mm/slub.c	2013-01-23 15:24:47.656868067 -0600
-@@ -2331,13 +2331,18 @@ static __always_inline void *slab_alloc_
+diff --git a/drivers/staging/zcache/zbud.c b/drivers/staging/zcache/zbud.c
+index a7c4361..6835fab 100644
+--- a/drivers/staging/zcache/zbud.c
++++ b/drivers/staging/zcache/zbud.c
+@@ -103,8 +103,8 @@ struct zbudpage {
+ 		struct {
+ 			unsigned long space_for_flags;
+ 			struct {
+-				unsigned zbud0_size:12;
+-				unsigned zbud1_size:12;
++				unsigned zbud0_size: PAGE_SHIFT;
++				unsigned zbud1_size: PAGE_SHIFT;
+ 				unsigned unevictable:2;
+ 			};
+ 			struct list_head budlist;
+@@ -112,6 +112,9 @@ struct zbudpage {
+ 		};
+ 	};
+ };
++#if (PAGE_SHIFT * 2) + 2 > BITS_PER_LONG
++#error "zbud won't work for this arch, PAGE_SIZE is too large"
++#endif
  
- 	s = memcg_kmem_get_cache(s, gfpflags);
- redo:
--
- 	/*
- 	 * Must read kmem_cache cpu data via this cpu ptr. Preemption is
- 	 * enabled. We may switch back and forth between cpus while
- 	 * reading from one cpu area. That does not matter as long
- 	 * as we end up on the original cpu again when doing the cmpxchg.
-+	 *
-+	 * Preemption is disabled for the retrieval of the tid because that
-+	 * must occur from the current processor. We cannot allow rescheduling
-+	 * on a different processor between the determination of the pointer
-+	 * and the retrieval of the tid.
- 	 */
-+	preempt_disable();
- 	c = __this_cpu_ptr(s->cpu_slab);
- 
- 	/*
-@@ -2347,7 +2352,7 @@ redo:
- 	 * linked list in between.
- 	 */
- 	tid = c->tid;
--	barrier();
-+	preempt_enable();
- 
- 	object = c->freelist;
- 	page = c->page;
-@@ -2594,10 +2599,11 @@ redo:
- 	 * data is retrieved via this pointer. If we are on the same cpu
- 	 * during the cmpxchg then the free will succedd.
- 	 */
-+	preempt_disable();
- 	c = __this_cpu_ptr(s->cpu_slab);
- 
- 	tid = c->tid;
--	barrier();
-+	preempt_enable();
- 
- 	if (likely(page == c->page)) {
- 		set_freepointer(s, object, c->freelist);
+ struct zbudref {
+ 	union {
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
