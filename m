@@ -1,160 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id E47D06B0005
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 02:58:10 -0500 (EST)
-Date: Wed, 23 Jan 2013 16:58:08 +0900
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 0808E6B0005
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 03:04:23 -0500 (EST)
+Date: Wed, 23 Jan 2013 17:04:20 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
-Message-ID: <20130123075808.GH2723@blaptop>
-References: <20130122065341.GA1850@kernel.org>
+Subject: Re: [patch 2/3 v2]swap: make each swap partition have one
+ address_space
+Message-ID: <20130123080420.GI2723@blaptop>
+References: <20130122022951.GB12293@kernel.org>
+ <20130123061645.GF2723@blaptop>
+ <20130123073655.GA31672@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130122065341.GA1850@kernel.org>
+In-Reply-To: <20130123073655.GA31672@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com
 
-On Tue, Jan 22, 2013 at 02:53:41PM +0800, Shaohua Li wrote:
-> Hi,
+On Wed, Jan 23, 2013 at 03:36:55PM +0800, Shaohua Li wrote:
+> On Wed, Jan 23, 2013 at 03:16:45PM +0900, Minchan Kim wrote:
+> > Looks good to me. Below just nitpicks.
+> > I saw Andrew already took this into mmotm so I'm not sure he or you will do
+> > next spin but anyway, review goes. Just nitpicks and a question.
+> > 
+> > On Tue, Jan 22, 2013 at 10:29:51AM +0800, Shaohua Li wrote:
+> > > 
+> > > When I use several fast SSD to do swap, swapper_space.tree_lock is heavily
+> > > contended. This makes each swap partition have one address_space to reduce the
+> > > lock contention. There is an array of address_space for swap. The swap entry
+> > > type is the index to the array.
+> > > 
+> > > In my test with 3 SSD, this increases the swapout throughput 20%.
+> > > 
+> > > V1->V2: simplify code
+> > > 
+> > > Signed-off-by: Shaohua Li <shli@fusionio.com>
+> > 
+> > Acked-by: Minchan Kim <minchan@kernel.org>
+> > 
+> > > ---
+> > >  fs/proc/meminfo.c    |    4 +--
+> > >  include/linux/swap.h |    9 ++++----
+> > >  mm/memcontrol.c      |    4 +--
+> > >  mm/mincore.c         |    5 ++--
+> > >  mm/swap.c            |    9 ++++++--
+> > >  mm/swap_state.c      |   57 ++++++++++++++++++++++++++++++++++-----------------
+> > >  mm/swapfile.c        |    5 ++--
+> > >  mm/util.c            |   10 ++++++--
+> > >  8 files changed, 68 insertions(+), 35 deletions(-)
+> > > 
+> > > Index: linux/include/linux/swap.h
+> > > ===================================================================
+> > > --- linux.orig/include/linux/swap.h	2013-01-22 09:13:14.000000000 +0800
+> > > +++ linux/include/linux/swap.h	2013-01-22 09:34:44.923011706 +0800
+> > > @@ -8,7 +8,7 @@
+> > >  #include <linux/memcontrol.h>
+> > >  #include <linux/sched.h>
+> > >  #include <linux/node.h>
+> > > -
+> > > +#include <linux/fs.h>
+> > >  #include <linux/atomic.h>
+> > >  #include <asm/page.h>
+> > >  
+> > > @@ -330,8 +330,9 @@ int generic_swapfile_activate(struct swa
+> > >  		sector_t *);
+> > >  
+> > >  /* linux/mm/swap_state.c */
+> > > -extern struct address_space swapper_space;
+> > > -#define total_swapcache_pages  swapper_space.nrpages
+> > > +extern struct address_space swapper_spaces[];
+> > > +#define swap_address_space(entry) (&swapper_spaces[swp_type(entry)])
+> > 
+> > How about this naming?
+> > 
+> > #define swapper_space(entry) (&swapper_spaces[swp_type(entry)])
+> > 
+> > > +extern unsigned long total_swapcache_pages(void);
+> > >  extern void show_swap_cache_info(void);
+> > >  extern int add_to_swap(struct page *);
+> > >  extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
+> > > @@ -382,7 +383,7 @@ mem_cgroup_uncharge_swapcache(struct pag
+> > >  
+> > >  #define nr_swap_pages				0L
+> > >  #define total_swap_pages			0L
+> > > -#define total_swapcache_pages			0UL
+> > > +#define total_swapcache_pages()			0UL
+> > >  
+> > >  #define si_swapinfo(val) \
+> > >  	do { (val)->freeswap = (val)->totalswap = 0; } while (0)
+> > > Index: linux/mm/memcontrol.c
+> > > ===================================================================
+> > > --- linux.orig/mm/memcontrol.c	2013-01-22 09:13:14.000000000 +0800
+> > Acked-by: Minchan Kim <minchan@kernel.org>
+> > 
+> > > +++ linux/mm/memcontrol.c	2013-01-22 09:29:29.374977700 +0800
+> > > @@ -6279,7 +6279,7 @@ static struct page *mc_handle_swap_pte(s
+> > >  	 * Because lookup_swap_cache() updates some statistics counter,
+> > >  	 * we call find_get_page() with swapper_space directly.
+> > >  	 */
+> > > -	page = find_get_page(&swapper_space, ent.val);
+> > > +	page = find_get_page(swap_address_space(ent), ent.val);
+> > >  	if (do_swap_account)
+> > >  		entry->val = ent.val;
+> > >  
+> > > @@ -6320,7 +6320,7 @@ static struct page *mc_handle_file_pte(s
+> > >  		swp_entry_t swap = radix_to_swp_entry(page);
+> > >  		if (do_swap_account)
+> > >  			*entry = swap;
+> > > -		page = find_get_page(&swapper_space, swap.val);
+> > > +		page = find_get_page(swap_address_space(swap), swap.val);
+> > >  	}
+> > >  #endif
+> > >  	return page;
+> > > Index: linux/mm/mincore.c
+> > > ===================================================================
+> > > --- linux.orig/mm/mincore.c	2013-01-22 09:13:14.000000000 +0800
+> > > +++ linux/mm/mincore.c	2013-01-22 09:29:29.378977649 +0800
+> > > @@ -75,7 +75,7 @@ static unsigned char mincore_page(struct
+> > >  	/* shmem/tmpfs may return swap: account for swapcache page too. */
+> > >  	if (radix_tree_exceptional_entry(page)) {
+> > >  		swp_entry_t swap = radix_to_swp_entry(page);
+> > > -		page = find_get_page(&swapper_space, swap.val);
+> > > +		page = find_get_page(swap_address_space(swap), swap.val);
+> > >  	}
+> > >  #endif
+> > >  	if (page) {
+> > > @@ -135,7 +135,8 @@ static void mincore_pte_range(struct vm_
+> > >  			} else {
+> > >  #ifdef CONFIG_SWAP
+> > >  				pgoff = entry.val;
+> > > -				*vec = mincore_page(&swapper_space, pgoff);
+> > > +				*vec = mincore_page(swap_address_space(entry),
+> > > +					pgoff);
+> > >  #else
+> > >  				WARN_ON(1);
+> > >  				*vec = 1;
+> > > Index: linux/mm/swap.c
+> > > ===================================================================
+> > > --- linux.orig/mm/swap.c	2013-01-22 09:13:14.000000000 +0800
+> > > +++ linux/mm/swap.c	2013-01-22 09:29:29.378977649 +0800
+> > > @@ -855,9 +855,14 @@ EXPORT_SYMBOL(pagevec_lookup_tag);
+> > >  void __init swap_setup(void)
+> > >  {
+> > >  	unsigned long megs = totalram_pages >> (20 - PAGE_SHIFT);
+> > > -
+> > >  #ifdef CONFIG_SWAP
+> > > -	bdi_init(swapper_space.backing_dev_info);
+> > > +	int i;
+> > > +
+> > > +	for (i = 0; i < MAX_SWAPFILES; i++) {
+> > > +		bdi_init(swapper_spaces[i].backing_dev_info);
+> > > +		spin_lock_init(&swapper_spaces[i].tree_lock);
+> > > +		INIT_LIST_HEAD(&swapper_spaces[i].i_mmap_nonlinear);
+> > > +	}
+> > >  #endif
+> > >  
+> > >  	/* Use a smaller cluster for small-memory machines */
+> > > Index: linux/mm/swap_state.c
+> > > ===================================================================
+> > > --- linux.orig/mm/swap_state.c	2013-01-22 09:13:14.000000000 +0800
+> > > +++ linux/mm/swap_state.c	2013-01-22 09:29:29.378977649 +0800
+> > > @@ -36,12 +36,12 @@ static struct backing_dev_info swap_back
+> > >  	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK | BDI_CAP_SWAP_BACKED,
+> > >  };
+> > >  
+> > > -struct address_space swapper_space = {
+> > > -	.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
+> > > -	.tree_lock	= __SPIN_LOCK_UNLOCKED(swapper_space.tree_lock),
+> > > -	.a_ops		= &swap_aops,
+> > > -	.i_mmap_nonlinear = LIST_HEAD_INIT(swapper_space.i_mmap_nonlinear),
+> > > -	.backing_dev_info = &swap_backing_dev_info,
+> > > +struct address_space swapper_spaces[MAX_SWAPFILES] = {
+> > > +	[0 ... MAX_SWAPFILES - 1] = {
+> > > +		.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
+> > > +		.a_ops		= &swap_aops,
+> > > +		.backing_dev_info = &swap_backing_dev_info,
+> > > +	}
+> > >  };
+> > >  
+> > >  #define INC_CACHE_INFO(x)	do { swap_cache_info.x++; } while (0)
+> > > @@ -53,9 +53,19 @@ static struct {
+> > >  	unsigned long find_total;
+> > >  } swap_cache_info;
+> > >  
+> > > +unsigned long total_swapcache_pages(void)
+> > > +{
+> > > +	int i;
+> > > +	unsigned long ret = 0;
+> > > +
+> > > +	for (i = 0; i < MAX_SWAPFILES; i++)
+> > > +		ret += swapper_spaces[i].nrpages;
+> > > +	return ret;
+> > > +}
+> > > +
+> > >  void show_swap_cache_info(void)
+> > >  {
+> > > -	printk("%lu pages in swap cache\n", total_swapcache_pages);
+> > > +	printk("%lu pages in swap cache\n", total_swapcache_pages());
+> > >  	printk("Swap cache stats: add %lu, delete %lu, find %lu/%lu\n",
+> > >  		swap_cache_info.add_total, swap_cache_info.del_total,
+> > >  		swap_cache_info.find_success, swap_cache_info.find_total);
+> > > @@ -70,23 +80,26 @@ void show_swap_cache_info(void)
+> > >  static int __add_to_swap_cache(struct page *page, swp_entry_t entry)
+> > >  {
+> > >  	int error;
+> > > +	struct address_space *address_space;
+> > >  
+> > >  	VM_BUG_ON(!PageLocked(page));
+> > >  	VM_BUG_ON(PageSwapCache(page));
+> > >  	VM_BUG_ON(!PageSwapBacked(page));
+> > >  
+> > >  	page_cache_get(page);
+> > > -	SetPageSwapCache(page);
+> > >  	set_page_private(page, entry.val);
+> > > +	SetPageSwapCache(page);
+> > 
+> > Why did you move this line? Is there any special reason?
 > 
-> Because of high density, low power and low price, flash storage (SSD) is a good
-> candidate to partially replace DRAM. A quick answer for this is using SSD as
-> swap. But Linux swap is designed for slow hard disk storage. There are a lot of
-> challenges to efficiently use SSD for swap:
+> Originally I'm afraid page_mapping() gets invalid page_private(), but I then
+> realized we hold page lock. There are some places we don't hold page lock.
+> either such page isn't swap page or the caller can tolerate race. I forgot
+> removing this change in the patch. But I certainly can be wrong. We can add
+> memory barrier if required.
 
-Many of below item could be applied in in-memory swap like zram, zcache.
+Yeb. While I reviewed the patch, I was concern about that but I fail to find
+a problem, too. But maybe it's valuable to add comment about that race
+(!PageSwapCache(page) but page_mapping could return swapper_space) in page_mapping.
+So if some problem happens in the future, people could help to find culprit.
+
+Could you respin this with adding the comment and removing above unnecessary moving?
 
 > 
-> 1. Lock contentions (swap_lock, anon_vma mutex, swap address space lock)
-> 2. TLB flush overhead. To reclaim one page, we need at least 2 TLB flush. This
-> overhead is very high even in a normal 2-socket machine.
-> 3. Better swap IO pattern. Both direct and kswapd page reclaim can do swap,
-> which makes swap IO pattern is interleave. Block layer isn't always efficient
-> to do request merge. Such IO pattern also makes swap prefetch hard.
+> Thanks,
+> Shaohua
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Agreed.
-
-> 4. Swap map scan overhead. Swap in-memory map scan scans an array, which is
-> very inefficient, especially if swap storage is fast.
-
-Agreed.
-
-> 5. SSD related optimization, mainly discard support
-> 6. Better swap prefetch algorithm. Besides item 3, sequentially accessed pages
-> aren't always in LRU list adjacently, so page reclaim will not swap such pages
-> in adjacent storage sectors. This makes swap prefetch hard.
-
-One of problem is LRU churning and I wanted to try to fix it.
-http://marc.info/?l=linux-mm&m=130978831028952&w=4
-
-> 7. Alternative page reclaim policy to bias reclaiming anonymous page.
-> Currently reclaim anonymous page is considering harder than reclaim file pages,
-> so we bias reclaiming file pages. If there are high speed swap storage, we are
-> considering doing swap more aggressively.
-
-Yeb. We need it. I tried it with extending vm_swappiness to 200.
-
-From: Minchan Kim <minchan@kernel.org>
-Date: Mon, 3 Dec 2012 16:21:00 +0900
-Subject: [PATCH] mm: increase swappiness to 200
-
-We have thought swap out cost is very high but it's not true
-if we use fast device like swap-over-zram. Nonetheless, we can
-swap out 1:1 ratio of anon and page cache at most.
-It's not enough to use swap device fully so we encounter OOM kill
-while there are many free space in zram swap device. It's never
-what we want.
-
-This patch makes swap out aggressively.
-
-Cc: Luigi Semenzato <semenzato@google.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- kernel/sysctl.c |    3 ++-
- mm/vmscan.c     |    6 ++++--
- 2 files changed, 6 insertions(+), 3 deletions(-)
-
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 693e0ed..f1dbd9d 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -130,6 +130,7 @@ static int __maybe_unused two = 2;
- static int __maybe_unused three = 3;
- static unsigned long one_ul = 1;
- static int one_hundred = 100;
-+extern int max_swappiness;
- #ifdef CONFIG_PRINTK
- static int ten_thousand = 10000;
- #endif
-@@ -1157,7 +1158,7 @@ static struct ctl_table vm_table[] = {
-                .mode           = 0644,
-                .proc_handler   = proc_dointvec_minmax,
-                .extra1         = &zero,
--               .extra2         = &one_hundred,
-+               .extra2         = &max_swappiness,
-        },
- #ifdef CONFIG_HUGETLB_PAGE
-        {
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 53dcde9..64f3c21 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -53,6 +53,8 @@
- #define CREATE_TRACE_POINTS
- #include <trace/events/vmscan.h>
- 
-+int max_swappiness = 200;
-+
- struct scan_control {
-        /* Incremented by the number of inactive pages that were scanned */
-        unsigned long nr_scanned;
-@@ -1626,6 +1628,7 @@ static int vmscan_swappiness(struct scan_control *sc)
-        return mem_cgroup_swappiness(sc->target_mem_cgroup);
- }
- 
-+
- /*
-  * Determine how aggressively the anon and file LRU lists should be
-  * scanned.  The relative value of each set of LRU lists is determined
-@@ -1701,11 +1704,10 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
-        }
- 
-        /*
--        * With swappiness at 100, anonymous and file have the same priority.
-         * This scanning priority is essentially the inverse of IO cost.
-         */
-        anon_prio = vmscan_swappiness(sc);
--       file_prio = 200 - anon_prio;
-+       file_prio = max_swappiness - anon_prio;
- 
-        /*
-         * OK, so we have swap space and a fair amount of page cache
 -- 
-1.7.9.5
+Kind regards,
+Minchan Kim
 
-> 8. Huge page swap. Huge page swap can solve a lot of problems above, but both
-> THP and hugetlbfs don't support swap.
-
-Another items are indirection layers. Please read Rik's mail below.
-Indirection layers could give many flexibility to backends and helpful
-for defragmentation.
-
-One of idea I am considering is that makes hierarchy swap devides,
-NOT priority-based. I mean currently swap devices are used up by prioirty order.
-It's not good fit if we use fast swap and slow swap at the same time.
-I'd like to consume fast swap device (ex, in-memory swap) firstly, then
-I want to migrate some of swap pages from fast swap to slow swap to
-make room for fast swap. It could solve below concern.
-In addition, buffering via in-memory swap could make big chunk which is aligned
-to slow device's block size so migration speed from fast swap to slow swap
-could be enhanced so wear out problem would go away, too.
-
-Quote from last KS2012 - http://lwn.net/Articles/516538/
-"Andrea Arcangeli was also concerned that the first pages to be evicted from
-memory are, by definition of the LRU page order, the ones that are least likely
-to be used in the future. These are the pages that should be going to secondary
-storage and more frequently used pages should be going to zcache. As it stands,
-zcache may fill up with no-longer-used pages and then the system continues to
-move used pages from and to the disk."
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
