@@ -1,35 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id A59946B0010
-	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 19:01:49 -0500 (EST)
-Date: Wed, 23 Jan 2013 01:01:47 +0100
-From: Jan Kara <jack@suse.cz>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id BDFDD6B0010
+	for <linux-mm@kvack.org>; Tue, 22 Jan 2013 19:04:37 -0500 (EST)
+Date: Tue, 22 Jan 2013 16:04:36 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] MAX_PAUSE to be at least 4
-Message-ID: <20130123000147.GC7497@quack.suse.cz>
-References: <201301210307.r0L37YuG018834@como.maths.usyd.edu.au>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <20130122160436.f0fa8352.akpm@linux-foundation.org>
 In-Reply-To: <201301210307.r0L37YuG018834@como.maths.usyd.edu.au>
+References: <201301210307.r0L37YuG018834@como.maths.usyd.edu.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: paul.szabo@sydney.edu.au
-Cc: linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>
 
-On Mon 21-01-13 14:07:34, paul.szabo@sydney.edu.au wrote:
+On Mon, 21 Jan 2013 14:07:34 +1100
+paul.szabo@sydney.edu.au wrote:
+
 > Ensure MAX_PAUSE is 4 or larger, so limits in
 > 	return clamp_val(t, 4, MAX_PAUSE);
 > (the only use of it) are not back-to-front.
-> 
+
+MAX_PAUSE is not used in this fashion in current kernels.
+
 > (This patch does not solve the PAE OOM issue.)
 > 
 > Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
 > School of Mathematics and Statistics   University of Sydney    Australia
-  I guess this isn't needed in patch changelog?
-
-  Also clamp_val(t, 4, MAX_PAUSE) doesn't seem to exist anymore?
-
-								Honza
+> 
 > Reported-by: Paul Szabo <psz@maths.usyd.edu.au>
 > Reference: http://bugs.debian.org/695182
 > Signed-off-by: Paul Szabo <psz@maths.usyd.edu.au>
@@ -45,14 +45,6 @@ On Mon 21-01-13 14:07:34, paul.szabo@sydney.edu.au wrote:
 >  
 >  /*
 >   * Estimate write bandwidth at 200ms intervals.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
