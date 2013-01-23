@@ -1,70 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 6C6A06B0008
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 08:17:01 -0500 (EST)
-Date: Wed, 23 Jan 2013 08:16:52 -0500 (EST)
-From: Zhouping Liu <zliu@redhat.com>
-Message-ID: <956393225.9764718.1358947012010.JavaMail.root@redhat.com>
-In-Reply-To: <173180425.9757906.1358945712656.JavaMail.root@redhat.com>
-Subject: BUG: soft lockup - CPU#7 stuck for 22s! [numad:564]
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 33B706B0009
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 08:17:12 -0500 (EST)
+Date: Wed, 23 Jan 2013 13:17:13 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 5/6] mm: Fold page->_last_nid into page->flags where
+ possible
+Message-ID: <20130123131713.GG13304@suse.de>
+References: <1358874762-19717-1-git-send-email-mgorman@suse.de>
+ <1358874762-19717-6-git-send-email-mgorman@suse.de>
+ <20130122144659.d512e05c.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130122144659.d512e05c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
-Cc: David Airlie <airlied@redhat.com>, Amos Kong <akong@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Jani Nikula <jani.nikula@intel.com>, Chris Wilson <chris@chris-wilson.co.uk>, CAI Qian <caiqian@redhat.com>, mgorman@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Simon Jeons <simon.jeons@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello All,
+On Tue, Jan 22, 2013 at 02:46:59PM -0800, Andrew Morton wrote:
+> On Tue, 22 Jan 2013 17:12:41 +0000
+> Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> > 
+> > page->_last_nid fits into page->flags on 64-bit. The unlikely 32-bit NUMA
+> > configuration with NUMA Balancing will still need an extra page field.
+> > As Peter notes "Completely dropping 32bit support for CONFIG_NUMA_BALANCING
+> > would simplify things, but it would also remove the warning if we grow
+> > enough 64bit only page-flags to push the last-cpu out."
+> 
+> How much space remains in the 64-bit page->flags?
+> 
 
-I hit the following crash in mainline(9a9284153d9 Merge branch 'drm-fixes' of git://people.freedesktop.org/~airlied/linux)
+Good question.
 
--------- snip -------------
-[ 1874.514412] BUG: soft lockup - CPU#7 stuck for 22s! [numad:564]
-[ 1874.520320] Modules linked in: ebtable_nat bnep bluetooth rfkill iptable_mangle ipt_REJECT nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_filter ebtables ip6table_filter ip6_tables iptable_filter ip_tables be2iscsi iscsi_boot_sysfs bnx2i cnic uio cxgb4i cxgb4 cxgb3i cxgb3 mdio libcxgbi ib_iser rdma_cm ib_addr iw_cm ib_cm ib_sa ib_mad ib_core iscsi_tcp libiscsi_tcp libiscsi scsi_transport_iscsi vfat fat dm_mirror dm_region_hash dm_log dm_mod iTCO_wdt coretemp i7core_edac iTCO_vendor_support cdc_ether crc32c_intel usbnet lpc_ich edac_core ioatdma bnx2 i2c_i801 mii serio_raw dca shpchp mfd_core pcspkr microcode vhost_net tun macvtap macvlan kvm_intel kvm uinput sr_mod cdrom sd_mod mgag200 i2c_algo_bit crc_t10dif drm_kms_helper ata_piix ttm drm libata i2c_core megaraid_sas
-[ 1874.591743] CPU 7
-[ 1874.593584] Pid: 564, comm: numad Not tainted 3.8.0-rc4memcg+ #18 IBM IBM System x3400 M3 Server -[7379I08]-/69Y4356
-[ 1874.604700] RIP: 0010:[<ffffffff810db965>]  [<ffffffff810db965>] audit_log_start+0x95/0x450
-[ 1874.613055] RSP: 0018:ffff88017940fd38  EFLAGS: 00000286
-[ 1874.618356] RAX: 000000000000ea60 RBX: 00000001000a75bf RCX: 0000000000000142
-[ 1874.625473] RDX: 0000000100180d4b RSI: 0000000000000140 RDI: 000000000000ea60
-[ 1874.632589] RBP: ffff88017940fdd8 R08: fffffffeffe8dd15 R09: 0000000000000000
-[ 1874.639705] R10: 0000000000000001 R11: 0000000000000000 R12: 0000000000000000
-[ 1874.646822] R13: 0000000000000286 R14: ffffffff811ba4a9 R15: ffff88017940fcb8
-[ 1874.653939] FS:  00007f65b567e740(0000) GS:ffff88027fc60000(0000) knlGS:0000000000000000
-[ 1874.662006] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[ 1874.667737] CR2: 0000000002c3c808 CR3: 0000000179606000 CR4: 00000000000007e0
-[ 1874.674853] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[ 1874.681970] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[ 1874.689088] Process numad (pid: 564, threadinfo ffff88017940e000, task ffff8801786f32e0)
-[ 1874.697153] Stack:
-[ 1874.699164]  ffff88017940fd68 ffff880178d59800 000000d000000514 ffff8801786f32e0
-[ 1874.706626]  ffff8802785e0c00 ffff88017940fe58 ffff8802727c4000 ffff88017940ff28
-[ 1874.714087]  0000000000000000 0000000000000000 ffff8801786f32e0 ffffffff81097970
-[ 1874.721549] Call Trace:
-[ 1874.724000]  [<ffffffff81097970>] ? try_to_wake_up+0x2d0/0x2d0
-[ 1874.729821]  [<ffffffff810e0feb>] audit_log_exit+0x4b/0xfe0
-[ 1874.735388]  [<ffffffff811abf11>] ? do_filp_open+0x41/0xa0
-[ 1874.740867]  [<ffffffff81185b43>] ? kmem_cache_free+0x33/0x140
-[ 1874.746688]  [<ffffffff811a7856>] ? final_putname+0x26/0x50
-[ 1874.752249]  [<ffffffff810e2cdf>] __audit_syscall_exit+0x25f/0x2c0
-[ 1874.758420]  [<ffffffff81611980>] sysret_audit+0x17/0x21
-[ 1874.763720] Code: c7 00 00 48 89 9d 78 ff ff ff 8b 15 a2 9e 83 00 8b 05 d8 9e 83 00 8b 0d 7a 6e b5 00 85 d2 48 63 f8 0f 84 4f 02 00 00 41 8d 34 16 <39> f1 0f 86 43 02 00 00 45 85 e4 0f 84 72 01 00 00 85 c0 0f 84
------------ snip -------------
+There are 19 free bits in my configuration but it's related to
+CONFIG_NODES_SHIFT which is 9 for me (512 nodes) and very heavily affected
+by options such as CONFIG_SPARSEMEM_VMEMMAP. Memory hot-remove does not work
+with CONFIG_SPARSEMEM_VMEMMAP and enterprise distribution configs may be
+taking the performance hit to enable memory hot-remove. If I disable this
+option to enable memory hot-remove then there are 0 free bits in page->flags.
 
-my environment is 8Gb RAM with 2 NUMA nodes and I enabled 'numad' daemon(# systemctl start numad.service)
-the reproducer comes from ltp suite: https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/mem/oom/oom02.c
-and I couldn't find the issue when I stopped numad service( # systemctl stop numad.service)
+Your milage will vary *considerably*.
 
-and I bisected the issue and found it just only occurred with the commit 9a928415(Merge branch 'drm-fixes' of git://people.freedesktop.org/~airlied/linux)
-when I reverted 9a928415(checkout ee61abb32 - module: fix missing module_mutex unlock), the issue is gone.
+In answering this question I remembered that mminit_loglevel is able to
+answer these sort of questions but only if it's updated properly. I'll
+post a follow-up patch.
 
-config file is here: http://sanweiying.fedorapeople.org/configs/config_softlockup
-and more error log can be found here: http://sanweiying.fedorapeople.org/log/kernel/softlockup.log
+> Was this the best possible use of the remaining space?
+> 
+
+Another good question and I do not have a good answer. There is a definite
+cost to having a larger struct page on large memory systems. The benefit
+to saving flags on 64-bit page->flags for potential future use is more
+intangiable.
+
+> It's good that we can undo this later by flipping
+> LAST_NID_NOT_IN_PAGE_FLAGS.
+> 
+
+Yes and it generates a dirty warning if it's forced to use
+LAST_NID_NOT_IN_PAGE_FLAGS.
+
+> > [mgorman@suse.de: Minor modifications]
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> 
+> Several of these patches are missing signoffs (Peter and Hugh).
+> 
+
+In the case of Peter's patches, they changed enough that I couldn't preserve
+the signed-off-by. This happened for the NUMA balancing patches too. I
+preserved the "From" and I'm hoping he'll respond to add his Signed-off-by
+to these patches if he's ok with them.
+
+In Hugh's case he did not add his signed-off-by because he was not sure
+whether there was a gremlin hidden in there. If there is, I was not able
+to find it. It's up to him whether he wants to put his signed-off-by on
+it but I preserved the "From:".
+
+> >
+> > ...
+> >
+> > +static inline int page_last_nid(struct page *page)
+> > +{
+> > +	return (page->flags >> LAST_NID_PGSHIFT) & LAST_NID_MASK;
+> > +}
+> > +
+> > +static inline int page_xchg_last_nid(struct page *page, int nid)
+> > +{
+> > +	unsigned long old_flags, flags;
+> > +	int last_nid;
+> > +
+> > +	do {
+> > +		old_flags = flags = page->flags;
+> > +		last_nid = page_last_nid(page);
+> > +
+> > +		flags &= ~(LAST_NID_MASK << LAST_NID_PGSHIFT);
+> > +		flags |= (nid & LAST_NID_MASK) << LAST_NID_PGSHIFT;
+> > +	} while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags));
+> > +
+> > +	return last_nid;
+> > +}
+> > +
+> > +static inline void reset_page_last_nid(struct page *page)
+> > +{
+> > +	page_xchg_last_nid(page, (1 << LAST_NID_SHIFT) - 1);
+> > +}
+> 
+> page_xchg_last_nid() and reset_page_last_nid() are getting nuttily
+> large.  Please investigate uninlining them?
+> 
+
+Will do.
+
+> reset_page_last_nid() is poorly named.  page_reset_last_nid() would be
+> better, and consistent.
+> 
+
+Will fix.
 
 -- 
-Thanks,
-Zhouping
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
