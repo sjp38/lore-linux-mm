@@ -1,102 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id DA5826B0005
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 20:48:24 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so5093112pbc.0
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2013 17:48:24 -0800 (PST)
-Message-ID: <1358992092.3351.10.camel@kernel>
-Subject: Re: [PATCH Bug fix 0/5] Bug fix for physical memory hot-remove.
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Wed, 23 Jan 2013 19:48:12 -0600
-In-Reply-To: <51009003.5020901@cn.fujitsu.com>
-References: <1358854984-6073-1-git-send-email-tangchen@cn.fujitsu.com>
-	  <1358944171.3351.1.camel@kernel> <50FFE2FC.9030401@cn.fujitsu.com>
-	 <1358987715.3351.3.camel@kernel> <51009003.5020901@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 22CC16B0005
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 21:03:03 -0500 (EST)
+Received: by mail-da0-f53.google.com with SMTP id x6so3976615dac.26
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2013 18:03:02 -0800 (PST)
+Date: Thu, 24 Jan 2013 10:02:50 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
+Message-ID: <20130124020250.GA32496@kernel.org>
+References: <20130122065341.GA1850@kernel.org>
+ <20130123075808.GH2723@blaptop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130123075808.GH2723@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, jiang.liu@huawei.com, julian.calaby@gmail.com, sfr@canb.auug.org.au, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 
-On Thu, 2013-01-24 at 09:36 +0800, Tang Chen wrote:
-> On 01/24/2013 08:35 AM, Simon Jeons wrote:
-> > On Wed, 2013-01-23 at 21:17 +0800, Tang Chen wrote:
-> >> On 01/23/2013 08:29 PM, Simon Jeons wrote:
-> >>> Hi Tang,
-> >>>
-> >>> I remember your big physical memory hot-remove patchset has already
-> >>> merged by Andrew, but where I can find it? Could you give me git tree
-> >>> address?
-> >>
-> >> Hi Simon,
-> >>
-> >> You can find all the physical memory hot-remove patches and related bugfix
-> >> patches from the following url:
-> >>
-> >> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git akpm
-> >
-> > ~/linux-next$ git remote -v
-> > origin git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-> > (fetch)
-> > origin git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-> > (push)
-> > ~/linux-next$ git branch
-> > * akpm
-> >    master
-> > ~/linux-next$ wc -l mm/memory_hotplug.c
-> > 1173 mm/memory_hotplug.c
-> >
-> > I still can't find it. :(
+On Wed, Jan 23, 2013 at 04:58:08PM +0900, Minchan Kim wrote:
+> On Tue, Jan 22, 2013 at 02:53:41PM +0800, Shaohua Li wrote:
+> > Hi,
+> > 
+> > Because of high density, low power and low price, flash storage (SSD) is a good
+> > candidate to partially replace DRAM. A quick answer for this is using SSD as
+> > swap. But Linux swap is designed for slow hard disk storage. There are a lot of
+> > challenges to efficiently use SSD for swap:
 > 
-> Hi Simon,
+> Many of below item could be applied in in-memory swap like zram, zcache.
 > 
-> It's weird, in my akpm git log, I can find the following commit.
+> > 
+> > 1. Lock contentions (swap_lock, anon_vma mutex, swap address space lock)
+> > 2. TLB flush overhead. To reclaim one page, we need at least 2 TLB flush. This
+> > overhead is very high even in a normal 2-socket machine.
+> > 3. Better swap IO pattern. Both direct and kswapd page reclaim can do swap,
+> > which makes swap IO pattern is interleave. Block layer isn't always efficient
+> > to do request merge. Such IO pattern also makes swap prefetch hard.
 > 
-> commit deed0460e01b3968f2cf46fb94851936535b7e0d
-> Author: Tang Chen <tangchen@cn.fujitsu.com>
-> Date:   Sat Jan 19 11:07:13 2013 +1100
+> Agreed.
 > 
->      memory-hotplug: do not allocate pgdat if it was not freed when offline.
+> > 4. Swap map scan overhead. Swap in-memory map scan scans an array, which is
+> > very inefficient, especially if swap storage is fast.
 > 
-> And there are 15 related patches following it. And above it, there are 
-> some more related bugfix
-> from me and Andrew. They are all in -mm tree.
+> Agreed.
 > 
-> This is what I did:
+> > 5. SSD related optimization, mainly discard support
+> > 6. Better swap prefetch algorithm. Besides item 3, sequentially accessed pages
+> > aren't always in LRU list adjacently, so page reclaim will not swap such pages
+> > in adjacent storage sectors. This makes swap prefetch hard.
 > 
->    $ git remote add next 
-> http://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
->    $ git remote update next
->    $ git checkout -b next-akpm remotes/next/akpm
-> 
-> Please pull your tree and try again. :)
+> One of problem is LRU churning and I wanted to try to fix it.
+> http://marc.info/?l=linux-mm&m=130978831028952&w=4
 
-Got it. Thanks! :)
+Yes, LRU churning is a problem. Another problem is we didn't add sequentially
+accessed pages to LRU list adjacently if there are multiple tasks running and
+consuming memory in the meantime. The percpu pagevec helps a little, but its
+size isn't large.
+ 
+> > 7. Alternative page reclaim policy to bias reclaiming anonymous page.
+> > Currently reclaim anonymous page is considering harder than reclaim file pages,
+> > so we bias reclaiming file pages. If there are high speed swap storage, we are
+> > considering doing swap more aggressively.
+> 
+> Yeb. We need it. I tried it with extending vm_swappiness to 200.
+> 
+> From: Minchan Kim <minchan@kernel.org>
+> Date: Mon, 3 Dec 2012 16:21:00 +0900
+> Subject: [PATCH] mm: increase swappiness to 200
 
-> 
-> Thanks. :)
-> 
-> 
-> >
-> >>
-> >>
-> >> Thanks. :)
-> >>
-> >> --
-> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> see: http://www.linux-mm.org/ .
-> >> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
-> >
-> >
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> >
+I had exactly the same code in my tree. And actually I found if swappiness is
+set to 200, zone reclaim has problem. I has a patch for it. But haven't post it
+out yet.
 
+swappiness doesn't solve all the problem here. anonymous pages are in active
+list first. And the rotation logic bias to anonymous pages too. So even you set
+a high swappiness, file pages can still be easily reclaimed.
+
+> > 8. Huge page swap. Huge page swap can solve a lot of problems above, but both
+> > THP and hugetlbfs don't support swap.
+> 
+> Another items are indirection layers. Please read Rik's mail below.
+> Indirection layers could give many flexibility to backends and helpful
+> for defragmentation.
+> 
+> One of idea I am considering is that makes hierarchy swap devides,
+> NOT priority-based. I mean currently swap devices are used up by prioirty order.
+> It's not good fit if we use fast swap and slow swap at the same time.
+> I'd like to consume fast swap device (ex, in-memory swap) firstly, then
+> I want to migrate some of swap pages from fast swap to slow swap to
+> make room for fast swap. It could solve below concern.
+> In addition, buffering via in-memory swap could make big chunk which is aligned
+> to slow device's block size so migration speed from fast swap to slow swap
+> could be enhanced so wear out problem would go away, too.
+
+This looks interesting.
+
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
