@@ -1,84 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 880076B0005
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 20:41:02 -0500 (EST)
-Date: Thu, 24 Jan 2013 10:40:59 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
-Message-ID: <20130124014059.GA22654@blaptop>
-References: <20130122065341.GA1850@kernel.org>
- <20130123075808.GH2723@blaptop>
- <51003439.2070505@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51003439.2070505@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id DA5826B0005
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 20:48:24 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so5093112pbc.0
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2013 17:48:24 -0800 (PST)
+Message-ID: <1358992092.3351.10.camel@kernel>
+Subject: Re: [PATCH Bug fix 0/5] Bug fix for physical memory hot-remove.
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Wed, 23 Jan 2013 19:48:12 -0600
+In-Reply-To: <51009003.5020901@cn.fujitsu.com>
+References: <1358854984-6073-1-git-send-email-tangchen@cn.fujitsu.com>
+	  <1358944171.3351.1.camel@kernel> <50FFE2FC.9030401@cn.fujitsu.com>
+	 <1358987715.3351.3.camel@kernel> <51009003.5020901@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Shaohua Li <shli@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, jiang.liu@huawei.com, julian.calaby@gmail.com, sfr@canb.auug.org.au, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
 
-Hi Seth,
-
-On Wed, Jan 23, 2013 at 01:04:25PM -0600, Seth Jennings wrote:
-> On 01/23/2013 01:58 AM, Minchan Kim wrote:
-> > Currently, the page table entries that have swapped out pages
-> > associated with them contain a swap entry, pointing directly
-> > at the swap device and swap slot containing the data. Meanwhile,
-> > the swap count lives in a separate array.
-> > 
-> > The redesign we are considering moving the swap entry to the
-> > page cache radix tree for the swapper_space and having the pte
-> > contain only the offset into the swapper_space.  The swap count
-> > info can also fit inside the swapper_space page cache radix
-> > tree (at least on 64 bits - on 32 bits we may need to get
-> > creative or accept a smaller max amount of swap space).
+On Thu, 2013-01-24 at 09:36 +0800, Tang Chen wrote:
+> On 01/24/2013 08:35 AM, Simon Jeons wrote:
+> > On Wed, 2013-01-23 at 21:17 +0800, Tang Chen wrote:
+> >> On 01/23/2013 08:29 PM, Simon Jeons wrote:
+> >>> Hi Tang,
+> >>>
+> >>> I remember your big physical memory hot-remove patchset has already
+> >>> merged by Andrew, but where I can find it? Could you give me git tree
+> >>> address?
+> >>
+> >> Hi Simon,
+> >>
+> >> You can find all the physical memory hot-remove patches and related bugfix
+> >> patches from the following url:
+> >>
+> >> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git akpm
+> >
+> > ~/linux-next$ git remote -v
+> > origin git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+> > (fetch)
+> > origin git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+> > (push)
+> > ~/linux-next$ git branch
+> > * akpm
+> >    master
+> > ~/linux-next$ wc -l mm/memory_hotplug.c
+> > 1173 mm/memory_hotplug.c
+> >
+> > I still can't find it. :(
 > 
-> Correct me if I'm wrong, but this recent patchset creating a
-> swapper_space per type would mess this up right?  The offset alone
-> would no longer be sufficient to access the proper swapper_space.
+> Hi Simon,
+> 
+> It's weird, in my akpm git log, I can find the following commit.
+> 
+> commit deed0460e01b3968f2cf46fb94851936535b7e0d
+> Author: Tang Chen <tangchen@cn.fujitsu.com>
+> Date:   Sat Jan 19 11:07:13 2013 +1100
+> 
+>      memory-hotplug: do not allocate pgdat if it was not freed when offline.
+> 
+> And there are 15 related patches following it. And above it, there are 
+> some more related bugfix
+> from me and Andrew. They are all in -mm tree.
+> 
+> This is what I did:
+> 
+>    $ git remote add next 
+> http://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+>    $ git remote update next
+>    $ git checkout -b next-akpm remotes/next/akpm
+> 
+> Please pull your tree and try again. :)
 
-If I understand Rik's idea correctly, it doesn't mess up. Because we already
-have used (swp_type, swp_offset) as offset of swapper_space so although
-he mentioned "pte contains only the offset into the swapper_space",
-it doesn't mean we will store only swp_offset in pte but store offset of
-swapper_space in pte.
-
-old :
-        do_swap_page
-        swp_entry_t entry = pte_to_swp_entry(pte);
-        if (!lookup_swap_cache(entry))
-                swapin_readahead(entry)
-
-New :
-        do_swap_page
-        pgoff_t offset = pte_to_swp_offset(pte)
-        if (!lookup_swap_cache(offset)) {
-                swp_entry_t entry = offset_to_swp_entry(offset);
-                swapin_readahead(entry);
-        }
-
-IOW, entry of old and offset of new would be same vaule.
+Got it. Thanks! :)
 
 > 
-> Why not just continue to store the entire swap entry (type and offset)
-> in the pte?  Where you planning to use the type space in the pte for
-> something else?
-
-No plan if I didn't miss something. :)
-
+> Thanks. :)
 > 
-> Seth
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >
+> >>
+> >>
+> >> Thanks. :)
+> >>
+> >> --
+> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> see: http://www.linux-mm.org/ .
+> >> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+> >
+> >
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> >
 
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
