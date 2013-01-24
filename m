@@ -1,79 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id E29CC6B0008
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 18:46:52 -0500 (EST)
-Date: Thu, 24 Jan 2013 10:46:49 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC, PATCH 00/19] Numa aware LRU lists and shrinkers
-Message-ID: <20130123234649.GV2498@dastard>
-References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
- <50FD6815.90900@parallels.com>
- <20130121232121.GG2498@dastard>
- <50FFF571.8080506@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50FFF571.8080506@parallels.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 5ADDC6B0008
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 19:18:12 -0500 (EST)
+Date: Wed, 23 Jan 2013 16:18:10 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] memcg: reduce the size of struct memcg 244-fold.
+Message-Id: <20130123161810.73e4ca58.akpm@linux-foundation.org>
+In-Reply-To: <1358962426-8738-1-git-send-email-glommer@parallels.com>
+References: <1358962426-8738-1-git-send-email-glommer@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-On Wed, Jan 23, 2013 at 06:36:33PM +0400, Glauber Costa wrote:
-> On 01/22/2013 03:21 AM, Dave Chinner wrote:
-> > On Mon, Jan 21, 2013 at 08:08:53PM +0400, Glauber Costa wrote:
-> >> On 11/28/2012 03:14 AM, Dave Chinner wrote:
-> >>> [PATCH 09/19] list_lru: per-node list infrastructure
-> >>>
-> >>> This makes the generic LRU list much more scalable by changing it to
-> >>> a {list,lock,count} tuple per node. There are no external API
-> >>> changes to this changeover, so is transparent to current users.
-> >>>
-> >>> [PATCH 10/19] shrinker: add node awareness
-> >>> [PATCH 11/19] fs: convert inode and dentry shrinking to be node
-> >>>
-> >>> Adds a nodemask to the struct shrink_control for callers of
-> >>> shrink_slab to set appropriately for their reclaim context. This
-> >>> nodemask is then passed by the inode and dentry cache reclaim code
-> >>> to the generic LRU list code to implement node aware shrinking.
-> >>
-> >> I have a follow up question that popped up from a discussion between me
-> >> and my very American friend Johnny Wheeler, also known as Johannes
-> >> Weiner (CC'd). I actually remember we discussing this, but don't fully
-> >> remember the outcome. And since I can't find it anywhere, it must have
-> >> been in a media other than e-mail. So I thought it would do no harm in
-> >> at least documenting it...
-> >>
-> >> Why are we doing this per-node, instead of per-zone?
-> >>
-> >> It seems to me that the goal is to collapse all zones of a node into a
-> >> single list, but since the number of zones is not terribly larger than
-> >> the number of nodes, and zones is where the pressure comes from, what do
-> >> we really gain from this?
-> > 
-> > The number is quite a bit higher - there are platforms with 5 zones
-> > to a node. The reality is, though, for most platforms slab
-> > allocations come from a single zone - they never come from ZONE_DMA,
-> > ZONE_HIGHMEM or ZONE_MOVEABLE, so there is there is no good reason
-> > for having cache LRUs for these zones. So, two zones at most.
-> > 
-> Yes, but one would expect that most of those special zones would be
-> present only in the first node, no? (correct me if I am wrong here).
+On Wed, 23 Jan 2013 21:33:46 +0400
+Glauber Costa <glommer@parallels.com> wrote:
 
-As I understand it, every node has an identical zone setup (i.e. a
-flat array of MAX_NR_ZONES zones in the struct pglist_data), and
-pages are simply places the in the appropriate zones on each node...
+> In order to maintain all the memcg bookkeeping, we need per-node
+> descriptors, which will in turn contain a per-zone descriptor.
+> 
+> Because we want to statically allocate those, this array ends up being
+> very big. Part of the reason is that we allocate something large enough
+> to hold MAX_NUMNODES, the compile time constant that holds the maximum
+> number of nodes we would ever consider.
+> 
+> However, we can do better in some cases if the firmware help us. This is
+> true for modern x86 machines; coincidentally one of the architectures in
+> which MAX_NUMNODES tends to be very big.
+> 
+> By using the firmware-provided maximum number of nodes instead of
+> MAX_NUMNODES, we can reduce the memory footprint of struct memcg
+> considerably. In the extreme case in which we have only one node, this
+> reduces the size of the structure from ~ 64k to ~2k. This is
+> particularly important because it means that we will no longer resort to
+> the vmalloc area for the struct memcg on defconfigs. We also have enough
+> room for an extra node and still be outside vmalloc.
+> 
+> One also has to keep in mind that with the industry's ability to fit
+> more processors in a die as fast as the FED prints money, a nodes = 2
+> configuration is already respectably big.
 
-Also, IIUC, the behaviour of the zones one each node is architecture
-dependent, we can't make assumptions that certain zones are only
-ever used on the first node...
+Seems sensible.
 
-Cheers,
+> +static inline int memcg_size(void)
+> +{
+> +	return sizeof(struct mem_cgroup) +
+> +		nr_node_ids * sizeof(struct mem_cgroup_per_node);
+> +}
+> +
+>  /* internal only representation about the status of kmem accounting. */
+>  enum {
+>  	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
+> @@ -5894,9 +5904,9 @@ static void free_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+>  static struct mem_cgroup *mem_cgroup_alloc(void)
+>  {
+>  	struct mem_cgroup *memcg;
+> -	int size = sizeof(struct mem_cgroup);
+> +	int size = memcg_size();
+>  
+> -	/* Can be very big if MAX_NUMNODES is very big */
+> +	/* Can be very big if nr_node_ids is very big */
+>  	if (size < PAGE_SIZE)
+>  		memcg = kzalloc(size, GFP_KERNEL);
+>  	else
+> @@ -5933,7 +5943,7 @@ out_free:
+>  static void __mem_cgroup_free(struct mem_cgroup *memcg)
+>  {
+>  	int node;
+> -	int size = sizeof(struct mem_cgroup);
+> +	int size = memcg_size();
+>  
+>  	mem_cgroup_remove_from_trees(memcg);
+>  	free_css_id(&mem_cgroup_subsys, &memcg->css);
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Really everything here should be using size_t - a minor
+cosmetic/readability thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
