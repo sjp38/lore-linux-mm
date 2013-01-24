@@ -1,75 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 7E4D46B0005
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 10:16:17 -0500 (EST)
-Date: Thu, 24 Jan 2013 16:16:03 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] Negative (setpoint-dirty) in bdi_position_ratio()
-Message-ID: <20130124151603.GD21818@quack.suse.cz>
-References: <201301200002.r0K02Atl031280@como.maths.usyd.edu.au>
- <20130124145707.GB12745@localhost>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id E8CA16B0005
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 10:50:05 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id c13so4833683eek.0
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2013 07:50:04 -0800 (PST)
+Date: Thu, 24 Jan 2013 16:50:00 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC PATCH 1/8] mm, vmalloc: change iterating a vmlist to
+ find_vm_area()
+Message-ID: <20130124155000.GA32284@gmail.com>
+References: <1354810175-4338-1-git-send-email-js1304@gmail.com>
+ <1354810175-4338-2-git-send-email-js1304@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130124145707.GB12745@localhost>
+In-Reply-To: <1354810175-4338-2-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: paul.szabo@sydney.edu.au, linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, Chris Metcalf <cmetcalf@tilera.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Thu 24-01-13 22:57:07, Wu Fengguang wrote:
-> Hi Paul,
-> 
-> > (This patch does not solve the PAE OOM issue.)
-> 
-> You may try the below debug patch. The only way the writeback patches
-> should trigger OOM, I think, is for the number of dirty/writeback
-> pages going out of control.
-> 
-> Or more simple, you may show us the OOM dmesg which will contain the
-> number of dirty pages. Or run this in a continuous loop during your
-> tests, and see how the dirty numbers change before OOM:
-  I think he found the culprit of the problem being min_free_kbytes was not
-properly reflected in the dirty throttling. But the patch has been already
-picked up by Andrew so I didn't forward it to you. Paul please correct me
-if I'm wrong.
 
-								Honza
+* Joonsoo Kim <js1304@gmail.com> wrote:
 
+> The purpose of iterating a vmlist is finding vm area with specific
+> virtual address. find_vm_area() is provided for this purpose
+> and more efficient, because it uses a rbtree.
+> So change it.
 > 
-> while :
-> do
->         grep -E '(Dirty|Writeback)' /proc/meminfo
->         sleep 1
-> done
+> Cc: Chris Metcalf <cmetcalf@tilera.com>
+> Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 > 
-> Thanks,
-> Fengguang
-> 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 50f0824..cf1165a 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -1147,6 +1147,16 @@ pause:
->  		if (task_ratelimit)
->  			break;
+> diff --git a/arch/tile/mm/pgtable.c b/arch/tile/mm/pgtable.c
+> index de0de0c..862782d 100644
+> --- a/arch/tile/mm/pgtable.c
+> +++ b/arch/tile/mm/pgtable.c
+> @@ -592,12 +592,7 @@ void iounmap(volatile void __iomem *addr_in)
+>  	   in parallel. Reuse of the virtual address is prevented by
+>  	   leaving it in the global lists until we're done with it.
+>  	   cpa takes care of the direct mappings. */
+> -	read_lock(&vmlist_lock);
+> -	for (p = vmlist; p; p = p->next) {
+> -		if (p->addr == addr)
+> -			break;
+> -	}
+> -	read_unlock(&vmlist_lock);
+> +	p = find_vm_area((void *)addr);
 >  
-> +		if (nr_dirty > dirty_thresh + dirty_thresh / 2) {
-> +			if (printk_ratelimit())
-> +				printk(KERN_WARNING "nr_dirty=%lu dirty_thresh=%lu task_ratelimit=%lu dirty_ratelimit=%lu pos_ratio=%lu\n",
-> +				       nr_dirty,
-> +				       dirty_thresh,
-> +				       task_ratelimit,
-> +				       dirty_ratelimit,
-> +				       pos_ratio);
-> +		}
-> +
->  		/*
->  		 * In the case of an unresponding NFS server and the NFS dirty
->  		 * pages exceeds dirty_thresh, give the other good bdi's a pipe
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+>  	if (!p) {
+>  		pr_err("iounmap: bad address %p\n", addr);
+> diff --git a/arch/unicore32/mm/ioremap.c b/arch/unicore32/mm/ioremap.c
+> index b7a6055..13068ee 100644
+> --- a/arch/unicore32/mm/ioremap.c
+> +++ b/arch/unicore32/mm/ioremap.c
+> @@ -235,7 +235,7 @@ EXPORT_SYMBOL(__uc32_ioremap_cached);
+>  void __uc32_iounmap(volatile void __iomem *io_addr)
+>  {
+>  	void *addr = (void *)(PAGE_MASK & (unsigned long)io_addr);
+> -	struct vm_struct **p, *tmp;
+> +	struct vm_struct *vm;
+>  
+>  	/*
+>  	 * If this is a section based mapping we need to handle it
+> @@ -244,17 +244,10 @@ void __uc32_iounmap(volatile void __iomem *io_addr)
+>  	 * all the mappings before the area can be reclaimed
+>  	 * by someone else.
+>  	 */
+> -	write_lock(&vmlist_lock);
+> -	for (p = &vmlist ; (tmp = *p) ; p = &tmp->next) {
+> -		if ((tmp->flags & VM_IOREMAP) && (tmp->addr == addr)) {
+> -			if (tmp->flags & VM_UNICORE_SECTION_MAPPING) {
+> -				unmap_area_sections((unsigned long)tmp->addr,
+> -						    tmp->size);
+> -			}
+> -			break;
+> -		}
+> -	}
+> -	write_unlock(&vmlist_lock);
+> +	vm = find_vm_area(addr);
+> +	if (vm && (vm->flags & VM_IOREMAP) &&
+> +		(vm->flags & VM_UNICORE_SECTION_MAPPING))
+> +		unmap_area_sections((unsigned long)vm->addr, vm->size);
+>  
+>  	vunmap(addr);
+>  }
+> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+> index 78fe3f1..9a1e658 100644
+> --- a/arch/x86/mm/ioremap.c
+> +++ b/arch/x86/mm/ioremap.c
+> @@ -282,12 +282,7 @@ void iounmap(volatile void __iomem *addr)
+>  	   in parallel. Reuse of the virtual address is prevented by
+>  	   leaving it in the global lists until we're done with it.
+>  	   cpa takes care of the direct mappings. */
+> -	read_lock(&vmlist_lock);
+> -	for (p = vmlist; p; p = p->next) {
+> -		if (p->addr == (void __force *)addr)
+> -			break;
+> -	}
+> -	read_unlock(&vmlist_lock);
+> +	p = find_vm_area((void __force *)addr);
+>  
+>  	if (!p) {
+>  		printk(KERN_ERR "iounmap: bad address %p\n", addr);
+
+For the x86 bits, provided it gets some good testing:
+
+Acked-by: Ingo Molnar <mingo@kernel.org>
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
