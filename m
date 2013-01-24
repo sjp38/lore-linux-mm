@@ -1,258 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 22C006B0005
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 20:40:05 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id hz11so5152959pad.31
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2013 17:40:04 -0800 (PST)
-Message-ID: <1358991596.3351.9.camel@kernel>
-Subject: Re: [patch 2/3 v2]swap: make each swap partition have one
- address_space
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Wed, 23 Jan 2013 19:39:56 -0600
-In-Reply-To: <20130123080420.GI2723@blaptop>
-References: <20130122022951.GB12293@kernel.org>
-	 <20130123061645.GF2723@blaptop> <20130123073655.GA31672@kernel.org>
-	 <20130123080420.GI2723@blaptop>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 880076B0005
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 20:41:02 -0500 (EST)
+Date: Thu, 24 Jan 2013 10:40:59 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
+Message-ID: <20130124014059.GA22654@blaptop>
+References: <20130122065341.GA1850@kernel.org>
+ <20130123075808.GH2723@blaptop>
+ <51003439.2070505@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51003439.2070505@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Shaohua Li <shli@kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Shaohua Li <shli@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 
-On Wed, 2013-01-23 at 17:04 +0900, Minchan Kim wrote:
-> On Wed, Jan 23, 2013 at 03:36:55PM +0800, Shaohua Li wrote:
-> > On Wed, Jan 23, 2013 at 03:16:45PM +0900, Minchan Kim wrote:
-> > > Looks good to me. Below just nitpicks.
-> > > I saw Andrew already took this into mmotm so I'm not sure he or you will do
-> > > next spin but anyway, review goes. Just nitpicks and a question.
-> > > 
-> > > On Tue, Jan 22, 2013 at 10:29:51AM +0800, Shaohua Li wrote:
-> > > > 
-> > > > When I use several fast SSD to do swap, swapper_space.tree_lock is heavily
-> > > > contended. This makes each swap partition have one address_space to reduce the
-> > > > lock contention. There is an array of address_space for swap. The swap entry
-> > > > type is the index to the array.
-> > > > 
-> > > > In my test with 3 SSD, this increases the swapout throughput 20%.
-> > > > 
-> > > > V1->V2: simplify code
-> > > > 
-> > > > Signed-off-by: Shaohua Li <shli@fusionio.com>
-> > > 
-> > > Acked-by: Minchan Kim <minchan@kernel.org>
-> > > 
-> > > > ---
-> > > >  fs/proc/meminfo.c    |    4 +--
-> > > >  include/linux/swap.h |    9 ++++----
-> > > >  mm/memcontrol.c      |    4 +--
-> > > >  mm/mincore.c         |    5 ++--
-> > > >  mm/swap.c            |    9 ++++++--
-> > > >  mm/swap_state.c      |   57 ++++++++++++++++++++++++++++++++++-----------------
-> > > >  mm/swapfile.c        |    5 ++--
-> > > >  mm/util.c            |   10 ++++++--
-> > > >  8 files changed, 68 insertions(+), 35 deletions(-)
-> > > > 
-> > > > Index: linux/include/linux/swap.h
-> > > > ===================================================================
-> > > > --- linux.orig/include/linux/swap.h	2013-01-22 09:13:14.000000000 +0800
-> > > > +++ linux/include/linux/swap.h	2013-01-22 09:34:44.923011706 +0800
-> > > > @@ -8,7 +8,7 @@
-> > > >  #include <linux/memcontrol.h>
-> > > >  #include <linux/sched.h>
-> > > >  #include <linux/node.h>
-> > > > -
-> > > > +#include <linux/fs.h>
-> > > >  #include <linux/atomic.h>
-> > > >  #include <asm/page.h>
-> > > >  
-> > > > @@ -330,8 +330,9 @@ int generic_swapfile_activate(struct swa
-> > > >  		sector_t *);
-> > > >  
-> > > >  /* linux/mm/swap_state.c */
-> > > > -extern struct address_space swapper_space;
-> > > > -#define total_swapcache_pages  swapper_space.nrpages
-> > > > +extern struct address_space swapper_spaces[];
-> > > > +#define swap_address_space(entry) (&swapper_spaces[swp_type(entry)])
-> > > 
-> > > How about this naming?
-> > > 
-> > > #define swapper_space(entry) (&swapper_spaces[swp_type(entry)])
-> > > 
-> > > > +extern unsigned long total_swapcache_pages(void);
-> > > >  extern void show_swap_cache_info(void);
-> > > >  extern int add_to_swap(struct page *);
-> > > >  extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
-> > > > @@ -382,7 +383,7 @@ mem_cgroup_uncharge_swapcache(struct pag
-> > > >  
-> > > >  #define nr_swap_pages				0L
-> > > >  #define total_swap_pages			0L
-> > > > -#define total_swapcache_pages			0UL
-> > > > +#define total_swapcache_pages()			0UL
-> > > >  
-> > > >  #define si_swapinfo(val) \
-> > > >  	do { (val)->freeswap = (val)->totalswap = 0; } while (0)
-> > > > Index: linux/mm/memcontrol.c
-> > > > ===================================================================
-> > > > --- linux.orig/mm/memcontrol.c	2013-01-22 09:13:14.000000000 +0800
-> > > Acked-by: Minchan Kim <minchan@kernel.org>
-> > > 
-> > > > +++ linux/mm/memcontrol.c	2013-01-22 09:29:29.374977700 +0800
-> > > > @@ -6279,7 +6279,7 @@ static struct page *mc_handle_swap_pte(s
-> > > >  	 * Because lookup_swap_cache() updates some statistics counter,
-> > > >  	 * we call find_get_page() with swapper_space directly.
-> > > >  	 */
-> > > > -	page = find_get_page(&swapper_space, ent.val);
-> > > > +	page = find_get_page(swap_address_space(ent), ent.val);
-> > > >  	if (do_swap_account)
-> > > >  		entry->val = ent.val;
-> > > >  
-> > > > @@ -6320,7 +6320,7 @@ static struct page *mc_handle_file_pte(s
-> > > >  		swp_entry_t swap = radix_to_swp_entry(page);
-> > > >  		if (do_swap_account)
-> > > >  			*entry = swap;
-> > > > -		page = find_get_page(&swapper_space, swap.val);
-> > > > +		page = find_get_page(swap_address_space(swap), swap.val);
-> > > >  	}
-> > > >  #endif
-> > > >  	return page;
-> > > > Index: linux/mm/mincore.c
-> > > > ===================================================================
-> > > > --- linux.orig/mm/mincore.c	2013-01-22 09:13:14.000000000 +0800
-> > > > +++ linux/mm/mincore.c	2013-01-22 09:29:29.378977649 +0800
-> > > > @@ -75,7 +75,7 @@ static unsigned char mincore_page(struct
-> > > >  	/* shmem/tmpfs may return swap: account for swapcache page too. */
-> > > >  	if (radix_tree_exceptional_entry(page)) {
-> > > >  		swp_entry_t swap = radix_to_swp_entry(page);
-> > > > -		page = find_get_page(&swapper_space, swap.val);
-> > > > +		page = find_get_page(swap_address_space(swap), swap.val);
-> > > >  	}
-> > > >  #endif
-> > > >  	if (page) {
-> > > > @@ -135,7 +135,8 @@ static void mincore_pte_range(struct vm_
-> > > >  			} else {
-> > > >  #ifdef CONFIG_SWAP
-> > > >  				pgoff = entry.val;
-> > > > -				*vec = mincore_page(&swapper_space, pgoff);
-> > > > +				*vec = mincore_page(swap_address_space(entry),
-> > > > +					pgoff);
-> > > >  #else
-> > > >  				WARN_ON(1);
-> > > >  				*vec = 1;
-> > > > Index: linux/mm/swap.c
-> > > > ===================================================================
-> > > > --- linux.orig/mm/swap.c	2013-01-22 09:13:14.000000000 +0800
-> > > > +++ linux/mm/swap.c	2013-01-22 09:29:29.378977649 +0800
-> > > > @@ -855,9 +855,14 @@ EXPORT_SYMBOL(pagevec_lookup_tag);
-> > > >  void __init swap_setup(void)
-> > > >  {
-> > > >  	unsigned long megs = totalram_pages >> (20 - PAGE_SHIFT);
-> > > > -
-> > > >  #ifdef CONFIG_SWAP
-> > > > -	bdi_init(swapper_space.backing_dev_info);
-> > > > +	int i;
-> > > > +
-> > > > +	for (i = 0; i < MAX_SWAPFILES; i++) {
-> > > > +		bdi_init(swapper_spaces[i].backing_dev_info);
-> > > > +		spin_lock_init(&swapper_spaces[i].tree_lock);
-> > > > +		INIT_LIST_HEAD(&swapper_spaces[i].i_mmap_nonlinear);
-> > > > +	}
-> > > >  #endif
-> > > >  
-> > > >  	/* Use a smaller cluster for small-memory machines */
-> > > > Index: linux/mm/swap_state.c
-> > > > ===================================================================
-> > > > --- linux.orig/mm/swap_state.c	2013-01-22 09:13:14.000000000 +0800
-> > > > +++ linux/mm/swap_state.c	2013-01-22 09:29:29.378977649 +0800
-> > > > @@ -36,12 +36,12 @@ static struct backing_dev_info swap_back
-> > > >  	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK | BDI_CAP_SWAP_BACKED,
-> > > >  };
-> > > >  
-> > > > -struct address_space swapper_space = {
-> > > > -	.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
-> > > > -	.tree_lock	= __SPIN_LOCK_UNLOCKED(swapper_space.tree_lock),
-> > > > -	.a_ops		= &swap_aops,
-> > > > -	.i_mmap_nonlinear = LIST_HEAD_INIT(swapper_space.i_mmap_nonlinear),
-> > > > -	.backing_dev_info = &swap_backing_dev_info,
-> > > > +struct address_space swapper_spaces[MAX_SWAPFILES] = {
-> > > > +	[0 ... MAX_SWAPFILES - 1] = {
-> > > > +		.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
-> > > > +		.a_ops		= &swap_aops,
-> > > > +		.backing_dev_info = &swap_backing_dev_info,
-> > > > +	}
-> > > >  };
-> > > >  
-> > > >  #define INC_CACHE_INFO(x)	do { swap_cache_info.x++; } while (0)
-> > > > @@ -53,9 +53,19 @@ static struct {
-> > > >  	unsigned long find_total;
-> > > >  } swap_cache_info;
-> > > >  
-> > > > +unsigned long total_swapcache_pages(void)
-> > > > +{
-> > > > +	int i;
-> > > > +	unsigned long ret = 0;
-> > > > +
-> > > > +	for (i = 0; i < MAX_SWAPFILES; i++)
-> > > > +		ret += swapper_spaces[i].nrpages;
-> > > > +	return ret;
-> > > > +}
-> > > > +
-> > > >  void show_swap_cache_info(void)
-> > > >  {
-> > > > -	printk("%lu pages in swap cache\n", total_swapcache_pages);
-> > > > +	printk("%lu pages in swap cache\n", total_swapcache_pages());
-> > > >  	printk("Swap cache stats: add %lu, delete %lu, find %lu/%lu\n",
-> > > >  		swap_cache_info.add_total, swap_cache_info.del_total,
-> > > >  		swap_cache_info.find_success, swap_cache_info.find_total);
-> > > > @@ -70,23 +80,26 @@ void show_swap_cache_info(void)
-> > > >  static int __add_to_swap_cache(struct page *page, swp_entry_t entry)
-> > > >  {
-> > > >  	int error;
-> > > > +	struct address_space *address_space;
-> > > >  
-> > > >  	VM_BUG_ON(!PageLocked(page));
-> > > >  	VM_BUG_ON(PageSwapCache(page));
-> > > >  	VM_BUG_ON(!PageSwapBacked(page));
-> > > >  
-> > > >  	page_cache_get(page);
-> > > > -	SetPageSwapCache(page);
-> > > >  	set_page_private(page, entry.val);
-> > > > +	SetPageSwapCache(page);
-> > > 
-> > > Why did you move this line? Is there any special reason?
+Hi Seth,
+
+On Wed, Jan 23, 2013 at 01:04:25PM -0600, Seth Jennings wrote:
+> On 01/23/2013 01:58 AM, Minchan Kim wrote:
+> > Currently, the page table entries that have swapped out pages
+> > associated with them contain a swap entry, pointing directly
+> > at the swap device and swap slot containing the data. Meanwhile,
+> > the swap count lives in a separate array.
 > > 
-> > Originally I'm afraid page_mapping() gets invalid page_private(), but I then
-> > realized we hold page lock. There are some places we don't hold page lock.
-> > either such page isn't swap page or the caller can tolerate race. I forgot
-> > removing this change in the patch. But I certainly can be wrong. We can add
-> > memory barrier if required.
+> > The redesign we are considering moving the swap entry to the
+> > page cache radix tree for the swapper_space and having the pte
+> > contain only the offset into the swapper_space.  The swap count
+> > info can also fit inside the swapper_space page cache radix
+> > tree (at least on 64 bits - on 32 bits we may need to get
+> > creative or accept a smaller max amount of swap space).
 > 
-> Yeb. While I reviewed the patch, I was concern about that but I fail to find
-> a problem, too. But maybe it's valuable to add comment about that race
-> (!PageSwapCache(page) but page_mapping could return swapper_space) in page_mapping.
+> Correct me if I'm wrong, but this recent patchset creating a
+> swapper_space per type would mess this up right?  The offset alone
+> would no longer be sufficient to access the proper swapper_space.
 
-Hi Minchan,
+If I understand Rik's idea correctly, it doesn't mess up. Because we already
+have used (swp_type, swp_offset) as offset of swapper_space so although
+he mentioned "pte contains only the offset into the swapper_space",
+it doesn't mean we will store only swp_offset in pte but store offset of
+swapper_space in pte.
 
-If the race Shaohua mentioned should be PageSwapCache(page) but
-page_mapping couldn't return swapper_space since page_mapping() gets
-invalid page_private().
+old :
+        do_swap_page
+        swp_entry_t entry = pte_to_swp_entry(pte);
+        if (!lookup_swap_cache(entry))
+                swapin_readahead(entry)
 
-> So if some problem happens in the future, people could help to find culprit.
+New :
+        do_swap_page
+        pgoff_t offset = pte_to_swp_offset(pte)
+        if (!lookup_swap_cache(offset)) {
+                swp_entry_t entry = offset_to_swp_entry(offset);
+                swapin_readahead(entry);
+        }
+
+IOW, entry of old and offset of new would be same vaule.
+
 > 
-> Could you respin this with adding the comment and removing above unnecessary moving?
-> 
-> > 
-> > Thanks,
-> > Shaohua
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> Why not just continue to store the entire swap entry (type and offset)
+> in the pte?  Where you planning to use the type space in the pte for
+> something else?
 
+No plan if I didn't miss something. :)
+
+> 
+> Seth
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
