@@ -1,50 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id A70886B0005
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 10:14:44 -0500 (EST)
-Date: Thu, 24 Jan 2013 15:14:43 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: FIX [1/2] slub: Do not dereference NULL pointer in node_match
-In-Reply-To: <1358988824.3351.5.camel@kernel>
-Message-ID: <0000013c6d200e1d-03ae09c1-6fb8-42eb-ab6c-8fcae05fdb6e-000000@email.amazonses.com>
-References: <20130123214514.370647954@linux.com> <0000013c695fbd30-9023bc55-f780-4d44-965f-ab4507e483d5-000000@email.amazonses.com> <1358988824.3351.5.camel@kernel>
+	by kanga.kvack.org (Postfix) with SMTP id 7E4D46B0005
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 10:16:17 -0500 (EST)
+Date: Thu, 24 Jan 2013 16:16:03 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] Negative (setpoint-dirty) in bdi_position_ratio()
+Message-ID: <20130124151603.GD21818@quack.suse.cz>
+References: <201301200002.r0K02Atl031280@como.maths.usyd.edu.au>
+ <20130124145707.GB12745@localhost>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130124145707.GB12745@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R. Goncalves" <lgoncalv@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: paul.szabo@sydney.edu.au, linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>
 
-On Wed, 23 Jan 2013, Simon Jeons wrote:
+On Thu 24-01-13 22:57:07, Wu Fengguang wrote:
+> Hi Paul,
+> 
+> > (This patch does not solve the PAE OOM issue.)
+> 
+> You may try the below debug patch. The only way the writeback patches
+> should trigger OOM, I think, is for the number of dirty/writeback
+> pages going out of control.
+> 
+> Or more simple, you may show us the OOM dmesg which will contain the
+> number of dirty pages. Or run this in a continuous loop during your
+> tests, and see how the dirty numbers change before OOM:
+  I think he found the culprit of the problem being min_free_kbytes was not
+properly reflected in the dirty throttling. But the patch has been already
+picked up by Andrew so I didn't forward it to you. Paul please correct me
+if I'm wrong.
 
-> On Wed, 2013-01-23 at 21:45 +0000, Christoph Lameter wrote:
-> > The variables accessed in slab_alloc are volatile and therefore
-> > the page pointer passed to node_match can be NULL. The processing
-> > of data in slab_alloc is tentative until either the cmpxhchg
-> > succeeds or the __slab_alloc slowpath is invoked. Both are
-> > able to perform the same allocation from the freelist.
-> >
-> > Check for the NULL pointer in node_match.
-> >
-> > A false positive will lead to a retry of the loop in __slab_alloc.
->
-> Hi Christoph,
->
-> Since page_to_nid(NULL) will trigger bug, then how can run into
-> __slab_alloc?
+								Honza
 
-page = NULL
-
-	 ->
-
-node_match(NULL, xx) = 0
-
- 	->
-
-call into __slab_alloc.
-
-__slab_alloc() will check for !c->page which requires the assignment of a
-new per cpu slab page.
+> 
+> while :
+> do
+>         grep -E '(Dirty|Writeback)' /proc/meminfo
+>         sleep 1
+> done
+> 
+> Thanks,
+> Fengguang
+> 
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 50f0824..cf1165a 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -1147,6 +1147,16 @@ pause:
+>  		if (task_ratelimit)
+>  			break;
+>  
+> +		if (nr_dirty > dirty_thresh + dirty_thresh / 2) {
+> +			if (printk_ratelimit())
+> +				printk(KERN_WARNING "nr_dirty=%lu dirty_thresh=%lu task_ratelimit=%lu dirty_ratelimit=%lu pos_ratio=%lu\n",
+> +				       nr_dirty,
+> +				       dirty_thresh,
+> +				       task_ratelimit,
+> +				       dirty_ratelimit,
+> +				       pos_ratio);
+> +		}
+> +
+>  		/*
+>  		 * In the case of an unresponding NFS server and the NFS dirty
+>  		 * pages exceeds dirty_thresh, give the other good bdi's a pipe
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
