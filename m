@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 138CE6B0008
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 22:25:50 -0500 (EST)
-Received: by mail-ie0-f172.google.com with SMTP id c13so15084847ieb.31
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2013 19:25:49 -0800 (PST)
-Message-ID: <1358997938.1431.4.camel@kernel>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 27BCB6B0008
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 00:19:13 -0500 (EST)
+Date: Thu, 24 Jan 2013 14:19:10 +0900
+From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [patch 2/3 v2]swap: make each swap partition have one
  address_space
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Wed, 23 Jan 2013 21:25:38 -0600
-In-Reply-To: <20130124024311.GA26602@kernel.org>
+Message-ID: <20130124051910.GD22654@blaptop>
 References: <20130122022951.GB12293@kernel.org>
-	 <20130123061645.GF2723@blaptop> <20130123073655.GA31672@kernel.org>
-	 <20130123080420.GI2723@blaptop> <1358991596.3351.9.camel@kernel>
-	 <20130124022241.GB22654@blaptop> <20130124024311.GA26602@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <20130123061645.GF2723@blaptop>
+ <20130123073655.GA31672@kernel.org>
+ <20130123080420.GI2723@blaptop>
+ <1358991596.3351.9.camel@kernel>
+ <20130124022241.GB22654@blaptop>
+ <20130124024311.GA26602@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130124024311.GA26602@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com
+Cc: Simon Jeons <simon.jeons@gmail.com>, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com
 
-Hi Shaohua,
-
-On Thu, 2013-01-24 at 10:43 +0800, Shaohua Li wrote:
+On Thu, Jan 24, 2013 at 10:43:11AM +0800, Shaohua Li wrote:
 > On Thu, Jan 24, 2013 at 11:22:41AM +0900, Minchan Kim wrote:
 > > Hi Simon,
 > > 
@@ -271,15 +270,28 @@ On Thu, 2013-01-24 at 10:43 +0800, Shaohua Li wrote:
 > 
 > That't fine in the case, because page private 0 still return a valide mapping,
 > and we only check mapping here. But I agree this is too subtle. Adding memory
+
+It could try to do many things with wrong address_space so it is very error-prone.
+
 > fence is safer. I had this yesterday if you don't mind:
+
+Of course. Below just some nitpicks.
+
 > 
 > 
 > Subject: mm: add memory to prevent SwapCache bit and page private out of order
+
+           mm: Get rid of memory reordering of SwapCache and PagePrivate
 > 
 > page_mapping() checks SwapCache bit first and then read page private. Adding
 > memory barrier so page private has correct value before SwapCache bit set.
+
+Please write down the problem if we don't apply the patch.
+
 > 
 > Signed-off-by: Shaohua Li <shli@fusionio.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
+
 > ---
 >  mm/swap_state.c |    7 +++++--
 >  mm/util.c       |    6 ++++++
@@ -303,11 +315,13 @@ On Thu, 2013-01-24 at 10:43 +0800, Shaohua Li wrote:
 >  		VM_BUG_ON(error == -EEXIST);
 > -		set_page_private(page, 0UL);
 >  		ClearPageSwapCache(page);
-
-If race happen after clear bit, page_mapping should return NULL against
-anonymous page, But here will return &swapper_space.
-
 > +		smp_mb__after_clear_bit();
+
+Could you use smp_wmb() instead of smp_mb__after_clear_bit?
+Yes. ClearPageSwapCache does clear_bit so it's okay now but we might change it
+in future so let's not make unnecessary dependency. It's not really hot path.
+
+
 > +		set_page_private(page, 0UL);
 >  		page_cache_release(page);
 >  	}
@@ -337,13 +351,19 @@ anonymous page, But here will return &swapper_space.
 > +		 * matches the rule.
 > +		 */
 > +		smp_rmb();
-
-Why need this?
-
 >  		entry.val = page_private(page);
 >  		mapping = swap_address_space(entry);
 >  	} else
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
