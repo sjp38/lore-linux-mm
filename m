@@ -1,43 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id B69036B000D
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 04:39:02 -0500 (EST)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 2/2] cpu-hotplug,memory-hotplug: Remove __cpuinit declaration of numa_clear_node().
-Date: Thu, 24 Jan 2013 17:38:07 +0800
-Message-Id: <1359020287-11661-3-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1359020287-11661-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1359020287-11661-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 52C2D6B0002
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 05:00:41 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id d13so3939697eaa.0
+        for <linux-mm@kvack.org>; Thu, 24 Jan 2013 02:00:39 -0800 (PST)
+Date: Thu, 24 Jan 2013 11:00:35 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 1/1] mm: fix wrong comments about anon_vma lock
+Message-ID: <20130124100035.GB26351@gmail.com>
+References: <1359019310-23555-1-git-send-email-yuanhan.liu@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1359019310-23555-1-git-send-email-yuanhan.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, rjw@sisk.pl, len.brown@intel.com, mingo@redhat.com, tglx@linutronix.de, minchan.kim@gmail.com, rientjes@google.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, jiang.liu@huawei.com, julian.calaby@gmail.com, sfr@canb.auug.org.au, guz.fnst@cn.fujitsu.com
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
+To: Yuanhan Liu <yuanhan.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-numa_clear_node() will be used by check_and_unmap_cpu_on_node()
-when we do node hotplug. So it is no longer a __cpuinit function.
-Do not declare it as a __cpuinit function, otherwise it will cause
-section mismatch warning when compiling.
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
----
- arch/x86/mm/numa.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+* Yuanhan Liu <yuanhan.liu@linux.intel.com> wrote:
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 0624c85..6864b08 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -100,7 +100,7 @@ void __cpuinit numa_set_node(int cpu, int node)
- 	set_cpu_numa_node(cpu, node);
- }
- 
--void __cpuinit numa_clear_node(int cpu)
-+void numa_clear_node(int cpu)
- {
- 	numa_set_node(cpu, NUMA_NO_NODE);
- }
--- 
-1.7.1
+> We use rwsem since commit 5a50508. And most of comments are converted to
+> the new rwsem lock; while just 2 more missed from:
+> 	 $ git grep 'anon_vma->mutex'
+> 
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Signed-off-by: Yuanhan Liu <yuanhan.liu@linux.intel.com>
+
+Acked-by: Ingo Molnar <mingo@kernel.org>
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
