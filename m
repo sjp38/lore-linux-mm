@@ -1,55 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id D20FE6B0008
-	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 19:35:25 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fb10so5102100pad.2
-        for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:35:25 -0800 (PST)
-Message-ID: <1358987715.3351.3.camel@kernel>
-Subject: Re: [PATCH Bug fix 0/5] Bug fix for physical memory hot-remove.
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 04F736B0002
+	for <linux-mm@kvack.org>; Wed, 23 Jan 2013 19:53:51 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id wy12so3680615pbc.21
+        for <linux-mm@kvack.org>; Wed, 23 Jan 2013 16:53:51 -0800 (PST)
+Message-ID: <1358988824.3351.5.camel@kernel>
+Subject: Re: FIX [1/2] slub: Do not dereference NULL pointer in node_match
 From: Simon Jeons <simon.jeons@gmail.com>
-Date: Wed, 23 Jan 2013 18:35:15 -0600
-In-Reply-To: <50FFE2FC.9030401@cn.fujitsu.com>
-References: <1358854984-6073-1-git-send-email-tangchen@cn.fujitsu.com>
-	 <1358944171.3351.1.camel@kernel> <50FFE2FC.9030401@cn.fujitsu.com>
+Date: Wed, 23 Jan 2013 18:53:44 -0600
+In-Reply-To: <0000013c695fbd30-9023bc55-f780-4d44-965f-ab4507e483d5-000000@email.amazonses.com>
+References: <20130123214514.370647954@linux.com>
+	 <0000013c695fbd30-9023bc55-f780-4d44-965f-ab4507e483d5-000000@email.amazonses.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, jiang.liu@huawei.com, julian.calaby@gmail.com, sfr@canb.auug.org.au, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis
+ Claudio R. Goncalves" <lgoncalv@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-On Wed, 2013-01-23 at 21:17 +0800, Tang Chen wrote:
-> On 01/23/2013 08:29 PM, Simon Jeons wrote:
-> > Hi Tang,
-> >
-> > I remember your big physical memory hot-remove patchset has already
-> > merged by Andrew, but where I can find it? Could you give me git tree
-> > address?
+On Wed, 2013-01-23 at 21:45 +0000, Christoph Lameter wrote:
+> The variables accessed in slab_alloc are volatile and therefore
+> the page pointer passed to node_match can be NULL. The processing
+> of data in slab_alloc is tentative until either the cmpxhchg
+> succeeds or the __slab_alloc slowpath is invoked. Both are
+> able to perform the same allocation from the freelist.
 > 
-> Hi Simon,
+> Check for the NULL pointer in node_match.
 > 
-> You can find all the physical memory hot-remove patches and related bugfix
-> patches from the following url:
-> 
-> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git akpm
+> A false positive will lead to a retry of the loop in __slab_alloc.
 
-~/linux-next$ git remote -v
-origin git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-(fetch)
-origin git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
-(push)
-~/linux-next$ git branch
-* akpm
-  master
-~/linux-next$ wc -l mm/memory_hotplug.c 
-1173 mm/memory_hotplug.c
+Hi Christoph,
 
-I still can't find it. :(
+Since page_to_nid(NULL) will trigger bug, then how can run into
+__slab_alloc?
 
 > 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 > 
-> Thanks. :)
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c	2013-01-18 08:47:29.198954250 -0600
+> +++ linux/mm/slub.c	2013-01-18 08:47:40.579126371 -0600
+> @@ -2041,7 +2041,7 @@ static void flush_all(struct kmem_cache
+>  static inline int node_match(struct page *page, int node)
+>  {
+>  #ifdef CONFIG_NUMA
+> -	if (node != NUMA_NO_NODE && page_to_nid(page) != node)
+> +	if (!page || (node != NUMA_NO_NODE && page_to_nid(page) != node))
+>  		return 0;
+>  #endif
+>  	return 1;
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
