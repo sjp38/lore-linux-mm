@@ -1,39 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 572CA6B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 09:53:31 -0500 (EST)
-Date: Fri, 25 Jan 2013 14:53:29 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: FIX [1/2] slub: Do not dereference NULL pointer in node_match
-In-Reply-To: <1359101516.16101.6.camel@kernel>
-Message-ID: <0000013c7232fa91-a8f59c62-a7c6-4937-89b9-8c53d86df7b1-000000@email.amazonses.com>
-References: <20130123214514.370647954@linux.com> <0000013c695fbd30-9023bc55-f780-4d44-965f-ab4507e483d5-000000@email.amazonses.com> <1358988824.3351.5.camel@kernel> <0000013c6d200e1d-03ae09c1-6fb8-42eb-ab6c-8fcae05fdb6e-000000@email.amazonses.com>
- <1359101516.16101.6.camel@kernel>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 247636B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 10:07:26 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
+Date: Fri, 25 Jan 2013 16:07:23 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20121210155205.GB6777@dhcp22.suse.cz>, <20121217023430.5A390FD7@pobox.sk>, <20121217163203.GD25432@dhcp22.suse.cz>, <20121217192301.829A7020@pobox.sk>, <20121217195510.GA16375@dhcp22.suse.cz>, <20121218152223.6912832C@pobox.sk>, <20121218152004.GA25208@dhcp22.suse.cz>, <20121224142526.020165D3@pobox.sk>, <20121228162209.GA1455@dhcp22.suse.cz>, <20121230020947.AA002F34@pobox.sk> <20121230110815.GA12940@dhcp22.suse.cz>
+In-Reply-To: <20121230110815.GA12940@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20130125160723.FAE73567@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R. Goncalves" <lgoncalv@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-On Fri, 25 Jan 2013, Simon Jeons wrote:
+Any news? Thnx!
 
-> >
-> > node_match(NULL, xx) = 0
-> >
-> >  	->
-> >
-> > call into __slab_alloc.
-> >
-> > __slab_alloc() will check for !c->page which requires the assignment of a
-> > new per cpu slab page.
-> >
+azur
+
+
+
+______________________________________________________________
+> Od: "Michal Hocko" <mhocko@suse.cz>
+> Komu: azurIt <azurit@pobox.sk>
+> DA!tum: 30.12.2012 12:08
+> Predmet: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from add_to_page_cache_locked
 >
-> But there are dereference in page_to_nid path, function page_to_section:
-> return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
-
-node_match() checks for NULL and will not invoke page_to_nid for a NULL
-pointer.
+> CC: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "cgroups mailinglist" <cgroups@vger.kernel.org>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "Johannes Weiner" <hannes@cmpxchg.org>
+>On Sun 30-12-12 02:09:47, azurIt wrote:
+>> >which suggests that the patch is incomplete and that I am blind :/
+>> >mem_cgroup_cache_charge calls __mem_cgroup_try_charge for the page cache
+>> >and that one doesn't check GFP_MEMCG_NO_OOM. So you need the following
+>> >follow-up patch on top of the one you already have (which should catch
+>> >all the remaining cases).
+>> >Sorry about that...
+>> 
+>> 
+>> This was, again, killing my MySQL server (search for "(mysqld)"):
+>> http://www.watchdog.sk/lkml/oom_mysqld5
+>
+>grep "Kill process" oom_mysqld5 
+>Dec 30 01:53:34 server01 kernel: [  367.061801] Memory cgroup out of memory: Kill process 5512 (apache2) score 716 or sacrifice child
+>Dec 30 01:53:35 server01 kernel: [  367.338024] Memory cgroup out of memory: Kill process 5517 (apache2) score 718 or sacrifice child
+>Dec 30 01:53:35 server01 kernel: [  367.747888] Memory cgroup out of memory: Kill process 5513 (apache2) score 721 or sacrifice child
+>Dec 30 01:53:36 server01 kernel: [  368.159860] Memory cgroup out of memory: Kill process 5516 (apache2) score 726 or sacrifice child
+>Dec 30 01:53:36 server01 kernel: [  368.665606] Memory cgroup out of memory: Kill process 5520 (apache2) score 733 or sacrifice child
+>Dec 30 01:53:36 server01 kernel: [  368.765652] Out of memory: Kill process 1778 (mysqld) score 39 or sacrifice child
+>Dec 30 01:53:36 server01 kernel: [  369.101753] Memory cgroup out of memory: Kill process 5519 (apache2) score 754 or sacrifice child
+>Dec 30 01:53:37 server01 kernel: [  369.464262] Memory cgroup out of memory: Kill process 5583 (apache2) score 762 or sacrifice child
+>Dec 30 01:53:37 server01 kernel: [  369.465017] Out of memory: Kill process 5506 (apache2) score 18 or sacrifice child
+>Dec 30 01:53:37 server01 kernel: [  369.574932] Memory cgroup out of memory: Kill process 5523 (apache2) score 759 or sacrifice child
+>
+>So your mysqld has been killed by the global OOM not memcg. But why when
+>you seem to be perfectly fine regarding memory? I guess the following
+>backtrace is relevant:
+>Dec 30 01:53:36 server01 kernel: [  368.569720] DMA: 0*4kB 1*8kB 0*16kB 1*32kB 2*64kB 1*128kB 1*256kB 0*512kB 1*1024kB 1*2048kB 3*4096kB = 15912kB
+>Dec 30 01:53:36 server01 kernel: [  368.570447] DMA32: 9*4kB 10*8kB 8*16kB 6*32kB 5*64kB 6*128kB 4*256kB 2*512kB 3*1024kB 3*2048kB 613*4096kB = 2523636kB
+>Dec 30 01:53:36 server01 kernel: [  368.571175] Normal: 5*4kB 2060*8kB 4122*16kB 2550*32kB 2667*64kB 722*128kB 197*256kB 68*512kB 15*1024kB 4*2048kB 1855*4096kB = 8134036kB
+>Dec 30 01:53:36 server01 kernel: [  368.571906] 308964 total pagecache pages
+>Dec 30 01:53:36 server01 kernel: [  368.572023] 0 pages in swap cache
+>Dec 30 01:53:36 server01 kernel: [  368.572140] Swap cache stats: add 0, delete 0, find 0/0
+>Dec 30 01:53:36 server01 kernel: [  368.572260] Free swap  = 0kB
+>Dec 30 01:53:36 server01 kernel: [  368.572375] Total swap = 0kB
+>Dec 30 01:53:36 server01 kernel: [  368.597836] apache2 invoked oom-killer: gfp_mask=0x0, order=0, oom_adj=0, oom_score_adj=0
+>Dec 30 01:53:36 server01 kernel: [  368.598034] apache2 cpuset=uid mems_allowed=0
+>Dec 30 01:53:36 server01 kernel: [  368.598152] Pid: 5385, comm: apache2 Not tainted 3.2.35-grsec #1
+>Dec 30 01:53:36 server01 kernel: [  368.598273] Call Trace:
+>Dec 30 01:53:36 server01 kernel: [  368.598396]  [<ffffffff810cc89e>] dump_header+0x7e/0x1e0
+>Dec 30 01:53:36 server01 kernel: [  368.598516]  [<ffffffff810cc79f>] ? find_lock_task_mm+0x2f/0x70
+>Dec 30 01:53:36 server01 kernel: [  368.598638]  [<ffffffff810ccd65>] oom_kill_process+0x85/0x2a0
+>Dec 30 01:53:36 server01 kernel: [  368.598759]  [<ffffffff810cd415>] out_of_memory+0xe5/0x200
+>Dec 30 01:53:36 server01 kernel: [  368.598880]  [<ffffffff810cd5ed>] pagefault_out_of_memory+0xbd/0x110
+>Dec 30 01:53:36 server01 kernel: [  368.599006]  [<ffffffff81026e96>] mm_fault_error+0xb6/0x1a0
+>Dec 30 01:53:36 server01 kernel: [  368.599127]  [<ffffffff8102736e>] do_page_fault+0x3ee/0x460
+>Dec 30 01:53:36 server01 kernel: [  368.599250]  [<ffffffff81131ccf>] ? mntput+0x1f/0x30
+>Dec 30 01:53:36 server01 kernel: [  368.599371]  [<ffffffff811134e6>] ? fput+0x156/0x200
+>Dec 30 01:53:36 server01 kernel: [  368.599496]  [<ffffffff815b567f>] page_fault+0x1f/0x30
+>
+>This would suggest that an unexpected ENOMEM leaked during page fault
+>path. I do not see which one could that be because you said THP
+>(CONFIG_TRANSPARENT_HUGEPAGE) are disabled (and the other patch I have
+>mentioned in the thread should fix that issue - btw. the patch is
+>already scheduled for stable tree).
+> __do_fault, do_anonymous_page and do_wp_page call
+>mem_cgroup_newpage_charge with GFP_KERNEL which means that
+>we do memcg OOM and never return ENOMEM. do_swap_page calls
+>mem_cgroup_try_charge_swapin with GFP_KERNEL as well.
+>
+>I might have missed something but I will not get to look closer before
+>2nd January.
+>-- 
+>Michal Hocko
+>SUSE Labs
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
