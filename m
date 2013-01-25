@@ -1,50 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 9A46F6B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 08:17:46 -0500 (EST)
-Date: Fri, 25 Jan 2013 14:17:40 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH Bug fix 0/5] Bug fix for physical memory hot-remove.
-Message-ID: <20130125131740.GA1615@dhcp22.suse.cz>
-References: <1358854984-6073-1-git-send-email-tangchen@cn.fujitsu.com>
- <1358944171.3351.1.camel@kernel>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 572CA6B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 09:53:31 -0500 (EST)
+Date: Fri, 25 Jan 2013 14:53:29 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: FIX [1/2] slub: Do not dereference NULL pointer in node_match
+In-Reply-To: <1359101516.16101.6.camel@kernel>
+Message-ID: <0000013c7232fa91-a8f59c62-a7c6-4937-89b9-8c53d86df7b1-000000@email.amazonses.com>
+References: <20130123214514.370647954@linux.com> <0000013c695fbd30-9023bc55-f780-4d44-965f-ab4507e483d5-000000@email.amazonses.com> <1358988824.3351.5.camel@kernel> <0000013c6d200e1d-03ae09c1-6fb8-42eb-ab6c-8fcae05fdb6e-000000@email.amazonses.com>
+ <1359101516.16101.6.camel@kernel>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1358944171.3351.1.camel@kernel>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, jiang.liu@huawei.com, julian.calaby@gmail.com, sfr@canb.auug.org.au, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
+Cc: Pekka Enberg <penberg@kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R. Goncalves" <lgoncalv@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-On Wed 23-01-13 06:29:31, Simon Jeons wrote:
-> On Tue, 2013-01-22 at 19:42 +0800, Tang Chen wrote:
-> > Here are some bug fix patches for physical memory hot-remove. All these
-> > patches are based on the latest -mm tree.
-> > git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git akpm
-> > 
-> > And patch1 and patch3 are very important.
-> > patch1: free compound pages when freeing memmap, otherwise the kernel
-> >         will panic the next time memory is hot-added.
-> > patch3: the old way of freeing pagetable pages was wrong. We should never
-> >         split larger pages into small ones.
-> > 
-> > 
-> 
-> Hi Tang,
-> 
-> I remember your big physical memory hot-remove patchset has already
-> merged by Andrew, but where I can find it? Could you give me git tree 
-> address?
+On Fri, 25 Jan 2013, Simon Jeons wrote:
 
-Andrew tree is also mirrored into a git tree.
-http://git.kernel.org/?p=linux/kernel/git/mhocko/mm.git;a=summary
+> >
+> > node_match(NULL, xx) = 0
+> >
+> >  	->
+> >
+> > call into __slab_alloc.
+> >
+> > __slab_alloc() will check for !c->page which requires the assignment of a
+> > new per cpu slab page.
+> >
+>
+> But there are dereference in page_to_nid path, function page_to_section:
+> return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
 
-It contains only Memory management patches on top of the last major
-release (since-.X.Y branch).
--- 
-Michal Hocko
-SUSE Labs
+node_match() checks for NULL and will not invoke page_to_nid for a NULL
+pointer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
