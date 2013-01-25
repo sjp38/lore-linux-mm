@@ -1,57 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id C0E386B0008
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 22:47:03 -0500 (EST)
-Message-ID: <5101FFF5.6030503@oracle.com>
-Date: Thu, 24 Jan 2013 22:45:57 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: boot warnings due to swap: make each swap partition have one address_space
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 3FB486B0005
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 22:50:35 -0500 (EST)
+Received: from mx3.orcon.net.nz (mx3.orcon.net.nz [219.88.242.53])
+	by nctlincom01.orcon.net.nz (8.14.3/8.14.3/Debian-9.4) with ESMTP id r0P3oWHO005901
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 16:50:32 +1300
+Received: from Debian-exim by mx3.orcon.net.nz with local (Exim 4.69)
+	(envelope-from <mcree@orcon.net.nz>)
+	id 1TyaJD-0008Fh-SU
+	for linux-mm@kvack.org; Fri, 25 Jan 2013 16:50:31 +1300
+Message-Id: <43E02291-8F84-40CD-B429-847E7533EA18@orcon.net.nz>
+From: Michael Cree <mcree@orcon.net.nz>
+In-Reply-To: <1357694895-520-3-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
 Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0 (Apple Message framework v936)
+Subject: Re: [PATCH 2/8] mm: use vm_unmapped_area() on alpha architecture
+Date: Fri, 25 Jan 2013 16:49:58 +1300
+References: <1357694895-520-1-git-send-email-walken@google.com> <1357694895-520-3-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fusionio.com>
-Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Matt Turner <mattst88@gmail.com>, David Howells <dhowells@redhat.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-parisc@vger.kernel.org, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org
 
-Hi folks,
+On 9/01/2013, at 2:28 PM, Michel Lespinasse wrote:
+> Update the alpha arch_get_unmapped_area function to make use of
+> vm_unmapped_area() instead of implementing a brute force search.
+>
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 
-Commit "swap: make each swap partition have one address_space" is triggering
-a series of warnings on boot:
+'Tis running fine on my alpha.
 
-[    3.446071] ------------[ cut here ]------------
-[    3.446664] WARNING: at lib/debugobjects.c:261 debug_print_object+0x8e/0xb0()
-[    3.447715] ODEBUG: init active (active state 0) object type: percpu_counter hint:           (null)
-[    3.450360] Modules linked in:
-[    3.451593] Pid: 1, comm: swapper/0 Tainted: G        W    3.8.0-rc4-next-20130124-sasha-00004-g838a1b4 #266
-[    3.454508] Call Trace:
-[    3.455248]  [<ffffffff8110d1bc>] warn_slowpath_common+0x8c/0xc0
-[    3.455248]  [<ffffffff8110d291>] warn_slowpath_fmt+0x41/0x50
-[    3.455248]  [<ffffffff81a2bb5e>] debug_print_object+0x8e/0xb0
-[    3.455248]  [<ffffffff81a2c26b>] __debug_object_init+0x20b/0x290
-[    3.455248]  [<ffffffff81a2c305>] debug_object_init+0x15/0x20
-[    3.455248]  [<ffffffff81a3fbed>] __percpu_counter_init+0x6d/0xe0
-[    3.455248]  [<ffffffff81231bdc>] bdi_init+0x1ac/0x270
-[    3.455248]  [<ffffffff8618f20b>] swap_setup+0x3b/0x87
-[    3.455248]  [<ffffffff8618f257>] ? swap_setup+0x87/0x87
-[    3.455248]  [<ffffffff8618f268>] kswapd_init+0x11/0x7c
-[    3.455248]  [<ffffffff810020ca>] do_one_initcall+0x8a/0x180
-[    3.455248]  [<ffffffff86168cfd>] do_basic_setup+0x96/0xb4
-[    3.455248]  [<ffffffff861685ae>] ? loglevel+0x31/0x31
-[    3.455248]  [<ffffffff861885cd>] ? sched_init_smp+0x150/0x157
-[    3.455248]  [<ffffffff86168ded>] kernel_init_freeable+0xd2/0x14c
-[    3.455248]  [<ffffffff83cade10>] ? rest_init+0x140/0x140
-[    3.455248]  [<ffffffff83cade19>] kernel_init+0x9/0xf0
-[    3.455248]  [<ffffffff83d5727c>] ret_from_fork+0x7c/0xb0
-[    3.455248]  [<ffffffff83cade10>] ? rest_init+0x140/0x140
-[    3.455248] ---[ end trace 0b176d5c0f21bffb ]---
+Tested-by: Michael Cree <mcree@orcon.net.nz>
 
-I haven't looked deeper into it yet, and will do so tomorrow, unless this
-spew is obvious to anyone.
-
-
-Thanks,
-Sasha
+Cheers
+Michael.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
