@@ -1,33 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 04D1E6B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 16:50:47 -0500 (EST)
-Message-ID: <5102FE30.2060806@redhat.com>
-Date: Fri, 25 Jan 2013 16:50:40 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 772766B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 16:52:36 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id ro12so448489pbb.24
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 13:52:35 -0800 (PST)
+Date: Fri, 25 Jan 2013 13:52:33 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] kernel/res_counter.c: move BUG() to the default choice
+ of switch at res_counter_member()
+In-Reply-To: <51023F89.9030807@oracle.com>
+Message-ID: <alpine.DEB.2.00.1301251352030.26610@chino.kir.corp.google.com>
+References: <51023F89.9030807@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2 2/9] staging: zsmalloc: remove unsed pool name
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-3-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <1357590280-31535-3-git-send-email-sjenning@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Jeff Liu <jeff.liu@oracle.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 01/07/2013 03:24 PM, Seth Jennings wrote:
-> zs_create_pool() currently takes a name argument which is
-> never used in any useful way.
->
-> This patch removes it.
->
-> Signed-off-by: Seth Jennnings <sjenning@linux.vnet.ibm.com>
+On Fri, 25 Jan 2013, Jeff Liu wrote:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+> index ff55247..748a3bc 100644
+> --- a/kernel/res_counter.c
+> +++ b/kernel/res_counter.c
+> @@ -135,10 +135,9 @@ res_counter_member(struct res_counter *counter, int member)
+>  		return &counter->failcnt;
+>  	case RES_SOFT_LIMIT:
+>  		return &counter->soft_limit;
+> +	default:
+> +		BUG();
+>  	};
+> -
+> -	BUG();
+> -	return NULL;
+>  }
+>  
+>  ssize_t res_counter_read(struct res_counter *counter, int member,
 
--- 
-All rights reversed
+This doesn't work for CONFIG_BUG=n, you still need a return value.  I 
+think the original version was better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
