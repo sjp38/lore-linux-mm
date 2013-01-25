@@ -1,106 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 81CB06B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 15:47:51 -0500 (EST)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 630666B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 16:26:47 -0500 (EST)
+Message-ID: <5102F88F.5010303@redhat.com>
+Date: Fri, 25 Jan 2013 16:26:39 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Message-ID: <54da1c87-93f9-4643-8f71-597c1ff30e33@default>
-Date: Fri, 25 Jan 2013 12:47:44 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 2/2] staging: zcache: optional support for zsmalloc as
- alternate allocator
-References: <1358977591-24485-1-git-send-email-dan.magenheimer@oracle.com>
- <1358977591-24485-2-git-send-email-dan.magenheimer@oracle.com>
- <20130125192617.GA26634@kroah.com>
-In-Reply-To: <20130125192617.GA26634@kroah.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCHv2 1/9] staging: zsmalloc: add gfp flags to zs_create_pool
+References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-2-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1357590280-31535-2-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com, minchan@kernel.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-> From: Greg KH [mailto:gregkh@linuxfoundation.org]
-> Subject: Re: [PATCH 2/2] staging: zcache: optional support for zsmalloc a=
-s alternate allocator
->=20
-> On Wed, Jan 23, 2013 at 01:46:31PM -0800, Dan Magenheimer wrote:
-> > "New" zcache uses zbud for all sub-page allocation which is more flexib=
-le but
-> > results in lower density.  "Old" zcache supported zsmalloc for frontswa=
-p
-> > pages.  Add zsmalloc to "new" zcache as a compile-time and run-time opt=
-ion
-> > for backwards compatibility in case any users wants to use zcache with
-> > highest possible density.
-> >
-> > Note that most of the zsmalloc stats in old zcache are not included her=
-e
-> > because old zcache used sysfs and new zcache has converted to debugfs.
-> > These stats may be added later.
-> >
-> > Note also that ramster is incompatible with zsmalloc as the two use
-> > the least significant bits in a pampd differently.
-> >
-> > Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-> > ---
-> >  drivers/staging/zcache/Kconfig       |   11 ++
-> >  drivers/staging/zcache/zcache-main.c |  210 ++++++++++++++++++++++++++=
-++++++--
-> >  drivers/staging/zcache/zcache.h      |    3 +
-> >  3 files changed, 215 insertions(+), 9 deletions(-)
-> >
-> > diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kc=
-onfig
-> > index c1dbd04..116f8d5 100644
-> > --- a/drivers/staging/zcache/Kconfig
-> > +++ b/drivers/staging/zcache/Kconfig
-> > @@ -10,6 +10,17 @@ config ZCACHE
-> >  =09  memory to store clean page cache pages and swap in RAM,
-> >  =09  providing a noticeable reduction in disk I/O.
-> >
-> > +config ZCACHE_ZSMALLOC
-> > +=09bool "Allow use of zsmalloc allocator for compression of swap pages=
-"
-> > +=09depends on ZSMALLOC=3Dy && !RAMSTER
-> > +=09default n
-> > +=09help
-> > +=09  Zsmalloc is a much more efficient allocator for compresssed
-> > +=09  pages but currently has some design deficiencies in that it
-> > +=09  does not support reclaim nor compaction.  Select this if
-> > +=09  you are certain your workload will fit or has mostly short
-> > +=09  running processes.  Zsmalloc is incompatible with RAMster.
->=20
-> How can anyone be "certain"?
->=20
->=20
-> > --- a/drivers/staging/zcache/zcache-main.c
-> > +++ b/drivers/staging/zcache/zcache-main.c
-> > @@ -26,6 +26,12 @@
-> >  #include <linux/cleancache.h>
-> >  #include <linux/frontswap.h>
-> >  #include "tmem.h"
-> > +#ifdef CONFIG_ZCACHE_ZSMALLOC
-> > +#include "../zsmalloc/zsmalloc.h"
->=20
-> Don't #ifdef .h files in .c files.
->=20
-> > +static int zsmalloc_enabled;
-> > +#else
-> > +#define zsmalloc_enabled 0
-> > +#endif
->=20
-> That should have been your only ifdef in this .c file, all of the ones
-> you have after this should not be needed, so I can't take this patch,
-> sorry.
+On 01/07/2013 03:24 PM, Seth Jennings wrote:
+> zs_create_pool() currently takes a gfp flags argument
+> that is used when growing the memory pool.  However
+> it is not used in allocating the metadata for the pool
+> itself.  That is currently hardcoded to GFP_KERNEL.
+>
+> zswap calls zs_create_pool() at swapon time which is done
+> in atomic context, resulting in a "might sleep" warning.
+>
+> This patch changes the meaning of the flags argument in
+> zs_create_pool() to mean the flags for the metadata allocation,
+> and adds a flags argument to zs_malloc that will be used for
+> memory pool growth if required.
+>
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-Yep.  Sorry, I was just trying to refresh this from when
-I posted the proof-of-concept last summer.  I should have
-spent more time cleaning it up.  Will be away for
-a few days so will try to repost in a week or two,
-hopefully not too late for this cycle.
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Sorry for the noise.
-Dan
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
