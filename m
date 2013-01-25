@@ -1,71 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id D4D6C6B0005
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 22:32:35 -0500 (EST)
-Date: Thu, 24 Jan 2013 22:32:32 -0500 (EST)
-From: CAI Qian <caiqian@redhat.com>
-Message-ID: <371722937.9173846.1359084752319.JavaMail.root@redhat.com>
-In-Reply-To: <20130114192336.GA13038@kroah.com>
-Subject: Re: [PATCH] slub: assign refcount for kmalloc_caches
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id C0E386B0008
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 22:47:03 -0500 (EST)
+Message-ID: <5101FFF5.6030503@oracle.com>
+Date: Thu, 24 Jan 2013 22:45:57 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Subject: boot warnings due to swap: make each swap partition have one address_space
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Paul Hargrove <phhargrove@lbl.gov>, Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fusionio.com>
+Cc: Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+
+Hi folks,
+
+Commit "swap: make each swap partition have one address_space" is triggering
+a series of warnings on boot:
+
+[    3.446071] ------------[ cut here ]------------
+[    3.446664] WARNING: at lib/debugobjects.c:261 debug_print_object+0x8e/0xb0()
+[    3.447715] ODEBUG: init active (active state 0) object type: percpu_counter hint:           (null)
+[    3.450360] Modules linked in:
+[    3.451593] Pid: 1, comm: swapper/0 Tainted: G        W    3.8.0-rc4-next-20130124-sasha-00004-g838a1b4 #266
+[    3.454508] Call Trace:
+[    3.455248]  [<ffffffff8110d1bc>] warn_slowpath_common+0x8c/0xc0
+[    3.455248]  [<ffffffff8110d291>] warn_slowpath_fmt+0x41/0x50
+[    3.455248]  [<ffffffff81a2bb5e>] debug_print_object+0x8e/0xb0
+[    3.455248]  [<ffffffff81a2c26b>] __debug_object_init+0x20b/0x290
+[    3.455248]  [<ffffffff81a2c305>] debug_object_init+0x15/0x20
+[    3.455248]  [<ffffffff81a3fbed>] __percpu_counter_init+0x6d/0xe0
+[    3.455248]  [<ffffffff81231bdc>] bdi_init+0x1ac/0x270
+[    3.455248]  [<ffffffff8618f20b>] swap_setup+0x3b/0x87
+[    3.455248]  [<ffffffff8618f257>] ? swap_setup+0x87/0x87
+[    3.455248]  [<ffffffff8618f268>] kswapd_init+0x11/0x7c
+[    3.455248]  [<ffffffff810020ca>] do_one_initcall+0x8a/0x180
+[    3.455248]  [<ffffffff86168cfd>] do_basic_setup+0x96/0xb4
+[    3.455248]  [<ffffffff861685ae>] ? loglevel+0x31/0x31
+[    3.455248]  [<ffffffff861885cd>] ? sched_init_smp+0x150/0x157
+[    3.455248]  [<ffffffff86168ded>] kernel_init_freeable+0xd2/0x14c
+[    3.455248]  [<ffffffff83cade10>] ? rest_init+0x140/0x140
+[    3.455248]  [<ffffffff83cade19>] kernel_init+0x9/0xf0
+[    3.455248]  [<ffffffff83d5727c>] ret_from_fork+0x7c/0xb0
+[    3.455248]  [<ffffffff83cade10>] ? rest_init+0x140/0x140
+[    3.455248] ---[ end trace 0b176d5c0f21bffb ]---
+
+I haven't looked deeper into it yet, and will do so tomorrow, unless this
+spew is obvious to anyone.
 
 
-
------ Original Message -----
-> From: "Greg Kroah-Hartman" <gregkh@linuxfoundation.org>
-> To: "Joonsoo Kim" <iamjoonsoo.kim@lge.com>
-> Cc: "Paul Hargrove" <phhargrove@lbl.gov>, "Pekka Enberg" <penberg@kernel.org>, linux-kernel@vger.kernel.org,
-> linux-mm@kvack.org, "Christoph Lameter" <cl@linux.com>
-> Sent: Tuesday, January 15, 2013 3:23:36 AM
-> Subject: Re: [PATCH] slub: assign refcount for kmalloc_caches
-> 
-> On Fri, Jan 11, 2013 at 04:52:54PM +0900, Joonsoo Kim wrote:
-> > On Thu, Jan 10, 2013 at 08:47:39PM -0800, Paul Hargrove wrote:
-> > > I just had a look at patch-3.7.2-rc1, and this change doesn't
-> > > appear to
-> > > have made it in yet.
-> > > Am I missing something?
-> > > 
-> > > -Paul
-> > 
-> > I try to check it.
-> > Ccing to Greg.
-> > 
-> > Hello, Pekka and Greg.
-> > 
-> > v3.8-rcX has already fixed by another stuff, but it is not simple
-> > change.
-> > So I made a new patch and sent it.
-> > 
-> > How this kind of patch (only for stable v3.7) go into stable tree?
-> > through Pekka's slab tree? or send it to Greg, directly?
-> > 
-> > I don't know how to submit this kind of patch to stable tree
-> > exactly.
-> > Could anyone help me?
-> 
-> Please redo it, and send it to stable@vger.kernel.org, and say
-> exactly
-> why it isn't in Linus's tree, and that it should only be applied to
-> 3.7-stable.
-I also met this during the testing, so I'll re-send it then.
-> 
-> thanks,
-> 
-> greg k-h
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
