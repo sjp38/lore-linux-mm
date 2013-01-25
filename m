@@ -1,61 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 21ACA6B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 13:29:42 -0500 (EST)
-Message-ID: <1359137977.14145.417.camel@misato.fc.hp.com>
-Subject: Re: [PATCH Bug fix 0/5] Bug fix for physical memory hot-remove.
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 25 Jan 2013 11:19:37 -0700
-In-Reply-To: <1358854984-6073-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1358854984-6073-1-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 19AC76B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 14:26:21 -0500 (EST)
+Received: by mail-da0-f46.google.com with SMTP id p5so310069dak.5
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 11:26:20 -0800 (PST)
+Date: Fri, 25 Jan 2013 11:26:17 -0800
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 2/2] staging: zcache: optional support for zsmalloc as
+ alternate allocator
+Message-ID: <20130125192617.GA26634@kroah.com>
+References: <1358977591-24485-1-git-send-email-dan.magenheimer@oracle.com>
+ <1358977591-24485-2-git-send-email-dan.magenheimer@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1358977591-24485-2-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, jiang.liu@huawei.com, julian.calaby@gmail.com, sfr@canb.auug.org.au, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org
 
-On Tue, 2013-01-22 at 19:42 +0800, Tang Chen wrote:
-> Here are some bug fix patches for physical memory hot-remove. All these
-> patches are based on the latest -mm tree.
-> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git akpm
+On Wed, Jan 23, 2013 at 01:46:31PM -0800, Dan Magenheimer wrote:
+> "New" zcache uses zbud for all sub-page allocation which is more flexible but
+> results in lower density.  "Old" zcache supported zsmalloc for frontswap
+> pages.  Add zsmalloc to "new" zcache as a compile-time and run-time option
+> for backwards compatibility in case any users wants to use zcache with
+> highest possible density.
 > 
-> And patch1 and patch3 are very important.
-> patch1: free compound pages when freeing memmap, otherwise the kernel
->         will panic the next time memory is hot-added.
-> patch3: the old way of freeing pagetable pages was wrong. We should never
->         split larger pages into small ones.
+> Note that most of the zsmalloc stats in old zcache are not included here
+> because old zcache used sysfs and new zcache has converted to debugfs.
+> These stats may be added later.
 > 
+> Note also that ramster is incompatible with zsmalloc as the two use
+> the least significant bits in a pampd differently.
 > 
-> Lai Jiangshan (1):
->   Bug-fix: mempolicy: fix is_valid_nodemask()
+> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> ---
+>  drivers/staging/zcache/Kconfig       |   11 ++
+>  drivers/staging/zcache/zcache-main.c |  210 ++++++++++++++++++++++++++++++++--
+>  drivers/staging/zcache/zcache.h      |    3 +
+>  3 files changed, 215 insertions(+), 9 deletions(-)
 > 
-> Tang Chen (3):
->   Bug fix: Do not split pages when freeing pagetable pages.
->   Bug fix: Fix section mismatch problem of
->     release_firmware_map_entry().
->   Bug fix: Fix the doc format in drivers/firmware/memmap.c
-> 
-> Wen Congyang (1):
->   Bug fix: consider compound pages when free memmap
-> 
->  arch/x86/mm/init_64.c     |  148 ++++++++++++++-------------------------------
->  drivers/firmware/memmap.c |   16 +++---
->  mm/mempolicy.c            |   36 +++++++----
->  mm/sparse.c               |    2 +-
->  4 files changed, 77 insertions(+), 125 deletions(-)
+> diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
+> index c1dbd04..116f8d5 100644
+> --- a/drivers/staging/zcache/Kconfig
+> +++ b/drivers/staging/zcache/Kconfig
+> @@ -10,6 +10,17 @@ config ZCACHE
+>  	  memory to store clean page cache pages and swap in RAM,
+>  	  providing a noticeable reduction in disk I/O.
+>  
+> +config ZCACHE_ZSMALLOC
+> +	bool "Allow use of zsmalloc allocator for compression of swap pages"
+> +	depends on ZSMALLOC=y && !RAMSTER
+> +	default n
+> +	help
+> +	  Zsmalloc is a much more efficient allocator for compresssed
+> +	  pages but currently has some design deficiencies in that it
+> +	  does not support reclaim nor compaction.  Select this if
+> +	  you are certain your workload will fit or has mostly short
+> +	  running processes.  Zsmalloc is incompatible with RAMster.
 
-This patchset fixed a blocker panic I was hitting in my memory hot-plug
-testing.  Memory hotplug works fine with this patchset (for testing my
-hotplug framework patchset :).  For the series:
-
-Tested-by: Toshi Kani <toshi.kani@hp.com>
-
-Thanks,
--Toshi
+How can anyone be "certain"?
 
 
+> --- a/drivers/staging/zcache/zcache-main.c
+> +++ b/drivers/staging/zcache/zcache-main.c
+> @@ -26,6 +26,12 @@
+>  #include <linux/cleancache.h>
+>  #include <linux/frontswap.h>
+>  #include "tmem.h"
+> +#ifdef CONFIG_ZCACHE_ZSMALLOC
+> +#include "../zsmalloc/zsmalloc.h"
+
+Don't #ifdef .h files in .c files.
+
+> +static int zsmalloc_enabled;
+> +#else
+> +#define zsmalloc_enabled 0
+> +#endif
+
+That should have been your only ifdef in this .c file, all of the ones
+you have after this should not be needed, so I can't take this patch,
+sorry.
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
