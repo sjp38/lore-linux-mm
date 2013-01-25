@@ -1,44 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 480AC6B0009
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 20:33:03 -0500 (EST)
-Received: by mail-vb0-f45.google.com with SMTP id p1so5853781vbi.18
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2013 17:33:02 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1357590280-31535-2-git-send-email-sjenning@linux.vnet.ibm.com>
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<1357590280-31535-2-git-send-email-sjenning@linux.vnet.ibm.com>
-Date: Fri, 25 Jan 2013 10:33:02 +0900
-Message-ID: <CAEwNFnDWpyvmN-fU=MczXKtcay6vMMCOOHUM2M09+wx7zOVxDQ@mail.gmail.com>
-Subject: Re: [PATCHv2 1/9] staging: zsmalloc: add gfp flags to zs_create_pool
-From: Minchan Kim <minchan@kernel.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 1992E6B0005
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 20:47:15 -0500 (EST)
+Date: Fri, 25 Jan 2013 12:47:00 +1100
+From: paul.szabo@sydney.edu.au
+Message-Id: <201301250147.r0P1l00t001070@como.maths.usyd.edu.au>
+Subject: Re: [PATCH] Negative (setpoint-dirty) in bdi_position_ratio()
+In-Reply-To: <20130125005529.GA21668@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: fengguang.wu@intel.com
+Cc: 695182@bugs.debian.org, akpm@linux-foundation.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Seth, frontswap guys
+Dear Fengguang,
 
-On Tue, Jan 8, 2013 at 5:24 AM, Seth Jennings
-<sjenning@linux.vnet.ibm.com> wrote:
-> zs_create_pool() currently takes a gfp flags argument
-> that is used when growing the memory pool.  However
-> it is not used in allocating the metadata for the pool
-> itself.  That is currently hardcoded to GFP_KERNEL.
->
-> zswap calls zs_create_pool() at swapon time which is done
-> in atomic context, resulting in a "might sleep" warning.
+> There are 260MB reclaimable slab pages in the normal zone ...
 
-I didn't review this all series, really sorry but totday I saw Nitin
-added Acked-by so I'm afraid Greg might get it under my radar. I'm not
-strong against but I would like know why we should call frontswap_init
-under swap_lock? Is there special reason?
+Marked "all_unreclaimable? yes": is that wrong? Question asked also in:
+http://marc.info/?l=linux-mm&m=135873981326767&w=2
 
-Thanks.
--- 
-Kind regards,
-Minchan Kim
+> ... however we somehow failed to reclaim them. ...
+
+I made a patch that would do a drop_caches at that point, please see:
+http://bugs.debian.org/695182
+http://bugs.debian.org/cgi-bin/bugreport.cgi?msg=101;filename=drop_caches.patch;att=1;bug=695182
+http://marc.info/?l=linux-mm&m=135785511125549&w=2
+and that successfully avoided OOM when writing files.
+But, the drop_caches patch did not protect against the "sleep test".
+
+> ... What's your filesystem and the content of /proc/slabinfo?
+
+Filesystem is EXT3. See output of slabinfo in Debian bug above or in
+http://marc.info/?l=linux-mm&m=135796154427544&w=2
+
+Thanks, Paul
+
+Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
+School of Mathematics and Statistics   University of Sydney    Australia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
