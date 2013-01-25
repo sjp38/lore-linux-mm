@@ -1,100 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 247636B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 10:07:26 -0500 (EST)
-Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
-Date: Fri, 25 Jan 2013 16:07:23 +0100
-From: "azurIt" <azurit@pobox.sk>
-References: <20121210155205.GB6777@dhcp22.suse.cz>, <20121217023430.5A390FD7@pobox.sk>, <20121217163203.GD25432@dhcp22.suse.cz>, <20121217192301.829A7020@pobox.sk>, <20121217195510.GA16375@dhcp22.suse.cz>, <20121218152223.6912832C@pobox.sk>, <20121218152004.GA25208@dhcp22.suse.cz>, <20121224142526.020165D3@pobox.sk>, <20121228162209.GA1455@dhcp22.suse.cz>, <20121230020947.AA002F34@pobox.sk> <20121230110815.GA12940@dhcp22.suse.cz>
-In-Reply-To: <20121230110815.GA12940@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 6E08A6B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 10:09:40 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Fri, 25 Jan 2013 10:09:39 -0500
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 0EDFB38C8054
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 10:09:38 -0500 (EST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0PF9bcK343532
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 10:09:37 -0500
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0PF7sxr021274
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 08:08:06 -0700
+Message-ID: <51029FC3.4060402@linux.vnet.ibm.com>
+Date: Fri, 25 Jan 2013 09:07:47 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Message-Id: <20130125160723.FAE73567@pobox.sk>
+Subject: Re: [PATCHv2 1/9] staging: zsmalloc: add gfp flags to zs_create_pool
+References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-2-git-send-email-sjenning@linux.vnet.ibm.com> <CAEwNFnDWpyvmN-fU=MczXKtcay6vMMCOOHUM2M09+wx7zOVxDQ@mail.gmail.com>
+In-Reply-To: <CAEwNFnDWpyvmN-fU=MczXKtcay6vMMCOOHUM2M09+wx7zOVxDQ@mail.gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Any news? Thnx!
+On 01/24/2013 07:33 PM, Minchan Kim wrote:
+> Hi Seth, frontswap guys
+> 
+> On Tue, Jan 8, 2013 at 5:24 AM, Seth Jennings
+> <sjenning@linux.vnet.ibm.com> wrote:
+>> zs_create_pool() currently takes a gfp flags argument
+>> that is used when growing the memory pool.  However
+>> it is not used in allocating the metadata for the pool
+>> itself.  That is currently hardcoded to GFP_KERNEL.
+>>
+>> zswap calls zs_create_pool() at swapon time which is done
+>> in atomic context, resulting in a "might sleep" warning.
+> 
+> I didn't review this all series, really sorry but totday I saw Nitin
+> added Acked-by so I'm afraid Greg might get it under my radar. I'm not
+> strong against but I would like know why we should call frontswap_init
+> under swap_lock? Is there special reason?
 
-azur
+The call stack is:
 
+SYSCALL_DEFINE2(swapon.. <-- swapon_mutex taken here
+enable_swap_info() <-- swap_lock taken here
+frontswap_init()
+__frontswap_init()
+zswap_frontswap_init()
+zs_create_pool()
 
+It isn't entirely clear to me why frontswap_init() is called under
+lock.  Then again, I'm not entirely sure what the swap_lock protects.
+ There are no comments near the swap_lock definition to tell me.
 
-______________________________________________________________
-> Od: "Michal Hocko" <mhocko@suse.cz>
-> Komu: azurIt <azurit@pobox.sk>
-> DA!tum: 30.12.2012 12:08
-> Predmet: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from add_to_page_cache_locked
->
-> CC: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "cgroups mailinglist" <cgroups@vger.kernel.org>, "KAMEZAWA Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>, "Johannes Weiner" <hannes@cmpxchg.org>
->On Sun 30-12-12 02:09:47, azurIt wrote:
->> >which suggests that the patch is incomplete and that I am blind :/
->> >mem_cgroup_cache_charge calls __mem_cgroup_try_charge for the page cache
->> >and that one doesn't check GFP_MEMCG_NO_OOM. So you need the following
->> >follow-up patch on top of the one you already have (which should catch
->> >all the remaining cases).
->> >Sorry about that...
->> 
->> 
->> This was, again, killing my MySQL server (search for "(mysqld)"):
->> http://www.watchdog.sk/lkml/oom_mysqld5
->
->grep "Kill process" oom_mysqld5 
->Dec 30 01:53:34 server01 kernel: [  367.061801] Memory cgroup out of memory: Kill process 5512 (apache2) score 716 or sacrifice child
->Dec 30 01:53:35 server01 kernel: [  367.338024] Memory cgroup out of memory: Kill process 5517 (apache2) score 718 or sacrifice child
->Dec 30 01:53:35 server01 kernel: [  367.747888] Memory cgroup out of memory: Kill process 5513 (apache2) score 721 or sacrifice child
->Dec 30 01:53:36 server01 kernel: [  368.159860] Memory cgroup out of memory: Kill process 5516 (apache2) score 726 or sacrifice child
->Dec 30 01:53:36 server01 kernel: [  368.665606] Memory cgroup out of memory: Kill process 5520 (apache2) score 733 or sacrifice child
->Dec 30 01:53:36 server01 kernel: [  368.765652] Out of memory: Kill process 1778 (mysqld) score 39 or sacrifice child
->Dec 30 01:53:36 server01 kernel: [  369.101753] Memory cgroup out of memory: Kill process 5519 (apache2) score 754 or sacrifice child
->Dec 30 01:53:37 server01 kernel: [  369.464262] Memory cgroup out of memory: Kill process 5583 (apache2) score 762 or sacrifice child
->Dec 30 01:53:37 server01 kernel: [  369.465017] Out of memory: Kill process 5506 (apache2) score 18 or sacrifice child
->Dec 30 01:53:37 server01 kernel: [  369.574932] Memory cgroup out of memory: Kill process 5523 (apache2) score 759 or sacrifice child
->
->So your mysqld has been killed by the global OOM not memcg. But why when
->you seem to be perfectly fine regarding memory? I guess the following
->backtrace is relevant:
->Dec 30 01:53:36 server01 kernel: [  368.569720] DMA: 0*4kB 1*8kB 0*16kB 1*32kB 2*64kB 1*128kB 1*256kB 0*512kB 1*1024kB 1*2048kB 3*4096kB = 15912kB
->Dec 30 01:53:36 server01 kernel: [  368.570447] DMA32: 9*4kB 10*8kB 8*16kB 6*32kB 5*64kB 6*128kB 4*256kB 2*512kB 3*1024kB 3*2048kB 613*4096kB = 2523636kB
->Dec 30 01:53:36 server01 kernel: [  368.571175] Normal: 5*4kB 2060*8kB 4122*16kB 2550*32kB 2667*64kB 722*128kB 197*256kB 68*512kB 15*1024kB 4*2048kB 1855*4096kB = 8134036kB
->Dec 30 01:53:36 server01 kernel: [  368.571906] 308964 total pagecache pages
->Dec 30 01:53:36 server01 kernel: [  368.572023] 0 pages in swap cache
->Dec 30 01:53:36 server01 kernel: [  368.572140] Swap cache stats: add 0, delete 0, find 0/0
->Dec 30 01:53:36 server01 kernel: [  368.572260] Free swap  = 0kB
->Dec 30 01:53:36 server01 kernel: [  368.572375] Total swap = 0kB
->Dec 30 01:53:36 server01 kernel: [  368.597836] apache2 invoked oom-killer: gfp_mask=0x0, order=0, oom_adj=0, oom_score_adj=0
->Dec 30 01:53:36 server01 kernel: [  368.598034] apache2 cpuset=uid mems_allowed=0
->Dec 30 01:53:36 server01 kernel: [  368.598152] Pid: 5385, comm: apache2 Not tainted 3.2.35-grsec #1
->Dec 30 01:53:36 server01 kernel: [  368.598273] Call Trace:
->Dec 30 01:53:36 server01 kernel: [  368.598396]  [<ffffffff810cc89e>] dump_header+0x7e/0x1e0
->Dec 30 01:53:36 server01 kernel: [  368.598516]  [<ffffffff810cc79f>] ? find_lock_task_mm+0x2f/0x70
->Dec 30 01:53:36 server01 kernel: [  368.598638]  [<ffffffff810ccd65>] oom_kill_process+0x85/0x2a0
->Dec 30 01:53:36 server01 kernel: [  368.598759]  [<ffffffff810cd415>] out_of_memory+0xe5/0x200
->Dec 30 01:53:36 server01 kernel: [  368.598880]  [<ffffffff810cd5ed>] pagefault_out_of_memory+0xbd/0x110
->Dec 30 01:53:36 server01 kernel: [  368.599006]  [<ffffffff81026e96>] mm_fault_error+0xb6/0x1a0
->Dec 30 01:53:36 server01 kernel: [  368.599127]  [<ffffffff8102736e>] do_page_fault+0x3ee/0x460
->Dec 30 01:53:36 server01 kernel: [  368.599250]  [<ffffffff81131ccf>] ? mntput+0x1f/0x30
->Dec 30 01:53:36 server01 kernel: [  368.599371]  [<ffffffff811134e6>] ? fput+0x156/0x200
->Dec 30 01:53:36 server01 kernel: [  368.599496]  [<ffffffff815b567f>] page_fault+0x1f/0x30
->
->This would suggest that an unexpected ENOMEM leaked during page fault
->path. I do not see which one could that be because you said THP
->(CONFIG_TRANSPARENT_HUGEPAGE) are disabled (and the other patch I have
->mentioned in the thread should fix that issue - btw. the patch is
->already scheduled for stable tree).
-> __do_fault, do_anonymous_page and do_wp_page call
->mem_cgroup_newpage_charge with GFP_KERNEL which means that
->we do memcg OOM and never return ENOMEM. do_swap_page calls
->mem_cgroup_try_charge_swapin with GFP_KERNEL as well.
->
->I might have missed something but I will not get to look closer before
->2nd January.
->-- 
->Michal Hocko
->SUSE Labs
->
+I would guess that the intent is to block any writes to the swap
+device until frontswap_init() has completed.
+
+Dan care to weigh in?
+
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
