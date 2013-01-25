@@ -1,43 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 2AEF36B0002
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 02:37:41 -0500 (EST)
-Message-ID: <5102364F.3020700@parallels.com>
-Date: Fri, 25 Jan 2013 11:37:51 +0400
-From: Lord Glauber Costa of Sealand <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] memcg: reduce the size of struct memcg 244-fold.
-References: <1359009996-5350-1-git-send-email-glommer@parallels.com> <xr93r4lbrpdk.fsf@gthelen.mtv.corp.google.com> <20130124155105.85dae9d9.akpm@linux-foundation.org>
-In-Reply-To: <20130124155105.85dae9d9.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 74ED36B0002
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 03:07:53 -0500 (EST)
+Received: by mail-ia0-f178.google.com with SMTP id y26so155321iab.37
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 00:07:52 -0800 (PST)
+Message-ID: <1359101268.16101.3.camel@kernel>
+Subject: Re: [patch 3/3 v2]swap: add per-partition lock for swapfile
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Fri, 25 Jan 2013 02:07:48 -0600
+In-Reply-To: <20130122150726.9d94c198.akpm@linux-foundation.org>
+References: <20130122023028.GC12293@kernel.org>
+	 <20130122150726.9d94c198.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+Cc: Shaohua Li <shli@kernel.org>, linux-mm@kvack.org, hughd@google.com, riel@redhat.com, minchan@kernel.org
 
+On Tue, 2013-01-22 at 15:07 -0800, Andrew Morton wrote:
+> On Tue, 22 Jan 2013 10:30:28 +0800
+> Shaohua Li <shli@kernel.org> wrote:
+> 
+> > swap_lock is heavily contended when I test swap to 3 fast SSD (even slightly
+> > slower than swap to 2 such SSD). The main contention comes from
+> > swap_info_get(). This patch tries to fix the gap with adding a new
+> > per-partition lock.
+> > 
+> > global data like nr_swapfiles, total_swap_pages, least_priority and swap_list are
+> > still protected by swap_lock.
+> > 
 
->  #ifdef CONFIG_MEMCG_KMEM
-> -static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
-> +static void memcg_kmem_set_active(struct mem_cgroup *memcg)
->  {
->  	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
->  }
-> @@ -645,6 +645,7 @@ static void drain_all_stock_async(struct
->  static struct mem_cgroup_per_zone *
->  mem_cgroup_zoneinfo(struct mem_cgroup *memcg, int nid, int zid)
->  {
-> +	VM_BUG_ON((unsigned)nid >= nr_node_ids);
->  	return &memcg->info.nodeinfo[nid]->zoneinfo[zid];
->  }
->  
-> _
+Hi Andrew,
+
+I see you have already merge the patch, several questions, forgive me if
+some are silly.
+
+> > nr_swap_pages is an atomic now, it can be changed without swap_lock. In theory,
+> > it's possible get_swap_page() finds no swap pages but actually there are free
+> > swap pages. But sounds not a big problem.
+
+When can this happen?
+
+> > 
+> > accessing partition specific data (like scan_swap_map and so on) is only
+> > protected by swap_info_struct.lock.
+> > 
+> > Changing swap_info_struct.flags need hold swap_lock and swap_info_struct.lock,
+> > because scan_scan_map() will check it. read the flags is ok with either the
+> > locks hold.
+> > 
+> > If both swap_lock and swap_info_struct.lock must be hold, we always hold the
+> > former first to avoid deadlock.
+> > 
+> > swap_entry_free() can change swap_list. To delete that code, we add a new
+> > highest_priority_index. Whenever get_swap_page() is called, we check it. If
+
+Why check it when get_swap_page() is called instead of other places?
+
+> > it's valid, we use it.
+> > 
+> > It's a pitty get_swap_page() still holds swap_lock(). But in practice,
+> > swap_lock() isn't heavily contended in my test with this patch (or I can say
+> > there are other much more heavier bottlenecks like TLB flush). And BTW, looks
+> > get_swap_page() doesn't really need the lock. We never free swap_info[] and we
+> > check SWAP_WRITEOK flag. The only risk without the lock is we could swapout to
+> > some low priority swap, but we can quickly recover after several rounds of
+> > swap, so sounds not a big deal to me. But I'd prefer to fix this if it's a real
 > 
-> Glauber, could you please cc me on patches more often?  It's a bit of a
-> pita having to go back to the mailing list to see if there has been
-> more dicussion and I may end up missing late review comments and acks.
+> I had to move a few things around due to changes in
+> drivers/staging/zcache/.
 > 
-Sure, absolutely.
+> Do you have any performance testing results for this patch?
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
