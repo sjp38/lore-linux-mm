@@ -1,57 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 6F82C6B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 11:45:23 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 25 Jan 2013 11:45:22 -0500
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id DF627C90042
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 11:45:19 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0PGjJOh22282352
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 11:45:19 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0PGjHMW018724
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 11:45:19 -0500
-Message-ID: <5102B690.4090503@linux.vnet.ibm.com>
-Date: Fri, 25 Jan 2013 10:45:04 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 8D1276B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 12:14:11 -0500 (EST)
+Received: by mail-vb0-f74.google.com with SMTP id r6so51562vbi.3
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 09:14:10 -0800 (PST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH v2] memcg: reduce the size of struct memcg 244-fold.
+References: <1359009996-5350-1-git-send-email-glommer@parallels.com>
+	<xr93r4lbrpdk.fsf@gthelen.mtv.corp.google.com>
+	<20130124155105.85dae9d9.akpm@linux-foundation.org>
+Date: Fri, 25 Jan 2013 09:14:09 -0800
+In-Reply-To: <20130124155105.85dae9d9.akpm@linux-foundation.org> (Andrew
+	Morton's message of "Thu, 24 Jan 2013 15:51:05 -0800")
+Message-ID: <xr931ud9rxr2.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2 5/9] debugfs: add get/set for atomic types
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-6-git-send-email-sjenning@linux.vnet.ibm.com> <20130107203219.GA19596@kroah.com> <50EB32FB.30802@linux.vnet.ibm.com>
-In-Reply-To: <50EB32FB.30802@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Robert Jennings <rcj@linux.vnet.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Nitin Gupta <ngupta@vflare.org>, Jenifer Hopper <jhopper@us.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-On 01/07/2013 02:41 PM, Seth Jennings wrote:
-> On 01/07/2013 02:32 PM, Greg Kroah-Hartman wrote:
->> On Mon, Jan 07, 2013 at 02:24:36PM -0600, Seth Jennings wrote:
->>> debugfs currently lack the ability to create attributes
->>> that set/get atomic_t values.
->>
->> I hate to ask, but why would you ever want to do such a thing?
-> 
-> There are a few atomic_t statistics in zswap that are valuable to have
-> in the debugfs attributes.  Rather than have non-atomic mirrors of all
-> of them, as is done in zcache right now (see
-> drivers/staging/ramster/zcache-main.c:131), I thought this to be a
-> cleaner solution.
-> 
-> Granted, I personally have no use for the setting part; only the
-> getting part.  I only included the setting operations to keep the
-> balance and conform with the rest of the debugfs implementation.
+On Thu, Jan 24 2013, Andrew Morton wrote:
 
-Greg, I never did get your ack or rejection here.  Are you ok with
-this patch?
+> On Wed, 23 Jan 2013 23:50:31 -0800
+> Greg Thelen <gthelen@google.com> wrote:
+>
+>> > --- a/mm/memcontrol.c
+>> > +++ b/mm/memcontrol.c
+>> > @@ -172,7 +172,7 @@ struct mem_cgroup_per_node {
+>> >  };
+>> >  
+>> >  struct mem_cgroup_lru_info {
+>> > -	struct mem_cgroup_per_node *nodeinfo[MAX_NUMNODES];
+>> > +	struct mem_cgroup_per_node *nodeinfo[0];
+>> 
+>> It seems like a VM_BUG_ON() in mem_cgroup_zoneinfo() asserting that the
+>> nid index is less than nr_node_ids would be good at catching illegal
+>> indexes.  I don't see any illegal indexes in your patch, but I fear that
+>> someday a MAX_NUMNODES based for() loop might sneak in.
+>
+> Can't hurt ;)
+>
+>> Tangential question: why use inline here?  I figure that modern
+>> compilers are good at making inlining decisions.
+>
+> And that'll save some disk space.
+>
+> This?
 
-Thanks,
-Seth
+Yup, that looks good to me.
+
+Acked-by: Greg Thelen <gthelen@google.com>
+
+> --- a/mm/memcontrol.c~memcg-reduce-the-size-of-struct-memcg-244-fold-fix
+> +++ a/mm/memcontrol.c
+> @@ -381,7 +381,7 @@ enum {
+>  		((1 << KMEM_ACCOUNTED_ACTIVE) | (1 << KMEM_ACCOUNTED_ACTIVATED))
+>  
+>  #ifdef CONFIG_MEMCG_KMEM
+> -static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
+> +static void memcg_kmem_set_active(struct mem_cgroup *memcg)
+>  {
+>  	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+>  }
+> @@ -645,6 +645,7 @@ static void drain_all_stock_async(struct
+>  static struct mem_cgroup_per_zone *
+>  mem_cgroup_zoneinfo(struct mem_cgroup *memcg, int nid, int zid)
+>  {
+> +	VM_BUG_ON((unsigned)nid >= nr_node_ids);
+>  	return &memcg->info.nodeinfo[nid]->zoneinfo[zid];
+>  }
+>  
+> _
+>
+> Glauber, could you please cc me on patches more often?  It's a bit of a
+> pita having to go back to the mailing list to see if there has been
+> more dicussion and I may end up missing late review comments and acks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
