@@ -1,64 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id CB2E36B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 07:37:13 -0500 (EST)
-Date: Fri, 25 Jan 2013 13:37:10 +0100
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 9A46F6B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 08:17:46 -0500 (EST)
+Date: Fri, 25 Jan 2013 14:17:40 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: fix typo in kmemcg cache walk macro
-Message-ID: <20130125123710.GE8876@dhcp22.suse.cz>
-References: <1359116275-25298-1-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH Bug fix 0/5] Bug fix for physical memory hot-remove.
+Message-ID: <20130125131740.GA1615@dhcp22.suse.cz>
+References: <1358854984-6073-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1358944171.3351.1.camel@kernel>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1359116275-25298-1-git-send-email-glommer@parallels.com>
+In-Reply-To: <1358944171.3351.1.camel@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lord Glauber Costa of Sealand <glommer@parallels.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, jiang.liu@huawei.com, julian.calaby@gmail.com, sfr@canb.auug.org.au, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
 
-On Fri 25-01-13 16:17:55, Glauber Costa wrote:
-> From: Glauber Costa <glommer@parallels.com>
+On Wed 23-01-13 06:29:31, Simon Jeons wrote:
+> On Tue, 2013-01-22 at 19:42 +0800, Tang Chen wrote:
+> > Here are some bug fix patches for physical memory hot-remove. All these
+> > patches are based on the latest -mm tree.
+> > git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git akpm
+> > 
+> > And patch1 and patch3 are very important.
+> > patch1: free compound pages when freeing memmap, otherwise the kernel
+> >         will panic the next time memory is hot-added.
+> > patch3: the old way of freeing pagetable pages was wrong. We should never
+> >         split larger pages into small ones.
+> > 
+> > 
 > 
-> The macro for_each_memcg_cache_index contains a silly yet potentially
-> deadly mistake. Although the macro parameter is _idx, the loop tests are
-> done over i, not _idx.
+> Hi Tang,
 > 
-> This hasn't generated any problems so far, because all users use i as a
-> loop index. However, while playing with an extension of the code I
-> ended using another loop index and the compiler was quick to complain.
-> 
-> Unfortunately, this is not the kind of thing that testing reveals =(
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> I remember your big physical memory hot-remove patchset has already
+> merged by Andrew, but where I can find it? Could you give me git tree 
+> address?
 
-Ouch.
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Andrew tree is also mirrored into a git tree.
+http://git.kernel.org/?p=linux/kernel/git/mhocko/mm.git;a=summary
 
-> ---
->  include/linux/memcontrol.h | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 904084f..2a876a3 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -424,7 +424,7 @@ extern int memcg_limited_groups_array_size;
->   * the slab_mutex must be held when looping through those caches
->   */
->  #define for_each_memcg_cache_index(_idx)	\
-> -	for ((_idx) = 0; i < memcg_limited_groups_array_size; (_idx)++)
-> +	for ((_idx) = 0; (_idx) < memcg_limited_groups_array_size; (_idx)++)
->  
->  static inline bool memcg_kmem_enabled(void)
->  {
-> -- 
-> 1.8.1
-> 
-
+It contains only Memory management patches on top of the last major
+release (since-.X.Y branch).
 -- 
 Michal Hocko
 SUSE Labs
