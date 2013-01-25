@@ -1,58 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 479A86B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 16:35:11 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id bi1so492823pad.36
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 13:35:10 -0800 (PST)
-Date: Fri, 25 Jan 2013 13:35:07 -0800
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCHv2 5/9] debugfs: add get/set for atomic types
-Message-ID: <20130125213507.GA17700@kroah.com>
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1357590280-31535-6-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130107203219.GA19596@kroah.com>
- <50EB32FB.30802@linux.vnet.ibm.com>
- <5102B690.4090503@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 04D1E6B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 16:50:47 -0500 (EST)
+Message-ID: <5102FE30.2060806@redhat.com>
+Date: Fri, 25 Jan 2013 16:50:40 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5102B690.4090503@linux.vnet.ibm.com>
+Subject: Re: [PATCHv2 2/9] staging: zsmalloc: remove unsed pool name
+References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-3-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1357590280-31535-3-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: devel@driverdev.osuosl.org, Rik van Riel <riel@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, Johannes Weiner <jweiner@redhat.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Larry Woodman <lwoodman@redhat.com>, Nitin Gupta <ngupta@vflare.org>, Jenifer Hopper <jhopper@us.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Fri, Jan 25, 2013 at 10:45:04AM -0600, Seth Jennings wrote:
-> On 01/07/2013 02:41 PM, Seth Jennings wrote:
-> > On 01/07/2013 02:32 PM, Greg Kroah-Hartman wrote:
-> >> On Mon, Jan 07, 2013 at 02:24:36PM -0600, Seth Jennings wrote:
-> >>> debugfs currently lack the ability to create attributes
-> >>> that set/get atomic_t values.
-> >>
-> >> I hate to ask, but why would you ever want to do such a thing?
-> > 
-> > There are a few atomic_t statistics in zswap that are valuable to have
-> > in the debugfs attributes.  Rather than have non-atomic mirrors of all
-> > of them, as is done in zcache right now (see
-> > drivers/staging/ramster/zcache-main.c:131), I thought this to be a
-> > cleaner solution.
-> > 
-> > Granted, I personally have no use for the setting part; only the
-> > getting part.  I only included the setting operations to keep the
-> > balance and conform with the rest of the debugfs implementation.
-> 
-> Greg, I never did get your ack or rejection here.  Are you ok with
-> this patch?
+On 01/07/2013 03:24 PM, Seth Jennings wrote:
+> zs_create_pool() currently takes a name argument which is
+> never used in any useful way.
+>
+> This patch removes it.
+>
+> Signed-off-by: Seth Jennnings <sjenning@linux.vnet.ibm.com>
 
-Some patches you just hold your breath and hope the sender goes away and
-never asks about again, this was one of them :)
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Seriously, it's fine, feel free to take it through whatever tree it
-depends on.
-
-Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
-greg k-h
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
