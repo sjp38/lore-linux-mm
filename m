@@ -1,45 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 772766B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 16:52:36 -0500 (EST)
-Received: by mail-pb0-f51.google.com with SMTP id ro12so448489pbb.24
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 13:52:35 -0800 (PST)
-Date: Fri, 25 Jan 2013 13:52:33 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] kernel/res_counter.c: move BUG() to the default choice
- of switch at res_counter_member()
-In-Reply-To: <51023F89.9030807@oracle.com>
-Message-ID: <alpine.DEB.2.00.1301251352030.26610@chino.kir.corp.google.com>
-References: <51023F89.9030807@oracle.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id A2D376B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 16:55:23 -0500 (EST)
+Message-ID: <5102FF45.4080708@redhat.com>
+Date: Fri, 25 Jan 2013 16:55:17 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCHv2 3/9] staging: zsmalloc: add page alloc/free callbacks
+References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-4-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1357590280-31535-4-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Liu <jeff.liu@oracle.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Fri, 25 Jan 2013, Jeff Liu wrote:
+On 01/07/2013 03:24 PM, Seth Jennings wrote:
+> This patch allows users of zsmalloc to register the
+> allocation and free routines used by zsmalloc to obtain
+> more pages for the memory pool.  This allows the user
+> more control over zsmalloc pool policy and behavior.
+>
+> If the user does not wish to control this, alloc_page() and
+> __free_page() are used by default.
 
-> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> index ff55247..748a3bc 100644
-> --- a/kernel/res_counter.c
-> +++ b/kernel/res_counter.c
-> @@ -135,10 +135,9 @@ res_counter_member(struct res_counter *counter, int member)
->  		return &counter->failcnt;
->  	case RES_SOFT_LIMIT:
->  		return &counter->soft_limit;
-> +	default:
-> +		BUG();
->  	};
-> -
-> -	BUG();
-> -	return NULL;
->  }
->  
->  ssize_t res_counter_read(struct res_counter *counter, int member,
+Acked-by: Rik van Riel <riel@redhat.com>
 
-This doesn't work for CONFIG_BUG=n, you still need a return value.  I 
-think the original version was better.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
