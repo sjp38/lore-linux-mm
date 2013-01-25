@@ -1,41 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 181B06B000C
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 18:16:05 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Fri, 25 Jan 2013 18:16:03 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id E8A906E803C
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 18:15:58 -0500 (EST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0PNFxDj341510
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 18:16:00 -0500
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0PNFw5A001159
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 16:15:59 -0700
-Message-ID: <51031227.6010000@linux.vnet.ibm.com>
-Date: Fri, 25 Jan 2013 15:15:51 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 5540C6B0009
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 18:33:21 -0500 (EST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] [v3] fix illegal use of __pa() in KVM code
-References: <20130122212428.8DF70119@kernel.stglabs.ibm.com>
-In-Reply-To: <20130122212428.8DF70119@kernel.stglabs.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-ID: <1e053fad-6536-4f8f-9944-1703916c62dd@default>
+Date: Fri, 25 Jan 2013 15:33:14 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 0/4] staging: zsmalloc: various cleanups/improvments
+References: <<1359135978-15119-1-git-send-email-sjenning@linux.vnet.ibm.com>>
+In-Reply-To: <<1359135978-15119-1-git-send-email-sjenning@linux.vnet.ibm.com>>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, "H.Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On 01/22/2013 01:24 PM, Dave Hansen wrote:
-> This series fixes a hard-to-debug early boot hang on 32-bit
-> NUMA systems.  It adds coverage to the debugging code,
-> adds some helpers, and eventually fixes the original bug I
-> was hitting.
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Subject: [PATCH 0/4] staging: zsmalloc: various cleanups/improvments
+>=20
+> These patches are the first 4 patches of the zswap patchset I
+> sent out previously.  Some recent commits to zsmalloc and
+> zcache in staging-next forced a rebase. While I was at it, Nitin
+> (zsmalloc maintainer) requested I break these 4 patches out from
+> the zswap patchset, since they stand on their own.
+>=20
+> All are already Acked-by Nitin.
+>=20
+> Based on staging-next as of today.
+>=20
+> Seth Jennings (4):
+>   staging: zsmalloc: add gfp flags to zs_create_pool
+>   staging: zsmalloc: remove unused pool name
+>   staging: zsmalloc: add page alloc/free callbacks
+>   staging: zsmalloc: make CLASS_DELTA relative to PAGE_SIZE
+>=20
+>  drivers/staging/zram/zram_drv.c          |    4 +-
+>  drivers/staging/zsmalloc/zsmalloc-main.c |   60 ++++++++++++++++++------=
+------
+>  drivers/staging/zsmalloc/zsmalloc.h      |   10 ++++-
+>  3 files changed, 47 insertions(+), 27 deletions(-)
 
-I got one more reviewed-by on this set, but otherwise no more comments.
- Could these get pulled in to the x86 tree for merging in 3.9?
+FWIW, please add my ack to all the patches.  I'm happy
+to see zsmalloc move forward.   I'm a bit skeptical
+that it will ever be capable of doing everything we
+would like it to do, but am eager to see if it can.
+
+Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
