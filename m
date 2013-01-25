@@ -1,46 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id BEA2D6B0005
-	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 19:11:20 -0500 (EST)
-Received: by mail-ia0-f173.google.com with SMTP id l29so5694176iag.4
-        for <linux-mm@kvack.org>; Thu, 24 Jan 2013 16:11:20 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1357590280-31535-4-git-send-email-sjenning@linux.vnet.ibm.com>
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<1357590280-31535-4-git-send-email-sjenning@linux.vnet.ibm.com>
-Date: Thu, 24 Jan 2013 16:11:19 -0800
-Message-ID: <CAPkvG_fFoc3ExetwxwN-vNMOOmkWgCYmh+shj3wFvjYB5i6YsQ@mail.gmail.com>
-Subject: Re: [PATCHv2 3/9] staging: zsmalloc: add page alloc/free callbacks
-From: Nitin Gupta <ngupta@vflare.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 38DA46B0008
+	for <linux-mm@kvack.org>; Thu, 24 Jan 2013 19:15:57 -0500 (EST)
+Date: Fri, 25 Jan 2013 11:15:27 +1100
+From: paul.szabo@sydney.edu.au
+Message-Id: <201301250015.r0P0FR3t003475@como.maths.usyd.edu.au>
+Subject: Re: [PATCH] Negative (setpoint-dirty) in bdi_position_ratio()
+In-Reply-To: <20130124151603.GD21818@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: fengguang.wu@intel.com, jack@suse.cz
+Cc: 695182@bugs.debian.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jan 7, 2013 at 12:24 PM, Seth Jennings
-<sjenning@linux.vnet.ibm.com> wrote:
-> This patch allows users of zsmalloc to register the
-> allocation and free routines used by zsmalloc to obtain
-> more pages for the memory pool.  This allows the user
-> more control over zsmalloc pool policy and behavior.
->
-> If the user does not wish to control this, alloc_page() and
-> __free_page() are used by default.
->
-> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> ---
->  drivers/staging/zcache/zcache-main.c     |    2 +-
->  drivers/staging/zram/zram_drv.c          |    2 +-
->  drivers/staging/zsmalloc/zsmalloc-main.c |   43 ++++++++++++++++++++++--------
->  drivers/staging/zsmalloc/zsmalloc.h      |    8 +++++-
->  4 files changed, 41 insertions(+), 14 deletions(-)
->
+Dear Jan,
 
-Some documentation about zs_ops in zs_create_pool() would be useful.
-Otherwise, looks good to me.
+> I think he found the culprit of the problem being min_free_kbytes was not
+> properly reflected in the dirty throttling. ... Paul please correct me
+> if I'm wrong.
 
-Acked-by: Nitin Gupta <ngupta@vflare.org>
+Sorry but have to correct you.
+
+I noticed and patched/corrected two problems, one with (setpoint-dirty)
+in bdi_position_ratio(), another with min_free_kbytes not subtracted
+from dirtyable memory. Fixing those problems, singly or in combination,
+did not help in avoiding OOM: running
+  n=0; while [ $n -lt 99 ]; do dd bs=1M count=1024 if=/dev/zero of=x$n; ((n=$n+1)); done
+still produces an OOM after a few files written (on a PAE machine with
+over 32GB RAM).
+
+Also, a quite similar OOM may be produced on any PAE machine with
+  n=0; while [ $n -lt 33000 ]; do sleep 600 & ((n=n+1)); done
+This was tested on machines with as low as just 3GB RAM ... and
+curiously the same machine with "plain" (not PAE but HIGHMEM4G)
+kernel handles the same "sleep test" without any problems.
+
+(Thus I now think that the remaining bug is not with writeback.)
+
+Cheers, Paul
+
+Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
+School of Mathematics and Statistics   University of Sydney    Australia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
