@@ -1,32 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 6FEC06B0012
-	for <linux-mm@kvack.org>; Sat, 26 Jan 2013 10:43:49 -0500 (EST)
-Date: Sat, 26 Jan 2013 10:43:40 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH] Subtract min_free_kbytes from dirtyable memory
-Message-ID: <20130126154340.GC5887@thunk.org>
-References: <1359118913.3146.3.camel@deadeye.wl.decadent.org.uk>
- <201301252349.r0PNnFYF024399@como.maths.usyd.edu.au>
- <20130126001419.GG3341@elie.Belkin>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 13B536B0005
+	for <linux-mm@kvack.org>; Sat, 26 Jan 2013 15:16:20 -0500 (EST)
 MIME-Version: 1.0
+Message-ID: <601542b0-4c92-4d90-aed8-826235c06eab@default>
+Date: Sat, 26 Jan 2013 12:16:11 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [LSF/MM TOPIC] In-kernel compression in the MM subsystem
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130126001419.GG3341@elie.Belkin>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Nieder <jrnieder@gmail.com>
-Cc: paul.szabo@sydney.edu.au, 695182@bugs.debian.org, ben@decadent.org.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-(In the teach a person to fish category...)
+There's lots of interesting things going on in kernel memory
+management, but one only(?) increases the effective amount
+of data that can be stored in a fixed amount of RAM: in-kernel
+compression.
 
-If you know the file and line number where a bug/regression was
-introduced, the "git blame" command is a great tool for identifying
-the commit which changed a given line of code.  Then use "git tag
---contains <commit it>" to see when a particular commit was introduced
-into the mainline kernel.
+Since ramzswap/compcache (now zram) was first proposed in 2009
+as an in-memory compressed swap device, there have been a number
+of in-kernel compression solutions proposed, including
+zcache, kztmem, and now zswap.  Each shows promise to improve
+performance by using compression under memory pressure to
+reduce I/O due to swapping and/or paging.  Each is still
+in staging (though zram may be promoted by LSFMM 2013)
+because each also brings a number of perplexing challenges.
 
-					- Ted
+I think it's time to start converging on which one or more
+of these solutions, if any, should be properly promoted and
+more fully integrated into the kernel memory management
+subsystem.  Before this can occur, it's important to build a
+broader understanding and, hopefully, also a broader consensus
+among the MM community on a number of key challenges and questions
+in order to guide and drive further development and merging.
+
+I would like to collect a list of issues/questions, and
+start a discussion at LSF/MM by presenting this list, select
+the most important, then lead a discussion on how ever many
+there is time for.  Most likely this is an MM-only discussion
+though a subset might be suitable for a cross-talk presentataion.
+
+Thanks!
+Dan Magenheimer
+LSF/MM attendee 2010,2011,2012
+LSF/MM presenter (MM track) 2011,2012
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
