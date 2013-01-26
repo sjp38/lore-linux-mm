@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 8BD1A6B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 20:59:34 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id fa1so587914pad.7
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 17:59:33 -0800 (PST)
-Date: Fri, 25 Jan 2013 17:59:35 -0800 (PST)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 0B8506B0008
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 21:00:48 -0500 (EST)
+Received: by mail-da0-f51.google.com with SMTP id i30so429107dad.38
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 18:00:48 -0800 (PST)
+Date: Fri, 25 Jan 2013 18:00:50 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 4/11] ksm: reorganize ksm_check_stable_tree
+Subject: [PATCH 5/11] ksm: get_ksm_page locked
 In-Reply-To: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
-Message-ID: <alpine.LNX.2.00.1301251758190.29196@eggly.anvils>
+Message-ID: <alpine.LNX.2.00.1301251759470.29196@eggly.anvils>
 References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -17,84 +17,109 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Memory hotremove's ksm_check_stable_tree() is pitifully inefficient
-(restarting whenever it finds a stale node to remove), but rearrange
-so that at least it does not needlessly restart from nid 0 each time.
-And add a couple of comments: here is why we keep pfn instead of page.
+In some places where get_ksm_page() is used, we need the page to be locked.
+
+When KSM migration is fully enabled, we shall want that to make sure that
+the page just acquired cannot be migrated beneath us (raised page count is
+only effective when there is serialization to make sure migration notices).
+Whereas when navigating through the stable tree, we certainly do not want
+to lock each node (raised page count is enough to guarantee the memcmps,
+even if page is migrated to another node).
+
+Since we're about to add another use case, add the locked argument to
+get_ksm_page() now.
+
+Hmm, what's that rcu_read_lock() about?  Complete misunderstanding, I
+really got the wrong end of the stick on that!  There's a configuration
+in which page_cache_get_speculative() can do something cheaper than
+get_page_unless_zero(), relying on its caller's rcu_read_lock() to have
+disabled preemption for it.  There's no need for rcu_read_lock() around
+get_page_unless_zero() (and mapping checks) here.  Cut out that
+silliness before making this any harder to understand.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- mm/ksm.c |   38 ++++++++++++++++++++++----------------
- 1 file changed, 22 insertions(+), 16 deletions(-)
+ mm/ksm.c |   23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)
 
---- mmotm.orig/mm/ksm.c	2013-01-25 14:36:52.152205940 -0800
-+++ mmotm/mm/ksm.c	2013-01-25 14:36:53.244205966 -0800
-@@ -1830,31 +1830,36 @@ void ksm_migrate_page(struct page *newpa
- #endif /* CONFIG_MIGRATION */
- 
- #ifdef CONFIG_MEMORY_HOTREMOVE
--static struct stable_node *ksm_check_stable_tree(unsigned long start_pfn,
--						 unsigned long end_pfn)
-+static void ksm_check_stable_tree(unsigned long start_pfn,
-+				  unsigned long end_pfn)
+--- mmotm.orig/mm/ksm.c	2013-01-25 14:36:53.244205966 -0800
++++ mmotm/mm/ksm.c	2013-01-25 14:36:58.856206099 -0800
+@@ -514,15 +514,14 @@ static void remove_node_from_stable_tree
+  * but this is different - made simpler by ksm_thread_mutex being held, but
+  * interesting for assuming that no other use of the struct page could ever
+  * put our expected_mapping into page->mapping (or a field of the union which
+- * coincides with page->mapping).  The RCU calls are not for KSM at all, but
+- * to keep the page_count protocol described with page_cache_get_speculative.
++ * coincides with page->mapping).
+  *
+  * Note: it is possible that get_ksm_page() will return NULL one moment,
+  * then page the next, if the page is in between page_freeze_refs() and
+  * page_unfreeze_refs(): this shouldn't be a problem anywhere, the page
+  * is on its way to being freed; but it is an anomaly to bear in mind.
+  */
+-static struct page *get_ksm_page(struct stable_node *stable_node)
++static struct page *get_ksm_page(struct stable_node *stable_node, bool locked)
  {
-+	struct stable_node *stable_node;
- 	struct rb_node *node;
- 	int nid;
- 
--	for (nid = 0; nid < nr_node_ids; nid++)
--		for (node = rb_first(&root_stable_tree[nid]); node;
--				node = rb_next(node)) {
--			struct stable_node *stable_node;
--
-+	for (nid = 0; nid < nr_node_ids; nid++) {
-+		node = rb_first(&root_stable_tree[nid]);
-+		while (node) {
- 			stable_node = rb_entry(node, struct stable_node, node);
- 			if (stable_node->kpfn >= start_pfn &&
--			    stable_node->kpfn < end_pfn)
--				return stable_node;
-+			    stable_node->kpfn < end_pfn) {
-+				/*
-+				 * Don't get_ksm_page, page has already gone:
-+				 * which is why we keep kpfn instead of page*
-+				 */
-+				remove_node_from_stable_tree(stable_node);
-+				node = rb_first(&root_stable_tree[nid]);
-+			} else
-+				node = rb_next(node);
-+			cond_resched();
- 		}
--
--	return NULL;
+ 	struct page *page;
+ 	void *expected_mapping;
+@@ -530,7 +529,6 @@ static struct page *get_ksm_page(struct
+ 	page = pfn_to_page(stable_node->kpfn);
+ 	expected_mapping = (void *)stable_node +
+ 				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
+-	rcu_read_lock();
+ 	if (page->mapping != expected_mapping)
+ 		goto stale;
+ 	if (!get_page_unless_zero(page))
+@@ -539,10 +537,16 @@ static struct page *get_ksm_page(struct
+ 		put_page(page);
+ 		goto stale;
+ 	}
+-	rcu_read_unlock();
++	if (locked) {
++		lock_page(page);
++		if (page->mapping != expected_mapping) {
++			unlock_page(page);
++			put_page(page);
++			goto stale;
++		}
 +	}
+ 	return page;
+ stale:
+-	rcu_read_unlock();
+ 	remove_node_from_stable_tree(stable_node);
+ 	return NULL;
  }
+@@ -558,11 +562,10 @@ static void remove_rmap_item_from_tree(s
+ 		struct page *page;
  
- static int ksm_memory_callback(struct notifier_block *self,
- 			       unsigned long action, void *arg)
- {
- 	struct memory_notify *mn = arg;
--	struct stable_node *stable_node;
+ 		stable_node = rmap_item->head;
+-		page = get_ksm_page(stable_node);
++		page = get_ksm_page(stable_node, true);
+ 		if (!page)
+ 			goto out;
  
- 	switch (action) {
- 	case MEM_GOING_OFFLINE:
-@@ -1874,11 +1879,12 @@ static int ksm_memory_callback(struct no
- 		/*
- 		 * Most of the work is done by page migration; but there might
- 		 * be a few stable_nodes left over, still pointing to struct
--		 * pages which have been offlined: prune those from the tree.
-+		 * pages which have been offlined: prune those from the tree,
-+		 * otherwise get_ksm_page() might later try to access a
-+		 * non-existent struct page.
- 		 */
--		while ((stable_node = ksm_check_stable_tree(mn->start_pfn,
--					mn->start_pfn + mn->nr_pages)) != NULL)
--			remove_node_from_stable_tree(stable_node);
-+		ksm_check_stable_tree(mn->start_pfn,
-+				      mn->start_pfn + mn->nr_pages);
- 		/* fallthrough */
+-		lock_page(page);
+ 		hlist_del(&rmap_item->hlist);
+ 		unlock_page(page);
+ 		put_page(page);
+@@ -1042,7 +1045,7 @@ static struct page *stable_tree_search(s
  
- 	case MEM_CANCEL_OFFLINE:
+ 		cond_resched();
+ 		stable_node = rb_entry(node, struct stable_node, node);
+-		tree_page = get_ksm_page(stable_node);
++		tree_page = get_ksm_page(stable_node, false);
+ 		if (!tree_page)
+ 			return NULL;
+ 
+@@ -1086,7 +1089,7 @@ static struct stable_node *stable_tree_i
+ 
+ 		cond_resched();
+ 		stable_node = rb_entry(*new, struct stable_node, node);
+-		tree_page = get_ksm_page(stable_node);
++		tree_page = get_ksm_page(stable_node, false);
+ 		if (!tree_page)
+ 			return NULL;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
