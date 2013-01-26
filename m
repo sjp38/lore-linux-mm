@@ -1,261 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id AE7F16B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 21:07:49 -0500 (EST)
-Received: by mail-da0-f42.google.com with SMTP id z17so434409dal.15
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 18:07:48 -0800 (PST)
-Date: Fri, 25 Jan 2013 18:07:51 -0800 (PST)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id BFDAB6B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 21:10:17 -0500 (EST)
+Received: by mail-da0-f49.google.com with SMTP id v40so434347dad.36
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 18:10:17 -0800 (PST)
+Date: Fri, 25 Jan 2013 18:10:18 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 10/11] mm: remove offlining arg to migrate_pages
+Subject: [PATCH 11/11] ksm: stop hotremove lockdep warning
 In-Reply-To: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
-Message-ID: <alpine.LNX.2.00.1301251806330.29196@eggly.anvils>
+Message-ID: <alpine.LNX.2.00.1301251808120.29196@eggly.anvils>
 References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-No functional change, but the only purpose of the offlining argument
-to migrate_pages() etc, was to ensure that __unmap_and_move() could
-migrate a KSM page for memory hotremove (which took ksm_thread_mutex)
-but not for other callers.  Now all cases are safe, remove the arg.
+Complaints are rare, but lockdep still does not understand the way
+ksm_memory_callback(MEM_GOING_OFFLINE) takes ksm_thread_mutex, and
+holds it until the ksm_memory_callback(MEM_OFFLINE): that appears
+to be a problem because notifier callbacks are made under down_read
+of blocking_notifier_head->rwsem (so first the mutex is taken while
+holding the rwsem, then later the rwsem is taken while still holding
+the mutex); but is not in fact a problem because mem_hotplug_mutex
+is held throughout the dance.
 
+There was an attempt to fix this with mutex_lock_nested(); but if that
+happened to fool lockdep two years ago, apparently it does so no longer.
+
+I had hoped to eradicate this issue in extending KSM page migration not
+to need the ksm_thread_mutex.  But then realized that although the page
+migration itself is safe, we do still need to lock out ksmd and other
+users of get_ksm_page() while offlining memory - at some point between
+MEM_GOING_OFFLINE and MEM_OFFLINE, the struct pages themselves may
+vanish, and get_ksm_page()'s accesses to them become a violation.
+
+So, give up on holding ksm_thread_mutex itself from MEM_GOING_OFFLINE to
+MEM_OFFLINE, and add a KSM_RUN_OFFLINE flag, and wait_while_offlining()
+checks, to achieve the same lockout without being caught by lockdep.
+This is less elegant for KSM, but it's more important to keep lockdep
+useful to other users - and I apologize for how long it took to fix.
+
+Reported-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- include/linux/migrate.h |   14 ++++++--------
- mm/compaction.c         |    2 +-
- mm/memory-failure.c     |    7 +++----
- mm/memory_hotplug.c     |    3 +--
- mm/mempolicy.c          |    8 +++-----
- mm/migrate.c            |   35 +++++++++++++----------------------
- mm/page_alloc.c         |    6 ++----
- 7 files changed, 29 insertions(+), 46 deletions(-)
+ mm/ksm.c |   55 +++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 41 insertions(+), 14 deletions(-)
 
---- mmotm.orig/include/linux/migrate.h	2013-01-24 12:28:38.740127550 -0800
-+++ mmotm/include/linux/migrate.h	2013-01-25 14:38:51.468208776 -0800
-@@ -40,11 +40,9 @@ extern void putback_movable_pages(struct
- extern int migrate_page(struct address_space *,
- 			struct page *, struct page *, enum migrate_mode);
- extern int migrate_pages(struct list_head *l, new_page_t x,
--			unsigned long private, bool offlining,
--			enum migrate_mode mode, int reason);
-+		unsigned long private, enum migrate_mode mode, int reason);
- extern int migrate_huge_page(struct page *, new_page_t x,
--			unsigned long private, bool offlining,
--			enum migrate_mode mode);
-+		unsigned long private, enum migrate_mode mode);
+--- mmotm.orig/mm/ksm.c	2013-01-25 14:37:06.880206290 -0800
++++ mmotm/mm/ksm.c	2013-01-25 14:38:53.984208836 -0800
+@@ -226,7 +226,9 @@ static unsigned int ksm_merge_across_nod
+ #define KSM_RUN_STOP	0
+ #define KSM_RUN_MERGE	1
+ #define KSM_RUN_UNMERGE	2
+-static unsigned int ksm_run = KSM_RUN_STOP;
++#define KSM_RUN_OFFLINE	4
++static unsigned long ksm_run = KSM_RUN_STOP;
++static void wait_while_offlining(void);
  
- extern int fail_migrate_page(struct address_space *,
- 			struct page *, struct page *);
-@@ -62,11 +60,11 @@ extern int migrate_huge_page_move_mappin
- static inline void putback_lru_pages(struct list_head *l) {}
- static inline void putback_movable_pages(struct list_head *l) {}
- static inline int migrate_pages(struct list_head *l, new_page_t x,
--		unsigned long private, bool offlining,
--		enum migrate_mode mode, int reason) { return -ENOSYS; }
-+		unsigned long private, enum migrate_mode mode, int reason)
-+	{ return -ENOSYS; }
- static inline int migrate_huge_page(struct page *page, new_page_t x,
--		unsigned long private, bool offlining,
--		enum migrate_mode mode) { return -ENOSYS; }
-+		unsigned long private, enum migrate_mode mode)
-+	{ return -ENOSYS; }
+ static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
+ static DEFINE_MUTEX(ksm_thread_mutex);
+@@ -1700,6 +1702,7 @@ static int ksm_scan_thread(void *nothing
  
- static inline int migrate_prep(void) { return -ENOSYS; }
- static inline int migrate_prep_local(void) { return -ENOSYS; }
---- mmotm.orig/mm/compaction.c	2013-01-24 12:28:38.740127550 -0800
-+++ mmotm/mm/compaction.c	2013-01-25 14:38:51.472208776 -0800
-@@ -980,7 +980,7 @@ static int compact_zone(struct zone *zon
+ 	while (!kthread_should_stop()) {
+ 		mutex_lock(&ksm_thread_mutex);
++		wait_while_offlining();
+ 		if (ksmd_should_run())
+ 			ksm_do_scan(ksm_thread_pages_to_scan);
+ 		mutex_unlock(&ksm_thread_mutex);
+@@ -2056,6 +2059,22 @@ void ksm_migrate_page(struct page *newpa
+ #endif /* CONFIG_MIGRATION */
  
- 		nr_migrate = cc->nr_migratepages;
- 		err = migrate_pages(&cc->migratepages, compaction_alloc,
--				(unsigned long)cc, false,
-+				(unsigned long)cc,
- 				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC,
- 				MR_COMPACTION);
- 		update_nr_listpages(cc);
---- mmotm.orig/mm/memory-failure.c	2013-01-24 12:28:38.740127550 -0800
-+++ mmotm/mm/memory-failure.c	2013-01-25 14:38:51.472208776 -0800
-@@ -1432,7 +1432,7 @@ static int soft_offline_huge_page(struct
- 		goto done;
- 
- 	/* Keep page count to indicate a given hugepage is isolated. */
--	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, false,
-+	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
- 				MIGRATE_SYNC);
- 	put_page(hpage);
- 	if (ret) {
-@@ -1564,11 +1564,10 @@ int soft_offline_page(struct page *page,
- 	if (!ret) {
- 		LIST_HEAD(pagelist);
- 		inc_zone_page_state(page, NR_ISOLATED_ANON +
--					    page_is_file_cache(page));
-+					page_is_file_cache(page));
- 		list_add(&page->lru, &pagelist);
- 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
--							false, MIGRATE_SYNC,
--							MR_MEMORY_FAILURE);
-+					MIGRATE_SYNC, MR_MEMORY_FAILURE);
- 		if (ret) {
- 			putback_lru_pages(&pagelist);
- 			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
---- mmotm.orig/mm/memory_hotplug.c	2013-01-24 12:28:38.740127550 -0800
-+++ mmotm/mm/memory_hotplug.c	2013-01-25 14:38:51.472208776 -0800
-@@ -1283,8 +1283,7 @@ do_migrate_range(unsigned long start_pfn
- 		 * migrate_pages returns # of failed pages.
- 		 */
- 		ret = migrate_pages(&source, alloc_migrate_target, 0,
--							true, MIGRATE_SYNC,
--							MR_MEMORY_HOTPLUG);
-+					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
- 		if (ret)
- 			putback_lru_pages(&source);
- 	}
---- mmotm.orig/mm/mempolicy.c	2013-01-25 14:38:49.596208731 -0800
-+++ mmotm/mm/mempolicy.c	2013-01-25 14:38:51.472208776 -0800
-@@ -1014,8 +1014,7 @@ static int migrate_to_node(struct mm_str
- 
- 	if (!list_empty(&pagelist)) {
- 		err = migrate_pages(&pagelist, new_node_page, dest,
--							false, MIGRATE_SYNC,
--							MR_SYSCALL);
-+					MIGRATE_SYNC, MR_SYSCALL);
- 		if (err)
- 			putback_lru_pages(&pagelist);
- 	}
-@@ -1259,9 +1258,8 @@ static long do_mbind(unsigned long start
- 		if (!list_empty(&pagelist)) {
- 			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
- 			nr_failed = migrate_pages(&pagelist, new_vma_page,
--						(unsigned long)vma,
--						false, MIGRATE_SYNC,
--						MR_MEMPOLICY_MBIND);
-+					(unsigned long)vma,
-+					MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
- 			if (nr_failed)
- 				putback_lru_pages(&pagelist);
- 		}
---- mmotm.orig/mm/migrate.c	2013-01-25 14:38:49.596208731 -0800
-+++ mmotm/mm/migrate.c	2013-01-25 14:38:51.476208776 -0800
-@@ -701,7 +701,7 @@ static int move_to_new_page(struct page
- }
- 
- static int __unmap_and_move(struct page *page, struct page *newpage,
--			int force, bool offlining, enum migrate_mode mode)
-+				int force, enum migrate_mode mode)
+ #ifdef CONFIG_MEMORY_HOTREMOVE
++static int just_wait(void *word)
++{
++	schedule();
++	return 0;
++}
++
++static void wait_while_offlining(void)
++{
++	while (ksm_run & KSM_RUN_OFFLINE) {
++		mutex_unlock(&ksm_thread_mutex);
++		wait_on_bit(&ksm_run, ilog2(KSM_RUN_OFFLINE),
++				just_wait, TASK_UNINTERRUPTIBLE);
++		mutex_lock(&ksm_thread_mutex);
++	}
++}
++
+ static void ksm_check_stable_tree(unsigned long start_pfn,
+ 				  unsigned long end_pfn)
  {
- 	int rc = -EAGAIN;
- 	int remap_swapcache = 1;
-@@ -847,8 +847,7 @@ out:
-  * to the newly allocated page in newpage.
-  */
- static int unmap_and_move(new_page_t get_new_page, unsigned long private,
--			struct page *page, int force, bool offlining,
--			enum migrate_mode mode)
-+			struct page *page, int force, enum migrate_mode mode)
- {
- 	int rc = 0;
- 	int *result = NULL;
-@@ -866,7 +865,7 @@ static int unmap_and_move(new_page_t get
- 		if (unlikely(split_huge_page(page)))
- 			goto out;
- 
--	rc = __unmap_and_move(page, newpage, force, offlining, mode);
-+	rc = __unmap_and_move(page, newpage, force, mode);
- 
- 	if (unlikely(rc == MIGRATEPAGE_BALLOON_SUCCESS)) {
+@@ -2098,15 +2117,15 @@ static int ksm_memory_callback(struct no
+ 	switch (action) {
+ 	case MEM_GOING_OFFLINE:
  		/*
-@@ -927,8 +926,7 @@ out:
-  */
- static int unmap_and_move_huge_page(new_page_t get_new_page,
- 				unsigned long private, struct page *hpage,
--				int force, bool offlining,
--				enum migrate_mode mode)
-+				int force, enum migrate_mode mode)
- {
- 	int rc = 0;
- 	int *result = NULL;
-@@ -990,9 +988,8 @@ out:
-  *
-  * Return: Number of pages not migrated or error code.
-  */
--int migrate_pages(struct list_head *from,
--		new_page_t get_new_page, unsigned long private, bool offlining,
--		enum migrate_mode mode, int reason)
-+int migrate_pages(struct list_head *from, new_page_t get_new_page,
-+		unsigned long private, enum migrate_mode mode, int reason)
- {
- 	int retry = 1;
- 	int nr_failed = 0;
-@@ -1013,8 +1010,7 @@ int migrate_pages(struct list_head *from
- 			cond_resched();
+-		 * Keep it very simple for now: just lock out ksmd and
+-		 * MADV_UNMERGEABLE while any memory is going offline.
+-		 * mutex_lock_nested() is necessary because lockdep was alarmed
+-		 * that here we take ksm_thread_mutex inside notifier chain
+-		 * mutex, and later take notifier chain mutex inside
+-		 * ksm_thread_mutex to unlock it.   But that's safe because both
+-		 * are inside mem_hotplug_mutex.
++		 * Prevent ksm_do_scan(), unmerge_and_remove_all_rmap_items()
++		 * and remove_all_stable_nodes() while memory is going offline:
++		 * it is unsafe for them to touch the stable tree at this time.
++		 * But unmerge_ksm_pages(), rmap lookups and other entry points
++		 * which do not need the ksm_thread_mutex are all safe.
+ 		 */
+-		mutex_lock_nested(&ksm_thread_mutex, SINGLE_DEPTH_NESTING);
++		mutex_lock(&ksm_thread_mutex);
++		ksm_run |= KSM_RUN_OFFLINE;
++		mutex_unlock(&ksm_thread_mutex);
+ 		break;
  
- 			rc = unmap_and_move(get_new_page, private,
--						page, pass > 2, offlining,
--						mode);
-+						page, pass > 2, mode);
+ 	case MEM_OFFLINE:
+@@ -2122,11 +2141,20 @@ static int ksm_memory_callback(struct no
+ 		/* fallthrough */
  
- 			switch(rc) {
- 			case -ENOMEM:
-@@ -1047,15 +1043,13 @@ out:
+ 	case MEM_CANCEL_OFFLINE:
++		mutex_lock(&ksm_thread_mutex);
++		ksm_run &= ~KSM_RUN_OFFLINE;
+ 		mutex_unlock(&ksm_thread_mutex);
++
++		smp_mb();	/* wake_up_bit advises this */
++		wake_up_bit(&ksm_run, ilog2(KSM_RUN_OFFLINE));
+ 		break;
+ 	}
+ 	return NOTIFY_OK;
+ }
++#else
++static void wait_while_offlining(void)
++{
++}
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ #ifdef CONFIG_SYSFS
+@@ -2189,7 +2217,7 @@ KSM_ATTR(pages_to_scan);
+ static ssize_t run_show(struct kobject *kobj, struct kobj_attribute *attr,
+ 			char *buf)
+ {
+-	return sprintf(buf, "%u\n", ksm_run);
++	return sprintf(buf, "%lu\n", ksm_run);
  }
  
- int migrate_huge_page(struct page *hpage, new_page_t get_new_page,
--		      unsigned long private, bool offlining,
--		      enum migrate_mode mode)
-+		      unsigned long private, enum migrate_mode mode)
- {
- 	int pass, rc;
+ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
+@@ -2212,6 +2240,7 @@ static ssize_t run_store(struct kobject
+ 	 */
  
- 	for (pass = 0; pass < 10; pass++) {
--		rc = unmap_and_move_huge_page(get_new_page,
--					      private, hpage, pass > 2, offlining,
--					      mode);
-+		rc = unmap_and_move_huge_page(get_new_page, private,
-+						hpage, pass > 2, mode);
- 		switch (rc) {
- 		case -ENOMEM:
- 			goto out;
-@@ -1178,8 +1172,7 @@ set_status:
- 	err = 0;
- 	if (!list_empty(&pagelist)) {
- 		err = migrate_pages(&pagelist, new_page_node,
--				(unsigned long)pm, 0, MIGRATE_SYNC,
--				MR_SYSCALL);
-+				(unsigned long)pm, MIGRATE_SYNC, MR_SYSCALL);
- 		if (err)
- 			putback_lru_pages(&pagelist);
- 	}
-@@ -1614,10 +1607,8 @@ int migrate_misplaced_page(struct page *
- 		goto out;
+ 	mutex_lock(&ksm_thread_mutex);
++	wait_while_offlining();
+ 	if (ksm_run != flags) {
+ 		ksm_run = flags;
+ 		if (flags & KSM_RUN_UNMERGE) {
+@@ -2254,6 +2283,7 @@ static ssize_t merge_across_nodes_store(
+ 		return -EINVAL;
  
- 	list_add(&page->lru, &migratepages);
--	nr_remaining = migrate_pages(&migratepages,
--			alloc_misplaced_dst_page,
--			node, false, MIGRATE_ASYNC,
--			MR_NUMA_MISPLACED);
-+	nr_remaining = migrate_pages(&migratepages, alloc_misplaced_dst_page,
-+				     node, MIGRATE_ASYNC, MR_NUMA_MISPLACED);
- 	if (nr_remaining) {
- 		putback_lru_pages(&migratepages);
- 		isolated = 0;
---- mmotm.orig/mm/page_alloc.c	2013-01-24 12:28:38.740127550 -0800
-+++ mmotm/mm/page_alloc.c	2013-01-25 14:38:51.476208776 -0800
-@@ -6064,10 +6064,8 @@ static int __alloc_contig_migrate_range(
- 							&cc->migratepages);
- 		cc->nr_migratepages -= nr_reclaimed;
+ 	mutex_lock(&ksm_thread_mutex);
++	wait_while_offlining();
+ 	if (ksm_merge_across_nodes != knob) {
+ 		if (ksm_pages_shared || remove_all_stable_nodes())
+ 			err = -EBUSY;
+@@ -2366,10 +2396,7 @@ static int __init ksm_init(void)
+ #endif /* CONFIG_SYSFS */
  
--		ret = migrate_pages(&cc->migratepages,
--				    alloc_migrate_target,
--				    0, false, MIGRATE_SYNC,
--				    MR_CMA);
-+		ret = migrate_pages(&cc->migratepages, alloc_migrate_target,
-+				    0, MIGRATE_SYNC, MR_CMA);
- 	}
- 	if (ret < 0) {
- 		putback_movable_pages(&cc->migratepages);
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+-	/*
+-	 * Choose a high priority since the callback takes ksm_thread_mutex:
+-	 * later callbacks could only be taking locks which nest within that.
+-	 */
++	/* There is no significance to this priority 100 */
+ 	hotplug_memory_notifier(ksm_memory_callback, 100);
+ #endif
+ 	return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
