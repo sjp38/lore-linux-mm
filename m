@@ -1,51 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 2A76A6B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 19:03:30 -0500 (EST)
-Date: Fri, 25 Jan 2013 16:03:28 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 0/6] replace cgroup_lock with memcg specific locking
-Message-Id: <20130125160328.7a73849f.akpm@linux-foundation.org>
-In-Reply-To: <20130125173701.GH3081@htj.dyndns.org>
-References: <1358862461-18046-1-git-send-email-glommer@parallels.com>
-	<510258D0.6060407@parallels.com>
-	<20130125101854.GC8876@dhcp22.suse.cz>
-	<51025E2B.4080105@parallels.com>
-	<20130125173701.GH3081@htj.dyndns.org>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id B2E5B6B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 19:11:13 -0500 (EST)
+Message-ID: <1359159055.3146.9.camel@deadeye.wl.decadent.org.uk>
+Subject: Re: Bug#695182: [PATCH] Subtract min_free_kbytes from dirtyable
+ memory
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Sat, 26 Jan 2013 00:10:55 +0000
+In-Reply-To: <201301252349.r0PNnFYF024399@como.maths.usyd.edu.au>
+References: <201301252349.r0PNnFYF024399@como.maths.usyd.edu.au>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-U4D6W87p2oSthp7A5dG6"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Lord Glauber Costa of Sealand <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
+To: paul.szabo@sydney.edu.au
+Cc: 695182@bugs.debian.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org
 
-On Fri, 25 Jan 2013 09:37:01 -0800
-Tejun Heo <tj@kernel.org> wrote:
 
-> Hey,
-> 
-> On Fri, Jan 25, 2013 at 02:27:55PM +0400, Lord Glauber Costa of Sealand wrote:
-> > > I would vote to -mm. Or is there any specific reason to have it in
-> > > cgroup tree? It doesn't touch any cgroup core parts, does it?
-> > > 
-> > Copying Andrew (retroactively sorry you weren't directly CCd on this one
-> > as well).
-> > 
-> > I depend on css_online and the cgroup generic iterator. If they are
-> > already present @ -mm, then fine.
-> > (looking now, they seem to be...)
-> 
-> Yeah, they're all in cgroup/for-next so should be available in -mm, so
-> I think -mm probably is the better tree to route these.
-> 
+--=-U4D6W87p2oSthp7A5dG6
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-yep, grabbed, thanks.
+On Sat, 2013-01-26 at 10:49 +1100, paul.szabo@sydney.edu.au wrote:
+> Dear Ben,
+>=20
+> > If you can identify where it was fixed then ...
+>=20
+> Sorry I cannot do that. I have no idea where kernel changelogs are kept.
+>=20
+> I am happy to do some work. Please do not call me lazy.
 
-The good changelogging and code commenting really help with review -
-thanks for doing that.  It's a shame so few people are interested in
-reviewing them!  (Hint).
+The changelogs are in git repositories.  But the mm maintainers are
+probably much better placed to identify which was the upstream fix.
 
+Ben.
+
+--=20
+Ben Hutchings
+Any smoothly functioning technology is indistinguishable from a rigged demo=
+.
+
+--=-U4D6W87p2oSthp7A5dG6
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIVAwUAUQMfD+e/yOyVhhEJAQoCjRAApmuWAB1UAauxqmKbDWWRCvFIuDQldoAb
+UTfvrNAKBmxiJhZCrL5MuKQ2JcFfB3O0FRf+WlFECQPmLoDkMGsdurp16BJAiMeZ
+XE2NgIKi81Q8sH6CpM3zcAFiz9dMMSbTr33YGJJ5HCXXw1VvvwnAk4oozRDakXSb
+eyIYYZdyzpVzutdB3K3gtb42i5YnxGlu47e0hJcQWDrQOIskBi+kvKAOVLaTJSA4
+MqOV5X5wcofU6l4wqqaPItsFXYjwlkRARNndhIXyUJ4FizNyYv7MRWPv2jGfBIxv
+UKrpxEPHa1RWTMHuFZw//Ngem4qD50Toin7iAE1zrD4MYOybHMPXHRqBJ9WOAZRo
+MD6+9i6wE/q/CAun+zNWUMFnWc7Tj2djtBL4//BDm79mO7x3fUnvZxMGEwFynkLH
+bJzYAQpNbodwSMadPr5RWiJ+JhMgsfIUcDUYDxQ0Wdn3ttDslIoWfnoV8OlTamid
+LccOghlf8sf7Uc5Jeq/joBLwL++zGZBfg/HSw7ElgwaVJAW634zwme4bkN1W7WB7
+iSmF3QNHEev/71KWOh8ViHiehdY/APGZHj3+1aMlxZXCxAIyW/1Mxh7lHU5582zN
+wkdJ/TIdW6titgYP9CxAgeAY0yOmmdzGZniesG1XTLNKKwxFe8sC+SIIX4iyyvcu
+Qr+UP2MxDmY=
+=LTtq
+-----END PGP SIGNATURE-----
+
+--=-U4D6W87p2oSthp7A5dG6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
