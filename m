@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 0B8506B0008
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 21:00:48 -0500 (EST)
-Received: by mail-da0-f51.google.com with SMTP id i30so429107dad.38
-        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 18:00:48 -0800 (PST)
-Date: Fri, 25 Jan 2013 18:00:50 -0800 (PST)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 60A256B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 21:01:58 -0500 (EST)
+Received: by mail-pb0-f42.google.com with SMTP id rp2so534176pbb.15
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 18:01:57 -0800 (PST)
+Date: Fri, 25 Jan 2013 18:01:59 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 5/11] ksm: get_ksm_page locked
+Subject: [PATCH 6/11] ksm: remove old stable nodes more thoroughly
 In-Reply-To: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
-Message-ID: <alpine.LNX.2.00.1301251759470.29196@eggly.anvils>
+Message-ID: <alpine.LNX.2.00.1301251800550.29196@eggly.anvils>
 References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -17,109 +17,252 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-In some places where get_ksm_page() is used, we need the page to be locked.
+Switching merge_across_nodes after running KSM is liable to oops on stale
+nodes still left over from the previous stable tree.  It's not something
+that people will often want to do, but it would be lame to demand a reboot
+when they're trying to determine which merge_across_nodes setting is best.
 
-When KSM migration is fully enabled, we shall want that to make sure that
-the page just acquired cannot be migrated beneath us (raised page count is
-only effective when there is serialization to make sure migration notices).
-Whereas when navigating through the stable tree, we certainly do not want
-to lock each node (raised page count is enough to guarantee the memcmps,
-even if page is migrated to another node).
+How can this happen?  We only permit switching merge_across_nodes when
+pages_shared is 0, and usually set run 2 to force that beforehand, which
+ought to unmerge everything: yet oopses still occur when you then run 1.
 
-Since we're about to add another use case, add the locked argument to
-get_ksm_page() now.
+Three causes:
 
-Hmm, what's that rcu_read_lock() about?  Complete misunderstanding, I
-really got the wrong end of the stick on that!  There's a configuration
-in which page_cache_get_speculative() can do something cheaper than
-get_page_unless_zero(), relying on its caller's rcu_read_lock() to have
-disabled preemption for it.  There's no need for rcu_read_lock() around
-get_page_unless_zero() (and mapping checks) here.  Cut out that
-silliness before making this any harder to understand.
+1. The old stable tree (built according to the inverse merge_across_nodes)
+has not been fully torn down.  A stable node lingers until get_ksm_page()
+notices that the page it references no longer references it: but the page
+is not necessarily freed as soon as expected, particularly when swapcache.
+
+Fix this with a pass through the old stable tree, applying get_ksm_page()
+to each of the remaining nodes (most found stale and removed immediately),
+with forced removal of any left over.  Unless the page is still mapped:
+I've not seen that case, it shouldn't occur, but better to WARN_ON_ONCE
+and EBUSY than BUG.
+
+2. __ksm_enter() has a nice little optimization, to insert the new mm
+just behind ksmd's cursor, so there's a full pass for it to stabilize
+(or be removed) before ksmd addresses it.  Nice when ksmd is running,
+but not so nice when we're trying to unmerge all mms: we were missing
+those mms forked and inserted behind the unmerge cursor.  Easily fixed
+by inserting at the end when KSM_RUN_UNMERGE.
+
+3. It is possible for a KSM page to be faulted back from swapcache into
+an mm, just after unmerge_and_remove_all_rmap_items() scanned past it.
+Fix this by copying on fault when KSM_RUN_UNMERGE: but that is private
+to ksm.c, so dissolve the distinction between ksm_might_need_to_copy()
+and ksm_does_need_to_copy(), doing it all in the one call into ksm.c.
+
+A long outstanding, unrelated bugfix sneaks in with that third fix:
+ksm_does_need_to_copy() would copy from a !PageUptodate page (implying
+I/O error when read in from swap) to a page which it then marks Uptodate.
+Fix this case by not copying, letting do_swap_page() discover the error.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- mm/ksm.c |   23 +++++++++++++----------
- 1 file changed, 13 insertions(+), 10 deletions(-)
+ include/linux/ksm.h |   18 ++-------
+ mm/ksm.c            |   83 +++++++++++++++++++++++++++++++++++++++---
+ mm/memory.c         |   19 ++++-----
+ 3 files changed, 92 insertions(+), 28 deletions(-)
 
---- mmotm.orig/mm/ksm.c	2013-01-25 14:36:53.244205966 -0800
-+++ mmotm/mm/ksm.c	2013-01-25 14:36:58.856206099 -0800
-@@ -514,15 +514,14 @@ static void remove_node_from_stable_tree
-  * but this is different - made simpler by ksm_thread_mutex being held, but
-  * interesting for assuming that no other use of the struct page could ever
-  * put our expected_mapping into page->mapping (or a field of the union which
-- * coincides with page->mapping).  The RCU calls are not for KSM at all, but
-- * to keep the page_count protocol described with page_cache_get_speculative.
-+ * coincides with page->mapping).
-  *
-  * Note: it is possible that get_ksm_page() will return NULL one moment,
-  * then page the next, if the page is in between page_freeze_refs() and
-  * page_unfreeze_refs(): this shouldn't be a problem anywhere, the page
-  * is on its way to being freed; but it is an anomaly to bear in mind.
+--- mmotm.orig/include/linux/ksm.h	2013-01-25 14:27:58.220193250 -0800
++++ mmotm/include/linux/ksm.h	2013-01-25 14:37:00.764206145 -0800
+@@ -16,9 +16,6 @@
+ struct stable_node;
+ struct mem_cgroup;
+ 
+-struct page *ksm_does_need_to_copy(struct page *page,
+-			struct vm_area_struct *vma, unsigned long address);
+-
+ #ifdef CONFIG_KSM
+ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
+ 		unsigned long end, int advice, unsigned long *vm_flags);
+@@ -73,15 +70,8 @@ static inline void set_page_stable_node(
+  * We'd like to make this conditional on vma->vm_flags & VM_MERGEABLE,
+  * but what if the vma was unmerged while the page was swapped out?
   */
--static struct page *get_ksm_page(struct stable_node *stable_node)
-+static struct page *get_ksm_page(struct stable_node *stable_node, bool locked)
+-static inline int ksm_might_need_to_copy(struct page *page,
+-			struct vm_area_struct *vma, unsigned long address)
+-{
+-	struct anon_vma *anon_vma = page_anon_vma(page);
+-
+-	return anon_vma &&
+-		(anon_vma->root != vma->anon_vma->root ||
+-		 page->index != linear_page_index(vma, address));
+-}
++struct page *ksm_might_need_to_copy(struct page *page,
++			struct vm_area_struct *vma, unsigned long address);
+ 
+ int page_referenced_ksm(struct page *page,
+ 			struct mem_cgroup *memcg, unsigned long *vm_flags);
+@@ -113,10 +103,10 @@ static inline int ksm_madvise(struct vm_
+ 	return 0;
+ }
+ 
+-static inline int ksm_might_need_to_copy(struct page *page,
++static inline struct page *ksm_might_need_to_copy(struct page *page,
+ 			struct vm_area_struct *vma, unsigned long address)
  {
- 	struct page *page;
- 	void *expected_mapping;
-@@ -530,7 +529,6 @@ static struct page *get_ksm_page(struct
- 	page = pfn_to_page(stable_node->kpfn);
- 	expected_mapping = (void *)stable_node +
- 				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
--	rcu_read_lock();
- 	if (page->mapping != expected_mapping)
- 		goto stale;
- 	if (!get_page_unless_zero(page))
-@@ -539,10 +537,16 @@ static struct page *get_ksm_page(struct
- 		put_page(page);
- 		goto stale;
- 	}
--	rcu_read_unlock();
-+	if (locked) {
-+		lock_page(page);
-+		if (page->mapping != expected_mapping) {
-+			unlock_page(page);
-+			put_page(page);
-+			goto stale;
+-	return 0;
++	return page;
+ }
+ 
+ static inline int page_referenced_ksm(struct page *page,
+--- mmotm.orig/mm/ksm.c	2013-01-25 14:36:58.856206099 -0800
++++ mmotm/mm/ksm.c	2013-01-25 14:37:00.768206145 -0800
+@@ -644,6 +644,57 @@ static int unmerge_ksm_pages(struct vm_a
+ /*
+  * Only called through the sysfs control interface:
+  */
++static int remove_stable_node(struct stable_node *stable_node)
++{
++	struct page *page;
++	int err;
++
++	page = get_ksm_page(stable_node, true);
++	if (!page) {
++		/*
++		 * get_ksm_page did remove_node_from_stable_tree itself.
++		 */
++		return 0;
++	}
++
++	if (WARN_ON_ONCE(page_mapped(page)))
++		err = -EBUSY;
++	else {
++		/*
++		 * This page might be in a pagevec waiting to be freed,
++		 * or it might be PageSwapCache (perhaps under writeback),
++		 * or it might have been removed from swapcache a moment ago.
++		 */
++		set_page_stable_node(page, NULL);
++		remove_node_from_stable_tree(stable_node);
++		err = 0;
++	}
++
++	unlock_page(page);
++	put_page(page);
++	return err;
++}
++
++static int remove_all_stable_nodes(void)
++{
++	struct stable_node *stable_node;
++	int nid;
++	int err = 0;
++
++	for (nid = 0; nid < nr_node_ids; nid++) {
++		while (root_stable_tree[nid].rb_node) {
++			stable_node = rb_entry(root_stable_tree[nid].rb_node,
++						struct stable_node, node);
++			if (remove_stable_node(stable_node)) {
++				err = -EBUSY;
++				break;	/* proceed to next nid */
++			}
++			cond_resched();
 +		}
 +	}
- 	return page;
- stale:
--	rcu_read_unlock();
- 	remove_node_from_stable_tree(stable_node);
- 	return NULL;
++	return err;
++}
++
+ static int unmerge_and_remove_all_rmap_items(void)
+ {
+ 	struct mm_slot *mm_slot;
+@@ -691,6 +742,8 @@ static int unmerge_and_remove_all_rmap_i
+ 		}
+ 	}
+ 
++	/* Clean up stable nodes, but don't worry if some are still busy */
++	remove_all_stable_nodes();
+ 	ksm_scan.seqnr = 0;
+ 	return 0;
+ 
+@@ -1586,11 +1639,19 @@ int __ksm_enter(struct mm_struct *mm)
+ 	spin_lock(&ksm_mmlist_lock);
+ 	insert_to_mm_slots_hash(mm, mm_slot);
+ 	/*
+-	 * Insert just behind the scanning cursor, to let the area settle
++	 * When KSM_RUN_MERGE (or KSM_RUN_STOP),
++	 * insert just behind the scanning cursor, to let the area settle
+ 	 * down a little; when fork is followed by immediate exec, we don't
+ 	 * want ksmd to waste time setting up and tearing down an rmap_list.
++	 *
++	 * But when KSM_RUN_UNMERGE, it's important to insert ahead of its
++	 * scanning cursor, otherwise KSM pages in newly forked mms will be
++	 * missed: then we might as well insert at the end of the list.
+ 	 */
+-	list_add_tail(&mm_slot->mm_list, &ksm_scan.mm_slot->mm_list);
++	if (ksm_run & KSM_RUN_UNMERGE)
++		list_add_tail(&mm_slot->mm_list, &ksm_mm_head.mm_list);
++	else
++		list_add_tail(&mm_slot->mm_list, &ksm_scan.mm_slot->mm_list);
+ 	spin_unlock(&ksm_mmlist_lock);
+ 
+ 	set_bit(MMF_VM_MERGEABLE, &mm->flags);
+@@ -1640,11 +1701,25 @@ void __ksm_exit(struct mm_struct *mm)
+ 	}
  }
-@@ -558,11 +562,10 @@ static void remove_rmap_item_from_tree(s
- 		struct page *page;
  
- 		stable_node = rmap_item->head;
--		page = get_ksm_page(stable_node);
-+		page = get_ksm_page(stable_node, true);
- 		if (!page)
- 			goto out;
+-struct page *ksm_does_need_to_copy(struct page *page,
++struct page *ksm_might_need_to_copy(struct page *page,
+ 			struct vm_area_struct *vma, unsigned long address)
+ {
++	struct anon_vma *anon_vma = page_anon_vma(page);
+ 	struct page *new_page;
  
--		lock_page(page);
- 		hlist_del(&rmap_item->hlist);
- 		unlock_page(page);
- 		put_page(page);
-@@ -1042,7 +1045,7 @@ static struct page *stable_tree_search(s
++	if (PageKsm(page)) {
++		if (page_stable_node(page) &&
++		    !(ksm_run & KSM_RUN_UNMERGE))
++			return page;	/* no need to copy it */
++	} else if (!anon_vma) {
++		return page;		/* no need to copy it */
++	} else if (anon_vma->root == vma->anon_vma->root &&
++		 page->index == linear_page_index(vma, address)) {
++		return page;		/* still no need to copy it */
++	}
++	if (!PageUptodate(page))
++		return page;		/* let do_swap_page report the error */
++
+ 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+ 	if (new_page) {
+ 		copy_user_highpage(new_page, page, address, vma);
+@@ -2024,7 +2099,7 @@ static ssize_t merge_across_nodes_store(
  
- 		cond_resched();
- 		stable_node = rb_entry(node, struct stable_node, node);
--		tree_page = get_ksm_page(stable_node);
-+		tree_page = get_ksm_page(stable_node, false);
- 		if (!tree_page)
- 			return NULL;
+ 	mutex_lock(&ksm_thread_mutex);
+ 	if (ksm_merge_across_nodes != knob) {
+-		if (ksm_pages_shared)
++		if (ksm_pages_shared || remove_all_stable_nodes())
+ 			err = -EBUSY;
+ 		else
+ 			ksm_merge_across_nodes = knob;
+--- mmotm.orig/mm/memory.c	2013-01-25 14:27:58.220193250 -0800
++++ mmotm/mm/memory.c	2013-01-25 14:37:00.768206145 -0800
+@@ -2994,17 +2994,16 @@ static int do_swap_page(struct mm_struct
+ 	if (unlikely(!PageSwapCache(page) || page_private(page) != entry.val))
+ 		goto out_page;
  
-@@ -1086,7 +1089,7 @@ static struct stable_node *stable_tree_i
+-	if (ksm_might_need_to_copy(page, vma, address)) {
+-		swapcache = page;
+-		page = ksm_does_need_to_copy(page, vma, address);
+-
+-		if (unlikely(!page)) {
+-			ret = VM_FAULT_OOM;
+-			page = swapcache;
+-			swapcache = NULL;
+-			goto out_page;
+-		}
++	swapcache = page;
++	page = ksm_might_need_to_copy(page, vma, address);
++	if (unlikely(!page)) {
++		ret = VM_FAULT_OOM;
++		page = swapcache;
++		swapcache = NULL;
++		goto out_page;
+ 	}
++	if (page == swapcache)
++		swapcache = NULL;
  
- 		cond_resched();
- 		stable_node = rb_entry(*new, struct stable_node, node);
--		tree_page = get_ksm_page(stable_node);
-+		tree_page = get_ksm_page(stable_node, false);
- 		if (!tree_page)
- 			return NULL;
- 
+ 	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) {
+ 		ret = VM_FAULT_OOM;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
