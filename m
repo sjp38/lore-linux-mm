@@ -1,52 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 13B536B0005
-	for <linux-mm@kvack.org>; Sat, 26 Jan 2013 15:16:20 -0500 (EST)
-MIME-Version: 1.0
-Message-ID: <601542b0-4c92-4d90-aed8-826235c06eab@default>
-Date: Sat, 26 Jan 2013 12:16:11 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [LSF/MM TOPIC] In-kernel compression in the MM subsystem
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 419E36B0005
+	for <linux-mm@kvack.org>; Sat, 26 Jan 2013 15:23:49 -0500 (EST)
+Date: Sun, 27 Jan 2013 07:23:18 +1100
+From: paul.szabo@sydney.edu.au
+Message-Id: <201301262023.r0QKNIaK029258@como.maths.usyd.edu.au>
+Subject: Re: Bug#695182: [PATCH] Subtract min_free_kbytes from dirtyable memory
+In-Reply-To: <20130126074444.GA28833@elie.Belkin>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: jrnieder@gmail.com
+Cc: 695182@bugs.debian.org, ben@decadent.org.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org, minchan@kernel.org
 
-There's lots of interesting things going on in kernel memory
-management, but one only(?) increases the effective amount
-of data that can be stored in a fixed amount of RAM: in-kernel
-compression.
+Dear Jonathan,
 
-Since ramzswap/compcache (now zram) was first proposed in 2009
-as an in-memory compressed swap device, there have been a number
-of in-kernel compression solutions proposed, including
-zcache, kztmem, and now zswap.  Each shows promise to improve
-performance by using compression under memory pressure to
-reduce I/O due to swapping and/or paging.  Each is still
-in staging (though zram may be promoted by LSFMM 2013)
-because each also brings a number of perplexing challenges.
+>> If you can identify where it was fixed then your patch for older
+>> versions should go to stable with a reference to the upstream fix (see
+>> Documentation/stable_kernel_rules.txt).
+>
+> How about this patch?
+>
+> It was applied in mainline during the 3.3 merge window, so kernels
+> newer than 3.2.y shouldn't need it.
+>
+> ...
+> commit ab8fabd46f811d5153d8a0cd2fac9a0d41fb593d upstream.
+> ...
 
-I think it's time to start converging on which one or more
-of these solutions, if any, should be properly promoted and
-more fully integrated into the kernel memory management
-subsystem.  Before this can occur, it's important to build a
-broader understanding and, hopefully, also a broader consensus
-among the MM community on a number of key challenges and questions
-in order to guide and drive further development and merging.
+Yes, I beleive that is the correct patch, surely better than my simple
+subtraction of min_free_kbytes.
 
-I would like to collect a list of issues/questions, and
-start a discussion at LSF/MM by presenting this list, select
-the most important, then lead a discussion on how ever many
-there is time for.  Most likely this is an MM-only discussion
-though a subset might be suitable for a cross-talk presentataion.
+Noting, that this does not "solve" all problems, the latest 3.8 kernel
+still crashes with OOM:
+https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1098961/comments/18
 
-Thanks!
-Dan Magenheimer
-LSF/MM attendee 2010,2011,2012
-LSF/MM presenter (MM track) 2011,2012
+Thanks, Paul
 
+Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
+School of Mathematics and Statistics   University of Sydney    Australia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
