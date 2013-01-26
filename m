@@ -1,278 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 0A7AF6B0005
-	for <linux-mm@kvack.org>; Sat, 26 Jan 2013 00:05:34 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2] mm: clean up soft_offline_page()
-Date: Sat, 26 Jan 2013 00:02:11 -0500
-Message-Id: <1359176531-12583-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id D06756B0005
+	for <linux-mm@kvack.org>; Sat, 26 Jan 2013 02:44:53 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id wy12so625827pbc.7
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 23:44:53 -0800 (PST)
+Date: Fri, 25 Jan 2013 23:44:44 -0800
+From: Jonathan Nieder <jrnieder@gmail.com>
+Subject: Re: Bug#695182: [PATCH] Subtract min_free_kbytes from dirtyable
+ memory
+Message-ID: <20130126074444.GA28833@elie.Belkin>
+References: <201301250953.r0P9rOSe012192@como.maths.usyd.edu.au>
+ <1359118913.3146.3.camel@deadeye.wl.decadent.org.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1359118913.3146.3.camel@deadeye.wl.decadent.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>
-Cc: Wu Fengguang <fengguang.wu@intel.com>, Xishi Qiu <qiuxishi@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: paul.szabo@sydney.edu.au
+Cc: Ben Hutchings <ben@decadent.org.uk>, 695182@bugs.debian.org, minchan@kernel.org, psz@maths.usyd.edu.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Currently soft_offline_page() is hard to maintain because it has many
-return points and goto statements. All of this mess come from get_any_page().
-This function should only get page refcount as the name implies, but it does
-some page isolating actions like SetPageHWPoison() and dequeuing hugepage.
-This patch corrects it and introduces some internal subroutines to make
-soft offlining code more readable and maintainable.
+Hi Paul,
 
-ChangeLog v2:
-  - receive returned value from __soft_offline_page and soft_offline_huge_page
-  - place __soft_offline_page after soft_offline_page to reduce the diff
-  - rebased onto mmotm-2013-01-23-17-04
-  - add comment on double checks of PageHWpoison
+Ben Hutchings wrote:
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> If you can identify where it was fixed then your patch for older
+> versions should go to stable with a reference to the upstream fix (see
+> Documentation/stable_kernel_rules.txt).
+
+How about this patch?
+
+It was applied in mainline during the 3.3 merge window, so kernels
+newer than 3.2.y shouldn't need it.
+
+-- >8 --
+From: Johannes Weiner <jweiner@redhat.com>
+Date: Tue, 10 Jan 2012 15:07:42 -0800
+Subject: mm: exclude reserved pages from dirtyable memory
+
+commit ab8fabd46f811d5153d8a0cd2fac9a0d41fb593d upstream.
+
+Per-zone dirty limits try to distribute page cache pages allocated for
+writing across zones in proportion to the individual zone sizes, to reduce
+the likelihood of reclaim having to write back individual pages from the
+LRU lists in order to make progress.
+
+This patch:
+
+The amount of dirtyable pages should not include the full number of free
+pages: there is a number of reserved pages that the page allocator and
+kswapd always try to keep free.
+
+The closer (reclaimable pages - dirty pages) is to the number of reserved
+pages, the more likely it becomes for reclaim to run into dirty pages:
+
+       +----------+ ---
+       |   anon   |  |
+       +----------+  |
+       |          |  |
+       |          |  -- dirty limit new    -- flusher new
+       |   file   |  |                     |
+       |          |  |                     |
+       |          |  -- dirty limit old    -- flusher old
+       |          |                        |
+       +----------+                       --- reclaim
+       | reserved |
+       +----------+
+       |  kernel  |
+       +----------+
+
+This patch introduces a per-zone dirty reserve that takes both the lowmem
+reserve as well as the high watermark of the zone into account, and a
+global sum of those per-zone values that is subtracted from the global
+amount of dirtyable pages.  The lowmem reserve is unavailable to page
+cache allocations and kswapd tries to keep the high watermark free.  We
+don't want to end up in a situation where reclaim has to clean pages in
+order to balance zones.
+
+Not treating reserved pages as dirtyable on a global level is only a
+conceptual fix.  In reality, dirty pages are not distributed equally
+across zones and reclaim runs into dirty pages on a regular basis.
+
+But it is important to get this right before tackling the problem on a
+per-zone level, where the distance between reclaim and the dirty pages is
+mostly much smaller in absolute numbers.
+
+[akpm@linux-foundation.org: fix highmem build]
+Signed-off-by: Johannes Weiner <jweiner@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Christoph Hellwig <hch@infradead.org>
+Cc: Wu Fengguang <fengguang.wu@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Shaohua Li <shaohua.li@intel.com>
+Cc: Chris Mason <chris.mason@oracle.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Jonathan Nieder <jrnieder@gmail.com>
 ---
- mm/memory-failure.c | 154 ++++++++++++++++++++++++++++------------------------
- 1 file changed, 83 insertions(+), 71 deletions(-)
+ include/linux/mmzone.h |  6 ++++++
+ include/linux/swap.h   |  1 +
+ mm/page-writeback.c    |  5 +++--
+ mm/page_alloc.c        | 19 +++++++++++++++++++
+ 4 files changed, 29 insertions(+), 2 deletions(-)
 
-diff --git mmotm-2013-01-23-17-04.orig/mm/memory-failure.c mmotm-2013-01-23-17-04/mm/memory-failure.c
-index c95e19a..302625b 100644
---- mmotm-2013-01-23-17-04.orig/mm/memory-failure.c
-+++ mmotm-2013-01-23-17-04/mm/memory-failure.c
-@@ -1368,7 +1368,7 @@ static struct page *new_page(struct page *p, unsigned long private, int **x)
-  * that is not free, and 1 for any other page type.
-  * For 1 the page is returned with increased page count, otherwise not.
-  */
--static int get_any_page(struct page *p, unsigned long pfn, int flags)
-+static int __get_any_page(struct page *p, unsigned long pfn, int flags)
- {
- 	int ret;
- 
-@@ -1393,11 +1393,9 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
- 	if (!get_page_unless_zero(compound_head(p))) {
- 		if (PageHuge(p)) {
- 			pr_info("%s: %#lx free huge page\n", __func__, pfn);
--			ret = dequeue_hwpoisoned_huge_page(compound_head(p));
-+			ret = 0;
- 		} else if (is_free_buddy_page(p)) {
- 			pr_info("%s: %#lx free buddy page\n", __func__, pfn);
--			/* Set hwpoison bit while page is still isolated */
--			SetPageHWPoison(p);
- 			ret = 0;
- 		} else {
- 			pr_info("%s: %#lx: unknown zero refcount page type %lx\n",
-@@ -1413,42 +1411,62 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
- 	return ret;
- }
- 
-+static int get_any_page(struct page *page, unsigned long pfn, int flags)
-+{
-+	int ret = __get_any_page(page, pfn, flags);
-+
-+	if (ret == 1 && !PageHuge(page) && !PageLRU(page)) {
-+		/*
-+		 * Try to free it.
-+		 */
-+		put_page(page);
-+		shake_page(page, 1);
-+
-+		/*
-+		 * Did it turn free?
-+		 */
-+		ret = __get_any_page(page, pfn, 0);
-+		if (!PageLRU(page)) {
-+			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
-+				pfn, page->flags);
-+			return -EIO;
-+		}
-+	}
-+	return ret;
-+}
-+
- static int soft_offline_huge_page(struct page *page, int flags)
- {
- 	int ret;
- 	unsigned long pfn = page_to_pfn(page);
- 	struct page *hpage = compound_head(page);
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 25842b6e72e1..a594af3278bc 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -319,6 +319,12 @@ struct zone {
+ 	 */
+ 	unsigned long		lowmem_reserve[MAX_NR_ZONES];
  
 +	/*
-+	 * This double-check of PageHWPoison is to avoid the race with
-+	 * memory_failure(). See also comment in __soft_offline_page().
++	 * This is a per-zone reserve of pages that should not be
++	 * considered dirtyable memory.
 +	 */
-+	lock_page(hpage);
- 	if (PageHWPoison(hpage)) {
-+		unlock_page(hpage);
-+		put_page(hpage);
- 		pr_info("soft offline: %#lx hugepage already poisoned\n", pfn);
--		ret = -EBUSY;
--		goto out;
-+		return -EBUSY;
- 	}
--
--	ret = get_any_page(page, pfn, flags);
--	if (ret < 0)
--		goto out;
--	if (ret == 0)
--		goto done;
-+	unlock_page(hpage);
- 
- 	/* Keep page count to indicate a given hugepage is isolated. */
- 	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, false,
- 				MIGRATE_SYNC);
- 	put_page(hpage);
--	if (ret) {
-+	if (ret)
- 		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
- 			pfn, ret, page->flags);
--		goto out;
--	}
--done:
- 	/* keep elevated page count for bad page */
--	atomic_long_add(1 << compound_trans_order(hpage), &num_poisoned_pages);
--	set_page_hwpoison_huge_page(hpage);
--	dequeue_hwpoisoned_huge_page(hpage);
--out:
- 	return ret;
- }
- 
-+static int __soft_offline_page(struct page *page, int flags);
++	unsigned long		dirty_balance_reserve;
 +
- /**
-  * soft_offline_page - Soft offline a page.
-  * @page: page to offline
-@@ -1477,62 +1495,60 @@ int soft_offline_page(struct page *page, int flags)
- 	unsigned long pfn = page_to_pfn(page);
- 	struct page *hpage = compound_trans_head(page);
+ #ifdef CONFIG_NUMA
+ 	int node;
+ 	/*
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 67b3fa308988..3e60228e7299 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -207,6 +207,7 @@ struct swap_list_t {
+ /* linux/mm/page_alloc.c */
+ extern unsigned long totalram_pages;
+ extern unsigned long totalreserve_pages;
++extern unsigned long dirty_balance_reserve;
+ extern unsigned int nr_free_buffer_pages(void);
+ extern unsigned int nr_free_pagecache_pages(void);
  
--	if (PageHuge(page)) {
--		ret = soft_offline_huge_page(page, flags);
--		goto out;
-+	if (PageHWPoison(page)) {
-+		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-+		return -EBUSY;
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 50f08241f981..f620e7b0dc26 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -320,7 +320,7 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
+ 			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
+ 
+ 		x += zone_page_state(z, NR_FREE_PAGES) +
+-		     zone_reclaimable_pages(z);
++		     zone_reclaimable_pages(z) - z->dirty_balance_reserve;
  	}
--	if (PageTransHuge(hpage)) {
-+	if (!PageHuge(page) && PageTransHuge(hpage)) {
- 		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
- 			pr_info("soft offline: %#lx: failed to split THP\n",
- 				pfn);
--			ret = -EBUSY;
--			goto out;
-+			return -EBUSY;
+ 	/*
+ 	 * Make sure that the number of highmem pages is never larger
+@@ -344,7 +344,8 @@ unsigned long determine_dirtyable_memory(void)
+ {
+ 	unsigned long x;
+ 
+-	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
++	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages() -
++	    dirty_balance_reserve;
+ 
+ 	if (!vm_highmem_is_dirtyable)
+ 		x -= highmem_dirtyable_memory(x);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a88dded37411..e077fa751a9a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -96,6 +96,14 @@ EXPORT_SYMBOL(node_states);
+ 
+ unsigned long totalram_pages __read_mostly;
+ unsigned long totalreserve_pages __read_mostly;
++/*
++ * When calculating the number of globally allowed dirty pages, there
++ * is a certain number of per-zone reserves that should not be
++ * considered dirtyable memory.  This is the sum of those reserves
++ * over all existing zones that contribute dirtyable memory.
++ */
++unsigned long dirty_balance_reserve __read_mostly;
++
+ int percpu_pagelist_fraction;
+ gfp_t gfp_allowed_mask __read_mostly = GFP_BOOT_MASK;
+ 
+@@ -5125,8 +5133,19 @@ static void calculate_totalreserve_pages(void)
+ 			if (max > zone->present_pages)
+ 				max = zone->present_pages;
+ 			reserve_pages += max;
++			/*
++			 * Lowmem reserves are not available to
++			 * GFP_HIGHUSER page cache allocations and
++			 * kswapd tries to balance zones to their high
++			 * watermark.  As a result, neither should be
++			 * regarded as dirtyable memory, to prevent a
++			 * situation where reclaim has to clean pages
++			 * in order to balance the zones.
++			 */
++			zone->dirty_balance_reserve = max;
  		}
  	}
- 
--	if (PageHWPoison(page)) {
--		pr_info("soft offline: %#lx page already poisoned\n", pfn);
--		ret = -EBUSY;
--		goto out;
--	}
--
- 	ret = get_any_page(page, pfn, flags);
- 	if (ret < 0)
--		goto out;
--	if (ret == 0)
--		goto done;
--
--	/*
--	 * Page cache page we can handle?
--	 */
--	if (!PageLRU(page)) {
--		/*
--		 * Try to free it.
--		 */
--		put_page(page);
--		shake_page(page, 1);
--
--		/*
--		 * Did it turn free?
--		 */
--		ret = get_any_page(page, pfn, 0);
--		if (ret < 0)
--			goto out;
--		if (ret == 0)
--			goto done;
--	}
--	if (!PageLRU(page)) {
--		pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
--			pfn, page->flags);
--		ret = -EIO;
--		goto out;
-+		return ret;
-+	if (ret) { /* for in-use pages */
-+		if (PageHuge(page))
-+			ret = soft_offline_huge_page(page, flags);
-+		else
-+			ret = __soft_offline_page(page, flags);
-+	} else { /* for free pages */
-+		if (PageHuge(page)) {
-+			set_page_hwpoison_huge_page(hpage);
-+			dequeue_hwpoisoned_huge_page(hpage);
-+			atomic_long_add(1 << compound_trans_order(hpage),
-+					&num_poisoned_pages);
-+		} else {
-+			SetPageHWPoison(page);
-+			atomic_long_inc(&num_poisoned_pages);
-+		}
- 	}
-+	/* keep elevated page count for bad page */
-+	return ret;
-+}
-+
-+static int __soft_offline_page(struct page *page, int flags)
-+{
-+	int ret;
-+	unsigned long pfn = page_to_pfn(page);
- 
- 	/*
--	 * Synchronized using the page lock with memory_failure()
-+	 * Check PageHWPoison again inside page lock because PageHWPoison
-+	 * is set by memory_failure() outside page lock. Note that
-+	 * memory_failure() also double-checks PageHWPoison inside page lock,
-+	 * so there's no race between soft_offline_page() and memory_failure().
- 	 */
- 	lock_page(page);
- 	wait_on_page_writeback(page);
-+	if (PageHWPoison(page)) {
-+		unlock_page(page);
-+		put_page(page);
-+		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-+		return -EBUSY;
-+	}
- 	/*
- 	 * Try to invalidate first. This should work for
- 	 * non dirty unmapped page cache pages.
-@@ -1545,9 +1561,10 @@ int soft_offline_page(struct page *page, int flags)
- 	 */
- 	if (ret == 1) {
- 		put_page(page);
--		ret = 0;
- 		pr_info("soft_offline: %#lx: invalidated\n", pfn);
--		goto done;
-+		SetPageHWPoison(page);
-+		atomic_long_inc(&num_poisoned_pages);
-+		return 0;
- 	}
- 
- 	/*
-@@ -1575,18 +1592,13 @@ int soft_offline_page(struct page *page, int flags)
- 				pfn, ret, page->flags);
- 			if (ret > 0)
- 				ret = -EIO;
-+		} else {
-+			SetPageHWPoison(page);
-+			atomic_long_inc(&num_poisoned_pages);
- 		}
- 	} else {
- 		pr_info("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
- 			pfn, ret, page_count(page), page->flags);
- 	}
--	if (ret)
--		goto out;
--
--done:
--	/* keep elevated page count for bad page */
--	atomic_long_inc(&num_poisoned_pages);
--	SetPageHWPoison(page);
--out:
- 	return ret;
++	dirty_balance_reserve = reserve_pages;
+ 	totalreserve_pages = reserve_pages;
  }
+ 
 -- 
-1.7.11.7
+1.8.1.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
