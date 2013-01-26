@@ -1,41 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 7286B6B0005
-	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 20:30:13 -0500 (EST)
-Message-ID: <51033186.3000706@zytor.com>
-Date: Fri, 25 Jan 2013 17:29:42 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id CFDE96B0005
+	for <linux-mm@kvack.org>; Fri, 25 Jan 2013 20:53:14 -0500 (EST)
+Received: by mail-da0-f48.google.com with SMTP id k18so430809dae.21
+        for <linux-mm@kvack.org>; Fri, 25 Jan 2013 17:53:14 -0800 (PST)
+Date: Fri, 25 Jan 2013 17:53:10 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH 0/11] ksm: NUMA trees and page migration
+Message-ID: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] acpi, memory-hotplug: Support getting hotplug info
- from SRAT.
-References: <1359106929-3034-1-git-send-email-tangchen@cn.fujitsu.com> <1359106929-3034-4-git-send-email-tangchen@cn.fujitsu.com> <20130125171230.34c5a273.akpm@linux-foundation.org>
-In-Reply-To: <20130125171230.34c5a273.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, jiang.liu@huawei.com, wujianguo@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Anton Arapov <anton@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 01/25/2013 05:12 PM, Andrew Morton wrote:
-> On Fri, 25 Jan 2013 17:42:09 +0800
-> Tang Chen <tangchen@cn.fujitsu.com> wrote:
-> 
->> NOTE: Using this way will cause NUMA performance down because the whole node
->>       will be set as ZONE_MOVABLE, and kernel cannot use memory on it.
->>       If users don't want to lose NUMA performance, just don't use it.
-> 
-> I agree with this, but it means that nobody will test any of your new code.
-> 
-> To get improved testing coverage, can you think of any temporary
-> testing-only patch which will cause testers to exercise the
-> memory-hotplug changes?
-> 
+Here's a KSM series, based on mmotm 2013-01-23-17-04: starting with
+Petr's v7 "KSM: numa awareness sysfs knob"; then fixing the two issues
+we had with that, fully enabling KSM page migration on the way.
 
-There is another problem: if ALL the nodes in the system support
-hotpluggable memory, what happens?
+(A different kind of KSM/NUMA issue which I've certainly not begun to
+address here: when KSM pages are unmerged, there's usually no sense
+in preferring to allocate the new pages local to the caller's node.)
 
-	-hpa
+Petr, I have intentionally changed the titles of yours: partly because
+your "sysfs knob" understated it, but mainly because I think gmail is
+liable to assign 1/11 and 2/11 to your earlier December thread, making
+them vanish from this series.  I hope a change of title prevents that.
+
+ 1 ksm: allow trees per NUMA node
+ 2 ksm: add sysfs ABI Documentation
+ 3 ksm: trivial tidyups
+ 4 ksm: reorganize ksm_check_stable_tree
+ 5 ksm: get_ksm_page locked
+ 6 ksm: remove old stable nodes more thoroughly
+ 7 ksm: make KSM page migration possible
+ 8 ksm: make !merge_across_nodes migration safe
+ 9 mm: enable KSM page migration
+10 mm: remove offlining arg to migrate_pages
+11 ksm: stop hotremove lockdep warning
+
+ Documentation/ABI/testing/sysfs-kernel-mm-ksm |   52 +
+ Documentation/vm/ksm.txt                      |    7 
+ include/linux/ksm.h                           |   18 
+ include/linux/migrate.h                       |   14 
+ mm/compaction.c                               |    2 
+ mm/ksm.c                                      |  566 +++++++++++++---
+ mm/memory-failure.c                           |    7 
+ mm/memory.c                                   |   19 
+ mm/memory_hotplug.c                           |    3 
+ mm/mempolicy.c                                |   11 
+ mm/migrate.c                                  |   61 -
+ mm/page_alloc.c                               |    6 
+ 12 files changed, 580 insertions(+), 186 deletions(-)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
