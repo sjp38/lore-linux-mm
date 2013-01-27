@@ -1,322 +1,434 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 7B32D6B0005
-	for <linux-mm@kvack.org>; Sat, 26 Jan 2013 19:26:36 -0500 (EST)
-Received: by mail-pb0-f47.google.com with SMTP id rp8so72434pbb.20
-        for <linux-mm@kvack.org>; Sat, 26 Jan 2013 16:26:35 -0800 (PST)
-Message-ID: <1359246393.4159.1.camel@kernel>
-Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 289C36B0005
+	for <linux-mm@kvack.org>; Sat, 26 Jan 2013 20:14:45 -0500 (EST)
+Received: by mail-ia0-f172.google.com with SMTP id u8so2625417iag.31
+        for <linux-mm@kvack.org>; Sat, 26 Jan 2013 17:14:44 -0800 (PST)
+Message-ID: <1359249282.4159.4.camel@kernel>
+Subject: Re: [PATCH 1/11] ksm: allow trees per NUMA node
 From: Simon Jeons <simon.jeons@gmail.com>
-Date: Sat, 26 Jan 2013 18:26:33 -0600
-In-Reply-To: <CAH9JG2UpVtxeLB21kx5-_pokK8p_uVZ-2o41Ep--oOyKStBZFQ@mail.gmail.com>
-References: <20130122065341.GA1850@kernel.org>
-	 <20130123075808.GH2723@blaptop> <1359018598.2866.5.camel@kernel>
-	 <CAH9JG2UpVtxeLB21kx5-_pokK8p_uVZ-2o41Ep--oOyKStBZFQ@mail.gmail.com>
+Date: Sat, 26 Jan 2013 19:14:42 -0600
+In-Reply-To: <alpine.LNX.2.00.1301251753380.29196@eggly.anvils>
+References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
+	 <alpine.LNX.2.00.1301251753380.29196@eggly.anvils>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyungmin Park <kmpark@infradead.org>
-Cc: Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Anton Arapov <anton@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, 2013-01-26 at 13:40 +0900, Kyungmin Park wrote:
-> Hi,
+Hi Hugh,
+On Fri, 2013-01-25 at 17:54 -0800, Hugh Dickins wrote:
+> From: Petr Holasek <pholasek@redhat.com>
 > 
-> On 1/24/13, Simon Jeons <simon.jeons@gmail.com> wrote:
-> > Hi Minchan,
-> > On Wed, 2013-01-23 at 16:58 +0900, Minchan Kim wrote:
-> >> On Tue, Jan 22, 2013 at 02:53:41PM +0800, Shaohua Li wrote:
-> >> > Hi,
-> >> >
-> >> > Because of high density, low power and low price, flash storage (SSD) is
-> >> > a good
-> >> > candidate to partially replace DRAM. A quick answer for this is using
-> >> > SSD as
-> >> > swap. But Linux swap is designed for slow hard disk storage. There are a
-> >> > lot of
-> >> > challenges to efficiently use SSD for swap:
-> >>
-> >> Many of below item could be applied in in-memory swap like zram, zcache.
-> >>
-> >> >
-> >> > 1. Lock contentions (swap_lock, anon_vma mutex, swap address space
-> >> > lock)
-> >> > 2. TLB flush overhead. To reclaim one page, we need at least 2 TLB
-> >> > flush. This
-> >> > overhead is very high even in a normal 2-socket machine.
-> >> > 3. Better swap IO pattern. Both direct and kswapd page reclaim can do
-> >> > swap,
-> >> > which makes swap IO pattern is interleave. Block layer isn't always
-> >> > efficient
-> >> > to do request merge. Such IO pattern also makes swap prefetch hard.
-> >>
-> >> Agreed.
-> >>
-> >> > 4. Swap map scan overhead. Swap in-memory map scan scans an array, which
-> >> > is
-> >> > very inefficient, especially if swap storage is fast.
-> >>
-> >> Agreed.
-> >>
+> Introduces new sysfs boolean knob /sys/kernel/mm/ksm/merge_across_nodes
+> which control merging pages across different numa nodes.
+> When it is set to zero only pages from the same node are merged,
+> otherwise pages from all nodes can be merged together (default behavior).
 > 
+> Typical use-case could be a lot of KVM guests on NUMA machine
+> and cpus from more distant nodes would have significant increase
+> of access latency to the merged ksm page. Sysfs knob was choosen
+> for higher variability when some users still prefers higher amount
+> of saved physical memory regardless of access latency.
+> 
+> Every numa node has its own stable & unstable trees because of faster
+> searching and inserting. Changing of merge_across_nodes value is possible
+> only when there are not any ksm shared pages in system.
+> 
+> I've tested this patch on numa machines with 2, 4 and 8 nodes and
+> measured speed of memory access inside of KVM guests with memory pinned
+> to one of nodes with this benchmark:
+> 
+> http://pholasek.fedorapeople.org/alloc_pg.c
+> 
+> Population standard deviations of access times in percentage of average
+> were following:
+> 
+> merge_across_nodes=1
+> 2 nodes 1.4%
+> 4 nodes 1.6%
+> 8 nodes	1.7%
+> 
+> merge_across_nodes=0
+> 2 nodes	1%
+> 4 nodes	0.32%
+> 8 nodes	0.018%
+> 
+> RFC: https://lkml.org/lkml/2011/11/30/91
+> v1: https://lkml.org/lkml/2012/1/23/46
+> v2: https://lkml.org/lkml/2012/6/29/105
+> v3: https://lkml.org/lkml/2012/9/14/550
+> v4: https://lkml.org/lkml/2012/9/23/137
+> v5: https://lkml.org/lkml/2012/12/10/540
+> v6: https://lkml.org/lkml/2012/12/23/154
+> v7: https://lkml.org/lkml/2012/12/27/225
+> 
+> Hugh notes that this patch brings two problems, whose solution needs
+> further support in mm/ksm.c, which follows in subsequent patches:
+> 1) switching merge_across_nodes after running KSM is liable to oops
+>    on stale nodes still left over from the previous stable tree;
+> 2) memory hotremove may migrate KSM pages, but there is no provision
+>    here for !merge_across_nodes to migrate nodes to the proper tree.
+> 
+> Signed-off-by: Petr Holasek <pholasek@redhat.com>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> ---
+>  Documentation/vm/ksm.txt |    7 +
+>  mm/ksm.c                 |  151 ++++++++++++++++++++++++++++++++-----
+>  2 files changed, 139 insertions(+), 19 deletions(-)
+> 
+> --- mmotm.orig/Documentation/vm/ksm.txt	2013-01-25 14:36:31.724205455 -0800
+> +++ mmotm/Documentation/vm/ksm.txt	2013-01-25 14:36:38.608205618 -0800
+> @@ -58,6 +58,13 @@ sleep_millisecs  - how many milliseconds
+>                     e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
+>                     Default: 20 (chosen for demonstration purposes)
+>  
+> +merge_across_nodes - specifies if pages from different numa nodes can be merged.
+> +                   When set to 0, ksm merges only pages which physically
+> +                   reside in the memory area of same NUMA node. It brings
+> +                   lower latency to access to shared page. Value can be
+> +                   changed only when there is no ksm shared pages in system.
+> +                   Default: 1
+> +
+>  run              - set 0 to stop ksmd from running but keep merged pages,
+>                     set 1 to run ksmd e.g. "echo 1 > /sys/kernel/mm/ksm/run",
+>                     set 2 to stop ksmd and unmerge all pages currently merged,
+> --- mmotm.orig/mm/ksm.c	2013-01-25 14:36:31.724205455 -0800
+> +++ mmotm/mm/ksm.c	2013-01-25 14:36:38.608205618 -0800
+> @@ -36,6 +36,7 @@
+>  #include <linux/hashtable.h>
+>  #include <linux/freezer.h>
+>  #include <linux/oom.h>
+> +#include <linux/numa.h>
+>  
+>  #include <asm/tlbflush.h>
+>  #include "internal.h"
+> @@ -139,6 +140,9 @@ struct rmap_item {
+>  	struct mm_struct *mm;
+>  	unsigned long address;		/* + low bits used for flags below */
+>  	unsigned int oldchecksum;	/* when unstable */
+> +#ifdef CONFIG_NUMA
+> +	unsigned int nid;
+> +#endif
+>  	union {
+>  		struct rb_node node;	/* when node of unstable tree */
+>  		struct {		/* when listed from stable tree */
+> @@ -153,8 +157,8 @@ struct rmap_item {
+>  #define STABLE_FLAG	0x200	/* is listed from the stable tree */
+>  
+>  /* The stable and unstable tree heads */
+> -static struct rb_root root_stable_tree = RB_ROOT;
+> -static struct rb_root root_unstable_tree = RB_ROOT;
+> +static struct rb_root root_unstable_tree[MAX_NUMNODES];
+> +static struct rb_root root_stable_tree[MAX_NUMNODES];
+>  
+>  #define MM_SLOTS_HASH_BITS 10
+>  static DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
+> @@ -188,6 +192,9 @@ static unsigned int ksm_thread_pages_to_
+>  /* Milliseconds ksmd should sleep between batches */
+>  static unsigned int ksm_thread_sleep_millisecs = 20;
+>  
+> +/* Zeroed when merging across nodes is not allowed */
+> +static unsigned int ksm_merge_across_nodes = 1;
+> +
+>  #define KSM_RUN_STOP	0
+>  #define KSM_RUN_MERGE	1
+>  #define KSM_RUN_UNMERGE	2
+> @@ -441,10 +448,25 @@ out:		page = NULL;
+>  	return page;
+>  }
+>  
+> +/*
+> + * This helper is used for getting right index into array of tree roots.
+> + * When merge_across_nodes knob is set to 1, there are only two rb-trees for
+> + * stable and unstable pages from all nodes with roots in index 0. Otherwise,
+> + * every node has its own stable and unstable tree.
+> + */
+> +static inline int get_kpfn_nid(unsigned long kpfn)
+> +{
+> +	if (ksm_merge_across_nodes)
+> +		return 0;
+> +	else
+> +		return pfn_to_nid(kpfn);
+> +}
+> +
+>  static void remove_node_from_stable_tree(struct stable_node *stable_node)
+>  {
+>  	struct rmap_item *rmap_item;
+>  	struct hlist_node *hlist;
+> +	int nid;
+>  
+>  	hlist_for_each_entry(rmap_item, hlist, &stable_node->hlist, hlist) {
+>  		if (rmap_item->hlist.next)
+> @@ -456,7 +478,9 @@ static void remove_node_from_stable_tree
+>  		cond_resched();
+>  	}
+>  
+> -	rb_erase(&stable_node->node, &root_stable_tree);
+> +	nid = get_kpfn_nid(stable_node->kpfn);
+> +
+> +	rb_erase(&stable_node->node, &root_stable_tree[nid]);
+>  	free_stable_node(stable_node);
+>  }
+>  
+> @@ -554,7 +578,12 @@ static void remove_rmap_item_from_tree(s
+>  		age = (unsigned char)(ksm_scan.seqnr - rmap_item->address);
+>  		BUG_ON(age > 1);
+>  		if (!age)
+> -			rb_erase(&rmap_item->node, &root_unstable_tree);
+> +#ifdef CONFIG_NUMA
+> +			rb_erase(&rmap_item->node,
+> +					&root_unstable_tree[rmap_item->nid]);
+> +#else
+> +			rb_erase(&rmap_item->node, &root_unstable_tree[0]);
+> +#endif
+>  
+>  		ksm_pages_unshared--;
+>  		rmap_item->address &= PAGE_MASK;
+> @@ -990,8 +1019,9 @@ static struct page *try_to_merge_two_pag
+>   */
+>  static struct page *stable_tree_search(struct page *page)
+>  {
+> -	struct rb_node *node = root_stable_tree.rb_node;
+> +	struct rb_node *node;
+>  	struct stable_node *stable_node;
+> +	int nid;
+>  
+>  	stable_node = page_stable_node(page);
+>  	if (stable_node) {			/* ksm page forked */
+> @@ -999,6 +1029,9 @@ static struct page *stable_tree_search(s
+>  		return page;
+>  	}
+>  
+> +	nid = get_kpfn_nid(page_to_pfn(page));
+> +	node = root_stable_tree[nid].rb_node;
+> +
+>  	while (node) {
+>  		struct page *tree_page;
+>  		int ret;
+> @@ -1033,10 +1066,16 @@ static struct page *stable_tree_search(s
+>   */
+>  static struct stable_node *stable_tree_insert(struct page *kpage)
+>  {
+> -	struct rb_node **new = &root_stable_tree.rb_node;
+> +	int nid;
+> +	unsigned long kpfn;
+> +	struct rb_node **new;
+>  	struct rb_node *parent = NULL;
+>  	struct stable_node *stable_node;
+>  
+> +	kpfn = page_to_pfn(kpage);
+> +	nid = get_kpfn_nid(kpfn);
+> +	new = &root_stable_tree[nid].rb_node;
+> +
+>  	while (*new) {
+>  		struct page *tree_page;
+>  		int ret;
+> @@ -1070,11 +1109,11 @@ static struct stable_node *stable_tree_i
+>  		return NULL;
+>  
+>  	rb_link_node(&stable_node->node, parent, new);
+> -	rb_insert_color(&stable_node->node, &root_stable_tree);
+> +	rb_insert_color(&stable_node->node, &root_stable_tree[nid]);
+>  
+>  	INIT_HLIST_HEAD(&stable_node->hlist);
+>  
+> -	stable_node->kpfn = page_to_pfn(kpage);
+> +	stable_node->kpfn = kpfn;
+>  	set_page_stable_node(kpage, stable_node);
+>  
+>  	return stable_node;
+> @@ -1098,10 +1137,15 @@ static
+>  struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
+>  					      struct page *page,
+>  					      struct page **tree_pagep)
+> -
+>  {
+> -	struct rb_node **new = &root_unstable_tree.rb_node;
+> +	struct rb_node **new;
+> +	struct rb_root *root;
+>  	struct rb_node *parent = NULL;
+> +	int nid;
+> +
+> +	nid = get_kpfn_nid(page_to_pfn(page));
+> +	root = &root_unstable_tree[nid];
+> +	new = &root->rb_node;
+>  
+>  	while (*new) {
+>  		struct rmap_item *tree_rmap_item;
+> @@ -1122,6 +1166,18 @@ struct rmap_item *unstable_tree_search_i
+>  			return NULL;
+>  		}
+>  
+> +		/*
+> +		 * If tree_page has been migrated to another NUMA node, it
+> +		 * will be flushed out and put into the right unstable tree
 
-HI Kyungmin,
+Then why not insert the new page to unstable tree during page migration
+against current upstream? Because default behavior is merge across
+nodes.
 
-> 5. SSD related optimization, mainly discard support.
+> +		 * next time: only merge with it if merge_across_nodes.
+> +		 * Just notice, we don't have similar problem for PageKsm
+> +		 * because their migration is disabled now. (62b61f611e)
+> +		 */
+> +		if (!ksm_merge_across_nodes && page_to_nid(tree_page) != nid) {
+> +			put_page(tree_page);
+> +			return NULL;
+> +		}
+> +
+>  		ret = memcmp_pages(page, tree_page);
+>  
+>  		parent = *new;
+> @@ -1139,8 +1195,11 @@ struct rmap_item *unstable_tree_search_i
+>  
+>  	rmap_item->address |= UNSTABLE_FLAG;
+>  	rmap_item->address |= (ksm_scan.seqnr & SEQNR_MASK);
+> +#ifdef CONFIG_NUMA
+> +	rmap_item->nid = nid;
+> +#endif
+>  	rb_link_node(&rmap_item->node, parent, new);
+> -	rb_insert_color(&rmap_item->node, &root_unstable_tree);
+> +	rb_insert_color(&rmap_item->node, root);
+>  
+>  	ksm_pages_unshared++;
+>  	return NULL;
+> @@ -1154,6 +1213,13 @@ struct rmap_item *unstable_tree_search_i
+>  static void stable_tree_append(struct rmap_item *rmap_item,
+>  			       struct stable_node *stable_node)
+>  {
+> +#ifdef CONFIG_NUMA
+> +	/*
+> +	 * Usually rmap_item->nid is already set correctly,
+> +	 * but it may be wrong after switching merge_across_nodes.
+> +	 */
+> +	rmap_item->nid = get_kpfn_nid(stable_node->kpfn);
+> +#endif
+>  	rmap_item->head = stable_node;
+>  	rmap_item->address |= STABLE_FLAG;
+>  	hlist_add_head(&rmap_item->hlist, &stable_node->hlist);
+> @@ -1283,6 +1349,7 @@ static struct rmap_item *scan_get_next_r
+>  	struct mm_slot *slot;
+>  	struct vm_area_struct *vma;
+>  	struct rmap_item *rmap_item;
+> +	int nid;
+>  
+>  	if (list_empty(&ksm_mm_head.mm_list))
+>  		return NULL;
+> @@ -1301,7 +1368,8 @@ static struct rmap_item *scan_get_next_r
+>  		 */
+>  		lru_add_drain_all();
+>  
+> -		root_unstable_tree = RB_ROOT;
+> +		for (nid = 0; nid < nr_node_ids; nid++)
+> +			root_unstable_tree[nid] = RB_ROOT;
+>  
+>  		spin_lock(&ksm_mmlist_lock);
+>  		slot = list_entry(slot->mm_list.next, struct mm_slot, mm_list);
+> @@ -1770,15 +1838,19 @@ static struct stable_node *ksm_check_sta
+>  						 unsigned long end_pfn)
+>  {
+>  	struct rb_node *node;
+> +	int nid;
+>  
+> -	for (node = rb_first(&root_stable_tree); node; node = rb_next(node)) {
+> -		struct stable_node *stable_node;
+> +	for (nid = 0; nid < nr_node_ids; nid++)
+> +		for (node = rb_first(&root_stable_tree[nid]); node;
+> +				node = rb_next(node)) {
+> +			struct stable_node *stable_node;
+> +
+> +			stable_node = rb_entry(node, struct stable_node, node);
+> +			if (stable_node->kpfn >= start_pfn &&
+> +			    stable_node->kpfn < end_pfn)
+> +				return stable_node;
+> +		}
+>  
+> -		stable_node = rb_entry(node, struct stable_node, node);
+> -		if (stable_node->kpfn >= start_pfn &&
+> -		    stable_node->kpfn < end_pfn)
+> -			return stable_node;
+> -	}
+>  	return NULL;
+>  }
+>  
+> @@ -1925,6 +1997,40 @@ static ssize_t run_store(struct kobject
+>  }
+>  KSM_ATTR(run);
+>  
+> +#ifdef CONFIG_NUMA
+> +static ssize_t merge_across_nodes_show(struct kobject *kobj,
+> +				struct kobj_attribute *attr, char *buf)
+> +{
+> +	return sprintf(buf, "%u\n", ksm_merge_across_nodes);
+> +}
+> +
+> +static ssize_t merge_across_nodes_store(struct kobject *kobj,
+> +				   struct kobj_attribute *attr,
+> +				   const char *buf, size_t count)
+> +{
+> +	int err;
+> +	unsigned long knob;
+> +
+> +	err = kstrtoul(buf, 10, &knob);
+> +	if (err)
+> +		return err;
+> +	if (knob > 1)
+> +		return -EINVAL;
+> +
+> +	mutex_lock(&ksm_thread_mutex);
+> +	if (ksm_merge_across_nodes != knob) {
+> +		if (ksm_pages_shared)
+> +			err = -EBUSY;
+> +		else
+> +			ksm_merge_across_nodes = knob;
+> +	}
+> +	mutex_unlock(&ksm_thread_mutex);
+> +
+> +	return err ? err : count;
+> +}
+> +KSM_ATTR(merge_across_nodes);
+> +#endif
+> +
+>  static ssize_t pages_shared_show(struct kobject *kobj,
+>  				 struct kobj_attribute *attr, char *buf)
+>  {
+> @@ -1979,6 +2085,9 @@ static struct attribute *ksm_attrs[] = {
+>  	&pages_unshared_attr.attr,
+>  	&pages_volatile_attr.attr,
+>  	&full_scans_attr.attr,
+> +#ifdef CONFIG_NUMA
+> +	&merge_across_nodes_attr.attr,
+> +#endif
+>  	NULL,
+>  };
+>  
+> @@ -1992,11 +2101,15 @@ static int __init ksm_init(void)
+>  {
+>  	struct task_struct *ksm_thread;
+>  	int err;
+> +	int nid;
+>  
+>  	err = ksm_slab_init();
+>  	if (err)
+>  		goto out;
+>  
+> +	for (nid = 0; nid < nr_node_ids; nid++)
+> +		root_stable_tree[nid] = RB_ROOT;
+> +
+>  	ksm_thread = kthread_run(ksm_scan_thread, NULL, "ksmd");
+>  	if (IS_ERR(ksm_thread)) {
+>  		printk(KERN_ERR "ksm: creating kthread failed\n");
 > 
-> Now swap codes are based on each swap slots. it means it can't
-> optimize discard feature since getting meaningful performance gain, it
-> requires 2 pages at least. Of course it's based on eMMC. In case of
-> SSD. it requires more pages to support discard.
-
-Could explain 2 pages or more pages you mentioned used for what? Why
-need it? I'm interested in.
-
-> 
-> To address issue. I consider the batched discard approach used at filesystem.
-> *Sometime* scan all empty slot and it issues discard continuous swap
-> slots as many as possible.
-> 
-> How to you think?
-> 
-> Thank you,
-> Kyungmin Park
-> 
-> P.S., It's almost same topics to optimize the eMMC with swap. I mean
-> I"m very interested with this topics.
-> 
-> >> > 6. Better swap prefetch algorithm. Besides item 3, sequentially accessed
-> >> > pages
-> >> > aren't always in LRU list adjacently, so page reclaim will not swap such
-> >> > pages
-> >> > in adjacent storage sectors. This makes swap prefetch hard.
-> >>
-> >> One of problem is LRU churning and I wanted to try to fix it.
-> >> http://marc.info/?l=linux-mm&m=130978831028952&w=4
-> >>
-> >> > 7. Alternative page reclaim policy to bias reclaiming anonymous page.
-> >> > Currently reclaim anonymous page is considering harder than reclaim file
-> >> > pages,
-> >> > so we bias reclaiming file pages. If there are high speed swap storage,
-> >> > we are
-> >> > considering doing swap more aggressively.
-> >>
-> >> Yeb. We need it. I tried it with extending vm_swappiness to 200.
-> >>
-> >> From: Minchan Kim <minchan@kernel.org>
-> >> Date: Mon, 3 Dec 2012 16:21:00 +0900
-> >> Subject: [PATCH] mm: increase swappiness to 200
-> >>
-> >> We have thought swap out cost is very high but it's not true
-> >> if we use fast device like swap-over-zram. Nonetheless, we can
-> >> swap out 1:1 ratio of anon and page cache at most.
-> >> It's not enough to use swap device fully so we encounter OOM kill
-> >> while there are many free space in zram swap device. It's never
-> >> what we want.
-> >>
-> >> This patch makes swap out aggressively.
-> >>
-> >> Cc: Luigi Semenzato <semenzato@google.com>
-> >> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> >> ---
-> >>  kernel/sysctl.c |    3 ++-
-> >>  mm/vmscan.c     |    6 ++++--
-> >>  2 files changed, 6 insertions(+), 3 deletions(-)
-> >>
-> >> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> >> index 693e0ed..f1dbd9d 100644
-> >> --- a/kernel/sysctl.c
-> >> +++ b/kernel/sysctl.c
-> >> @@ -130,6 +130,7 @@ static int __maybe_unused two = 2;
-> >>  static int __maybe_unused three = 3;
-> >>  static unsigned long one_ul = 1;
-> >>  static int one_hundred = 100;
-> >> +extern int max_swappiness;
-> >>  #ifdef CONFIG_PRINTK
-> >>  static int ten_thousand = 10000;
-> >>  #endif
-> >> @@ -1157,7 +1158,7 @@ static struct ctl_table vm_table[] = {
-> >>                 .mode           = 0644,
-> >>                 .proc_handler   = proc_dointvec_minmax,
-> >>                 .extra1         = &zero,
-> >> -               .extra2         = &one_hundred,
-> >> +               .extra2         = &max_swappiness,
-> >>         },
-> >>  #ifdef CONFIG_HUGETLB_PAGE
-> >>         {
-> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> index 53dcde9..64f3c21 100644
-> >> --- a/mm/vmscan.c
-> >> +++ b/mm/vmscan.c
-> >> @@ -53,6 +53,8 @@
-> >>  #define CREATE_TRACE_POINTS
-> >>  #include <trace/events/vmscan.h>
-> >>
-> >> +int max_swappiness = 200;
-> >> +
-> >>  struct scan_control {
-> >>         /* Incremented by the number of inactive pages that were scanned
-> >> */
-> >>         unsigned long nr_scanned;
-> >> @@ -1626,6 +1628,7 @@ static int vmscan_swappiness(struct scan_control
-> >> *sc)
-> >>         return mem_cgroup_swappiness(sc->target_mem_cgroup);
-> >>  }
-> >>
-> >> +
-> >>  /*
-> >>   * Determine how aggressively the anon and file LRU lists should be
-> >>   * scanned.  The relative value of each set of LRU lists is determined
-> >> @@ -1701,11 +1704,10 @@ static void get_scan_count(struct lruvec *lruvec,
-> >> struct scan_control *sc,
-> >>         }
-> >>
-> >>         /*
-> >> -        * With swappiness at 100, anonymous and file have the same
-> >> priority.
-> >>          * This scanning priority is essentially the inverse of IO cost.
-> >>          */
-> >>         anon_prio = vmscan_swappiness(sc);
-> >> -       file_prio = 200 - anon_prio;
-> >> +       file_prio = max_swappiness - anon_prio;
-> >>
-> >>         /*
-> >>          * OK, so we have swap space and a fair amount of page cache
-> >> --
-> >> 1.7.9.5
-> >>
-> >> > 8. Huge page swap. Huge page swap can solve a lot of problems above, but
-> >> > both
-> >> > THP and hugetlbfs don't support swap.
-> >>
-> >> Another items are indirection layers. Please read Rik's mail below.
-> >> Indirection layers could give many flexibility to backends and helpful
-> >> for defragmentation.
-> >>
-> >> One of idea I am considering is that makes hierarchy swap devides,
-> >> NOT priority-based. I mean currently swap devices are used up by prioirty
-> >> order.
-> >> It's not good fit if we use fast swap and slow swap at the same time.
-> >> I'd like to consume fast swap device (ex, in-memory swap) firstly, then
-> >> I want to migrate some of swap pages from fast swap to slow swap to
-> >> make room for fast swap. It could solve below concern.
-> >> In addition, buffering via in-memory swap could make big chunk which is
-> >> aligned
-> >> to slow device's block size so migration speed from fast swap to slow
-> >> swap
-> >> could be enhanced so wear out problem would go away, too.
-> >>
-> >> Quote from last KS2012 - http://lwn.net/Articles/516538/
-> >> "Andrea Arcangeli was also concerned that the first pages to be evicted
-> >> from
-> >> memory are, by definition of the LRU page order, the ones that are least
-> >> likely
-> >> to be used in the future. These are the pages that should be going to
-> >> secondary
-> >> storage and more frequently used pages should be going to zcache. As it
-> >> stands,
-> >> zcache may fill up with no-longer-used pages and then the system continues
-> >> to
-> >> move used pages from and to the disk."
-> >>
-> >> From riel@redhat.com Sun Apr 10 17:50:10 2011
-> >> Date: Sun, 10 Apr 2011 20:50:01 -0400
-> >> From: Rik van Riel <riel@redhat.com>
-> >> To: Linux Memory Management List <linux-mm@kvack.org>
-> >> Subject: [LSF/Collab] swap cache redesign idea
-> >>
-> >> On Thursday after LSF, Hugh, Minchan, Mel, Johannes and I were
-> >> sitting in the hallway talking about yet more VM things.
-> >>
-> >> During that discussion, we came up with a way to redesign the
-> >> swap cache.  During my flight home, I came with ideas on how
-> >> to use that redesign, that may make the changes worthwhile.
-> >>
-> >> Currently, the page table entries that have swapped out pages
-> >> associated with them contain a swap entry, pointing directly
-> >> at the swap device and swap slot containing the data. Meanwhile,
-> >> the swap count lives in a separate array.
-> >>
-> >> The redesign we are considering moving the swap entry to the
-> >> page cache radix tree for the swapper_space and having the pte
-> >> contain only the offset into the swapper_space.  The swap count
-> >> info can also fit inside the swapper_space page cache radix
-> >> tree (at least on 64 bits - on 32 bits we may need to get
-> >> creative or accept a smaller max amount of swap space).
-> >>
-> >> This extra layer of indirection allows us to do several things:
-> >>
-> >> 1) get rid of the virtual address scanning swapoff; instead
-> >>     we just swap the data in and mark the pages as present in
-> >>     the swapper_space radix tree
-> >
-> > If radix tree will store all rmap to the pages? If not, how to position
-> > the pages?
-> >
-> >>
-> >> 2) free swap entries as the are read in, without waiting for
-> >>     the process to fault it in - this may be useful for memory
-> >>     types that have a large erase block
-> >>
-> >> 3) together with the defragmentation from (2), we can always
-> >>     do writes in large aligned blocks - the extra indirection
-> >>     will make it relatively easy to have special backend code
-> >>     for different kinds of swap space, since all the state can
-> >>     now live in just one place
-> >>
-> >> 4) skip writeout of zero-filled pages - this can be a big help
-> >>     for KVM virtual machines running Windows, since Windows zeroes
-> >>     out free pages;   simply discarding a zero-filled page is not
-> >>     at all simple in the current VM, where we would have to iterate
-> >>     over all the ptes to free the swap entry before being able to
-> >>     free the swap cache page (I am not sure how that locking would
-> >>     even work)
-> >>
-> >>     with the extra layer of indirection, the locking for this scheme
-> >>     can be trivial - either the faulting process gets the old page,
-> >>     or it gets a new one, either way it'll be zero filled
-> >>
-> >> 5) skip writeout of pages the guest has marked as free - same as
-> >>     above, with the same easier locking
-> >>
-> >> Only one real question remaining - how do we handle the swap count
-> >> in the new scheme?  On 64 bit systems we have enough space in the
-> >> radix tree, on 32 bit systems maybe we'll have to start overflowing
-> >> into the "swap_count_continued" logic a little sooner than we are
-> >> now and reduce the maximum swap size a little?
-> >>
-> >> >
-> >> > I had some progresses in these areas recently:
-> >> > http://marc.info/?l=linux-mm&m=134665691021172&w=2
-> >> > http://marc.info/?l=linux-mm&m=135336039115191&w=2
-> >> > http://marc.info/?l=linux-mm&m=135882182225444&w=2
-> >> > http://marc.info/?l=linux-mm&m=135754636926984&w=2
-> >> > http://marc.info/?l=linux-mm&m=135754634526979&w=2
-> >> > But a lot of problems remain. I'd like to discuss the issues at the
-> >> > meeting.
-> >>
-> >> I have an interest on this topic.
-> >> Thnaks.
-> >>
-> >> >
-> >> > Thanks,
-> >> > Shaohua
-> >> >
-> >> > --
-> >> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> > see: http://www.linux-mm.org/ .
-> >> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >>
-> >
-> >
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 
 --
