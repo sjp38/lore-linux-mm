@@ -1,244 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 47CDB6B0005
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 00:47:18 -0500 (EST)
-Received: by mail-da0-f48.google.com with SMTP id k18so771061dae.7
-        for <linux-mm@kvack.org>; Sat, 26 Jan 2013 21:47:17 -0800 (PST)
-Message-ID: <1359265635.6763.0.camel@kernel>
-Subject: Re: [PATCH 7/11] ksm: make KSM page migration possible
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id C78496B0005
+	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 01:23:32 -0500 (EST)
+Received: by mail-ia0-f179.google.com with SMTP id x24so2720230iak.38
+        for <linux-mm@kvack.org>; Sat, 26 Jan 2013 22:23:32 -0800 (PST)
+Message-ID: <1359267810.6763.1.camel@kernel>
+Subject: Re: [PATCH 11/11] ksm: stop hotremove lockdep warning
 From: Simon Jeons <simon.jeons@gmail.com>
-Date: Sat, 26 Jan 2013 23:47:15 -0600
-In-Reply-To: <alpine.LNX.2.00.1301251802050.29196@eggly.anvils>
+Date: Sun, 27 Jan 2013 00:23:30 -0600
+In-Reply-To: <alpine.LNX.2.00.1301251808120.29196@eggly.anvils>
 References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
-	 <alpine.LNX.2.00.1301251802050.29196@eggly.anvils>
+	 <alpine.LNX.2.00.1301251808120.29196@eggly.anvils>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 2013-01-25 at 18:03 -0800, Hugh Dickins wrote:
-> KSM page migration is already supported in the case of memory hotremove,
-> which takes the ksm_thread_mutex across all its migrations to keep life
-> simple.
+On Fri, 2013-01-25 at 18:10 -0800, Hugh Dickins wrote:
+> Complaints are rare, but lockdep still does not understand the way
+> ksm_memory_callback(MEM_GOING_OFFLINE) takes ksm_thread_mutex, and
+> holds it until the ksm_memory_callback(MEM_OFFLINE): that appears
+> to be a problem because notifier callbacks are made under down_read
+> of blocking_notifier_head->rwsem (so first the mutex is taken while
+> holding the rwsem, then later the rwsem is taken while still holding
+> the mutex); but is not in fact a problem because mem_hotplug_mutex
+> is held throughout the dance.
 > 
-> But the new KSM NUMA merge_across_nodes knob introduces a problem, when
-> it's set to non-default 0: if a KSM page is migrated to a different NUMA
-> node, how do we migrate its stable node to the right tree?  And what if
-> that collides with an existing stable node?
+> There was an attempt to fix this with mutex_lock_nested(); but if that
+> happened to fool lockdep two years ago, apparently it does so no longer.
 > 
-> So far there's no provision for that, and this patch does not attempt
-> to deal with it either.  But how will I test a solution, when I don't
-> know how to hotremove memory?  The best answer is to enable KSM page
-> migration in all cases now, and test more common cases.  With THP and
-> compaction added since KSM came in, page migration is now mainstream,
-> and it's a shame that a KSM page can frustrate freeing a page block.
+> I had hoped to eradicate this issue in extending KSM page migration not
+> to need the ksm_thread_mutex.  But then realized that although the page
+> migration itself is safe, we do still need to lock out ksmd and other
+> users of get_ksm_page() while offlining memory - at some point between
+> MEM_GOING_OFFLINE and MEM_OFFLINE, the struct pages themselves may
+> vanish, and get_ksm_page()'s accesses to them become a violation.
 > 
-> Without worrying about merge_across_nodes 0 for now, this patch gets
-> KSM page migration working reliably for default merge_across_nodes 1
-> (but leave the patch enabling it until near the end of the series).
+> So, give up on holding ksm_thread_mutex itself from MEM_GOING_OFFLINE to
+> MEM_OFFLINE, and add a KSM_RUN_OFFLINE flag, and wait_while_offlining()
+> checks, to achieve the same lockout without being caught by lockdep.
+> This is less elegant for KSM, but it's more important to keep lockdep
+> useful to other users - and I apologize for how long it took to fix.
 > 
-> It's much simpler than I'd originally imagined, and does not require
-> an additional tier of locking: page migration relies on the page lock,
-> KSM page reclaim relies on the page lock, the page lock is enough for
-> KSM page migration too.
-> 
-> Almost all the care has to be in get_ksm_page(): that's the function
-> which worries about when a stable node is stale and should be freed,
-> now it also has to worry about the KSM page being migrated.
-> 
-> The only new overhead is an additional put/get/lock/unlock_page when
-> stable_tree_search() arrives at a matching node: to make sure migration
-> respects the raised page count, and so does not migrate the page while
-> we're busy with it here.  That's probably avoidable, either by changing
-> internal interfaces from using kpage to stable_node, or by moving the
-> ksm_migrate_page() callsite into a page_freeze_refs() section (even if
-> not swapcache); but this works well, I've no urge to pull it apart now.
-> 
-> (Descents of the stable tree may pass through nodes whose KSM pages are
-> under migration: being unlocked, the raised page count does not prevent
-> that, nor need it: it's safe to memcmp against either old or new page.)
-> 
-> You might worry about mremap, and whether page migration's rmap_walk
-> to remove migration entries will find all the KSM locations where it
-> inserted earlier: that should already be handled, by the satisfyingly
-> heavy hammer of move_vma()'s call to ksm_madvise(,,,MADV_UNMERGEABLE,).
-> 
+> Reported-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 > Signed-off-by: Hugh Dickins <hughd@google.com>
 > ---
->  mm/ksm.c     |   94 ++++++++++++++++++++++++++++++++++++++-----------
->  mm/migrate.c |    5 ++
->  2 files changed, 77 insertions(+), 22 deletions(-)
+>  mm/ksm.c |   55 +++++++++++++++++++++++++++++++++++++++--------------
+>  1 file changed, 41 insertions(+), 14 deletions(-)
 > 
-> --- mmotm.orig/mm/ksm.c	2013-01-25 14:37:00.768206145 -0800
-> +++ mmotm/mm/ksm.c	2013-01-25 14:37:03.832206218 -0800
-> @@ -499,6 +499,7 @@ static void remove_node_from_stable_tree
->   * In which case we can trust the content of the page, and it
->   * returns the gotten page; but if the page has now been zapped,
->   * remove the stale node from the stable tree and return NULL.
-> + * But beware, the stable node's page might be being migrated.
->   *
->   * You would expect the stable_node to hold a reference to the ksm page.
->   * But if it increments the page's count, swapping out has to wait for
-> @@ -509,44 +510,77 @@ static void remove_node_from_stable_tree
->   * pointing back to this stable node.  This relies on freeing a PageAnon
->   * page to reset its page->mapping to NULL, and relies on no other use of
->   * a page to put something that might look like our key in page->mapping.
-> - *
-> - * include/linux/pagemap.h page_cache_get_speculative() is a good reference,
-> - * but this is different - made simpler by ksm_thread_mutex being held, but
-> - * interesting for assuming that no other use of the struct page could ever
-> - * put our expected_mapping into page->mapping (or a field of the union which
-> - * coincides with page->mapping).
-> - *
-> - * Note: it is possible that get_ksm_page() will return NULL one moment,
-> - * then page the next, if the page is in between page_freeze_refs() and
-> - * page_unfreeze_refs(): this shouldn't be a problem anywhere, the page
->   * is on its way to being freed; but it is an anomaly to bear in mind.
->   */
->  static struct page *get_ksm_page(struct stable_node *stable_node, bool locked)
->  {
->  	struct page *page;
->  	void *expected_mapping;
-> +	unsigned long kpfn;
+> --- mmotm.orig/mm/ksm.c	2013-01-25 14:37:06.880206290 -0800
+> +++ mmotm/mm/ksm.c	2013-01-25 14:38:53.984208836 -0800
+> @@ -226,7 +226,9 @@ static unsigned int ksm_merge_across_nod
+>  #define KSM_RUN_STOP	0
+>  #define KSM_RUN_MERGE	1
+>  #define KSM_RUN_UNMERGE	2
+> -static unsigned int ksm_run = KSM_RUN_STOP;
+> +#define KSM_RUN_OFFLINE	4
+> +static unsigned long ksm_run = KSM_RUN_STOP;
+> +static void wait_while_offlining(void);
 >  
-> -	page = pfn_to_page(stable_node->kpfn);
->  	expected_mapping = (void *)stable_node +
->  				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
-> -	if (page->mapping != expected_mapping)
-> -		goto stale;
-> -	if (!get_page_unless_zero(page))
-> +again:
-> +	kpfn = ACCESS_ONCE(stable_node->kpfn);
-> +	page = pfn_to_page(kpfn);
-> +
-> +	/*
-> +	 * page is computed from kpfn, so on most architectures reading
-> +	 * page->mapping is naturally ordered after reading node->kpfn,
-> +	 * but on Alpha we need to be more careful.
-> +	 */
-> +	smp_read_barrier_depends();
-> +	if (ACCESS_ONCE(page->mapping) != expected_mapping)
->  		goto stale;
-> -	if (page->mapping != expected_mapping) {
-> +
-> +	/*
-> +	 * We cannot do anything with the page while its refcount is 0.
-> +	 * Usually 0 means free, or tail of a higher-order page: in which
-> +	 * case this node is no longer referenced, and should be freed;
-> +	 * however, it might mean that the page is under page_freeze_refs().
-> +	 * The __remove_mapping() case is easy, again the node is now stale;
-> +	 * but if page is swapcache in migrate_page_move_mapping(), it might
-> +	 * still be our page, in which case it's essential to keep the node.
-> +	 */
-> +	while (!get_page_unless_zero(page)) {
-> +		/*
-> +		 * Another check for page->mapping != expected_mapping would
-> +		 * work here too.  We have chosen the !PageSwapCache test to
-> +		 * optimize the common case, when the page is or is about to
-> +		 * be freed: PageSwapCache is cleared (under spin_lock_irq)
-> +		 * in the freeze_refs section of __remove_mapping(); but Anon
-> +		 * page->mapping reset to NULL later, in free_pages_prepare().
-> +		 */
-> +		if (!PageSwapCache(page))
-> +			goto stale;
-> +		cpu_relax();
-> +	}
-> +
-> +	if (ACCESS_ONCE(page->mapping) != expected_mapping) {
->  		put_page(page);
->  		goto stale;
->  	}
-> +
->  	if (locked) {
->  		lock_page(page);
-> -		if (page->mapping != expected_mapping) {
-> +		if (ACCESS_ONCE(page->mapping) != expected_mapping) {
->  			unlock_page(page);
->  			put_page(page);
->  			goto stale;
->  		}
->  	}
-
-Could you explain why need check page->mapping twice after get page?
-
->  	return page;
-> +
->  stale:
-> +	/*
-> +	 * We come here from above when page->mapping or !PageSwapCache
-> +	 * suggests that the node is stale; but it might be under migration.
-> +	 * We need smp_rmb(), matching the smp_wmb() in ksm_migrate_page(),
-> +	 * before checking whether node->kpfn has been changed.
-> +	 */
-> +	smp_rmb();
-> +	if (ACCESS_ONCE(stable_node->kpfn) != kpfn)
-> +		goto again;
->  	remove_node_from_stable_tree(stable_node);
->  	return NULL;
->  }
-> @@ -1103,15 +1137,25 @@ static struct page *stable_tree_search(s
->  			return NULL;
+>  static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
+>  static DEFINE_MUTEX(ksm_thread_mutex);
+> @@ -1700,6 +1702,7 @@ static int ksm_scan_thread(void *nothing
 >  
->  		ret = memcmp_pages(page, tree_page);
-> +		put_page(tree_page);
->  
-> -		if (ret < 0) {
-> -			put_page(tree_page);
-> +		if (ret < 0)
->  			node = node->rb_left;
-> -		} else if (ret > 0) {
-> -			put_page(tree_page);
-> +		else if (ret > 0)
->  			node = node->rb_right;
-> -		} else
-> +		else {
-> +			/*
-> +			 * Lock and unlock the stable_node's page (which
-> +			 * might already have been migrated) so that page
-> +			 * migration is sure to notice its raised count.
-> +			 * It would be more elegant to return stable_node
-> +			 * than kpage, but that involves more changes.
-> +			 */
-> +			tree_page = get_ksm_page(stable_node, true);
-> +			if (tree_page)
-> +				unlock_page(tree_page);
->  			return tree_page;
-> +		}
->  	}
->  
->  	return NULL;
-> @@ -1903,6 +1947,14 @@ void ksm_migrate_page(struct page *newpa
->  	if (stable_node) {
->  		VM_BUG_ON(stable_node->kpfn != page_to_pfn(oldpage));
->  		stable_node->kpfn = page_to_pfn(newpage);
-> +		/*
-> +		 * newpage->mapping was set in advance; now we need smp_wmb()
-> +		 * to make sure that the new stable_node->kpfn is visible
-> +		 * to get_ksm_page() before it can see that oldpage->mapping
-> +		 * has gone stale (or that PageSwapCache has been cleared).
-> +		 */
-> +		smp_wmb();
-> +		set_page_stable_node(oldpage, NULL);
->  	}
->  }
+>  	while (!kthread_should_stop()) {
+>  		mutex_lock(&ksm_thread_mutex);
+> +		wait_while_offlining();
+>  		if (ksmd_should_run())
+>  			ksm_do_scan(ksm_thread_pages_to_scan);
+>  		mutex_unlock(&ksm_thread_mutex);
+> @@ -2056,6 +2059,22 @@ void ksm_migrate_page(struct page *newpa
 >  #endif /* CONFIG_MIGRATION */
-> --- mmotm.orig/mm/migrate.c	2013-01-25 14:27:58.140193249 -0800
-> +++ mmotm/mm/migrate.c	2013-01-25 14:37:03.832206218 -0800
-> @@ -464,7 +464,10 @@ void migrate_page_copy(struct page *newp
 >  
->  	mlock_migrate_page(newpage, page);
->  	ksm_migrate_page(newpage, page);
-> -
-> +	/*
-> +	 * Please do not reorder this without considering how mm/ksm.c's
-> +	 * get_ksm_page() depends upon ksm_migrate_page() and PageSwapCache().
-> +	 */
->  	ClearPageSwapCache(page);
->  	ClearPagePrivate(page);
->  	set_page_private(page, 0);
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> +static int just_wait(void *word)
+> +{
+> +	schedule();
+> +	return 0;
+> +}
+> +
+> +static void wait_while_offlining(void)
+> +{
+> +	while (ksm_run & KSM_RUN_OFFLINE) {
+> +		mutex_unlock(&ksm_thread_mutex);
+> +		wait_on_bit(&ksm_run, ilog2(KSM_RUN_OFFLINE),
+> +				just_wait, TASK_UNINTERRUPTIBLE);
+> +		mutex_lock(&ksm_thread_mutex);
+> +	}
+> +}
+> +
+>  static void ksm_check_stable_tree(unsigned long start_pfn,
+>  				  unsigned long end_pfn)
+>  {
+> @@ -2098,15 +2117,15 @@ static int ksm_memory_callback(struct no
+>  	switch (action) {
+>  	case MEM_GOING_OFFLINE:
+>  		/*
+> -		 * Keep it very simple for now: just lock out ksmd and
+> -		 * MADV_UNMERGEABLE while any memory is going offline.
+> -		 * mutex_lock_nested() is necessary because lockdep was alarmed
+> -		 * that here we take ksm_thread_mutex inside notifier chain
+> -		 * mutex, and later take notifier chain mutex inside
+> -		 * ksm_thread_mutex to unlock it.   But that's safe because both
+> -		 * are inside mem_hotplug_mutex.
+> +		 * Prevent ksm_do_scan(), unmerge_and_remove_all_rmap_items()
+> +		 * and remove_all_stable_nodes() while memory is going offline:
+> +		 * it is unsafe for them to touch the stable tree at this time.
+> +		 * But unmerge_ksm_pages(), rmap lookups and other entry points
+
+Why unmerge_ksm_pages beneath us is safe for ksm memory hotremove?
+
+> +		 * which do not need the ksm_thread_mutex are all safe.
+>  		 */
+> -		mutex_lock_nested(&ksm_thread_mutex, SINGLE_DEPTH_NESTING);
+> +		mutex_lock(&ksm_thread_mutex);
+> +		ksm_run |= KSM_RUN_OFFLINE;
+> +		mutex_unlock(&ksm_thread_mutex);
+>  		break;
+>  
+>  	case MEM_OFFLINE:
+> @@ -2122,11 +2141,20 @@ static int ksm_memory_callback(struct no
+>  		/* fallthrough */
+>  
+>  	case MEM_CANCEL_OFFLINE:
+> +		mutex_lock(&ksm_thread_mutex);
+> +		ksm_run &= ~KSM_RUN_OFFLINE;
+>  		mutex_unlock(&ksm_thread_mutex);
+> +
+> +		smp_mb();	/* wake_up_bit advises this */
+> +		wake_up_bit(&ksm_run, ilog2(KSM_RUN_OFFLINE));
+>  		break;
+>  	}
+>  	return NOTIFY_OK;
+>  }
+> +#else
+> +static void wait_while_offlining(void)
+> +{
+> +}
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+>  
+>  #ifdef CONFIG_SYSFS
+> @@ -2189,7 +2217,7 @@ KSM_ATTR(pages_to_scan);
+>  static ssize_t run_show(struct kobject *kobj, struct kobj_attribute *attr,
+>  			char *buf)
+>  {
+> -	return sprintf(buf, "%u\n", ksm_run);
+> +	return sprintf(buf, "%lu\n", ksm_run);
+>  }
+>  
+>  static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
+> @@ -2212,6 +2240,7 @@ static ssize_t run_store(struct kobject
+>  	 */
+>  
+>  	mutex_lock(&ksm_thread_mutex);
+> +	wait_while_offlining();
+>  	if (ksm_run != flags) {
+>  		ksm_run = flags;
+>  		if (flags & KSM_RUN_UNMERGE) {
+> @@ -2254,6 +2283,7 @@ static ssize_t merge_across_nodes_store(
+>  		return -EINVAL;
+>  
+>  	mutex_lock(&ksm_thread_mutex);
+> +	wait_while_offlining();
+>  	if (ksm_merge_across_nodes != knob) {
+>  		if (ksm_pages_shared || remove_all_stable_nodes())
+>  			err = -EBUSY;
+> @@ -2366,10 +2396,7 @@ static int __init ksm_init(void)
+>  #endif /* CONFIG_SYSFS */
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> -	/*
+> -	 * Choose a high priority since the callback takes ksm_thread_mutex:
+> -	 * later callbacks could only be taking locks which nest within that.
+> -	 */
+> +	/* There is no significance to this priority 100 */
+>  	hotplug_memory_notifier(ksm_memory_callback, 100);
+>  #endif
+>  	return 0;
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
