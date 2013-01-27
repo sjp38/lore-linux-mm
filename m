@@ -1,128 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id B81256B0005
-	for <linux-mm@kvack.org>; Sat, 26 Jan 2013 21:16:10 -0500 (EST)
-Received: by mail-pb0-f47.google.com with SMTP id rp8so94251pbb.34
-        for <linux-mm@kvack.org>; Sat, 26 Jan 2013 18:16:10 -0800 (PST)
-Date: Sat, 26 Jan 2013 18:16:05 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: boot warnings due to swap: make each swap partition have one
- address_space
-In-Reply-To: <20130125042512.GA32017@kernel.org>
-Message-ID: <alpine.LNX.2.00.1301261754530.7300@eggly.anvils>
-References: <5101FFF5.6030503@oracle.com> <20130125042512.GA32017@kernel.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id C8A636B0005
+	for <linux-mm@kvack.org>; Sat, 26 Jan 2013 21:36:29 -0500 (EST)
+Received: by mail-da0-f44.google.com with SMTP id z20so728274dae.3
+        for <linux-mm@kvack.org>; Sat, 26 Jan 2013 18:36:29 -0800 (PST)
+Message-ID: <1359254187.4159.10.camel@kernel>
+Subject: Re: [PATCH 5/11] ksm: get_ksm_page locked
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Sat, 26 Jan 2013 20:36:27 -0600
+In-Reply-To: <alpine.LNX.2.00.1301251759470.29196@eggly.anvils>
+References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
+	 <alpine.LNX.2.00.1301251759470.29196@eggly.anvils>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fusionio.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 25 Jan 2013, Shaohua Li wrote:
-> On Thu, Jan 24, 2013 at 10:45:57PM -0500, Sasha Levin wrote:
-> > Hi folks,
-> > 
-> > Commit "swap: make each swap partition have one address_space" is triggering
-> > a series of warnings on boot:
-> > 
-> > [    3.446071] ------------[ cut here ]------------
-> > [    3.446664] WARNING: at lib/debugobjects.c:261 debug_print_object+0x8e/0xb0()
-> > [    3.447715] ODEBUG: init active (active state 0) object type: percpu_counter hint:           (null)
-> > [    3.450360] Modules linked in:
-> > [    3.451593] Pid: 1, comm: swapper/0 Tainted: G        W    3.8.0-rc4-next-20130124-sasha-00004-g838a1b4 #266
-> > [    3.454508] Call Trace:
-> > [    3.455248]  [<ffffffff8110d1bc>] warn_slowpath_common+0x8c/0xc0
-> > [    3.455248]  [<ffffffff8110d291>] warn_slowpath_fmt+0x41/0x50
-> > [    3.455248]  [<ffffffff81a2bb5e>] debug_print_object+0x8e/0xb0
-> > [    3.455248]  [<ffffffff81a2c26b>] __debug_object_init+0x20b/0x290
-> > [    3.455248]  [<ffffffff81a2c305>] debug_object_init+0x15/0x20
-> > [    3.455248]  [<ffffffff81a3fbed>] __percpu_counter_init+0x6d/0xe0
-> > [    3.455248]  [<ffffffff81231bdc>] bdi_init+0x1ac/0x270
-> > [    3.455248]  [<ffffffff8618f20b>] swap_setup+0x3b/0x87
-> > [    3.455248]  [<ffffffff8618f257>] ? swap_setup+0x87/0x87
-> > [    3.455248]  [<ffffffff8618f268>] kswapd_init+0x11/0x7c
-> > [    3.455248]  [<ffffffff810020ca>] do_one_initcall+0x8a/0x180
-> > [    3.455248]  [<ffffffff86168cfd>] do_basic_setup+0x96/0xb4
-> > [    3.455248]  [<ffffffff861685ae>] ? loglevel+0x31/0x31
-> > [    3.455248]  [<ffffffff861885cd>] ? sched_init_smp+0x150/0x157
-> > [    3.455248]  [<ffffffff86168ded>] kernel_init_freeable+0xd2/0x14c
-> > [    3.455248]  [<ffffffff83cade10>] ? rest_init+0x140/0x140
-> > [    3.455248]  [<ffffffff83cade19>] kernel_init+0x9/0xf0
-> > [    3.455248]  [<ffffffff83d5727c>] ret_from_fork+0x7c/0xb0
-> > [    3.455248]  [<ffffffff83cade10>] ? rest_init+0x140/0x140
-> > [    3.455248] ---[ end trace 0b176d5c0f21bffb ]---
-> > 
-> > I haven't looked deeper into it yet, and will do so tomorrow, unless this
-> > spew is obvious to anyone.
+Hi Hugh, 
+On Fri, 2013-01-25 at 18:00 -0800, Hugh Dickins wrote:
+> In some places where get_ksm_page() is used, we need the page to be locked.
 > 
-> Does this one help?
+
+In function get_ksm_page, why check page->mapping =>
+get_page_unless_zero => check page->mapping instead of
+get_page_unless_zero => check page->mapping, because
+get_page_unless_zero is expensive?
+
+> When KSM migration is fully enabled, we shall want that to make sure that
+> the page just acquired cannot be migrated beneath us (raised page count is
+> only effective when there is serialization to make sure migration notices).
+> Whereas when navigating through the stable tree, we certainly do not want
+
+What's the meaning of "navigating through the stable tree"?
+
+> to lock each node (raised page count is enough to guarantee the memcmps,
+> even if page is migrated to another node).
 > 
-> Subject: give-each-swapper-space-separate-backing_dev_info
-> 
-> The backing_dev_info can't be shared by all swapper address space.
+> Since we're about to add another use case, add the locked argument to
+> get_ksm_page() now.
 
-Whyever not?  It's perfectly normal for different inodes/address_spaces
-to share a single backing_dev!  Sasha's trace says that it's wrong to
-initialize it MAX_SWAPFILES times: fair enough.  But why should I now
-want to spend 32kB (not even counting their __percpu counters) on all
-these pseudo-backing_devs?
-
-Hugh
-
-p.s. a grand little change would be to move page_cluster and swap_setup()
-from mm/swap.c to mm/swap_state.c: they have nothing to do with the other
-contents of swap.c, and everything to do with the contents of swap_state.c.
-Why swap.c is called swap.c is rather a mystery.
+Why the parameter lock passed from stable_tree_search/insert is true,
+but remove_rmap_item_from_tree is false?
 
 > 
-> Reported-by: Sasha Levin <sasha.levin@oracle.com>
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
+> Hmm, what's that rcu_read_lock() about?  Complete misunderstanding, I
+> really got the wrong end of the stick on that!  There's a configuration
+> in which page_cache_get_speculative() can do something cheaper than
+> get_page_unless_zero(), relying on its caller's rcu_read_lock() to have
+> disabled preemption for it.  There's no need for rcu_read_lock() around
+> get_page_unless_zero() (and mapping checks) here.  Cut out that
+> silliness before making this any harder to understand.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 > ---
->  mm/swap.c       |    1 +
->  mm/swap_state.c |   11 +++++++----
->  2 files changed, 8 insertions(+), 4 deletions(-)
+>  mm/ksm.c |   23 +++++++++++++----------
+>  1 file changed, 13 insertions(+), 10 deletions(-)
 > 
-> Index: linux/mm/swap.c
-> ===================================================================
-> --- linux.orig/mm/swap.c	2013-01-22 10:11:58.310933234 +0800
-> +++ linux/mm/swap.c	2013-01-25 12:14:49.524863610 +0800
-> @@ -859,6 +859,7 @@ void __init swap_setup(void)
->  	int i;
->  
->  	for (i = 0; i < MAX_SWAPFILES; i++) {
-> +		swapper_spaces[i].backing_dev_info += i;
->  		bdi_init(swapper_spaces[i].backing_dev_info);
->  		spin_lock_init(&swapper_spaces[i].tree_lock);
->  		INIT_LIST_HEAD(&swapper_spaces[i].i_mmap_nonlinear);
-> Index: linux/mm/swap_state.c
-> ===================================================================
-> --- linux.orig/mm/swap_state.c	2013-01-24 18:08:05.149390977 +0800
-> +++ linux/mm/swap_state.c	2013-01-25 12:14:12.849323671 +0800
-> @@ -31,16 +31,19 @@ static const struct address_space_operat
->  	.migratepage	= migrate_page,
->  };
->  
-> -static struct backing_dev_info swap_backing_dev_info = {
-> -	.name		= "swap",
-> -	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK | BDI_CAP_SWAP_BACKED,
-> +static struct backing_dev_info swap_backing_dev_info[MAX_SWAPFILES] = {
-> +	[0 ... MAX_SWAPFILES - 1] = {
-> +		.name		= "swap",
-> +		.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK |
-> +			BDI_CAP_SWAP_BACKED,
-> +	}
->  };
->  
->  struct address_space swapper_spaces[MAX_SWAPFILES] = {
->  	[0 ... MAX_SWAPFILES - 1] = {
->  		.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
->  		.a_ops		= &swap_aops,
-> -		.backing_dev_info = &swap_backing_dev_info,
-> +		.backing_dev_info = &swap_backing_dev_info[0],
+> --- mmotm.orig/mm/ksm.c	2013-01-25 14:36:53.244205966 -0800
+> +++ mmotm/mm/ksm.c	2013-01-25 14:36:58.856206099 -0800
+> @@ -514,15 +514,14 @@ static void remove_node_from_stable_tree
+>   * but this is different - made simpler by ksm_thread_mutex being held, but
+>   * interesting for assuming that no other use of the struct page could ever
+>   * put our expected_mapping into page->mapping (or a field of the union which
+> - * coincides with page->mapping).  The RCU calls are not for KSM at all, but
+> - * to keep the page_count protocol described with page_cache_get_speculative.
+> + * coincides with page->mapping).
+>   *
+>   * Note: it is possible that get_ksm_page() will return NULL one moment,
+>   * then page the next, if the page is in between page_freeze_refs() and
+>   * page_unfreeze_refs(): this shouldn't be a problem anywhere, the page
+>   * is on its way to being freed; but it is an anomaly to bear in mind.
+>   */
+> -static struct page *get_ksm_page(struct stable_node *stable_node)
+> +static struct page *get_ksm_page(struct stable_node *stable_node, bool locked)
+>  {
+>  	struct page *page;
+>  	void *expected_mapping;
+> @@ -530,7 +529,6 @@ static struct page *get_ksm_page(struct
+>  	page = pfn_to_page(stable_node->kpfn);
+>  	expected_mapping = (void *)stable_node +
+>  				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
+> -	rcu_read_lock();
+>  	if (page->mapping != expected_mapping)
+>  		goto stale;
+>  	if (!get_page_unless_zero(page))
+> @@ -539,10 +537,16 @@ static struct page *get_ksm_page(struct
+>  		put_page(page);
+>  		goto stale;
 >  	}
->  };
+> -	rcu_read_unlock();
+> +	if (locked) {
+> +		lock_page(page);
+> +		if (page->mapping != expected_mapping) {
+> +			unlock_page(page);
+> +			put_page(page);
+> +			goto stale;
+> +		}
+> +	}
+>  	return page;
+>  stale:
+> -	rcu_read_unlock();
+>  	remove_node_from_stable_tree(stable_node);
+>  	return NULL;
+>  }
+> @@ -558,11 +562,10 @@ static void remove_rmap_item_from_tree(s
+>  		struct page *page;
+>  
+>  		stable_node = rmap_item->head;
+> -		page = get_ksm_page(stable_node);
+> +		page = get_ksm_page(stable_node, true);
+>  		if (!page)
+>  			goto out;
+>  
+> -		lock_page(page);
+>  		hlist_del(&rmap_item->hlist);
+>  		unlock_page(page);
+>  		put_page(page);
+> @@ -1042,7 +1045,7 @@ static struct page *stable_tree_search(s
+>  
+>  		cond_resched();
+>  		stable_node = rb_entry(node, struct stable_node, node);
+> -		tree_page = get_ksm_page(stable_node);
+> +		tree_page = get_ksm_page(stable_node, false);
+>  		if (!tree_page)
+>  			return NULL;
+>  
+> @@ -1086,7 +1089,7 @@ static struct stable_node *stable_tree_i
+>  
+>  		cond_resched();
+>  		stable_node = rb_entry(*new, struct stable_node, node);
+> -		tree_page = get_ksm_page(stable_node);
+> +		tree_page = get_ksm_page(stable_node, false);
+>  		if (!tree_page)
+>  			return NULL;
 >  
 > 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
