@@ -1,394 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 966306B0005
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 03:49:17 -0500 (EST)
-Received: by mail-ia0-f172.google.com with SMTP id u8so2853185iag.31
-        for <linux-mm@kvack.org>; Sun, 27 Jan 2013 00:49:16 -0800 (PST)
-Message-ID: <1359276555.6763.6.camel@kernel>
-Subject: Re: [PATCH 8/11] ksm: make !merge_across_nodes migration safe
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Sun, 27 Jan 2013 02:49:15 -0600
-In-Reply-To: <alpine.LNX.2.00.1301251803390.29196@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
-	 <alpine.LNX.2.00.1301251803390.29196@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 4F6AC6B0005
+	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 09:13:13 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so17462pbc.24
+        for <linux-mm@kvack.org>; Sun, 27 Jan 2013 06:13:12 -0800 (PST)
+Date: Sun, 27 Jan 2013 22:12:53 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: boot warnings due to swap: make each swap partition have one
+ address_space
+Message-ID: <20130127141253.GA27019@kernel.org>
+References: <5101FFF5.6030503@oracle.com>
+ <20130125042512.GA32017@kernel.org>
+ <alpine.LNX.2.00.1301261754530.7300@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1301261754530.7300@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fusionio.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 2013-01-25 at 18:05 -0800, Hugh Dickins wrote:
-> The new KSM NUMA merge_across_nodes knob introduces a problem, when it's
-> set to non-default 0: if a KSM page is migrated to a different NUMA node,
-> how do we migrate its stable node to the right tree?  And what if that
-> collides with an existing stable node?
+On Sat, Jan 26, 2013 at 06:16:05PM -0800, Hugh Dickins wrote:
+> On Fri, 25 Jan 2013, Shaohua Li wrote:
+> > On Thu, Jan 24, 2013 at 10:45:57PM -0500, Sasha Levin wrote:
+> > > Hi folks,
+> > > 
+> > > Commit "swap: make each swap partition have one address_space" is triggering
+> > > a series of warnings on boot:
+> > > 
+> > > [    3.446071] ------------[ cut here ]------------
+> > > [    3.446664] WARNING: at lib/debugobjects.c:261 debug_print_object+0x8e/0xb0()
+> > > [    3.447715] ODEBUG: init active (active state 0) object type: percpu_counter hint:           (null)
+> > > [    3.450360] Modules linked in:
+> > > [    3.451593] Pid: 1, comm: swapper/0 Tainted: G        W    3.8.0-rc4-next-20130124-sasha-00004-g838a1b4 #266
+> > > [    3.454508] Call Trace:
+> > > [    3.455248]  [<ffffffff8110d1bc>] warn_slowpath_common+0x8c/0xc0
+> > > [    3.455248]  [<ffffffff8110d291>] warn_slowpath_fmt+0x41/0x50
+> > > [    3.455248]  [<ffffffff81a2bb5e>] debug_print_object+0x8e/0xb0
+> > > [    3.455248]  [<ffffffff81a2c26b>] __debug_object_init+0x20b/0x290
+> > > [    3.455248]  [<ffffffff81a2c305>] debug_object_init+0x15/0x20
+> > > [    3.455248]  [<ffffffff81a3fbed>] __percpu_counter_init+0x6d/0xe0
+> > > [    3.455248]  [<ffffffff81231bdc>] bdi_init+0x1ac/0x270
+> > > [    3.455248]  [<ffffffff8618f20b>] swap_setup+0x3b/0x87
+> > > [    3.455248]  [<ffffffff8618f257>] ? swap_setup+0x87/0x87
+> > > [    3.455248]  [<ffffffff8618f268>] kswapd_init+0x11/0x7c
+> > > [    3.455248]  [<ffffffff810020ca>] do_one_initcall+0x8a/0x180
+> > > [    3.455248]  [<ffffffff86168cfd>] do_basic_setup+0x96/0xb4
+> > > [    3.455248]  [<ffffffff861685ae>] ? loglevel+0x31/0x31
+> > > [    3.455248]  [<ffffffff861885cd>] ? sched_init_smp+0x150/0x157
+> > > [    3.455248]  [<ffffffff86168ded>] kernel_init_freeable+0xd2/0x14c
+> > > [    3.455248]  [<ffffffff83cade10>] ? rest_init+0x140/0x140
+> > > [    3.455248]  [<ffffffff83cade19>] kernel_init+0x9/0xf0
+> > > [    3.455248]  [<ffffffff83d5727c>] ret_from_fork+0x7c/0xb0
+> > > [    3.455248]  [<ffffffff83cade10>] ? rest_init+0x140/0x140
+> > > [    3.455248] ---[ end trace 0b176d5c0f21bffb ]---
+> > > 
+> > > I haven't looked deeper into it yet, and will do so tomorrow, unless this
+> > > spew is obvious to anyone.
+> > 
+> > Does this one help?
+> > 
+> > Subject: give-each-swapper-space-separate-backing_dev_info
+> > 
+> > The backing_dev_info can't be shared by all swapper address space.
 > 
-> ksm_migrate_page() can do no more than it's already doing, updating
-> stable_node->kpfn: the stable tree itself cannot be manipulated without
-> holding ksm_thread_mutex.  So accept that a stable tree may temporarily
-> indicate a page belonging to the wrong NUMA node, leave updating until
-> the next pass of ksmd, just be careful not to merge other pages on to a
-> misplaced page.  Note nid of holding tree in stable_node, and recognize
-> that it will not always match nid of kpfn.
+> Whyever not?  It's perfectly normal for different inodes/address_spaces
+> to share a single backing_dev!  Sasha's trace says that it's wrong to
+> initialize it MAX_SWAPFILES times: fair enough.  But why should I now
+> want to spend 32kB (not even counting their __percpu counters) on all
+> these pseudo-backing_devs?
+
+That's correct, silly me. Updated it.
 > 
-> A misplaced KSM page is discovered, either when ksm_do_scan() next comes
-> around to one of its rmap_items (we now have to go to cmp_and_merge_page
-> even on pages in a stable tree), or when stable_tree_search() arrives at
-> a matching node for another page, and this node page is found misplaced.
-> 
-> In each case, move the misplaced stable_node to a list of migrate_nodes
-> (and use the address of migrate_nodes as magic by which to identify them):
-> we don't need them in a tree.  If stable_tree_search() finds no match for
-> a page, but it's currently exiled to this list, then slot its stable_node
-> right there into the tree, bringing all of its mappings with it; otherwise
-> they get migrated one by one to the original page of the colliding node.
-> stable_tree_search() is now modelled more like stable_tree_insert(),
-> in order to handle these insertions of migrated nodes.
-> 
-> remove_node_from_stable_tree(), remove_all_stable_nodes() and
-> ksm_check_stable_tree() have to handle the migrate_nodes list as well as
-> the stable tree itself.  Less obviously, we do need to prune the list of
-> stale entries from time to time (scan_get_next_rmap_item() does it once
-> each full scan): whereas stale nodes in the stable tree get naturally
-> pruned as searches try to brush past them, these migrate_nodes may get
-> forgotten and accumulate.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
->  mm/ksm.c |  164 +++++++++++++++++++++++++++++++++++++++++++----------
->  1 file changed, 134 insertions(+), 30 deletions(-)
-> 
-> --- mmotm.orig/mm/ksm.c	2013-01-25 14:37:03.832206218 -0800
-> +++ mmotm/mm/ksm.c	2013-01-25 14:37:06.880206290 -0800
-> @@ -122,13 +122,25 @@ struct ksm_scan {
->  /**
->   * struct stable_node - node of the stable rbtree
->   * @node: rb node of this ksm page in the stable tree
-> + * @head: (overlaying parent) &migrate_nodes indicates temporarily on that list
-> + * @list: linked into migrate_nodes, pending placement in the proper node tree
->   * @hlist: hlist head of rmap_items using this ksm page
-> - * @kpfn: page frame number of this ksm page
-> + * @kpfn: page frame number of this ksm page (perhaps temporarily on wrong nid)
-> + * @nid: NUMA node id of stable tree in which linked (may not match kpfn)
->   */
->  struct stable_node {
-> -	struct rb_node node;
-> +	union {
-> +		struct rb_node node;	/* when node of stable tree */
-> +		struct {		/* when listed for migration */
-> +			struct list_head *head;
-> +			struct list_head list;
-> +		};
-> +	};
->  	struct hlist_head hlist;
->  	unsigned long kpfn;
-> +#ifdef CONFIG_NUMA
-> +	int nid;
-> +#endif
->  };
->  
->  /**
-> @@ -169,6 +181,9 @@ struct rmap_item {
->  static struct rb_root root_unstable_tree[MAX_NUMNODES];
->  static struct rb_root root_stable_tree[MAX_NUMNODES];
->  
-> +/* Recently migrated nodes of stable tree, pending proper placement */
-> +static LIST_HEAD(migrate_nodes);
-> +
->  #define MM_SLOTS_HASH_BITS 10
->  static DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
->  
-> @@ -311,11 +326,6 @@ static void insert_to_mm_slots_hash(stru
->  	hash_add(mm_slots_hash, &mm_slot->link, (unsigned long)mm);
->  }
->  
-> -static inline int in_stable_tree(struct rmap_item *rmap_item)
-> -{
-> -	return rmap_item->address & STABLE_FLAG;
-> -}
-> -
->  /*
->   * ksmd, and unmerge_and_remove_all_rmap_items(), must not touch an mm's
->   * page tables after it has passed through ksm_exit() - which, if necessary,
-> @@ -476,7 +486,6 @@ static void remove_node_from_stable_tree
->  {
->  	struct rmap_item *rmap_item;
->  	struct hlist_node *hlist;
-> -	int nid;
->  
->  	hlist_for_each_entry(rmap_item, hlist, &stable_node->hlist, hlist) {
->  		if (rmap_item->hlist.next)
-> @@ -488,8 +497,11 @@ static void remove_node_from_stable_tree
->  		cond_resched();
->  	}
->  
-> -	nid = get_kpfn_nid(stable_node->kpfn);
-> -	rb_erase(&stable_node->node, &root_stable_tree[nid]);
-> +	if (stable_node->head == &migrate_nodes)
-> +		list_del(&stable_node->list);
-> +	else
-> +		rb_erase(&stable_node->node,
-> +			 &root_stable_tree[NUMA(stable_node->nid)]);
->  	free_stable_node(stable_node);
->  }
->  
-> @@ -712,6 +724,7 @@ static int remove_stable_node(struct sta
->  static int remove_all_stable_nodes(void)
->  {
->  	struct stable_node *stable_node;
-> +	struct list_head *this, *next;
->  	int nid;
->  	int err = 0;
->  
-> @@ -726,6 +739,12 @@ static int remove_all_stable_nodes(void)
->  			cond_resched();
->  		}
->  	}
-> +	list_for_each_safe(this, next, &migrate_nodes) {
-> +		stable_node = list_entry(this, struct stable_node, list);
-> +		if (remove_stable_node(stable_node))
-> +			err = -EBUSY;
-> +		cond_resched();
-> +	}
->  	return err;
->  }
->  
-> @@ -1113,25 +1132,30 @@ static struct page *try_to_merge_two_pag
->   */
->  static struct page *stable_tree_search(struct page *page)
->  {
-> -	struct rb_node *node;
-> -	struct stable_node *stable_node;
->  	int nid;
-> +	struct rb_node **new;
-> +	struct rb_node *parent;
-> +	struct stable_node *stable_node;
-> +	struct stable_node *page_node;
->  
-> -	stable_node = page_stable_node(page);
-> -	if (stable_node) {			/* ksm page forked */
-> +	page_node = page_stable_node(page);
-> +	if (page_node && page_node->head != &migrate_nodes) {
-> +		/* ksm page forked */
->  		get_page(page);
->  		return page;
->  	}
->  
->  	nid = get_kpfn_nid(page_to_pfn(page));
-> -	node = root_stable_tree[nid].rb_node;
-> +again:
-> +	new = &root_stable_tree[nid].rb_node;
-> +	parent = NULL;
->  
-> -	while (node) {
-> +	while (*new) {
->  		struct page *tree_page;
->  		int ret;
->  
->  		cond_resched();
-> -		stable_node = rb_entry(node, struct stable_node, node);
-> +		stable_node = rb_entry(*new, struct stable_node, node);
->  		tree_page = get_ksm_page(stable_node, false);
->  		if (!tree_page)
->  			return NULL;
-> @@ -1139,10 +1163,11 @@ static struct page *stable_tree_search(s
->  		ret = memcmp_pages(page, tree_page);
->  		put_page(tree_page);
->  
-> +		parent = *new;
->  		if (ret < 0)
-> -			node = node->rb_left;
-> +			new = &parent->rb_left;
->  		else if (ret > 0)
-> -			node = node->rb_right;
-> +			new = &parent->rb_right;
->  		else {
->  			/*
->  			 * Lock and unlock the stable_node's page (which
-> @@ -1152,13 +1177,49 @@ static struct page *stable_tree_search(s
->  			 * than kpage, but that involves more changes.
->  			 */
->  			tree_page = get_ksm_page(stable_node, true);
-> -			if (tree_page)
-> +			if (tree_page) {
->  				unlock_page(tree_page);
-> -			return tree_page;
-> +				if (get_kpfn_nid(stable_node->kpfn) !=
-> +						NUMA(stable_node->nid)) {
-> +					put_page(tree_page);
-> +					goto replace;
-> +				}
-> +				return tree_page;
-> +			}
-> +			/*
-> +			 * There is now a place for page_node, but the tree may
-> +			 * have been rebalanced, so re-evaluate parent and new.
-> +			 */
-> +			if (page_node)
-> +				goto again;
-> +			return NULL;
->  		}
->  	}
->  
-> -	return NULL;
-> +	if (!page_node)
-> +		return NULL;
-> +
-> +	list_del(&page_node->list);
-> +	DO_NUMA(page_node->nid = nid);
-> +	rb_link_node(&page_node->node, parent, new);
-> +	rb_insert_color(&page_node->node, &root_stable_tree[nid]);
-> +	get_page(page);
-> +	return page;
-> +
-> +replace:
-> +	if (page_node) {
-> +		list_del(&page_node->list);
-> +		DO_NUMA(page_node->nid = nid);
-> +		rb_replace_node(&stable_node->node,
-> +				&page_node->node, &root_stable_tree[nid]);
-> +		get_page(page);
-> +	} else {
-> +		rb_erase(&stable_node->node, &root_stable_tree[nid]);
-> +		page = NULL;
-> +	}
-> +	stable_node->head = &migrate_nodes;
-> +	list_add(&stable_node->list, stable_node->head);
-> +	return page;
->  }
->  
->  /*
-> @@ -1215,6 +1276,7 @@ static struct stable_node *stable_tree_i
->  	INIT_HLIST_HEAD(&stable_node->hlist);
->  	stable_node->kpfn = kpfn;
->  	set_page_stable_node(kpage, stable_node);
-> +	DO_NUMA(stable_node->nid = nid);
->  	rb_link_node(&stable_node->node, parent, new);
->  	rb_insert_color(&stable_node->node, &root_stable_tree[nid]);
->  
-> @@ -1311,11 +1373,6 @@ struct rmap_item *unstable_tree_search_i
->  static void stable_tree_append(struct rmap_item *rmap_item,
->  			       struct stable_node *stable_node)
->  {
-> -	/*
-> -	 * Usually rmap_item->nid is already set correctly,
-> -	 * but it may be wrong after switching merge_across_nodes.
-> -	 */
-> -	DO_NUMA(rmap_item->nid = get_kpfn_nid(stable_node->kpfn));
->  	rmap_item->head = stable_node;
->  	rmap_item->address |= STABLE_FLAG;
->  	hlist_add_head(&rmap_item->hlist, &stable_node->hlist);
-> @@ -1344,10 +1401,29 @@ static void cmp_and_merge_page(struct pa
->  	unsigned int checksum;
->  	int err;
->  
-> -	remove_rmap_item_from_tree(rmap_item);
-> +	stable_node = page_stable_node(page);
-> +	if (stable_node) {
-> +		if (stable_node->head != &migrate_nodes &&
-> +		    get_kpfn_nid(stable_node->kpfn) != NUMA(stable_node->nid)) {
-> +			rb_erase(&stable_node->node,
-> +				 &root_stable_tree[NUMA(stable_node->nid)]);
-> +			stable_node->head = &migrate_nodes;
-> +			list_add(&stable_node->list, stable_node->head);
+> p.s. a grand little change would be to move page_cluster and swap_setup()
+> from mm/swap.c to mm/swap_state.c: they have nothing to do with the other
+> contents of swap.c, and everything to do with the contents of swap_state.c.
+> Why swap.c is called swap.c is rather a mystery.
 
-Why list add &stable_node->list to stable_node->head? stable_node->head
-is used for queue what?
+Tried, but looks page_cluster is used in sysctl, moving to swap_state.c will
+make it optional. don't want to add another #ifdef, so give up.
 
-> +		}
-> +		if (stable_node->head != &migrate_nodes &&
-> +		    rmap_item->head == stable_node)
-> +			return;
-> +	}
->  
->  	/* We first start with searching the page inside the stable tree */
->  	kpage = stable_tree_search(page);
-> +	if (kpage == page && rmap_item->head == stable_node) {
-> +		put_page(kpage);
-> +		return;
-> +	}
-> +
-> +	remove_rmap_item_from_tree(rmap_item);
-> +
->  	if (kpage) {
->  		err = try_to_merge_with_ksm_page(rmap_item, page, kpage);
->  		if (!err) {
-> @@ -1464,6 +1540,27 @@ static struct rmap_item *scan_get_next_r
->  		 */
->  		lru_add_drain_all();
->  
-> +		/*
-> +		 * Whereas stale stable_nodes on the stable_tree itself
-> +		 * get pruned in the regular course of stable_tree_search(),
 
-Which kinds of stable_nodes can be treated as stale? I just see remove
-rmap_item in stable_tree_search() and scan_get_next_rmap_item().
+Subject: init-swap-space-backing-dev-info-once
 
-> +		 * those moved out to the migrate_nodes list can accumulate:
-> +		 * so prune them once before each full scan.
-> +		 */
-> +		if (!ksm_merge_across_nodes) {
-> +			struct stable_node *stable_node;
-> +			struct list_head *this, *next;
-> +			struct page *page;
-> +
-> +			list_for_each_safe(this, next, &migrate_nodes) {
-> +				stable_node = list_entry(this,
-> +						struct stable_node, list);
-> +				page = get_ksm_page(stable_node, false);
-> +				if (page)
-> +					put_page(page);
-> +				cond_resched();
-> +			}
-> +		}
-> +
 
-Why get page of misplaced pages here?
+Sasha reported:
+Commit "swap: make each swap partition have one address_space" is triggering
+a series of warnings on boot:
 
->  		for (nid = 0; nid < nr_node_ids; nid++)
->  			root_unstable_tree[nid] = RB_ROOT;
->  
-> @@ -1586,8 +1683,7 @@ static void ksm_do_scan(unsigned int sca
->  		rmap_item = scan_get_next_rmap_item(&page);
->  		if (!rmap_item)
->  			return;
-> -		if (!PageKsm(page) || !in_stable_tree(rmap_item))
-> -			cmp_and_merge_page(page, rmap_item);
-> +		cmp_and_merge_page(page, rmap_item);
->  		put_page(page);
->  	}
->  }
-> @@ -1964,6 +2060,7 @@ static void ksm_check_stable_tree(unsign
->  				  unsigned long end_pfn)
->  {
->  	struct stable_node *stable_node;
-> +	struct list_head *this, *next;
->  	struct rb_node *node;
->  	int nid;
->  
-> @@ -1984,6 +2081,13 @@ static void ksm_check_stable_tree(unsign
->  			cond_resched();
->  		}
->  	}
-> +	list_for_each_safe(this, next, &migrate_nodes) {
-> +		stable_node = list_entry(this, struct stable_node, list);
-> +		if (stable_node->kpfn >= start_pfn &&
-> +		    stable_node->kpfn < end_pfn)
-> +			remove_node_from_stable_tree(stable_node);
-> +		cond_resched();
-> +	}
->  }
->  
->  static int ksm_memory_callback(struct notifier_block *self,
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+[    3.446071] ------------[ cut here ]------------
+[    3.446664] WARNING: at lib/debugobjects.c:261 debug_print_object+0x8e/0xb0()
+[    3.447715] ODEBUG: init active (active state 0) object type: percpu_counter hint:           (null)
+[    3.450360] Modules linked in:
+[    3.451593] Pid: 1, comm: swapper/0 Tainted: G        W    3.8.0-rc4-next-20130124-sasha-00004-g838a1b4 #266
+[    3.454508] Call Trace:
+[    3.455248]  [<ffffffff8110d1bc>] warn_slowpath_common+0x8c/0xc0
+[    3.455248]  [<ffffffff8110d291>] warn_slowpath_fmt+0x41/0x50
+[    3.455248]  [<ffffffff81a2bb5e>] debug_print_object+0x8e/0xb0
+[    3.455248]  [<ffffffff81a2c26b>] __debug_object_init+0x20b/0x290
+[    3.455248]  [<ffffffff81a2c305>] debug_object_init+0x15/0x20
+[    3.455248]  [<ffffffff81a3fbed>] __percpu_counter_init+0x6d/0xe0
+[    3.455248]  [<ffffffff81231bdc>] bdi_init+0x1ac/0x270
+[    3.455248]  [<ffffffff8618f20b>] swap_setup+0x3b/0x87
+[    3.455248]  [<ffffffff8618f257>] ? swap_setup+0x87/0x87
+[    3.455248]  [<ffffffff8618f268>] kswapd_init+0x11/0x7c
+[    3.455248]  [<ffffffff810020ca>] do_one_initcall+0x8a/0x180
+[    3.455248]  [<ffffffff86168cfd>] do_basic_setup+0x96/0xb4
+[    3.455248]  [<ffffffff861685ae>] ? loglevel+0x31/0x31
+[    3.455248]  [<ffffffff861885cd>] ? sched_init_smp+0x150/0x157
+[    3.455248]  [<ffffffff86168ded>] kernel_init_freeable+0xd2/0x14c
+[    3.455248]  [<ffffffff83cade10>] ? rest_init+0x140/0x140
+[    3.455248]  [<ffffffff83cade19>] kernel_init+0x9/0xf0
+[    3.455248]  [<ffffffff83d5727c>] ret_from_fork+0x7c/0xb0
+[    3.455248]  [<ffffffff83cade10>] ? rest_init+0x140/0x140
+[    3.455248] ---[ end trace 0b176d5c0f21bffb ]---
 
+Initialize swap space backing_dev_info once to avoid the warning.
+
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Signed-off-by: Shaohua Li <shli@fusionio.com>
+---
+ mm/swap.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: linux/mm/swap.c
+===================================================================
+--- linux.orig/mm/swap.c	2013-01-27 21:26:21.942696713 +0800
++++ linux/mm/swap.c	2013-01-27 21:27:29.233865394 +0800
+@@ -858,8 +858,8 @@ void __init swap_setup(void)
+ #ifdef CONFIG_SWAP
+ 	int i;
+ 
++	bdi_init(swapper_spaces[0].backing_dev_info);
+ 	for (i = 0; i < MAX_SWAPFILES; i++) {
+-		bdi_init(swapper_spaces[i].backing_dev_info);
+ 		spin_lock_init(&swapper_spaces[i].tree_lock);
+ 		INIT_LIST_HEAD(&swapper_spaces[i].i_mmap_nonlinear);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
