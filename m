@@ -1,39 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 0ECCB6B0007
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 18:21:47 -0500 (EST)
-Date: Tue, 29 Jan 2013 08:21:45 +0900
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id B969A6B0007
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 18:33:32 -0500 (EST)
+Date: Tue, 29 Jan 2013 08:33:30 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RESEND PATCH v5 1/4] zram: Fix deadlock bug in partial write
-Message-ID: <20130128232145.GA2666@blaptop>
-References: <1359333506-13599-1-git-send-email-minchan@kernel.org>
- <CAOJsxLFg_5uhZsvPmVVC0nnsZLGpkJ0W6mHa=aavmguLGuTTnA@mail.gmail.com>
+Subject: Re: [PATCH 1/4] staging: zsmalloc: add gfp flags to zs_create_pool
+Message-ID: <20130128233330.GA4752@blaptop>
+References: <1359135978-15119-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1359135978-15119-2-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20130128033944.GB3321@blaptop>
+ <20130128151637.GC4838@konrad-lan.dumpdata.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOJsxLFg_5uhZsvPmVVC0nnsZLGpkJ0W6mHa=aavmguLGuTTnA@mail.gmail.com>
+In-Reply-To: <20130128151637.GC4838@konrad-lan.dumpdata.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, stable@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-On Mon, Jan 28, 2013 at 09:16:35AM +0200, Pekka Enberg wrote:
-> On Mon, Jan 28, 2013 at 2:38 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > Now zram allocates new page with GFP_KERNEL in zram I/O path
-> > if IO is partial. Unfortunately, It may cuase deadlock with
+On Mon, Jan 28, 2013 at 10:16:38AM -0500, Konrad Rzeszutek Wilk wrote:
+> On Mon, Jan 28, 2013 at 12:39:44PM +0900, Minchan Kim wrote:
+> > Hi Seth,
+> > 
+> > On Fri, Jan 25, 2013 at 11:46:15AM -0600, Seth Jennings wrote:
+> > > zs_create_pool() currently takes a gfp flags argument
+> > > that is used when growing the memory pool.  However
+> > > it is not used in allocating the metadata for the pool
+> > > itself.  That is currently hardcoded to GFP_KERNEL.
+> > > 
+> > > zswap calls zs_create_pool() at swapon time which is done
+> > > in atomic context, resulting in a "might sleep" warning.
+> > > 
+> > > This patch changes the meaning of the flags argument in
+> > > zs_create_pool() to mean the flags for the metadata allocation,
+> > > and adds a flags argument to zs_malloc that will be used for
+> > > memory pool growth if required.
+> > 
+> > As I mentioned, I'm not strongly against with this patch but it
+> > should be last resort in case of not being able to address
+> > frontswap's init routine's dependency with swap_lock.
+> > 
+> > I sent a patch and am waiting reply of Konrand or Dan.
+> > If we can fix frontswap, it would be better rather than
+> > changing zsmalloc.
 > 
-> s/cuase/cause/g
+> Could you point me to the subject/title of it please? Thanks.
 
-Thanks!
+I am very happy if you review it.
+
+https://lkml.org/lkml/2013/1/27/262
+
+Thanks.
 
 > 
-> > reclaim path so this patch solves the problem.
-> 
-> It'd be nice to know about the problem in more detail. I'm also
-> curious on why you decided on GFP_ATOMIC for the read path and
-> GFP_NOIO in the write path.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-In read path, we called kmap_atomic.
+-- 
+Kind regards,
+Minchan Kim
 
-How about this?
-------------------------- >8 -------------------------------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
