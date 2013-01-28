@@ -1,50 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 1281C6B0007
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 23:32:59 -0500 (EST)
-Date: Mon, 28 Jan 2013 13:32:57 +0900
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id E872E6B0007
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 01:23:21 -0500 (EST)
+Date: Mon, 28 Jan 2013 15:23:16 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCHv2 6/9] zsmalloc: promote to lib/
-Message-ID: <20130128043257.GH3321@blaptop>
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1357590280-31535-7-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130128040116.GF3321@blaptop>
+Subject: Re: [PATCH] Subtract min_free_kbytes from dirtyable memory
+Message-ID: <20130128062316.GI3321@blaptop>
+References: <201301250953.r0P9rOSe012192@como.maths.usyd.edu.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130128040116.GF3321@blaptop>
+In-Reply-To: <201301250953.r0P9rOSe012192@como.maths.usyd.edu.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: paul.szabo@sydney.edu.au
+Cc: psz@maths.usyd.edu.au, 695182@bugs.debian.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jan 28, 2013 at 01:01:16PM +0900, Minchan Kim wrote:
-> On Mon, Jan 07, 2013 at 02:24:37PM -0600, Seth Jennings wrote:
-> > This patch promotes the slab-based zsmalloc memory allocator
-> > from the staging tree to lib/
-> > 
-> > zswap depends on this allocator for storing compressed RAM pages
-> > in an efficient way under system wide memory pressure where
-> > high-order (greater than 0) page allocation are very likely to
-> > fail.
-> > 
-> > For more information on zsmalloc and its internals, read the
-> > documentation at the top of the zsmalloc.c file.
-> > 
-> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+On Fri, Jan 25, 2013 at 08:53:24PM +1100, paul.szabo@sydney.edu.au wrote:
+> Dear Minchan,
 > 
-> Seth, zsmalloc has a bug[1], I sent a patch totay. If it want't known,
-> it mighte be no problem to promote but it's known bug so let's fix it
-> before promoting.
+> > So what's the effect for user?
+> > ...
+> > It seems you saw old kernel.
+> > ...
+> > Current kernel includes ...
+> > So I think we don't need this patch.
 > 
-> Another question. Why do you promote zsmalloc in this patchset?
-> It might make you hard to merge even zswap into staging.
+> As I understand now, my patch is "right" and needed for older kernels;
+> for newer kernels, the issue has been fixed in equivalent ways; it was
+> an oversight that the change was not backported; and any justification
+> you need, you can get from those "later better" patches.
 
-When I look at [8/9], I realized you are trying to merge this patch
-into mm/, NOT staging. I don't know history why zsmalloc/zram/zscache was
-in staging at the beginning but personally, I don't ojbect zswap into /mm
-directly because I got realized staging is very deep hole to get out,
-expecially related to mm stuff. ;-)
+I don't know your problem because you didn't write down your problem in
+changelog. Anyway, If you want to apply it into older kernel,
+please read Documentation/stable_kernel_rules.txt.
+
+In summary,
+
+1. Define your problem.
+2. Apply your fix to see the problem goes away in older kernel.
+3. If so, write the problem and effect in changelog
+4. Send it to stable maintainers and mm maintainer
+
+That's all.
+
+> 
+> I asked:
+> 
+>   A question: what is the use or significance of vm_highmem_is_dirtyable?
+>   It seems odd that it would be used in setting limits or threshholds, but
+>   not used in decisions where to put dirty things. Is that so, is that as
+>   should be? What is the recommended setting of highmem_is_dirtyable?
+> 
+> The silence is deafening. I guess highmem_is_dirtyable is an aberration.
+
+I hope this helps you find primary reason of your problem.
+git show 195cf453
+
+
+> 
+> Thanks, Paul
+> 
+> Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
+> School of Mathematics and Statistics   University of Sydney    Australia
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Kind regards,
