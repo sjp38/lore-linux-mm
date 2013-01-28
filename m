@@ -1,238 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 9F2A16B0007
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 20:54:36 -0500 (EST)
-Message-ID: <5105DA2A.9030105@cn.fujitsu.com>
-Date: Mon, 28 Jan 2013 09:53:46 +0800
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 20B9D6B0007
+	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 21:00:05 -0500 (EST)
+Message-ID: <5105D57D.3050900@cn.fujitsu.com>
+Date: Mon, 28 Jan 2013 09:33:49 +0800
 From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] acpi, memory-hotplug: Extend movablemem_map ranges
- to the end of node.
-References: <1359106929-3034-1-git-send-email-tangchen@cn.fujitsu.com> <1359106929-3034-3-git-send-email-tangchen@cn.fujitsu.com> <20130125163615.4f82bf9d.akpm@linux-foundation.org>
-In-Reply-To: <20130125163615.4f82bf9d.akpm@linux-foundation.org>
+Subject: Re: [PATCH Bug fix 0/5] Bug fix for physical memory hot-remove.
+References: <1358854984-6073-1-git-send-email-tangchen@cn.fujitsu.com> <1358944171.3351.1.camel@kernel> <20130125131740.GA1615@dhcp22.suse.cz>
+In-Reply-To: <20130125131740.GA1615@dhcp22.suse.cz>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Simon Jeons <simon.jeons@gmail.com>, akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, jiang.liu@huawei.com, julian.calaby@gmail.com, sfr@canb.auug.org.au, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
 
-Hi Andrew,
-
-On 01/26/2013 08:36 AM, Andrew Morton wrote:
->
-> The patch generates a bunch of rejects, partly due to linux-next
-> changes but I think I fixed everything up OK.
-
-Thank you for your fixing. :)
-
->
->> index 4ddf497..f841d0e 100644
->> --- a/arch/x86/mm/srat.c
->> +++ b/arch/x86/mm/srat.c
->> @@ -141,11 +141,16 @@ static inline int save_add_info(void) {return 1;}
->>   static inline int save_add_info(void) {return 0;}
->>   #endif
+On 01/25/2013 09:17 PM, Michal Hocko wrote:
+> On Wed 23-01-13 06:29:31, Simon Jeons wrote:
+>> On Tue, 2013-01-22 at 19:42 +0800, Tang Chen wrote:
+>>> Here are some bug fix patches for physical memory hot-remove. All these
+>>> patches are based on the latest -mm tree.
+>>> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git akpm
+>>>
+>>> And patch1 and patch3 are very important.
+>>> patch1: free compound pages when freeing memmap, otherwise the kernel
+>>>          will panic the next time memory is hot-added.
+>>> patch3: the old way of freeing pagetable pages was wrong. We should never
+>>>          split larger pages into small ones.
+>>>
+>>>
 >>
->> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->> +extern struct movablemem_map movablemem_map;
->> +#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->
-> Well.
->
-> a) we shouldn't put extern declarations in C files - put them in
->     headers so we can be assured that all compilation units agree on the
->     type.
-
-OK, got it. :)
-
->
-> b) the ifdefs are unneeded - a unused extern declaration is OK (as
->     long as the type itself is always defined!)
-
-I think struct movablemem_map is defined in mm.h, protected by 
-CONFIG_HAVE_MEMBLOCK_NODE_MAP.
-So the declaration needs to be protected by CONFIG_HAVE_MEMBLOCK_NODE_MAP.
-
->
-> c) movablemem_map is already declared in memblock.h.
-
-Hum, yes, it is defined in mm.h, included by memblock.h :)
-
->
-> So I zapped the above three lines.
->
->> @@ -178,9 +185,57 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+>> Hi Tang,
 >>
->>   	node_set(node, numa_nodes_parsed);
->>
->> -	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
->> +	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
->>   	       node, pxm,
->> -	       (unsigned long long) start, (unsigned long long) end - 1);
->> +	       (unsigned long long) start, (unsigned long long) end - 1,
->> +	       hotpluggable ? "Hot Pluggable": "");
->> +
->> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->> +	int overlap;
->> +	unsigned long start_pfn, end_pfn;
+>> I remember your big physical memory hot-remove patchset has already
+>> merged by Andrew, but where I can find it? Could you give me git tree
+>> address?
 >
-> no, we don't put declarations of locals in the middle of C statements
-> like this:
+> Andrew tree is also mirrored into a git tree.
+> http://git.kernel.org/?p=linux/kernel/git/mhocko/mm.git;a=summary
 >
-> arch/x86/mm/srat.c: In function 'acpi_numa_memory_affinity_init':
-> arch/x86/mm/srat.c:185: warning: ISO C90 forbids mixed declarations and code
->
-> Did your compiler not emit this warning?
+> It contains only Memory management patches on top of the last major
+> release (since-.X.Y branch).
 
-Sorry, I think it did, but I missed it.
-THanks for fixing that. :)
+Hi Michal,
 
->
-> I fixed this by moving the code into a new function
-> "handle_movablemem".  Feel free to suggest a more appropriate name!
->
->
-> From: Andrew Morton<akpm@linux-foundation.org>
-> Subject: acpi-memory-hotplug-extend-movablemem_map-ranges-to-the-end-of-node-fix
->
-> clean up code, fix build warning
->
-> Cc: "Brown, Len"<len.brown@intel.com>
-> Cc: "H. Peter Anvin"<hpa@zytor.com>
-> Cc: Ingo Molnar<mingo@elte.hu>
-> Cc: Jiang Liu<jiang.liu@huawei.com>
-> Cc: Jianguo Wu<wujianguo@huawei.com>
-> Cc: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> Cc: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Lai Jiangshan<laijs@cn.fujitsu.com>
-> Cc: Len Brown<lenb@kernel.org>
-> Cc: Tang Chen<tangchen@cn.fujitsu.com>
-> Cc: Thomas Gleixner<tglx@linutronix.de>
-> Cc: Wu Jianguo<wujianguo@huawei.com>
-> Cc: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Andrew Morton<akpm@linux-foundation.org>
-> ---
->
->   arch/x86/mm/srat.c |   93 ++++++++++++++++++++++---------------------
->   1 file changed, 49 insertions(+), 44 deletions(-)
->
-> diff -puN arch/x86/mm/srat.c~acpi-memory-hotplug-extend-movablemem_map-ranges-to-the-end-of-node-fix arch/x86/mm/srat.c
-> --- a/arch/x86/mm/srat.c~acpi-memory-hotplug-extend-movablemem_map-ranges-to-the-end-of-node-fix
-> +++ a/arch/x86/mm/srat.c
-> @@ -142,50 +142,8 @@ static inline int save_add_info(void) {r
->   #endif
->
->   #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> -extern struct movablemem_map movablemem_map;
-> -#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-> -
-> -/* Callback for parsing of the Proximity Domain<->  Memory Area mappings */
-> -int __init
-> -acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
-> +static void __init handle_movablemem(int node, u64 start, u64 end)
->   {
-> -	u64 start, end;
-> -	u32 hotpluggable;
-> -	int node, pxm;
-> -
-> -	if (srat_disabled())
-> -		goto out_err;
-> -	if (ma->header.length != sizeof(struct acpi_srat_mem_affinity))
-> -		goto out_err_bad_srat;
-> -	if ((ma->flags&  ACPI_SRAT_MEM_ENABLED) == 0)
-> -		goto out_err;
-> -	hotpluggable = ma->flags&  ACPI_SRAT_MEM_HOT_PLUGGABLE;
-> -	if (hotpluggable&&  !save_add_info())
-> -		goto out_err;
-> -
-> -	start = ma->base_address;
-> -	end = start + ma->length;
-> -	pxm = ma->proximity_domain;
-> -	if (acpi_srat_revision<= 1)
-> -		pxm&= 0xff;
-> -
-> -	node = setup_node(pxm);
-> -	if (node<  0) {
-> -		printk(KERN_ERR "SRAT: Too many proximity domains.\n");
-> -		goto out_err_bad_srat;
-> -	}
-> -
-> -	if (numa_add_memblk(node, start, end)<  0)
-> -		goto out_err_bad_srat;
-> -
-> -	node_set(node, numa_nodes_parsed);
-> -
-> -	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
-> -	       node, pxm,
-> -	       (unsigned long long) start, (unsigned long long) end - 1,
-> -	       hotpluggable ? "Hot Pluggable": "");
-> -
-> -#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->   	int overlap;
->   	unsigned long start_pfn, end_pfn;
->
-> @@ -229,7 +187,54 @@ acpi_numa_memory_affinity_init(struct ac
->   			 */
->   			insert_movablemem_map(start_pfn, end_pfn);
->   	}
-> -#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-> +}
-> +#else		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-> +static inline void handle_movablemem(int node, u64 start, u64 end)
-> +{
-> +}
-> +#endif		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-> +
-> +/* Callback for parsing of the Proximity Domain<->  Memory Area mappings */
-> +int __init
-> +acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
-> +{
-> +	u64 start, end;
-> +	u32 hotpluggable;
-> +	int node, pxm;
-> +
-> +	if (srat_disabled())
-> +		goto out_err;
-> +	if (ma->header.length != sizeof(struct acpi_srat_mem_affinity))
-> +		goto out_err_bad_srat;
-> +	if ((ma->flags&  ACPI_SRAT_MEM_ENABLED) == 0)
-> +		goto out_err;
-> +	hotpluggable = ma->flags&  ACPI_SRAT_MEM_HOT_PLUGGABLE;
-> +	if (hotpluggable&&  !save_add_info())
-> +		goto out_err;
-> +
-> +	start = ma->base_address;
-> +	end = start + ma->length;
-> +	pxm = ma->proximity_domain;
-> +	if (acpi_srat_revision<= 1)
-> +		pxm&= 0xff;
-> +
-> +	node = setup_node(pxm);
-> +	if (node<  0) {
-> +		printk(KERN_ERR "SRAT: Too many proximity domains.\n");
-> +		goto out_err_bad_srat;
-> +	}
-> +
-> +	if (numa_add_memblk(node, start, end)<  0)
-> +		goto out_err_bad_srat;
-> +
-> +	node_set(node, numa_nodes_parsed);
-> +
-> +	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
-> +	       node, pxm,
-> +	       (unsigned long long) start, (unsigned long long) end - 1,
-> +	       hotpluggable ? "Hot Pluggable": "");
-> +
-> +	handle_movablemem(node, start, end);
->
->   	return 0;
->   out_err_bad_srat:
-> diff -puN include/linux/mm.h~acpi-memory-hotplug-extend-movablemem_map-ranges-to-the-end-of-node-fix include/linux/mm.h
-> diff -puN mm/page_alloc.c~acpi-memory-hotplug-extend-movablemem_map-ranges-to-the-end-of-node-fix mm/page_alloc.c
-> _
->
->
+I'm not sure I got your meaning. :)
+
+In http://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git akpm,
+I can find the following commit.
+
+commit deed0460e01b3968f2cf46fb94851936535b7e0d
+Author: Tang Chen <tangchen@cn.fujitsu.com>
+Date:   Sat Jan 19 11:07:13 2013 +1100
+
+     memory-hotplug: do not allocate pgdat if it was not freed when 
+offline.
+
+
+This is one of memory hot-remove patches. Please try to update the 
+mirror tree,
+and try to find the above commit.
+
+Thanks. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
