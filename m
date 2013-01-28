@@ -1,102 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 652036B0009
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 20:00:13 -0500 (EST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] zsmalloc: Fix TLB coherency and build problem
-Date: Mon, 28 Jan 2013 10:00:08 +0900
-Message-Id: <1359334808-19794-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 697FC6B0007
+	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 20:23:05 -0500 (EST)
+Message-ID: <5105D2C8.1000807@cn.fujitsu.com>
+Date: Mon, 28 Jan 2013 09:22:16 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH Bug fix 0/5] Bug fix for physical memory hot-remove.
+References: <1358854984-6073-1-git-send-email-tangchen@cn.fujitsu.com> <1359137977.14145.417.camel@misato.fc.hp.com>
+In-Reply-To: <1359137977.14145.417.camel@misato.fc.hp.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Matt Sealey <matt@genesi-usa.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Russell King <linux@arm.linux.org.uk>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, jiang.liu@huawei.com, julian.calaby@gmail.com, sfr@canb.auug.org.au, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org
 
-Recently, Matt Sealey reported he fail to build zsmalloc caused by
-using of local_flush_tlb_kernel_range which are architecture dependent
-function so !CONFIG_SMP in ARM couldn't implement it so it ends up
-build error following as.
+On 01/26/2013 02:19 AM, Toshi Kani wrote:
+> On Tue, 2013-01-22 at 19:42 +0800, Tang Chen wrote:
+>> Here are some bug fix patches for physical memory hot-remove. All these
+>> patches are based on the latest -mm tree.
+>> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git akpm
+>>
+>> And patch1 and patch3 are very important.
+>> patch1: free compound pages when freeing memmap, otherwise the kernel
+>>          will panic the next time memory is hot-added.
+>> patch3: the old way of freeing pagetable pages was wrong. We should never
+>>          split larger pages into small ones.
+>>
+>>
+>> Lai Jiangshan (1):
+>>    Bug-fix: mempolicy: fix is_valid_nodemask()
+>>
+>> Tang Chen (3):
+>>    Bug fix: Do not split pages when freeing pagetable pages.
+>>    Bug fix: Fix section mismatch problem of
+>>      release_firmware_map_entry().
+>>    Bug fix: Fix the doc format in drivers/firmware/memmap.c
+>>
+>> Wen Congyang (1):
+>>    Bug fix: consider compound pages when free memmap
+>>
+>>   arch/x86/mm/init_64.c     |  148 ++++++++++++++-------------------------------
+>>   drivers/firmware/memmap.c |   16 +++---
+>>   mm/mempolicy.c            |   36 +++++++----
+>>   mm/sparse.c               |    2 +-
+>>   4 files changed, 77 insertions(+), 125 deletions(-)
+>
+> This patchset fixed a blocker panic I was hitting in my memory hot-plug
+> testing.  Memory hotplug works fine with this patchset (for testing my
+> hotplug framework patchset :).  For the series:
 
-  MODPOST 216 modules
-  LZMA    arch/arm/boot/compressed/piggy.lzma
-  AS      arch/arm/boot/compressed/lib1funcs.o
-ERROR: "v7wbi_flush_kern_tlb_range"
-[drivers/staging/zsmalloc/zsmalloc.ko] undefined!
-make[1]: *** [__modpost] Error 1
-make: *** [modules] Error 2
-make: *** Waiting for unfinished jobs....
+Hi Toshi-san,
 
-The reason we used that function is copy method by [1]
-was really slow in ARM but at that time.
+Thank you for testing. :)
 
-More severe problem is ARM can prefetch speculatively on other CPUs
-so under us, other TLBs can have an entry only if we do flush local
-CPU. Russell King pointed that. Thanks!
-We don't have many choices except using flush_tlb_kernel_range.
-
-My experiment in ARMv7 processor 4 core didn't make any difference with
-zsmapbench[2] between local_flush_tlb_kernel_range and flush_tlb_kernel_range
-but still page-table based is much better than copy-based.
-
-* bigger is better.
-
-1. local_flush_tlb_kernel_range: 3918795 mappings
-2. flush_tlb_kernel_range : 3989538 mappings
-3. copy-based: 635158 mappings
-
-This patch replace local_flush_tlb_kernel_range with
-flush_tlb_kernel_range which are avaialbe in all architectures
-because we already have used it in vmalloc allocator which are
-generic one so build problem should go away and performane loss
-shoud be void.
-
-[1] f553646, zsmalloc: add page table mapping method
-[2] https://github.com/spartacus06/zsmapbench
-
-Cc: stable@vger.kernel.org
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Russell King <linux@arm.linux.org.uk>
-Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: Nitin Gupta <ngupta@vflare.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Reported-by: Matt Sealey <matt@genesi-usa.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
-
-Matt, Could you test this patch?
-
- drivers/staging/zsmalloc/zsmalloc-main.c |   10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
-
-diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-index eb00772..82e627c 100644
---- a/drivers/staging/zsmalloc/zsmalloc-main.c
-+++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-@@ -222,11 +222,9 @@ struct zs_pool {
- /*
-  * By default, zsmalloc uses a copy-based object mapping method to access
-  * allocations that span two pages. However, if a particular architecture
-- * 1) Implements local_flush_tlb_kernel_range() and 2) Performs VM mapping
-- * faster than copying, then it should be added here so that
-- * USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use page table
-- * mapping rather than copying
-- * for object mapping.
-+ * performs VM mapping faster than copying, then it should be added here
-+ * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
-+ * page table mapping rather than copying for object mapping.
- */
- #if defined(CONFIG_ARM)
- #define USE_PGTABLE_MAPPING
-@@ -663,7 +661,7 @@ static inline void __zs_unmap_object(struct mapping_area *area,
- 
- 	flush_cache_vunmap(addr, end);
- 	unmap_kernel_range_noflush(addr, PAGE_SIZE * 2);
--	local_flush_tlb_kernel_range(addr, end);
-+	flush_tlb_kernel_range(addr, end);
- }
- 
- #else /* USE_PGTABLE_MAPPING */
--- 
-1.7.9.5
+>
+> Tested-by: Toshi Kani<toshi.kani@hp.com>
+>
+> Thanks,
+> -Toshi
+>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
