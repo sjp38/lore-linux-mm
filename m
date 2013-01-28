@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id E26056B0011
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 04:23:38 -0500 (EST)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 8EE586B0025
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 04:23:39 -0500 (EST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 12/16] thp, libfs: initial support of thp in simple_read/write_begin/write_end
-Date: Mon, 28 Jan 2013 11:24:24 +0200
-Message-Id: <1359365068-10147-13-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 05/16] thp, mm: basic defines for transparent huge page cache
+Date: Mon, 28 Jan 2013 11:24:17 +0200
+Message-Id: <1359365068-10147-6-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,100 +15,37 @@ Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For now we try to grab a huge cache page if gfp_mask has __GFP_COMP.
-It's probably to weak condition and need to be reworked later.
-
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/libfs.c |   54 ++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 42 insertions(+), 12 deletions(-)
+ include/linux/huge_mm.h |    8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/fs/libfs.c b/fs/libfs.c
-index 916da8c..a4530d5 100644
---- a/fs/libfs.c
-+++ b/fs/libfs.c
-@@ -383,7 +383,10 @@ EXPORT_SYMBOL(simple_setattr);
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index ee1c244..a54939c 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -64,6 +64,10 @@ extern pmd_t *page_check_address_pmd(struct page *page,
+ #define HPAGE_PMD_MASK HPAGE_MASK
+ #define HPAGE_PMD_SIZE HPAGE_SIZE
  
- int simple_readpage(struct file *file, struct page *page)
- {
--	clear_highpage(page);
-+	if (PageTransHuge(page))
-+		zero_huge_user(page, 0, HPAGE_PMD_SIZE);
-+	else
-+		clear_highpage(page);
- 	flush_dcache_page(page);
- 	SetPageUptodate(page);
- 	unlock_page(page);
-@@ -394,21 +397,43 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
- 			loff_t pos, unsigned len, unsigned flags,
- 			struct page **pagep, void **fsdata)
- {
--	struct page *page;
-+	struct page *page = NULL;
- 	pgoff_t index;
-+	gfp_t gfp_mask;
- 
- 	index = pos >> PAGE_CACHE_SHIFT;
--
--	page = grab_cache_page_write_begin(mapping, index, flags);
-+	gfp_mask = mapping_gfp_mask(mapping);
++#define HPAGE_CACHE_ORDER      (HPAGE_SHIFT - PAGE_CACHE_SHIFT)
++#define HPAGE_CACHE_NR         (1L << HPAGE_CACHE_ORDER)
++#define HPAGE_CACHE_INDEX_MASK (HPAGE_CACHE_NR - 1)
 +
-+	/* XXX: too weak condition. Good enough for initial testing */
-+	if (gfp_mask & __GFP_COMP) {
-+		page = grab_cache_huge_page_write_begin(mapping,
-+				index & ~HPAGE_CACHE_INDEX_MASK, flags);
-+		/* fallback to small page */
-+		if (!page || !PageTransHuge(page)) {
-+			unsigned long offset;
-+			offset = pos & ~PAGE_CACHE_MASK;
-+			len = min_t(unsigned long,
-+					len, PAGE_CACHE_SIZE - offset);
-+		}
-+	}
-+	if (!page)
-+		page = grab_cache_page_write_begin(mapping, index, flags);
- 	if (!page)
- 		return -ENOMEM;
--
- 	*pagep = page;
+ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
  
--	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
--		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
--
--		zero_user_segments(page, 0, from, from + len, PAGE_CACHE_SIZE);
-+	if (!PageUptodate(page)) {
-+		unsigned from;
+ #define transparent_hugepage_enabled(__vma)				\
+@@ -181,6 +185,10 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
+ #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
+ #define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
+ 
++#define HPAGE_CACHE_ORDER      ({ BUILD_BUG(); 0; })
++#define HPAGE_CACHE_NR         ({ BUILD_BUG(); 0; })
++#define HPAGE_CACHE_INDEX_MASK ({ BUILD_BUG(); 0; })
 +
-+		if (PageTransHuge(page) && len != HPAGE_PMD_SIZE) {
-+			from = pos & ~HPAGE_PMD_MASK;
-+			zero_huge_user_segments(page, 0, from,
-+					from + len, HPAGE_PMD_SIZE);
-+		} else if (len != PAGE_CACHE_SIZE) {
-+			from = pos & ~PAGE_CACHE_MASK;
-+			zero_user_segments(page, 0, from,
-+					from + len, PAGE_CACHE_SIZE);
-+		}
- 	}
- 	return 0;
- }
-@@ -443,9 +468,14 @@ int simple_write_end(struct file *file, struct address_space *mapping,
+ #define hpage_nr_pages(x) 1
  
- 	/* zero the stale part of the page if we did a short copy */
- 	if (copied < len) {
--		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
--
--		zero_user(page, from + copied, len - copied);
-+		unsigned from;
-+		if (PageTransHuge(page)) {
-+			from = pos & ~HPAGE_PMD_MASK;
-+			zero_huge_user(page, from + copied, len - copied);
-+		} else {
-+			from = pos & ~PAGE_CACHE_MASK;
-+			zero_user(page, from + copied, len - copied);
-+		}
- 	}
- 
- 	if (!PageUptodate(page))
+ #define transparent_hugepage_enabled(__vma) 0
 -- 
 1.7.10.4
 
