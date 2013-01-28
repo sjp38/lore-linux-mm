@@ -1,94 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 8AA896B0002
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 10:58:34 -0500 (EST)
-From: Lord Glauber Costa of Sealand <glommer@parallels.com>
-Subject: [PATCH] cfq: fix lock imbalance with failed allocations
-Date: Mon, 28 Jan 2013 19:58:47 +0400
-Message-Id: <1359388727-28147-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id C5FFE6B0005
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:05:09 -0500 (EST)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 28 Jan 2013 12:04:40 -0500
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 2EEF1C90045
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:02:09 -0500 (EST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0SH268d246220
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:02:06 -0500
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0SH3p5N022041
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 10:03:51 -0700
+Message-ID: <5106AEE8.4060003@linux.vnet.ibm.com>
+Date: Mon, 28 Jan 2013 11:01:28 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/4] staging: zsmalloc: add gfp flags to zs_create_pool
+References: <1359135978-15119-1-git-send-email-sjenning@linux.vnet.ibm.com> <1359135978-15119-2-git-send-email-sjenning@linux.vnet.ibm.com> <20130128033944.GB3321@blaptop>
+In-Reply-To: <20130128033944.GB3321@blaptop>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
 
-From: Glauber Costa <glommer@parallels.com>
+On 01/27/2013 09:39 PM, Minchan Kim wrote:
+> Hi Seth,
+> 
+> On Fri, Jan 25, 2013 at 11:46:15AM -0600, Seth Jennings wrote:
+>> zs_create_pool() currently takes a gfp flags argument
+>> that is used when growing the memory pool.  However
+>> it is not used in allocating the metadata for the pool
+>> itself.  That is currently hardcoded to GFP_KERNEL.
+>>
+>> zswap calls zs_create_pool() at swapon time which is done
+>> in atomic context, resulting in a "might sleep" warning.
+>>
+>> This patch changes the meaning of the flags argument in
+>> zs_create_pool() to mean the flags for the metadata allocation,
+>> and adds a flags argument to zs_malloc that will be used for
+>> memory pool growth if required.
+> 
+> As I mentioned, I'm not strongly against with this patch but it
+> should be last resort in case of not being able to address
+> frontswap's init routine's dependency with swap_lock.
+> 
+> I sent a patch and am waiting reply of Konrand or Dan.
+> If we can fix frontswap, it would be better rather than
+> changing zsmalloc.
 
-While stress-running very-small container scenarios with the Kernel
-Memory Controller, I've run into a lockdep-detected lock imbalance in
-cfq-iosched.c.
+I agree that moving the call to frontswap_init() out of the swap_lock
+would be a good thing.  However, it doesn't mean that we still
+shouldn't allow the users to control the gfp mask for the allocation
+done by zs_create_pool(). While moving the frontswap_init() outside
+the lock removes the _need_ for this patch, I think that is it good
+API design to allow the user to specify the gfp mask.
 
-I'll apologize beforehand for not posting a backlog: I didn't anticipate
-it would be so hard to reproduce, so I didn't save my serial output and
-went directly on debugging. Turns out that it did not happen again in
-more than 20 runs, making it a quite rare pattern.
-
-But here is my analysis:
-
-When we are in very low-memory situations, we will arrive at
-cfq_find_alloc_queue and may not find a queue, having to resort to the
-oom queue, in an rcu-locked condition:
-
-  if (!cfqq || cfqq == &cfqd->oom_cfqq)
-      [ ... ]
-
-Next, we will release the rcu lock, and try to allocate a queue,
-retrying if we succeed:
-
-  rcu_read_unlock();
-  spin_unlock_irq(cfqd->queue->queue_lock);
-  new_cfqq = kmem_cache_alloc_node(cfq_pool,
-                  gfp_mask | __GFP_ZERO,
-                  cfqd->queue->node);
-   spin_lock_irq(cfqd->queue->queue_lock);
-   if (new_cfqq)
-       goto retry;
-
-We are unlocked at this point, but it should be fine, since we will
-reacquire the rcu_read_lock when we retry.
-
-Except of course, that we may not retry: the allocation may very well
-fail and we'll keep on going through the flow:
-
-The next branch is:
-
-    if (cfqq) {
-	[ ... ]
-    } else
-        cfqq = &cfqd->oom_cfqq;
-
-And right before exiting, we'll issue rcu_read_unlock().
-
-Being already unlocked, this is the likely source of our imbalance.
-Since cfqq is either already NULL or made NULL in the first statement of
-the outter branch, the only viable alternative here seems to be to
-return the oom queue right away in case of allocation failure.
-
-Please review the following patch and apply if you agree with my
-analysis.
-
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>
----
- block/cfq-iosched.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/block/cfq-iosched.c b/block/cfq-iosched.c
-index fb52df9..d52437a 100644
---- a/block/cfq-iosched.c
-+++ b/block/cfq-iosched.c
-@@ -3205,6 +3205,8 @@ retry:
- 			spin_lock_irq(cfqd->queue->queue_lock);
- 			if (new_cfqq)
- 				goto retry;
-+			else
-+				return &cfqd->oom_cfqq;
- 		} else {
- 			cfqq = kmem_cache_alloc_node(cfq_pool,
- 					gfp_mask | __GFP_ZERO,
--- 
-1.8.1
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
