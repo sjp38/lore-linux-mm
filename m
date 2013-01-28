@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 3F91D6B0007
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 04:23:33 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 521926B0009
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 04:23:34 -0500 (EST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 00/16] Transparent huge page cache
-Date: Mon, 28 Jan 2013 11:24:12 +0200
-Message-Id: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 01/16] block: implement add_bdi_stat()
+Date: Mon, 28 Jan 2013 11:24:13 +0200
+Message-Id: <1359365068-10147-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
@@ -13,61 +15,34 @@ Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Here's first steps towards huge pages in page cache.
+It's required for batched stats update.
 
-The intend of the work is get code ready to enable transparent huge page
-cache for the most simple fs -- ramfs.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/backing-dev.h |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-It's not yet near feature-complete. It only provides basic infrastructure.
-At the moment we can read, write and truncate file on ramfs with huge pages in
-page cache. The most interesting part, mmap(), is not yet there. For now
-we split huge page on mmap() attempt.
-
-I can't say that I see whole picture. I'm not sure if I understand locking
-model around split_huge_page(). Probably, not.
-Andrea, could you check if it looks correct?
-
-Next steps (not necessary in this order):
- - mmap();
- - migration (?);
- - collapse;
- - stats, knobs, etc.;
- - tmpfs/shmem enabling;
- - ...
-
-Kirill A. Shutemov (16):
-  block: implement add_bdi_stat()
-  mm: implement zero_huge_user_segment and friends
-  mm: drop actor argument of do_generic_file_read()
-  radix-tree: implement preload for multiple contiguous elements
-  thp, mm: basic defines for transparent huge page cache
-  thp, mm: rewrite add_to_page_cache_locked() to support huge pages
-  thp, mm: rewrite delete_from_page_cache() to support huge pages
-  thp, mm: locking tail page is a bug
-  thp, mm: handle tail pages in page_cache_get_speculative()
-  thp, mm: implement grab_cache_huge_page_write_begin()
-  thp, mm: naive support of thp in generic read/write routines
-  thp, libfs: initial support of thp in
-    simple_read/write_begin/write_end
-  thp: handle file pages in split_huge_page()
-  thp, mm: truncate support for transparent huge page cache
-  thp, mm: split huge page on mmap file page
-  ramfs: enable transparent huge page cache
-
- fs/libfs.c                  |   54 +++++++++---
- fs/ramfs/inode.c            |    6 +-
- include/linux/backing-dev.h |   10 +++
- include/linux/huge_mm.h     |    8 ++
- include/linux/mm.h          |   15 ++++
- include/linux/pagemap.h     |   14 ++-
- include/linux/radix-tree.h  |    3 +
- lib/radix-tree.c            |   32 +++++--
- mm/filemap.c                |  204 +++++++++++++++++++++++++++++++++++--------
- mm/huge_memory.c            |   62 +++++++++++--
- mm/memory.c                 |   22 +++++
- mm/truncate.c               |   12 +++
- 12 files changed, 375 insertions(+), 67 deletions(-)
-
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 3504599..b05d961 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -167,6 +167,16 @@ static inline void __dec_bdi_stat(struct backing_dev_info *bdi,
+ 	__add_bdi_stat(bdi, item, -1);
+ }
+ 
++static inline void add_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item, s64 amount)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__add_bdi_stat(bdi, item, amount);
++	local_irq_restore(flags);
++}
++
+ static inline void dec_bdi_stat(struct backing_dev_info *bdi,
+ 		enum bdi_stat_item item)
+ {
 -- 
 1.7.10.4
 
