@@ -1,88 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id A5FEE6B0007
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 20:42:01 -0500 (EST)
-Received: by mail-ie0-f173.google.com with SMTP id e13so721523iej.4
-        for <linux-mm@kvack.org>; Sun, 27 Jan 2013 17:42:01 -0800 (PST)
-Message-ID: <1359337321.6763.18.camel@kernel>
-Subject: Re: [PATCH 6/11] ksm: remove old stable nodes more thoroughly
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Sun, 27 Jan 2013 19:42:01 -0600
-In-Reply-To: <alpine.LNX.2.00.1301271451130.17495@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
-	 <alpine.LNX.2.00.1301251800550.29196@eggly.anvils>
-	 <1359262556.4159.23.camel@kernel>
-	 <alpine.LNX.2.00.1301271451130.17495@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 9F2A16B0007
+	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 20:54:36 -0500 (EST)
+Message-ID: <5105DA2A.9030105@cn.fujitsu.com>
+Date: Mon, 28 Jan 2013 09:53:46 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3] acpi, memory-hotplug: Extend movablemem_map ranges
+ to the end of node.
+References: <1359106929-3034-1-git-send-email-tangchen@cn.fujitsu.com> <1359106929-3034-3-git-send-email-tangchen@cn.fujitsu.com> <20130125163615.4f82bf9d.akpm@linux-foundation.org>
+In-Reply-To: <20130125163615.4f82bf9d.akpm@linux-foundation.org>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, 2013-01-27 at 15:05 -0800, Hugh Dickins wrote:
-> On Sat, 26 Jan 2013, Simon Jeons wrote:
-> > On Fri, 2013-01-25 at 18:01 -0800, Hugh Dickins wrote:
-> > > Switching merge_across_nodes after running KSM is liable to oops on stale
-> > > nodes still left over from the previous stable tree.  It's not something
-> > > that people will often want to do, but it would be lame to demand a reboot
-> > > when they're trying to determine which merge_across_nodes setting is best.
-> > > 
-> > > How can this happen?  We only permit switching merge_across_nodes when
-> > > pages_shared is 0, and usually set run 2 to force that beforehand, which
-> > > ought to unmerge everything: yet oopses still occur when you then run 1.
-> > > 
-> > > Three causes:
-> > > 
-> > > 1. The old stable tree (built according to the inverse merge_across_nodes)
-                                                   ^^^^^^^^^^^^^^^^^^^^^
-How to understand inverse merge_across_nodes here?
+Hi Andrew,
 
-> > > has not been fully torn down.  A stable node lingers until get_ksm_page()
-> > > notices that the page it references no longer references it: but the page
+On 01/26/2013 08:36 AM, Andrew Morton wrote:
+>
+> The patch generates a bunch of rejects, partly due to linux-next
+> changes but I think I fixed everything up OK.
 
-Do you mean page->mapping is NULL when call get_ksm_page()? Who clear it
-NULL?
+Thank you for your fixing. :)
 
-> > > is not necessarily freed as soon as expected, particularly when swapcache.
+>
+>> index 4ddf497..f841d0e 100644
+>> --- a/arch/x86/mm/srat.c
+>> +++ b/arch/x86/mm/srat.c
+>> @@ -141,11 +141,16 @@ static inline int save_add_info(void) {return 1;}
+>>   static inline int save_add_info(void) {return 0;}
+>>   #endif
+>>
+>> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>> +extern struct movablemem_map movablemem_map;
+>> +#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+>
+> Well.
+>
+> a) we shouldn't put extern declarations in C files - put them in
+>     headers so we can be assured that all compilation units agree on the
+>     type.
 
-Why is not necessarily freed as soon as expected?
+OK, got it. :)
 
-> > > 
-> > 
-> > When can this happen?  
-> 
-> Whenever there's an additional reference to the page, beyond those for
-> its ptes in userspace - swapcache for example, or pinned by get_user_pages.
-> That delays its being freed (arriving at the "page->mapping = NULL;"
-> in free_pages_prepare()).  Or it might simply be sitting in a pagevec,
-> waiting for that to be filled up, to be freed as part of a batch.
-> 
-> > 
-> > > Fix this with a pass through the old stable tree, applying get_ksm_page()
-> > > to each of the remaining nodes (most found stale and removed immediately),
-> > > with forced removal of any left over.  Unless the page is still mapped:
-> > > I've not seen that case, it shouldn't occur, but better to WARN_ON_ONCE
-> > > and EBUSY than BUG.
-> > > 
-> > > 2. __ksm_enter() has a nice little optimization, to insert the new mm
-> > > just behind ksmd's cursor, so there's a full pass for it to stabilize
-> > > (or be removed) before ksmd addresses it.  Nice when ksmd is running,
-> > > but not so nice when we're trying to unmerge all mms: we were missing
-> > > those mms forked and inserted behind the unmerge cursor.  Easily fixed
-> > > by inserting at the end when KSM_RUN_UNMERGE.
-> > 
-> > mms forked will be unmerged just after ksmd's cursor since they're
-> > inserted behind it, why will be missing?
-> 
-> unmerge_and_remove_all_rmap_items() makes one pass through the list
-> from start to finish: insert behind the cursor and it will be missed.
+>
+> b) the ifdefs are unneeded - a unused extern declaration is OK (as
+>     long as the type itself is always defined!)
 
-Since mms forked will be insert just after ksmd's cursor, so it is the
-next which will be scan and unmerge, where I miss?
+I think struct movablemem_map is defined in mm.h, protected by 
+CONFIG_HAVE_MEMBLOCK_NODE_MAP.
+So the declaration needs to be protected by CONFIG_HAVE_MEMBLOCK_NODE_MAP.
 
+>
+> c) movablemem_map is already declared in memblock.h.
 
+Hum, yes, it is defined in mm.h, included by memblock.h :)
+
+>
+> So I zapped the above three lines.
+>
+>> @@ -178,9 +185,57 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+>>
+>>   	node_set(node, numa_nodes_parsed);
+>>
+>> -	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
+>> +	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
+>>   	       node, pxm,
+>> -	       (unsigned long long) start, (unsigned long long) end - 1);
+>> +	       (unsigned long long) start, (unsigned long long) end - 1,
+>> +	       hotpluggable ? "Hot Pluggable": "");
+>> +
+>> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>> +	int overlap;
+>> +	unsigned long start_pfn, end_pfn;
+>
+> no, we don't put declarations of locals in the middle of C statements
+> like this:
+>
+> arch/x86/mm/srat.c: In function 'acpi_numa_memory_affinity_init':
+> arch/x86/mm/srat.c:185: warning: ISO C90 forbids mixed declarations and code
+>
+> Did your compiler not emit this warning?
+
+Sorry, I think it did, but I missed it.
+THanks for fixing that. :)
+
+>
+> I fixed this by moving the code into a new function
+> "handle_movablemem".  Feel free to suggest a more appropriate name!
+>
+>
+> From: Andrew Morton<akpm@linux-foundation.org>
+> Subject: acpi-memory-hotplug-extend-movablemem_map-ranges-to-the-end-of-node-fix
+>
+> clean up code, fix build warning
+>
+> Cc: "Brown, Len"<len.brown@intel.com>
+> Cc: "H. Peter Anvin"<hpa@zytor.com>
+> Cc: Ingo Molnar<mingo@elte.hu>
+> Cc: Jiang Liu<jiang.liu@huawei.com>
+> Cc: Jianguo Wu<wujianguo@huawei.com>
+> Cc: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Cc: Kamezawa Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Lai Jiangshan<laijs@cn.fujitsu.com>
+> Cc: Len Brown<lenb@kernel.org>
+> Cc: Tang Chen<tangchen@cn.fujitsu.com>
+> Cc: Thomas Gleixner<tglx@linutronix.de>
+> Cc: Wu Jianguo<wujianguo@huawei.com>
+> Cc: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
+> Signed-off-by: Andrew Morton<akpm@linux-foundation.org>
+> ---
+>
+>   arch/x86/mm/srat.c |   93 ++++++++++++++++++++++---------------------
+>   1 file changed, 49 insertions(+), 44 deletions(-)
+>
+> diff -puN arch/x86/mm/srat.c~acpi-memory-hotplug-extend-movablemem_map-ranges-to-the-end-of-node-fix arch/x86/mm/srat.c
+> --- a/arch/x86/mm/srat.c~acpi-memory-hotplug-extend-movablemem_map-ranges-to-the-end-of-node-fix
+> +++ a/arch/x86/mm/srat.c
+> @@ -142,50 +142,8 @@ static inline int save_add_info(void) {r
+>   #endif
+>
+>   #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> -extern struct movablemem_map movablemem_map;
+> -#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+> -
+> -/* Callback for parsing of the Proximity Domain<->  Memory Area mappings */
+> -int __init
+> -acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+> +static void __init handle_movablemem(int node, u64 start, u64 end)
+>   {
+> -	u64 start, end;
+> -	u32 hotpluggable;
+> -	int node, pxm;
+> -
+> -	if (srat_disabled())
+> -		goto out_err;
+> -	if (ma->header.length != sizeof(struct acpi_srat_mem_affinity))
+> -		goto out_err_bad_srat;
+> -	if ((ma->flags&  ACPI_SRAT_MEM_ENABLED) == 0)
+> -		goto out_err;
+> -	hotpluggable = ma->flags&  ACPI_SRAT_MEM_HOT_PLUGGABLE;
+> -	if (hotpluggable&&  !save_add_info())
+> -		goto out_err;
+> -
+> -	start = ma->base_address;
+> -	end = start + ma->length;
+> -	pxm = ma->proximity_domain;
+> -	if (acpi_srat_revision<= 1)
+> -		pxm&= 0xff;
+> -
+> -	node = setup_node(pxm);
+> -	if (node<  0) {
+> -		printk(KERN_ERR "SRAT: Too many proximity domains.\n");
+> -		goto out_err_bad_srat;
+> -	}
+> -
+> -	if (numa_add_memblk(node, start, end)<  0)
+> -		goto out_err_bad_srat;
+> -
+> -	node_set(node, numa_nodes_parsed);
+> -
+> -	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
+> -	       node, pxm,
+> -	       (unsigned long long) start, (unsigned long long) end - 1,
+> -	       hotpluggable ? "Hot Pluggable": "");
+> -
+> -#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>   	int overlap;
+>   	unsigned long start_pfn, end_pfn;
+>
+> @@ -229,7 +187,54 @@ acpi_numa_memory_affinity_init(struct ac
+>   			 */
+>   			insert_movablemem_map(start_pfn, end_pfn);
+>   	}
+> -#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+> +}
+> +#else		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+> +static inline void handle_movablemem(int node, u64 start, u64 end)
+> +{
+> +}
+> +#endif		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+> +
+> +/* Callback for parsing of the Proximity Domain<->  Memory Area mappings */
+> +int __init
+> +acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+> +{
+> +	u64 start, end;
+> +	u32 hotpluggable;
+> +	int node, pxm;
+> +
+> +	if (srat_disabled())
+> +		goto out_err;
+> +	if (ma->header.length != sizeof(struct acpi_srat_mem_affinity))
+> +		goto out_err_bad_srat;
+> +	if ((ma->flags&  ACPI_SRAT_MEM_ENABLED) == 0)
+> +		goto out_err;
+> +	hotpluggable = ma->flags&  ACPI_SRAT_MEM_HOT_PLUGGABLE;
+> +	if (hotpluggable&&  !save_add_info())
+> +		goto out_err;
+> +
+> +	start = ma->base_address;
+> +	end = start + ma->length;
+> +	pxm = ma->proximity_domain;
+> +	if (acpi_srat_revision<= 1)
+> +		pxm&= 0xff;
+> +
+> +	node = setup_node(pxm);
+> +	if (node<  0) {
+> +		printk(KERN_ERR "SRAT: Too many proximity domains.\n");
+> +		goto out_err_bad_srat;
+> +	}
+> +
+> +	if (numa_add_memblk(node, start, end)<  0)
+> +		goto out_err_bad_srat;
+> +
+> +	node_set(node, numa_nodes_parsed);
+> +
+> +	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
+> +	       node, pxm,
+> +	       (unsigned long long) start, (unsigned long long) end - 1,
+> +	       hotpluggable ? "Hot Pluggable": "");
+> +
+> +	handle_movablemem(node, start, end);
+>
+>   	return 0;
+>   out_err_bad_srat:
+> diff -puN include/linux/mm.h~acpi-memory-hotplug-extend-movablemem_map-ranges-to-the-end-of-node-fix include/linux/mm.h
+> diff -puN mm/page_alloc.c~acpi-memory-hotplug-extend-movablemem_map-ranges-to-the-end-of-node-fix mm/page_alloc.c
+> _
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
