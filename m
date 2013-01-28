@@ -1,76 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 3AC116B0005
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:41:31 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 28 Jan 2013 12:41:29 -0500
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 1FDC1C9003C
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:41:27 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0SHfQ9x314720
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:41:26 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0SHfQWt020563
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 15:41:26 -0200
-Message-ID: <5106B83E.2030804@linux.vnet.ibm.com>
-Date: Mon, 28 Jan 2013 11:41:18 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 732296B0005
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:45:48 -0500 (EST)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH 3/3] acpi, memory-hotplug: Support getting hotplug info
+ from SRAT.
+Date: Mon, 28 Jan 2013 17:45:37 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F1C98F9CB@ORSMSX108.amr.corp.intel.com>
+References: <1359106929-3034-1-git-send-email-tangchen@cn.fujitsu.com>
+ <1359106929-3034-4-git-send-email-tangchen@cn.fujitsu.com>
+ <20130125171230.34c5a273.akpm@linux-foundation.org>
+ <51033186.3000706@zytor.com> <5105DD4B.9020901@cn.fujitsu.com>
+In-Reply-To: <5105DD4B.9020901@cn.fujitsu.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCHv2 6/9] zsmalloc: promote to lib/
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-7-git-send-email-sjenning@linux.vnet.ibm.com> <20130128040116.GF3321@blaptop> <20130128043257.GH3321@blaptop>
-In-Reply-To: <20130128043257.GH3321@blaptop>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Tang Chen <tangchen@cn.fujitsu.com>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "rob@landley.net" <rob@landley.net>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "guz.fnst@cn.fujitsu.com" <guz.fnst@cn.fujitsu.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "lliubbo@gmail.com" <lliubbo@gmail.com>, "jaegeuk.hanse@gmail.com" <jaegeuk.hanse@gmail.com>, "glommer@parallels.com" <glommer@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 01/27/2013 10:32 PM, Minchan Kim wrote:
-> On Mon, Jan 28, 2013 at 01:01:16PM +0900, Minchan Kim wrote:
->> On Mon, Jan 07, 2013 at 02:24:37PM -0600, Seth Jennings wrote:
->>> This patch promotes the slab-based zsmalloc memory allocator
->>> from the staging tree to lib/
->>>
->>> zswap depends on this allocator for storing compressed RAM pages
->>> in an efficient way under system wide memory pressure where
->>> high-order (greater than 0) page allocation are very likely to
->>> fail.
->>>
->>> For more information on zsmalloc and its internals, read the
->>> documentation at the top of the zsmalloc.c file.
->>>
->>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->>
->> Seth, zsmalloc has a bug[1], I sent a patch totay. If it want't known,
->> it mighte be no problem to promote but it's known bug so let's fix it
->> before promoting.
->>
->> Another question. Why do you promote zsmalloc in this patchset?
->> It might make you hard to merge even zswap into staging.
-> 
-> When I look at [8/9], I realized you are trying to merge this patch
-> into mm/, NOT staging. I don't know history why zsmalloc/zram/zscache was
-> in staging at the beginning but personally, I don't ojbect zswap into /mm
-> directly because I got realized staging is very deep hole to get out,
-> expecially related to mm stuff. ;-)
+> I will post a patch to fix it. How about always keep node0 unhotpluggable=
+ ?
 
-Correct.
+Node 0 (or more specifically the node that contains memory <4GB) will be
+full of BIOS reserved holes in the memory map. It probably isn't removable
+even if Linux thinks it is.  Someday we might have a smart BIOS that can
+relocate itself to another node - but for now making node0 unhotpluggable
+looks to be a plausible interim move.
 
-As I understand the purpose of the staging tree, it is meant for
-drivers whose code doesn't adhere to the kernel coding
-standards/guidelines and might have questionable stability.  The point
-is to have a TODO, get the code to conform to the kernel standards,
-fix known instabilities, then promote into the appropriate place in
-the driver tree.
+Ultimately we'd like to be able to remove any node (just not all of them at
+the same time ... just like we can now offline any cpu - but not all of the=
+m
+together).
 
-However, with the work on memory compression, it's really become a
-prototyping area, which I don't think Greg likes all that much.
-
-Seth
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
