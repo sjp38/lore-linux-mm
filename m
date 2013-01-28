@@ -1,44 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 0722A6B0007
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 18:11:20 -0500 (EST)
-Date: Mon, 28 Jan 2013 15:11:19 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/11] ksm: trivial tidyups
-Message-Id: <20130128151119.b74d0150.akpm@linux-foundation.org>
-In-Reply-To: <alpine.LNX.2.00.1301251757020.29196@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
-	<alpine.LNX.2.00.1301251757020.29196@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 0ECCB6B0007
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 18:21:47 -0500 (EST)
+Date: Tue, 29 Jan 2013 08:21:45 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RESEND PATCH v5 1/4] zram: Fix deadlock bug in partial write
+Message-ID: <20130128232145.GA2666@blaptop>
+References: <1359333506-13599-1-git-send-email-minchan@kernel.org>
+ <CAOJsxLFg_5uhZsvPmVVC0nnsZLGpkJ0W6mHa=aavmguLGuTTnA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOJsxLFg_5uhZsvPmVVC0nnsZLGpkJ0W6mHa=aavmguLGuTTnA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, stable@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>
 
-On Fri, 25 Jan 2013 17:58:11 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+On Mon, Jan 28, 2013 at 09:16:35AM +0200, Pekka Enberg wrote:
+> On Mon, Jan 28, 2013 at 2:38 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > Now zram allocates new page with GFP_KERNEL in zram I/O path
+> > if IO is partial. Unfortunately, It may cuase deadlock with
+> 
+> s/cuase/cause/g
 
-> +#ifdef CONFIG_NUMA
-> +#define NUMA(x)		(x)
-> +#define DO_NUMA(x)	(x)
+Thanks!
 
-Did we consider
+> 
+> > reclaim path so this patch solves the problem.
+> 
+> It'd be nice to know about the problem in more detail. I'm also
+> curious on why you decided on GFP_ATOMIC for the read path and
+> GFP_NOIO in the write path.
 
-	#define DO_NUMA do { (x) } while (0)
+In read path, we called kmap_atomic.
 
-?
-
-That could avoid some nasty config-dependent compilation issues.
-
-> +#else
-> +#define NUMA(x)		(0)
-> +#define DO_NUMA(x)	do { } while (0)
-> +#endif
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+How about this?
+------------------------- >8 -------------------------------
