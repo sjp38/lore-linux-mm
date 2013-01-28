@@ -1,76 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 060136B0007
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 19:36:11 -0500 (EST)
-Received: by mail-ia0-f173.google.com with SMTP id l29so3449835iag.32
-        for <linux-mm@kvack.org>; Sun, 27 Jan 2013 16:36:11 -0800 (PST)
-Message-ID: <1359333371.6763.12.camel@kernel>
-Subject: Re: [PATCH 5/11] ksm: get_ksm_page locked
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Sun, 27 Jan 2013 18:36:11 -0600
-In-Reply-To: <alpine.LNX.2.00.1301271355430.17144@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
-	 <alpine.LNX.2.00.1301251759470.29196@eggly.anvils>
-	 <1359254187.4159.10.camel@kernel>
-	 <alpine.LNX.2.00.1301271355430.17144@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 95A0F6B0008
+	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 19:38:32 -0500 (EST)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [RESEND PATCH v5 1/4] zram: Fix deadlock bug in partial write
+Date: Mon, 28 Jan 2013 09:38:23 +0900
+Message-Id: <1359333506-13599-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>
 
-On Sun, 2013-01-27 at 14:08 -0800, Hugh Dickins wrote:
-> On Sat, 26 Jan 2013, Simon Jeons wrote:
-> > On Fri, 2013-01-25 at 18:00 -0800, Hugh Dickins wrote:
-> > > In some places where get_ksm_page() is used, we need the page to be locked.
-> > > 
-> > 
-> > In function get_ksm_page, why check page->mapping =>
-> > get_page_unless_zero => check page->mapping instead of
-> > get_page_unless_zero => check page->mapping, because
-> > get_page_unless_zero is expensive?
-> 
-> Yes, it's more expensive.
-> 
-> > 
-> > > When KSM migration is fully enabled, we shall want that to make sure that
-> > > the page just acquired cannot be migrated beneath us (raised page count is
-> > > only effective when there is serialization to make sure migration notices).
-> > > Whereas when navigating through the stable tree, we certainly do not want
-> > 
-> > What's the meaning of "navigating through the stable tree"?
-> 
-> Finding the right place in the stable tree,
-> as stable_tree_search() and stable_tree_insert() do.
-> 
-> > 
-> > > to lock each node (raised page count is enough to guarantee the memcmps,
-> > > even if page is migrated to another node).
-> > > 
-> > > Since we're about to add another use case, add the locked argument to
-> > > get_ksm_page() now.
-> > 
-> > Why the parameter lock passed from stable_tree_search/insert is true,
-> > but remove_rmap_item_from_tree is false?
-> 
-> The other way round?  remove_rmap_item_from_tree needs the page locked,
-> because it's about to modify the list: that's secured (e.g. against
-> concurrent KSM page reclaim) by the page lock.
+Now zram allocates new page with GFP_KERNEL in zram I/O path
+if IO is partial. Unfortunately, It may cuase deadlock with
+reclaim path so this patch solves the problem.
 
-How can KSM page reclaim path call remove_rmap_item_from_tree? I have
-already track every callsites but can't find it. BTW, I'm curious about
-KSM page reclaim, it seems that there're no special handle in vmscan.c
-for KSM page reclaim, is it will be reclaimed similiar with normal
-page? 
+Cc: stable@vger.kernel.org
+Cc: Jerome Marchand <jmarchan@redhat.com>
+Acked-by: Nitin Gupta <ngupta@vflare.org>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ drivers/staging/zram/zram_drv.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-> 
-> stable_tree_search and stable_tree_insert do not need intermediate nodes
-> to be locked: get_page is enough to secure the page contents for memcmp,
-> and we don't want a pointless wait for exclusive page lock on every
-> intermediate node.
-
+diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
+index 61fb8f1..b285b3a 100644
+--- a/drivers/staging/zram/zram_drv.c
++++ b/drivers/staging/zram/zram_drv.c
+@@ -220,7 +220,7 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
+ 	user_mem = kmap_atomic(page);
+ 	if (is_partial_io(bvec))
+ 		/* Use  a temporary buffer to decompress the page */
+-		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
++		uncmem = kmalloc(PAGE_SIZE, GFP_ATOMIC);
+ 	else
+ 		uncmem = user_mem;
+ 
+@@ -268,7 +268,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 		 * This is a partial IO. We need to read the full page
+ 		 * before to write the changes.
+ 		 */
+-		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
++		uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
+ 		if (!uncmem) {
+ 			pr_info("Error allocating temp memory!\n");
+ 			ret = -ENOMEM;
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
