@@ -1,67 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id C5FFE6B0005
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:05:09 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 28 Jan 2013 12:04:40 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 2EEF1C90045
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:02:09 -0500 (EST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0SH268d246220
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:02:06 -0500
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0SH3p5N022041
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 10:03:51 -0700
-Message-ID: <5106AEE8.4060003@linux.vnet.ibm.com>
-Date: Mon, 28 Jan 2013 11:01:28 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] staging: zsmalloc: add gfp flags to zs_create_pool
-References: <1359135978-15119-1-git-send-email-sjenning@linux.vnet.ibm.com> <1359135978-15119-2-git-send-email-sjenning@linux.vnet.ibm.com> <20130128033944.GB3321@blaptop>
-In-Reply-To: <20130128033944.GB3321@blaptop>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 07BBD6B0007
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 12:05:49 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v2] mm: clean up soft_offline_page()
+Date: Mon, 28 Jan 2013 12:05:37 -0500
+Message-Id: <1359392737-7158-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <510627F2.7010500@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Jiang Liu <jiang.liu@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/27/2013 09:39 PM, Minchan Kim wrote:
-> Hi Seth,
+On Mon, Jan 28, 2013 at 03:25:38PM +0800, Xishi Qiu wrote:
+> On 2013/1/26 13:02, Naoya Horiguchi wrote:
 > 
-> On Fri, Jan 25, 2013 at 11:46:15AM -0600, Seth Jennings wrote:
->> zs_create_pool() currently takes a gfp flags argument
->> that is used when growing the memory pool.  However
->> it is not used in allocating the metadata for the pool
->> itself.  That is currently hardcoded to GFP_KERNEL.
->>
->> zswap calls zs_create_pool() at swapon time which is done
->> in atomic context, resulting in a "might sleep" warning.
->>
->> This patch changes the meaning of the flags argument in
->> zs_create_pool() to mean the flags for the metadata allocation,
->> and adds a flags argument to zs_malloc that will be used for
->> memory pool growth if required.
+> > Currently soft_offline_page() is hard to maintain because it has many
+> > return points and goto statements. All of this mess come from get_any_page().
+> > This function should only get page refcount as the name implies, but it does
+> > some page isolating actions like SetPageHWPoison() and dequeuing hugepage.
+> > This patch corrects it and introduces some internal subroutines to make
+> > soft offlining code more readable and maintainable.
+> > 
+> > ChangeLog v2:
+> >   - receive returned value from __soft_offline_page and soft_offline_huge_page
+> >   - place __soft_offline_page after soft_offline_page to reduce the diff
+> >   - rebased onto mmotm-2013-01-23-17-04
+> >   - add comment on double checks of PageHWpoison
+> > 
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > ---
+> >  mm/memory-failure.c | 154 ++++++++++++++++++++++++++++------------------------
+> >  1 file changed, 83 insertions(+), 71 deletions(-)
+> > 
+> > diff --git mmotm-2013-01-23-17-04.orig/mm/memory-failure.c mmotm-2013-01-23-17-04/mm/memory-failure.c
+> > index c95e19a..302625b 100644
+> > --- mmotm-2013-01-23-17-04.orig/mm/memory-failure.c
+> > +++ mmotm-2013-01-23-17-04/mm/memory-failure.c
+> > @@ -1368,7 +1368,7 @@ static struct page *new_page(struct page *p, unsigned long private, int **x)
+> >   * that is not free, and 1 for any other page type.
+> >   * For 1 the page is returned with increased page count, otherwise not.
+> >   */
+> > -static int get_any_page(struct page *p, unsigned long pfn, int flags)
+> > +static int __get_any_page(struct page *p, unsigned long pfn, int flags)
+> >  {
+> >  	int ret;
+> >  
+> > @@ -1393,11 +1393,9 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
+> >  	if (!get_page_unless_zero(compound_head(p))) {
+> >  		if (PageHuge(p)) {
+> >  			pr_info("%s: %#lx free huge page\n", __func__, pfn);
+> > -			ret = dequeue_hwpoisoned_huge_page(compound_head(p));
+> > +			ret = 0;
+> >  		} else if (is_free_buddy_page(p)) {
+> >  			pr_info("%s: %#lx free buddy page\n", __func__, pfn);
+> > -			/* Set hwpoison bit while page is still isolated */
+> > -			SetPageHWPoison(p);
+> >  			ret = 0;
+> >  		} else {
+> >  			pr_info("%s: %#lx: unknown zero refcount page type %lx\n",
+> > @@ -1413,42 +1411,62 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
+> >  	return ret;
+> >  }
+> >  
+> > +static int get_any_page(struct page *page, unsigned long pfn, int flags)
+> > +{
+> > +	int ret = __get_any_page(page, pfn, flags);
+> > +
+> > +	if (ret == 1 && !PageHuge(page) && !PageLRU(page)) {
+> > +		/*
+> > +		 * Try to free it.
+> > +		 */
+> > +		put_page(page);
+> > +		shake_page(page, 1);
+> > +
+> > +		/*
+> > +		 * Did it turn free?
+> > +		 */
+> > +		ret = __get_any_page(page, pfn, 0);
+> > +		if (!PageLRU(page)) {
+> > +			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
+> > +				pfn, page->flags);
+> > +			return -EIO;
+> > +		}
+> > +	}
+> > +	return ret;
+> > +}
+> > +
+> >  static int soft_offline_huge_page(struct page *page, int flags)
+> >  {
+> >  	int ret;
+> >  	unsigned long pfn = page_to_pfn(page);
+> >  	struct page *hpage = compound_head(page);
+> >  
+> > +	/*
+> > +	 * This double-check of PageHWPoison is to avoid the race with
+> > +	 * memory_failure(). See also comment in __soft_offline_page().
+> > +	 */
+> > +	lock_page(hpage);
+> >  	if (PageHWPoison(hpage)) {
+> > +		unlock_page(hpage);
+> > +		put_page(hpage);
+> >  		pr_info("soft offline: %#lx hugepage already poisoned\n", pfn);
+> > -		ret = -EBUSY;
+> > -		goto out;
+> > +		return -EBUSY;
+> >  	}
+> > -
+> > -	ret = get_any_page(page, pfn, flags);
+> > -	if (ret < 0)
+> > -		goto out;
+> > -	if (ret == 0)
+> > -		goto done;
+> > +	unlock_page(hpage);
+> >  
+> >  	/* Keep page count to indicate a given hugepage is isolated. */
+> >  	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, false,
+> >  				MIGRATE_SYNC);
+> >  	put_page(hpage);
+> > -	if (ret) {
+> > +	if (ret)
+> >  		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+> >  			pfn, ret, page->flags);
+> > -		goto out;
+> > -	}
+> > -done:
+> >  	/* keep elevated page count for bad page */
+> > -	atomic_long_add(1 << compound_trans_order(hpage), &num_poisoned_pages);
+> > -	set_page_hwpoison_huge_page(hpage);
+> > -	dequeue_hwpoisoned_huge_page(hpage);
 > 
-> As I mentioned, I'm not strongly against with this patch but it
-> should be last resort in case of not being able to address
-> frontswap's init routine's dependency with swap_lock.
+> Hi Naoya,
 > 
-> I sent a patch and am waiting reply of Konrand or Dan.
-> If we can fix frontswap, it would be better rather than
-> changing zsmalloc.
+> Does num_poisoned_pages be added when soft_offline_huge_page? I mean the in-use huge pages.
 
-I agree that moving the call to frontswap_init() out of the swap_lock
-would be a good thing.  However, it doesn't mean that we still
-shouldn't allow the users to control the gfp mask for the allocation
-done by zs_create_pool(). While moving the frontswap_init() outside
-the lock removes the _need_ for this patch, I think that is it good
-API design to allow the user to specify the gfp mask.
+Hi Xishi,
 
-Seth
+Yes, we should add it, and also need set_page_hwpoison_huge_page and
+dequeue_hwpoisoned_huge_page because that means 'soft offline'.
+I'll repost the fixed one soon. Thank you for your awareness.
+
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
