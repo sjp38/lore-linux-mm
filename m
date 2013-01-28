@@ -1,67 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 70B5F6B0007
-	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 19:41:24 -0500 (EST)
-Received: by mail-da0-f52.google.com with SMTP id f10so969604dak.11
-        for <linux-mm@kvack.org>; Sun, 27 Jan 2013 16:41:23 -0800 (PST)
-Message-ID: <1359333683.6763.13.camel@kernel>
-Subject: Re: [PATCH 7/11] ksm: make KSM page migration possible
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Sun, 27 Jan 2013 18:41:23 -0600
-In-Reply-To: <alpine.LNX.2.00.1301271506480.17495@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
-	 <alpine.LNX.2.00.1301251802050.29196@eggly.anvils>
-	 <1359265635.6763.0.camel@kernel>
-	 <alpine.LNX.2.00.1301271506480.17495@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 652036B0009
+	for <linux-mm@kvack.org>; Sun, 27 Jan 2013 20:00:13 -0500 (EST)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] zsmalloc: Fix TLB coherency and build problem
+Date: Mon, 28 Jan 2013 10:00:08 +0900
+Message-Id: <1359334808-19794-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Matt Sealey <matt@genesi-usa.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, stable@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Russell King <linux@arm.linux.org.uk>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-On Sun, 2013-01-27 at 15:12 -0800, Hugh Dickins wrote:
-> On Sat, 26 Jan 2013, Simon Jeons wrote:
-> > On Fri, 2013-01-25 at 18:03 -0800, Hugh Dickins wrote:
-> > > +	while (!get_page_unless_zero(page)) {
-> > > +		/*
-> > > +		 * Another check for page->mapping != expected_mapping would
-> > > +		 * work here too.  We have chosen the !PageSwapCache test to
-> > > +		 * optimize the common case, when the page is or is about to
-> > > +		 * be freed: PageSwapCache is cleared (under spin_lock_irq)
-> > > +		 * in the freeze_refs section of __remove_mapping(); but Anon
-> > > +		 * page->mapping reset to NULL later, in free_pages_prepare().
-> > > +		 */
-> > > +		if (!PageSwapCache(page))
-> > > +			goto stale;
-> > > +		cpu_relax();
-> > > +	}
-> > > +
-> > > +	if (ACCESS_ONCE(page->mapping) != expected_mapping) {
-> > >  		put_page(page);
-> > >  		goto stale;
-> > >  	}
-> > > +
-> > >  	if (locked) {
-> > >  		lock_page(page);
-> > > -		if (page->mapping != expected_mapping) {
-> > > +		if (ACCESS_ONCE(page->mapping) != expected_mapping) {
-> > >  			unlock_page(page);
-> > >  			put_page(page);
-> > >  			goto stale;
-> > >  		}
-> > >  	}
-> > 
-> > Could you explain why need check page->mapping twice after get page?
-> 
-> Once for the !locked case, which should not return page if mapping changed.
-> Once for the locked case, which should not return page if mapping changed.
-> We could use "else", but that wouldn't be an improvement.
+Recently, Matt Sealey reported he fail to build zsmalloc caused by
+using of local_flush_tlb_kernel_range which are architecture dependent
+function so !CONFIG_SMP in ARM couldn't implement it so it ends up
+build error following as.
 
-But for locked case, page->mapping will be check twice.
+  MODPOST 216 modules
+  LZMA    arch/arm/boot/compressed/piggy.lzma
+  AS      arch/arm/boot/compressed/lib1funcs.o
+ERROR: "v7wbi_flush_kern_tlb_range"
+[drivers/staging/zsmalloc/zsmalloc.ko] undefined!
+make[1]: *** [__modpost] Error 1
+make: *** [modules] Error 2
+make: *** Waiting for unfinished jobs....
 
+The reason we used that function is copy method by [1]
+was really slow in ARM but at that time.
 
+More severe problem is ARM can prefetch speculatively on other CPUs
+so under us, other TLBs can have an entry only if we do flush local
+CPU. Russell King pointed that. Thanks!
+We don't have many choices except using flush_tlb_kernel_range.
+
+My experiment in ARMv7 processor 4 core didn't make any difference with
+zsmapbench[2] between local_flush_tlb_kernel_range and flush_tlb_kernel_range
+but still page-table based is much better than copy-based.
+
+* bigger is better.
+
+1. local_flush_tlb_kernel_range: 3918795 mappings
+2. flush_tlb_kernel_range : 3989538 mappings
+3. copy-based: 635158 mappings
+
+This patch replace local_flush_tlb_kernel_range with
+flush_tlb_kernel_range which are avaialbe in all architectures
+because we already have used it in vmalloc allocator which are
+generic one so build problem should go away and performane loss
+shoud be void.
+
+[1] f553646, zsmalloc: add page table mapping method
+[2] https://github.com/spartacus06/zsmapbench
+
+Cc: stable@vger.kernel.org
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Russell King <linux@arm.linux.org.uk>
+Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: Nitin Gupta <ngupta@vflare.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Reported-by: Matt Sealey <matt@genesi-usa.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+
+Matt, Could you test this patch?
+
+ drivers/staging/zsmalloc/zsmalloc-main.c |   10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+index eb00772..82e627c 100644
+--- a/drivers/staging/zsmalloc/zsmalloc-main.c
++++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+@@ -222,11 +222,9 @@ struct zs_pool {
+ /*
+  * By default, zsmalloc uses a copy-based object mapping method to access
+  * allocations that span two pages. However, if a particular architecture
+- * 1) Implements local_flush_tlb_kernel_range() and 2) Performs VM mapping
+- * faster than copying, then it should be added here so that
+- * USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use page table
+- * mapping rather than copying
+- * for object mapping.
++ * performs VM mapping faster than copying, then it should be added here
++ * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
++ * page table mapping rather than copying for object mapping.
+ */
+ #if defined(CONFIG_ARM)
+ #define USE_PGTABLE_MAPPING
+@@ -663,7 +661,7 @@ static inline void __zs_unmap_object(struct mapping_area *area,
+ 
+ 	flush_cache_vunmap(addr, end);
+ 	unmap_kernel_range_noflush(addr, PAGE_SIZE * 2);
+-	local_flush_tlb_kernel_range(addr, end);
++	flush_tlb_kernel_range(addr, end);
+ }
+ 
+ #else /* USE_PGTABLE_MAPPING */
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
