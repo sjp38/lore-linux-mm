@@ -1,121 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 4E4EF6B000D
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 16:55:51 -0500 (EST)
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 88ECA6B000E
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 16:55:53 -0500 (EST)
 Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 28 Jan 2013 14:55:50 -0700
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 9E20719D8043
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 14:55:47 -0700 (MST)
+	Mon, 28 Jan 2013 14:55:52 -0700
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 8152719D8042
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 14:55:48 -0700 (MST)
 Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0SLtlb8357432
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 14:55:47 -0700
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0SLtmqZ242492
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 14:55:48 -0700
 Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0SLtiK7006044
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 14:55:44 -0700
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0SLtPOr003997
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 14:55:26 -0700
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: =?UTF-8?q?=5BPATCHv3=206/6=5D=20zswap=3A=20add=20documentation?=
-Date: Mon, 28 Jan 2013 15:49:27 -0600
-Message-Id: <1359409767-30092-7-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: [PATCHv3 1/6] debugfs: add get/set for atomic types
+Date: Mon, 28 Jan 2013 15:49:22 -0600
+Message-Id: <1359409767-30092-2-git-send-email-sjenning@linux.vnet.ibm.com>
 In-Reply-To: <1359409767-30092-1-git-send-email-sjenning@linux.vnet.ibm.com>
 References: <1359409767-30092-1-git-send-email-sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-This patch adds the documentation file for the zswap functionality
+debugfs currently lack the ability to create attributes
+that set/get atomic_t values.
+
+This patch adds support for this through a new
+debugfs_create_atomic_t() function.
 
 Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
- Documentation/vm/zswap.txt |   73 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 73 insertions(+)
- create mode 100644 Documentation/vm/zswap.txt
+ fs/debugfs/file.c       |   42 ++++++++++++++++++++++++++++++++++++++++++
+ include/linux/debugfs.h |    2 ++
+ 2 files changed, 44 insertions(+)
 
-diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
-new file mode 100644
-index 0000000..5d00ce9
---- /dev/null
-+++ b/Documentation/vm/zswap.txt
-@@ -0,0 +1,73 @@
-+Overview:
+diff --git a/fs/debugfs/file.c b/fs/debugfs/file.c
+index c5ca6ae..fa26d5b 100644
+--- a/fs/debugfs/file.c
++++ b/fs/debugfs/file.c
+@@ -21,6 +21,7 @@
+ #include <linux/debugfs.h>
+ #include <linux/io.h>
+ #include <linux/slab.h>
++#include <linux/atomic.h>
+ 
+ static ssize_t default_read_file(struct file *file, char __user *buf,
+ 				 size_t count, loff_t *ppos)
+@@ -403,6 +404,47 @@ struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
+ }
+ EXPORT_SYMBOL_GPL(debugfs_create_size_t);
+ 
++static int debugfs_atomic_t_set(void *data, u64 val)
++{
++	atomic_set((atomic_t *)data, val);
++	return 0;
++}
++static int debugfs_atomic_t_get(void *data, u64 *val)
++{
++	*val = atomic_read((atomic_t *)data);
++	return 0;
++}
++DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t, debugfs_atomic_t_get,
++			debugfs_atomic_t_set, "%llu\n");
++DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t_ro, debugfs_atomic_t_get, NULL, "%llu\n");
++DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t_wo, NULL, debugfs_atomic_t_set, "%llu\n");
 +
-+Zswap is a lightweight compressed cache for swap pages. It takes
-+pages that are in the process of being swapped out and attempts to
-+compress them into a dynamically allocated RAM-based memory pool.
-+If this process is successful, the writeback to the swap device is
-+deferred and, in many cases, avoided completely.A  This results in
-+a significant I/O reduction and performance gains for systems that
-+are swapping.
++/**
++ * debugfs_create_atomic_t - create a debugfs file that is used to read and
++ * write an atomic_t value
++ * @name: a pointer to a string containing the name of the file to create.
++ * @mode: the permission that the file should have
++ * @parent: a pointer to the parent dentry for this file.  This should be a
++ *          directory dentry if set.  If this parameter is %NULL, then the
++ *          file will be created in the root of the debugfs filesystem.
++ * @value: a pointer to the variable that the file should read to and write
++ *         from.
++ */
++struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
++				 struct dentry *parent, atomic_t *value)
++{
++	/* if there are no write bits set, make read only */
++	if (!(mode & S_IWUGO))
++		return debugfs_create_file(name, mode, parent, value,
++					&fops_atomic_t_ro);
++	/* if there are no read bits set, make write only */
++	if (!(mode & S_IRUGO))
++		return debugfs_create_file(name, mode, parent, value,
++					&fops_atomic_t_wo);
 +
-+Zswap provides compressed swap caching that basically trades CPU cycles
-+for reduced swap I/O.A  This trade-off can result in a significant
-+performance improvement as reads to/writes from to the compressed
-+cache almost always faster that reading from a swap device
-+which incurs the latency of an asynchronous block I/O read.
-+
-+Some potential benefits:
-+* Desktop/laptop users with limited RAM capacities can mitigate the
-+A A A  performance impact of swapping.
-+* Overcommitted guests that share a common I/O resource can
-+A A A  dramatically reduce their swap I/O pressure, avoiding heavy
-+A A A  handed I/O throttling by the hypervisor.A  This allows more work
-+A A A  to get done with less impact to the guest workload and guests
-+A A A  sharing the I/O subsystem
-+* Users with SSDs as swap devices can extend the life of the device by
-+A A A  drastically reducing life-shortening writes.
-+
-+Zswap evicts pages from compressed cache on an LRU basis to the backing
-+swap device when the compress pool reaches it size limit or the pool is
-+unable to obtain additional pages from the buddy allocator.A  This
-+requirement had been identified in prior community discussions.
-+
-+To enabled zswap, the "enabled" attribute must be set to 1 at boot time.
-+e.g. zswap.enabled=1
-+
-+Design:
-+
-+Zswap receives pages for compression through the Frontswap API and
-+is able to evict pages from its own compressed pool on an LRU basis
-+and write them back to the backing swap device in the case that the
-+compressed pool is full or unable to secure additional pages from
-+the buddy allocator.
-+
-+Zswap makes use of zsmalloc for the managing the compressed memory
-+pool.  This is because zsmalloc is specifically designed to minimize
-+fragmentation on large (> PAGE_SIZE/2) allocation sizes.  Each
-+allocation in zsmalloc is not directly accessible by address.
-+Rather, a handle is return by the allocation routine and that handle
-+must be mapped before being accessed.  The compressed memory pool grows
-+on demand and shrinks as compressed pages are freed.  The pool is
-+not preallocated.
-+
-+When a swap page is passed from frontswap to zswap, zswap maintains
-+a mapping of the swap entry, a combination of the swap type and swap
-+offset, to the zsmalloc handle that references that compressed swap
-+page.  This mapping is achieved with a red-black tree per swap type.
-+The swap offset is the search key for the tree nodes.
-+
-+Zswap seeks to be simple in its policies.  Sysfs attributes allow for
-+two user controlled policies:
-+* max_compression_ratio - Maximum compression ratio, as as percentage,
-+    for an acceptable compressed page. Any page that does not compress
-+    by at least this ratio will be rejected.
-+* max_pool_percent - The maximum percentage of memory that the compressed
-+    pool can occupy.
-+
-+Zswap allows the compressor to be selected at kernel boot time by
-+setting the a??compressora?? attribute.  The default compressor is lzo.
-+e.g. zswap.compressor=deflate
-+
-+A debugfs interface is provided for various statistic about pool size,
-+number of pages stored, and various counters for the reasons pages
-+are rejected.
++	return debugfs_create_file(name, mode, parent, value, &fops_atomic_t);
++}
++EXPORT_SYMBOL_GPL(debugfs_create_atomic_t);
+ 
+ static ssize_t read_file_bool(struct file *file, char __user *user_buf,
+ 			      size_t count, loff_t *ppos)
+diff --git a/include/linux/debugfs.h b/include/linux/debugfs.h
+index 66c434f..51fea70 100644
+--- a/include/linux/debugfs.h
++++ b/include/linux/debugfs.h
+@@ -79,6 +79,8 @@ struct dentry *debugfs_create_x64(const char *name, umode_t mode,
+ 				  struct dentry *parent, u64 *value);
+ struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
+ 				     struct dentry *parent, size_t *value);
++struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
++				     struct dentry *parent, atomic_t *value);
+ struct dentry *debugfs_create_bool(const char *name, umode_t mode,
+ 				  struct dentry *parent, u32 *value);
+ 
 -- 
 1.7.9.5
 
