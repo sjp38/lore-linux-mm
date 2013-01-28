@@ -1,152 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 842386B0002
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 10:31:09 -0500 (EST)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 28 Jan 2013 08:31:06 -0700
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id B25383E40039
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 08:30:54 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0SFUukn226878
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 08:30:58 -0700
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0SFVGcH009483
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 08:31:17 -0700
-Message-ID: <510698F5.5060205@linux.vnet.ibm.com>
-Date: Mon, 28 Jan 2013 09:27:49 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCHv2 8/9] zswap: add to mm/
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-9-git-send-email-sjenning@linux.vnet.ibm.com> <51030ADA.8030403@redhat.com>
-In-Reply-To: <51030ADA.8030403@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 8AA896B0002
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 10:58:34 -0500 (EST)
+From: Lord Glauber Costa of Sealand <glommer@parallels.com>
+Subject: [PATCH] cfq: fix lock imbalance with failed allocations
+Date: Mon, 28 Jan 2013 19:58:47 +0400
+Message-Id: <1359388727-28147-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
 
-On 01/25/2013 04:44 PM, Rik van Riel wrote:
-> On 01/07/2013 03:24 PM, Seth Jennings wrote:
->> zswap is a thin compression backend for frontswap. It receives
->> pages from frontswap and attempts to store them in a compressed
->> memory pool, resulting in an effective partial memory reclaim and
->> dramatically reduced swap device I/O.
->>
->> Additional, in most cases, pages can be retrieved from this
->> compressed store much more quickly than reading from tradition
->> swap devices resulting in faster performance for many workloads.
->>
->> This patch adds the zswap driver to mm/
->>
->> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> 
-> I like the approach of flushing pages into actual disk based
-> swap when compressed swap is full.  I would like it if that
-> was advertised more prominently in the changelog :)
+From: Glauber Costa <glommer@parallels.com>
 
-Thanks so much for the review!
+While stress-running very-small container scenarios with the Kernel
+Memory Controller, I've run into a lockdep-detected lock imbalance in
+cfq-iosched.c.
 
-> The code looks mostly good, complaints are at the nitpick level.
-> 
-> One worry is that the pool can grow to whatever maximum was
-> decided, and there is no way to shrink it when memory is
-> required for something else.
-> 
-> Would it be an idea to add a shrinker for the zcache pool,
-> that can also shrink the zcache pool when required?
-> 
-> Of course, that does lead to the question of how to balance
-> the pressure from that shrinker, with the new memory entering
-> zcache from the swap side. I have no clear answers here, just
-> something to think about...
+I'll apologize beforehand for not posting a backlog: I didn't anticipate
+it would be so hard to reproduce, so I didn't save my serial output and
+went directly on debugging. Turns out that it did not happen again in
+more than 20 runs, making it a quite rare pattern.
 
-Yes, I prototyped a shrinker interface for zswap, but, as we both
-figured, it shrinks the zswap compressed pool too aggressively to the
-point of being useless.
+But here is my analysis:
 
-Right now I'm working on a zswap thread that will "leak" pages out to
-the swap device on an LRU basis over time.  That way if the page is a
-rarely accessed page, it will eventually be written out to the swap
-device and it's memory freed, even if the zswap pool isn't full.
+When we are in very low-memory situations, we will arrive at
+cfq_find_alloc_queue and may not find a queue, having to resort to the
+oom queue, in an rcu-locked condition:
 
-Would this address your concerns?
+  if (!cfqq || cfqq == &cfqd->oom_cfqq)
+      [ ... ]
 
->> +static void zswap_flush_entries(unsigned type, int nr)
->> +{
->> +    struct zswap_tree *tree = zswap_trees[type];
->> +    struct zswap_entry *entry;
->> +    int i, ret;
->> +
->> +/*
->> + * This limits is arbitrary for now until a better
->> + * policy can be implemented. This is so we don't
->> + * eat all of RAM decompressing pages for writeback.
->> + */
->> +#define ZSWAP_MAX_OUTSTANDING_FLUSHES 64
->> +    if (atomic_read(&zswap_outstanding_flushes) >
->> +        ZSWAP_MAX_OUTSTANDING_FLUSHES)
->> +        return;
-> 
-> Having this #define right in the middle of the function is
-> rather ugly.  Might be worth moving it to the top.
+Next, we will release the rcu lock, and try to allocate a queue,
+retrying if we succeed:
 
-Yes. In my mind, this policy was going to be replaced by a better one
-soon. Checking may_write_to_queue() was my idea.  I didn't spend too
-much time making that part pretty.
+  rcu_read_unlock();
+  spin_unlock_irq(cfqd->queue->queue_lock);
+  new_cfqq = kmem_cache_alloc_node(cfq_pool,
+                  gfp_mask | __GFP_ZERO,
+                  cfqd->queue->node);
+   spin_lock_irq(cfqd->queue->queue_lock);
+   if (new_cfqq)
+       goto retry;
 
->> +static int __init zswap_debugfs_init(void)
->> +{
->> +    if (!debugfs_initialized())
->> +        return -ENODEV;
->> +
->> +    zswap_debugfs_root = debugfs_create_dir("zswap", NULL);
->> +    if (!zswap_debugfs_root)
->> +        return -ENOMEM;
->> +
->> +    debugfs_create_u64("saved_by_flush", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_saved_by_flush);
->> +    debugfs_create_u64("pool_limit_hit", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_pool_limit_hit);
->> +    debugfs_create_u64("reject_flush_attempted", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_flush_attempted);
->> +    debugfs_create_u64("reject_tmppage_fail", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_reject_tmppage_fail);
->> +    debugfs_create_u64("reject_flush_fail", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_reject_flush_fail);
->> +    debugfs_create_u64("reject_zsmalloc_fail", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_reject_zsmalloc_fail);
->> +    debugfs_create_u64("reject_kmemcache_fail", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_reject_kmemcache_fail);
->> +    debugfs_create_u64("reject_compress_poor", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_reject_compress_poor);
->> +    debugfs_create_u64("flushed_pages", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_flushed_pages);
->> +    debugfs_create_u64("duplicate_entry", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_duplicate_entry);
->> +    debugfs_create_atomic_t("pool_pages", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_pool_pages);
->> +    debugfs_create_atomic_t("stored_pages", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_stored_pages);
->> +    debugfs_create_atomic_t("outstanding_flushes", S_IRUGO,
->> +            zswap_debugfs_root, &zswap_outstanding_flushes);
->> +
-> 
-> Some of these statistics would be very useful to system
-> administrators, who will not be mounting debugfs on
-> production systems.
-> 
-> Would it make sense to export some of these statistics
-> through sysfs?
+We are unlocked at this point, but it should be fine, since we will
+reacquire the rcu_read_lock when we retry.
 
-That's fine.  Which of these stats do you think should be in sysfs?
+Except of course, that we may not retry: the allocation may very well
+fail and we'll keep on going through the flow:
 
-Thanks again for taking time to look at this!
+The next branch is:
 
-Seth
+    if (cfqq) {
+	[ ... ]
+    } else
+        cfqq = &cfqd->oom_cfqq;
+
+And right before exiting, we'll issue rcu_read_unlock().
+
+Being already unlocked, this is the likely source of our imbalance.
+Since cfqq is either already NULL or made NULL in the first statement of
+the outter branch, the only viable alternative here seems to be to
+return the oom queue right away in case of allocation failure.
+
+Please review the following patch and apply if you agree with my
+analysis.
+
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+Cc: Jens Axboe <axboe@kernel.dk>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>
+---
+ block/cfq-iosched.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/block/cfq-iosched.c b/block/cfq-iosched.c
+index fb52df9..d52437a 100644
+--- a/block/cfq-iosched.c
++++ b/block/cfq-iosched.c
+@@ -3205,6 +3205,8 @@ retry:
+ 			spin_lock_irq(cfqd->queue->queue_lock);
+ 			if (new_cfqq)
+ 				goto retry;
++			else
++				return &cfqd->oom_cfqq;
+ 		} else {
+ 			cfqq = kmem_cache_alloc_node(cfq_pool,
+ 					gfp_mask | __GFP_ZERO,
+-- 
+1.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
