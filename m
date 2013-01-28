@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id A3D006B0011
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 9FA1B6B0010
 	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 04:23:40 -0500 (EST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 14/16] thp, mm: truncate support for transparent huge page cache
-Date: Mon, 28 Jan 2013 11:24:26 +0200
-Message-Id: <1359365068-10147-15-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 07/16] thp, mm: rewrite delete_from_page_cache() to support huge pages
+Date: Mon, 28 Jan 2013 11:24:19 +0200
+Message-Id: <1359365068-10147-8-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,47 +15,83 @@ Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-If we starting position of truncation is in tail page we have to spilit
-the huge page page first.
-
-We also have to split if end is within the huge page. Otherwise we can
-truncate whole huge page at once.
+As with add_to_page_cache_locked() we handle HPAGE_CACHE_NR pages a
+time.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/truncate.c |   12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ mm/filemap.c |   27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index c75b736..87c247d 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -231,6 +231,17 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			if (index > end)
- 				break;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index fa2fdab..a4b4fd5 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -112,6 +112,7 @@
+ void __delete_from_page_cache(struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
++	int nr = 1;
  
-+			/* split page if we start from tail page */
-+			if (PageTransTail(page))
-+				split_huge_page(compound_trans_head(page));
-+			if (PageTransHuge(page)) {
-+				/* split if end is within huge page */
-+				if (index == (end & ~HPAGE_CACHE_INDEX_MASK))
-+					split_huge_page(page);
-+				else
-+					/* skip tail pages */
-+					i += HPAGE_CACHE_NR - 1;
-+			}
- 			if (!trylock_page(page))
- 				continue;
- 			WARN_ON(page->index != index);
-@@ -280,6 +291,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			if (index > end)
- 				break;
+ 	/*
+ 	 * if we're uptodate, flush out into the cleancache, otherwise
+@@ -123,13 +124,23 @@ void __delete_from_page_cache(struct page *page)
+ 	else
+ 		cleancache_invalidate_page(mapping, page);
  
-+			VM_BUG_ON(PageTransHuge(page));
- 			lock_page(page);
- 			WARN_ON(page->index != index);
- 			wait_on_page_writeback(page);
+-	radix_tree_delete(&mapping->page_tree, page->index);
++	if (PageTransHuge(page)) {
++		int i;
++
++		for (i = 0; i < HPAGE_CACHE_NR; i++)
++			radix_tree_delete(&mapping->page_tree, page->index + i);
++		nr = HPAGE_CACHE_NR;
++	} else {
++		radix_tree_delete(&mapping->page_tree, page->index);
++	}
++
+ 	page->mapping = NULL;
+ 	/* Leave page->index set: truncation lookup relies upon it */
+-	mapping->nrpages--;
+-	__dec_zone_page_state(page, NR_FILE_PAGES);
++
++	mapping->nrpages -= nr;
++	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, -nr);
+ 	if (PageSwapBacked(page))
+-		__dec_zone_page_state(page, NR_SHMEM);
++		__mod_zone_page_state(page_zone(page), NR_SHMEM, -nr);
+ 	BUG_ON(page_mapped(page));
+ 
+ 	/*
+@@ -140,8 +151,8 @@ void __delete_from_page_cache(struct page *page)
+ 	 * having removed the page entirely.
+ 	 */
+ 	if (PageDirty(page) && mapping_cap_account_dirty(mapping)) {
+-		dec_zone_page_state(page, NR_FILE_DIRTY);
+-		dec_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
++		mod_zone_page_state(page_zone(page), NR_FILE_DIRTY, -nr);
++		add_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE, -nr);
+ 	}
+ }
+ 
+@@ -157,6 +168,7 @@ void delete_from_page_cache(struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
+ 	void (*freepage)(struct page *);
++	int i;
+ 
+ 	BUG_ON(!PageLocked(page));
+ 
+@@ -168,6 +180,9 @@ void delete_from_page_cache(struct page *page)
+ 
+ 	if (freepage)
+ 		freepage(page);
++	if (PageTransHuge(page))
++		for (i = 1; i < HPAGE_CACHE_NR; i++)
++			page_cache_release(page);
+ 	page_cache_release(page);
+ }
+ EXPORT_SYMBOL(delete_from_page_cache);
 -- 
 1.7.10.4
 
