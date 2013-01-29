@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 15ED46B0027
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 19:16:30 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A8AD93EE0BD
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 09:16:28 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8E2FD45DEB5
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 09:16:28 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 754B545DEBB
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 09:16:28 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C99A1DB803E
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 09:16:28 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id ECE021DB8043
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 09:16:27 +0900 (JST)
-Message-ID: <510714D0.2030206@jp.fujitsu.com>
-Date: Tue, 29 Jan 2013 09:16:16 +0900
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 03EDC6B0028
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 19:18:40 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AF7293EE0B5
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 09:18:39 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 99D0D45DE52
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 09:18:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8240D45DE4D
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 09:18:39 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 760551DB802F
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 09:18:39 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A3A71DB803B
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 09:18:39 +0900 (JST)
+Message-ID: <51071551.8040903@jp.fujitsu.com>
+Date: Tue, 29 Jan 2013 09:18:25 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 4/6] memcg: replace cgroup_lock with memcg specific
- memcg_lock
-References: <1358862461-18046-1-git-send-email-glommer@parallels.com> <1358862461-18046-5-git-send-email-glommer@parallels.com>
-In-Reply-To: <1358862461-18046-5-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v4 5/6] memcg: increment static branch right after limit
+ set.
+References: <1358862461-18046-1-git-send-email-glommer@parallels.com> <1358862461-18046-6-git-send-email-glommer@parallels.com>
+In-Reply-To: <1358862461-18046-6-git-send-email-glommer@parallels.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -33,19 +33,18 @@ To: Glauber Costa <glommer@parallels.com>
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
 
 (2013/01/22 22:47), Glauber Costa wrote:
-> After the preparation work done in earlier patches, the cgroup_lock can
-> be trivially replaced with a memcg-specific lock. This is an automatic
-> translation in every site the values involved were queried.
+> We were deferring the kmemcg static branch increment to a later time,
+> due to a nasty dependency between the cpu_hotplug lock, taken by the
+> jump label update, and the cgroup_lock.
 > 
-> The sites were values are written, however, used to be naturally called
-> under cgroup_lock. This is the case for instance of the css_online
-> callback. For those, we now need to explicitly add the memcg lock.
-> 
-> With this, all the calls to cgroup_lock outside cgroup core are gone.
+> Now we no longer take the cgroup lock, and we can save ourselves the
+> trouble.
 > 
 > Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 
 --
