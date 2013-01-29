@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id B8AF46B0007
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 20:17:21 -0500 (EST)
-Received: by mail-pb0-f42.google.com with SMTP id wz17so577460pbc.29
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2013 17:17:21 -0800 (PST)
-Date: Mon, 28 Jan 2013 17:17:24 -0800 (PST)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 154406B0007
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 20:38:41 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id bi5so48335pad.27
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2013 17:38:40 -0800 (PST)
+Date: Mon, 28 Jan 2013 17:38:43 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
 Subject: Re: [PATCH 1/11] ksm: allow trees per NUMA node
-In-Reply-To: <20130128150304.2e7a2fb4.akpm@linux-foundation.org>
-Message-ID: <alpine.LNX.2.00.1301281707430.4947@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <alpine.LNX.2.00.1301251753380.29196@eggly.anvils> <20130128150304.2e7a2fb4.akpm@linux-foundation.org>
+In-Reply-To: <20130128150854.6813b1ca.akpm@linux-foundation.org>
+Message-ID: <alpine.LNX.2.00.1301281717320.4947@eggly.anvils>
+References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <alpine.LNX.2.00.1301251753380.29196@eggly.anvils> <20130128150854.6813b1ca.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -21,35 +21,23 @@ On Mon, 28 Jan 2013, Andrew Morton wrote:
 > On Fri, 25 Jan 2013 17:54:53 -0800 (PST)
 > Hugh Dickins <hughd@google.com> wrote:
 > 
-> > --- mmotm.orig/Documentation/vm/ksm.txt	2013-01-25 14:36:31.724205455 -0800
-> > +++ mmotm/Documentation/vm/ksm.txt	2013-01-25 14:36:38.608205618 -0800
-> > @@ -58,6 +58,13 @@ sleep_millisecs  - how many milliseconds
-> >                     e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
-> >                     Default: 20 (chosen for demonstration purposes)
-> >  
-> > +merge_across_nodes - specifies if pages from different numa nodes can be merged.
-> > +                   When set to 0, ksm merges only pages which physically
-> > +                   reside in the memory area of same NUMA node. It brings
-> > +                   lower latency to access to shared page. Value can be
-> > +                   changed only when there is no ksm shared pages in system.
-> > +                   Default: 1
-> > +
+> > +/* Zeroed when merging across nodes is not allowed */
+> > +static unsigned int ksm_merge_across_nodes = 1;
 > 
-> The explanation doesn't really tell the operator whether or not to set
-> merge_across_nodes for a particular machine/workload.
-> 
-> I guess most people will just shrug, turn the thing on and see if it
-> improved things, but that's rather random.
+> I spose this should be __read_mostly.  If __read_mostly is not really a
+> synonym for __make_write_often_storage_slower.  I continue to harbor
+> fear, uncertainty and doubt about this...
 
-Right.  I don't think we can tell them which is going to be better,
-but surely we could do a better job of hinting at the tradeoffs.
+Could do.  No strong feeling, but I think I'd rather it share its
+cacheline with other KSM-related stuff, than be off mixed up with
+unrelateds.  I think there's a much stronger case for __read_mostly
+when it's a library thing accessed by different subsystems.
 
-I think we expect large NUMA machines with lots of memory to want the
-better NUMA behavior of !merge_across_nodes, but machines with more
-limited memory across short-distance NUMA nodes, to prefer the greater
-deduplication of merge_across nodes.
-
-Petr, do you have a more informative text for this?
+You're right that this variable is accessed significantly more often
+that the other KSM tunables, so deserves a __read_mostly more than
+they do.  But where to stop?  Similar reluctance led me to avoid
+using "unlikely" throughout ksm.c, unlikely as some conditions are
+(I'm aghast to see that Andrea sneaked in a "likely" :).
 
 Hugh
 
