@@ -1,84 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 527178D0002
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 10:18:01 -0500 (EST)
-Message-ID: <5107E81F.4000004@oracle.com>
-Date: Tue, 29 Jan 2013 23:17:51 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 3DA458D0002
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 10:19:19 -0500 (EST)
+Date: Tue, 29 Jan 2013 16:19:15 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: simplify lock of memcg page stat accounting
+Message-ID: <20130129151915.GJ29574@dhcp22.suse.cz>
+References: <1359198756-3752-1-git-send-email-handai.szj@taobao.com>
+ <20130128141010.GD14241@dhcp22.suse.cz>
+ <CAFj3OHUE_grS-Syg+ZhYK-W-TksXpqPjQRZC4Ti4+=zSJUEGMA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/6] memcg: export nr_swap_files
-References: <510658E3.1020306@oracle.com> <510658F6.4010504@oracle.com> <20130129143139.GF29574@dhcp22.suse.cz>
-In-Reply-To: <20130129143139.GF29574@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFj3OHUE_grS-Syg+ZhYK-W-TksXpqPjQRZC4Ti4+=zSJUEGMA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, gthelen@google.com, hannes@cmpxchg.org, hughd@google.com, Sha Zhengju <handai.szj@taobao.com>
 
-On 01/29/2013 10:31 PM, Michal Hocko wrote:
-> On Mon 28-01-13 18:54:46, Jeff Liu wrote:
->> Export nr_swap_files which would be used for initializing and destorying
->> swap cgroup structures in the coming patch.
->>
->> Signed-off-by: Jie Liu <jeff.liu@oracle.com>
->> CC: Glauber Costa <glommer@parallels.com>
->> CC: Michal Hocko <mhocko@suse.cz>
->> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Johannes Weiner <hannes@cmpxchg.org>
->> CC: Mel Gorman <mgorman@suse.de>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: Sha Zhengju <handai.szj@taobao.com>
+On Tue 29-01-13 21:44:44, Sha Zhengju wrote:
+> On Mon, Jan 28, 2013 at 10:10 PM, Michal Hocko <mhocko@suse.cz> wrote:
+[...]
+> >> But CPU-B may do "moving" in advance that
+> >> "old_memcg->nr_dirty --" will make old_memcg->nr_dirty incorrect but
+> >> soon CPU-A will do "memcg->nr_dirty ++" finally that amend the stats.
+> >
+> > The counter is per-cpu so we are safe wrt. atomic increments and we can
+> > probably tolerate off-by 1 temporal errors (mem_cgroup_read_stat would
+> > need val = min(val, 0);).
 > 
-> You are missing definition for !CONFIG_SWAP
-Yep, I missed "#define nr_swapfiles  0U" in this case.
+> Sorry, I cannot catch the 'min(val, 0)' part.. or do you mean max?
 
-Thanks,
--Jeff
-> 
-> After this is fixed you can add my
-> Acked-by: Michal Hocko <mhocko@suse.cz>
-> 
->>
->> ---
->>  include/linux/swap.h |    1 +
->>  mm/swapfile.c        |    2 +-
->>  2 files changed, 2 insertions(+), 1 deletion(-)
->>
->> diff --git a/include/linux/swap.h b/include/linux/swap.h
->> index 68df9c1..6de44c9 100644
->> --- a/include/linux/swap.h
->> +++ b/include/linux/swap.h
->> @@ -348,6 +348,7 @@ extern struct page *swapin_readahead(swp_entry_t, gfp_t,
->>  /* linux/mm/swapfile.c */
->>  extern long nr_swap_pages;
->>  extern long total_swap_pages;
->> +extern unsigned int nr_swapfiles;
->>  extern void si_swapinfo(struct sysinfo *);
->>  extern swp_entry_t get_swap_page(void);
->>  extern swp_entry_t get_swap_page_of_type(int);
->> diff --git a/mm/swapfile.c b/mm/swapfile.c
->> index e97a0e5..89cebcf 100644
->> --- a/mm/swapfile.c
->> +++ b/mm/swapfile.c
->> @@ -46,7 +46,7 @@ static void free_swap_count_continuations(struct swap_info_struct *);
->>  static sector_t map_swap_entry(swp_entry_t, struct block_device**);
->>  
->>  DEFINE_SPINLOCK(swap_lock);
->> -static unsigned int nr_swapfiles;
->> +unsigned int nr_swapfiles;
->>  long nr_swap_pages;
->>  long total_swap_pages;
->>  static int least_priority;
->> -- 
->> 1.7.9.5
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Ohh, yeah. Head was telling max, fingers disagreed.
+ 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
