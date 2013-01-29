@@ -1,116 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id B3D996B0070
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 08:28:42 -0500 (EST)
-Date: Tue, 29 Jan 2013 15:14:58 +0200
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Message-ID: <5107cb52e07b1_376199eb7059997@blue.mail>
-In-Reply-To: <alpine.LNX.2.00.1301282041280.27186@eggly.anvils>
-References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com> <alpine.LNX.2.00.1301282041280.27186@eggly.anvils>
-Subject: Re: [PATCH, RFC 00/16] Transparent huge page cache
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 6F6CB6B0071
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 08:41:40 -0500 (EST)
+Date: Tue, 29 Jan 2013 14:41:37 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 1/6] memcg: refactor swap_cgroup_swapon()
+Message-ID: <20130129134137.GB29574@dhcp22.suse.cz>
+References: <510658E3.1020306@oracle.com>
+ <510658E6.9030108@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <510658E6.9030108@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Jeff Liu <jeff.liu@oracle.com>
+Cc: linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org
 
-Hugh Dickins wrote:
-> On Mon, 28 Jan 2013, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > 
-> > Here's first steps towards huge pages in page cache.
-> > 
-> > The intend of the work is get code ready to enable transparent huge page
-> > cache for the most simple fs -- ramfs.
-> > 
-> > It's not yet near feature-complete. It only provides basic infrastructure.
-> > At the moment we can read, write and truncate file on ramfs with huge pages in
-> > page cache. The most interesting part, mmap(), is not yet there. For now
-> > we split huge page on mmap() attempt.
-> > 
-> > I can't say that I see whole picture. I'm not sure if I understand locking
-> > model around split_huge_page(). Probably, not.
-> > Andrea, could you check if it looks correct?
-> > 
-> > Next steps (not necessary in this order):
-> >  - mmap();
-> >  - migration (?);
-> >  - collapse;
-> >  - stats, knobs, etc.;
-> >  - tmpfs/shmem enabling;
-> >  - ...
-> > 
-> > Kirill A. Shutemov (16):
-> >   block: implement add_bdi_stat()
-> >   mm: implement zero_huge_user_segment and friends
-> >   mm: drop actor argument of do_generic_file_read()
-> >   radix-tree: implement preload for multiple contiguous elements
-> >   thp, mm: basic defines for transparent huge page cache
-> >   thp, mm: rewrite add_to_page_cache_locked() to support huge pages
-> >   thp, mm: rewrite delete_from_page_cache() to support huge pages
-> >   thp, mm: locking tail page is a bug
-> >   thp, mm: handle tail pages in page_cache_get_speculative()
-> >   thp, mm: implement grab_cache_huge_page_write_begin()
-> >   thp, mm: naive support of thp in generic read/write routines
-> >   thp, libfs: initial support of thp in
-> >     simple_read/write_begin/write_end
-> >   thp: handle file pages in split_huge_page()
-> >   thp, mm: truncate support for transparent huge page cache
-> >   thp, mm: split huge page on mmap file page
-> >   ramfs: enable transparent huge page cache
-> > 
-> >  fs/libfs.c                  |   54 +++++++++---
-> >  fs/ramfs/inode.c            |    6 +-
-> >  include/linux/backing-dev.h |   10 +++
-> >  include/linux/huge_mm.h     |    8 ++
-> >  include/linux/mm.h          |   15 ++++
-> >  include/linux/pagemap.h     |   14 ++-
-> >  include/linux/radix-tree.h  |    3 +
-> >  lib/radix-tree.c            |   32 +++++--
-> >  mm/filemap.c                |  204 +++++++++++++++++++++++++++++++++++--------
-> >  mm/huge_memory.c            |   62 +++++++++++--
-> >  mm/memory.c                 |   22 +++++
-> >  mm/truncate.c               |   12 +++
-> >  12 files changed, 375 insertions(+), 67 deletions(-)
+On Mon 28-01-13 18:54:30, Jeff Liu wrote:
+> Refector swap_cgroup_swapon() to setup the number of pages only, and
+> move the rest to swap_cgroup_prepare(), so that the later can be used
+> for allocating buffers when creating the first non-root memcg.
 > 
-> Interesting.
+> Signed-off-by: Jie Liu <jeff.liu@oracle.com>
+> CC: Glauber Costa <glommer@parallels.com>
+> CC: Michal Hocko <mhocko@suse.cz>
+> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> CC: Mel Gorman <mgorman@suse.de>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: Sha Zhengju <handai.szj@taobao.com>
+
+Makes sense and it even saves some lines.
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
 > 
-> I was starting to think about Transparent Huge Pagecache a few
-> months ago, but then got washed away by incoming waves as usual.
+> ---
+>  mm/page_cgroup.c |   17 ++++++-----------
+>  1 file changed, 6 insertions(+), 11 deletions(-)
 > 
-> Certainly I don't have a line of code to show for it; but my first
-> impression of your patches is that we have very different ideas of
-> where to start.
+> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+> index 6d757e3..c945254 100644
+> --- a/mm/page_cgroup.c
+> +++ b/mm/page_cgroup.c
+> @@ -360,6 +360,9 @@ static int swap_cgroup_prepare(int type)
+>  	unsigned long idx, max;
+>  
+>  	ctrl = &swap_cgroup_ctrl[type];
+> +	ctrl->map = vzalloc(ctrl->length * sizeof(void *));
+> +	if (!ctrl->map)
+> +		goto nomem;
+>  
+>  	for (idx = 0; idx < ctrl->length; idx++) {
+>  		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+> @@ -368,11 +371,13 @@ static int swap_cgroup_prepare(int type)
+>  		ctrl->map[idx] = page;
+>  	}
+>  	return 0;
+> +
+>  not_enough_page:
+>  	max = idx;
+>  	for (idx = 0; idx < max; idx++)
+>  		__free_page(ctrl->map[idx]);
+> -
+> +	ctrl->map = NULL;
+> +nomem:
+>  	return -ENOMEM;
+>  }
+>  
+> @@ -460,8 +465,6 @@ unsigned short lookup_swap_cgroup_id(swp_entry_t ent)
+>  
+>  int swap_cgroup_swapon(int type, unsigned long max_pages)
+>  {
+> -	void *array;
+> -	unsigned long array_size;
+>  	unsigned long length;
+>  	struct swap_cgroup_ctrl *ctrl;
+>  
+> @@ -469,23 +472,15 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
+>  		return 0;
+>  
+>  	length = DIV_ROUND_UP(max_pages, SC_PER_PAGE);
+> -	array_size = length * sizeof(void *);
+> -
+> -	array = vzalloc(array_size);
+> -	if (!array)
+> -		goto nomem;
+>  
+>  	ctrl = &swap_cgroup_ctrl[type];
+>  	mutex_lock(&swap_cgroup_mutex);
+>  	ctrl->length = length;
+> -	ctrl->map = array;
+>  	spin_lock_init(&ctrl->lock);
+>  	if (swap_cgroup_prepare(type)) {
+>  		/* memory shortage */
+> -		ctrl->map = NULL;
+>  		ctrl->length = 0;
+>  		mutex_unlock(&swap_cgroup_mutex);
+> -		vfree(array);
+>  		goto nomem;
+>  	}
+>  	mutex_unlock(&swap_cgroup_mutex);
+> -- 
+> 1.7.9.5
 > 
-> Perhaps that's good complementarity, or perhaps I'll disagree with
-> your approach.  I'll be taking a look at yours in the coming days,
-> and trying to summon back up my own ideas to summarize them for you.
-
-Yeah, it would be nice to see alternative design ideas. Looking forward.
-
-> Perhaps I was naive to imagine it, but I did intend to start out
-> generically, independent of filesystem; but content to narrow down
-> on tmpfs alone where it gets hard to support the others (writeback
-> springs to mind).  khugepaged would be migrating little pages into
-> huge pages, where it saw that the mmaps of the file would benefit
-> (and for testing I would hack mmap alignment choice to favour it).
-
-I don't think all fs at once would fly, but it's wonderful, if I'm
-wrong :)
-
-> I had arrived at a conviction that the first thing to change was
-> the way that tail pages of a THP are refcounted, that it had been a
-> mistake to use the compound page method of holding the THP together.
-> But I'll have to enter a trance now to recall the arguments ;)
-
-THP refcounting looks reasonable for me, if take split_huge_page() in
-account.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
