@@ -1,60 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id DC6A86B000A
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 01:44:44 -0500 (EST)
-Message-ID: <51076FAC.9060605@cn.fujitsu.com>
-Date: Tue, 29 Jan 2013 14:43:56 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] acpi, memory-hotplug: Support getting hotplug info
- from SRAT.
-References: <1359106929-3034-1-git-send-email-tangchen@cn.fujitsu.com> <1359106929-3034-4-git-send-email-tangchen@cn.fujitsu.com> <20130125171230.34c5a273.akpm@linux-foundation.org> <51033186.3000706@zytor.com> <5105DD4B.9020901@cn.fujitsu.com> <3908561D78D1C84285E8C5FCA982C28F1C98F9CB@ORSMSX108.amr.corp.intel.com>
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F1C98F9CB@ORSMSX108.amr.corp.intel.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 16BD76B0007
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 02:19:47 -0500 (EST)
+Received: by mail-la0-f45.google.com with SMTP id er20so65043lab.18
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2013 23:19:45 -0800 (PST)
+Date: Tue, 29 Jan 2013 09:11:08 +0200
+From: Pekka Enberg <penberg@kernel.org>
+Message-ID: <5107760ca0614_5bf811b9fe4132b@golgotha.mail>
+In-Reply-To: <20130128232145.GA2666@blaptop>
+References: <1359333506-13599-1-git-send-email-minchan@kernel.org> <CAOJsxLFg_5uhZsvPmVVC0nnsZLGpkJ0W6mHa=aavmguLGuTTnA@mail.gmail.com> <20130128232145.GA2666@blaptop>
+Subject: Re: [RESEND PATCH v5 1/4] zram: Fix deadlock bug in partial write
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=UTF-8
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "rob@landley.net" <rob@landley.net>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "guz.fnst@cn.fujitsu.com" <guz.fnst@cn.fujitsu.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "lliubbo@gmail.com" <lliubbo@gmail.com>, "jaegeuk.hanse@gmail.com" <jaegeuk.hanse@gmail.com>, "glommer@parallels.com" <glommer@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, stable@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>
 
-On 01/29/2013 01:45 AM, Luck, Tony wrote:
->> I will post a patch to fix it. How about always keep node0 unhotpluggable ?
->
-> Node 0 (or more specifically the node that contains memory<4GB) will be
-> full of BIOS reserved holes in the memory map.
+On Tue, Jan 29, 2013 at 1:21 AM, Minchan Kim <minchan@kernel.org> wrote:
+> How about this?
+> ------------------------- >8 -------------------------------
+> 
+> From 9f8756ae0b0f2819f93cb94dcd38da372843aa12 Mon Sep 17 00:00:00 2001
+> From: Minchan Kim <minchan@kernel.org>
+> Date: Mon, 21 Jan 2013 13:58:52 +0900
+> Subject: [RESEND PATCH v5 1/4] zram: Fix deadlock bug in partial read/write
+> 
+> Now zram allocates new page with GFP_KERNEL in zram I/O path
+> if IO is partial. Unfortunately, It may cause deadlock with
+> reclaim path like below.
+> 
+> write_page from fs
+> fs_lock
+> allocation(GFP_KERNEL)
+> reclaim
+> pageout
+> 				write_page from fs
+> 				fs_lock <-- deadlock
+> 
+> This patch fixes it by using GFP_ATOMIC and GFP_NOIO.
+> In read path, we called kmap_atomic so that we need GFP_ATOMIC
+> while we need GFP_NOIO in write path.
 
-Hi Tony,
+The patch description makes sense now. Thanks!
 
-One thing I'm not sure, is memory<4GB always on node 0 ?
-On my box, it is on node 0.
+On Tue, Jan 29, 2013 at 1:21 AM, Minchan Kim <minchan@kernel.org> wrote:
+> We could use GFP_IO instead of GFP_ATOMIC in zram_bvec_read with
+> some modification related to buffer allocation in case of partial IO.
+> But it needs more churn and prevent merge this patch into stable
+> if we should send this to stable so I'd like to keep it as simple
+> as possbile. GFP_IO usage could be separate patch after we merge it.
 
-But since node id is 1-1 mapped to PXM in SRAT, if SRAT entries are not 
-ordered by
-physical address, memory<4GB may not on node 0. I think this is 
-something related
-to firmware. i didn't find anything about the order problem in ACPI 
-specification.
+I don't see why something like below couldn't be merged for stable.
+Going for GFP_ATOMIC might seem like the simplest thing to go for but
+usually bites you in the end.
 
-So, do we just check if the node id != 0, or we need to check if we have 
-reserved
-enough for kernel, such as 4GB ?
+			Pekka
 
-Thanks. :)
-
->It probably isn't removable
-> even if Linux thinks it is.  Someday we might have a smart BIOS that can
-> relocate itself to another node - but for now making node0 unhotpluggable
-> looks to be a plausible interim move.
->
-> Ultimately we'd like to be able to remove any node (just not all of them at
-> the same time ... just like we can now offline any cpu - but not all of them
-> together).
->
-> -Tony
->
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------------------------- >8 -------------------------------
