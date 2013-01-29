@@ -1,79 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 535CB6B0035
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 06:51:43 -0500 (EST)
-Message-ID: <5107B76C.6020704@web.de>
-Date: Tue, 29 Jan 2013 12:50:04 +0100
-From: Soeren Moch <smoch@web.de>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id EDD516B0039
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 07:11:02 -0500 (EST)
+Received: by mail-oa0-f47.google.com with SMTP id h1so326169oag.20
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2013 04:11:02 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
- calls
-References: <50F800EB.6040104@web.de> <201301172026.45514.arnd@arndb.de> <50FABBED.1020905@web.de> <20130119185907.GA20719@lunn.ch> <5100022D.9050106@web.de> <20130123162515.GK13482@lunn.ch> <510018B4.9040903@web.de> <51001BEE.9020201@web.de> <20130123181029.GE20719@lunn.ch> <5106E6A6.7010207@web.de> <20130129110228.GA20242@lunn.ch>
-In-Reply-To: <20130129110228.GA20242@lunn.ch>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1359365068-10147-7-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1359365068-10147-7-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Tue, 29 Jan 2013 20:11:01 +0800
+Message-ID: <CAJd=RBAAdYef6+sHnD9kS=7mygSrgAD3cDW1wk8YsT2OK0sfZQ@mail.gmail.com>
+Subject: Re: [PATCH, RFC 06/16] thp, mm: rewrite add_to_page_cache_locked() to
+ support huge pages
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Lunn <andrew@lunn.ch>
-Cc: Arnd Bergmann <arnd@arndb.de>, Jason Cooper <jason@lakedaemon.net>, Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, gennarone@gmail.com, mchehab@redhat.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 29.01.2013 12:02, Andrew Lunn wrote:
->> Now I activated the debug messages in em28xx. From the messages I
->> see no correlation of the pool exhaustion and lost sync. Also I
->> cannot see any error messages from the em28xx driver.
->> I see a lot of init_isoc/stop_urbs (maybe EPG scan?) without
->> draining the coherent pool (checked with 'cat
->> /debug/dma-api/num_free_entries', which gave stable numbers), but
->> after half an hour there are only init_isoc messages without
->> corresponding stop_urbs messages and num_free_entries decreased
->> until coherent pool exhaustion.
+On Mon, Jan 28, 2013 at 5:24 PM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> @@ -443,6 +443,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+>                 pgoff_t offset, gfp_t gfp_mask)
+>  {
+>         int error;
+> +       int nr = 1;
 >
-> Hi Soeren
->
-> em28xx_stop_urbs() is only called by em28xx_stop_streaming().
->
-> em28xx_stop_streaming() is only called by em28xx_stop_feed()
-> when 0 == dvb->nfeeds.
->
-> em28xx_stop_feed()and em28xx_start_feed() look O.K, dvb->nfeeds is
-> protected by a mutex etc.
->
-> Now, em28xx_init_isoc() is also called by buffer_prepare(). This uses
-> em28xx_alloc_isoc() to do the actual allocation, and that function
-> sets up the urb such that on completion the function
-> em28xx_irq_callback() is called.
->
-> It looks like there might be issues here:
->
-> Once the data has been copied out, it resubmits the urb:
->
->         urb->status = usb_submit_urb(urb, GFP_ATOMIC);
->          if (urb->status) {
->                  em28xx_isocdbg("urb resubmit failed (error=%i)\n",
->                                 urb->status);
->          }
->
-> However, if the ubs_submit_urb fails, it looks like the urb is lost.
->
-> If you look at other code submitting urbs you have this pattern:
->
->                 rc = usb_submit_urb(isoc_bufs->urb[i], GFP_ATOMIC);
->                  if (rc) {
->                          em28xx_err("submit of urb %i failed (error=%i)\n", i,
->                                     rc);
->                          em28xx_uninit_isoc(dev, mode);
->                          return rc;
->                  }
->
-> Do you have your build such that you would see "urb resubmit failed"
-> in your logs? Are there any?
+>         VM_BUG_ON(!PageLocked(page));
+>         VM_BUG_ON(PageSwapBacked(page));
+> @@ -450,31 +451,61 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+>         error = mem_cgroup_cache_charge(page, current->mm,
+>                                         gfp_mask & GFP_RECLAIM_MASK);
+>         if (error)
+> -               goto out;
+> +               return error;
 
-I only had "urb resubmit failed" messages _after_ the coherent pool 
-exhaustion. So I guess something below the usb_submit_urb call is 
-allocating (too much) memory, sometimes. Or can dvb_demux allocate 
-memory and blame orion-ehci for it?
-
-   Soeren
+Due to PageCompound check, thp could not be charged effectively.
+Any change added for charging it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
