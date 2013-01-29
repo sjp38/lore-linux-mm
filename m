@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 648A96B0007
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 20:44:20 -0500 (EST)
-Received: by mail-pb0-f42.google.com with SMTP id wz17so590278pbc.29
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2013 17:44:19 -0800 (PST)
-Date: Mon, 28 Jan 2013 17:44:23 -0800 (PST)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 9E8C16B0007
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 21:03:13 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id hz10so60390pad.23
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2013 18:03:12 -0800 (PST)
+Date: Mon, 28 Jan 2013 18:03:16 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/11] ksm: trivial tidyups
-In-Reply-To: <20130128151119.b74d0150.akpm@linux-foundation.org>
-Message-ID: <alpine.LNX.2.00.1301281738570.4947@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <alpine.LNX.2.00.1301251757020.29196@eggly.anvils> <20130128151119.b74d0150.akpm@linux-foundation.org>
+Subject: Re: [PATCH 6/11] ksm: remove old stable nodes more thoroughly
+In-Reply-To: <20130128154407.16a623a4.akpm@linux-foundation.org>
+Message-ID: <alpine.LNX.2.00.1301281747210.4947@eggly.anvils>
+References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <alpine.LNX.2.00.1301251800550.29196@eggly.anvils> <20130128154407.16a623a4.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,50 +18,40 @@ To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Mon, 28 Jan 2013, Andrew Morton wrote:
-> On Fri, 25 Jan 2013 17:58:11 -0800 (PST)
+> On Fri, 25 Jan 2013 18:01:59 -0800 (PST)
 > Hugh Dickins <hughd@google.com> wrote:
 > 
-> > +#ifdef CONFIG_NUMA
-> > +#define NUMA(x)		(x)
-> > +#define DO_NUMA(x)	(x)
+> > +static int remove_all_stable_nodes(void)
+> > +{
+> > +	struct stable_node *stable_node;
+> > +	int nid;
+> > +	int err = 0;
+> > +
+> > +	for (nid = 0; nid < nr_node_ids; nid++) {
+> > +		while (root_stable_tree[nid].rb_node) {
+> > +			stable_node = rb_entry(root_stable_tree[nid].rb_node,
+> > +						struct stable_node, node);
+> > +			if (remove_stable_node(stable_node)) {
+> > +				err = -EBUSY;
 > 
-> Did we consider
-> 
-> 	#define DO_NUMA do { (x) } while (0)
-> 
-> ?
+> It's a bit rude to overwrite remove_stable_node()'s return value.
 
-It didn't occur to me at all.  I like that it makes more sense of
-the DO_NUMA variant.  Is it okay that, to work with the way I was
-using it, we need "(x);" in there rather than just "(x)"?
+Well.... yes, but only the tiniest bit rude :)
 
 > 
-> That could avoid some nasty config-dependent compilation issues.
+> > +				break;	/* proceed to next nid */
+> > +			}
+> > +			cond_resched();
 > 
-> > +#else
-> > +#define NUMA(x)		(0)
+> Why is this here?
 
-[PATCH] ksm: trivial tidyups fix
+Because we don't have a limit on the length of this loop, and if
+every node which remove_stable_node() finds is already stale, and
+has no rmap_item still attached, then there would be no rescheduling
+point in the unbounded loop without this one.  I was taught to worry
+about bad latencies even in unpreemptible kernels.
 
-Suggested by akpm: make DO_NUMA(x) do { (x); } while (0) more like the #else.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-
- mm/ksm.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
---- mmotm.org/mm/ksm.c	2013-01-27 09:55:45.000000000 -0800
-+++ mmotm/mm/ksm.c	2013-01-28 16:50:25.772026446 -0800
-@@ -43,7 +43,7 @@
- 
- #ifdef CONFIG_NUMA
- #define NUMA(x)		(x)
--#define DO_NUMA(x)	(x)
-+#define DO_NUMA(x)	do { (x); } while (0)
- #else
- #define NUMA(x)		(0)
- #define DO_NUMA(x)	do { } while (0)
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
