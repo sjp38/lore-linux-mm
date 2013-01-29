@@ -1,39 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 2FE0E6B0007
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 20:07:18 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id uo5so1805513pbc.25
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2013 17:07:17 -0800 (PST)
-Date: Mon, 28 Jan 2013 17:07:15 -0800 (PST)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id B8AF46B0007
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 20:17:21 -0500 (EST)
+Received: by mail-pb0-f42.google.com with SMTP id wz17so577460pbc.29
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2013 17:17:21 -0800 (PST)
+Date: Mon, 28 Jan 2013 17:17:24 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 0/11] ksm: NUMA trees and page migration
-In-Reply-To: <20130128155452.16882a6e.akpm@linux-foundation.org>
-Message-ID: <alpine.LNX.2.00.1301281701010.4947@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <20130128155452.16882a6e.akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/11] ksm: allow trees per NUMA node
+In-Reply-To: <20130128150304.2e7a2fb4.akpm@linux-foundation.org>
+Message-ID: <alpine.LNX.2.00.1301281707430.4947@eggly.anvils>
+References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <alpine.LNX.2.00.1301251753380.29196@eggly.anvils> <20130128150304.2e7a2fb4.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Anton Arapov <anton@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
+Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Anton Arapov <anton@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Mon, 28 Jan 2013, Andrew Morton wrote:
-> On Fri, 25 Jan 2013 17:53:10 -0800 (PST)
+> On Fri, 25 Jan 2013 17:54:53 -0800 (PST)
 > Hugh Dickins <hughd@google.com> wrote:
 > 
-> > Here's a KSM series
+> > --- mmotm.orig/Documentation/vm/ksm.txt	2013-01-25 14:36:31.724205455 -0800
+> > +++ mmotm/Documentation/vm/ksm.txt	2013-01-25 14:36:38.608205618 -0800
+> > @@ -58,6 +58,13 @@ sleep_millisecs  - how many milliseconds
+> >                     e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
+> >                     Default: 20 (chosen for demonstration purposes)
+> >  
+> > +merge_across_nodes - specifies if pages from different numa nodes can be merged.
+> > +                   When set to 0, ksm merges only pages which physically
+> > +                   reside in the memory area of same NUMA node. It brings
+> > +                   lower latency to access to shared page. Value can be
+> > +                   changed only when there is no ksm shared pages in system.
+> > +                   Default: 1
+> > +
 > 
-> Sanity check: do you have a feeling for how useful KSM is? 
-> Performance/space improvements for typical (or atypical) workloads? 
-> Are people using it?  Successfully?
+> The explanation doesn't really tell the operator whether or not to set
+> merge_across_nodes for a particular machine/workload.
 > 
-> IOW, is it justifying itself?
+> I guess most people will just shrug, turn the thing on and see if it
+> improved things, but that's rather random.
 
-I have no idea!  To me it's simply a technical challenge - and I agree
-with your implication that that's not a good enough justification.
+Right.  I don't think we can tell them which is going to be better,
+but surely we could do a better job of hinting at the tradeoffs.
 
-I've added Marcelo and Gleb and the KVM list to the Cc:
-my understanding is that it's the KVM guys who really appreciate KSM.
+I think we expect large NUMA machines with lots of memory to want the
+better NUMA behavior of !merge_across_nodes, but machines with more
+limited memory across short-distance NUMA nodes, to prefer the greater
+deduplication of merge_across nodes.
+
+Petr, do you have a more informative text for this?
 
 Hugh
 
