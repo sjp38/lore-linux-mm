@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 95C866B0005
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 17:51:36 -0500 (EST)
-Date: Tue, 29 Jan 2013 14:51:34 -0800
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 7DCC46B0005
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 18:03:52 -0500 (EST)
+Date: Tue, 29 Jan 2013 15:03:50 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv4 2/7] zsmalloc: promote to lib/
-Message-Id: <20130129145134.813672cf.akpm@linux-foundation.org>
-In-Reply-To: <1359495627-30285-3-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: Re: [PATCHv4 6/7] zswap: add flushing support
+Message-Id: <20130129150350.d0b51ca9.akpm@linux-foundation.org>
+In-Reply-To: <1359495627-30285-7-git-send-email-sjenning@linux.vnet.ibm.com>
 References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	<1359495627-30285-3-git-send-email-sjenning@linux.vnet.ibm.com>
+	<1359495627-30285-7-git-send-email-sjenning@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,70 +17,30 @@ List-ID: <linux-mm.kvack.org>
 To: Seth Jennings <sjenning@linux.vnet.ibm.com>
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Tue, 29 Jan 2013 15:40:22 -0600
+On Tue, 29 Jan 2013 15:40:26 -0600
 Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
 
-> This patch promotes the slab-based zsmalloc memory allocator
-> from the staging tree to lib/
+> This patchset adds support for flush pages out of the compressed
+> pool to the swap device
 
-Hate to rain on the parade, but...  we haven't reviewed zsmalloc
-yet.  At least, I haven't, and I haven't seen others do so.
+I do so hate that word "flush".  Sometimes it means "writeback", other
+times it means "invalidate".  And perhaps it means "copy elsewhere then
+reclaim".
 
-So how's about we forget that zsmalloc was previously in staging and
-send the zsmalloc code out for review?  With a very good changelog
-explaining why it exists, what problems it solves, etc.
+Please describe with great specificity what this patch actually does
+with pages, and why it does it.  And where the compression factors into
+this.
 
+The code appears to take a compressed page, decompress it into
+swapcache via some means.  And then, for unexplained reasons, it starts
+writeback of that swapcache page.
 
-I peeked.
+In zswap_flush_entry() there is a comment "page is already in the swap
+cache, ignore for now".  This is very interesting.  How and why does
+this come about?  Does it imply that there are two copies of the same
+data floating around?  If so, how come?
 
-Don't answer any of the below questions - they are examples of
-concepts which should be accessible to readers of the
-hopefully-forthcoming very-good-changelog.
-
-- kmap_atomic() returns a void* - there's no need to cast its return value.
-
-- Remove private MAX(), use the (much better implemented) max().
-
-- It says "This was one of the major issues with its predecessor
-  (xvmalloc)", but drivers/staging/ramster/xvmalloc.c is still in the tree.
-
-- USE_PGTABLE_MAPPING should be done via Kconfig.
-
-- USE_PGTABLE_MAPPING is interesting and the changelog should go into
-  some details.  What are the pros and cons here?  Why do the two
-  options exist?  Can we eliminate one mode or the other?
-
-- Various functions are obscure and would benefit from explanatory
-  comments.  Good comments explain "why it exists", more than "what it
-  does".
-
-  These include get_size_class_index, get_fullness_group,
-  insert_zspage, remove_zspage, fix_fullness_group.
-
-  Also a description of this handle encoding thing - what do these
-  "handles" refer to?  Why is stuff being encoded into them and how?
-
-- I don't understand how the whole thing works :( If I allocate a
-  16 kbyte object with zs_malloc(), what do I get?  16k of
-  contiguous memory?  How can it do that if
-  USE_PGTABLE_MAPPING=false?  Obviously it can't so it's doing
-  something else.  But what?
-
-- What does zs_create_pool() do and how do I use it?  It appears
-  to create a pool of all possible object sizes.  But why do we need
-  more than one such pool kernel-wide?
-
-- I tried to work out the actual value of ZS_SIZE_CLASSES but it
-  made my head spin.
-
-- We really really don't want to merge zsmalloc!  It would be far
-  better to use an existing allocator (perhaps after modifying it)
-  than to add yet another new one.  The really-good-changelog should
-  be compelling on this point, please.
-
-See, I (and I assume others) are totally on first base here and we need
-to get through this before we can get onto zswap.  Sorry. 
-drivers/staging is where code goes to be ignored :(
+Preferably all the above would be understandable by reading mm/zswap.c.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
