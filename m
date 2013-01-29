@@ -1,235 +1,266 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id AB0666B0095
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 10:29:36 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fb10so457024pad.16
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2013 07:29:35 -0800 (PST)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 14EE28D0002
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 10:51:54 -0500 (EST)
+Message-ID: <5107F00E.7070302@oracle.com>
+Date: Tue, 29 Jan 2013 23:51:42 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <51071AA1.7000207@jp.fujitsu.com>
-References: <1359198756-3752-1-git-send-email-handai.szj@taobao.com>
-	<51071AA1.7000207@jp.fujitsu.com>
-Date: Tue, 29 Jan 2013 23:29:35 +0800
-Message-ID: <CAFj3OHXyWN+zUMAaSEOz2gCP7Bm6v4Zex=Rq=7A9CkHTp3j1UQ@mail.gmail.com>
-Subject: Re: [PATCH] memcg: simplify lock of memcg page stat accounting
-From: Sha Zhengju <handai.szj@gmail.com>
+Subject: Re: [PATCH v2 5/6] memcg: introduce swap_cgroup_init()/swap_cgroup_free()
+References: <510658E3.1020306@oracle.com> <510658F7.6050806@oracle.com> <20130129145639.GG29574@dhcp22.suse.cz>
+In-Reply-To: <20130129145639.GG29574@dhcp22.suse.cz>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com, hannes@cmpxchg.org, hughd@google.com, Sha Zhengju <handai.szj@taobao.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, cgroups@vger.kernel.org
 
-On Tue, Jan 29, 2013 at 8:41 AM, Kamezawa Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> (2013/01/26 20:12), Sha Zhengju wrote:
->> From: Sha Zhengju <handai.szj@taobao.com>
+On 01/29/2013 10:56 PM, Michal Hocko wrote:
+> On Mon 28-01-13 18:54:47, Jeff Liu wrote:
+>> Introduce swap_cgroup_init()/swap_cgroup_free() to allocate buffers when creating the first
+>> non-root memcg and deallocate buffers on the last non-root memcg is gone.
+> 
+> I think this deserves more words ;) At least it would be good to
+> describe contexts from which init and free might be called. What are the
+> locking rules.
+> Also swap_cgroup_destroy sounds more in pair with swap_cgroup_init.
+Will improve the comments log as well as fix the naming.  Btw, I named
+it as swap_cgroup_free() because we have mem_cgroup_free() corresponding
+to mem_cgroup_init(). :)
+> 
+> Please add the users of those function here as well. It is much easier
+> to review.
+Sure.
+>  
+>> Signed-off-by: Jie Liu <jeff.liu@oracle.com>
+>> CC: Glauber Costa <glommer@parallels.com>
+>> CC: Michal Hocko <mhocko@suse.cz>
+>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> CC: Johannes Weiner <hannes@cmpxchg.org>
+>> CC: Mel Gorman <mgorman@suse.de>
+>> CC: Andrew Morton <akpm@linux-foundation.org>
+>> CC: Sha Zhengju <handai.szj@taobao.com>
 >>
->> After removing duplicated information like PCG_*
->> flags in 'struct page_cgroup'(commit 2ff76f1193), there's a problem
->> between "move" and "page stat accounting"(only FILE_MAPPED is supported
->> now but other stats will be added in future):
->> assume CPU-A does "page stat accounting" and CPU-B does "move"
->>
->> CPU-A                        CPU-B
->> TestSet PG_dirty
->> (delay)               move_lock_mem_cgroup()
->>                          if (PageDirty(page)) {
->>                               old_memcg->nr_dirty --
->>                               new_memcg->nr_dirty++
->>                          }
->>                          pc->mem_cgroup = new_memcg;
->>                          move_unlock_mem_cgroup()
->>
->> move_lock_mem_cgroup()
->> memcg = pc->mem_cgroup
->> memcg->nr_dirty++
->> move_unlock_mem_cgroup()
->>
->> while accounting information of new_memcg may be double-counted. So we
->> use a bigger lock to solve this problem:  (commit: 89c06bd52f)
->>
->>        move_lock_mem_cgroup() <-- mem_cgroup_begin_update_page_stat()
->>        TestSetPageDirty(page)
->>        update page stats (without any checks)
->>        move_unlock_mem_cgroup() <-- mem_cgroup_begin_update_page_stat()
->>
->>
->> But this method also has its pros and cons: at present we use two layers
->> of lock avoidance(memcg_moving and memcg->moving_account) then spinlock
->> on memcg (see mem_cgroup_begin_update_page_stat()), but the lock granularity
->> is a little bigger that not only the critical section but also some code
->> logic is in the range of locking which may be deadlock prone. As dirty
->> writeack stats are added, it gets into further difficulty with the page
->> cache radix tree lock and it seems that the lock requires nesting.
->> (https://lkml.org/lkml/2013/1/2/48)
->>
->> So in order to make the lock simpler and clearer and also avoid the 'nesting'
->> problem, a choice may be:
->> (CPU-A does "page stat accounting" and CPU-B does "move")
->>
->>         CPU-A                        CPU-B
->>
->> move_lock_mem_cgroup()
->> memcg = pc->mem_cgroup
->> TestSetPageDirty(page)
->> move_unlock_mem_cgroup()
->>                               move_lock_mem_cgroup()
->>                               if (PageDirty) {
->>                                    old_memcg->nr_dirty --;
->>                                    new_memcg->nr_dirty ++;
->>                               }
->>                               pc->mem_cgroup = new_memcg
->>                               move_unlock_mem_cgroup()
->>
->> memcg->nr_dirty ++
->>
->
-> Hmm. no race with file truncate ?
->
-
-Do you mean "dirty page accounting" racing with truncate?  Yes, if
-another one do truncate and set page->mapping=NULL just before CPU-A's
-'memcg->nr_dirty ++', then it'll have no change to correct the figure
-back. So my rough idea now is to have some small changes to
-__set_page_dirty/__set_page_dirty_nobuffers that do SetDirtyPage
-inside ->tree_lock.
-
-But, in current codes, is there any chance that
-mem_cgroup_move_account() racing with truncate that PageAnon is
-false(since page->mapping is cleared) but later in page_remove_rmap()
-the new memcg stats is over decrement...? Call me silly...but I really
-get dizzy by those locks now, need to have a run to refresh my head...
- : (
-
-
->
->>
->> For CPU-A, we save pc->mem_cgroup in a temporary variable just before
->> TestSetPageDirty inside move_lock and then update stats if the page is set
->> PG_dirty successfully. But CPU-B may do "moving" in advance that
->> "old_memcg->nr_dirty --" will make old_memcg->nr_dirty incorrect but
->> soon CPU-A will do "memcg->nr_dirty ++" finally that amend the stats.
->>
->> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
 >> ---
->>   include/linux/memcontrol.h |   14 +++++------
->>   mm/memcontrol.c            |    8 ++-----
->>   mm/rmap.c                  |   55 +++++++++++++++++++++++++++++++++-----------
->>   3 files changed, 51 insertions(+), 26 deletions(-)
+>>  include/linux/page_cgroup.h |   12 +++++
+>>  mm/page_cgroup.c            |  108 +++++++++++++++++++++++++++++++++++++++----
+>>  2 files changed, 110 insertions(+), 10 deletions(-)
 >>
->> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->> index 0108a56..12de53b 100644
->> --- a/include/linux/memcontrol.h
->> +++ b/include/linux/memcontrol.h
->> @@ -164,20 +164,20 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
->>       rcu_read_unlock();
->>   }
->>
->> -void mem_cgroup_update_page_stat(struct page *page,
->> +void mem_cgroup_update_page_stat(struct mem_cgroup *memcg,
->>                                enum mem_cgroup_page_stat_item idx,
->>                                int val);
->>
->> -static inline void mem_cgroup_inc_page_stat(struct page *page,
->> +static inline void mem_cgroup_inc_page_stat(struct mem_cgroup *memcg,
->>                                           enum mem_cgroup_page_stat_item idx)
->>   {
->> -     mem_cgroup_update_page_stat(page, idx, 1);
->> +     mem_cgroup_update_page_stat(memcg, idx, 1);
->>   }
->>
->> -static inline void mem_cgroup_dec_page_stat(struct page *page,
->> +static inline void mem_cgroup_dec_page_stat(struct mem_cgroup *memcg,
->>                                           enum mem_cgroup_page_stat_item idx)
->>   {
->> -     mem_cgroup_update_page_stat(page, idx, -1);
->> +     mem_cgroup_update_page_stat(memcg, idx, -1);
->>   }
->>
->>   unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->> @@ -354,12 +354,12 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
->>   {
->>   }
->>
->> -static inline void mem_cgroup_inc_page_stat(struct page *page,
->> +static inline void mem_cgroup_inc_page_stat(struct mem_cgroup *memcg,
->>                                           enum mem_cgroup_page_stat_item idx)
->>   {
->>   }
->>
->> -static inline void mem_cgroup_dec_page_stat(struct page *page,
->> +static inline void mem_cgroup_dec_page_stat(struct mem_cgroup *memcg,
->>                                           enum mem_cgroup_page_stat_item idx)
->>   {
->>   }
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 3817460..1b13e43 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -2259,18 +2259,14 @@ void __mem_cgroup_end_update_page_stat(struct page *page, unsigned long *flags)
->>       move_unlock_mem_cgroup(pc->mem_cgroup, flags);
->>   }
->>
->> -void mem_cgroup_update_page_stat(struct page *page,
->> +void mem_cgroup_update_page_stat(struct mem_cgroup *memcg,
->>                                enum mem_cgroup_page_stat_item idx, int val)
->>   {
->> -     struct mem_cgroup *memcg;
->> -     struct page_cgroup *pc = lookup_page_cgroup(page);
->> -     unsigned long uninitialized_var(flags);
->>
->>       if (mem_cgroup_disabled())
->>               return;
->>
->> -     memcg = pc->mem_cgroup;
->> -     if (unlikely(!memcg || !PageCgroupUsed(pc)))
->> +     if (unlikely(!memcg))
->>               return;
->
-> I can't catch why you can do accounting without checking PCG_USED.
-> Could you add comments like
->
->   * while accounting ops, mapping->tree_lock() or lock_page() is held
->     and we have any race with truncation
->   etc...
-
-Yeah...considering stat updates and uncharge, PCG_USED should be checked here.
-But anther problem raising out of my mind that the three: page stat
-accounting, move_account and uncharge may need synchronization....
-
->
->>
->>       switch (idx) {
->> diff --git a/mm/rmap.c b/mm/rmap.c
->> index 59b0dca..0d74c48 100644
->> --- a/mm/rmap.c
->> +++ b/mm/rmap.c
->> @@ -1112,13 +1112,25 @@ void page_add_file_rmap(struct page *page)
->>   {
->>       bool locked;
->>       unsigned long flags;
->> +     bool ret;
->> +     struct mem_cgroup *memcg = NULL;
->> +     struct cgroup_subsys_state *css = NULL;
->>
->>       mem_cgroup_begin_update_page_stat(page, &locked, &flags);
->> -     if (atomic_inc_and_test(&page->_mapcount)) {
->> +     memcg = try_get_mem_cgroup_from_page(page);
->
-> Toooooo heavy ! I can say NACK to this patch only because of this try_get().
->
-> To hold memcg alive, rcu_read_lock() will work (as current code does).
->
-OK, next version will return to its correct path.
-
-> BTW, does this patch fixes the nested-lock problem ?
->
-
-Yes, the lock only protects 'get old memcg' and 'modify page status',
-so page_remove_rmap can call set_dirty_page out of memcg stat lock.
-
+>> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+>> index 777a524..1255cc9 100644
+>> --- a/include/linux/page_cgroup.h
+>> +++ b/include/linux/page_cgroup.h
+>> @@ -113,6 +113,8 @@ extern unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id);
+>>  extern unsigned short lookup_swap_cgroup_id(swp_entry_t ent);
+>>  extern int swap_cgroup_swapon(int type, unsigned long max_pages);
+>>  extern void swap_cgroup_swapoff(int type);
+>> +extern int swap_cgroup_init(void);
+>> +extern void swap_cgroup_free(void);
+>>  #else
+>>  
+>>  static inline
+>> @@ -138,6 +140,16 @@ static inline void swap_cgroup_swapoff(int type)
+>>  	return;
+>>  }
+>>  
+>> +static inline int swap_cgroup_init(void)
+>> +{
+>> +	return 0;
+>> +}
+>> +
+>> +static inline void swap_cgroup_free(void)
+>> +{
+>> +	return;
+>> +}
+>> +
+>>  #endif /* CONFIG_MEMCG_SWAP */
+>>  
+>>  #endif /* !__GENERATING_BOUNDS_H */
+>> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+>> index 189fbf5..0ebd127 100644
+>> --- a/mm/page_cgroup.c
+>> +++ b/mm/page_cgroup.c
+>> @@ -362,14 +362,28 @@ static int swap_cgroup_prepare(int type)
+>>  	unsigned long idx, max;
+>>  
+>>  	ctrl = &swap_cgroup_ctrl[type];
+>> +	if (!ctrl->length) {
+>> +		/*
+>> +		 * Bypass the buffer allocation if the corresponding swap
+>> +		 * partition/file was turned off.
+>> +		 */
+>> +		pr_debug("couldn't allocate swap_cgroup on a disabled swap "
+>> +			 "partition or file, index: %d\n", type);
+> 
+> Do we really need to log this? I guess your scenario is:
+> swapon part1
+> swapon part2
+> swapon part3
+> swapoff part2
+> create first non-root cgroup
+Yesss!!
+> 
+> which is perfectly ok and I do not see any reason to log it.
+okay, I'll remove this redundant debug info.
+> 
+>> +		return 0;
+>> +	}
+>> +
+>>  	ctrl->map = vzalloc(ctrl->length * sizeof(void *));
+>> -	if (!ctrl->map)
+>> +	if (!ctrl->map) {
+>> +		ctrl->length = 0;
+>>  		goto nomem;
+>> +	}
+>>  
+>>  	for (idx = 0; idx < ctrl->length; idx++) {
+>>  		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+>> -		if (!page)
+>> +		if (!page) {
+>> +			ctrl->length = 0;
+>>  			goto not_enough_page;
+>> +		}
+>>  		ctrl->map[idx] = page;
+>>  	}
+>>  	return 0;
+>> @@ -383,6 +397,32 @@ nomem:
+> 
+> ctrl->length = 0 under this label would be probably nicer than keeping
+> it at two places.
+Will take care of it.
+> 
+>>  	return -ENOMEM;
+>>  }
+>>  
+>> +/*
+>> + * free buffer for swap_cgroup.
+>> + */
+>> +static void swap_cgroup_teardown(int type)
+>> +{
+>> +	struct page **map;
+>> +	unsigned long length;
+>> +	struct swap_cgroup_ctrl *ctrl;
+>> +
+>> +	ctrl = &swap_cgroup_ctrl[type];
+>> +	map = ctrl->map;
+>> +	length = ctrl->length;
+>> +	ctrl->map = NULL;
+>> +	ctrl->length = 0;
+>> +
+>> +	if (map) {
+> 
+> allocation path checks for ctrl->length so it would be good to unify
+> both. They are handling the same case (gone swap).
+yes, will fix it accordingly.
+> 
+>> +		unsigned long i;
+>> +		for (i = 0; i < length; i++) {
+>> +			struct page *page = map[i];
+>> +			if (page)
+>> +				__free_page(page);
+>> +		}
+>> +		vfree(map);
+>> +	}
+>> +}
+>> +
+>>  static struct swap_cgroup *lookup_swap_cgroup(swp_entry_t ent,
+>>  					struct swap_cgroup_ctrl **ctrlp)
+>>  {
+>> @@ -474,6 +514,56 @@ unsigned short lookup_swap_cgroup_id(swp_entry_t ent)
+>>  	return sc ? sc->id : 0;
+>>  }
+>>  
+>> +/*
+>> + * Allocate swap cgroup accounting structures when the first non-root
+>> + * memcg is created.
+>> + */
+>> +int swap_cgroup_init(void)
+>> +{
+>> +	unsigned int type;
+>> +
+>> +	if (!do_swap_account)
+>> +		return 0;
+>> +
+>> +	if (atomic_add_return(1, &memsw_accounting_users) != 1)
+>> +		return 0;
+>> +
+>> +	mutex_lock(&swap_cgroup_mutex);
+>> +	for (type = 0; type < nr_swapfiles; type++) {
+>> +		if (swap_cgroup_prepare(type) < 0) {
+>> +			mutex_unlock(&swap_cgroup_mutex);
+>> +			goto nomem;
+>> +		}
+>> +	}
+> 
+> You should clean up those types that were successful...
+Oops, those types should be deallocated...
 
 Thanks,
-Sha
+-Jeff
+> 
+>> +	mutex_unlock(&swap_cgroup_mutex);
+>> +	return 0;
+>> +
+>> +nomem:
+>> +	pr_info("couldn't allocate enough memory for swap_cgroup "
+>> +		"while creating non-root memcg.\n");
+>> +	return -ENOMEM;
+>> +}
+>> +
+>> +/*
+>> + * Deallocate swap cgroup accounting structures on the last non-root
+>> + * memcg removal.
+>> + */
+>> +void swap_cgroup_free(void)
+>> +{
+>> +	unsigned int type;
+>> +
+>> +	if (!do_swap_account)
+>> +		return;
+>> +
+>> +	if (atomic_sub_return(1, &memsw_accounting_users))
+>> +		return;
+>> +
+>> +	mutex_lock(&swap_cgroup_mutex);
+>> +	for (type = 0; type < nr_swapfiles; type++)
+>> +		swap_cgroup_teardown(type);
+>> +	mutex_unlock(&swap_cgroup_mutex);
+>> +}
+>> +
+>>  int swap_cgroup_swapon(int type, unsigned long max_pages)
+>>  {
+>>  	unsigned long length;
+>> @@ -482,20 +572,18 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
+>>  	if (!do_swap_account)
+>>  		return 0;
+>>  
+>> -	if (!atomic_read(&memsw_accounting_users))
+>> -		return 0;
+>> -
+>>  	length = DIV_ROUND_UP(max_pages, SC_PER_PAGE);
+>>  
+>>  	ctrl = &swap_cgroup_ctrl[type];
+>>  	mutex_lock(&swap_cgroup_mutex);
+>>  	ctrl->length = length;
+>>  	spin_lock_init(&ctrl->lock);
+>> -	if (swap_cgroup_prepare(type)) {
+>> -		/* memory shortage */
+>> -		ctrl->length = 0;
+>> -		mutex_unlock(&swap_cgroup_mutex);
+>> -		goto nomem;
+>> +	if (atomic_read(&memsw_accounting_users)) {
+>> +		if (swap_cgroup_prepare(type)) {
+>> +			/* memory shortage */
+>> +			mutex_unlock(&swap_cgroup_mutex);
+>> +			goto nomem;
+>> +		}
+>>  	}
+>>  	mutex_unlock(&swap_cgroup_mutex);
+>>  
+>> -- 
+>> 1.7.9.5
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
