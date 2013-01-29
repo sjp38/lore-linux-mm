@@ -1,44 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id E8FC96B0025
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 05:18:44 -0500 (EST)
-Message-ID: <5107A211.50409@parallels.com>
-Date: Tue, 29 Jan 2013 14:18:57 +0400
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 86BE66B000C
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 05:21:35 -0500 (EST)
+Message-ID: <5107A2B8.4070505@parallels.com>
+Date: Tue, 29 Jan 2013 14:21:44 +0400
 From: Lord Glauber Costa of Sealand <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/6] memcg: bypass swap accounting for the root memcg
-References: <510658EE.9050006@oracle.com>
-In-Reply-To: <510658EE.9050006@oracle.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCHv2 8/9] zswap: add to mm/
+References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-9-git-send-email-sjenning@linux.vnet.ibm.com> <51030ADA.8030403@redhat.com> <510698F5.5060205@linux.vnet.ibm.com>
+In-Reply-To: <510698F5.5060205@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Liu <jeff.liu@oracle.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, handai.szj@taobao.com
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Rik van Riel <riel@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad
+ Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes
+ Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 01/28/2013 02:54 PM, Jeff Liu wrote:
-> Root memcg with swap cgroup is special since we only do tracking but can
-> not set limits against it.  In order to facilitate the implementation of
-> the coming swap cgroup structures delay allocation mechanism, we can bypass
-> the default swap statistics upon the root memcg and figure it out through
-> the global stats instead as below:
-> 
-I am sorry if this is was already discussed before, but:
-> root_memcg_swap_stat: total_swap_pages - nr_swap_pages - used_swap_pages_of_all_memcgs
-> memcg_total_swap_stats: root_memcg_swap_stat + other_memcg_swap_stats
-> 
+On 01/28/2013 07:27 PM, Seth Jennings wrote:
+> Yes, I prototyped a shrinker interface for zswap, but, as we both
+> figured, it shrinks the zswap compressed pool too aggressively to the
+> point of being useless.
+Can't you advertise a smaller number of objects that you actively have?
 
-Shouldn't it *at least* be dependent on use_hierarchy?
-
-I don't see why root_memcg won't be always total_swap_pages -
-nr_swap_pages, since the root memcg is always viewed as a superset of
-the others, AFAIR.
-
-Even if it is not the general case (which again, I really believe it
-is), it certainly is the case for hierarchy enabled setups.
-
-Also, I truly don't understand what is the business of
-root_memcg_swap_stat in non-root memcgs.
+Since the shrinker would never try to shrink more objects than you
+advertised, you could control pressure this way.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
