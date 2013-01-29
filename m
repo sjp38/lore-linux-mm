@@ -1,80 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 94B8C6B002D
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 05:40:07 -0500 (EST)
-Date: Tue, 29 Jan 2013 11:40:03 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: simplify lock of memcg page stat accounting
-Message-ID: <20130129103940.GA29574@dhcp22.suse.cz>
-References: <1359198756-3752-1-git-send-email-handai.szj@taobao.com>
- <51071AA1.7000207@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 8D59B6B0030
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 05:45:17 -0500 (EST)
+Date: Tue, 29 Jan 2013 12:45:14 +0200
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH 0/11] ksm: NUMA trees and page migration
+Message-ID: <20130129104513.GA15004@redhat.com>
+References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
+ <20130128155452.16882a6e.akpm@linux-foundation.org>
+ <alpine.LNX.2.00.1301281701010.4947@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51071AA1.7000207@jp.fujitsu.com>
+In-Reply-To: <alpine.LNX.2.00.1301281701010.4947@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com, hannes@cmpxchg.org, hughd@google.com, Sha Zhengju <handai.szj@taobao.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Anton Arapov <anton@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
 
-On Tue 29-01-13 09:41:05, KAMEZAWA Hiroyuki wrote:
-> (2013/01/26 20:12), Sha Zhengju wrote:
-[...]
-> > So in order to make the lock simpler and clearer and also avoid the 'nesting'
-> > problem, a choice may be:
-> > (CPU-A does "page stat accounting" and CPU-B does "move")
+On Mon, Jan 28, 2013 at 05:07:15PM -0800, Hugh Dickins wrote:
+> On Mon, 28 Jan 2013, Andrew Morton wrote:
+> > On Fri, 25 Jan 2013 17:53:10 -0800 (PST)
+> > Hugh Dickins <hughd@google.com> wrote:
 > > 
-> >         CPU-A                        CPU-B
+> > > Here's a KSM series
 > > 
-> > move_lock_mem_cgroup()
-> > memcg = pc->mem_cgroup
-> > TestSetPageDirty(page)
-> > move_unlock_mem_cgroup()
-> >                               move_lock_mem_cgroup()
-> >                               if (PageDirty) {
-> >                                    old_memcg->nr_dirty --;
-> >                                    new_memcg->nr_dirty ++;
-> >                               }
-> >                               pc->mem_cgroup = new_memcg
-> >                               move_unlock_mem_cgroup()
+> > Sanity check: do you have a feeling for how useful KSM is? 
+> > Performance/space improvements for typical (or atypical) workloads? 
+> > Are people using it?  Successfully?
 > > 
-> > memcg->nr_dirty ++
-> > 
+> > IOW, is it justifying itself?
 > 
-> Hmm. no race with file truncate ?
-
-Shouldn't pte lock protect us in page_{add_file,remove}_rmap?
-
-[...]
-> > diff --git a/mm/rmap.c b/mm/rmap.c
-> > index 59b0dca..0d74c48 100644
-> > --- a/mm/rmap.c
-> > +++ b/mm/rmap.c
-> > @@ -1112,13 +1112,25 @@ void page_add_file_rmap(struct page *page)
-> >   {
-> >   	bool locked;
-> >   	unsigned long flags;
-> > +	bool ret;
-> > +	struct mem_cgroup *memcg = NULL;
-> > +	struct cgroup_subsys_state *css = NULL;
-> >   
-> >   	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
-> > -	if (atomic_inc_and_test(&page->_mapcount)) {
-> > +	memcg = try_get_mem_cgroup_from_page(page);
+> I have no idea!  To me it's simply a technical challenge - and I agree
+> with your implication that that's not a good enough justification.
 > 
-> Toooooo heavy ! I can say NACK to this patch only because of this try_get().
-
-Agreed.
-
-> To hold memcg alive, rcu_read_lock() will work (as current code does).
+> I've added Marcelo and Gleb and the KVM list to the Cc:
+> my understanding is that it's the KVM guys who really appreciate KSM.
 > 
-> BTW, does this patch fixes the nested-lock problem ?
+KSM is used on all RH kvm deployments for memory overcommit. I asked
+around for numbers and got the answer that it allows to squeeze anywhere
+between 10% and 100% more VMs on the same machine depends on a type of
+a guest OS and how similar workloads of VMs are. And management tries
+to keep VMs with similar OSes/workloads on the same host to gain more
+from KSM.
 
-Because set_page_drity is called outside of mem_cgroup_{begin,end}_update_page_stat.
-That confused me too.
--- 
-Michal Hocko
-SUSE Labs
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
