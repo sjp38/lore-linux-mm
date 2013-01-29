@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id AC6E26B0012
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 04:57:18 -0500 (EST)
-Message-ID: <51079D10.1050201@parallels.com>
-Date: Tue, 29 Jan 2013 13:57:36 +0400
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id CAA266B0023
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 04:59:06 -0500 (EST)
+Message-ID: <51079D7C.8030400@parallels.com>
+Date: Tue, 29 Jan 2013 13:59:24 +0400
 From: Lord Glauber Costa of Sealand <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 5/6] memcg: introduce swap_cgroup_init()/swap_cgroup_free()
-References: <510658F7.6050806@oracle.com>
-In-Reply-To: <510658F7.6050806@oracle.com>
+Subject: Re: [PATCH v2 6/6] memcg: init/free swap cgroup strucutres upon create/free
+ child memcg
+References: <510658FC.50009@oracle.com>
+In-Reply-To: <510658FC.50009@oracle.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,51 +18,18 @@ To: Jeff Liu <jeff.liu@oracle.com>
 Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org
 
 On 01/28/2013 02:54 PM, Jeff Liu wrote:
-> Introduce swap_cgroup_init()/swap_cgroup_free() to allocate buffers when creating the first
-> non-root memcg and deallocate buffers on the last non-root memcg is gone.
-> 
-> Signed-off-by: Jie Liu <jeff.liu@oracle.com>
-> CC: Glauber Costa <glommer@parallels.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Mel Gorman <mgorman@suse.de>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: Sha Zhengju <handai.szj@taobao.com>
-> 
-
-Looks sane.
-
-Reviewed-by: Glauber Costa <glommer@parallels.com>
-
-Only:
-
->  #endif /* !__GENERATING_BOUNDS_H */
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 189fbf5..0ebd127 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -362,14 +362,28 @@ static int swap_cgroup_prepare(int type)
->  	unsigned long idx, max;
->  
->  	ctrl = &swap_cgroup_ctrl[type];
-> +	if (!ctrl->length) {
-> +		/*
-> +		 * Bypass the buffer allocation if the corresponding swap
-> +		 * partition/file was turned off.
-> +		 */
-> +		pr_debug("couldn't allocate swap_cgroup on a disabled swap "
-> +			 "partition or file, index: %d\n", type);
-> +		return 0;
-> +	}
-> +
->  	ctrl->map = vzalloc(ctrl->length * sizeof(void *));
-> -	if (!ctrl->map)
-> +	if (!ctrl->map) {
-> +		ctrl->length = 0;
-
-Considering moving this assignment somewhere in the exit path in the
-labels region.
+>  static void free_rcu(struct rcu_head *rcu_head)
+> @@ -6116,6 +6117,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+>  			INIT_WORK(&stock->work, drain_local_stock);
+>  		}
+>  	} else {
+> +		if (swap_cgroup_init())
+> +			goto free_out;
+>  		parent = mem_cgroup_from_cont(cont->parent);
+>  		memcg->use_hierarchy = parent->use_hierarchy;
+>  		memcg->oom_kill_disable = parent->oom_kill_disable;
+Be aware that this will conflict with latest -mm where those were moved
+to css_online().
 
 
 --
