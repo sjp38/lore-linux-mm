@@ -1,206 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 57AA56B0010
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 16:40:53 -0500 (EST)
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 9CFD26B0011
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 16:40:54 -0500 (EST)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
 	Tue, 29 Jan 2013 16:40:52 -0500
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 5BB6E38C8051
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 16:40:50 -0500 (EST)
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 25C87C9004A
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 16:40:41 -0500 (EST)
 Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0TLenCE336072
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 16:40:50 -0500
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0TLecwe216240
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 16:40:39 -0500
 Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0TLeVb5000388
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 14:40:32 -0700
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0TLeaUV000776
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 14:40:36 -0700
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCHv4 2/7] zsmalloc: promote to lib/
-Date: Tue, 29 Jan 2013 15:40:22 -0600
-Message-Id: <1359495627-30285-3-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: [PATCHv4 7/7] zswap: add documentation
+Date: Tue, 29 Jan 2013 15:40:27 -0600
+Message-Id: <1359495627-30285-8-git-send-email-sjenning@linux.vnet.ibm.com>
 In-Reply-To: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com>
 References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-This patch promotes the slab-based zsmalloc memory allocator
-from the staging tree to lib/
-
-zswap depends on this allocator for storing compressed RAM pages
-in an efficient way under system wide memory pressure where
-high-order (greater than 0) page allocation are very likely to
-fail.
-
-For more information on zsmalloc and its internals, read the
-documentation at the top of the zsmalloc.c file.
+This patch adds the documentation file for the zswap functionality
 
 Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
---
-This patch is similar to a patch Minchan has on out on the list
-to promote for use in zram.
 ---
- drivers/staging/Kconfig                                |  2 --
- drivers/staging/Makefile                               |  1 -
- drivers/staging/zcache/zcache-main.c                   |  3 +--
- drivers/staging/zram/zram_drv.h                        |  3 +--
- drivers/staging/zsmalloc/Kconfig                       | 10 ----------
- drivers/staging/zsmalloc/Makefile                      |  3 ---
- {drivers/staging/zsmalloc => include/linux}/zsmalloc.h |  0
- lib/Kconfig                                            | 18 ++++++++++++++++++
- lib/Makefile                                           |  1 +
- .../staging/zsmalloc/zsmalloc-main.c => lib/zsmalloc.c |  3 +--
- 10 files changed, 22 insertions(+), 22 deletions(-)
- delete mode 100644 drivers/staging/zsmalloc/Kconfig
- delete mode 100644 drivers/staging/zsmalloc/Makefile
- rename {drivers/staging/zsmalloc => include/linux}/zsmalloc.h (100%)
- rename drivers/staging/zsmalloc/zsmalloc-main.c => lib/zsmalloc.c (99%)
+ Documentation/vm/zswap.txt | 73 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)
+ create mode 100644 Documentation/vm/zswap.txt
 
-diff --git a/drivers/staging/Kconfig b/drivers/staging/Kconfig
-index 329bdb4..c0a7918 100644
---- a/drivers/staging/Kconfig
-+++ b/drivers/staging/Kconfig
-@@ -76,8 +76,6 @@ source "drivers/staging/zram/Kconfig"
- 
- source "drivers/staging/zcache/Kconfig"
- 
--source "drivers/staging/zsmalloc/Kconfig"
--
- source "drivers/staging/wlags49_h2/Kconfig"
- 
- source "drivers/staging/wlags49_h25/Kconfig"
-diff --git a/drivers/staging/Makefile b/drivers/staging/Makefile
-index c7ec486..1572fe5 100644
---- a/drivers/staging/Makefile
-+++ b/drivers/staging/Makefile
-@@ -32,7 +32,6 @@ obj-$(CONFIG_DX_SEP)            += sep/
- obj-$(CONFIG_IIO)		+= iio/
- obj-$(CONFIG_ZRAM)		+= zram/
- obj-$(CONFIG_ZCACHE)		+= zcache/
--obj-$(CONFIG_ZSMALLOC)		+= zsmalloc/
- obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
- obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
- obj-$(CONFIG_FB_SM7XX)		+= sm7xxfb/
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index 52b43b7..75c08c5 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -32,10 +32,9 @@
- #include <linux/crypto.h>
- #include <linux/string.h>
- #include <linux/idr.h>
-+#include <linux/zsmalloc.h>
- #include "tmem.h"
- 
--#include "../zsmalloc/zsmalloc.h"
--
- #ifdef CONFIG_CLEANCACHE
- #include <linux/cleancache.h>
- #endif
-diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
-index df2eec4..1e72965 100644
---- a/drivers/staging/zram/zram_drv.h
-+++ b/drivers/staging/zram/zram_drv.h
-@@ -17,8 +17,7 @@
- 
- #include <linux/spinlock.h>
- #include <linux/mutex.h>
--
--#include "../zsmalloc/zsmalloc.h"
-+#include <linux/zsmalloc.h>
- 
- /*
-  * Some arbitrary value. This is just to catch
-diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-deleted file mode 100644
-index 9084565..0000000
---- a/drivers/staging/zsmalloc/Kconfig
-+++ /dev/null
-@@ -1,10 +0,0 @@
--config ZSMALLOC
--	tristate "Memory allocator for compressed pages"
--	default n
--	help
--	  zsmalloc is a slab-based memory allocator designed to store
--	  compressed RAM pages.  zsmalloc uses virtual memory mapping
--	  in order to reduce fragmentation.  However, this results in a
--	  non-standard allocator interface where a handle, not a pointer, is
--	  returned by an alloc().  This handle must be mapped in order to
--	  access the allocated space.
-diff --git a/drivers/staging/zsmalloc/Makefile b/drivers/staging/zsmalloc/Makefile
-deleted file mode 100644
-index b134848..0000000
---- a/drivers/staging/zsmalloc/Makefile
-+++ /dev/null
-@@ -1,3 +0,0 @@
--zsmalloc-y 		:= zsmalloc-main.o
--
--obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
-diff --git a/drivers/staging/zsmalloc/zsmalloc.h b/include/linux/zsmalloc.h
-similarity index 100%
-rename from drivers/staging/zsmalloc/zsmalloc.h
-rename to include/linux/zsmalloc.h
-diff --git a/lib/Kconfig b/lib/Kconfig
-index 75cdb77..fdab273 100644
---- a/lib/Kconfig
-+++ b/lib/Kconfig
-@@ -219,6 +219,24 @@ config DECOMPRESS_LZO
- config GENERIC_ALLOCATOR
- 	boolean
- 
-+config ZSMALLOC
-+	tristate "Memory allocator for compressed pages"
-+	default n
-+	help
-+	  zsmalloc is a slab-based memory allocator designed to store
-+	  compressed RAM pages.  zsmalloc uses a memory pool that combines
-+	  single pages into higher order pages by linking them together
-+	  using the fields of the struct page. Allocations are then
-+	  mapped through copy buffers or VM mapping, in order to reduce
-+	  memory pool fragmentation and increase allocation success rate under
-+	  memory pressure.
+diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
+new file mode 100644
+index 0000000..5d00ce9
+--- /dev/null
++++ b/Documentation/vm/zswap.txt
+@@ -0,0 +1,73 @@
++Overview:
 +
-+	  This results in a non-standard allocator interface where
-+	  a handle, not a pointer, is returned by the allocation function.
-+	  This handle must be mapped in order to access the allocated space.
++Zswap is a lightweight compressed cache for swap pages. It takes
++pages that are in the process of being swapped out and attempts to
++compress them into a dynamically allocated RAM-based memory pool.
++If this process is successful, the writeback to the swap device is
++deferred and, in many cases, avoided completely.A  This results in
++a significant I/O reduction and performance gains for systems that
++are swapping.
 +
-+	  If unsure, say N.
++Zswap provides compressed swap caching that basically trades CPU cycles
++for reduced swap I/O.A  This trade-off can result in a significant
++performance improvement as reads to/writes from to the compressed
++cache almost always faster that reading from a swap device
++which incurs the latency of an asynchronous block I/O read.
 +
- #
- # reed solomon support is select'ed if needed
- #
-diff --git a/lib/Makefile b/lib/Makefile
-index 02ed6c0..70b0892 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -65,6 +65,7 @@ obj-$(CONFIG_CRC7)	+= crc7.o
- obj-$(CONFIG_LIBCRC32C)	+= libcrc32c.o
- obj-$(CONFIG_CRC8)	+= crc8.o
- obj-$(CONFIG_GENERIC_ALLOCATOR) += genalloc.o
-+obj-$(CONFIG_ZSMALLOC) += zsmalloc.o
- 
- obj-$(CONFIG_ZLIB_INFLATE) += zlib_inflate/
- obj-$(CONFIG_ZLIB_DEFLATE) += zlib_deflate/
-diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/lib/zsmalloc.c
-similarity index 99%
-rename from drivers/staging/zsmalloc/zsmalloc-main.c
-rename to lib/zsmalloc.c
-index 13018b7..d5146c7 100644
---- a/drivers/staging/zsmalloc/zsmalloc-main.c
-+++ b/lib/zsmalloc.c
-@@ -78,8 +78,7 @@
- #include <linux/hardirq.h>
- #include <linux/spinlock.h>
- #include <linux/types.h>
--
--#include "zsmalloc.h"
-+#include <linux/zsmalloc.h>
- 
- /*
-  * This must be power of 2 and greater than of equal to sizeof(link_free).
++Some potential benefits:
++* Desktop/laptop users with limited RAM capacities can mitigate the
++A A A  performance impact of swapping.
++* Overcommitted guests that share a common I/O resource can
++A A A  dramatically reduce their swap I/O pressure, avoiding heavy
++A A A  handed I/O throttling by the hypervisor.A  This allows more work
++A A A  to get done with less impact to the guest workload and guests
++A A A  sharing the I/O subsystem
++* Users with SSDs as swap devices can extend the life of the device by
++A A A  drastically reducing life-shortening writes.
++
++Zswap evicts pages from compressed cache on an LRU basis to the backing
++swap device when the compress pool reaches it size limit or the pool is
++unable to obtain additional pages from the buddy allocator.A  This
++requirement had been identified in prior community discussions.
++
++To enabled zswap, the "enabled" attribute must be set to 1 at boot time.
++e.g. zswap.enabled=1
++
++Design:
++
++Zswap receives pages for compression through the Frontswap API and
++is able to evict pages from its own compressed pool on an LRU basis
++and write them back to the backing swap device in the case that the
++compressed pool is full or unable to secure additional pages from
++the buddy allocator.
++
++Zswap makes use of zsmalloc for the managing the compressed memory
++pool.  This is because zsmalloc is specifically designed to minimize
++fragmentation on large (> PAGE_SIZE/2) allocation sizes.  Each
++allocation in zsmalloc is not directly accessible by address.
++Rather, a handle is return by the allocation routine and that handle
++must be mapped before being accessed.  The compressed memory pool grows
++on demand and shrinks as compressed pages are freed.  The pool is
++not preallocated.
++
++When a swap page is passed from frontswap to zswap, zswap maintains
++a mapping of the swap entry, a combination of the swap type and swap
++offset, to the zsmalloc handle that references that compressed swap
++page.  This mapping is achieved with a red-black tree per swap type.
++The swap offset is the search key for the tree nodes.
++
++Zswap seeks to be simple in its policies.  Sysfs attributes allow for
++two user controlled policies:
++* max_compression_ratio - Maximum compression ratio, as as percentage,
++    for an acceptable compressed page. Any page that does not compress
++    by at least this ratio will be rejected.
++* max_pool_percent - The maximum percentage of memory that the compressed
++    pool can occupy.
++
++Zswap allows the compressor to be selected at kernel boot time by
++setting the a??compressora?? attribute.  The default compressor is lzo.
++e.g. zswap.compressor=deflate
++
++A debugfs interface is provided for various statistic about pool size,
++number of pages stored, and various counters for the reasons pages
++are rejected.
 -- 
 1.8.1.1
 
