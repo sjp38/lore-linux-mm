@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id ED55E6B0010
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 04:47:12 -0500 (EST)
-Message-ID: <51079AB3.5010406@parallels.com>
-Date: Tue, 29 Jan 2013 13:47:31 +0400
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id AC6E26B0012
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 04:57:18 -0500 (EST)
+Message-ID: <51079D10.1050201@parallels.com>
+Date: Tue, 29 Jan 2013 13:57:36 +0400
 From: Lord Glauber Costa of Sealand <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/6] memcg: export nr_swap_files
-References: <510658F6.4010504@oracle.com>
-In-Reply-To: <510658F6.4010504@oracle.com>
+Subject: Re: [PATCH v2 5/6] memcg: introduce swap_cgroup_init()/swap_cgroup_free()
+References: <510658F7.6050806@oracle.com>
+In-Reply-To: <510658F7.6050806@oracle.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,8 +17,8 @@ To: Jeff Liu <jeff.liu@oracle.com>
 Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org
 
 On 01/28/2013 02:54 PM, Jeff Liu wrote:
-> Export nr_swap_files which would be used for initializing and destorying
-> swap cgroup structures in the coming patch.
+> Introduce swap_cgroup_init()/swap_cgroup_free() to allocate buffers when creating the first
+> non-root memcg and deallocate buffers on the last non-root memcg is gone.
 > 
 > Signed-off-by: Jie Liu <jeff.liu@oracle.com>
 > CC: Glauber Costa <glommer@parallels.com>
@@ -29,9 +29,39 @@ On 01/28/2013 02:54 PM, Jeff Liu wrote:
 > CC: Andrew Morton <akpm@linux-foundation.org>
 > CC: Sha Zhengju <handai.szj@taobao.com>
 > 
-Well, nothing fancy here.
 
-Acked-by: Glauber Costa <glommer@parallels.com>
+Looks sane.
+
+Reviewed-by: Glauber Costa <glommer@parallels.com>
+
+Only:
+
+>  #endif /* !__GENERATING_BOUNDS_H */
+> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+> index 189fbf5..0ebd127 100644
+> --- a/mm/page_cgroup.c
+> +++ b/mm/page_cgroup.c
+> @@ -362,14 +362,28 @@ static int swap_cgroup_prepare(int type)
+>  	unsigned long idx, max;
+>  
+>  	ctrl = &swap_cgroup_ctrl[type];
+> +	if (!ctrl->length) {
+> +		/*
+> +		 * Bypass the buffer allocation if the corresponding swap
+> +		 * partition/file was turned off.
+> +		 */
+> +		pr_debug("couldn't allocate swap_cgroup on a disabled swap "
+> +			 "partition or file, index: %d\n", type);
+> +		return 0;
+> +	}
+> +
+>  	ctrl->map = vzalloc(ctrl->length * sizeof(void *));
+> -	if (!ctrl->map)
+> +	if (!ctrl->map) {
+> +		ctrl->length = 0;
+
+Considering moving this assignment somewhere in the exit path in the
+labels region.
 
 
 --
