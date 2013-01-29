@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id EDD516B0039
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 07:11:02 -0500 (EST)
-Received: by mail-oa0-f47.google.com with SMTP id h1so326169oag.20
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2013 04:11:02 -0800 (PST)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 9CD976B0039
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 07:14:05 -0500 (EST)
+Received: by mail-ob0-f171.google.com with SMTP id lz20so329673obb.2
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2013 04:14:04 -0800 (PST)
 MIME-Version: 1.0
 In-Reply-To: <1359365068-10147-7-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
 	<1359365068-10147-7-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Tue, 29 Jan 2013 20:11:01 +0800
-Message-ID: <CAJd=RBAAdYef6+sHnD9kS=7mygSrgAD3cDW1wk8YsT2OK0sfZQ@mail.gmail.com>
+Date: Tue, 29 Jan 2013 20:14:04 +0800
+Message-ID: <CAJd=RBA2Kr-sKEFdJNQAjgVzesn6Q2Ockci58DsNQ0fa_7qkQw@mail.gmail.com>
 Subject: Re: [PATCH, RFC 06/16] thp, mm: rewrite add_to_page_cache_locked() to
  support huge pages
 From: Hillf Danton <dhillf@gmail.com>
@@ -21,23 +21,23 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation
 
 On Mon, Jan 28, 2013 at 5:24 PM, Kirill A. Shutemov
 <kirill.shutemov@linux.intel.com> wrote:
-> @@ -443,6 +443,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
->                 pgoff_t offset, gfp_t gfp_mask)
->  {
->         int error;
-> +       int nr = 1;
->
->         VM_BUG_ON(!PageLocked(page));
->         VM_BUG_ON(PageSwapBacked(page));
-> @@ -450,31 +451,61 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
->         error = mem_cgroup_cache_charge(page, current->mm,
->                                         gfp_mask & GFP_RECLAIM_MASK);
->         if (error)
-> -               goto out;
-> +               return error;
+> +       page_cache_get(page);
+> +       spin_lock_irq(&mapping->tree_lock);
+> +       page->mapping = mapping;
+> +       if (PageTransHuge(page)) {
+> +               int i;
+> +               for (i = 0; i < HPAGE_CACHE_NR; i++) {
+> +                       page_cache_get(page + i);
 
-Due to PageCompound check, thp could not be charged effectively.
-Any change added for charging it?
+Page count is raised twice for head page, why?
+
+> +                       page[i].index = offset + i;
+> +                       error = radix_tree_insert(&mapping->page_tree,
+> +                                       offset + i, page + i);
+> +                       if (error) {
+> +                               page_cache_release(page + i);
+> +                               break;
+> +                       }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
