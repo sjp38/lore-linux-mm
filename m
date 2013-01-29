@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 2E8FF6B0068
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 08:02:33 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fb10so385430pad.30
-        for <linux-mm@kvack.org>; Tue, 29 Jan 2013 05:02:32 -0800 (PST)
-Message-ID: <1359464544.1624.16.camel@kernel>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id EFB916B006C
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 08:05:01 -0500 (EST)
+Received: by mail-ie0-f171.google.com with SMTP id 10so281093ied.16
+        for <linux-mm@kvack.org>; Tue, 29 Jan 2013 05:05:01 -0800 (PST)
+Message-ID: <1359464694.1624.18.camel@kernel>
 Subject: Re: [PATCH v6 08/15] memory-hotplug: Common APIs to support page
  tables hot-remove
 From: Simon Jeons <simon.jeons@gmail.com>
-Date: Tue, 29 Jan 2013 07:02:24 -0600
+Date: Tue, 29 Jan 2013 07:04:54 -0600
 In-Reply-To: <1357723959-5416-9-git-send-email-tangchen@cn.fujitsu.com>
 References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 	 <1357723959-5416-9-git-send-email-tangchen@cn.fujitsu.com>
@@ -27,10 +27,11 @@ On Wed, 2013-01-09 at 17:32 +0800, Tang Chen wrote:
 > When memory is removed, the corresponding pagetables should alse be removed.
 > This patch introduces some common APIs to support vmemmap pagetable and x86_64
 > architecture pagetable removing.
+
+Why don't need to build_all_zonelists like online_pages does during
+hot-add path(add_memory)?
+
 > 
-
-When page table of hot-add memory is created?
-
 > All pages of virtual mapping in removed memory cannot be freedi if some pages
 > used as PGD/PUD includes not only removed memory but also other memory. So the
 > patch uses the following way to check whether page can be freed or not.
