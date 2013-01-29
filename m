@@ -1,51 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 8D59B6B0030
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 05:45:17 -0500 (EST)
-Date: Tue, 29 Jan 2013 12:45:14 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: [PATCH 0/11] ksm: NUMA trees and page migration
-Message-ID: <20130129104513.GA15004@redhat.com>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
- <20130128155452.16882a6e.akpm@linux-foundation.org>
- <alpine.LNX.2.00.1301281701010.4947@eggly.anvils>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 908BC6B002F
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 05:52:48 -0500 (EST)
+Message-ID: <5107A9F5.5090600@oracle.com>
+Date: Tue, 29 Jan 2013 18:52:37 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1301281701010.4947@eggly.anvils>
+Subject: Re: [PATCH v2 3/6] memcg: introduce memsw_accounting_users
+References: <510658F0.9050802@oracle.com> <51079A79.9090802@parallels.com>
+In-Reply-To: <51079A79.9090802@parallels.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Anton Arapov <anton@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org
+To: Lord Glauber Costa of Sealand <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org
 
-On Mon, Jan 28, 2013 at 05:07:15PM -0800, Hugh Dickins wrote:
-> On Mon, 28 Jan 2013, Andrew Morton wrote:
-> > On Fri, 25 Jan 2013 17:53:10 -0800 (PST)
-> > Hugh Dickins <hughd@google.com> wrote:
-> > 
-> > > Here's a KSM series
-> > 
-> > Sanity check: do you have a feeling for how useful KSM is? 
-> > Performance/space improvements for typical (or atypical) workloads? 
-> > Are people using it?  Successfully?
-> > 
-> > IOW, is it justifying itself?
+On 01/29/2013 05:46 PM, Lord Glauber Costa of Sealand wrote:
+> Hi,
 > 
-> I have no idea!  To me it's simply a technical challenge - and I agree
-> with your implication that that's not a good enough justification.
+> On 01/28/2013 02:54 PM, Jeff Liu wrote:
+>> As we don't account the swap stat number for the root_mem_cgroup anymore,
+>> here we can just return an invalid CSS ID if there is no non-root memcg
+>> is alive.  Also, introduce memsw_accounting_users to track the number of
+>> active non-root memcgs.
+>>
+>> Signed-off-by: Jie Liu <jeff.liu@oracle.com>
+>> CC: Glauber Costa <glommer@parallels.com>
+>> CC: Michal Hocko <mhocko@suse.cz>
+>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> CC: Johannes Weiner <hannes@cmpxchg.org>
+>> CC: Mel Gorman <mgorman@suse.de>
+>> CC: Andrew Morton <akpm@linux-foundation.org>
+>> CC: Sha Zhengju <handai.szj@taobao.com>
+>>
+>> ---
+>>  mm/page_cgroup.c |   16 +++++++++++++++-
+>>  1 file changed, 15 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+>> index c945254..189fbf5 100644
+>> --- a/mm/page_cgroup.c
+>> +++ b/mm/page_cgroup.c
+>> @@ -336,6 +336,8 @@ struct swap_cgroup {
+>>  };
+>>  #define SC_PER_PAGE	(PAGE_SIZE/sizeof(struct swap_cgroup))
+>>  
+>> +static atomic_t memsw_accounting_users = ATOMIC_INIT(0);
+>> +
 > 
-> I've added Marcelo and Gleb and the KVM list to the Cc:
-> my understanding is that it's the KVM guys who really appreciate KSM.
+> I am not seeing this being incremented or decremented. I can only guess
+> that it comes in later patches. However, they are clearly used as a
+> global reference counter.
 > 
-KSM is used on all RH kvm deployments for memory overcommit. I asked
-around for numbers and got the answer that it allows to squeeze anywhere
-between 10% and 100% more VMs on the same machine depends on a type of
-a guest OS and how similar workloads of VMs are. And management tries
-to keep VMs with similar OSes/workloads on the same host to gain more
-from KSM.
+> This is precisely one of the use cases static branches solve very
+> neatly. Did you consider using them?
+Yep, I'll try to replace it with the static branches if there are no
+objections from the others. :)
 
---
-			Gleb.
+Thanks,
+-Jeff
+> 
+> True, they will help a lot more when we are touching hot paths, and swap
+> is hardly a hot path.
+> 
+> However, since one of the main complaints about memcg has been that we
+> inflict "death by a thousand cuts", maybe it wouldn't hurt everything
+> else being the same.
+> 
+> Michal and others, do you have any feelings here?
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
