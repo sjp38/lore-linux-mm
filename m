@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 9E8C16B0007
-	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 21:03:13 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id hz10so60390pad.23
-        for <linux-mm@kvack.org>; Mon, 28 Jan 2013 18:03:12 -0800 (PST)
-Date: Mon, 28 Jan 2013 18:03:16 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 6/11] ksm: remove old stable nodes more thoroughly
-In-Reply-To: <20130128154407.16a623a4.akpm@linux-foundation.org>
-Message-ID: <alpine.LNX.2.00.1301281747210.4947@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <alpine.LNX.2.00.1301251800550.29196@eggly.anvils> <20130128154407.16a623a4.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 483166B0007
+	for <linux-mm@kvack.org>; Mon, 28 Jan 2013 21:26:23 -0500 (EST)
+Received: by mail-lb0-f198.google.com with SMTP id gf14so102746lbb.9
+        for <linux-mm@kvack.org>; Mon, 28 Jan 2013 18:26:18 -0800 (PST)
+Message-ID: <51073345.4070605@ravellosystems.com>
+Date: Tue, 29 Jan 2013 04:26:13 +0200
+From: Izik Eidus <izik.eidus@ravellosystems.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 0/11] ksm: NUMA trees and page migration
+References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <20130128155452.16882a6e.akpm@linux-foundation.org> <51071CA0.801@ravellosystems.com>
+In-Reply-To: <51071CA0.801@ravellosystems.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Hugh Dickins <hughd@google.com>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Anton Arapov <anton@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 28 Jan 2013, Andrew Morton wrote:
-> On Fri, 25 Jan 2013 18:01:59 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
-> 
-> > +static int remove_all_stable_nodes(void)
-> > +{
-> > +	struct stable_node *stable_node;
-> > +	int nid;
-> > +	int err = 0;
-> > +
-> > +	for (nid = 0; nid < nr_node_ids; nid++) {
-> > +		while (root_stable_tree[nid].rb_node) {
-> > +			stable_node = rb_entry(root_stable_tree[nid].rb_node,
-> > +						struct stable_node, node);
-> > +			if (remove_stable_node(stable_node)) {
-> > +				err = -EBUSY;
-> 
-> It's a bit rude to overwrite remove_stable_node()'s return value.
+On 01/29/2013 02:49 AM, Izik Eidus wrote:
+> On 01/29/2013 01:54 AM, Andrew Morton wrote:
+>> On Fri, 25 Jan 2013 17:53:10 -0800 (PST)
+>> Hugh Dickins <hughd@google.com> wrote:
+>>
+>>> Here's a KSM series
+>> Sanity check: do you have a feeling for how useful KSM is?
+>> Performance/space improvements for typical (or atypical) workloads?
+>> Are people using it?  Successfully?
 
-Well.... yes, but only the tiniest bit rude :)
 
-> 
-> > +				break;	/* proceed to next nid */
-> > +			}
-> > +			cond_resched();
-> 
-> Why is this here?
+BTW, After thinking a bit about the word people, I wanted to see if 
+normal users of linux
+that just download and install Linux (without using special 
+virtualization product) are able to use it.
+So I google little bit for it, and found some nice results from users:
+http://serverascode.com/2012/11/11/ksm-kvm.html
 
-Because we don't have a limit on the length of this loop, and if
-every node which remove_stable_node() finds is already stale, and
-has no rmap_item still attached, then there would be no rescheduling
-point in the unbounded loop without this one.  I was taught to worry
-about bad latencies even in unpreemptible kernels.
+But I do agree that it provide justifying value only for virtualization 
+users...
 
-Hugh
+>
+> Hi,
+> I think it mostly used for virtualization, I know at least two 
+> products that it use -
+> RHEV - RedHat enterprise virtualization, and my current place (Ravello 
+> Systems) that use it to do vm consolidation on top of cloud enviorments
+> (Run multiple unmodified VMs on top of one vm you get from ec2 / 
+> rackspace / what so ever), for Ravello it is highly critical in 
+> achieving high rate
+> of consolidation ratio...
+>
+>>
+>> IOW, is it justifying itself?
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
