@@ -1,31 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 86BE66B000C
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 05:21:35 -0500 (EST)
-Message-ID: <5107A2B8.4070505@parallels.com>
-Date: Tue, 29 Jan 2013 14:21:44 +0400
-From: Lord Glauber Costa of Sealand <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 071546B0028
+	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 05:22:00 -0500 (EST)
+Message-ID: <5107A2BF.3@oracle.com>
+Date: Tue, 29 Jan 2013 18:21:51 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2 8/9] zswap: add to mm/
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-9-git-send-email-sjenning@linux.vnet.ibm.com> <51030ADA.8030403@redhat.com> <510698F5.5060205@linux.vnet.ibm.com>
-In-Reply-To: <510698F5.5060205@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
+Subject: Re: [PATCH v2 5/6] memcg: introduce swap_cgroup_init()/swap_cgroup_free()
+References: <510658F7.6050806@oracle.com> <51079D10.1050201@parallels.com>
+In-Reply-To: <51079D10.1050201@parallels.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Rik van Riel <riel@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad
- Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes
- Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Lord Glauber Costa of Sealand <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org
 
-On 01/28/2013 07:27 PM, Seth Jennings wrote:
-> Yes, I prototyped a shrinker interface for zswap, but, as we both
-> figured, it shrinks the zswap compressed pool too aggressively to the
-> point of being useless.
-Can't you advertise a smaller number of objects that you actively have?
+On 01/29/2013 05:57 PM, Lord Glauber Costa of Sealand wrote:
+> On 01/28/2013 02:54 PM, Jeff Liu wrote:
+>> Introduce swap_cgroup_init()/swap_cgroup_free() to allocate buffers when creating the first
+>> non-root memcg and deallocate buffers on the last non-root memcg is gone.
+>>
+>> Signed-off-by: Jie Liu <jeff.liu@oracle.com>
+>> CC: Glauber Costa <glommer@parallels.com>
+>> CC: Michal Hocko <mhocko@suse.cz>
+>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> CC: Johannes Weiner <hannes@cmpxchg.org>
+>> CC: Mel Gorman <mgorman@suse.de>
+>> CC: Andrew Morton <akpm@linux-foundation.org>
+>> CC: Sha Zhengju <handai.szj@taobao.com>
+>>
+> 
+> Looks sane.
+> 
+> Reviewed-by: Glauber Costa <glommer@parallels.com>
+> 
+> Only:
+> 
+>>  #endif /* !__GENERATING_BOUNDS_H */
+>> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+>> index 189fbf5..0ebd127 100644
+>> --- a/mm/page_cgroup.c
+>> +++ b/mm/page_cgroup.c
+>> @@ -362,14 +362,28 @@ static int swap_cgroup_prepare(int type)
+>>  	unsigned long idx, max;
+>>  
+>>  	ctrl = &swap_cgroup_ctrl[type];
+>> +	if (!ctrl->length) {
+>> +		/*
+>> +		 * Bypass the buffer allocation if the corresponding swap
+>> +		 * partition/file was turned off.
+>> +		 */
+>> +		pr_debug("couldn't allocate swap_cgroup on a disabled swap "
+>> +			 "partition or file, index: %d\n", type);
+>> +		return 0;
+>> +	}
+>> +
+>>  	ctrl->map = vzalloc(ctrl->length * sizeof(void *));
+>> -	if (!ctrl->map)
+>> +	if (!ctrl->map) {
+>> +		ctrl->length = 0;
+> 
+> Considering moving this assignment somewhere in the exit path in the
+> labels region.
+Nice point.  Both "ctrl->length = 0" statements in this function should be
+moved down to the exit path of "nomem:" label.
 
-Since the shrinker would never try to shrink more objects than you
-advertised, you could control pressure this way.
+Thanks,
+-Jeff
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
