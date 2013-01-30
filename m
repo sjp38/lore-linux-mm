@@ -1,540 +1,547 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 074D46B0005
-	for <linux-mm@kvack.org>; Tue, 29 Jan 2013 23:44:48 -0500 (EST)
-Date: Wed, 30 Jan 2013 13:44:47 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCHv3 5/6] zswap: add to mm/
-Message-ID: <20130130044447.GD2580@blaptop>
-References: <1359409767-30092-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1359409767-30092-6-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130129062756.GH4752@blaptop>
- <51080658.7060709@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id CC61F6B0005
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 00:56:32 -0500 (EST)
+Message-ID: <5108B5D1.6050600@cn.fujitsu.com>
+Date: Wed, 30 Jan 2013 13:55:29 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51080658.7060709@linux.vnet.ibm.com>
+Subject: Re: [PATCH v6 08/15] memory-hotplug: Common APIs to support page
+ tables hot-remove
+References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>   <1357723959-5416-9-git-send-email-tangchen@cn.fujitsu.com>  <1359464694.1624.18.camel@kernel> <51088298.9080302@cn.fujitsu.com> <1359516425.1288.5.camel@kernel>
+In-Reply-To: <1359516425.1288.5.camel@kernel>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-On Tue, Jan 29, 2013 at 11:26:48AM -0600, Seth Jennings wrote:
-> On 01/29/2013 12:27 AM, Minchan Kim wrote:
-> > First feeling is it's simple and nice approach.
-> > Although we have some problems to decide policy, it could solve by later patch
-> > so I hope we make basic infrasture more solid by lots of comment.
-> 
-> Thanks very much for the review!
-> 
-> > 
-> > There are two things to review hard.
-> > 
-> > 1. data structure life - when any data structure is died by whom?
-> >    Please write down it in changelog or header of zswap.c
-> > 
-> > 2. Flush routine - I hope it would be nice to separate it as another
-> >    incremental patches if it is possible. If it's impossible, let's add
-> >    lots of words.
-> 
-> It seems like it would be difficult to break the flushing
-> functionality into it's own patch, but I can start the process and
-> see.  As long as people keep in mind that some of the design rationale
-> in the version without the flush code is dictated by the addition of
-> the flush code.
-> 
-> But yes, more comments.
-> 
-> > On Mon, Jan 28, 2013 at 03:49:26PM -0600, Seth Jennings wrote:
-> >> zswap is a thin compression backend for frontswap. It receives
-> >> pages from frontswap and attempts to store them in a compressed
-> >> memory pool, resulting in an effective partial memory reclaim and
-> >> dramatically reduced swap device I/O.
-> >>
-> >> Additional, in most cases, pages can be retrieved from this
-> >> compressed store much more quickly than reading from tradition
-> >> swap devices resulting in faster performance for many workloads.
-> >>
-> >> This patch adds the zswap driver to mm/
-> >>
-> >> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> >> ---
-> >>  mm/Kconfig  |   15 +
-> >>  mm/Makefile |    1 +
-> >>  mm/zswap.c  | 1073 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> >>  3 files changed, 1089 insertions(+)
-> >>  create mode 100644 mm/zswap.c
-> >>
-> >> diff --git a/mm/Kconfig b/mm/Kconfig
-> >> index 278e3ab..14b9acb 100644
-> >> --- a/mm/Kconfig
-> >> +++ b/mm/Kconfig
-> >> @@ -446,3 +446,18 @@ config FRONTSWAP
-> >>  	  and swap data is stored as normal on the matching swap device.
-> >>  
-> >>  	  If unsure, say Y to enable frontswap.
-> >> +
-> >> +config ZSWAP
-> >> +	bool "In-kernel swap page compression"
-> >> +	depends on FRONTSWAP && CRYPTO
-> > 
-> > Couldn't we support CRYPTO optionally?
-> 
-> No.  zswap depends on the cryptographic API for access to the
-> compression modules.
+On 01/30/2013 11:27 AM, Simon Jeons wrote:
+> On Wed, 2013-01-30 at 10:16 +0800, Tang Chen wrote:
+>> On 01/29/2013 09:04 PM, Simon Jeons wrote:
+>>> Hi Tang,
+>>> On Wed, 2013-01-09 at 17:32 +0800, Tang Chen wrote:
+>>>> From: Wen Congyang<wency@cn.fujitsu.com>
+>>>>
+>>>> When memory is removed, the corresponding pagetables should alse be removed.
+>>>> This patch introduces some common APIs to support vmemmap pagetable and x86_64
+>>>> architecture pagetable removing.
+>>>
+>>> Why don't need to build_all_zonelists like online_pages does during
+>>> hot-add path(add_memory)?
+>>
+>> Hi Simon,
+>>
+>> As you said, build_all_zonelists is done by online_pages. When the
+>> memory device
+>> is hot-added, we cannot use it. we can only use is when we online the
+>> pages on it.
+>
+> Why?
+>
+> If a node has just one memory device and memory is small, some zone will
+> not present like zone_highmem, then hot-add another memory device and
+> zone_highmem appear, if you should build_all_zonelists this time?
 
-I meant I don't want to enable CONFIG_CRYPTO for just using zswap.
-In case of zram, we didn't need it.
-Is there any reason we must use encryption for using zswap?
+Hi Simon,
 
-> 
-> > 
-> >> +	select CRYPTO_LZO
-> >> +	select ZSMALLOC
-> >> +	default n
-> >> +	help
-> >> +	  Zswap is a backend for the frontswap mechanism in the VMM.
-> >> +	  It receives pages from frontswap and attempts to store them
-> >> +	  in a compressed memory pool, resulting in an effective
-> >> +	  partial memory reclaim.  In addition, pages and be retrieved
-> >> +	  from this compressed store much faster than most tradition
-> >> +	  swap devices resulting in reduced I/O and faster performance
-> >> +	  for many workloads.
-> >> index 3a46287..1b1ed5c 100644
-> >> --- a/mm/Makefile
-> >> +++ b/mm/Makefile
-> >> @@ -32,6 +32,7 @@ obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
-> >>  obj-$(CONFIG_BOUNCE)	+= bounce.o
-> >>  obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
-> >>  obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
-> >> +obj-$(CONFIG_ZSWAP)	+= zswap.o
-> >>  obj-$(CONFIG_HAS_DMA)	+= dmapool.o
-> >>  obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
-> >>  obj-$(CONFIG_NUMA) 	+= mempolicy.o
-> >> diff --git a/mm/zswap.c b/mm/zswap.c
-> >> new file mode 100644
-> >> index 0000000..050b6db
-> >> --- /dev/null
-> >> +++ b/mm/zswap.c
-> >> @@ -0,0 +1,1073 @@
-> >> +/*
-> >> + * zswap-drv.c - zswap driver file
-> >> + *
-> >> + * zswap is a backend for frontswap that takes pages that are in the
-> >> + * process of being swapped out and attempts to compress them and store
-> >> + * them in a RAM-based memory pool.  This results in a significant I/O
-> >> + * reduction on the real swap device and, in the case of a slow swap
-> >> + * device, can also improve workload performance.
-> >> + *
-> >> + * Copyright (C) 2012  Seth Jennings <sjenning@linux.vnet.ibm.com>
-> >> + *
-> >> + * This program is free software; you can redistribute it and/or
-> >> + * modify it under the terms of the GNU General Public License
-> >> + * as published by the Free Software Foundation; either version 2
-> >> + * of the License, or (at your option) any later version.
-> >> + *
-> >> + * This program is distributed in the hope that it will be useful,
-> >> + * but WITHOUT ANY WARRANTY; without even the implied warranty of
-> >> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-> >> + * GNU General Public License for more details.
-> >> +*/
-> >> +
-> >> +#include <linux/module.h>
-> >> +#include <linux/cpu.h>
-> >> +#include <linux/highmem.h>
-> >> +#include <linux/slab.h>
-> >> +#include <linux/spinlock.h>
-> >> +#include <linux/types.h>
-> >> +#include <linux/atomic.h>
-> >> +#include <linux/frontswap.h>
-> >> +#include <linux/rbtree.h>
-> >> +#include <linux/swap.h>
-> >> +#include <linux/crypto.h>
-> >> +#include <linux/mempool.h>
-> >> +#include <linux/zsmalloc.h>
-> >> +
-> >> +#include <linux/mm_types.h>
-> >> +#include <linux/page-flags.h>
-> >> +#include <linux/swapops.h>
-> >> +#include <linux/writeback.h>
-> >> +#include <linux/pagemap.h>
-> >> +
-> >> +/*********************************
-> >> +* statistics
-> >> +**********************************/
-> >> +/* Number of memory pages used by the compressed pool */
-> >> +static atomic_t zswap_pool_pages = ATOMIC_INIT(0);
-> >> +/* The number of compressed pages currently stored in zswap */
-> >> +static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
-> >> +/* The number of outstanding pages awaiting writeback */
-> >> +static atomic_t zswap_outstanding_flushes = ATOMIC_INIT(0);
-> >> +
-> >> +/*
-> >> + * The statistics below are not protected from concurrent access for
-> >> + * performance reasons so they may not be a 100% accurate.  However,
-> >> + * the do provide useful information on roughly how many times a
-> >> + * certain event is occurring.
-> >> +*/
-> >> +static u64 zswap_flushed_pages;
-> >> +static u64 zswap_reject_compress_poor;
-> >> +static u64 zswap_flush_attempted;
-> >> +static u64 zswap_reject_tmppage_fail;
-> >> +static u64 zswap_reject_flush_fail;
-> >> +static u64 zswap_reject_zsmalloc_fail;
-> >> +static u64 zswap_reject_kmemcache_fail;
-> >> +static u64 zswap_saved_by_flush;
-> >> +static u64 zswap_duplicate_entry;
-> >> +
-> >> +/*********************************
-> >> +* tunables
-> >> +**********************************/
-> >> +/* Enable/disable zswap (enabled by default, fixed at boot for now) */
-> >> +static bool zswap_enabled;
-> >> +module_param_named(enabled, zswap_enabled, bool, 0);
-> > 
-> > It seems default is disable at the moment?
-> 
-> Yes, that's right.  While zswap should be always-on safe (i.e. no
-> impact if swap isn't being used), I thought this would be the safe way
-> for now.
-> 
-> > 
-> >> +
-> >> +/* Compressor to be used by zswap (fixed at boot for now) */
-> >> +#define ZSWAP_COMPRESSOR_DEFAULT "lzo"
-> >> +static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
-> >> +module_param_named(compressor, zswap_compressor, charp, 0);
-> >> +
-> >> +/* The maximum percentage of memory that the compressed pool can occupy */
-> >> +static unsigned int zswap_max_pool_percent = 20;
-> >> +module_param_named(max_pool_percent,
-> >> +			zswap_max_pool_percent, uint, 0644);
-> >> +
-> >> +/*
-> >> + * Maximum compression ratio, as as percentage, for an acceptable
-> >> + * compressed page. Any pages that do not compress by at least
-> >> + * this ratio will be rejected.
-> >> +*/
-> >> +static unsigned int zswap_max_compression_ratio = 80;
-> >> +module_param_named(max_compression_ratio,
-> >> +			zswap_max_compression_ratio, uint, 0644);
-> >> +
-> >> +/*
-> >> + * Maximum number of outstanding flushes allowed at any given time.
-> >> + * This is to prevent decompressing an unbounded number of compressed
-> >> + * pages into the swap cache all at once, and to help with writeback
-> >> + * congestion.
-> >> +*/
-> >> +#define ZSWAP_MAX_OUTSTANDING_FLUSHES 64
-> >> +
-> >> +/*********************************
-> >> +* compression functions
-> >> +**********************************/
-> >> +/* per-cpu compression transforms */
-> >> +static struct crypto_comp * __percpu *zswap_comp_pcpu_tfms;
-> >> +
-> >> +enum comp_op {
-> >> +	ZSWAP_COMPOP_COMPRESS,
-> >> +	ZSWAP_COMPOP_DECOMPRESS
-> >> +};
-> >> +
-> >> +static int zswap_comp_op(enum comp_op op, const u8 *src, unsigned int slen,
-> >> +				u8 *dst, unsigned int *dlen)
-> >> +{
-> >> +	struct crypto_comp *tfm;
-> >> +	int ret;
-> >> +
-> >> +	tfm = *per_cpu_ptr(zswap_comp_pcpu_tfms, get_cpu());
-> >> +	switch (op) {
-> >> +	case ZSWAP_COMPOP_COMPRESS:
-> >> +		ret = crypto_comp_compress(tfm, src, slen, dst, dlen);
-> >> +		break;
-> >> +	case ZSWAP_COMPOP_DECOMPRESS:
-> >> +		ret = crypto_comp_decompress(tfm, src, slen, dst, dlen);
-> >> +		break;
-> >> +	default:
-> >> +		ret = -EINVAL;
-> >> +	}
-> >> +
-> >> +	put_cpu();
-> >> +	return ret;
-> >> +}
-> >> +
-> >> +static int __init zswap_comp_init(void)
-> >> +{
-> >> +	if (!crypto_has_comp(zswap_compressor, 0, 0)) {
-> >> +		pr_info("zswap: %s compressor not available\n",
-> >> +			zswap_compressor);
-> >> +		/* fall back to default compressor */
-> >> +		zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
-> >> +		if (!crypto_has_comp(zswap_compressor, 0, 0))
-> >> +			/* can't even load the default compressor */
-> >> +			return -ENODEV;
-> >> +	}
-> >> +	pr_info("zswap: using %s compressor\n", zswap_compressor);
-> >> +
-> >> +	/* alloc percpu transforms */
-> >> +	zswap_comp_pcpu_tfms = alloc_percpu(struct crypto_comp *);
-> >> +	if (!zswap_comp_pcpu_tfms)
-> >> +		return -ENOMEM;
-> >> +	return 0;
-> >> +}
-> >> +
-> >> +static void zswap_comp_exit(void)
-> >> +{
-> >> +	/* free percpu transforms */
-> >> +	if (zswap_comp_pcpu_tfms)
-> >> +		free_percpu(zswap_comp_pcpu_tfms);
-> >> +}
-> >> +
-> >> +/*********************************
-> >> +* data structures
-> >> +**********************************/
-> >> +struct zswap_entry {
-> >> +	struct rb_node rbnode;
-> >> +	struct list_head lru;
-> >> +	int refcount;
-> >> +	unsigned type;
-> >> +	pgoff_t offset;
-> >> +	unsigned long handle;
-> >> +	unsigned int length;
-> >> +};
-> >> +
-> >> +/*
-> >> + * The tree lock in the zswap_tree struct protects a few things:
-> >> + * - the rbtree
-> >> + * - the lru list
-> >> + * - the refcount field of each entry in the tree
-> >> + */
-> >> +struct zswap_tree {
-> >> +	struct rb_root rbroot;
-> >> +	struct list_head lru;
-> >> +	spinlock_t lock;
-> >> +	struct zs_pool *pool;
-> >> +};
-> >> +
-> >> +static struct zswap_tree *zswap_trees[MAX_SWAPFILES];
-> >> +
-> >> +/*********************************
-> >> +* zswap entry functions
-> >> +**********************************/
-> >> +#define ZSWAP_KMEM_CACHE_NAME "zswap_entry_cache"
-> >> +static struct kmem_cache *zswap_entry_cache;
-> >> +
-> >> +static inline int zswap_entry_cache_create(void)
-> >> +{
-> >> +	zswap_entry_cache =
-> >> +		kmem_cache_create(ZSWAP_KMEM_CACHE_NAME,
-> >> +			sizeof(struct zswap_entry), 0, 0, NULL);
-> >> +	return (zswap_entry_cache == NULL);
-> >> +}
-> >> +
-> >> +static inline void zswap_entry_cache_destory(void)
-> >> +{
-> >> +	kmem_cache_destroy(zswap_entry_cache);
-> >> +}
-> >> +
-> >> +static inline struct zswap_entry *zswap_entry_cache_alloc(gfp_t gfp)
-> >> +{
-> >> +	struct zswap_entry *entry;
-> >> +	entry = kmem_cache_alloc(zswap_entry_cache, gfp);
-> >> +	if (!entry)
-> >> +		return NULL;
-> >> +	INIT_LIST_HEAD(&entry->lru);
-> >> +	entry->refcount = 1;
-> >> +	return entry;
-> >> +}
-> >> +
-> >> +static inline void zswap_entry_cache_free(struct zswap_entry *entry)
-> >> +{
-> >> +	kmem_cache_free(zswap_entry_cache, entry);
-> >> +}
-> >> +
-> >> +static inline void zswap_entry_get(struct zswap_entry *entry)
-> >> +{
-> >> +	entry->refcount++;
-> >> +}
-> >> +
-> >> +static inline int zswap_entry_put(struct zswap_entry *entry)
-> >> +{
-> >> +	entry->refcount--;
-> >> +	return entry->refcount;
-> >> +}
-> >> +
-> >> +/*********************************
-> >> +* rbtree functions
-> >> +**********************************/
-> >> +static struct zswap_entry *zswap_rb_search(struct rb_root *root, pgoff_t offset)
-> >> +{
-> >> +	struct rb_node *node = root->rb_node;
-> >> +	struct zswap_entry *entry;
-> >> +
-> >> +	while (node) {
-> >> +		entry = rb_entry(node, struct zswap_entry, rbnode);
-> >> +		if (entry->offset > offset)
-> >> +			node = node->rb_left;
-> >> +		else if (entry->offset < offset)
-> >> +			node = node->rb_right;
-> >> +		else
-> >> +			return entry;
-> >> +	}
-> >> +	return NULL;
-> >> +}
-> >> +
-> >> +/*
-> >> + * In the case that a entry with the same offset is found, it a pointer to
-> >> + * the existing entry is stored in dupentry and the function returns -EEXIST
-> >> +*/
-> >> +static int zswap_rb_insert(struct rb_root *root, struct zswap_entry *entry,
-> >> +			struct zswap_entry **dupentry)
-> >> +{
-> >> +	struct rb_node **link = &root->rb_node, *parent = NULL;
-> >> +	struct zswap_entry *myentry;
-> >> +
-> >> +	while (*link) {
-> >> +		parent = *link;
-> >> +		myentry = rb_entry(parent, struct zswap_entry, rbnode);
-> >> +		if (myentry->offset > entry->offset)
-> >> +			link = &(*link)->rb_left;
-> >> +		else if (myentry->offset < entry->offset)
-> >> +			link = &(*link)->rb_right;
-> >> +		else {
-> >> +			*dupentry = myentry;
-> >> +			return -EEXIST;
-> >> +		}
-> >> +	}
-> >> +	rb_link_node(&entry->rbnode, parent, link);
-> >> +	rb_insert_color(&entry->rbnode, root);
-> >> +	return 0;
-> >> +}
-> >> +
-> >> +/*********************************
-> >> +* per-cpu code
-> >> +**********************************/
-> >> +static DEFINE_PER_CPU(u8 *, zswap_dstmem);
-> >> +
-> >> +static int __zswap_cpu_notifier(unsigned long action, unsigned long cpu)
-> >> +{
-> >> +	struct crypto_comp *tfm;
-> >> +	u8 *dst;
-> >> +
-> >> +	switch (action) {
-> >> +	case CPU_UP_PREPARE:
-> >> +		tfm = crypto_alloc_comp(zswap_compressor, 0, 0);
-> >> +		if (IS_ERR(tfm)) {
-> >> +			pr_err("zswap: can't allocate compressor transform\n");
-> >> +			return NOTIFY_BAD;
-> >> +		}
-> >> +		*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = tfm;
-> >> +		dst = (u8 *)__get_free_pages(GFP_KERNEL, 1);
-> >> +		if (!dst) {
-> >> +			pr_err("zswap: can't allocate compressor buffer\n");
-> >> +			crypto_free_comp(tfm);
-> >> +			*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = NULL;
-> >> +			return NOTIFY_BAD;
-> >> +		}
-> >> +		per_cpu(zswap_dstmem, cpu) = dst;
-> >> +		break;
-> >> +	case CPU_DEAD:
-> >> +	case CPU_UP_CANCELED:
-> >> +		tfm = *per_cpu_ptr(zswap_comp_pcpu_tfms, cpu);
-> >> +		if (tfm) {
-> >> +			crypto_free_comp(tfm);
-> >> +			*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = NULL;
-> >> +		}
-> >> +		dst = per_cpu(zswap_dstmem, cpu);
-> >> +		if (dst) {
-> >> +			free_pages((unsigned long)dst, 1);
-> >> +			per_cpu(zswap_dstmem, cpu) = NULL;
-> >> +		}
-> >> +		break;
-> >> +	default:
-> >> +		break;
-> >> +	}
-> >> +	return NOTIFY_OK;
-> >> +}
-> >> +
-> >> +static int zswap_cpu_notifier(struct notifier_block *nb,
-> >> +				unsigned long action, void *pcpu)
-> >> +{
-> >> +	unsigned long cpu = (unsigned long)pcpu;
-> >> +	return __zswap_cpu_notifier(action, cpu);
-> >> +}
-> >> +
-> >> +static struct notifier_block zswap_cpu_notifier_block = {
-> >> +	.notifier_call = zswap_cpu_notifier
-> >> +};
-> >> +
-> >> +static int zswap_cpu_init(void)
-> >> +{
-> >> +	unsigned long cpu;
-> >> +
-> >> +	get_online_cpus();
-> >> +	for_each_online_cpu(cpu)
-> >> +		if (__zswap_cpu_notifier(CPU_UP_PREPARE, cpu) != NOTIFY_OK)
-> >> +			goto cleanup;
-> >> +	register_cpu_notifier(&zswap_cpu_notifier_block);
-> >> +	put_online_cpus();
-> >> +	return 0;
-> >> +
-> >> +cleanup:
-> >> +	for_each_online_cpu(cpu)
-> >> +		__zswap_cpu_notifier(CPU_UP_CANCELED, cpu);
-> >> +	put_online_cpus();
-> >> +	return -ENOMEM;
-> >> +}
-> >> +
-> >> +/*********************************
-> >> +* zsmalloc callbacks
-> >> +**********************************/
-> >> +static mempool_t *zswap_page_pool;
-> >> +
-> >> +static u64 zswap_pool_limit_hit;
-> >> +
-> >> +static inline unsigned int zswap_max_pool_pages(void)
-> >> +{
-> >> +	return zswap_max_pool_percent * totalram_pages / 100;
-> >> +}
-> >> +
-> >> +static inline int zswap_page_pool_create(void)
-> >> +{
-> >> +	zswap_page_pool = mempool_create_page_pool(256, 0);
-> > 
-> > Could you write down why you select pool to 256?
-> > If you have a plan, please write down it as TODO.
-> > I think it could be a function of zswap_max_pool_pages with min/max.
-> 
-> Yes, that would probably be better.
-> 
-> >
-> > Another question.
-> > 
-> > What's the benefit of using mempool for zsmalloc?
-> > As you know, zsmalloc doesn't use mempool as default.
-> > I guess you see some benefit. if so, zram could be changed.
-> > If we can change zsmalloc's default scheme to use mempool,
-> > all of customer of zsmalloc could be enhanced, too.
-> 
-> In the case of zswap, through experimentation, I found that adding a
-> mempool behind the zsmalloc pool added some elasticity to the pool.
-> Fewer stores failed if we kept a small reserve of pages around instead
-> of having to go back to the buddy allocator who, under memory
-> pressure, is more likely to reject our request.
-> 
-> I don't see this situation being applicable to all zsmalloc users
-> however.  I don't think we want incorporate it directly into zsmalloc
-> for now.  The ability to register custom page alloc/free functions at
-> pool creation time allows users to do something special, like back
-> with a mempool, if they want to do that.
+We built zone list when the first memory on the node is hot-added.
 
-Okay. I'd like to test this approach with zram later and if it makes sense
-for everything, I will try to change zsmalloc's inside.
+add_memory()
+  |-->if (!node_online(nid)) hotadd_new_pgdat()
+                              |-->free_area_init_node()
+                              |-->build_all_zonelists()
 
-Thanks!
+All the zones on the new node will be initialized as empty. So here, we 
+build zone list.
 
--- 
-Kind regards,
-Minchan Kim
+But actually we did nothing because no page is online, and zones are empty.
+In build_zonelists_node(), populated_zone(zone) will always be false.
+
+The real work of building zone list is when pages are online. :)
+
+
+And in your question, you said some small memory is there, and 
+zone_normal is present.
+OK, when these pages are onlined (not added), the zone list has been 
+rebuilt.
+But pages in zone_highmem is not added, which means not onlined, so we 
+don't need to
+build zone list for it. And later, the zone_highmem pages are added, we 
+still don't
+rebuild the zone list because the real rebuilding work is when the pages 
+are onlined.
+
+I think this is the current logic. :)
+
+Thanks. :)
+
+>
+>>
+>> But we can online the pages as different types, kernel or movable (which
+>> belongs to
+>> different zones), and we can online part of the memory, not all of them.
+>> So each time we online some pages, we should check if we need to update
+>> the zone list.
+>>
+>> So I think that is why we do build_all_zonelists when online_pages.
+>> (just my opinion)
+>>
+>> Thanks. :)
+>>
+>>>
+>>>>
+>>>> All pages of virtual mapping in removed memory cannot be freedi if some pages
+>>>> used as PGD/PUD includes not only removed memory but also other memory. So the
+>>>> patch uses the following way to check whether page can be freed or not.
+>>>>
+>>>>    1. When removing memory, the page structs of the revmoved memory are filled
+>>>>       with 0FD.
+>>>>    2. All page structs are filled with 0xFD on PT/PMD, PT/PMD can be cleared.
+>>>>       In this case, the page used as PT/PMD can be freed.
+>>>>
+>>>> Signed-off-by: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
+>>>> Signed-off-by: Jianguo Wu<wujianguo@huawei.com>
+>>>> Signed-off-by: Wen Congyang<wency@cn.fujitsu.com>
+>>>> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
+>>>> ---
+>>>>    arch/x86/include/asm/pgtable_types.h |    1 +
+>>>>    arch/x86/mm/init_64.c                |  299 ++++++++++++++++++++++++++++++++++
+>>>>    arch/x86/mm/pageattr.c               |   47 +++---
+>>>>    include/linux/bootmem.h              |    1 +
+>>>>    4 files changed, 326 insertions(+), 22 deletions(-)
+>>>>
+>>>> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+>>>> index 3c32db8..4b6fd2a 100644
+>>>> --- a/arch/x86/include/asm/pgtable_types.h
+>>>> +++ b/arch/x86/include/asm/pgtable_types.h
+>>>> @@ -352,6 +352,7 @@ static inline void update_page_count(int level, unsigned long pages) { }
+>>>>     * as a pte too.
+>>>>     */
+>>>>    extern pte_t *lookup_address(unsigned long address, unsigned int *level);
+>>>> +extern int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase);
+>>>>
+>>>>    #endif	/* !__ASSEMBLY__ */
+>>>>
+>>>> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+>>>> index 9ac1723..fe01116 100644
+>>>> --- a/arch/x86/mm/init_64.c
+>>>> +++ b/arch/x86/mm/init_64.c
+>>>> @@ -682,6 +682,305 @@ int arch_add_memory(int nid, u64 start, u64 size)
+>>>>    }
+>>>>    EXPORT_SYMBOL_GPL(arch_add_memory);
+>>>>
+>>>> +#define PAGE_INUSE 0xFD
+>>>> +
+>>>> +static void __meminit free_pagetable(struct page *page, int order)
+>>>> +{
+>>>> +	struct zone *zone;
+>>>> +	bool bootmem = false;
+>>>> +	unsigned long magic;
+>>>> +	unsigned int nr_pages = 1<<   order;
+>>>> +
+>>>> +	/* bootmem page has reserved flag */
+>>>> +	if (PageReserved(page)) {
+>>>> +		__ClearPageReserved(page);
+>>>> +		bootmem = true;
+>>>> +
+>>>> +		magic = (unsigned long)page->lru.next;
+>>>> +		if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
+>>>> +			while (nr_pages--)
+>>>> +				put_page_bootmem(page++);
+>>>> +		} else
+>>>> +			__free_pages_bootmem(page, order);
+>>>> +	} else
+>>>> +		free_pages((unsigned long)page_address(page), order);
+>>>> +
+>>>> +	/*
+>>>> +	 * SECTION_INFO pages and MIX_SECTION_INFO pages
+>>>> +	 * are all allocated by bootmem.
+>>>> +	 */
+>>>> +	if (bootmem) {
+>>>> +		zone = page_zone(page);
+>>>> +		zone_span_writelock(zone);
+>>>> +		zone->present_pages += nr_pages;
+>>>> +		zone_span_writeunlock(zone);
+>>>> +		totalram_pages += nr_pages;
+>>>> +	}
+>>>> +}
+>>>> +
+>>>> +static void __meminit free_pte_table(pte_t *pte_start, pmd_t *pmd)
+>>>> +{
+>>>> +	pte_t *pte;
+>>>> +	int i;
+>>>> +
+>>>> +	for (i = 0; i<   PTRS_PER_PTE; i++) {
+>>>> +		pte = pte_start + i;
+>>>> +		if (pte_val(*pte))
+>>>> +			return;
+>>>> +	}
+>>>> +
+>>>> +	/* free a pte talbe */
+>>>> +	free_pagetable(pmd_page(*pmd), 0);
+>>>> +	spin_lock(&init_mm.page_table_lock);
+>>>> +	pmd_clear(pmd);
+>>>> +	spin_unlock(&init_mm.page_table_lock);
+>>>> +}
+>>>> +
+>>>> +static void __meminit free_pmd_table(pmd_t *pmd_start, pud_t *pud)
+>>>> +{
+>>>> +	pmd_t *pmd;
+>>>> +	int i;
+>>>> +
+>>>> +	for (i = 0; i<   PTRS_PER_PMD; i++) {
+>>>> +		pmd = pmd_start + i;
+>>>> +		if (pmd_val(*pmd))
+>>>> +			return;
+>>>> +	}
+>>>> +
+>>>> +	/* free a pmd talbe */
+>>>> +	free_pagetable(pud_page(*pud), 0);
+>>>> +	spin_lock(&init_mm.page_table_lock);
+>>>> +	pud_clear(pud);
+>>>> +	spin_unlock(&init_mm.page_table_lock);
+>>>> +}
+>>>> +
+>>>> +/* Return true if pgd is changed, otherwise return false. */
+>>>> +static bool __meminit free_pud_table(pud_t *pud_start, pgd_t *pgd)
+>>>> +{
+>>>> +	pud_t *pud;
+>>>> +	int i;
+>>>> +
+>>>> +	for (i = 0; i<   PTRS_PER_PUD; i++) {
+>>>> +		pud = pud_start + i;
+>>>> +		if (pud_val(*pud))
+>>>> +			return false;
+>>>> +	}
+>>>> +
+>>>> +	/* free a pud table */
+>>>> +	free_pagetable(pgd_page(*pgd), 0);
+>>>> +	spin_lock(&init_mm.page_table_lock);
+>>>> +	pgd_clear(pgd);
+>>>> +	spin_unlock(&init_mm.page_table_lock);
+>>>> +
+>>>> +	return true;
+>>>> +}
+>>>> +
+>>>> +static void __meminit
+>>>> +remove_pte_table(pte_t *pte_start, unsigned long addr, unsigned long end,
+>>>> +		 bool direct)
+>>>> +{
+>>>> +	unsigned long next, pages = 0;
+>>>> +	pte_t *pte;
+>>>> +	void *page_addr;
+>>>> +	phys_addr_t phys_addr;
+>>>> +
+>>>> +	pte = pte_start + pte_index(addr);
+>>>> +	for (; addr<   end; addr = next, pte++) {
+>>>> +		next = (addr + PAGE_SIZE)&   PAGE_MASK;
+>>>> +		if (next>   end)
+>>>> +			next = end;
+>>>> +
+>>>> +		if (!pte_present(*pte))
+>>>> +			continue;
+>>>> +
+>>>> +		/*
+>>>> +		 * We mapped [0,1G) memory as identity mapping when
+>>>> +		 * initializing, in arch/x86/kernel/head_64.S. These
+>>>> +		 * pagetables cannot be removed.
+>>>> +		 */
+>>>> +		phys_addr = pte_val(*pte) + (addr&   PAGE_MASK);
+>>>> +		if (phys_addr<   (phys_addr_t)0x40000000)
+>>>> +			return;
+>>>> +
+>>>> +		if (IS_ALIGNED(addr, PAGE_SIZE)&&
+>>>> +		    IS_ALIGNED(next, PAGE_SIZE)) {
+>>>> +			if (!direct) {
+>>>> +				free_pagetable(pte_page(*pte), 0);
+>>>> +				pages++;
+>>>> +			}
+>>>> +
+>>>> +			spin_lock(&init_mm.page_table_lock);
+>>>> +			pte_clear(&init_mm, addr, pte);
+>>>> +			spin_unlock(&init_mm.page_table_lock);
+>>>> +		} else {
+>>>> +			/*
+>>>> +			 * If we are not removing the whole page, it means
+>>>> +			 * other ptes in this page are being used and we canot
+>>>> +			 * remove them. So fill the unused ptes with 0xFD, and
+>>>> +			 * remove the page when it is wholly filled with 0xFD.
+>>>> +			 */
+>>>> +			memset((void *)addr, PAGE_INUSE, next - addr);
+>>>> +			page_addr = page_address(pte_page(*pte));
+>>>> +
+>>>> +			if (!memchr_inv(page_addr, PAGE_INUSE, PAGE_SIZE)) {
+>>>> +				free_pagetable(pte_page(*pte), 0);
+>>>> +				pages++;
+>>>> +
+>>>> +				spin_lock(&init_mm.page_table_lock);
+>>>> +				pte_clear(&init_mm, addr, pte);
+>>>> +				spin_unlock(&init_mm.page_table_lock);
+>>>> +			}
+>>>> +		}
+>>>> +	}
+>>>> +
+>>>> +	/* Call free_pte_table() in remove_pmd_table(). */
+>>>> +	flush_tlb_all();
+>>>> +	if (direct)
+>>>> +		update_page_count(PG_LEVEL_4K, -pages);
+>>>> +}
+>>>> +
+>>>> +static void __meminit
+>>>> +remove_pmd_table(pmd_t *pmd_start, unsigned long addr, unsigned long end,
+>>>> +		 bool direct)
+>>>> +{
+>>>> +	unsigned long pte_phys, next, pages = 0;
+>>>> +	pte_t *pte_base;
+>>>> +	pmd_t *pmd;
+>>>> +
+>>>> +	pmd = pmd_start + pmd_index(addr);
+>>>> +	for (; addr<   end; addr = next, pmd++) {
+>>>> +		next = pmd_addr_end(addr, end);
+>>>> +
+>>>> +		if (!pmd_present(*pmd))
+>>>> +			continue;
+>>>> +
+>>>> +		if (pmd_large(*pmd)) {
+>>>> +			if (IS_ALIGNED(addr, PMD_SIZE)&&
+>>>> +			    IS_ALIGNED(next, PMD_SIZE)) {
+>>>> +				if (!direct) {
+>>>> +					free_pagetable(pmd_page(*pmd),
+>>>> +						       get_order(PMD_SIZE));
+>>>> +					pages++;
+>>>> +				}
+>>>> +
+>>>> +				spin_lock(&init_mm.page_table_lock);
+>>>> +				pmd_clear(pmd);
+>>>> +				spin_unlock(&init_mm.page_table_lock);
+>>>> +				continue;
+>>>> +			}
+>>>> +
+>>>> +			/*
+>>>> +			 * We use 2M page, but we need to remove part of them,
+>>>> +			 * so split 2M page to 4K page.
+>>>> +			 */
+>>>> +			pte_base = (pte_t *)alloc_low_page(&pte_phys);
+>>>> +			BUG_ON(!pte_base);
+>>>> +			__split_large_page((pte_t *)pmd, addr,
+>>>> +					   (pte_t *)pte_base);
+>>>> +
+>>>> +			spin_lock(&init_mm.page_table_lock);
+>>>> +			pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
+>>>> +			spin_unlock(&init_mm.page_table_lock);
+>>>> +
+>>>> +			flush_tlb_all();
+>>>> +		}
+>>>> +
+>>>> +		pte_base = (pte_t *)map_low_page((pte_t *)pmd_page_vaddr(*pmd));
+>>>> +		remove_pte_table(pte_base, addr, next, direct);
+>>>> +		free_pte_table(pte_base, pmd);
+>>>> +		unmap_low_page(pte_base);
+>>>> +	}
+>>>> +
+>>>> +	/* Call free_pmd_table() in remove_pud_table(). */
+>>>> +	if (direct)
+>>>> +		update_page_count(PG_LEVEL_2M, -pages);
+>>>> +}
+>>>> +
+>>>> +static void __meminit
+>>>> +remove_pud_table(pud_t *pud_start, unsigned long addr, unsigned long end,
+>>>> +		 bool direct)
+>>>> +{
+>>>> +	unsigned long pmd_phys, next, pages = 0;
+>>>> +	pmd_t *pmd_base;
+>>>> +	pud_t *pud;
+>>>> +
+>>>> +	pud = pud_start + pud_index(addr);
+>>>> +	for (; addr<   end; addr = next, pud++) {
+>>>> +		next = pud_addr_end(addr, end);
+>>>> +
+>>>> +		if (!pud_present(*pud))
+>>>> +			continue;
+>>>> +
+>>>> +		if (pud_large(*pud)) {
+>>>> +			if (IS_ALIGNED(addr, PUD_SIZE)&&
+>>>> +			    IS_ALIGNED(next, PUD_SIZE)) {
+>>>> +				if (!direct) {
+>>>> +					free_pagetable(pud_page(*pud),
+>>>> +						       get_order(PUD_SIZE));
+>>>> +					pages++;
+>>>> +				}
+>>>> +
+>>>> +				spin_lock(&init_mm.page_table_lock);
+>>>> +				pud_clear(pud);
+>>>> +				spin_unlock(&init_mm.page_table_lock);
+>>>> +				continue;
+>>>> +			}
+>>>> +
+>>>> +			/*
+>>>> +			 * We use 1G page, but we need to remove part of them,
+>>>> +			 * so split 1G page to 2M page.
+>>>> +			 */
+>>>> +			pmd_base = (pmd_t *)alloc_low_page(&pmd_phys);
+>>>> +			BUG_ON(!pmd_base);
+>>>> +			__split_large_page((pte_t *)pud, addr,
+>>>> +					   (pte_t *)pmd_base);
+>>>> +
+>>>> +			spin_lock(&init_mm.page_table_lock);
+>>>> +			pud_populate(&init_mm, pud, __va(pmd_phys));
+>>>> +			spin_unlock(&init_mm.page_table_lock);
+>>>> +
+>>>> +			flush_tlb_all();
+>>>> +		}
+>>>> +
+>>>> +		pmd_base = (pmd_t *)map_low_page((pmd_t *)pud_page_vaddr(*pud));
+>>>> +		remove_pmd_table(pmd_base, addr, next, direct);
+>>>> +		free_pmd_table(pmd_base, pud);
+>>>> +		unmap_low_page(pmd_base);
+>>>> +	}
+>>>> +
+>>>> +	if (direct)
+>>>> +		update_page_count(PG_LEVEL_1G, -pages);
+>>>> +}
+>>>> +
+>>>> +/* start and end are both virtual address. */
+>>>> +static void __meminit
+>>>> +remove_pagetable(unsigned long start, unsigned long end, bool direct)
+>>>> +{
+>>>> +	unsigned long next;
+>>>> +	pgd_t *pgd;
+>>>> +	pud_t *pud;
+>>>> +	bool pgd_changed = false;
+>>>> +
+>>>> +	for (; start<   end; start = next) {
+>>>> +		pgd = pgd_offset_k(start);
+>>>> +		if (!pgd_present(*pgd))
+>>>> +			continue;
+>>>> +
+>>>> +		next = pgd_addr_end(start, end);
+>>>> +
+>>>> +		pud = (pud_t *)map_low_page((pud_t *)pgd_page_vaddr(*pgd));
+>>>> +		remove_pud_table(pud, start, next, direct);
+>>>> +		if (free_pud_table(pud, pgd))
+>>>> +			pgd_changed = true;
+>>>> +		unmap_low_page(pud);
+>>>> +	}
+>>>> +
+>>>> +	if (pgd_changed)
+>>>> +		sync_global_pgds(start, end - 1);
+>>>> +
+>>>> +	flush_tlb_all();
+>>>> +}
+>>>> +
+>>>>    #ifdef CONFIG_MEMORY_HOTREMOVE
+>>>>    int __ref arch_remove_memory(u64 start, u64 size)
+>>>>    {
+>>>> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+>>>> index a718e0d..7dcb6f9 100644
+>>>> --- a/arch/x86/mm/pageattr.c
+>>>> +++ b/arch/x86/mm/pageattr.c
+>>>> @@ -501,21 +501,13 @@ out_unlock:
+>>>>    	return do_split;
+>>>>    }
+>>>>
+>>>> -static int split_large_page(pte_t *kpte, unsigned long address)
+>>>> +int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
+>>>>    {
+>>>>    	unsigned long pfn, pfninc = 1;
+>>>>    	unsigned int i, level;
+>>>> -	pte_t *pbase, *tmp;
+>>>> +	pte_t *tmp;
+>>>>    	pgprot_t ref_prot;
+>>>> -	struct page *base;
+>>>> -
+>>>> -	if (!debug_pagealloc)
+>>>> -		spin_unlock(&cpa_lock);
+>>>> -	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
+>>>> -	if (!debug_pagealloc)
+>>>> -		spin_lock(&cpa_lock);
+>>>> -	if (!base)
+>>>> -		return -ENOMEM;
+>>>> +	struct page *base = virt_to_page(pbase);
+>>>>
+>>>>    	spin_lock(&pgd_lock);
+>>>>    	/*
+>>>> @@ -523,10 +515,11 @@ static int split_large_page(pte_t *kpte, unsigned long address)
+>>>>    	 * up for us already:
+>>>>    	 */
+>>>>    	tmp = lookup_address(address,&level);
+>>>> -	if (tmp != kpte)
+>>>> -		goto out_unlock;
+>>>> +	if (tmp != kpte) {
+>>>> +		spin_unlock(&pgd_lock);
+>>>> +		return 1;
+>>>> +	}
+>>>>
+>>>> -	pbase = (pte_t *)page_address(base);
+>>>>    	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
+>>>>    	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
+>>>>    	/*
+>>>> @@ -579,17 +572,27 @@ static int split_large_page(pte_t *kpte, unsigned long address)
+>>>>    	 * going on.
+>>>>    	 */
+>>>>    	__flush_tlb_all();
+>>>> +	spin_unlock(&pgd_lock);
+>>>>
+>>>> -	base = NULL;
+>>>> +	return 0;
+>>>> +}
+>>>>
+>>>> -out_unlock:
+>>>> -	/*
+>>>> -	 * If we dropped out via the lookup_address check under
+>>>> -	 * pgd_lock then stick the page back into the pool:
+>>>> -	 */
+>>>> -	if (base)
+>>>> +static int split_large_page(pte_t *kpte, unsigned long address)
+>>>> +{
+>>>> +	pte_t *pbase;
+>>>> +	struct page *base;
+>>>> +
+>>>> +	if (!debug_pagealloc)
+>>>> +		spin_unlock(&cpa_lock);
+>>>> +	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
+>>>> +	if (!debug_pagealloc)
+>>>> +		spin_lock(&cpa_lock);
+>>>> +	if (!base)
+>>>> +		return -ENOMEM;
+>>>> +
+>>>> +	pbase = (pte_t *)page_address(base);
+>>>> +	if (__split_large_page(kpte, address, pbase))
+>>>>    		__free_page(base);
+>>>> -	spin_unlock(&pgd_lock);
+>>>>
+>>>>    	return 0;
+>>>>    }
+>>>> diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+>>>> index 3f778c2..190ff06 100644
+>>>> --- a/include/linux/bootmem.h
+>>>> +++ b/include/linux/bootmem.h
+>>>> @@ -53,6 +53,7 @@ extern void free_bootmem_node(pg_data_t *pgdat,
+>>>>    			      unsigned long size);
+>>>>    extern void free_bootmem(unsigned long physaddr, unsigned long size);
+>>>>    extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
+>>>> +extern void __free_pages_bootmem(struct page *page, unsigned int order);
+>>>>
+>>>>    /*
+>>>>     * Flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
+>>>
+>>>
+>>> --
+>>> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
+>>> the body of a message to majordomo@vger.kernel.org
+>>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
