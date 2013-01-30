@@ -1,86 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id C915A6B000E
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 03:09:41 -0500 (EST)
-Date: Tue, 29 Jan 2013 23:58:30 -0500
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug
- framework
-Message-ID: <20130130045830.GH30002@kroah.com>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
- <1357861230-29549-2-git-send-email-toshi.kani@hp.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id C29C16B0007
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 03:21:15 -0500 (EST)
+Date: Wed, 30 Jan 2013 17:21:12 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RESEND PATCH v5 1/4] zram: Fix deadlock bug in partial write
+Message-ID: <20130130082112.GA23548@blaptop>
+References: <1359333506-13599-1-git-send-email-minchan@kernel.org>
+ <20130130042006.GA24538@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1357861230-29549-2-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <20130130042006.GA24538@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, stable@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>
 
-On Thu, Jan 10, 2013 at 04:40:19PM -0700, Toshi Kani wrote:
-> +/*
-> + * Hot-plug device information
-> + */
+Hi Greg,
 
-Again, stop it with the "generic" hotplug term here, and everywhere
-else.  You are doing a very _specific_ type of hotplug devices, so spell
-it out.  We've worked hard to hotplug _everything_ in Linux, you are
-going to confuse a lot of people with this type of terms.
+On Tue, Jan 29, 2013 at 11:20:06PM -0500, Greg Kroah-Hartman wrote:
+> On Mon, Jan 28, 2013 at 09:38:23AM +0900, Minchan Kim wrote:
+> > Now zram allocates new page with GFP_KERNEL in zram I/O path
+> > if IO is partial. Unfortunately, It may cuase deadlock with
+> > reclaim path so this patch solves the problem.
+> > 
+> > Cc: stable@vger.kernel.org
+> > Cc: Jerome Marchand <jmarchan@redhat.com>
+> > Acked-by: Nitin Gupta <ngupta@vflare.org>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  drivers/staging/zram/zram_drv.c |    4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> Due to the discussion on this series, I don't know what patch to apply,
+> so care to do a v6 of this with the patches that everyone has finally
+> agreed on?
 
-> +union shp_dev_info {
-> +	struct shp_cpu {
-> +		u32		cpu_id;
-> +	} cpu;
+I already sent v6.
+https://lkml.org/lkml/2013/1/29/680
 
-What is this?  Why not point to the system device for the cpu?
+Thanks.
 
-> +	struct shp_memory {
-> +		int		node;
-> +		u64		start_addr;
-> +		u64		length;
-> +	} mem;
-
-Same here, why not point to the system device?
-
-> +	struct shp_hostbridge {
-> +	} hb;
-> +
-> +	struct shp_node {
-> +	} node;
-
-What happened here with these?  Empty structures?  Huh?
-
-> +};
-> +
-> +struct shp_device {
-> +	struct list_head	list;
-> +	struct device		*device;
-
-No, make it a "real" device, embed the device into it.
-
-But, again, I'm going to ask why you aren't using the existing cpu /
-memory / bridge / node devices that we have in the kernel.  Please use
-them, or give me a _really_ good reason why they will not work.
-
-> +	enum shp_class		class;
-> +	union shp_dev_info	info;
-> +};
-> +
-> +/*
-> + * Hot-plug request
-> + */
-> +struct shp_request {
-> +	/* common info */
-> +	enum shp_operation	operation;	/* operation */
-> +
-> +	/* hot-plug event info: only valid for hot-plug operations */
-> +	void			*handle;	/* FW handle */
-> +	u32			event;		/* FW event */
-
-What is this?
-
-greg k-h
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
