@@ -1,202 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 517C46B0005
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 06:53:25 -0500 (EST)
-Received: from mail-ie0-f179.google.com ([209.85.223.179])
-	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
-	(Exim 4.71)
-	(envelope-from <ming.lei@canonical.com>)
-	id 1U0WEF-00022r-Re
-	for linux-mm@kvack.org; Wed, 30 Jan 2013 11:53:24 +0000
-Received: by mail-ie0-f179.google.com with SMTP id k13so1170253iea.24
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2013 03:53:22 -0800 (PST)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 9E56A6B0005
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 06:58:39 -0500 (EST)
+Date: Wed, 30 Jan 2013 11:58:33 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Rename page struct field helpers
+Message-ID: <20130130115833.GB2964@suse.de>
+References: <1358874762-19717-1-git-send-email-mgorman@suse.de>
+ <1358874762-19717-6-git-send-email-mgorman@suse.de>
+ <20130122144659.d512e05c.akpm@linux-foundation.org>
+ <20130123142507.GI13304@suse.de>
+ <20130123135612.4b383fa7.akpm@linux-foundation.org>
+ <20130124105544.GO13304@suse.de>
+ <alpine.LNX.2.00.1301282014560.27042@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20130128091039.GG6871@arwen.pp.htv.fi>
-References: <20130128091039.GG6871@arwen.pp.htv.fi>
-Date: Wed, 30 Jan 2013 19:53:22 +0800
-Message-ID: <CACVXFVOATzTJq+-5M9j3G3y_WUrWKJt=naPkjkLwGDmT0H8gog@mail.gmail.com>
-Subject: Re: Page allocation failure on v3.8-rc5
-From: Ming Lei <ming.lei@canonical.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1301282014560.27042@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: balbi@ti.com
-Cc: Linux USB Mailing List <linux-usb@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Simon Jeons <simon.jeons@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jan 28, 2013 at 5:10 PM, Felipe Balbi <balbi@ti.com> wrote:
-> Hi,
->
-> The following page allocation failure triggers sometimes when I plug my
-> memory card reader on a USB port.
->
->
-> [850845.928795] usb 1-4: new high-speed USB device number 48 using ehci-pci
-> [850846.300702] usb 1-4: New USB device found, idVendor=0bda, idProduct=0119
-> [850846.300707] usb 1-4: New USB device strings: Mfr=1, Product=2, SerialNumber=3
-> [850846.300711] usb 1-4: Product: USB2.0-CRW
-> [850846.300715] usb 1-4: Manufacturer: Generic
-> [850846.300718] usb 1-4: SerialNumber: 20090815198100000
-> [850846.302733] scsi86 : usb-storage 1-4:1.0
-> [850847.304359] scsi 86:0:0:0: Direct-Access     Generic- SD/MMC           1.00 PQ: 0 ANSI: 0 CCS
-> [850847.305734] sd 86:0:0:0: Attached scsi generic sg4 type 0
-> [850848.456294] sd 86:0:0:0: [sdd] 7911424 512-byte logical blocks: (4.05 GB/3.77 GiB)
-> [850848.457160] sd 86:0:0:0: [sdd] Write Protect is off
-> [850848.457166] sd 86:0:0:0: [sdd] Mode Sense: 03 00 00 00
-> [850848.458054] sd 86:0:0:0: [sdd] No Caching mode page present
-> [850848.458060] sd 86:0:0:0: [sdd] Assuming drive cache: write through
-> [850848.461502] sd 86:0:0:0: [sdd] No Caching mode page present
-> [850848.461507] sd 86:0:0:0: [sdd] Assuming drive cache: write through
-> [850848.461963] kworker/u:0: page allocation failure: order:4, mode:0x2000d0
-> [850848.461969] Pid: 7122, comm: kworker/u:0 Tainted: G        W    3.8.0-rc4+ #206
-> [850848.461972] Call Trace:
-> [850848.461984]  [<ffffffff810d02a8>] ? warn_alloc_failed+0x116/0x128
-> [850848.461991]  [<ffffffff810d31d9>] ? __alloc_pages_nodemask+0x6b5/0x751
-> [850848.462000]  [<ffffffff81106297>] ? kmem_getpages+0x59/0x129
-> [850848.462006]  [<ffffffff81106b88>] ? fallback_alloc+0x12f/0x1fc
-> [850848.462013]  [<ffffffff811071c7>] ? kmem_cache_alloc_trace+0x87/0xf6
-> [850848.462021]  [<ffffffff812a633c>] ? check_partition+0x28/0x1ac
-> [850848.462027]  [<ffffffff812a60bd>] ? rescan_partitions+0xa4/0x27c
-> [850848.462034]  [<ffffffff8113bcfb>] ? __blkdev_get+0x1ac/0x3d2
-> [850848.462040]  [<ffffffff8113c0b1>] ? blkdev_get+0x190/0x2d8
-> [850848.462046]  [<ffffffff8113b23f>] ? bdget+0x3b/0x12b
-> [850848.462052]  [<ffffffff812a41a6>] ? add_disk+0x268/0x3e2
-> [850848.462058]  [<ffffffff81382f3d>] ? sd_probe_async+0x11b/0x1cc
-> [850848.462066]  [<ffffffff81055f74>] ? async_run_entry_fn+0xa2/0x173
-> [850848.462072]  [<ffffffff81055ed2>] ? async_schedule+0x15/0x15
-> [850848.462079]  [<ffffffff8104bb79>] ? process_one_work+0x172/0x2ca
-> [850848.462084]  [<ffffffff8104b88a>] ? manage_workers+0x22a/0x23c
-> [850848.462090]  [<ffffffff81055ed2>] ? async_schedule+0x15/0x15
-> [850848.462096]  [<ffffffff8104bfa4>] ? worker_thread+0x11d/0x1b7
-> [850848.462102]  [<ffffffff8104be87>] ? rescuer_thread+0x18c/0x18c
-> [850848.462109]  [<ffffffff81050421>] ? kthread+0x86/0x8e
-> [850848.462116]  [<ffffffff8105039b>] ? __kthread_parkme+0x60/0x60
-> [850848.462125]  [<ffffffff814a306c>] ? ret_from_fork+0x7c/0xb0
-> [850848.462132]  [<ffffffff8105039b>] ? __kthread_parkme+0x60/0x60
+On Mon, Jan 28, 2013 at 08:39:35PM -0800, Hugh Dickins wrote:
+> On Thu, 24 Jan 2013, Mel Gorman wrote:
+> 
+> > The function names page_xchg_last_nid(), page_last_nid() and
+> > reset_page_last_nid() were judged to be inconsistent so rename them
+> > to a struct_field_op style pattern. As it looked jarring to have
+> > reset_page_mapcount() and page_nid_reset_last() beside each other in
+> > memmap_init_zone(), this patch also renames reset_page_mapcount() to
+> > page_mapcount_reset(). There are others like init_page_count() but as it
+> > is used throughout the arch code a rename would likely cause more conflicts
+> > than it is worth.
+> > 
+> > Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> 
+> Sorry for not piping up in that earlier thread, but I don't understand
+> Andrew's reasoning on this: it looks to me like unhelpful churn rather
+> than improvement (and I suspect your heart is not in it either, Mel).
+> 
 
-The allocation failure is caused by the big sizeof(struct parsed_partitions),
-which is 64K in my 32bit box, could you test the blow patch to see
-if it can fix the allocation failure?
+My heart was not in it because I already recognised the original names.
+I've been nailed before about poor naming particularly when I was already
+familiar with the existing names.
 
---
-diff --git a/block/partition-generic.c b/block/partition-generic.c
-index f1d1451..043d0bd 100644
---- a/block/partition-generic.c
-+++ b/block/partition-generic.c
-@@ -525,7 +525,7 @@ rescan:
- 			md_autodetect_dev(part_to_dev(part)->devt);
- #endif
- 	}
--	kfree(state);
-+	release_partitions(state);
- 	return 0;
- }
+> It's true that sometimes we name things object_verb() and sometimes we
+> name things verb_object(), but we're always going to be inconsistent on
+> that, and this patch does not change the fact: page_mapcount_reset()
+> but set_page_private() (named by one akpm, I believe)?
+> 
 
-diff --git a/block/partitions/check.c b/block/partitions/check.c
-index bc90867..d89eef7 100644
---- a/block/partitions/check.c
-+++ b/block/partitions/check.c
-@@ -14,6 +14,7 @@
-  */
+I half toyed with the idea of renaming all of them but it was going to
+generate a lot of churn that would inevitably cause irritating patch
+conflicts with little benefit.
 
- #include <linux/slab.h>
-+#include <linux/vmalloc.h>
- #include <linux/ctype.h>
- #include <linux/genhd.h>
+> Being English, I really prefer verb_object(); but there are often
+> subsystems or cfiles where object_verb() narrows the namespace more
+> nicely.
+> 
+> xchg_page_last_nid() instead of page_xchg_last_nid(), to match
+> reset_page_last_nid(): I think that would be a fine change.
+> 
+> page_nid_xchg_last() to exchange page->_last_nid?  You jest, sir!
+> 
 
-@@ -106,18 +107,43 @@ static int (*check_part[])(struct parsed_partitions *) = {
- 	NULL
- };
+page_nid_last also looked odd to me. page_nid_xchg_last() looked vaguely
+similar to page_to_nid() and maybe that was the intent.  However, I also
+found it a little misleading because the nids are completely different --
+one nid is where the page resides and the other nid is related to what
+CPU referenced the page during the last numa hinting fault.
 
-+struct parsed_partitions *allocate_partitions(int nr)
-+{
-+	struct parsed_partitions *state;
-+
-+	state = kzalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
-+	if (!state)
-+		return NULL;
-+
-+	state->parts = vzalloc(nr * sizeof(state->parts[0]));
-+	if (!state->parts) {
-+		kfree(state);
-+		return NULL;
-+	}
-+
-+	return state;
-+}
-+
-+void release_partitions(struct parsed_partitions *state)
-+{
-+	vfree(state->parts);
-+	kfree(state);
-+}
-+
- struct parsed_partitions *
- check_partition(struct gendisk *hd, struct block_device *bdev)
+Your suggestion is to always have a verb_struct_field pattern which
+page_xchg_last_nid violates. That patch would look like the following.
+Andrew?
+
+---8<---
+mm: Rename page_xchg_last_nid
+
+Andrew found the functions names page_xchg_last_nid(), page_last_nid()
+and reset_page_last_nid() to be inconsistent and were renamed
+to page_nid_xchg_last(), page_nid_last() and page_nid_reset_last().
+Hugh found this unhelpful and suggested a rename of page_xchg_last_nid to
+keep with a verb_struct_field naming pattern.
+
+This patch replaces mm-rename-page-struct-field-helpers.patch.
+
+Suggested-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/linux/mm.h |    6 +++---
+ mm/huge_memory.c   |    2 +-
+ mm/mempolicy.c     |    2 +-
+ mm/migrate.c       |    4 ++--
+ mm/mmzone.c        |    2 +-
+ 5 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 6e4468f..6356db0 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -657,7 +657,7 @@ static inline int page_to_nid(const struct page *page)
+ 
+ #ifdef CONFIG_NUMA_BALANCING
+ #ifdef LAST_NID_NOT_IN_PAGE_FLAGS
+-static inline int page_xchg_last_nid(struct page *page, int nid)
++static inline int xchg_page_last_nid(struct page *page, int nid)
  {
- 	struct parsed_partitions *state;
- 	int i, res, err;
-
--	state = kzalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
-+	i = disk_max_parts(hd);
-+	state = allocate_partitions(i);
- 	if (!state)
- 		return NULL;
-+	state->limit = i;
- 	state->pp_buf = (char *)__get_free_page(GFP_KERNEL);
- 	if (!state->pp_buf) {
--		kfree(state);
-+		release_partitions(state);
- 		return NULL;
- 	}
- 	state->pp_buf[0] = '\0';
-@@ -128,10 +154,9 @@ check_partition(struct gendisk *hd, struct
-block_device *bdev)
- 	if (isdigit(state->name[strlen(state->name)-1]))
- 		sprintf(state->name, "p");
-
--	state->limit = disk_max_parts(hd);
- 	i = res = err = 0;
- 	while (!res && check_part[i]) {
--		memset(&state->parts, 0, sizeof(state->parts));
-+		memset(state->parts, 0, state->limit * sizeof(state->parts[0]));
- 		res = check_part[i++](state);
- 		if (res < 0) {
- 			/* We have hit an I/O error which we don't report now.
-@@ -161,6 +186,6 @@ check_partition(struct gendisk *hd, struct
-block_device *bdev)
- 	printk(KERN_INFO "%s", state->pp_buf);
-
- 	free_page((unsigned long)state->pp_buf);
--	kfree(state);
-+	release_partitions(state);
- 	return ERR_PTR(res);
+ 	return xchg(&page->_last_nid, nid);
  }
-diff --git a/block/partitions/check.h b/block/partitions/check.h
-index 52b1003..8323808 100644
---- a/block/partitions/check.h
-+++ b/block/partitions/check.h
-@@ -15,13 +15,15 @@ struct parsed_partitions {
- 		int flags;
- 		bool has_info;
- 		struct partition_meta_info info;
--	} parts[DISK_MAX_PARTS];
-+	} *parts;
- 	int next;
- 	int limit;
- 	bool access_beyond_eod;
- 	char *pp_buf;
- };
-
-+extern void release_partitions(struct parsed_partitions *state);
-+
- struct parsed_partitions *
- check_partition(struct gendisk *, struct block_device *);
-
-
-
-Thanks,
---
-Ming Lei
+@@ -676,7 +676,7 @@ static inline int page_last_nid(struct page *page)
+ 	return (page->flags >> LAST_NID_PGSHIFT) & LAST_NID_MASK;
+ }
+ 
+-extern int page_xchg_last_nid(struct page *page, int nid);
++extern int xchg_page_last_nid(struct page *page, int nid);
+ 
+ static inline void reset_page_last_nid(struct page *page)
+ {
+@@ -687,7 +687,7 @@ static inline void reset_page_last_nid(struct page *page)
+ }
+ #endif /* LAST_NID_NOT_IN_PAGE_FLAGS */
+ #else
+-static inline int page_xchg_last_nid(struct page *page, int nid)
++static inline int xchg_page_last_nid(struct page *page, int nid)
+ {
+ 	return page_to_nid(page);
+ }
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 648c102..ed97040 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1642,7 +1642,7 @@ static void __split_huge_page_refcount(struct page *page)
+ 		page_tail->mapping = page->mapping;
+ 
+ 		page_tail->index = page->index + i;
+-		page_xchg_last_nid(page_tail, page_last_nid(page));
++		xchg_page_last_nid(page_tail, page_last_nid(page));
+ 
+ 		BUG_ON(!PageAnon(page_tail));
+ 		BUG_ON(!PageUptodate(page_tail));
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index e2df1c1..61226db 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2308,7 +2308,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ 		 * it less likely we act on an unlikely task<->page
+ 		 * relation.
+ 		 */
+-		last_nid = page_xchg_last_nid(page, polnid);
++		last_nid = xchg_page_last_nid(page, polnid);
+ 		if (last_nid != polnid)
+ 			goto out;
+ 	}
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 8ef1cbf..4d9b724 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1495,7 +1495,7 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
+ 					  __GFP_NOWARN) &
+ 					 ~GFP_IOFS, 0);
+ 	if (newpage)
+-		page_xchg_last_nid(newpage, page_last_nid(page));
++		xchg_page_last_nid(newpage, page_last_nid(page));
+ 
+ 	return newpage;
+ }
+@@ -1679,7 +1679,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	if (!new_page)
+ 		goto out_fail;
+ 
+-	page_xchg_last_nid(new_page, page_last_nid(page));
++	xchg_page_last_nid(new_page, page_last_nid(page));
+ 
+ 	isolated = numamigrate_isolate_page(pgdat, page);
+ 	if (!isolated) {
+diff --git a/mm/mmzone.c b/mm/mmzone.c
+index bce796e..de2a951 100644
+--- a/mm/mmzone.c
++++ b/mm/mmzone.c
+@@ -98,7 +98,7 @@ void lruvec_init(struct lruvec *lruvec)
+ }
+ 
+ #if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_NID_NOT_IN_PAGE_FLAGS)
+-int page_xchg_last_nid(struct page *page, int nid)
++int xchg_page_last_nid(struct page *page, int nid)
+ {
+ 	unsigned long old_flags, flags;
+ 	int last_nid;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
