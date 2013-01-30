@@ -1,227 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 43F426B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 10:57:31 -0500 (EST)
-Date: Wed, 30 Jan 2013 10:57:18 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 1/8] mm: cleancache: lazy initialization to allow tmem
- backends to build/run as modules
-Message-ID: <20130130155718.GB1272@konrad-lan.dumpdata.com>
-References: <1352919432-9699-1-git-send-email-konrad.wilk@oracle.com>
- <1352919432-9699-2-git-send-email-konrad.wilk@oracle.com>
- <20121116151049.244bb8f4.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id D89666B0007
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:01:39 -0500 (EST)
+Message-ID: <510943D8.9000902@oracle.com>
+Date: Thu, 31 Jan 2013 00:01:28 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121116151049.244bb8f4.akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 2/6] memcg: bypass swap accounting for the root memcg
+References: <510658E3.1020306@oracle.com> <510658EE.9050006@oracle.com> <20130129141318.GC29574@dhcp22.suse.cz>
+In-Reply-To: <20130129141318.GC29574@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: sjenning@linux.vnet.ibm.com, dan.magenheimer@oracle.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, minchan@kernel.org, mgorman@suse.de, fschmaus@gmail.com, andor.daam@googlemail.com, ilendir@googlemail.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, handai.szj@taobao.com
 
-On Fri, Nov 16, 2012 at 03:10:49PM -0800, Andrew Morton wrote:
-> On Wed, 14 Nov 2012 13:57:05 -0500
-> Konrad Rzeszutek Wilk <konrad.wilk@oracle.com> wrote:
+On 01/29/2013 10:13 PM, Michal Hocko wrote:
+> On Mon 28-01-13 18:54:38, Jeff Liu wrote:
+>> Root memcg with swap cgroup is special since we only do tracking but can
+>> not set limits against it.  In order to facilitate the implementation of
+>> the coming swap cgroup structures delay allocation mechanism, we can bypass
+>> the default swap statistics upon the root memcg and figure it out through
+>> the global stats instead as below:
+>>
+>> root_memcg_swap_stat: total_swap_pages - nr_swap_pages - used_swap_pages_of_all_memcgs
 > 
-> > From: Dan Magenheimer <dan.magenheimer@oracle.com>
-> > 
-> > With the goal of allowing tmem backends (zcache, ramster, Xen tmem) to be
-> > built/loaded as modules rather than built-in and enabled by a boot parameter,
-> > this patch provides "lazy initialization", allowing backends to register to
-> > cleancache even after filesystems were mounted. Calls to init_fs and
-> > init_shared_fs are remembered as fake poolids but no real tmem_pools created.
-> > On backend registration the fake poolids are mapped to real poolids and
-> > respective tmem_pools.
-> 
-> What is your merge plan/path for this work?
-> 
-> >
-> > ...
-> >
-> > + * When no backend is registered all calls to init_fs and init_shard_fs
-> 
-> "init_shared_fs"
-> 
-> > + * are registered and fake poolids are given to the respective
-> > + * super block but no tmem_pools are created. When a backend
-> > + * registers with cleancache the previous calls to init_fs and
-> > + * init_shared_fs are executed to create tmem_pools and set the
-> > + * respective poolids. While no backend is registered all "puts",
-> > + * "gets" and "flushes" are ignored or fail.
-> 
-> The comment could use all 80 cols..
-> 
-> >
-> > ...
-> >
-> >  struct cleancache_ops cleancache_register_ops(struct cleancache_ops *ops)
-> >  {
-> >  	struct cleancache_ops old = cleancache_ops;
-> > +	int i;
-> >  
-> >  	cleancache_ops = *ops;
-> > -	cleancache_enabled = 1;
-> > +
-> > +	backend_registered = true;
-> > +	for (i = 0; i < MAX_INITIALIZABLE_FS; i++) {
-> > +		if (fs_poolid_map[i] == FS_NO_BACKEND)
-> > +			fs_poolid_map[i] = (*cleancache_ops.init_fs)(PAGE_SIZE);
-> > +		if (shared_fs_poolid_map[i] == FS_NO_BACKEND)
-> > +			shared_fs_poolid_map[i] = (*cleancache_ops.init_shared_fs)
-> > +					(uuids[i], PAGE_SIZE);
-> > +	}
-> >  	return old;
-> >  }
-> 
-> I never noticed before - this function returns a large structure by
-> value.  That's really really unusual in the kernel.  I see no problem
-> with it per-se, but it might generate awful code.
-> 
-> Also, this function has no locking and is blatantly racy.
-> 
-> >  EXPORT_SYMBOL(cleancache_register_ops);
-> > @@ -61,15 +91,38 @@ EXPORT_SYMBOL(cleancache_register_ops);
-> >  /* Called by a cleancache-enabled filesystem at time of mount */
-> >  void __cleancache_init_fs(struct super_block *sb)
-> >  {
-> > -	sb->cleancache_poolid = (*cleancache_ops.init_fs)(PAGE_SIZE);
-> > +	int i;
-> > +
-> > +	for (i = 0; i < MAX_INITIALIZABLE_FS; i++) {
-> > +		if (fs_poolid_map[i] == FS_UNKNOWN) {
-> > +			sb->cleancache_poolid = i + FAKE_FS_POOLID_OFFSET;
-> > +			if (backend_registered)
-> > +				fs_poolid_map[i] = (*cleancache_ops.init_fs)(PAGE_SIZE);
-> > +			else
-> > +				fs_poolid_map[i] = FS_NO_BACKEND;
-> > +			break;
-> > +		}
-> > +	}
-> >  }
-> >  EXPORT_SYMBOL(__cleancache_init_fs);
-> 
-> This also looks wildly racy.
-> 
-> >  /* Called by a cleancache-enabled clustered filesystem at time of mount */
-> >  void __cleancache_init_shared_fs(char *uuid, struct super_block *sb)
-> >  {
-> > -	sb->cleancache_poolid =
-> > -		(*cleancache_ops.init_shared_fs)(uuid, PAGE_SIZE);
-> > +	int i;
-> > +
-> > +	for (i = 0; i < MAX_INITIALIZABLE_FS; i++) {
-> > +		if (shared_fs_poolid_map[i] == FS_UNKNOWN) {
-> > +			sb->cleancache_poolid = i + FAKE_SHARED_FS_POOLID_OFFSET;
-> > +			uuids[i] = uuid;
-> > +			if (backend_registered)
-> > +				shared_fs_poolid_map[i] = (*cleancache_ops.init_shared_fs)
-> > +						(uuid, PAGE_SIZE);
-> > +			else
-> > +				shared_fs_poolid_map[i] = FS_NO_BACKEND;
-> > +			break;
-> > +		}
-> > +	}
-> >  }
-> >  EXPORT_SYMBOL(__cleancache_init_shared_fs);
-> 
-> Again, a huge mess if two threads execute this concurrently.
-> 
-> > @@ -99,6 +152,19 @@ static int cleancache_get_key(struct inode *inode,
-> >  }
-> >  
-> >  /*
-> > + * Returns a pool_id that is associated with a given fake poolid.
-> 
-> Was there a comment anywhere which tells the reader what a "fake poolid" is?
-> 
-> > + */
-> > +static int get_poolid_from_fake(int fake_pool_id)
-> > +{
-> > +	if (fake_pool_id >= FAKE_SHARED_FS_POOLID_OFFSET)
-> > +		return shared_fs_poolid_map[fake_pool_id -
-> > +			FAKE_SHARED_FS_POOLID_OFFSET];
-> > +	else if (fake_pool_id >= FAKE_FS_POOLID_OFFSET)
-> > +		return fs_poolid_map[fake_pool_id - FAKE_FS_POOLID_OFFSET];
-> > +	return FS_NO_BACKEND;
-> > +}
-> > +
-> > +/*
-> >   * "Get" data from cleancache associated with the poolid/inode/index
-> >   * that were specified when the data was put to cleanache and, if
-> >   * successful, use it to fill the specified page with data and return 0.
-> > @@ -109,17 +175,26 @@ int __cleancache_get_page(struct page *page)
-> >  {
-> >  	int ret = -1;
-> >  	int pool_id;
-> > +	int fake_pool_id;
-> >  	struct cleancache_filekey key = { .u.key = { 0 } };
-> >  
-> > +	if (!backend_registered) {
-> > +		cleancache_failed_gets++;
-> > +		goto out;
-> > +	}
-> 
-> Races everywhere...
-> 
-> >  	VM_BUG_ON(!PageLocked(page));
-> > -	pool_id = page->mapping->host->i_sb->cleancache_poolid;
-> > -	if (pool_id < 0)
-> > +	fake_pool_id = page->mapping->host->i_sb->cleancache_poolid;
-> > +	if (fake_pool_id < 0)
-> >  		goto out;
-> > +	pool_id = get_poolid_from_fake(fake_pool_id);
-> >  
-> >  	if (cleancache_get_key(page->mapping->host, &key) < 0)
-> >  		goto out;
-> >  
-> > -	ret = (*cleancache_ops.get_page)(pool_id, key, page->index, page);
-> > +	if (pool_id >= 0)
-> > +		ret = (*cleancache_ops.get_page)(pool_id,
-> > +				key, page->index, page);
-> >  	if (ret == 0)
-> >  		cleancache_succ_gets++;
-> >  	else
-> > @@ -138,12 +213,23 @@ EXPORT_SYMBOL(__cleancache_get_page);
-> >  void __cleancache_put_page(struct page *page)
-> >  {
-> >  	int pool_id;
-> > +	int fake_pool_id;
-> >  	struct cleancache_filekey key = { .u.key = { 0 } };
-> >  
-> > +	if (!backend_registered) {
-> > +		cleancache_puts++;
-> > +		return;
-> > +	}
-> 
-> More..
-> 
-> >  	VM_BUG_ON(!PageLocked(page));
-> > -	pool_id = page->mapping->host->i_sb->cleancache_poolid;
-> > +	fake_pool_id = page->mapping->host->i_sb->cleancache_poolid;
-> > +	if (fake_pool_id < 0)
-> > +		return;
-> > +
-> > +	pool_id = get_poolid_from_fake(fake_pool_id);
-> > +
-> >  	if (pool_id >= 0 &&
-> > -	      cleancache_get_key(page->mapping->host, &key) >= 0) {
-> > +		cleancache_get_key(page->mapping->host, &key) >= 0) {
-> >  		(*cleancache_ops.put_page)(pool_id, key, page->index, page);
-> >  		cleancache_puts++;
-> >  	}
-> >
-> > ...
-> >
-> 
-> I don't understand the timing flow here, nor the existing constraints
-> on what can be done and when, but....
-> 
-> The whole thing looks really hacky?  Why do we need to remember all
-> this stuff for later on?  What prevents us from simply synchonously
-> doing whatever we need to do when someone wants to register a backend?
-> 
-> Maybe a little ascii time chart/flow diagram would help.
+> How do you protect from races with swap{in,out}? Or they are tolerable?
+To be honest, I previously have not taken race with swapin/out into consideration.
 
-This patch hopefully answers the questions and comments. It has a bit
-of a a), then b), then c) type chart to illustrate the issue of backends
-registered asynchronously.
+Yes, this patch would cause a little error since it has to iterate each memcg which can
+introduce a bit overhead based on how many memcgs are configured.
+
+However, considering our current implementation of swap statistics, we do account when swap 
+cache is uncharged, but it is possible that the swap slot is already allocated before that.
+That is to say, there is a inconsistent window in swap accounting stats IMHO.
+As a figure shows to human, I think it can be tolerated to some extents. :)
+> 
+>> memcg_total_swap_stats: root_memcg_swap_stat + other_memcg_swap_stats
+> 
+> I am not sure I understand and if I do then it is not true:
+> root (swap = 10M, use_hierarchy = 0/1)
+>  \
+>   A (swap = 1M, use_hierarchy = 1)
+>    \
+>     B (swap = 2M)
+> 
+> total for A is 3M regardless of what root has "accounted" while
+> total for root should be 10 for use_hierarchy = 0 and 13 for the other
+I am not sure I catch your point, but I think the total for root should be 13 no matter
+use_hierarchy = 0 or 1, and the current patch is just doing that.
+
+Originally, for_each_mem_cgroup_tree(iter, memcg) does statistics by iterating
+all those children memcgs including the memcg itself.  But now, as we don't account the
+root memcg swap statistics anymore(hence the stats is 0), we need to add the local swap
+stats of root memcg itself(10M) to the memcg_total_swap_stats.  So actually we don't change
+the way of accounting memcg_total_swap_stats.
+
+> case (this is btw. broken in the tree already now because
+> for_each_mem_cgroup_tree resp. mem_cgroup_iter doesn't honor
+> use_hierarchy for the root cgroup - this is a separate topic though).
+Yes, I noticed that the for_each_mem_cgroup_tree() resp, mem_cgroup_iter()
+don't take the root->use_hierarchy into consideration, as it has the following logic:
+if (!root->use_hierarchy && root != root_mem_cgroup) {
+ 	if (prev)
+		return NULL;
+	return root;
+}
+
+As i don't change the for_each_mem_cgroup_tree(), so it is in accordance with the original
+behavior.
+
+>> In this way, we'll return an invalid CSS_ID(generally, it's 0) at swap
+>> cgroup related tracking infrastructures if only the root memcg is alive.
+>> That is to say, we have not yet allocate swap cgroup structures.
+>> As a result, the per pages swapin/swapout stats number agains the root
+>> memcg shoud be ZERO.
+>>
+>> Signed-off-by: Jie Liu <jeff.liu@oracle.com>
+>> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+>> CC: Glauber Costa <glommer@parallels.com>
+>> CC: Michal Hocko <mhocko@suse.cz>
+>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> CC: Johannes Weiner <hannes@cmpxchg.org>
+>> CC: Mel Gorman <mgorman@suse.de>
+>> CC: Andrew Morton <akpm@linux-foundation.org>
+>>
+>> ---
+>>  mm/memcontrol.c |   35 ++++++++++++++++++++++++++++++-----
+>>  1 file changed, 30 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 09255ec..afe5e86 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -5231,12 +5231,34 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
+>>  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+>>  	struct mem_cgroup *mi;
+>>  	unsigned int i;
+>> +	long long root_swap_stat = 0;
+>>
+>>  	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+>> -		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
+>> -			continue;
+>> +		long val = 0;
+>> +
+>> +		if (i != MEM_CGROUP_STAT_SWAP)
+>> +			val = mem_cgroup_read_stat(memcg, i);
+>> +		else {
+>> +			if (!do_swap_account)
+>> +				continue;
+> 
+> 
+>> +			if (!mem_cgroup_is_root(memcg))
+>> +				val = mem_cgroup_read_stat(memcg, i);
+>> +			else {
+>> +				/*
+>> +				 * The corresponding stat number of swap for
+>> +				 * root_mem_cgroup is 0 since we don't account
+>> +				 * it in any case.  Instead, we can fake the
+>> +				 * root number via: total_swap_pages -
+>> +				 * nr_swap_pages - total_swap_pages_of_all_memcg
+>> +				 */
+>> +				for_each_mem_cgroup(mi)
+>> +					val += mem_cgroup_read_stat(mi, i);
+>> +				val = root_swap_stat = (total_swap_pages -
+>> +							nr_swap_pages - val);
+>> +			}
+> 
+> This calls for a helper.
+Yes, Sir.
+> 
+>> +		}
+>>  		seq_printf(m, "%s %ld\n", mem_cgroup_stat_names[i],
+>> -			   mem_cgroup_read_stat(memcg, i) * PAGE_SIZE);
+>> +			   val * PAGE_SIZE);
+>>  	}
+>>  
+>>  	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
+>> @@ -5260,8 +5282,11 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
+>>  	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+>>  		long long val = 0;
+>>  
+>> -		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
+>> -			continue;
+>> +		if (i == MEM_CGROUP_STAT_SWAP) {
+>> +			if (!do_swap_account)
+>> +				continue;
+>> +			val += root_swap_stat * PAGE_SIZE;
+>> +		}
+> 
+> This doesn't seem right because you are adding root swap amount to _all_
+> groups. This should be done only if (memcg == root_mem_cgroup).
+Ah, I?m too dumb!
+
+Thanks,
+-Jeff
+> 
+>>  		for_each_mem_cgroup_tree(mi, memcg)
+>>  			val += mem_cgroup_read_stat(mi, i) * PAGE_SIZE;
+>>  		seq_printf(m, "total_%s %lld\n", mem_cgroup_stat_names[i], val);
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
