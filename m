@@ -1,86 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 4C7336B0005
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 02:55:19 -0500 (EST)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH Bug fix] acpi, movablemem_map: node0 should always be unhotpluggable when using SRAT.
-Date: Wed, 30 Jan 2013 15:54:30 +0800
-Message-Id: <1359532470-28874-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id E1A7C6B0005
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 03:05:37 -0500 (EST)
+Date: Tue, 29 Jan 2013 23:16:30 -0500
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 2/4] staging: zsmalloc: remove unused pool name
+Message-ID: <20130130041630.GA18809@kroah.com>
+References: <1359135978-15119-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1359135978-15119-3-git-send-email-sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1359135978-15119-3-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-When using movablemem_map=acpi, always set node0 as unhotpluggable, otherwise
-if all the memory is hotpluggable, the kernel will fail to boot.
+On Fri, Jan 25, 2013 at 11:46:16AM -0600, Seth Jennings wrote:
+> zs_create_pool() currently takes a name argument which is
+> never used in any useful way.
+> 
+> This patch removes it.
+> 
+> Acked-by: Nitin Gupta <ngupta@vflare.org>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Seth Jennnings <sjenning@linux.vnet.ibm.com>
+> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> ---
+>  drivers/staging/zram/zram_drv.c          |    2 +-
+>  drivers/staging/zsmalloc/zsmalloc-main.c |   11 +++--------
+>  drivers/staging/zsmalloc/zsmalloc.h      |    2 +-
+>  3 files changed, 5 insertions(+), 10 deletions(-)
 
-When using movablemem_map=nn[KMG]@ss[KMG], we don't stop users specifying
-node0 as hotpluggable, and ignore all the info in SRAT, so that this option
-can be used as a workaround of firmware bugs.
+As I'm not taking patch 1/4, this patch doesn't apply, sorry.
 
-Reported-by: H. Peter Anvin <hpa@zytor.com>
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
----
- Documentation/kernel-parameters.txt |    6 ++++++
- arch/x86/mm/srat.c                  |   10 ++++++++--
- 2 files changed, 14 insertions(+), 2 deletions(-)
-
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 7d1b6fc..81b6f15 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1645,6 +1645,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			in flags from SRAT from ACPI BIOS to determine which
- 			memory devices could be hotplugged. The corresponding
- 			memory ranges will be set as ZONE_MOVABLE.
-+			NOTE: node0 should always be unhotpluggable, otherwise
-+			      the kernel will fail to boot.
- 
- 	movablemem_map=nn[KMG]@ss[KMG]
- 			[KNL,X86,IA-64,PPC] This parameter is similar to
-@@ -1666,6 +1668,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			satisfied. So the administrator should be careful that
- 			the amount of movablemem_map areas are not too large.
- 			Otherwise kernel won't have enough memory to start.
-+			NOTE: We don't stop users specifying node0 as
-+			      hotpluggable, and ingore all the info in SRAT so
-+			      that this option can be used as a workaround of
-+			      firmware bugs.
- 
- 	MTD_Partition=	[MTD]
- 			Format: <name>,<region-number>,<size>,<offset>
-diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-index b20b5b7..a85d2b7 100644
---- a/arch/x86/mm/srat.c
-+++ b/arch/x86/mm/srat.c
-@@ -161,9 +161,13 @@ handle_movablemem(int node, u64 start, u64 end, u32 hotpluggable)
- 	 *
- 	 * Using movablemem_map, we can prevent memblock from allocating memory
- 	 * on ZONE_MOVABLE at boot time.
-+	 *
-+	 * NOTE: node0 shoule always be unhotpluggable, otherwise, if all the
-+	 *       memory is hotpluggable, there will be no memory kernel can use.
- 	 */
- 	if (hotpluggable && movablemem_map.acpi) {
--		insert_movablemem_map(start_pfn, end_pfn);
-+		if (node != 0)
-+			insert_movablemem_map(start_pfn, end_pfn);
- 		goto out;
- 	}
- 
-@@ -178,7 +182,9 @@ handle_movablemem(int node, u64 start, u64 end, u32 hotpluggable)
- 	 * Using movablemem_map, we can prevent memblock from allocating memory
- 	 * on ZONE_MOVABLE at boot time.
- 	 *
--	 * NOTE: In this case, SRAT info will be ingored.
-+	 * NOTE: We don't stop users specifying node0 as hotpluggable, and
-+	 *       ignore all the info in SRAT, so that this option can be used
-+	 *       as a workaround of firmware bugs.
- 	 */
- 	overlap = movablemem_map_overlap(start_pfn, end_pfn);
- 	if (overlap >= 0) {
--- 
-1.7.1
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
