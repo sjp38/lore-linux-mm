@@ -1,117 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 6B71B6B0008
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:30:02 -0500 (EST)
-Date: Wed, 30 Jan 2013 17:29:46 +0100
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 2646A6B0007
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:38:05 -0500 (EST)
+Date: Wed, 30 Jan 2013 17:37:50 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 2/6] memcg: bypass swap accounting for the root memcg
-Message-ID: <20130130162946.GA21253@dhcp22.suse.cz>
-References: <510658E3.1020306@oracle.com>
- <510658EE.9050006@oracle.com>
- <20130129141318.GC29574@dhcp22.suse.cz>
- <510943D8.9000902@oracle.com>
+Subject: Re: [PATCH] mmotm:
+ memcgvmscan-do-not-break-out-targeted-reclaim-without-reclaimed-pages.patch
+ fix
+Message-ID: <20130130163750.GB21253@dhcp22.suse.cz>
+References: <20130103180901.GA22067@dhcp22.suse.cz>
+ <20130129085104.GA30322@dhcp22.suse.cz>
+ <20130130162257.GB21614@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <510943D8.9000902@oracle.com>
+In-Reply-To: <20130130162257.GB21614@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Liu <jeff.liu@oracle.com>
-Cc: linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, handai.szj@taobao.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>
 
-On Thu 31-01-13 00:01:28, Jeff Liu wrote:
-> On 01/29/2013 10:13 PM, Michal Hocko wrote:
-> > On Mon 28-01-13 18:54:38, Jeff Liu wrote:
-> >> Root memcg with swap cgroup is special since we only do tracking
-> >> but can not set limits against it.  In order to facilitate
-> >> the implementation of the coming swap cgroup structures delay
-> >> allocation mechanism, we can bypass the default swap statistics
-> >> upon the root memcg and figure it out through the global stats
-> >> instead as below:
-> >>
-> >> root_memcg_swap_stat: total_swap_pages - nr_swap_pages -
-> >> used_swap_pages_of_all_memcgs
-> >
-> > How do you protect from races with swap{in,out}? Or they are
-> > tolerable?
-
-> To be honest, I previously have not taken race with swapin/out into
-> consideration.
->
-> Yes, this patch would cause a little error since it has to iterate
-> each memcg which can introduce a bit overhead based on how many memcgs
-> are configured.
->
-> However, considering our current implementation of swap statistics, we
-> do account when swap cache is uncharged, but it is possible that the
-> swap slot is already allocated before that.
-
-I am not sure I follow you here. I was merely interested in races while
-there is a swapping activity while the value is calculated. The errors,
-or let's say imprecision, shouldn't be big but it would be good to think
-how big it can be and how it can be reduced (e.g. what if we start
-accounting for root once there is another group existing - this would
-solve the problem of delayed allocation and the imprecision as well).
-
-> That is to say, there is a inconsistent window in swap accounting stats IMHO.
-> As a figure shows to human, I think it can be tolerated to some extents. :)
+On Wed 30-01-13 11:22:57, Johannes Weiner wrote:
+> On Tue, Jan 29, 2013 at 09:51:04AM +0100, Michal Hocko wrote:
+> > Ying has noticed me (via private email) that the patch is bogus because
+> > the break out condition is incorrect. She said she would post a fix
+> > but she's been probably too busy. If she doesn't oppose, could you add
+> > the follow up fix, please?
 > > 
-> >> memcg_total_swap_stats: root_memcg_swap_stat + other_memcg_swap_stats
+> > I am really sorry about this mess.
+> > ---
+> > >From 6d23b59e96b8173fae2d0d397cb5e99f16899874 Mon Sep 17 00:00:00 2001
+> > From: Ying Han <yinghan@google.com>
+> > Date: Tue, 29 Jan 2013 09:42:28 +0100
+> > Subject: [PATCH] mmotm:
+> >  memcgvmscan-do-not-break-out-targeted-reclaim-without-reclaimed-pages.patch
+> >  fix
 > > 
-> > I am not sure I understand and if I do then it is not true:
-> > root (swap = 10M, use_hierarchy = 0/1)
-> >  \
-> >   A (swap = 1M, use_hierarchy = 1)
-> >    \
-> >     B (swap = 2M)
+> > We should break out of the hierarchy loop only if nr_reclaimed exceeded
+> > nr_to_reclaim and not vice-versa. This patch fixes the condition.
 > > 
-> > total for A is 3M regardless of what root has "accounted" while
-> > total for root should be 10 for use_hierarchy = 0 and 13 for the
-> > other
->
-> I am not sure I catch your point, but I think the total for root
-> should be 13 no matter use_hierarchy = 0 or 1, and the current patch
-> is just doing that.
-
-I do not see any reason to make root different wrt. other roots of
-hierarchy. Anyway this is not important right now.
-
-> Originally, for_each_mem_cgroup_tree(iter, memcg) does statistics by
-> iterating all those children memcgs including the memcg itself.  But
-> now, as we don't account the root memcg swap statistics anymore(hence
-> the stats is 0), we need to add the local swap stats of root memcg
-> itself(10M) to the memcg_total_swap_stats.  So actually we don't
-> change the way of accounting memcg_total_swap_stats.
-
-I guess you are talking about tatal_ numbers. And yes, your patch
-doesn't change that.
- 
-> > case (this is btw. broken in the tree already now because
-> > for_each_mem_cgroup_tree resp. mem_cgroup_iter doesn't honor
-> > use_hierarchy for the root cgroup - this is a separate topic
-> > though).
->
-> Yes, I noticed that the for_each_mem_cgroup_tree() resp,
-> mem_cgroup_iter() don't take the root->use_hierarchy into
-> consideration, as it has the following logic:
-> if (!root->use_hierarchy && root != root_mem_cgroup) {
->  	if (prev)
-> 		return NULL;
-> 	return root;
-> }
+> > Signed-off-by: Ying Han <yinghan@google.com>
+> > ---
+> >  mm/vmscan.c |    2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index d75c1ec..7528eae 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1985,7 +1985,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> >  			 * whole hierarchy is not sufficient.
+> >  			 */
+> >  			if (!global_reclaim(sc) &&
+> > -					sc->nr_to_reclaim >= sc->nr_reclaimed) {
+> > +					sc->nr_to_reclaim <= sc->nr_reclaimed) {
 > 
-> As i don't change the for_each_mem_cgroup_tree(), so it is in
-> accordance with the original behavior.
+> This is just a really weird ordering of the operands, isn't it?  You
+> compare the constant to the variable, like if (42 == foo->nr_pages).
+> 
+>     if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+> 
+> would be less surprising.
 
-True, and I was just mentioning that as I noticed this only during
-the review. It wasn't meant to dispute your patch. Sorry if this wasn't
-clear enough. We have that behavior for ages and nobody complained so it
-is probably not worth fixing (especially when use_hierarchy is on the
-way out very sloooooowly).
-
-[...]
-
-Thanks
+No objections from me.
 -- 
 Michal Hocko
 SUSE Labs
