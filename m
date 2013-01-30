@@ -1,64 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id E65576B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:23:51 -0500 (EST)
-Date: Wed, 30 Jan 2013 11:22:57 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mmotm:
- memcgvmscan-do-not-break-out-targeted-reclaim-without-reclaimed-pages.patch
- fix
-Message-ID: <20130130162257.GB21614@cmpxchg.org>
-References: <20130103180901.GA22067@dhcp22.suse.cz>
- <20130129085104.GA30322@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 8EDCA6B0007
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:28:49 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 30 Jan 2013 11:28:47 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id ADF5438C8047
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:28:44 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0UGSiZ2294390
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:28:44 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0UGShRk009654
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 14:28:44 -0200
+Message-ID: <51094A39.8050206@linux.vnet.ibm.com>
+Date: Wed, 30 Jan 2013 10:28:41 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130129085104.GA30322@dhcp22.suse.cz>
+Subject: Re: [PATCHv4 2/7] zsmalloc: promote to lib/
+References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com> <1359495627-30285-3-git-send-email-sjenning@linux.vnet.ibm.com> <20130129145134.813672cf.akpm@linux-foundation.org>
+In-Reply-To: <20130129145134.813672cf.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Tue, Jan 29, 2013 at 09:51:04AM +0100, Michal Hocko wrote:
-> Ying has noticed me (via private email) that the patch is bogus because
-> the break out condition is incorrect. She said she would post a fix
-> but she's been probably too busy. If she doesn't oppose, could you add
-> the follow up fix, please?
+On 01/29/2013 04:51 PM, Andrew Morton wrote:
+> On Tue, 29 Jan 2013 15:40:22 -0600
+> Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
 > 
-> I am really sorry about this mess.
-> ---
-> >From 6d23b59e96b8173fae2d0d397cb5e99f16899874 Mon Sep 17 00:00:00 2001
-> From: Ying Han <yinghan@google.com>
-> Date: Tue, 29 Jan 2013 09:42:28 +0100
-> Subject: [PATCH] mmotm:
->  memcgvmscan-do-not-break-out-targeted-reclaim-without-reclaimed-pages.patch
->  fix
+>> This patch promotes the slab-based zsmalloc memory allocator
+>> from the staging tree to lib/
 > 
-> We should break out of the hierarchy loop only if nr_reclaimed exceeded
-> nr_to_reclaim and not vice-versa. This patch fixes the condition.
+> Hate to rain on the parade, but...  we haven't reviewed zsmalloc
+> yet.  At least, I haven't, and I haven't seen others do so.
 > 
-> Signed-off-by: Ying Han <yinghan@google.com>
-> ---
->  mm/vmscan.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> So how's about we forget that zsmalloc was previously in staging and
+> send the zsmalloc code out for review?  With a very good changelog
+> explaining why it exists, what problems it solves, etc.
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index d75c1ec..7528eae 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1985,7 +1985,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
->  			 * whole hierarchy is not sufficient.
->  			 */
->  			if (!global_reclaim(sc) &&
-> -					sc->nr_to_reclaim >= sc->nr_reclaimed) {
-> +					sc->nr_to_reclaim <= sc->nr_reclaimed) {
+> 
+> I peeked.
+> 
+> Don't answer any of the below questions - they are examples of
+> concepts which should be accessible to readers of the
+> hopefully-forthcoming very-good-changelog.
+> 
+> - kmap_atomic() returns a void* - there's no need to cast its return value.
+> 
+> - Remove private MAX(), use the (much better implemented) max().
+> 
+> - It says "This was one of the major issues with its predecessor
+>   (xvmalloc)", but drivers/staging/ramster/xvmalloc.c is still in the tree.
+> 
+> - USE_PGTABLE_MAPPING should be done via Kconfig.
+> 
+> - USE_PGTABLE_MAPPING is interesting and the changelog should go into
+>   some details.  What are the pros and cons here?  Why do the two
+>   options exist?  Can we eliminate one mode or the other?
+> 
+> - Various functions are obscure and would benefit from explanatory
+>   comments.  Good comments explain "why it exists", more than "what it
+>   does".
+> 
+>   These include get_size_class_index, get_fullness_group,
+>   insert_zspage, remove_zspage, fix_fullness_group.
+> 
+>   Also a description of this handle encoding thing - what do these
+>   "handles" refer to?  Why is stuff being encoded into them and how?
+> 
+> - I don't understand how the whole thing works :( If I allocate a
+>   16 kbyte object with zs_malloc(), what do I get?  16k of
+>   contiguous memory?  How can it do that if
+>   USE_PGTABLE_MAPPING=false?  Obviously it can't so it's doing
+>   something else.  But what?
+> 
+> - What does zs_create_pool() do and how do I use it?  It appears
+>   to create a pool of all possible object sizes.  But why do we need
+>   more than one such pool kernel-wide?
+> 
+> - I tried to work out the actual value of ZS_SIZE_CLASSES but it
+>   made my head spin.
+> 
+> - We really really don't want to merge zsmalloc!  It would be far
+>   better to use an existing allocator (perhaps after modifying it)
+>   than to add yet another new one.  The really-good-changelog should
+>   be compelling on this point, please.
+> 
+> See, I (and I assume others) are totally on first base here and we need
+> to get through this before we can get onto zswap.  Sorry. 
+> drivers/staging is where code goes to be ignored :(
 
-This is just a really weird ordering of the operands, isn't it?  You
-compare the constant to the variable, like if (42 == foo->nr_pages).
+I've noticed :-/
 
-    if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+Thank you very much for your review!  I'll work with Nitin and Minchan
+to beef up the documentation so that the answers to your questions are
+more readily apparent in the code/comments.
 
-would be less surprising.
+I'll also convert the zsmalloc promotion patch back into a full-diff
+patch rather than a rename patch so that people can review and comment
+inline.
+
+Question, are you saying that you'd like to see the zsmalloc promotion
+in a separate patch?
+
+My reason for including the zsmalloc promotion inside the zswap
+patches was that it promoted and introduced a user all together.
+However, I don't have an issue with breaking it out.
+
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
