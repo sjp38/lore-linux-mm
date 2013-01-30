@@ -1,129 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 195616B0005
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 09:57:11 -0500 (EST)
-Received: by mail-bk0-f50.google.com with SMTP id jg9so848643bkc.23
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2013 06:57:09 -0800 (PST)
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 7B2C26B0007
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 10:13:16 -0500 (EST)
+Message-ID: <51093864.9000008@redhat.com>
+Date: Wed, 30 Jan 2013 16:12:36 +0100
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20130130091229.GA16098@dhcp22.suse.cz>
-References: <1359198756-3752-1-git-send-email-handai.szj@taobao.com>
-	<51071AA1.7000207@jp.fujitsu.com>
-	<CAFj3OHXyWN+zUMAaSEOz2gCP7Bm6v4Zex=Rq=7A9CkHTp3j1UQ@mail.gmail.com>
-	<20130130091229.GA16098@dhcp22.suse.cz>
-Date: Wed, 30 Jan 2013 22:57:09 +0800
-Message-ID: <CAFj3OHW_MQS=mc_jRFKyonZxS=LJikNj6=JZTnYKxzvj=Om_xA@mail.gmail.com>
-Subject: Re: [PATCH] memcg: simplify lock of memcg page stat accounting
-From: Sha Zhengju <handai.szj@gmail.com>
+Subject: Re: [PATCH v6 1/4] zram: Fix deadlock bug in partial read/write
+References: <1359513702-18709-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1359513702-18709-1-git-send-email-minchan@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com, hannes@cmpxchg.org, hughd@google.com, Sha Zhengju <handai.szj@taobao.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, stable@vger.kernel.org, Pekka Enberg <penberg@kernel.org>
 
-On Wed, Jan 30, 2013 at 5:12 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 29-01-13 23:29:35, Sha Zhengju wrote:
->> On Tue, Jan 29, 2013 at 8:41 AM, Kamezawa Hiroyuki
->> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
->> > (2013/01/26 20:12), Sha Zhengju wrote:
->> >> From: Sha Zhengju <handai.szj@taobao.com>
->> >>
->> >> After removing duplicated information like PCG_*
->> >> flags in 'struct page_cgroup'(commit 2ff76f1193), there's a problem
->> >> between "move" and "page stat accounting"(only FILE_MAPPED is supported
->> >> now but other stats will be added in future):
->> >> assume CPU-A does "page stat accounting" and CPU-B does "move"
->> >>
->> >> CPU-A                        CPU-B
->> >> TestSet PG_dirty
->> >> (delay)               move_lock_mem_cgroup()
->> >>                          if (PageDirty(page)) {
->> >>                               old_memcg->nr_dirty --
->> >>                               new_memcg->nr_dirty++
->> >>                          }
->> >>                          pc->mem_cgroup = new_memcg;
->> >>                          move_unlock_mem_cgroup()
->> >>
->> >> move_lock_mem_cgroup()
->> >> memcg = pc->mem_cgroup
->> >> memcg->nr_dirty++
->> >> move_unlock_mem_cgroup()
->> >>
->> >> while accounting information of new_memcg may be double-counted. So we
->> >> use a bigger lock to solve this problem:  (commit: 89c06bd52f)
->> >>
->> >>        move_lock_mem_cgroup() <-- mem_cgroup_begin_update_page_stat()
->> >>        TestSetPageDirty(page)
->> >>        update page stats (without any checks)
->> >>        move_unlock_mem_cgroup() <-- mem_cgroup_begin_update_page_stat()
->> >>
->> >>
->> >> But this method also has its pros and cons: at present we use two layers
->> >> of lock avoidance(memcg_moving and memcg->moving_account) then spinlock
->> >> on memcg (see mem_cgroup_begin_update_page_stat()), but the lock granularity
->> >> is a little bigger that not only the critical section but also some code
->> >> logic is in the range of locking which may be deadlock prone. As dirty
->> >> writeack stats are added, it gets into further difficulty with the page
->> >> cache radix tree lock and it seems that the lock requires nesting.
->> >> (https://lkml.org/lkml/2013/1/2/48)
->> >>
->> >> So in order to make the lock simpler and clearer and also avoid the 'nesting'
->> >> problem, a choice may be:
->> >> (CPU-A does "page stat accounting" and CPU-B does "move")
->> >>
->> >>         CPU-A                        CPU-B
->> >>
->> >> move_lock_mem_cgroup()
->> >> memcg = pc->mem_cgroup
->> >> TestSetPageDirty(page)
->> >> move_unlock_mem_cgroup()
->> >>                               move_lock_mem_cgroup()
->> >>                               if (PageDirty) {
->> >>                                    old_memcg->nr_dirty --;
->> >>                                    new_memcg->nr_dirty ++;
->> >>                               }
->> >>                               pc->mem_cgroup = new_memcg
->> >>                               move_unlock_mem_cgroup()
->> >>
->> >> memcg->nr_dirty ++
->> >>
->> >
->> > Hmm. no race with file truncate ?
->> >
->>
->> Do you mean "dirty page accounting" racing with truncate?  Yes, if
->> another one do truncate and set page->mapping=NULL just before CPU-A's
->> 'memcg->nr_dirty ++', then it'll have no change to correct the figure
->> back. So my rough idea now is to have some small changes to
->> __set_page_dirty/__set_page_dirty_nobuffers that do SetDirtyPage
->> inside ->tree_lock.
->>
->> But, in current codes, is there any chance that
->> mem_cgroup_move_account() racing with truncate that PageAnon is
->> false(since page->mapping is cleared) but later in page_remove_rmap()
->> the new memcg stats is over decrement...?
->
-> We are not checking page->mapping but rather page_mapped() which
-> checks page->_mapcount and that is protected from races with
-> mem_cgroup_move_account by mem_cgroup_begin_update_page_stat locking.
-> Makes sense?
+On 01/30/2013 03:41 AM, Minchan Kim wrote:
+> Now zram allocates new page with GFP_KERNEL in zram I/O path
+> if IO is partial. Unfortunately, It may cause deadlock with
+> reclaim path like below.
+> 
+> write_page from fs
+> fs_lock
+> allocation(GFP_KERNEL)
+> reclaim
+> pageout
+> 				write_page from fs
+> 				fs_lock <-- deadlock
+> 
+> This patch fixes it by using GFP_NOIO.  In read path, we
+> reorganize code flow so that kmap_atomic is called after the
+> GFP_NOIO allocation.
 
-Yeah. I think you are right, what's matters here is page->_mapcount
-and even page->mapping is cleared the !anon check is still true.  : )
+For the all series:
+Acked-by: Jerome Marchand <jmarchand@redhat.com>
 
->
->> Call me silly...but I really get dizzy by those locks now, need to
->> have a run to refresh my head... : (
->
-> Yeah, that part is funny for a certain reading of the word funny ;)
-> --
-> Michal Hocko
-> SUSE Labs
-
-
-
--- 
-Thanks,
-Sha
+> 
+> Cc: stable@vger.kernel.org
+> Cc: Jerome Marchand <jmarchan@redhat.com>
+> Acked-by: Nitin Gupta <ngupta@vflare.org>
+> [ penberg@kernel.org: don't use GFP_ATOMIC ]
+> Signed-off-by: Pekka Enberg <penberg@kernel.org>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  drivers/staging/zram/zram_drv.c |    9 +++++----
+>  1 file changed, 5 insertions(+), 4 deletions(-)
+> 
+> diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
+> index 77a3f0d..5ff8749 100644
+> --- a/drivers/staging/zram/zram_drv.c
+> +++ b/drivers/staging/zram/zram_drv.c
+> @@ -217,11 +217,12 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
+>  		return 0;
+>  	}
+>  
+> -	user_mem = kmap_atomic(page);
+>  	if (is_partial_io(bvec))
+>  		/* Use  a temporary buffer to decompress the page */
+> -		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
+> -	else
+> +		uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
+> +
+> +	user_mem = kmap_atomic(page);
+> +	if (!is_partial_io(bvec))
+>  		uncmem = user_mem;
+>  
+>  	if (!uncmem) {
+> @@ -268,7 +269,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+>  		 * This is a partial IO. We need to read the full page
+>  		 * before to write the changes.
+>  		 */
+> -		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
+> +		uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
+>  		if (!uncmem) {
+>  			pr_info("Error allocating temp memory!\n");
+>  			ret = -ENOMEM;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
