@@ -1,46 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 4205D6B0005
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 07:51:53 -0500 (EST)
-Date: Wed, 30 Jan 2013 13:51:51 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [RFC] Reproducible OOM with just a few sleeps
-Message-ID: <20130130125151.GB19069@amd.pavel.ucw.cz>
-References: <201301142036.r0EKaYGN005907@como.maths.usyd.edu.au>
- <50F4A92F.2070204@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 195616B0005
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 09:57:11 -0500 (EST)
+Received: by mail-bk0-f50.google.com with SMTP id jg9so848643bkc.23
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2013 06:57:09 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50F4A92F.2070204@linux.vnet.ibm.com>
+In-Reply-To: <20130130091229.GA16098@dhcp22.suse.cz>
+References: <1359198756-3752-1-git-send-email-handai.szj@taobao.com>
+	<51071AA1.7000207@jp.fujitsu.com>
+	<CAFj3OHXyWN+zUMAaSEOz2gCP7Bm6v4Zex=Rq=7A9CkHTp3j1UQ@mail.gmail.com>
+	<20130130091229.GA16098@dhcp22.suse.cz>
+Date: Wed, 30 Jan 2013 22:57:09 +0800
+Message-ID: <CAFj3OHW_MQS=mc_jRFKyonZxS=LJikNj6=JZTnYKxzvj=Om_xA@mail.gmail.com>
+Subject: Re: [PATCH] memcg: simplify lock of memcg page stat accounting
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: paul.szabo@sydney.edu.au, 695182@bugs.debian.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, gthelen@google.com, hannes@cmpxchg.org, hughd@google.com, Sha Zhengju <handai.szj@taobao.com>
 
-Hi!
+On Wed, Jan 30, 2013 at 5:12 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Tue 29-01-13 23:29:35, Sha Zhengju wrote:
+>> On Tue, Jan 29, 2013 at 8:41 AM, Kamezawa Hiroyuki
+>> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> > (2013/01/26 20:12), Sha Zhengju wrote:
+>> >> From: Sha Zhengju <handai.szj@taobao.com>
+>> >>
+>> >> After removing duplicated information like PCG_*
+>> >> flags in 'struct page_cgroup'(commit 2ff76f1193), there's a problem
+>> >> between "move" and "page stat accounting"(only FILE_MAPPED is supported
+>> >> now but other stats will be added in future):
+>> >> assume CPU-A does "page stat accounting" and CPU-B does "move"
+>> >>
+>> >> CPU-A                        CPU-B
+>> >> TestSet PG_dirty
+>> >> (delay)               move_lock_mem_cgroup()
+>> >>                          if (PageDirty(page)) {
+>> >>                               old_memcg->nr_dirty --
+>> >>                               new_memcg->nr_dirty++
+>> >>                          }
+>> >>                          pc->mem_cgroup = new_memcg;
+>> >>                          move_unlock_mem_cgroup()
+>> >>
+>> >> move_lock_mem_cgroup()
+>> >> memcg = pc->mem_cgroup
+>> >> memcg->nr_dirty++
+>> >> move_unlock_mem_cgroup()
+>> >>
+>> >> while accounting information of new_memcg may be double-counted. So we
+>> >> use a bigger lock to solve this problem:  (commit: 89c06bd52f)
+>> >>
+>> >>        move_lock_mem_cgroup() <-- mem_cgroup_begin_update_page_stat()
+>> >>        TestSetPageDirty(page)
+>> >>        update page stats (without any checks)
+>> >>        move_unlock_mem_cgroup() <-- mem_cgroup_begin_update_page_stat()
+>> >>
+>> >>
+>> >> But this method also has its pros and cons: at present we use two layers
+>> >> of lock avoidance(memcg_moving and memcg->moving_account) then spinlock
+>> >> on memcg (see mem_cgroup_begin_update_page_stat()), but the lock granularity
+>> >> is a little bigger that not only the critical section but also some code
+>> >> logic is in the range of locking which may be deadlock prone. As dirty
+>> >> writeack stats are added, it gets into further difficulty with the page
+>> >> cache radix tree lock and it seems that the lock requires nesting.
+>> >> (https://lkml.org/lkml/2013/1/2/48)
+>> >>
+>> >> So in order to make the lock simpler and clearer and also avoid the 'nesting'
+>> >> problem, a choice may be:
+>> >> (CPU-A does "page stat accounting" and CPU-B does "move")
+>> >>
+>> >>         CPU-A                        CPU-B
+>> >>
+>> >> move_lock_mem_cgroup()
+>> >> memcg = pc->mem_cgroup
+>> >> TestSetPageDirty(page)
+>> >> move_unlock_mem_cgroup()
+>> >>                               move_lock_mem_cgroup()
+>> >>                               if (PageDirty) {
+>> >>                                    old_memcg->nr_dirty --;
+>> >>                                    new_memcg->nr_dirty ++;
+>> >>                               }
+>> >>                               pc->mem_cgroup = new_memcg
+>> >>                               move_unlock_mem_cgroup()
+>> >>
+>> >> memcg->nr_dirty ++
+>> >>
+>> >
+>> > Hmm. no race with file truncate ?
+>> >
+>>
+>> Do you mean "dirty page accounting" racing with truncate?  Yes, if
+>> another one do truncate and set page->mapping=NULL just before CPU-A's
+>> 'memcg->nr_dirty ++', then it'll have no change to correct the figure
+>> back. So my rough idea now is to have some small changes to
+>> __set_page_dirty/__set_page_dirty_nobuffers that do SetDirtyPage
+>> inside ->tree_lock.
+>>
+>> But, in current codes, is there any chance that
+>> mem_cgroup_move_account() racing with truncate that PageAnon is
+>> false(since page->mapping is cleared) but later in page_remove_rmap()
+>> the new memcg stats is over decrement...?
+>
+> We are not checking page->mapping but rather page_mapped() which
+> checks page->_mapcount and that is protected from races with
+> mem_cgroup_move_account by mem_cgroup_begin_update_page_stat locking.
+> Makes sense?
 
-> > I understand that more RAM leaves less lowmem. What is unacceptable is
-> > that PAE crashes or freezes with OOM: it should gracefully handle the
-> > issue. Noting that (for a machine with 4GB or under) PAE fails where the
-> > HIGHMEM4G kernel succeeds and survives.
-> 
-> You have found a delta, but you're not really making apples-to-apples
-> comparisons.  The page tables (a huge consumer of lowmem in your bug
-> reports) have much more overhead on a PAE kernel.  A process with a
-> single page faulted in with PAE will take at least 4 pagetable pages
-> (it's 7 in practice for me with sleeps).  It's 2 pages minimum (and in
-> practice with sleeps) on HIGHMEM4G.
-> 
-> There's probably a bug here.  But, it's incredibly unlikely to be seen
-> in practice on anything resembling a modern system.  The 'sleep' issue
-> is easily worked around by upgrading to a 64-bit kernel, or using
+Yeah. I think you are right, what's matters here is page->_mapcount
+and even page->mapping is cleared the !anon check is still true.  : )
 
-Are you saying that HIGHMEM configuration with 4GB ram is not expected
-to work?
-									Pavel
+>
+>> Call me silly...but I really get dizzy by those locks now, need to
+>> have a run to refresh my head... : (
+>
+> Yeah, that part is funny for a certain reading of the word funny ;)
+> --
+> Michal Hocko
+> SUSE Labs
+
+
+
 -- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
