@@ -1,50 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id C29C16B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 03:21:15 -0500 (EST)
-Date: Wed, 30 Jan 2013 17:21:12 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RESEND PATCH v5 1/4] zram: Fix deadlock bug in partial write
-Message-ID: <20130130082112.GA23548@blaptop>
-References: <1359333506-13599-1-git-send-email-minchan@kernel.org>
- <20130130042006.GA24538@kroah.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id EC7306B0008
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 03:50:29 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id un1so838232pbc.26
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2013 00:50:29 -0800 (PST)
+Date: Wed, 30 Jan 2013 00:50:26 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH Bug fix] acpi, movablemem_map: node0 should always be
+ unhotpluggable when using SRAT.
+In-Reply-To: <1359532470-28874-1-git-send-email-tangchen@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1301300049100.19679@chino.kir.corp.google.com>
+References: <1359532470-28874-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130130042006.GA24538@kroah.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, stable@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Greg,
+On Wed, 30 Jan 2013, Tang Chen wrote:
 
-On Tue, Jan 29, 2013 at 11:20:06PM -0500, Greg Kroah-Hartman wrote:
-> On Mon, Jan 28, 2013 at 09:38:23AM +0900, Minchan Kim wrote:
-> > Now zram allocates new page with GFP_KERNEL in zram I/O path
-> > if IO is partial. Unfortunately, It may cuase deadlock with
-> > reclaim path so this patch solves the problem.
-> > 
-> > Cc: stable@vger.kernel.org
-> > Cc: Jerome Marchand <jmarchan@redhat.com>
-> > Acked-by: Nitin Gupta <ngupta@vflare.org>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  drivers/staging/zram/zram_drv.c |    4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> When using movablemem_map=acpi, always set node0 as unhotpluggable, otherwise
+> if all the memory is hotpluggable, the kernel will fail to boot.
 > 
-> Due to the discussion on this series, I don't know what patch to apply,
-> so care to do a v6 of this with the patches that everyone has finally
-> agreed on?
+> When using movablemem_map=nn[KMG]@ss[KMG], we don't stop users specifying
+> node0 as hotpluggable, and ignore all the info in SRAT, so that this option
+> can be used as a workaround of firmware bugs.
+> 
 
-I already sent v6.
-https://lkml.org/lkml/2013/1/29/680
+Could you elaborate on the failure you're seeing?
 
-Thanks.
-
--- 
-Kind regards,
-Minchan Kim
+I've booted the kernel many times without memory on a node 0.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
