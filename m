@@ -1,165 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id D89666B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:01:39 -0500 (EST)
-Message-ID: <510943D8.9000902@oracle.com>
-Date: Thu, 31 Jan 2013 00:01:28 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 57AD06B000A
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:04:53 -0500 (EST)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 30 Jan 2013 11:03:35 -0500
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id B102638C806D
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:03:07 -0500 (EST)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0UG37du21037238
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:03:07 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0UG36jS006134
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:03:07 -0500
+Message-ID: <510943DA.4040803@linux.vnet.ibm.com>
+Date: Wed, 30 Jan 2013 10:01:30 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/6] memcg: bypass swap accounting for the root memcg
-References: <510658E3.1020306@oracle.com> <510658EE.9050006@oracle.com> <20130129141318.GC29574@dhcp22.suse.cz>
-In-Reply-To: <20130129141318.GC29574@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCHv4 0/7] zswap: compressed swap caching
+References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com> <1359497685.16868.11.camel@joe-AO722> <510851E0.8000009@linux.vnet.ibm.com> <20130130043214.GC2580@blaptop>
+In-Reply-To: <20130130043214.GC2580@blaptop>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, handai.szj@taobao.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Joe Perches <joe@perches.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 01/29/2013 10:13 PM, Michal Hocko wrote:
-> On Mon 28-01-13 18:54:38, Jeff Liu wrote:
->> Root memcg with swap cgroup is special since we only do tracking but can
->> not set limits against it.  In order to facilitate the implementation of
->> the coming swap cgroup structures delay allocation mechanism, we can bypass
->> the default swap statistics upon the root memcg and figure it out through
->> the global stats instead as below:
+On 01/29/2013 10:32 PM, Minchan Kim wrote:
+> On Tue, Jan 29, 2013 at 04:49:04PM -0600, Seth Jennings wrote:
+>> On 01/29/2013 04:14 PM, Joe Perches wrote:
+>>> On Tue, 2013-01-29 at 15:40 -0600, Seth Jennings wrote:
+>>>> The code required for the flushing is in a separate patch now
+>>>> as requested.
+>>>
+>>> What tree does this apply to?
+>>> Both -next and linus fail to compile.
 >>
->> root_memcg_swap_stat: total_swap_pages - nr_swap_pages - used_swap_pages_of_all_memcgs
-> 
-> How do you protect from races with swap{in,out}? Or they are tolerable?
-To be honest, I previously have not taken race with swapin/out into consideration.
-
-Yes, this patch would cause a little error since it has to iterate each memcg which can
-introduce a bit overhead based on how many memcgs are configured.
-
-However, considering our current implementation of swap statistics, we do account when swap 
-cache is uncharged, but it is possible that the swap slot is already allocated before that.
-That is to say, there is a inconsistent window in swap accounting stats IMHO.
-As a figure shows to human, I think it can be tolerated to some extents. :)
-> 
->> memcg_total_swap_stats: root_memcg_swap_stat + other_memcg_swap_stats
-> 
-> I am not sure I understand and if I do then it is not true:
-> root (swap = 10M, use_hierarchy = 0/1)
->  \
->   A (swap = 1M, use_hierarchy = 1)
->    \
->     B (swap = 2M)
-> 
-> total for A is 3M regardless of what root has "accounted" while
-> total for root should be 10 for use_hierarchy = 0 and 13 for the other
-I am not sure I catch your point, but I think the total for root should be 13 no matter
-use_hierarchy = 0 or 1, and the current patch is just doing that.
-
-Originally, for_each_mem_cgroup_tree(iter, memcg) does statistics by iterating
-all those children memcgs including the memcg itself.  But now, as we don't account the
-root memcg swap statistics anymore(hence the stats is 0), we need to add the local swap
-stats of root memcg itself(10M) to the memcg_total_swap_stats.  So actually we don't change
-the way of accounting memcg_total_swap_stats.
-
-> case (this is btw. broken in the tree already now because
-> for_each_mem_cgroup_tree resp. mem_cgroup_iter doesn't honor
-> use_hierarchy for the root cgroup - this is a separate topic though).
-Yes, I noticed that the for_each_mem_cgroup_tree() resp, mem_cgroup_iter()
-don't take the root->use_hierarchy into consideration, as it has the following logic:
-if (!root->use_hierarchy && root != root_mem_cgroup) {
- 	if (prev)
-		return NULL;
-	return root;
-}
-
-As i don't change the for_each_mem_cgroup_tree(), so it is in accordance with the original
-behavior.
-
->> In this way, we'll return an invalid CSS_ID(generally, it's 0) at swap
->> cgroup related tracking infrastructures if only the root memcg is alive.
->> That is to say, we have not yet allocate swap cgroup structures.
->> As a result, the per pages swapin/swapout stats number agains the root
->> memcg shoud be ZERO.
+>> Link to build instruction in the cover letter:
 >>
->> Signed-off-by: Jie Liu <jeff.liu@oracle.com>
->> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
->> CC: Glauber Costa <glommer@parallels.com>
->> CC: Michal Hocko <mhocko@suse.cz>
->> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Johannes Weiner <hannes@cmpxchg.org>
->> CC: Mel Gorman <mgorman@suse.de>
->> CC: Andrew Morton <akpm@linux-foundation.org>
+>>>> NOTE: To build, read this:
+>>>> http://lkml.org/lkml/2013/1/28/586
 >>
->> ---
->>  mm/memcontrol.c |   35 ++++++++++++++++++++++++++++++-----
->>  1 file changed, 30 insertions(+), 5 deletions(-)
+>> The complexity is due to a conflict with a zsmalloc patch in Greg's
+>> staging tree that has yet to make its way upstream.
 >>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 09255ec..afe5e86 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -5231,12 +5231,34 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
->>  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
->>  	struct mem_cgroup *mi;
->>  	unsigned int i;
->> +	long long root_swap_stat = 0;
+>> Sorry for the inconvenience.
+> 
+> Seth, Please don't ignore previous review if you didn't convince reviewer.
+> I don't want to consume time with arguing trivial things.
+> 
+> Copy and Paste from previous discussion from zsmalloc pathset
+> 
+>>>> On Fri, Jan 25, 2013 at 11:46:14AM -0600, Seth Jennings wrote:
+>>>>> These patches are the first 4 patches of the zswap patchset I
+>>>>> sent out previously.  Some recent commits to zsmalloc and
+>>>>> zcache in staging-next forced a rebase. While I was at it, Nitin
+>>>>> (zsmalloc maintainer) requested I break these 4 patches out from
+>>>>> the zswap patchset, since they stand on their own.
+>>>>
+>>>> [2/4] and [4/4] is okay to merge current zsmalloc in staging but
+>>>> [1/4] and [3/4] is dependent on zswap so it should be part of
+>>>> zswap patchset.
+>>>
+>>> Just to clarify, patches 1 and 3 are _not_ dependent on zswap.  They
+>>> just introduce changes that are only needed by zswap.
 >>
->>  	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
->> -		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
->> -			continue;
->> +		long val = 0;
->> +
->> +		if (i != MEM_CGROUP_STAT_SWAP)
->> +			val = mem_cgroup_read_stat(memcg, i);
->> +		else {
->> +			if (!do_swap_account)
->> +				continue;
-> 
-> 
->> +			if (!mem_cgroup_is_root(memcg))
->> +				val = mem_cgroup_read_stat(memcg, i);
->> +			else {
->> +				/*
->> +				 * The corresponding stat number of swap for
->> +				 * root_mem_cgroup is 0 since we don't account
->> +				 * it in any case.  Instead, we can fake the
->> +				 * root number via: total_swap_pages -
->> +				 * nr_swap_pages - total_swap_pages_of_all_memcg
->> +				 */
->> +				for_each_mem_cgroup(mi)
->> +					val += mem_cgroup_read_stat(mi, i);
->> +				val = root_swap_stat = (total_swap_pages -
->> +							nr_swap_pages - val);
->> +			}
-> 
-> This calls for a helper.
-Yes, Sir.
-> 
->> +		}
->>  		seq_printf(m, "%s %ld\n", mem_cgroup_stat_names[i],
->> -			   mem_cgroup_read_stat(memcg, i) * PAGE_SIZE);
->> +			   val * PAGE_SIZE);
->>  	}
->>  
->>  	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
->> @@ -5260,8 +5282,11 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
->>  	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
->>  		long long val = 0;
->>  
->> -		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
->> -			continue;
->> +		if (i == MEM_CGROUP_STAT_SWAP) {
->> +			if (!do_swap_account)
->> +				continue;
->> +			val += root_swap_stat * PAGE_SIZE;
->> +		}
-> 
-> This doesn't seem right because you are adding root swap amount to _all_
-> groups. This should be done only if (memcg == root_mem_cgroup).
-Ah, I?m too dumb!
+>> I don't think so. If zswap might be not merged, we don't need [1, 3]
+>> at the moment. You could argue that [1, 3] make zsmalloc more flexible
+>> and I agree. BUT I want it when we have needs. It would be not too late.
+>> So [1,3] should be part of zswap patchset.
+
+I apologize.  I am really trying to keep all the feedback straight,
+and I didn't know what Greg was going to do with those zsmalloc
+patches.  However, as of last night, he didn't accept the two you
+mentioned as being tied to zswap-only functionality.
+
+I'll bring them back into the patchset for v5 once I/we address
+Andrew's feedback, which might take some time.
 
 Thanks,
--Jeff
-> 
->>  		for_each_mem_cgroup_tree(mi, memcg)
->>  			val += mem_cgroup_read_stat(mi, i) * PAGE_SIZE;
->>  		seq_printf(m, "total_%s %lld\n", mem_cgroup_stat_names[i], val);
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
