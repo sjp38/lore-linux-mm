@@ -1,119 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 8EDCA6B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:28:49 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 30 Jan 2013 11:28:47 -0500
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id ADF5438C8047
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:28:44 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0UGSiZ2294390
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:28:44 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0UGShRk009654
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 14:28:44 -0200
-Message-ID: <51094A39.8050206@linux.vnet.ibm.com>
-Date: Wed, 30 Jan 2013 10:28:41 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 6B71B6B0008
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:30:02 -0500 (EST)
+Date: Wed, 30 Jan 2013 17:29:46 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 2/6] memcg: bypass swap accounting for the root memcg
+Message-ID: <20130130162946.GA21253@dhcp22.suse.cz>
+References: <510658E3.1020306@oracle.com>
+ <510658EE.9050006@oracle.com>
+ <20130129141318.GC29574@dhcp22.suse.cz>
+ <510943D8.9000902@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 2/7] zsmalloc: promote to lib/
-References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com> <1359495627-30285-3-git-send-email-sjenning@linux.vnet.ibm.com> <20130129145134.813672cf.akpm@linux-foundation.org>
-In-Reply-To: <20130129145134.813672cf.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <510943D8.9000902@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Jeff Liu <jeff.liu@oracle.com>
+Cc: linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, handai.szj@taobao.com
 
-On 01/29/2013 04:51 PM, Andrew Morton wrote:
-> On Tue, 29 Jan 2013 15:40:22 -0600
-> Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
-> 
->> This patch promotes the slab-based zsmalloc memory allocator
->> from the staging tree to lib/
-> 
-> Hate to rain on the parade, but...  we haven't reviewed zsmalloc
-> yet.  At least, I haven't, and I haven't seen others do so.
-> 
-> So how's about we forget that zsmalloc was previously in staging and
-> send the zsmalloc code out for review?  With a very good changelog
-> explaining why it exists, what problems it solves, etc.
-> 
-> 
-> I peeked.
-> 
-> Don't answer any of the below questions - they are examples of
-> concepts which should be accessible to readers of the
-> hopefully-forthcoming very-good-changelog.
-> 
-> - kmap_atomic() returns a void* - there's no need to cast its return value.
-> 
-> - Remove private MAX(), use the (much better implemented) max().
-> 
-> - It says "This was one of the major issues with its predecessor
->   (xvmalloc)", but drivers/staging/ramster/xvmalloc.c is still in the tree.
-> 
-> - USE_PGTABLE_MAPPING should be done via Kconfig.
-> 
-> - USE_PGTABLE_MAPPING is interesting and the changelog should go into
->   some details.  What are the pros and cons here?  Why do the two
->   options exist?  Can we eliminate one mode or the other?
-> 
-> - Various functions are obscure and would benefit from explanatory
->   comments.  Good comments explain "why it exists", more than "what it
->   does".
-> 
->   These include get_size_class_index, get_fullness_group,
->   insert_zspage, remove_zspage, fix_fullness_group.
-> 
->   Also a description of this handle encoding thing - what do these
->   "handles" refer to?  Why is stuff being encoded into them and how?
-> 
-> - I don't understand how the whole thing works :( If I allocate a
->   16 kbyte object with zs_malloc(), what do I get?  16k of
->   contiguous memory?  How can it do that if
->   USE_PGTABLE_MAPPING=false?  Obviously it can't so it's doing
->   something else.  But what?
-> 
-> - What does zs_create_pool() do and how do I use it?  It appears
->   to create a pool of all possible object sizes.  But why do we need
->   more than one such pool kernel-wide?
-> 
-> - I tried to work out the actual value of ZS_SIZE_CLASSES but it
->   made my head spin.
-> 
-> - We really really don't want to merge zsmalloc!  It would be far
->   better to use an existing allocator (perhaps after modifying it)
->   than to add yet another new one.  The really-good-changelog should
->   be compelling on this point, please.
-> 
-> See, I (and I assume others) are totally on first base here and we need
-> to get through this before we can get onto zswap.  Sorry. 
-> drivers/staging is where code goes to be ignored :(
+On Thu 31-01-13 00:01:28, Jeff Liu wrote:
+> On 01/29/2013 10:13 PM, Michal Hocko wrote:
+> > On Mon 28-01-13 18:54:38, Jeff Liu wrote:
+> >> Root memcg with swap cgroup is special since we only do tracking
+> >> but can not set limits against it.  In order to facilitate
+> >> the implementation of the coming swap cgroup structures delay
+> >> allocation mechanism, we can bypass the default swap statistics
+> >> upon the root memcg and figure it out through the global stats
+> >> instead as below:
+> >>
+> >> root_memcg_swap_stat: total_swap_pages - nr_swap_pages -
+> >> used_swap_pages_of_all_memcgs
+> >
+> > How do you protect from races with swap{in,out}? Or they are
+> > tolerable?
 
-I've noticed :-/
+> To be honest, I previously have not taken race with swapin/out into
+> consideration.
+>
+> Yes, this patch would cause a little error since it has to iterate
+> each memcg which can introduce a bit overhead based on how many memcgs
+> are configured.
+>
+> However, considering our current implementation of swap statistics, we
+> do account when swap cache is uncharged, but it is possible that the
+> swap slot is already allocated before that.
 
-Thank you very much for your review!  I'll work with Nitin and Minchan
-to beef up the documentation so that the answers to your questions are
-more readily apparent in the code/comments.
+I am not sure I follow you here. I was merely interested in races while
+there is a swapping activity while the value is calculated. The errors,
+or let's say imprecision, shouldn't be big but it would be good to think
+how big it can be and how it can be reduced (e.g. what if we start
+accounting for root once there is another group existing - this would
+solve the problem of delayed allocation and the imprecision as well).
 
-I'll also convert the zsmalloc promotion patch back into a full-diff
-patch rather than a rename patch so that people can review and comment
-inline.
+> That is to say, there is a inconsistent window in swap accounting stats IMHO.
+> As a figure shows to human, I think it can be tolerated to some extents. :)
+> > 
+> >> memcg_total_swap_stats: root_memcg_swap_stat + other_memcg_swap_stats
+> > 
+> > I am not sure I understand and if I do then it is not true:
+> > root (swap = 10M, use_hierarchy = 0/1)
+> >  \
+> >   A (swap = 1M, use_hierarchy = 1)
+> >    \
+> >     B (swap = 2M)
+> > 
+> > total for A is 3M regardless of what root has "accounted" while
+> > total for root should be 10 for use_hierarchy = 0 and 13 for the
+> > other
+>
+> I am not sure I catch your point, but I think the total for root
+> should be 13 no matter use_hierarchy = 0 or 1, and the current patch
+> is just doing that.
 
-Question, are you saying that you'd like to see the zsmalloc promotion
-in a separate patch?
+I do not see any reason to make root different wrt. other roots of
+hierarchy. Anyway this is not important right now.
 
-My reason for including the zsmalloc promotion inside the zswap
-patches was that it promoted and introduced a user all together.
-However, I don't have an issue with breaking it out.
+> Originally, for_each_mem_cgroup_tree(iter, memcg) does statistics by
+> iterating all those children memcgs including the memcg itself.  But
+> now, as we don't account the root memcg swap statistics anymore(hence
+> the stats is 0), we need to add the local swap stats of root memcg
+> itself(10M) to the memcg_total_swap_stats.  So actually we don't
+> change the way of accounting memcg_total_swap_stats.
 
-Thanks,
-Seth
+I guess you are talking about tatal_ numbers. And yes, your patch
+doesn't change that.
+ 
+> > case (this is btw. broken in the tree already now because
+> > for_each_mem_cgroup_tree resp. mem_cgroup_iter doesn't honor
+> > use_hierarchy for the root cgroup - this is a separate topic
+> > though).
+>
+> Yes, I noticed that the for_each_mem_cgroup_tree() resp,
+> mem_cgroup_iter() don't take the root->use_hierarchy into
+> consideration, as it has the following logic:
+> if (!root->use_hierarchy && root != root_mem_cgroup) {
+>  	if (prev)
+> 		return NULL;
+> 	return root;
+> }
+> 
+> As i don't change the for_each_mem_cgroup_tree(), so it is in
+> accordance with the original behavior.
+
+True, and I was just mentioning that as I noticed this only during
+the review. It wasn't meant to dispute your patch. Sorry if this wasn't
+clear enough. We have that behavior for ages and nobody complained so it
+is probably not worth fixing (especially when use_hierarchy is on the
+way out very sloooooowly).
+
+[...]
+
+Thanks
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
