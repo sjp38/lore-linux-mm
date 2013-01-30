@@ -1,71 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 2646A6B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 11:38:05 -0500 (EST)
-Date: Wed, 30 Jan 2013 17:37:50 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mmotm:
- memcgvmscan-do-not-break-out-targeted-reclaim-without-reclaimed-pages.patch
- fix
-Message-ID: <20130130163750.GB21253@dhcp22.suse.cz>
-References: <20130103180901.GA22067@dhcp22.suse.cz>
- <20130129085104.GA30322@dhcp22.suse.cz>
- <20130130162257.GB21614@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 5CD276B0007
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 12:20:10 -0500 (EST)
+Date: Wed, 30 Jan 2013 18:21:59 +0100
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] staging: zsmalloc: remove unused pool name
+Message-ID: <20130130172159.GA24760@kroah.com>
+References: <1359560212-8818-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <51093F43.2090503@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130130162257.GB21614@cmpxchg.org>
+In-Reply-To: <51093F43.2090503@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ying Han <yinghan@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Wed 30-01-13 11:22:57, Johannes Weiner wrote:
-> On Tue, Jan 29, 2013 at 09:51:04AM +0100, Michal Hocko wrote:
-> > Ying has noticed me (via private email) that the patch is bogus because
-> > the break out condition is incorrect. She said she would post a fix
-> > but she's been probably too busy. If she doesn't oppose, could you add
-> > the follow up fix, please?
-> > 
-> > I am really sorry about this mess.
-> > ---
-> > >From 6d23b59e96b8173fae2d0d397cb5e99f16899874 Mon Sep 17 00:00:00 2001
-> > From: Ying Han <yinghan@google.com>
-> > Date: Tue, 29 Jan 2013 09:42:28 +0100
-> > Subject: [PATCH] mmotm:
-> >  memcgvmscan-do-not-break-out-targeted-reclaim-without-reclaimed-pages.patch
-> >  fix
-> > 
-> > We should break out of the hierarchy loop only if nr_reclaimed exceeded
-> > nr_to_reclaim and not vice-versa. This patch fixes the condition.
-> > 
-> > Signed-off-by: Ying Han <yinghan@google.com>
-> > ---
-> >  mm/vmscan.c |    2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index d75c1ec..7528eae 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1985,7 +1985,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
-> >  			 * whole hierarchy is not sufficient.
-> >  			 */
-> >  			if (!global_reclaim(sc) &&
-> > -					sc->nr_to_reclaim >= sc->nr_reclaimed) {
-> > +					sc->nr_to_reclaim <= sc->nr_reclaimed) {
+On Wed, Jan 30, 2013 at 09:41:55AM -0600, Seth Jennings wrote:
+> On 01/30/2013 09:36 AM, Seth Jennings wrote:> zs_create_pool()
+> currently takes a name argument which is
+> > never used in any useful way.
+> >
+> > This patch removes it.
+> >
+> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 > 
-> This is just a really weird ordering of the operands, isn't it?  You
-> compare the constant to the variable, like if (42 == foo->nr_pages).
+> Crud, forgot the Acks...
 > 
->     if (sc->nr_reclaimed >= sc->nr_to_reclaim)
-> 
-> would be less surprising.
+> Acked-by: Nitin Gupta <ngupta@vflare.org>
+> Acked-by: Rik van Riel <riel@redhat.com>
 
-No objections from me.
--- 
-Michal Hocko
-SUSE Labs
+{sigh} you just made me have to edit your patch by hand, you now owe me
+a beer...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
