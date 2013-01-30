@@ -1,82 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 7B2C26B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 10:13:16 -0500 (EST)
-Message-ID: <51093864.9000008@redhat.com>
-Date: Wed, 30 Jan 2013 16:12:36 +0100
-From: Jerome Marchand <jmarchan@redhat.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 2D65C6B0007
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 10:32:39 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Wed, 30 Jan 2013 10:32:37 -0500
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 6FA6DC90049
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 10:32:34 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0UFWYS7273920
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 10:32:34 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0UFWVnr020359
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 10:32:32 -0500
+Message-ID: <51093D03.8070006@linux.vnet.ibm.com>
+Date: Wed, 30 Jan 2013 07:32:19 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 1/4] zram: Fix deadlock bug in partial read/write
-References: <1359513702-18709-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1359513702-18709-1-git-send-email-minchan@kernel.org>
+Subject: Re: [RFC] Reproducible OOM with just a few sleeps
+References: <201301142036.r0EKaYGN005907@como.maths.usyd.edu.au> <50F4A92F.2070204@linux.vnet.ibm.com> <20130130125151.GB19069@amd.pavel.ucw.cz>
+In-Reply-To: <20130130125151.GB19069@amd.pavel.ucw.cz>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, stable@vger.kernel.org, Pekka Enberg <penberg@kernel.org>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: paul.szabo@sydney.edu.au, 695182@bugs.debian.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 01/30/2013 03:41 AM, Minchan Kim wrote:
-> Now zram allocates new page with GFP_KERNEL in zram I/O path
-> if IO is partial. Unfortunately, It may cause deadlock with
-> reclaim path like below.
-> 
-> write_page from fs
-> fs_lock
-> allocation(GFP_KERNEL)
-> reclaim
-> pageout
-> 				write_page from fs
-> 				fs_lock <-- deadlock
-> 
-> This patch fixes it by using GFP_NOIO.  In read path, we
-> reorganize code flow so that kmap_atomic is called after the
-> GFP_NOIO allocation.
+On 01/30/2013 04:51 AM, Pavel Machek wrote:
+> Are you saying that HIGHMEM configuration with 4GB ram is not expected
+> to work?
 
-For the all series:
-Acked-by: Jerome Marchand <jmarchand@redhat.com>
+Not really.
 
-> 
-> Cc: stable@vger.kernel.org
-> Cc: Jerome Marchand <jmarchan@redhat.com>
-> Acked-by: Nitin Gupta <ngupta@vflare.org>
-> [ penberg@kernel.org: don't use GFP_ATOMIC ]
-> Signed-off-by: Pekka Enberg <penberg@kernel.org>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  drivers/staging/zram/zram_drv.c |    9 +++++----
->  1 file changed, 5 insertions(+), 4 deletions(-)
-> 
-> diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-> index 77a3f0d..5ff8749 100644
-> --- a/drivers/staging/zram/zram_drv.c
-> +++ b/drivers/staging/zram/zram_drv.c
-> @@ -217,11 +217,12 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
->  		return 0;
->  	}
->  
-> -	user_mem = kmap_atomic(page);
->  	if (is_partial_io(bvec))
->  		/* Use  a temporary buffer to decompress the page */
-> -		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
-> -	else
-> +		uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
-> +
-> +	user_mem = kmap_atomic(page);
-> +	if (!is_partial_io(bvec))
->  		uncmem = user_mem;
->  
->  	if (!uncmem) {
-> @@ -268,7 +269,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->  		 * This is a partial IO. We need to read the full page
->  		 * before to write the changes.
->  		 */
-> -		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
-> +		uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
->  		if (!uncmem) {
->  			pr_info("Error allocating temp memory!\n");
->  			ret = -ENOMEM;
-> 
+The assertion was that 4GB with no PAE passed a forkbomb test (ooming)
+while 4GB of RAM with PAE hung, thus _PAE_ is broken.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
