@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 8A39A6B0007
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 09:52:45 -0500 (EST)
-Message-ID: <1359643356.15120.158.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device
- hotplug framework
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 31 Jan 2013 07:42:36 -0700
-In-Reply-To: <20130131052448.GC3228@kroah.com>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
-	 <5036592.TuXAnGzk4M@vostro.rjw.lan>
-	 <1358177628.14145.49.camel@misato.fc.hp.com>
-	 <2154272.qDAyBlTr8z@vostro.rjw.lan>
-	 <1358190124.14145.79.camel@misato.fc.hp.com>
-	 <20130130044859.GD30002@kroah.com>
-	 <1359594912.15120.85.camel@misato.fc.hp.com>
-	 <20130131052448.GC3228@kroah.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id DFBB76B0007
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 10:26:14 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] HWPOISON: fix wrong num_poisoned_pages in handling memory error on thp
+Date: Thu, 31 Jan 2013 10:25:58 -0500
+Message-Id: <1359645958-9127-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "bhelgaas@google.com" <bhelgaas@google.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "srivatsa.bhat@linux.vnet.ibm.com" <srivatsa.bhat@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 2013-01-31 at 05:24 +0000, Greg KH wrote:
-> On Wed, Jan 30, 2013 at 06:15:12PM -0700, Toshi Kani wrote:
-> > > Please make it a "real" pointer, and not a void *, those shouldn't be
-> > > used at all if possible.
-> > 
-> > How about changing the "void *handle" to acpi_dev_node below?   
-> > 
-> >    struct acpi_dev_node    acpi_node;
-> > 
-> > Basically, it has the same challenge as struct device, which uses
-> > acpi_dev_node as well.  We can add other FW node when needed (just like
-> > device also has *of_node).
-> 
-> That sounds good to me.
+num_poisoned_pages counts up the number of pages isolated by memory errors.
+But for thp, only one subpage is isolated because memory error handler
+splits it, so it's wrong to add (1 << compound_trans_order).
 
-Great!  Thanks Greg,
--Toshi
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/memory-failure.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
 
+diff --git mmotm-2013-01-23-17-04.orig/mm/memory-failure.c mmotm-2013-01-23-17-04/mm/memory-failure.c
+index 9cab165..d5c50d6 100644
+--- mmotm-2013-01-23-17-04.orig/mm/memory-failure.c
++++ mmotm-2013-01-23-17-04/mm/memory-failure.c
+@@ -1039,7 +1039,14 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 		return 0;
+ 	}
+ 
+-	nr_pages = 1 << compound_trans_order(hpage);
++	/*
++	 * If a thp is hit by a memory failure, it's supposed to be split.
++	 * So we should add only one to num_poisoned_pages for that case.
++	 */
++	if (PageHuge(p))
++		nr_pages = 1 << compound_trans_order(hpage);
++	else /* normal page or thp */
++		nr_pages = 1;
+ 	atomic_long_add(nr_pages, &num_poisoned_pages);
+ 
+ 	/*
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
