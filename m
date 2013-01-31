@@ -1,285 +1,332 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id DEF676B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 19:56:30 -0500 (EST)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Wed, 30 Jan 2013 17:56:30 -0700
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 8DF4D19D8043
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 17:56:27 -0700 (MST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0V0uR0r362170
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 17:56:27 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0V0uHta023908
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 17:56:17 -0700
-Subject: [RFC][PATCH] rip out x86_32 NUMA remapping code
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Wed, 30 Jan 2013 16:56:16 -0800
-Message-Id: <20130131005616.1C79F411@kernel.stglabs.ibm.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id B548F6B0007
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 20:22:33 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so1304833pbc.10
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2013 17:22:33 -0800 (PST)
+Message-ID: <1359595344.1557.13.camel@kernel>
+Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Wed, 30 Jan 2013 19:22:24 -0600
+In-Reply-To: <5108F2B3.3090506@cn.fujitsu.com>
+References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
+	 <1359463973.1624.15.camel@kernel> <5108F2B3.3090506@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
+Hi Tang,
+On Wed, 2013-01-30 at 18:15 +0800, Tang Chen wrote:
+> Hi Simon,
+> 
+> Please see below. :)
+> 
+> On 01/29/2013 08:52 PM, Simon Jeons wrote:
+> > Hi Tang,
+> >
+> > On Wed, 2013-01-09 at 17:32 +0800, Tang Chen wrote:
+> >> Here is the physical memory hot-remove patch-set based on 3.8rc-2.
+> >
+> > Some questions ask you, not has relationship with this patchset, but is
+> > memory hotplug stuff.
+> >
+> > 1. In function node_states_check_changes_online:
+> >
+> > comments:
+> > * If we don't have HIGHMEM nor movable node,
+> > * node_states[N_NORMAL_MEMORY] contains nodes which have zones of
+> > * 0...ZONE_MOVABLE, set zone_last to ZONE_MOVABLE.
+> >
+> > How to understand it? Why we don't have HIGHMEM nor movable node and
+> > node_staes[N_NORMAL_MEMORY] contains 0...ZONE_MOVABLE, IIUC,
+> > N_NORMAL_MEMORY only means the node has regular memory.
+> >
+> 
+> First of all, I think we need to understand why we need N_MEMORY.
+> 
+> In order to support movable node, which has only ZONE_MOVABLE (the last 
+> zone),
+> we introduce N_MEMORY to represent the node has normal, highmem and 
+> movable memory.
+> 
+> Here, "we have movable node" means you configured CONFIG_MOVABLE_NODE.
+> This config option doesn't mean we don't have movable pages, (NO)
+> it means we don't have a node which has only movable pages (only have 
+> ZONE_MOVABLE). (YES)
+> 
+> Here, if we don't have CONFIG_MOVABLE_NODE (we don't have movable node), 
+> we don't need a
+> separate node_states[] element to represent a particular node because we 
+> won't have a node
+> which has only ZONE_MOVABLE.
+> 
+> So,
+> 1) if we don't have highmem nor movable node, N_MEMORY == N_HIGH_MEMORY 
+> == N_NORMAL_MEMORY,
+>     which means N_NORMAL_MEMORY effects as N_MEMORY. If we online pages 
+> as movable, we need
+>     to update node_states[N_NORMAL_MEMORY].
 
-This code was an optimization for 32-bit NUMA systems.
+Sorry, I still confuse. :( 
+update node_states[N_NORMAL_MEMORY] to node_states[N_MEMORY] or
+node_states[N_NORMAL_MEMOR] present 0...ZONE_MOVABLE?
 
-It has probably been the cause of a number of subtle bugs over
-the years, although the conditions to excite them would have
-been hard to trigger.  Essentially, we remap part of the kernel
-linear mapping area, and then sometimes part of that area gets
-freed back in to the bootmem allocator.  If those pages get
-used by kernel data structures (say mem_map[] or a dentry),
-there's no big deal.  But, if anyone ever tried to use the
-linear mapping for these pages _and_ cared about their physical
-address, bad things happen.
+> 
+> Please refer to the definition of enum zone_type, if we don't have 
+> CONFIG_HIGHMEM, we won't
+> have ZONE_HIGHMEM, but ZONE_NORMAL and ZONE_MOVABLE will always there. 
+> So we can have movable
+> pages, and the zone_last should be ZONE_MOVABLE.
 
-For instance, say you passed __GFP_ZERO to the page allocator
-and then happened to get handed one of these pages, it zero the
-remapped page, but it would make a pte to the _old_ page.
-There are probably a hundred other ways that it could screw
-with things.
+node_states is what? node_states[N_NORMAL_MEMOR] or
+node_states[N_MEMORY]?
 
-We don't need to hang on to performance optimizations for
-these old boxes any more.  All my 32-bit NUMA systems are long
-dead and buried, and I probably had access to more than most
-people.
+> 
+> Again, because we won't have a node only having ZONE_MOVABLE, so we just 
+> need to update
+> node_states[N_NORMAL_MEMORY].
+> 
+> > * If we don't have movable node, node_states[N_NORMAL_MEMORY]
+> > * contains nodes which have zones of 0...ZONE_MOVABLE,
+> > * set zone_last to ZONE_MOVABLE.
+> >
+> > How to understand?
+> 
+> 2) this code is in #ifdef CONFIG_HIGHMEM, which means we have highmem, 
+> so if we don't have
+>     movable node, N_MEMORY == N_HIGH_MEMORY, and N_HIGH_MEMORY effects 
+> as N_MEMORY. If we
+>     online pages as movable, we need to update node_states[N_NORMAL_MEMORY].
+> 
+> >
+> > 2. In function move_pfn_range_left, why end<= z2->zone_start_pfn is not
+> > correct? The comments said that must include/overlap, why?
+> >
+> 
+> This one is easy, if I understand you correctly.
+> move_pfn_range_left() is used to move the left most part [start_pfn, 
+> end_pfn) of z2 to z1.
+> So if end_pfn<= z2->zone_start_pfn, it means [start_pfn, end_pfn) is not 
+> part of z2.
+> Then it fails.
 
-This code is causing real things to break today:
+Yup, very clear now. :)
+Why check !z1->wait_table in function move_pfn_range_left and function
+__add_zone? I think zone->wait_table is initialized in
+free_area_init_core, which will be called during system initialization
+and hotadd_new_pgdat path.
 
-	https://lkml.org/lkml/2013/1/9/376
+> 
+> > 3. In function online_pages, the normal case(w/o online_kenrel,
+> > online_movable), why not check if the new zone is overlap with adjacent
+> > zones?
+> >
+> 
+> Can a zone overlap with the others ? I don't think so.
+> 
+> One pfn could only be in one zone,
+>     zone = page_zone(pfn_to_page(pfn));
 
-I looked in to actually fixing this, but it requires surgery
-to way too much brittle code, as well as stuff like
-per_cpu_ptr_to_phys().
+thanks. :)
 
+There is a zone populated check in function online_pages. But zone is
+populated in free_area_init_core which will be called during system
+initialization and hotadd_new_pgdat path. Why still need this check?
 
----
+> 
+> it could overlap with others, I think. :)
+> 
+> But maybe I misunderstand you. :)
+> 
+> > 4. Could you summarize the difference implementation between hot-add and
+> > logic-add, hot-remove and logic-remove?
+> 
+> Sorry, I don't quite understand what do you mean by logic-add/remove.
+> Would you please explain more ?
+> 
+> If you meant the sys fs interfaces, I think they are just another set of 
+> entrances
+> of memory hotplug.
 
- linux-2.6.git-dave/arch/x86/Kconfig            |    4 
- linux-2.6.git-dave/arch/x86/mm/numa.c          |    3 
- linux-2.6.git-dave/arch/x86/mm/numa_32.c       |  161 -------------------------
- linux-2.6.git-dave/arch/x86/mm/numa_internal.h |    6 
- 4 files changed, 174 deletions(-)
+Please ingore this silly question. :(
 
-diff -puN arch/x86/Kconfig~rip-out-i386-NUMA-remapping-code arch/x86/Kconfig
---- linux-2.6.git/arch/x86/Kconfig~rip-out-i386-NUMA-remapping-code	2013-01-30 16:25:36.792338332 -0800
-+++ linux-2.6.git-dave/arch/x86/Kconfig	2013-01-30 16:25:36.800338399 -0800
-@@ -1253,10 +1253,6 @@ config NODES_SHIFT
- 	  Specify the maximum number of NUMA Nodes available on the target
- 	  system.  Increases memory reserved to accommodate various tables.
- 
--config HAVE_ARCH_ALLOC_REMAP
--	def_bool y
--	depends on X86_32 && NUMA
--
- config ARCH_HAVE_MEMORY_PRESENT
- 	def_bool y
- 	depends on X86_32 && DISCONTIGMEM
-diff -puN arch/x86/mm/numa_32.c~rip-out-i386-NUMA-remapping-code arch/x86/mm/numa_32.c
---- linux-2.6.git/arch/x86/mm/numa_32.c~rip-out-i386-NUMA-remapping-code	2013-01-30 16:25:36.796338365 -0800
-+++ linux-2.6.git-dave/arch/x86/mm/numa_32.c	2013-01-30 16:25:36.800338399 -0800
-@@ -73,167 +73,6 @@ unsigned long node_memmap_size_bytes(int
- 
- extern unsigned long highend_pfn, highstart_pfn;
- 
--#define LARGE_PAGE_BYTES (PTRS_PER_PTE * PAGE_SIZE)
--
--static void *node_remap_start_vaddr[MAX_NUMNODES];
--void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
--
--/*
-- * Remap memory allocator
-- */
--static unsigned long node_remap_start_pfn[MAX_NUMNODES];
--static void *node_remap_end_vaddr[MAX_NUMNODES];
--static void *node_remap_alloc_vaddr[MAX_NUMNODES];
--
--/**
-- * alloc_remap - Allocate remapped memory
-- * @nid: NUMA node to allocate memory from
-- * @size: The size of allocation
-- *
-- * Allocate @size bytes from the remap area of NUMA node @nid.  The
-- * size of the remap area is predetermined by init_alloc_remap() and
-- * only the callers considered there should call this function.  For
-- * more info, please read the comment on top of init_alloc_remap().
-- *
-- * The caller must be ready to handle allocation failure from this
-- * function and fall back to regular memory allocator in such cases.
-- *
-- * CONTEXT:
-- * Single CPU early boot context.
-- *
-- * RETURNS:
-- * Pointer to the allocated memory on success, %NULL on failure.
-- */
--void *alloc_remap(int nid, unsigned long size)
--{
--	void *allocation = node_remap_alloc_vaddr[nid];
--
--	size = ALIGN(size, L1_CACHE_BYTES);
--
--	if (!allocation || (allocation + size) > node_remap_end_vaddr[nid])
--		return NULL;
--
--	node_remap_alloc_vaddr[nid] += size;
--	memset(allocation, 0, size);
--
--	return allocation;
--}
--
--#ifdef CONFIG_HIBERNATION
--/**
-- * resume_map_numa_kva - add KVA mapping to the temporary page tables created
-- *                       during resume from hibernation
-- * @pgd_base - temporary resume page directory
-- */
--void resume_map_numa_kva(pgd_t *pgd_base)
--{
--	int node;
--
--	for_each_online_node(node) {
--		unsigned long start_va, start_pfn, nr_pages, pfn;
--
--		start_va = (unsigned long)node_remap_start_vaddr[node];
--		start_pfn = node_remap_start_pfn[node];
--		nr_pages = (node_remap_end_vaddr[node] -
--			    node_remap_start_vaddr[node]) >> PAGE_SHIFT;
--
--		printk(KERN_DEBUG "%s: node %d\n", __func__, node);
--
--		for (pfn = 0; pfn < nr_pages; pfn += PTRS_PER_PTE) {
--			unsigned long vaddr = start_va + (pfn << PAGE_SHIFT);
--			pgd_t *pgd = pgd_base + pgd_index(vaddr);
--			pud_t *pud = pud_offset(pgd, vaddr);
--			pmd_t *pmd = pmd_offset(pud, vaddr);
--
--			set_pmd(pmd, pfn_pmd(start_pfn + pfn,
--						PAGE_KERNEL_LARGE_EXEC));
--
--			printk(KERN_DEBUG "%s: %08lx -> pfn %08lx\n",
--				__func__, vaddr, start_pfn + pfn);
--		}
--	}
--}
--#endif
--
--/**
-- * init_alloc_remap - Initialize remap allocator for a NUMA node
-- * @nid: NUMA node to initizlie remap allocator for
-- *
-- * NUMA nodes may end up without any lowmem.  As allocating pgdat and
-- * memmap on a different node with lowmem is inefficient, a special
-- * remap allocator is implemented which can be used by alloc_remap().
-- *
-- * For each node, the amount of memory which will be necessary for
-- * pgdat and memmap is calculated and two memory areas of the size are
-- * allocated - one in the node and the other in lowmem; then, the area
-- * in the node is remapped to the lowmem area.
-- *
-- * As pgdat and memmap must be allocated in lowmem anyway, this
-- * doesn't waste lowmem address space; however, the actual lowmem
-- * which gets remapped over is wasted.  The amount shouldn't be
-- * problematic on machines this feature will be used.
-- *
-- * Initialization failure isn't fatal.  alloc_remap() is used
-- * opportunistically and the callers will fall back to other memory
-- * allocation mechanisms on failure.
-- */
--void __init init_alloc_remap(int nid, u64 start, u64 end)
--{
--	unsigned long start_pfn = start >> PAGE_SHIFT;
--	unsigned long end_pfn = end >> PAGE_SHIFT;
--	unsigned long size, pfn;
--	u64 node_pa, remap_pa;
--	void *remap_va;
--
--	/*
--	 * The acpi/srat node info can show hot-add memroy zones where
--	 * memory could be added but not currently present.
--	 */
--	printk(KERN_DEBUG "node %d pfn: [%lx - %lx]\n",
--	       nid, start_pfn, end_pfn);
--
--	/* calculate the necessary space aligned to large page size */
--	size = node_memmap_size_bytes(nid, start_pfn, end_pfn);
--	size += ALIGN(sizeof(pg_data_t), PAGE_SIZE);
--	size = ALIGN(size, LARGE_PAGE_BYTES);
--
--	/* allocate node memory and the lowmem remap area */
--	node_pa = memblock_find_in_range(start, end, size, LARGE_PAGE_BYTES);
--	if (!node_pa) {
--		pr_warning("remap_alloc: failed to allocate %lu bytes for node %d\n",
--			   size, nid);
--		return;
--	}
--	memblock_reserve(node_pa, size);
--
--	remap_pa = memblock_find_in_range(min_low_pfn << PAGE_SHIFT,
--					  max_low_pfn << PAGE_SHIFT,
--					  size, LARGE_PAGE_BYTES);
--	if (!remap_pa) {
--		pr_warning("remap_alloc: failed to allocate %lu bytes remap area for node %d\n",
--			   size, nid);
--		memblock_free(node_pa, size);
--		return;
--	}
--	memblock_reserve(remap_pa, size);
--	remap_va = phys_to_virt(remap_pa);
--
--	/* perform actual remap */
--	for (pfn = 0; pfn < size >> PAGE_SHIFT; pfn += PTRS_PER_PTE)
--		set_pmd_pfn((unsigned long)remap_va + (pfn << PAGE_SHIFT),
--			    (node_pa >> PAGE_SHIFT) + pfn,
--			    PAGE_KERNEL_LARGE);
--
--	/* initialize remap allocator parameters */
--	node_remap_start_pfn[nid] = node_pa >> PAGE_SHIFT;
--	node_remap_start_vaddr[nid] = remap_va;
--	node_remap_end_vaddr[nid] = remap_va + size;
--	node_remap_alloc_vaddr[nid] = remap_va;
--
--	printk(KERN_DEBUG "remap_alloc: node %d [%08llx-%08llx) -> [%p-%p)\n",
--	       nid, node_pa, node_pa + size, remap_va, remap_va + size);
--}
--
- void __init initmem_init(void)
- {
- 	x86_numa_init();
-diff -puN arch/x86/mm/numa.c~rip-out-i386-NUMA-remapping-code arch/x86/mm/numa.c
---- linux-2.6.git/arch/x86/mm/numa.c~rip-out-i386-NUMA-remapping-code	2013-01-30 16:25:36.796338365 -0800
-+++ linux-2.6.git-dave/arch/x86/mm/numa.c	2013-01-30 16:25:36.800338399 -0800
-@@ -205,9 +205,6 @@ static void __init setup_node_data(int n
- 	if (end && (end - start) < NODE_MIN_SIZE)
- 		return;
- 
--	/* initialize remap allocator before aligning to ZONE_ALIGN */
--	init_alloc_remap(nid, start, end);
--
- 	start = roundup(start, ZONE_ALIGN);
- 
- 	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
-diff -puN arch/x86/mm/numa_internal.h~rip-out-i386-NUMA-remapping-code arch/x86/mm/numa_internal.h
---- linux-2.6.git/arch/x86/mm/numa_internal.h~rip-out-i386-NUMA-remapping-code	2013-01-30 16:25:36.796338365 -0800
-+++ linux-2.6.git-dave/arch/x86/mm/numa_internal.h	2013-01-30 16:25:36.800338399 -0800
-@@ -21,12 +21,6 @@ void __init numa_reset_distance(void);
- 
- void __init x86_numa_init(void);
- 
--#ifdef CONFIG_X86_64
--static inline void init_alloc_remap(int nid, u64 start, u64 end)	{ }
--#else
--void __init init_alloc_remap(int nid, u64 start, u64 end);
--#endif
--
- #ifdef CONFIG_NUMA_EMU
- void __init numa_emulation(struct numa_meminfo *numa_meminfo,
- 			   int numa_dist_cnt);
-_
+> 
+> Thanks.  :)
+> 
+> >
+> >
+> >>
+> >> This patch-set aims to implement physical memory hot-removing.
+> >>
+> >> The patches can free/remove the following things:
+> >>
+> >>    - /sys/firmware/memmap/X/{end, start, type} : [PATCH 4/15]
+> >>    - memmap of sparse-vmemmap                  : [PATCH 6,7,8,10/15]
+> >>    - page table of removed memory              : [RFC PATCH 7,8,10/15]
+> >>    - node and related sysfs files              : [RFC PATCH 13-15/15]
+> >>
+> >>
+> >> Existing problem:
+> >> If CONFIG_MEMCG is selected, we will allocate memory to store page cgroup
+> >> when we online pages.
+> >>
+> >> For example: there is a memory device on node 1. The address range
+> >> is [1G, 1.5G). You will find 4 new directories memory8, memory9, memory10,
+> >> and memory11 under the directory /sys/devices/system/memory/.
+> >>
+> >> If CONFIG_MEMCG is selected, when we online memory8, the memory stored page
+> >> cgroup is not provided by this memory device. But when we online memory9, the
+> >> memory stored page cgroup may be provided by memory8. So we can't offline
+> >> memory8 now. We should offline the memory in the reversed order.
+> >>
+> >> When the memory device is hotremoved, we will auto offline memory provided
+> >> by this memory device. But we don't know which memory is onlined first, so
+> >> offlining memory may fail.
+> >>
+> >> In patch1, we provide a solution which is not good enough:
+> >> Iterate twice to offline the memory.
+> >> 1st iterate: offline every non primary memory block.
+> >> 2nd iterate: offline primary (i.e. first added) memory block.
+> >>
+> >> And a new idea from Wen Congyang<wency@cn.fujitsu.com>  is:
+> >> allocate the memory from the memory block they are describing.
+> >>
+> >> But we are not sure if it is OK to do so because there is not existing API
+> >> to do so, and we need to move page_cgroup memory allocation from MEM_GOING_ONLINE
+> >> to MEM_ONLINE. And also, it may interfere the hugepage.
+> >>
+> >>
+> >>
+> >> How to test this patchset?
+> >> 1. apply this patchset and build the kernel. MEMORY_HOTPLUG, MEMORY_HOTREMOVE,
+> >>     ACPI_HOTPLUG_MEMORY must be selected.
+> >> 2. load the module acpi_memhotplug
+> >> 3. hotplug the memory device(it depends on your hardware)
+> >>     You will see the memory device under the directory /sys/bus/acpi/devices/.
+> >>     Its name is PNP0C80:XX.
+> >> 4. online/offline pages provided by this memory device
+> >>     You can write online/offline to /sys/devices/system/memory/memoryX/state to
+> >>     online/offline pages provided by this memory device
+> >> 5. hotremove the memory device
+> >>     You can hotremove the memory device by the hardware, or writing 1 to
+> >>     /sys/bus/acpi/devices/PNP0C80:XX/eject.
+> >
+> > Is there a similar knode to hot-add the memory device?
+> >
+> >>
+> >>
+> >> Note: if the memory provided by the memory device is used by the kernel, it
+> >> can't be offlined. It is not a bug.
+> >>
+> >>
+> >> Changelogs from v5 to v6:
+> >>   Patch3: Add some more comments to explain memory hot-remove.
+> >>   Patch4: Remove bootmem member in struct firmware_map_entry.
+> >>   Patch6: Repeatedly register bootmem pages when using hugepage.
+> >>   Patch8: Repeatedly free bootmem pages when using hugepage.
+> >>   Patch14: Don't free pgdat when offlining a node, just reset it to 0.
+> >>   Patch15: New patch, pgdat is not freed in patch14, so don't allocate a new
+> >>            one when online a node.
+> >>
+> >> Changelogs from v4 to v5:
+> >>   Patch7: new patch, move pgdat_resize_lock into sparse_remove_one_section() to
+> >>           avoid disabling irq because we need flush tlb when free pagetables.
+> >>   Patch8: new patch, pick up some common APIs that are used to free direct mapping
+> >>           and vmemmap pagetables.
+> >>   Patch9: free direct mapping pagetables on x86_64 arch.
+> >>   Patch10: free vmemmap pagetables.
+> >>   Patch11: since freeing memmap with vmemmap has been implemented, the config
+> >>            macro CONFIG_SPARSEMEM_VMEMMAP when defining __remove_section() is
+> >>            no longer needed.
+> >>   Patch13: no need to modify acpi_memory_disable_device() since it was removed,
+> >>            and add nid parameter when calling remove_memory().
+> >>
+> >> Changelogs from v3 to v4:
+> >>   Patch7: remove unused codes.
+> >>   Patch8: fix nr_pages that is passed to free_map_bootmem()
+> >>
+> >> Changelogs from v2 to v3:
+> >>   Patch9: call sync_global_pgds() if pgd is changed
+> >>   Patch10: fix a problem int the patch
+> >>
+> >> Changelogs from v1 to v2:
+> >>   Patch1: new patch, offline memory twice. 1st iterate: offline every non primary
+> >>           memory block. 2nd iterate: offline primary (i.e. first added) memory
+> >>           block.
+> >>
+> >>   Patch3: new patch, no logical change, just remove reduntant codes.
+> >>
+> >>   Patch9: merge the patch from wujianguo into this patch. flush tlb on all cpu
+> >>           after the pagetable is changed.
+> >>
+> >>   Patch12: new patch, free node_data when a node is offlined.
+> >>
+> >>
+> >> Tang Chen (6):
+> >>    memory-hotplug: move pgdat_resize_lock into
+> >>      sparse_remove_one_section()
+> >>    memory-hotplug: remove page table of x86_64 architecture
+> >>    memory-hotplug: remove memmap of sparse-vmemmap
+> >>    memory-hotplug: Integrated __remove_section() of
+> >>      CONFIG_SPARSEMEM_VMEMMAP.
+> >>    memory-hotplug: remove sysfs file of node
+> >>    memory-hotplug: Do not allocate pdgat if it was not freed when
+> >>      offline.
+> >>
+> >> Wen Congyang (5):
+> >>    memory-hotplug: try to offline the memory twice to avoid dependence
+> >>    memory-hotplug: remove redundant codes
+> >>    memory-hotplug: introduce new function arch_remove_memory() for
+> >>      removing page table depends on architecture
+> >>    memory-hotplug: Common APIs to support page tables hot-remove
+> >>    memory-hotplug: free node_data when a node is offlined
+> >>
+> >> Yasuaki Ishimatsu (4):
+> >>    memory-hotplug: check whether all memory blocks are offlined or not
+> >>      when removing memory
+> >>    memory-hotplug: remove /sys/firmware/memmap/X sysfs
+> >>    memory-hotplug: implement register_page_bootmem_info_section of
+> >>      sparse-vmemmap
+> >>    memory-hotplug: memory_hotplug: clear zone when removing the memory
+> >>
+> >>   arch/arm64/mm/mmu.c                  |    3 +
+> >>   arch/ia64/mm/discontig.c             |   10 +
+> >>   arch/ia64/mm/init.c                  |   18 ++
+> >>   arch/powerpc/mm/init_64.c            |   10 +
+> >>   arch/powerpc/mm/mem.c                |   12 +
+> >>   arch/s390/mm/init.c                  |   12 +
+> >>   arch/s390/mm/vmem.c                  |   10 +
+> >>   arch/sh/mm/init.c                    |   17 ++
+> >>   arch/sparc/mm/init_64.c              |   10 +
+> >>   arch/tile/mm/init.c                  |    8 +
+> >>   arch/x86/include/asm/pgtable_types.h |    1 +
+> >>   arch/x86/mm/init_32.c                |   12 +
+> >>   arch/x86/mm/init_64.c                |  390 +++++++++++++++++++++++++++++
+> >>   arch/x86/mm/pageattr.c               |   47 ++--
+> >>   drivers/acpi/acpi_memhotplug.c       |    8 +-
+> >>   drivers/base/memory.c                |    6 +
+> >>   drivers/firmware/memmap.c            |   96 +++++++-
+> >>   include/linux/bootmem.h              |    1 +
+> >>   include/linux/firmware-map.h         |    6 +
+> >>   include/linux/memory_hotplug.h       |   15 +-
+> >>   include/linux/mm.h                   |    4 +-
+> >>   mm/memory_hotplug.c                  |  459 +++++++++++++++++++++++++++++++---
+> >>   mm/sparse.c                          |    8 +-
+> >>   23 files changed, 1094 insertions(+), 69 deletions(-)
+> >>
+> >> --
+> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> see: http://www.linux-mm.org/ .
+> >> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
+> >
+> >
+> >
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
