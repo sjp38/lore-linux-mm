@@ -1,55 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 7A2656B0005
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:03:33 -0500 (EST)
-Date: Thu, 31 Jan 2013 23:03:27 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [LSF/MM TOPIC] mmap_sem in ->fault and ->page_mkwrite
-Message-ID: <20130131230327.GN4503@ZenIV.linux.org.uk>
-References: <20130131222335.GA13525@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130131222335.GA13525@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id E853D6B0005
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:07:41 -0500 (EST)
+Date: Fri, 1 Feb 2013 10:06:55 +1100
+From: paul.szabo@sydney.edu.au
+Message-Id: <201301312306.r0VN6tBx012280@como.maths.usyd.edu.au>
+Subject: Re: Bug#695182: [RFC] Reproducible OOM with just a few sleeps
+In-Reply-To: <1359639529.31386.49.camel@deadeye.wl.decadent.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: 695182@bugs.debian.org, ben@decadent.org.uk
+Cc: dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@ucw.cz
 
-On Thu, Jan 31, 2013 at 11:23:35PM +0100, Jan Kara wrote:
->   Hi,
-> 
->   I'm not sure if this is such a great topic but it's a question which
-> I came across a few times already and LSF/MM is a good place for
-> brainstorming somewhat crazy ideas ;).
-> 
-> So currently ->fault() and ->page_mkwrite() are called under mmap_sem held
-> for reading. Now this creates sometimes unpleasant locking dependencies for
-> filesystems (modern filesystems have to do an equivalent of ->write_begin
-> in ->page_mkwrite and that is a non-trivial operation). Just to mention my
-> last itch, I had to split reader side of filesystem freezing lock into two
-> locks - one which ranks above mmap_sem and one which ranks below it. Then
-> writer side has to wait for both locks. It works but ...
-> 
-> So I was wondering: Would it be somehow possible we could drop mmap_sem in
-> these two callbacks (especially ->page_mkwrite())? I understand process'
-> mapping can change under us once we drop the semaphore so we'd have to
-> somehow recheck we have still the right page after re-taking mmap_sem. Like
-> if we protected VMAs with SRCU so that they don't disappear under us once
-> we drop mmap_sem and after retaking mmap_sem we would recheck whether VMA
-> still applies to our fault.
-> 
-> And I know there's VM_FAULT_RETRY but that really seems like a special hack
-> for x86 architecture page fault code. Making it work for all architectures
-> and callers such as get_user_pages() didn't really seem plausible to me.
+Dear Ben,
 
-Please, *please*, don't.  VMA locking is complete horror without SRCU
-mess thrown in.  It's a bloody bad idea, at least without a very massive
-cleanup prior to that thing.
+> Based on your experience I might propose to change the automatic kernel
+> selection for i386 so that we use 'amd64' on a system with >16GB RAM and
+> a capable processor.
 
-Start with drawing the call graph for vma-related code - at least the
-parts from relevant locks grabbed to accesses of fields protected by
-said locks.
+Don't you mean change to amd64 for >4GB (or any RAM), never using PAE?
+PAE is broken for any amount of RAM. More precisely, PAE with any RAM
+fails the "sleep test":
+  n=0; while [ $n -lt 33000 ]; do sleep 600 & ((n=n+1)); done
+and with >32GB fails the "write test":
+  n=0; while [ $n -lt 99 ]; do dd bs=1M count=1024 if=/dev/zero of=x$n; ((n=n+1)); done
+Why do you think 16GB is significant?
+
+Thanks, Paul
+
+Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
+School of Mathematics and Statistics   University of Sydney    Australia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
