@@ -1,74 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 5E6DD6B0005
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:35:55 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] HWPOISON: fix wrong num_poisoned_pages in handling memory error on thp
-Date: Thu, 31 Jan 2013 18:35:45 -0500
-Message-Id: <1359675345-23262-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130131113416.963b5f07.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 7A32C6B0005
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:43:33 -0500 (EST)
+Date: Thu, 31 Jan 2013 15:43:31 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: Page allocation failure on v3.8-rc5
+Message-Id: <20130131154331.09d157a3.akpm@linux-foundation.org>
+In-Reply-To: <CACVXFVOATzTJq+-5M9j3G3y_WUrWKJt=naPkjkLwGDmT0H8gog@mail.gmail.com>
+References: <20130128091039.GG6871@arwen.pp.htv.fi>
+	<CACVXFVOATzTJq+-5M9j3G3y_WUrWKJt=naPkjkLwGDmT0H8gog@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ming Lei <ming.lei@canonical.com>
+Cc: balbi@ti.com, Linux USB Mailing List <linux-usb@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>
 
-On Thu, Jan 31, 2013 at 11:34:16AM -0800, Andrew Morton wrote:
-> On Thu, 31 Jan 2013 10:25:58 -0500
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Wed, 30 Jan 2013 19:53:22 +0800
+Ming Lei <ming.lei@canonical.com> wrote:
+
+> The allocation failure is caused by the big sizeof(struct parsed_partitions),
+> which is 64K in my 32bit box,
+
+Geeze.
+
+We could fix that nicely by making parsed_partitions.parts an array of
+pointers to a single `struct parsed_partition' and allocating those
+on-demand.
+
+But given the short-lived nature of this storage and the infrequency of
+check_partition(), that isn't necessary.
+
+> could you test the blow patch to see
+> if it can fix the allocation failure?
+
+(The patch is wordwrapped)
+
+> ...
+>
+> @@ -106,18 +107,43 @@ static int (*check_part[])(struct parsed_partitions *) = {
+>  	NULL
+>  };
 > 
-> > num_poisoned_pages counts up the number of pages isolated by memory errors.
-> > But for thp, only one subpage is isolated because memory error handler
-> > splits it, so it's wrong to add (1 << compound_trans_order).
-> > 
-> > ...
-> >
-> > --- mmotm-2013-01-23-17-04.orig/mm/memory-failure.c
-> > +++ mmotm-2013-01-23-17-04/mm/memory-failure.c
-> > @@ -1039,7 +1039,14 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
-> >  		return 0;
-> >  	}
-> >  
-> > -	nr_pages = 1 << compound_trans_order(hpage);
-> > +	/*
-> > +	 * If a thp is hit by a memory failure, it's supposed to be split.
-> > +	 * So we should add only one to num_poisoned_pages for that case.
-> > +	 */
-> > +	if (PageHuge(p))
-> 
-> /*
->  * PageHuge() only returns true for hugetlbfs pages, but not for normal or
->  * transparent huge pages.  See the PageTransHuge() documentation for more
->  * details.
->  */
-> int PageHuge(struct page *page)
-> {
+> +struct parsed_partitions *allocate_partitions(int nr)
+> +{
+> +	struct parsed_partitions *state;
+> +
+> +	state = kzalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
 
-Do you mean that my comment refers to thp but this if-condition uses
-PageHuge so it's confusing, right?
-And yes, that's right, so I want to change this comment like this:
+I personally prefer sizefo(*state) here.  It means the reader doesn't
+have to scroll back to check things.
 
-   /*
-    * Currently errors on hugetlbfs pages are contained in hugepage
-    * unit, so nr_pages should be 1 << compound_order. OTOH when
-    * errors are on transparent hugepages, they are supposed to be
-    * split and error containment is done in normal page unit.
-    * So nr_pages should be one in this case.
-    */
+> +	if (!state)
+> +		return NULL;
+> +
+> +	state->parts = vzalloc(nr * sizeof(state->parts[0]));
+> +	if (!state->parts) {
+> +		kfree(state);
+> +		return NULL;
+> +	}
 
-> 
-> > +		nr_pages = 1 << compound_trans_order(hpage);
+It doesn't really need to be this complex - we could just vmalloc the
+entire `struct parsed_partitions'.  But I see that your change will
+cause us to allcoate much less memory in many situations, which is
+good.  It should be mentioned in the changelog!
 
-I should've used compound_order because this code is run only for
-hugetlbfs pages.
-
-> > +	else /* normal page or thp */
-> > +		nr_pages = 1;
-> >  	atomic_long_add(nr_pages, &num_poisoned_pages);
-> >  
-> >  	/*
-
-Thanks,
-Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
