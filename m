@@ -1,79 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id CE2626B0005
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 13:45:19 -0500 (EST)
-Subject: next-20130128 lockdep whinge in sys_swapon()
-From: Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1359657914_4017P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Thu, 31 Jan 2013 13:45:14 -0500
-Message-ID: <5595.1359657914@turing-police.cc.vt.edu>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id A6D746B000A
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 13:51:44 -0500 (EST)
+Received: by mail-ie0-f178.google.com with SMTP id c13so2646652ieb.23
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2013 10:51:44 -0800 (PST)
+Date: Thu, 31 Jan 2013 04:25:35 -0600
+From: Rob Landley <rob@landley.net>
+Subject: Re: [PATCH v2 1/2] Fix wrong EOF compare
+References: <1357871401-7075-1-git-send-email-minchan@kernel.org>
+	<xa1tbocvby0s.fsf@mina86.com> <1358077473.32505.10@driftwood>
+	<50F2F9CD.6080904@infradead.org>
+In-Reply-To: <50F2F9CD.6080904@infradead.org> (from rdunlap@infradead.org on
+	Sun Jan 13 12:15:41 2013)
+Message-Id: <1359627935.12062.1@driftwood>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; DelSp=Yes; Format=Flowed
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andy Whitcroft <apw@shadowen.org>, Alexander Nyberg <alexn@dsv.su.se>
 
---==_Exmh_1359657914_4017P
-Content-Type: text/plain; charset=us-ascii
+On 01/13/2013 12:15:41 PM, Randy Dunlap wrote:
+> On 01/13/13 03:44, Rob Landley wrote:
+> > On 01/11/2013 08:21:55 AM, Michal Nazarewicz wrote:
+> >> On Fri, Jan 11 2013, Minchan Kim <minchan@kernel.org> wrote:
+> >> > The C standards allows the character type char to be singed or =20
+> unsinged,
+> >> > depending on the platform and compiler. Most of systems uses =20
+> signed char,
+> >> > but those based on PowerPC and ARM processors typically use =20
+> unsigned char.
+> >> > This can lead to unexpected results when the variable is used to =20
+> compare
+> >> > with EOF(-1). It happens my ARM system and this patch fixes it.
+> >> >
+> >> > Cc: Mel Gorman <mgorman@suse.de>
+> >> > Cc: Andy Whitcroft <apw@shadowen.org>
+> >> > Cc: Alexander Nyberg <alexn@dsv.su.se>
+> >> > Cc: Michal Nazarewicz <mina86@mina86.com>
+> >>
+> >> Acked-by: Michal Nazarewicz <mina86@mina86.com>
+> >>
+> >> > Cc: Randy Dunlap <rdunlap@infradead.org>
+> >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >> > ---
+> >> >  Documentation/page_owner.c |    7 ++++---
+> >> >  1 file changed, 4 insertions(+), 3 deletions(-)
+> >
+> > My kernel tree doesn't have Documentation/page_owner.c, where do I =20
+> find this file?
+>=20
+> It's in -mm (mmotm), so Andrew can/should merge this ...
 
-Seen in my linux-next dmesg.  I'm suspecting commit ac07b1ffc:
+Actually, why is a .c source file at the top level of Documentation?
 
-commit ac07b1ffc27d575013041fb5277dab02c661d9c2
-Author: Shaohua Li <shli@kernel.org>
-Date:   Thu Jan 24 13:13:50 2013 +1100
+Example code is nice and all, but this name doesn't say "test" or =20
+"example" or anything like that, and isn't collated into a subdirectory =20
+with any kind of explanatory files like all the others are.
 
-    swap: add per-partition lock for swapfile
-
-as (a) it was OK in -20130117, and (b) 'git blame mm/swapfile.c | grep 2013'
-shows that commit as the vast majority of changes.
-
-[   42.498669] INFO: trying to register non-static key.
-[   42.498670] the code is fine but needs lockdep annotation.
-[   42.498671] turning off the locking correctness validator.
-[   42.498674] Pid: 1035, comm: swapon Not tainted 3.8.0-rc5-next-20130128 #52
-[   42.498675] Call Trace:
-[   42.498681]  [<ffffffff81073dc8>] register_lock_class+0x103/0x2ad
-[   42.498685]  [<ffffffff812493ad>] ? __list_add_rcu+0xc4/0xdf
-[   42.498688]  [<ffffffff81075573>] __lock_acquire+0x108/0xd63
-[   42.498691]  [<ffffffff810b482b>] ? trace_preempt_on+0x12/0x2f
-[   42.498695]  [<ffffffff81608e6e>] ? sub_preempt_count+0x31/0x43
-[   42.498699]  [<ffffffff810fda36>] ? sys_swapon+0x6f9/0x9d9
-[   42.498701]  [<ffffffff810764f2>] lock_acquire+0xc7/0x14a
-[   42.498703]  [<ffffffff810fda62>] ? sys_swapon+0x725/0x9d9
-[   42.498706]  [<ffffffff81605023>] _raw_spin_lock+0x34/0x41
-[   42.498708]  [<ffffffff810fda62>] ? sys_swapon+0x725/0x9d9
-[   42.498710]  [<ffffffff810fda62>] sys_swapon+0x725/0x9d9
-[   42.498712]  [<ffffffff8107520a>] ? trace_hardirqs_on_caller+0x149/0x165
-[   42.498715]  [<ffffffff8160be92>] system_call_fastpath+0x16/0x1b
-[   42.498719] Adding 2097148k swap on /dev/mapper/vg_blackice-swap.  Priority:-1 extents:1 across:2097148k
-
-Somebody care to sprinkle the appropriate annotations on that code?
-
---==_Exmh_1359657914_4017P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.13 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iQIVAwUBUQq7ugdmEQWDXROgAQKt3g/9F4yr/b69rt372P1tQKoIutq2R7IPJP5u
-nF0InlWjs0WHvnRHMwzV8ppTtrTJ7J1f33HZbwydrTl1HzKS/GZbctNNbIgUvs84
-a6XNM+2zYQmhcDndxgj5bc+hCHiO2aNS80i7gQ4NhIV7JePCWVc+mBdh3X0I0B25
-2ynj8tswIYpdILOU4xGfVlTNKFipnTpKJrAtN5Ve8FLuoFOG+uUbHrg03pWjKApb
-A6p64ZP7tHVy8tP10P5g0RfGucwXj0vfZHkGMHZ/ThN0wl4/Dpay0+4xfWiEosmb
-ZJzPO0B9Y7JkAf6XnG3kEt5km9qt+3czyjT6GrWQRSPGEYZxw41wDI0Z+sLYCeon
-x5w5bODZJUGyaUhoNTxsAtQ3U22wAzUiwycjZ3qX21q7uPUPlMQIUdcimhV2pxC1
-OvltdmceUVmzpKCcbBKVPLdH7gdlwS1P6Bo4xM/DynN6D8juY3vS/gqfsIC6tIIE
-wDQ/NtzO+mIGviN20lla88AvRbK2rzpyZa4fo4Ys26v0Cp0YIOcjj2Zh9e7UcJur
-/1yeOrbYfUphr5Z5BXMZrx23EJthfvEmsqjdwLP2Ex0TcVVqu7Y77bqWu3h8LiVm
-y08WDBoyzn4Pf2D38I/ADXl1D75j7hAonstE7Lu8+qDWwRvbL3/ZCLYCzA2JlYvv
-5DNNQ1bduOo=
-=qfQ8
------END PGP SIGNATURE-----
-
---==_Exmh_1359657914_4017P--
+Rob=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
