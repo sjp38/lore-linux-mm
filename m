@@ -1,89 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id C247B6B0002
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 15:16:38 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rcjenn@linux.vnet.ibm.com>;
-	Thu, 31 Jan 2013 15:16:26 -0500
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 2C8B46E8805
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 15:08:05 -0500 (EST)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0VK86qL312338
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 15:08:06 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0VK85fE016907
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:08:06 -0200
-Date: Thu, 31 Jan 2013 14:07:31 -0600
-From: Robert Jennings <rcj@linux.vnet.ibm.com>
-Subject: Re: [PATCHv4 3/7] zswap: add to mm/
-Message-ID: <20130131200731.GA11067@linux.vnet.ibm.com>
-References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1359495627-30285-4-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130131070716.GF23548@blaptop>
- <510AC0C6.4020705@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 85F866B0002
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 15:48:42 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug framework
+Date: Thu, 31 Jan 2013 21:54:51 +0100
+Message-ID: <9860755.q4y3PrCFZx@vostro.rjw.lan>
+In-Reply-To: <1359601065.15120.156.camel@misato.fc.hp.com>
+References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com> <20130130045830.GH30002@kroah.com> <1359601065.15120.156.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <510AC0C6.4020705@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Greg KH <gregkh@linuxfoundation.org>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
 
-* Seth Jennings (sjenning@linux.vnet.ibm.com) wrote:
-> On 01/31/2013 01:07 AM, Minchan Kim wrote:
-> > On Tue, Jan 29, 2013 at 03:40:23PM -0600, Seth Jennings wrote:
-> >> zswap is a thin compression backend for frontswap. It receives
-> >> pages from frontswap and attempts to store them in a compressed
-> >> memory pool, resulting in an effective partial memory reclaim and
-> >> dramatically reduced swap device I/O.
-> >>
-> >> Additionally, in most cases, pages can be retrieved from this
-> >> compressed store much more quickly than reading from tradition
-> >> swap devices resulting in faster performance for many workloads.
-> >>
-> >> This patch adds the zswap driver to mm/
-> >>
-> >> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> >> ---
-> >>  mm/Kconfig  |  15 ++
-> >>  mm/Makefile |   1 +
-> >>  mm/zswap.c  | 656 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> >>  3 files changed, 672 insertions(+)
-> >>  create mode 100644 mm/zswap.c
-> >>
-> >> diff --git a/mm/Kconfig b/mm/Kconfig
-> >> index 278e3ab..14b9acb 100644
-> >> --- a/mm/Kconfig
-> >> +++ b/mm/Kconfig
-> >> @@ -446,3 +446,18 @@ config FRONTSWAP
-> >>  	  and swap data is stored as normal on the matching swap device.
-> >>  
-> >>  	  If unsure, say Y to enable frontswap.
-> >> +
-> >> +config ZSWAP
-> >> +	bool "In-kernel swap page compression"
-> >> +	depends on FRONTSWAP && CRYPTO
-> >> +	select CRYPTO_LZO
-> >> +	select ZSMALLOC
+On Wednesday, January 30, 2013 07:57:45 PM Toshi Kani wrote:
+> On Tue, 2013-01-29 at 23:58 -0500, Greg KH wrote:
+> > On Thu, Jan 10, 2013 at 04:40:19PM -0700, Toshi Kani wrote:
+> > > +/*
+> > > + * Hot-plug device information
+> > > + */
 > > 
-> > Again, I'm asking why zswap should have a dependent on CRPYTO?
-> > Couldn't we support it as a option? I'd like to use zswap without CRYPTO
-> > like zram.
+> > Again, stop it with the "generic" hotplug term here, and everywhere
+> > else.  You are doing a very _specific_ type of hotplug devices, so spell
+> > it out.  We've worked hard to hotplug _everything_ in Linux, you are
+> > going to confuse a lot of people with this type of terms.
 > 
-> The reason we need CRYPTO is that zswap uses it to support a pluggable
-> compression model.  zswap can use any compressor that has a crypto API
-> driver.  zswap has _symbol dependencies_ on CRYPTO.  If it isn't
-> selected, the build breaks.
+> Agreed.  I will clarify in all places.
+> 
+> > > +union shp_dev_info {
+> > > +	struct shp_cpu {
+> > > +		u32		cpu_id;
+> > > +	} cpu;
+> > 
+> > What is this?  Why not point to the system device for the cpu?
+> 
+> This info is used to on-line a new CPU and create its system/cpu device.
+> In other word, a system/cpu device is created as a result of CPU
+> hotplug.
+> 
+> > > +	struct shp_memory {
+> > > +		int		node;
+> > > +		u64		start_addr;
+> > > +		u64		length;
+> > > +	} mem;
+> > 
+> > Same here, why not point to the system device?
+> 
+> Same as above.
+> 
+> > > +	struct shp_hostbridge {
+> > > +	} hb;
+> > > +
+> > > +	struct shp_node {
+> > > +	} node;
+> > 
+> > What happened here with these?  Empty structures?  Huh?
+> 
+> They are place holders for now.  PCI bridge hot-plug and node hot-plug
+> are still very much work in progress, so I have not integrated them into
+> this framework yet.
+> 
+> > > +};
+> > > +
+> > > +struct shp_device {
+> > > +	struct list_head	list;
+> > > +	struct device		*device;
+> > 
+> > No, make it a "real" device, embed the device into it.
+> 
+> This device pointer is used to send KOBJ_ONLINE/OFFLINE event during CPU
+> online/offline operation in order to maintain the current behavior.  CPU
+> online/offline operation only changes the state of CPU, so its
+> system/cpu device continues to be present before and after an operation.
+> (Whereas, CPU hot-add/delete operation creates or removes a system/cpu
+> device.)  So, this "*device" needs to be a pointer to reference an
+> existing device that is to be on-lined/off-lined.
+> 
+> > But, again, I'm going to ask why you aren't using the existing cpu /
+> > memory / bridge / node devices that we have in the kernel.  Please use
+> > them, or give me a _really_ good reason why they will not work.
+> 
+> We cannot use the existing system devices or ACPI devices here.  During
+> hot-plug, ACPI handler sets this shp_device info, so that cpu and memory
+> handlers (drivers/cpu.c and mm/memory_hotplug.c) can obtain their target
+> device information in a platform-neutral way.  During hot-add, we first
+> creates an ACPI device node (i.e. device under /sys/bus/acpi/devices),
+> but platform-neutral modules cannot use them as they are ACPI-specific.
 
-And we went with a pluggable model so that we could support hardware
-accelerated compression engines like:
+But suppose we're smart and have ACPI scan handlers that will create
+"physical" device nodes for those devices during the ACPI namespace scan.
+Then, the platform-neutral nodes will be able to bind to those "physical"
+nodes.  Moreover, it should be possible to get a hierarchy of device objects
+this way that will reflect all of the dependencies we need to take into
+account during hot-add and hot-remove operations.  That may not be what we
+have today, but I don't see any *fundamental* obstacles preventing us from
+using this approach.
 
-0e16aaf powerpc/crypto: add 842 hardware compression driver
+This is already done for PCI host bridges and platform devices and I don't
+see why we can't do that for the other types of devices too.
 
---Rob Jennings
+The only missing piece I see is a way to handle the "eject" problem, i.e.
+when we try do eject a device at the top of a subtree and need to tear down
+the entire subtree below it, but if that's going to lead to a system crash,
+for example, we want to cancel the eject.  It seems to me that we'll need some
+help from the driver core here.
+
+Thanks,
+Rafael
+
+
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
