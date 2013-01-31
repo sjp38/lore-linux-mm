@@ -1,71 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id B55DF6B0005
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:29:43 -0500 (EST)
-Date: Fri, 1 Feb 2013 08:29:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch 2/3 v2]swap: make each swap partition have one
- address_space
-Message-ID: <20130131232941.GA6262@blaptop>
-References: <20130122022951.GB12293@kernel.org>
- <20130123061645.GF2723@blaptop>
- <20130123073655.GA31672@kernel.org>
- <20130123080420.GI2723@blaptop>
- <1358991596.3351.9.camel@kernel>
- <20130124022241.GB22654@blaptop>
- <20130124024311.GA26602@kernel.org>
- <20130124051910.GD22654@blaptop>
- <20130124102414.GA10025@kernel.org>
- <20130131135042.ae633246.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130131135042.ae633246.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 5E6DD6B0005
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:35:55 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] HWPOISON: fix wrong num_poisoned_pages in handling memory error on thp
+Date: Thu, 31 Jan 2013 18:35:45 -0500
+Message-Id: <1359675345-23262-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130131113416.963b5f07.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Shaohua Li <shli@kernel.org>, Simon Jeons <simon.jeons@gmail.com>, linux-mm@kvack.org, hughd@google.com, riel@redhat.com
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Andrew,
-
-On Thu, Jan 31, 2013 at 01:50:42PM -0800, Andrew Morton wrote:
-> On Thu, 24 Jan 2013 18:24:14 +0800
-> Shaohua Li <shli@kernel.org> wrote:
+On Thu, Jan 31, 2013 at 11:34:16AM -0800, Andrew Morton wrote:
+> On Thu, 31 Jan 2013 10:25:58 -0500
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 > 
-> > Subject: mm: add memory barrier to prevent SwapCache bit and page private out of order
-> > 
-> > page_mapping() checks SwapCache bit first and then read page private. Adding
-> > memory barrier so page private has correct value before SwapCache bit set.
-> > 
-> > In some cases, page_mapping() isn't called with page locked. Without doing
-> > this, we might get a wrong swap address space with SwapCache bit set. Though I
-> > didn't found a problem with this so far (such code typically only checks if the
-> > page has mapping or the mapping can be dirty or migrated), this is too subtle
-> > and error-prone, so we want to avoid it.
+> > num_poisoned_pages counts up the number of pages isolated by memory errors.
+> > But for thp, only one subpage is isolated because memory error handler
+> > splits it, so it's wrong to add (1 << compound_trans_order).
 > > 
 > > ...
 > >
-> > --- linux.orig/mm/swap_state.c	2013-01-22 10:12:33.514490665 +0800
-> > +++ linux/mm/swap_state.c	2013-01-24 18:08:05.149390977 +0800
-> > @@ -89,6 +89,7 @@ static int __add_to_swap_cache(struct pa
+> > --- mmotm-2013-01-23-17-04.orig/mm/memory-failure.c
+> > +++ mmotm-2013-01-23-17-04/mm/memory-failure.c
+> > @@ -1039,7 +1039,14 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+> >  		return 0;
+> >  	}
 > >  
-> >  	page_cache_get(page);
-> >  	set_page_private(page, entry.val);
-> > +	smp_wmb();
-> >  	SetPageSwapCache(page);
+> > -	nr_pages = 1 << compound_trans_order(hpage);
+> > +	/*
+> > +	 * If a thp is hit by a memory failure, it's supposed to be split.
+> > +	 * So we should add only one to num_poisoned_pages for that case.
+> > +	 */
+> > +	if (PageHuge(p))
 > 
-> SetPageSwapCache() uses set_bit() and arch/x86/include/asm/bitops.h
-> says "This function is atomic and may not be reordered".  
+> /*
+>  * PageHuge() only returns true for hugetlbfs pages, but not for normal or
+>  * transparent huge pages.  See the PageTransHuge() documentation for more
+>  * details.
+>  */
+> int PageHuge(struct page *page)
+> {
 
-And says below.
+Do you mean that my comment refers to thp but this if-condition uses
+PageHuge so it's confusing, right?
+And yes, that's right, so I want to change this comment like this:
 
- * Note: there are no guarantees that this function will not be reordered
- * on non x86 architectures, so if you are writing portable code,
- * make sure not to rely on its reordering guarantees.
+   /*
+    * Currently errors on hugetlbfs pages are contained in hugepage
+    * unit, so nr_pages should be 1 << compound_order. OTOH when
+    * errors are on transparent hugepages, they are supposed to be
+    * split and error containment is done in normal page unit.
+    * So nr_pages should be one in this case.
+    */
 
--- 
-Kind regards,
-Minchan Kim
+> 
+> > +		nr_pages = 1 << compound_trans_order(hpage);
+
+I should've used compound_order because this code is run only for
+hugetlbfs pages.
+
+> > +	else /* normal page or thp */
+> > +		nr_pages = 1;
+> >  	atomic_long_add(nr_pages, &num_poisoned_pages);
+> >  
+> >  	/*
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
