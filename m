@@ -1,54 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 9D4716B0025
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 00:41:26 -0500 (EST)
-Date: Thu, 31 Jan 2013 14:41:23 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RESEND PATCH v5 1/4] zram: Fix deadlock bug in partial write
-Message-ID: <20130131054123.GE23548@blaptop>
-References: <1359333506-13599-1-git-send-email-minchan@kernel.org>
- <20130130042006.GA24538@kroah.com>
- <20130130082112.GA23548@blaptop>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id F2B2F6B0027
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 01:19:07 -0500 (EST)
+Message-ID: <510A0CD1.5090403@oracle.com>
+Date: Thu, 31 Jan 2013 14:18:57 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130130082112.GA23548@blaptop>
+Subject: Re: [PATCH v2 2/6] memcg: bypass swap accounting for the root memcg
+References: <510658EE.9050006@oracle.com> <5107A211.50409@parallels.com>
+In-Reply-To: <5107A211.50409@parallels.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Pekka Enberg <penberg@cs.helsinki.fi>, stable@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>
+To: Lord Glauber Costa of Sealand <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, handai.szj@taobao.com
 
-On Wed, Jan 30, 2013 at 05:21:12PM +0900, Minchan Kim wrote:
-> Hi Greg,
+Hi Glauber,
+
+Sorry for my late response!
+On 01/29/2013 06:18 PM, Lord Glauber Costa of Sealand wrote:
+> On 01/28/2013 02:54 PM, Jeff Liu wrote:
+>> Root memcg with swap cgroup is special since we only do tracking but can
+>> not set limits against it.  In order to facilitate the implementation of
+>> the coming swap cgroup structures delay allocation mechanism, we can bypass
+>> the default swap statistics upon the root memcg and figure it out through
+>> the global stats instead as below:
+>>
+> I am sorry if this is was already discussed before, but:
+>> root_memcg_swap_stat: total_swap_pages - nr_swap_pages - used_swap_pages_of_all_memcgs
+>> memcg_total_swap_stats: root_memcg_swap_stat + other_memcg_swap_stats
+>>
 > 
-> On Tue, Jan 29, 2013 at 11:20:06PM -0500, Greg Kroah-Hartman wrote:
-> > On Mon, Jan 28, 2013 at 09:38:23AM +0900, Minchan Kim wrote:
-> > > Now zram allocates new page with GFP_KERNEL in zram I/O path
-> > > if IO is partial. Unfortunately, It may cuase deadlock with
-> > > reclaim path so this patch solves the problem.
-> > > 
-> > > Cc: stable@vger.kernel.org
-> > > Cc: Jerome Marchand <jmarchan@redhat.com>
-> > > Acked-by: Nitin Gupta <ngupta@vflare.org>
-> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > > ---
-> > >  drivers/staging/zram/zram_drv.c |    4 ++--
-> > >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > Due to the discussion on this series, I don't know what patch to apply,
-> > so care to do a v6 of this with the patches that everyone has finally
-> > agreed on?
+> Shouldn't it *at least* be dependent on use_hierarchy?
+Yeah, actually use_hierarchy only affects the total swap numbers. While
+computing memcg_total_swap_stats, it's original
+for_each_mem_cgroup_tree() way already handle the stuff about hierarchy
+and here we do not change its behavior. What we do is adding the root's
+local swap stat to total (since the root statistics are not accounting
+anymore, the per cpu data is ZERO).
+
 > 
-> I already sent v6.
-> https://lkml.org/lkml/2013/1/29/680
+> I don't see why root_memcg won't be always total_swap_pages -
+> nr_swap_pages, since the root memcg is always viewed as a superset of
+> the others, AFAIR.
+> 
+> Even if it is not the general case (which again, I really believe it
+> is), it certainly is the case for hierarchy enabled setups.
+I'm also confused a little by hierarchy recently especially the
+corresponding behavior of root is different... But we may have to do
+some modification just based on the current implementation as the plan
+of getting rid of hierarchy is slow as Michal mentioned.
 
-Greg, If you have a trouble to merge it, let me know it.
-Will resend it when linux-next comes in.
+> 
+> Also, I truly don't understand what is the business of
+> root_memcg_swap_stat in non-root memcgs.
+root_memcg_swap_stat represents swap numbers belonging to the root mem
+cgroup. As its stats is 0 now, we need to fake it by the help of other
+memcgs, that is: global_used_swap - swaps_used_by_other_memcgs(non-root
+memcgs).
 
-Thanks.
--- 
-Kind regards,
-Minchan Kim
+
+Thanks,
+-Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
