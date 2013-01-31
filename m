@@ -1,59 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 134AE6B0011
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 14:34:18 -0500 (EST)
-Date: Thu, 31 Jan 2013 11:34:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] HWPOISON: fix wrong num_poisoned_pages in handling
- memory error on thp
-Message-Id: <20130131113416.963b5f07.akpm@linux-foundation.org>
-In-Reply-To: <1359645958-9127-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1359645958-9127-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id C247B6B0002
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 15:16:38 -0500 (EST)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rcjenn@linux.vnet.ibm.com>;
+	Thu, 31 Jan 2013 15:16:26 -0500
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 2C8B46E8805
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 15:08:05 -0500 (EST)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0VK86qL312338
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 15:08:06 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0VK85fE016907
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:08:06 -0200
+Date: Thu, 31 Jan 2013 14:07:31 -0600
+From: Robert Jennings <rcj@linux.vnet.ibm.com>
+Subject: Re: [PATCHv4 3/7] zswap: add to mm/
+Message-ID: <20130131200731.GA11067@linux.vnet.ibm.com>
+References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1359495627-30285-4-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20130131070716.GF23548@blaptop>
+ <510AC0C6.4020705@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <510AC0C6.4020705@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Thu, 31 Jan 2013 10:25:58 -0500
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-
-> num_poisoned_pages counts up the number of pages isolated by memory errors.
-> But for thp, only one subpage is isolated because memory error handler
-> splits it, so it's wrong to add (1 << compound_trans_order).
+* Seth Jennings (sjenning@linux.vnet.ibm.com) wrote:
+> On 01/31/2013 01:07 AM, Minchan Kim wrote:
+> > On Tue, Jan 29, 2013 at 03:40:23PM -0600, Seth Jennings wrote:
+> >> zswap is a thin compression backend for frontswap. It receives
+> >> pages from frontswap and attempts to store them in a compressed
+> >> memory pool, resulting in an effective partial memory reclaim and
+> >> dramatically reduced swap device I/O.
+> >>
+> >> Additionally, in most cases, pages can be retrieved from this
+> >> compressed store much more quickly than reading from tradition
+> >> swap devices resulting in faster performance for many workloads.
+> >>
+> >> This patch adds the zswap driver to mm/
+> >>
+> >> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> >> ---
+> >>  mm/Kconfig  |  15 ++
+> >>  mm/Makefile |   1 +
+> >>  mm/zswap.c  | 656 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+> >>  3 files changed, 672 insertions(+)
+> >>  create mode 100644 mm/zswap.c
+> >>
+> >> diff --git a/mm/Kconfig b/mm/Kconfig
+> >> index 278e3ab..14b9acb 100644
+> >> --- a/mm/Kconfig
+> >> +++ b/mm/Kconfig
+> >> @@ -446,3 +446,18 @@ config FRONTSWAP
+> >>  	  and swap data is stored as normal on the matching swap device.
+> >>  
+> >>  	  If unsure, say Y to enable frontswap.
+> >> +
+> >> +config ZSWAP
+> >> +	bool "In-kernel swap page compression"
+> >> +	depends on FRONTSWAP && CRYPTO
+> >> +	select CRYPTO_LZO
+> >> +	select ZSMALLOC
+> > 
+> > Again, I'm asking why zswap should have a dependent on CRPYTO?
+> > Couldn't we support it as a option? I'd like to use zswap without CRYPTO
+> > like zram.
 > 
-> ...
->
-> --- mmotm-2013-01-23-17-04.orig/mm/memory-failure.c
-> +++ mmotm-2013-01-23-17-04/mm/memory-failure.c
-> @@ -1039,7 +1039,14 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
->  		return 0;
->  	}
->  
-> -	nr_pages = 1 << compound_trans_order(hpage);
-> +	/*
-> +	 * If a thp is hit by a memory failure, it's supposed to be split.
-> +	 * So we should add only one to num_poisoned_pages for that case.
-> +	 */
-> +	if (PageHuge(p))
+> The reason we need CRYPTO is that zswap uses it to support a pluggable
+> compression model.  zswap can use any compressor that has a crypto API
+> driver.  zswap has _symbol dependencies_ on CRYPTO.  If it isn't
+> selected, the build breaks.
 
-/*
- * PageHuge() only returns true for hugetlbfs pages, but not for normal or
- * transparent huge pages.  See the PageTransHuge() documentation for more
- * details.
- */
-int PageHuge(struct page *page)
-{
+And we went with a pluggable model so that we could support hardware
+accelerated compression engines like:
 
+0e16aaf powerpc/crypto: add 842 hardware compression driver
 
-> +		nr_pages = 1 << compound_trans_order(hpage);
-> +	else /* normal page or thp */
-> +		nr_pages = 1;
->  	atomic_long_add(nr_pages, &num_poisoned_pages);
->  
->  	/*
+--Rob Jennings
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
