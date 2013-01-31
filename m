@@ -1,204 +1,354 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id E55D56B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 21:12:06 -0500 (EST)
-Received: by mail-da0-f46.google.com with SMTP id p5so1051049dak.5
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2013 18:12:06 -0800 (PST)
-Date: Wed, 30 Jan 2013 18:12:05 -0800 (PST)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 194516B0008
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 22:05:35 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id fb10so1458274pad.2
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2013 19:05:34 -0800 (PST)
+Date: Wed, 30 Jan 2013 19:05:29 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH, RFC 00/16] Transparent huge page cache
-In-Reply-To: <5107cb52e07b1_376199eb7059997@blue.mail>
-Message-ID: <alpine.LNX.2.00.1301301619040.24861@eggly.anvils>
-References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com> <alpine.LNX.2.00.1301282041280.27186@eggly.anvils> <5107cb52e07b1_376199eb7059997@blue.mail>
+Subject: Re: [PATCH 2/3] mm: accelerate mm_populate() treatment of THP
+ pages
+In-Reply-To: <1359591980-29542-3-git-send-email-walken@google.com>
+Message-ID: <alpine.LNX.2.00.1301301855350.25423@eggly.anvils>
+References: <1359591980-29542-1-git-send-email-walken@google.com> <1359591980-29542-3-git-send-email-walken@google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michel Lespinasse <walken@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 29 Jan 2013, Kirill A. Shutemov wrote:
-> Hugh Dickins wrote:
-> > On Mon, 28 Jan 2013, Kirill A. Shutemov wrote:
-> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > > 
-> > > Here's first steps towards huge pages in page cache.
-> > > 
-> > > The intend of the work is get code ready to enable transparent huge page
-> > > cache for the most simple fs -- ramfs.
-> > > 
-> > > It's not yet near feature-complete. It only provides basic infrastructure.
-> > > At the moment we can read, write and truncate file on ramfs with huge pages in
-> > > page cache. The most interesting part, mmap(), is not yet there. For now
-> > > we split huge page on mmap() attempt.
-> > > 
-> > > I can't say that I see whole picture. I'm not sure if I understand locking
-> > > model around split_huge_page(). Probably, not.
-> > > Andrea, could you check if it looks correct?
-> > > 
-> > > Next steps (not necessary in this order):
-> > >  - mmap();
-> > >  - migration (?);
-> > >  - collapse;
-> > >  - stats, knobs, etc.;
-> > >  - tmpfs/shmem enabling;
-> > >  - ...
-> > > 
-> > > Kirill A. Shutemov (16):
-> > >   block: implement add_bdi_stat()
-> > >   mm: implement zero_huge_user_segment and friends
-> > >   mm: drop actor argument of do_generic_file_read()
-> > >   radix-tree: implement preload for multiple contiguous elements
-> > >   thp, mm: basic defines for transparent huge page cache
-> > >   thp, mm: rewrite add_to_page_cache_locked() to support huge pages
-> > >   thp, mm: rewrite delete_from_page_cache() to support huge pages
-> > >   thp, mm: locking tail page is a bug
-> > >   thp, mm: handle tail pages in page_cache_get_speculative()
-> > >   thp, mm: implement grab_cache_huge_page_write_begin()
-> > >   thp, mm: naive support of thp in generic read/write routines
-> > >   thp, libfs: initial support of thp in
-> > >     simple_read/write_begin/write_end
-> > >   thp: handle file pages in split_huge_page()
-> > >   thp, mm: truncate support for transparent huge page cache
-> > >   thp, mm: split huge page on mmap file page
-> > >   ramfs: enable transparent huge page cache
-> > > 
-> > >  fs/libfs.c                  |   54 +++++++++---
-> > >  fs/ramfs/inode.c            |    6 +-
-> > >  include/linux/backing-dev.h |   10 +++
-> > >  include/linux/huge_mm.h     |    8 ++
-> > >  include/linux/mm.h          |   15 ++++
-> > >  include/linux/pagemap.h     |   14 ++-
-> > >  include/linux/radix-tree.h  |    3 +
-> > >  lib/radix-tree.c            |   32 +++++--
-> > >  mm/filemap.c                |  204 +++++++++++++++++++++++++++++++++++--------
-> > >  mm/huge_memory.c            |   62 +++++++++++--
-> > >  mm/memory.c                 |   22 +++++
-> > >  mm/truncate.c               |   12 +++
-> > >  12 files changed, 375 insertions(+), 67 deletions(-)
-> > 
-> > Interesting.
-> > 
-> > I was starting to think about Transparent Huge Pagecache a few
-> > months ago, but then got washed away by incoming waves as usual.
-> > 
-> > Certainly I don't have a line of code to show for it; but my first
-> > impression of your patches is that we have very different ideas of
-> > where to start.
+On Wed, 30 Jan 2013, Michel Lespinasse wrote:
 
-A second impression confirms that we have very different ideas of
-where to start.  I don't want to be dismissive, and please don't let
-me discourage you, but I just don't find what you have very interesting.
-
-I'm sure you'll agree that the interesting part, and the difficult part,
-comes with mmap(); and there's no point whatever to THPages without mmap()
-(of course, I'm including exec and brk and shm when I say mmap there).
-
-(There may be performance benefits in working with larger page cache
-size, which Christoph Lameter explored a few years back, but that's a
-different topic: I think 2MB - if I may be x86_64-centric - would not be
-the unit of choice for that, unless SSD erase block were to dominate.)
-
-I'm interested to get to the point of prototyping something that does
-support mmap() of THPageCache: I'm pretty sure that I'd then soon learn
-a lot about my misconceptions, and have to rework for a while (or give
-up!); but I don't see much point in posting anything without that.
-I don't know if we have 5 or 50 places which "know" that a THPage
-must be Anon: some I'll spot in advance, some I sadly won't.
-
-It's not clear to me that the infrastructural changes you make in this
-series will be needed or not, if I pursue my approach: some perhaps as
-optimizations on top of the poorly performing base that may emerge from
-going about it my way.  But for me it's too soon to think about those.
-
-Something I notice that we do agree upon: the radix_tree holding the
-4k subpages, at least for now.  When I first started thinking towards
-THPageCache, I was fascinated by how we could manage the hugepages in
-the radix_tree, cutting out unnecessary levels etc; but after a while
-I realized that although there's probably nice scope for cleverness
-there (significantly constrained by RCU expectations), it would only
-be about optimization.  Let's be simple and stupid about radix_tree
-for now, the problems that need to be worked out lie elsewhere.
-
-> > 
-> > Perhaps that's good complementarity, or perhaps I'll disagree with
-> > your approach.  I'll be taking a look at yours in the coming days,
-> > and trying to summon back up my own ideas to summarize them for you.
+> This change adds a page_mask argument to follow_page.
 > 
-> Yeah, it would be nice to see alternative design ideas. Looking forward.
+> follow_page sets *page_mask to HPAGE_PMD_NR - 1 when it encounters a THP page,
+> and to 0 in other cases.
 > 
-> > Perhaps I was naive to imagine it, but I did intend to start out
-> > generically, independent of filesystem; but content to narrow down
-> > on tmpfs alone where it gets hard to support the others (writeback
-> > springs to mind).  khugepaged would be migrating little pages into
-> > huge pages, where it saw that the mmaps of the file would benefit
-> > (and for testing I would hack mmap alignment choice to favour it).
+> __get_user_pages() makes use of this in order to accelerate populating
+> THP ranges - that is, when both the pages and vmas arrays are NULL,
+> we don't need to iterate HPAGE_PMD_NR times to cover a single THP page
+> (and we also avoid taking mm->page_table_lock that many times).
 > 
-> I don't think all fs at once would fly, but it's wonderful, if I'm
-> wrong :)
-
-You are imagining the filesystem putting huge pages into its cache.
-Whereas I'm imagining khugepaged looking around at mmaped file areas,
-seeing which would benefit from huge pagecache (let's assume offset 0
-belongs on hugepage boundary - maybe one day someone will want to tune
-some files or parts differently, but that's low priority), migrating 4k
-pages over to 2MB page (wouldn't have to be done all in one pass), then
-finally slotting in the pmds for that.
-
-But going this way, I expect we'd have to split at page_mkwrite():
-we probably don't want a single touch to dirty 2MB at a time,
-unless tmpfs or ramfs.
-
+> Other follow_page() call sites can safely ignore the value returned in
+> *page_mask.
 > 
-> > I had arrived at a conviction that the first thing to change was
-> > the way that tail pages of a THP are refcounted, that it had been a
-> > mistake to use the compound page method of holding the THP together.
-> > But I'll have to enter a trance now to recall the arguments ;)
-> 
-> THP refcounting looks reasonable for me, if take split_huge_page() in
-> account.
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 
-I'm not claiming that the THP refcounting is wrong in what it's doing
-at present; but that I suspect we'll want to rework it for THPageCache.
+I certainly like the skipping.
 
-Something I take for granted, I think you do too but I'm not certain:
-a file with transparent huge pages in its page cache can also have small
-pages in other extents of its page cache; and can be mapped hugely (2MB
-extents) into one address space at the same time as individual 4k pages
-from those extents are mapped into another (or the same) address space.
+But (a) if the additional arg has to exist, then I'd much prefer it
+to be page_size than page_mask - I realize there's a tiny advantage to
+subtracting 1 from an immediate than from a variable, but I don't think
+it justifies the peculiar interface.  mask makes people think of masking.
 
-One can certainly imagine sacrificing that principle, splitting whenever
-there's such a "conflict"; but it then becomes uninteresting to me, too
-much like hugetlbfs.  Splitting an anonymous hugepage in all address
-spaces that hold it when one of them needs it split, that has been a
-pragmatic strategy: it's not a common case for forks to diverge like
-that; but files are expected to be more widely shared.
-
-At present THP is using compound pages, with mapcount of tail pages
-reused to track their contribution to head page count; but I think we
-shall want to be able to use the mapcount, and the count, of TH tail
-pages for their original purpose if huge mappings can coexist with tiny.
-Not fully thought out, but that's my feeling.
-
-The use of compound pages, in particular the redirection of tail page
-count to head page count, was important in hugetlbfs: a get_user_pages
-reference on a subpage must prevent the containing hugepage from being
-freed, because hugetlbfs has its own separate pool of hugepages to
-which freeing returns them.
-
-But for transparent huge pages?  It should not matter so much if the
-subpages are freed independently.  So I'd like to devise another glue
-to hold them together more loosely (for prototyping I can certainly
-pretend we have infinite pageflag and pagefield space if that helps):
-I may find in practice that they're forever falling apart, and I run
-crying back to compound pages; but at present I'm hoping not.
-
-This mail might suggest that I'm about to start coding: I wish that
-were true, but in reality there's always a lot of unrelated things
-I have to look at, which dilute my focus.  So if I've said anything
-that sparks ideas for you, go with them.
+And (b) why can't we just omit the additional arg, and get it from the
+page found?  You've explained the unreliability of the !FOLL_GET case
+to me privately, but that needs to be spelt out in the commit comment
+(and I'd love if we found a counter-argument, the extra arg of interest
+to almost no-one does irritate me).
 
 Hugh
+
+> 
+> ---
+>  arch/ia64/xen/xencomm.c    |  3 ++-
+>  arch/powerpc/kernel/vdso.c |  9 +++++----
+>  arch/s390/mm/pgtable.c     |  3 ++-
+>  include/linux/mm.h         |  2 +-
+>  mm/ksm.c                   | 10 +++++++---
+>  mm/memory.c                | 25 +++++++++++++++++++------
+>  mm/migrate.c               |  7 +++++--
+>  mm/mlock.c                 |  4 +++-
+>  8 files changed, 44 insertions(+), 19 deletions(-)
+> 
+> diff --git a/arch/ia64/xen/xencomm.c b/arch/ia64/xen/xencomm.c
+> index 73d903ca2d64..c5dcf3a574e9 100644
+> --- a/arch/ia64/xen/xencomm.c
+> +++ b/arch/ia64/xen/xencomm.c
+> @@ -44,6 +44,7 @@ xencomm_vtop(unsigned long vaddr)
+>  {
+>  	struct page *page;
+>  	struct vm_area_struct *vma;
+> +	long page_mask;
+>  
+>  	if (vaddr == 0)
+>  		return 0UL;
+> @@ -98,7 +99,7 @@ xencomm_vtop(unsigned long vaddr)
+>  		return ~0UL;
+>  
+>  	/* We assume the page is modified.  */
+> -	page = follow_page(vma, vaddr, FOLL_WRITE | FOLL_TOUCH);
+> +	page = follow_page(vma, vaddr, FOLL_WRITE | FOLL_TOUCH, &page_mask);
+>  	if (IS_ERR_OR_NULL(page))
+>  		return ~0UL;
+>  
+> diff --git a/arch/powerpc/kernel/vdso.c b/arch/powerpc/kernel/vdso.c
+> index 1b2076f049ce..a529502d60f9 100644
+> --- a/arch/powerpc/kernel/vdso.c
+> +++ b/arch/powerpc/kernel/vdso.c
+> @@ -156,6 +156,7 @@ static void dump_one_vdso_page(struct page *pg, struct page *upg)
+>  static void dump_vdso_pages(struct vm_area_struct * vma)
+>  {
+>  	int i;
+> +	long page_mask;
+>  
+>  	if (!vma || is_32bit_task()) {
+>  		printk("vDSO32 @ %016lx:\n", (unsigned long)vdso32_kbase);
+> @@ -163,8 +164,8 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
+>  			struct page *pg = virt_to_page(vdso32_kbase +
+>  						       i*PAGE_SIZE);
+>  			struct page *upg = (vma && vma->vm_mm) ?
+> -				follow_page(vma, vma->vm_start + i*PAGE_SIZE, 0)
+> -				: NULL;
+> +				follow_page(vma, vma->vm_start + i*PAGE_SIZE,
+> +					    0, &page_mask) : NULL;
+>  			dump_one_vdso_page(pg, upg);
+>  		}
+>  	}
+> @@ -174,8 +175,8 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
+>  			struct page *pg = virt_to_page(vdso64_kbase +
+>  						       i*PAGE_SIZE);
+>  			struct page *upg = (vma && vma->vm_mm) ?
+> -				follow_page(vma, vma->vm_start + i*PAGE_SIZE, 0)
+> -				: NULL;
+> +				follow_page(vma, vma->vm_start + i*PAGE_SIZE,
+> +					    0, &page_mask) : NULL;
+>  			dump_one_vdso_page(pg, upg);
+>  		}
+>  	}
+> diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
+> index ae44d2a34313..63e897a6cf45 100644
+> --- a/arch/s390/mm/pgtable.c
+> +++ b/arch/s390/mm/pgtable.c
+> @@ -792,9 +792,10 @@ void thp_split_vma(struct vm_area_struct *vma)
+>  {
+>  	unsigned long addr;
+>  	struct page *page;
+> +	long page_mask;
+>  
+>  	for (addr = vma->vm_start; addr < vma->vm_end; addr += PAGE_SIZE) {
+> -		page = follow_page(vma, addr, FOLL_SPLIT);
+> +		page = follow_page(vma, addr, FOLL_SPLIT, &page_mask);
+>  	}
+>  }
+>  
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index d5716094f191..6dc0ce370df5 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1636,7 +1636,7 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+>  			unsigned long pfn);
+>  
+>  struct page *follow_page(struct vm_area_struct *, unsigned long address,
+> -			unsigned int foll_flags);
+> +			 unsigned int foll_flags, long *page_mask);
+>  #define FOLL_WRITE	0x01	/* check pte is writable */
+>  #define FOLL_TOUCH	0x02	/* mark page accessed */
+>  #define FOLL_GET	0x04	/* do get_page on page */
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 51573858938d..76dfb7133aa4 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -330,10 +330,11 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
+>  {
+>  	struct page *page;
+>  	int ret = 0;
+> +	long page_mask;
+>  
+>  	do {
+>  		cond_resched();
+> -		page = follow_page(vma, addr, FOLL_GET);
+> +		page = follow_page(vma, addr, FOLL_GET, &page_mask);
+>  		if (IS_ERR_OR_NULL(page))
+>  			break;
+>  		if (PageKsm(page))
+> @@ -427,13 +428,14 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+>  	unsigned long addr = rmap_item->address;
+>  	struct vm_area_struct *vma;
+>  	struct page *page;
+> +	long page_mask;
+>  
+>  	down_read(&mm->mmap_sem);
+>  	vma = find_mergeable_vma(mm, addr);
+>  	if (!vma)
+>  		goto out;
+>  
+> -	page = follow_page(vma, addr, FOLL_GET);
+> +	page = follow_page(vma, addr, FOLL_GET, &page_mask);
+>  	if (IS_ERR_OR_NULL(page))
+>  		goto out;
+>  	if (PageAnon(page) || page_trans_compound_anon(page)) {
+> @@ -1289,6 +1291,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+>  	struct mm_slot *slot;
+>  	struct vm_area_struct *vma;
+>  	struct rmap_item *rmap_item;
+> +	long page_mask;
+>  
+>  	if (list_empty(&ksm_mm_head.mm_list))
+>  		return NULL;
+> @@ -1342,7 +1345,8 @@ next_mm:
+>  		while (ksm_scan.address < vma->vm_end) {
+>  			if (ksm_test_exit(mm))
+>  				break;
+> -			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
+> +			*page = follow_page(vma, ksm_scan.address, FOLL_GET,
+> +					    &page_mask);
+>  			if (IS_ERR_OR_NULL(*page)) {
+>  				ksm_scan.address += PAGE_SIZE;
+>  				cond_resched();
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 381b78c20d84..1becba27c28a 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1470,7 +1470,7 @@ EXPORT_SYMBOL_GPL(zap_vma_ptes);
+>   * by a page descriptor (see also vm_normal_page()).
+>   */
+>  struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+> -			unsigned int flags)
+> +			 unsigned int flags, long *page_mask)
+>  {
+>  	pgd_t *pgd;
+>  	pud_t *pud;
+> @@ -1480,6 +1480,8 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+>  	struct page *page;
+>  	struct mm_struct *mm = vma->vm_mm;
+>  
+> +	*page_mask = 0;
+> +
+>  	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
+>  	if (!IS_ERR(page)) {
+>  		BUG_ON(flags & FOLL_GET);
+> @@ -1526,6 +1528,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+>  				page = follow_trans_huge_pmd(vma, address,
+>  							     pmd, flags);
+>  				spin_unlock(&mm->page_table_lock);
+> +				*page_mask = HPAGE_PMD_NR - 1;
+>  				goto out;
+>  			}
+>  		} else
+> @@ -1680,6 +1683,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  {
+>  	long i;
+>  	unsigned long vm_flags;
+> +	long page_mask;
+>  
+>  	if (nr_pages <= 0)
+>  		return 0;
+> @@ -1757,6 +1761,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  				get_page(page);
+>  			}
+>  			pte_unmap(pte);
+> +			page_mask = 0;
+>  			goto next_page;
+>  		}
+>  
+> @@ -1774,6 +1779,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		do {
+>  			struct page *page;
+>  			unsigned int foll_flags = gup_flags;
+> +			long page_increm;
+>  
+>  			/*
+>  			 * If we have a pending SIGKILL, don't keep faulting
+> @@ -1783,7 +1789,8 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  				return i ? i : -ERESTARTSYS;
+>  
+>  			cond_resched();
+> -			while (!(page = follow_page(vma, start, foll_flags))) {
+> +			while (!(page = follow_page(vma, start, foll_flags,
+> +						    &page_mask))) {
+>  				int ret;
+>  				unsigned int fault_flags = 0;
+>  
+> @@ -1857,13 +1864,19 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  
+>  				flush_anon_page(vma, page, start);
+>  				flush_dcache_page(page);
+> +				page_mask = 0;
+>  			}
+>  next_page:
+> -			if (vmas)
+> +			if (vmas) {
+>  				vmas[i] = vma;
+> -			i++;
+> -			start += PAGE_SIZE;
+> -			nr_pages--;
+> +				page_mask = 0;
+> +			}
+> +			page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
+> +			if (page_increm > nr_pages)
+> +				page_increm = nr_pages;
+> +			i += page_increm;
+> +			start += page_increm * PAGE_SIZE;
+> +			nr_pages -= page_increm;
+>  		} while (nr_pages && start < vma->vm_end);
+>  	} while (nr_pages);
+>  	return i;
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index c38778610aa8..daa5726c9c46 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1124,6 +1124,7 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+>  	int err;
+>  	struct page_to_node *pp;
+>  	LIST_HEAD(pagelist);
+> +	long page_mask;
+>  
+>  	down_read(&mm->mmap_sem);
+>  
+> @@ -1139,7 +1140,8 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+>  		if (!vma || pp->addr < vma->vm_start || !vma_migratable(vma))
+>  			goto set_status;
+>  
+> -		page = follow_page(vma, pp->addr, FOLL_GET|FOLL_SPLIT);
+> +		page = follow_page(vma, pp->addr, FOLL_GET | FOLL_SPLIT,
+> +				   &page_mask);
+>  
+>  		err = PTR_ERR(page);
+>  		if (IS_ERR(page))
+> @@ -1291,6 +1293,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
+>  				const void __user **pages, int *status)
+>  {
+>  	unsigned long i;
+> +	long page_mask;
+>  
+>  	down_read(&mm->mmap_sem);
+>  
+> @@ -1304,7 +1307,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
+>  		if (!vma || addr < vma->vm_start)
+>  			goto set_status;
+>  
+> -		page = follow_page(vma, addr, 0);
+> +		page = follow_page(vma, addr, 0, &page_mask);
+>  
+>  		err = PTR_ERR(page);
+>  		if (IS_ERR(page))
+> diff --git a/mm/mlock.c b/mm/mlock.c
+> index e1fa9e4b0a66..2694f17cca2d 100644
+> --- a/mm/mlock.c
+> +++ b/mm/mlock.c
+> @@ -223,6 +223,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+>  			     unsigned long start, unsigned long end)
+>  {
+>  	unsigned long addr;
+> +	long page_mask;
+>  
+>  	lru_add_drain();
+>  	vma->vm_flags &= ~VM_LOCKED;
+> @@ -236,7 +237,8 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
+>  		 * suits munlock very well (and if somehow an abnormal page
+>  		 * has sneaked into the range, we won't oops here: great).
+>  		 */
+> -		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
+> +		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP,
+> +				   &page_mask);
+>  		if (page && !IS_ERR(page)) {
+>  			lock_page(page);
+>  			munlock_vma_page(page);
+> -- 
+> 1.8.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
