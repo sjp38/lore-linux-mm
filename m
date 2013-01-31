@@ -1,131 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id A2C346B000A
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 23:01:09 -0500 (EST)
-Message-ID: <5109EC79.1050604@oracle.com>
-Date: Thu, 31 Jan 2013 12:00:57 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 6FB316B000D
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 23:27:13 -0500 (EST)
+Received: by mail-ve0-f171.google.com with SMTP id b10so1703874vea.2
+        for <linux-mm@kvack.org>; Wed, 30 Jan 2013 20:27:12 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/6] memcg: bypass swap accounting for the root memcg
-References: <510658E3.1020306@oracle.com> <510658EE.9050006@oracle.com> <20130129141318.GC29574@dhcp22.suse.cz> <510943D8.9000902@oracle.com> <20130130162946.GA21253@dhcp22.suse.cz>
-In-Reply-To: <20130130162946.GA21253@dhcp22.suse.cz>
+In-Reply-To: <alpine.LNX.2.00.1301301855350.25423@eggly.anvils>
+References: <1359591980-29542-1-git-send-email-walken@google.com>
+	<1359591980-29542-3-git-send-email-walken@google.com>
+	<alpine.LNX.2.00.1301301855350.25423@eggly.anvils>
+Date: Wed, 30 Jan 2013 20:27:11 -0800
+Message-ID: <CANN689Et6381+mDby_HK9SP24hooSojoR__7w0AMvDv1K_aH-A@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mm: accelerate mm_populate() treatment of THP pages
+From: Michel Lespinasse <walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, handai.szj@taobao.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/31/2013 12:29 AM, Michal Hocko wrote:
-> On Thu 31-01-13 00:01:28, Jeff Liu wrote:
->> On 01/29/2013 10:13 PM, Michal Hocko wrote:
->>> On Mon 28-01-13 18:54:38, Jeff Liu wrote:
->>>> Root memcg with swap cgroup is special since we only do tracking
->>>> but can not set limits against it.  In order to facilitate
->>>> the implementation of the coming swap cgroup structures delay
->>>> allocation mechanism, we can bypass the default swap statistics
->>>> upon the root memcg and figure it out through the global stats
->>>> instead as below:
->>>>
->>>> root_memcg_swap_stat: total_swap_pages - nr_swap_pages -
->>>> used_swap_pages_of_all_memcgs
->>>
->>> How do you protect from races with swap{in,out}? Or they are
->>> tolerable?
-> 
->> To be honest, I previously have not taken race with swapin/out into
->> consideration.
+On Wed, Jan 30, 2013 at 7:05 PM, Hugh Dickins <hughd@google.com> wrote:
+> On Wed, 30 Jan 2013, Michel Lespinasse wrote:
+>
+>> This change adds a page_mask argument to follow_page.
 >>
->> Yes, this patch would cause a little error since it has to iterate
->> each memcg which can introduce a bit overhead based on how many memcgs
->> are configured.
+>> follow_page sets *page_mask to HPAGE_PMD_NR - 1 when it encounters a THP page,
+>> and to 0 in other cases.
 >>
->> However, considering our current implementation of swap statistics, we
->> do account when swap cache is uncharged, but it is possible that the
->> swap slot is already allocated before that.
-> 
-> I am not sure I follow you here. I was merely interested in races while
-> there is a swapping activity while the value is calculated. The errors,
-> or let's say imprecision, shouldn't be big but it would be good to think
-> how big it can be and how it can be reduced 
-...
-> (e.g. what if we start
-> accounting for root once there is another group existing - this would
-> solve the problem of delayed allocation and the imprecision as well).
-At first, I also tried to account for root memcg swap in this sway, i.e.
-return the root_memcg css_id from swap_cgroup_cmpxchg() &&
-swap_cgroup_record() if there is no children memcg exists, however, it
-caused the kernel panic with deadlock...
-If return 0 from both functions in this case, no panic but it's
-obviously that the root memcg swap accounting number is wrong, so that's
-why I choose the current idea to bypass it...
+>> __get_user_pages() makes use of this in order to accelerate populating
+>> THP ranges - that is, when both the pages and vmas arrays are NULL,
+>> we don't need to iterate HPAGE_PMD_NR times to cover a single THP page
+>> (and we also avoid taking mm->page_table_lock that many times).
+>>
+>> Other follow_page() call sites can safely ignore the value returned in
+>> *page_mask.
+>>
+>> Signed-off-by: Michel Lespinasse <walken@google.com>
+>
+> I certainly like the skipping.
+>
+> And (b) why can't we just omit the additional arg, and get it from the
+> page found?  You've explained the unreliability of the !FOLL_GET case
+> to me privately, but that needs to be spelt out in the commit comment
+> (and I'd love if we found a counter-argument, the extra arg of interest
+> to almost no-one does irritate me).
 
-I need some time to dig into the details anyway.
-> 
->> That is to say, there is a inconsistent window in swap accounting stats IMHO.
->> As a figure shows to human, I think it can be tolerated to some extents. :)
->>>
->>>> memcg_total_swap_stats: root_memcg_swap_stat + other_memcg_swap_stats
->>>
->>> I am not sure I understand and if I do then it is not true:
->>> root (swap = 10M, use_hierarchy = 0/1)
->>>  \
->>>   A (swap = 1M, use_hierarchy = 1)
->>>    \
->>>     B (swap = 2M)
->>>
->>> total for A is 3M regardless of what root has "accounted" while
->>> total for root should be 10 for use_hierarchy = 0 and 13 for the
->>> other
->>
->> I am not sure I catch your point, but I think the total for root
->> should be 13 no matter use_hierarchy = 0 or 1, and the current patch
->> is just doing that.
-> 
-> I do not see any reason to make root different wrt. other roots of
-> hierarchy. Anyway this is not important right now.
-> 
->> Originally, for_each_mem_cgroup_tree(iter, memcg) does statistics by
->> iterating all those children memcgs including the memcg itself.  But
->> now, as we don't account the root memcg swap statistics anymore(hence
->> the stats is 0), we need to add the local swap stats of root memcg
->> itself(10M) to the memcg_total_swap_stats.  So actually we don't
->> change the way of accounting memcg_total_swap_stats.
-> 
-> I guess you are talking about tatal_ numbers. And yes, your patch
-> doesn't change that.
-Yes.
+Right. My understanding is that after calling follow_page() without
+the FOLL_GET flag, you really can't do much with the returned page
+pointer other than checking it for IS_ERR(). We don't get a reference
+to the page, so it could get migrated away as soon as follow_page()
+releases the page table lock. In the most extreme case, the memory
+corresponding to that page could get offlined / dereferencing the page
+pointer could fail.
 
-Thanks you!
--Jeff
->  
->>> case (this is btw. broken in the tree already now because
->>> for_each_mem_cgroup_tree resp. mem_cgroup_iter doesn't honor
->>> use_hierarchy for the root cgroup - this is a separate topic
->>> though).
->>
->> Yes, I noticed that the for_each_mem_cgroup_tree() resp,
->> mem_cgroup_iter() don't take the root->use_hierarchy into
->> consideration, as it has the following logic:
->> if (!root->use_hierarchy && root != root_mem_cgroup) {
->>  	if (prev)
->> 		return NULL;
->> 	return root;
->> }
->>
->> As i don't change the for_each_mem_cgroup_tree(), so it is in
->> accordance with the original behavior.
-> 
-> True, and I was just mentioning that as I noticed this only during
-> the review. It wasn't meant to dispute your patch. Sorry if this wasn't
-> clear enough. We have that behavior for ages and nobody complained so it
-> is probably not worth fixing (especially when use_hierarchy is on the
-> way out very sloooooowly).
-> 
-> [...]
-> 
-> Thanks
-> 
+I actually think the follow_page API is very error prone in this way,
+as the returned page pointer is very tempting to use, but can't be
+safely used. I almost wish we could return something like
+ERR_PTR(-ESTALE) or whatever, just to make remove any temptations of
+dereferencing that page pointer.
+
+Now I agree the extra argument isn't pretty, but I don't have any
+better ideas for communicating the size of the page that got touched.
+
+> But (a) if the additional arg has to exist, then I'd much prefer it
+> to be page_size than page_mask - I realize there's a tiny advantage to
+> subtracting 1 from an immediate than from a variable, but I don't think
+> it justifies the peculiar interface.  mask makes people think of masking.
+
+Yes, I started with a page_size in bytes and then I moved to the
+page_mask. I agree the performance advantage is tiny, and I don't mind
+switching back to bytes if people are happier with it.
+
+I think one benefit of the page_mask implementation might be that it's
+easier for people to see that page_increment will end up in the
+[1..HPAGE_PMD_NR] range. Would a page size in 4k page units work out ?
+(I'm just not sure how to call such a quantity, though).
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
