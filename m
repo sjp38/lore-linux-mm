@@ -1,37 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id B8CBF6B0025
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 17:13:04 -0500 (EST)
-Message-ID: <510AEC68.2040500@zytor.com>
-Date: Thu, 31 Jan 2013 14:12:56 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 80A276B0008
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 17:23:47 -0500 (EST)
+Date: Thu, 31 Jan 2013 23:23:35 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: [LSF/MM TOPIC] mmap_sem in ->fault and ->page_mkwrite
+Message-ID: <20130131222335.GA13525@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] rip out x86_32 NUMA remapping code
-References: <20130131005616.1C79F411@kernel.stglabs.ibm.com> <510AE763.6090907@zytor.com> <CAE9FiQVn6_QZi3fNQ-JHYiR-7jeDJ5hT0SyT_+zVvfOj=PzF3w@mail.gmail.com> <510AE92B.8020605@zytor.com> <CAE9FiQUCB3CDB9kB6ojYRLHHjxgoRqmNFrcjkH1RNHjSHUZ4uQ@mail.gmail.com> <510AEA20.8040407@zytor.com> <510AEBA9.8090804@linux.vnet.ibm.com>
-In-Reply-To: <510AEBA9.8090804@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Yinghai Lu <yinghai@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On 01/31/2013 02:09 PM, Dave Hansen wrote:
-> On 01/31/2013 02:03 PM, H. Peter Anvin wrote:
->> That is arch-independent code, and the tile architecture still uses it.
->>
->> Makes one wonder how much it will get tested going forward, especially
->> with the x86-32 implementation clearly lacking in that department.
-> 
-> Yeah, I left the tile one because it wasn't obvious how it was being
-> used over there.  It _probably_ has the same bugs that x86 does.
-> 
-> I'll refresh the patch fixing some of the compile issues and resend.
-> 
+  Hi,
 
-I already have fixup patches, I think.
+  I'm not sure if this is such a great topic but it's a question which
+I came across a few times already and LSF/MM is a good place for
+brainstorming somewhat crazy ideas ;).
 
-	-hpa
+So currently ->fault() and ->page_mkwrite() are called under mmap_sem held
+for reading. Now this creates sometimes unpleasant locking dependencies for
+filesystems (modern filesystems have to do an equivalent of ->write_begin
+in ->page_mkwrite and that is a non-trivial operation). Just to mention my
+last itch, I had to split reader side of filesystem freezing lock into two
+locks - one which ranks above mmap_sem and one which ranks below it. Then
+writer side has to wait for both locks. It works but ...
+
+So I was wondering: Would it be somehow possible we could drop mmap_sem in
+these two callbacks (especially ->page_mkwrite())? I understand process'
+mapping can change under us once we drop the semaphore so we'd have to
+somehow recheck we have still the right page after re-taking mmap_sem. Like
+if we protected VMAs with SRCU so that they don't disappear under us once
+we drop mmap_sem and after retaking mmap_sem we would recheck whether VMA
+still applies to our fault.
+
+And I know there's VM_FAULT_RETRY but that really seems like a special hack
+for x86 architecture page fault code. Making it work for all architectures
+and callers such as get_user_pages() didn't really seem plausible to me.
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
