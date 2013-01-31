@@ -1,91 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id A7FB26B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 22:32:31 -0500 (EST)
-Message-ID: <5109E59F.5080104@cn.fujitsu.com>
-Date: Thu, 31 Jan 2013 11:31:43 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id A2C346B000A
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 23:01:09 -0500 (EST)
+Message-ID: <5109EC79.1050604@oracle.com>
+Date: Thu, 31 Jan 2013 12:00:57 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
-References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>  <1359463973.1624.15.camel@kernel> <5108F2B3.3090506@cn.fujitsu.com> <1359595344.1557.13.camel@kernel>
-In-Reply-To: <1359595344.1557.13.camel@kernel>
+Subject: Re: [PATCH v2 2/6] memcg: bypass swap accounting for the root memcg
+References: <510658E3.1020306@oracle.com> <510658EE.9050006@oracle.com> <20130129141318.GC29574@dhcp22.suse.cz> <510943D8.9000902@oracle.com> <20130130162946.GA21253@dhcp22.suse.cz>
+In-Reply-To: <20130130162946.GA21253@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>, handai.szj@taobao.com
 
-Hi Simon,
+On 01/31/2013 12:29 AM, Michal Hocko wrote:
+> On Thu 31-01-13 00:01:28, Jeff Liu wrote:
+>> On 01/29/2013 10:13 PM, Michal Hocko wrote:
+>>> On Mon 28-01-13 18:54:38, Jeff Liu wrote:
+>>>> Root memcg with swap cgroup is special since we only do tracking
+>>>> but can not set limits against it.  In order to facilitate
+>>>> the implementation of the coming swap cgroup structures delay
+>>>> allocation mechanism, we can bypass the default swap statistics
+>>>> upon the root memcg and figure it out through the global stats
+>>>> instead as below:
+>>>>
+>>>> root_memcg_swap_stat: total_swap_pages - nr_swap_pages -
+>>>> used_swap_pages_of_all_memcgs
+>>>
+>>> How do you protect from races with swap{in,out}? Or they are
+>>> tolerable?
+> 
+>> To be honest, I previously have not taken race with swapin/out into
+>> consideration.
+>>
+>> Yes, this patch would cause a little error since it has to iterate
+>> each memcg which can introduce a bit overhead based on how many memcgs
+>> are configured.
+>>
+>> However, considering our current implementation of swap statistics, we
+>> do account when swap cache is uncharged, but it is possible that the
+>> swap slot is already allocated before that.
+> 
+> I am not sure I follow you here. I was merely interested in races while
+> there is a swapping activity while the value is calculated. The errors,
+> or let's say imprecision, shouldn't be big but it would be good to think
+> how big it can be and how it can be reduced 
+...
+> (e.g. what if we start
+> accounting for root once there is another group existing - this would
+> solve the problem of delayed allocation and the imprecision as well).
+At first, I also tried to account for root memcg swap in this sway, i.e.
+return the root_memcg css_id from swap_cgroup_cmpxchg() &&
+swap_cgroup_record() if there is no children memcg exists, however, it
+caused the kernel panic with deadlock...
+If return 0 from both functions in this case, no panic but it's
+obviously that the root memcg swap accounting number is wrong, so that's
+why I choose the current idea to bypass it...
 
-Please see below. :)
+I need some time to dig into the details anyway.
+> 
+>> That is to say, there is a inconsistent window in swap accounting stats IMHO.
+>> As a figure shows to human, I think it can be tolerated to some extents. :)
+>>>
+>>>> memcg_total_swap_stats: root_memcg_swap_stat + other_memcg_swap_stats
+>>>
+>>> I am not sure I understand and if I do then it is not true:
+>>> root (swap = 10M, use_hierarchy = 0/1)
+>>>  \
+>>>   A (swap = 1M, use_hierarchy = 1)
+>>>    \
+>>>     B (swap = 2M)
+>>>
+>>> total for A is 3M regardless of what root has "accounted" while
+>>> total for root should be 10 for use_hierarchy = 0 and 13 for the
+>>> other
+>>
+>> I am not sure I catch your point, but I think the total for root
+>> should be 13 no matter use_hierarchy = 0 or 1, and the current patch
+>> is just doing that.
+> 
+> I do not see any reason to make root different wrt. other roots of
+> hierarchy. Anyway this is not important right now.
+> 
+>> Originally, for_each_mem_cgroup_tree(iter, memcg) does statistics by
+>> iterating all those children memcgs including the memcg itself.  But
+>> now, as we don't account the root memcg swap statistics anymore(hence
+>> the stats is 0), we need to add the local swap stats of root memcg
+>> itself(10M) to the memcg_total_swap_stats.  So actually we don't
+>> change the way of accounting memcg_total_swap_stats.
+> 
+> I guess you are talking about tatal_ numbers. And yes, your patch
+> doesn't change that.
+Yes.
 
-On 01/31/2013 09:22 AM, Simon Jeons wrote:
->
-> Sorry, I still confuse. :(
-> update node_states[N_NORMAL_MEMORY] to node_states[N_MEMORY] or
-> node_states[N_NORMAL_MEMOR] present 0...ZONE_MOVABLE?
->
-> node_states is what? node_states[N_NORMAL_MEMOR] or
-> node_states[N_MEMORY]?
-
-Are you asking what node_states[] is ?
-
-node_states[] is an array of nodemask,
-
-     extern nodemask_t node_states[NR_NODE_STATES];
-
-For example, node_states[N_NORMAL_MEMOR] represents which nodes have 
-normal memory.
-If N_MEMORY == N_HIGH_MEMORY == N_NORMAL_MEMORY, node_states[N_MEMORY] is
-node_states[N_NORMAL_MEMOR]. So it represents which nodes have 0 ... 
-ZONE_MOVABLE.
-
-
-> Why check !z1->wait_table in function move_pfn_range_left and function
-> __add_zone? I think zone->wait_table is initialized in
-> free_area_init_core, which will be called during system initialization
-> and hotadd_new_pgdat path.
-
-I think,
-
-free_area_init_core(), in the for loop,
-  |--> size = zone_spanned_pages_in_node();
-  |--> if (!size)
-               continue;  ----------------  If zone is empty, we jump 
-out the for loop.
-  |--> init_currently_empty_zone()
-
-So, if the zone is empty, wait_table is not initialized.
-
-In move_pfn_range_left(z1, z2), we move pages from z2 to z1. But z1 
-could be empty.
-So we need to check it and initialize z1->wait_table because we are 
-moving pages into it.
-
-
-> There is a zone populated check in function online_pages. But zone is
-> populated in free_area_init_core which will be called during system
-> initialization and hotadd_new_pgdat path. Why still need this check?
->
-
-Because we could also rebuild zone list when we offline pages.
-
-__offline_pages()
-  |--> zone->present_pages -= offlined_pages;
-  |--> if (!populated_zone(zone)) {
-               build_all_zonelists(NULL, NULL);
-       }
-
-If the zone is empty, and other zones on the same node is not empty, the 
-node
-won't be offlined, and next time we online pages of this zone, the pgdat 
-won't
-be initialized again, and we need to check populated_zone(zone) when 
-onlining
-pages.
-
-Thanks. :)
+Thanks you!
+-Jeff
+>  
+>>> case (this is btw. broken in the tree already now because
+>>> for_each_mem_cgroup_tree resp. mem_cgroup_iter doesn't honor
+>>> use_hierarchy for the root cgroup - this is a separate topic
+>>> though).
+>>
+>> Yes, I noticed that the for_each_mem_cgroup_tree() resp,
+>> mem_cgroup_iter() don't take the root->use_hierarchy into
+>> consideration, as it has the following logic:
+>> if (!root->use_hierarchy && root != root_mem_cgroup) {
+>>  	if (prev)
+>> 		return NULL;
+>> 	return root;
+>> }
+>>
+>> As i don't change the for_each_mem_cgroup_tree(), so it is in
+>> accordance with the original behavior.
+> 
+> True, and I was just mentioning that as I noticed this only during
+> the review. It wasn't meant to dispute your patch. Sorry if this wasn't
+> clear enough. We have that behavior for ages and nobody complained so it
+> is probably not worth fixing (especially when use_hierarchy is on the
+> way out very sloooooowly).
+> 
+> [...]
+> 
+> Thanks
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
