@@ -1,499 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 8032A6B0005
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 16:42:27 -0500 (EST)
-Date: Thu, 31 Jan 2013 13:42:20 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 53031] New: kswapd in uninterruptible sleep state
-Message-Id: <20130131134220.e2fa401a.akpm@linux-foundation.org>
-In-Reply-To: <bug-53031-27@https.bugzilla.kernel.org/>
-References: <bug-53031-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 2A2ED6B0005
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 16:50:21 -0500 (EST)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 0/6 RFC] Mapping range lock
+Date: Thu, 31 Jan 2013 22:49:48 +0100
+Message-Id: <1359668994-13433-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dairinin@gmail.com
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
+  Hello,
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+  As I promised in my LSF/MM summit proposal here are initial patches
+implementing mapping range lock. There's ext3 converted to fully use the
+range locks, converting other filesystems shouldn't be difficult but I want
+to spend time on it only after we are sure what we want. The following part
+is copied from the LSF/MM proposal, below it are some performance numbers.
 
-On Fri, 25 Jan 2013 17:56:25 +0000 (UTC)
-bugzilla-daemon@bugzilla.kernel.org wrote:
+There are several different motivations for implementing mapping range
+locking:
 
-> https://bugzilla.kernel.org/show_bug.cgi?id=53031
-> 
->            Summary: kswapd in uninterruptible sleep state
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 3.7.3,3.7.4
->           Platform: All
->         OS/Version: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Other
->         AssignedTo: akpm@linux-foundation.org
->         ReportedBy: dairinin@gmail.com
->         Regression: No
+a) Punch hole is currently racy wrt mmap (page can be faulted in in the
+   punched range after page cache has been invalidated) leading to nasty
+   results as fs corruption (we can end up writing to already freed block),
+   user exposure of uninitialized data, etc. To fix this we need some new
+   mechanism of serializing hole punching and page faults.
 
-I'd say "Regression: yes"!
+b) There is an uncomfortable number of mechanisms serializing various paths
+   manipulating pagecache and data underlying it. We have i_mutex, page lock,
+   checks for page beyond EOF in pagefault code, i_dio_count for direct IO.
+   Different pairs of operations are serialized by different mechanisms and
+   not all the cases are covered. Case (a) above is likely the worst but DIO
+   vs buffered IO isn't ideal either (we provide only limited consistency).
+   The range locking should somewhat simplify serialization of pagecache
+   operations. So i_dio_count can be removed completely, i_mutex to certain
+   extent (we still need something for things like timestamp updates,
+   possibly for i_size changes although those can be dealt with I think).
 
-Can you please run sysrq-W (or "echo w > /proc/sysrq-trigger" when
-kswapd is stuck so we can see where it is stuck?
+c) i_mutex doesn't allow any paralellism of operations using it and some
+   filesystems workaround this for specific cases (e.g. DIO reads). Using
+   range locking allows for concurrent operations (e.g. writes, DIO) on
+   different parts of the file. Of course, range locking itself isn't
+   enough to make the parallelism possible. Filesystems still have to
+   somehow deal with the concurrency when manipulating inode allocation
+   data. But the range locking at least provides a common VFS mechanism for
+   serialization VFS itself needs and it's upto each filesystem to
+   serialize more if it needs to.
 
-Also sysrq-m when it is in that state would be useful, thanks.
+How it works:
+------------
 
-[remainder retained for linux-mm to enjoy]
+General idea is that range lock for range x-y prevents creation of pages in
+that range.
 
-> 
-> Created an attachment (id=91781)
->  --> (https://bugzilla.kernel.org/attachment.cgi?id=91781)
-> Script do show what has changed in /proc/vmstat
-> 
-> I have recently upgraded from 3.2 to 3.7.3, and I am seeing, that the
-> behavior of kswapd is strange at least.
-> 
-> The machine is core2duo e7200 with 4G RAM, running 3.7.3 kernel. It has
-> compaction and THP (always) enabled.
-> 
-> The machine is serving files over the network, so it is constantly under
-> memory pressure from page cache. The network is not very fast, and average disk
-> read rate is between 2 and 8 megabytes per second.
-> 
-> In normal state, when page cache is filled, the free memory (according
-> to free and vmstat) is fluctuating between 100 and 150 megabytes, with
-> kswapd stepping in at 100M, quickly freeing to 150M and going to sleep
-> again.
-> 
-> 1) On 3.7.3, after several hours after page cache is filled, kswapd enters
-> permanent D-state, with free memory keeping around 150M (high watermark,
-> I presume?). I have captured diffs for /proc/vmstat:
-> 
-> $ ./diffshow 5
-> ----8<----
-> nr_free_pages:____________________________________38327 -> 38467 (140)
-> nr_active_anon:__________________________________110014 -> 110056 (42)
-> nr_inactive_file:______________________________526153 -> 526297 (144)
-> nr_active_file:__________________________________98802 -> 98864 (62)
-> nr_anon_pages:____________________________________103475 -> 103512 (37)
-> nr_file_pages:____________________________________627957 -> 628160 (203)
-> nr_dirty:______________________________________________15 -> 17 (2)
-> nr_page_table_pages:________________________2142 -> 2146 (4)
-> nr_kernel_stack:________________________________251 -> 253 (2)
-> nr_dirtied:__________________________________________1169312 -> 1169317 (5)
-> nr_written:__________________________________________1211979 -> 1211982 (3)
-> nr_dirty_threshold:__________________________159540 -> 159617 (77)
-> nr_dirty_background_threshold:____79770 -> 79808 (38)
-> pgpgin:__________________________________________________564650577 -> 564673241 (22664)
-> pgpgout:________________________________________________5117612 -> 5117668 (56)
-> pgalloc_dma32:____________________________________105487556 -> 105491067 (3511)
-> pgalloc_normal:__________________________________84026173 -> 84029309 (3136)
-> pgfree:__________________________________________________190134573 -> 190141394 (6821)
-> pgactivate:__________________________________________2750244 -> 2750283 (39)
-> pgfault:________________________________________________67214984 -> 67216222 (1238)
-> pgsteal_kswapd_dma32:______________________45793109 -> 45795077 (1968)
-> pgsteal_kswapd_normal:____________________61391466 -> 61394464 (2998)
-> pgscan_kswapd_dma32:________________________45812628 -> 45814596 (1968)
-> pgscan_kswapd_normal:______________________61465283 -> 61468281 (2998)
-> slabs_scanned:____________________________________30783104 -> 30786432 (3328)
-> pageoutrun:__________________________________________2936967 -> 2937033 (66)
-> 
-> vmstat:
-> procs -----------memory---------- ---swap-- -----io---- -system-- ----cpu----
-> __r__ b____ swpd____ free____ buff__ cache____ si____ so______ bi______ bo____ in____ cs us sy id wa
-> __1__ 1 296924 153064____ 6936 2479664______ 0______ 0__ 5408________ 0 11711 1350__ 1__ 2 44 53
-> __0__ 1 296924 152448____ 6928 2480048______ 0______ 0__ 6760________ 0 9723 1127__ 1__ 4 47 48
-> __0__ 1 296924 152948____ 6916 2479464______ 0______ 0__ 3512______ 16 10392 1231__ 1__ 2 48 49
-> __0__ 1 296924 153616____ 6916 2478804______ 0______ 0__ 2724________ 0 10279 1078__ 0__ 2 48 49
-> __0__ 1 296924 152972____ 6916 2480132______ 0______ 0__ 3584________ 0 11289 1252__ 1__ 3 49 48
-> __0__ 1 296924 155348____ 6916 2478396______ 0______ 0__ 6472________ 0 11285 1132__ 1__ 2 45 53
-> __0__ 1 296924 152988____ 6916 2481024______ 0______ 0__ 5112______ 20 10039 1257__ 0__ 2 46 52
-> __0__ 1 296924 152968____ 6916 2481016______ 0______ 0__ 3244________ 0 9586 1127__ 1__ 3 46 51
-> __0__ 1 296924 153500____ 6916 2481196______ 0______ 0__ 3516________ 0 10899 1127__ 1__ 1 48 49
-> __0__ 1 296924 152860____ 6916 2481688______ 0______ 0__ 4240________ 0 10418 1245__ 1__ 3 47 49
-> __0__ 2 296924 153016____ 6912 2478584______ 0______ 0__ 5632________ 0 12136 1516__ 2__ 3 46 49
-> __0__ 2 296924 153292____ 6912 2480984______ 0______ 0__ 4668________ 0 10872 1248__ 1__ 2 49 48
-> __0__ 1 296924 152420____ 6916 2481844______ 0______ 0__ 4764______ 56 11236 1402__ 1__ 3 45 51
-> __0__ 1 296924 152652____ 6916 2481204______ 0______ 0__ 4628________ 0 9422 1208__ 0__ 3 46 51
-> 
-> buddyinfo:
-> $ cat /proc/buddyinfo; sleep 1; cat /proc/buddyinfo 
-> Node 0, zone__________ DMA__________ 0__________ 0__________ 0__________ 1__________ 2__________ 1__________ 1__________ 0____
-> ____ 1__________ 1__________ 3 
-> Node 0, zone______ DMA32______ 515______ 205______ 242______ 201____ 1384______ 116________ 21__________ 8____
-> ____ 1__________ 0__________ 0 
-> Node 0, zone____ Normal____ 1779__________ 0__________ 0________ 18________ 11__________ 3__________ 1__________ 3____
-> ____ 0__________ 0__________ 0 
-> Node 0, zone__________ DMA__________ 0__________ 0__________ 0__________ 1__________ 2__________ 1__________ 1__________ 0____
-> ____ 1__________ 1__________ 3 
-> Node 0, zone______ DMA32______ 480______ 197______ 227______ 176____ 1384______ 116________ 21__________ 8____
-> ____ 1__________ 0__________ 0 
-> Node 0, zone____ Normal____ 1792__________ 9__________ 0________ 18________ 11__________ 3__________ 1__________ 3____
-> ____ 0__________ 0__________ 0
-> 
-> 2) Also from time to time situation switches, where free memory is fixed at
-> some random point, fluctuating around this values at +-1 megabyte. 
-> There is vmstat:
-> procs -----------memory---------- ---swap-- -----io---- -system-- ----cpu----
-> __r__ b____ swpd____ free____ buff__ cache____ si____ so______ bi______ bo____ in____ cs us sy id wa
-> __0__ 0 296480 381052____ 9732 2481324______ 1______ 2__ 2022______ 19____ 45____ 44__ 1__ 2 81 16
-> __0__ 0 296480 382040____ 9732 2481180______ 0______ 0__ 2324________ 0 6505__ 825__ 1__ 2 96__ 1
-> __0__ 0 296480 382500____ 9732 2481060______ 0______ 0__ 3824________ 0 5941 1046__ 1__ 2 96__ 1
-> __0__ 0 296480 382092____ 9740 2480976______ 0______ 0__ 2048______ 16 7701__ 862__ 0__ 2 97__ 1
-> __0__ 0 296480 382160____ 9740 2481896______ 0______ 0__ 5008________ 0 6443 1017__ 1__ 2 93__ 5
-> __0__ 0 296480 382484____ 9740 2481668______ 0______ 0__ 2764________ 0 6972__ 799__ 0__ 2 97__ 1
-> __0__ 0 296480 381912____ 9740 2481620______ 0______ 0__ 3780________ 0 7632 1036__ 1__ 2 96__ 1
-> __0__ 0 296480 382240____ 9744 2481632______ 0______ 0__ 2796________ 0 7533__ 981__ 1__ 2 95__ 3
-> __1__ 0 296480 382372____ 9748 2481756______ 0______ 0__ 2940________ 0 6565 1048__ 2__ 2 95__ 2
-> __0__ 0 296480 383064____ 9748 2480320______ 0______ 0__ 5980________ 0 6352__ 979__ 0__ 3 92__ 5
-> __0__ 0 296480 381380____ 9748 2481752______ 0______ 0__ 2732________ 0 6322__ 999__ 1__ 2 96__ 1
-> __0__ 0 296480 381640____ 9748 2481992______ 0______ 0__ 2468________ 0 5640__ 849__ 0__ 2 97__ 2
-> __0__ 0 296480 381684____ 9748 2481856______ 0______ 0__ 2760________ 0 7064__ 944__ 2__ 2 95__ 1
-> __0__ 0 296480 381908____ 9748 2481664______ 0______ 0__ 2608________ 0 6797__ 952__ 0__ 2 94__ 4
-> __0__ 0 296480 384024____ 9748 2479424______ 0______ 0__ 4804________ 0 6342 2767__ 1__ 2 94__ 4
-> __0__ 0 296480 381948____ 9748 2481080______ 0______ 0__ 1868________ 0 6428__ 803__ 0__ 2 97__ 2
-> __0__ 0 296480 382088____ 9748 2481524______ 0______ 0__ 3252________ 0 6464__ 990__ 1__ 1 98__ 1
-> __0__ 0 296480 381884____ 9748 2481816______ 0______ 0__ 2892________ 0 7880__ 858__ 1__ 2 94__ 3
-> __0__ 0 296480 382120____ 9748 2481848______ 0______ 0__ 2500________ 0 6207__ 905__ 1__ 1 96__ 2
-> __0__ 1 296480 381976____ 9748 2479876______ 0______ 0__ 5188________ 0 6691__ 908__ 1__ 2 94__ 4
-> __0__ 0 296480 381708____ 9748 2481584______ 0______ 0__ 2692________ 0 7904 1030__ 1__ 2 94__ 3
-> __0__ 0 296480 382196____ 9748 2481704______ 0______ 0__ 2092________ 0 6715__ 722__ 1__ 1 97__ 1
-> 
-> 
-> The /proc/vmstat diff is like this:
-> 
-> $ ./diffshow 5
-> ----8<----
-> nr_free_pages:____________________________________94999 -> 95630 (631)
-> nr_inactive_anon:______________________________47076 -> 47196 (120)
-> nr_inactive_file:______________________________347048 -> 347080 (32)
-> nr_active_file:__________________________________270128 -> 270462 (334)
-> nr_file_pages:____________________________________619886 -> 620314 (428)
-> nr_dirty:______________________________________________10 -> 109 (99)
-> nr_kernel_stack:________________________________248 -> 249 (1)
-> nr_isolated_file:______________________________0 -> 10 (10)
-> nr_dirtied:__________________________________________1147486 -> 1147659 (173)
-> nr_written:__________________________________________1189947 -> 1190013 (66)
-> nr_dirty_threshold:__________________________168770 -> 168974 (204)
-> nr_dirty_background_threshold:____84385 -> 84487 (102)
-> pgpgin:__________________________________________________528729753 -> 528750521 (20768)
-> pgpgout:________________________________________________5013688 -> 5014216 (528)
-> pswpin:__________________________________________________77715 -> 77827 (112)
-> pgalloc_dma32:____________________________________95912002 -> 95912631 (629)
-> pgalloc_normal:__________________________________82241808 -> 82247860 (6052)
-> pgfree:__________________________________________________178827810 -> 178834939 (7129)
-> pgactivate:__________________________________________2644761 -> 2645104 (343)
-> pgfault:________________________________________________63365808 -> 63369261 (3453)
-> pgmajfault:__________________________________________23571 -> 23591 (20)
-> pgsteal_kswapd_normal:____________________60067802 -> 60072006 (4204)
-> pgscan_kswapd_normal:______________________60141548 -> 60145753 (4205)
-> slabs_scanned:____________________________________28914432 -> 28915456 (1024)
-> kswapd_low_wmark_hit_quickly:______589343 -> 589376 (33)
-> kswapd_high_wmark_hit_quickly:____763703 -> 763752 (49)
-> pageoutrun:__________________________________________2852120 -> 2852305 (185)
-> compact_blocks_moved:______________________10852682 -> 10852847 (165)
-> compact_pagemigrate_failed:__________39862700 -> 39865324 (2624)
-> 
-> kswapd is stuck on normal zone!
-> 
-> Also there is raw vmstat:
-> nr_free_pages 95343
-> nr_inactive_anon 47196
-> nr_active_anon 114110
-> nr_inactive_file 348142
-> nr_active_file 272638
-> nr_unevictable 552
-> nr_mlock 552
-> nr_anon_pages 100386
-> nr_mapped 6158
-> nr_file_pages 623530
-> nr_dirty 0
-> nr_writeback 0
-> nr_slab_reclaimable 21356
-> nr_slab_unreclaimable 15570
-> nr_page_table_pages 2045
-> nr_kernel_stack 244
-> nr_unstable 0
-> nr_bounce 0
-> nr_vmscan_write 149405
-> nr_vmscan_immediate_reclaim 13896
-> nr_writeback_temp 0
-> nr_isolated_anon 0
-> nr_isolated_file 4
-> nr_shmem 48
-> nr_dirtied 1147666
-> nr_written 1190129
-> nr_anon_transparent_hugepages 116
-> nr_free_cma 0
-> nr_dirty_threshold 169553
-> nr_dirty_background_threshold 84776
-> pgpgin 529292001
-> pgpgout 5014788
-> pswpin 77827
-> pswpout 148890
-> pgalloc_dma 0
-> pgalloc_dma32 95940824
-> pgalloc_normal 82395157
-> pgalloc_movable 0
-> pgfree 179010711
-> pgactivate 2647284
-> pgdeactivate 2513412
-> pgfault 63427189
-> pgmajfault 23606
-> pgrefill_dma 0
-> pgrefill_dma32 1915983
-> pgrefill_normal 430939
-> pgrefill_movable 0
-> pgsteal_kswapd_dma 0
-> pgsteal_kswapd_dma32 39927548
-> pgsteal_kswapd_normal 60180622
-> pgsteal_kswapd_movable 0
-> pgsteal_direct_dma 0
-> pgsteal_direct_dma32 14062458
-> pgsteal_direct_normal 1894412
-> pgsteal_direct_movable 0
-> pgscan_kswapd_dma 0
-> pgscan_kswapd_dma32 39946808
-> pgscan_kswapd_normal 60254407
-> pgscan_kswapd_movable 0
-> pgscan_direct_dma 0
-> pgscan_direct_dma32 14260652
-> pgscan_direct_normal 1895350
-> pgscan_direct_movable 0
-> pgscan_direct_throttle 0
-> pginodesteal 25301
-> slabs_scanned 28931968
-> kswapd_inodesteal 26119
-> kswapd_low_wmark_hit_quickly 591050
-> kswapd_high_wmark_hit_quickly 766006
-> kswapd_skip_congestion_wait 15
-> pageoutrun 2858733
-> allocstall 156938
-> pgrotated 161518
-> compact_blocks_moved 10860505
-> compact_pages_moved 411760
-> compact_pagemigrate_failed 39987369
-> compact_stall 29399
-> compact_fail 23718
-> compact_success 5681
-> htlb_buddy_alloc_success 0
-> htlb_buddy_alloc_fail 0
-> unevictable_pgs_culled 6416
-> unevictable_pgs_scanned 0
-> unevictable_pgs_rescued 5337
-> unevictable_pgs_mlocked 6672
-> unevictable_pgs_munlocked 6120
-> unevictable_pgs_cleared 0
-> unevictable_pgs_stranded 0
-> thp_fault_alloc 41
-> thp_fault_fallback 302
-> thp_collapse_alloc 507
-> thp_collapse_alloc_failed 3704
-> thp_split 111
-> 
-> Buddyinfo:
-> $ cat /proc/buddyinfo; sleep 1; cat /proc/buddyinfo 
-> Node 0, zone__________ DMA__________ 0__________ 0__________ 0__________ 1__________ 2__________ 1__________ 1__________ 0____
-> ____ 1__________ 1__________ 3 
-> Node 0, zone______ DMA32__ 29527__ 26916______ 489______ 221________ 40__________ 5__________ 0__________ 0____
-> ____ 0__________ 0__________ 0 
-> Node 0, zone____ Normal____ 3158__________ 0__________ 0__________ 2__________ 1__________ 1__________ 1__________ 1____
-> ____ 0__________ 0__________ 0 
-> Node 0, zone__________ DMA__________ 0__________ 0__________ 0__________ 1__________ 2__________ 1__________ 1__________ 0____
-> ____ 1__________ 1__________ 3 
-> Node 0, zone______ DMA32__ 29527__ 26909______ 489______ 211________ 41__________ 5__________ 0__________ 0____
-> ____ 0__________ 0__________ 0 
-> Node 0, zone____ Normal____ 2790________ 29__________ 0__________ 8__________ 1__________ 1__________ 1__________ 1____
-> ____ 0__________ 0__________ 0 
-> 
-> Zoneinfo:
-> $ cat /proc/zoneinfo 
-> Node 0, zone__________ DMA
-> __ pages free________ 3976
-> ______________ min__________ 64
-> ______________ low__________ 80
-> ______________ high________ 96
-> ______________ scanned__ 0
-> ______________ spanned__ 4080
-> ______________ present__ 3912
-> ______ nr_free_pages 3976
-> ______ nr_inactive_anon 0
-> ______ nr_active_anon 0
-> ______ nr_inactive_file 0
-> ______ nr_active_file 0
-> ______ nr_unevictable 0
-> ______ nr_mlock________ 0
-> ______ nr_anon_pages 0
-> ______ nr_mapped______ 0
-> ______ nr_file_pages 0
-> ______ nr_dirty________ 0
-> ______ nr_writeback 0
-> ______ nr_slab_reclaimable 0
-> ______ nr_slab_unreclaimable 0
-> ______ nr_page_table_pages 0
-> ______ nr_kernel_stack 0
-> ______ nr_unstable__ 0
-> ______ nr_bounce______ 0
-> ______ nr_vmscan_write 0
-> ______ nr_vmscan_immediate_reclaim 0
-> ______ nr_writeback_temp 0
-> ______ nr_isolated_anon 0
-> ______ nr_isolated_file 0
-> ______ nr_shmem________ 0
-> ______ nr_dirtied____ 0
-> ______ nr_written____ 0
-> ______ nr_anon_transparent_hugepages 0
-> ______ nr_free_cma__ 0
-> ______________ protection: (0, 3503, 4007, 4007)
-> __ pagesets
-> ______ cpu: 0
-> __________________________ count: 0
-> __________________________ high:__ 0
-> __________________________ batch: 1
-> __ vm stats threshold: 8
-> ______ cpu: 1
-> __________________________ count: 0
-> __________________________ high:__ 0
-> __________________________ batch: 1
-> __ vm stats threshold: 8
-> __ all_unreclaimable: 1
-> __ start_pfn:________________ 16
-> __ inactive_ratio:______ 1
-> Node 0, zone______ DMA32
-> __ pages free________ 87395
-> ______________ min__________ 14715
-> ______________ low__________ 18393
-> ______________ high________ 22072
-> ______________ scanned__ 0
-> ______________ spanned__ 1044480
-> ______________ present__ 896960
-> ______ nr_free_pages 87395
-> ______ nr_inactive_anon 18907
-> ______ nr_active_anon 92242
-> ______ nr_inactive_file 325044
-> ______ nr_active_file 267577
-> ______ nr_unevictable 0
-> ______ nr_mlock________ 0
-> ______ nr_anon_pages 51703
-> ______ nr_mapped______ 4369
-> ______ nr_file_pages 593009
-> ______ nr_dirty________ 17
-> ______ nr_writeback 0
-> ______ nr_slab_reclaimable 14988
-> ______ nr_slab_unreclaimable 11515
-> ______ nr_page_table_pages 1305
-> ______ nr_kernel_stack 133
-> ______ nr_unstable__ 0
-> ______ nr_bounce______ 0
-> ______ nr_vmscan_write 140220
-> ______ nr_vmscan_immediate_reclaim 62
-> ______ nr_writeback_temp 0
-> ______ nr_isolated_anon 0
-> ______ nr_isolated_file 0
-> ______ nr_shmem________ 10
-> ______ nr_dirtied____ 810741
-> ______ nr_written____ 862763
-> ______ nr_anon_transparent_hugepages 116
-> ______ nr_free_cma__ 0
-> ______________ protection: (0, 0, 504, 504)
-> __ pagesets
-> ______ cpu: 0
-> __________________________ count: 123
-> __________________________ high:__ 186
-> __________________________ batch: 31
-> __ vm stats threshold: 24
-> ______ cpu: 1
-> __________________________ count: 29
-> __________________________ high:__ 186
-> __________________________ batch: 31
-> __ vm stats threshold: 24
-> __ all_unreclaimable: 0
-> __ start_pfn:________________ 4096
-> __ inactive_ratio:______ 5
-> Node 0, zone____ Normal
-> __ pages free________ 3200
-> ______________ min__________ 2116
-> ______________ low__________ 2645
-> ______________ high________ 3174
-> ______________ scanned__ 0
-> ______________ spanned__ 131072
-> ______________ present__ 129024
-> ______ nr_free_pages 3200
-> ______ nr_inactive_anon 25943
-> ______ nr_active_anon 24590
-> ______ nr_inactive_file 23132
-> ______ nr_active_file 10275
-> ______ nr_unevictable 552
-> ______ nr_mlock________ 552
-> ______ nr_anon_pages 49050
-> ______ nr_mapped______ 2088
-> ______ nr_file_pages 35785
-> ______ nr_dirty________ 3
-> ______ nr_writeback 0
-> ______ nr_slab_reclaimable 2340
-> ______ nr_slab_unreclaimable 3926
-> ______ nr_page_table_pages 786
-> ______ nr_kernel_stack 114
-> ______ nr_unstable__ 0
-> ______ nr_bounce______ 0
-> ______ nr_vmscan_write 9297
-> ______ nr_vmscan_immediate_reclaim 13835
-> ______ nr_writeback_temp 0
-> ______ nr_isolated_anon 0
-> ______ nr_isolated_file 10
-> ______ nr_shmem________ 38
-> ______ nr_dirtied____ 338110
-> ______ nr_written____ 328638
-> ______ nr_anon_transparent_hugepages 0
-> ______ nr_free_cma__ 0
-> ______________ protection: (0, 0, 0, 0)
-> __ pagesets
-> ______ cpu: 0
-> __________________________ count: 152
-> __________________________ high:__ 186
-> __________________________ batch: 31
-> __ vm stats threshold: 12
-> ______ cpu: 1
-> __________________________ count: 172
-> __________________________ high:__ 186
-> __________________________ batch: 31
-> __ vm stats threshold: 12
-> __ all_unreclaimable: 0
-> __ start_pfn:________________ 1048576
-> __ inactive_ratio:______ 1
-> 
-> I have tried disabling compaction (1000
-> > /proc/sys/vm/extdefrag_threshold), and symptoms do change. There is no
-> kswapd stuck in D, but instead page cache is almost cleaned from time to
-> time 
-> 
-> Also I have a piece of code, which can reproduce the first problem with
-> kswapd in D state on another amd64 system, which has normal zone
-> artificially limited to the same ratio against dma32 zone. It needs a
-> large file, which is at least twice as large as system RAM (the larger
-> the better):
-> dd if=/dev/zero of=tf bs=1M count=$((1024*8))
-> 
-> Then start smth like this:
-> ./a.out tf 32
-> and let it run for some time to fill the page cache.
-> 
-> The code will random read the file in fixed chunks at fixed rate in two
-> "streams": one stream of 1/3 rate will be scattered across the whole
-> file and mark pages with WILLNEED. Another stream at 2/3 rate is
-> contained in 1/10 of a file and will not pass any hints.
-> 
-> 3) Now I am running 3.7.4, and atm I see the second problem again, i.e. kswapd
-> is stuck on zone normal.
-> 
-> -- 
-> Configure bugmail: https://bugzilla.kernel.org/userprefs.cgi?tab=email
-> ------- You are receiving this mail because: -------
-> You are the assignee for the bug.
+In practice this means:
+----------------------
+
+All read paths adding page to page cache and grab_cache_page_write_begin()
+first take range lock for the index, then insert locked page, and finally
+unlock the range. See below on why buffered IO uses range locks on per-page
+basis.
+
+DIO gets range lock at the moment it submits bio for the range covering
+pages in the bio. Then pagecache is truncated and bio submitted. Range lock
+is unlocked once bio is completed.
+
+Punch hole for range x-y takes range lock for the range before truncating
+page cache and the lock is released after filesystem blocks for the range
+are freed.
+
+Truncate to size x is equivalent to punch hole for the range x - ~0UL.
+
+The reason why we take the range lock for buffered IO on per-page basis and
+for DIO for each bio separately is lock ordering with mmap_sem. Page faults
+need to instantiate page under mmap_sem. That establishes mmap_sem > range
+lock. Buffered IO takes mmap_sem when prefaulting pages so we cannot hold
+range lock at that moment. Similarly get_user_pages() in DIO code takes
+mmap_sem so we have be sure not to hold range lock when calling that.
+
+How much does it cost:
+---------------------
+
+There's a memory cost - an extra pointer and spinlock in struct
+address_space, 64 bytes on stack for buffered IO, truncate, punch hole, and
+dynamically allocated 72-byte structure per each BIO submitted by direct IO.
+
+And there's a cpu cost. I measured it on an 8 CPU machine with 4 GB of memory
+with ext2 (yes, I added support also for ext2 and used it for measurements as
+especially write results are much less noisy) over 1G ramdisk. The workloads
+were generated by FIO and were 1) read 800 MB file, 2) overwrite 800 MB file,
+3) mmap read 800 MB file. Each test was run 30 times.
+
+The results are here (times to complete in ms):
+	Vanilla				Range Locks
+	Avg		Stddev		Avg		Stddev
+READ	1133.566667	11.954590	1137.06666	7.827019
+WRITE	1069.300000	7.996458	1101.200000	8.607748
+MMAP	1416.733333	28.459250	1421.900000	30.636960
+
+So we see READ and MMAP time changes are in the noise (although for reads
+there seem to be about 1% cost if I compare more tests), for WRITE the cost
+barely stands out of the noise at ~3% (and here I verified with perf what's
+going on and indeed the range_lock() and range_unlock() calls cost in total
+close to 3% of CPU time).
+
+So the cost is noticeable. Is it a problem? Maybe, not sure... We could
+likely optimize the lock-single-page range case but I wanted to start
+simple and get some feedback first.
+
+								Honza
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
