@@ -1,123 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 7F6B86B0007
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 22:07:51 -0500 (EST)
-Message-ID: <1359601065.15120.156.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device
- hotplug framework
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 30 Jan 2013 19:57:45 -0700
-In-Reply-To: <20130130045830.GH30002@kroah.com>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
-	 <1357861230-29549-2-git-send-email-toshi.kani@hp.com>
-	 <20130130045830.GH30002@kroah.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id A7FB26B0007
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 22:32:31 -0500 (EST)
+Message-ID: <5109E59F.5080104@cn.fujitsu.com>
+Date: Thu, 31 Jan 2013 11:31:43 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
+References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>  <1359463973.1624.15.camel@kernel> <5108F2B3.3090506@cn.fujitsu.com> <1359595344.1557.13.camel@kernel>
+In-Reply-To: <1359595344.1557.13.camel@kernel>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: rjw@sisk.pl, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-On Tue, 2013-01-29 at 23:58 -0500, Greg KH wrote:
-> On Thu, Jan 10, 2013 at 04:40:19PM -0700, Toshi Kani wrote:
-> > +/*
-> > + * Hot-plug device information
-> > + */
-> 
-> Again, stop it with the "generic" hotplug term here, and everywhere
-> else.  You are doing a very _specific_ type of hotplug devices, so spell
-> it out.  We've worked hard to hotplug _everything_ in Linux, you are
-> going to confuse a lot of people with this type of terms.
+Hi Simon,
 
-Agreed.  I will clarify in all places.
+Please see below. :)
 
-> > +union shp_dev_info {
-> > +	struct shp_cpu {
-> > +		u32		cpu_id;
-> > +	} cpu;
-> 
-> What is this?  Why not point to the system device for the cpu?
+On 01/31/2013 09:22 AM, Simon Jeons wrote:
+>
+> Sorry, I still confuse. :(
+> update node_states[N_NORMAL_MEMORY] to node_states[N_MEMORY] or
+> node_states[N_NORMAL_MEMOR] present 0...ZONE_MOVABLE?
+>
+> node_states is what? node_states[N_NORMAL_MEMOR] or
+> node_states[N_MEMORY]?
 
-This info is used to on-line a new CPU and create its system/cpu device.
-In other word, a system/cpu device is created as a result of CPU
-hotplug.
+Are you asking what node_states[] is ?
 
-> > +	struct shp_memory {
-> > +		int		node;
-> > +		u64		start_addr;
-> > +		u64		length;
-> > +	} mem;
-> 
-> Same here, why not point to the system device?
+node_states[] is an array of nodemask,
 
-Same as above.
+     extern nodemask_t node_states[NR_NODE_STATES];
 
-> > +	struct shp_hostbridge {
-> > +	} hb;
-> > +
-> > +	struct shp_node {
-> > +	} node;
-> 
-> What happened here with these?  Empty structures?  Huh?
+For example, node_states[N_NORMAL_MEMOR] represents which nodes have 
+normal memory.
+If N_MEMORY == N_HIGH_MEMORY == N_NORMAL_MEMORY, node_states[N_MEMORY] is
+node_states[N_NORMAL_MEMOR]. So it represents which nodes have 0 ... 
+ZONE_MOVABLE.
 
-They are place holders for now.  PCI bridge hot-plug and node hot-plug
-are still very much work in progress, so I have not integrated them into
-this framework yet.
 
-> > +};
-> > +
-> > +struct shp_device {
-> > +	struct list_head	list;
-> > +	struct device		*device;
-> 
-> No, make it a "real" device, embed the device into it.
+> Why check !z1->wait_table in function move_pfn_range_left and function
+> __add_zone? I think zone->wait_table is initialized in
+> free_area_init_core, which will be called during system initialization
+> and hotadd_new_pgdat path.
 
-This device pointer is used to send KOBJ_ONLINE/OFFLINE event during CPU
-online/offline operation in order to maintain the current behavior.  CPU
-online/offline operation only changes the state of CPU, so its
-system/cpu device continues to be present before and after an operation.
-(Whereas, CPU hot-add/delete operation creates or removes a system/cpu
-device.)  So, this "*device" needs to be a pointer to reference an
-existing device that is to be on-lined/off-lined.
+I think,
 
-> But, again, I'm going to ask why you aren't using the existing cpu /
-> memory / bridge / node devices that we have in the kernel.  Please use
-> them, or give me a _really_ good reason why they will not work.
+free_area_init_core(), in the for loop,
+  |--> size = zone_spanned_pages_in_node();
+  |--> if (!size)
+               continue;  ----------------  If zone is empty, we jump 
+out the for loop.
+  |--> init_currently_empty_zone()
 
-We cannot use the existing system devices or ACPI devices here.  During
-hot-plug, ACPI handler sets this shp_device info, so that cpu and memory
-handlers (drivers/cpu.c and mm/memory_hotplug.c) can obtain their target
-device information in a platform-neutral way.  During hot-add, we first
-creates an ACPI device node (i.e. device under /sys/bus/acpi/devices),
-but platform-neutral modules cannot use them as they are ACPI-specific.
-Also, its system device (i.e. device under /sys/devices/system) has not
-been created until the hot-add operation completes.
+So, if the zone is empty, wait_table is not initialized.
 
-> > +	enum shp_class		class;
-> > +	union shp_dev_info	info;
-> > +};
-> > +
-> > +/*
-> > + * Hot-plug request
-> > + */
-> > +struct shp_request {
-> > +	/* common info */
-> > +	enum shp_operation	operation;	/* operation */
-> > +
-> > +	/* hot-plug event info: only valid for hot-plug operations */
-> > +	void			*handle;	/* FW handle */
-> > +	u32			event;		/* FW event */
-> 
-> What is this?
+In move_pfn_range_left(z1, z2), we move pages from z2 to z1. But z1 
+could be empty.
+So we need to check it and initialize z1->wait_table because we are 
+moving pages into it.
 
-The shp_request describes a hotplug or online/offline operation that is
-requested.  In case of hot-plug request, the "*handle" describes a
-target device (which is an ACPI device object) and the "event" describes
-a type of request, such as hot-add or hot-delete.
 
-Thanks,
--Toshi
+> There is a zone populated check in function online_pages. But zone is
+> populated in free_area_init_core which will be called during system
+> initialization and hotadd_new_pgdat path. Why still need this check?
+>
+
+Because we could also rebuild zone list when we offline pages.
+
+__offline_pages()
+  |--> zone->present_pages -= offlined_pages;
+  |--> if (!populated_zone(zone)) {
+               build_all_zonelists(NULL, NULL);
+       }
+
+If the zone is empty, and other zones on the same node is not empty, the 
+node
+won't be offlined, and next time we online pages of this zone, the pgdat 
+won't
+be initialized again, and we need to check populated_zone(zone) when 
+onlining
+pages.
+
+Thanks. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
