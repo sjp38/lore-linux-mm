@@ -1,57 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 4BB866B0011
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 16:50:44 -0500 (EST)
-Date: Thu, 31 Jan 2013 13:50:42 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/3 v2]swap: make each swap partition have one
- address_space
-Message-Id: <20130131135042.ae633246.akpm@linux-foundation.org>
-In-Reply-To: <20130124102414.GA10025@kernel.org>
-References: <20130122022951.GB12293@kernel.org>
-	<20130123061645.GF2723@blaptop>
-	<20130123073655.GA31672@kernel.org>
-	<20130123080420.GI2723@blaptop>
-	<1358991596.3351.9.camel@kernel>
-	<20130124022241.GB22654@blaptop>
-	<20130124024311.GA26602@kernel.org>
-	<20130124051910.GD22654@blaptop>
-	<20130124102414.GA10025@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 8B5C26B0005
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 16:51:39 -0500 (EST)
+Message-ID: <510AE763.6090907@zytor.com>
+Date: Thu, 31 Jan 2013 13:51:31 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
+MIME-Version: 1.0
+Subject: Re: [RFC][PATCH] rip out x86_32 NUMA remapping code
+References: <20130131005616.1C79F411@kernel.stglabs.ibm.com>
+In-Reply-To: <20130131005616.1C79F411@kernel.stglabs.ibm.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, Simon Jeons <simon.jeons@gmail.com>, linux-mm@kvack.org, hughd@google.com, riel@redhat.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 24 Jan 2013 18:24:14 +0800
-Shaohua Li <shli@kernel.org> wrote:
+On 01/30/2013 04:56 PM, Dave Hansen wrote:
+> This code was an optimization for 32-bit NUMA systems.
+> 
+> It has probably been the cause of a number of subtle bugs over
+> the years, although the conditions to excite them would have
+> been hard to trigger.  Essentially, we remap part of the kernel
+> linear mapping area, and then sometimes part of that area gets
+> freed back in to the bootmem allocator.  If those pages get
+> used by kernel data structures (say mem_map[] or a dentry),
+> there's no big deal.  But, if anyone ever tried to use the
+> linear mapping for these pages _and_ cared about their physical
+> address, bad things happen.
+> 
+> For instance, say you passed __GFP_ZERO to the page allocator
+> and then happened to get handed one of these pages, it zero the
+> remapped page, but it would make a pte to the _old_ page.
+> There are probably a hundred other ways that it could screw
+> with things.
+> 
+> We don't need to hang on to performance optimizations for
+> these old boxes any more.  All my 32-bit NUMA systems are long
+> dead and buried, and I probably had access to more than most
+> people.
+> 
+> This code is causing real things to break today:
+> 
+> 	https://lkml.org/lkml/2013/1/9/376
+> 
+> I looked in to actually fixing this, but it requires surgery
+> to way too much brittle code, as well as stuff like
+> per_cpu_ptr_to_phys().
+> 
 
-> Subject: mm: add memory barrier to prevent SwapCache bit and page private out of order
-> 
-> page_mapping() checks SwapCache bit first and then read page private. Adding
-> memory barrier so page private has correct value before SwapCache bit set.
-> 
-> In some cases, page_mapping() isn't called with page locked. Without doing
-> this, we might get a wrong swap address space with SwapCache bit set. Though I
-> didn't found a problem with this so far (such code typically only checks if the
-> page has mapping or the mapping can be dirty or migrated), this is too subtle
-> and error-prone, so we want to avoid it.
-> 
-> ...
->
-> --- linux.orig/mm/swap_state.c	2013-01-22 10:12:33.514490665 +0800
-> +++ linux/mm/swap_state.c	2013-01-24 18:08:05.149390977 +0800
-> @@ -89,6 +89,7 @@ static int __add_to_swap_cache(struct pa
->  
->  	page_cache_get(page);
->  	set_page_private(page, entry.val);
-> +	smp_wmb();
->  	SetPageSwapCache(page);
+I get a build failure on i386 allyesconfig with this patch:
 
-SetPageSwapCache() uses set_bit() and arch/x86/include/asm/bitops.h
-says "This function is atomic and may not be reordered".  
+arch/x86/power/built-in.o: In function `swsusp_arch_resume':
+(.text+0x14e4): undefined reference to `resume_map_numa_kva'
+
+It looks trivial to fix up; I assume resume_map_numa_kva() just goes
+away like it does in the non-NUMA case, but it would be nice if you
+could confirm that.
+
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
