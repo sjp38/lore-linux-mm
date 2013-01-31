@@ -1,116 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 2A2ED6B0005
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 16:50:21 -0500 (EST)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 2DDC46B000C
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 16:50:31 -0500 (EST)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 0/6 RFC] Mapping range lock
-Date: Thu, 31 Jan 2013 22:49:48 +0100
-Message-Id: <1359668994-13433-1-git-send-email-jack@suse.cz>
+Subject: [PATCH 4/6] fs: Don't call dio_cleanup() before submitting all bios
+Date: Thu, 31 Jan 2013 22:49:52 +0100
+Message-Id: <1359668994-13433-5-git-send-email-jack@suse.cz>
+In-Reply-To: <1359668994-13433-1-git-send-email-jack@suse.cz>
+References: <1359668994-13433-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-  Hello,
+do_blockdev_direct_IO() can call dio_cleanup() before submitting
+all bios. This will be inconvenient for us because we need to keep
+preallocated structure in sdio which we attach to bio on submit and
+it is natural to cleanup unused allocation in dio_cleanup().
 
-  As I promised in my LSF/MM summit proposal here are initial patches
-implementing mapping range lock. There's ext3 converted to fully use the
-range locks, converting other filesystems shouldn't be difficult but I want
-to spend time on it only after we are sure what we want. The following part
-is copied from the LSF/MM proposal, below it are some performance numbers.
+Since dio_cleanup() is called again after submitting the last bio it is
+enough to just remove the first dio_cleanup() call.
 
-There are several different motivations for implementing mapping range
-locking:
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ fs/direct-io.c |    4 +---
+ 1 files changed, 1 insertions(+), 3 deletions(-)
 
-a) Punch hole is currently racy wrt mmap (page can be faulted in in the
-   punched range after page cache has been invalidated) leading to nasty
-   results as fs corruption (we can end up writing to already freed block),
-   user exposure of uninitialized data, etc. To fix this we need some new
-   mechanism of serializing hole punching and page faults.
-
-b) There is an uncomfortable number of mechanisms serializing various paths
-   manipulating pagecache and data underlying it. We have i_mutex, page lock,
-   checks for page beyond EOF in pagefault code, i_dio_count for direct IO.
-   Different pairs of operations are serialized by different mechanisms and
-   not all the cases are covered. Case (a) above is likely the worst but DIO
-   vs buffered IO isn't ideal either (we provide only limited consistency).
-   The range locking should somewhat simplify serialization of pagecache
-   operations. So i_dio_count can be removed completely, i_mutex to certain
-   extent (we still need something for things like timestamp updates,
-   possibly for i_size changes although those can be dealt with I think).
-
-c) i_mutex doesn't allow any paralellism of operations using it and some
-   filesystems workaround this for specific cases (e.g. DIO reads). Using
-   range locking allows for concurrent operations (e.g. writes, DIO) on
-   different parts of the file. Of course, range locking itself isn't
-   enough to make the parallelism possible. Filesystems still have to
-   somehow deal with the concurrency when manipulating inode allocation
-   data. But the range locking at least provides a common VFS mechanism for
-   serialization VFS itself needs and it's upto each filesystem to
-   serialize more if it needs to.
-
-How it works:
-------------
-
-General idea is that range lock for range x-y prevents creation of pages in
-that range.
-
-In practice this means:
-----------------------
-
-All read paths adding page to page cache and grab_cache_page_write_begin()
-first take range lock for the index, then insert locked page, and finally
-unlock the range. See below on why buffered IO uses range locks on per-page
-basis.
-
-DIO gets range lock at the moment it submits bio for the range covering
-pages in the bio. Then pagecache is truncated and bio submitted. Range lock
-is unlocked once bio is completed.
-
-Punch hole for range x-y takes range lock for the range before truncating
-page cache and the lock is released after filesystem blocks for the range
-are freed.
-
-Truncate to size x is equivalent to punch hole for the range x - ~0UL.
-
-The reason why we take the range lock for buffered IO on per-page basis and
-for DIO for each bio separately is lock ordering with mmap_sem. Page faults
-need to instantiate page under mmap_sem. That establishes mmap_sem > range
-lock. Buffered IO takes mmap_sem when prefaulting pages so we cannot hold
-range lock at that moment. Similarly get_user_pages() in DIO code takes
-mmap_sem so we have be sure not to hold range lock when calling that.
-
-How much does it cost:
----------------------
-
-There's a memory cost - an extra pointer and spinlock in struct
-address_space, 64 bytes on stack for buffered IO, truncate, punch hole, and
-dynamically allocated 72-byte structure per each BIO submitted by direct IO.
-
-And there's a cpu cost. I measured it on an 8 CPU machine with 4 GB of memory
-with ext2 (yes, I added support also for ext2 and used it for measurements as
-especially write results are much less noisy) over 1G ramdisk. The workloads
-were generated by FIO and were 1) read 800 MB file, 2) overwrite 800 MB file,
-3) mmap read 800 MB file. Each test was run 30 times.
-
-The results are here (times to complete in ms):
-	Vanilla				Range Locks
-	Avg		Stddev		Avg		Stddev
-READ	1133.566667	11.954590	1137.06666	7.827019
-WRITE	1069.300000	7.996458	1101.200000	8.607748
-MMAP	1416.733333	28.459250	1421.900000	30.636960
-
-So we see READ and MMAP time changes are in the noise (although for reads
-there seem to be about 1% cost if I compare more tests), for WRITE the cost
-barely stands out of the noise at ~3% (and here I verified with perf what's
-going on and indeed the range_lock() and range_unlock() calls cost in total
-close to 3% of CPU time).
-
-So the cost is noticeable. Is it a problem? Maybe, not sure... We could
-likely optimize the lock-single-page range case but I wanted to start
-simple and get some feedback first.
-
-								Honza
+diff --git a/fs/direct-io.c b/fs/direct-io.c
+index cf5b44b..3a430f3 100644
+--- a/fs/direct-io.c
++++ b/fs/direct-io.c
+@@ -1209,10 +1209,8 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
+ 			((sdio.final_block_in_request - sdio.block_in_file) <<
+ 					blkbits);
+ 
+-		if (retval) {
+-			dio_cleanup(dio, &sdio);
++		if (retval)
+ 			break;
+-		}
+ 	} /* end iovec loop */
+ 
+ 	if (retval == -ENOTBLK) {
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
