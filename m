@@ -1,35 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id E853D6B0005
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:07:41 -0500 (EST)
-Date: Fri, 1 Feb 2013 10:06:55 +1100
-From: paul.szabo@sydney.edu.au
-Message-Id: <201301312306.r0VN6tBx012280@como.maths.usyd.edu.au>
-Subject: Re: Bug#695182: [RFC] Reproducible OOM with just a few sleeps
-In-Reply-To: <1359639529.31386.49.camel@deadeye.wl.decadent.org.uk>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id B55DF6B0005
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:29:43 -0500 (EST)
+Date: Fri, 1 Feb 2013 08:29:41 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [patch 2/3 v2]swap: make each swap partition have one
+ address_space
+Message-ID: <20130131232941.GA6262@blaptop>
+References: <20130122022951.GB12293@kernel.org>
+ <20130123061645.GF2723@blaptop>
+ <20130123073655.GA31672@kernel.org>
+ <20130123080420.GI2723@blaptop>
+ <1358991596.3351.9.camel@kernel>
+ <20130124022241.GB22654@blaptop>
+ <20130124024311.GA26602@kernel.org>
+ <20130124051910.GD22654@blaptop>
+ <20130124102414.GA10025@kernel.org>
+ <20130131135042.ae633246.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130131135042.ae633246.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 695182@bugs.debian.org, ben@decadent.org.uk
-Cc: dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@ucw.cz
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shaohua Li <shli@kernel.org>, Simon Jeons <simon.jeons@gmail.com>, linux-mm@kvack.org, hughd@google.com, riel@redhat.com
 
-Dear Ben,
+Hi Andrew,
 
-> Based on your experience I might propose to change the automatic kernel
-> selection for i386 so that we use 'amd64' on a system with >16GB RAM and
-> a capable processor.
+On Thu, Jan 31, 2013 at 01:50:42PM -0800, Andrew Morton wrote:
+> On Thu, 24 Jan 2013 18:24:14 +0800
+> Shaohua Li <shli@kernel.org> wrote:
+> 
+> > Subject: mm: add memory barrier to prevent SwapCache bit and page private out of order
+> > 
+> > page_mapping() checks SwapCache bit first and then read page private. Adding
+> > memory barrier so page private has correct value before SwapCache bit set.
+> > 
+> > In some cases, page_mapping() isn't called with page locked. Without doing
+> > this, we might get a wrong swap address space with SwapCache bit set. Though I
+> > didn't found a problem with this so far (such code typically only checks if the
+> > page has mapping or the mapping can be dirty or migrated), this is too subtle
+> > and error-prone, so we want to avoid it.
+> > 
+> > ...
+> >
+> > --- linux.orig/mm/swap_state.c	2013-01-22 10:12:33.514490665 +0800
+> > +++ linux/mm/swap_state.c	2013-01-24 18:08:05.149390977 +0800
+> > @@ -89,6 +89,7 @@ static int __add_to_swap_cache(struct pa
+> >  
+> >  	page_cache_get(page);
+> >  	set_page_private(page, entry.val);
+> > +	smp_wmb();
+> >  	SetPageSwapCache(page);
+> 
+> SetPageSwapCache() uses set_bit() and arch/x86/include/asm/bitops.h
+> says "This function is atomic and may not be reordered".  
 
-Don't you mean change to amd64 for >4GB (or any RAM), never using PAE?
-PAE is broken for any amount of RAM. More precisely, PAE with any RAM
-fails the "sleep test":
-  n=0; while [ $n -lt 33000 ]; do sleep 600 & ((n=n+1)); done
-and with >32GB fails the "write test":
-  n=0; while [ $n -lt 99 ]; do dd bs=1M count=1024 if=/dev/zero of=x$n; ((n=n+1)); done
-Why do you think 16GB is significant?
+And says below.
 
-Thanks, Paul
+ * Note: there are no guarantees that this function will not be reordered
+ * on non x86 architectures, so if you are writing portable code,
+ * make sure not to rely on its reordering guarantees.
 
-Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
-School of Mathematics and Statistics   University of Sydney    Australia
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
