@@ -1,64 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 8B5C26B0005
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 16:51:39 -0500 (EST)
-Message-ID: <510AE763.6090907@zytor.com>
-Date: Thu, 31 Jan 2013 13:51:31 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 083486B000A
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 16:55:29 -0500 (EST)
+Received: by mail-ia0-f174.google.com with SMTP id o25so4435795iad.5
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2013 13:55:29 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] rip out x86_32 NUMA remapping code
+In-Reply-To: <510AE763.6090907@zytor.com>
 References: <20130131005616.1C79F411@kernel.stglabs.ibm.com>
-In-Reply-To: <20130131005616.1C79F411@kernel.stglabs.ibm.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+	<510AE763.6090907@zytor.com>
+Date: Thu, 31 Jan 2013 13:55:29 -0800
+Message-ID: <CAE9FiQVn6_QZi3fNQ-JHYiR-7jeDJ5hT0SyT_+zVvfOj=PzF3w@mail.gmail.com>
+Subject: Re: [RFC][PATCH] rip out x86_32 NUMA remapping code
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/30/2013 04:56 PM, Dave Hansen wrote:
-> This code was an optimization for 32-bit NUMA systems.
-> 
-> It has probably been the cause of a number of subtle bugs over
-> the years, although the conditions to excite them would have
-> been hard to trigger.  Essentially, we remap part of the kernel
-> linear mapping area, and then sometimes part of that area gets
-> freed back in to the bootmem allocator.  If those pages get
-> used by kernel data structures (say mem_map[] or a dentry),
-> there's no big deal.  But, if anyone ever tried to use the
-> linear mapping for these pages _and_ cared about their physical
-> address, bad things happen.
-> 
-> For instance, say you passed __GFP_ZERO to the page allocator
-> and then happened to get handed one of these pages, it zero the
-> remapped page, but it would make a pte to the _old_ page.
-> There are probably a hundred other ways that it could screw
-> with things.
-> 
-> We don't need to hang on to performance optimizations for
-> these old boxes any more.  All my 32-bit NUMA systems are long
-> dead and buried, and I probably had access to more than most
-> people.
-> 
-> This code is causing real things to break today:
-> 
-> 	https://lkml.org/lkml/2013/1/9/376
-> 
-> I looked in to actually fixing this, but it requires surgery
-> to way too much brittle code, as well as stuff like
-> per_cpu_ptr_to_phys().
-> 
+On Thu, Jan 31, 2013 at 1:51 PM, H. Peter Anvin <hpa@zytor.com> wrote:
+> I get a build failure on i386 allyesconfig with this patch:
+>
+> arch/x86/power/built-in.o: In function `swsusp_arch_resume':
+> (.text+0x14e4): undefined reference to `resume_map_numa_kva'
+>
+> It looks trivial to fix up; I assume resume_map_numa_kva() just goes
+> away like it does in the non-NUMA case, but it would be nice if you
+> could confirm that.
 
-I get a build failure on i386 allyesconfig with this patch:
+the patches does not seem to complete.
 
-arch/x86/power/built-in.o: In function `swsusp_arch_resume':
-(.text+0x14e4): undefined reference to `resume_map_numa_kva'
+at least, it does not remove
 
-It looks trivial to fix up; I assume resume_map_numa_kva() just goes
-away like it does in the non-NUMA case, but it would be nice if you
-could confirm that.
-
-	-hpa
+arch/x86/mm/numa.c:     nd = alloc_remap(nid, nd_size);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
