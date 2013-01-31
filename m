@@ -1,89 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id BFD086B0007
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 08:39:07 -0500 (EST)
-Message-ID: <1359639529.31386.49.camel@deadeye.wl.decadent.org.uk>
-Subject: Re: Bug#695182: [RFC] Reproducible OOM with just a few sleeps
-From: Ben Hutchings <ben@decadent.org.uk>
-Date: Thu, 31 Jan 2013 13:38:49 +0000
-In-Reply-To: <201301310907.r0V974j9017335@como.maths.usyd.edu.au>
-References: <201301310907.r0V974j9017335@como.maths.usyd.edu.au>
-Content-Type: multipart/signed; micalg="pgp-sha512";
-	protocol="application/pgp-signature"; boundary="=-+lwp0YMlp66EOvuHrCWf"
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 8A39A6B0007
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 09:52:45 -0500 (EST)
+Message-ID: <1359643356.15120.158.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device
+ hotplug framework
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 31 Jan 2013 07:42:36 -0700
+In-Reply-To: <20130131052448.GC3228@kroah.com>
+References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
+	 <5036592.TuXAnGzk4M@vostro.rjw.lan>
+	 <1358177628.14145.49.camel@misato.fc.hp.com>
+	 <2154272.qDAyBlTr8z@vostro.rjw.lan>
+	 <1358190124.14145.79.camel@misato.fc.hp.com>
+	 <20130130044859.GD30002@kroah.com>
+	 <1359594912.15120.85.camel@misato.fc.hp.com>
+	 <20130131052448.GC3228@kroah.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paul.szabo@sydney.edu.au, 695182@bugs.debian.org
-Cc: dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@ucw.cz
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "bhelgaas@google.com" <bhelgaas@google.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "srivatsa.bhat@linux.vnet.ibm.com" <srivatsa.bhat@linux.vnet.ibm.com>
 
+On Thu, 2013-01-31 at 05:24 +0000, Greg KH wrote:
+> On Wed, Jan 30, 2013 at 06:15:12PM -0700, Toshi Kani wrote:
+> > > Please make it a "real" pointer, and not a void *, those shouldn't be
+> > > used at all if possible.
+> > 
+> > How about changing the "void *handle" to acpi_dev_node below?   
+> > 
+> >    struct acpi_dev_node    acpi_node;
+> > 
+> > Basically, it has the same challenge as struct device, which uses
+> > acpi_dev_node as well.  We can add other FW node when needed (just like
+> > device also has *of_node).
+> 
+> That sounds good to me.
 
---=-+lwp0YMlp66EOvuHrCWf
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Great!  Thanks Greg,
+-Toshi
 
-On Thu, 2013-01-31 at 20:07 +1100, paul.szabo@sydney.edu.au wrote:
-> Dear Ben,
->=20
-> Thanks for the repeated explanations.
->=20
-> > PAE was a stop-gap ...
-> > ... [PAE] completely untenable.
->=20
-> Is this a good time to withdraw PAE, to tell the world that it does not
-> work? Maybe you should have had such comments in the code.
->=20
-> Seems that amd64 now works "somewhat": on Debian the linux-image package
-> is tricky to install,
-
-If you do an i386 (userland) installation then you must either select
-expert mode to get a choice of kernel packages, or else install the
-'amd64' kernel package afterward.
-
-> and linux-headers is even harder.
-
-In what way?
-
-> Is there work being done to make this smoother?
-[...]
-
-Debian users are now generally installing a full amd64 (userland and
-kernel installation.  The default installation image linked from
-www.debian.org is the 32/64-bit net-installer which will install amd64
-if the system is capable of it.
-
-Based on your experience I might propose to change the automatic kernel
-selection for i386 so that we use 'amd64' on a system with >16GB RAM and
-a capable processor.
-
-Ben.
-
---=20
-Ben Hutchings
-If more than one person is responsible for a bug, no one is at fault.
-
---=-+lwp0YMlp66EOvuHrCWf
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIVAwUAUQpz6ee/yOyVhhEJAQqtKA//ezPwszvsoAa5vbxC40SctisDQcRcoUvg
-ify8qz+Ncu6u75VhAq1Pm1dPIrIf3hG6f/o9Oecq3z5BeejRBy3QbBovrI+k9TMq
-4X96XtZkf2c5qyNcTZUyC2rsaU/QUZK+qTAZ9UDuWLnrVfIPOLbLxogbb8oA78IB
-ztdc+j44jMkm+ZMpzYd+G51glVkzftkDSLV+EKspB4fKDmY/m+v5J/kRdcvd5sEI
-VNfH8/u5JLw/wj+/2MhHQuppOltHxn+cI0lGW+QXAkZLoegfxV8JFtKw8ch7lZDr
-VqnNrGQ6NJ1g69sFfYySS4ZDmnOfUfj+hXu444JlArz7F1GmBQocvAT5VQktSKAq
-t+b7MfMNkf6eSgiQ73Qxk6z4+bgK2FpiBVv0q7JIhOK8GGNxtfGTYHXZmwSGgsiS
-jAr7ziMiYNuSDM7BNg4eiCOdgAWC/avxmR45Tbhkz33AH4+YrHQHzX6sHUqe6I7/
-KR7dDYny1M5zICtZ/MKNfrRMCY/DvQWqSyG5gDItuBMb21UT6bNxOrPBxezozti6
-ZJnWssBWjQQ6YHC/259Raa5oiiCZzTsCZlqdtSruphGTi7x5NRxa79VVCCGrlk8/
-rO04AzUOk2Y8WGOefqtxlamKbrCPCnLLgTEwN2Fglb0q5dRrteMnN9NYCAnls0kc
-hG6DqhXgBhI=
-=aiTr
------END PGP SIGNATURE-----
-
---=-+lwp0YMlp66EOvuHrCWf--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
