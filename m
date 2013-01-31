@@ -1,354 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 194516B0008
-	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 22:05:35 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fb10so1458274pad.2
-        for <linux-mm@kvack.org>; Wed, 30 Jan 2013 19:05:34 -0800 (PST)
-Date: Wed, 30 Jan 2013 19:05:29 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/3] mm: accelerate mm_populate() treatment of THP
- pages
-In-Reply-To: <1359591980-29542-3-git-send-email-walken@google.com>
-Message-ID: <alpine.LNX.2.00.1301301855350.25423@eggly.anvils>
-References: <1359591980-29542-1-git-send-email-walken@google.com> <1359591980-29542-3-git-send-email-walken@google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 7F6B86B0007
+	for <linux-mm@kvack.org>; Wed, 30 Jan 2013 22:07:51 -0500 (EST)
+Message-ID: <1359601065.15120.156.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device
+ hotplug framework
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 30 Jan 2013 19:57:45 -0700
+In-Reply-To: <20130130045830.GH30002@kroah.com>
+References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
+	 <1357861230-29549-2-git-send-email-toshi.kani@hp.com>
+	 <20130130045830.GH30002@kroah.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: rjw@sisk.pl, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
 
-On Wed, 30 Jan 2013, Michel Lespinasse wrote:
+On Tue, 2013-01-29 at 23:58 -0500, Greg KH wrote:
+> On Thu, Jan 10, 2013 at 04:40:19PM -0700, Toshi Kani wrote:
+> > +/*
+> > + * Hot-plug device information
+> > + */
+> 
+> Again, stop it with the "generic" hotplug term here, and everywhere
+> else.  You are doing a very _specific_ type of hotplug devices, so spell
+> it out.  We've worked hard to hotplug _everything_ in Linux, you are
+> going to confuse a lot of people with this type of terms.
 
-> This change adds a page_mask argument to follow_page.
-> 
-> follow_page sets *page_mask to HPAGE_PMD_NR - 1 when it encounters a THP page,
-> and to 0 in other cases.
-> 
-> __get_user_pages() makes use of this in order to accelerate populating
-> THP ranges - that is, when both the pages and vmas arrays are NULL,
-> we don't need to iterate HPAGE_PMD_NR times to cover a single THP page
-> (and we also avoid taking mm->page_table_lock that many times).
-> 
-> Other follow_page() call sites can safely ignore the value returned in
-> *page_mask.
-> 
-> Signed-off-by: Michel Lespinasse <walken@google.com>
+Agreed.  I will clarify in all places.
 
-I certainly like the skipping.
-
-But (a) if the additional arg has to exist, then I'd much prefer it
-to be page_size than page_mask - I realize there's a tiny advantage to
-subtracting 1 from an immediate than from a variable, but I don't think
-it justifies the peculiar interface.  mask makes people think of masking.
-
-And (b) why can't we just omit the additional arg, and get it from the
-page found?  You've explained the unreliability of the !FOLL_GET case
-to me privately, but that needs to be spelt out in the commit comment
-(and I'd love if we found a counter-argument, the extra arg of interest
-to almost no-one does irritate me).
-
-Hugh
-
+> > +union shp_dev_info {
+> > +	struct shp_cpu {
+> > +		u32		cpu_id;
+> > +	} cpu;
 > 
-> ---
->  arch/ia64/xen/xencomm.c    |  3 ++-
->  arch/powerpc/kernel/vdso.c |  9 +++++----
->  arch/s390/mm/pgtable.c     |  3 ++-
->  include/linux/mm.h         |  2 +-
->  mm/ksm.c                   | 10 +++++++---
->  mm/memory.c                | 25 +++++++++++++++++++------
->  mm/migrate.c               |  7 +++++--
->  mm/mlock.c                 |  4 +++-
->  8 files changed, 44 insertions(+), 19 deletions(-)
+> What is this?  Why not point to the system device for the cpu?
+
+This info is used to on-line a new CPU and create its system/cpu device.
+In other word, a system/cpu device is created as a result of CPU
+hotplug.
+
+> > +	struct shp_memory {
+> > +		int		node;
+> > +		u64		start_addr;
+> > +		u64		length;
+> > +	} mem;
 > 
-> diff --git a/arch/ia64/xen/xencomm.c b/arch/ia64/xen/xencomm.c
-> index 73d903ca2d64..c5dcf3a574e9 100644
-> --- a/arch/ia64/xen/xencomm.c
-> +++ b/arch/ia64/xen/xencomm.c
-> @@ -44,6 +44,7 @@ xencomm_vtop(unsigned long vaddr)
->  {
->  	struct page *page;
->  	struct vm_area_struct *vma;
-> +	long page_mask;
->  
->  	if (vaddr == 0)
->  		return 0UL;
-> @@ -98,7 +99,7 @@ xencomm_vtop(unsigned long vaddr)
->  		return ~0UL;
->  
->  	/* We assume the page is modified.  */
-> -	page = follow_page(vma, vaddr, FOLL_WRITE | FOLL_TOUCH);
-> +	page = follow_page(vma, vaddr, FOLL_WRITE | FOLL_TOUCH, &page_mask);
->  	if (IS_ERR_OR_NULL(page))
->  		return ~0UL;
->  
-> diff --git a/arch/powerpc/kernel/vdso.c b/arch/powerpc/kernel/vdso.c
-> index 1b2076f049ce..a529502d60f9 100644
-> --- a/arch/powerpc/kernel/vdso.c
-> +++ b/arch/powerpc/kernel/vdso.c
-> @@ -156,6 +156,7 @@ static void dump_one_vdso_page(struct page *pg, struct page *upg)
->  static void dump_vdso_pages(struct vm_area_struct * vma)
->  {
->  	int i;
-> +	long page_mask;
->  
->  	if (!vma || is_32bit_task()) {
->  		printk("vDSO32 @ %016lx:\n", (unsigned long)vdso32_kbase);
-> @@ -163,8 +164,8 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
->  			struct page *pg = virt_to_page(vdso32_kbase +
->  						       i*PAGE_SIZE);
->  			struct page *upg = (vma && vma->vm_mm) ?
-> -				follow_page(vma, vma->vm_start + i*PAGE_SIZE, 0)
-> -				: NULL;
-> +				follow_page(vma, vma->vm_start + i*PAGE_SIZE,
-> +					    0, &page_mask) : NULL;
->  			dump_one_vdso_page(pg, upg);
->  		}
->  	}
-> @@ -174,8 +175,8 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
->  			struct page *pg = virt_to_page(vdso64_kbase +
->  						       i*PAGE_SIZE);
->  			struct page *upg = (vma && vma->vm_mm) ?
-> -				follow_page(vma, vma->vm_start + i*PAGE_SIZE, 0)
-> -				: NULL;
-> +				follow_page(vma, vma->vm_start + i*PAGE_SIZE,
-> +					    0, &page_mask) : NULL;
->  			dump_one_vdso_page(pg, upg);
->  		}
->  	}
-> diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-> index ae44d2a34313..63e897a6cf45 100644
-> --- a/arch/s390/mm/pgtable.c
-> +++ b/arch/s390/mm/pgtable.c
-> @@ -792,9 +792,10 @@ void thp_split_vma(struct vm_area_struct *vma)
->  {
->  	unsigned long addr;
->  	struct page *page;
-> +	long page_mask;
->  
->  	for (addr = vma->vm_start; addr < vma->vm_end; addr += PAGE_SIZE) {
-> -		page = follow_page(vma, addr, FOLL_SPLIT);
-> +		page = follow_page(vma, addr, FOLL_SPLIT, &page_mask);
->  	}
->  }
->  
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index d5716094f191..6dc0ce370df5 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1636,7 +1636,7 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
->  			unsigned long pfn);
->  
->  struct page *follow_page(struct vm_area_struct *, unsigned long address,
-> -			unsigned int foll_flags);
-> +			 unsigned int foll_flags, long *page_mask);
->  #define FOLL_WRITE	0x01	/* check pte is writable */
->  #define FOLL_TOUCH	0x02	/* mark page accessed */
->  #define FOLL_GET	0x04	/* do get_page on page */
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index 51573858938d..76dfb7133aa4 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -330,10 +330,11 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
->  {
->  	struct page *page;
->  	int ret = 0;
-> +	long page_mask;
->  
->  	do {
->  		cond_resched();
-> -		page = follow_page(vma, addr, FOLL_GET);
-> +		page = follow_page(vma, addr, FOLL_GET, &page_mask);
->  		if (IS_ERR_OR_NULL(page))
->  			break;
->  		if (PageKsm(page))
-> @@ -427,13 +428,14 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
->  	unsigned long addr = rmap_item->address;
->  	struct vm_area_struct *vma;
->  	struct page *page;
-> +	long page_mask;
->  
->  	down_read(&mm->mmap_sem);
->  	vma = find_mergeable_vma(mm, addr);
->  	if (!vma)
->  		goto out;
->  
-> -	page = follow_page(vma, addr, FOLL_GET);
-> +	page = follow_page(vma, addr, FOLL_GET, &page_mask);
->  	if (IS_ERR_OR_NULL(page))
->  		goto out;
->  	if (PageAnon(page) || page_trans_compound_anon(page)) {
-> @@ -1289,6 +1291,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
->  	struct mm_slot *slot;
->  	struct vm_area_struct *vma;
->  	struct rmap_item *rmap_item;
-> +	long page_mask;
->  
->  	if (list_empty(&ksm_mm_head.mm_list))
->  		return NULL;
-> @@ -1342,7 +1345,8 @@ next_mm:
->  		while (ksm_scan.address < vma->vm_end) {
->  			if (ksm_test_exit(mm))
->  				break;
-> -			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
-> +			*page = follow_page(vma, ksm_scan.address, FOLL_GET,
-> +					    &page_mask);
->  			if (IS_ERR_OR_NULL(*page)) {
->  				ksm_scan.address += PAGE_SIZE;
->  				cond_resched();
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 381b78c20d84..1becba27c28a 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1470,7 +1470,7 @@ EXPORT_SYMBOL_GPL(zap_vma_ptes);
->   * by a page descriptor (see also vm_normal_page()).
->   */
->  struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-> -			unsigned int flags)
-> +			 unsigned int flags, long *page_mask)
->  {
->  	pgd_t *pgd;
->  	pud_t *pud;
-> @@ -1480,6 +1480,8 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
->  	struct page *page;
->  	struct mm_struct *mm = vma->vm_mm;
->  
-> +	*page_mask = 0;
-> +
->  	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
->  	if (!IS_ERR(page)) {
->  		BUG_ON(flags & FOLL_GET);
-> @@ -1526,6 +1528,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
->  				page = follow_trans_huge_pmd(vma, address,
->  							     pmd, flags);
->  				spin_unlock(&mm->page_table_lock);
-> +				*page_mask = HPAGE_PMD_NR - 1;
->  				goto out;
->  			}
->  		} else
-> @@ -1680,6 +1683,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  {
->  	long i;
->  	unsigned long vm_flags;
-> +	long page_mask;
->  
->  	if (nr_pages <= 0)
->  		return 0;
-> @@ -1757,6 +1761,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  				get_page(page);
->  			}
->  			pte_unmap(pte);
-> +			page_mask = 0;
->  			goto next_page;
->  		}
->  
-> @@ -1774,6 +1779,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  		do {
->  			struct page *page;
->  			unsigned int foll_flags = gup_flags;
-> +			long page_increm;
->  
->  			/*
->  			 * If we have a pending SIGKILL, don't keep faulting
-> @@ -1783,7 +1789,8 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  				return i ? i : -ERESTARTSYS;
->  
->  			cond_resched();
-> -			while (!(page = follow_page(vma, start, foll_flags))) {
-> +			while (!(page = follow_page(vma, start, foll_flags,
-> +						    &page_mask))) {
->  				int ret;
->  				unsigned int fault_flags = 0;
->  
-> @@ -1857,13 +1864,19 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  
->  				flush_anon_page(vma, page, start);
->  				flush_dcache_page(page);
-> +				page_mask = 0;
->  			}
->  next_page:
-> -			if (vmas)
-> +			if (vmas) {
->  				vmas[i] = vma;
-> -			i++;
-> -			start += PAGE_SIZE;
-> -			nr_pages--;
-> +				page_mask = 0;
-> +			}
-> +			page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
-> +			if (page_increm > nr_pages)
-> +				page_increm = nr_pages;
-> +			i += page_increm;
-> +			start += page_increm * PAGE_SIZE;
-> +			nr_pages -= page_increm;
->  		} while (nr_pages && start < vma->vm_end);
->  	} while (nr_pages);
->  	return i;
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index c38778610aa8..daa5726c9c46 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1124,6 +1124,7 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
->  	int err;
->  	struct page_to_node *pp;
->  	LIST_HEAD(pagelist);
-> +	long page_mask;
->  
->  	down_read(&mm->mmap_sem);
->  
-> @@ -1139,7 +1140,8 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
->  		if (!vma || pp->addr < vma->vm_start || !vma_migratable(vma))
->  			goto set_status;
->  
-> -		page = follow_page(vma, pp->addr, FOLL_GET|FOLL_SPLIT);
-> +		page = follow_page(vma, pp->addr, FOLL_GET | FOLL_SPLIT,
-> +				   &page_mask);
->  
->  		err = PTR_ERR(page);
->  		if (IS_ERR(page))
-> @@ -1291,6 +1293,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
->  				const void __user **pages, int *status)
->  {
->  	unsigned long i;
-> +	long page_mask;
->  
->  	down_read(&mm->mmap_sem);
->  
-> @@ -1304,7 +1307,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
->  		if (!vma || addr < vma->vm_start)
->  			goto set_status;
->  
-> -		page = follow_page(vma, addr, 0);
-> +		page = follow_page(vma, addr, 0, &page_mask);
->  
->  		err = PTR_ERR(page);
->  		if (IS_ERR(page))
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> index e1fa9e4b0a66..2694f17cca2d 100644
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -223,6 +223,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
->  			     unsigned long start, unsigned long end)
->  {
->  	unsigned long addr;
-> +	long page_mask;
->  
->  	lru_add_drain();
->  	vma->vm_flags &= ~VM_LOCKED;
-> @@ -236,7 +237,8 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
->  		 * suits munlock very well (and if somehow an abnormal page
->  		 * has sneaked into the range, we won't oops here: great).
->  		 */
-> -		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
-> +		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP,
-> +				   &page_mask);
->  		if (page && !IS_ERR(page)) {
->  			lock_page(page);
->  			munlock_vma_page(page);
-> -- 
-> 1.8.1
+> Same here, why not point to the system device?
+
+Same as above.
+
+> > +	struct shp_hostbridge {
+> > +	} hb;
+> > +
+> > +	struct shp_node {
+> > +	} node;
 > 
+> What happened here with these?  Empty structures?  Huh?
+
+They are place holders for now.  PCI bridge hot-plug and node hot-plug
+are still very much work in progress, so I have not integrated them into
+this framework yet.
+
+> > +};
+> > +
+> > +struct shp_device {
+> > +	struct list_head	list;
+> > +	struct device		*device;
+> 
+> No, make it a "real" device, embed the device into it.
+
+This device pointer is used to send KOBJ_ONLINE/OFFLINE event during CPU
+online/offline operation in order to maintain the current behavior.  CPU
+online/offline operation only changes the state of CPU, so its
+system/cpu device continues to be present before and after an operation.
+(Whereas, CPU hot-add/delete operation creates or removes a system/cpu
+device.)  So, this "*device" needs to be a pointer to reference an
+existing device that is to be on-lined/off-lined.
+
+> But, again, I'm going to ask why you aren't using the existing cpu /
+> memory / bridge / node devices that we have in the kernel.  Please use
+> them, or give me a _really_ good reason why they will not work.
+
+We cannot use the existing system devices or ACPI devices here.  During
+hot-plug, ACPI handler sets this shp_device info, so that cpu and memory
+handlers (drivers/cpu.c and mm/memory_hotplug.c) can obtain their target
+device information in a platform-neutral way.  During hot-add, we first
+creates an ACPI device node (i.e. device under /sys/bus/acpi/devices),
+but platform-neutral modules cannot use them as they are ACPI-specific.
+Also, its system device (i.e. device under /sys/devices/system) has not
+been created until the hot-add operation completes.
+
+> > +	enum shp_class		class;
+> > +	union shp_dev_info	info;
+> > +};
+> > +
+> > +/*
+> > + * Hot-plug request
+> > + */
+> > +struct shp_request {
+> > +	/* common info */
+> > +	enum shp_operation	operation;	/* operation */
+> > +
+> > +	/* hot-plug event info: only valid for hot-plug operations */
+> > +	void			*handle;	/* FW handle */
+> > +	u32			event;		/* FW event */
+> 
+> What is this?
+
+The shp_request describes a hotplug or online/offline operation that is
+requested.  In case of hot-plug request, the "*handle" describes a
+target device (which is an ACPI device object) and the "event" describes
+a type of request, such as hot-add or hot-delete.
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
