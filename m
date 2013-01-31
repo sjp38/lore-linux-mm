@@ -1,77 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 8476E6B0007
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 04:44:58 -0500 (EST)
-Message-ID: <510A3CE6.202@cn.fujitsu.com>
-Date: Thu, 31 Jan 2013 17:44:06 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id D326D6B000A
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 05:12:06 -0500 (EST)
+Received: by mail-qe0-f43.google.com with SMTP id 3so621496qeb.2
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2013 02:12:05 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
-References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>    <1359463973.1624.15.camel@kernel> <5108F2B3.3090506@cn.fujitsu.com>   <1359595344.1557.13.camel@kernel> <5109E59F.5080104@cn.fujitsu.com>  <1359613162.1587.0.camel@kernel> <510A18FA.2010107@cn.fujitsu.com> <1359622123.1391.19.camel@kernel>
-In-Reply-To: <1359622123.1391.19.camel@kernel>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Reply-To: sedat.dilek@gmail.com
+Date: Thu, 31 Jan 2013 11:12:05 +0100
+Message-ID: <CA+icZUVHrGcGnRcBQF1HLsR4HKOjLsOi6MppPnZCuh8K=wMHmA@mail.gmail.com>
+Subject: Re: BUG: circular locking dependency detected
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: Dave Airlie <airlied@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Greg KH <gregkh@suse.de>, DRI <dri-devel@lists.freedesktop.org>, linux-fbdev@vger.kernel.org, linux-next <linux-next@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Takashi Iwai <tiwai@suse.de>
 
-Hi Simon,
+[ CCing Linux-Next and MMOTM folks ]
 
-On 01/31/2013 04:48 PM, Simon Jeons wrote:
-> Hi Tang,
-> On Thu, 2013-01-31 at 15:10 +0800, Tang Chen wrote:
->
-> 1. IIUC, there is a button on machine which supports hot-remove memory,
-> then what's the difference between press button and echo to /sys?
+Original posting from Daniel see [0]
 
-No important difference, I think. Since I don't have the machine you are
-saying, I cannot surely answer you. :)
-AFAIK, pressing the button means trigger the hotplug from hardware, sysfs
-is just another entrance. At last, they will run into the same code.
+[ QUOTE ]
+On Thu, Jan 31, 2013 at 6:40 AM, Greg Kroah-Hartman
+<gregkh@linuxfoundation.org> wrote:
+> On Thu, Jan 31, 2013 at 11:26:53AM +1100, Linus Torvalds wrote:
+>> On Thu, Jan 31, 2013 at 11:13 AM, Russell King <rmk@arm.linux.org.uk> wrote:
+>> >
+>> > Which may or may not be a good thing depending how you look at it; it
+>> > means that once your kernel blanks, you get a lockdep dump.  At that
+>> > point you lose lockdep checking for everything else because lockdep
+>> > disables itself after the first dump.
+>>
+>> Fair enough, we may want to revert the lockdep checking for
+>> console_lock, and make re-enabling it part of the patch-series that
+>> fixes the locking.
+>>
+>> Daniel/Dave? Does that sound reasonable?
 
-> 2. Since kernel memory is linear mapping(I mean direct mapping part),
-> why can't put kernel direct mapping memory into one memory device, and
-> other memory into the other devices?
+Yeah, sounds good.
 
-We cannot do that because in that way, we will lose NUMA performance.
+> Reverting the patch is fine with me.  Just let me know so I can queue it
+> up again for 3.9.
 
-If you know NUMA, you will understand the following example:
+Can you please also pick up the (currently) three locking fixups
+around fbcon? Just so that we don't repeat the same fun where people
+complain about lockdep splats, but the fixes are stuck somewhere. And
+I guess Dave would be happy to not end up as fbcon maintainer ;-) He
+has a git branch with them at
+http://cgit.freedesktop.org/~airlied/linux/log/?h=fbcon-locking-fixes
+though I have a small bikeshed on his last patch pending.
+-Daniel
+[ /QUOTE ]
 
-node0:                    node1:
-    cpu0~cpu15                cpu16~cpu31
-    memory0~memory511         memory512~memory1023
+Did the 3rd patch go also to mmotm tree and got marked for Linux-Next inclusion?
+Best would be to have it in mainline, finally.
+Please, fix that for-3.8!
 
-cpu16~cpu31 access memory16~memory1023 much faster than memory0~memory511.
-If we set direct mapping area in node0, and movable area in node1, then
-the kernel code running on cpu16~cpu31 will have to access 
-memory0~memory511.
-This is a terrible performance down.
+Thanks to all volunteers (Alan, Andrew, Takashi Iwai (Sorry, dunno
+which is 1st and last name), Daniel and finally Dave) trying to get
+this incredible pain-in-the-a** upstream :-).
 
->As you know x86_64 don't need
-> highmem, IIUC, all kernel memory will linear mapping in this case. Is my
-> idea available? If is correct, x86_32 can't implement in the same way
-> since highmem(kmap/kmap_atomic/vmalloc) can map any address, so it's
-> hard to focus kernel memory on single memory device.
+- Sedat -
 
-Sorry, I'm not quite familiar with x86_32 box.
-
-> 3. In current implementation, if memory hotplug just need memory
-> subsystem and ACPI codes support? Or also needs firmware take part in?
-> Hope you can explain in details, thanks in advance. :)
-
-We need firmware take part in, such as SRAT in ACPI BIOS, or the firmware
-based memory migration mentioned by Liu Jiang.
-
-So far, I only know this. :)
-
-> 4. What's the status of memory hotplug? Apart from can't remove kernel
-> memory, other things are fully implementation?
-
-I think the main job is done for now. And there are still bugs to fix.
-And this functionality is not stable.
-
-Thanks. :)
+[0] http://marc.info/?l=dri-devel&m=135962051326601&w=2
+[1] http://cgit.freedesktop.org/~airlied/linux/log/?h=fbcon-locking-fixes
+[2] http://cgit.freedesktop.org/~airlied/linux/commit/?h=fbcon-locking-fixes&id=98dfe36b5532576dedf41408d5bbd45fa31ec62d
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
