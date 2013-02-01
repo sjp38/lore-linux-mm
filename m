@@ -1,74 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id B49286B0005
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 06:51:30 -0500 (EST)
-Message-ID: <1359719487.5642.18.camel@gandalf.local.home>
-Subject: Re: FIX [1/2] slub: Do not dereference NULL pointer in node_match
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Fri, 01 Feb 2013 06:51:27 -0500
-In-Reply-To: <CAOJsxLH6BO_m+6Ys0AG8gHQzmoDovdA8kaAecUhcP5foXoEXUA@mail.gmail.com>
-References: <20130123214514.370647954@linux.com>
-	 <0000013c695fbd30-9023bc55-f780-4d44-965f-ab4507e483d5-000000@email.amazonses.com>
-	 <CAOJsxLH6BO_m+6Ys0AG8gHQzmoDovdA8kaAecUhcP5foXoEXUA@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 19B9B6B0005
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 07:37:44 -0500 (EST)
+Received: by mail-ia0-f182.google.com with SMTP id w33so5291283iag.27
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 04:37:43 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAH9JG2UTnAKHp8FB4rzYDD8VbQ-8S4=j_nAkOwXO4+2HeVrLwQ@mail.gmail.com>
+References: <20130122065341.GA1850@kernel.org>
+	<20130123075808.GH2723@blaptop>
+	<1359018598.2866.5.camel@kernel>
+	<CAH9JG2UpVtxeLB21kx5-_pokK8p_uVZ-2o41Ep--oOyKStBZFQ@mail.gmail.com>
+	<20130127141853.GB27019@kernel.org>
+	<CAH9JG2UTnAKHp8FB4rzYDD8VbQ-8S4=j_nAkOwXO4+2HeVrLwQ@mail.gmail.com>
+Date: Fri, 1 Feb 2013 21:37:43 +0900
+Message-ID: <CAH9JG2Xq2bCJ0Wvtgu3BHjEzDp0F2k6682+toyoRqE7bHs4gag@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
+From: Kyungmin Park <kmpark@infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R. Goncalves" <lgoncalv@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: Shaohua Li <shli@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Simon Jeons <simon.jeons@gmail.com>
 
-On Fri, 2013-02-01 at 12:23 +0200, Pekka Enberg wrote:
-> On Wed, Jan 23, 2013 at 11:45 PM, Christoph Lameter <cl@linux.com> wrote:
-> > The variables accessed in slab_alloc are volatile and therefore
-> > the page pointer passed to node_match can be NULL. The processing
-> > of data in slab_alloc is tentative until either the cmpxhchg
-> > succeeds or the __slab_alloc slowpath is invoked. Both are
-> > able to perform the same allocation from the freelist.
-> >
-> > Check for the NULL pointer in node_match.
-> >
-> > A false positive will lead to a retry of the loop in __slab_alloc.
-> >
-> > Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> Steven, how did you trigger the problem - i.e. is this -rt only
-> problem? Does the patch work for you?
+On Mon, Jan 28, 2013 at 4:37 PM, Kyungmin Park <kmpark@infradead.org> wrote:
+> On Sun, Jan 27, 2013 at 11:18 PM, Shaohua Li <shli@kernel.org> wrote:
+>> On Sat, Jan 26, 2013 at 01:40:55PM +0900, Kyungmin Park wrote:
+>>> Hi,
+>>>
+>>> On 1/24/13, Simon Jeons <simon.jeons@gmail.com> wrote:
+>>> > Hi Minchan,
+>>> > On Wed, 2013-01-23 at 16:58 +0900, Minchan Kim wrote:
+>>> >> On Tue, Jan 22, 2013 at 02:53:41PM +0800, Shaohua Li wrote:
+>>> >> > Hi,
+>>> >> >
+>>> >> > Because of high density, low power and low price, flash storage (SSD) is
+>>> >> > a good
+>>> >> > candidate to partially replace DRAM. A quick answer for this is using
+>>> >> > SSD as
+>>> >> > swap. But Linux swap is designed for slow hard disk storage. There are a
+>>> >> > lot of
+>>> >> > challenges to efficiently use SSD for swap:
+>>> >>
+>>> >> Many of below item could be applied in in-memory swap like zram, zcache.
+>>> >>
+>>> >> >
+>>> >> > 1. Lock contentions (swap_lock, anon_vma mutex, swap address space
+>>> >> > lock)
+>>> >> > 2. TLB flush overhead. To reclaim one page, we need at least 2 TLB
+>>> >> > flush. This
+>>> >> > overhead is very high even in a normal 2-socket machine.
+>>> >> > 3. Better swap IO pattern. Both direct and kswapd page reclaim can do
+>>> >> > swap,
+>>> >> > which makes swap IO pattern is interleave. Block layer isn't always
+>>> >> > efficient
+>>> >> > to do request merge. Such IO pattern also makes swap prefetch hard.
+>>> >>
+>>> >> Agreed.
+>>> >>
+>>> >> > 4. Swap map scan overhead. Swap in-memory map scan scans an array, which
+>>> >> > is
+>>> >> > very inefficient, especially if swap storage is fast.
+>>> >>
+>>> >> Agreed.
+>>> >>
+>>>
+>>> 5. SSD related optimization, mainly discard support.
+>>>
+>>> Now swap codes are based on each swap slots. it means it can't
+>>> optimize discard feature since getting meaningful performance gain, it
+>>> requires 2 pages at least. Of course it's based on eMMC. In case of
+>>> SSD. it requires more pages to support discard.
+>>>
+>>> To address issue. I consider the batched discard approach used at filesystem.
+>>> *Sometime* scan all empty slot and it issues discard continuous swap
+>>> slots as many as possible.
+>>
+>> I posted a patch to make discard async before, which is almost good to me, though we
+>> still discard a cluster.
+>> http://marc.info/?l=linux-mm&m=135087309208120&w=2
+>
+> I found your previous patches, It's almost same concept as batched
+> discard. Now I'm testing your patches.
+> BTW, which test program do you use? Now we just testing some scenario
+> and check scenario only.
+> There's no generic tool to measure improved performance gain.
+>
+> After test, I'll share the results.
+Updated, it has good performance gain than previous one about 4 times.
 
-I haven't tested Christoph's version yet. I've only tested my own. But
-I'll take his and run them through tests as well. This bug is not easy
-to hit.
-
-It is not a -rt only bug, and yes it probably should go to stable. The
-race is extremely small, but -rt creates scenarios that may only be hit
-by 1000 CPU core machines. Because of the preemptive nature of -rt, -rt
-is much more susceptible to race conditions than mainline. But these are
-real bugs for mainline too. It may only trigger once a year, where in
--rt it will trigger once a week.
-
--- Steve
-
-> 
-> > Index: linux/mm/slub.c
-> > ===================================================================
-> > --- linux.orig/mm/slub.c        2013-01-18 08:47:29.198954250 -0600
-> > +++ linux/mm/slub.c     2013-01-18 08:47:40.579126371 -0600
-> > @@ -2041,7 +2041,7 @@ static void flush_all(struct kmem_cache
-> >  static inline int node_match(struct page *page, int node)
-> >  {
-> >  #ifdef CONFIG_NUMA
-> > -       if (node != NUMA_NO_NODE && page_to_nid(page) != node)
-> > +       if (!page || (node != NUMA_NO_NODE && page_to_nid(page) != node))
-> >                 return 0;
-> >  #endif
-> >         return 1;
-> >
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+Feel free to add.
+Tested-by: Kyungmin Park <kyungmin.park@samsung.com>
+>
+> Thank you,
+> Kyungmin Park
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
