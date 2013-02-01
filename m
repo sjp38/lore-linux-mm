@@ -1,23 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 3C6F06B0010
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 15:23:28 -0500 (EST)
-Received: by mail-ve0-f170.google.com with SMTP id 14so2666273vea.1
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 12:23:27 -0800 (PST)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 7D6716B0023
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 15:23:29 -0500 (EST)
+Received: by mail-vc0-f177.google.com with SMTP id m18so2729435vcm.36
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 12:23:28 -0800 (PST)
 From: Konrad Rzeszutek Wilk <konrad@kernel.org>
-Subject: [PATCH 06/15] staging: zcache: enable zcache to be built/loaded as a module
-Date: Fri,  1 Feb 2013 15:22:55 -0500
-Message-Id: <1359750184-23408-7-git-send-email-konrad.wilk@oracle.com>
+Subject: [PATCH 07/15] xen: tmem: enable Xen tmem shim to be built/loaded as a module
+Date: Fri,  1 Feb 2013 15:22:56 -0500
+Message-Id: <1359750184-23408-8-git-send-email-konrad.wilk@oracle.com>
 In-Reply-To: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
 References: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Allow zcache to be built/loaded as a module.  Note runtime dependency
-disallows loading if cleancache/frontswap lazy initialization patches
-are not present.  Zsmalloc support has not yet been merged into zcache
-but, once merged, could now easily be selected via a module_param.
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+
+Allow Xen tmem shim to be built/loaded as a module.  Xen self-ballooning
+and frontswap-selfshrinking are now also "lazily" initialized when the
+Xen tmem shim is loaded as a module, unless explicitly disabled
+by module parameters.
+
+Note runtime dependency disallows loading if cleancache/frontswap lazy
+initialization patches are not present.
 
 If built-in (not built as a module), the original mechanism of enabling via
 a kernel boot parameter is retained, but this should be considered deprecated.
@@ -25,268 +30,215 @@ a kernel boot parameter is retained, but this should be considered deprecated.
 Note that module unload is explicitly not yet supported.
 
 Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-[v1: Rebased with different order of patches]
-[v2: Removed [CLEANCACHE|FRONTSWAP]_HAS_LAZY_INIT ifdef]
-[v3: Rebased on top of ramster->zcache move]
-[v4: Redid the Makefile]
-[v5: s/ZCACHE2/ZCACHE/]
+[v1: Removed the [CLEANCACHE|FRONTSWAP]_HAS_LAZY_INIT ifdef]
 Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 ---
- drivers/staging/zcache/Kconfig       |  6 ++---
- drivers/staging/zcache/Makefile      | 11 ++++-----
- drivers/staging/zcache/tmem.c        |  6 ++++-
- drivers/staging/zcache/tmem.h        |  8 +++----
- drivers/staging/zcache/zcache-main.c | 45 +++++++++++++++++++++++++++++++++---
- drivers/staging/zcache/zcache.h      |  2 +-
- 6 files changed, 60 insertions(+), 18 deletions(-)
+ drivers/xen/Kconfig           |  4 ++--
+ drivers/xen/tmem.c            | 38 +++++++++++++++++++++++++++++---------
+ drivers/xen/xen-selfballoon.c | 13 +++++++------
+ include/xen/tmem.h            |  8 ++++++++
+ 4 files changed, 46 insertions(+), 17 deletions(-)
 
-diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
-index c1dbd04..88e3c59 100644
---- a/drivers/staging/zcache/Kconfig
-+++ b/drivers/staging/zcache/Kconfig
-@@ -1,5 +1,5 @@
- config ZCACHE
--	bool "Dynamic compression of swap pages and clean pagecache pages"
-+	tristate "Dynamic compression of swap pages and clean pagecache pages"
- 	depends on CRYPTO=y && SWAP=y && CLEANCACHE && FRONTSWAP
- 	select CRYPTO_LZO
- 	default n
-@@ -11,8 +11,8 @@ config ZCACHE
- 	  providing a noticeable reduction in disk I/O.
+diff --git a/drivers/xen/Kconfig b/drivers/xen/Kconfig
+index cabfa97..981646e 100644
+--- a/drivers/xen/Kconfig
++++ b/drivers/xen/Kconfig
+@@ -145,9 +145,9 @@ config SWIOTLB_XEN
+ 	select SWIOTLB
  
- config RAMSTER
--	bool "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
--	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE=y
-+	tristate "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
-+	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE
- 	depends on NET
- 	# must ensure struct page is 8-byte aligned
- 	select HAVE_ALIGNED_STRUCT_PAGE if !64_BIT
-diff --git a/drivers/staging/zcache/Makefile b/drivers/staging/zcache/Makefile
-index 4711049..98c4e32 100644
---- a/drivers/staging/zcache/Makefile
-+++ b/drivers/staging/zcache/Makefile
-@@ -1,6 +1,5 @@
--zcache-y	:=		zcache-main.o tmem.o zbud.o
--zcache-$(CONFIG_RAMSTER)	+=	ramster/ramster.o ramster/r2net.o
--zcache-$(CONFIG_RAMSTER)	+=	ramster/nodemanager.o ramster/tcp.o
--zcache-$(CONFIG_RAMSTER)	+=	ramster/heartbeat.o ramster/masklog.o
--
--obj-$(CONFIG_ZCACHE)	+=	zcache.o
-+obj-$(CONFIG_ZCACHE)	+= zcache.o
-+zcache-y		:=	zcache-main.o tmem.o zbud.o
-+zcache-$(CONFIG_RAMSTER)+=	ramster/ramster.o ramster/r2net.o
-+zcache-$(CONFIG_RAMSTER)+=	ramster/nodemanager.o ramster/tcp.o
-+zcache-$(CONFIG_RAMSTER)+=	ramster/heartbeat.o ramster/masklog.o
-diff --git a/drivers/staging/zcache/tmem.c b/drivers/staging/zcache/tmem.c
-index a2b7e03..d7e51e4 100644
---- a/drivers/staging/zcache/tmem.c
-+++ b/drivers/staging/zcache/tmem.c
-@@ -35,7 +35,8 @@
- #include <linux/list.h>
- #include <linux/spinlock.h>
- #include <linux/atomic.h>
--#ifdef CONFIG_RAMSTER
-+#include <linux/export.h>
-+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
- #include <linux/delay.h>
- #endif
- 
-@@ -641,6 +642,7 @@ void *tmem_localify_get_pampd(struct tmem_pool *pool, struct tmem_oid *oidp,
- 	/* note, hashbucket remains locked */
- 	return pampd;
- }
-+EXPORT_SYMBOL_GPL(tmem_localify_get_pampd);
- 
- void tmem_localify_finish(struct tmem_obj *obj, uint32_t index,
- 			  void *pampd, void *saved_hb, bool delete)
-@@ -658,6 +660,7 @@ void tmem_localify_finish(struct tmem_obj *obj, uint32_t index,
- 	}
- 	spin_unlock(&hb->lock);
- }
-+EXPORT_SYMBOL_GPL(tmem_localify_finish);
- 
- /*
-  * For ramster only.  Helper function to support asynchronous tmem_get.
-@@ -719,6 +722,7 @@ out:
- 	spin_unlock(&hb->lock);
- 	return ret;
- }
-+EXPORT_SYMBOL_GPL(tmem_replace);
- #endif
- 
- /*
-diff --git a/drivers/staging/zcache/tmem.h b/drivers/staging/zcache/tmem.h
-index adbe5a8..d128ce2 100644
---- a/drivers/staging/zcache/tmem.h
-+++ b/drivers/staging/zcache/tmem.h
-@@ -126,7 +126,7 @@ static inline unsigned tmem_oid_hash(struct tmem_oid *oidp)
- 				TMEM_HASH_BUCKET_BITS);
- }
- 
--#ifdef CONFIG_RAMSTER
-+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
- struct tmem_xhandle {
- 	uint8_t client_id;
- 	uint8_t xh_data_cksum;
-@@ -171,7 +171,7 @@ struct tmem_obj {
- 	unsigned int objnode_tree_height;
- 	unsigned long objnode_count;
- 	long pampd_count;
--#ifdef CONFIG_RAMSTER
-+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
- 	/*
- 	 * for current design of ramster, all pages belonging to
- 	 * an object reside on the same remotenode and extra is
-@@ -215,7 +215,7 @@ struct tmem_pamops {
- 				uint32_t);
- 	void (*free)(void *, struct tmem_pool *,
- 				struct tmem_oid *, uint32_t, bool);
--#ifdef CONFIG_RAMSTER
-+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
- 	void (*new_obj)(struct tmem_obj *);
- 	void (*free_obj)(struct tmem_pool *, struct tmem_obj *, bool);
- 	void *(*repatriate_preload)(void *, struct tmem_pool *,
-@@ -247,7 +247,7 @@ extern int tmem_flush_page(struct tmem_pool *, struct tmem_oid *,
- extern int tmem_flush_object(struct tmem_pool *, struct tmem_oid *);
- extern int tmem_destroy_pool(struct tmem_pool *);
- extern void tmem_new_pool(struct tmem_pool *, uint32_t);
--#ifdef CONFIG_RAMSTER
-+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
- extern int tmem_replace(struct tmem_pool *, struct tmem_oid *, uint32_t index,
- 			void *);
- extern void *tmem_localify_get_pampd(struct tmem_pool *, struct tmem_oid *,
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index bb59b78..288c841 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -31,8 +31,10 @@
- #include "ramster.h"
- #ifdef CONFIG_RAMSTER
- static int ramster_enabled;
-+static int disable_frontswap_selfshrink;
- #else
- #define ramster_enabled 0
-+#define disable_frontswap_selfshrink 0
- #endif
- 
- #ifndef __PG_WAS_ACTIVE
-@@ -68,8 +70,12 @@ static char *namestr __read_mostly = "zcache";
- MODULE_LICENSE("GPL");
- 
- /* crypto API for zcache  */
-+#ifdef CONFIG_ZCACHE_MODULE
-+static char *zcache_comp_name = "lzo";
-+#else
- #define ZCACHE_COMP_NAME_SZ CRYPTO_MAX_ALG_NAME
- static char zcache_comp_name[ZCACHE_COMP_NAME_SZ] __read_mostly;
-+#endif
- static struct crypto_comp * __percpu *zcache_comp_pcpu_tfms __read_mostly;
- 
- enum comp_op {
-@@ -1639,6 +1645,7 @@ struct frontswap_ops *zcache_frontswap_register_ops(void)
-  * OR NOTHING HAPPENS!
+ config XEN_TMEM
+-	bool
++	tristate
+ 	depends on !ARM
+-	default y if (CLEANCACHE || FRONTSWAP)
++	default m if (CLEANCACHE || FRONTSWAP)
+ 	help
+ 	  Shim to interface in-kernel Transcendent Memory hooks
+ 	  (e.g. cleancache and frontswap) to Xen tmem hypercalls.
+diff --git a/drivers/xen/tmem.c b/drivers/xen/tmem.c
+index 15e776c..9a4a9ec 100644
+--- a/drivers/xen/tmem.c
++++ b/drivers/xen/tmem.c
+@@ -5,6 +5,7 @@
+  * Author: Dan Magenheimer
   */
  
-+#ifndef CONFIG_ZCACHE_MODULE
- static int __init enable_zcache(char *s)
- {
- 	zcache_enabled = 1;
-@@ -1705,18 +1712,27 @@ static int __init enable_zcache_compressor(char *s)
++#include <linux/module.h>
+ #include <linux/kernel.h>
+ #include <linux/types.h>
+ #include <linux/init.h>
+@@ -128,6 +129,7 @@ static int xen_tmem_flush_object(u32 pool_id, struct tmem_oid oid)
+ 	return xen_tmem_op(TMEM_FLUSH_OBJECT, pool_id, oid, 0, 0, 0, 0, 0);
+ }
+ 
++#ifndef CONFIG_XEN_TMEM_MODULE
+ bool __read_mostly tmem_enabled = false;
+ 
+ static int __init enable_tmem(char *s)
+@@ -136,6 +138,7 @@ static int __init enable_tmem(char *s)
  	return 1;
  }
- __setup("zcache=", enable_zcache_compressor);
+ __setup("tmem", enable_tmem);
 +#endif
  
+ #ifdef CONFIG_CLEANCACHE
+ static int xen_tmem_destroy_pool(u32 pool_id)
+@@ -227,14 +230,19 @@ static int tmem_cleancache_init_shared_fs(char *uuid, size_t pagesize)
+ 	return xen_tmem_new_pool(shared_uuid, TMEM_POOL_SHARED, pagesize);
+ }
  
--static int __init zcache_comp_init(void)
-+static int zcache_comp_init(void)
- {
- 	int ret = 0;
- 
- 	/* check crypto algorithm */
-+#ifdef CONFIG_ZCACHE_MODULE
-+	ret = crypto_has_comp(zcache_comp_name, 0, 0);
-+	if (!ret) {
-+		ret = -1;
-+		goto out;
-+	}
+-static bool __initdata use_cleancache = true;
+-
++static bool disable_cleancache __read_mostly;
++static bool disable_selfballooning __read_mostly;
++#ifdef CONFIG_XEN_TMEM_MODULE
++module_param(disable_cleancache, bool, S_IRUGO);
++module_param(disable_selfballooning, bool, S_IRUGO);
 +#else
- 	if (*zcache_comp_name != '\0') {
- 		ret = crypto_has_comp(zcache_comp_name, 0, 0);
- 		if (!ret)
- 			pr_info("zcache: %s not supported\n",
- 					zcache_comp_name);
-+		goto out;
- 	}
- 	if (!ret)
- 		strcpy(zcache_comp_name, "lzo");
-@@ -1725,6 +1741,7 @@ static int __init zcache_comp_init(void)
- 		ret = 1;
- 		goto out;
- 	}
-+#endif
- 	pr_info("zcache: using %s compressor\n", zcache_comp_name);
- 
- 	/* alloc percpu transforms */
-@@ -1736,10 +1753,13 @@ out:
- 	return ret;
- }
- 
--static int __init zcache_init(void)
-+static int zcache_init(void)
+ static int __init no_cleancache(char *s)
  {
- 	int ret = 0;
- 
-+#ifdef CONFIG_ZCACHE_MODULE
-+	zcache_enabled = 1;
+-	use_cleancache = false;
++	disable_cleancache = true;
+ 	return 1;
+ }
+ __setup("nocleancache", no_cleancache);
 +#endif
- 	if (ramster_enabled) {
- 		namestr = "ramster";
- 		ramster_register_pamops(&zcache_pamops);
-@@ -1811,9 +1831,28 @@ static int __init zcache_init(void)
- 	}
- 	if (ramster_enabled)
- 		ramster_init(!disable_cleancache, !disable_frontswap,
--				frontswap_has_exclusive_gets, false);
-+				frontswap_has_exclusive_gets,
-+				!disable_frontswap_selfshrink);
- out:
- 	return ret;
+ 
+ static struct cleancache_ops tmem_cleancache_ops = {
+ 	.put_page = tmem_cleancache_put_page,
+@@ -353,14 +361,19 @@ static void tmem_frontswap_init(unsigned ignored)
+ 		    xen_tmem_new_pool(private, TMEM_POOL_PERSIST, PAGE_SIZE);
  }
  
-+#ifdef CONFIG_ZCACHE_MODULE
-+#ifdef CONFIG_RAMSTER
-+module_param(ramster_enabled, int, S_IRUGO);
-+module_param(disable_frontswap_selfshrink, int, S_IRUGO);
+-static bool __initdata use_frontswap = true;
+-
++static bool disable_frontswap __read_mostly;
++static bool disable_frontswap_selfshrinking __read_mostly;
++#ifdef CONFIG_XEN_TMEM_MODULE
++module_param(disable_frontswap, bool, S_IRUGO);
++module_param(disable_frontswap_selfshrinking, bool, S_IRUGO);
++#else
+ static int __init no_frontswap(char *s)
+ {
+-	use_frontswap = false;
++	disable_frontswap = true;
+ 	return 1;
+ }
+ __setup("nofrontswap", no_frontswap);
 +#endif
-+module_param(disable_cleancache, int, S_IRUGO);
-+module_param(disable_frontswap, int, S_IRUGO);
-+#ifdef FRONTSWAP_HAS_EXCLUSIVE_GETS
-+module_param(frontswap_has_exclusive_gets, bool, S_IRUGO);
+ 
+ static struct frontswap_ops tmem_frontswap_ops = {
+ 	.store = tmem_frontswap_store,
+@@ -371,12 +384,12 @@ static struct frontswap_ops tmem_frontswap_ops = {
+ };
+ #endif
+ 
+-static int __init xen_tmem_init(void)
++static int xen_tmem_init(void)
+ {
+ 	if (!xen_domain())
+ 		return 0;
+ #ifdef CONFIG_FRONTSWAP
+-	if (tmem_enabled && use_frontswap) {
++	if (tmem_enabled && !disable_frontswap) {
+ 		char *s = "";
+ 		struct frontswap_ops *old_ops =
+ 			frontswap_register_ops(&tmem_frontswap_ops);
+@@ -390,7 +403,7 @@ static int __init xen_tmem_init(void)
+ #endif
+ #ifdef CONFIG_CLEANCACHE
+ 	BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
+-	if (tmem_enabled && use_cleancache) {
++	if (tmem_enabled && !disable_cleancache) {
+ 		char *s = "";
+ 		struct cleancache_ops *old_ops =
+ 			cleancache_register_ops(&tmem_cleancache_ops);
+@@ -400,7 +413,14 @@ static int __init xen_tmem_init(void)
+ 				 "Xen Transcendent Memory%s\n", s);
+ 	}
+ #endif
++#ifdef CONFIG_XEN_SELFBALLOONING
++	xen_selfballoon_init(!disable_selfballooning,
++				!disable_frontswap_selfshrinking);
 +#endif
-+module_param(disable_frontswap_ignore_nonactive, int, S_IRUGO);
-+module_param(zcache_comp_name, charp, S_IRUGO);
-+module_init(zcache_init);
+ 	return 0;
+ }
+ 
+ module_init(xen_tmem_init)
 +MODULE_LICENSE("GPL");
 +MODULE_AUTHOR("Dan Magenheimer <dan.magenheimer@oracle.com>");
-+MODULE_DESCRIPTION("In-kernel compression of cleancache/frontswap pages");
-+#else
- late_initcall(zcache_init);
-+#endif
-diff --git a/drivers/staging/zcache/zcache.h b/drivers/staging/zcache/zcache.h
-index 81722b3..8491200 100644
---- a/drivers/staging/zcache/zcache.h
-+++ b/drivers/staging/zcache/zcache.h
-@@ -39,7 +39,7 @@ extern int zcache_flush_page(int, int, struct tmem_oid *, uint32_t);
- extern int zcache_flush_object(int, int, struct tmem_oid *);
- extern void zcache_decompress_to_page(char *, unsigned int, struct page *);
++MODULE_DESCRIPTION("Shim to Xen transcendent memory");
+diff --git a/drivers/xen/xen-selfballoon.c b/drivers/xen/xen-selfballoon.c
+index 2552d3e..6965e9b 100644
+--- a/drivers/xen/xen-selfballoon.c
++++ b/drivers/xen/xen-selfballoon.c
+@@ -121,7 +121,7 @@ static DECLARE_DELAYED_WORK(selfballoon_worker, selfballoon_process);
+ static bool frontswap_selfshrinking __read_mostly;
  
--#ifdef CONFIG_RAMSTER
-+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
- extern void *zcache_pampd_create(char *, unsigned int, bool, int,
- 				struct tmem_handle *);
- int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bool eph);
+ /* Enable/disable with kernel boot option. */
+-static bool use_frontswap_selfshrink __initdata = true;
++static bool use_frontswap_selfshrink = true;
+ 
+ /*
+  * The default values for the following parameters were deemed reasonable
+@@ -185,7 +185,7 @@ static int __init xen_nofrontswap_selfshrink_setup(char *s)
+ __setup("noselfshrink", xen_nofrontswap_selfshrink_setup);
+ 
+ /* Disable with kernel boot option. */
+-static bool use_selfballooning __initdata = true;
++static bool use_selfballooning = true;
+ 
+ static int __init xen_noselfballooning_setup(char *s)
+ {
+@@ -196,7 +196,7 @@ static int __init xen_noselfballooning_setup(char *s)
+ __setup("noselfballooning", xen_noselfballooning_setup);
+ #else /* !CONFIG_FRONTSWAP */
+ /* Enable with kernel boot option. */
+-static bool use_selfballooning __initdata = false;
++static bool use_selfballooning;
+ 
+ static int __init xen_selfballooning_setup(char *s)
+ {
+@@ -537,7 +537,7 @@ int register_xen_selfballooning(struct device *dev)
+ }
+ EXPORT_SYMBOL(register_xen_selfballooning);
+ 
+-static int __init xen_selfballoon_init(void)
++int xen_selfballoon_init(bool use_selfballooning, bool use_frontswap_selfshrink)
+ {
+ 	bool enable = false;
+ 
+@@ -571,7 +571,8 @@ static int __init xen_selfballoon_init(void)
+ 
+ 	return 0;
+ }
++EXPORT_SYMBOL(xen_selfballoon_init);
+ 
++#ifndef CONFIG_XEN_TMEM_MODULE
+ subsys_initcall(xen_selfballoon_init);
+-
+-MODULE_LICENSE("GPL");
++#endif
+diff --git a/include/xen/tmem.h b/include/xen/tmem.h
+index 591550a..3930a90 100644
+--- a/include/xen/tmem.h
++++ b/include/xen/tmem.h
+@@ -3,7 +3,15 @@
+ 
+ #include <linux/types.h>
+ 
++#ifdef CONFIG_XEN_TMEM_MODULE
++#define tmem_enabled true
++#else
+ /* defined in drivers/xen/tmem.c */
+ extern bool tmem_enabled;
++#endif
++
++#ifdef CONFIG_XEN_SELFBALLOONING
++extern int xen_selfballoon_init(bool, bool);
++#endif
+ 
+ #endif /* _XEN_TMEM_H */
 -- 
 1.7.11.7
 
