@@ -1,46 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 7C38F6B0022
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 15:23:30 -0500 (EST)
-Received: by mail-vb0-f46.google.com with SMTP id b13so2666393vby.5
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 12:23:29 -0800 (PST)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 665DA6B0023
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 15:23:31 -0500 (EST)
+Received: by mail-ve0-f170.google.com with SMTP id 14so2694794vea.29
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 12:23:30 -0800 (PST)
 From: Konrad Rzeszutek Wilk <konrad@kernel.org>
-Subject: [PATCH 08/15] xen/tmem: Remove the subsys call.
-Date: Fri,  1 Feb 2013 15:22:57 -0500
-Message-Id: <1359750184-23408-9-git-send-email-konrad.wilk@oracle.com>
+Subject: [PATCH 09/15] frontswap: Remove the check for frontswap_enabled.
+Date: Fri,  1 Feb 2013 15:22:58 -0500
+Message-Id: <1359750184-23408-10-git-send-email-konrad.wilk@oracle.com>
 In-Reply-To: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
 References: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-We get:
-drivers/xen/xen-selfballoon.c:577:134: warning: initialization from incompatible pointer type [enabled by default]
+With the support for loading of backends as modules (see for example:
+"staging: zcache: enable zcache to be built/loaded as a module"), the
+frontswap_enabled is always set to true ("mm: frontswap: lazy
+initialization to allow tmem backends to build/run as modules").
 
-We actually do not need this function to be called
-before tmem is loaded. So lets remove the subsys_init.
+The next patch "frontswap: Use static_key instead of frontswap_enabled and
+frontswap_ops" is are going to convert the frontswap_enabled to be a bit more
+selective and be on/off depending on whether the backend has registered - and
+not whether the frontswap API is enabled.
 
-If tmem is built in as a module this is still OK as
-xen_selfballoon_init ends up being exported and can
-be called by the tmem module.
+The two functions: frontswap_init and frontswap_invalidate_area
+can be called anytime - they queue up which of the swap devices are
+active and can use the frontswap API - once the backend is loaded.
+
+As such there is no need to check for 'frontswap_enabled' at all.
 
 Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 ---
- drivers/xen/xen-selfballoon.c | 4 ----
- 1 file changed, 4 deletions(-)
+ include/linux/frontswap.h | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/xen/xen-selfballoon.c b/drivers/xen/xen-selfballoon.c
-index 6965e9b..f2ef569 100644
---- a/drivers/xen/xen-selfballoon.c
-+++ b/drivers/xen/xen-selfballoon.c
-@@ -572,7 +572,3 @@ int xen_selfballoon_init(bool use_selfballooning, bool use_frontswap_selfshrink)
- 	return 0;
+diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
+index d4f2987..140323b 100644
+--- a/include/linux/frontswap.h
++++ b/include/linux/frontswap.h
+@@ -116,14 +116,12 @@ static inline void frontswap_invalidate_page(unsigned type, pgoff_t offset)
+ 
+ static inline void frontswap_invalidate_area(unsigned type)
+ {
+-	if (frontswap_enabled)
+-		__frontswap_invalidate_area(type);
++	__frontswap_invalidate_area(type);
  }
- EXPORT_SYMBOL(xen_selfballoon_init);
--
--#ifndef CONFIG_XEN_TMEM_MODULE
--subsys_initcall(xen_selfballoon_init);
--#endif
+ 
+ static inline void frontswap_init(unsigned type)
+ {
+-	if (frontswap_enabled)
+-		__frontswap_init(type);
++	__frontswap_init(type);
+ }
+ 
+ #endif /* _LINUX_FRONTSWAP_H */
 -- 
 1.7.11.7
 
