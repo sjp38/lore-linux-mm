@@ -1,149 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id D73C26B0005
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 21:06:51 -0500 (EST)
-Received: by mail-da0-f42.google.com with SMTP id z17so1536010dal.1
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2013 18:06:51 -0800 (PST)
-Message-ID: <1359684403.1303.3.camel@kernel>
-Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Thu, 31 Jan 2013 20:06:43 -0600
-In-Reply-To: <510B20F2.20906@huawei.com>
-References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
-	      <1359463973.1624.15.camel@kernel> <5108F2B3.3090506@cn.fujitsu.com>
-	     <1359595344.1557.13.camel@kernel> <5109E59F.5080104@cn.fujitsu.com>
-	    <1359613162.1587.0.camel@kernel> <510A18FA.2010107@cn.fujitsu.com>
-	   <1359622123.1391.19.camel@kernel> <510A3CE6.202@cn.fujitsu.com>
-	  <1359628705.2048.5.camel@kernel> <510B1B4B.5080207@huawei.com>
-	 <1359682576.3574.1.camel@kernel> <510B20F2.20906@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id D34B36B000A
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 21:11:59 -0500 (EST)
+Date: Thu, 31 Jan 2013 21:11:50 -0500
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH] staging: zsmalloc: remove unused pool name
+Message-ID: <20130201021149.GB3416@konrad-lan.dumpdata.com>
+References: <1359560212-8818-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <51093F43.2090503@linux.vnet.ibm.com>
+ <20130130172159.GA24760@kroah.com>
+ <20130130172956.GC2217@konrad-lan.dumpdata.com>
+ <20130131053235.GD3228@kroah.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130131053235.GD3228@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, torvalds@linux-foundation.org
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-Hi Jianguo,
-On Fri, 2013-02-01 at 09:57 +0800, Jianguo Wu wrote:
-> On 2013/2/1 9:36, Simon Jeons wrote:
-> 
-> > On Fri, 2013-02-01 at 09:32 +0800, Jianguo Wu wrote:
-> >> On 2013/1/31 18:38, Simon Jeons wrote:
-> >>
-> >>> Hi Tang,
-> >>> On Thu, 2013-01-31 at 17:44 +0800, Tang Chen wrote:
-> >>>> Hi Simon,
-> >>>>
-> >>>> On 01/31/2013 04:48 PM, Simon Jeons wrote:
-> >>>>> Hi Tang,
-> >>>>> On Thu, 2013-01-31 at 15:10 +0800, Tang Chen wrote:
-> >>>>>
-> >>>>> 1. IIUC, there is a button on machine which supports hot-remove memory,
-> >>>>> then what's the difference between press button and echo to /sys?
-> >>>>
-> >>>> No important difference, I think. Since I don't have the machine you are
-> >>>> saying, I cannot surely answer you. :)
-> >>>> AFAIK, pressing the button means trigger the hotplug from hardware, sysfs
-> >>>> is just another entrance. At last, they will run into the same code.
-> >>>>
-> >>>>> 2. Since kernel memory is linear mapping(I mean direct mapping part),
-> >>>>> why can't put kernel direct mapping memory into one memory device, and
-> >>>>> other memory into the other devices?
-> >>>>
-> >>>> We cannot do that because in that way, we will lose NUMA performance.
-> >>>>
-> >>>> If you know NUMA, you will understand the following example:
-> >>>>
-> >>>> node0:                    node1:
-> >>>>     cpu0~cpu15                cpu16~cpu31
-> >>>>     memory0~memory511         memory512~memory1023
-> >>>>
-> >>>> cpu16~cpu31 access memory16~memory1023 much faster than memory0~memory511.
-> >>>> If we set direct mapping area in node0, and movable area in node1, then
-> >>>> the kernel code running on cpu16~cpu31 will have to access 
-> >>>> memory0~memory511.
-> >>>> This is a terrible performance down.
-> >>>
-> >>> So if config NUMA, kernel memory will not be linear mapping anymore? For
-> >>> example, 
-> >>>
-> >>> Node 0  Node 1 
-> >>>
-> >>> 0 ~ 10G 11G~14G
-> >>>
-> >>> kernel memory only at Node 0? Can part of kernel memory also at Node 1?
-> >>>
-> >>> How big is kernel direct mapping memory in x86_64? Is there max limit?
-> >>
-> >>
-> >> Max kernel direct mapping memory in x86_64 is 64TB.
+> > > {sigh} you just made me have to edit your patch by hand, you now owe me
+> > > a beer...
+> > > 
+> > Should we codify that :-)
 > > 
-> > For example, I have 8G memory, all of them will be direct mapping for
-> > kernel? then userspace memory allocated from where?
+> > 
+> > diff --git a/Documentation/SubmittingPatches b/Documentation/SubmittingPatches
+> > index c379a2a..f879c60 100644
+> > --- a/Documentation/SubmittingPatches
+> > +++ b/Documentation/SubmittingPatches
+> > @@ -94,6 +94,7 @@ includes updates for subsystem X.  Please apply."
+> >  The maintainer will thank you if you write your patch description in a
+> >  form which can be easily pulled into Linux's source code management
+> >  system, git, as a "commit log".  See #15, below.
+> > +If the maintainer has to hand-edit your patch, you owe them a beer.
+> >  
+> >  If your description starts to get long, that's a sign that you probably
+> >  need to split up your patch.  See #3, next.
 > 
-> Direct mapping memory means you can use __va() and pa(), but not means that them
-> can be only used by kernel, them can be used by user-space too, as long as them are free.
+> Yes we do need to codify this, but let's be fair, not everyone likes
+> beer:
+> 
+> diff --git a/Documentation/SubmittingPatches b/Documentation/SubmittingPatches
+> index c379a2a..d1bec01 100644
+> --- a/Documentation/SubmittingPatches
+> +++ b/Documentation/SubmittingPatches
+> @@ -93,7 +93,9 @@ includes updates for subsystem X.  Please apply."
+>  
+>  The maintainer will thank you if you write your patch description in a
+>  form which can be easily pulled into Linux's source code management
+> -system, git, as a "commit log".  See #15, below.
+> +system, git, as a "commit log".  See #15, below.  If the maintainer has
+> +to hand-edit your patch, you owe them the beverage of their choice the
+> +next time you see them.
+>  
+>  If your description starts to get long, that's a sign that you probably
+>  need to split up your patch.  See #3, next.
 
-IIUC, the benefit of va() and pa() is just for quick get
-virtual/physical address, it takes advantage of linear mapping. But mmu
-still need to go through pgd/pud/pmd/pte, correct?
-
-> 
-> > 
-> >>
-> >>> It seems that only around 896MB on x86_32. 
-> >>>
-> >>>>
-> >>>>> As you know x86_64 don't need
-> >>>>> highmem, IIUC, all kernel memory will linear mapping in this case. Is my
-> >>>>> idea available? If is correct, x86_32 can't implement in the same way
-> >>>>> since highmem(kmap/kmap_atomic/vmalloc) can map any address, so it's
-> >>>>> hard to focus kernel memory on single memory device.
-> >>>>
-> >>>> Sorry, I'm not quite familiar with x86_32 box.
-> >>>>
-> >>>>> 3. In current implementation, if memory hotplug just need memory
-> >>>>> subsystem and ACPI codes support? Or also needs firmware take part in?
-> >>>>> Hope you can explain in details, thanks in advance. :)
-> >>>>
-> >>>> We need firmware take part in, such as SRAT in ACPI BIOS, or the firmware
-> >>>> based memory migration mentioned by Liu Jiang.
-> >>>
-> >>> Is there any material about firmware based memory migration?
-> >>>
-> >>>>
-> >>>> So far, I only know this. :)
-> >>>>
-> >>>>> 4. What's the status of memory hotplug? Apart from can't remove kernel
-> >>>>> memory, other things are fully implementation?
-> >>>>
-> >>>> I think the main job is done for now. And there are still bugs to fix.
-> >>>> And this functionality is not stable.
-> >>>>
-> >>>> Thanks. :)
-> >>>
-> >>>
-> >>> --
-> >>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >>> the body to majordomo@kvack.org.  For more info on Linux MM,
-> >>> see: http://www.linux-mm.org/ .
-> >>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >>>
-> >>> .
-> >>>
-> >>
-> >>
-> >>
-> > 
-> > 
-> > 
-> > .
-> > 
-> 
-> 
-> 
-
+Does that mean you owe Linus a whiskey bottle since you didn't properly
+sign this patch :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
