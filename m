@@ -1,98 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 19B9B6B0005
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 07:37:44 -0500 (EST)
-Received: by mail-ia0-f182.google.com with SMTP id w33so5291283iag.27
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 04:37:43 -0800 (PST)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 64CB06B000A
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 08:02:36 -0500 (EST)
+Received: by mail-vb0-f49.google.com with SMTP id s24so2408892vbi.22
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 05:02:35 -0800 (PST)
+Date: Fri, 1 Feb 2013 08:02:31 -0500
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Subject: Re: [PATCH] zsmalloc: Fix TLB coherency and build problem
+Message-ID: <20130201130230.GA6125@konrad-lan.dumpdata.com>
+References: <1359334808-19794-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <CAH9JG2UTnAKHp8FB4rzYDD8VbQ-8S4=j_nAkOwXO4+2HeVrLwQ@mail.gmail.com>
-References: <20130122065341.GA1850@kernel.org>
-	<20130123075808.GH2723@blaptop>
-	<1359018598.2866.5.camel@kernel>
-	<CAH9JG2UpVtxeLB21kx5-_pokK8p_uVZ-2o41Ep--oOyKStBZFQ@mail.gmail.com>
-	<20130127141853.GB27019@kernel.org>
-	<CAH9JG2UTnAKHp8FB4rzYDD8VbQ-8S4=j_nAkOwXO4+2HeVrLwQ@mail.gmail.com>
-Date: Fri, 1 Feb 2013 21:37:43 +0900
-Message-ID: <CAH9JG2Xq2bCJ0Wvtgu3BHjEzDp0F2k6682+toyoRqE7bHs4gag@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
-From: Kyungmin Park <kmpark@infradead.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1359334808-19794-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Simon Jeons <simon.jeons@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Matt Sealey <matt@genesi-usa.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Russell King <linux@arm.linux.org.uk>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-On Mon, Jan 28, 2013 at 4:37 PM, Kyungmin Park <kmpark@infradead.org> wrote:
-> On Sun, Jan 27, 2013 at 11:18 PM, Shaohua Li <shli@kernel.org> wrote:
->> On Sat, Jan 26, 2013 at 01:40:55PM +0900, Kyungmin Park wrote:
->>> Hi,
->>>
->>> On 1/24/13, Simon Jeons <simon.jeons@gmail.com> wrote:
->>> > Hi Minchan,
->>> > On Wed, 2013-01-23 at 16:58 +0900, Minchan Kim wrote:
->>> >> On Tue, Jan 22, 2013 at 02:53:41PM +0800, Shaohua Li wrote:
->>> >> > Hi,
->>> >> >
->>> >> > Because of high density, low power and low price, flash storage (SSD) is
->>> >> > a good
->>> >> > candidate to partially replace DRAM. A quick answer for this is using
->>> >> > SSD as
->>> >> > swap. But Linux swap is designed for slow hard disk storage. There are a
->>> >> > lot of
->>> >> > challenges to efficiently use SSD for swap:
->>> >>
->>> >> Many of below item could be applied in in-memory swap like zram, zcache.
->>> >>
->>> >> >
->>> >> > 1. Lock contentions (swap_lock, anon_vma mutex, swap address space
->>> >> > lock)
->>> >> > 2. TLB flush overhead. To reclaim one page, we need at least 2 TLB
->>> >> > flush. This
->>> >> > overhead is very high even in a normal 2-socket machine.
->>> >> > 3. Better swap IO pattern. Both direct and kswapd page reclaim can do
->>> >> > swap,
->>> >> > which makes swap IO pattern is interleave. Block layer isn't always
->>> >> > efficient
->>> >> > to do request merge. Such IO pattern also makes swap prefetch hard.
->>> >>
->>> >> Agreed.
->>> >>
->>> >> > 4. Swap map scan overhead. Swap in-memory map scan scans an array, which
->>> >> > is
->>> >> > very inefficient, especially if swap storage is fast.
->>> >>
->>> >> Agreed.
->>> >>
->>>
->>> 5. SSD related optimization, mainly discard support.
->>>
->>> Now swap codes are based on each swap slots. it means it can't
->>> optimize discard feature since getting meaningful performance gain, it
->>> requires 2 pages at least. Of course it's based on eMMC. In case of
->>> SSD. it requires more pages to support discard.
->>>
->>> To address issue. I consider the batched discard approach used at filesystem.
->>> *Sometime* scan all empty slot and it issues discard continuous swap
->>> slots as many as possible.
->>
->> I posted a patch to make discard async before, which is almost good to me, though we
->> still discard a cluster.
->> http://marc.info/?l=linux-mm&m=135087309208120&w=2
->
-> I found your previous patches, It's almost same concept as batched
-> discard. Now I'm testing your patches.
-> BTW, which test program do you use? Now we just testing some scenario
-> and check scenario only.
-> There's no generic tool to measure improved performance gain.
->
-> After test, I'll share the results.
-Updated, it has good performance gain than previous one about 4 times.
+On Mon, Jan 28, 2013 at 10:00:08AM +0900, Minchan Kim wrote:
+> Recently, Matt Sealey reported he fail to build zsmalloc caused by
+> using of local_flush_tlb_kernel_range which are architecture dependent
+> function so !CONFIG_SMP in ARM couldn't implement it so it ends up
+> build error following as.
+> 
+>   MODPOST 216 modules
+>   LZMA    arch/arm/boot/compressed/piggy.lzma
+>   AS      arch/arm/boot/compressed/lib1funcs.o
+> ERROR: "v7wbi_flush_kern_tlb_range"
+> [drivers/staging/zsmalloc/zsmalloc.ko] undefined!
+> make[1]: *** [__modpost] Error 1
+> make: *** [modules] Error 2
+> make: *** Waiting for unfinished jobs....
+> 
+> The reason we used that function is copy method by [1]
+> was really slow in ARM but at that time.
+> 
+> More severe problem is ARM can prefetch speculatively on other CPUs
+> so under us, other TLBs can have an entry only if we do flush local
+> CPU. Russell King pointed that. Thanks!
+> We don't have many choices except using flush_tlb_kernel_range.
+> 
+> My experiment in ARMv7 processor 4 core didn't make any difference with
+> zsmapbench[2] between local_flush_tlb_kernel_range and flush_tlb_kernel_range
+> but still page-table based is much better than copy-based.
+> 
+> * bigger is better.
+> 
+> 1. local_flush_tlb_kernel_range: 3918795 mappings
+> 2. flush_tlb_kernel_range : 3989538 mappings
+> 3. copy-based: 635158 mappings
+> 
+> This patch replace local_flush_tlb_kernel_range with
+> flush_tlb_kernel_range which are avaialbe in all architectures
+> because we already have used it in vmalloc allocator which are
+> generic one so build problem should go away and performane loss
+> shoud be void.
+> 
+> [1] f553646, zsmalloc: add page table mapping method
+> [2] https://github.com/spartacus06/zsmapbench
+> 
+> Cc: stable@vger.kernel.org
+> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Cc: Russell King <linux@arm.linux.org.uk>
+> Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-Feel free to add.
-Tested-by: Kyungmin Park <kyungmin.park@samsung.com>
->
-> Thank you,
-> Kyungmin Park
+Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Reported-by: Matt Sealey <matt@genesi-usa.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+> 
+> Matt, Could you test this patch?
+> 
+>  drivers/staging/zsmalloc/zsmalloc-main.c |   10 ++++------
+>  1 file changed, 4 insertions(+), 6 deletions(-)
+> 
+> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+> index eb00772..82e627c 100644
+> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+> @@ -222,11 +222,9 @@ struct zs_pool {
+>  /*
+>   * By default, zsmalloc uses a copy-based object mapping method to access
+>   * allocations that span two pages. However, if a particular architecture
+> - * 1) Implements local_flush_tlb_kernel_range() and 2) Performs VM mapping
+> - * faster than copying, then it should be added here so that
+> - * USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use page table
+> - * mapping rather than copying
+> - * for object mapping.
+> + * performs VM mapping faster than copying, then it should be added here
+> + * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
+> + * page table mapping rather than copying for object mapping.
+>  */
+>  #if defined(CONFIG_ARM)
+>  #define USE_PGTABLE_MAPPING
+> @@ -663,7 +661,7 @@ static inline void __zs_unmap_object(struct mapping_area *area,
+>  
+>  	flush_cache_vunmap(addr, end);
+>  	unmap_kernel_range_noflush(addr, PAGE_SIZE * 2);
+> -	local_flush_tlb_kernel_range(addr, end);
+> +	flush_tlb_kernel_range(addr, end);
+>  }
+>  
+>  #else /* USE_PGTABLE_MAPPING */
+> -- 
+> 1.7.9.5
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
