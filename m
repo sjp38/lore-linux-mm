@@ -1,67 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 955BC6B0025
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 21:43:06 -0500 (EST)
-Message-ID: <510B2B8A.7040407@cn.fujitsu.com>
-Date: Fri, 01 Feb 2013 10:42:18 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
-References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>       <1359463973.1624.15.camel@kernel> <5108F2B3.3090506@cn.fujitsu.com>      <1359595344.1557.13.camel@kernel> <5109E59F.5080104@cn.fujitsu.com>     <1359613162.1587.0.camel@kernel> <510A18FA.2010107@cn.fujitsu.com>    <1359622123.1391.19.camel@kernel> <510A3CE6.202@cn.fujitsu.com>   <1359628705.2048.5.camel@kernel> <510B1B4B.5080207@huawei.com>  <1359682576.3574.1.camel@kernel> <510B20F9.10408@cn.fujitsu.com> <1359685040.1303.6.camel@kernel>
-In-Reply-To: <1359685040.1303.6.camel@kernel>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 28BD96B0028
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 21:57:30 -0500 (EST)
+Message-ID: <1359687434.31386.53.camel@deadeye.wl.decadent.org.uk>
+Subject: Re: Bug#695182: [RFC] Reproducible OOM with just a few sleeps
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Fri, 01 Feb 2013 02:57:14 +0000
+In-Reply-To: <201302010212.r112C6UQ005134@como.maths.usyd.edu.au>
+References: <201302010212.r112C6UQ005134@como.maths.usyd.edu.au>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-ZEwXyXCb20IX49watm2+"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Jianguo Wu <wujianguo@huawei.com>, akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: paul.szabo@sydney.edu.au
+Cc: 695182@bugs.debian.org, dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@ucw.cz
 
-Hi Simon,
 
-On 02/01/2013 10:17 AM, Simon Jeons wrote:
->> For example:
->>
->>                                          64TB, what ever
->>      xxxTB, what ever
->> logic address space:     |_____kernel_______|_________user_________________|
->>                                          \  \  /  /
->>                                           \  /\  /
->> physical address space:              |___\/__\/_____________|  4GB or
->> 8GB, what ever
->>                                             *****
->
-> How much address space user process can have on x86_64? Also 8GB?
+--=-ZEwXyXCb20IX49watm2+
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Usually, we don't say that.
+On Fri, 2013-02-01 at 13:12 +1100, paul.szabo@sydney.edu.au wrote:
+> Dear Ben,
+>=20
+> >> PAE is broken for any amount of RAM.
+> >
+> > No it isn't.
+>=20
+> Could I please ask you to expand on that?
 
-8GB is your physical memory, right ?
-But kernel space and user space is the logic conception in OS. They are 
-in logic
-address space.
+I already did, a few messages back.
 
-So both the kernel space and the user space can use all the physical memory.
-But if the page is already in use by either of them, the other one 
-cannot use it.
-For example, some pages are direct mapped to kernel, and is in use by 
-kernel, the
-user space cannot map it.
+Ben.
 
->
->>
->> The ***** part physical is mapped to user space in the process' own
->> pagetable.
->> It is also direct mapped in kernel's pagetable. So the kernel can also
->> access it. :)
->
-> But how to protect user process not modify kernel memory?
+--=20
+Ben Hutchings
+Everything should be made as simple as possible, but not simpler.
+                                                           - Albert Einstei=
+n
 
-This is the job of CPU. On intel cpus, user space code is running in 
-level 3, and
-kernel space code is running in level 0. So the code in level 3 cannot 
-access the data
-segment in level 0.
+--=-ZEwXyXCb20IX49watm2+
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
 
-Thanks. :)
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIVAwUAUQsvCue/yOyVhhEJAQpY9xAA08DsjOdfHz1Ho5Ym3ZlqZWBQmBficolW
+h0Z4XDj5YN8tQ4DPdgAGzjXwi3mVzl2GC3GcyVirYpBxbrOVx1u0dX787e25jLyq
+tjZe7iGlds8/Klqmg3iqK2M0TJbm/3oH3C5gBsY9mBI+lwYdi7Fuh+rQivHNfy6N
+M1tniykaFL2UiiccRBop2HKJg67SEXe38fxtLe9ZYNljGsY83tOugipALVW56ane
+HQjNjRjv62iZMAatEppLa9gc719dUAE2CivrCPOILx91C+ToraOLVWREB9zwwTpY
+7K0Nor73Q8ITbgwX0fdPE5Cm5zFeJEfgokn5vB8PTYvlI3/E6BX8erkS0whAxSo6
+h/7hG6PrzJ6XcGTxCtjbn5qWHeUXwjDU6v28ipRDBlifMkJJ2HVXncoBKBJr4dHR
+uHmppAWMZIAkTOum0XJx5LfAGwkHzZX0BnTNfh8ygop17ffybnelC64JqCBgabU/
+29lbndNR9Pp4g/Mmr6jxGrsHgyZg1ADJbrudq/M7cWd7abihx/Gy46CO5CpowwF9
+R0KG3bX0AMRc2sfZDdTg0UOLiE8ZMV2prm/EpuaLyyNiJTW5/vpodbVuN55Soy2d
+O46r1fsHHdNMT2VDYS0Z+kmY2BWMRgsCDkhj1HBby330XGym3TGgcU1dsxmsIm6Z
+C84O7PiEOyM=
+=yNYO
+-----END PGP SIGNATURE-----
+
+--=-ZEwXyXCb20IX49watm2+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
