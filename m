@@ -1,62 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 3EF466B002D
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 15:23:37 -0500 (EST)
-Received: by mail-vb0-f50.google.com with SMTP id ft2so2677105vbb.37
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 12:23:36 -0800 (PST)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 43CD56B002B
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 15:23:38 -0500 (EST)
+Received: by mail-ve0-f173.google.com with SMTP id oz10so3310281veb.32
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 12:23:37 -0800 (PST)
 From: Konrad Rzeszutek Wilk <konrad@kernel.org>
-Subject: [PATCH 14/15] zcache/tmem: Better error checking on frontswap_register_ops return value.
-Date: Fri,  1 Feb 2013 15:23:03 -0500
-Message-Id: <1359750184-23408-15-git-send-email-konrad.wilk@oracle.com>
+Subject: [PATCH 15/15] xen/tmem: Add missing %s in the printk statement.
+Date: Fri,  1 Feb 2013 15:23:04 -0500
+Message-Id: <1359750184-23408-16-git-send-email-konrad.wilk@oracle.com>
 In-Reply-To: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
 References: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-In the past it either used to be NULL or the "older" backend. Now we
-also return -Exx error codes.
+Seems that it got lost.
 
 Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 ---
- drivers/staging/zcache/zcache-main.c | 5 ++++-
- drivers/xen/tmem.c                   | 5 ++++-
- 2 files changed, 8 insertions(+), 2 deletions(-)
+ drivers/xen/tmem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index 288c841..79c10af 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -1826,8 +1826,11 @@ static int zcache_init(void)
- 			namestr, frontswap_has_exclusive_gets,
- 			!disable_frontswap_ignore_nonactive);
- #endif
--		if (old_ops != NULL)
-+		if (IS_ERR(old_ops) || old_ops) {
-+			if (IS_ERR(old_ops))
-+				return PTR_RET(old_ops);
- 			pr_warn("%s: frontswap_ops overridden\n", namestr);
-+		}
- 	}
- 	if (ramster_enabled)
- 		ramster_init(!disable_cleancache, !disable_frontswap,
 diff --git a/drivers/xen/tmem.c b/drivers/xen/tmem.c
-index 9a4a9ec..2f939e5 100644
+index 2f939e5..4f3ff99 100644
 --- a/drivers/xen/tmem.c
 +++ b/drivers/xen/tmem.c
-@@ -395,8 +395,11 @@ static int xen_tmem_init(void)
- 			frontswap_register_ops(&tmem_frontswap_ops);
- 
- 		tmem_frontswap_poolid = -1;
--		if (old_ops)
-+		if (IS_ERR(old_ops) || old_ops) {
-+			if (IS_ERR(old_ops))
-+				return PTR_ERR(old_ops);
+@@ -401,7 +401,7 @@ static int xen_tmem_init(void)
  			s = " (WARNING: frontswap_ops overridden)";
-+		}
+ 		}
  		printk(KERN_INFO "frontswap enabled, RAM provided by "
- 				 "Xen Transcendent Memory\n");
+-				 "Xen Transcendent Memory\n");
++				 "Xen Transcendent Memory%s\n", s);
  	}
+ #endif
+ #ifdef CONFIG_CLEANCACHE
 -- 
 1.7.11.7
 
