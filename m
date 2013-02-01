@@ -1,133 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 47F3A6B0007
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 12:47:01 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 1 Feb 2013 12:46:59 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id DA42538C8047
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 12:46:57 -0500 (EST)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r11HktFO062470
-	for <linux-mm@kvack.org>; Fri, 1 Feb 2013 12:46:56 -0500
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r11HkllD002460
-	for <linux-mm@kvack.org>; Fri, 1 Feb 2013 10:46:48 -0700
-Message-ID: <510BFF7A.4000804@linux.vnet.ibm.com>
-Date: Fri, 01 Feb 2013 11:46:34 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCHv4 3/7] zswap: add to mm/
-References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com> <1359495627-30285-4-git-send-email-sjenning@linux.vnet.ibm.com> <20130131070716.GF23548@blaptop> <510AC0C6.4020705@linux.vnet.ibm.com> <20130201023821.GB6262@blaptop> <510BDFBD.7090808@linux.vnet.ibm.com>
-In-Reply-To: <510BDFBD.7090808@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id BFA806B0007
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 15:23:20 -0500 (EST)
+Received: by mail-vb0-f47.google.com with SMTP id e21so2695017vbm.34
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 12:23:19 -0800 (PST)
+From: Konrad Rzeszutek Wilk <konrad@kernel.org>
+Subject: [PATCH v2] Make frontswap+cleancache and its friend be modularized.
+Date: Fri,  1 Feb 2013 15:22:49 -0500
+Message-Id: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 02/01/2013 09:31 AM, Seth Jennings wrote:
-> On 01/31/2013 08:38 PM, Minchan Kim wrote:
->> On Thu, Jan 31, 2013 at 01:06:46PM -0600, Seth Jennings wrote:
->>> On 01/31/2013 01:07 AM, Minchan Kim wrote:
->>>> On Tue, Jan 29, 2013 at 03:40:23PM -0600, Seth Jennings wrote:
->>>>> zswap is a thin compression backend for frontswap. It receives
->>>>> pages from frontswap and attempts to store them in a compressed
->>>>> memory pool, resulting in an effective partial memory reclaim and
->>>>> dramatically reduced swap device I/O.
->>>>>
->>>>> Additionally, in most cases, pages can be retrieved from this
->>>>> compressed store much more quickly than reading from tradition
->>>>> swap devices resulting in faster performance for many workloads.
->>>>>
->>>>> This patch adds the zswap driver to mm/
->>>>>
->>>>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->>>>> ---
->>>>>  mm/Kconfig  |  15 ++
->>>>>  mm/Makefile |   1 +
->>>>>  mm/zswap.c  | 656 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->>>>>  3 files changed, 672 insertions(+)
->>>>>  create mode 100644 mm/zswap.c
->>>>>
->>>>> diff --git a/mm/Kconfig b/mm/Kconfig
->>>>> index 278e3ab..14b9acb 100644
->>>>> --- a/mm/Kconfig
->>>>> +++ b/mm/Kconfig
->>>>> @@ -446,3 +446,18 @@ config FRONTSWAP
->>>>>  	  and swap data is stored as normal on the matching swap device.
->>>>>  
->>>>>  	  If unsure, say Y to enable frontswap.
->>>>> +
->>>>> +config ZSWAP
->>>>> +	bool "In-kernel swap page compression"
->>>>> +	depends on FRONTSWAP && CRYPTO
->>>>> +	select CRYPTO_LZO
->>>>> +	select ZSMALLOC
->>>>
->>>> Again, I'm asking why zswap should have a dependent on CRPYTO?
->>>> Couldn't we support it as a option? I'd like to use zswap without CRYPTO
->>>> like zram.
->>>
->>> The reason we need CRYPTO is that zswap uses it to support a pluggable
->>> compression model.  zswap can use any compressor that has a crypto API
->>> driver.  zswap has _symbol dependencies_ on CRYPTO.  If it isn't
->>> selected, the build breaks.
->>
->> I think we can factor out compressoin part and remove dependency
->> at compile time by Kconfig. No?
-> 
-> I'm still not following.  How would one "factor out" the crypto API
-> dependency when we use it to access the compressor modules.
-> 
-> The only thing I can think you're saying is to hack up the code with
-> ifdefs to call the lzo code directly based on a Kconfig option.  I
-> really hope you aren't saying that though :-/
+Parts of this patch have been posted in the post (way back in November), but
+this patchset expanded it a bit. The goal of the patches is to make the
+different frontswap/cleancache API backends be modules - and load way way after
+the swap system (or filesystem) has been initialized. Naturally one can still
+build the frontswap+cleancache backend devices in the kernel. The next goal
+(after these patches) is to also be able to unload the backend drivers - but
+that places some interesting requirements to "reload" the swap device with
+swap pages (don't need to worry that much about cleancache as it is a "secondary"
+cache and can be dumped). Seth had posted some patches for that in the zswap
+backend - and they could be more generally repurporsed.
 
-Looking into this more, I found out that INET also selects CRYPTO, so
-unless the kernel is not doing networking, CRYPTO will be enabled
-anyway.  EXT4 also selects it.
+Anyhow, I did not want to lose the authorship of some of the patches so I
+didn't squash the ones that were made by Dan and mine. I can do it for review
+if it would make it easier, but from my recollection on how Linus likes things
+run he would prefer to keep the history (even the kludge parts).
 
-> 
->> Of course, if we disable CRYPTO in Kconfig,
->> we lost pluggable model but not a problem for embedded system.
-> 
-> The pluggable model is _very_ necessary for us because we use it to
-> access our hardware compression accelerator.  We do not use lzo in
-> that case.  We use 842 (crypto/842.c and drivers/crypto/nx/nx-842.c).
-> 
-> I'm not sure why we are misunderstanding on this.  Is there a specific
-> objection to depending the crypto API here? I understand that you are
-> thinking about embedded systems.  Does the enabling CRYPTO and
-> CRYPTO_LZO add significant size to the kernel or something?
+The general flow prior to these patches was [I am concentrating on the
+frontswap here, but the cleancache is similar, just s/swapon/mount/]:
 
-If size is the concern, I did a quick size diff between a vmlinux with
-and without CRYPTO:
-			
-		text	data	bss	dec
-CRYPTO=n	4747622	602704	7774208	13124534
-CRYPTO=y	4755437	602960	7774208	13132605
-diff		7815	256	0	8071
+ 1) kernel inits frontswap_init
+ 2) kernel inits zcache (or some other backend)
+ 3) user does swapon /dev/XX and the writes to the swap disk end up in
+    frontswap and then in the backend.
 
-Bottom line is CRYPTO adds about 8k to vmlinux.
+With the module loading, the 1) is still part of the bootup, but the
+2) or 3) can be run at anytime. This means one could load the backend
+_after_ the swap disk has been initialized and running along. Or
+_before_ the swap disk has been setup - but that is similar to the
+existing case so not that exciting.
 
-Thanks,
-Seth
+To deal with that scenario the frontswap keeps an queue (actually an atomic
+bitmap of the swap disks that have been init) and when the backend registers -
+frontswap runs the backend init on the queued up swap disks.
 
->Just trying to understand why this is a problem.
-> 
-> Thanks,
-> Seth
-> 
->>
->> Anyway, If it's a burden for you at a moment, I'm not going to insist on it.
->> Will do it for myself.
-> 
-> 
-> 
+The interesting thing is that we can be to certain degree racy when the
+swap system starts steering pages to frontswap. Meaning after the backend
+has registered it is OK if the pages are still hitting the disk instead of
+the backend. Naturally this is unacceptable if one were to unload the
+backend (not yet supported) - as we need to be quite atomic at that stage
+and need to stop processing the pages the moment the backend is being
+unloaded. To support this, the frontswap is using the struct static_key
+which are incredibly light when they are in usage. They are incredibly heavy
+when the value switches (on/off), but that is OK. The next part of unloading is
+also taking the pages that are in the backend and feed them in the swap
+storage (and Seth's patches do some of this).
+
+Also attached is one patch from Minchan that fixes the condition where the
+backend was constricted in allocating memory at init - b/c we were holding
+a spin-lock. His patch fixes that and we are just holding the swapon_mutex
+instead. It has been rebased on top of my patches.
+
+This patchset is based on Greg KH's staging tree (since the zcache2 has
+now been renamed to zcache). To be exact, it is based on
+085494ac2039433a5df9fdd6fb653579e18b8c71
+
+Dan Magenheimer (4):
+      mm: cleancache: lazy initialization to allow tmem backends to build/run as modules
+      mm: frontswap: lazy initialization to allow tmem backends to build/run as modules
+      staging: zcache: enable ramster to be built/loaded as a module
+      xen: tmem: enable Xen tmem shim to be built/loaded as a module
+
+Konrad Rzeszutek Wilk (10):
+      frontswap: Make frontswap_init use a pointer for the ops.
+      cleancache: Make cleancache_init use a pointer for the ops
+      staging: zcache: enable zcache to be built/loaded as a module
+      xen/tmem: Remove the subsys call.
+      frontswap: Remove the check for frontswap_enabled.
+      frontswap: Use static_key instead of frontswap_enabled and frontswap_ops
+      cleancache: Remove the check for cleancache_enabled.
+      cleancache: Use static_key instead of cleancache_ops and cleancache_enabled.
+      zcache/tmem: Better error checking on frontswap_register_ops return     value.
+      xen/tmem: Add missing %s in the printk statement.
+
+Minchan Kim (1):
+      frontswap: Get rid of swap_lock dependency
+
+
+ drivers/staging/zcache/Kconfig                     |   6 +-
+ drivers/staging/zcache/Makefile                    |  11 +-
+ drivers/staging/zcache/ramster.h                   |   6 +-
+ drivers/staging/zcache/ramster/nodemanager.c       |   9 +-
+ drivers/staging/zcache/ramster/ramster.c           |  29 ++-
+ drivers/staging/zcache/ramster/ramster.h           |   2 +-
+ .../staging/zcache/ramster/ramster_nodemanager.h   |   2 +
+ drivers/staging/zcache/tmem.c                      |   6 +-
+ drivers/staging/zcache/tmem.h                      |   8 +-
+ drivers/staging/zcache/zcache-main.c               |  64 +++++-
+ drivers/staging/zcache/zcache.h                    |   2 +-
+ drivers/xen/Kconfig                                |   4 +-
+ drivers/xen/tmem.c                                 |  55 +++--
+ drivers/xen/xen-selfballoon.c                      |  13 +-
+ include/linux/cleancache.h                         |  27 ++-
+ include/linux/frontswap.h                          |  31 +--
+ include/xen/tmem.h                                 |   8 +
+ mm/cleancache.c                                    | 241 ++++++++++++++++++---
+ mm/frontswap.c                                     | 121 ++++++++---
+ mm/swapfile.c                                      |   7 +-
+ 20 files changed, 505 insertions(+), 147 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
