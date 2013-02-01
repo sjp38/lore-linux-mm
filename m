@@ -1,92 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 50D716B0005
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 05:24:50 -0500 (EST)
-Received: by mail-we0-f181.google.com with SMTP id t44so2793467wey.26
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 02:24:48 -0800 (PST)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 0AC046B0005
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 05:25:47 -0500 (EST)
+Date: Fri, 1 Feb 2013 11:25:46 +0100
+From: Pavel Machek <pavel@denx.de>
+Subject: PAE problems was [RFC] Reproducible OOM with just a few sleeps
+Message-ID: <20130201102545.GA3053@amd.pavel.ucw.cz>
+References: <201302010313.r113DTj3027195@como.maths.usyd.edu.au>
+ <510B46C3.5040505@turmel.org>
+ <20130201102044.GA2801@amd.pavel.ucw.cz>
 MIME-Version: 1.0
-In-Reply-To: <0000013c695fbea7-9472355c-ccb3-4aa3-ba3d-2ecd6afb2e5a-000000@email.amazonses.com>
-References: <20130123214514.370647954@linux.com>
-	<0000013c695fbea7-9472355c-ccb3-4aa3-ba3d-2ecd6afb2e5a-000000@email.amazonses.com>
-Date: Fri, 1 Feb 2013 12:24:47 +0200
-Message-ID: <CAOJsxLFQt+Yq-n5QABgGczUjiaAGCJMwHZJwzWnpAKDCtKvabA@mail.gmail.com>
-Subject: Re: FIX [2/2] slub: tid must be retrieved from the percpu area of the
- current processor.
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130201102044.GA2801@amd.pavel.ucw.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R. Goncalves" <lgoncalv@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: Phil Turmel <philip@turmel.org>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: paul.szabo@sydney.edu.au, ben@decadent.org.uk, dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jan 23, 2013 at 11:45 PM, Christoph Lameter <cl@linux.com> wrote:
-> As Steven Rostedt has pointer out: Rescheduling could occur on a differnet processor
-> after the determination of the per cpu pointer and before the tid is retrieved.
-> This could result in allocation from the wrong node in slab_alloc.
->
-> The effect is much more severe in slab_free() where we could free to the freelist
-> of the wrong page.
->
-> The window for something like that occurring is pretty small but it is possible.
->
-> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Okay, makes sense. Has anyone triggered this in practice? Do we want
-to tag this for -stable?
+On Fri 2013-02-01 11:20:44, Pavel Machek wrote:
+> On Thu 2013-01-31 23:38:27, Phil Turmel wrote:
+> > On 01/31/2013 10:13 PM, paul.szabo@sydney.edu.au wrote:
+> > > [trim /] Does not that prove that PAE is broken?
+> > 
+> > Please, Paul, take *yes* for an answer.  It is broken.  You've received
+> > multiple dissertations on why it is going to stay that way.  Unless you
+> > fix it yourself, and everyone seems to be politely wishing you the best
+> > of luck with that.
+> 
+> It is not Paul's job to fix PAE. It is job of whoever broke it to do
+> so.
+> 
+> If it is broken with 2GB of RAM, it is clearly not the known "lowmem
+> starvation" issue, it is something else... and probably worth
+> debugging.
+> 
+> So, Paul, if you have time and interest... Try to find some old kernel
+> version where sleep test works with PAE. Hopefully there is one. Then
+> do bisection... author of the patch should then fix it. (And if not,
+> at least you have patch you can revert.)
+> 
+> rjw is worth cc-ing at that point.
 
->
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c        2013-01-23 15:06:39.805154107 -0600
-> +++ linux/mm/slub.c     2013-01-23 15:24:47.656868067 -0600
-> @@ -2331,13 +2331,18 @@ static __always_inline void *slab_alloc_
->
->         s = memcg_kmem_get_cache(s, gfpflags);
->  redo:
-> -
->         /*
->          * Must read kmem_cache cpu data via this cpu ptr. Preemption is
->          * enabled. We may switch back and forth between cpus while
->          * reading from one cpu area. That does not matter as long
->          * as we end up on the original cpu again when doing the cmpxchg.
-> +        *
-> +        * Preemption is disabled for the retrieval of the tid because that
-> +        * must occur from the current processor. We cannot allow rescheduling
-> +        * on a different processor between the determination of the pointer
-> +        * and the retrieval of the tid.
->          */
-> +       preempt_disable();
->         c = __this_cpu_ptr(s->cpu_slab);
->
->         /*
-> @@ -2347,7 +2352,7 @@ redo:
->          * linked list in between.
->          */
->         tid = c->tid;
-> -       barrier();
-> +       preempt_enable();
->
->         object = c->freelist;
->         page = c->page;
-> @@ -2594,10 +2599,11 @@ redo:
->          * data is retrieved via this pointer. If we are on the same cpu
->          * during the cmpxchg then the free will succedd.
->          */
-> +       preempt_disable();
->         c = __this_cpu_ptr(s->cpu_slab);
->
->         tid = c->tid;
-> -       barrier();
-> +       preempt_enable();
->
->         if (likely(page == c->page)) {
->                 set_freepointer(s, object, c->freelist);
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Ouch, and... IIRC (hpa should know for sure), PAE is neccessary for
+R^X support on x86, thus getting more common, not less. If it does not
+work, that's bad news.
+
+Actually, if PAE is known broken, it should probably get marked as
+such in Kconfig. That's sure to get some discussion started...
+									Pavel
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
