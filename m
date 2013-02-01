@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 916636B000E
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 05:44:01 -0500 (EST)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id AE6676B0010
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 05:44:03 -0500 (EST)
 From: Lukas Czerner <lczerner@redhat.com>
-Subject: [PATCH 05/18] xfs: use ->invalidatepage() length argument
-Date: Fri,  1 Feb 2013 11:43:31 +0100
-Message-Id: <1359715424-32318-6-git-send-email-lczerner@redhat.com>
+Subject: [PATCH 06/18] ocfs2: use ->invalidatepage() length argument
+Date: Fri,  1 Feb 2013 11:43:32 +0100
+Message-Id: <1359715424-32318-7-git-send-email-lczerner@redhat.com>
 In-Reply-To: <1359715424-32318-1-git-send-email-lczerner@redhat.com>
 References: <1359715424-32318-1-git-send-email-lczerner@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -14,83 +14,27 @@ To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, xfs@oss.sgi.com, Lukas Czerner <lczerner@redhat.com>
 
 ->invalidatepage() aop now accepts range to invalidate so we can make
-use of it in xfs_vm_invalidatepage()
+use of it in ocfs2_invalidatepage().
 
 Signed-off-by: Lukas Czerner <lczerner@redhat.com>
-Cc: xfs@oss.sgi.com
 ---
- fs/xfs/xfs_aops.c  |    5 +++--
- fs/xfs/xfs_trace.h |   41 ++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 43 insertions(+), 3 deletions(-)
+ fs/ocfs2/aops.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
-diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-index e426796..e8018d3 100644
---- a/fs/xfs/xfs_aops.c
-+++ b/fs/xfs/xfs_aops.c
-@@ -826,8 +826,9 @@ xfs_vm_invalidatepage(
- 	unsigned int		offset,
- 	unsigned int		length)
+diff --git a/fs/ocfs2/aops.c b/fs/ocfs2/aops.c
+index 1393114..d8c0076 100644
+--- a/fs/ocfs2/aops.c
++++ b/fs/ocfs2/aops.c
+@@ -608,8 +608,7 @@ static void ocfs2_invalidatepage(struct page *page, unsigned int offset,
  {
--	trace_xfs_invalidatepage(page->mapping->host, page, offset);
--	block_invalidatepage(page, offset, PAGE_CACHE_SIZE - offset);
-+	trace_xfs_invalidatepage(page->mapping->host, page, offset,
-+				 length);
-+	block_invalidatepage(page, offset, length);
+ 	journal_t *journal = OCFS2_SB(page->mapping->host->i_sb)->journal->j_journal;
+ 
+-	jbd2_journal_invalidatepage(journal, page, offset,
+-				    PAGE_CACHE_SIZE - offset);
++	jbd2_journal_invalidatepage(journal, page, offset, length);
  }
  
- /*
-diff --git a/fs/xfs/xfs_trace.h b/fs/xfs/xfs_trace.h
-index 16a8129..91d6434 100644
---- a/fs/xfs/xfs_trace.h
-+++ b/fs/xfs/xfs_trace.h
-@@ -991,7 +991,46 @@ DEFINE_EVENT(xfs_page_class, name,	\
- 	TP_ARGS(inode, page, off))
- DEFINE_PAGE_EVENT(xfs_writepage);
- DEFINE_PAGE_EVENT(xfs_releasepage);
--DEFINE_PAGE_EVENT(xfs_invalidatepage);
-+
-+TRACE_EVENT(xfs_invalidatepage,
-+	TP_PROTO(struct inode *inode, struct page *page, unsigned int off,
-+		 unsigned int len),
-+	TP_ARGS(inode, page, off, len),
-+	TP_STRUCT__entry(
-+		__field(dev_t, dev)
-+		__field(xfs_ino_t, ino)
-+		__field(pgoff_t, pgoff)
-+		__field(loff_t, size)
-+		__field(unsigned int, offset)
-+		__field(unsigned int, length)
-+		__field(int, delalloc)
-+		__field(int, unwritten)
-+	),
-+	TP_fast_assign(
-+		int delalloc = -1, unwritten = -1;
-+
-+		if (page_has_buffers(page))
-+			xfs_count_page_state(page, &delalloc, &unwritten);
-+		__entry->dev = inode->i_sb->s_dev;
-+		__entry->ino = XFS_I(inode)->i_ino;
-+		__entry->pgoff = page_offset(page);
-+		__entry->size = i_size_read(inode);
-+		__entry->offset = off;
-+		__entry->length = len;
-+		__entry->delalloc = delalloc;
-+		__entry->unwritten = unwritten;
-+	),
-+	TP_printk("dev %d:%d ino 0x%llx pgoff 0x%lx size 0x%llx offset %x "
-+		  "length %x delalloc %d unwritten %d",
-+		  MAJOR(__entry->dev), MINOR(__entry->dev),
-+		  __entry->ino,
-+		  __entry->pgoff,
-+		  __entry->size,
-+		  __entry->offset,
-+		  __entry->length,
-+		  __entry->delalloc,
-+		  __entry->unwritten)
-+)
- 
- DECLARE_EVENT_CLASS(xfs_imap_class,
- 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count,
+ static int ocfs2_releasepage(struct page *page, gfp_t wait)
 -- 
 1.7.7.6
 
