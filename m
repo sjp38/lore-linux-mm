@@ -1,294 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 2E0476B0010
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 15:23:26 -0500 (EST)
-Received: by mail-vc0-f178.google.com with SMTP id m8so2700983vcd.37
-        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 12:23:25 -0800 (PST)
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 423FA6B0011
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 15:23:27 -0500 (EST)
+Received: by mail-vc0-f181.google.com with SMTP id d16so2728321vcd.12
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 12:23:26 -0800 (PST)
 From: Konrad Rzeszutek Wilk <konrad@kernel.org>
-Subject: [PATCH 04/15] cleancache: Make cleancache_init use a pointer for the ops
-Date: Fri,  1 Feb 2013 15:22:53 -0500
-Message-Id: <1359750184-23408-5-git-send-email-konrad.wilk@oracle.com>
+Subject: [PATCH 05/15] staging: zcache: enable ramster to be built/loaded as a module
+Date: Fri,  1 Feb 2013 15:22:54 -0500
+Message-Id: <1359750184-23408-6-git-send-email-konrad.wilk@oracle.com>
 In-Reply-To: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
 References: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Instead of using a backend_registered to determine whether
-a backend is enabled. This allows us to remove the
-backend_register check and just do 'if (cleancache_ops)'
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
 
-[v1: Rebase on top of b97c4b430b0a405a57c78607b520d8000329e259
-(ramster->zcache move]
+Enable module support for ramster.  Note runtime dependency disallows
+loading if cleancache/frontswap lazy initialization patches are not
+present.
+
+If built-in (not built as a module), the original mechanism of enabling via
+a kernel boot parameter is retained, but this should be considered deprecated.
+
+Note that module unload is explicitly not yet supported.
+
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+[v1: Fixed compile issues since ramster_init now has four arguments]
+[v2: Fixed rebase on ramster->zcache move]
 Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 ---
- drivers/staging/zcache/zcache-main.c |  8 ++---
- drivers/xen/tmem.c                   |  6 ++--
- include/linux/cleancache.h           |  2 +-
- mm/cleancache.c                      | 62 +++++++++++++++++++-----------------
- 4 files changed, 40 insertions(+), 38 deletions(-)
+ drivers/staging/zcache/ramster.h                   |  6 ++++-
+ drivers/staging/zcache/ramster/nodemanager.c       |  9 ++++---
+ drivers/staging/zcache/ramster/ramster.c           | 29 ++++++++++++++++++----
+ drivers/staging/zcache/ramster/ramster.h           |  2 +-
+ .../staging/zcache/ramster/ramster_nodemanager.h   |  2 ++
+ drivers/staging/zcache/zcache-main.c               |  2 +-
+ 6 files changed, 38 insertions(+), 12 deletions(-)
 
+diff --git a/drivers/staging/zcache/ramster.h b/drivers/staging/zcache/ramster.h
+index 1b71aea..e1f91d5 100644
+--- a/drivers/staging/zcache/ramster.h
++++ b/drivers/staging/zcache/ramster.h
+@@ -11,10 +11,14 @@
+ #ifndef _ZCACHE_RAMSTER_H_
+ #define _ZCACHE_RAMSTER_H_
+ 
++#ifdef CONFIG_RAMSTER_MODULE
++#define CONFIG_RAMSTER
++#endif
++
+ #ifdef CONFIG_RAMSTER
+ #include "ramster/ramster.h"
+ #else
+-static inline void ramster_init(bool x, bool y, bool z)
++static inline void ramster_init(bool x, bool y, bool z, bool w)
+ {
+ }
+ 
+diff --git a/drivers/staging/zcache/ramster/nodemanager.c b/drivers/staging/zcache/ramster/nodemanager.c
+index c0f4815..2cfe933 100644
+--- a/drivers/staging/zcache/ramster/nodemanager.c
++++ b/drivers/staging/zcache/ramster/nodemanager.c
+@@ -949,7 +949,7 @@ static void __exit exit_r2nm(void)
+ 	r2hb_exit();
+ }
+ 
+-static int __init init_r2nm(void)
++int r2nm_init(void)
+ {
+ 	int ret = -1;
+ 
+@@ -986,10 +986,11 @@ out_r2hb:
+ out:
+ 	return ret;
+ }
++EXPORT_SYMBOL_GPL(r2nm_init);
+ 
+ MODULE_AUTHOR("Oracle");
+ MODULE_LICENSE("GPL");
+ 
+-/* module_init(init_r2nm) */
+-late_initcall(init_r2nm);
+-/* module_exit(exit_r2nm) */
++#ifndef CONFIG_RAMSTER_MODULE
++late_initcall(r2nm_init);
++#endif
+diff --git a/drivers/staging/zcache/ramster/ramster.c b/drivers/staging/zcache/ramster/ramster.c
+index c06709f..491ec70 100644
+--- a/drivers/staging/zcache/ramster/ramster.c
++++ b/drivers/staging/zcache/ramster/ramster.c
+@@ -92,7 +92,7 @@ static unsigned long ramster_remote_page_flushes_failed;
+ #include <linux/debugfs.h>
+ #define	zdfs	debugfs_create_size_t
+ #define	zdfs64	debugfs_create_u64
+-static int __init ramster_debugfs_init(void)
++static int ramster_debugfs_init(void)
+ {
+ 	struct dentry *root = debugfs_create_dir("ramster", NULL);
+ 	if (root == NULL)
+@@ -191,6 +191,7 @@ int ramster_do_preload_flnode(struct tmem_pool *pool)
+ 		kmem_cache_free(ramster_flnode_cache, flnode);
+ 	return ret;
+ }
++EXPORT_SYMBOL_GPL(ramster_do_preload_flnode);
+ 
+ /*
+  * Called by the message handler after a (still compressed) page has been
+@@ -458,6 +459,7 @@ void *ramster_pampd_free(void *pampd, struct tmem_pool *pool,
+ 	}
+ 	return local_pampd;
+ }
++EXPORT_SYMBOL_GPL(ramster_pampd_free);
+ 
+ void ramster_count_foreign_pages(bool eph, int count)
+ {
+@@ -489,6 +491,7 @@ void ramster_count_foreign_pages(bool eph, int count)
+ 		ramster_foreign_pers_pages = c;
+ 	}
+ }
++EXPORT_SYMBOL_GPL(ramster_count_foreign_pages);
+ 
+ /*
+  * For now, just push over a few pages every few seconds to
+@@ -674,7 +677,7 @@ requeue:
+ 	ramster_remotify_queue_delayed_work(HZ);
+ }
+ 
+-void __init ramster_remotify_init(void)
++void ramster_remotify_init(void)
+ {
+ 	unsigned long n = 60UL;
+ 	ramster_remotify_workqueue =
+@@ -849,8 +852,10 @@ static bool frontswap_selfshrinking __read_mostly;
+ static void selfshrink_process(struct work_struct *work);
+ static DECLARE_DELAYED_WORK(selfshrink_worker, selfshrink_process);
+ 
++#ifndef CONFIG_RAMSTER_MODULE
+ /* Enable/disable with kernel boot option. */
+ static bool use_frontswap_selfshrink __initdata = true;
++#endif
+ 
+ /*
+  * The default values for the following parameters were deemed reasonable
+@@ -905,6 +910,7 @@ static void frontswap_selfshrink(void)
+ 	frontswap_shrink(tgt_frontswap_pages);
+ }
+ 
++#ifndef CONFIG_RAMSTER_MODULE
+ static int __init ramster_nofrontswap_selfshrink_setup(char *s)
+ {
+ 	use_frontswap_selfshrink = false;
+@@ -912,6 +918,7 @@ static int __init ramster_nofrontswap_selfshrink_setup(char *s)
+ }
+ 
+ __setup("noselfshrink", ramster_nofrontswap_selfshrink_setup);
++#endif
+ 
+ static void selfshrink_process(struct work_struct *work)
+ {
+@@ -930,6 +937,7 @@ void ramster_cpu_up(int cpu)
+ 	per_cpu(ramster_remoteputmem1, cpu) = p1;
+ 	per_cpu(ramster_remoteputmem2, cpu) = p2;
+ }
++EXPORT_SYMBOL_GPL(ramster_cpu_up);
+ 
+ void ramster_cpu_down(int cpu)
+ {
+@@ -945,6 +953,7 @@ void ramster_cpu_down(int cpu)
+ 		kp->flnode = NULL;
+ 	}
+ }
++EXPORT_SYMBOL_GPL(ramster_cpu_down);
+ 
+ void ramster_register_pamops(struct tmem_pamops *pamops)
+ {
+@@ -955,9 +964,11 @@ void ramster_register_pamops(struct tmem_pamops *pamops)
+ 	pamops->repatriate = ramster_pampd_repatriate;
+ 	pamops->repatriate_preload = ramster_pampd_repatriate_preload;
+ }
++EXPORT_SYMBOL_GPL(ramster_register_pamops);
+ 
+-void __init ramster_init(bool cleancache, bool frontswap,
+-				bool frontswap_exclusive_gets)
++void ramster_init(bool cleancache, bool frontswap,
++				bool frontswap_exclusive_gets,
++				bool frontswap_selfshrink)
+ {
+ 	int ret = 0;
+ 
+@@ -972,10 +983,17 @@ void __init ramster_init(bool cleancache, bool frontswap,
+ 	if (ret)
+ 		pr_err("ramster: can't create sysfs for ramster\n");
+ 	(void)r2net_register_handlers();
++#ifdef CONFIG_RAMSTER_MODULE
++	ret = r2nm_init();
++	if (ret)
++		pr_err("ramster: can't init r2net\n");
++	frontswap_selfshrinking = frontswap_selfshrink;
++#else
++	frontswap_selfshrinking = use_frontswap_selfshrink;
++#endif
+ 	INIT_LIST_HEAD(&ramster_rem_op_list);
+ 	ramster_flnode_cache = kmem_cache_create("ramster_flnode",
+ 				sizeof(struct flushlist_node), 0, 0, NULL);
+-	frontswap_selfshrinking = use_frontswap_selfshrink;
+ 	if (frontswap_selfshrinking) {
+ 		pr_info("ramster: Initializing frontswap selfshrink driver.\n");
+ 		schedule_delayed_work(&selfshrink_worker,
+@@ -983,3 +1001,4 @@ void __init ramster_init(bool cleancache, bool frontswap,
+ 	}
+ 	ramster_remotify_init();
+ }
++EXPORT_SYMBOL_GPL(ramster_init);
+diff --git a/drivers/staging/zcache/ramster/ramster.h b/drivers/staging/zcache/ramster/ramster.h
+index 12ae56f..6d41a7a 100644
+--- a/drivers/staging/zcache/ramster/ramster.h
++++ b/drivers/staging/zcache/ramster/ramster.h
+@@ -147,7 +147,7 @@ extern int r2net_register_handlers(void);
+ extern int r2net_remote_target_node_set(int);
+ 
+ extern int ramster_remotify_pageframe(bool);
+-extern void ramster_init(bool, bool, bool);
++extern void ramster_init(bool, bool, bool, bool);
+ extern void ramster_register_pamops(struct tmem_pamops *);
+ extern int ramster_localify(int, struct tmem_oid *oidp, uint32_t, char *,
+ 				unsigned int, void *);
+diff --git a/drivers/staging/zcache/ramster/ramster_nodemanager.h b/drivers/staging/zcache/ramster/ramster_nodemanager.h
+index 49f879d..dbaae34 100644
+--- a/drivers/staging/zcache/ramster/ramster_nodemanager.h
++++ b/drivers/staging/zcache/ramster/ramster_nodemanager.h
+@@ -36,4 +36,6 @@
+ /* host name, group name, cluster name all 64 bytes */
+ #define R2NM_MAX_NAME_LEN        64    /* __NEW_UTS_LEN */
+ 
++extern int r2nm_init(void);
++
+ #endif /* _RAMSTER_NODEMANAGER_H */
 diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index 05bfa41..b5a9dd0 100644
+index b5a9dd0..bb59b78 100644
 --- a/drivers/staging/zcache/zcache-main.c
 +++ b/drivers/staging/zcache/zcache-main.c
-@@ -1494,9 +1494,9 @@ static struct cleancache_ops zcache_cleancache_ops = {
- 	.init_fs = zcache_cleancache_init_fs
- };
- 
--struct cleancache_ops zcache_cleancache_register_ops(void)
-+struct cleancache_ops *zcache_cleancache_register_ops(void)
- {
--	struct cleancache_ops old_ops =
-+	struct cleancache_ops *old_ops =
- 		cleancache_register_ops(&zcache_cleancache_ops);
- 
- 	return old_ops;
-@@ -1780,7 +1780,7 @@ static int __init zcache_init(void)
+@@ -1811,7 +1811,7 @@ static int __init zcache_init(void)
  	}
- 	zbud_init();
- 	if (zcache_enabled && !disable_cleancache) {
--		struct cleancache_ops old_ops;
-+		struct cleancache_ops *old_ops;
- 
- 		register_shrinker(&zcache_shrinker);
- 		old_ops = zcache_cleancache_register_ops();
-@@ -1790,7 +1790,7 @@ static int __init zcache_init(void)
- 		pr_info("%s: cleancache: ignorenonactive = %d\n",
- 			namestr, !disable_cleancache_ignore_nonactive);
- #endif
--		if (old_ops.init_fs != NULL)
-+		if (old_ops != NULL)
- 			pr_warn("%s: cleancache_ops overridden\n", namestr);
- 	}
- 	if (zcache_enabled && !disable_frontswap) {
-diff --git a/drivers/xen/tmem.c b/drivers/xen/tmem.c
-index 4b02c07..15e776c 100644
---- a/drivers/xen/tmem.c
-+++ b/drivers/xen/tmem.c
-@@ -236,7 +236,7 @@ static int __init no_cleancache(char *s)
+ 	if (ramster_enabled)
+ 		ramster_init(!disable_cleancache, !disable_frontswap,
+-				frontswap_has_exclusive_gets);
++				frontswap_has_exclusive_gets, false);
+ out:
+ 	return ret;
  }
- __setup("nocleancache", no_cleancache);
- 
--static struct cleancache_ops __initdata tmem_cleancache_ops = {
-+static struct cleancache_ops tmem_cleancache_ops = {
- 	.put_page = tmem_cleancache_put_page,
- 	.get_page = tmem_cleancache_get_page,
- 	.invalidate_page = tmem_cleancache_flush_page,
-@@ -392,9 +392,9 @@ static int __init xen_tmem_init(void)
- 	BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
- 	if (tmem_enabled && use_cleancache) {
- 		char *s = "";
--		struct cleancache_ops old_ops =
-+		struct cleancache_ops *old_ops =
- 			cleancache_register_ops(&tmem_cleancache_ops);
--		if (old_ops.init_fs != NULL)
-+		if (old_ops)
- 			s = " (WARNING: cleancache_ops overridden)";
- 		printk(KERN_INFO "cleancache enabled, RAM provided by "
- 				 "Xen Transcendent Memory%s\n", s);
-diff --git a/include/linux/cleancache.h b/include/linux/cleancache.h
-index 42e55de..3af5ea8 100644
---- a/include/linux/cleancache.h
-+++ b/include/linux/cleancache.h
-@@ -33,7 +33,7 @@ struct cleancache_ops {
- 	void (*invalidate_fs)(int);
- };
- 
--extern struct cleancache_ops
-+extern struct cleancache_ops *
- 	cleancache_register_ops(struct cleancache_ops *ops);
- extern void __cleancache_init_fs(struct super_block *);
- extern void __cleancache_init_shared_fs(char *, struct super_block *);
-diff --git a/mm/cleancache.c b/mm/cleancache.c
-index e4dc314..5d8dbb9 100644
---- a/mm/cleancache.c
-+++ b/mm/cleancache.c
-@@ -32,7 +32,7 @@ EXPORT_SYMBOL(cleancache_enabled);
-  * cleancache_ops is set by cleancache_ops_register to contain the pointers
-  * to the cleancache "backend" implementation functions.
-  */
--static struct cleancache_ops cleancache_ops __read_mostly;
-+static struct cleancache_ops *cleancache_ops __read_mostly;
- 
- /*
-  * Counters available via /sys/kernel/debug/frontswap (if debugfs is
-@@ -72,15 +72,14 @@ static DEFINE_MUTEX(poolid_mutex);
- /*
-  * When set to false (default) all calls to the cleancache functions, except
-  * the __cleancache_invalidate_fs and __cleancache_init_[shared|]fs are guarded
-- * by the if (!backend_registered) return. This means multiple threads (from
-- * different filesystems) will be checking backend_registered. The usage of a
-+ * by the if (!cleancache_ops) return. This means multiple threads (from
-+ * different filesystems) will be checking cleancache_ops. The usage of a
-  * bool instead of a atomic_t or a bool guarded by a spinlock is OK - we are
-  * OK if the time between the backend's have been initialized (and
-- * backend_registered has been set to true) and when the filesystems start
-+ * cleancache_ops has been set to not NULL) and when the filesystems start
-  * actually calling the backends. The inverse (when unloading) is obviously
-  * not good - but this shim does not do that (yet).
-  */
--static bool backend_registered __read_mostly;
- 
- /*
-  * The backends and filesystems work all asynchronously. This is b/c the
-@@ -90,13 +89,13 @@ static bool backend_registered __read_mostly;
-  * 		[shared_|]fs_poolid_map and uuids for.
-  *
-  * 	b). user does I/Os -> we call the rest of __cleancache_* functions
-- * 		which return immediately as backend_registered is false.
-+ * 		which return immediately as cleancache_ops is NULL.
-  *
-  * 	c). modprobe zcache -> cleancache_register_ops. We init the backend
-- * 		and set backend_registered to true, and for any fs_poolid_map
-+ * 		and set cleancache_ops to the backend, and for any fs_poolid_map
-  * 		(which is set by __cleancache_init_fs) we initialize the poolid.
-  *
-- * 	d). user does I/Os -> now that backend_registered is true all the
-+ * 	d). user does I/Os -> now that clean_ops is not NULL all the
-  * 		__cleancache_* functions can call the backend. They all check
-  * 		that fs_poolid_map is valid and if so invoke the backend.
-  *
-@@ -120,23 +119,26 @@ static bool backend_registered __read_mostly;
-  * Register operations for cleancache, returning previous thus allowing
-  * detection of multiple backends and possible nesting.
-  */
--struct cleancache_ops cleancache_register_ops(struct cleancache_ops *ops)
-+struct cleancache_ops *cleancache_register_ops(struct cleancache_ops *ops)
- {
--	struct cleancache_ops old = cleancache_ops;
-+	struct cleancache_ops *old = cleancache_ops;
- 	int i;
- 
- 	mutex_lock(&poolid_mutex);
--	cleancache_ops = *ops;
--
--	backend_registered = true;
- 	for (i = 0; i < MAX_INITIALIZABLE_FS; i++) {
- 		if (fs_poolid_map[i] == FS_NO_BACKEND)
--			fs_poolid_map[i] = (*cleancache_ops.init_fs)(PAGE_SIZE);
-+			fs_poolid_map[i] = ops->init_fs(PAGE_SIZE);
- 		if (shared_fs_poolid_map[i] == FS_NO_BACKEND)
--			shared_fs_poolid_map[i] = (*cleancache_ops.init_shared_fs)
-+			shared_fs_poolid_map[i] = ops->init_shared_fs
- 					(uuids[i], PAGE_SIZE);
- 	}
--out:
-+	/*
-+	 * We MUST set cleancache_ops _after_ we have called the backends
-+	 * init_fs or init_shared_fs functions. Otherwise the compiler might
-+	 * re-order where cleancache_ops is set in this function.
-+	 */
-+	barrier();
-+	cleancache_ops = ops;
- 	mutex_unlock(&poolid_mutex);
- 	return old;
- }
-@@ -151,8 +153,8 @@ void __cleancache_init_fs(struct super_block *sb)
- 	for (i = 0; i < MAX_INITIALIZABLE_FS; i++) {
- 		if (fs_poolid_map[i] == FS_UNKNOWN) {
- 			sb->cleancache_poolid = i + FAKE_FS_POOLID_OFFSET;
--			if (backend_registered)
--				fs_poolid_map[i] = (*cleancache_ops.init_fs)(PAGE_SIZE);
-+			if (cleancache_ops)
-+				fs_poolid_map[i] = cleancache_ops->init_fs(PAGE_SIZE);
- 			else
- 				fs_poolid_map[i] = FS_NO_BACKEND;
- 			break;
-@@ -172,8 +174,8 @@ void __cleancache_init_shared_fs(char *uuid, struct super_block *sb)
- 		if (shared_fs_poolid_map[i] == FS_UNKNOWN) {
- 			sb->cleancache_poolid = i + FAKE_SHARED_FS_POOLID_OFFSET;
- 			uuids[i] = uuid;
--			if (backend_registered)
--				shared_fs_poolid_map[i] = (*cleancache_ops.init_shared_fs)
-+			if (cleancache_ops)
-+				shared_fs_poolid_map[i] = cleancache_ops->init_shared_fs
- 						(uuid, PAGE_SIZE);
- 			else
- 				shared_fs_poolid_map[i] = FS_NO_BACKEND;
-@@ -240,7 +242,7 @@ int __cleancache_get_page(struct page *page)
- 	int fake_pool_id;
- 	struct cleancache_filekey key = { .u.key = { 0 } };
- 
--	if (!backend_registered) {
-+	if (!cleancache_ops) {
- 		cleancache_failed_gets++;
- 		goto out;
- 	}
-@@ -255,7 +257,7 @@ int __cleancache_get_page(struct page *page)
- 		goto out;
- 
- 	if (pool_id >= 0)
--		ret = (*cleancache_ops.get_page)(pool_id,
-+		ret = cleancache_ops->get_page(pool_id,
- 				key, page->index, page);
- 	if (ret == 0)
- 		cleancache_succ_gets++;
-@@ -282,7 +284,7 @@ void __cleancache_put_page(struct page *page)
- 	int fake_pool_id;
- 	struct cleancache_filekey key = { .u.key = { 0 } };
- 
--	if (!backend_registered) {
-+	if (!cleancache_ops) {
- 		cleancache_puts++;
- 		return;
- 	}
-@@ -296,7 +298,7 @@ void __cleancache_put_page(struct page *page)
- 
- 	if (pool_id >= 0 &&
- 		cleancache_get_key(page->mapping->host, &key) >= 0) {
--		(*cleancache_ops.put_page)(pool_id, key, page->index, page);
-+		cleancache_ops->put_page(pool_id, key, page->index, page);
- 		cleancache_puts++;
- 	}
- }
-@@ -318,7 +320,7 @@ void __cleancache_invalidate_page(struct address_space *mapping,
- 	int fake_pool_id = mapping->host->i_sb->cleancache_poolid;
- 	struct cleancache_filekey key = { .u.key = { 0 } };
- 
--	if (!backend_registered)
-+	if (!cleancache_ops)
- 		return;
- 
- 	if (fake_pool_id >= 0) {
-@@ -328,7 +330,7 @@ void __cleancache_invalidate_page(struct address_space *mapping,
- 
- 		VM_BUG_ON(!PageLocked(page));
- 		if (cleancache_get_key(mapping->host, &key) >= 0) {
--			(*cleancache_ops.invalidate_page)(pool_id,
-+			cleancache_ops->invalidate_page(pool_id,
- 					key, page->index);
- 			cleancache_invalidates++;
- 		}
-@@ -351,7 +353,7 @@ void __cleancache_invalidate_inode(struct address_space *mapping)
- 	int fake_pool_id = mapping->host->i_sb->cleancache_poolid;
- 	struct cleancache_filekey key = { .u.key = { 0 } };
- 
--	if (!backend_registered)
-+	if (!cleancache_ops)
- 		return;
- 
- 	if (fake_pool_id < 0)
-@@ -360,7 +362,7 @@ void __cleancache_invalidate_inode(struct address_space *mapping)
- 	pool_id = get_poolid_from_fake(fake_pool_id);
- 
- 	if (pool_id >= 0 && cleancache_get_key(mapping->host, &key) >= 0)
--		(*cleancache_ops.invalidate_inode)(pool_id, key);
-+		cleancache_ops->invalidate_inode(pool_id, key);
- }
- EXPORT_SYMBOL(__cleancache_invalidate_inode);
- 
-@@ -387,8 +389,8 @@ void __cleancache_invalidate_fs(struct super_block *sb)
- 		fs_poolid_map[index] = FS_UNKNOWN;
- 	}
- 	sb->cleancache_poolid = -1;
--	if (backend_registered)
--		(*cleancache_ops.invalidate_fs)(old_poolid);
-+	if (cleancache_ops)
-+		cleancache_ops->invalidate_fs(old_poolid);
- 	mutex_unlock(&poolid_mutex);
- }
- EXPORT_SYMBOL(__cleancache_invalidate_fs);
 -- 
 1.7.11.7
 
