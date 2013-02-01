@@ -1,94 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id DDD896B0005
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 19:33:14 -0500 (EST)
-Received: from mail-vb0-f49.google.com ([209.85.212.49])
-	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
-	(Exim 4.71)
-	(envelope-from <ming.lei@canonical.com>)
-	id 1U14Z7-00067z-LU
-	for linux-mm@kvack.org; Fri, 01 Feb 2013 00:33:13 +0000
-Received: by mail-vb0-f49.google.com with SMTP id s24so2121095vbi.22
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2013 16:33:12 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20130131154331.09d157a3.akpm@linux-foundation.org>
-References: <20130128091039.GG6871@arwen.pp.htv.fi>
-	<CACVXFVOATzTJq+-5M9j3G3y_WUrWKJt=naPkjkLwGDmT0H8gog@mail.gmail.com>
-	<20130131154331.09d157a3.akpm@linux-foundation.org>
-Date: Fri, 1 Feb 2013 08:33:12 +0800
-Message-ID: <CACVXFVO415U1amgUUOoy_1CLjfUqw98QqD8mCVixAzNQ2_Nzqw@mail.gmail.com>
-Subject: Re: Page allocation failure on v3.8-rc5
-From: Ming Lei <ming.lei@canonical.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 942DD6B0005
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 20:07:52 -0500 (EST)
+Message-ID: <1359680851.31386.51.camel@deadeye.wl.decadent.org.uk>
+Subject: Re: Bug#695182: [RFC] Reproducible OOM with just a few sleeps
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Fri, 01 Feb 2013 01:07:31 +0000
+In-Reply-To: <201301312306.r0VN6tBx012280@como.maths.usyd.edu.au>
+References: <201301312306.r0VN6tBx012280@como.maths.usyd.edu.au>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-SWzmCrfY7h298Vl8qUCB"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: balbi@ti.com, Linux USB Mailing List <linux-usb@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>
-
-On Fri, Feb 1, 2013 at 7:43 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Wed, 30 Jan 2013 19:53:22 +0800
-> Ming Lei <ming.lei@canonical.com> wrote:
->
->> The allocation failure is caused by the big sizeof(struct parsed_partitions),
->> which is 64K in my 32bit box,
->
-> Geeze.
->
-> We could fix that nicely by making parsed_partitions.parts an array of
-> pointers to a single `struct parsed_partition' and allocating those
-> on-demand.
->
-> But given the short-lived nature of this storage and the infrequency of
-> check_partition(), that isn't necessary.
->
->> could you test the blow patch to see
->> if it can fix the allocation failure?
->
-> (The patch is wordwrapped)
-
-Sorry for that, I send out it for test.
-
->
->> ...
->>
->> @@ -106,18 +107,43 @@ static int (*check_part[])(struct parsed_partitions *) = {
->>       NULL
->>  };
->>
->> +struct parsed_partitions *allocate_partitions(int nr)
->> +{
->> +     struct parsed_partitions *state;
->> +
->> +     state = kzalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
->
-> I personally prefer sizefo(*state) here.  It means the reader doesn't
-> have to scroll back to check things.
-
-OK, will use sizeof(*state).
-
->> +     if (!state)
->> +             return NULL;
->> +
->> +     state->parts = vzalloc(nr * sizeof(state->parts[0]));
->> +     if (!state->parts) {
->> +             kfree(state);
->> +             return NULL;
->> +     }
->
-> It doesn't really need to be this complex - we could just vmalloc the
-> entire `struct parsed_partitions'.  But I see that your change will
-
-The above approach can save one 32K allocation approximately.
-
-> cause us to allcoate much less memory in many situations, which is
-> good.  It should be mentioned in the changelog!
-
-OK, I will add the changelog later.
+To: paul.szabo@sydney.edu.au
+Cc: 695182@bugs.debian.org, dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pavel@ucw.cz
 
 
-Thanks,
---
-Ming Lei
+--=-SWzmCrfY7h298Vl8qUCB
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+On Fri, 2013-02-01 at 10:06 +1100, paul.szabo@sydney.edu.au wrote:
+> Dear Ben,
+>=20
+> > Based on your experience I might propose to change the automatic kernel
+> > selection for i386 so that we use 'amd64' on a system with >16GB RAM an=
+d
+> > a capable processor.
+>=20
+> Don't you mean change to amd64 for >4GB (or any RAM), never using PAE?
+> PAE is broken for any amount of RAM.
+[...]
+
+No it isn't.
+
+Ben.
+
+--=20
+Ben Hutchings
+Everything should be made as simple as possible, but not simpler.
+                                                           - Albert Einstei=
+n
+
+--=-SWzmCrfY7h298Vl8qUCB
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIVAwUAUQsVU+e/yOyVhhEJAQqXog/+IVILgiQ4pXEQYLwTdIem3AggO4Vjg5iJ
+Uball4sfs1ap0/LRygbr2MuvI40S9HQQYeBOU3AL5Y9dNvWdrIPjgsz5URseiyaF
+M4TQQ7IBj88rPBUIWzClnmmZ0Qp6HfOKvh/8ezr/geH4eHjtwB9o6VnBUAMV/zhh
+3JarsI+cL2dGDtW/11HZRq3KhCStSlVtVpCoA5Ocj2dVnPcgbt01HD/ByEk0KUWQ
+rdkQtCk/7PVJebiLyRchqpSo25SEwUoHIZh2q9z2QsRlSW9oBXeDW9clg8NHMF1R
+LbgPZNfSQrQLlK+3peA3wszJu3YcZxeLhIzdIN69KJb79DAG2ab4NuglxBV0i7Zj
+Pnk1UHMCoOcI2ZDtbdk+ssa0YSKYFFCPovQj6Lz0mTg9VxmqFv1uISh36hsQ5Hbl
+uT2t1q7vxSyYxzYQOqe6kQwtxIDJEtz8E+gYj54ACCuMDvH50UDVwV2yQRt00v47
+G6Ydr5yEajHV7xDMYO7xSF5X8dmQ6M3GlgaHwPp8t/lbE5CW5dUNwzeJNFdAMygV
+VytjvArlBFxVT3+ir4uhIIUdwqQk8dfRbjU8dbDi1nMIgSxX4okYap3IvjYtt5T3
+1b5iOm0vLnfOVZDQZB9N2xNO3uiNy++cHRllQqVWGO8hq0YvhIf6mIMGKPzltSxy
+BIcBxVNcE58=
+=xVrj
+-----END PGP SIGNATURE-----
+
+--=-SWzmCrfY7h298Vl8qUCB--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
