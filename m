@@ -1,69 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 769AA6B000A
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 19:07:59 -0500 (EST)
-Date: Thu, 31 Jan 2013 16:07:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/6 RFC] Mapping range lock
-Message-Id: <20130131160757.06d7f1c2.akpm@linux-foundation.org>
-In-Reply-To: <1359668994-13433-1-git-send-email-jack@suse.cz>
-References: <1359668994-13433-1-git-send-email-jack@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id DDD896B0005
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 19:33:14 -0500 (EST)
+Received: from mail-vb0-f49.google.com ([209.85.212.49])
+	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
+	(Exim 4.71)
+	(envelope-from <ming.lei@canonical.com>)
+	id 1U14Z7-00067z-LU
+	for linux-mm@kvack.org; Fri, 01 Feb 2013 00:33:13 +0000
+Received: by mail-vb0-f49.google.com with SMTP id s24so2121095vbi.22
+        for <linux-mm@kvack.org>; Thu, 31 Jan 2013 16:33:12 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20130131154331.09d157a3.akpm@linux-foundation.org>
+References: <20130128091039.GG6871@arwen.pp.htv.fi>
+	<CACVXFVOATzTJq+-5M9j3G3y_WUrWKJt=naPkjkLwGDmT0H8gog@mail.gmail.com>
+	<20130131154331.09d157a3.akpm@linux-foundation.org>
+Date: Fri, 1 Feb 2013 08:33:12 +0800
+Message-ID: <CACVXFVO415U1amgUUOoy_1CLjfUqw98QqD8mCVixAzNQ2_Nzqw@mail.gmail.com>
+Subject: Re: Page allocation failure on v3.8-rc5
+From: Ming Lei <ming.lei@canonical.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: balbi@ti.com, Linux USB Mailing List <linux-usb@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jens Axboe <axboe@kernel.dk>
 
-On Thu, 31 Jan 2013 22:49:48 +0100
-Jan Kara <jack@suse.cz> wrote:
+On Fri, Feb 1, 2013 at 7:43 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Wed, 30 Jan 2013 19:53:22 +0800
+> Ming Lei <ming.lei@canonical.com> wrote:
+>
+>> The allocation failure is caused by the big sizeof(struct parsed_partitions),
+>> which is 64K in my 32bit box,
+>
+> Geeze.
+>
+> We could fix that nicely by making parsed_partitions.parts an array of
+> pointers to a single `struct parsed_partition' and allocating those
+> on-demand.
+>
+> But given the short-lived nature of this storage and the infrequency of
+> check_partition(), that isn't necessary.
+>
+>> could you test the blow patch to see
+>> if it can fix the allocation failure?
+>
+> (The patch is wordwrapped)
 
-> There are several different motivations for implementing mapping range
-> locking:
-> 
-> a) Punch hole is currently racy wrt mmap (page can be faulted in in the
->    punched range after page cache has been invalidated) leading to nasty
->    results as fs corruption (we can end up writing to already freed block),
->    user exposure of uninitialized data, etc. To fix this we need some new
->    mechanism of serializing hole punching and page faults.
+Sorry for that, I send out it for test.
 
-This one doesn't seem very exciting - perhaps there are local fixes
-which can be made?
+>
+>> ...
+>>
+>> @@ -106,18 +107,43 @@ static int (*check_part[])(struct parsed_partitions *) = {
+>>       NULL
+>>  };
+>>
+>> +struct parsed_partitions *allocate_partitions(int nr)
+>> +{
+>> +     struct parsed_partitions *state;
+>> +
+>> +     state = kzalloc(sizeof(struct parsed_partitions), GFP_KERNEL);
+>
+> I personally prefer sizefo(*state) here.  It means the reader doesn't
+> have to scroll back to check things.
 
-> b) There is an uncomfortable number of mechanisms serializing various paths
->    manipulating pagecache and data underlying it. We have i_mutex, page lock,
->    checks for page beyond EOF in pagefault code, i_dio_count for direct IO.
->    Different pairs of operations are serialized by different mechanisms and
->    not all the cases are covered. Case (a) above is likely the worst but DIO
->    vs buffered IO isn't ideal either (we provide only limited consistency).
->    The range locking should somewhat simplify serialization of pagecache
->    operations. So i_dio_count can be removed completely, i_mutex to certain
->    extent (we still need something for things like timestamp updates,
->    possibly for i_size changes although those can be dealt with I think).
+OK, will use sizeof(*state).
 
-Those would be nice cleanups and simplifications, to make kernel
-developers' lives easier.  And there is value in this, but doing this
-means our users incur real costs.
+>> +     if (!state)
+>> +             return NULL;
+>> +
+>> +     state->parts = vzalloc(nr * sizeof(state->parts[0]));
+>> +     if (!state->parts) {
+>> +             kfree(state);
+>> +             return NULL;
+>> +     }
+>
+> It doesn't really need to be this complex - we could just vmalloc the
+> entire `struct parsed_partitions'.  But I see that your change will
 
-I'm rather uncomfortable changes which make our lives easier at the
-expense of our users.  If we had an infinite amount of labor, we
-wouldn't do this.  In reality we have finite labor, but a small cost
-dispersed amongst millions or billions of users becomes a very large
-cost.
+The above approach can save one 32K allocation approximately.
 
-> c) i_mutex doesn't allow any paralellism of operations using it and some
->    filesystems workaround this for specific cases (e.g. DIO reads). Using
->    range locking allows for concurrent operations (e.g. writes, DIO) on
->    different parts of the file. Of course, range locking itself isn't
->    enough to make the parallelism possible. Filesystems still have to
->    somehow deal with the concurrency when manipulating inode allocation
->    data. But the range locking at least provides a common VFS mechanism for
->    serialization VFS itself needs and it's upto each filesystem to
->    serialize more if it needs to.
+> cause us to allcoate much less memory in many situations, which is
+> good.  It should be mentioned in the changelog!
 
-That would be useful to end-users, but I'm having trouble predicting
-*how* useful.
+OK, I will add the changelog later.
+
+
+Thanks,
+--
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
