@@ -1,48 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 527726B0005
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 05:20:47 -0500 (EST)
-Date: Fri, 1 Feb 2013 11:20:44 +0100
-From: Pavel Machek <pavel@denx.de>
-Subject: Re: Bug#695182: [RFC] Reproducible OOM with just a few sleeps
-Message-ID: <20130201102044.GA2801@amd.pavel.ucw.cz>
-References: <201302010313.r113DTj3027195@como.maths.usyd.edu.au>
- <510B46C3.5040505@turmel.org>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id AD7AE6B0005
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 05:23:07 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id hn14so377976wib.16
+        for <linux-mm@kvack.org>; Fri, 01 Feb 2013 02:23:06 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <510B46C3.5040505@turmel.org>
+In-Reply-To: <0000013c695fbd30-9023bc55-f780-4d44-965f-ab4507e483d5-000000@email.amazonses.com>
+References: <20130123214514.370647954@linux.com>
+	<0000013c695fbd30-9023bc55-f780-4d44-965f-ab4507e483d5-000000@email.amazonses.com>
+Date: Fri, 1 Feb 2013 12:23:05 +0200
+Message-ID: <CAOJsxLH6BO_m+6Ys0AG8gHQzmoDovdA8kaAecUhcP5foXoEXUA@mail.gmail.com>
+Subject: Re: FIX [1/2] slub: Do not dereference NULL pointer in node_match
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Phil Turmel <philip@turmel.org>
-Cc: paul.szabo@sydney.edu.au, ben@decadent.org.uk, 695182@bugs.debian.org, dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R. Goncalves" <lgoncalv@redhat.com>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-On Thu 2013-01-31 23:38:27, Phil Turmel wrote:
-> On 01/31/2013 10:13 PM, paul.szabo@sydney.edu.au wrote:
-> > [trim /] Does not that prove that PAE is broken?
-> 
-> Please, Paul, take *yes* for an answer.  It is broken.  You've received
-> multiple dissertations on why it is going to stay that way.  Unless you
-> fix it yourself, and everyone seems to be politely wishing you the best
-> of luck with that.
+On Wed, Jan 23, 2013 at 11:45 PM, Christoph Lameter <cl@linux.com> wrote:
+> The variables accessed in slab_alloc are volatile and therefore
+> the page pointer passed to node_match can be NULL. The processing
+> of data in slab_alloc is tentative until either the cmpxhchg
+> succeeds or the __slab_alloc slowpath is invoked. Both are
+> able to perform the same allocation from the freelist.
+>
+> Check for the NULL pointer in node_match.
+>
+> A false positive will lead to a retry of the loop in __slab_alloc.
+>
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-It is not Paul's job to fix PAE. It is job of whoever broke it to do
-so.
+Steven, how did you trigger the problem - i.e. is this -rt only
+problem? Does the patch work for you?
 
-If it is broken with 2GB of RAM, it is clearly not the known "lowmem
-starvation" issue, it is something else... and probably worth
-debugging.
-
-So, Paul, if you have time and interest... Try to find some old kernel
-version where sleep test works with PAE. Hopefully there is one. Then
-do bisection... author of the patch should then fix it. (And if not,
-at least you have patch you can revert.)
-
-rjw is worth cc-ing at that point.
-									Pavel 
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c        2013-01-18 08:47:29.198954250 -0600
+> +++ linux/mm/slub.c     2013-01-18 08:47:40.579126371 -0600
+> @@ -2041,7 +2041,7 @@ static void flush_all(struct kmem_cache
+>  static inline int node_match(struct page *page, int node)
+>  {
+>  #ifdef CONFIG_NUMA
+> -       if (node != NUMA_NO_NODE && page_to_nid(page) != node)
+> +       if (!page || (node != NUMA_NO_NODE && page_to_nid(page) != node))
+>                 return 0;
+>  #endif
+>         return 1;
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
