@@ -1,69 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id E550A6B0008
-	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 20:46:53 -0500 (EST)
-Received: by mail-ia0-f180.google.com with SMTP id f27so4637292iae.39
-        for <linux-mm@kvack.org>; Thu, 31 Jan 2013 17:46:53 -0800 (PST)
-Message-ID: <1359683211.1303.0.camel@kernel>
-Subject: Re: [LSF/MM TOPIC] In-kernel compression in the MM subsystem
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Thu, 31 Jan 2013 19:46:51 -0600
-In-Reply-To: <601542b0-4c92-4d90-aed8-826235c06eab@default>
-References: <601542b0-4c92-4d90-aed8-826235c06eab@default>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 532E86B0005
+	for <linux-mm@kvack.org>; Thu, 31 Jan 2013 20:58:02 -0500 (EST)
+Message-ID: <510B20F9.10408@cn.fujitsu.com>
+Date: Fri, 01 Feb 2013 09:57:13 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
+References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>      <1359463973.1624.15.camel@kernel> <5108F2B3.3090506@cn.fujitsu.com>     <1359595344.1557.13.camel@kernel> <5109E59F.5080104@cn.fujitsu.com>    <1359613162.1587.0.camel@kernel> <510A18FA.2010107@cn.fujitsu.com>   <1359622123.1391.19.camel@kernel> <510A3CE6.202@cn.fujitsu.com>  <1359628705.2048.5.camel@kernel> <510B1B4B.5080207@huawei.com> <1359682576.3574.1.camel@kernel>
+In-Reply-To: <1359682576.3574.1.camel@kernel>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Jianguo Wu <wujianguo@huawei.com>, akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-Hi Dan,
-On Sat, 2013-01-26 at 12:16 -0800, Dan Magenheimer wrote:
-> There's lots of interesting things going on in kernel memory
-> management, but one only(?) increases the effective amount
-> of data that can be stored in a fixed amount of RAM: in-kernel
-> compression.
-> 
-> Since ramzswap/compcache (now zram) was first proposed in 2009
-> as an in-memory compressed swap device, there have been a number
-> of in-kernel compression solutions proposed, including
-> zcache, kztmem, and now zswap.  Each shows promise to improve
+On 02/01/2013 09:36 AM, Simon Jeons wrote:
+> On Fri, 2013-02-01 at 09:32 +0800, Jianguo Wu wrote:
+>>>
+>>> So if config NUMA, kernel memory will not be linear mapping anymore? For
+>>> example,
+>>>
+>>> Node 0  Node 1
+>>>
+>>> 0 ~ 10G 11G~14G
 
-What's the difference between in-memory compression and in-kernel
-compression?
+It has nothing to do with linear mapping, I think.
 
-> performance by using compression under memory pressure to
-> reduce I/O due to swapping and/or paging.  Each is still
-> in staging (though zram may be promoted by LSFMM 2013)
-> because each also brings a number of perplexing challenges.
-> 
-> I think it's time to start converging on which one or more
-> of these solutions, if any, should be properly promoted and
-> more fully integrated into the kernel memory management
-> subsystem.  Before this can occur, it's important to build a
-> broader understanding and, hopefully, also a broader consensus
-> among the MM community on a number of key challenges and questions
-> in order to guide and drive further development and merging.
-> 
-> I would like to collect a list of issues/questions, and
-> start a discussion at LSF/MM by presenting this list, select
-> the most important, then lead a discussion on how ever many
-> there is time for.  Most likely this is an MM-only discussion
-> though a subset might be suitable for a cross-talk presentataion.
-> 
-> Thanks!
-> Dan Magenheimer
-> LSF/MM attendee 2010,2011,2012
-> LSF/MM presenter (MM track) 2011,2012
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>
+>>> kernel memory only at Node 0? Can part of kernel memory also at Node 1?
 
+Please refer to find_zone_movable_pfns_for_nodes().
+The kernel is not only on node0. It uses all the online nodes evenly. :)
+
+>>>
+>>> How big is kernel direct mapping memory in x86_64? Is there max limit?
+>>
+>>
+>> Max kernel direct mapping memory in x86_64 is 64TB.
+>
+> For example, I have 8G memory, all of them will be direct mapping for
+> kernel? then userspace memory allocated from where?
+
+I think you misunderstood what Wu tried to say. :)
+
+The kernel mapped that large space, it doesn't mean it is using that 
+large space.
+The mapping is to make kernel be able to access all the memory, not for 
+the kernel
+to use only. User space can also use the memory, but each process has 
+its own mapping.
+
+For example:
+
+                                        64TB, what ever 
+    xxxTB, what ever
+logic address space:     |_____kernel_______|_________user_________________|
+                                        \  \  /  /
+                                         \  /\  /
+physical address space:              |___\/__\/_____________|  4GB or 
+8GB, what ever
+                                           *****
+
+The ***** part physical is mapped to user space in the process' own 
+pagetable.
+It is also direct mapped in kernel's pagetable. So the kernel can also 
+access it. :)
+
+>
+>>
+>>> It seems that only around 896MB on x86_32.
+>>>
+>>>>
+>>>> We need firmware take part in, such as SRAT in ACPI BIOS, or the firmware
+>>>> based memory migration mentioned by Liu Jiang.
+>>>
+>>> Is there any material about firmware based memory migration?
+
+No, I don't have any because this is a functionality of machine from HUAWEI.
+I think you can ask Liu Jiang or Wu Jianguo to share some with you. :)
+
+Thanks. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
