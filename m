@@ -1,80 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 39EFB6B0008
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 01:14:03 -0500 (EST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm: shmem: use new radix tree iterator
-Date: Fri,  1 Feb 2013 01:13:58 -0500
-Message-Id: <1359699238-7327-1-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id A3B526B0008
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 02:21:14 -0500 (EST)
+Date: Fri, 1 Feb 2013 08:23:12 +0100
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug
+ framework
+Message-ID: <20130201072312.GB1180@kroah.com>
+References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
+ <20130130045830.GH30002@kroah.com>
+ <1359601065.15120.156.camel@misato.fc.hp.com>
+ <9860755.q4y3PrCFZx@vostro.rjw.lan>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <9860755.q4y3PrCFZx@vostro.rjw.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Toshi Kani <toshi.kani@hp.com>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
 
-In shmem_find_get_pages_and_swap, use the faster radix tree iterator
-construct from 78c1d78 "radix-tree: introduce bit-optimized iterator".
+On Thu, Jan 31, 2013 at 09:54:51PM +0100, Rafael J. Wysocki wrote:
+> > > But, again, I'm going to ask why you aren't using the existing cpu /
+> > > memory / bridge / node devices that we have in the kernel.  Please use
+> > > them, or give me a _really_ good reason why they will not work.
+> > 
+> > We cannot use the existing system devices or ACPI devices here.  During
+> > hot-plug, ACPI handler sets this shp_device info, so that cpu and memory
+> > handlers (drivers/cpu.c and mm/memory_hotplug.c) can obtain their target
+> > device information in a platform-neutral way.  During hot-add, we first
+> > creates an ACPI device node (i.e. device under /sys/bus/acpi/devices),
+> > but platform-neutral modules cannot use them as they are ACPI-specific.
+> 
+> But suppose we're smart and have ACPI scan handlers that will create
+> "physical" device nodes for those devices during the ACPI namespace scan.
+> Then, the platform-neutral nodes will be able to bind to those "physical"
+> nodes.  Moreover, it should be possible to get a hierarchy of device objects
+> this way that will reflect all of the dependencies we need to take into
+> account during hot-add and hot-remove operations.  That may not be what we
+> have today, but I don't see any *fundamental* obstacles preventing us from
+> using this approach.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/shmem.c | 25 ++++++++++++-------------
- 1 file changed, 12 insertions(+), 13 deletions(-)
+I would _much_ rather see that be the solution here as I think it is the
+proper one.
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index a368a1c..c5dc8ae 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -336,19 +336,19 @@ static unsigned shmem_find_get_pages_and_swap(struct address_space *mapping,
- 					pgoff_t start, unsigned int nr_pages,
- 					struct page **pages, pgoff_t *indices)
- {
--	unsigned int i;
--	unsigned int ret;
--	unsigned int nr_found;
-+	void **slot;
-+	unsigned int ret = 0;
-+	struct radix_tree_iter iter;
-+
-+	if (!nr_pages)
-+		return 0;
- 
- 	rcu_read_lock();
- restart:
--	nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
--				(void ***)pages, indices, start, nr_pages);
--	ret = 0;
--	for (i = 0; i < nr_found; i++) {
-+	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
- 		struct page *page;
- repeat:
--		page = radix_tree_deref_slot((void **)pages[i]);
-+		page = radix_tree_deref_slot(slot);
- 		if (unlikely(!page))
- 			continue;
- 		if (radix_tree_exception(page)) {
-@@ -365,17 +365,16 @@ static unsigned shmem_find_get_pages_and_swap(struct address_space *mapping,
- 			goto repeat;
- 
- 		/* Has the page moved? */
--		if (unlikely(page != *((void **)pages[i]))) {
-+		if (unlikely(page != *slot)) {
- 			page_cache_release(page);
- 			goto repeat;
- 		}
- export:
--		indices[ret] = indices[i];
-+		indices[ret] = iter.index;
- 		pages[ret] = page;
--		ret++;
-+		if (++ret == nr_pages)
-+			break;
- 	}
--	if (unlikely(!ret && nr_found))
--		goto restart;
- 	rcu_read_unlock();
- 	return ret;
- }
--- 
-1.7.11.7
+> This is already done for PCI host bridges and platform devices and I don't
+> see why we can't do that for the other types of devices too.
+
+I agree.
+
+> The only missing piece I see is a way to handle the "eject" problem, i.e.
+> when we try do eject a device at the top of a subtree and need to tear down
+> the entire subtree below it, but if that's going to lead to a system crash,
+> for example, we want to cancel the eject.  It seems to me that we'll need some
+> help from the driver core here.
+
+I say do what we always have done here, if the user asked us to tear
+something down, let it happen as they are the ones that know best :)
+
+Seriously, I guess this gets back to the "fail disconnect" idea that the
+ACPI developers keep harping on.  I thought we already resolved this
+properly by having them implement it in their bus code, no reason the
+same thing couldn't happen here, right?  I don't think the core needs to
+do anything special, but if so, I'll be glad to review it.
+
+thanks,
+
+gre k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
