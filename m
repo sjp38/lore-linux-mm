@@ -1,63 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 633386B0007
-	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 19:24:01 -0500 (EST)
-Date: Fri, 1 Feb 2013 16:23:59 -0800
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 691866B0008
+	for <linux-mm@kvack.org>; Fri,  1 Feb 2013 19:28:50 -0500 (EST)
+Date: Fri, 1 Feb 2013 16:28:48 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 5/9] mmzone: add pgdat_{end_pfn,is_empty}() helpers &
- consolidate.
-Message-Id: <20130201162359.ddb66f62.akpm@linux-foundation.org>
-In-Reply-To: <1358463181-17956-6-git-send-email-cody@linux.vnet.ibm.com>
+Subject: Re: [PATCH 6/9] mm/page_alloc: add informative debugging message in
+ page_outside_zone_boundaries()
+Message-Id: <20130201162848.74bdb2a7.akpm@linux-foundation.org>
+In-Reply-To: <1358463181-17956-7-git-send-email-cody@linux.vnet.ibm.com>
 References: <1358463181-17956-1-git-send-email-cody@linux.vnet.ibm.com>
-	<1358463181-17956-6-git-send-email-cody@linux.vnet.ibm.com>
+	<1358463181-17956-7-git-send-email-cody@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Cody P Schafer <cody@linux.vnet.ibm.com>
-Cc: Linux MM <linux-mm@kvack.org>, David Hansen <dave@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Cody P Schafer <jmesmon@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, David Hansen <dave@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>
 
-On Thu, 17 Jan 2013 14:52:57 -0800
+On Thu, 17 Jan 2013 14:52:58 -0800
 Cody P Schafer <cody@linux.vnet.ibm.com> wrote:
 
-> From: Cody P Schafer <jmesmon@gmail.com>
+> Add a debug message which prints when a page is found outside of the
+> boundaries of the zone it should belong to. Format is:
+> 	"page $pfn outside zone [ $start_pfn - $end_pfn ]"
 > 
-> Add pgdat_end_pfn() and pgdat_is_empty() helpers which match the similar
-> zone_*() functions.
+> Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+> ---
+>  mm/page_alloc.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
 > 
-> Change node_end_pfn() to be a wrapper of pgdat_end_pfn().
-> 
-> ...
->
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -772,11 +772,17 @@ typedef struct pglist_data {
->  #define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index f8ed277..f1783cf 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -239,13 +239,20 @@ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
+>  	int ret = 0;
+>  	unsigned seq;
+>  	unsigned long pfn = page_to_pfn(page);
+> +	unsigned long sp, start_pfn;
 >  
->  #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-> +#define node_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
+>  	do {
+>  		seq = zone_span_seqbegin(zone);
+> +		start_pfn = zone->zone_start_pfn;
+> +		sp = zone->spanned_pages;
+>  		if (!zone_spans_pfn(zone, pfn))
+>  			ret = 1;
+>  	} while (zone_span_seqretry(zone, seq));
+>  
+> +	if (ret)
+> +		pr_debug("page %lu outside zone [ %lu - %lu ]\n",
+> +			pfn, start_pfn, start_pfn + sp);
+> +
+>  	return ret;
+>  }
 
-I wonder if these could be implemented in nice C code rather than nasty
-cpp code.
+As this condition leads to a VM_BUG_ON(), "pr_debug" seems rather wimpy
+and I doubt if we need to be concerned about flooding the console.
 
-> -#define node_end_pfn(nid) ({\
-> -	pg_data_t *__pgdat = NODE_DATA(nid);\
-> -	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;\
-> -})
-> +static inline unsigned long pgdat_end_pfn(pg_data_t *pgdat)
-> +{
-> +	return pgdat->node_start_pfn + pgdat->node_spanned_pages;
-> +}
-
-It wouldn't hurt to add a little comment pointing out that this returns
-"end pfn plus one", or similar.  ie, it is exclusive, not inclusive. 
-Ditto the "zone_*() functions", if needed.
-
-> +static inline bool pgdat_is_empty(pg_data_t *pgdat)
-> +{
-> +	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
-> +}
+I'll switch it to pr_err.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
