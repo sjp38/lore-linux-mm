@@ -1,174 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 964196B0002
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 03:43:52 -0500 (EST)
-Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 3 Feb 2013 18:35:20 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 7DDC42CE804C
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 19:43:41 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r138VW6l3408258
-	for <linux-mm@kvack.org>; Sun, 3 Feb 2013 19:31:33 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r138hdPH028025
-	for <linux-mm@kvack.org>; Sun, 3 Feb 2013 19:43:40 +1100
-Date: Sun, 3 Feb 2013 16:43:37 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 13/15] frontswap: Get rid of swap_lock dependency
-Message-ID: <20130203084337.GA28710@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id E9A3D6B0002
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 03:52:04 -0500 (EST)
+Received: by mail-ia0-f182.google.com with SMTP id w33so7054155iag.27
+        for <linux-mm@kvack.org>; Sun, 03 Feb 2013 00:52:04 -0800 (PST)
+Message-ID: <1359881520.1328.14.camel@kernel.cn.ibm.com>
+Subject: Re: [PATCH v2] Make frontswap+cleancache and its friend be
+ modularized.
+From: Ric Mason <ric.masonn@gmail.com>
+Date: Sun, 03 Feb 2013 02:52:00 -0600
+In-Reply-To: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
 References: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
- <1359750184-23408-14-git-send-email-konrad.wilk@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1359750184-23408-14-git-send-email-konrad.wilk@oracle.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Konrad Rzeszutek Wilk <konrad@kernel.org>
-Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Hi Minchan and Konrad,
-On Fri, Feb 01, 2013 at 03:23:02PM -0500, Konrad Rzeszutek Wilk wrote:
->From: Minchan Kim <minchan@kernel.org>
->
->Frontswap initialization routine depends on swap_lock, which want
->to be atomic about frontswap's first appearance.
->IOW, frontswap is not present and will fail all calls OR frontswap is
->fully functional but if new swap_info_struct isn't registered
->by enable_swap_info, swap subsystem doesn't start I/O so there is no
->race
->between init procedure and page I/O working on frontswap.
->
->So let's remove unncessary swap_lock dependency.
->
->Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
->Signed-off-by: Minchan Kim <minchan@kernel.org>
->[v1: Rebased on my branch, reworked to work with backends loading late]
->[v2: Added a check for !map]
->Signed-off-by: Konrad Rzeszutek Wilk <konrad@darnok.org>
->
->squash
->---
-> include/linux/frontswap.h |  6 +++---
-> mm/frontswap.c            | 12 +++++++++---
-> mm/swapfile.c             |  7 ++++++-
-> 3 files changed, 18 insertions(+), 7 deletions(-)
->
->diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
->index 612c176..3d72f14 100644
->--- a/include/linux/frontswap.h
->+++ b/include/linux/frontswap.h
->@@ -20,7 +20,7 @@ extern void frontswap_writethrough(bool);
-> #define FRONTSWAP_HAS_EXCLUSIVE_GETS
-> extern void frontswap_tmem_exclusive_gets(bool);
->
->-extern void __frontswap_init(unsigned type);
->+extern void __frontswap_init(unsigned type, unsigned long *map);
-> extern int __frontswap_store(struct page *page);
-> extern int __frontswap_load(struct page *page);
-> extern void __frontswap_invalidate_page(unsigned, pgoff_t);
->@@ -122,9 +122,9 @@ static inline void frontswap_invalidate_area(unsigned type)
-> 	__frontswap_invalidate_area(type);
-> }
->
->-static inline void frontswap_init(unsigned type)
->+static inline void frontswap_init(unsigned type, unsigned long *map)
-> {
->-	__frontswap_init(type);
->+	__frontswap_init(type, map);
-> }
->
-> #endif /* _LINUX_FRONTSWAP_H */
->diff --git a/mm/frontswap.c b/mm/frontswap.c
->index ebf4c18..8254a6a 100644
->--- a/mm/frontswap.c
->+++ b/mm/frontswap.c
->@@ -127,8 +127,13 @@ struct frontswap_ops *frontswap_register_ops(struct frontswap_ops *ops)
-> 	int i;
->
-> 	for (i = 0; i < MAX_SWAPFILES; i++) {
->-		if (test_and_clear_bit(i, need_init))
->+		if (test_and_clear_bit(i, need_init)) {
->+			struct swap_info_struct *sis = swap_info[i];
->+			/* enable_swap_info _should_ have set it! */
->+			if (!sis->frontswap_map)
->+				return ERR_PTR(-EINVAL);
-> 			ops->init(i);
->+		}
-> 	}
-> 	/*
-> 	 * We MUST have frontswap_ops set _after_ the frontswap_init's
->@@ -166,14 +171,15 @@ EXPORT_SYMBOL(frontswap_tmem_exclusive_gets);
->  *
->  * Can be called without any backend driver is registered.
->  */
->-void __frontswap_init(unsigned type)
->+void __frontswap_init(unsigned type, unsigned long *map)
-> {
-> 	struct swap_info_struct *sis = swap_info[type];
->
-> 	if (static_key_false(&frontswap_key)) {
-> 		BUG_ON(sis == NULL);
->-		if (sis->frontswap_map == NULL)
->+		if (!map)
-> 			return;
->+		frontswap_map_set(sis, map);
-> 		frontswap_ops->init(type);
-> 	}
-> 	else {
->diff --git a/mm/swapfile.c b/mm/swapfile.c
->index e97a0e5..c1c3a62 100644
->--- a/mm/swapfile.c
->+++ b/mm/swapfile.c
->@@ -1454,6 +1454,10 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
-> 	else
-> 		p->prio = --least_priority;
-> 	p->swap_map = swap_map;
->+	/*
->+	 * This is required for frontswap to handle backends loading
->+	 * after the swap has been activated.
->+	 */
-> 	frontswap_map_set(p, frontswap_map);
+Hi Konrad,
+On Fri, 2013-02-01 at 15:22 -0500, Konrad Rzeszutek Wilk wrote:
 
-Why set frontswap_map twice?
+I have already enable frontswap,cleancache,zcache,
+ FRONTSWAP [=y]  
+ CLEANCACHE [=y]
+ ZCACHE [=y]
+But all of knode under /sys/kernel/debug/frontswap and cleancache still
+zero, my swap device is enable, where I miss?
 
-> 	p->flags |= SWP_WRITEOK;
-> 	nr_swap_pages += p->pages;
->@@ -1477,9 +1481,9 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
-> 				unsigned char *swap_map,
-> 				unsigned long *frontswap_map)
-> {
->+	frontswap_init(p->type, frontswap_map);
-> 	spin_lock(&swap_lock);
-> 	_enable_swap_info(p, prio, swap_map, frontswap_map);
->-	frontswap_init(p->type);
-> 	spin_unlock(&swap_lock);
-> }
->
->@@ -1589,6 +1593,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
-> 	p->swap_map = NULL;
-> 	p->flags = 0;
-> 	frontswap_invalidate_area(type);
->+	frontswap_map_set(p, NULL);
+> Parts of this patch have been posted in the post (way back in November), but
+> this patchset expanded it a bit. The goal of the patches is to make the
+> different frontswap/cleancache API backends be modules - and load way way after
+> the swap system (or filesystem) has been initialized. Naturally one can still
+> build the frontswap+cleancache backend devices in the kernel. The next goal
+> (after these patches) is to also be able to unload the backend drivers - but
+> that places some interesting requirements to "reload" the swap device with
+> swap pages (don't need to worry that much about cleancache as it is a "secondary"
+> cache and can be dumped). Seth had posted some patches for that in the zswap
+> backend - and they could be more generally repurporsed.
+> 
+> Anyhow, I did not want to lose the authorship of some of the patches so I
+> didn't squash the ones that were made by Dan and mine. I can do it for review
+> if it would make it easier, but from my recollection on how Linus likes things
+> run he would prefer to keep the history (even the kludge parts).
+> 
+> The general flow prior to these patches was [I am concentrating on the
+> frontswap here, but the cleancache is similar, just s/swapon/mount/]:
+> 
+>  1) kernel inits frontswap_init
+>  2) kernel inits zcache (or some other backend)
+>  3) user does swapon /dev/XX and the writes to the swap disk end up in
+>     frontswap and then in the backend.
+> 
+> With the module loading, the 1) is still part of the bootup, but the
+> 2) or 3) can be run at anytime. This means one could load the backend
+> _after_ the swap disk has been initialized and running along. Or
+> _before_ the swap disk has been setup - but that is similar to the
+> existing case so not that exciting.
+> 
+> To deal with that scenario the frontswap keeps an queue (actually an atomic
+> bitmap of the swap disks that have been init) and when the backend registers -
+> frontswap runs the backend init on the queued up swap disks.
+> 
+> The interesting thing is that we can be to certain degree racy when the
+> swap system starts steering pages to frontswap. Meaning after the backend
+> has registered it is OK if the pages are still hitting the disk instead of
+> the backend. Naturally this is unacceptable if one were to unload the
+> backend (not yet supported) - as we need to be quite atomic at that stage
+> and need to stop processing the pages the moment the backend is being
+> unloaded. To support this, the frontswap is using the struct static_key
+> which are incredibly light when they are in usage. They are incredibly heavy
+> when the value switches (on/off), but that is OK. The next part of unloading is
+> also taking the pages that are in the backend and feed them in the swap
+> storage (and Seth's patches do some of this).
+> 
+> Also attached is one patch from Minchan that fixes the condition where the
+> backend was constricted in allocating memory at init - b/c we were holding
+> a spin-lock. His patch fixes that and we are just holding the swapon_mutex
+> instead. It has been rebased on top of my patches.
+> 
+> This patchset is based on Greg KH's staging tree (since the zcache2 has
+> now been renamed to zcache). To be exact, it is based on
+> 085494ac2039433a5df9fdd6fb653579e18b8c71
+> 
+> Dan Magenheimer (4):
+>       mm: cleancache: lazy initialization to allow tmem backends to build/run as modules
+>       mm: frontswap: lazy initialization to allow tmem backends to build/run as modules
+>       staging: zcache: enable ramster to be built/loaded as a module
+>       xen: tmem: enable Xen tmem shim to be built/loaded as a module
+> 
+> Konrad Rzeszutek Wilk (10):
+>       frontswap: Make frontswap_init use a pointer for the ops.
+>       cleancache: Make cleancache_init use a pointer for the ops
+>       staging: zcache: enable zcache to be built/loaded as a module
+>       xen/tmem: Remove the subsys call.
+>       frontswap: Remove the check for frontswap_enabled.
+>       frontswap: Use static_key instead of frontswap_enabled and frontswap_ops
+>       cleancache: Remove the check for cleancache_enabled.
+>       cleancache: Use static_key instead of cleancache_ops and cleancache_enabled.
+>       zcache/tmem: Better error checking on frontswap_register_ops return     value.
+>       xen/tmem: Add missing %s in the printk statement.
+> 
+> Minchan Kim (1):
+>       frontswap: Get rid of swap_lock dependency
+> 
+> 
+>  drivers/staging/zcache/Kconfig                     |   6 +-
+>  drivers/staging/zcache/Makefile                    |  11 +-
+>  drivers/staging/zcache/ramster.h                   |   6 +-
+>  drivers/staging/zcache/ramster/nodemanager.c       |   9 +-
+>  drivers/staging/zcache/ramster/ramster.c           |  29 ++-
+>  drivers/staging/zcache/ramster/ramster.h           |   2 +-
+>  .../staging/zcache/ramster/ramster_nodemanager.h   |   2 +
+>  drivers/staging/zcache/tmem.c                      |   6 +-
+>  drivers/staging/zcache/tmem.h                      |   8 +-
+>  drivers/staging/zcache/zcache-main.c               |  64 +++++-
+>  drivers/staging/zcache/zcache.h                    |   2 +-
+>  drivers/xen/Kconfig                                |   4 +-
+>  drivers/xen/tmem.c                                 |  55 +++--
+>  drivers/xen/xen-selfballoon.c                      |  13 +-
+>  include/linux/cleancache.h                         |  27 ++-
+>  include/linux/frontswap.h                          |  31 +--
+>  include/xen/tmem.h                                 |   8 +
+>  mm/cleancache.c                                    | 241 ++++++++++++++++++---
+>  mm/frontswap.c                                     | 121 ++++++++---
+>  mm/swapfile.c                                      |   7 +-
+>  20 files changed, 505 insertions(+), 147 deletions(-)
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-This will lead to memory leak, the memory will not be freed since
-vfree(frontswap_map_get(p)); will miss it. :(
-
-> 	spin_unlock(&swap_lock);
-> 	mutex_unlock(&swapon_mutex);
-> 	vfree(swap_map);
->-- 
->1.7.11.7
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
