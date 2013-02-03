@@ -1,84 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 8CD516B0010
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 18:50:02 -0500 (EST)
-Date: Mon, 4 Feb 2013 08:50:00 +0900
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 113946B0022
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 18:50:53 -0500 (EST)
+Date: Mon, 4 Feb 2013 08:50:52 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v7 1/4] zram: Fix deadlock bug in partial read/write
-Message-ID: <20130203235000.GA2688@blaptop>
-References: <1359935171-12749-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH] zsmalloc: Fix TLB coherency and build problem
+Message-ID: <20130203235052.GB2688@blaptop>
+References: <1359334808-19794-1-git-send-email-minchan@kernel.org>
+ <20130201140218.GN23505@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1359935171-12749-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <20130201140218.GN23505@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, jmarchan@redhat.com, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, Pekka Enberg <penberg@kernel.org>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Matt Sealey <matt@genesi-usa.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-Hi Greg,
+On Fri, Feb 01, 2013 at 02:02:18PM +0000, Russell King - ARM Linux wrote:
+> On Mon, Jan 28, 2013 at 10:00:08AM +0900, Minchan Kim wrote:
+> > @@ -663,7 +661,7 @@ static inline void __zs_unmap_object(struct mapping_area *area,
+> >  
+> >  	flush_cache_vunmap(addr, end);
+> >  	unmap_kernel_range_noflush(addr, PAGE_SIZE * 2);
+> > -	local_flush_tlb_kernel_range(addr, end);
+> > +	flush_tlb_kernel_range(addr, end);
+> 
+> void unmap_kernel_range_noflush(unsigned long addr, unsigned long size)
+> {
+>         vunmap_page_range(addr, addr + size);
+> }
+> 
+> void unmap_kernel_range(unsigned long addr, unsigned long size)
+> {
+>         unsigned long end = addr + size;
+> 
+>         flush_cache_vunmap(addr, end);
+>         vunmap_page_range(addr, end);
+>         flush_tlb_kernel_range(addr, end);
+> }
+> 
+> So, given the above, what would be different between:
+> 
+> 	unsigned long end = addr + (PAGE_SIZE * 2);
+> 
+> 	flush_cache_vunmap(addr, end);
+> 	unmap_kernel_range_noflush(addr, PAGE_SIZE * 2);
+> 	flush_tlb_kernel_range(addr, end);
+> 
+> (which is what it becomes after your change) and
+> 
+> 	unmap_kernel_range(addr, PAGE_SIZE * 2);
+> 
+> ?
 
-I added all Acked-by and rebased on next-20130202.
-Please apply this.
+Good point. I will clean it up.
+Thanks.
 
-On Mon, Feb 04, 2013 at 08:46:08AM +0900, Minchan Kim wrote:
-> Now zram allocates new page with GFP_KERNEL in zram I/O path
-> if IO is partial. Unfortunately, It may cause deadlock with
-> reclaim path like below.
-> 
-> write_page from fs
-> fs_lock
-> allocation(GFP_KERNEL)
-> reclaim
-> pageout
-> 				write_page from fs
-> 				fs_lock <-- deadlock
-> 
-> This patch fixes it by using GFP_NOIO.  In read path, we
-> reorganize code flow so that kmap_atomic is called after the
-> GFP_NOIO allocation.
-> 
-> Cc: stable@vger.kernel.org
-> Acked-by: Jerome Marchand <jmarchan@redhat.com>
-> Acked-by: Nitin Gupta <ngupta@vflare.org>
-> [ penberg@kernel.org: don't use GFP_ATOMIC ]
-> Signed-off-by: Pekka Enberg <penberg@kernel.org>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  drivers/staging/zram/zram_drv.c |    9 +++++----
->  1 file changed, 5 insertions(+), 4 deletions(-)
-> 
-> diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-> index 941b7c6..262265e 100644
-> --- a/drivers/staging/zram/zram_drv.c
-> +++ b/drivers/staging/zram/zram_drv.c
-> @@ -217,11 +217,12 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
->  		return 0;
->  	}
->  
-> -	user_mem = kmap_atomic(page);
->  	if (is_partial_io(bvec))
->  		/* Use  a temporary buffer to decompress the page */
-> -		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
-> -	else
-> +		uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
-> +
-> +	user_mem = kmap_atomic(page);
-> +	if (!is_partial_io(bvec))
->  		uncmem = user_mem;
->  
->  	if (!uncmem) {
-> @@ -268,7 +269,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->  		 * This is a partial IO. We need to read the full page
->  		 * before to write the changes.
->  		 */
-> -		uncmem = kmalloc(PAGE_SIZE, GFP_KERNEL);
-> +		uncmem = kmalloc(PAGE_SIZE, GFP_NOIO);
->  		if (!uncmem) {
->  			pr_info("Error allocating temp memory!\n");
->  			ret = -ENOMEM;
-> -- 
-> 1.7.9.5
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
