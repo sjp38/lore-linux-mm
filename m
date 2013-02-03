@@ -1,40 +1,28 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: [PATCH 13/15] frontswap: Get rid of swap_lock dependency
 Date: Sun, 3 Feb 2013 16:43:37 +0800
-Message-ID: <12777.7103487917$1359881058@news.gmane.org>
+Message-ID: <34653.5338242122$1359881079@news.gmane.org>
 References: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
  <1359750184-23408-14-git-send-email-konrad.wilk@oracle.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by plane.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1U1vBN-0005EE-NT
-	for glkm-linux-mm-2@m.gmane.org; Sun, 03 Feb 2013 09:44:14 +0100
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 964196B0002
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 03:43:52 -0500 (EST)
-Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 3 Feb 2013 18:35:20 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 7DDC42CE804C
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 19:43:41 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r138VW6l3408258
-	for <linux-mm@kvack.org>; Sun, 3 Feb 2013 19:31:33 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r138hdPH028025
-	for <linux-mm@kvack.org>; Sun, 3 Feb 2013 19:43:40 +1100
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <devel-bounces@linuxdriverproject.org>
 Content-Disposition: inline
 In-Reply-To: <1359750184-23408-14-git-send-email-konrad.wilk@oracle.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+List-Unsubscribe: <http://driverdev.linuxdriverproject.org/mailman/options/devel>,
+ <mailto:devel-request@linuxdriverproject.org?subject=unsubscribe>
+List-Archive: <http://driverdev.linuxdriverproject.org/pipermail/devel/>
+List-Post: <mailto:devel@linuxdriverproject.org>
+List-Help: <mailto:devel-request@linuxdriverproject.org?subject=help>
+List-Subscribe: <http://driverdev.linuxdriverproject.org/mailman/listinfo/devel>,
+ <mailto:devel-request@linuxdriverproject.org?subject=subscribe>
+Errors-To: devel-bounces@linuxdriverproject.org
+Sender: "devel" <devel-bounces@linuxdriverproject.org>
 To: Konrad Rzeszutek Wilk <konrad@kernel.org>
-Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: devel@driverdev.osuosl.org, sjenning@linux.vnet.ibm.com, dan.magenheimer@oracle.com, konrad.wilk@oracle.com, gregkh@linuxfoundation.org, Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konrad Rzeszutek Wilk <konrad@darnok.org>, akpm@linux-foundation.org, rcj@linux.vnet.ibm.com, ngupta@vflare.org
+List-Id: linux-mm.kvack.org
 
 Hi Minchan and Konrad,
 On Fri, Feb 01, 2013 at 03:23:02PM -0500, Konrad Rzeszutek Wilk wrote:
@@ -174,9 +162,3 @@ vfree(frontswap_map_get(p)); will miss it. :(
 >the body to majordomo@kvack.org.  For more info on Linux MM,
 >see: http://www.linux-mm.org/ .
 >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
