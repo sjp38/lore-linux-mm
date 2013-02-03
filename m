@@ -1,143 +1,179 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id CBD106B0002
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 21:40:50 -0500 (EST)
-Received: by mail-ia0-f177.google.com with SMTP id o25so2227872iad.36
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2013 18:40:50 -0800 (PST)
-Message-ID: <5130152B.9060904@gmail.com>
-Date: Fri, 01 Mar 2013 10:40:43 +0800
-From: Ric Mason <ric.masonn@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH v2 1/2] mm: tuning hardcoded reserved memory
-References: <20130227205629.GA8429@localhost.localdomain> <20130228141200.3fe7f459.akpm@linux-foundation.org> <20130228034803.GB3829@localhost.localdomain>
-In-Reply-To: <20130228034803.GB3829@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 13/15] frontswap: Get rid of swap_lock dependency
+Date: Sun, 3 Feb 2013 16:43:37 +0800
+Message-ID: <12777.7103487917$1359881058@news.gmane.org>
+References: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com>
+ <1359750184-23408-14-git-send-email-konrad.wilk@oracle.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1U1vBN-0005EE-NT
+	for glkm-linux-mm-2@m.gmane.org; Sun, 03 Feb 2013 09:44:14 +0100
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 964196B0002
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 03:43:52 -0500 (EST)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Sun, 3 Feb 2013 18:35:20 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 7DDC42CE804C
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 19:43:41 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r138VW6l3408258
+	for <linux-mm@kvack.org>; Sun, 3 Feb 2013 19:31:33 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r138hdPH028025
+	for <linux-mm@kvack.org>; Sun, 3 Feb 2013 19:43:40 +1100
+Content-Disposition: inline
+In-Reply-To: <1359750184-23408-14-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Shewmaker <agshew@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: Konrad Rzeszutek Wilk <konrad@kernel.org>
+Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On 02/28/2013 11:48 AM, Andrew Shewmaker wrote:
-> On Thu, Feb 28, 2013 at 02:12:00PM -0800, Andrew Morton wrote:
->> On Wed, 27 Feb 2013 15:56:30 -0500
->> Andrew Shewmaker <agshew@gmail.com> wrote:
->>
->>> The following patches are against the mmtom git tree as of February 27th.
->>>
->>> The first patch only affects OVERCOMMIT_NEVER mode, entirely removing
->>> the 3% reserve for other user processes.
->>>
->>> The second patch affects both OVERCOMMIT_GUESS and OVERCOMMIT_NEVER
->>> modes, replacing the hardcoded 3% reserve for the root user with a
->>> tunable knob.
->>>
->> Gee, it's been years since anyone thought about the overcommit code.
->>
->> Documentation/vm/overcommit-accounting says that OVERCOMMIT_ALWAYS is
->> "Appropriate for some scientific applications", but doesn't say why.
->> You're running a scientific cluster but you're using OVERCOMMIT_NEVER,
->> I think?  Is the documentation wrong?
-> None of my scientists appeared to use sparse arrays as Alan described.
-> My users would run jobs that appeared to initialize correctly. However,
-> they wouldn't write to every page they malloced (and they wouldn't use
-> calloc), so I saw jobs failing well into a computation once the
-> simulation tried to access a page and the kernel couldn't give it to them.
+Hi Minchan and Konrad,
+On Fri, Feb 01, 2013 at 03:23:02PM -0500, Konrad Rzeszutek Wilk wrote:
+>From: Minchan Kim <minchan@kernel.org>
 >
-> I think Roadrunner (http://en.wikipedia.org/wiki/IBM_Roadrunner) was
-> the first cluster I put into OVERCOMMIT_NEVER mode. Jobs with
-> infeasible memory requirements fail early and the OOM killer
-> gets triggered much less often than in guess mode. More often than not
-> the OOM killer seemed to kill the wrong thing causing a subtle brokenness.
-> Disabling overcommit worked so well during the stabilization and
-> early user phases that we did the same with other clusters.
+>Frontswap initialization routine depends on swap_lock, which want
+>to be atomic about frontswap's first appearance.
+>IOW, frontswap is not present and will fail all calls OR frontswap is
+>fully functional but if new swap_info_struct isn't registered
+>by enable_swap_info, swap subsystem doesn't start I/O so there is no
+>race
+>between init procedure and page I/O working on frontswap.
+>
+>So let's remove unncessary swap_lock dependency.
+>
+>Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+>Signed-off-by: Minchan Kim <minchan@kernel.org>
+>[v1: Rebased on my branch, reworked to work with backends loading late]
+>[v2: Added a check for !map]
+>Signed-off-by: Konrad Rzeszutek Wilk <konrad@darnok.org>
+>
+>squash
+>---
+> include/linux/frontswap.h |  6 +++---
+> mm/frontswap.c            | 12 +++++++++---
+> mm/swapfile.c             |  7 ++++++-
+> 3 files changed, 18 insertions(+), 7 deletions(-)
+>
+>diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
+>index 612c176..3d72f14 100644
+>--- a/include/linux/frontswap.h
+>+++ b/include/linux/frontswap.h
+>@@ -20,7 +20,7 @@ extern void frontswap_writethrough(bool);
+> #define FRONTSWAP_HAS_EXCLUSIVE_GETS
+> extern void frontswap_tmem_exclusive_gets(bool);
+>
+>-extern void __frontswap_init(unsigned type);
+>+extern void __frontswap_init(unsigned type, unsigned long *map);
+> extern int __frontswap_store(struct page *page);
+> extern int __frontswap_load(struct page *page);
+> extern void __frontswap_invalidate_page(unsigned, pgoff_t);
+>@@ -122,9 +122,9 @@ static inline void frontswap_invalidate_area(unsigned type)
+> 	__frontswap_invalidate_area(type);
+> }
+>
+>-static inline void frontswap_init(unsigned type)
+>+static inline void frontswap_init(unsigned type, unsigned long *map)
+> {
+>-	__frontswap_init(type);
+>+	__frontswap_init(type, map);
+> }
+>
+> #endif /* _LINUX_FRONTSWAP_H */
+>diff --git a/mm/frontswap.c b/mm/frontswap.c
+>index ebf4c18..8254a6a 100644
+>--- a/mm/frontswap.c
+>+++ b/mm/frontswap.c
+>@@ -127,8 +127,13 @@ struct frontswap_ops *frontswap_register_ops(struct frontswap_ops *ops)
+> 	int i;
+>
+> 	for (i = 0; i < MAX_SWAPFILES; i++) {
+>-		if (test_and_clear_bit(i, need_init))
+>+		if (test_and_clear_bit(i, need_init)) {
+>+			struct swap_info_struct *sis = swap_info[i];
+>+			/* enable_swap_info _should_ have set it! */
+>+			if (!sis->frontswap_map)
+>+				return ERR_PTR(-EINVAL);
+> 			ops->init(i);
+>+		}
+> 	}
+> 	/*
+> 	 * We MUST have frontswap_ops set _after_ the frontswap_init's
+>@@ -166,14 +171,15 @@ EXPORT_SYMBOL(frontswap_tmem_exclusive_gets);
+>  *
+>  * Can be called without any backend driver is registered.
+>  */
+>-void __frontswap_init(unsigned type)
+>+void __frontswap_init(unsigned type, unsigned long *map)
+> {
+> 	struct swap_info_struct *sis = swap_info[type];
+>
+> 	if (static_key_false(&frontswap_key)) {
+> 		BUG_ON(sis == NULL);
+>-		if (sis->frontswap_map == NULL)
+>+		if (!map)
+> 			return;
+>+		frontswap_map_set(sis, map);
+> 		frontswap_ops->init(type);
+> 	}
+> 	else {
+>diff --git a/mm/swapfile.c b/mm/swapfile.c
+>index e97a0e5..c1c3a62 100644
+>--- a/mm/swapfile.c
+>+++ b/mm/swapfile.c
+>@@ -1454,6 +1454,10 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
+> 	else
+> 		p->prio = --least_priority;
+> 	p->swap_map = swap_map;
+>+	/*
+>+	 * This is required for frontswap to handle backends loading
+>+	 * after the swap has been activated.
+>+	 */
+> 	frontswap_map_set(p, frontswap_map);
 
-Do you mean OVERCOMMIT_NEVER is more suitable for scientific application 
-than OVERCOMMIT_GUESS and OVERCOMMIT_ALWAYS? Or should depend on 
-workload? Since your users would run jobs that wouldn't write to every 
-page they malloced, so why OVERCOMMIT_GUESS is not more suitable for you?
+Why set frontswap_map twice?
 
+> 	p->flags |= SWP_WRITEOK;
+> 	nr_swap_pages += p->pages;
+>@@ -1477,9 +1481,9 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
+> 				unsigned char *swap_map,
+> 				unsigned long *frontswap_map)
+> {
+>+	frontswap_init(p->type, frontswap_map);
+> 	spin_lock(&swap_lock);
+> 	_enable_swap_info(p, prio, swap_map, frontswap_map);
+>-	frontswap_init(p->type);
+> 	spin_unlock(&swap_lock);
+> }
 >
->>> __vm_enough_memory reserves 3% of free pages with the default
->>> overcommit mode and 6% when overcommit is disabled. These hardcoded
->>> values have become less reasonable as memory sizes have grown.
->>>
->>> On scientific clusters, systems are generally dedicated to one user.
->>> Also, overcommit is sometimes disabled in order to prevent a long
->>> running job from suddenly failing days or weeks into a calculation.
->>> In this case, a user wishing to allocate as much memory as possible
->>> to one process may be prevented from using, for example, around 7GB
->>> out of 128GB.
->>>
->>> The effect is less, but still significant when a user starts a job
->>> with one process per core. I have repeatedly seen a set of processes
->>> requesting the same amount of memory fail because one of them could
->>> not allocate the amount of memory a user would expect to be able to
->>> allocate.
->>>
->>> ...
->>>
->>> --- a/mm/mmap.c
->>> +++ b/mm/mmap.c
->>> @@ -182,11 +182,6 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
->>>   		allowed -= allowed / 32;
->>>   	allowed += total_swap_pages;
->>>   
->>> -	/* Don't let a single process grow too big:
->>> -	   leave 3% of the size of this process for other processes */
->>> -	if (mm)
->>> -		allowed -= mm->total_vm / 32;
->>> -
->>>   	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
->>>   		return 0;
->> So what might be the downside for this change?  root can't log in, I
->> assume.  Have you actually tested for this scenario and observed the
->> effects?
->>
->> If there *are* observable risks and/or to preserve back-compatibility,
->> I guess we could create a fourth overcommit mode which provides the
->> headroom which you desire.
->>
->> Also, should we be looking at removing root's 3% from OVERCOMMIT_GUESS
->> as well?
-> The downside of the first patch, which removes the "other" reserve
-> (sorry about the confusing duplicated subject line), is that a user
-> may not be able to kill their process, even if they have a shell prompt.
-> When testing, I did sometimes get into spot where I attempted to execute
-> kill, but got: "bash: fork: Cannot allocate memory". Of course, a
-> user can get in the same predicament with the current 3% reserve--they
-> just have to start processes until 3% becomes negligible.
->
-> With just the first patch, root still has a 3% reserve, so they can
-> still log in.
->
-> When I resubmit the second patch, adding a tunable rootuser_reserve_pages
-> variable, I'll test both guess and never overcommit modes to see what
-> minimum initial values allow root to login and kill a user's memory
-> hogging process. This will be safer than the current behavior since
-> root's reserve will never shrink to something useless in the case where
-> a user has grabbed all available memory with many processes.
+>@@ -1589,6 +1593,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+> 	p->swap_map = NULL;
+> 	p->flags = 0;
+> 	frontswap_invalidate_area(type);
+>+	frontswap_map_set(p, NULL);
 
-The idea of two patches looks reasonable to me.
+This will lead to memory leak, the memory will not be freed since
+vfree(frontswap_map_get(p)); will miss it. :(
 
+> 	spin_unlock(&swap_lock);
+> 	mutex_unlock(&swapon_mutex);
+> 	vfree(swap_map);
+>-- 
+>1.7.11.7
 >
-> As an estimate of a useful rootuser_reserve_pages, the rss+share size of
-
-Sorry for my silly, why you mean share size is not consist in rss size?
-
-> sshd, bash, and top is about 16MB. Overcommit disabled mode would need
-> closer to 360MB for the same processes. On a 128GB box 3% is 3.8GB, so
-> the new tunable would still be a win.
->
-> I think the tunable would benefit everyone over the current behavior,
-> but would you prefer it if I only made it tunable in a fourth overcommit
-> mode in order to preserve back-compatibility?
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
