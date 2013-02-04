@@ -1,59 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 2C6B06B0005
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 23:56:16 -0500 (EST)
-Received: by mail-da0-f49.google.com with SMTP id v40so2459783dad.22
-        for <linux-mm@kvack.org>; Sun, 03 Feb 2013 20:56:15 -0800 (PST)
-Date: Sun, 3 Feb 2013 20:56:15 -0800 (PST)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id AB5A36B0005
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 00:12:00 -0500 (EST)
+Received: by mail-da0-f46.google.com with SMTP id p5so2480699dak.5
+        for <linux-mm@kvack.org>; Sun, 03 Feb 2013 21:11:59 -0800 (PST)
+Date: Sun, 3 Feb 2013 21:12:05 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
-In-Reply-To: <20130127141853.GB27019@kernel.org>
-Message-ID: <alpine.LNX.2.00.1302032039540.4662@eggly.anvils>
-References: <20130122065341.GA1850@kernel.org> <20130123075808.GH2723@blaptop> <1359018598.2866.5.camel@kernel> <CAH9JG2UpVtxeLB21kx5-_pokK8p_uVZ-2o41Ep--oOyKStBZFQ@mail.gmail.com> <20130127141853.GB27019@kernel.org>
+Subject: Re: boot warnings due to swap: make each swap partition have one
+ address_space
+In-Reply-To: <20130130095944.GA11457@kernel.org>
+Message-ID: <alpine.LNX.2.00.1302032056550.4662@eggly.anvils>
+References: <5101FFF5.6030503@oracle.com> <20130125042512.GA32017@kernel.org> <alpine.LNX.2.00.1301261754530.7300@eggly.anvils> <20130127141253.GA27019@kernel.org> <alpine.LNX.2.00.1301271321500.16981@eggly.anvils> <20130130095944.GA11457@kernel.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@kernel.org>
-Cc: Kyungmin Park <kmpark@infradead.org>, Minchan Kim <minchan@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Simon Jeons <simon.jeons@gmail.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@fusionio.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, 27 Jan 2013, Shaohua Li wrote:
-> On Sat, Jan 26, 2013 at 01:40:55PM +0900, Kyungmin Park wrote:
-> > 5. SSD related optimization, mainly discard support.
+On Wed, 30 Jan 2013, Shaohua Li wrote:
+> On Sun, Jan 27, 2013 at 01:40:40PM -0800, Hugh Dickins wrote:
 > > 
-> > Now swap codes are based on each swap slots. it means it can't
-> > optimize discard feature since getting meaningful performance gain, it
-> > requires 2 pages at least. Of course it's based on eMMC. In case of
-> > SSD. it requires more pages to support discard.
-> > 
-> > To address issue. I consider the batched discard approach used at filesystem.
-> > *Sometime* scan all empty slot and it issues discard continuous swap
-> > slots as many as possible.
+> > I'm glad Minchan has now pointed you to Rik's posting of two years ago:
+> > I think there are more important changes to be made in that direction.
 > 
-> I posted a patch to make discard async before, which is almost good to me,
-> though we still discard a cluster. 
-> http://marc.info/?l=linux-mm&m=135087309208120&w=2
+> Not sure how others use multiple swaps, but current lock contention forces us
+> to use multiple swaps. I haven't carefully think about Rik's posting, but looks
+> it doesn't solve the lock contention problem.
 
-Any reason why you point to 2012/10/22 patch rather than the 2012/11/19?
+Nobody had reported any swap lock contention problem before your patch,
+so no, Rik's posting wasn't directed at that.  I always thought swap
+writing patterns a much bigger problem.
 
-Seeing this reminded me to take your 1/2 and 2/2 (of 11/19) out again and
-give them a fresh run - though they were easier to apply to 3.8-rc rather
-than mmotm with your locking changes, so it was 3.8-rc6 I tried.
+But if lock contention there is, then I think it can be implemented
+with reducing that in mind.  There are two levels of allocation: one
+to allocate the tokens which we will insert in page tables, and one
+to allocate the final diskspace to which those tokens will point.
 
-As I reported in private mail last year, I wish you'd remove the "buddy"
-from description of your 1/2 allocator, that just misled me; but I've not
-experienced any problem with the allocator, and I still like the direction
-you take with improving swap discard in 2/2.
+(I may be using totally different language from Rik,
+it's the principles that I have in mind, not his actual posting.)
 
-This time around I've not yet seen any "swap_free: Unused swap offset entry"
-messages (despite forgetting to include your later SWAP_MAP_BAD addition to
-__swap_duplicate() - I still haven't thought that through to be honest),
-but did again get the VM_BUG_ON(error == -EEXIST) in __add_to_swap_cache()
-called from add_to_swap() from shrink_page_list().
+Allocating the tokens can very well be done with per-cpu batches,
+perhaps of SWAP_CLUSTER_MAX 32 to match vmscan.c's batching: there
+is no significance to their ordering.  And allocating the diskspace
+would want to be done in batches, to maximize contiguous writing.
 
-Since it came after 1.5 hours of load, I didn't give it much thought,
-and just went on to test other things, thinking I could easily reproduce
-it later; but have failed to do so in many hours since.  Still trying.
+That may not solve all the swap_info_get() contention which you saw,
+but should help some.
+
+I'm thinking that we go with your per-swapper-space locking for now;
+but I wouldn't mind taking it out again later, if we arrive at a
+better solution which benefits even those with a single swap area.
 
 Hugh
 
