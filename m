@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 558576B0008
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 05:27:29 -0500 (EST)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MHO00LRWYDR4XM0@mailout1.samsung.com> for
- linux-mm@kvack.org; Mon, 04 Feb 2013 19:27:27 +0900 (KST)
-Received: from localhost.localdomain ([106.116.147.30])
- by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MHO00ERFYDFAT20@mmp2.samsung.com> for linux-mm@kvack.org;
- Mon, 04 Feb 2013 19:27:27 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH] mm: cma: fix accounting of CMA pages placed in high memory
-Date: Mon, 04 Feb 2013 11:27:05 +0100
-Message-id: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 3847E6B0005
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 05:34:56 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id dq12so4463198wgb.0
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2013 02:34:54 -0800 (PST)
+MIME-Version: 1.0
+Date: Mon, 4 Feb 2013 18:34:54 +0800
+Message-ID: <CAFNq8R5w7qwJ2j9VQXfw_ALZKWu_ZYaMkbd3owL5N9VOTeTVAQ@mail.gmail.com>
+Subject: Qestion about page->_count and page reclaim
+From: Li Haifeng <omycle@gmail.com>
+Content-Type: multipart/alternative; boundary=089e0122f170d027e704d4e3a4e9
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: m.szyprowski@samsung.com, akpm@linux-foundation.org, minchan@kernel.org, mgorman@suse.de, kyungmin.park@samsung.com
+To: linux-mm@kvack.org
 
-The total number of low memory pages is determined as
-totalram_pages - totalhigh_pages, so without this patch all CMA
-pageblocks placed in highmem were accounted to low memory.
+--089e0122f170d027e704d4e3a4e9
+Content-Type: text/plain; charset=ISO-8859-1
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
----
- mm/page_alloc.c |    4 ++++
- 1 file changed, 4 insertions(+)
+Hi, all in kernel.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f5bab0a..6415d93 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -773,6 +773,10 @@ void __init init_cma_reserved_pageblock(struct page *page)
- 	set_pageblock_migratetype(page, MIGRATE_CMA);
- 	__free_pages(page, pageblock_order);
- 	totalram_pages += pageblock_nr_pages;
-+#ifdef CONFIG_HIGHMEM
-+	if (PageHighMem(page))
-+		totalhigh_pages += pageblock_nr_pages;
-+#endif
- }
- #endif
- 
--- 
-1.7.9.5
+The page->_count is the page frame's usage count.
+When page is allocated, the page will be refcounted, and page->_cout will
+be set 1.
+
+After be allocated from buddy system, the page will be used by process.
+ get_page and put_page/put_page_testzero will used in pairs. is it right?
+
+When the page is reclaimed to buddy system, the page->_count should be 0.
+However, Because the initialization of page->_count is 1, get_page() and
+put_page() is called in pairs, I coufused how page->_count will be 0?
+
+Thanks.
+
+--089e0122f170d027e704d4e3a4e9
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><span style=3D"color:rgb(0,0,0);font-family:arial,sans-ser=
+if;font-size:14px">Hi, all in kernel.</span><div style=3D"color:rgb(0,0,0);=
+font-family:arial,sans-serif;font-size:14px"><br></div><div style=3D"color:=
+rgb(0,0,0);font-family:arial,sans-serif;font-size:14px">
+The page-&gt;_count is the page frame&#39;s usage count.</div><div style=3D=
+"color:rgb(0,0,0);font-family:arial,sans-serif;font-size:14px">When page is=
+ allocated, the page will be refcounted, and page-&gt;_cout will be set 1.<=
+/div>
+<div style=3D"color:rgb(0,0,0);font-family:arial,sans-serif;font-size:14px"=
+><br></div><div style=3D"color:rgb(0,0,0);font-family:arial,sans-serif;font=
+-size:14px">After be allocated from buddy system, the page will be used by =
+process. =A0get_page and put_page/put_page_testzero will used in pairs. is =
+it right?</div>
+<div style=3D"color:rgb(0,0,0);font-family:arial,sans-serif;font-size:14px"=
+><br></div><div style=3D"color:rgb(0,0,0);font-family:arial,sans-serif;font=
+-size:14px">When the page is reclaimed to buddy system, the page-&gt;_count=
+ should be 0. However, Because the initialization of page-&gt;_count is 1, =
+get_page() and put_page() is called in pairs, I coufused how page-&gt;_coun=
+t will be 0? =A0=A0</div>
+<div style=3D"color:rgb(0,0,0);font-family:arial,sans-serif;font-size:14px"=
+><br></div><div style=3D"color:rgb(0,0,0);font-family:arial,sans-serif;font=
+-size:14px">Thanks.</div></div>
+
+--089e0122f170d027e704d4e3a4e9--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
