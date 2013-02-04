@@ -1,110 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id D6F096B0087
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 16:09:43 -0500 (EST)
-Message-ID: <1360011567.23410.179.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device
- hotplug framework
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 04 Feb 2013 13:59:27 -0700
-In-Reply-To: <3007489.fG0fDZGHrB@vostro.rjw.lan>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
-	 <20130204124612.GA22096@kroah.com>
-	 <1359996378.23410.130.camel@misato.fc.hp.com>
-	 <3007489.fG0fDZGHrB@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id EE9FD6B0085
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 16:29:05 -0500 (EST)
+MIME-Version: 1.0
+Message-ID: <d6fc41b7-8448-40be-84c3-c24d0833bd85@default>
+Date: Mon, 4 Feb 2013 13:28:55 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Questin about swap_slot free and invalidate page
+References: <20130131051140.GB23548@blaptop>
+ <alpine.LNX.2.00.1302031732520.4050@eggly.anvils>
+ <20130204024950.GD2688@blaptop>
+In-Reply-To: <20130204024950.GD2688@blaptop>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Greg KH <gregkh@linuxfoundation.org>, "lenb@kernel.org" <lenb@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "bhelgaas@google.com" <bhelgaas@google.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "srivatsa.bhat@linux.vnet.ibm.com" <srivatsa.bhat@linux.vnet.ibm.com>
+To: Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 2013-02-04 at 20:45 +0100, Rafael J. Wysocki wrote:
-> On Monday, February 04, 2013 09:46:18 AM Toshi Kani wrote:
-> > On Mon, 2013-02-04 at 04:46 -0800, Greg KH wrote:
-> > > On Sun, Feb 03, 2013 at 05:28:09PM -0700, Toshi Kani wrote:
-> > > > On Sat, 2013-02-02 at 16:01 +0100, Greg KH wrote:
-> > > > > On Fri, Feb 01, 2013 at 01:40:10PM -0700, Toshi Kani wrote:
-> > > > > > On Fri, 2013-02-01 at 07:30 +0000, Greg KH wrote:
-> > > > > > > On Thu, Jan 31, 2013 at 06:32:18PM -0700, Toshi Kani wrote:
-> > > > > > >  > This is already done for PCI host bridges and platform devices and I don't
-> > > > > > > > > see why we can't do that for the other types of devices too.
-> > > > > > > > > 
-> > > > > > > > > The only missing piece I see is a way to handle the "eject" problem, i.e.
-> > > > > > > > > when we try do eject a device at the top of a subtree and need to tear down
-> > > > > > > > > the entire subtree below it, but if that's going to lead to a system crash,
-> > > > > > > > > for example, we want to cancel the eject.  It seems to me that we'll need some
-> > > > > > > > > help from the driver core here.
-> > > > > > > > 
-> > > > > > > > There are three different approaches suggested for system device
-> > > > > > > > hot-plug:
-> > > > > > > >  A. Proceed within system device bus scan.
-> > > > > > > >  B. Proceed within ACPI bus scan.
-> > > > > > > >  C. Proceed with a sequence (as a mini-boot).
-> > > > > > > > 
-> > > > > > > > Option A uses system devices as tokens, option B uses acpi devices as
-> > > > > > > > tokens, and option C uses resource tables as tokens, for their handlers.
-> > > > > > > > 
-> > > > > > > > Here is summary of key questions & answers so far.  I hope this
-> > > > > > > > clarifies why I am suggesting option 3.
-> > > > > > > > 
-> > > > > > > > 1. What are the system devices?
-> > > > > > > > System devices provide system-wide core computing resources, which are
-> > > > > > > > essential to compose a computer system.  System devices are not
-> > > > > > > > connected to any particular standard buses.
-> > > > > > > 
-> > > > > > > Not a problem, lots of devices are not connected to any "particular
-> > > > > > > standard busses".  All this means is that system devices are connected
-> > > > > > > to the "system" bus, nothing more.
-> > > > > > 
-> > > > > > Can you give me a few examples of other devices that support hotplug and
-> > > > > > are not connected to any particular buses?  I will investigate them to
-> > > > > > see how they are managed to support hotplug.
-> > > > > 
-> > > > > Any device that is attached to any bus in the driver model can be
-> > > > > hotunplugged from userspace by telling it to be "unbound" from the
-> > > > > driver controlling it.  Try it for any platform device in your system to
-> > > > > see how it happens.
-> > > > 
-> > > > The unbind operation, as I understand from you, is to detach a driver
-> > > > from a device.  Yes, unbinding can be done for any devices.  It is
-> > > > however different from hot-plug operation, which unplugs a device.
-> > > 
-> > > Physically, yes, but to the driver involved, and the driver core, there
-> > > is no difference.  That was one of the primary goals of the driver core
-> > > creation so many years ago.
-> > > 
-> > > > Today, the unbind operation to an ACPI cpu/memory devices causes
-> > > > hot-unplug (offline) operation to them, which is one of the major issues
-> > > > for us since unbind cannot fail.  This patchset addresses this issue by
-> > > > making the unbind operation of ACPI cpu/memory devices to do the
-> > > > unbinding only.  ACPI drivers no longer control cpu and memory as they
-> > > > are supposed to be controlled by their drivers, cpu and memory modules.
-> > > 
-> > > I think that's the problem right there, solve that, please.
-> > 
-> > We cannot eliminate the ACPI drivers since we have to scan ACPI.  But we
-> > can limit the ACPI drivers to do the scanning stuff only.   This is
-> > precisely the intend of this patchset.  The real stuff, removing actual
-> > devices, is done by the system device drivers/modules.
-> 
-> In case you haven't realized that yet, the $subject patchset has no future.
+> From: Minchan Kim [mailto:minchan@kernel.org]
+> Sent: Sunday, February 03, 2013 7:50 PM
+> To: Hugh Dickins
+> Cc: Nitin Gupta; Dan Magenheimer; Seth Jennings; Konrad Rzeszutek Wilk; l=
+inux-mm@kvack.org; linux-
+> kernel@vger.kernel.org; Andrew Morton
+> Subject: Re: Questin about swap_slot free and invalidate page
+>=20
+> Hi Hugh,
+>=20
+> On Sun, Feb 03, 2013 at 05:51:14PM -0800, Hugh Dickins wrote:
+> > On Thu, 31 Jan 2013, Minchan Kim wrote:
+> >
+> > > When I reviewed zswap, I was curious about frontswap_store.
+> > > It said following as.
+> > >
+> > >  * If frontswap already contains a page with matching swaptype and
+> > >  * offset, the frontswap implementation may either overwrite the data=
+ and
+> > >  * return success or invalidate the page from frontswap and return fa=
+ilure.
+> > >
+> > > It didn't say why it happens. we already have __frontswap_invalidate_=
+page
+> > > and call it whenever swap_slot frees. If we don't free swap slot,
+> > > scan_swap_map can't find the slot for swap out so I thought overwriti=
+ng of
+> > > data shouldn't happen in frontswap.
+> > >
+> > > As I looked the code, the curplit is reuse_swap_page. It couldn't fre=
+e swap
+> > > slot if the page founded is PG_writeback but miss calling frontswap_i=
+nvalidate_page
+> > > so data overwriting on frontswap can happen. I'm not sure frontswap g=
+uys
+> > > already discussed it long time ago.
+> > >
+> > > If we can fix it, we can remove duplication entry handling logic
+> > > in all of backend of frontswap. All of backend should handle it altho=
+ugh
+> > > it's pretty rare. Of course, zram could be fixed. It might be trivial=
+ now
+> > > but more there are many backend of frontswap, more it would be a head=
+ache.
+> > >
+> > > If we are trying to fix it in swap layer,  we might fix it following =
+as
+> > >
+> > > int reuse_swap_page(struct page *page)
+> > > {
+> > >         ..
+> > >         ..
+> > >         if (count =3D=3D 1) {
+> > >                 if (!PageWriteback(page)) {
+> > >                         delete_from_swap_cache(page);
+> > >                         SetPageDirty(page);
+> > >                 } else {
+> > >                         frontswap_invalidate_page();
+> > >                         swap_slot_free_notify();
+> > >                 }
+> > >         }
+> > > }
+> > >
+> > > But not sure, it is worth at the moment and there might be other plac=
+es
+> > > to be fixed.(I hope Hugh can point out if we are missing something if=
+ he
+> > > has a time)
+> >
+> > I expect you are right that reuse_swap_page() is the only way it would
+> > happen for frontswap; but I'm too unfamiliar with frontswap to promise
+> > you that - it's better that you insert WARN_ONs in your testing to veri=
+fy.
+> >
+> > But I think it's a general tmem property, isn't it?  To define what
+> > happens if you do give it the same key again.  So I doubt it's somethin=
+g
+>=20
+> I am too unfamiliar with tmem property but thing I am seeing is
+> EXPORT_SYMBOL(__frontswap_store). It's a one of frontend and is tighly ve=
+ry
+> coupled with swap subsystem.
+>=20
+> > that has to be fixed; but if you do find it helpful to fix it, bear in
+> > mind that reuse_swap_page() is an odd corner, which may one day give th=
+e
+> > "stable pages" DIF/DIX people trouble, though they've not yet complaine=
+d.
+> >
+> > I'd prefer a patch not specific to frontswap, but along the lines below=
+:
+> > I think that's the most robust way to express it, though I don't think
+> > the (count =3D=3D 0) case can actually occur inside that block (whereas
+> > count =3D=3D 0 certainly can occur in the !PageSwapCache case).
+> >
+> > I believe that I once upon a time took statistics of how often the
+> > PageWriteback case happens here, and concluded that it wasn't often
+> > enough that refusing to reuse in this case would be likely to slow
+> > anyone down noticeably.
+>=20
+> I agree. I had a test about that with zram and that case wasn't common.
+> so your patch looks good to me.
+>=20
+> I am waiting Dan's reply(He will come in this week) and then, judge what'=
+s
+> the best.
 
-That's really disappointing, esp. the fact that this basic approach has
-been proven to work on other OS for years...
+Hugh is right that handling the possibility of duplicates is
+part of the tmem ABI.  If there is any possibility of duplicates,
+the ABI defines how a backend must handle them to avoid data
+coherency issues.
 
+The kernel implements an in-kernel API which implements the tmem
+ABI.  If the frontend and backend can always agree that duplicates
+are never possible, I agree that the backend could avoid that
+special case.  However, duplicates occur rarely enough and the
+consequences (data loss) are bad enough that I think the case
+should still be checked, at least with a BUG_ON.  I also wonder
+if it is worth it to make changes to the core swap subsystem
+to avoid code to implement a zswap corner case.
 
-> Let's just talk about how we can get what we need in more general terms.
+Remember that zswap is an oversimplified special case of tmem
+that handles only one frontend (Linux frontswap) and one backend
+(zswap).  Tmem goes well beyond that and already supports other
+more general backends including Xen and ramster, and could also
+support other frontends such as a BSD or Solaris equivalent
+of frontswap, for example with a Linux ramster/zcache backend.
+I'm not sure how wise it is to tear out generic code and replace
+it with simplistic code unless there is absolutely no chance that
+the generic code will be necessary.
 
-So, are we heading to an approach of doing everything in ACPI?  I am not
-clear about which direction we have agreed with or disagreed with.
-
-As for the eject flag approach, I agree with Greg.
-
-
-Thanks,
--Toshi
+My two cents,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
