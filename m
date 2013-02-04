@@ -1,66 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 681E16B0002
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 20:03:42 -0500 (EST)
-Received: by mail-ie0-f176.google.com with SMTP id k13so3358007iea.21
-        for <linux-mm@kvack.org>; Sun, 03 Feb 2013 17:03:41 -0800 (PST)
-Message-ID: <1359939818.9366.1.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCHv4 0/7] zswap: compressed swap caching
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Sun, 03 Feb 2013 19:03:38 -0600
-In-Reply-To: <510BDB8F.5000104@linux.vnet.ibm.com>
-References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com>
-	 <1359682784.3574.2.camel@kernel> <510BDB8F.5000104@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 68DFD6B0002
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 20:46:40 -0500 (EST)
+Date: Mon, 4 Feb 2013 10:46:38 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: next-20130128 lockdep whinge in sys_swapon()
+Message-ID: <20130204014638.GC2688@blaptop>
+References: <5595.1359657914@turing-police.cc.vt.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5595.1359657914@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
+Cc: Shaohua Li <shli@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 2013-02-01 at 09:13 -0600, Seth Jennings wrote:
-> On 01/31/2013 07:39 PM, Simon Jeons wrote:
-> > Hi Seth,
-> > On Tue, 2013-01-29 at 15:40 -0600, Seth Jennings wrote:
-> <snip>
-> >> Performance, Kernel Building:
-> >>
-> >> Setup
-> >> ========
-> >> Gentoo w/ kernel v3.7-rc7
-> >> Quad-core i5-2500 @ 3.3GHz
-> >> 512MB DDR3 1600MHz (limited with mem=512m on boot)
-> >> Filesystem and swap on 80GB HDD (about 58MB/s with hdparm -t)
-> >> majflt are major page faults reported by the time command
-> >> pswpin/out is the delta of pswpin/out from /proc/vmstat before and after
-> >> then make -jN
-> >>
-> >> Summary
-> >> ========
-> >> * Zswap reduces I/O and improves performance at all swap pressure levels.
-> >>
-> >> * Under heavy swaping at 24 threads, zswap reduced I/O by 76%, saving
-> >>   over 1.5GB of I/O, and cut runtime in half.
-> > 
-> > How to get your benchmark?
+Hello,
+
+
+On Thu, Jan 31, 2013 at 01:45:14PM -0500, Valdis Kletnieks wrote:
+> Seen in my linux-next dmesg.  I'm suspecting commit ac07b1ffc:
 > 
-> It's just kernel building.  So "make" :)
+> commit ac07b1ffc27d575013041fb5277dab02c661d9c2
+> Author: Shaohua Li <shli@kernel.org>
+> Date:   Thu Jan 24 13:13:50 2013 +1100
 > 
-> I intentionally choose this workload so people wouldn't have to jump
-> through hoops to replicate the results.
-
-Since there already have zram which can handle anonymous pages
-compression, why need zswap? What's the difference of design between
-zram and zswap? 
-
+>     swap: add per-partition lock for swapfile
 > 
-> Seth
+> as (a) it was OK in -20130117, and (b) 'git blame mm/swapfile.c | grep 2013'
+> shows that commit as the vast majority of changes.
 > 
+> [   42.498669] INFO: trying to register non-static key.
+> [   42.498670] the code is fine but needs lockdep annotation.
+> [   42.498671] turning off the locking correctness validator.
+> [   42.498674] Pid: 1035, comm: swapon Not tainted 3.8.0-rc5-next-20130128 #52
+> [   42.498675] Call Trace:
+> [   42.498681]  [<ffffffff81073dc8>] register_lock_class+0x103/0x2ad
+> [   42.498685]  [<ffffffff812493ad>] ? __list_add_rcu+0xc4/0xdf
+> [   42.498688]  [<ffffffff81075573>] __lock_acquire+0x108/0xd63
+> [   42.498691]  [<ffffffff810b482b>] ? trace_preempt_on+0x12/0x2f
+> [   42.498695]  [<ffffffff81608e6e>] ? sub_preempt_count+0x31/0x43
+> [   42.498699]  [<ffffffff810fda36>] ? sys_swapon+0x6f9/0x9d9
+> [   42.498701]  [<ffffffff810764f2>] lock_acquire+0xc7/0x14a
+> [   42.498703]  [<ffffffff810fda62>] ? sys_swapon+0x725/0x9d9
+> [   42.498706]  [<ffffffff81605023>] _raw_spin_lock+0x34/0x41
+> [   42.498708]  [<ffffffff810fda62>] ? sys_swapon+0x725/0x9d9
+> [   42.498710]  [<ffffffff810fda62>] sys_swapon+0x725/0x9d9
+> [   42.498712]  [<ffffffff8107520a>] ? trace_hardirqs_on_caller+0x149/0x165
+> [   42.498715]  [<ffffffff8160be92>] system_call_fastpath+0x16/0x1b
+> [   42.498719] Adding 2097148k swap on /dev/mapper/vg_blackice-swap.  Priority:-1 extents:1 across:2097148k
+> 
+> Somebody care to sprinkle the appropriate annotations on that code?
 
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Could you test this patch?
