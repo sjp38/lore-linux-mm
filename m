@@ -1,108 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 5C1E26B007D
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 15:44:28 -0500 (EST)
-Message-ID: <1360010058.23410.169.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device
- hotplug framework
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 04 Feb 2013 13:34:18 -0700
-In-Reply-To: <23473445.t1DSaBm58X@vostro.rjw.lan>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
-	 <1890597.vDojv7So7R@vostro.rjw.lan>
-	 <1360007184.23410.139.camel@misato.fc.hp.com>
-	 <23473445.t1DSaBm58X@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id CEE896B0080
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 15:49:05 -0500 (EST)
+Message-ID: <51101EBD.80607@wwwdotorg.org>
+Date: Mon, 04 Feb 2013 13:49:01 -0700
+From: Stephen Warren <swarren@wwwdotorg.org>
+MIME-Version: 1.0
+Subject: Re: CPU hotplug hang due to "swap: make each swap partition have
+ one address_space"
+References: <510C9DE9.9040207@wwwdotorg.org> <20130204023646.GA321@kernel.org> <510FE866.9090600@wwwdotorg.org>
+In-Reply-To: <510FE866.9090600@wwwdotorg.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Greg KH <gregkh@linuxfoundation.org>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Shaohua Li <shli@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Shaohua Li <shli@fusionio.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Joseph Lo <josephl@nvidia.com>
 
-On Mon, 2013-02-04 at 21:12 +0100, Rafael J. Wysocki wrote:
-> On Monday, February 04, 2013 12:46:24 PM Toshi Kani wrote:
-> > On Mon, 2013-02-04 at 20:48 +0100, Rafael J. Wysocki wrote:
-> > > On Monday, February 04, 2013 09:02:46 AM Toshi Kani wrote:
-> > > > On Mon, 2013-02-04 at 14:41 +0100, Rafael J. Wysocki wrote:
-> > > > > On Sunday, February 03, 2013 07:23:49 PM Greg KH wrote:
-> > > > > > On Sat, Feb 02, 2013 at 09:15:37PM +0100, Rafael J. Wysocki wrote:
-> > > > > > > On Saturday, February 02, 2013 03:58:01 PM Greg KH wrote:
-> > > >   :
-> > > > > > > Yes, but those are just remove events and we can only see how destructive they
-> > > > > > > were after the removal.  The point is to be able to figure out whether or not
-> > > > > > > we *want* to do the removal in the first place.
-> > > > > > 
-> > > > > > Yes, but, you will always race if you try to test to see if you can shut
-> > > > > > down a device and then trying to do it.  So walking the bus ahead of
-> > > > > > time isn't a good idea.
-> > > > > >
-> > > > > > And, we really don't have a viable way to recover if disconnect() fails,
-> > > > > > do we.  What do we do in that situation, restore the other devices we
-> > > > > > disconnected successfully?  How do we remember/know what they were?
-> > > > > > 
-> > > > > > PCI hotplug almost had this same problem until the designers finally
-> > > > > > realized that they just had to accept the fact that removing a PCI
-> > > > > > device could either happen by:
-> > > > > > 	- a user yanking out the device, at which time the OS better
-> > > > > > 	  clean up properly no matter what happens
-> > > > > > 	- the user asked nicely to remove a device, and the OS can take
-> > > > > > 	  as long as it wants to complete that action, including
-> > > > > > 	  stalling for noticable amounts of time before eventually,
-> > > > > > 	  always letting the action succeed.
-> > > > > > 
-> > > > > > I think the second thing is what you have to do here.  If a user tells
-> > > > > > the OS it wants to remove these devices, you better do it.  If you
-> > > > > > can't, because memory is being used by someone else, either move them
-> > > > > > off, or just hope that nothing bad happens, before the user gets
-> > > > > > frustrated and yanks out the CPU/memory module themselves physically :)
-> > > > > 
-> > > > > Well, that we can't help, but sometimes users really *want* the OS to tell them
-> > > > > if it is safe to unplug something at this particualr time (think about the
-> > > > > Windows' "safe remove" feature for USB sticks, for example; that came out of
-> > > > > users' demand AFAIR).
-> > > > > 
-> > > > > So in my opinion it would be good to give them an option to do "safe eject" or
-> > > > > "forcible eject", whichever they prefer.
-> > > > 
-> > > > For system device hot-plug, it always needs to be "safe eject".  This
-> > > > feature will be implemented on mission critical servers, which are
-> > > > managed by professional IT folks.  Crashing a server causes serious
-> > > > money to the business.
-> > > 
-> > > Well, "always" is a bit too strong a word as far as human behavior is concerned
-> > > in my opinion.
-> > > 
-> > > That said I would be perfectly fine with not supporting the "forcible eject" to
-> > > start with and waiting for the first request to add support for it.  I also
-> > > would be fine with taking bets on how much time it's going to take for such a
-> > > request to appear. :-)
-> > 
-> > Sounds good.  In my experience, though, it actually takes a LONG time to
-> > convince customers that "safe eject" is actually safe.  Enterprise
-> > customers are so afraid of doing anything risky that might cause the
-> > system to crash or hang due to some defect.  I would be very surprised
-> > to see a customer asking for a force operation when we do not guarantee
-> > its outcome.  I have not seen such enterprise customers yet.
+On 02/04/2013 09:57 AM, Stephen Warren wrote:
+> On 02/03/2013 07:36 PM, Shaohua Li wrote:
+>> On Fri, Feb 01, 2013 at 10:02:33PM -0700, Stephen Warren wrote:
+>>> Shaohua,
+>>>
+>>> In next-20130128, commit 174f064 "swap: make each swap partition have
+>>> one address_space" (from the mm/akpm tree) appears causes a hang/RCU
+>>> stall for me when hot-unplugging a CPU.
+>>
+>> does this one work for you?
+>> http://marc.info/?l=linux-mm&m=135929599505624&w=2
+>> Or try a more recent linux-next. The patch is in akpm's tree.
 > 
-> But we're talking about a kernel that is supposed to run on mobile phones too,
-> among other things.
+> Yes, that patch fixes the issue for me, thanks.
 
-I think using this feature for RAS i.e. replacing a faulty device
-on-line, will continue to be limited for high-end systems.  For low-end
-systems, it does not make sense for customers to pay much $$ for this
-feature.  They can just shut the system down for replacement, or they
-can simply buy a new system instead of repairing.
-
-That said, using this feature on VM for workload balancing does not
-require any special hardware.  So, I can see someone willing to try out
-to see how it goes with a force option on VM for personal use.   
-
-Thanks,
--Toshi
-
-
- 
+I notice this patch is only in Andrew's mmots tree, not mmotm, and hence
+isn't included in linux-next. Do you know when it'll be "promoted" and
+show up in linux-next?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
