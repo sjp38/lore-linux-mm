@@ -1,147 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id DF2F66B0099
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 17:23:44 -0500 (EST)
-Message-ID: <1360016009.23410.213.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device
- hotplug framework
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 04 Feb 2013 15:13:29 -0700
-In-Reply-To: <5598823.8hjkkMP1h9@vostro.rjw.lan>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
-	 <2048116.Qo8UgQ5hjb@vostro.rjw.lan> <20130204143351.GA20119@kroah.com>
-	 <5598823.8hjkkMP1h9@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 7945D6B009B
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 17:37:08 -0500 (EST)
+Date: Mon, 4 Feb 2013 16:37:05 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] mmu_notifier_unregister NULL Pointer deref and
+ multiple ->release() callouts. [V2]
+Message-ID: <20130204223705.GS3438@sgi.com>
+References: <20130204130306.GL3438@sgi.com>
+ <20130204141854.b13973d2.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130204141854.b13973d2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Greg KH <gregkh@linuxfoundation.org>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-mm@kvack.org, Avi Kivity <avi@redhat.com>, Hugh Dickins <hughd@google.com>, Marcelo Tosatti <mtosatti@redhat.com>, Sagi Grimberg <sagig@mellanox.co.il>, Haggai Eran <haggaie@mellanox.com>, stable-kernel <stable@vger.kernel.org>
 
-On Mon, 2013-02-04 at 21:07 +0100, Rafael J. Wysocki wrote:
-> On Monday, February 04, 2013 06:33:52 AM Greg KH wrote:
-> > On Mon, Feb 04, 2013 at 03:21:22PM +0100, Rafael J. Wysocki wrote:
-> > > On Monday, February 04, 2013 04:48:10 AM Greg KH wrote:
-> > > > On Sun, Feb 03, 2013 at 09:44:39PM +0100, Rafael J. Wysocki wrote:
-> > > > > > Yes, but those are just remove events and we can only see how destructive they
-> > > > > > were after the removal.  The point is to be able to figure out whether or not
-> > > > > > we *want* to do the removal in the first place.
-> > > > > > 
-> > > > > > Say you have a computing node which signals a hardware problem in a processor
-> > > > > > package (the container with CPU cores, memory, PCI host bridge etc.).  You
-> > > > > > may want to eject that package, but you don't want to kill the system this
-> > > > > > way.  So if the eject is doable, it is very much desirable to do it, but if it
-> > > > > > is not doable, you'd rather shut the box down and do the replacement afterward.
-> > > > > > That may be costly, however (maybe weeks of computations), so it should be
-> > > > > > avoided if possible, but not at the expense of crashing the box if the eject
-> > > > > > doesn't work out.
-> > > > > 
-> > > > > It seems to me that we could handle that with the help of a new flag, say
-> > > > > "no_eject", in struct device, a global mutex, and a function that will walk
-> > > > > the given subtree of the device hierarchy and check if "no_eject" is set for
-> > > > > any devices in there.  Plus a global "no_eject" switch, perhaps.
-> > > > 
-> > > > I think this will always be racy, or at worst, slow things down on
-> > > > normal device operations as you will always be having to grab this flag
-> > > > whenever you want to do something new.
-> > > 
-> > > I don't see why this particular scheme should be racy, at least I don't see any
-> > > obvious races in it (although I'm not that good at races detection in general,
-> > > admittedly).
-> > > 
-> > > Also, I don't expect that flag to be used for everything, just for things known
-> > > to seriously break if forcible eject is done.  That may be not precise enough,
-> > > so that's a matter of defining its purpose more precisely.
-> > > 
-> > > We can do something like that on the ACPI level (ie. introduce a no_eject flag
-> > > in struct acpi_device and provide an iterface for the layers above ACPI to
-> > > manipulate it) but then devices without ACPI namespace objects won't be
-> > > covered.  That may not be a big deal, though.
-> > > 
-> > > So say dev is about to be used for something incompatible with ejecting, so to
-> > > speak.  Then, one would do platform_lock_eject(dev), which would check if dev
-> > > has an ACPI handle and then take acpi_eject_lock (if so).  The return value of
-> > > platform_lock_eject(dev) would need to be checked to see if the device is not
-> > > gone.  If it returns success (0), one would do something to the device and
-> > > call platform_no_eject(dev) and then platform_unlock_eject(dev).
+On Mon, Feb 04, 2013 at 02:18:54PM -0800, Andrew Morton wrote:
+> On Mon, 4 Feb 2013 07:03:06 -0600
+> Robin Holt <holt@sgi.com> wrote:
+> 
 > > 
-> > How does a device "know" it is doing something that is incompatible with
-> > ejecting?  That's a non-trivial task from what I can tell.
+> > Cc: stable-kernel <stable@vger.kernel.org> # 3.[0-6].y 21a9273
+> > Cc: stable-kernel <stable@vger.kernel.org> # 3.[0-6].y 7040030
+> > Cc: stable-kernel <stable@vger.kernel.org>
+> > 
+> > ...
+> > 
+> > Andrew, I have a question about the stable maintainer bits I hope you
+> > could help me with.  Will the syntax I used above get this into 3.0.y
+> > through 3.7.y?  3.7.y does not need the other two commits, but all the
+> > rest do.  If not and you wouldn't mind fixing it up for me, I would
+> > appreciate the help.
 > 
-> I agree that this is complicated in general.  But.
+> um, I'd fix it up if I understood it, but I'm not sure that I do with
+> sufficient reliability.
 > 
-> There are devices known to have software "offline" and "online" operations
-> such that after the "offline" the given device is guaranteed to be not used
-> until "online".  We have that for CPU cores, for example, and user space can
-> do it via /sys/devices/system/cpu/cpuX/online .  So, why don't we make the
-> "online" set the no_eject flag (under the lock as appropriate) and the
-> "offline" clear it?  And why don't we define such "online" and "offline" for
-> all of the other "system" stuff, like memory, PCI host bridges etc. and make it
-> behave analogously?
+> If you want to send a message like this to Greg and to others who
+> maintain earlier kernel versions then I suggest you just spell it all
+> out in plain old English in the main changelog.  That's not very useful
+> information for people who are following mainline, but a couple
+> paragraphs in a changelog won't kill anyone.
 > 
-> Then, it is quite simple to say which devices should use the no_eject flag:
-> devices that have "online" and "offline" exported to user space.  And guess
-> who's responsible for "offlining" all of those things before trying to eject
-> them: user space is.  From the kernel's point of view it is all clear.  Hands
-> clean. :-)
-> 
-> Now, there's a different problem how to expose all of the relevant information
-> to user space so that it knows what to "offline" for the specific eject
-> operation to succeed, but that's kind of separate and worth addressing
-> anyway.
+> So can you please send me those couple of paragraphs and I'll paste
+> them in there headlined "-stable suggestions".
 
-So, the idea is to run a user space program that off-lines all relevant
-devices before trimming ACPI devices.  Is that right?  That sounds like
-a worth idea to consider with.  This basically moves the "sequencer"
-part into user space instead of the kernel space in my proposal.  I
-agree that how to expose all of the relevant info to user space is an
-issue.  Also, we will need to make sure that the user program always
-runs per a kernel request and then informs a result back to the kernel,
-so that the kernel can do the rest of an operation and inform a result
-to FW with _OST or _EJ0.  This loop has to close.  I think it is going
-to be more complicated than the kernel-only approach.
-
-In addition, I am not sure if the "no_eject" flag in acpi_device is
-really necessary here since the user program will inform the kernel if
-all devices are off-line.  Also, the kernel will likely need to expose
-the device info to the user program to tell which devices need to be
-off-lined.  At that time, the kernel already knows if there is any
-on-line device in the scope.
-
-
-> > What happens if a device wants to set that flag, right after it was told
-> > to eject and the device was in the middle of being removed?  How can you
-> > "fail" the "I can't be removed me now, so don't" requirement that it now
-> > has?
-> 
-> This one is easy. :-)
-> 
-> If platform_lock_eject() is called when an eject is under way, it will block
-> on acpi_eject_lock until the eject is complete and if the device is gone as
-> a result of the eject, it will return an error code.
-
-In this case, we do really need to make sure that the user program does
-not get killed in the middle of its operation since the kernel is
-holding a lock while it is under way.
-
-
-Thanks,
--Toshi
-
-
-> In turn, if an eject happens after platform_lock_eject(), it will block until
-> platform_unlock_eject() and if platform_no_eject() is called in between the
-> lock and unlock, it will notice the device with no_eject set and bail out.
-> 
-> Quite obviously, it would be a bug to call platform_lock_eject() from within an
-> eject code path.
-> 
-> Thanks,
-> Rafael
-> 
-> 
-
+-stable suggestions:
+The stable trees prior to 3.7.y need commits 21a9273 and 7040030
+cherry-picked in that order prior to cherry-picking this commit.
+The 3.7.y tree already has those two commits.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
