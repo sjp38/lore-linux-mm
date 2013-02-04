@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 7945D6B009B
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 17:37:08 -0500 (EST)
-Date: Mon, 4 Feb 2013 16:37:05 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH] mmu_notifier_unregister NULL Pointer deref and
- multiple ->release() callouts. [V2]
-Message-ID: <20130204223705.GS3438@sgi.com>
-References: <20130204130306.GL3438@sgi.com>
- <20130204141854.b13973d2.akpm@linux-foundation.org>
+Date: Mon, 4 Feb 2013 15:02:09 -0800
+From: Zach Brown <zab@redhat.com>
+Subject: Re: [PATCH 2/2] fs/aio.c: use get_user_pages_non_movable() to pin
+ ring pages when support memory hotremove
+Message-ID: <20130204230209.GK14246@lenny.home.zabbo.net>
+References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com>
+ <1359972248-8722-3-git-send-email-linfeng@cn.fujitsu.com>
+ <x49ehgw85w4.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130204141854.b13973d2.akpm@linux-foundation.org>
+In-Reply-To: <x49ehgw85w4.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, linux-mm@kvack.org, Avi Kivity <avi@redhat.com>, Hugh Dickins <hughd@google.com>, Marcelo Tosatti <mtosatti@redhat.com>, Sagi Grimberg <sagig@mellanox.co.il>, Haggai Eran <haggaie@mellanox.com>, stable-kernel <stable@vger.kernel.org>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Feb 04, 2013 at 02:18:54PM -0800, Andrew Morton wrote:
-> On Mon, 4 Feb 2013 07:03:06 -0600
-> Robin Holt <holt@sgi.com> wrote:
+> > index 71f613c..0e9b30a 100644
+> > --- a/fs/aio.c
+> > +++ b/fs/aio.c
+> > @@ -138,9 +138,15 @@ static int aio_setup_ring(struct kioctx *ctx)
+> >  	}
+> >  
+> >  	dprintk("mmap address: 0x%08lx\n", info->mmap_base);
+> > +#ifdef CONFIG_MEMORY_HOTREMOVE
+> > +	info->nr_pages = get_user_pages_non_movable(current, ctx->mm,
+> > +					info->mmap_base, nr_pages,
+> > +					1, 0, info->ring_pages, NULL);
+> > +#else
+> >  	info->nr_pages = get_user_pages(current, ctx->mm,
+> >  					info->mmap_base, nr_pages, 
+> >  					1, 0, info->ring_pages, NULL);
+> > +#endif
 > 
-> > 
-> > Cc: stable-kernel <stable@vger.kernel.org> # 3.[0-6].y 21a9273
-> > Cc: stable-kernel <stable@vger.kernel.org> # 3.[0-6].y 7040030
-> > Cc: stable-kernel <stable@vger.kernel.org>
-> > 
-> > ...
-> > 
-> > Andrew, I have a question about the stable maintainer bits I hope you
-> > could help me with.  Will the syntax I used above get this into 3.0.y
-> > through 3.7.y?  3.7.y does not need the other two commits, but all the
-> > rest do.  If not and you wouldn't mind fixing it up for me, I would
-> > appreciate the help.
-> 
-> um, I'd fix it up if I understood it, but I'm not sure that I do with
-> sufficient reliability.
-> 
-> If you want to send a message like this to Greg and to others who
-> maintain earlier kernel versions then I suggest you just spell it all
-> out in plain old English in the main changelog.  That's not very useful
-> information for people who are following mainline, but a couple
-> paragraphs in a changelog won't kill anyone.
-> 
-> So can you please send me those couple of paragraphs and I'll paste
-> them in there headlined "-stable suggestions".
+> Can't you hide this in your 1/1 patch, by providing this function as
+> just a static inline wrapper around get_user_pages when
+> CONFIG_MEMORY_HOTREMOVE is not enabled?
 
--stable suggestions:
-The stable trees prior to 3.7.y need commits 21a9273 and 7040030
-cherry-picked in that order prior to cherry-picking this commit.
-The 3.7.y tree already has those two commits.
+Yes, please.  Having callers duplicate the call site for a single
+optional boolean input is unacceptable.
+
+But do we want another input argument as a name?  Should aio have been
+using get_user_pages_fast()? (and so now _fast_non_movable?)
+
+I wonder if it's time to offer the booleans as a _flags() variant, much
+like the current internal flags for __get_user_pages().  The write and
+force arguments are already booleans, we have a different fast api, and
+now we're adding non-movable.  The NON_MOVABLE flag would be 0 without
+MEMORY_HOTREMOVE, easy peasy.
+
+Turning current callers' mysterious '1, 1' in to 'WRITE|FORCE' might
+also be nice :).
+
+No?
+
+- z
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
