@@ -1,114 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 490666B0007
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 20:51:17 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id wz12so2905401pbc.31
-        for <linux-mm@kvack.org>; Sun, 03 Feb 2013 17:51:16 -0800 (PST)
-Date: Sun, 3 Feb 2013 17:51:14 -0800 (PST)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 91A226B0002
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 21:02:02 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id jt11so2931234pbb.16
+        for <linux-mm@kvack.org>; Sun, 03 Feb 2013 18:02:01 -0800 (PST)
+Date: Sun, 3 Feb 2013 18:01:53 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: Questin about swap_slot free and invalidate page
-In-Reply-To: <20130131051140.GB23548@blaptop>
-Message-ID: <alpine.LNX.2.00.1302031732520.4050@eggly.anvils>
-References: <20130131051140.GB23548@blaptop>
+Subject: Re: [patch] mm: shmem: use new radix tree iterator
+In-Reply-To: <1359699238-7327-1-git-send-email-hannes@cmpxchg.org>
+Message-ID: <alpine.LNX.2.00.1302031759240.4120@eggly.anvils>
+References: <1359699238-7327-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 31 Jan 2013, Minchan Kim wrote:
+On Fri, 1 Feb 2013, Johannes Weiner wrote:
 
-> When I reviewed zswap, I was curious about frontswap_store.
-> It said following as.
+> In shmem_find_get_pages_and_swap, use the faster radix tree iterator
+> construct from 78c1d78 "radix-tree: introduce bit-optimized iterator".
 > 
->  * If frontswap already contains a page with matching swaptype and
->  * offset, the frontswap implementation may either overwrite the data and
->  * return success or invalidate the page from frontswap and return failure.
-> 
-> It didn't say why it happens. we already have __frontswap_invalidate_page
-> and call it whenever swap_slot frees. If we don't free swap slot,
-> scan_swap_map can't find the slot for swap out so I thought overwriting of
-> data shouldn't happen in frontswap.
-> 
-> As I looked the code, the curplit is reuse_swap_page. It couldn't free swap
-> slot if the page founded is PG_writeback but miss calling frontswap_invalidate_page
-> so data overwriting on frontswap can happen. I'm not sure frontswap guys
-> already discussed it long time ago.
-> 
-> If we can fix it, we can remove duplication entry handling logic
-> in all of backend of frontswap. All of backend should handle it although
-> it's pretty rare. Of course, zram could be fixed. It might be trivial now
-> but more there are many backend of frontswap, more it would be a headache.
-> 
-> If we are trying to fix it in swap layer,  we might fix it following as
-> 
-> int reuse_swap_page(struct page *page)
-> {
->         ..
->         ..
->         if (count == 1) {
->                 if (!PageWriteback(page)) {
->                         delete_from_swap_cache(page);
->                         SetPageDirty(page);
->                 } else {
->                         frontswap_invalidate_page();
->                         swap_slot_free_notify();
->                 }
->         }
-> }
-> 
-> But not sure, it is worth at the moment and there might be other places
-> to be fixed.(I hope Hugh can point out if we are missing something if he
-> has a time)
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-I expect you are right that reuse_swap_page() is the only way it would
-happen for frontswap; but I'm too unfamiliar with frontswap to promise
-you that - it's better that you insert WARN_ONs in your testing to verify.
+Yes, that looks fine, and is testing out fine, thanks.
+Acked-by: Hugh Dickins <hughd@google.com>
 
-But I think it's a general tmem property, isn't it?  To define what
-happens if you do give it the same key again.  So I doubt it's something
-that has to be fixed; but if you do find it helpful to fix it, bear in
-mind that reuse_swap_page() is an odd corner, which may one day give the
-"stable pages" DIF/DIX people trouble, though they've not yet complained.
-
-I'd prefer a patch not specific to frontswap, but along the lines below:
-I think that's the most robust way to express it, though I don't think
-the (count == 0) case can actually occur inside that block (whereas
-count == 0 certainly can occur in the !PageSwapCache case).
-
-I believe that I once upon a time took statistics of how often the
-PageWriteback case happens here, and concluded that it wasn't often
-enough that refusing to reuse in this case would be likely to slow
-anyone down noticeably.
-
+> ---
+>  mm/shmem.c | 25 ++++++++++++-------------
+>  1 file changed, 12 insertions(+), 13 deletions(-)
 > 
-> If we are reluctant to it, at least, we should write out comment above
-> frontswap_store about that to notice curious guys who spend many
-> time to know WHY and smart guys who are going to fix it with nice way.
-> 
-> Mr. Frontswap, What do you think about it?
-
-He's not me of course :)
-
-Hugh
-
---- 3.8-rc6/mm/swapfile.c	2012-12-22 09:43:27.668015583 -0800
-+++ linux/mm/swapfile.c	2013-02-03 17:31:04.148181857 -0800
-@@ -637,8 +637,11 @@ int reuse_swap_page(struct page *page)
- 		return 0;
- 	count = page_mapcount(page);
- 	if (count <= 1 && PageSwapCache(page)) {
--		count += page_swapcount(page);
--		if (count == 1 && !PageWriteback(page)) {
-+		if (PageWriteback(page))
-+			count = 2;	/* not safe yet to free its swap */
-+		else
-+			count += page_swapcount(page);
-+		if (count <= 1) {
- 			delete_from_swap_cache(page);
- 			SetPageDirty(page);
- 		}
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index a368a1c..c5dc8ae 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -336,19 +336,19 @@ static unsigned shmem_find_get_pages_and_swap(struct address_space *mapping,
+>  					pgoff_t start, unsigned int nr_pages,
+>  					struct page **pages, pgoff_t *indices)
+>  {
+> -	unsigned int i;
+> -	unsigned int ret;
+> -	unsigned int nr_found;
+> +	void **slot;
+> +	unsigned int ret = 0;
+> +	struct radix_tree_iter iter;
+> +
+> +	if (!nr_pages)
+> +		return 0;
+>  
+>  	rcu_read_lock();
+>  restart:
+> -	nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
+> -				(void ***)pages, indices, start, nr_pages);
+> -	ret = 0;
+> -	for (i = 0; i < nr_found; i++) {
+> +	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+>  		struct page *page;
+>  repeat:
+> -		page = radix_tree_deref_slot((void **)pages[i]);
+> +		page = radix_tree_deref_slot(slot);
+>  		if (unlikely(!page))
+>  			continue;
+>  		if (radix_tree_exception(page)) {
+> @@ -365,17 +365,16 @@ static unsigned shmem_find_get_pages_and_swap(struct address_space *mapping,
+>  			goto repeat;
+>  
+>  		/* Has the page moved? */
+> -		if (unlikely(page != *((void **)pages[i]))) {
+> +		if (unlikely(page != *slot)) {
+>  			page_cache_release(page);
+>  			goto repeat;
+>  		}
+>  export:
+> -		indices[ret] = indices[i];
+> +		indices[ret] = iter.index;
+>  		pages[ret] = page;
+> -		ret++;
+> +		if (++ret == nr_pages)
+> +			break;
+>  	}
+> -	if (unlikely(!ret && nr_found))
+> -		goto restart;
+>  	rcu_read_unlock();
+>  	return ret;
+>  }
+> -- 
+> 1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
