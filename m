@@ -1,51 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-From: Lin Feng <linfeng@cn.fujitsu.com>
-Subject: [PATCH 2/2] fs/aio.c: use get_user_pages_non_movable() to pin ring pages when support memory hotremove
-Date: Mon, 4 Feb 2013 18:04:08 +0800
-Message-Id: <1359972248-8722-3-git-send-email-linfeng@cn.fujitsu.com>
-In-Reply-To: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com>
-References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 558576B0008
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 05:27:29 -0500 (EST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MHO00LRWYDR4XM0@mailout1.samsung.com> for
+ linux-mm@kvack.org; Mon, 04 Feb 2013 19:27:27 +0900 (KST)
+Received: from localhost.localdomain ([106.116.147.30])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0MHO00ERFYDFAT20@mmp2.samsung.com> for linux-mm@kvack.org;
+ Mon, 04 Feb 2013 19:27:27 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH] mm: cma: fix accounting of CMA pages placed in high memory
+Date: Mon, 04 Feb 2013 11:27:05 +0100
+Message-id: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk
-Cc: khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Lin Feng <linfeng@cn.fujitsu.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: m.szyprowski@samsung.com, akpm@linux-foundation.org, minchan@kernel.org, mgorman@suse.de, kyungmin.park@samsung.com
 
-This patch gets around the aio ring pages can't be migrated bug caused by
-get_user_pages() via using the new function. It only works as configed with
-CONFIG_MEMORY_HOTREMOVE, otherwise it uses the old version of get_user_pages().
+The total number of low memory pages is determined as
+totalram_pages - totalhigh_pages, so without this patch all CMA
+pageblocks placed in highmem were accounted to low memory.
 
-Cc: Benjamin LaHaise <bcrl@kvack.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 ---
- fs/aio.c | 6 ++++++
- 1 file changed, 6 insertions(+)
+ mm/page_alloc.c |    4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/fs/aio.c b/fs/aio.c
-index 71f613c..0e9b30a 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -138,9 +138,15 @@ static int aio_setup_ring(struct kioctx *ctx)
- 	}
- 
- 	dprintk("mmap address: 0x%08lx\n", info->mmap_base);
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+	info->nr_pages = get_user_pages_non_movable(current, ctx->mm,
-+					info->mmap_base, nr_pages,
-+					1, 0, info->ring_pages, NULL);
-+#else
- 	info->nr_pages = get_user_pages(current, ctx->mm,
- 					info->mmap_base, nr_pages, 
- 					1, 0, info->ring_pages, NULL);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f5bab0a..6415d93 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -773,6 +773,10 @@ void __init init_cma_reserved_pageblock(struct page *page)
+ 	set_pageblock_migratetype(page, MIGRATE_CMA);
+ 	__free_pages(page, pageblock_order);
+ 	totalram_pages += pageblock_nr_pages;
++#ifdef CONFIG_HIGHMEM
++	if (PageHighMem(page))
++		totalhigh_pages += pageblock_nr_pages;
 +#endif
- 	up_write(&ctx->mm->mmap_sem);
+ }
+ #endif
  
- 	if (unlikely(info->nr_pages != nr_pages)) {
 -- 
-1.7.11.7
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
