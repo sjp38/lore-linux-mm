@@ -1,71 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 331C56B0008
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 22:42:10 -0500 (EST)
-Date: Mon, 4 Feb 2013 12:42:08 +0900
-From: Minchan Kim <minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 1EF5B6B0008
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 22:48:02 -0500 (EST)
+Date: Sun, 3 Feb 2013 19:50:13 -0800
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Subject: Re: [PATCH v6 4/4] zram: get rid of lockdep warning
-Message-ID: <20130204034208.GF2688@blaptop>
+Message-ID: <20130204035013.GA13954@kroah.com>
 References: <1359513702-18709-1-git-send-email-minchan@kernel.org>
  <1359513702-18709-4-git-send-email-minchan@kernel.org>
  <20130204015333.GA6548@kroah.com>
+ <20130204034208.GF2688@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130204015333.GA6548@kroah.com>
+In-Reply-To: <20130204034208.GF2688@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Minchan Kim <minchan@kernel.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, jmarchan@redhat.com
 
-Hi Greg,
-
-On Sun, Feb 03, 2013 at 05:53:33PM -0800, Greg Kroah-Hartman wrote:
-> On Wed, Jan 30, 2013 at 11:41:42AM +0900, Minchan Kim wrote:
-> > Lockdep complains about recursive deadlock of zram->init_lock.
-> > [1] made it false positive because we can't request IO to zram
-> > before setting disksize. Anyway, we should shut lockdep up to
-> > avoid many reporting from user.
+On Mon, Feb 04, 2013 at 12:42:08PM +0900, Minchan Kim wrote:
+> Hi Greg,
+> 
+> On Sun, Feb 03, 2013 at 05:53:33PM -0800, Greg Kroah-Hartman wrote:
+> > On Wed, Jan 30, 2013 at 11:41:42AM +0900, Minchan Kim wrote:
+> > > Lockdep complains about recursive deadlock of zram->init_lock.
+> > > [1] made it false positive because we can't request IO to zram
+> > > before setting disksize. Anyway, we should shut lockdep up to
+> > > avoid many reporting from user.
+> > > 
+> > > [1] : zram: force disksize setting before using zram
+> > > 
+> > > Acked-by: Jerome Marchand <jmarchand@redhat.com>
+> > > Acked-by: Nitin Gupta <ngupta@vflare.org>
+> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > > ---
+> > >  drivers/staging/zram/zram_drv.c   |  189 +++++++++++++++++++------------------
+> > >  drivers/staging/zram/zram_drv.h   |   12 ++-
+> > >  drivers/staging/zram/zram_sysfs.c |   11 ++-
+> > >  3 files changed, 116 insertions(+), 96 deletions(-)
 > > 
-> > [1] : zram: force disksize setting before using zram
-> > 
-> > Acked-by: Jerome Marchand <jmarchand@redhat.com>
-> > Acked-by: Nitin Gupta <ngupta@vflare.org>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  drivers/staging/zram/zram_drv.c   |  189 +++++++++++++++++++------------------
-> >  drivers/staging/zram/zram_drv.h   |   12 ++-
-> >  drivers/staging/zram/zram_sysfs.c |   11 ++-
-> >  3 files changed, 116 insertions(+), 96 deletions(-)
+> > This patch fails to apply to my staging-next branch, but the three
+> > others did, so I took them.  Please refresh this one and resend if you
+> > want it applied.
 > 
-> This patch fails to apply to my staging-next branch, but the three
-> others did, so I took them.  Please refresh this one and resend if you
-> want it applied.
+> We must have missed each other.
 
-We must have missed each other.
-A few hours ago, I sent to you v7 based on next-20130202.
-https://lkml.org/lkml/2013/2/3/319
+Yes, I was on a flight with no email :)
 
-v7 includes acks of Jerome and resolve conflict with latest staging.
-I believe it is okay to apply your tree.
-
-Please reapply v7 instead of v6.
-
-Thanks.
+> A few hours ago, I sent to you v7 based on next-20130202.
+> https://lkml.org/lkml/2013/2/3/319
 > 
-> thanks,
+> v7 includes acks of Jerome and resolve conflict with latest staging.
+> I believe it is okay to apply your tree.
 > 
-> greg k-h
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Please reapply v7 instead of v6.
 
--- 
-Kind regards,
-Minchan Kim
+Please just send the one patch I need to apply here, I added Jerome's
+acks to the previous patches already.
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
