@@ -1,119 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 535236B0025
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 11:12:58 -0500 (EST)
-Message-ID: <1359993766.23410.105.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device
- hotplug framework
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 04 Feb 2013 09:02:46 -0700
-In-Reply-To: <5192355.CsKHU8mj3W@vostro.rjw.lan>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
-	 <1810611.i6Sc4oLaux@vostro.rjw.lan> <20130204012349.GA6433@kroah.com>
-	 <5192355.CsKHU8mj3W@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 3C4096B0009
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 11:22:45 -0500 (EST)
+Message-ID: <510FE051.7080107@imgtec.com>
+Date: Mon, 4 Feb 2013 16:22:41 +0000
+From: James Hogan <james.hogan@imgtec.com>
+MIME-Version: 1.0
+Subject: next-20130204 - bisected slab problem to "slab: Common constants
+ for kmalloc boundaries"
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Greg KH <gregkh@linuxfoundation.org>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: linux-next <linux-next@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Pekka
+ Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-On Mon, 2013-02-04 at 14:41 +0100, Rafael J. Wysocki wrote:
-> On Sunday, February 03, 2013 07:23:49 PM Greg KH wrote:
-> > On Sat, Feb 02, 2013 at 09:15:37PM +0100, Rafael J. Wysocki wrote:
-> > > On Saturday, February 02, 2013 03:58:01 PM Greg KH wrote:
-  :
-> > > Yes, but those are just remove events and we can only see how destructive they
-> > > were after the removal.  The point is to be able to figure out whether or not
-> > > we *want* to do the removal in the first place.
-> > 
-> > Yes, but, you will always race if you try to test to see if you can shut
-> > down a device and then trying to do it.  So walking the bus ahead of
-> > time isn't a good idea.
-> >
-> > And, we really don't have a viable way to recover if disconnect() fails,
-> > do we.  What do we do in that situation, restore the other devices we
-> > disconnected successfully?  How do we remember/know what they were?
-> > 
-> > PCI hotplug almost had this same problem until the designers finally
-> > realized that they just had to accept the fact that removing a PCI
-> > device could either happen by:
-> > 	- a user yanking out the device, at which time the OS better
-> > 	  clean up properly no matter what happens
-> > 	- the user asked nicely to remove a device, and the OS can take
-> > 	  as long as it wants to complete that action, including
-> > 	  stalling for noticable amounts of time before eventually,
-> > 	  always letting the action succeed.
-> > 
-> > I think the second thing is what you have to do here.  If a user tells
-> > the OS it wants to remove these devices, you better do it.  If you
-> > can't, because memory is being used by someone else, either move them
-> > off, or just hope that nothing bad happens, before the user gets
-> > frustrated and yanks out the CPU/memory module themselves physically :)
-> 
-> Well, that we can't help, but sometimes users really *want* the OS to tell them
-> if it is safe to unplug something at this particualr time (think about the
-> Windows' "safe remove" feature for USB sticks, for example; that came out of
-> users' demand AFAIR).
-> 
-> So in my opinion it would be good to give them an option to do "safe eject" or
-> "forcible eject", whichever they prefer.
+Hi,
 
-For system device hot-plug, it always needs to be "safe eject".  This
-feature will be implemented on mission critical servers, which are
-managed by professional IT folks.  Crashing a server causes serious
-money to the business.
+I've hit boot problems in next-20130204 on Meta:
 
-A user yanking out a system device won't happen, and it immediately
-crashes the system if it is done.  So, we have nothing to do with this
-case.  The 2nd case can hang the operation, waiting forever to proceed,
-which is still a serious issue for enterprise customers.
+META213-Thread0 DSP [LogF] kobject (4fc03980): tried to init an initialized object, something is seriously wrong.
+META213-Thread0 DSP [LogF] 
+META213-Thread0 DSP [LogF] Call trace: 
+META213-Thread0 DSP [LogF] [<4000888c>] _show_stack+0x68/0x7c
+META213-Thread0 DSP [LogF] [<400088b4>] _dump_stack+0x14/0x28
+META213-Thread0 DSP [LogF] [<40103794>] _kobject_init+0x58/0x9c
+META213-Thread0 DSP [LogF] [<40103810>] _kobject_create+0x38/0x64
+META213-Thread0 DSP [LogF] [<40103eac>] _kobject_create_and_add+0x14/0x8c
+META213-Thread0 DSP [LogF] [<40190ac4>] _mnt_init+0xd8/0x220
+META213-Thread0 DSP [LogF] [<40190508>] _vfs_caches_init+0xb0/0x160
+META213-Thread0 DSP [LogF] [<401851f4>] _start_kernel+0x274/0x340
+META213-Thread0 DSP [LogF] [<40188424>] _metag_start_kernel+0x58/0x6c
+META213-Thread0 DSP [LogF] [<40000044>] __start+0x44/0x48
+META213-Thread0 DSP [LogF] 
+META213-Thread0 DSP [LogF] devtmpfs: initialized
+META213-Thread0 DSP [LogF] L2 Cache: Not present
+META213-Thread0 DSP [LogF] BUG: failure at fs/sysfs/dir.c:736/sysfs_read_ns_type()!
+META213-Thread0 DSP [LogF] Kernel panic - not syncing: BUG!
+META213-Thread0 DSP [Thread Exit] Thread has exited - return code = 4294967295
+
+I've bisected it to the following commit:
+
+commit 95a05b428cc675694321c8f762591984f3fd2b1e
+Author: Christoph Lameter <cl@linux.com>
+Date:   Thu Jan 10 19:14:19 2013 +0000
+
+    slab: Common constants for kmalloc boundaries
+    
+    Standardize the constants that describe the smallest and largest
+    object kept in the kmalloc arrays for SLAB and SLUB.
+    
+    Differentiate between the maximum size for which a slab cache is used
+    (KMALLOC_MAX_CACHE_SIZE) and the maximum allocatable size
+    (KMALLOC_MAX_SIZE, KMALLOC_MAX_ORDER).
+    
+    Signed-off-by: Christoph Lameter <cl@linux.com>
+    Signed-off-by: Pekka Enberg <penberg@kernel.org>
 
 
-> > > Say you have a computing node which signals a hardware problem in a processor
-> > > package (the container with CPU cores, memory, PCI host bridge etc.).  You
-> > > may want to eject that package, but you don't want to kill the system this
-> > > way.  So if the eject is doable, it is very much desirable to do it, but if it
-> > > is not doable, you'd rather shut the box down and do the replacement afterward.
-> > > That may be costly, however (maybe weeks of computations), so it should be
-> > > avoided if possible, but not at the expense of crashing the box if the eject
-> > > doesn't work out.
-> > 
-> > These same "situations" came up for PCI hotplug, and I still say the
-> > same resolution there holds true, as described above.  The user wants to
-> > remove something, so let them do it.  They always know best, and get mad
-> > at us if we think otherwise :)
-> 
-> Well, not necessarily.  Users sometimes really don't know what they are doing
-> and want us to give them a hint.  My opinion is that if we can give them a
-> hint, there's no reason not to.
-> 
-> > What does the ACPI spec say about this type of thing?  Surely the same
-> > people that did the PCI Hotplug spec were consulted when doing this part
-> > of the spec, right?  Yeah, I know, I can dream...
-> 
-> It's not very specific (as usual), but it gives hints. :-)
-> 
-> For example, there is the _OST method (Section 6.3.5 of ACPI 5) that we are
-> supposed to use to notify the platform of ejection failures and there are
-> status codes like "0x81: Device in use by application" or "0x82: Device busy"
-> that can be used in there.  So definitely the authors took ejection failures
-> for software-related reasons into consideration.
+Any ideas what could be going on here?
 
-That is correct.  Also, ACPI spec deliberately does not define
-implementation details, so we defined DIG64 hotplug spec below (which I
-contributed to the spec.)
+This commit merged with the metag for-next branch fails, but
+the previous commit merged with the metag for-next branch
+doesn't fail.
 
-http://www.dig64.org/home/DIG64_HPPF_R1_0.pdf
+make savedefconfig output:
 
-For example, Figure 2 in page 14 states memory hot-remove flow.  The
-operation needs to either succeed or fail.  Crash or hang is not an
-option.
+CONFIG_EXPERIMENTAL=y
+# CONFIG_LOCALVERSION_AUTO is not set
+# CONFIG_SWAP is not set
+CONFIG_SYSVIPC=y
+CONFIG_LOG_BUF_SHIFT=13
+CONFIG_SYSFS_DEPRECATED=y
+CONFIG_SYSFS_DEPRECATED_V2=y
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_INITRAMFS_SOURCE="arch/metag/boot/ramdisk.cpio"
+CONFIG_INITRAMFS_COMPRESSION_GZIP=y
+CONFIG_KALLSYMS_ALL=y
+# CONFIG_ELF_CORE is not set
+CONFIG_SLAB=y
+# CONFIG_BLK_DEV_BSG is not set
+CONFIG_PARTITION_ADVANCED=y
+# CONFIG_MSDOS_PARTITION is not set
+# CONFIG_IOSCHED_DEADLINE is not set
+# CONFIG_IOSCHED_CFQ is not set
+CONFIG_METAG_L2C=y
+CONFIG_FLATMEM_MANUAL=y
+CONFIG_METAG_HALT_ON_PANIC=y
+CONFIG_METAG_ATOMICITY_IRQSOFF=y
+CONFIG_METAG_DA=y
+CONFIG_HZ_100=y
+CONFIG_DEVTMPFS=y
+# CONFIG_STANDALONE is not set
+# CONFIG_PREVENT_FIRMWARE_BUILD is not set
+# CONFIG_FW_LOADER is not set
+CONFIG_BLK_DEV_RAM=y
+CONFIG_BLK_DEV_RAM_COUNT=1
+CONFIG_BLK_DEV_RAM_SIZE=16384
+# CONFIG_INPUT is not set
+# CONFIG_SERIO is not set
+# CONFIG_VT is not set
+# CONFIG_LEGACY_PTYS is not set
+CONFIG_DA_TTY=y
+CONFIG_DA_CONSOLE=y
+# CONFIG_DEVKMEM is not set
+# CONFIG_HW_RANDOM is not set
+# CONFIG_HWMON is not set
+# CONFIG_USB_SUPPORT is not set
+# CONFIG_DNOTIFY is not set
+CONFIG_TMPFS=y
+# CONFIG_MISC_FILESYSTEMS is not set
+# CONFIG_SCHED_DEBUG is not set
+CONFIG_DEBUG_INFO=y
+CONFIG_FRAME_POINTER=y
 
-
-Thanks,
--Toshi
+Thanks
+James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
