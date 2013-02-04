@@ -1,43 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 9A9986B0005
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 23:46:11 -0500 (EST)
-Subject: Re: CPU hotplug hang due to "swap: make each swap partition have
- one address_space"
-From: Joseph Lo <josephl@nvidia.com>
-In-Reply-To: <20130204023646.GA321@kernel.org>
-References: <510C9DE9.9040207@wwwdotorg.org>
-	 <20130204023646.GA321@kernel.org>
-Date: Mon, 4 Feb 2013 12:45:44 +0800
-Message-ID: <1359953144.5542.2.camel@jlo-ubuntu-64.nvidia.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 2C6B06B0005
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 23:56:16 -0500 (EST)
+Received: by mail-da0-f49.google.com with SMTP id v40so2459783dad.22
+        for <linux-mm@kvack.org>; Sun, 03 Feb 2013 20:56:15 -0800 (PST)
+Date: Sun, 3 Feb 2013 20:56:15 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
+In-Reply-To: <20130127141853.GB27019@kernel.org>
+Message-ID: <alpine.LNX.2.00.1302032039540.4662@eggly.anvils>
+References: <20130122065341.GA1850@kernel.org> <20130123075808.GH2723@blaptop> <1359018598.2866.5.camel@kernel> <CAH9JG2UpVtxeLB21kx5-_pokK8p_uVZ-2o41Ep--oOyKStBZFQ@mail.gmail.com> <20130127141853.GB27019@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@kernel.org>
-Cc: Stephen Warren <swarren@wwwdotorg.org>, Shaohua Li <shli@fusionio.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>
+Cc: Kyungmin Park <kmpark@infradead.org>, Minchan Kim <minchan@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Simon Jeons <simon.jeons@gmail.com>
 
-On Mon, 2013-02-04 at 10:36 +0800, Shaohua Li wrote:
-> On Fri, Feb 01, 2013 at 10:02:33PM -0700, Stephen Warren wrote:
-> > Shaohua,
+On Sun, 27 Jan 2013, Shaohua Li wrote:
+> On Sat, Jan 26, 2013 at 01:40:55PM +0900, Kyungmin Park wrote:
+> > 5. SSD related optimization, mainly discard support.
 > > 
-> > In next-20130128, commit 174f064 "swap: make each swap partition have
-> > one address_space" (from the mm/akpm tree) appears causes a hang/RCU
-> > stall for me when hot-unplugging a CPU.
+> > Now swap codes are based on each swap slots. it means it can't
+> > optimize discard feature since getting meaningful performance gain, it
+> > requires 2 pages at least. Of course it's based on eMMC. In case of
+> > SSD. it requires more pages to support discard.
+> > 
+> > To address issue. I consider the batched discard approach used at filesystem.
+> > *Sometime* scan all empty slot and it issues discard continuous swap
+> > slots as many as possible.
 > 
-> does this one work for you?
-> http://marc.info/?l=linux-mm&m=135929599505624&w=2
-> Or try a more recent linux-next. The patch is in akpm's tree.
-> 
-Hi Shaohua,
+> I posted a patch to make discard async before, which is almost good to me,
+> though we still discard a cluster. 
+> http://marc.info/?l=linux-mm&m=135087309208120&w=2
 
-The patch you pointed out did fix the issue. Just verified on Tegra
-device.
+Any reason why you point to 2012/10/22 patch rather than the 2012/11/19?
 
-Thanks,
-Joseph
+Seeing this reminded me to take your 1/2 and 2/2 (of 11/19) out again and
+give them a fresh run - though they were easier to apply to 3.8-rc rather
+than mmotm with your locking changes, so it was 3.8-rc6 I tried.
 
+As I reported in private mail last year, I wish you'd remove the "buddy"
+from description of your 1/2 allocator, that just misled me; but I've not
+experienced any problem with the allocator, and I still like the direction
+you take with improving swap discard in 2/2.
+
+This time around I've not yet seen any "swap_free: Unused swap offset entry"
+messages (despite forgetting to include your later SWAP_MAP_BAD addition to
+__swap_duplicate() - I still haven't thought that through to be honest),
+but did again get the VM_BUG_ON(error == -EEXIST) in __add_to_swap_cache()
+called from add_to_swap() from shrink_page_list().
+
+Since it came after 1.5 hours of load, I didn't give it much thought,
+and just went on to test other things, thinking I could easily reproduce
+it later; but have failed to do so in many hours since.  Still trying.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
