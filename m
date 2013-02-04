@@ -1,72 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id B2B2F6B002D
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 11:29:18 -0500 (EST)
-Message-ID: <1359994749.23410.113.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device
- hotplug framework
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 04 Feb 2013 09:19:09 -0700
-In-Reply-To: <2048116.Qo8UgQ5hjb@vostro.rjw.lan>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
-	 <5876609.Ic1nhHW6N2@vostro.rjw.lan> <20130204124810.GB22096@kroah.com>
-	 <2048116.Qo8UgQ5hjb@vostro.rjw.lan>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id B4FAC6B002F
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 11:32:51 -0500 (EST)
+Received: by mail-wi0-f200.google.com with SMTP id hi18so2081972wib.7
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2013 08:32:48 -0800 (PST)
+Message-ID: <1359995565.7515.178.camel@mfleming-mobl1.ger.corp.intel.com>
+Subject: Re: [PATCH] ia64/mm: fix a bad_page bug when crash kernel booting
+From: Matt Fleming <matt.fleming@intel.com>
+Date: Mon, 04 Feb 2013 16:32:45 +0000
+In-Reply-To: <51074786.5030007@huawei.com>
+References: <51074786.5030007@huawei.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Greg KH <gregkh@linuxfoundation.org>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, fenghua.yu@intel.com, Liujiang <jiang.liu@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2013-02-04 at 15:21 +0100, Rafael J. Wysocki wrote:
-> On Monday, February 04, 2013 04:48:10 AM Greg KH wrote:
-> > On Sun, Feb 03, 2013 at 09:44:39PM +0100, Rafael J. Wysocki wrote:
-> > > > Yes, but those are just remove events and we can only see how destructive they
-> > > > were after the removal.  The point is to be able to figure out whether or not
-> > > > we *want* to do the removal in the first place.
-> > > > 
-> > > > Say you have a computing node which signals a hardware problem in a processor
-> > > > package (the container with CPU cores, memory, PCI host bridge etc.).  You
-> > > > may want to eject that package, but you don't want to kill the system this
-> > > > way.  So if the eject is doable, it is very much desirable to do it, but if it
-> > > > is not doable, you'd rather shut the box down and do the replacement afterward.
-> > > > That may be costly, however (maybe weeks of computations), so it should be
-> > > > avoided if possible, but not at the expense of crashing the box if the eject
-> > > > doesn't work out.
-> > > 
-> > > It seems to me that we could handle that with the help of a new flag, say
-> > > "no_eject", in struct device, a global mutex, and a function that will walk
-> > > the given subtree of the device hierarchy and check if "no_eject" is set for
-> > > any devices in there.  Plus a global "no_eject" switch, perhaps.
-> > 
-> > I think this will always be racy, or at worst, slow things down on
-> > normal device operations as you will always be having to grab this flag
-> > whenever you want to do something new.
+On Tue, 2013-01-29 at 11:52 +0800, Xishi Qiu wrote:
+> On ia64 platform, I set "crashkernel=1024M-:600M", and dmesg shows 128M-728M
+> memory is reserved for crash kernel. Then "echo c > /proc/sysrq-trigger" to
+> test kdump.
 > 
-> I don't see why this particular scheme should be racy, at least I don't see any
-> obvious races in it (although I'm not that good at races detection in general,
-> admittedly).
+> When crash kernel booting, efi_init() will aligns the memory address in
+> IA64_GRANULE_SIZE(16M), so 720M-728M memory will be dropped, It means
+> crash kernel only manage 128M-720M memory.
 > 
-> Also, I don't expect that flag to be used for everything, just for things known
-> to seriously break if forcible eject is done.  That may be not precise enough,
-> so that's a matter of defining its purpose more precisely.
+> But initrd start and end are fixed in boot loader, it is before efi_init(),
+> so initrd size maybe overflow when free_initrd_mem().
+
+[...]
+
+> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+> index b755ea9..cfdb1eb 100644
+> --- a/arch/ia64/mm/init.c
+> +++ b/arch/ia64/mm/init.c
+> @@ -207,6 +207,17 @@ free_initrd_mem (unsigned long start, unsigned long end)
+>  	start = PAGE_ALIGN(start);
+>  	end = end & PAGE_MASK;
 > 
-> We can do something like that on the ACPI level (ie. introduce a no_eject flag
-> in struct acpi_device and provide an iterface for the layers above ACPI to
-> manipulate it) but then devices without ACPI namespace objects won't be
-> covered.  That may not be a big deal, though.
+> +	/*
+> +	 * Initrd size is fixed in boot loader, but kernel parameter max_addr
+> +	 * which aligns in granules is fixed after boot loader, so initrd size
+> +	 * maybe overflow.
+> +	 */
+> +	if (max_addr != ~0UL) {
+> +		end = GRANULEROUNDDOWN(end);
+> +		if (start > end)
+> +			start = end;
+> +	}
+> +
+>  	if (start < end)
+>  		printk(KERN_INFO "Freeing initrd memory: %ldkB freed\n", (end - start) >> 10);
 
-I am afraid that bringing the device status management into the ACPI
-level would not a good idea.  acpi_device should only reflect ACPI
-device object information, not how its actual device is being used.
+I don't think this is the correct fix.
 
-I like your initiative of acpi_scan_driver and I think scanning /
-trimming of ACPI object info is what the ACPI drivers should do.
+Now, my ia64-fu is weak, but could it be that there's actually a bug in
+efi_init() and that the following patch would be the best way to fix
+this?
 
+---
 
-Thanks,
--Toshi
+diff --git a/arch/ia64/kernel/efi.c b/arch/ia64/kernel/efi.c
+index f034563..8d579f1 100644
+--- a/arch/ia64/kernel/efi.c
++++ b/arch/ia64/kernel/efi.c
+@@ -482,7 +482,7 @@ efi_init (void)
+ 		if (memcmp(cp, "mem=", 4) == 0) {
+ 			mem_limit = memparse(cp + 4, &cp);
+ 		} else if (memcmp(cp, "max_addr=", 9) == 0) {
+-			max_addr = GRANULEROUNDDOWN(memparse(cp + 9, &cp));
++			max_addr = GRANULEROUNDUP(memparse(cp + 9, &cp));
+ 		} else if (memcmp(cp, "min_addr=", 9) == 0) {
+ 			min_addr = GRANULEROUNDDOWN(memparse(cp + 9, &cp));
+ 		} else {
 
 
 --
