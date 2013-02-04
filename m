@@ -1,40 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id CEE896B0080
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 15:49:05 -0500 (EST)
-Message-ID: <51101EBD.80607@wwwdotorg.org>
-Date: Mon, 04 Feb 2013 13:49:01 -0700
-From: Stephen Warren <swarren@wwwdotorg.org>
-MIME-Version: 1.0
-Subject: Re: CPU hotplug hang due to "swap: make each swap partition have
- one address_space"
-References: <510C9DE9.9040207@wwwdotorg.org> <20130204023646.GA321@kernel.org> <510FE866.9090600@wwwdotorg.org>
-In-Reply-To: <510FE866.9090600@wwwdotorg.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 3D0086B0083
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 15:51:38 -0500 (EST)
+Date: Mon, 4 Feb 2013 12:51:36 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 10/18] mm: teach truncate_inode_pages_range() to handle
+ non page aligned ranges
+Message-Id: <20130204125136.b0926f20.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LFD.2.00.1302041510090.3225@localhost>
+References: <1359715424-32318-1-git-send-email-lczerner@redhat.com>
+	<1359715424-32318-11-git-send-email-lczerner@redhat.com>
+	<20130201151502.59398b29.akpm@linux-foundation.org>
+	<alpine.LFD.2.00.1302041510090.3225@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Shaohua Li <shli@fusionio.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Joseph Lo <josephl@nvidia.com>
+To: =?UTF-8?Q?Luk=C3=A1=C5=A1?= Czerner <lczerner@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, xfs@oss.sgi.com, Hugh Dickins <hughd@google.com>
 
-On 02/04/2013 09:57 AM, Stephen Warren wrote:
-> On 02/03/2013 07:36 PM, Shaohua Li wrote:
->> On Fri, Feb 01, 2013 at 10:02:33PM -0700, Stephen Warren wrote:
->>> Shaohua,
->>>
->>> In next-20130128, commit 174f064 "swap: make each swap partition have
->>> one address_space" (from the mm/akpm tree) appears causes a hang/RCU
->>> stall for me when hot-unplugging a CPU.
->>
->> does this one work for you?
->> http://marc.info/?l=linux-mm&m=135929599505624&w=2
->> Or try a more recent linux-next. The patch is in akpm's tree.
-> 
-> Yes, that patch fixes the issue for me, thanks.
+On Mon, 4 Feb 2013 15:51:19 +0100 (CET)
+Luk____ Czerner <lczerner@redhat.com> wrote:
 
-I notice this patch is only in Andrew's mmots tree, not mmotm, and hence
-isn't included in linux-next. Do you know when it'll be "promoted" and
-show up in linux-next?
+> I hope I explained myself well enough :). Are you ok with this king
+> of approach ? If so, I'll resend the patch set without the
+> initialisation-at-declaration.
+
+uh, maybe.  Next time I'll apply the patch and look at the end result! 
+Try to make it as understandable and (hence) maintainable as possible,
+OK?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
