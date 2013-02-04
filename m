@@ -1,83 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id A2C5D6B0005
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 03:39:49 -0500 (EST)
-Message-ID: <510F73E8.50201@parallels.com>
-Date: Mon, 4 Feb 2013 12:40:08 +0400
-From: Lord Glauber Costa of Sealand <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 50ED26B0005
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 04:14:53 -0500 (EST)
+Received: by mail-da0-f48.google.com with SMTP id k18so2567520dae.35
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2013 01:14:52 -0800 (PST)
+Date: Mon, 4 Feb 2013 17:29:06 +0800
+From: Zheng Liu <gnehzuil.liu@gmail.com>
+Subject: Re: [PATCH 0/6 RFC] Mapping range lock
+Message-ID: <20130204092906.GA7503@gmail.com>
+References: <1359668994-13433-1-git-send-email-jack@suse.cz>
+ <20130131160757.06d7f1c2.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: stop warning on memcg_propagate_kmem
-References: <alpine.LNX.2.00.1302032023280.4611@eggly.anvils> <20130204075732.GA2556@dhcp22.suse.cz> <510F6B76.3080605@parallels.com> <20130204083658.GB2556@dhcp22.suse.cz>
-In-Reply-To: <20130204083658.GB2556@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130131160757.06d7f1c2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 02/04/2013 12:36 PM, Michal Hocko wrote:
-> On Mon 04-02-13 12:04:06, Glauber Costa wrote:
->> On 02/04/2013 11:57 AM, Michal Hocko wrote:
->>> On Sun 03-02-13 20:29:01, Hugh Dickins wrote:
->>>> Whilst I run the risk of a flogging for disloyalty to the Lord of Sealand,
->>>> I do have CONFIG_MEMCG=y CONFIG_MEMCG_KMEM not set, and grow tired of the
->>>> "mm/memcontrol.c:4972:12: warning: `memcg_propagate_kmem' defined but not
->>>> used [-Wunused-function]" seen in 3.8-rc: move the #ifdef outwards.
->>>>
->>>> Signed-off-by: Hugh Dickins <hughd@google.com>
->>>
->>> Acked-by: Michal Hocko <mhocko@suse.cz>
->>>
->>> Hmm, if you are not too tired then moving the function downwards to
->>> where it is called (memcg_init_kmem) will reduce the number of ifdefs.
->>> But this can wait for a bigger clean up which is getting due:
->>> git grep "def.*CONFIG_MEMCG_KMEM" mm/memcontrol.c | wc -l
->>> 12
->>>
->>
->> The problem is that I was usually keeping things in clearly separated
->> blocks, like this :
->>
->> #if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_INET)
->>         struct tcp_memcontrol tcp_mem;
->> #endif
->> #if defined(CONFIG_MEMCG_KMEM)
->>         /* analogous to slab_common's slab_caches list. per-memcg */
->>         struct list_head memcg_slab_caches;
->>         /* Not a spinlock, we can take a lot of time walking the list */
->>         struct mutex slab_caches_mutex;
->>         /* Index in the kmem_cache->memcg_params->memcg_caches array */
->>         int kmemcg_id;
->> #endif
->>
->> If it would be preferable to everybody, this could be easily rewritten as:
->>
->> #if defined(CONFIG_MEMCG_KMEM)
->> #if defined(CONFIG_INET)
->>         struct tcp_memcontrol tcp_mem;
->> #endif
->>         /* analogous to slab_common's slab_caches list. per-memcg */
->>         struct list_head memcg_slab_caches;
->>         /* Not a spinlock, we can take a lot of time walking the list */
->>         struct mutex slab_caches_mutex;
->>         /* Index in the kmem_cache->memcg_params->memcg_caches array */
->>         int kmemcg_id;
->> #endif
+On Thu, Jan 31, 2013 at 04:07:57PM -0800, Andrew Morton wrote:
+[snip]
+> > c) i_mutex doesn't allow any paralellism of operations using it and some
+> >    filesystems workaround this for specific cases (e.g. DIO reads). Using
+> >    range locking allows for concurrent operations (e.g. writes, DIO) on
+> >    different parts of the file. Of course, range locking itself isn't
+> >    enough to make the parallelism possible. Filesystems still have to
+> >    somehow deal with the concurrency when manipulating inode allocation
+> >    data. But the range locking at least provides a common VFS mechanism for
+> >    serialization VFS itself needs and it's upto each filesystem to
+> >    serialize more if it needs to.
 > 
-> I was rather interested in reducing CONFIG_KMEM block, the above example
-> doesn't bother me that much.
->  
->> This would allow us to collapse some blocks a bit down as well.
->>
->> It doesn't bother me *that* much, though.
-> 
-> Yes and a quick attempt shows that a clean up would bring a lot of
-> churn.
-> 
-And some of it, because there are circular dependencies. So we would
-have to start adding forward declarations here and there to make it all
-work. That is part of the reason why I kept the blocks separate.
+> That would be useful to end-users, but I'm having trouble predicting
+> *how* useful.
+
+Hello Andrew,
+
+I believe this would be useful for the end-user, at least for dio user, e.g.
+database.  Now when we want to issue a direct io, i_mutex will serialize
+concurrent reader/writer.  Some filesystems (xfs and ext4) try not to take
+this locking in some conditions to improve the performance, especially for the
+latency, because we don't need to wait on this locking.  But there are still
+some cases that need to take it.  So range locking can make us reduce the
+contention as far as possible.
+
+Regards,
+						- Zheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
