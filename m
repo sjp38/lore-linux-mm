@@ -1,48 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 24EA76B0022
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 10:16:15 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 4 Feb 2013 10:16:11 -0500
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 68D3C38C8084
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 10:15:39 -0500 (EST)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r14FFcaF12779698
-	for <linux-mm@kvack.org>; Mon, 4 Feb 2013 10:15:39 -0500
-Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r14FFKc6019052
-	for <linux-mm@kvack.org>; Mon, 4 Feb 2013 08:15:21 -0700
-Message-ID: <510FD073.1060307@linux.vnet.ibm.com>
-Date: Mon, 04 Feb 2013 09:14:59 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [PATCH 2/2] fs/aio.c: use get_user_pages_non_movable() to pin ring pages when support memory hotremove
+References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com>
+	<1359972248-8722-3-git-send-email-linfeng@cn.fujitsu.com>
+Date: Mon, 04 Feb 2013 10:18:03 -0500
+In-Reply-To: <1359972248-8722-3-git-send-email-linfeng@cn.fujitsu.com> (Lin
+	Feng's message of "Mon, 4 Feb 2013 18:04:08 +0800")
+Message-ID: <x49ehgw85w4.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] Make frontswap+cleancache and its friend be modularized.
-References: <1359750184-23408-1-git-send-email-konrad.wilk@oracle.com> <1359881520.1328.14.camel@kernel.cn.ibm.com>
-In-Reply-To: <1359881520.1328.14.camel@kernel.cn.ibm.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: Konrad Rzeszutek Wilk <konrad@kernel.org>, dan.magenheimer@oracle.com, konrad.wilk@oracle.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Lin Feng <linfeng@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 02/03/2013 02:52 AM, Ric Mason wrote:
-> Hi Konrad,
-> On Fri, 2013-02-01 at 15:22 -0500, Konrad Rzeszutek Wilk wrote:
-> 
-> I have already enable frontswap,cleancache,zcache,
->  FRONTSWAP [=y]  
->  CLEANCACHE [=y]
->  ZCACHE [=y]
-> But all of knode under /sys/kernel/debug/frontswap and cleancache still
-> zero, my swap device is enable, where I miss?
+Lin Feng <linfeng@cn.fujitsu.com> writes:
 
-Did you pass "zcache" in the kernel boot parameters?
+> This patch gets around the aio ring pages can't be migrated bug caused by
+> get_user_pages() via using the new function. It only works as configed with
+> CONFIG_MEMORY_HOTREMOVE, otherwise it uses the old version of get_user_pages().
+>
+> Cc: Benjamin LaHaise <bcrl@kvack.org>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
+> Reviewed-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+> Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
+> ---
+>  fs/aio.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+>
+> diff --git a/fs/aio.c b/fs/aio.c
+> index 71f613c..0e9b30a 100644
+> --- a/fs/aio.c
+> +++ b/fs/aio.c
+> @@ -138,9 +138,15 @@ static int aio_setup_ring(struct kioctx *ctx)
+>  	}
+>  
+>  	dprintk("mmap address: 0x%08lx\n", info->mmap_base);
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +	info->nr_pages = get_user_pages_non_movable(current, ctx->mm,
+> +					info->mmap_base, nr_pages,
+> +					1, 0, info->ring_pages, NULL);
+> +#else
+>  	info->nr_pages = get_user_pages(current, ctx->mm,
+>  					info->mmap_base, nr_pages, 
+>  					1, 0, info->ring_pages, NULL);
+> +#endif
 
-Seth
+Can't you hide this in your 1/1 patch, by providing this function as
+just a static inline wrapper around get_user_pages when
+CONFIG_MEMORY_HOTREMOVE is not enabled?
+
+Cheers,
+Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
