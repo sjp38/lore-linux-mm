@@ -1,81 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 974166B009D
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 18:04:19 -0500 (EST)
-Date: Mon, 4 Feb 2013 15:04:17 -0800
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 8A6306B009E
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 18:06:59 -0500 (EST)
+Date: Mon, 4 Feb 2013 15:06:57 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 08/15] memory-hotplug: Common APIs to support page
- tables hot-remove
-Message-Id: <20130204150417.2b1256b1.akpm@linux-foundation.org>
-In-Reply-To: <1357723959-5416-9-git-send-email-tangchen@cn.fujitsu.com>
-References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
-	<1357723959-5416-9-git-send-email-tangchen@cn.fujitsu.com>
+Subject: Re: [PATCH] mm: cma: fix accounting of CMA pages placed in high
+ memory
+Message-Id: <20130204150657.6d05f76a.akpm@linux-foundation.org>
+In-Reply-To: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com>
+References: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan@kernel.org, mgorman@suse.de, kyungmin.park@samsung.com
 
-On Wed, 9 Jan 2013 17:32:32 +0800
-Tang Chen <tangchen@cn.fujitsu.com> wrote:
+On Mon, 04 Feb 2013 11:27:05 +0100
+Marek Szyprowski <m.szyprowski@samsung.com> wrote:
 
-> +static void __meminit
-> +remove_pagetable(unsigned long start, unsigned long end, bool direct)
-> +{
-> +	unsigned long next;
-> +	pgd_t *pgd;
-> +	pud_t *pud;
-> +	bool pgd_changed = false;
-> +
-> +	for (; start < end; start = next) {
-> +		pgd = pgd_offset_k(start);
-> +		if (!pgd_present(*pgd))
-> +			continue;
-> +
-> +		next = pgd_addr_end(start, end);
-> +
-> +		pud = (pud_t *)map_low_page((pud_t *)pgd_page_vaddr(*pgd));
-> +		remove_pud_table(pud, start, next, direct);
-> +		if (free_pud_table(pud, pgd))
-> +			pgd_changed = true;
-> +		unmap_low_page(pud);
-> +	}
-> +
-> +	if (pgd_changed)
-> +		sync_global_pgds(start, end - 1);
-> +
-> +	flush_tlb_all();
-> +}
+> The total number of low memory pages is determined as
+> totalram_pages - totalhigh_pages, so without this patch all CMA
+> pageblocks placed in highmem were accounted to low memory.
 
-This generates a compiler warning saying that `next' may be used
-uninitialised.
+What are the end-user-visible effects of this bug?
 
-The warning is correct.  If we take that `continue' on the first pass
-through the loop, the "start = next" will copy uninitialised data into
-`start'.
-
-Is this the correct fix?
-
---- a/arch/x86/mm/init_64.c~memory-hotplug-common-apis-to-support-page-tables-hot-remove-fix-fix-fix-fix-fix-fix-fix
-+++ a/arch/x86/mm/init_64.c
-@@ -993,12 +993,12 @@ remove_pagetable(unsigned long start, un
- 	bool pgd_changed = false;
- 
- 	for (; start < end; start = next) {
-+		next = pgd_addr_end(start, end);
-+
- 		pgd = pgd_offset_k(start);
- 		if (!pgd_present(*pgd))
- 			continue;
- 
--		next = pgd_addr_end(start, end);
--
- 		pud = (pud_t *)pgd_page_vaddr(*pgd);
- 		remove_pud_table(pud, start, next, direct);
- 		if (free_pud_table(pud, pgd))
-_
+(This information is needed so that others can make patch-scheduling
+decisions and should be included in all bugfix changelogs unless it is
+obvious).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
