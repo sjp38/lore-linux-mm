@@ -1,63 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 048D26B0005
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 07:27:46 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH?] Move ACPI device nodes under /sys/firmware/acpi (was: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug framework)
-Date: Mon, 04 Feb 2013 13:34:02 +0100
-Message-ID: <2107169.R5mOc9qh97@vostro.rjw.lan>
-In-Reply-To: <20130204012447.GB6433@kroah.com>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com> <2806030.VWUMy6F7lm@vostro.rjw.lan> <20130204012447.GB6433@kroah.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 30C0A6B0005
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 07:38:35 -0500 (EST)
+Date: Mon, 4 Feb 2013 13:38:31 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/6 RFC] Mapping range lock
+Message-ID: <20130204123831.GE7523@quack.suse.cz>
+References: <1359668994-13433-1-git-send-email-jack@suse.cz>
+ <20130131160757.06d7f1c2.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130131160757.06d7f1c2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: Toshi Kani <toshi.kani@hp.com>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Sunday, February 03, 2013 07:24:47 PM Greg KH wrote:
-> On Sat, Feb 02, 2013 at 11:18:20PM +0100, Rafael J. Wysocki wrote:
-> > On Saturday, February 02, 2013 09:15:37 PM Rafael J. Wysocki wrote:
-> > > On Saturday, February 02, 2013 03:58:01 PM Greg KH wrote:
-> > [...]
-> > > 
-> > > > I know it's more complicated with these types of devices, and I think we
-> > > > are getting closer to the correct solution, I just don't want to ever
-> > > > see duplicate devices in the driver model for the same physical device.
-> > > 
-> > > Do you mean two things based on struct device for the same hardware component?
-> > > That's been happening already pretty much forever for every PCI device known
-> > > to the ACPI layer, for PNP and many others.  However, those ACPI things are (or
-> > > rather should be, but we're going to clean that up) only for convenience (to be
-> > > able to see the namespace structure and related things in sysfs).  So the stuff
-> > > under /sys/devices/LNXSYSTM\:00/ is not "real".  In my view it shouldn't even
-> > > be under /sys/devices/ (/sys/firmware/acpi/ seems to be a better place for it),
-> > > but that may be difficult to change without breaking user space (maybe we can
-> > > just symlink it from /sys/devices/ or something).  And the ACPI bus type
-> > > shouldn't even exist in my opinion.
-> > 
-> > Well, well.
-> > 
-> > In fact, the appended patch moves the whole ACPI device nodes tree under
-> > /sys/firmware/acpi/ and I'm not seeing any negative consequences of that on my
-> > test box (events work and so on).  User space is quite new on it, though, and
-> > the patch is hackish.
+On Thu 31-01-13 16:07:57, Andrew Morton wrote:
+> On Thu, 31 Jan 2013 22:49:48 +0100
+> Jan Kara <jack@suse.cz> wrote:
 > 
-> Try booting a RHEL 5 image on this type of kernel, or some old Fedora
-> releases, they were sensitive to changes in sysfs.
+> > There are several different motivations for implementing mapping range
+> > locking:
+> > 
+> > a) Punch hole is currently racy wrt mmap (page can be faulted in in the
+> >    punched range after page cache has been invalidated) leading to nasty
+> >    results as fs corruption (we can end up writing to already freed block),
+> >    user exposure of uninitialized data, etc. To fix this we need some new
+> >    mechanism of serializing hole punching and page faults.
+> 
+> This one doesn't seem very exciting - perhaps there are local fixes
+> which can be made?
+  I agree this probably won't be triggered by accident since punch hole
+uses are limited. But a malicious user is a different thing...
 
-Well, I've found a machine where it causes problems to happen.
+Regarding local fix - local in what sense? We could fix it inside each
+filesystem separately but the number of filesystems supporting punch hole
+is growing so I don't think it's a good decision for each of them to devise
+their own synchronization mechanisms. Fixing 'locally' in a sence that we
+fix just the mmap vs punch hole race is possible but we need some
+synchronisation of page fault and punch hole - likely in a form of rwsem
+where page fault will take a reader side and punch hole a writer side. So
+this "minimal" fix requires additional rwsem in struct address_space and
+also incurs some cost to page fault path. It is likely a lower cost than
+the one of range locking but there is some.
 
-I'll try to add a symlink from /sys/devices to that and see what happens then.
+> > b) There is an uncomfortable number of mechanisms serializing various paths
+> >    manipulating pagecache and data underlying it. We have i_mutex, page lock,
+> >    checks for page beyond EOF in pagefault code, i_dio_count for direct IO.
+> >    Different pairs of operations are serialized by different mechanisms and
+> >    not all the cases are covered. Case (a) above is likely the worst but DIO
+> >    vs buffered IO isn't ideal either (we provide only limited consistency).
+> >    The range locking should somewhat simplify serialization of pagecache
+> >    operations. So i_dio_count can be removed completely, i_mutex to certain
+> >    extent (we still need something for things like timestamp updates,
+> >    possibly for i_size changes although those can be dealt with I think).
+> 
+> Those would be nice cleanups and simplifications, to make kernel
+> developers' lives easier.  And there is value in this, but doing this
+> means our users incur real costs.
+> 
+> I'm rather uncomfortable changes which make our lives easier at the
+> expense of our users.  If we had an infinite amount of labor, we
+> wouldn't do this.  In reality we have finite labor, but a small cost
+> dispersed amongst millions or billions of users becomes a very large
+> cost.
+  I agree there's a cost (as with everything) and personally I feel the
+cost is larger than I'd like so we mostly agree on that. OTOH I don't quite
+buy the argument "multiplied by millions or billions of users" - the more
+machines running the code, the more wealth these machines hopefully
+generate ;-). So where the additional cost starts mattering is when it is
+making the code not worth it for some purposes. But this is really
+philosophy :)
 
-Thanks,
-Rafael
+> > c) i_mutex doesn't allow any paralellism of operations using it and some
+> >    filesystems workaround this for specific cases (e.g. DIO reads). Using
+> >    range locking allows for concurrent operations (e.g. writes, DIO) on
+> >    different parts of the file. Of course, range locking itself isn't
+> >    enough to make the parallelism possible. Filesystems still have to
+> >    somehow deal with the concurrency when manipulating inode allocation
+> >    data. But the range locking at least provides a common VFS mechanism for
+> >    serialization VFS itself needs and it's upto each filesystem to
+> >    serialize more if it needs to.
+> 
+> That would be useful to end-users, but I'm having trouble predicting
+> *how* useful.
+  As Zheng said, there are people interested in this for DIO. Currently
+filesystems each invent their own tweaks to avoid the serialization at
+least for the easiest cases.
 
-
+								Honza
 -- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
