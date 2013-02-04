@@ -1,100 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 32C796B0062
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 14:38:54 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug framework
-Date: Mon, 04 Feb 2013 20:45:11 +0100
-Message-ID: <3007489.fG0fDZGHrB@vostro.rjw.lan>
-In-Reply-To: <1359996378.23410.130.camel@misato.fc.hp.com>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com> <20130204124612.GA22096@kroah.com> <1359996378.23410.130.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 6E59C6B006C
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 14:39:41 -0500 (EST)
+Message-ID: <51100E79.9080101@wwwdotorg.org>
+Date: Mon, 04 Feb 2013 12:39:37 -0700
+From: Stephen Warren <swarren@wwwdotorg.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: next-20130204 - bisected slab problem to "slab: Common constants
+ for kmalloc boundaries"
+References: <510FE051.7080107@imgtec.com>
+In-Reply-To: <510FE051.7080107@imgtec.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>, "lenb@kernel.org" <lenb@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "bhelgaas@google.com" <bhelgaas@google.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "srivatsa.bhat@linux.vnet.ibm.com" <srivatsa.bhat@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: James Hogan <james.hogan@imgtec.com>, linux-next <linux-next@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-On Monday, February 04, 2013 09:46:18 AM Toshi Kani wrote:
-> On Mon, 2013-02-04 at 04:46 -0800, Greg KH wrote:
-> > On Sun, Feb 03, 2013 at 05:28:09PM -0700, Toshi Kani wrote:
-> > > On Sat, 2013-02-02 at 16:01 +0100, Greg KH wrote:
-> > > > On Fri, Feb 01, 2013 at 01:40:10PM -0700, Toshi Kani wrote:
-> > > > > On Fri, 2013-02-01 at 07:30 +0000, Greg KH wrote:
-> > > > > > On Thu, Jan 31, 2013 at 06:32:18PM -0700, Toshi Kani wrote:
-> > > > > >  > This is already done for PCI host bridges and platform devices and I don't
-> > > > > > > > see why we can't do that for the other types of devices too.
-> > > > > > > > 
-> > > > > > > > The only missing piece I see is a way to handle the "eject" problem, i.e.
-> > > > > > > > when we try do eject a device at the top of a subtree and need to tear down
-> > > > > > > > the entire subtree below it, but if that's going to lead to a system crash,
-> > > > > > > > for example, we want to cancel the eject.  It seems to me that we'll need some
-> > > > > > > > help from the driver core here.
-> > > > > > > 
-> > > > > > > There are three different approaches suggested for system device
-> > > > > > > hot-plug:
-> > > > > > >  A. Proceed within system device bus scan.
-> > > > > > >  B. Proceed within ACPI bus scan.
-> > > > > > >  C. Proceed with a sequence (as a mini-boot).
-> > > > > > > 
-> > > > > > > Option A uses system devices as tokens, option B uses acpi devices as
-> > > > > > > tokens, and option C uses resource tables as tokens, for their handlers.
-> > > > > > > 
-> > > > > > > Here is summary of key questions & answers so far.  I hope this
-> > > > > > > clarifies why I am suggesting option 3.
-> > > > > > > 
-> > > > > > > 1. What are the system devices?
-> > > > > > > System devices provide system-wide core computing resources, which are
-> > > > > > > essential to compose a computer system.  System devices are not
-> > > > > > > connected to any particular standard buses.
-> > > > > > 
-> > > > > > Not a problem, lots of devices are not connected to any "particular
-> > > > > > standard busses".  All this means is that system devices are connected
-> > > > > > to the "system" bus, nothing more.
-> > > > > 
-> > > > > Can you give me a few examples of other devices that support hotplug and
-> > > > > are not connected to any particular buses?  I will investigate them to
-> > > > > see how they are managed to support hotplug.
-> > > > 
-> > > > Any device that is attached to any bus in the driver model can be
-> > > > hotunplugged from userspace by telling it to be "unbound" from the
-> > > > driver controlling it.  Try it for any platform device in your system to
-> > > > see how it happens.
-> > > 
-> > > The unbind operation, as I understand from you, is to detach a driver
-> > > from a device.  Yes, unbinding can be done for any devices.  It is
-> > > however different from hot-plug operation, which unplugs a device.
-> > 
-> > Physically, yes, but to the driver involved, and the driver core, there
-> > is no difference.  That was one of the primary goals of the driver core
-> > creation so many years ago.
-> > 
-> > > Today, the unbind operation to an ACPI cpu/memory devices causes
-> > > hot-unplug (offline) operation to them, which is one of the major issues
-> > > for us since unbind cannot fail.  This patchset addresses this issue by
-> > > making the unbind operation of ACPI cpu/memory devices to do the
-> > > unbinding only.  ACPI drivers no longer control cpu and memory as they
-> > > are supposed to be controlled by their drivers, cpu and memory modules.
-> > 
-> > I think that's the problem right there, solve that, please.
+On 02/04/2013 09:22 AM, James Hogan wrote:
+> Hi,
 > 
-> We cannot eliminate the ACPI drivers since we have to scan ACPI.  But we
-> can limit the ACPI drivers to do the scanning stuff only.   This is
-> precisely the intend of this patchset.  The real stuff, removing actual
-> devices, is done by the system device drivers/modules.
+> I've hit boot problems in next-20130204 on Meta:
+> 
+> META213-Thread0 DSP [LogF] kobject (4fc03980): tried to init an initialized object, something is seriously wrong.
+> META213-Thread0 DSP [LogF] 
+> META213-Thread0 DSP [LogF] Call trace: 
+> META213-Thread0 DSP [LogF] [<4000888c>] _show_stack+0x68/0x7c
+> META213-Thread0 DSP [LogF] [<400088b4>] _dump_stack+0x14/0x28
+> META213-Thread0 DSP [LogF] [<40103794>] _kobject_init+0x58/0x9c
+> META213-Thread0 DSP [LogF] [<40103810>] _kobject_create+0x38/0x64
+> META213-Thread0 DSP [LogF] [<40103eac>] _kobject_create_and_add+0x14/0x8c
+> META213-Thread0 DSP [LogF] [<40190ac4>] _mnt_init+0xd8/0x220
+> META213-Thread0 DSP [LogF] [<40190508>] _vfs_caches_init+0xb0/0x160
+...
+> I've bisected it to the following commit:
+> 
+> commit 95a05b428cc675694321c8f762591984f3fd2b1e
+> Author: Christoph Lameter <cl@linux.com>
+> Date:   Thu Jan 10 19:14:19 2013 +0000
+> 
+>     slab: Common constants for kmalloc boundaries
+>     
+>     Standardize the constants that describe the smallest and largest
+>     object kept in the kmalloc arrays for SLAB and SLUB.
+>     
+>     Differentiate between the maximum size for which a slab cache is used
+>     (KMALLOC_MAX_CACHE_SIZE) and the maximum allocatable size
+>     (KMALLOC_MAX_SIZE, KMALLOC_MAX_ORDER).
+>     
+>     Signed-off-by: Christoph Lameter <cl@linux.com>
+>     Signed-off-by: Pekka Enberg <penberg@kernel.org>
 
-In case you haven't realized that yet, the $subject patchset has no future.
+I see the same problem on ARM. I believe it's because of the changes to
+the calculation of MALLOC_SHIFT_LOW.
 
-Let's just talk about how we can get what we need in more general terms.
+The old code was:
 
-Thanks,
-Rafael
+#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
+#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
+#else
+#ifdef CONFIG_SLAB
+#define KMALLOC_MIN_SIZE 32
+#else
+#define KMALLOC_MIN_SIZE 8
+#endif
+#endif
 
+#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
 
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+Here, KMALLOC_SHIFT_LOW and KMALLOC_MIN_SIZE are always consistent/related.
+
+The new code is:
+
+#define KMALLOC_SHIFT_LOW	5
+...
+#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
+#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
+#else
+#define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
+#endif
+
+Here, if defined(ARCH_DMA_MINALIGN), then KMALLOC_MIN_SIZE isn't
+relative-to/derived-from KMALLOC_SHIFT_LOW, so the two may become
+inconsistent.
+
+On my ARM system at least, CONFIG_ARM_L1_CACHE_SHIFT_6 is set since I
+have an ARMv7 CPU (see arch/arm/mm/Kconfig), which causes
+CONFIG_ARM_L1_CACHE_SHIFT=6, then:
+
+> arch/arm/include/asm/cache.h:7:#define L1_CACHE_SHIFT		CONFIG_ARM_L1_CACHE_SHIFT
+> arch/arm/include/asm/cache.h:8:#define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
+> arch/arm/include/asm/cache.h:17:#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
+
+... hence that case triggers.
+
+I also see that in most parts of the patch, SLUB_PAGE_SHIFT was replaced
+with (KMALLOC_SHIFT_HIGH + 1), or equivalently tests were changed from <
+to <=:
+
+> -		size <= SLUB_MAX_SIZE && !(flags & SLUB_DMA)) {
+> +		size <= KMALLOC_MAX_CACHE_SIZE && !(flags & SLUB_DMA)) {
+
+However, the following doesn't seem to have that adjustment:
+
+> diff --git a/mm/slub.c b/mm/slub.c
+> index ba2ca53..d0f72ee 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2775,7 +2775,7 @@ init_kmem_cache_node(struct kmem_cache_node *n)
+>  static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
+>  {
+>  	BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE <
+> -			SLUB_PAGE_SHIFT * sizeof(struct kmem_cache_cpu));
+> +			KMALLOC_SHIFT_HIGH * sizeof(struct kmem_cache_cpu));
+
+Should that also be (KMALLOC_SHIFT_HIGH + 1)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
