@@ -1,64 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id B8C1C6B0005
-	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 22:58:11 -0500 (EST)
-Date: Mon, 4 Feb 2013 12:58:09 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6 4/4] zram: get rid of lockdep warning
-Message-ID: <20130204035809.GG2688@blaptop>
-References: <1359513702-18709-1-git-send-email-minchan@kernel.org>
- <1359513702-18709-4-git-send-email-minchan@kernel.org>
- <20130204015333.GA6548@kroah.com>
- <20130204034208.GF2688@blaptop>
- <20130204035013.GA13954@kroah.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 90FEF6B0005
+	for <linux-mm@kvack.org>; Sun,  3 Feb 2013 23:29:01 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fb11so1222620pad.14
+        for <linux-mm@kvack.org>; Sun, 03 Feb 2013 20:29:00 -0800 (PST)
+Date: Sun, 3 Feb 2013 20:29:01 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] memcg: stop warning on memcg_propagate_kmem
+Message-ID: <alpine.LNX.2.00.1302032023280.4611@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130204035013.GA13954@kroah.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, jmarchan@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, Feb 03, 2013 at 07:50:13PM -0800, Greg Kroah-Hartman wrote:
-> On Mon, Feb 04, 2013 at 12:42:08PM +0900, Minchan Kim wrote:
-> > Hi Greg,
-> > 
-> > On Sun, Feb 03, 2013 at 05:53:33PM -0800, Greg Kroah-Hartman wrote:
-> > > On Wed, Jan 30, 2013 at 11:41:42AM +0900, Minchan Kim wrote:
-> > > > Lockdep complains about recursive deadlock of zram->init_lock.
-> > > > [1] made it false positive because we can't request IO to zram
-> > > > before setting disksize. Anyway, we should shut lockdep up to
-> > > > avoid many reporting from user.
-> > > > 
-> > > > [1] : zram: force disksize setting before using zram
-> > > > 
-> > > > Acked-by: Jerome Marchand <jmarchand@redhat.com>
-> > > > Acked-by: Nitin Gupta <ngupta@vflare.org>
-> > > > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > > > ---
-> > > >  drivers/staging/zram/zram_drv.c   |  189 +++++++++++++++++++------------------
-> > > >  drivers/staging/zram/zram_drv.h   |   12 ++-
-> > > >  drivers/staging/zram/zram_sysfs.c |   11 ++-
-> > > >  3 files changed, 116 insertions(+), 96 deletions(-)
-> > > 
-> > > This patch fails to apply to my staging-next branch, but the three
-> > > others did, so I took them.  Please refresh this one and resend if you
-> > > want it applied.
-> > 
-> > We must have missed each other.
-> 
-> Yes, I was on a flight with no email :)
-> 
-> > A few hours ago, I sent to you v7 based on next-20130202.
-> > https://lkml.org/lkml/2013/2/3/319
-> > 
-> > v7 includes acks of Jerome and resolve conflict with latest staging.
-> > I believe it is okay to apply your tree.
-> > 
-> > Please reapply v7 instead of v6.
-> 
-> Please just send the one patch I need to apply here, I added Jerome's
-> acks to the previous patches already.
+Whilst I run the risk of a flogging for disloyalty to the Lord of Sealand,
+I do have CONFIG_MEMCG=y CONFIG_MEMCG_KMEM not set, and grow tired of the
+"mm/memcontrol.c:4972:12: warning: `memcg_propagate_kmem' defined but not
+used [-Wunused-function]" seen in 3.8-rc: move the #ifdef outwards.
 
-Thanks!
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/memcontrol.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+--- 3.8-rc6/mm/memcontrol.c	2012-12-22 09:43:27.628015582 -0800
++++ linux/mm/memcontrol.c	2013-02-02 16:56:06.188325771 -0800
+@@ -4969,6 +4969,7 @@ out:
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_MEMCG_KMEM
+ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
+ {
+ 	int ret = 0;
+@@ -4977,7 +4978,6 @@ static int memcg_propagate_kmem(struct m
+ 		goto out;
+ 
+ 	memcg->kmem_account_flags = parent->kmem_account_flags;
+-#ifdef CONFIG_MEMCG_KMEM
+ 	/*
+ 	 * When that happen, we need to disable the static branch only on those
+ 	 * memcgs that enabled it. To achieve this, we would be forced to
+@@ -5003,10 +5003,10 @@ static int memcg_propagate_kmem(struct m
+ 	mutex_lock(&set_limit_mutex);
+ 	ret = memcg_update_cache_sizes(memcg);
+ 	mutex_unlock(&set_limit_mutex);
+-#endif
+ out:
+ 	return ret;
+ }
++#endif /* CONFIG_MEMCG_KMEM */
+ 
+ /*
+  * The user of this function is...
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
