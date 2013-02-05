@@ -1,51 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id F13AB6B0029
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 07:35:19 -0500 (EST)
-Date: Tue, 5 Feb 2013 13:35:15 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [LSF/MM TOPIC] Few things I would like to discuss
-Message-ID: <20130205123515.GA26229@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id C9E176B0028
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 07:53:17 -0500 (EST)
+Message-ID: <5111006A.4070809@imgtec.com>
+Date: Tue, 5 Feb 2013 12:51:54 +0000
+From: James Hogan <james.hogan@imgtec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: next-20130204 - bisected slab problem to "slab: Common constants
+ for kmalloc boundaries"
+References: <510FE051.7080107@imgtec.com> <0000013ca6a87485-3f013e82-046c-4374-86d5-67fb85a085f9-000000@email.amazonses.com>
+In-Reply-To: <0000013ca6a87485-3f013e82-046c-4374-86d5-67fb85a085f9-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-next <linux-next@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt
+ Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-Hi,
-I would like to discuss the following topics:
-* memcg oom should be more sensitive to locked contexts because now
-  it is possible that a task is sitting in mem_cgroup_handle_oom holding
-  some other lock (e.g. i_mutex or mmap_sem) up the chain which might
-  block other task to terminate on OOM so we basically end up in a
-  deadlock. Almost all memcg charges happen from the page fault path
-  where we can retry but one class of them happen from
-  add_to_page_cache_locked and that is a bit more problematic.
-* memcg doesn't use PF_MEMALLOC for the targeted reclaim code paths
-  which asks for stack overflows (and we have already seen those -
-  e.g. from the xfs pageout paths). The primary problem to use the flag
-  is that there is no dirty pages throttling and writeback kicked out
-  for memcg so if we didn't writeback from the reclaim the caller could
-  be blocked for ever. Memcg dirty accounting is shaping slowly so we
-  should start thinking about the writeback as well.
-* While we are at the memcg dirty pages accounting 
-  (https://lkml.org/lkml/2012/12/25/95). It turned out that the locking
-  is really nasty (https://lkml.org/lkml/2013/1/2/48). The locking
-  should be reworked without incurring any penalty on the fast path.
-  This sounds really challenging.
-* I would really like to finally settle down on something wrt. soft
-  limit reclaim. I am pretty sure Ying would like to discuss this topic
-  as well so I will not go into details about it. I will post what I
-  have before the conference so that we can discuss her approach and
-  what was the primary disagreement the last time. I can go into more
-  ditails as a follow up if people are interested of course.
-* Finally I would like to collect feedback for the mm git tree.
+Hi Christoph,
 
--- 
-Michal Hocko
-SUSE Labs
+On 04/02/13 19:22, Christoph Lameter wrote:
+> What are the values of
+> 
+> MAX_ORDER
+
+10
+
+> PAGE_SHIFT
+
+12
+
+> ARCH_DMA_MINALIGN
+
+64 (it works if changed to 8)
+
+> CONFIG_ZONE_DMA
+
+not defined
+
+Cheers
+James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
