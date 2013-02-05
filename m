@@ -1,34 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Message-ID: <5110C28D.1040001@cn.fujitsu.com>
-Date: Tue, 05 Feb 2013 16:27:57 +0800
-From: Lin Feng <linfeng@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] mm: hotplug: implement non-movable version of get_user_pages()
- to kill long-time pin pages
-References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com> <20130205005859.GE2610@blaptop> <51108DC8.4090704@cn.fujitsu.com> <20130205052517.GH2610@blaptop> <5110A442.5000707@cn.fujitsu.com> <20130205074519.GB11197@blaptop>
-In-Reply-To: <20130205074519.GB11197@blaptop>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 990AA6B0107
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 04:12:22 -0500 (EST)
+From: Lukas Czerner <lczerner@redhat.com>
+Subject: [PATCH v2 00/18] change invalidatepage prototype to accept length
+Date: Tue,  5 Feb 2013 10:11:53 +0100
+Message-Id: <1360055531-26309-1-git-send-email-lczerner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-Hi Minchan,
+Hi,
 
-On 02/05/2013 03:45 PM, Minchan Kim wrote:
->> So it may not a good idea that we all fall into calling the *non_movable* version of
->> > GUP when CONFIG_MIGRATE_ISOLATE is on. What do you think?
-> Frankly speaking, I can't understand Mel's comment.
-> AFAIUC, he said GUP checks the page before get_page and if the page is movable zone,
-> then migrate it out of movable zone and get_page again.
-> That's exactly what I want. It doesn't introduce GUP_NM.
-Since an long time pin or not is an unpredictable behave except you know what the caller
-wants to do. We have to check every time we call GUP, and GUP may need another parameter
- to teach itself to make the right decision? We have already got *8* parameters :(
+This set of patches are aimed to allow truncate_inode_pages_range() handle
+ranges which are not aligned at the end of the page. Currently it will
+hit BUG_ON() when the end of the range is not aligned. Punch hole feature
+however can benefit from this ability saving file systems some work not
+forcing them to implement their own invalidate code to handle unaligned
+ranges.
 
-thanks,
-linfeng
+In order for this to woke we need change ->invalidatepage() address space
+operation to to accept range to invalidate by adding 'length' argument in
+addition to 'offset'. This is different from my previous attempt to create
+new aop ->invalidatepage_range (http://lwn.net/Articles/514828/) which I
+reconsidered to ne unnecessary.
+
+For description purposes this patch set can be divided into following
+groups:
+
+
+patch 0001:    Change ->invalidatepage() prototype adding 'length' argument
+	and changing all the instances. In very simple cases file
+	system methods are completely adapted, otherwise only
+	prototype is changed and the rest will follow. This patch
+	also implement the 'range' invalidation in
+	block_invalidatepage().
+
+patch 0002 - 0009:
+	Make the use of new 'length' argument in the file system
+	itself. Some file systems can take advantage of it trying
+	to invalidate only portion of the page if possible, some
+	can't, however none of the file systems currently attempt
+	to truncate non page aligned ranges.
+
+
+patch 0010:    Teach truncate_inode_pages_range() to handle non page aligned
+	ranges.
+
+patch 0012 - 0018:
+	Ext4 changes build on top of previous changes, simplifying
+	punch hole code. Not all changes are realated specifically
+	to invalidatepage() change, but all are related to the punch
+	hole feature.
+
+Even though this patch set would mainly affect functionality of the file
+file systems implementing punch hole I've tested all the following file
+system using xfstests without noticing any bugs related to this change.
+
+ext3, ext4, xfs, btrfs, gfs2 and reiserfs
+
+the much smaller changes in other file systems has not been directly tested,
+so please review.
+
+
+Changes in v2:
+	patch 10/18 - add more comments. Do not initialize at declaration
+		      to make things more obvious and better to read.
+
+
+Thanks!
+-Lukas
+
+-- 
+
+ Documentation/filesystems/Locking |    6 +-
+ Documentation/filesystems/vfs.txt |   20 ++--
+ fs/9p/vfs_addr.c                  |    5 +-
+ fs/afs/file.c                     |   10 +-
+ fs/btrfs/disk-io.c                |    3 +-
+ fs/btrfs/extent_io.c              |    2 +-
+ fs/btrfs/inode.c                  |    3 +-
+ fs/buffer.c                       |   21 ++-
+ fs/ceph/addr.c                    |   15 +-
+ fs/cifs/file.c                    |    5 +-
+ fs/exofs/inode.c                  |    6 +-
+ fs/ext3/inode.c                   |    9 +-
+ fs/ext4/ext4.h                    |   14 +-
+ fs/ext4/extents.c                 |  188 ++++++++--------------
+ fs/ext4/indirect.c                |   13 +--
+ fs/ext4/inode.c                   |  320 ++++++++++++++++--------------------
+ fs/f2fs/data.c                    |    3 +-
+ fs/f2fs/node.c                    |    3 +-
+ fs/gfs2/aops.c                    |   17 ++-
+ fs/jbd/transaction.c              |   19 ++-
+ fs/jbd2/transaction.c             |   24 ++-
+ fs/jfs/jfs_metapage.c             |    5 +-
+ fs/logfs/file.c                   |    3 +-
+ fs/logfs/segment.c                |    3 +-
+ fs/nfs/file.c                     |    8 +-
+ fs/ntfs/aops.c                    |    2 +-
+ fs/ocfs2/aops.c                   |    5 +-
+ fs/reiserfs/inode.c               |   12 +-
+ fs/ubifs/file.c                   |    5 +-
+ fs/xfs/xfs_aops.c                 |   10 +-
+ fs/xfs/xfs_trace.h                |   41 +++++-
+ include/linux/buffer_head.h       |    3 +-
+ include/linux/fs.h                |    2 +-
+ include/linux/jbd.h               |    2 +-
+ include/linux/jbd2.h              |    2 +-
+ include/linux/mm.h                |    3 +-
+ include/trace/events/ext3.h       |   12 +-
+ include/trace/events/ext4.h       |   64 +++++---
+ mm/readahead.c                    |    2 +-
+ mm/truncate.c                     |  117 ++++++++++----
+ 40 files changed, 538 insertions(+), 469 deletions(-)
+
+[PATCH v2 01/18] mm: change invalidatepage prototype to accept
+[PATCH v2 02/18] jbd2: change jbd2_journal_invalidatepage to accept
+[PATCH v2 03/18] ext4: use ->invalidatepage() length argument
+[PATCH v2 04/18] jbd: change journal_invalidatepage() to accept
+[PATCH v2 05/18] xfs: use ->invalidatepage() length argument
+[PATCH v2 06/18] ocfs2: use ->invalidatepage() length argument
+[PATCH v2 07/18] ceph: use ->invalidatepage() length argument
+[PATCH v2 08/18] gfs2: use ->invalidatepage() length argument
+[PATCH v2 09/18] reiserfs: use ->invalidatepage() length argument
+[PATCH v2 10/18] mm: teach truncate_inode_pages_range() to handle
+[PATCH v2 11/18] Revert "ext4: remove no longer used functions in
+[PATCH v2 12/18] Revert "ext4: fix fsx truncate failure"
+[PATCH v2 13/18] ext4: use ext4_zero_partial_blocks in punch_hole
+[PATCH v2 14/18] ext4: remove unused discard_partial_page_buffers
+[PATCH v2 15/18] ext4: remove unused code from ext4_remove_blocks()
+[PATCH v2 16/18] ext4: update ext4_ext_remove_space trace point
+[PATCH v2 17/18] ext4: make punch hole code path work with bigalloc
+[PATCH v2 18/18] ext4: Allow punch hole with bigalloc enabled
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
