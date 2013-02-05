@@ -1,52 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id BD6976B0007
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 14:28:33 -0500 (EST)
-Received: from /spool/local
-	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Tue, 5 Feb 2013 19:27:16 -0000
-Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r15JSKbq13566046
-	for <linux-mm@kvack.org>; Tue, 5 Feb 2013 19:28:21 GMT
-Received: from d06av09.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r15JST3K000543
-	for <linux-mm@kvack.org>; Tue, 5 Feb 2013 12:28:29 -0700
-Date: Tue, 5 Feb 2013 11:28:21 -0800
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] software dirty bits for s390
-Message-ID: <20130205112821.0e35b241@mschwide>
-In-Reply-To: <1360087925-8456-2-git-send-email-schwidefsky@de.ibm.com>
-References: <1360087925-8456-1-git-send-email-schwidefsky@de.ibm.com>
-	<1360087925-8456-2-git-send-email-schwidefsky@de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id B702C6B0002
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 16:07:33 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug framework
+Date: Tue, 05 Feb 2013 22:13:49 +0100
+Message-ID: <1692384.YXBH6mB6ZX@vostro.rjw.lan>
+In-Reply-To: <20130205183948.GA19026@kroah.com>
+References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com> <4225828.6MQHJn7Yzr@vostro.rjw.lan> <20130205183948.GA19026@kroah.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-mm@kvack.org, linux-s390@vger.kernel.org, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Toshi Kani <toshi.kani@hp.com>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
 
-On Tue,  5 Feb 2013 10:12:04 -0800
-Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
-
-> Greetings,
+On Tuesday, February 05, 2013 10:39:48 AM Greg KH wrote:
+> On Tue, Feb 05, 2013 at 12:11:17PM +0100, Rafael J. Wysocki wrote:
+> > On Monday, February 04, 2013 04:04:47 PM Greg KH wrote:
+> > > On Tue, Feb 05, 2013 at 12:52:30AM +0100, Rafael J. Wysocki wrote:
+> > > > You'd probably never try to hot-remove a disk before unmounting filesystems
+> > > > mounted from it or failing it as a RAID component and nobody sane wants the
+> > > > kernel to do things like that automatically when the user presses the eject
+> > > > button.  In my opinion we should treat memory eject, or CPU package eject, or
+> > > > PCI host bridge eject in exactly the same way: Don't eject if it is not
+> > > > prepared for ejecting in the first place.
+> > > 
+> > > Bad example, we have disks hot-removed all the time without any
+> > > filesystems being unmounted, and have supported this since the 2.2 days
+> > > (although we didn't get it "right" until 2.6.)
+> > 
+> > I actually don't think it is really bad, because it exposes the problem nicely.
+> > 
+> > Namely, there are two arguments that can be made here.  The first one is the
+> > usability argument: Users should always be allowed to do what they want,
+> > because it is [explicit content] annoying if software pretends to know better
+> > what to do than the user (it is a convenience argument too, because usually
+> > it's *easier* to allow users to do what they want).  The second one is the
+> > data integrity argument: Operations that may lead to data loss should never
+> > be carried out, because it is [explicit content] disappointing to lose valuable
+> > stuff by a stupid mistake if software allows that mistake to be made (that also
+> > may be costly in terms of real money).
+> > 
+> > You seem to believe that we should always follow the usability argument, while
+> > Toshi seems to be thinking that (at least in the case of the "system" devices),
+> > the data integrity argument is more important.  They are both valid arguments,
+> > however, and they are in conflict, so this is a matter of balance.
+> > 
+> > You're saying that in the case of disks we always follow the usability argument
+> > entirely.  I'm fine with that, although I suspect that some people may not be
+> > considering this as the right balance.
+> > 
+> > Toshi seems to be thinking that for the hotplug of memory/CPUs/host bridges we
+> > should always follow the data integrity argument entirely, because the users of
+> > that feature value their data so much that they pretty much don't care about
+> > usability.  That very well may be the case, so I'm fine with that too, although
+> > I'm sure there are people who'll argue that this is not the right balance
+> > either.
+> > 
+> > Now, the point is that we *can* do what Toshi is arguing for and that doesn't
+> > seem to be overly complicated, so my question is: Why don't we do that, at
+> > least to start with?  If it turns out eventually that the users care about
+> > usability too, after all, we can add a switch to adjust things more to their
+> > liking.  Still, we can very well do that later.
 > 
-> good news, I got performance results for a selected set of workloads
-> with my software dirty bit patch (thanks Christian!). We found no
-> downsides to the software dirty bits, and a substantial improvement
-> in CPU utilization for the FIO test with mostly read mappings.
-> 
-> The patch can now go upstream.
+> Ok, I'd much rather deal with reviewing actual implementations than
+> talking about theory at this point in time, so let's see what you all
+> can come up with next and I'll be glad to review it.
 
-Grumpf, 0000-cover-letter.patch~ in the outgoing directory.
-Please ignore.
+Sure, thanks a lot for your comments so far!
+
+Rafael
+
 
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
