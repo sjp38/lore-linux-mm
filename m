@@ -1,269 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 0E5C36B0007
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 14:11:07 -0500 (EST)
-Date: Tue, 5 Feb 2013 19:11:02 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 7/11] ksm: make KSM page migration possible
-Message-ID: <20130205191102.GM21389@suse.de>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
- <alpine.LNX.2.00.1301251802050.29196@eggly.anvils>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 2E52D6B0007
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 14:23:12 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id kl14so312023pab.4
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2013 11:23:11 -0800 (PST)
+Date: Tue, 5 Feb 2013 11:25:20 -0800
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] zsmalloc: Add Kconfig for enabling PTE method
+Message-ID: <20130205192520.GA8441@kroah.com>
+References: <1359937421-19921-1-git-send-email-minchan@kernel.org>
+ <20130204185146.GA31284@kroah.com>
+ <20130205000854.GC2610@blaptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1301251802050.29196@eggly.anvils>
+In-Reply-To: <20130205000854.GC2610@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On Fri, Jan 25, 2013 at 06:03:31PM -0800, Hugh Dickins wrote:
-> KSM page migration is already supported in the case of memory hotremove,
-> which takes the ksm_thread_mutex across all its migrations to keep life
-> simple.
+On Tue, Feb 05, 2013 at 09:08:54AM +0900, Minchan Kim wrote:
+> Hi Greg,
 > 
-> But the new KSM NUMA merge_across_nodes knob introduces a problem, when
-> it's set to non-default 0: if a KSM page is migrated to a different NUMA
-> node, how do we migrate its stable node to the right tree?  And what if
-> that collides with an existing stable node?
+> On Mon, Feb 04, 2013 at 10:51:46AM -0800, Greg Kroah-Hartman wrote:
+> > On Mon, Feb 04, 2013 at 09:23:41AM +0900, Minchan Kim wrote:
+> > > Zsmalloc has two methods 1) copy-based and 2) pte based to access
+> > > allocations that span two pages.
+> > > You can see history why we supported two approach from [1].
+> > > 
+> > > But it was bad choice that adding hard coding to select architecture
+> > > which want to use pte based method. This patch removed it and adds
+> > > new Kconfig to select the approach.
+> > > 
+> > > This patch is based on next-20130202.
+> > > 
+> > > [1] https://lkml.org/lkml/2012/7/11/58
+> > > 
+> > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > > Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> > > Cc: Nitin Gupta <ngupta@vflare.org>
+> > > Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+> > > Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
+> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > > ---
+> > >  drivers/staging/zsmalloc/Kconfig         |   12 ++++++++++++
+> > >  drivers/staging/zsmalloc/zsmalloc-main.c |   11 -----------
+> > >  2 files changed, 12 insertions(+), 11 deletions(-)
+> > > 
+> > > diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
+> > > index 9084565..2359123 100644
+> > > --- a/drivers/staging/zsmalloc/Kconfig
+> > > +++ b/drivers/staging/zsmalloc/Kconfig
+> > > @@ -8,3 +8,15 @@ config ZSMALLOC
+> > >  	  non-standard allocator interface where a handle, not a pointer, is
+> > >  	  returned by an alloc().  This handle must be mapped in order to
+> > >  	  access the allocated space.
+> > > +
+> > > +config ZSMALLOC_PGTABLE_MAPPING
+> > > +        bool "Use page table mapping to access allocations that span two pages"
+> > > +        depends on ZSMALLOC
+> > > +        default n
+> > > +        help
+> > > +	  By default, zsmalloc uses a copy-based object mapping method to access
+> > > +	  allocations that span two pages. However, if a particular architecture
+> > > +	  performs VM mapping faster than copying, then you should select this.
+> > > +	  This causes zsmalloc to use page table mapping rather than copying
+> > > +	  for object mapping. You can check speed with zsmalloc benchmark[1].
+> > > +	  [1] https://github.com/spartacus06/zsmalloc
+> > > diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+> > > index 06f73a9..b161ca1 100644
+> > > --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+> > > +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+> > > @@ -218,17 +218,6 @@ struct zs_pool {
+> > >  #define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
+> > >  #define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
+> > >  
+> > > -/*
+> > > - * By default, zsmalloc uses a copy-based object mapping method to access
+> > > - * allocations that span two pages. However, if a particular architecture
+> > > - * performs VM mapping faster than copying, then it should be added here
+> > > - * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
+> > > - * page table mapping rather than copying for object mapping.
+> > > -*/
+> > > -#if defined(CONFIG_ARM)
+> > > -#define USE_PGTABLE_MAPPING
+> > > -#endif
+> > 
+> > Did you test this?  I don't see the new config value you added actually
+> > do anything in this code.  Also, if I select it incorrectly on ARM, or
 > 
-> So far there's no provision for that, and this patch does not attempt
-> to deal with it either.  But how will I test a solution, when I don't
-> know how to hotremove memory? 
+> *slaps self*
 
-Just reach in and yank it straight out with a chisel.
+Ok, so I'll drop this patch now.  As for what to do instead, I have no
+idea, sorry, but the others should.
 
-> The best answer is to enable KSM page
-> migration in all cases now, and test more common cases.  With THP and
-> compaction added since KSM came in, page migration is now mainstream,
-> and it's a shame that a KSM page can frustrate freeing a page block.
-> 
+thanks,
 
-THP will at least check if migration within a node works. It won't
-necessarily check we can migrate across nodes properly but it's a lot
-better than nothing.
-
-> Without worrying about merge_across_nodes 0 for now, this patch gets
-> KSM page migration working reliably for default merge_across_nodes 1
-> (but leave the patch enabling it until near the end of the series).
-> 
-> It's much simpler than I'd originally imagined, and does not require
-> an additional tier of locking: page migration relies on the page lock,
-> KSM page reclaim relies on the page lock, the page lock is enough for
-> KSM page migration too.
-> 
-> Almost all the care has to be in get_ksm_page(): that's the function
-> which worries about when a stable node is stale and should be freed,
-> now it also has to worry about the KSM page being migrated.
-> 
-> The only new overhead is an additional put/get/lock/unlock_page when
-> stable_tree_search() arrives at a matching node: to make sure migration
-> respects the raised page count, and so does not migrate the page while
-> we're busy with it here.  That's probably avoidable, either by changing
-> internal interfaces from using kpage to stable_node, or by moving the
-> ksm_migrate_page() callsite into a page_freeze_refs() section (even if
-> not swapcache); but this works well, I've no urge to pull it apart now.
-> 
-> (Descents of the stable tree may pass through nodes whose KSM pages are
-> under migration: being unlocked, the raised page count does not prevent
-> that, nor need it: it's safe to memcmp against either old or new page.)
-> 
-> You might worry about mremap, and whether page migration's rmap_walk
-> to remove migration entries will find all the KSM locations where it
-> inserted earlier: that should already be handled, by the satisfyingly
-> heavy hammer of move_vma()'s call to ksm_madvise(,,,MADV_UNMERGEABLE,).
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
->  mm/ksm.c     |   94 ++++++++++++++++++++++++++++++++++++++-----------
->  mm/migrate.c |    5 ++
->  2 files changed, 77 insertions(+), 22 deletions(-)
-> 
-> --- mmotm.orig/mm/ksm.c	2013-01-25 14:37:00.768206145 -0800
-> +++ mmotm/mm/ksm.c	2013-01-25 14:37:03.832206218 -0800
-> @@ -499,6 +499,7 @@ static void remove_node_from_stable_tree
->   * In which case we can trust the content of the page, and it
->   * returns the gotten page; but if the page has now been zapped,
->   * remove the stale node from the stable tree and return NULL.
-> + * But beware, the stable node's page might be being migrated.
->   *
->   * You would expect the stable_node to hold a reference to the ksm page.
->   * But if it increments the page's count, swapping out has to wait for
-> @@ -509,44 +510,77 @@ static void remove_node_from_stable_tree
->   * pointing back to this stable node.  This relies on freeing a PageAnon
->   * page to reset its page->mapping to NULL, and relies on no other use of
->   * a page to put something that might look like our key in page->mapping.
-> - *
-> - * include/linux/pagemap.h page_cache_get_speculative() is a good reference,
-> - * but this is different - made simpler by ksm_thread_mutex being held, but
-> - * interesting for assuming that no other use of the struct page could ever
-> - * put our expected_mapping into page->mapping (or a field of the union which
-> - * coincides with page->mapping).
-> - *
-> - * Note: it is possible that get_ksm_page() will return NULL one moment,
-> - * then page the next, if the page is in between page_freeze_refs() and
-> - * page_unfreeze_refs(): this shouldn't be a problem anywhere, the page
->   * is on its way to being freed; but it is an anomaly to bear in mind.
->   */
->  static struct page *get_ksm_page(struct stable_node *stable_node, bool locked)
->  {
->  	struct page *page;
->  	void *expected_mapping;
-> +	unsigned long kpfn;
->  
-> -	page = pfn_to_page(stable_node->kpfn);
->  	expected_mapping = (void *)stable_node +
->  				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
-> -	if (page->mapping != expected_mapping)
-> -		goto stale;
-> -	if (!get_page_unless_zero(page))
-> +again:
-> +	kpfn = ACCESS_ONCE(stable_node->kpfn);
-> +	page = pfn_to_page(kpfn);
-> +
-
-Ok.
-
-There should be no concern that hot-remove made the kpfn invalid because
-those stable tree entries should have been discarded.
-
-> +	/*
-> +	 * page is computed from kpfn, so on most architectures reading
-> +	 * page->mapping is naturally ordered after reading node->kpfn,
-> +	 * but on Alpha we need to be more careful.
-> +	 */
-> +	smp_read_barrier_depends();
-
-The value of page is data dependant on pfn_to_page(). Is it really possible
-for that to be re-ordered even on Alpha?
-
-> +	if (ACCESS_ONCE(page->mapping) != expected_mapping)
->  		goto stale;
-> -	if (page->mapping != expected_mapping) {
-> +
-> +	/*
-> +	 * We cannot do anything with the page while its refcount is 0.
-> +	 * Usually 0 means free, or tail of a higher-order page: in which
-> +	 * case this node is no longer referenced, and should be freed;
-> +	 * however, it might mean that the page is under page_freeze_refs().
-> +	 * The __remove_mapping() case is easy, again the node is now stale;
-> +	 * but if page is swapcache in migrate_page_move_mapping(), it might
-> +	 * still be our page, in which case it's essential to keep the node.
-> +	 */
-> +	while (!get_page_unless_zero(page)) {
-> +		/*
-> +		 * Another check for page->mapping != expected_mapping would
-> +		 * work here too.  We have chosen the !PageSwapCache test to
-> +		 * optimize the common case, when the page is or is about to
-> +		 * be freed: PageSwapCache is cleared (under spin_lock_irq)
-> +		 * in the freeze_refs section of __remove_mapping(); but Anon
-> +		 * page->mapping reset to NULL later, in free_pages_prepare().
-> +		 */
-> +		if (!PageSwapCache(page))
-> +			goto stale;
-> +		cpu_relax();
-> +	}
-
-The recheck of stable_node->kpfn check after a barrier distinguishes between
-a free and a completed migration, that's fine. I'm hesitate to ask because
-it must be obvious but where is the guarantee that a KSM page is in the
-swap cache?
-
-> +
-> +	if (ACCESS_ONCE(page->mapping) != expected_mapping) {
->  		put_page(page);
->  		goto stale;
->  	}
-> +
->  	if (locked) {
->  		lock_page(page);
-> -		if (page->mapping != expected_mapping) {
-> +		if (ACCESS_ONCE(page->mapping) != expected_mapping) {
->  			unlock_page(page);
->  			put_page(page);
->  			goto stale;
->  		}
->  	}
->  	return page;
-> +
->  stale:
-> +	/*
-> +	 * We come here from above when page->mapping or !PageSwapCache
-> +	 * suggests that the node is stale; but it might be under migration.
-> +	 * We need smp_rmb(), matching the smp_wmb() in ksm_migrate_page(),
-> +	 * before checking whether node->kpfn has been changed.
-> +	 */
-> +	smp_rmb();
-> +	if (ACCESS_ONCE(stable_node->kpfn) != kpfn)
-> +		goto again;
->  	remove_node_from_stable_tree(stable_node);
->  	return NULL;
->  }
-> @@ -1103,15 +1137,25 @@ static struct page *stable_tree_search(s
->  			return NULL;
->  
->  		ret = memcmp_pages(page, tree_page);
-> +		put_page(tree_page);
->  
-> -		if (ret < 0) {
-> -			put_page(tree_page);
-> +		if (ret < 0)
->  			node = node->rb_left;
-> -		} else if (ret > 0) {
-> -			put_page(tree_page);
-> +		else if (ret > 0)
->  			node = node->rb_right;
-> -		} else
-> +		else {
-> +			/*
-> +			 * Lock and unlock the stable_node's page (which
-> +			 * might already have been migrated) so that page
-> +			 * migration is sure to notice its raised count.
-> +			 * It would be more elegant to return stable_node
-> +			 * than kpage, but that involves more changes.
-> +			 */
-> +			tree_page = get_ksm_page(stable_node, true);
-> +			if (tree_page)
-> +				unlock_page(tree_page);
->  			return tree_page;
-> +		}
->  	}
->  
->  	return NULL;
-> @@ -1903,6 +1947,14 @@ void ksm_migrate_page(struct page *newpa
->  	if (stable_node) {
->  		VM_BUG_ON(stable_node->kpfn != page_to_pfn(oldpage));
->  		stable_node->kpfn = page_to_pfn(newpage);
-> +		/*
-> +		 * newpage->mapping was set in advance; now we need smp_wmb()
-> +		 * to make sure that the new stable_node->kpfn is visible
-> +		 * to get_ksm_page() before it can see that oldpage->mapping
-> +		 * has gone stale (or that PageSwapCache has been cleared).
-> +		 */
-> +		smp_wmb();
-> +		set_page_stable_node(oldpage, NULL);
->  	}
->  }
->  #endif /* CONFIG_MIGRATION */
-> --- mmotm.orig/mm/migrate.c	2013-01-25 14:27:58.140193249 -0800
-> +++ mmotm/mm/migrate.c	2013-01-25 14:37:03.832206218 -0800
-> @@ -464,7 +464,10 @@ void migrate_page_copy(struct page *newp
->  
->  	mlock_migrate_page(newpage, page);
->  	ksm_migrate_page(newpage, page);
-> -
-> +	/*
-> +	 * Please do not reorder this without considering how mm/ksm.c's
-> +	 * get_ksm_page() depends upon ksm_migrate_page() and PageSwapCache().
-> +	 */
->  	ClearPageSwapCache(page);
->  	ClearPagePrivate(page);
->  	set_page_private(page, 0);
-> 
-
--- 
-Mel Gorman
-SUSE Labs
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
