@@ -1,494 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 877746B00EE
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 01:20:00 -0500 (EST)
-Received: by mail-ie0-f181.google.com with SMTP id 17so6902173iea.12
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2013 22:19:59 -0800 (PST)
-Message-ID: <1360045197.2403.3.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCH v7 4/4] zram: get rid of lockdep warning
-From: Ric Mason <ric.masonn@gmail.com>
-Date: Tue, 05 Feb 2013 00:19:57 -0600
-In-Reply-To: <20130205060607.GJ2610@blaptop>
-References: <1359935171-12749-1-git-send-email-minchan@kernel.org>
-	 <1359935171-12749-4-git-send-email-minchan@kernel.org>
-	 <1359963564.1366.0.camel@kernel.cn.ibm.com> <20130205060607.GJ2610@blaptop>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Message-ID: <5110A442.5000707@cn.fujitsu.com>
+Date: Tue, 05 Feb 2013 14:18:42 +0800
+From: Lin Feng <linfeng@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/2] mm: hotplug: implement non-movable version of get_user_pages()
+ to kill long-time pin pages
+References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com> <20130205005859.GE2610@blaptop> <51108DC8.4090704@cn.fujitsu.com> <20130205052517.GH2610@blaptop>
+In-Reply-To: <20130205052517.GH2610@blaptop>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, jmarchan@redhat.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 2013-02-05 at 15:06 +0900, Minchan Kim wrote:
-> On Mon, Feb 04, 2013 at 01:39:24AM -0600, Ric Mason wrote:
-> > On Mon, 2013-02-04 at 08:46 +0900, Minchan Kim wrote:
-> > > Lockdep complains about recursive deadlock of zram->init_lock.
-> > > [1] made it false positive because we can't request IO to zram
-> > > before setting disksize. Anyway, we should shut lockdep up to
-> > > avoid many reporting from user.
-> > > 
-> > > [1] : zram: force disksize setting before using zram
-> > > 
-> > > Acked-by: Jerome Marchand <jmarchan@redhat.com>
-> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > > ---
-> > >  drivers/staging/zram/zram_drv.c   |  189 +++++++++++++++++++------------------
-> > >  drivers/staging/zram/zram_drv.h   |   12 ++-
-> > >  drivers/staging/zram/zram_sysfs.c |   11 ++-
-> > >  3 files changed, 116 insertions(+), 96 deletions(-)
-> > > 
-> > > diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-> > > index 85055c4..56e3203 100644
-> > > --- a/drivers/staging/zram/zram_drv.c
-> > > +++ b/drivers/staging/zram/zram_drv.c
-> > > @@ -61,22 +61,22 @@ static void zram_stat64_inc(struct zram *zram, u64 *v)
-> > >  	zram_stat64_add(zram, v, 1);
-> > >  }
-> > >  
-> > > -static int zram_test_flag(struct zram *zram, u32 index,
-> > > +static int zram_test_flag(struct zram_meta *meta, u32 index,
-> > >  			enum zram_pageflags flag)
-> > >  {
-> > > -	return zram->table[index].flags & BIT(flag);
-> > > +	return meta->table[index].flags & BIT(flag);
-> > >  }
-> > >  
-> > > -static void zram_set_flag(struct zram *zram, u32 index,
-> > > +static void zram_set_flag(struct zram_meta *meta, u32 index,
-> > >  			enum zram_pageflags flag)
-> > >  {
-> > > -	zram->table[index].flags |= BIT(flag);
-> > > +	meta->table[index].flags |= BIT(flag);
-> > >  }
-> > >  
-> > > -static void zram_clear_flag(struct zram *zram, u32 index,
-> > > +static void zram_clear_flag(struct zram_meta *meta, u32 index,
-> > >  			enum zram_pageflags flag)
-> > >  {
-> > > -	zram->table[index].flags &= ~BIT(flag);
-> > > +	meta->table[index].flags &= ~BIT(flag);
-> > >  }
-> > >  
-> > >  static int page_zero_filled(void *ptr)
-> > > @@ -96,16 +96,17 @@ static int page_zero_filled(void *ptr)
-> > >  
-> > >  static void zram_free_page(struct zram *zram, size_t index)
-> > >  {
-> > > -	unsigned long handle = zram->table[index].handle;
-> > > -	u16 size = zram->table[index].size;
-> > > +	struct zram_meta *meta = zram->meta;
-> > > +	unsigned long handle = meta->table[index].handle;
-> > > +	u16 size = meta->table[index].size;
-> > >  
-> > >  	if (unlikely(!handle)) {
-> > >  		/*
-> > >  		 * No memory is allocated for zero filled pages.
-> > >  		 * Simply clear zero page flag.
-> > >  		 */
-> > > -		if (zram_test_flag(zram, index, ZRAM_ZERO)) {
-> > > -			zram_clear_flag(zram, index, ZRAM_ZERO);
-> > > +		if (zram_test_flag(meta, index, ZRAM_ZERO)) {
-> > > +			zram_clear_flag(meta, index, ZRAM_ZERO);
-> > >  			zram->stats.pages_zero--;
-> > >  		}
-> > >  		return;
-> > > @@ -114,17 +115,17 @@ static void zram_free_page(struct zram *zram, size_t index)
-> > >  	if (unlikely(size > max_zpage_size))
-> > >  		zram->stats.bad_compress--;
-> > >  
-> > > -	zs_free(zram->mem_pool, handle);
-> > > +	zs_free(meta->mem_pool, handle);
-> > >  
-> > >  	if (size <= PAGE_SIZE / 2)
-> > >  		zram->stats.good_compress--;
-> > >  
-> > >  	zram_stat64_sub(zram, &zram->stats.compr_size,
-> > > -			zram->table[index].size);
-> > > +			meta->table[index].size);
-> > >  	zram->stats.pages_stored--;
-> > >  
-> > > -	zram->table[index].handle = 0;
-> > > -	zram->table[index].size = 0;
-> > > +	meta->table[index].handle = 0;
-> > > +	meta->table[index].size = 0;
-> > >  }
-> > >  
-> > >  static void handle_zero_page(struct bio_vec *bvec)
-> > > @@ -149,20 +150,21 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
-> > >  	int ret = LZO_E_OK;
-> > >  	size_t clen = PAGE_SIZE;
-> > >  	unsigned char *cmem;
-> > > -	unsigned long handle = zram->table[index].handle;
-> > > +	struct zram_meta *meta = zram->meta;
-> > > +	unsigned long handle = meta->table[index].handle;
-> > >  
-> > > -	if (!handle || zram_test_flag(zram, index, ZRAM_ZERO)) {
-> > > +	if (!handle || zram_test_flag(meta, index, ZRAM_ZERO)) {
-> > >  		memset(mem, 0, PAGE_SIZE);
-> > >  		return 0;
-> > >  	}
-> > >  
-> > > -	cmem = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
-> > > -	if (zram->table[index].size == PAGE_SIZE)
-> > > +	cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_RO);
-> > > +	if (meta->table[index].size == PAGE_SIZE)
-> > >  		memcpy(mem, cmem, PAGE_SIZE);
-> > >  	else
-> > > -		ret = lzo1x_decompress_safe(cmem, zram->table[index].size,
-> > > +		ret = lzo1x_decompress_safe(cmem, meta->table[index].size,
-> > >  						mem, &clen);
-> > > -	zs_unmap_object(zram->mem_pool, handle);
-> > > +	zs_unmap_object(meta->mem_pool, handle);
-> > >  
-> > >  	/* Should NEVER happen. Return bio error if it does. */
-> > >  	if (unlikely(ret != LZO_E_OK)) {
-> > > @@ -180,11 +182,11 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
-> > >  	int ret;
-> > >  	struct page *page;
-> > >  	unsigned char *user_mem, *uncmem = NULL;
-> > > -
-> > > +	struct zram_meta *meta = zram->meta;
-> > >  	page = bvec->bv_page;
-> > >  
-> > > -	if (unlikely(!zram->table[index].handle) ||
-> > > -			zram_test_flag(zram, index, ZRAM_ZERO)) {
-> > > +	if (unlikely(!meta->table[index].handle) ||
-> > > +			zram_test_flag(meta, index, ZRAM_ZERO)) {
-> > >  		handle_zero_page(bvec);
-> > >  		return 0;
-> > >  	}
-> > > @@ -232,9 +234,10 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
-> > >  	unsigned long handle;
-> > >  	struct page *page;
-> > >  	unsigned char *user_mem, *cmem, *src, *uncmem = NULL;
-> > > +	struct zram_meta *meta = zram->meta;
-> > >  
-> > >  	page = bvec->bv_page;
-> > > -	src = zram->compress_buffer;
-> > > +	src = meta->compress_buffer;
-> > 
-> > Could you explain compress_buffer is used for what? Thanks for your
-> > clarify! 
+
+
+On 02/05/2013 01:25 PM, Minchan Kim wrote:
+> Hi Lin,
 > 
-> IMHO, it is used for storing compressed result in write path
-> while compress_workmem is used for compression temporally.
-
-Oh, I see, thanks. :)
-
+> On Tue, Feb 05, 2013 at 12:42:48PM +0800, Lin Feng wrote:
+>> Hi Minchan,
+>>
+>> On 02/05/2013 08:58 AM, Minchan Kim wrote:
+>>> Hello,
+>>>
+>>> On Mon, Feb 04, 2013 at 06:04:06PM +0800, Lin Feng wrote:
+>>>> Currently get_user_pages() always tries to allocate pages from movable zone,
+>>>> as discussed in thread https://lkml.org/lkml/2012/11/29/69, in some case users
+>>>> of get_user_pages() is easy to pin user pages for a long time(for now we found
+>>>> that pages pinned as aio ring pages is such case), which is fatal for memory
+>>>> hotplug/remove framework.
+>>>>
+>>>> So the 1st patch introduces a new library function called
+>>>> get_user_pages_non_movable() to pin pages only from zone non-movable in memory.
+>>>> It's a wrapper of get_user_pages() but it makes sure that all pages come from
+>>>> non-movable zone via additional page migration.
+>>>>
+>>>> The 2nd patch gets around the aio ring pages can't be migrated bug caused by
+>>>> get_user_pages() via using the new function. It only works when configed with
+>>>> CONFIG_MEMORY_HOTREMOVE, otherwise it uses the old version of get_user_pages().
+>>>
+>>> CMA has same issue but the problem is the driver developers or any subsystem
+>>> using GUP can't know their pages is in CMA area or not in advance.
+>>> So all of client of GUP should use GUP_NM to work them with CMA/MEMORY_HOTPLUG well?
+>>> Even some driver module in embedded side doesn't open their source code.
+>> Yes, it somehow depends on the users of GUP. In MEMORY_HOTPLUG case, as for most users
+>> of GUP, they will release the pinned pages immediately and to such users they should get
+>> a good performance, using the old style interface is a smart way. And we had better just
+>> deal with the cases we have to by using the new interface.
 > 
-> > 
-> > >  
-> > >  	if (is_partial_io(bvec)) {
-> > >  		/*
-> > > @@ -256,8 +259,8 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
-> > >  	 * System overwrites unused sectors. Free memory associated
-> > >  	 * with this sector now.
-> > >  	 */
-> > > -	if (zram->table[index].handle ||
-> > > -	    zram_test_flag(zram, index, ZRAM_ZERO))
-> > > +	if (meta->table[index].handle ||
-> > > +	    zram_test_flag(meta, index, ZRAM_ZERO))
-> > >  		zram_free_page(zram, index);
-> > >  
-> > >  	user_mem = kmap_atomic(page);
-> > > @@ -276,13 +279,13 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
-> > >  		if (is_partial_io(bvec))
-> > >  			kfree(uncmem);
-> > >  		zram->stats.pages_zero++;
-> > > -		zram_set_flag(zram, index, ZRAM_ZERO);
-> > > +		zram_set_flag(meta, index, ZRAM_ZERO);
-> > >  		ret = 0;
-> > >  		goto out;
-> > >  	}
-> > >  
-> > >  	ret = lzo1x_1_compress(uncmem, PAGE_SIZE, src, &clen,
-> > > -			       zram->compress_workmem);
-> > > +			       meta->compress_workmem);
-> > >  
-> > >  	if (!is_partial_io(bvec)) {
-> > >  		kunmap_atomic(user_mem);
-> > > @@ -303,14 +306,14 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
-> > >  			src = uncmem;
-> > >  	}
-> > >  
-> > > -	handle = zs_malloc(zram->mem_pool, clen);
-> > > +	handle = zs_malloc(meta->mem_pool, clen);
-> > >  	if (!handle) {
-> > >  		pr_info("Error allocating memory for compressed "
-> > >  			"page: %u, size=%zu\n", index, clen);
-> > >  		ret = -ENOMEM;
-> > >  		goto out;
-> > >  	}
-> > > -	cmem = zs_map_object(zram->mem_pool, handle, ZS_MM_WO);
-> > > +	cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
-> > >  
-> > >  	if ((clen == PAGE_SIZE) && !is_partial_io(bvec))
-> > >  		src = kmap_atomic(page);
-> > > @@ -318,10 +321,10 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
-> > >  	if ((clen == PAGE_SIZE) && !is_partial_io(bvec))
-> > >  		kunmap_atomic(src);
-> > >  
-> > > -	zs_unmap_object(zram->mem_pool, handle);
-> > > +	zs_unmap_object(meta->mem_pool, handle);
-> > >  
-> > > -	zram->table[index].handle = handle;
-> > > -	zram->table[index].size = clen;
-> > > +	meta->table[index].handle = handle;
-> > > +	meta->table[index].size = clen;
-> > >  
-> > >  	/* Update stats */
-> > >  	zram_stat64_add(zram, &zram->stats.compr_size, clen);
-> > > @@ -464,34 +467,25 @@ error:
-> > >  void __zram_reset_device(struct zram *zram)
-> > >  {
-> > >  	size_t index;
-> > > +	struct zram_meta *meta;
-> > >  
-> > >  	if (!zram->init_done)
-> > >  		return;
-> > >  
-> > > +	meta = zram->meta;
-> > >  	zram->init_done = 0;
-> > >  
-> > > -	/* Free various per-device buffers */
-> > > -	kfree(zram->compress_workmem);
-> > > -	free_pages((unsigned long)zram->compress_buffer, 1);
-> > > -
-> > > -	zram->compress_workmem = NULL;
-> > > -	zram->compress_buffer = NULL;
-> > > -
-> > >  	/* Free all pages that are still in this zram device */
-> > >  	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
-> > > -		unsigned long handle = zram->table[index].handle;
-> > > +		unsigned long handle = meta->table[index].handle;
-> > >  		if (!handle)
-> > >  			continue;
-> > >  
-> > > -		zs_free(zram->mem_pool, handle);
-> > > +		zs_free(meta->mem_pool, handle);
-> > >  	}
-> > >  
-> > > -	vfree(zram->table);
-> > > -	zram->table = NULL;
-> > > -
-> > > -	zs_destroy_pool(zram->mem_pool);
-> > > -	zram->mem_pool = NULL;
-> > > -
-> > > +	zram_meta_free(zram->meta);
-> > > +	zram->meta = NULL;
-> > >  	/* Reset stats */
-> > >  	memset(&zram->stats, 0, sizeof(zram->stats));
-> > >  
-> > > @@ -506,12 +500,65 @@ void zram_reset_device(struct zram *zram)
-> > >  	up_write(&zram->init_lock);
-> > >  }
-> > >  
-> > > -/* zram->init_lock should be held */
-> > > -int zram_init_device(struct zram *zram)
-> > > +void zram_meta_free(struct zram_meta *meta)
-> > > +{
-> > > +	zs_destroy_pool(meta->mem_pool);
-> > > +	kfree(meta->compress_workmem);
-> > > +	free_pages((unsigned long)meta->compress_buffer, 1);
-> > > +	vfree(meta->table);
-> > > +	kfree(meta);
-> > > +}
-> > > +
-> > > +struct zram_meta *zram_meta_alloc(u64 disksize)
-> > >  {
-> > > -	int ret;
-> > >  	size_t num_pages;
-> > > +	struct zram_meta *meta = kmalloc(sizeof(*meta), GFP_KERNEL);
-> > > +	if (!meta)
-> > > +		goto out;
-> > > +
-> > > +	meta->compress_workmem = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
-> > > +	if (!meta->compress_workmem) {
-> > > +		pr_err("Error allocating compressor working memory!\n");
-> > > +		goto free_meta;
-> > > +	}
-> > > +
-> > > +	meta->compress_buffer =
-> > > +		(void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
-> > > +	if (!meta->compress_buffer) {
-> > > +		pr_err("Error allocating compressor buffer space\n");
-> > > +		goto free_workmem;
-> > > +	}
-> > > +
-> > > +	num_pages = disksize >> PAGE_SHIFT;
-> > > +	meta->table = vzalloc(num_pages * sizeof(*meta->table));
-> > > +	if (!meta->table) {
-> > > +		pr_err("Error allocating zram address table\n");
-> > > +		goto free_buffer;
-> > > +	}
-> > > +
-> > > +	meta->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM);
-> > > +	if (!meta->mem_pool) {
-> > > +		pr_err("Error creating memory pool\n");
-> > > +		goto free_table;
-> > > +	}
-> > > +
-> > > +	return meta;
-> > > +
-> > > +free_table:
-> > > +	vfree(meta->table);
-> > > +free_buffer:
-> > > +	free_pages((unsigned long)meta->compress_buffer, 1);
-> > > +free_workmem:
-> > > +	kfree(meta->compress_workmem);
-> > > +free_meta:
-> > > +	kfree(meta);
-> > > +	meta = NULL;
-> > > +out:
-> > > +	return meta;
-> > > +}
-> > >  
-> > > +void zram_init_device(struct zram *zram, struct zram_meta *meta)
-> > > +{
-> > >  	if (zram->disksize > 2 * (totalram_pages << PAGE_SHIFT)) {
-> > >  		pr_info(
-> > >  		"There is little point creating a zram of greater than "
-> > > @@ -526,51 +573,13 @@ int zram_init_device(struct zram *zram)
-> > >  		);
-> > >  	}
-> > >  
-> > > -	zram->compress_workmem = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
-> > > -	if (!zram->compress_workmem) {
-> > > -		pr_err("Error allocating compressor working memory!\n");
-> > > -		ret = -ENOMEM;
-> > > -		goto fail_no_table;
-> > > -	}
-> > > -
-> > > -	zram->compress_buffer =
-> > > -		(void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
-> > > -	if (!zram->compress_buffer) {
-> > > -		pr_err("Error allocating compressor buffer space\n");
-> > > -		ret = -ENOMEM;
-> > > -		goto fail_no_table;
-> > > -	}
-> > > -
-> > > -	num_pages = zram->disksize >> PAGE_SHIFT;
-> > > -	zram->table = vzalloc(num_pages * sizeof(*zram->table));
-> > > -	if (!zram->table) {
-> > > -		pr_err("Error allocating zram address table\n");
-> > > -		ret = -ENOMEM;
-> > > -		goto fail_no_table;
-> > > -	}
-> > > -
-> > >  	/* zram devices sort of resembles non-rotational disks */
-> > >  	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
-> > >  
-> > > -	zram->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM);
-> > > -	if (!zram->mem_pool) {
-> > > -		pr_err("Error creating memory pool\n");
-> > > -		ret = -ENOMEM;
-> > > -		goto fail;
-> > > -	}
-> > > -
-> > > +	zram->meta = meta;
-> > >  	zram->init_done = 1;
-> > >  
-> > >  	pr_debug("Initialization done!\n");
-> > > -	return 0;
-> > > -
-> > > -fail_no_table:
-> > > -	/* To prevent accessing table entries during cleanup */
-> > > -	zram->disksize = 0;
-> > > -fail:
-> > > -	__zram_reset_device(zram);
-> > > -	pr_err("Initialization failed: err=%d\n", ret);
-> > > -	return ret;
-> > >  }
-> > >  
-> > >  static void zram_slot_free_notify(struct block_device *bdev,
-> > > diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
-> > > index 5b671d1..2d1a3f1 100644
-> > > --- a/drivers/staging/zram/zram_drv.h
-> > > +++ b/drivers/staging/zram/zram_drv.h
-> > > @@ -83,11 +83,15 @@ struct zram_stats {
-> > >  	u32 bad_compress;	/* % of pages with compression ratio>=75% */
-> > >  };
-> > >  
-> > > -struct zram {
-> > > -	struct zs_pool *mem_pool;
-> > > +struct zram_meta {
-> > >  	void *compress_workmem;
-> > >  	void *compress_buffer;
-> > >  	struct table *table;
-> > > +	struct zs_pool *mem_pool;
-> > > +};
-> > > +
-> > > +struct zram {
-> > > +	struct zram_meta *meta;
-> > >  	spinlock_t stat64_lock;	/* protect 64-bit stats */
-> > >  	struct rw_semaphore lock; /* protect compression buffers and table
-> > >  				   * against concurrent read and writes */
-> > > @@ -111,7 +115,9 @@ unsigned int zram_get_num_devices(void);
-> > >  extern struct attribute_group zram_disk_attr_group;
-> > >  #endif
-> > >  
-> > > -extern int zram_init_device(struct zram *zram);
-> > >  extern void zram_reset_device(struct zram *zram);
-> > > +extern struct zram_meta *zram_meta_alloc(u64 disksize);
-> > > +extern void zram_meta_free(struct zram_meta *meta);
-> > > +extern void zram_init_device(struct zram *zram, struct zram_meta *meta);
-> > >  
-> > >  #endif
-> > > diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/staging/zram/zram_sysfs.c
-> > > index 369db12..e6a929d 100644
-> > > --- a/drivers/staging/zram/zram_sysfs.c
-> > > +++ b/drivers/staging/zram/zram_sysfs.c
-> > > @@ -56,22 +56,26 @@ static ssize_t disksize_store(struct device *dev,
-> > >  		struct device_attribute *attr, const char *buf, size_t len)
-> > >  {
-> > >  	u64 disksize;
-> > > +	struct zram_meta *meta;
-> > >  	struct zram *zram = dev_to_zram(dev);
-> > >  
-> > >  	disksize = memparse(buf, NULL);
-> > >  	if (!disksize)
-> > >  		return -EINVAL;
-> > >  
-> > > +	disksize = PAGE_ALIGN(disksize);
-> > > +	meta = zram_meta_alloc(disksize);
-> > >  	down_write(&zram->init_lock);
-> > >  	if (zram->init_done) {
-> > >  		up_write(&zram->init_lock);
-> > > +		zram_meta_free(meta);
-> > >  		pr_info("Cannot change disksize for initialized device\n");
-> > >  		return -EBUSY;
-> > >  	}
-> > >  
-> > > -	zram->disksize = PAGE_ALIGN(disksize);
-> > > +	zram->disksize = disksize;
-> > >  	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
-> > > -	zram_init_device(zram);
-> > > +	zram_init_device(zram, meta);
-> > >  	up_write(&zram->init_lock);
-> > >  
-> > >  	return len;
-> > > @@ -182,9 +186,10 @@ static ssize_t mem_used_total_show(struct device *dev,
-> > >  {
-> > >  	u64 val = 0;
-> > >  	struct zram *zram = dev_to_zram(dev);
-> > > +	struct zram_meta *meta = zram->meta;
-> > >  
-> > >  	if (zram->init_done)
-> > > -		val = zs_get_total_size_bytes(zram->mem_pool);
-> > > +		val = zs_get_total_size_bytes(meta->mem_pool);
-> > >  
-> > >  	return sprintf(buf, "%llu\n", val);
-> > >  }
-> > 
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Hmm, I think you can't make sure most of user for MEMORY_HOTPLUG will release pinned pages
+> immediately. Because MEMORY_HOTPLUG could be used for embedded system for reducing power
+> by PASR and some drivers in embedded could use GUP anytime and anywhere. They can't know
+> in advance they will use pinned pages long time or release in short time because it depends
+> on some event like user's response which is very not predetermined.
+> So for solving it, we can add some WARN_ON in CMA/MEMORY_HOTPLUG part just in case of
+> failing migration by page count and then, investigate they are really using GUP and it's
+> REALLY a culprit. If so, yell to them "Please use GUP_NM instead"?
+> 
+> Yes. it could be done but it would be rather trobulesome job.
+Yes WARN_ON may be easy while troubleshooting for finding the immigrate-able page is 
+a big job.
+If we want to kill all the potential immigrate-able pages caused by GUP we'd better use the
+*non_movable* version of GUP.
+But in some server environment we want to keep the performance but also want to use hotremove
+feature in case. Maybe patch the place as we need is a trade off for such support.
+
+Mel also said in the last discussion:
+
+On 11/30/2012 07:00 PM, Mel Gorman wrote:> On Thu, Nov 29, 2012 at 11:55:02PM -0800, Andrew Morton wrote:
+>> Well, that's a fairly low-level implementation detail.  A more typical
+>> approach would be to add a new get_user_pages_non_movable() or such. 
+>> That would probably have the same signature as get_user_pages(), with
+>> one additional argument.  Then get_user_pages() becomes a one-line
+>> wrapper which passes in a particular value of that argument.
+>>
+> 
+> That is going in the direction that all pinned pages become MIGRATE_UNMOVABLE
+> allocations.  That will impact THP availability by increasing the number
+> of MIGRATE_UNMOVABLE blocks that exist and it would hit every user --
+> not just those that care about ZONE_MOVABLE.
+> 
+> I'm likely to NAK such a patch if it's only about node hot-remove because
+> it's much more of a corner case than wanting to use THP.
+> 
+> I would prefer if get_user_pages() checked if the page it was about to
+> pin was in ZONE_MOVABLE and if so, migrate it at that point before it's
+> pinned. It'll be expensive but will guarantee ZONE_MOVABLE availability
+> if that's what they want. The CMA people might also want to take
+> advantage of this if the page happened to be in the MIGRATE_CMA
+> pageblock.
 > 
 
+So it may not a good idea that we all fall into calling the *non_movable* version of
+GUP when CONFIG_MIGRATE_ISOLATE is on. What do you think?
+
+> #ifdef CONFIG_MIGRATE_ISOLATE
+> 
+> int get_user_pages_non_movable()
+> {
+>         ..
+>         old_get_user_pages()
+>         ..
+> }
+> 
+> int get_user_pages()
+> {
+>         return get_user_pages_non_movable();
+> }
+> #else
+> int get_user_pages()
+> {
+>         return old_get_user_pages()
+> }
+> #endif
+
+
+thanks,
+linfeng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
