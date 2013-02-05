@@ -1,42 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 299F86B0002
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 09:08:55 -0500 (EST)
-Date: Tue, 5 Feb 2013 15:08:52 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: Support variable-sized huge pages
-Message-ID: <20130205140852.GU30577@one.firstfloor.org>
-References: <1359620590.1391.5.camel@kernel> <20130131105227.GI30577@one.firstfloor.org> <1360043326.2403.2.camel@kernel.cn.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1360043326.2403.2.camel@kernel.cn.ibm.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 78C706B0002
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 09:12:49 -0500 (EST)
+Message-ID: <51111377.4030502@parallels.com>
+Date: Tue, 5 Feb 2013 18:13:11 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [LSF/MM TOPIC] Few things I would like to discuss
+References: <20130205123515.GA26229@dhcp22.suse.cz>
+In-Reply-To: <20130205123515.GA26229@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Mon, Feb 04, 2013 at 11:48:46PM -0600, Ric Mason wrote:
-> Hi Andi,
-> On Thu, 2013-01-31 at 11:52 +0100, Andi Kleen wrote:
-> > On Thu, Jan 31, 2013 at 02:23:10AM -0600, Ric Mason wrote:
-> > > Hi all,
-> > > 
-> > > It seems that Andi's "Support more pagesizes for
-> > > MAP_HUGETLB/SHM_HUGETLB" patch has already merged. According to the
-> > > patch, x86 will support 2MB and 1GB huge pages. But I just see 
-> > > hugepages-2048kB under /sys/kernel/mm/hugepages/ on my x86_32 PAE desktop.
-> > > Where is 1GB huge pages?
-> > 
-> > 1GB pages are only supported under 64bit kernels, and also
-> > only if you allocate them explicitely with boot options.
-> 
-> I am curious about how can buddy system alloc 1GB huge pages? the most
-> order buddy system supports is 10. Could you explain to me? 
+On 02/05/2013 04:35 PM, Michal Hocko wrote:
+> Hi,
+> I would like to discuss the following topics:
+> * memcg oom should be more sensitive to locked contexts because now
+>   it is possible that a task is sitting in mem_cgroup_handle_oom holding
+>   some other lock (e.g. i_mutex or mmap_sem) up the chain which might
+>   block other task to terminate on OOM so we basically end up in a
+>   deadlock. Almost all memcg charges happen from the page fault path
+>   where we can retry but one class of them happen from
+>   add_to_page_cache_locked and that is a bit more problematic.
 
-It can't, that is why you can only allocate them at boot time.
+This is not the case with kmemcg on. Those charges will usually happen
+from the slab/slub grow_cache mechanism, or during fork. This is not to
+invalidate your reasoning - since those are usually tricky in terms of
+context as well, and would benefit just as much - but to complete it.
 
--Andi
+> * I would really like to finally settle down on something wrt. soft
+>   limit reclaim. I am pretty sure Ying would like to discuss this topic
+>   as well so I will not go into details about it. I will post what I
+>   have before the conference so that we can discuss her approach and
+>   what was the primary disagreement the last time. I can go into more
+>   ditails as a follow up if people are interested of course.
+
+This interests me very much as well.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
