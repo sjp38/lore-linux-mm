@@ -1,63 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 3CA006B0002
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 17:13:34 -0500 (EST)
-Date: Tue, 5 Feb 2013 14:13:32 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/3] mm: rename confusing function names
-Message-Id: <20130205141332.04fcceac.akpm@linux-foundation.org>
-In-Reply-To: <20130205192640.GC6481@cmpxchg.org>
-References: <51113CE3.5090000@gmail.com>
-	<20130205192640.GC6481@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 1F4EE6B0007
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 17:20:18 -0500 (EST)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Tue, 5 Feb 2013 17:20:17 -0500
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 6BED46E801C
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 17:20:11 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r15MKCiV296036
+	for <linux-mm@kvack.org>; Tue, 5 Feb 2013 17:20:12 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r15MKCbC000850
+	for <linux-mm@kvack.org>; Tue, 5 Feb 2013 20:20:12 -0200
+Message-ID: <5111859B.7060004@linux.vnet.ibm.com>
+Date: Tue, 05 Feb 2013 14:20:11 -0800
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 6/9] mm/page_alloc: add informative debugging message
+ in page_outside_zone_boundaries()
+References: <1358463181-17956-1-git-send-email-cody@linux.vnet.ibm.com> <1358463181-17956-7-git-send-email-cody@linux.vnet.ibm.com> <20130201162848.74bdb2a7.akpm@linux-foundation.org> <20130201162957.3ec618cf.akpm@linux-foundation.org>
+In-Reply-To: <20130201162957.3ec618cf.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Linux MM <linux-mm@kvack.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, m.szyprowski@samsung.com, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux MM <linux-mm@kvack.org>, David Hansen <dave@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>
 
-On Tue, 5 Feb 2013 14:26:40 -0500
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On 02/01/2013 04:29 PM, Andrew Morton wrote:
+> On Fri, 1 Feb 2013 16:28:48 -0800
+> Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+>>> +	if (ret)
+>>> +		pr_debug("page %lu outside zone [ %lu - %lu ]\n",
+>>> +			pfn, start_pfn, start_pfn + sp);
+>>> +
+>>>   	return ret;
+>>>   }
+>>
+>> As this condition leads to a VM_BUG_ON(), "pr_debug" seems rather wimpy
+>> and I doubt if we need to be concerned about flooding the console.
+>>
+>> I'll switch it to pr_err.
+>
+> otoh, as nobody has ever hit that VM_BUG_ON() (yes?), do we really need
+> the patch?
 
-> On Wed, Feb 06, 2013 at 01:09:55AM +0800, Zhang Yanfei wrote:
-> > Function nr_free_zone_pages, nr_free_buffer_pages and nr_free_pagecache_pages
-> > are horribly badly named, they count present_pages - pages_high within zones
-> > instead of free pages, so why not rename them to reasonable names, not cofusing
-> > people.
-> > 
-> > patch2 and patch3 are based on patch1. So please apply patch1 first.
-> > 
-> > Zhang Yanfei (3):
-> >   mm: rename nr_free_zone_pages to nr_free_zone_high_pages
-> >   mm: rename nr_free_buffer_pages to nr_free_buffer_high_pages
-> >   mm: rename nr_free_pagecache_pages to nr_free_pagecache_high_pages
-> 
-> I don't feel that this is an improvement.
-> 
-> As you said, the "free" is already misleading, because those pages
-> might all be allocated.  "High" makes me think not just of highmem,
-> but drug abuse in general.
-> 
-> nr_available_*_pages?  I don't know, but if we go through with all
-> that churn, it had better improve something.
+I've hit this bug while developing some code that moves pages between zones.
 
-Yes, those names are ghastly.
-
-Here's an idea: accurately document the functions with code comments. 
-Once this is done, that documentation may well suggest a good name ;)
-
-
-While we're there, please note that nr_free_buffer_pages() has a *lot*
-of callers.  Generally it's code which is trying to work out what is an
-appropriate size for preallocated caching space, lookup tables, etc. 
-
-That's a rather hopeless objective, given memory hotplug, mlock, etc. 
-But please do take a look at *why* these callers are calling
-nr_free_buffer_pages() and let's ensure that both the implementation
-and name are appropriate to their requirements.
-
-
+As it helped me debug that issue with my own code, I could see how 
+another developer might be helped by it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
