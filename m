@@ -1,82 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 54EC56B0005
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 13:37:39 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so184410dak.28
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2013 10:37:38 -0800 (PST)
-Date: Tue, 5 Feb 2013 10:39:48 -0800
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug
- framework
-Message-ID: <20130205183948.GA19026@kroah.com>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
- <7003418.onqVlaaHJS@vostro.rjw.lan>
- <20130205000447.GA21782@kroah.com>
- <4225828.6MQHJn7Yzr@vostro.rjw.lan>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 4BF696B0007
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 13:38:03 -0500 (EST)
+Date: Tue, 5 Feb 2013 13:37:53 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2] memcg: reduce the size of struct memcg 244-fold.
+Message-ID: <20130205183753.GA6481@cmpxchg.org>
+References: <1359009996-5350-1-git-send-email-glommer@parallels.com>
+ <xr93r4lbrpdk.fsf@gthelen.mtv.corp.google.com>
+ <20130124155105.85dae9d9.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4225828.6MQHJn7Yzr@vostro.rjw.lan>
+In-Reply-To: <20130124155105.85dae9d9.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Toshi Kani <toshi.kani@hp.com>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-On Tue, Feb 05, 2013 at 12:11:17PM +0100, Rafael J. Wysocki wrote:
-> On Monday, February 04, 2013 04:04:47 PM Greg KH wrote:
-> > On Tue, Feb 05, 2013 at 12:52:30AM +0100, Rafael J. Wysocki wrote:
-> > > You'd probably never try to hot-remove a disk before unmounting filesystems
-> > > mounted from it or failing it as a RAID component and nobody sane wants the
-> > > kernel to do things like that automatically when the user presses the eject
-> > > button.  In my opinion we should treat memory eject, or CPU package eject, or
-> > > PCI host bridge eject in exactly the same way: Don't eject if it is not
-> > > prepared for ejecting in the first place.
+On Thu, Jan 24, 2013 at 03:51:05PM -0800, Andrew Morton wrote:
+> On Wed, 23 Jan 2013 23:50:31 -0800
+> Greg Thelen <gthelen@google.com> wrote:
+> 
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -172,7 +172,7 @@ struct mem_cgroup_per_node {
+> > >  };
+> > >  
+> > >  struct mem_cgroup_lru_info {
+> > > -	struct mem_cgroup_per_node *nodeinfo[MAX_NUMNODES];
+> > > +	struct mem_cgroup_per_node *nodeinfo[0];
 > > 
-> > Bad example, we have disks hot-removed all the time without any
-> > filesystems being unmounted, and have supported this since the 2.2 days
-> > (although we didn't get it "right" until 2.6.)
+> > It seems like a VM_BUG_ON() in mem_cgroup_zoneinfo() asserting that the
+> > nid index is less than nr_node_ids would be good at catching illegal
+> > indexes.  I don't see any illegal indexes in your patch, but I fear that
+> > someday a MAX_NUMNODES based for() loop might sneak in.
 > 
-> I actually don't think it is really bad, because it exposes the problem nicely.
+> Can't hurt ;)
 > 
-> Namely, there are two arguments that can be made here.  The first one is the
-> usability argument: Users should always be allowed to do what they want,
-> because it is [explicit content] annoying if software pretends to know better
-> what to do than the user (it is a convenience argument too, because usually
-> it's *easier* to allow users to do what they want).  The second one is the
-> data integrity argument: Operations that may lead to data loss should never
-> be carried out, because it is [explicit content] disappointing to lose valuable
-> stuff by a stupid mistake if software allows that mistake to be made (that also
-> may be costly in terms of real money).
+> > Tangential question: why use inline here?  I figure that modern
+> > compilers are good at making inlining decisions.
 > 
-> You seem to believe that we should always follow the usability argument, while
-> Toshi seems to be thinking that (at least in the case of the "system" devices),
-> the data integrity argument is more important.  They are both valid arguments,
-> however, and they are in conflict, so this is a matter of balance.
+> And that'll save some disk space.
 > 
-> You're saying that in the case of disks we always follow the usability argument
-> entirely.  I'm fine with that, although I suspect that some people may not be
-> considering this as the right balance.
+> This?
 > 
-> Toshi seems to be thinking that for the hotplug of memory/CPUs/host bridges we
-> should always follow the data integrity argument entirely, because the users of
-> that feature value their data so much that they pretty much don't care about
-> usability.  That very well may be the case, so I'm fine with that too, although
-> I'm sure there are people who'll argue that this is not the right balance
-> either.
-> 
-> Now, the point is that we *can* do what Toshi is arguing for and that doesn't
-> seem to be overly complicated, so my question is: Why don't we do that, at
-> least to start with?  If it turns out eventually that the users care about
-> usability too, after all, we can add a switch to adjust things more to their
-> liking.  Still, we can very well do that later.
+> --- a/mm/memcontrol.c~memcg-reduce-the-size-of-struct-memcg-244-fold-fix
+> +++ a/mm/memcontrol.c
+> @@ -381,7 +381,7 @@ enum {
+>  		((1 << KMEM_ACCOUNTED_ACTIVE) | (1 << KMEM_ACCOUNTED_ACTIVATED))
+>  
+>  #ifdef CONFIG_MEMCG_KMEM
+> -static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
+> +static void memcg_kmem_set_active(struct mem_cgroup *memcg)
+>  {
+>  	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+>  }
 
-Ok, I'd much rather deal with reviewing actual implementations than
-talking about theory at this point in time, so let's see what you all
-can come up with next and I'll be glad to review it.
-
-thanks,
-
-greg k-h
+I don't disapprove, but it's the wrong function for this patch.
+Should be memcg_size().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
