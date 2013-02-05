@@ -1,103 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 2E52D6B0007
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 14:23:12 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id kl14so312023pab.4
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2013 11:23:11 -0800 (PST)
-Date: Tue, 5 Feb 2013 11:25:20 -0800
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] zsmalloc: Add Kconfig for enabling PTE method
-Message-ID: <20130205192520.GA8441@kroah.com>
-References: <1359937421-19921-1-git-send-email-minchan@kernel.org>
- <20130204185146.GA31284@kroah.com>
- <20130205000854.GC2610@blaptop>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id B98F76B0009
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 14:26:50 -0500 (EST)
+Date: Tue, 5 Feb 2013 14:26:40 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/3] mm: rename confusing function names
+Message-ID: <20130205192640.GC6481@cmpxchg.org>
+References: <51113CE3.5090000@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130205000854.GC2610@blaptop>
+In-Reply-To: <51113CE3.5090000@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Cc: akpm@linux-foundation.org, Linux MM <linux-mm@kvack.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, m.szyprowski@samsung.com, linux-kernel@vger.kernel.org
 
-On Tue, Feb 05, 2013 at 09:08:54AM +0900, Minchan Kim wrote:
-> Hi Greg,
+On Wed, Feb 06, 2013 at 01:09:55AM +0800, Zhang Yanfei wrote:
+> Function nr_free_zone_pages, nr_free_buffer_pages and nr_free_pagecache_pages
+> are horribly badly named, they count present_pages - pages_high within zones
+> instead of free pages, so why not rename them to reasonable names, not cofusing
+> people.
 > 
-> On Mon, Feb 04, 2013 at 10:51:46AM -0800, Greg Kroah-Hartman wrote:
-> > On Mon, Feb 04, 2013 at 09:23:41AM +0900, Minchan Kim wrote:
-> > > Zsmalloc has two methods 1) copy-based and 2) pte based to access
-> > > allocations that span two pages.
-> > > You can see history why we supported two approach from [1].
-> > > 
-> > > But it was bad choice that adding hard coding to select architecture
-> > > which want to use pte based method. This patch removed it and adds
-> > > new Kconfig to select the approach.
-> > > 
-> > > This patch is based on next-20130202.
-> > > 
-> > > [1] https://lkml.org/lkml/2012/7/11/58
-> > > 
-> > > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > > Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> > > Cc: Nitin Gupta <ngupta@vflare.org>
-> > > Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
-> > > Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
-> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > > ---
-> > >  drivers/staging/zsmalloc/Kconfig         |   12 ++++++++++++
-> > >  drivers/staging/zsmalloc/zsmalloc-main.c |   11 -----------
-> > >  2 files changed, 12 insertions(+), 11 deletions(-)
-> > > 
-> > > diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-> > > index 9084565..2359123 100644
-> > > --- a/drivers/staging/zsmalloc/Kconfig
-> > > +++ b/drivers/staging/zsmalloc/Kconfig
-> > > @@ -8,3 +8,15 @@ config ZSMALLOC
-> > >  	  non-standard allocator interface where a handle, not a pointer, is
-> > >  	  returned by an alloc().  This handle must be mapped in order to
-> > >  	  access the allocated space.
-> > > +
-> > > +config ZSMALLOC_PGTABLE_MAPPING
-> > > +        bool "Use page table mapping to access allocations that span two pages"
-> > > +        depends on ZSMALLOC
-> > > +        default n
-> > > +        help
-> > > +	  By default, zsmalloc uses a copy-based object mapping method to access
-> > > +	  allocations that span two pages. However, if a particular architecture
-> > > +	  performs VM mapping faster than copying, then you should select this.
-> > > +	  This causes zsmalloc to use page table mapping rather than copying
-> > > +	  for object mapping. You can check speed with zsmalloc benchmark[1].
-> > > +	  [1] https://github.com/spartacus06/zsmalloc
-> > > diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-> > > index 06f73a9..b161ca1 100644
-> > > --- a/drivers/staging/zsmalloc/zsmalloc-main.c
-> > > +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-> > > @@ -218,17 +218,6 @@ struct zs_pool {
-> > >  #define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
-> > >  #define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
-> > >  
-> > > -/*
-> > > - * By default, zsmalloc uses a copy-based object mapping method to access
-> > > - * allocations that span two pages. However, if a particular architecture
-> > > - * performs VM mapping faster than copying, then it should be added here
-> > > - * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
-> > > - * page table mapping rather than copying for object mapping.
-> > > -*/
-> > > -#if defined(CONFIG_ARM)
-> > > -#define USE_PGTABLE_MAPPING
-> > > -#endif
-> > 
-> > Did you test this?  I don't see the new config value you added actually
-> > do anything in this code.  Also, if I select it incorrectly on ARM, or
+> patch2 and patch3 are based on patch1. So please apply patch1 first.
 > 
-> *slaps self*
+> Zhang Yanfei (3):
+>   mm: rename nr_free_zone_pages to nr_free_zone_high_pages
+>   mm: rename nr_free_buffer_pages to nr_free_buffer_high_pages
+>   mm: rename nr_free_pagecache_pages to nr_free_pagecache_high_pages
 
-Ok, so I'll drop this patch now.  As for what to do instead, I have no
-idea, sorry, but the others should.
+I don't feel that this is an improvement.
 
-thanks,
+As you said, the "free" is already misleading, because those pages
+might all be allocated.  "High" makes me think not just of highmem,
+but drug abuse in general.
 
-greg k-h
+nr_available_*_pages?  I don't know, but if we go through with all
+that churn, it had better improve something.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
