@@ -1,40 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 2DA246B0005
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 12:08:31 -0500 (EST)
-Message-ID: <51113C8A.2060908@imgtec.com>
-Date: Tue, 5 Feb 2013 17:08:26 +0000
-From: James Hogan <james.hogan@imgtec.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 560106B0008
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 12:10:06 -0500 (EST)
+Received: by mail-da0-f52.google.com with SMTP id f10so141637dak.25
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2013 09:10:05 -0800 (PST)
+Message-ID: <51113CE3.5090000@gmail.com>
+Date: Wed, 06 Feb 2013 01:09:55 +0800
+From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
 MIME-Version: 1.0
-Subject: Re: next-20130204 - bisected slab problem to "slab: Common constants
- for kmalloc boundaries"
-References: <510FE051.7080107@imgtec.com> <51100E79.9080101@wwwdotorg.org> <alpine.DEB.2.02.1302042019170.32396@gentwo.org> <0000013cab3780f7-5e49ef46-e41a-4ff2-88f8-46bf216d677e-000000@email.amazonses.com>
-In-Reply-To: <0000013cab3780f7-5e49ef46-e41a-4ff2-88f8-46bf216d677e-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: [PATCH 0/3] mm: rename confusing function names
+Content-Type: text/plain; charset=GB2312
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Stephen Warren <swarren@wwwdotorg.org>, linux-next <linux-next@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: akpm@linux-foundation.org, Linux MM <linux-mm@kvack.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, m.szyprowski@samsung.com
+Cc: linux-kernel@vger.kernel.org
 
-On 05/02/13 16:36, Christoph Lameter wrote:
-> OK I was able to reproduce it by setting ARCH_DMA_MINALIGN in slab.h. This
-> patch fixes it here:
-> 
-> 
-> Subject: slab: Handle ARCH_DMA_MINALIGN correctly
-> 
-> A fixed KMALLOC_SHIFT_LOW does not work for arches with higher alignment
-> requirements.
-> 
-> Determine KMALLOC_SHIFT_LOW from ARCH_DMA_MINALIGN instead.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+Function nr_free_zone_pages, nr_free_buffer_pages and nr_free_pagecache_pages
+are horribly badly named, they count present_pages - pages_high within zones
+instead of free pages, so why not rename them to reasonable names, not cofusing
+people.
 
-Thanks, your patch fixes it for me.
+patch2 and patch3 are based on patch1. So please apply patch1 first.
 
-Cheers
-James
+Zhang Yanfei (3):
+  mm: rename nr_free_zone_pages to nr_free_zone_high_pages
+  mm: rename nr_free_buffer_pages to nr_free_buffer_high_pages
+  mm: rename nr_free_pagecache_pages to nr_free_pagecache_high_pages
+
+ arch/ia64/mm/contig.c          |    3 ++-
+ arch/ia64/mm/discontig.c       |    3 ++-
+ drivers/mmc/card/mmc_test.c    |    4 ++--
+ fs/buffer.c                    |    2 +-
+ fs/nfsd/nfs4state.c            |    2 +-
+ fs/nfsd/nfssvc.c               |    2 +-
+ include/linux/swap.h           |    4 ++--
+ mm/huge_memory.c               |    2 +-
+ mm/memory_hotplug.c            |    4 ++--
+ mm/page-writeback.c            |    2 +-
+ mm/page_alloc.c                |   22 ++++++++++++----------
+ net/9p/trans_virtio.c          |    2 +-
+ net/ipv4/tcp.c                 |    4 ++--
+ net/ipv4/udp.c                 |    2 +-
+ net/netfilter/ipvs/ip_vs_ctl.c |    2 +-
+ net/sctp/protocol.c            |    2 +-
+ 16 files changed, 33 insertions(+), 29 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
