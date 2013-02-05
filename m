@@ -1,98 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 330D26B000D
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 12:14:41 -0500 (EST)
-Received: by mail-da0-f49.google.com with SMTP id t11so148577daj.8
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2013 09:14:40 -0800 (PST)
-Message-ID: <51113DF6.9040308@gmail.com>
-Date: Wed, 06 Feb 2013 01:14:30 +0800
-From: Zhang Yanfei <zhangyanfei.yes@gmail.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 5908D6B0008
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 12:18:10 -0500 (EST)
+Date: Tue, 5 Feb 2013 17:18:05 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 5/11] ksm: get_ksm_page locked
+Message-ID: <20130205171805.GK21389@suse.de>
+References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
+ <alpine.LNX.2.00.1301251759470.29196@eggly.anvils>
 MIME-Version: 1.0
-Subject: [PATCH 3/3] mm: rename nr_free_pagecache_pages to nr_free_pagecache_high_pages
-References: <51113CE3.5090000@gmail.com>
-In-Reply-To: <51113CE3.5090000@gmail.com>
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1301251759470.29196@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Linux MM <linux-mm@kvack.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, m.szyprowski@samsung.com
-Cc: linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+On Fri, Jan 25, 2013 at 06:00:50PM -0800, Hugh Dickins wrote:
+> In some places where get_ksm_page() is used, we need the page to be locked.
+> 
+> When KSM migration is fully enabled, we shall want that to make sure that
+> the page just acquired cannot be migrated beneath us (raised page count is
+> only effective when there is serialization to make sure migration notices).
+> Whereas when navigating through the stable tree, we certainly do not want
+> to lock each node (raised page count is enough to guarantee the memcmps,
+> even if page is migrated to another node).
+> 
+> Since we're about to add another use case, add the locked argument to
+> get_ksm_page() now.
+> 
+> Hmm, what's that rcu_read_lock() about?  Complete misunderstanding, I
+> really got the wrong end of the stick on that!  There's a configuration
+> in which page_cache_get_speculative() can do something cheaper than
+> get_page_unless_zero(), relying on its caller's rcu_read_lock() to have
+> disabled preemption for it.  There's no need for rcu_read_lock() around
+> get_page_unless_zero() (and mapping checks) here.  Cut out that
+> silliness before making this any harder to understand.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+>  mm/ksm.c |   23 +++++++++++++----------
+>  1 file changed, 13 insertions(+), 10 deletions(-)
+> 
+> --- mmotm.orig/mm/ksm.c	2013-01-25 14:36:53.244205966 -0800
+> +++ mmotm/mm/ksm.c	2013-01-25 14:36:58.856206099 -0800
+> @@ -514,15 +514,14 @@ static void remove_node_from_stable_tree
+>   * but this is different - made simpler by ksm_thread_mutex being held, but
+>   * interesting for assuming that no other use of the struct page could ever
+>   * put our expected_mapping into page->mapping (or a field of the union which
+> - * coincides with page->mapping).  The RCU calls are not for KSM at all, but
+> - * to keep the page_count protocol described with page_cache_get_speculative.
+> + * coincides with page->mapping).
+>   *
+>   * Note: it is possible that get_ksm_page() will return NULL one moment,
+>   * then page the next, if the page is in between page_freeze_refs() and
+>   * page_unfreeze_refs(): this shouldn't be a problem anywhere, the page
+>   * is on its way to being freed; but it is an anomaly to bear in mind.
+>   */
+> -static struct page *get_ksm_page(struct stable_node *stable_node)
+> +static struct page *get_ksm_page(struct stable_node *stable_node, bool locked)
+>  {
 
-This function actually counts RAM pages that are above high watermark within
-all zones, so rename it to a reasonable name.
+The naming is unhelpful :(
 
-Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
----
- include/linux/swap.h |    2 +-
- mm/memory_hotplug.c  |    4 ++--
- mm/page_alloc.c      |    7 ++++---
- 3 files changed, 7 insertions(+), 6 deletions(-)
+Because the second parameter is called "locked", it implies that the
+caller of this function holds the page lock (which is obviously very
+silly). ret_locked maybe?
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 0df8905..9a8ab19 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -217,7 +217,7 @@ extern unsigned long totalram_pages;
- extern unsigned long totalreserve_pages;
- extern unsigned long dirty_balance_reserve;
- extern unsigned int nr_free_buffer_high_pages(void);
--extern unsigned int nr_free_pagecache_pages(void);
-+extern unsigned int nr_free_pagecache_high_pages(void);
- 
- /* Definition of global_page_state not available yet */
- #define nr_free_pages() global_page_state(NR_FREE_PAGES)
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index d04ed87..6e482c7 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -777,7 +777,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	if (onlined_pages)
- 		kswapd_run(zone_to_nid(zone));
- 
--	vm_total_pages = nr_free_pagecache_pages();
-+	vm_total_pages = nr_free_pagecache_high_pages();
- 
- 	writeback_set_ratelimit();
- 
-@@ -1356,7 +1356,7 @@ repeat:
- 	if (arg.status_change_nid >= 0)
- 		kswapd_stop(node);
- 
--	vm_total_pages = nr_free_pagecache_pages();
-+	vm_total_pages = nr_free_pagecache_high_pages();
- 	writeback_set_ratelimit();
- 
- 	memory_notify(MEM_OFFLINE, &arg);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a021d91..6e0d91a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2816,9 +2816,10 @@ unsigned int nr_free_buffer_high_pages(void)
- EXPORT_SYMBOL_GPL(nr_free_buffer_high_pages);
- 
- /*
-- * Amount of free RAM allocatable within all zones
-+ * Amount of free RAM allocatable that is above high watermark
-+ * within all zones
-  */
--unsigned int nr_free_pagecache_pages(void)
-+unsigned int nr_free_pagecache_high_pages(void)
- {
- 	return nr_free_zone_high_pages(gfp_zone(GFP_HIGHUSER_MOVABLE));
- }
-@@ -3649,7 +3650,7 @@ void __ref build_all_zonelists(pg_data_t *pgdat, struct zone *zone)
- 		stop_machine(__build_all_zonelists, pgdat, NULL);
- 		/* cpuset refresh routine should be here */
- 	}
--	vm_total_pages = nr_free_pagecache_pages();
-+	vm_total_pages = nr_free_pagecache_high_pages();
- 	/*
- 	 * Disable grouping by mobility if the number of pages in the
- 	 * system is too low to allow the mechanism to work. It would be
+As the function is akin to find_lock_page I would  prefer if there was
+a new get_lock_ksm_page() instead of locking depending on the value of a
+parameter. We can do this because expected_mapping is recorded by the
+stable_node and we only need to recalculate it if the page has been
+successfully pinned. We calculate the expected value twice but that's
+not earth shattering. It'd look something like;
+
+/*
+ * get_lock_ksm_page: Similar to get_ksm_page except returns with page
+ * locked and pinned
+ */
+static struct page *get_lock_ksm_page(struct stable_node *stable_node)
+{
+	struct page *page = get_ksm_page(stable_node);
+
+	if (page) {
+  		expected_mapping = (void *)stable_node +
+  				(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM);
+		lock_page(page);
+		if (page->mapping != expected_mapping) {
+			unlock_page(page);
+
+			/* release pin taken by get_ksm_page() */
+			put_page(page);
+			page = NULL;
+		}
+	}
+
+	return page;
+}
+
+Up to you, I'm not going to make a big deal of it.
+
+FWIW, I agree that removing rcu_read_lock() is fine.
+
 -- 
-1.7.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
