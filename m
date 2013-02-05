@@ -1,48 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 357FF6B011E
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 04:12:52 -0500 (EST)
-From: Lukas Czerner <lczerner@redhat.com>
-Subject: [PATCH v2 18/18] ext4: Allow punch hole with bigalloc enabled
-Date: Tue,  5 Feb 2013 10:12:11 +0100
-Message-Id: <1360055531-26309-19-git-send-email-lczerner@redhat.com>
-In-Reply-To: <1360055531-26309-1-git-send-email-lczerner@redhat.com>
-References: <1360055531-26309-1-git-send-email-lczerner@redhat.com>
+From: Lin Feng <linfeng@cn.fujitsu.com>
+Subject: [PATCH V2 0/2] mm: hotplug: implement non-movable version of get_user_pages() to kill long-time pin pages
+Date: Tue, 5 Feb 2013 17:21:51 +0800
+Message-Id: <1360056113-14294-1-git-send-email-linfeng@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, Lukas Czerner <lczerner@redhat.com>
+To: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk
+Cc: khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Lin Feng <linfeng@cn.fujitsu.com>
 
-In commits 5f95d21fb6f2aaa52830e5b7fb405f6c71d3ab85 and
-30bc2ec9598a1b156ad75217f2e7d4560efdeeab we've reworked punch_hole
-implementation and there is noting holding us back from using punch hole
-on file system with bigalloc feature enabled.
+Currently get_user_pages() always tries to allocate pages from movable zone,
+as discussed in thread https://lkml.org/lkml/2012/11/29/69, in some case users
+of get_user_pages() is easy to pin user pages for a long time(for now we found
+that pages pinned as aio ring pages is such case), which is fatal for memory
+hotplug/remove framework.
 
-This has been tested with fsx and xfstests.
+So the 1st patch introduces a new library function called
+get_user_pages_non_movable() to pin pages only from zone non-movable in memory.
+It's a wrapper of get_user_pages() but it makes sure that all pages come from
+non-movable zone via additional page migration.
 
-Signed-off-by: Lukas Czerner <lczerner@redhat.com>
+The 2nd patch gets around the aio ring pages can't be migrated bug caused by
+get_user_pages() via using the new function. It only works when configed with
+CONFIG_MEMORY_HOTREMOVE, otherwise it falls back to use the old version of
+get_user_pages().
+
 ---
- fs/ext4/inode.c |    5 -----
- 1 files changed, 0 insertions(+), 5 deletions(-)
+ChangeLog v1->v2:
+ Patch1:
+ - Fix the negative return value bug pointed out by Andrew and other
+   suggestions pointed out by Andrew and Jeff.
 
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index e7bf594..01cf049 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -3530,11 +3530,6 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
- 		return -EOPNOTSUPP;
- 	}
- 
--	if (EXT4_SB(inode->i_sb)->s_cluster_ratio > 1) {
--		/* TODO: Add support for bigalloc file systems */
--		return -EOPNOTSUPP;
--	}
--
- 	return ext4_ext_punch_hole(file, offset, length);
- }
- 
--- 
-1.7.7.6
+ Patch2:
+ - Kill the CONFIG_MEMORY_HOTREMOVE dependence suggested by Jeff.
+---
+Lin Feng (2):
+  mm: hotplug: implement non-movable version of get_user_pages() called
+    get_user_pages_non_movable()
+  fs/aio.c: use get_user_pages_non_movable() to pin ring pages when
+    support memory hotremove
+
+ fs/aio.c               |    4 +-
+ include/linux/mm.h     |    3 ++
+ include/linux/mmzone.h |    4 ++
+ mm/memory.c            |   83 ++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_isolation.c    |    5 +++
+ 5 files changed, 97 insertions(+), 2 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
