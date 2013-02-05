@@ -1,51 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Message-ID: <51109352.9070401@cn.fujitsu.com>
-Date: Tue, 05 Feb 2013 13:06:26 +0800
-From: Lin Feng <linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id CC7B56B00E1
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 00:20:37 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id fa11so1240435pad.37
+        for <linux-mm@kvack.org>; Mon, 04 Feb 2013 21:20:37 -0800 (PST)
+Date: Mon, 4 Feb 2013 21:20:34 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: break circular include from linux/mmzone.h
+In-Reply-To: <1360037707-13935-1-git-send-email-lig.fnst@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.02.1302042119370.31498@chino.kir.corp.google.com>
+References: <1360037707-13935-1-git-send-email-lig.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] fs/aio.c: use get_user_pages_non_movable() to pin
- ring pages when support memory hotremove
-References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com> <1359972248-8722-3-git-send-email-linfeng@cn.fujitsu.com> <x49ehgw85w4.fsf@segfault.boston.devel.redhat.com>
-In-Reply-To: <x49ehgw85w4.fsf@segfault.boston.devel.redhat.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Tang chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>
+To: liguang <lig.fnst@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-Hi Jeff,
+On Tue, 5 Feb 2013, liguang wrote:
 
-On 02/04/2013 11:18 PM, Jeff Moyer wrote:
->> ---
->>  fs/aio.c | 6 ++++++
->>  1 file changed, 6 insertions(+)
->>
->> diff --git a/fs/aio.c b/fs/aio.c
->> index 71f613c..0e9b30a 100644
->> --- a/fs/aio.c
->> +++ b/fs/aio.c
->> @@ -138,9 +138,15 @@ static int aio_setup_ring(struct kioctx *ctx)
->>  	}
->>  
->>  	dprintk("mmap address: 0x%08lx\n", info->mmap_base);
->> +#ifdef CONFIG_MEMORY_HOTREMOVE
->> +	info->nr_pages = get_user_pages_non_movable(current, ctx->mm,
->> +					info->mmap_base, nr_pages,
->> +					1, 0, info->ring_pages, NULL);
->> +#else
->>  	info->nr_pages = get_user_pages(current, ctx->mm,
->>  					info->mmap_base, nr_pages, 
->>  					1, 0, info->ring_pages, NULL);
->> +#endif
+> linux/mmzone.h included linux/memory_hotplug.h,
+> and linux/memory_hotplug.h also included
+> linux/mmzone.h, so there's a bad cirlular.
 > 
-> Can't you hide this in your 1/1 patch, by providing this function as
-> just a static inline wrapper around get_user_pages when
-> CONFIG_MEMORY_HOTREMOVE is not enabled?
-Good idea, it makes the callers more neatly :)
 
-thanks,
-linfeng
+And both of these are protected by _LINUX_MMZONE_H and 
+__LINUX_MEMORY_HOTPLUG_H, respectively, so what's the problem?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
