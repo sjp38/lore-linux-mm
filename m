@@ -1,43 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id CF8686B00E4
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 00:48:47 -0500 (EST)
-Received: by mail-ie0-f182.google.com with SMTP id k14so6842944iea.27
-        for <linux-mm@kvack.org>; Mon, 04 Feb 2013 21:48:47 -0800 (PST)
-Message-ID: <1360043326.2403.2.camel@kernel.cn.ibm.com>
-Subject: Re: Support variable-sized huge pages
-From: Ric Mason <ric.masonn@gmail.com>
-Date: Mon, 04 Feb 2013 23:48:46 -0600
-In-Reply-To: <20130131105227.GI30577@one.firstfloor.org>
-References: <1359620590.1391.5.camel@kernel>
-	 <20130131105227.GI30577@one.firstfloor.org>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 0D8F56B0093
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 00:57:45 -0500 (EST)
+Subject: Re: [PATCH] mm: break circular include from linux/mmzone.h
+From: li guang <lig.fnst@cn.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.02.1302042119370.31498@chino.kir.corp.google.com>
+References: <1360037707-13935-1-git-send-email-lig.fnst@cn.fujitsu.com>
+	 <alpine.DEB.2.02.1302042119370.31498@chino.kir.corp.google.com>
+Date: Tue, 05 Feb 2013 13:56:36 +0800
+Message-ID: <1360043796.4449.24.camel@liguang.fnst.cn.fujitsu.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-Hi Andi,
-On Thu, 2013-01-31 at 11:52 +0100, Andi Kleen wrote:
-> On Thu, Jan 31, 2013 at 02:23:10AM -0600, Ric Mason wrote:
-> > Hi all,
-> > 
-> > It seems that Andi's "Support more pagesizes for
-> > MAP_HUGETLB/SHM_HUGETLB" patch has already merged. According to the
-> > patch, x86 will support 2MB and 1GB huge pages. But I just see 
-> > hugepages-2048kB under /sys/kernel/mm/hugepages/ on my x86_32 PAE desktop.
-> > Where is 1GB huge pages?
-> 
-> 1GB pages are only supported under 64bit kernels, and also
-> only if you allocate them explicitely with boot options.
+=E5=9C=A8 2013-02-04=E4=B8=80=E7=9A=84 21:20 -0800=EF=BC=8CDavid Rientjes=
+=E5=86=99=E9=81=93=EF=BC=9A
+> On Tue, 5 Feb 2013, liguang wrote:
+>=20
+> > linux/mmzone.h included linux/memory_hotplug.h,
+> > and linux/memory_hotplug.h also included
+> > linux/mmzone.h, so there's a bad cirlular.
+> >=20
+>=20
+> And both of these are protected by _LINUX_MMZONE_H and=20
+> __LINUX_MEMORY_HOTPLUG_H, respectively, so what's the problem?
 
-I am curious about how can buddy system alloc 1GB huge pages? the most
-order buddy system supports is 10. Could you explain to me? 
+obviously, It's a logical error,
+and It has no more effect other than
+combination of these 2 header files.
+so, why don't we separate them?
 
-> 
-> -Andi
+
+
 
 
 --
