@@ -1,123 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 02BDA6B00BA
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 19:08:55 -0500 (EST)
-Date: Tue, 5 Feb 2013 09:08:54 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] zsmalloc: Add Kconfig for enabling PTE method
-Message-ID: <20130205000854.GC2610@blaptop>
-References: <1359937421-19921-1-git-send-email-minchan@kernel.org>
- <20130204185146.GA31284@kroah.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130204185146.GA31284@kroah.com>
+Date: Mon, 4 Feb 2013 16:18:48 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm: hotplug: implement non-movable version of
+ get_user_pages() called get_user_pages_non_movable()
+Message-Id: <20130204161848.bfd36176.akpm@linux-foundation.org>
+In-Reply-To: <20130204160624.5c20a8a0.akpm@linux-foundation.org>
+References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com>
+	<1359972248-8722-2-git-send-email-linfeng@cn.fujitsu.com>
+	<20130204160624.5c20a8a0.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
-
-Hi Greg,
-
-On Mon, Feb 04, 2013 at 10:51:46AM -0800, Greg Kroah-Hartman wrote:
-> On Mon, Feb 04, 2013 at 09:23:41AM +0900, Minchan Kim wrote:
-> > Zsmalloc has two methods 1) copy-based and 2) pte based to access
-> > allocations that span two pages.
-> > You can see history why we supported two approach from [1].
-> > 
-> > But it was bad choice that adding hard coding to select architecture
-> > which want to use pte based method. This patch removed it and adds
-> > new Kconfig to select the approach.
-> > 
-> > This patch is based on next-20130202.
-> > 
-> > [1] https://lkml.org/lkml/2012/7/11/58
-> > 
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> > Cc: Nitin Gupta <ngupta@vflare.org>
-> > Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
-> > Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  drivers/staging/zsmalloc/Kconfig         |   12 ++++++++++++
-> >  drivers/staging/zsmalloc/zsmalloc-main.c |   11 -----------
-> >  2 files changed, 12 insertions(+), 11 deletions(-)
-> > 
-> > diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-> > index 9084565..2359123 100644
-> > --- a/drivers/staging/zsmalloc/Kconfig
-> > +++ b/drivers/staging/zsmalloc/Kconfig
-> > @@ -8,3 +8,15 @@ config ZSMALLOC
-> >  	  non-standard allocator interface where a handle, not a pointer, is
-> >  	  returned by an alloc().  This handle must be mapped in order to
-> >  	  access the allocated space.
-> > +
-> > +config ZSMALLOC_PGTABLE_MAPPING
-> > +        bool "Use page table mapping to access allocations that span two pages"
-> > +        depends on ZSMALLOC
-> > +        default n
-> > +        help
-> > +	  By default, zsmalloc uses a copy-based object mapping method to access
-> > +	  allocations that span two pages. However, if a particular architecture
-> > +	  performs VM mapping faster than copying, then you should select this.
-> > +	  This causes zsmalloc to use page table mapping rather than copying
-> > +	  for object mapping. You can check speed with zsmalloc benchmark[1].
-> > +	  [1] https://github.com/spartacus06/zsmalloc
-> > diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-> > index 06f73a9..b161ca1 100644
-> > --- a/drivers/staging/zsmalloc/zsmalloc-main.c
-> > +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-> > @@ -218,17 +218,6 @@ struct zs_pool {
-> >  #define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
-> >  #define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
-> >  
-> > -/*
-> > - * By default, zsmalloc uses a copy-based object mapping method to access
-> > - * allocations that span two pages. However, if a particular architecture
-> > - * performs VM mapping faster than copying, then it should be added here
-> > - * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
-> > - * page table mapping rather than copying for object mapping.
-> > -*/
-> > -#if defined(CONFIG_ARM)
-> > -#define USE_PGTABLE_MAPPING
-> > -#endif
-> 
-> Did you test this?  I don't see the new config value you added actually
-> do anything in this code.  Also, if I select it incorrectly on ARM, or
-
-*slaps self*
-
-> or other platforms, what is keeping this from doing bad things?
-
-There is no way to prevent it now.
-I thought a way to detect it dynamically by testing performance
-both approaches in booting/module-loading time and select the best choice.
-For it, we should add benchmark code and delay booting/module-loading,
-it's not good for embedded system because they are fighting with 300msec all
-day long.
-So I think best choice we can do is that pass the decision to user by Kconfig
-which includes pointing the benchmark. I intionally removed "ARM" word in help
-because we checked the performance in just three devices of all ARM CPU
-so we can't make sure it does makse sense all ARM CPU.
-
-Of course, I'm open for suggestion. Do you have better idea?
+To: Lin Feng <linfeng@cn.fujitsu.com>, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
 
-> 
-> thanks,
-> 
-> greg k-h
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Also...
 
--- 
-Kind regards,
-Minchan Kim
+On Mon, 4 Feb 2013 16:06:24 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> > +put_page:
+> > +	/* Undo the effects of former get_user_pages(), we won't pin anything */
+> > +	for (i = 0; i < ret; i++)
+> > +		put_page(pages[i]);
+
+We can use release_pages() here.
+
+release_pages() is designed to be more efficient when we're putting the
+final reference to (most of) the pages.  It probably has little if any
+benefit when putting still-in-use pages, as we're doing here.
+
+But please consider...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
