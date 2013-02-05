@@ -1,76 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 64D386B0121
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 04:49:02 -0500 (EST)
-Subject: Re: [Cluster-devel] [PATCH v2 08/18] gfs2: use ->invalidatepage()
- length argument
-From: Steven Whitehouse <swhiteho@redhat.com>
-In-Reply-To: <1360055531-26309-9-git-send-email-lczerner@redhat.com>
-References: <1360055531-26309-1-git-send-email-lczerner@redhat.com>
-	 <1360055531-26309-9-git-send-email-lczerner@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 05 Feb 2013 09:47:39 +0000
-Message-ID: <1360057659.2717.14.camel@menhir>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 3FF596B0011
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 04:51:35 -0500 (EST)
+Date: Tue, 5 Feb 2013 10:51:32 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: Support variable-sized huge pages
+Message-ID: <20130205095120.GA22808@dhcp22.suse.cz>
+References: <1359620590.1391.5.camel@kernel>
+ <20130131105227.GI30577@one.firstfloor.org>
+ <1360043326.2403.2.camel@kernel.cn.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1360043326.2403.2.camel@kernel.cn.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lukas Czerner <lczerner@redhat.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org, cluster-devel@redhat.com
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Hillf Danton <dhillf@gmail.com>
 
-Hi,
-
-Acked-by: Steven Whitehouse <swhiteho@redhat.com>
-
-Steve.
-
-On Tue, 2013-02-05 at 10:12 +0100, Lukas Czerner wrote:
-> ->invalidatepage() aop now accepts range to invalidate so we can make
-> use of it in gfs2_invalidatepage().
+On Mon 04-02-13 23:48:46, Ric Mason wrote:
+> Hi Andi,
+> On Thu, 2013-01-31 at 11:52 +0100, Andi Kleen wrote:
+> > On Thu, Jan 31, 2013 at 02:23:10AM -0600, Ric Mason wrote:
+> > > Hi all,
+> > > 
+> > > It seems that Andi's "Support more pagesizes for
+> > > MAP_HUGETLB/SHM_HUGETLB" patch has already merged. According to the
+> > > patch, x86 will support 2MB and 1GB huge pages. But I just see 
+> > > hugepages-2048kB under /sys/kernel/mm/hugepages/ on my x86_32 PAE desktop.
+> > > Where is 1GB huge pages?
+> > 
+> > 1GB pages are only supported under 64bit kernels, and also
+> > only if you allocate them explicitely with boot options.
 > 
-> Signed-off-by: Lukas Czerner <lczerner@redhat.com>
-> Cc: cluster-devel@redhat.com
-> ---
->  fs/gfs2/aops.c |    9 +++++++--
->  1 files changed, 7 insertions(+), 2 deletions(-)
-> 
-> diff --git a/fs/gfs2/aops.c b/fs/gfs2/aops.c
-> index 5bd558c..3cf3dc8 100644
-> --- a/fs/gfs2/aops.c
-> +++ b/fs/gfs2/aops.c
-> @@ -949,24 +949,29 @@ static void gfs2_invalidatepage(struct page *page, unsigned int offset,
->  				unsigned int length)
->  {
->  	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
-> +	unsigned int stop = offset + length;
-> +	int partial_page = (offset || length < PAGE_CACHE_SIZE);
->  	struct buffer_head *bh, *head;
->  	unsigned long pos = 0;
->  
->  	BUG_ON(!PageLocked(page));
-> -	if (offset == 0)
-> +	if (!partial_page)
->  		ClearPageChecked(page);
->  	if (!page_has_buffers(page))
->  		goto out;
->  
->  	bh = head = page_buffers(page);
->  	do {
-> +		if (pos + bh->b_size > stop)
-> +			return;
-> +
->  		if (offset <= pos)
->  			gfs2_discard(sdp, bh);
->  		pos += bh->b_size;
->  		bh = bh->b_this_page;
->  	} while (bh != head);
->  out:
-> -	if (offset == 0)
-> +	if (!partial_page)
->  		try_to_release_page(page, 0);
->  }
->  
+> I am curious about how can buddy system alloc 1GB huge pages? the most
+> order buddy system supports is 10. Could you explain to me? 
 
+Have a look at setup_hugepagesz & hugetlb_nrpages_setup (in x86 arch code).
+A short answer is. Bootmem is used for allocation > MAX_ORDER.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
