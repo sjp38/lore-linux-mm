@@ -1,104 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 6E80B6B0101
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 03:47:08 -0500 (EST)
-Date: Tue, 5 Feb 2013 17:47:05 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: cma: fix accounting of CMA pages placed in high
- memory
-Message-ID: <20130205084705.GC11197@blaptop>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 247006B0103
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 03:56:29 -0500 (EST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MHQ00MMAOO5RW30@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 05 Feb 2013 08:56:27 +0000 (GMT)
+Received: from [127.0.0.1] ([106.116.147.30])
+ by eusync1.samsung.com (Oracle Communications Messaging Server 7u4-23.01
+ (7.0.4.23.0) 64bit (built Aug 10 2011))
+ with ESMTPA id <0MHQ008TJOTYXK20@eusync1.samsung.com> for linux-mm@kvack.org;
+ Tue, 05 Feb 2013 08:56:27 +0000 (GMT)
+Message-id: <5110C935.6020308@samsung.com>
+Date: Tue, 05 Feb 2013 09:56:21 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH] mm: cma: fix accounting of CMA pages placed in high memory
 References: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com>
  <20130204150657.6d05f76a.akpm@linux-foundation.org>
  <CAH9JG2Usd4HJKrBXwX3aEc3i6068zU=F=RjcoQ8E8uxYGrwXgg@mail.gmail.com>
- <20130204234358.GB2610@blaptop>
- <CAH9JG2VDOVv4-QrDs1FeyQNPzEDq+bf+qiSZ0snEqLGSed3PqA@mail.gmail.com>
- <20130205004032.GD2610@blaptop>
- <5110C506.2060209@samsung.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5110C506.2060209@samsung.com>
+ <20130205082822.GE21389@suse.de>
+In-reply-to: <20130205082822.GE21389@suse.de>
+Content-type: text/plain; charset=UTF-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de
+To: Mel Gorman <mgorman@suse.de>
+Cc: Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan@kernel.org
 
-On Tue, Feb 05, 2013 at 09:38:30AM +0100, Marek Szyprowski wrote:
-> Hello,
-> 
-> On 2/5/2013 1:40 AM, Minchan Kim wrote:
-> 
-> ...
-> 
-> >> Previous time, it's not fully tested and now we checked it with
-> >> highmem support patches.
+Hello,
+
+On 2/5/2013 9:28 AM, Mel Gorman wrote:
+> On Tue, Feb 05, 2013 at 08:29:26AM +0900, Kyungmin Park wrote:
+> > >
+> > > (This information is needed so that others can make patch-scheduling
+> > > decisions and should be included in all bugfix changelogs unless it is
+> > > obvious).
 > >
-> >I get it. Sigh. then [1] inline attached below wan't good.
-> >We have to code like this?
+> > CMA Highmem support is new feature. so don't need to go stable tree.
 > >
-> >[1] 6a6dccba, mm: cma: don't replace lowmem pages with highmem
-> >
-> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >index b97cf12..0707e0a 100644
-> >--- a/mm/page_alloc.c
-> >+++ b/mm/page_alloc.c
-> >@@ -5671,11 +5671,10 @@ static struct page *
-> >  __alloc_contig_migrate_alloc(struct page *page, unsigned long private,
-> >                              int **resultp)
-> >  {
-> >-       gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
-> >-
-> >-       if (PageHighMem(page))
-> >-               gfp_mask |= __GFP_HIGHMEM;
-> >-
-> >+       gfp_t gfp_mask = GFP_HIGHUSER_MOVABLE;
-> >+       struct address_space *mapping = page_mapping(page);
-> >+       if (mapping)
-> >+               gfp_mask = mapping_gfp_mask(mapping);
-> >         return alloc_page(gfp_mask);
-> >  }
-> 
-> Am I right that this code will allocate more pages from himem? Old approach
+>
+> You could have given a lot more information to that question!
+>
+> How new a feature is it?
 
-Yes.
+ARM DMA-mapping, the only in-kernel client of CMA, will gain himem 
+support in
+v3.9. On the other hand, there might be out of tree clients of
+alloc_contig_migrate_range()/dma_alloc_from_contiguous() API. If you think
+we should care about them, then this patch might need to be backported
+to stable kernels.
 
-> never migrate lowmem page to himem, what is now possible as gfp mask
-> is always
-> taken from mapping_gfp flags. I only wonder if forcing GFP_HIGHUSER_MOVABLE
+>   Does this mean that this patch must go in before
+> 3.8 releases or is it a fix against a patch that is only in Andrew's tree?
+> If the patch is only in Andrew's tree, which one is it and should this be
+> folded in as a fix?
+>
+> On a semi-related note; is there a plan for backporting highmem support for
+> the LTSI kernel considering it's aimed at embedded and CMA was highlighted
+> in their announcment for 3.4 support?
 
--ENOPARSE. What is not possbile ~~ take from mapping_gfp flags.
-Could you clarify your statement?
+I've just noticed recently that LTSI released v3.4 kernel with CMA support.
+I've checked that code only briefly and noticed that it didn't have all the
+CMA related patches which are available in v3.8-rc1. I will take a look at
+that code and maybe I will find some time to backport some more patches from
+mainline, but please note that mainline kernel has higher priority.
 
-> for pages without the mapping is a correct. Shouldn't we use avoid himem in
-
-CMA pages is for pages for user, NOT kernel so HIGHUSER_MOVABLE makes sense.
-
-> such case?
-
-I don't get it. :(
-We have to recomment use of highmem for user space pages.
-Am I missing something?
-
-Sorry, I should go out of office now so forgive my late response.
-
-
-
-> 
-> Best regards
-> -- 
-> Marek Szyprowski
-> Samsung Poland R&D Center
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+Best regards
 -- 
-Kind regards,
-Minchan Kim
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
