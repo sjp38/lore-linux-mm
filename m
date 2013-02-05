@@ -1,85 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 1E0B46B0007
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 16:27:43 -0500 (EST)
-Date: Tue, 5 Feb 2013 13:27:41 -0800
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 3CA006B0002
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 17:13:34 -0500 (EST)
+Date: Tue, 5 Feb 2013 14:13:32 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: introduce __linear_page_index()
-Message-Id: <20130205132741.1e1a4e04.akpm@linux-foundation.org>
-In-Reply-To: <1360047819-6669-1-git-send-email-b32955@freescale.com>
-References: <1360047819-6669-1-git-send-email-b32955@freescale.com>
+Subject: Re: [PATCH 0/3] mm: rename confusing function names
+Message-Id: <20130205141332.04fcceac.akpm@linux-foundation.org>
+In-Reply-To: <20130205192640.GC6481@cmpxchg.org>
+References: <51113CE3.5090000@gmail.com>
+	<20130205192640.GC6481@cmpxchg.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Huang Shijie <b32955@freescale.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Zhang Yanfei <zhangyanfei.yes@gmail.com>, Linux MM <linux-mm@kvack.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, m.szyprowski@samsung.com, linux-kernel@vger.kernel.org
 
-On Tue, 5 Feb 2013 15:03:39 +0800
-Huang Shijie <b32955@freescale.com> wrote:
+On Tue, 5 Feb 2013 14:26:40 -0500
+Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-> There are many places we should get the offset(in PAGE_SIZE unit) of
-> an address within a non-hugetlb vma.
+> On Wed, Feb 06, 2013 at 01:09:55AM +0800, Zhang Yanfei wrote:
+> > Function nr_free_zone_pages, nr_free_buffer_pages and nr_free_pagecache_pages
+> > are horribly badly named, they count present_pages - pages_high within zones
+> > instead of free pages, so why not rename them to reasonable names, not cofusing
+> > people.
+> > 
+> > patch2 and patch3 are based on patch1. So please apply patch1 first.
+> > 
+> > Zhang Yanfei (3):
+> >   mm: rename nr_free_zone_pages to nr_free_zone_high_pages
+> >   mm: rename nr_free_buffer_pages to nr_free_buffer_high_pages
+> >   mm: rename nr_free_pagecache_pages to nr_free_pagecache_high_pages
 > 
-> In order to simplify the code, add a new helper __linear_page_index()
-> to do the work.
+> I don't feel that this is an improvement.
 > 
+> As you said, the "free" is already misleading, because those pages
+> might all be allocated.  "High" makes me think not just of highmem,
+> but drug abuse in general.
+> 
+> nr_available_*_pages?  I don't know, but if we go through with all
+> that churn, it had better improve something.
 
-Seems nice.
+Yes, those names are ghastly.
 
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -310,15 +310,23 @@ static inline loff_t page_file_offset(struct page *page)
->  extern pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
->  				     unsigned long address);
->  
-> -static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
-> +/* The offset for an address within a non-hugetlb vma, in PAGE_SIZE unit. */
+Here's an idea: accurately document the functions with code comments. 
+Once this is done, that documentation may well suggest a good name ;)
 
-"The offset into the mapped file for ..."
 
-> +static inline pgoff_t __linear_page_index(struct vm_area_struct *vma,
->  					unsigned long address)
->  {
->  	pgoff_t pgoff;
-> +
-> +	pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
-> +	return pgoff + vma->vm_pgoff;
-> +}
-> +
-> +static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
-> +					unsigned long address)
-> +{
->  	if (unlikely(is_vm_hugetlb_page(vma)))
->  		return linear_hugepage_index(vma, address);
-> -	pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
-> -	pgoff += vma->vm_pgoff;
-> -	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> +	return __linear_page_index(vma, address) >>
-> +				(PAGE_CACHE_SHIFT - PAGE_SHIFT);
->  }
+While we're there, please note that nr_free_buffer_pages() has a *lot*
+of callers.  Generally it's code which is trying to work out what is an
+appropriate size for preallocated caching space, lookup tables, etc. 
 
-I don't think we need bother creating both linear_page_index() and
-__linear_page_index().  Realistically, we won't be supporting
-PAGE_SHIFT!=PAGE_CACHE_SHIFT.  And most (or all?) of the sites which
-you changed should have been using PAGE_CACHE_SHIFT anyway!
+That's a rather hopeless objective, given memory hotplug, mlock, etc. 
+But please do take a look at *why* these callers are calling
+nr_free_buffer_pages() and let's ensure that both the implementation
+and name are appropriate to their requirements.
 
-> @@ -1201,8 +1199,7 @@ SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
->  
->  		/* finding a matching vma now does not alter retval */
->  		if ((vma->vm_ops == &shm_vm_ops) &&
-> -			(vma->vm_start - addr)/PAGE_SIZE == vma->vm_pgoff)
-> -
-> +			0 == __linear_page_index(vma, addr))
-
-erk, please don't do this - it makes kernel developers fall over in
-shock.  Let's do
-
-			__linear_page_index(vma, addr) == 0
-
-(This won't compile if someone forgets a `=', so the usual reason for
-the backward comparison isn't valid).
 
 
 --
