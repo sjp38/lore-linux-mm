@@ -1,46 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 78C706B0002
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 09:12:49 -0500 (EST)
-Message-ID: <51111377.4030502@parallels.com>
-Date: Tue, 5 Feb 2013 18:13:11 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC] Few things I would like to discuss
-References: <20130205123515.GA26229@dhcp22.suse.cz>
-In-Reply-To: <20130205123515.GA26229@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id DF6F66B0002
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 09:16:52 -0500 (EST)
+Message-ID: <1360073811.27007.13.camel@gandalf.local.home>
+Subject: Re: [PATCH] slob: Check for NULL pointer before calling ctor()
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Tue, 05 Feb 2013 09:16:51 -0500
+In-Reply-To: <1358442826.23211.18.camel@gandalf.local.home>
+References: <1358442826.23211.18.camel@gandalf.local.home>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On 02/05/2013 04:35 PM, Michal Hocko wrote:
-> Hi,
-> I would like to discuss the following topics:
-> * memcg oom should be more sensitive to locked contexts because now
->   it is possible that a task is sitting in mem_cgroup_handle_oom holding
->   some other lock (e.g. i_mutex or mmap_sem) up the chain which might
->   block other task to terminate on OOM so we basically end up in a
->   deadlock. Almost all memcg charges happen from the page fault path
->   where we can retry but one class of them happen from
->   add_to_page_cache_locked and that is a bit more problematic.
+Ping?
 
-This is not the case with kmemcg on. Those charges will usually happen
-from the slab/slub grow_cache mechanism, or during fork. This is not to
-invalidate your reasoning - since those are usually tricky in terms of
-context as well, and would benefit just as much - but to complete it.
+-- Steve
 
-> * I would really like to finally settle down on something wrt. soft
->   limit reclaim. I am pretty sure Ying would like to discuss this topic
->   as well so I will not go into details about it. I will post what I
->   have before the conference so that we can discuss her approach and
->   what was the primary disagreement the last time. I can go into more
->   ditails as a follow up if people are interested of course.
 
-This interests me very much as well.
-
+On Thu, 2013-01-17 at 12:13 -0500, Steven Rostedt wrote:
+> [ Sorry for the duplicate email, it's linux-mm@kvack.org not linux-mm@vger.kernel.org ] 
+> 
+> While doing some code inspection, I noticed that the slob constructor
+> method can be called with a NULL pointer. If memory is tight and slob
+> fails to allocate with slob_alloc() or slob_new_pages() it still calls
+> the ctor() method with a NULL pointer. Looking at the first ctor()
+> method I found, I noticed that it can not handle a NULL pointer (I'm
+> sure others probably can't either):
+> 
+> static void sighand_ctor(void *data)
+> {
+>         struct sighand_struct *sighand = data;
+> 
+>         spin_lock_init(&sighand->siglock);
+>         init_waitqueue_head(&sighand->signalfd_wqh);
+> }
+> 
+> The solution is to only call the ctor() method if allocation succeeded.
+> 
+> Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
+> 
+> diff --git a/mm/slob.c b/mm/slob.c
+> index a99fdf7..48fcb90 100644
+> --- a/mm/slob.c
+> +++ b/mm/slob.c
+> @@ -554,7 +554,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+>  					    flags, node);
+>  	}
+>  
+> -	if (c->ctor)
+> +	if (b && c->ctor)
+>  		c->ctor(b);
+>  
+>  	kmemleak_alloc_recursive(b, c->size, 1, c->flags, flags);
+> 
+> 
 
 
 --
