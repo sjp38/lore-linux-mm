@@ -1,63 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Tue, 5 Feb 2013 13:32:44 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/2] mm: hotplug: implement non-movable version of
- get_user_pages() called get_user_pages_non_movable()
-Message-ID: <20130205133244.GH21389@suse.de>
-References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com>
- <1359972248-8722-2-git-send-email-linfeng@cn.fujitsu.com>
- <20130204160624.5c20a8a0.akpm@linux-foundation.org>
- <20130205115722.GF21389@suse.de>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 6E76B6B0010
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 08:49:47 -0500 (EST)
+Date: Tue, 5 Feb 2013 14:49:42 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from
+ add_to_page_cache_locked
+Message-ID: <20130205134937.GA22804@dhcp22.suse.cz>
+References: <20121217192301.829A7020@pobox.sk>
+ <20121217195510.GA16375@dhcp22.suse.cz>
+ <20121218152223.6912832C@pobox.sk>
+ <20121218152004.GA25208@dhcp22.suse.cz>
+ <20121224142526.020165D3@pobox.sk>
+ <20121228162209.GA1455@dhcp22.suse.cz>
+ <20121230020947.AA002F34@pobox.sk>
+ <20121230110815.GA12940@dhcp22.suse.cz>
+ <20130125160723.FAE73567@pobox.sk>
+ <20130125163130.GF4721@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130205115722.GF21389@suse.de>
+In-Reply-To: <20130125163130.GF4721@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lin Feng <linfeng@cn.fujitsu.com>, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, mhocko@suse.cz, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, Feb 05, 2013 at 11:57:22AM +0000, Mel Gorman wrote:
+On Fri 25-01-13 17:31:30, Michal Hocko wrote:
+> On Fri 25-01-13 16:07:23, azurIt wrote:
+> > Any news? Thnx!
 > 
-> > > +				migrate_pre_flag = 1;
-> > > +			}
-> > > +
-> > > +			if (!isolate_lru_page(pages[i])) {
-> > > +				inc_zone_page_state(pages[i], NR_ISOLATED_ANON +
-> > > +						 page_is_file_cache(pages[i]));
-> > > +				list_add_tail(&pages[i]->lru, &pagelist);
-> > > +			} else {
-> > > +				isolate_err = 1;
-> > > +				goto put_page;
-> > > +			}
-> 
-> isolate_lru_page() takes the LRU lock every time.
+> Sorry, but I didn't get to this one yet.
 
-Credit to Michal Hocko for bringing this up but with the number of
-other issues I missed that this is also broken with respect to huge page
-handling. hugetlbfs pages will not be on the LRU so the isolation will mess
-up and the migration has to be handled differently.  Ordinarily hugetlbfs
-pages cannot be allocated from ZONE_MOVABLE but it is possible to configure
-it to be allowed via /proc/sys/vm/hugepages_treat_as_movable. If this
-encounters a hugetlbfs page, it'll just blow up.
+Sorry, to get back to this that late but I was busy as hell since the
+beginning of the year.
 
-The other is that this almost certainly broken for transhuge page
-handling. gup returns the head and tail pages and ordinarily this is ok
-because the caller only cares about the physical address. Migration will
-also split a hugepage if it receives it but you are potentially adding
-tail pages to a list here and then migrating them. The split of the first
-page will get very confused. I'm not exactly sure what the result will be
-but it won't be pretty.
+Has the issue repeated since then?
 
-Was THP enabled when this was tested? Was CONFIG_DEBUG_LIST enabled
-during testing?
-
--- 
-Mel Gorman
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+You said you didn't apply other than the above mentioned patch. Could
+you apply also debugging part of the patches I have sent?
+In case you don't have it handy then it should be this one:
+---
