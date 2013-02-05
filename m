@@ -1,42 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id B98F76B0009
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 14:26:50 -0500 (EST)
-Date: Tue, 5 Feb 2013 14:26:40 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/3] mm: rename confusing function names
-Message-ID: <20130205192640.GC6481@cmpxchg.org>
-References: <51113CE3.5090000@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51113CE3.5090000@gmail.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id BD6976B0007
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 14:28:33 -0500 (EST)
+Received: from /spool/local
+	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Tue, 5 Feb 2013 19:27:16 -0000
+Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r15JSKbq13566046
+	for <linux-mm@kvack.org>; Tue, 5 Feb 2013 19:28:21 GMT
+Received: from d06av09.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r15JST3K000543
+	for <linux-mm@kvack.org>; Tue, 5 Feb 2013 12:28:29 -0700
+Date: Tue, 5 Feb 2013 11:28:21 -0800
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH] software dirty bits for s390
+Message-ID: <20130205112821.0e35b241@mschwide>
+In-Reply-To: <1360087925-8456-2-git-send-email-schwidefsky@de.ibm.com>
+References: <1360087925-8456-1-git-send-email-schwidefsky@de.ibm.com>
+	<1360087925-8456-2-git-send-email-schwidefsky@de.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei.yes@gmail.com>
-Cc: akpm@linux-foundation.org, Linux MM <linux-mm@kvack.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, m.szyprowski@samsung.com, linux-kernel@vger.kernel.org
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-mm@kvack.org, linux-s390@vger.kernel.org, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 
-On Wed, Feb 06, 2013 at 01:09:55AM +0800, Zhang Yanfei wrote:
-> Function nr_free_zone_pages, nr_free_buffer_pages and nr_free_pagecache_pages
-> are horribly badly named, they count present_pages - pages_high within zones
-> instead of free pages, so why not rename them to reasonable names, not cofusing
-> people.
+On Tue,  5 Feb 2013 10:12:04 -0800
+Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+
+> Greetings,
 > 
-> patch2 and patch3 are based on patch1. So please apply patch1 first.
+> good news, I got performance results for a selected set of workloads
+> with my software dirty bit patch (thanks Christian!). We found no
+> downsides to the software dirty bits, and a substantial improvement
+> in CPU utilization for the FIO test with mostly read mappings.
 > 
-> Zhang Yanfei (3):
->   mm: rename nr_free_zone_pages to nr_free_zone_high_pages
->   mm: rename nr_free_buffer_pages to nr_free_buffer_high_pages
->   mm: rename nr_free_pagecache_pages to nr_free_pagecache_high_pages
+> The patch can now go upstream.
 
-I don't feel that this is an improvement.
+Grumpf, 0000-cover-letter.patch~ in the outgoing directory.
+Please ignore.
 
-As you said, the "free" is already misleading, because those pages
-might all be allocated.  "High" makes me think not just of highmem,
-but drug abuse in general.
+-- 
+blue skies,
+   Martin.
 
-nr_available_*_pages?  I don't know, but if we go through with all
-that churn, it had better improve something.
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
