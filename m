@@ -1,33 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 43B866B0008
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 13:13:25 -0500 (EST)
-Date: Tue, 5 Feb 2013 13:13:11 -0500
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id EA4B96B0005
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 13:16:27 -0500 (EST)
+Date: Tue, 5 Feb 2013 13:16:17 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/3] memcg: move memcg_stock initialization to
- mem_cgroup_init
-Message-ID: <20130205181311.GB993@cmpxchg.org>
+Subject: Re: [PATCH 3/3] memcg: cleanup mem_cgroup_init comment
+Message-ID: <20130205181617.GC993@cmpxchg.org>
 References: <1360081441-1960-1-git-send-email-mhocko@suse.cz>
- <1360081441-1960-3-git-send-email-mhocko@suse.cz>
+ <1360081441-1960-4-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1360081441-1960-3-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1360081441-1960-4-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <htejun@gmail.com>
 
-On Tue, Feb 05, 2013 at 05:24:00PM +0100, Michal Hocko wrote:
-> memcg_stock are currently initialized during the root cgroup allocation
-> which is OK but it pointlessly pollutes memcg allocation code with
-> something that can be called when the memcg subsystem is initialized by
-> mem_cgroup_init along with other controller specific parts.
-> 
-> This patch wrappes the current memcg_stock initialization code into a
-> helper calls it from the controller subsystem initialization code.
+On Tue, Feb 05, 2013 at 05:24:01PM +0100, Michal Hocko wrote:
+> We should encourage all memcg controller initialization independent on
+> a specific mem_cgroup to be done here rather than exploit css_alloc
+> callback and assume that nothing happens before root cgroup is created.
 > 
 > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+
+It seems a little strange to document that the subsystem init function
+should be used for initializing the subsystem.  But your new comment
+is better than the old comment :-)
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
