@@ -1,64 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Message-ID: <51108DC8.4090704@cn.fujitsu.com>
-Date: Tue, 05 Feb 2013 12:42:48 +0800
+Message-ID: <51109352.9070401@cn.fujitsu.com>
+Date: Tue, 05 Feb 2013 13:06:26 +0800
 From: Lin Feng <linfeng@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] mm: hotplug: implement non-movable version of get_user_pages()
- to kill long-time pin pages
-References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com> <20130205005859.GE2610@blaptop>
-In-Reply-To: <20130205005859.GE2610@blaptop>
+Subject: Re: [PATCH 2/2] fs/aio.c: use get_user_pages_non_movable() to pin
+ ring pages when support memory hotremove
+References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com> <1359972248-8722-3-git-send-email-linfeng@cn.fujitsu.com> <x49ehgw85w4.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <x49ehgw85w4.fsf@segfault.boston.devel.redhat.com>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Tang chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>
 
-Hi Minchan,
+Hi Jeff,
 
-On 02/05/2013 08:58 AM, Minchan Kim wrote:
-> Hello,
-> 
-> On Mon, Feb 04, 2013 at 06:04:06PM +0800, Lin Feng wrote:
->> Currently get_user_pages() always tries to allocate pages from movable zone,
->> as discussed in thread https://lkml.org/lkml/2012/11/29/69, in some case users
->> of get_user_pages() is easy to pin user pages for a long time(for now we found
->> that pages pinned as aio ring pages is such case), which is fatal for memory
->> hotplug/remove framework.
+On 02/04/2013 11:18 PM, Jeff Moyer wrote:
+>> ---
+>>  fs/aio.c | 6 ++++++
+>>  1 file changed, 6 insertions(+)
 >>
->> So the 1st patch introduces a new library function called
->> get_user_pages_non_movable() to pin pages only from zone non-movable in memory.
->> It's a wrapper of get_user_pages() but it makes sure that all pages come from
->> non-movable zone via additional page migration.
->>
->> The 2nd patch gets around the aio ring pages can't be migrated bug caused by
->> get_user_pages() via using the new function. It only works when configed with
->> CONFIG_MEMORY_HOTREMOVE, otherwise it uses the old version of get_user_pages().
+>> diff --git a/fs/aio.c b/fs/aio.c
+>> index 71f613c..0e9b30a 100644
+>> --- a/fs/aio.c
+>> +++ b/fs/aio.c
+>> @@ -138,9 +138,15 @@ static int aio_setup_ring(struct kioctx *ctx)
+>>  	}
+>>  
+>>  	dprintk("mmap address: 0x%08lx\n", info->mmap_base);
+>> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>> +	info->nr_pages = get_user_pages_non_movable(current, ctx->mm,
+>> +					info->mmap_base, nr_pages,
+>> +					1, 0, info->ring_pages, NULL);
+>> +#else
+>>  	info->nr_pages = get_user_pages(current, ctx->mm,
+>>  					info->mmap_base, nr_pages, 
+>>  					1, 0, info->ring_pages, NULL);
+>> +#endif
 > 
-> CMA has same issue but the problem is the driver developers or any subsystem
-> using GUP can't know their pages is in CMA area or not in advance.
-> So all of client of GUP should use GUP_NM to work them with CMA/MEMORY_HOTPLUG well?
-> Even some driver module in embedded side doesn't open their source code.
-Yes, it somehow depends on the users of GUP. In MEMORY_HOTPLUG case, as for most users
-of GUP, they will release the pinned pages immediately and to such users they should get
-a good performance, using the old style interface is a smart way. And we had better just
-deal with the cases we have to by using the new interface.
-  
-> 
-> I would like to make GUP smart so it allocates a page from non-movable/non-cma area
-> when memory-hotplug/cma is enabled(CONFIG_MIGRATE_ISOLATE). Yeb. it might hurt GUP
-> performance but it is just trade-off for using CMA/memory-hotplug, IMHO. :(
-As I debuged the get_user_pages(), I found that some pages is already there and may be
-allocated before we call get_user_pages(). __get_user_pages() have following logic to
-handle such case.
-1786                         while (!(page = follow_page(vma, start, foll_flags))) {
-1787                                 int ret;
-To such case an additional alloc-flag or such doesn't work, it's difficult to keep GUP
-as smart as we want :( , so I worked out the migration approach to get around and 
-avoid messing up the current code :)
+> Can't you hide this in your 1/1 patch, by providing this function as
+> just a static inline wrapper around get_user_pages when
+> CONFIG_MEMORY_HOTREMOVE is not enabled?
+Good idea, it makes the callers more neatly :)
 
 thanks,
-linfeng 
+linfeng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
