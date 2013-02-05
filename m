@@ -1,229 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Mon, 4 Feb 2013 16:06:24 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm: hotplug: implement non-movable version of
- get_user_pages() called get_user_pages_non_movable()
-Message-Id: <20130204160624.5c20a8a0.akpm@linux-foundation.org>
-In-Reply-To: <1359972248-8722-2-git-send-email-linfeng@cn.fujitsu.com>
-References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com>
-	<1359972248-8722-2-git-send-email-linfeng@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 02BDA6B00BA
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 19:08:55 -0500 (EST)
+Date: Tue, 5 Feb 2013 09:08:54 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] zsmalloc: Add Kconfig for enabling PTE method
+Message-ID: <20130205000854.GC2610@blaptop>
+References: <1359937421-19921-1-git-send-email-minchan@kernel.org>
+ <20130204185146.GA31284@kroah.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130204185146.GA31284@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lin Feng <linfeng@cn.fujitsu.com>
-Cc: mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
+Hi Greg,
 
-melreadthis
-
-On Mon, 4 Feb 2013 18:04:07 +0800
-Lin Feng <linfeng@cn.fujitsu.com> wrote:
-
-> get_user_pages() always tries to allocate pages from movable zone, which is not
->  reliable to memory hotremove framework in some case.
+On Mon, Feb 04, 2013 at 10:51:46AM -0800, Greg Kroah-Hartman wrote:
+> On Mon, Feb 04, 2013 at 09:23:41AM +0900, Minchan Kim wrote:
+> > Zsmalloc has two methods 1) copy-based and 2) pte based to access
+> > allocations that span two pages.
+> > You can see history why we supported two approach from [1].
+> > 
+> > But it was bad choice that adding hard coding to select architecture
+> > which want to use pte based method. This patch removed it and adds
+> > new Kconfig to select the approach.
+> > 
+> > This patch is based on next-20130202.
+> > 
+> > [1] https://lkml.org/lkml/2012/7/11/58
+> > 
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> > Cc: Nitin Gupta <ngupta@vflare.org>
+> > Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+> > Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  drivers/staging/zsmalloc/Kconfig         |   12 ++++++++++++
+> >  drivers/staging/zsmalloc/zsmalloc-main.c |   11 -----------
+> >  2 files changed, 12 insertions(+), 11 deletions(-)
+> > 
+> > diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
+> > index 9084565..2359123 100644
+> > --- a/drivers/staging/zsmalloc/Kconfig
+> > +++ b/drivers/staging/zsmalloc/Kconfig
+> > @@ -8,3 +8,15 @@ config ZSMALLOC
+> >  	  non-standard allocator interface where a handle, not a pointer, is
+> >  	  returned by an alloc().  This handle must be mapped in order to
+> >  	  access the allocated space.
+> > +
+> > +config ZSMALLOC_PGTABLE_MAPPING
+> > +        bool "Use page table mapping to access allocations that span two pages"
+> > +        depends on ZSMALLOC
+> > +        default n
+> > +        help
+> > +	  By default, zsmalloc uses a copy-based object mapping method to access
+> > +	  allocations that span two pages. However, if a particular architecture
+> > +	  performs VM mapping faster than copying, then you should select this.
+> > +	  This causes zsmalloc to use page table mapping rather than copying
+> > +	  for object mapping. You can check speed with zsmalloc benchmark[1].
+> > +	  [1] https://github.com/spartacus06/zsmalloc
+> > diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+> > index 06f73a9..b161ca1 100644
+> > --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+> > +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+> > @@ -218,17 +218,6 @@ struct zs_pool {
+> >  #define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
+> >  #define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
+> >  
+> > -/*
+> > - * By default, zsmalloc uses a copy-based object mapping method to access
+> > - * allocations that span two pages. However, if a particular architecture
+> > - * performs VM mapping faster than copying, then it should be added here
+> > - * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
+> > - * page table mapping rather than copying for object mapping.
+> > -*/
+> > -#if defined(CONFIG_ARM)
+> > -#define USE_PGTABLE_MAPPING
+> > -#endif
 > 
-> This patch introduces a new library function called get_user_pages_non_movable()
->  to pin pages only from zone non-movable in memory.
-> It's a wrapper of get_user_pages() but it makes sure that all pages come from
-> non-movable zone via additional page migration.
+> Did you test this?  I don't see the new config value you added actually
+> do anything in this code.  Also, if I select it incorrectly on ARM, or
+
+*slaps self*
+
+> or other platforms, what is keeping this from doing bad things?
+
+There is no way to prevent it now.
+I thought a way to detect it dynamically by testing performance
+both approaches in booting/module-loading time and select the best choice.
+For it, we should add benchmark code and delay booting/module-loading,
+it's not good for embedded system because they are fighting with 300msec all
+day long.
+So I think best choice we can do is that pass the decision to user by Kconfig
+which includes pointing the benchmark. I intionally removed "ARM" word in help
+because we checked the performance in just three devices of all ARM CPU
+so we can't make sure it does makse sense all ARM CPU.
+
+Of course, I'm open for suggestion. Do you have better idea?
+
+
 > 
-> ...
->
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1049,6 +1049,11 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  			struct page **pages, struct vm_area_struct **vmas);
->  int get_user_pages_fast(unsigned long start, int nr_pages, int write,
->  			struct page **pages);
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int get_user_pages_non_movable(struct task_struct *tsk, struct mm_struct *mm,
-> +		unsigned long start, int nr_pages, int write, int force,
-> +		struct page **pages, struct vm_area_struct **vmas);
-> +#endif
+> thanks,
+> 
+> greg k-h
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-The ifdefs aren't really needed here and I encourage people to omit
-them.  This keeps the header files looking neater and reduces the
-chances of things later breaking because we forgot to update some
-CONFIG_foo logic in a header file.  The downside is that errors will be
-revealed at link time rather than at compile time, but that's a pretty
-small cost.
-
->  struct kvec;
->  int get_kernel_pages(const struct kvec *iov, int nr_pages, int write,
->  			struct page **pages);
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 73b64a3..5db811e 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -838,6 +838,10 @@ static inline int is_normal_idx(enum zone_type idx)
->  	return (idx == ZONE_NORMAL);
->  }
->  
-> +static inline int is_movable(struct zone *zone)
-> +{
-> +	return zone == zone->zone_pgdat->node_zones + ZONE_MOVABLE;
-> +}
-
-A better name would be zone_is_movable().  We haven't been very
-consistent about this in mmzone.h, but zone_is_foo() is pretty common.
-
-And a neater implementation would be
-
-	return zone_idx(zone) == ZONE_MOVABLE;
-
-All of which made me look at mmzone.h, and what I saw wasn't very nice :(
-
-Please review...
-
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: include/linux/mmzone.h: cleanups
-
-- implement zone_idx() in C to fix its references-args-twice macro bug
-
-- use zone_idx() in is_highmem() to remove large amounts of silly fluff.
-
-Cc: Lin Feng <linfeng@cn.fujitsu.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- include/linux/mmzone.h |   13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
-
-diff -puN include/linux/mmzone.h~include-linux-mmzoneh-cleanups include/linux/mmzone.h
---- a/include/linux/mmzone.h~include-linux-mmzoneh-cleanups
-+++ a/include/linux/mmzone.h
-@@ -815,7 +815,10 @@ unsigned long __init node_memmap_size_by
- /*
-  * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_NORMAL zone, etc.
-  */
--#define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
-+static inline enum zone_type zone_idx(struct zone *zone)
-+{
-+	return zone - zone->zone_pgdat->node_zones;
-+}
- 
- static inline int populated_zone(struct zone *zone)
- {
-@@ -857,10 +860,10 @@ static inline int is_normal_idx(enum zon
- static inline int is_highmem(struct zone *zone)
- {
- #ifdef CONFIG_HIGHMEM
--	int zone_off = (char *)zone - (char *)zone->zone_pgdat->node_zones;
--	return zone_off == ZONE_HIGHMEM * sizeof(*zone) ||
--	       (zone_off == ZONE_MOVABLE * sizeof(*zone) &&
--		zone_movable_is_highmem());
-+	enum zone_type idx = zone_idx(zone);
-+
-+	return idx == ZONE_HIGHMEM ||
-+	       (idx == ZONE_MOVABLE && zone_movable_is_highmem());
- #else
- 	return 0;
- #endif
-_
-
-
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -58,6 +58,8 @@
->  #include <linux/elf.h>
->  #include <linux/gfp.h>
->  #include <linux/migrate.h>
-> +#include <linux/page-isolation.h>
-> +#include <linux/mm_inline.h>
->  #include <linux/string.h>
->  
->  #include <asm/io.h>
-> @@ -1995,6 +1997,67 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  }
->  EXPORT_SYMBOL(get_user_pages);
->  
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +/**
-> + * It's a wrapper of get_user_pages() but it makes sure that all pages come from
-> + * non-movable zone via additional page migration.
-> + */
-
-This needs a description of why the function exists - say something
-about the requirements of memory hotplug.
-
-Also a few words describing how the function works would be good.
-
-> +int get_user_pages_non_movable(struct task_struct *tsk, struct mm_struct *mm,
-> +		unsigned long start, int nr_pages, int write, int force,
-> +		struct page **pages, struct vm_area_struct **vmas)
-> +{
-> +	int ret, i, isolate_err, migrate_pre_flag;
-> +	LIST_HEAD(pagelist);
-> +
-> +retry:
-> +	ret = get_user_pages(tsk, mm, start, nr_pages, write, force, pages,
-> +				vmas);
-
-We should handle (ret < 0) here.  At present the function will silently
-convert an error return into "return 0", which is bad.  The function
-does appear to otherwise do the right thing if get_user_pages() failed,
-but only due to good luck.
-
-> +	isolate_err = 0;
-> +	migrate_pre_flag = 0;
-> +
-> +	for (i = 0; i < ret; i++) {
-> +		if (is_movable(page_zone(pages[i]))) {
-> +			if (!migrate_pre_flag) {
-> +				if (migrate_prep())
-> +					goto put_page;
-> +				migrate_pre_flag = 1;
-> +			}
-> +
-> +			if (!isolate_lru_page(pages[i])) {
-> +				inc_zone_page_state(pages[i], NR_ISOLATED_ANON +
-> +						 page_is_file_cache(pages[i]));
-> +				list_add_tail(&pages[i]->lru, &pagelist);
-> +			} else {
-> +				isolate_err = 1;
-> +				goto put_page;
-> +			}
-> +		}
-> +	}
-> +
-> +	/* All pages are non movable, we are done :) */
-> +	if (i == ret && list_empty(&pagelist))
-> +		return ret;
-> +
-> +put_page:
-> +	/* Undo the effects of former get_user_pages(), we won't pin anything */
-> +	for (i = 0; i < ret; i++)
-> +		put_page(pages[i]);
-> +
-> +	if (migrate_pre_flag && !isolate_err) {
-> +		ret = migrate_pages(&pagelist, alloc_migrate_target, 1,
-> +					false, MIGRATE_SYNC, MR_SYSCALL);
-> +		/* Steal pages from non-movable zone successfully? */
-> +		if (!ret)
-> +			goto retry;
-
-This is buggy.  migrate_pages() doesn't empty its `from' argument, so
-page_list must be reinitialised here (or, better, at the start of the loop).
-
-Mel, what's up with migrate_pages()?  Shouldn't it be removing the
-pages from the list when MIGRATEPAGE_SUCCESS?  The use of
-list_for_each_entry_safe() suggests we used to do that...
-
-> +	}
-> +
-> +	putback_lru_pages(&pagelist);
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL(get_user_pages_non_movable);
-> +#endif
-> +
-
-Generally, I'd like Mel to go through (the next version of) this patch
-carefully, please.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
