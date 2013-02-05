@@ -1,56 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 04DBE6B00F5
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 02:14:57 -0500 (EST)
-Date: Tue, 5 Feb 2013 08:14:51 +0100 (CET)
-From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
-Subject: Re: [PATCH 10/18] mm: teach truncate_inode_pages_range() to handle
- non page aligned ranges
-In-Reply-To: <20130204125136.b0926f20.akpm@linux-foundation.org>
-Message-ID: <alpine.LFD.2.00.1302050814250.3225@localhost>
-References: <1359715424-32318-1-git-send-email-lczerner@redhat.com> <1359715424-32318-11-git-send-email-lczerner@redhat.com> <20130201151502.59398b29.akpm@linux-foundation.org> <alpine.LFD.2.00.1302041510090.3225@localhost>
- <20130204125136.b0926f20.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 07DDF6B00F7
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 02:34:30 -0500 (EST)
+Date: Tue, 5 Feb 2013 16:34:28 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: cma: fix accounting of CMA pages placed in high
+ memory
+Message-ID: <20130205073428.GA11197@blaptop>
+References: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com>
+ <20130204233430.GA2610@blaptop>
+ <5110B05B.5070109@samsung.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="571107329-1464879651-1360048494=:3225"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5110B05B.5070109@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, xfs@oss.sgi.com, Hugh Dickins <hughd@google.com>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, kyungmin.park@samsung.com
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+Hi Marek,
 
---571107329-1464879651-1360048494=:3225
-Content-Type: TEXT/PLAIN; charset=ISO-8859-15
-Content-Transfer-Encoding: 8BIT
-
-On Mon, 4 Feb 2013, Andrew Morton wrote:
-
-> Date: Mon, 4 Feb 2013 12:51:36 -0800
-> From: Andrew Morton <akpm@linux-foundation.org>
-> To: Luka? Czerner <lczerner@redhat.com>
-> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
->     linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
->     xfs@oss.sgi.com, Hugh Dickins <hughd@google.com>
-> Subject: Re: [PATCH 10/18] mm: teach truncate_inode_pages_range() to handle
->     non page aligned ranges
+On Tue, Feb 05, 2013 at 08:10:19AM +0100, Marek Szyprowski wrote:
+> Hello,
 > 
-> On Mon, 4 Feb 2013 15:51:19 +0100 (CET)
-> Luk____ Czerner <lczerner@redhat.com> wrote:
+> On 2/5/2013 12:34 AM, Minchan Kim wrote:
+> >On Mon, Feb 04, 2013 at 11:27:05AM +0100, Marek Szyprowski wrote:
+> >> The total number of low memory pages is determined as
+> >> totalram_pages - totalhigh_pages, so without this patch all CMA
+> >> pageblocks placed in highmem were accounted to low memory.
+> >
+> >So what's the end user effect? With the effect, we have to decide
+> >routing it on stable.
+> >
+> >>
+> >> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> >> ---
+> >>  mm/page_alloc.c |    4 ++++
+> >>  1 file changed, 4 insertions(+)
+> >>
+> >> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >> index f5bab0a..6415d93 100644
+> >> --- a/mm/page_alloc.c
+> >> +++ b/mm/page_alloc.c
+> >> @@ -773,6 +773,10 @@ void __init init_cma_reserved_pageblock(struct page *page)
+> >>  	set_pageblock_migratetype(page, MIGRATE_CMA);
+> >>  	__free_pages(page, pageblock_order);
+> >>  	totalram_pages += pageblock_nr_pages;
+> >> +#ifdef CONFIG_HIGHMEM
+> >
+> >We don't need #ifdef/#endif.
 > 
-> > I hope I explained myself well enough :). Are you ok with this king
-> > of approach ? If so, I'll resend the patch set without the
-> > initialisation-at-declaration.
-> 
-> uh, maybe.  Next time I'll apply the patch and look at the end result! 
-> Try to make it as understandable and (hence) maintainable as possible,
-> OK?
+> #ifdef is required to let this code compile when highmem is not enabled,
+> becuase totalhigh_pages is defined as 0, see include/linux/highmem.h
 
-Agreed.
-
+Argh, Sorry for the noise.
+I think it would be better to use accessor but it's a just nitpick. :)
 Thanks!
--Lukas
---571107329-1464879651-1360048494=:3225--
+
+> 
+> >> +	if (PageHighMem(page))
+> >> +		totalhigh_pages += pageblock_nr_pages;
+> >> +#endif
+> >>  }
+> >>  #endif
+> >>
+> 
+> Best regards
+> -- 
+> Marek Szyprowski
+> Samsung Poland R&D Center
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
