@@ -1,64 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 4BF696B0007
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 13:38:03 -0500 (EST)
-Date: Tue, 5 Feb 2013 13:37:53 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2] memcg: reduce the size of struct memcg 244-fold.
-Message-ID: <20130205183753.GA6481@cmpxchg.org>
-References: <1359009996-5350-1-git-send-email-glommer@parallels.com>
- <xr93r4lbrpdk.fsf@gthelen.mtv.corp.google.com>
- <20130124155105.85dae9d9.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 431C76B0002
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 13:52:29 -0500 (EST)
+Date: Tue, 5 Feb 2013 18:52:27 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: next-20130204 - bisected slab problem to "slab: Common constants
+ for kmalloc boundaries"
+In-Reply-To: <51114F53.4030603@wwwdotorg.org>
+Message-ID: <0000013cabb3b91e-d00eb224-6ced-43b8-aa10-d7afeab8c037-000000@email.amazonses.com>
+References: <510FE051.7080107@imgtec.com> <51100E79.9080101@wwwdotorg.org> <alpine.DEB.2.02.1302042019170.32396@gentwo.org> <0000013cab3780f7-5e49ef46-e41a-4ff2-88f8-46bf216d677e-000000@email.amazonses.com> <51114F53.4030603@wwwdotorg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130124155105.85dae9d9.akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+To: Stephen Warren <swarren@wwwdotorg.org>
+Cc: James Hogan <james.hogan@imgtec.com>, linux-next <linux-next@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-On Thu, Jan 24, 2013 at 03:51:05PM -0800, Andrew Morton wrote:
-> On Wed, 23 Jan 2013 23:50:31 -0800
-> Greg Thelen <gthelen@google.com> wrote:
-> 
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -172,7 +172,7 @@ struct mem_cgroup_per_node {
-> > >  };
-> > >  
-> > >  struct mem_cgroup_lru_info {
-> > > -	struct mem_cgroup_per_node *nodeinfo[MAX_NUMNODES];
-> > > +	struct mem_cgroup_per_node *nodeinfo[0];
-> > 
-> > It seems like a VM_BUG_ON() in mem_cgroup_zoneinfo() asserting that the
-> > nid index is less than nr_node_ids would be good at catching illegal
-> > indexes.  I don't see any illegal indexes in your patch, but I fear that
-> > someday a MAX_NUMNODES based for() loop might sneak in.
-> 
-> Can't hurt ;)
-> 
-> > Tangential question: why use inline here?  I figure that modern
-> > compilers are good at making inlining decisions.
-> 
-> And that'll save some disk space.
-> 
-> This?
-> 
-> --- a/mm/memcontrol.c~memcg-reduce-the-size-of-struct-memcg-244-fold-fix
-> +++ a/mm/memcontrol.c
-> @@ -381,7 +381,7 @@ enum {
->  		((1 << KMEM_ACCOUNTED_ACTIVE) | (1 << KMEM_ACCOUNTED_ACTIVATED))
->  
->  #ifdef CONFIG_MEMCG_KMEM
-> -static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
-> +static void memcg_kmem_set_active(struct mem_cgroup *memcg)
->  {
->  	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
->  }
+On Tue, 5 Feb 2013, Stephen Warren wrote:
 
-I don't disapprove, but it's the wrong function for this patch.
-Should be memcg_size().
+> > +/*
+> > + * Some archs want to perform DMA into kmalloc caches and need a guaranteed
+> > + * alignment larger than the alignment of a 64-bit integer.
+> > + * Setting ARCH_KMALLOC_MINALIGN in arch headers allows that.
+> > + */
+> > +#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
+> > +#define ARCH_KMALLOC_MINALIGN ARCH_DMA_MINALIGN
+> > +#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
+>
+> I might be tempted to drop that #define of KMALLOC_MIN_SIZE ...
+
+Initially I thought so too.
+>
+> > +#define KMALLOC_SHIFT_LOW ilog2(ARCH_DMA_MINALIGN)
+> > +#else
+> > +#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
+> > +#endif
+>
+> > +#ifndef KMALLOC_MIN_SIZE
+> >  #define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
+> >  #endif
+>
+> ... and simply drop the ifdef around that #define instead.
+
+That is going to be one hell of a macro expansion.
+
+> That way, KMALLOC_MIN_SIZE is always defined in one place, and derived
+> from KMALLOC_SHIFT_LOW; the logic will just set KMALLOC_SHIFT_LOW based
+> on the various conditions. This seems a little safer to me; fewer
+> conditions and less code to update if anything changes.
+
+Yeah but we do an ilog2 and then reverse this back to the original number.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
