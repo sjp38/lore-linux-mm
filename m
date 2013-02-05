@@ -1,153 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 198716B002E
-	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 19:40:36 -0500 (EST)
-Date: Tue, 5 Feb 2013 09:40:32 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: cma: fix accounting of CMA pages placed in high
- memory
-Message-ID: <20130205004032.GD2610@blaptop>
-References: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com>
- <20130204150657.6d05f76a.akpm@linux-foundation.org>
- <CAH9JG2Usd4HJKrBXwX3aEc3i6068zU=F=RjcoQ8E8uxYGrwXgg@mail.gmail.com>
- <20130204234358.GB2610@blaptop>
- <CAH9JG2VDOVv4-QrDs1FeyQNPzEDq+bf+qiSZ0snEqLGSed3PqA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id EADCC6B00B9
+	for <linux-mm@kvack.org>; Mon,  4 Feb 2013 19:56:08 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug framework
+Date: Tue, 05 Feb 2013 02:02:23 +0100
+Message-ID: <1477324.WRerxpPAK8@vostro.rjw.lan>
+In-Reply-To: <20130205000447.GA21782@kroah.com>
+References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com> <7003418.onqVlaaHJS@vostro.rjw.lan> <20130205000447.GA21782@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAH9JG2VDOVv4-QrDs1FeyQNPzEDq+bf+qiSZ0snEqLGSed3PqA@mail.gmail.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyungmin Park <kmpark@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Toshi Kani <toshi.kani@hp.com>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
 
-On Tue, Feb 05, 2013 at 08:52:02AM +0900, Kyungmin Park wrote:
-> Hi,
+On Monday, February 04, 2013 04:04:47 PM Greg KH wrote:
+> On Tue, Feb 05, 2013 at 12:52:30AM +0100, Rafael J. Wysocki wrote:
+> > You'd probably never try to hot-remove a disk before unmounting filesystems
+> > mounted from it or failing it as a RAID component and nobody sane wants the
+> > kernel to do things like that automatically when the user presses the eject
+> > button.  In my opinion we should treat memory eject, or CPU package eject, or
+> > PCI host bridge eject in exactly the same way: Don't eject if it is not
+> > prepared for ejecting in the first place.
 > 
-> On Tue, Feb 5, 2013 at 8:43 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > Hello,
-> >
-> > On Tue, Feb 05, 2013 at 08:29:26AM +0900, Kyungmin Park wrote:
-> >> On Tue, Feb 5, 2013 at 8:06 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> >> > On Mon, 04 Feb 2013 11:27:05 +0100
-> >> > Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-> >> >
-> >> >> The total number of low memory pages is determined as
-> >> >> totalram_pages - totalhigh_pages, so without this patch all CMA
-> >> >> pageblocks placed in highmem were accounted to low memory.
-> >> >
-> >> > What are the end-user-visible effects of this bug?
-> >>
-> >> Even though CMA is located at highmem. LowTotal has more than lowmem
-> >> address spaces.
-> >>
-> >> e.g.,
-> >> lowmem  : 0xc0000000 - 0xdf000000   ( 496 MB)
-> >> LowTotal:         555788 kB
-> >>
-> >> >
-> >> > (This information is needed so that others can make patch-scheduling
-> >> > decisions and should be included in all bugfix changelogs unless it is
-> >> > obvious).
-> >>
-> >> CMA Highmem support is new feature. so don't need to go stable tree.
-> >
-> > I would like to clarify it because I remembered alloc_migrate_target have considered
-> > CMA pages could be highmem. Is it really new feature? If so, could you point out
-> > enabling patches for the new feature?
-> >
-> Here's related patch.
-> http://www.spinics.net/lists/arm-kernel/msg222369.html
+> Bad example, we have disks hot-removed all the time without any
+> filesystems being unmounted, and have supported this since the 2.2 days
+> (although we didn't get it "right" until 2.6.)
 
-Thanks.
+Well, that wasn't my point.
 
+My point was that we have tools for unmounting filesystems from disks that
+the user wants to hot-remove and the user is supposed to use those tools
+before hot-removing the disks.  At least I wouldn't recommend anyone to
+do otherwise. :-)
+
+Now, for memory hot-removal we don't have anything like that, as far as I
+can say, so my point was why don't we add memory "offline" that can be
+done and tested separately from hot-removal and use that before we go and
+hot-remove stuff?  And analogously for PCI host bridges etc.?
+
+[Now, there's a question if an "eject" button on the system case, if there is
+one, should *always* cause the eject to happen even though things are not
+"offline".  My opinion is that not necessarily, because users may not be aware
+that they are doing something wrong.
+
+Quite analogously, does the power button always cause the system to shut down?
+No.  So why the heck should an eject button always cause an eject to happen?
+I see no reason.
+
+That said, the most straightforward approach may be simply to let user space
+disable eject events for specific devices when it wants and only enable them
+when it knows that the given devices are ready for removal.
+
+But I'm digressing.]
+
+> PCI Host bridge eject is the same as PCI eject today, the user asks us
+> to do it, and we can not fail it from happening.  We also can have them
+> removed without us being told about it in the first place, and can
+> properly clean up from it all.
+
+Well, are you sure we'll always clean up?  I kind of have my doubts. :-)
+
+> > And if you think about it, that makes things *massively* simpler, because now
+> > the kernel doesn't heed to worry about all of those "synchronous removal"
+> > scenarions that very well may involve every single device in the system and
+> > the whole problem is nicely split into several separate "implement
+> > offline/online" problems that are subsystem-specific and a single
+> > "eject if everything relevant is offline" problem which is kind of trivial.
+> > Plus the one of exposing information to user space, which is separate too.
+> > 
+> > Now, each of them can be worked on separately, *tested* separately and
+> > debugged separately if need be and it is much easier to isolate failures
+> > and so on.
 > 
-> Previous time, it's not fully tested and now we checked it with
-> highmem support patches.
+> So you are agreeing with me in that we can not fail hot removing any
+> device, nice :)
 
-I get it. Sigh. then [1] inline attached below wan't good.
-We have to code like this?
+That depends on how you define hot-removing.  If you regard the "offline"
+as a separate operation that can be carried out independently and hot-remove
+as the last step causing the device to actually go away, then I agree that
+it can't fail.  The "offline" itself, however, is a different matter (pretty
+much like unmounting a file system).
 
-[1] 6a6dccba, mm: cma: don't replace lowmem pages with highmem
+Thanks,
+Rafael
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b97cf12..0707e0a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5671,11 +5671,10 @@ static struct page *
- __alloc_contig_migrate_alloc(struct page *page, unsigned long private,
-                             int **resultp)
- {
--       gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
--
--       if (PageHighMem(page))
--               gfp_mask |= __GFP_HIGHMEM;
--
-+       gfp_t gfp_mask = GFP_HIGHUSER_MOVABLE;
-+       struct address_space *mapping = page_mapping(page);
-+       if (mapping)
-+               gfp_mask = mapping_gfp_mask(mapping);
-        return alloc_page(gfp_mask);
- }
-
-
-commit 6a6dccba2fdc2a69f1f36b8f1c0acc8598e7221b
-Author: Rabin Vincent <rabin@rab.in>
-Date:   Thu Jul 5 15:52:23 2012 +0530
-
-    mm: cma: don't replace lowmem pages with highmem
-    
-    The filesystem layer expects pages in the block device's mapping to not
-    be in highmem (the mapping's gfp mask is set in bdget()), but CMA can
-    currently replace lowmem pages with highmem pages, leading to crashes in
-    filesystem code such as the one below:
-    
-      Unable to handle kernel NULL pointer dereference at virtual address 00000400
-      pgd = c0c98000
-      [00000400] *pgd=00c91831, *pte=00000000, *ppte=00000000
-      Internal error: Oops: 817 [#1] PREEMPT SMP ARM
-      CPU: 0    Not tainted  (3.5.0-rc5+ #80)
-      PC is at __memzero+0x24/0x80
-      ...
-      Process fsstress (pid: 323, stack limit = 0xc0cbc2f0)
-      Backtrace:
-      [<c010e3f0>] (ext4_getblk+0x0/0x180) from [<c010e58c>] (ext4_bread+0x1c/0x98)
-      [<c010e570>] (ext4_bread+0x0/0x98) from [<c0117944>] (ext4_mkdir+0x160/0x3bc)
-       r4:c15337f0
-      [<c01177e4>] (ext4_mkdir+0x0/0x3bc) from [<c00c29e0>] (vfs_mkdir+0x8c/0x98)
-      [<c00c2954>] (vfs_mkdir+0x0/0x98) from [<c00c2a60>] (sys_mkdirat+0x74/0xac)
-       r6:00000000 r5:c152eb40 r4:000001ff r3:c14b43f0
-      [<c00c29ec>] (sys_mkdirat+0x0/0xac) from [<c00c2ab8>] (sys_mkdir+0x20/0x24)
-       r6:beccdcf0 r5:00074000 r4:beccdbbc
-      [<c00c2a98>] (sys_mkdir+0x0/0x24) from [<c000e3c0>] (ret_fast_syscall+0x0/0x30)
-    
-    Fix this by replacing only highmem pages with highmem.
-    
-    Reported-by: Laura Abbott <lauraa@codeaurora.org>
-    Signed-off-by: Rabin Vincent <rabin@rab.in>
-    Acked-by: Michal Nazarewicz <mina86@mina86.com>
-    Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4403009..4a4f921 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5635,7 +5635,12 @@ static struct page *
- __alloc_contig_migrate_alloc(struct page *page, unsigned long private,
-                             int **resultp)
- {
--       return alloc_page(GFP_HIGHUSER_MOVABLE);
-+       gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
-+
-+       if (PageHighMem(page))
-+               gfp_mask |= __GFP_HIGHMEM;
-+
-+       return alloc_page(gfp_mask);
- }
 
 -- 
-Kind regards,
-Minchan Kim
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
