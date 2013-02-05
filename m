@@ -1,77 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 247006B0103
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 03:56:29 -0500 (EST)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MHQ00MMAOO5RW30@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 05 Feb 2013 08:56:27 +0000 (GMT)
-Received: from [127.0.0.1] ([106.116.147.30])
- by eusync1.samsung.com (Oracle Communications Messaging Server 7u4-23.01
- (7.0.4.23.0) 64bit (built Aug 10 2011))
- with ESMTPA id <0MHQ008TJOTYXK20@eusync1.samsung.com> for linux-mm@kvack.org;
- Tue, 05 Feb 2013 08:56:27 +0000 (GMT)
-Message-id: <5110C935.6020308@samsung.com>
-Date: Tue, 05 Feb 2013 09:56:21 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH] mm: cma: fix accounting of CMA pages placed in high memory
-References: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com>
- <20130204150657.6d05f76a.akpm@linux-foundation.org>
- <CAH9JG2Usd4HJKrBXwX3aEc3i6068zU=F=RjcoQ8E8uxYGrwXgg@mail.gmail.com>
- <20130205082822.GE21389@suse.de>
-In-reply-to: <20130205082822.GE21389@suse.de>
-Content-type: text/plain; charset=UTF-8; format=flowed
-Content-transfer-encoding: 7bit
+Message-ID: <5110C28D.1040001@cn.fujitsu.com>
+Date: Tue, 05 Feb 2013 16:27:57 +0800
+From: Lin Feng <linfeng@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/2] mm: hotplug: implement non-movable version of get_user_pages()
+ to kill long-time pin pages
+References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com> <20130205005859.GE2610@blaptop> <51108DC8.4090704@cn.fujitsu.com> <20130205052517.GH2610@blaptop> <5110A442.5000707@cn.fujitsu.com> <20130205074519.GB11197@blaptop>
+In-Reply-To: <20130205074519.GB11197@blaptop>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Kyungmin Park <kmpark@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, minchan@kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello,
+Hi Minchan,
 
-On 2/5/2013 9:28 AM, Mel Gorman wrote:
-> On Tue, Feb 05, 2013 at 08:29:26AM +0900, Kyungmin Park wrote:
-> > >
-> > > (This information is needed so that others can make patch-scheduling
-> > > decisions and should be included in all bugfix changelogs unless it is
-> > > obvious).
-> >
-> > CMA Highmem support is new feature. so don't need to go stable tree.
-> >
->
-> You could have given a lot more information to that question!
->
-> How new a feature is it?
+On 02/05/2013 03:45 PM, Minchan Kim wrote:
+>> So it may not a good idea that we all fall into calling the *non_movable* version of
+>> > GUP when CONFIG_MIGRATE_ISOLATE is on. What do you think?
+> Frankly speaking, I can't understand Mel's comment.
+> AFAIUC, he said GUP checks the page before get_page and if the page is movable zone,
+> then migrate it out of movable zone and get_page again.
+> That's exactly what I want. It doesn't introduce GUP_NM.
+Since an long time pin or not is an unpredictable behave except you know what the caller
+wants to do. We have to check every time we call GUP, and GUP may need another parameter
+ to teach itself to make the right decision? We have already got *8* parameters :(
 
-ARM DMA-mapping, the only in-kernel client of CMA, will gain himem 
-support in
-v3.9. On the other hand, there might be out of tree clients of
-alloc_contig_migrate_range()/dma_alloc_from_contiguous() API. If you think
-we should care about them, then this patch might need to be backported
-to stable kernels.
-
->   Does this mean that this patch must go in before
-> 3.8 releases or is it a fix against a patch that is only in Andrew's tree?
-> If the patch is only in Andrew's tree, which one is it and should this be
-> folded in as a fix?
->
-> On a semi-related note; is there a plan for backporting highmem support for
-> the LTSI kernel considering it's aimed at embedded and CMA was highlighted
-> in their announcment for 3.4 support?
-
-I've just noticed recently that LTSI released v3.4 kernel with CMA support.
-I've checked that code only briefly and noticed that it didn't have all the
-CMA related patches which are available in v3.8-rc1. I will take a look at
-that code and maybe I will find some time to backport some more patches from
-mainline, but please note that mainline kernel has higher priority.
-
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+thanks,
+linfeng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
