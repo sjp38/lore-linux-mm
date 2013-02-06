@@ -1,65 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id DE9566B0005
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 10:49:55 -0500 (EST)
-Received: from /spool/local
-	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Wed, 6 Feb 2013 15:48:37 -0000
-Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r16FngE127721834
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2013 15:49:42 GMT
-Received: from d06av11.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r16FnooQ029869
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2013 08:49:51 -0700
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: [PATCH] mm: don't overwrite mm->def_flags in do_mlockall()
-Date: Wed,  6 Feb 2013 16:49:34 +0100
-Message-Id: <1360165774-55458-1-git-send-email-gerald.schaefer@de.ibm.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id E7B1F6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 11:00:54 -0500 (EST)
+Date: Wed, 6 Feb 2013 17:00:51 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH for 3.2.34] memcg: do not trigger OOM if PF_NO_MEMCG_OOM is
+ set
+Message-ID: <20130206160051.GG10254@dhcp22.suse.cz>
+References: <20121230020947.AA002F34@pobox.sk>
+ <20121230110815.GA12940@dhcp22.suse.cz>
+ <20130125160723.FAE73567@pobox.sk>
+ <20130125163130.GF4721@dhcp22.suse.cz>
+ <20130205134937.GA22804@dhcp22.suse.cz>
+ <20130205154947.CD6411E2@pobox.sk>
+ <20130205160934.GB22804@dhcp22.suse.cz>
+ <20130206021721.1AE9E3C7@pobox.sk>
+ <20130206140119.GD10254@dhcp22.suse.cz>
+ <20130206142219.GF10254@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130206142219.GF10254@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-With commit 8e72033 "thp: make MADV_HUGEPAGE check for mm->def_flags"
-the VM_NOHUGEPAGE flag may be set on s390 in mm->def_flags for certain
-processes, to prevent future thp mappings. This would be overwritten
-by do_mlockall(), which sets it back to 0 with an optional VM_LOCKED
-flag set.
+On Wed 06-02-13 15:22:19, Michal Hocko wrote:
+> On Wed 06-02-13 15:01:19, Michal Hocko wrote:
+> > On Wed 06-02-13 02:17:21, azurIt wrote:
+> > > >5-memcg-fix-1.patch is not complete. It doesn't contain the folloup I
+> > > >mentioned in a follow up email. Here is the full patch:
+> > > 
+> > > 
+> > > Here is the log where OOM, again, killed MySQL server [search for "(mysqld)"]:
+> > > http://www.watchdog.sk/lkml/oom_mysqld6
+> > 
+> > [...]
+> > WARNING: at mm/memcontrol.c:2409 T.1149+0x2d9/0x610()
+> > Hardware name: S5000VSA
+> > gfp_mask:4304 nr_pages:1 oom:0 ret:2
+> > Pid: 3545, comm: apache2 Tainted: G        W    3.2.37-grsec #1
+> > Call Trace:
+> >  [<ffffffff8105502a>] warn_slowpath_common+0x7a/0xb0
+> >  [<ffffffff81055116>] warn_slowpath_fmt+0x46/0x50
+> >  [<ffffffff81108163>] ? mem_cgroup_margin+0x73/0xa0
+> >  [<ffffffff8110b6f9>] T.1149+0x2d9/0x610
+> >  [<ffffffff812af298>] ? blk_finish_plug+0x18/0x50
+> >  [<ffffffff8110c6b4>] mem_cgroup_cache_charge+0xc4/0xf0
+> >  [<ffffffff810ca6bf>] add_to_page_cache_locked+0x4f/0x140
+> >  [<ffffffff810ca7d2>] add_to_page_cache_lru+0x22/0x50
+> >  [<ffffffff810cad32>] filemap_fault+0x252/0x4f0
+> >  [<ffffffff810eab18>] __do_fault+0x78/0x5a0
+> >  [<ffffffff810edcb4>] handle_pte_fault+0x84/0x940
+> >  [<ffffffff810e2460>] ? vma_prio_tree_insert+0x30/0x50
+> >  [<ffffffff810f2508>] ? vma_link+0x88/0xe0
+> >  [<ffffffff810ee6a8>] handle_mm_fault+0x138/0x260
+> >  [<ffffffff8102709d>] do_page_fault+0x13d/0x460
+> >  [<ffffffff810f46fc>] ? do_mmap_pgoff+0x3dc/0x430
+> >  [<ffffffff815b61ff>] page_fault+0x1f/0x30
+> > ---[ end trace 8817670349022007 ]---
+> > apache2 invoked oom-killer: gfp_mask=0x0, order=0, oom_adj=0, oom_score_adj=0
+> > apache2 cpuset=uid mems_allowed=0
+> > Pid: 3545, comm: apache2 Tainted: G        W    3.2.37-grsec #1
+> > Call Trace:
+> >  [<ffffffff810ccd2e>] dump_header+0x7e/0x1e0
+> >  [<ffffffff810ccc2f>] ? find_lock_task_mm+0x2f/0x70
+> >  [<ffffffff810cd1f5>] oom_kill_process+0x85/0x2a0
+> >  [<ffffffff810cd8a5>] out_of_memory+0xe5/0x200
+> >  [<ffffffff810cda7d>] pagefault_out_of_memory+0xbd/0x110
+> >  [<ffffffff81026e76>] mm_fault_error+0xb6/0x1a0
+> >  [<ffffffff8102734e>] do_page_fault+0x3ee/0x460
+> >  [<ffffffff810f46fc>] ? do_mmap_pgoff+0x3dc/0x430
+> >  [<ffffffff815b61ff>] page_fault+0x1f/0x30
+> > 
+> > The first trace comes from the debugging WARN and it clearly points to
+> > a file fault path. __do_fault pre-charges a page in case we need to
+> > do CoW (copy-on-write) for the returned page. This one falls back to
+> > memcg OOM and never returns ENOMEM as I have mentioned earlier. 
+> > However, the fs fault handler (filemap_fault here) can fallback to
+> > page_cache_read if the readahead (do_sync_mmap_readahead) fails
+> > to get page to the page cache. And we can see this happening in
+> > the first trace. page_cache_read then calls add_to_page_cache_lru
+> > and eventually gets to add_to_page_cache_locked which calls
+> > mem_cgroup_cache_charge_no_oom so we will get ENOMEM if oom should
+> > happen. This ENOMEM gets to the fault handler and kaboom.
+> > 
+> > So the fix is really much more complex than I thought. Although
+> > add_to_page_cache_locked sounded like a good place it turned out to be
+> > not in fact.
+> > 
+> > We need something more clever appaerently. One way would be not misusing
+> > __GFP_NORETRY for GFP_MEMCG_NO_OOM and give it a real flag. We have 32
+> > bits for those flags in gfp_t so there should be some room there. 
+> > Or we could do this per task flag, same we do for NO_IO in the current
+> > -mm tree.
+> > The later one seems easier wrt. gfp_mask passing horror - e.g.
+> > __generic_file_aio_write doesn't pass flags and it can be called from
+> > unlocked contexts as well.
+> 
+> Ouch, PF_ flags space seem to be drained already because
+> task_struct::flags is just unsigned int so there is just one bit left. I
+> am not sure this is the best use for it. This will be a real pain!
 
-To fix this, instead of overwriting mm->def_flags in do_mlockall(),
-only the VM_LOCKED flag should be set or cleared.
+OK, so this something that should help you without any risk of false
+OOMs. I do not believe that something like that would be accepted
+upstream because it is really heavy. We will need to come up with
+something more clever for upstream.
+I have also added a warning which will trigger when the charge fails. If
+you see too many of those messages then there is something bad going on
+and the lack of OOM causes userspace to loop without getting any
+progress.
 
-Reported-by: Vivek Goyal <vgoyal@redhat.com>
-Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+So there you go - your personal patch ;) You can drop all other patches.
+Please note I have just compile tested it. But it should be pretty
+trivial to check it is correct
 ---
- mm/mlock.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/mlock.c b/mm/mlock.c
-index f0b9ce5..c9bd528 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -517,11 +517,11 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
- static int do_mlockall(int flags)
- {
- 	struct vm_area_struct * vma, * prev = NULL;
--	unsigned int def_flags = 0;
- 
- 	if (flags & MCL_FUTURE)
--		def_flags = VM_LOCKED;
--	current->mm->def_flags = def_flags;
-+		current->mm->def_flags |= VM_LOCKED;
-+	else
-+		current->mm->def_flags &= ~VM_LOCKED;
- 	if (flags == MCL_FUTURE)
- 		goto out;
- 
--- 
-1.7.12.4
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
