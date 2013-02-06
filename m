@@ -1,56 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 38CC46B0008
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 13:33:09 -0500 (EST)
-Received: by mail-da0-f47.google.com with SMTP id s35so776740dak.20
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2013 10:33:08 -0800 (PST)
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 54D7B6B0008
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 13:40:05 -0500 (EST)
 MIME-Version: 1.0
-In-Reply-To: <51122602.7060307@imgtec.com>
-References: <510FE051.7080107@imgtec.com>
-	<51100E79.9080101@wwwdotorg.org>
-	<alpine.DEB.2.02.1302042019170.32396@gentwo.org>
-	<0000013cab3780f7-5e49ef46-e41a-4ff2-88f8-46bf216d677e-000000@email.amazonses.com>
-	<51113C8A.2060908@imgtec.com>
-	<0000013caba3a2e8-b80a1426-33b5-44ae-9b2a-85c3ee20dd62-000000@email.amazonses.com>
-	<51122602.7060307@imgtec.com>
-Date: Wed, 6 Feb 2013 20:33:08 +0200
-Message-ID: <CAOJsxLFrJ-GYcsy4m=XoA06tjPpLaBr3HS_g0Cz-YHtsKmWxuA@mail.gmail.com>
-Subject: Re: next-20130204 - bisected slab problem to "slab: Common constants
- for kmalloc boundaries"
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <73fe6782-21f4-47c5-886f-367374a3e600@default>
+Date: Wed, 6 Feb 2013 10:40:04 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [LSF/MM TOPIC] In-kernel compression in the MM subsystem
+References: <601542b0-4c92-4d90-aed8-826235c06eab@default>
+ <1360117134.2403.4.camel@kernel.cn.ibm.com>
+In-Reply-To: <1360117134.2403.4.camel@kernel.cn.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Hogan <james.hogan@imgtec.com>
-Cc: Christoph Lameter <cl@linux.com>, Stephen Warren <swarren@wwwdotorg.org>, linux-next <linux-next@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On Wed, Feb 6, 2013 at 11:44 AM, James Hogan <james.hogan@imgtec.com> wrote:
-> On 05/02/13 18:34, Christoph Lameter wrote:
->> On Tue, 5 Feb 2013, James Hogan wrote:
->>
->>> On 05/02/13 16:36, Christoph Lameter wrote:
->>>> OK I was able to reproduce it by setting ARCH_DMA_MINALIGN in slab.h. This
->>>> patch fixes it here:
->>>>
->>>>
->>>> Subject: slab: Handle ARCH_DMA_MINALIGN correctly
->>>>
->>>> A fixed KMALLOC_SHIFT_LOW does not work for arches with higher alignment
->>>> requirements.
->>>>
->>>> Determine KMALLOC_SHIFT_LOW from ARCH_DMA_MINALIGN instead.
->>>>
->>>> Signed-off-by: Christoph Lameter <cl@linux.com>
->>>
->>> Thanks, your patch fixes it for me.
->>
->> Ok I guess that implies a Tested-by:
->>
->
-> Yep sorry, feel free to add my Tested-by: if you roll this as a separate
-> patch.
+> From: Simon Jeons [mailto:simon.jeons@gmail.com]
+> Subject: Re: [LSF/MM TOPIC] In-kernel compression in the MM subsystem
+>=20
+> Hi Dan,
+> On Sat, 2013-01-26 at 12:16 -0800, Dan Magenheimer wrote:
+> > There's lots of interesting things going on in kernel memory
+> > management, but one only(?) increases the effective amount
+> > of data that can be stored in a fixed amount of RAM: in-kernel
+> > compression.
+> >
+> > Since ramzswap/compcache (now zram) was first proposed in 2009
+> > as an in-memory compressed swap device, there have been a number
+> > of in-kernel compression solutions proposed, including
+> > zcache, kztmem, and now zswap.  Each shows promise to improve
+> > performance by using compression under memory pressure to
+> > reduce I/O due to swapping and/or paging.  Each is still
+> > in staging (though zram may be promoted by LSFMM 2013)
+> > because each also brings a number of perplexing challenges.
+> >
+> > I think it's time to start converging on which one or more
+> > of these solutions, if any, should be properly promoted and
+> > more fully integrated into the kernel memory management
+> > subsystem.  Before this can occur, it's important to build a
+> > broader understanding and, hopefully, also a broader consensus
+> > among the MM community on a number of key challenges and questions
+> > in order to guide and drive further development and merging.
+> >
+> > I would like to collect a list of issues/questions, and
+> > start a discussion at LSF/MM by presenting this list, select
+> > the most important, then lead a discussion on how ever many
+> > there is time for.  Most likely this is an MM-only discussion
+> > though a subset might be suitable for a cross-talk presentataion.
+> >
+>=20
+> Is there benchmark to test each component in tmem?
 
-Applied, thanks guys!
+Hi Simon --
+
+I'm not sure what you mean.  Could you add a few words
+to clarify?
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
