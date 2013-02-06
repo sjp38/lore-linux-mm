@@ -1,127 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 590006B0036
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 21:17:12 -0500 (EST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2] zsmalloc: Add Kconfig for enabling PTE method
-Date: Wed,  6 Feb 2013 11:17:08 +0900
-Message-Id: <1360117028-5625-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 6CF226B0038
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 21:18:55 -0500 (EST)
+Received: by mail-oa0-f44.google.com with SMTP id h1so1001357oag.17
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2013 18:18:54 -0800 (PST)
+Message-ID: <1360117134.2403.4.camel@kernel.cn.ibm.com>
+Subject: Re: [LSF/MM TOPIC] In-kernel compression in the MM subsystem
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Tue, 05 Feb 2013 20:18:54 -0600
+In-Reply-To: <601542b0-4c92-4d90-aed8-826235c06eab@default>
+References: <601542b0-4c92-4d90-aed8-826235c06eab@default>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-Zsmalloc has two methods 1) copy-based and 2) pte-based to access
-allocations that span two pages. You can see history why we supported
-two approach from [1].
+Hi Dan,
+On Sat, 2013-01-26 at 12:16 -0800, Dan Magenheimer wrote:
+> There's lots of interesting things going on in kernel memory
+> management, but one only(?) increases the effective amount
+> of data that can be stored in a fixed amount of RAM: in-kernel
+> compression.
+> 
+> Since ramzswap/compcache (now zram) was first proposed in 2009
+> as an in-memory compressed swap device, there have been a number
+> of in-kernel compression solutions proposed, including
+> zcache, kztmem, and now zswap.  Each shows promise to improve
+> performance by using compression under memory pressure to
+> reduce I/O due to swapping and/or paging.  Each is still
+> in staging (though zram may be promoted by LSFMM 2013)
+> because each also brings a number of perplexing challenges.
+> 
+> I think it's time to start converging on which one or more
+> of these solutions, if any, should be properly promoted and
+> more fully integrated into the kernel memory management
+> subsystem.  Before this can occur, it's important to build a
+> broader understanding and, hopefully, also a broader consensus
+> among the MM community on a number of key challenges and questions
+> in order to guide and drive further development and merging.
+> 
+> I would like to collect a list of issues/questions, and
+> start a discussion at LSF/MM by presenting this list, select
+> the most important, then lead a discussion on how ever many
+> there is time for.  Most likely this is an MM-only discussion
+> though a subset might be suitable for a cross-talk presentataion.
+> 
 
-In summary, copy-based method is 3 times fater in x86 while pte-based
-is 6 times faster in ARM.
+Is there benchmark to test each component in tmem?
 
-But it was bad choice that adding hard coding to select architecture
-which want to use pte based method. This patch removed it and adds
-new Kconfig to select the approach.
+> Thanks!
+> Dan Magenheimer
+> LSF/MM attendee 2010,2011,2012
+> LSF/MM presenter (MM track) 2011,2012
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-This patch is based on next-20130205.
-
-[1] https://lkml.org/lkml/2012/7/11/58
-
-* Changelog from v1
-  * Fix CONFIG_PGTABLE_MAPPING in zsmalloc-main.c - Greg
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Nitin Gupta <ngupta@vflare.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- drivers/staging/zsmalloc/Kconfig         | 12 ++++++++++++
- drivers/staging/zsmalloc/zsmalloc-main.c | 20 +++++---------------
- 2 files changed, 17 insertions(+), 15 deletions(-)
-
-diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-index 9084565..232b3b6 100644
---- a/drivers/staging/zsmalloc/Kconfig
-+++ b/drivers/staging/zsmalloc/Kconfig
-@@ -8,3 +8,15 @@ config ZSMALLOC
- 	  non-standard allocator interface where a handle, not a pointer, is
- 	  returned by an alloc().  This handle must be mapped in order to
- 	  access the allocated space.
-+
-+config PGTABLE_MAPPING
-+        bool "Use page table mapping to access allocations that span two pages"
-+        depends on ZSMALLOC
-+        default n
-+        help
-+	  By default, zsmalloc uses a copy-based object mapping method to access
-+	  allocations that span two pages. However, if a particular architecture
-+	  performs VM mapping faster than copying, then you should select this.
-+	  This causes zsmalloc to use page table mapping rather than copying
-+	  for object mapping. You can check speed with zsmalloc benchmark[1].
-+	  [1] https://github.com/spartacus06/zsmalloc
-diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-index 06f73a9..2c1805c 100644
---- a/drivers/staging/zsmalloc/zsmalloc-main.c
-+++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-@@ -207,6 +207,7 @@ struct zs_pool {
- 	struct size_class size_class[ZS_SIZE_CLASSES];
- 
- 	gfp_t flags;	/* allocation flags used when growing pool */
-+
- };
- 
- /*
-@@ -218,19 +219,8 @@ struct zs_pool {
- #define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
- #define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
- 
--/*
-- * By default, zsmalloc uses a copy-based object mapping method to access
-- * allocations that span two pages. However, if a particular architecture
-- * performs VM mapping faster than copying, then it should be added here
-- * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
-- * page table mapping rather than copying for object mapping.
--*/
--#if defined(CONFIG_ARM)
--#define USE_PGTABLE_MAPPING
--#endif
--
- struct mapping_area {
--#ifdef USE_PGTABLE_MAPPING
-+#ifdef CONFIG_PGTABLE_MAPPING
- 	struct vm_struct *vm; /* vm area for mapping object that span pages */
- #else
- 	char *vm_buf; /* copy buffer for objects that span pages */
-@@ -622,7 +612,7 @@ static struct page *find_get_zspage(struct size_class *class)
- 	return page;
- }
- 
--#ifdef USE_PGTABLE_MAPPING
-+#ifdef CONFIG_PGTABLE_MAPPING
- static inline int __zs_cpu_up(struct mapping_area *area)
- {
- 	/*
-@@ -663,7 +653,7 @@ static inline void __zs_unmap_object(struct mapping_area *area,
- 	flush_tlb_kernel_range(addr, end);
- }
- 
--#else /* USE_PGTABLE_MAPPING */
-+#else /* CONFIG_PGTABLE_MAPPING*/
- 
- static inline int __zs_cpu_up(struct mapping_area *area)
- {
-@@ -741,7 +731,7 @@ out:
- 	pagefault_enable();
- }
- 
--#endif /* USE_PGTABLE_MAPPING */
-+#endif /* CONFIG_PGTABLE_MAPPING */
- 
- static int zs_cpu_notifier(struct notifier_block *nb, unsigned long action,
- 				void *pcpu)
--- 
-1.8.1.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
