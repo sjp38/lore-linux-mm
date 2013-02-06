@@ -1,82 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 8E2F96B003A
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 21:21:43 -0500 (EST)
-Message-ID: <5111BE09.2030509@cn.fujitsu.com>
-Date: Wed, 06 Feb 2013 10:20:57 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id BBBC56B003C
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 21:26:51 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id kp14so508486pab.33
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2013 18:26:51 -0800 (PST)
+Date: Tue, 5 Feb 2013 18:28:54 -0800
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH v2] zsmalloc: Add Kconfig for enabling PTE method
+Message-ID: <20130206022854.GA1681@kroah.com>
+References: <1360117028-5625-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] acpi, memory-hotplug: Support getting hotplug info
- from SRAT.
-References: <1359106929-3034-1-git-send-email-tangchen@cn.fujitsu.com> <1359106929-3034-4-git-send-email-tangchen@cn.fujitsu.com> <20130204152651.2bca8dba.akpm@linux-foundation.org>
-In-Reply-To: <20130204152651.2bca8dba.akpm@linux-foundation.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1360117028-5625-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On 02/05/2013 07:26 AM, Andrew Morton wrote:
-> On Fri, 25 Jan 2013 17:42:09 +0800
-> Tang Chen<tangchen@cn.fujitsu.com>  wrote:
->
->> We now provide an option for users who don't want to specify physical
->> memory address in kernel commandline.
->>
->>          /*
->>           * For movablemem_map=acpi:
->>           *
->>           * SRAT:                |_____| |_____| |_________| |_________| ......
->>           * node id:                0       1         1           2
->>           * hotpluggable:           n       y         y           n
->>           * movablemem_map:              |_____| |_________|
->>           *
->>           * Using movablemem_map, we can prevent memblock from allocating memory
->>           * on ZONE_MOVABLE at boot time.
->>           */
->>
->> So user just specify movablemem_map=acpi, and the kernel will use hotpluggable
->> info in SRAT to determine which memory ranges should be set as ZONE_MOVABLE.
->>
->> ...
->>
->> +	if (!strncmp(p, "acpi", max(4, strlen(p))))
->> +		movablemem_map.acpi = true;
->
-> Generates a warning:
->
-> mm/page_alloc.c: In function 'cmdline_parse_movablemem_map':
-> mm/page_alloc.c:5312: warning: comparison of distinct pointer types lacks a cast
->
-> due to max(int, size_t).
->
-> This is easily fixed, but the code looks rather pointless.  If the
-> incoming string is supposed to be exactly "acpi" then use strcmp().  If
-> the incoming string must start with "acpi" then use strncmp(p, "acpi", 4).
->
-> IOW, the max is unneeded?
+On Wed, Feb 06, 2013 at 11:17:08AM +0900, Minchan Kim wrote:
+> diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
+> index 9084565..232b3b6 100644
+> --- a/drivers/staging/zsmalloc/Kconfig
+> +++ b/drivers/staging/zsmalloc/Kconfig
+> @@ -8,3 +8,15 @@ config ZSMALLOC
+>  	  non-standard allocator interface where a handle, not a pointer, is
+>  	  returned by an alloc().  This handle must be mapped in order to
+>  	  access the allocated space.
+> +
+> +config PGTABLE_MAPPING
+> +        bool "Use page table mapping to access allocations that span two pages"
 
-Hi Andrew,
+No tabs?
 
-I think I made another mistake here. I meant to use min(4, strlen(p)) in 
-case p is
-something like 'aaa' whose length is less then 4. But I mistook it with 
-max().
+Please also put "ZSmalloc somewhere in the text here, otherwise it
+really doesn't make much sense when seeing it in a menu.
 
-But after I dig into strcmp() in the kernel, I think it is OK to use 
-strcmp().
-min() or max() is not needed.
+> +        depends on ZSMALLOC
+> +        default n
 
-Thanks. :)
+That's the default, so it can be dropped.
 
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
->
+> +        help
+> +	  By default, zsmalloc uses a copy-based object mapping method to access
+> +	  allocations that span two pages. However, if a particular architecture
+> +	  performs VM mapping faster than copying, then you should select this.
+> +	  This causes zsmalloc to use page table mapping rather than copying
+> +	  for object mapping. You can check speed with zsmalloc benchmark[1].
+> +	  [1] https://github.com/spartacus06/zsmalloc
+
+Care to specify exactly _what_ architectures this should be set for or
+not?  That will help the distros out a lot in determining if this should
+be enabled or not.
+
+> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+> index 06f73a9..2c1805c 100644
+> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+> @@ -207,6 +207,7 @@ struct zs_pool {
+>  	struct size_class size_class[ZS_SIZE_CLASSES];
+>  
+>  	gfp_t flags;	/* allocation flags used when growing pool */
+> +
+>  };
+>  
+>  /*
+
+Why add this extra line?
+
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
