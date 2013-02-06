@@ -1,66 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id DE2796B0024
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 20:35:51 -0500 (EST)
-Message-ID: <5111B318.9020204@cn.fujitsu.com>
-Date: Wed, 06 Feb 2013 09:34:16 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 690EC6B0030
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 20:40:56 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id hz10so495813pad.7
+        for <linux-mm@kvack.org>; Tue, 05 Feb 2013 17:40:55 -0800 (PST)
+Date: Tue, 5 Feb 2013 17:42:59 -0800
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] zsmalloc: Add Kconfig for enabling PTE method
+Message-ID: <20130206014259.GC816@kroah.com>
+References: <1359937421-19921-1-git-send-email-minchan@kernel.org>
+ <20130204185146.GA31284@kroah.com>
+ <20130205000854.GC2610@blaptop>
+ <20130205192520.GA8441@kroah.com>
+ <20130206011721.GE11197@blaptop>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] mm: rename confusing function names
-References: <51113CE3.5090000@gmail.com> <20130205192640.GC6481@cmpxchg.org> <20130205141332.04fcceac.akpm@linux-foundation.org> <5111AC7D.9070505@cn.fujitsu.com> <20130205172057.3be4dbd4.akpm@linux-foundation.org>
-In-Reply-To: <20130205172057.3be4dbd4.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130206011721.GE11197@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Linux MM <linux-mm@kvack.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, m.szyprowski@samsung.com, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-=E4=BA=8E 2013=E5=B9=B402=E6=9C=8806=E6=97=A5 09:20, Andrew Morton =E5=86=
-=99=E9=81=93:
-> On Wed, 06 Feb 2013 09:06:05 +0800
-> Zhang Yanfei <zhangyanfei@cn.fujitsu.com> wrote:
->=20
->> So could I rename the functions to the names like
->> nr=5Favailable=5Fbuffer=5Fhigh=5Fpages
->> And accurately document them with code comments just as you suggested.
->=20
-> gee.  "available" implies "available for you to allocate".  It has the
-> same problem as "free".
->=20
-> And "buffer" shouldn't be there - that's a reflection of the fact
-> that buffer=5Fhead payloads are not allocated from highmem.  An archaic
-> irrelevant thing.
->=20
-> Seriously, first let's write down the descriptions of what these
-> functions *do*.  Then choose nice names which abbreviate that.
->=20
+On Wed, Feb 06, 2013 at 10:17:21AM +0900, Minchan Kim wrote:
+> > > > Did you test this?  I don't see the new config value you added actually
+> > > > do anything in this code.  Also, if I select it incorrectly on ARM, or
+> > > 
+> > > *slaps self*
+> > 
+> > Ok, so I'll drop this patch now.  As for what to do instead, I have no
+> > idea, sorry, but the others should.
+> 
+> Okay. Then, let's discuss further.
+> The history we introuced copy-based method is due to portability casused by
+> set_pte and __flush_tlb_one usage in young zsmalloc age. They are gone now
+> so there isn't issue any more. But we found copy-based method is 3 times faster
+> than pte-based in VM so I expect you guys don't want to give up it for just
+> portability. Of course,
+> I can't give up pte-based model as you know well, it's 6 times faster than
+> copy-based model in ARM.
+> 
+> Hard-coding for some arch like now isn't good and Kconfig for selecting choice
+> was rejected by Greg as you can see above.
 
-OK, I will try to do this.
+I rejected your patch because it did not do anything, why would I accept
+it?
 
->=20
->=20
-> hm,
->=20
-> static unsigned int nr=5Ffree=5Fzone=5Fpages(int offset)
-> {
-> 	...
-> 	unsigned int sum =3D 0;
-> 	...
-> 	return sum;
-> }
->=20
-> How long will it be until these things start exploding from
-> sums-of-zones which exceed 16TB? =20
->=20
+What would you have done in my situation?
 
-You mean overflow? Hmm.. it might happens. Change the sum to
-unsigned long is ok?
+It's not an issue of "portability" or "speed" or anything other than
+"the patch you sent was obviously not correct."
 
-Thanks
-Zhang Yanfei
-
-=
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
