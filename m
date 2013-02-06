@@ -1,81 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 6DB4F6B005C
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 21:50:31 -0500 (EST)
-Date: Wed, 6 Feb 2013 11:50:28 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] zsmalloc: Add Kconfig for enabling PTE method
-Message-ID: <20130206025028.GH11197@blaptop>
-References: <1360117028-5625-1-git-send-email-minchan@kernel.org>
- <20130206022854.GA1681@kroah.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id C46CC6B0062
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 22:08:09 -0500 (EST)
+Message-ID: <5111C8EB.6090805@cn.fujitsu.com>
+Date: Wed, 06 Feb 2013 11:07:23 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130206022854.GA1681@kroah.com>
+Subject: Re: [PATCH v5 01/14] memory-hotplug: try to offline the memory twice
+ to avoid dependence
+References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com> <1356350964-13437-2-git-send-email-tangchen@cn.fujitsu.com> <50D96543.6010903@parallels.com> <50DFD7F7.5090408@cn.fujitsu.com> <50ED8834.1090804@parallels.com>
+In-Reply-To: <50ED8834.1090804@parallels.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, akpm@linux-foundation.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Miao Xie <miaox@cn.fujitsu.com>
 
-On Tue, Feb 05, 2013 at 06:28:54PM -0800, Greg Kroah-Hartman wrote:
-> On Wed, Feb 06, 2013 at 11:17:08AM +0900, Minchan Kim wrote:
-> > diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-> > index 9084565..232b3b6 100644
-> > --- a/drivers/staging/zsmalloc/Kconfig
-> > +++ b/drivers/staging/zsmalloc/Kconfig
-> > @@ -8,3 +8,15 @@ config ZSMALLOC
-> >  	  non-standard allocator interface where a handle, not a pointer, is
-> >  	  returned by an alloc().  This handle must be mapped in order to
-> >  	  access the allocated space.
-> > +
-> > +config PGTABLE_MAPPING
-> > +        bool "Use page table mapping to access allocations that span two pages"
-> 
-> No tabs?
-> 
-> Please also put "ZSmalloc somewhere in the text here, otherwise it
-> really doesn't make much sense when seeing it in a menu.
-> 
-> > +        depends on ZSMALLOC
-> > +        default n
-> 
-> That's the default, so it can be dropped.
-> 
-> > +        help
-> > +	  By default, zsmalloc uses a copy-based object mapping method to access
-> > +	  allocations that span two pages. However, if a particular architecture
-> > +	  performs VM mapping faster than copying, then you should select this.
-> > +	  This causes zsmalloc to use page table mapping rather than copying
-> > +	  for object mapping. You can check speed with zsmalloc benchmark[1].
-> > +	  [1] https://github.com/spartacus06/zsmalloc
-> 
-> Care to specify exactly _what_ architectures this should be set for or
-> not?  That will help the distros out a lot in determining if this should
-> be enabled or not.
-> 
-> > diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-> > index 06f73a9..2c1805c 100644
-> > --- a/drivers/staging/zsmalloc/zsmalloc-main.c
-> > +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-> > @@ -207,6 +207,7 @@ struct zs_pool {
-> >  	struct size_class size_class[ZS_SIZE_CLASSES];
-> >  
-> >  	gfp_t flags;	/* allocation flags used when growing pool */
-> > +
-> >  };
-> >  
-> >  /*
-> 
-> Why add this extra line?
-> 
-> thanks,
-> 
-> greg k-h
+Hi Glauber, all,
 
-Sorry for bothering you.
-I fixed all you pointed out.
-Thanks for the review, Greg!
+An old thing I want to discuss with you. :)
 
-Here it goes.
+On 01/09/2013 11:09 PM, Glauber Costa wrote:
+>>>> memory can't be offlined when CONFIG_MEMCG is selected.
+>>>> For example: there is a memory device on node 1. The address range
+>>>> is [1G, 1.5G). You will find 4 new directories memory8, memory9, memory10,
+>>>> and memory11 under the directory /sys/devices/system/memory/.
+>>>>
+>>>> If CONFIG_MEMCG is selected, we will allocate memory to store page cgroup
+>>>> when we online pages. When we online memory8, the memory stored page cgroup
+>>>> is not provided by this memory device. But when we online memory9, the memory
+>>>> stored page cgroup may be provided by memory8. So we can't offline memory8
+>>>> now. We should offline the memory in the reversed order.
+>>>>
+>>>> When the memory device is hotremoved, we will auto offline memory provided
+>>>> by this memory device. But we don't know which memory is onlined first, so
+>>>> offlining memory may fail. In such case, iterate twice to offline the memory.
+>>>> 1st iterate: offline every non primary memory block.
+>>>> 2nd iterate: offline primary (i.e. first added) memory block.
+>>>>
+>>>> This idea is suggested by KOSAKI Motohiro.
+>>>>
+>>>> Signed-off-by: Wen Congyang<wency@cn.fujitsu.com>
+>>>
+>>> Maybe there is something here that I am missing - I admit that I came
+>>> late to this one, but this really sounds like a very ugly hack, that
+>>> really has no place in here.
+>>>
+>>> Retrying, of course, may make sense, if we have reasonable belief that
+>>> we may now succeed. If this is the case, you need to document - in the
+>>> code - while is that.
+>>>
+>>> The memcg argument, however, doesn't really cut it. Why can't we make
+>>> all page_cgroup allocations local to the node they are describing? If
+>>> memcg is the culprit here, we should fix it, and not retry. If there is
+>>> still any benefit in retrying, then we retry being very specific about why.
+>>
+>> We try to make all page_cgroup allocations local to the node they are describing
+>> now. If the memory is the first memory onlined in this node, we will allocate
+>> it from the other node.
+>>
+>> For example, node1 has 4 memory blocks: 8-11, and we online it from 8 to 11
+>> 1. memory block 8, page_cgroup allocations are in the other nodes
+>> 2. memory block 9, page_cgroup allocations are in memory block 8
+>>
+>> So we should offline memory block 9 first. But we don't know in which order
+>> the user online the memory block.
+>>
+>> I think we can modify memcg like this:
+>> allocate the memory from the memory block they are describing
+>>
+>> I am not sure it is OK to do so.
+>
+> I don't see a reason why not.
+>
+> You would have to tweak a bit the lookup function for page_cgroup, but
+> assuming you will always have the pfns and limits, it should be easy to do.
+>
+> I think the only tricky part is that today we have a single
+> node_page_cgroup, and we would of course have to have one per memory
+> block. My assumption is that the number of memory blocks is limited and
+> likely not very big. So even a static array would do.
+>
 
-------------------- 8< -------------------
+About the idea "allocate the memory from the memory block they are 
+describing",
+
+online_pages()
+  |-->memory_notify(MEM_GOING_ONLINE, &arg) ----------- memory of this 
+section is not in buddy yet.
+       |-->page_cgroup_callback()
+            |-->online_page_cgroup()
+                 |-->init_section_page_cgroup()
+                      |-->alloc_page_cgroup() --------- allocate 
+page_cgroup from buddy system.
+
+When onlining pages, we allocate page_cgroup from buddy. And the being 
+onlined pages are not in
+buddy yet. I think we can reserve some memory in the section for 
+page_cgroup, and return all the
+rest to the buddy.
+
+But when the system is booting,
+
+start_kernel()
+  |-->setup_arch()
+  |-->mm_init()
+  |    |-->mem_init()
+  |         |-->numa_free_all_bootmem() -------------- all the pages are 
+in buddy system.
+  |-->page_cgroup_init()
+       |-->init_section_page_cgroup()
+            |-->alloc_page_cgroup() ------------------ I don't know how 
+to reserve memory in each section.
+
+So any idea about how to deal with it when the system is booting please?
+
+
+And one more question, a memory section is 128MB in Linux. If we reserve 
+part of the them for page_cgroup,
+then anyone who wants to allocate a contiguous memory larger than 128MB, 
+it will fail, right ?
+Is it OK ?
+
+Thanks. :)
+
+
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
