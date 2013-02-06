@@ -1,79 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id D3B176B0005
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 11:31:33 -0500 (EST)
-Date: Wed, 6 Feb 2013 16:31:29 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Improving lock pages
-Message-ID: <20130206163129.GR21389@suse.de>
-References: <20130115173814.GA13329@gulag1.americas.sgi.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id E3B956B0005
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 11:49:04 -0500 (EST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 6 Feb 2013 11:47:41 -0500
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id E241638C8079
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 11:47:29 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r16GlTSH316470
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2013 11:47:29 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r16GlJDV011738
+	for <linux-mm@kvack.org>; Wed, 6 Feb 2013 14:47:19 -0200
+Message-ID: <51128914.4010204@linux.vnet.ibm.com>
+Date: Wed, 06 Feb 2013 10:47:16 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130115173814.GA13329@gulag1.americas.sgi.com>
+Subject: Re: [PATCH v2] zsmalloc: Add Kconfig for enabling PTE method
+References: <1360117028-5625-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1360117028-5625-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nathan Zimmer <nzimmer@sgi.com>
-Cc: holt@sgi.com, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On Tue, Jan 15, 2013 at 11:38:14AM -0600, Nathan Zimmer wrote:
+On 02/05/2013 08:17 PM, Minchan Kim wrote:
+> Zsmalloc has two methods 1) copy-based and 2) pte-based to access
+> allocations that span two pages. You can see history why we supported
+> two approach from [1].
 > 
-> Hello Mel,
-
-Hi Nathan,
-
->     You helped some time ago with contention in lock_pages on very large boxes. 
-
-It was Nick Piggin and Jack Steiner that helped the situation within SLES
-and before my time. I inherited the relevant patches but made relatively
-few contributions to the effort.
-
-> You worked with Jack Steiner on this.  Currently I am tasked with improving this 
-> area even more.  So I am fishing for any more ideas that would be productive or 
-> worth trying. 
+> In summary, copy-based method is 3 times fater in x86 while pte-based
+> is 6 times faster in ARM.
 > 
-> I have some numbers from a 512 machine.
+> But it was bad choice that adding hard coding to select architecture
+> which want to use pte based method. This patch removed it and adds
+> new Kconfig to select the approach.
 > 
-> Linux uvpsw1 3.0.51-0.7.9-default #1 SMP Thu Nov 29 22:12:17 UTC 2012 (f3be9d0) x86_64 x86_64 x86_64 GNU/Linux
->       0.166850
->       0.082339
->       0.248428
->       0.081197
->       0.127635
-
-Ok, this looks like a SLES 11 SP2 kernel and so includes some unlock/lock
-page optimisations.
-
-> Linux uvpsw1 3.8.0-rc1-medusa_ntz_clean-dirty #32 SMP Tue Jan 8 16:01:04 CST 2013 x86_64 x86_64 x86_64 GNU/Linux
->       0.151778
->       0.118343
->       0.135750
->       0.437019
->       0.120536
+> This patch is based on next-20130205.
 > 
+> [1] https://lkml.org/lkml/2012/7/11/58
+> 
+> * Changelog from v1
+>   * Fix CONFIG_PGTABLE_MAPPING in zsmalloc-main.c - Greg
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  drivers/staging/zsmalloc/Kconfig         | 12 ++++++++++++
+>  drivers/staging/zsmalloc/zsmalloc-main.c | 20 +++++---------------
+>  2 files changed, 17 insertions(+), 15 deletions(-)
+> 
+> diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
+> index 9084565..232b3b6 100644
+> --- a/drivers/staging/zsmalloc/Kconfig
+> +++ b/drivers/staging/zsmalloc/Kconfig
+> @@ -8,3 +8,15 @@ config ZSMALLOC
+>  	  non-standard allocator interface where a handle, not a pointer, is
+>  	  returned by an alloc().  This handle must be mapped in order to
+>  	  access the allocated space.
+> +
+> +config PGTABLE_MAPPING
+> +        bool "Use page table mapping to access allocations that span two pages"
+> +        depends on ZSMALLOC
+> +        default n
+> +        help
+> +	  By default, zsmalloc uses a copy-based object mapping method to access
+> +	  allocations that span two pages. However, if a particular architecture
+> +	  performs VM mapping faster than copying, then you should select this.
+> +	  This causes zsmalloc to use page table mapping rather than copying
+> +	  for object mapping. You can check speed with zsmalloc benchmark[1].
+> +	  [1] https://github.com/spartacus06/zsmalloc
 
-And this is a mainline-ish kernel which doesn't.
+Hmm, I'm not sure we want to include this link in the Kconfig.  While  I
+don't have any plans to take that repo down, I could see it getting
+stale at some point for yet-to-be-determined reasons.
 
-The main reason I never made an strong effort to push them upstream
-because the problems are barely observable on any machine I had access to.
-The unlock page optimisation requires a page flag and while it helps
-profiles a little, the effects are barely observable on smaller machines
-(at least since I last checked).  One machine it was reported to help
-dramatically was a 768-way 128 node machine.
+Of course, without this tool (or something like it) it is hard to know
+which option is better for your particular platform.
 
-Forthe 512-way machine you're testing with the figures are marginal. The
-time to exit is shorter but the amount of time is tiny and very close to
-noise. I forward ported the relevant patches but on a 48-way machine the
-results for the same test were well within the noise and the standard
-deviation was higher.
+Would having this in a Documentation/ file, once one exists, be better?
 
-I know you're tasked with improving this area more but what are you
-using as your example workload? What's the minimum sized machine needed
-for the optimisations to make a difference?
-
--- 
-Mel Gorman
-SUSE Labs
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
