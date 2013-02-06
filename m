@@ -1,110 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 5488A6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 09:22:23 -0500 (EST)
-Date: Wed, 6 Feb 2013 15:22:19 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from
- add_to_page_cache_locked
-Message-ID: <20130206142219.GF10254@dhcp22.suse.cz>
-References: <20121228162209.GA1455@dhcp22.suse.cz>
- <20121230020947.AA002F34@pobox.sk>
- <20121230110815.GA12940@dhcp22.suse.cz>
- <20130125160723.FAE73567@pobox.sk>
- <20130125163130.GF4721@dhcp22.suse.cz>
- <20130205134937.GA22804@dhcp22.suse.cz>
- <20130205154947.CD6411E2@pobox.sk>
- <20130205160934.GB22804@dhcp22.suse.cz>
- <20130206021721.1AE9E3C7@pobox.sk>
- <20130206140119.GD10254@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 4831C6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 09:24:27 -0500 (EST)
+Message-ID: <5112679A.7080600@parallels.com>
+Date: Wed, 6 Feb 2013 18:24:26 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130206140119.GD10254@dhcp22.suse.cz>
+Subject: Re: [PATCH v5 01/14] memory-hotplug: try to offline the memory twice
+ to avoid dependence
+References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com> <1356350964-13437-2-git-send-email-tangchen@cn.fujitsu.com> <50D96543.6010903@parallels.com> <50DFD7F7.5090408@cn.fujitsu.com> <50ED8834.1090804@parallels.com> <5111C8EB.6090805@cn.fujitsu.com> <51121FB7.1070205@cn.fujitsu.com> <51122C1D.5020002@cn.fujitsu.com>
+In-Reply-To: <51122C1D.5020002@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, akpm@linux-foundation.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Miao Xie <miaox@cn.fujitsu.com>
 
-On Wed 06-02-13 15:01:19, Michal Hocko wrote:
-> On Wed 06-02-13 02:17:21, azurIt wrote:
-> > >5-memcg-fix-1.patch is not complete. It doesn't contain the folloup I
-> > >mentioned in a follow up email. Here is the full patch:
-> > 
-> > 
-> > Here is the log where OOM, again, killed MySQL server [search for "(mysqld)"]:
-> > http://www.watchdog.sk/lkml/oom_mysqld6
+On 02/06/2013 02:10 PM, Tang Chen wrote:
+> On 02/06/2013 05:17 PM, Tang Chen wrote:
+>> Hi all,
+>>
+>> On 02/06/2013 11:07 AM, Tang Chen wrote:
+>>> Hi Glauber, all,
+>>>
+>>> An old thing I want to discuss with you. :)
+>>>
+>>> On 01/09/2013 11:09 PM, Glauber Costa wrote:
+>>>>>>> memory can't be offlined when CONFIG_MEMCG is selected.
+>>>>>>> For example: there is a memory device on node 1. The address range
+>>>>>>> is [1G, 1.5G). You will find 4 new directories memory8, memory9,
+>>>>>>> memory10,
+>>>>>>> and memory11 under the directory /sys/devices/system/memory/.
+>>>>>>>
+>>>>>>> If CONFIG_MEMCG is selected, we will allocate memory to store page
+>>>>>>> cgroup
+>>>>>>> when we online pages. When we online memory8, the memory stored
+>>>>>>> page cgroup
+>>>>>>> is not provided by this memory device. But when we online memory9,
+>>>>>>> the memory
+>>>>>>> stored page cgroup may be provided by memory8. So we can't offline
+>>>>>>> memory8
+>>>>>>> now. We should offline the memory in the reversed order.
+>>>>>>>
+>>>>>>> When the memory device is hotremoved, we will auto offline memory
+>>>>>>> provided
+>>>>>>> by this memory device. But we don't know which memory is onlined
+>>>>>>> first, so
+>>>>>>> offlining memory may fail. In such case, iterate twice to offline
+>>>>>>> the memory.
+>>>>>>> 1st iterate: offline every non primary memory block.
+>>>>>>> 2nd iterate: offline primary (i.e. first added) memory block.
+>>>>>>>
+>>>>>>> This idea is suggested by KOSAKI Motohiro.
+>>>>>>>
+>>>>>>> Signed-off-by: Wen Congyang<wency@cn.fujitsu.com>
+>>>>>>
+>>>>>> Maybe there is something here that I am missing - I admit that I came
+>>>>>> late to this one, but this really sounds like a very ugly hack, that
+>>>>>> really has no place in here.
+>>>>>>
+>>>>>> Retrying, of course, may make sense, if we have reasonable belief
+>>>>>> that
+>>>>>> we may now succeed. If this is the case, you need to document - in
+>>>>>> the
+>>>>>> code - while is that.
+>>>>>>
+>>>>>> The memcg argument, however, doesn't really cut it. Why can't we make
+>>>>>> all page_cgroup allocations local to the node they are describing? If
+>>>>>> memcg is the culprit here, we should fix it, and not retry. If
+>>>>>> there is
+>>>>>> still any benefit in retrying, then we retry being very specific
+>>>>>> about why.
+>>>>>
+>>>>> We try to make all page_cgroup allocations local to the node they are
+>>>>> describing
+>>>>> now. If the memory is the first memory onlined in this node, we will
+>>>>> allocate
+>>>>> it from the other node.
+>>>>>
+>>>>> For example, node1 has 4 memory blocks: 8-11, and we online it from 8
+>>>>> to 11
+>>>>> 1. memory block 8, page_cgroup allocations are in the other nodes
+>>>>> 2. memory block 9, page_cgroup allocations are in memory block 8
+>>>>>
+>>>>> So we should offline memory block 9 first. But we don't know in which
+>>>>> order
+>>>>> the user online the memory block.
+>>>>>
+>>>>> I think we can modify memcg like this:
+>>>>> allocate the memory from the memory block they are describing
+>>>>>
+>>>>> I am not sure it is OK to do so.
+>>>>
+>>>> I don't see a reason why not.
+>>>>
+>>>> You would have to tweak a bit the lookup function for page_cgroup, but
+>>>> assuming you will always have the pfns and limits, it should be easy
+>>>> to do.
+>>>>
+>>>> I think the only tricky part is that today we have a single
+>>>> node_page_cgroup, and we would of course have to have one per memory
+>>>> block. My assumption is that the number of memory blocks is limited and
+>>>> likely not very big. So even a static array would do.
+>>>>
+>>>
+>>> About the idea "allocate the memory from the memory block they are
+>>> describing",
+>>>
+>>> online_pages()
+>>> |-->memory_notify(MEM_GOING_ONLINE, &arg) ----------- memory of this
+>>> section is not in buddy yet.
+>>> |-->page_cgroup_callback()
+>>> |-->online_page_cgroup()
+>>> |-->init_section_page_cgroup()
+>>> |-->alloc_page_cgroup() --------- allocate page_cgroup from buddy
+>>> system.
+>>>
+>>> When onlining pages, we allocate page_cgroup from buddy. And the being
+>>> onlined pages are not in
+>>> buddy yet. I think we can reserve some memory in the section for
+>>> page_cgroup, and return all the
+>>> rest to the buddy.
+>>>
+>>> But when the system is booting,
+>>>
+>>> start_kernel()
+>>> |-->setup_arch()
+>>> |-->mm_init()
+>>> | |-->mem_init()
+>>> | |-->numa_free_all_bootmem() -------------- all the pages are in buddy
+>>> system.
+>>> |-->page_cgroup_init()
+>>> |-->init_section_page_cgroup()
+>>> |-->alloc_page_cgroup() ------------------ I don't know how to reserve
+>>> memory in each section.
+>>>
+>>> So any idea about how to deal with it when the system is booting please?
+>>>
+>>
+>> How about this way.
+>>
+>> 1) Add a new flag PAGE_CGROUP_INFO, like SECTION_INFO and
+>> MIX_SECTION_INFO.
+>> 2) In sparse_init(), reserve some beginning pages of each section as
+>> bootmem.
 > 
-> [...]
-> WARNING: at mm/memcontrol.c:2409 T.1149+0x2d9/0x610()
-> Hardware name: S5000VSA
-> gfp_mask:4304 nr_pages:1 oom:0 ret:2
-> Pid: 3545, comm: apache2 Tainted: G        W    3.2.37-grsec #1
-> Call Trace:
->  [<ffffffff8105502a>] warn_slowpath_common+0x7a/0xb0
->  [<ffffffff81055116>] warn_slowpath_fmt+0x46/0x50
->  [<ffffffff81108163>] ? mem_cgroup_margin+0x73/0xa0
->  [<ffffffff8110b6f9>] T.1149+0x2d9/0x610
->  [<ffffffff812af298>] ? blk_finish_plug+0x18/0x50
->  [<ffffffff8110c6b4>] mem_cgroup_cache_charge+0xc4/0xf0
->  [<ffffffff810ca6bf>] add_to_page_cache_locked+0x4f/0x140
->  [<ffffffff810ca7d2>] add_to_page_cache_lru+0x22/0x50
->  [<ffffffff810cad32>] filemap_fault+0x252/0x4f0
->  [<ffffffff810eab18>] __do_fault+0x78/0x5a0
->  [<ffffffff810edcb4>] handle_pte_fault+0x84/0x940
->  [<ffffffff810e2460>] ? vma_prio_tree_insert+0x30/0x50
->  [<ffffffff810f2508>] ? vma_link+0x88/0xe0
->  [<ffffffff810ee6a8>] handle_mm_fault+0x138/0x260
->  [<ffffffff8102709d>] do_page_fault+0x13d/0x460
->  [<ffffffff810f46fc>] ? do_mmap_pgoff+0x3dc/0x430
->  [<ffffffff815b61ff>] page_fault+0x1f/0x30
-> ---[ end trace 8817670349022007 ]---
-> apache2 invoked oom-killer: gfp_mask=0x0, order=0, oom_adj=0, oom_score_adj=0
-> apache2 cpuset=uid mems_allowed=0
-> Pid: 3545, comm: apache2 Tainted: G        W    3.2.37-grsec #1
-> Call Trace:
->  [<ffffffff810ccd2e>] dump_header+0x7e/0x1e0
->  [<ffffffff810ccc2f>] ? find_lock_task_mm+0x2f/0x70
->  [<ffffffff810cd1f5>] oom_kill_process+0x85/0x2a0
->  [<ffffffff810cd8a5>] out_of_memory+0xe5/0x200
->  [<ffffffff810cda7d>] pagefault_out_of_memory+0xbd/0x110
->  [<ffffffff81026e76>] mm_fault_error+0xb6/0x1a0
->  [<ffffffff8102734e>] do_page_fault+0x3ee/0x460
->  [<ffffffff810f46fc>] ? do_mmap_pgoff+0x3dc/0x430
->  [<ffffffff815b61ff>] page_fault+0x1f/0x30
+> Hi all,
 > 
-> The first trace comes from the debugging WARN and it clearly points to
-> a file fault path. __do_fault pre-charges a page in case we need to
-> do CoW (copy-on-write) for the returned page. This one falls back to
-> memcg OOM and never returns ENOMEM as I have mentioned earlier. 
-> However, the fs fault handler (filemap_fault here) can fallback to
-> page_cache_read if the readahead (do_sync_mmap_readahead) fails
-> to get page to the page cache. And we can see this happening in
-> the first trace. page_cache_read then calls add_to_page_cache_lru
-> and eventually gets to add_to_page_cache_locked which calls
-> mem_cgroup_cache_charge_no_oom so we will get ENOMEM if oom should
-> happen. This ENOMEM gets to the fault handler and kaboom.
+> After digging into bootmem code, I met another problem.
 > 
-> So the fix is really much more complex than I thought. Although
-> add_to_page_cache_locked sounded like a good place it turned out to be
-> not in fact.
+> memblock allocates memory from high address to low address, using
+> memblock.current_limit
+> to remember where the upper limit is. What I am doing will produce a lot
+> of fragments,
+> and the memory will be non-contiguous. So we need to modify memblock again.
 > 
-> We need something more clever appaerently. One way would be not misusing
-> __GFP_NORETRY for GFP_MEMCG_NO_OOM and give it a real flag. We have 32
-> bits for those flags in gfp_t so there should be some room there. 
-> Or we could do this per task flag, same we do for NO_IO in the current
-> -mm tree.
-> The later one seems easier wrt. gfp_mask passing horror - e.g.
-> __generic_file_aio_write doesn't pass flags and it can be called from
-> unlocked contexts as well.
+> I don't think it's a good idea. How do you think ?
+> 
+> Thanks. :)
+> 
+>> 3) In register_page_bootmem_info_section(), set these pages as
+>> page->lru.next = PAGE_CGROUP_INFO;
+>>
+>> Then these pages will not go to buddy system.
+>>
+>> But I do worry about the fragment problem because part of each section
+>> will
+>> be used in the very beginning.
+>>
+>> Thanks. :)
+>>
+>>>
+>>> And one more question, a memory section is 128MB in Linux. If we reserve
+>>> part of the them for page_cgroup,
+>>> then anyone who wants to allocate a contiguous memory larger than 128MB,
+>>> it will fail, right ?
+>>> Is it OK ?
+No, it is not.
 
-Ouch, PF_ flags space seem to be drained already because
-task_struct::flags is just unsigned int so there is just one bit left. I
-am not sure this is the best use for it. This will be a real pain!
+Another take on this: Can't we free all the page_cgroup structure before
+we actually start removing the sections ? If we do this, we would be
+basically left with no problem at all, since when your code starts
+running we would no longer have any page_cgroup allocated.
 
--- 
-Michal Hocko
-SUSE Labs
+All you have to guarantee is that it happens after the memory block is
+already isolated and allocations no longer can reach it.
+
+What do you think ?
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
