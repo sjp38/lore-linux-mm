@@ -1,274 +1,556 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 3D0646B0005
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 13:17:18 -0500 (EST)
-Received: from /spool/local
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Wed, 6 Feb 2013 18:15:40 -0000
-Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r16IGsj233161274
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2013 18:16:55 GMT
-Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [127.0.0.1])
-	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r16HGUpp012027
-	for <linux-mm@kvack.org>; Wed, 6 Feb 2013 12:16:30 -0500
-Date: Wed, 6 Feb 2013 10:16:56 -0800
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] s390/mm: implement software dirty bits
-Message-ID: <20130206101656.4d45b80f@mschwide>
-In-Reply-To: <20130206112111.GP21389@suse.de>
-References: <1360087925-8456-1-git-send-email-schwidefsky@de.ibm.com>
-	<1360087925-8456-3-git-send-email-schwidefsky@de.ibm.com>
-	<20130206112111.GP21389@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 285D36B0005
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 13:27:49 -0500 (EST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie to a config option
+Date: Wed,  6 Feb 2013 10:27:41 -0800
+Message-Id: <1360175261-13287-1-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-s390@vger.kernel.org, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+To: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, dan.magenheimer@oracle.com
 
-Hi Mel,
+It was observed by Andrea Arcangeli in 2011 that zcache can get "full"
+and there must be some way for compressed swap pages to be (uncompressed
+and then) sent through to the backing swap disk.  A prototype of this
+functionality, called "unuse", was added in 2012 as part of a major update
+to zcache (aka "zcache2"), but was left unfinished due to the unfortunate
+temporary fork of zcache.
 
-On Wed, 6 Feb 2013 11:21:11 +0000
-Mel Gorman <mgorman@suse.de> wrote:
+This earlier version of the code had an unresolved memory leak
+and was anyway dependent on not-yet-upstream frontswap and mm changes.
+The code was meanwhile adapted by Seth Jennings for similar
+functionality in zswap (which he calls "flush").  Seth also made some
+clever simplifications which are herein ported back to zcache.  As a
+result of those simplifications, the frontswap changes are no longer
+necessary, but a slightly different (and simpler) set of mm changes are
+still required [1].  The memory leak is also fixed.
 
-> On Tue, Feb 05, 2013 at 10:12:05AM -0800, Martin Schwidefsky wrote:
-> > The s390 architecture is unique in respect to dirty page detection,
-> > it uses the change bit in the per-page storage key to track page
-> > modifications. All other architectures track dirty bits by means
-> > of page table entries. This property of s390 has caused numerous
-> > problems in the past, e.g. see git commit ef5d437f71afdf4a
-> > "mm: fix XFS oops due to dirty pages without buffers on s390".
-> > 
-> > To avoid future issues in regard to per-page dirty bits convert
-> > s390 to a fault based software dirty bit detection mechanism. All
-> > user page table entries which are marked as clean will be hardware
-> > read-only, even if the pte is supposed to be writable. A write by
-> > the user process will trigger a protection fault which will cause
-> > the user pte to be marked as dirty and the hardware read-only bit
-> > is removed.
-> > 
-> > With this change the dirty bit in the storage key is irrelevant
-> > for Linux as a host, but the storage key is still required for
-> > KVM guests. The effect is that page_test_and_clear_dirty and the
-> > related code can be removed. The referenced bit in the storage
-> > key is still used by the page_test_and_clear_young primitive to
-> > provide page age information.
-> > 
-> > For page cache pages of mappings with mapping_cap_account_dirty
-> > there will not be any change in behavior as the dirty bit tracking
-> > already uses read-only ptes to control the amount of dirty pages.
-> > Only for swap cache pages and pages of mappings without
-> > mapping_cap_account_dirty there can be additional protection faults.
-> > To avoid an excessive number of additional faults the mk_pte
-> > primitive checks for PageDirty if the pgprot value allows for writes
-> > and pre-dirties the pte. That avoids all additional faults for
-> > tmpfs and shmem pages until these pages are added to the swap cache.
-> > 
-> > Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> 
-> I have a few clarifications below just to make sure I'm reading it right
-> but I think it looks fine and the change to mm/rmap.c is welcome.
+Due to feedback from akpm in a zswap thread, this functionality in zcache
+has now been renamed from "unuse" to "writeback".
 
-It is welcome to me as well. That XFS problem really convinced me that this
-is the right way to go.
+Although this zcache writeback code now works, there are open questions
+as how best to handle the policy that drives it.  As a result, this
+patch also ties writeback to a new config option.  And, since the
+code still depends on not-yet-upstreamed mm patches, to avoid build
+problems, the config option added by this patch temporarily depends
+on "BROKEN"; this config dependency can be removed in trees that
+contain the necessary mm patches.
 
-> > diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-> > index 098adbb..2b3d3b6 100644
-> > --- a/arch/s390/include/asm/pgtable.h
-> > +++ b/arch/s390/include/asm/pgtable.h
-> > @@ -29,6 +29,7 @@
-> >  #ifndef __ASSEMBLY__
-> >  #include <linux/sched.h>
-> >  #include <linux/mm_types.h>
-> > +#include <linux/page-flags.h>
-> >  #include <asm/bug.h>
-> >  #include <asm/page.h>
-> >  
-> > @@ -221,13 +222,15 @@ extern unsigned long MODULES_END;
-> >  /* Software bits in the page table entry */
-> >  #define _PAGE_SWT	0x001		/* SW pte type bit t */
-> >  #define _PAGE_SWX	0x002		/* SW pte type bit x */
-> > -#define _PAGE_SWC	0x004		/* SW pte changed bit (for KVM) */
-> > -#define _PAGE_SWR	0x008		/* SW pte referenced bit (for KVM) */
-> > -#define _PAGE_SPECIAL	0x010		/* SW associated with special page */
-> > +#define _PAGE_SWC	0x004		/* SW pte changed bit */
-> > +#define _PAGE_SWR	0x008		/* SW pte referenced bit */
-> > +#define _PAGE_SWW	0x010		/* SW pte write bit */
-> > +#define _PAGE_SPECIAL	0x020		/* SW associated with special page */
-> >  #define __HAVE_ARCH_PTE_SPECIAL
-> >  
-> >  /* Set of bits not changed in pte_modify */
-> > -#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_SPECIAL | _PAGE_SWC | _PAGE_SWR)
-> > +#define _PAGE_CHG_MASK		(PAGE_MASK | _PAGE_SPECIAL | _PAGE_CO | \
-> > +				 _PAGE_SWC | _PAGE_SWR)
-> >  
-> 
-> If I'm reading it right, the _PAGE_CO is bit is what allows you to force
-> the hardware to trap even if the PTE says the page is writable. This is
-> what necessitates the shuffling of _PAGE_SPECIAL so you have a software
-> write bit and a hardware write bit.
+[1] https://lkml.org/lkml/2013/1/29/540/ https://lkml.org/lkml/2013/1/29/539/
 
-No, the _PAGE_CO bit is the change-bit-override. This allows the hardware to
-avoid to set the dirty bit in the storage key for a write access over a pte.
-It is a optimization, the code would work without _PAGE_CO as well.
-The basic idea is to introduce a software bit which indicates the software
-view of writable vs. non-writable (the _PAGE_SWW bit). The hardware
-_PAGE_RO is used to disallow writes while the pte is clean.
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+---
+ drivers/staging/zcache/Kconfig       |   17 ++
+ drivers/staging/zcache/zcache-main.c |  332 +++++++++++++++++++++++++++-------
+ 2 files changed, 284 insertions(+), 65 deletions(-)
 
-> For existing distributions they might not be able to use this patch for
-> bugs like ""mm: fix XFS oops due to dirty pages without buffers on s390"
-> because this shuffling of bits will break KABIi but that's not your problem.
-
-I am not really sure if we should backport that change to the existing
-distributions. It is a non-trivial change.
-
-> >  /* Six different types of pages. */
-> >  #define _PAGE_TYPE_EMPTY	0x400
-> > @@ -321,6 +324,7 @@ extern unsigned long MODULES_END;
-> >  
-> >  /* Bits in the region table entry */
-> >  #define _REGION_ENTRY_ORIGIN	~0xfffUL/* region/segment table origin	    */
-> > +#define _REGION_ENTRY_RO	0x200	/* region protection bit	    */
-> >  #define _REGION_ENTRY_INV	0x20	/* invalid region table entry	    */
-> >  #define _REGION_ENTRY_TYPE_MASK	0x0c	/* region/segment table type mask   */
-> >  #define _REGION_ENTRY_TYPE_R1	0x0c	/* region first table type	    */
-> > @@ -382,9 +386,10 @@ extern unsigned long MODULES_END;
-> >   */
-> >  #define PAGE_NONE	__pgprot(_PAGE_TYPE_NONE)
-> >  #define PAGE_RO		__pgprot(_PAGE_TYPE_RO)
-> > -#define PAGE_RW		__pgprot(_PAGE_TYPE_RW)
-> > +#define PAGE_RW		__pgprot(_PAGE_TYPE_RO | _PAGE_SWW)
-> > +#define PAGE_RWC	__pgprot(_PAGE_TYPE_RW | _PAGE_SWW | _PAGE_SWC)
-> >  
-> > -#define PAGE_KERNEL	PAGE_RW
-> > +#define PAGE_KERNEL	PAGE_RWC
-> >  #define PAGE_COPY	PAGE_RO
-> >  
-> >  /*
-> 
-> And this combination of page bits looks consistent. The details are
-> heavily buried in the arch code so I hope however deals with this area
-> in the future spots the changelog. Of course, that guy is likely to be
-> you anyway :)
-
-Yep, I will be that guy. With the move of the complexity to handle s390
-to the arch implementation even more than before.
-
-> > @@ -631,23 +636,23 @@ static inline pgste_t pgste_update_all(pte_t *ptep, pgste_t pgste)
-> >  	bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
-> >  	/* Clear page changed & referenced bit in the storage key */
-> >  	if (bits & _PAGE_CHANGED)
-> > -		page_set_storage_key(address, skey ^ bits, 1);
-> > +		page_set_storage_key(address, skey ^ bits, 0);
-> >  	else if (bits)
-> >  		page_reset_referenced(address);
-> >  	/* Transfer page changed & referenced bit to guest bits in pgste */
-> >  	pgste_val(pgste) |= bits << 48;		/* RCP_GR_BIT & RCP_GC_BIT */
-> >  	/* Get host changed & referenced bits from pgste */
-> >  	bits |= (pgste_val(pgste) & (RCP_HR_BIT | RCP_HC_BIT)) >> 52;
-> > -	/* Clear host bits in pgste. */
-> > +	/* Transfer page changed & referenced bit to kvm user bits */
-> > +	pgste_val(pgste) |= bits << 45;		/* KVM_UR_BIT & KVM_UC_BIT */
-> > +	/* Clear relevant host bits in pgste. */
-> >  	pgste_val(pgste) &= ~(RCP_HR_BIT | RCP_HC_BIT);
-> >  	pgste_val(pgste) &= ~(RCP_ACC_BITS | RCP_FP_BIT);
-> >  	/* Copy page access key and fetch protection bit to pgste */
-> >  	pgste_val(pgste) |=
-> >  		(unsigned long) (skey & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56;
-> > -	/* Transfer changed and referenced to kvm user bits */
-> > -	pgste_val(pgste) |= bits << 45;		/* KVM_UR_BIT & KVM_UC_BIT */
-> > -	/* Transfer changed & referenced to pte sofware bits */
-> > -	pte_val(*ptep) |= bits << 1;		/* _PAGE_SWR & _PAGE_SWC */
-> > +	/* Transfer referenced bit to pte */
-> > +	pte_val(*ptep) |= (bits & _PAGE_REFERENCED) << 1;
-> >  #endif
-> >  	return pgste;
-> >  
-> > @@ -660,20 +665,25 @@ static inline pgste_t pgste_update_young(pte_t *ptep, pgste_t pgste)
-> >  
-> >  	if (!pte_present(*ptep))
-> >  		return pgste;
-> > +	/* Get referenced bit from storage key */
-> >  	young = page_reset_referenced(pte_val(*ptep) & PAGE_MASK);
-> > -	/* Transfer page referenced bit to pte software bit (host view) */
-> > -	if (young || (pgste_val(pgste) & RCP_HR_BIT))
-> > +	if (young)
-> > +		pgste_val(pgste) |= RCP_GR_BIT;
-> > +	/* Get host referenced bit from pgste */
-> > +	if (pgste_val(pgste) & RCP_HR_BIT) {
-> > +		pgste_val(pgste) &= ~RCP_HR_BIT;
-> > +		young = 1;
-> > +	}
-> > +	/* Transfer referenced bit to kvm user bits and pte */
-> > +	if (young) {
-> > +		pgste_val(pgste) |= KVM_UR_BIT;
-> >  		pte_val(*ptep) |= _PAGE_SWR;
-> > -	/* Clear host referenced bit in pgste. */
-> > -	pgste_val(pgste) &= ~RCP_HR_BIT;
-> > -	/* Transfer page referenced bit to guest bit in pgste */
-> > -	pgste_val(pgste) |= (unsigned long) young << 50; /* set RCP_GR_BIT */
-> > +	}
-> >  #endif
-> >  	return pgste;
-> > -
-> >  }
-> >  
-> > -static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
-> > +static inline void pgste_set_key(pte_t *ptep, pgste_t pgste, pte_t entry)
-> >  {
-> >  #ifdef CONFIG_PGSTE
-> >  	unsigned long address;
-> > @@ -687,10 +697,23 @@ static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
-> >  	/* Set page access key and fetch protection bit from pgste */
-> >  	nkey |= (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
-> >  	if (okey != nkey)
-> > -		page_set_storage_key(address, nkey, 1);
-> > +		page_set_storage_key(address, nkey, 0);
-> >  #endif
-> >  }
-> >  
-> > +static inline void pgste_set_pte(pte_t *ptep, pte_t entry)
-> > +{
-> > +	if (!MACHINE_HAS_ESOP && (pte_val(entry) & _PAGE_SWW)) {
-> > +		/*
-> > +		 * Without enhanced suppression-on-protection force
-> > +		 * the dirty bit on for all writable ptes.
-> > +		 */
-> > +		pte_val(entry) |= _PAGE_SWC;
-> > +		pte_val(entry) &= ~_PAGE_RO;
-> > +	}
-> > +	*ptep = entry;
-> > +}
-> > +
-> >  /**
-> >   * struct gmap_struct - guest address space
-> >   * @mm: pointer to the parent mm_struct
-> 
-> So establishing a writable PTE clears the hardware RO override as
-> well and the changed bit is set so it'll be considered dirty.
-
-Yes, that case for old machines running KVM is a bit unfortunate.
-I need to force the changed bit so that the read-only bit can be cleared.
-KVM will not work with read-only ptes if the enhanced suppression-on-
-protection is not available.
+diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
+index c1dbd04..7358270 100644
+--- a/drivers/staging/zcache/Kconfig
++++ b/drivers/staging/zcache/Kconfig
+@@ -24,3 +24,20 @@ config RAMSTER
+ 	  while minimizing total RAM across the cluster.  RAMster, like
+ 	  zcache2, compresses swap pages into local RAM, but then remotifies
+ 	  the compressed pages to another node in the RAMster cluster.
++
++# Depends on not-yet-upstreamed mm patches to export end_swap_bio_write and
++# __add_to_swap_cache, and implement __swap_writepage (which is swap_writepage
++# without the frontswap call. When these are in-tree, the dependency on
++# BROKEN can be removed
++config ZCACHE_WRITEBACK
++	bool "Allow compressed swap pages to be writtenback to swap disk"
++	depends on ZCACHE=y && BROKEN
++	default n
++	help
++	  Zcache caches compressed swap pages (and other data) in RAM which
++	  often improves performance by avoiding I/O's due to swapping.
++	  In some workloads with very long-lived large processes, it can
++	  instead reduce performance.  Writeback decompresses zcache-compressed
++	  pages (in LRU order) when under memory pressure and writes them to
++	  the backing swap disk to ameliorate this problem.  Policy driving
++	  writeback is still under development.
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index c1ac905..5bf14c3 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -22,6 +22,10 @@
+ #include <linux/atomic.h>
+ #include <linux/math64.h>
+ #include <linux/crypto.h>
++#include <linux/swap.h>
++#include <linux/swapops.h>
++#include <linux/pagemap.h>
++#include <linux/writeback.h>
  
-> Reading down through the other page tables updates, I couldn't spot a place
-> where you were inconsistent with the handling of the hardware _PAGE_CO
-> and _PAGE_RO. Writes were allowed when the change bit was already set.
-> I couldn't follow it all, particularly around the KVM bits so take it with
-> a grain of salt but for me anyway;
-> 
-> Acked-by: Mel Gorman <mgorman@suse.de>
+ #include <linux/cleancache.h>
+ #include <linux/frontswap.h>
+@@ -55,6 +59,9 @@ static inline void frontswap_tmem_exclusive_gets(bool b)
+ }
+ #endif
  
-Much appreciated. Thanks Mel.
-
++/* enable (or fix code) when Seth's patches are accepted upstream */
++#define zcache_writeback_enabled 0
++
+ static int zcache_enabled __read_mostly;
+ static int disable_cleancache __read_mostly;
+ static int disable_frontswap __read_mostly;
+@@ -181,6 +188,8 @@ static unsigned long zcache_last_active_anon_pageframes;
+ static unsigned long zcache_last_inactive_anon_pageframes;
+ static unsigned long zcache_eph_nonactive_puts_ignored;
+ static unsigned long zcache_pers_nonactive_puts_ignored;
++static unsigned long zcache_writtenback_pages;
++static long zcache_outstanding_writeback_pages;
+ 
+ #ifdef CONFIG_DEBUG_FS
+ #include <linux/debugfs.h>
+@@ -239,6 +248,9 @@ static int zcache_debugfs_init(void)
+ 	zdfs64("eph_zbytes_max", S_IRUGO, root, &zcache_eph_zbytes_max);
+ 	zdfs64("pers_zbytes", S_IRUGO, root, &zcache_pers_zbytes);
+ 	zdfs64("pers_zbytes_max", S_IRUGO, root, &zcache_pers_zbytes_max);
++	zdfs("outstanding_writeback_pages", S_IRUGO, root,
++				&zcache_outstanding_writeback_pages);
++	zdfs("writtenback_pages", S_IRUGO, root, &zcache_writtenback_pages);
+ 	return 0;
+ }
+ #undef	zdebugfs
+@@ -285,6 +297,18 @@ void zcache_dump(void)
+ 	pr_info("zcache: eph_zpages_max=%lu\n", zcache_eph_zpages_max);
+ 	pr_info("zcache: pers_zpages=%lu\n", zcache_pers_zpages);
+ 	pr_info("zcache: pers_zpages_max=%lu\n", zcache_pers_zpages_max);
++	pr_info("zcache: last_active_file_pageframes=%lu\n",
++				zcache_last_active_file_pageframes);
++	pr_info("zcache: last_inactive_file_pageframes=%lu\n",
++				zcache_last_inactive_file_pageframes);
++	pr_info("zcache: last_active_anon_pageframes=%lu\n",
++				zcache_last_active_anon_pageframes);
++	pr_info("zcache: last_inactive_anon_pageframes=%lu\n",
++				zcache_last_inactive_anon_pageframes);
++	pr_info("zcache: eph_nonactive_puts_ignored=%lu\n",
++				zcache_eph_nonactive_puts_ignored);
++	pr_info("zcache: pers_nonactive_puts_ignored=%lu\n",
++				zcache_pers_nonactive_puts_ignored);
+ 	pr_info("zcache: eph_zbytes=%llu\n",
+ 				(unsigned long long)zcache_eph_zbytes);
+ 	pr_info("zcache: eph_zbytes_max=%llu\n",
+@@ -292,7 +316,10 @@ void zcache_dump(void)
+ 	pr_info("zcache: pers_zbytes=%llu\n",
+ 				(unsigned long long)zcache_pers_zbytes);
+ 	pr_info("zcache: pers_zbytes_max=%llu\n",
+-			(unsigned long long)zcache_pers_zbytes_max);
++				(unsigned long long)zcache_pers_zbytes_max);
++	pr_info("zcache: outstanding_writeback_pages=%lu\n",
++				zcache_outstanding_writeback_pages);
++	pr_info("zcache: writtenback_pages=%lu\n", zcache_writtenback_pages);
+ }
+ #endif
+ 
+@@ -449,14 +476,6 @@ static struct page *zcache_alloc_page(void)
+ 	return page;
+ }
+ 
+-#ifdef FRONTSWAP_HAS_UNUSE
+-static void zcache_unacct_page(void)
+-{
+-	zcache_pageframes_freed =
+-		atomic_inc_return(&zcache_pageframes_freed_atomic);
+-}
+-#endif
+-
+ static void zcache_free_page(struct page *page)
+ {
+ 	long curr_pageframes;
+@@ -959,7 +978,7 @@ static struct page *zcache_evict_eph_pageframe(void)
+ 					&zcache_eph_zbytes_atomic);
+ 	zcache_eph_zpages = atomic_sub_return(zpages,
+ 					&zcache_eph_zpages_atomic);
+-	zcache_evicted_eph_zpages++;
++	zcache_evicted_eph_zpages += zpages;
+ 	zcache_eph_pageframes =
+ 		atomic_dec_return(&zcache_eph_pageframes_atomic);
+ 	zcache_evicted_eph_pageframes++;
+@@ -967,77 +986,253 @@ out:
+ 	return page;
+ }
+ 
+-#ifdef FRONTSWAP_HAS_UNUSE
++#ifdef CONFIG_ZCACHE_WRITEBACK
++
++static atomic_t zcache_outstanding_writeback_pages_atomic = ATOMIC_INIT(0);
++
+ static void unswiz(struct tmem_oid oid, u32 index,
+ 				unsigned *type, pgoff_t *offset);
+ 
+ /*
+- *  Choose an LRU persistent pageframe and attempt to "unuse" it by
+- *  calling frontswap_unuse on both zpages.
++ *  Choose an LRU persistent pageframe and attempt to write it back to
++ *  the backing swap disk by calling frontswap_writeback on both zpages.
+  *
+  *  This is work-in-progress.
+  */
+ 
+-static int zcache_frontswap_unuse(void)
++static void zcache_end_swap_write(struct bio *bio, int err)
++{
++	end_swap_bio_write(bio, err);
++	zcache_outstanding_writeback_pages =
++	  atomic_dec_return(&zcache_outstanding_writeback_pages_atomic);
++	zcache_writtenback_pages++;
++}
++
++/*
++ * zcache_get_swap_cache_page
++ *
++ * This is an adaption of read_swap_cache_async()
++ *
++ * If success, page is returned in retpage
++ * Returns 0 if page was already in the swap cache, page is not locked
++ * Returns 1 if the new page needs to be populated, page is locked
++ */
++static int zcache_get_swap_cache_page(int type, pgoff_t offset,
++				struct page *new_page)
++{
++	struct page *found_page;
++	swp_entry_t entry = swp_entry(type, offset);
++	int err;
++
++	BUG_ON(new_page == NULL);
++	do {
++		/*
++		 * First check the swap cache.  Since this is normally
++		 * called after lookup_swap_cache() failed, re-calling
++		 * that would confuse statistics.
++		 */
++		found_page = find_get_page(&swapper_space, entry.val);
++		if (found_page)
++			return 0;
++
++		/*
++		 * call radix_tree_preload() while we can wait.
++		 */
++		err = radix_tree_preload(GFP_KERNEL);
++		if (err)
++			break;
++
++		/*
++		 * Swap entry may have been freed since our caller observed it.
++		 */
++		err = swapcache_prepare(entry);
++		if (err == -EEXIST) { /* seems racy */
++			radix_tree_preload_end();
++			continue;
++		}
++		if (err) { /* swp entry is obsolete ? */
++			radix_tree_preload_end();
++			break;
++		}
++
++		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
++		__set_page_locked(new_page);
++		SetPageSwapBacked(new_page);
++		err = __add_to_swap_cache(new_page, entry);
++		if (likely(!err)) {
++			radix_tree_preload_end();
++			lru_cache_add_anon(new_page);
++			return 1;
++		}
++		radix_tree_preload_end();
++		ClearPageSwapBacked(new_page);
++		__clear_page_locked(new_page);
++		/*
++		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
++		 * clear SWAP_HAS_CACHE flag.
++		 */
++		swapcache_free(entry, NULL);
++		/* FIXME: is it possible to get here without err==-ENOMEM?
++		 * If not, we can dispense with the do loop, use goto retry */
++	} while (err != -ENOMEM);
++
++	return -ENOMEM;
++}
++
++/*
++ * Given a frontswap zpage in zcache (identified by type/offset) and
++ * an empty page, put the page into the swap cache, use frontswap
++ * to get the page from zcache into the empty page, then give it
++ * to the swap subsystem to send to disk (carefully avoiding the
++ * possibility that frontswap might snatch it back).
++ * Returns < 0 if error, 0 if successful, and 1 if successful but
++ * the newpage passed in not needed and should be freed.
++ */
++static int zcache_frontswap_writeback_zpage(int type, pgoff_t offset,
++					struct page *newpage)
++{
++	struct page *page = newpage;
++	int ret;
++	struct writeback_control wbc = {
++		.sync_mode = WB_SYNC_NONE,
++	};
++
++	ret = zcache_get_swap_cache_page(type, offset, page);
++	if (ret < 0)
++		return ret;
++	else if (ret == 0) {
++		/* more uptodate page is already in swapcache */
++		__frontswap_invalidate_page(type, offset);
++		return 1;
++	}
++
++	BUG_ON(!frontswap_has_exclusive_gets); /* load must also invalidate */
++	/* FIXME: how is it possible to get here when page is unlocked? */
++	__frontswap_load(page);
++	SetPageUptodate(page);  /* above does SetPageDirty, is that enough? */
++
++	/* start writeback */
++	SetPageReclaim(page);
++	/*
++	 * Return value is ignored here because it doesn't change anything
++	 * for us.  Page is returned unlocked.
++	 */
++	(void)__swap_writepage(page, &wbc, zcache_end_swap_write);
++	page_cache_release(page);
++	zcache_outstanding_writeback_pages =
++	    atomic_inc_return(&zcache_outstanding_writeback_pages_atomic);
++
++	return 0;
++}
++
++/*
++ * The following is still a magic number... we want to allow forward progress
++ * for writeback because it clears out needed RAM when under pressure, but
++ * we don't want to allow writeback to absorb and queue too many GFP_KERNEL
++ * pages if the swap device is very slow.
++ */
++#define ZCACHE_MAX_OUTSTANDING_WRITEBACK_PAGES 6400
++
++/*
++ * Try to allocate two free pages, first using a non-aggressive alloc,
++ * then by evicting zcache ephemeral (clean pagecache) pages, and last
++ * by aggressive GFP_KERNEL alloc.  We allow zbud to choose a pageframe
++ * consisting of 1-2 zbuds/zpages, then call the writeback_zpage helper
++ * function above for each.
++ */
++static int zcache_frontswap_writeback(void)
+ {
+ 	struct tmem_handle th[2];
+-	int ret = -ENOMEM;
+-	int nzbuds, unuse_ret;
++	int ret = 0;
++	int nzbuds, writeback_ret;
+ 	unsigned type;
+-	struct page *newpage1 = NULL, *newpage2 = NULL;
++	struct page *znewpage1 = NULL, *znewpage2 = NULL;
+ 	struct page *evictpage1 = NULL, *evictpage2 = NULL;
++	struct page *newpage1 = NULL, *newpage2 = NULL;
++	struct page *page1 = NULL, *page2 = NULL;
+ 	pgoff_t offset;
+ 
+-	newpage1 = alloc_page(ZCACHE_GFP_MASK);
+-	newpage2 = alloc_page(ZCACHE_GFP_MASK);
+-	if (newpage1 == NULL)
++	znewpage1 = alloc_page(ZCACHE_GFP_MASK);
++	znewpage2 = alloc_page(ZCACHE_GFP_MASK);
++	if (znewpage1 == NULL)
+ 		evictpage1 = zcache_evict_eph_pageframe();
+-	if (newpage2 == NULL)
++	if (znewpage2 == NULL)
+ 		evictpage2 = zcache_evict_eph_pageframe();
+-	if (evictpage1 == NULL || evictpage2 == NULL)
++
++	if ((evictpage1 == NULL || evictpage2 == NULL) &&
++	    atomic_read(&zcache_outstanding_writeback_pages_atomic) >
++				ZCACHE_MAX_OUTSTANDING_WRITEBACK_PAGES) {
+ 		goto free_and_out;
+-	/* ok, we have two pages pre-allocated */
++	}
++	if (znewpage1 == NULL && evictpage1 == NULL)
++		newpage1 = alloc_page(GFP_KERNEL);
++	if (znewpage2 == NULL && evictpage2 == NULL)
++		newpage2 = alloc_page(GFP_KERNEL);
++	if (newpage1 == NULL || newpage2 == NULL)
++			goto free_and_out;
++
++	/* ok, we have two pageframes pre-allocated, get a pair of zbuds */
+ 	nzbuds = zbud_make_zombie_lru(&th[0], NULL, NULL, false);
+ 	if (nzbuds == 0) {
+ 		ret = -ENOENT;
+ 		goto free_and_out;
+ 	}
++
++	/* process the first zbud */
+ 	unswiz(th[0].oid, th[0].index, &type, &offset);
+-	unuse_ret = frontswap_unuse(type, offset,
+-				newpage1 != NULL ? newpage1 : evictpage1,
+-				ZCACHE_GFP_MASK);
+-	if (unuse_ret != 0)
++	page1 = (znewpage1 != NULL) ? znewpage1 :
++			((newpage1 != NULL) ? newpage1 : evictpage1);
++	writeback_ret = zcache_frontswap_writeback_zpage(type, offset, page1);
++	if (writeback_ret < 0) {
++		ret = -ENOMEM;
+ 		goto free_and_out;
+-	else if (evictpage1 != NULL)
+-		zcache_unacct_page();
+-	newpage1 = NULL;
+-	evictpage1 = NULL;
+-	if (nzbuds == 2) {
+-		unswiz(th[1].oid, th[1].index, &type, &offset);
+-		unuse_ret = frontswap_unuse(type, offset,
+-				newpage2 != NULL ? newpage2 : evictpage2,
+-				ZCACHE_GFP_MASK);
+-		if (unuse_ret != 0)
+-			goto free_and_out;
+-		else if (evictpage2 != NULL)
+-			zcache_unacct_page();
+ 	}
+-	ret = 0;
+-	goto out;
++	if (evictpage1 != NULL)
++		zcache_pageframes_freed =
++			atomic_inc_return(&zcache_pageframes_freed_atomic);
++	if (writeback_ret == 0) {
++		/* zcache_get_swap_cache_page will free, don't double free */
++		znewpage1 = NULL;
++		newpage1 = NULL;
++		evictpage1 = NULL;
++	}
++	if (nzbuds < 2)
++		goto free_and_out;
++
++	/* if there is a second zbud, process it */
++	unswiz(th[1].oid, th[1].index, &type, &offset);
++	page2 = (znewpage2 != NULL) ? znewpage2 :
++			((newpage2 != NULL) ? newpage2 : evictpage2);
++	writeback_ret = zcache_frontswap_writeback_zpage(type, offset, page2);
++	if (writeback_ret < 0) {
++		ret = -ENOMEM;
++		goto free_and_out;
++	}
++	if (evictpage2 != NULL)
++		zcache_pageframes_freed =
++			atomic_inc_return(&zcache_pageframes_freed_atomic);
++	if (writeback_ret == 0) {
++		znewpage2 = NULL;
++		newpage2 = NULL;
++		evictpage2 = NULL;
++	}
+ 
+ free_and_out:
++	if (znewpage1 != NULL)
++		page_cache_release(znewpage1);
++	if (znewpage2 != NULL)
++		page_cache_release(znewpage2);
+ 	if (newpage1 != NULL)
+-		__free_page(newpage1);
++		page_cache_release(newpage1);
+ 	if (newpage2 != NULL)
+-		__free_page(newpage2);
++		page_cache_release(newpage2);
+ 	if (evictpage1 != NULL)
+ 		zcache_free_page(evictpage1);
+ 	if (evictpage2 != NULL)
+ 		zcache_free_page(evictpage2);
+-out:
+ 	return ret;
+ }
+-#endif
++#endif /* CONFIG_ZCACHE_WRITEBACK */
+ 
+ /*
+  * When zcache is disabled ("frozen"), pools can be created and destroyed,
+@@ -1051,7 +1246,10 @@ static bool zcache_freeze;
+ /*
+  * This zcache shrinker interface reduces the number of ephemeral pageframes
+  * used by zcache to approximately the same as the total number of LRU_FILE
+- * pageframes in use.
++ * pageframes in use, and now also reduces the number of persistent pageframes
++ * used by zcache to approximately the same as the total number of LRU_ANON
++ * pageframes in use.  FIXME POLICY: Probably the writeback should only occur
++ * if the eviction doesn't free enough pages.
+  */
+ static int shrink_zcache_memory(struct shrinker *shrink,
+ 				struct shrink_control *sc)
+@@ -1060,11 +1258,9 @@ static int shrink_zcache_memory(struct shrinker *shrink,
+ 	int ret = -1;
+ 	int nr = sc->nr_to_scan;
+ 	int nr_evict = 0;
+-	int nr_unuse = 0;
++	int nr_writeback = 0;
+ 	struct page *page;
+-#ifdef FRONTSWAP_HAS_UNUSE
+-	int unuse_ret;
+-#endif
++	int  file_pageframes_inuse, anon_pageframes_inuse;
+ 
+ 	if (nr <= 0)
+ 		goto skip_evict;
+@@ -1080,8 +1276,12 @@ static int shrink_zcache_memory(struct shrinker *shrink,
+ 		global_page_state(NR_LRU_BASE + LRU_ACTIVE_FILE);
+ 	zcache_last_inactive_file_pageframes =
+ 		global_page_state(NR_LRU_BASE + LRU_INACTIVE_FILE);
+-	nr_evict = zcache_eph_pageframes - zcache_last_active_file_pageframes +
+-		zcache_last_inactive_file_pageframes;
++	file_pageframes_inuse = zcache_last_active_file_pageframes +
++				zcache_last_inactive_file_pageframes;
++	if (zcache_eph_pageframes > file_pageframes_inuse)
++		nr_evict = zcache_eph_pageframes - file_pageframes_inuse;
++	else
++		nr_evict = 0;
+ 	while (nr_evict-- > 0) {
+ 		page = zcache_evict_eph_pageframe();
+ 		if (page == NULL)
+@@ -1093,18 +1293,20 @@ static int shrink_zcache_memory(struct shrinker *shrink,
+ 		global_page_state(NR_LRU_BASE + LRU_ACTIVE_ANON);
+ 	zcache_last_inactive_anon_pageframes =
+ 		global_page_state(NR_LRU_BASE + LRU_INACTIVE_ANON);
+-	nr_unuse = zcache_pers_pageframes - zcache_last_active_anon_pageframes +
+-		zcache_last_inactive_anon_pageframes;
+-#ifdef FRONTSWAP_HAS_UNUSE
+-	/* rate limit for testing */
+-	if (nr_unuse > 32)
+-		nr_unuse = 32;
+-	while (nr_unuse-- > 0) {
+-		unuse_ret = zcache_frontswap_unuse();
+-		if (unuse_ret == -ENOMEM)
++	anon_pageframes_inuse = zcache_last_active_anon_pageframes +
++				zcache_last_inactive_anon_pageframes;
++	if (zcache_pers_pageframes > anon_pageframes_inuse)
++		nr_writeback = zcache_pers_pageframes - anon_pageframes_inuse;
++	else
++		nr_writeback = 0;
++	while (nr_writeback-- > 0) {
++#ifdef CONFIG_ZCACHE_WRITEBACK
++		int writeback_ret;
++		writeback_ret = zcache_frontswap_writeback();
++		if (writeback_ret == -ENOMEM)
++#endif
+ 			break;
+ 	}
+-#endif
+ 	in_progress = false;
+ 
+ skip_evict:
+@@ -1345,7 +1547,7 @@ static int zcache_local_new_pool(uint32_t flags)
+ int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bool eph)
+ {
+ 	struct tmem_pool *pool;
+-	struct zcache_client *cli = NULL;
++	struct zcache_client *cli;
+ 	uint32_t flags = eph ? 0 : TMEM_POOL_PERSIST;
+ 	int ret = -1;
+ 
+@@ -1523,7 +1725,7 @@ static inline struct tmem_oid oswiz(unsigned type, u32 ind)
+ 	return oid;
+ }
+ 
+-#ifdef FRONTSWAP_HAS_UNUSE
++#ifdef CONFIG_ZCACHE_WRITEBACK
+ static void unswiz(struct tmem_oid oid, u32 index,
+ 				unsigned *type, pgoff_t *offset)
+ {
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
