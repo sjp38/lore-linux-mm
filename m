@@ -1,68 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 6CF226B0038
-	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 21:18:55 -0500 (EST)
-Received: by mail-oa0-f44.google.com with SMTP id h1so1001357oag.17
-        for <linux-mm@kvack.org>; Tue, 05 Feb 2013 18:18:54 -0800 (PST)
-Message-ID: <1360117134.2403.4.camel@kernel.cn.ibm.com>
-Subject: Re: [LSF/MM TOPIC] In-kernel compression in the MM subsystem
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Tue, 05 Feb 2013 20:18:54 -0600
-In-Reply-To: <601542b0-4c92-4d90-aed8-826235c06eab@default>
-References: <601542b0-4c92-4d90-aed8-826235c06eab@default>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 8E2F96B003A
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2013 21:21:43 -0500 (EST)
+Message-ID: <5111BE09.2030509@cn.fujitsu.com>
+Date: Wed, 06 Feb 2013 10:20:57 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/3] acpi, memory-hotplug: Support getting hotplug info
+ from SRAT.
+References: <1359106929-3034-1-git-send-email-tangchen@cn.fujitsu.com> <1359106929-3034-4-git-send-email-tangchen@cn.fujitsu.com> <20130204152651.2bca8dba.akpm@linux-foundation.org>
+In-Reply-To: <20130204152651.2bca8dba.akpm@linux-foundation.org>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Dan,
-On Sat, 2013-01-26 at 12:16 -0800, Dan Magenheimer wrote:
-> There's lots of interesting things going on in kernel memory
-> management, but one only(?) increases the effective amount
-> of data that can be stored in a fixed amount of RAM: in-kernel
-> compression.
-> 
-> Since ramzswap/compcache (now zram) was first proposed in 2009
-> as an in-memory compressed swap device, there have been a number
-> of in-kernel compression solutions proposed, including
-> zcache, kztmem, and now zswap.  Each shows promise to improve
-> performance by using compression under memory pressure to
-> reduce I/O due to swapping and/or paging.  Each is still
-> in staging (though zram may be promoted by LSFMM 2013)
-> because each also brings a number of perplexing challenges.
-> 
-> I think it's time to start converging on which one or more
-> of these solutions, if any, should be properly promoted and
-> more fully integrated into the kernel memory management
-> subsystem.  Before this can occur, it's important to build a
-> broader understanding and, hopefully, also a broader consensus
-> among the MM community on a number of key challenges and questions
-> in order to guide and drive further development and merging.
-> 
-> I would like to collect a list of issues/questions, and
-> start a discussion at LSF/MM by presenting this list, select
-> the most important, then lead a discussion on how ever many
-> there is time for.  Most likely this is an MM-only discussion
-> though a subset might be suitable for a cross-talk presentataion.
-> 
+On 02/05/2013 07:26 AM, Andrew Morton wrote:
+> On Fri, 25 Jan 2013 17:42:09 +0800
+> Tang Chen<tangchen@cn.fujitsu.com>  wrote:
+>
+>> We now provide an option for users who don't want to specify physical
+>> memory address in kernel commandline.
+>>
+>>          /*
+>>           * For movablemem_map=acpi:
+>>           *
+>>           * SRAT:                |_____| |_____| |_________| |_________| ......
+>>           * node id:                0       1         1           2
+>>           * hotpluggable:           n       y         y           n
+>>           * movablemem_map:              |_____| |_________|
+>>           *
+>>           * Using movablemem_map, we can prevent memblock from allocating memory
+>>           * on ZONE_MOVABLE at boot time.
+>>           */
+>>
+>> So user just specify movablemem_map=acpi, and the kernel will use hotpluggable
+>> info in SRAT to determine which memory ranges should be set as ZONE_MOVABLE.
+>>
+>> ...
+>>
+>> +	if (!strncmp(p, "acpi", max(4, strlen(p))))
+>> +		movablemem_map.acpi = true;
+>
+> Generates a warning:
+>
+> mm/page_alloc.c: In function 'cmdline_parse_movablemem_map':
+> mm/page_alloc.c:5312: warning: comparison of distinct pointer types lacks a cast
+>
+> due to max(int, size_t).
+>
+> This is easily fixed, but the code looks rather pointless.  If the
+> incoming string is supposed to be exactly "acpi" then use strcmp().  If
+> the incoming string must start with "acpi" then use strncmp(p, "acpi", 4).
+>
+> IOW, the max is unneeded?
 
-Is there benchmark to test each component in tmem?
+Hi Andrew,
 
-> Thanks!
-> Dan Magenheimer
-> LSF/MM attendee 2010,2011,2012
-> LSF/MM presenter (MM track) 2011,2012
-> 
-> 
+I think I made another mistake here. I meant to use min(4, strlen(p)) in 
+case p is
+something like 'aaa' whose length is less then 4. But I mistook it with 
+max().
+
+But after I dig into strcmp() in the kernel, I think it is OK to use 
+strcmp().
+min() or max() is not needed.
+
+Thanks. :)
+
+>
 > --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
