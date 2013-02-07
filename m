@@ -1,146 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id EB71F6B0005
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 11:40:22 -0500 (EST)
-Subject: Re: [PATCH v2] Add the values related to buddy system for
- filtering free pages.
-From: Lisa Mitchell <lisa.mitchell@hp.com>
-In-Reply-To: <20121227173523.5e414c342fed3e59a887fa87@mxc.nes.nec.co.jp>
-References: <20121210103913.020858db777e2f48c59713b6@mxc.nes.nec.co.jp>
-	 <20121219161856.e6aa984f.akpm@linux-foundation.org>
-	 <20121220112103.d698c09a9d1f27a253a63d37@mxc.nes.nec.co.jp>
-	 <33710E6CAA200E4583255F4FB666C4E20AB2DEA3@G01JPEXMBYT03>
-	 <87licsrwpg.fsf@xmission.com>
-	 <20121227173523.5e414c342fed3e59a887fa87@mxc.nes.nec.co.jp>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 07 Feb 2013 05:29:11 -0700
-Message-ID: <1360240151.12251.15.camel@lisamlinux.fc.hp.com>
+	by kanga.kvack.org (Postfix) with SMTP id 1CAE86B0005
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 14:18:50 -0500 (EST)
+Received: from /spool/local
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Thu, 7 Feb 2013 19:17:18 -0000
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r17JIbUe21954688
+	for <linux-mm@kvack.org>; Thu, 7 Feb 2013 19:18:37 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r17JIj37008438
+	for <linux-mm@kvack.org>; Thu, 7 Feb 2013 12:18:45 -0700
+Date: Thu, 7 Feb 2013 11:18:38 -0800
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH] s390/mm: implement software dirty bits
+Message-ID: <20130207111838.27fea18f@mschwide>
+In-Reply-To: <alpine.LNX.2.00.1302061504340.7256@eggly.anvils>
+References: <1360087925-8456-1-git-send-email-schwidefsky@de.ibm.com>
+	<1360087925-8456-3-git-send-email-schwidefsky@de.ibm.com>
+	<alpine.LNX.2.00.1302061504340.7256@eggly.anvils>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, vgoyal@redhat.com
-Cc: "kexec@lists.infradead.org" <kexec@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "d.hatayama@jp.fujitsu.com" <d.hatayama@jp.fujitsu.com>, "ebiederm@xmission.com" <ebiederm@xmission.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "cpw@sgi.com" <cpw@sgi.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-s390@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
 
-On Thu, 2012-12-27 at 08:35 +0000, Atsushi Kumagai wrote:
-> Hello,
+On Wed, 6 Feb 2013 16:20:40 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
+
+> Martin, I'd like to say Applauded-by: Hugh Dickins <hughd@google.com>
+> but I do have one reservation: the PageDirty business you helpfully
+> draw attention to in your description above.
 > 
-> On Thu, 20 Dec 2012 18:00:11 -0800
-> ebiederm@xmission.com (Eric W. Biederman) wrote:
-> 
-> > "Hatayama, Daisuke" <d.hatayama@jp.fujitsu.com> writes:
-> > 
-> > >> From: kexec-bounces@lists.infradead.org
-> > >> [mailto:kexec-bounces@lists.infradead.org] On Behalf Of Atsushi Kumagai
-> > >> Sent: Thursday, December 20, 2012 11:21 AM
-> > >
-> > >> On Wed, 19 Dec 2012 16:18:56 -0800
-> > >> Andrew Morton <akpm@linux-foundation.org> wrote:
-> > >> 
-> > >> > On Mon, 10 Dec 2012 10:39:13 +0900
-> > >> > Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp> wrote:
-> > >> >
-> > >
-> > >> >
-> > >> > We might change the PageBuddy() implementation at any time, and
-> > >> > makedumpfile will break.  Or in this case, become less efficient.
-> > >> >
-> > >> > Is there any way in which we can move some of this logic into the
-> > >> > kernel?  In this case, add some kernel code which uses PageBuddy() on
-> > >> > behalf of makedumpfile, rather than replicating the PageBuddy() logic
-> > >> > in userspace?
-> > >> 
-> > >> In last month, Cliff Wickman proposed such idea:
-> > >> 
-> > >>   [PATCH v2] makedumpfile: request the kernel do page scans
-> > >>   http://lists.infradead.org/pipermail/kexec/2012-November/007318.html
-> > >> 
-> > >>   [PATCH] scan page tables for makedumpfile, 3.0.13 kernel
-> > >>   http://lists.infradead.org/pipermail/kexec/2012-November/007319.html
-> > >> 
-> > >> In his idea, the kernel does page scans to distinguish unnecessary pages
-> > >> (free pages and others) and returns the list of PFN's which should be
-> > >> excluded for makedumpfile.
-> > >> As a result, makedumpfile doesn't need to consider internal kernel
-> > >> behavior.
-> > >> 
-> > >> I think it's a good idea from the viewpoint of maintainability and
-> > >> performance.
-> > 
-> > > I also think wide part of his code can be reused in this work. But the bad
-> > > performance is caused by a lot of ioremap, not a lot of copying. See my
-> > > profiling result I posted some days ago. Two issues, ioremap one and filtering
-> > > maintainability, should be considered separately. Even on ioremap issue,
-> > > there is secondary one to consider in memory consumption on the 2nd
-> > > kernel.
-> > 
-> > Thanks.  I was wondering why moving the code into /proc/vmcore would
-> > make things faster.
-> 
-> Thanks HATAYAMA-san, I've understood the issues correctly.
-> We should continue improving the ioremap issue as Cliff and HATAYAMA-san
-> are doing now.
-> 
-> > 
-> > > Also, I have one question. Can we always think of 1st and 2nd kernels
-> > > are same?
-> > 
-> > Not at all.  Distros frequently implement it with the same kernel in
-> > both role but it should be possible to use an old crusty stable kernel
-> > as the 2nd kernel.
-> > 
-> > > If I understand correctly, kexec/kdump can use the 2nd kernel different
-> > > from the 1st's. So, differnet kernels need to do the same thing as makedumpfile
-> > > does. If assuming two are same, problem is mush simplified.
-> > 
-> > As a developer it becomes attractive to use a known stable kernel to
-> > capture the crash dump even as I experiment with a brand new kernel.
-> 
-> To allow to use the 2nd kernel different from the 1st's, I think we have
-> to take care of each kernel version with the logic included in makedumpfile
-> for them. That's to say, makedumpfile goes on as before.
-> 
-> 
-> Thanks
-> Atsushi Kumagai
+> That makes me nervous, having a PageDirty test buried down there in
+> one architecture's mk_pte().  Particularly since I know the PageDirty
+> handling on anon/swap pages is rather odd: it works, but it's hard to
+> justify some of the SetPageDirtys (when we add to swap, AND when we
+> remove from swap): partly a leftover from 2.4 days, when vmscan worked
+> differently, and we had to be more careful about freeing modified pages.
 
-
-Atsushi and Vivek:  
-
-I'm trying to get the status of whether the patch submitted in
-https://lkml.org/lkml/2012/11/21/90  is going to be accepted upstream
-and get in some version of the Linux 3.8 kernel.   I'm replying to the
-last email thread above on kexec_lists and lkml.org  that I could find
-about this patch.  
-
-I was counting on this kernel patch to improve performance of
-makedumpfilev1.5.1, so at least it wouldn't be a regression in
-performance over makedumpfile v1.4.   It was listed as recommended in
-the makedumpfilev1.5.1 release posting:
-http://lists.infradead.org/pipermail/kexec/2012-December/007460.html
-
-
-All the conversations in the thread since this patch was committed seem
-to voice some reservations now, and reference other fixes being tried to
-improve performance.  
-
-Does that mean you are abandoning getting this patch accepted upstream,
-in favor of pursuing other alternatives?
-
-I had hoped this patch would be okay to get accepted upstream, and then
-other improvements could be built on top of it.  
-
-Is that not the case?   
-
-Or has further review concluded now that this change is a bad idea due
-to adding dependence of this new makedumpfile feature on some deep
-kernel memory internals?
-
-Thanks,
-
-Lisa Mitchell
-
+I tried to solved the whole thing with arch level code only. The PageDirty
+check in mk_pte is essential to avoid additional protection faults for
+tmpfs/shmem. 
  
+> I did a patch a year or two ago, mainly for debugging some particular
+> issue by announcing "Bad page state" if ever a dirty page is freed, in
+> which I had to tidy that up.  Now, I don't have any immediate intention
+> to resurrect that patch, but I'm afraid that if I did, I might interfere
+> with your optimization in s390's mk_pte() without realizing it.
+> 
+> > --- a/arch/s390/include/asm/page.h
+> > +++ b/arch/s390/include/asm/page.h
+> > ...
+> > @@ -1152,8 +1190,13
+> >  static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
+> >  {
+> >  	unsigned long physpage = page_to_phys(page);
+> > +	pte_t __pte = mk_pte_phys(physpage, pgprot);
+> >  
+> > -	return mk_pte_phys(physpage, pgprot);
+> > +	if ((pte_val(__pte) & _PAGE_SWW) && PageDirty(page)) {
+> > +		pte_val(__pte) |= _PAGE_SWC;
+> > +		pte_val(__pte) &= ~_PAGE_RO;
+> > +	}
+> > +	return __pte;
+> >  }
+> 
+> Am I right to think that, once you examine the mk_pte() callsites,
+> this actually would not be affecting anon pages, nor accounted file
+> pages, just tmpfs/shmem or ramfs pages read-faulted into a read-write
+> shared vma?  (That fits with what you say above.)  That it amounts to
+> the patch below - which I think I would prefer, because it's explicit?
+> (There might be one or two other places it makes a difference e.g.
+> replacing a writable migration entry, but those too uncommon to matter.)
+
+Anon page and accounted file pages won't need the mk_pte optimization,
+that is there for tmpfs/shmem. We could do that in common code as well,
+to make the dependency on PageDirty more obvious.
+
+> --- 3.8-rc6/mm/memory.c	2013-01-09 19:25:05.028321379 -0800
+> +++ linux/mm/memory.c	2013-02-06 15:01:17.904387877 -0800
+> @@ -3338,6 +3338,10 @@ static int __do_fault(struct mm_struct *
+>  				dirty_page = page;
+>  				get_page(dirty_page);
+>  			}
+> +#ifdef CONFIG_S390
+> +			else if (pte_write(entry) && PageDirty(page))
+> +				pte_mkdirty(entry);
+> +#endif
+>  		}
+>  		set_pte_at(mm, address, page_table, entry);
+> 
+> And then I wonder, is that something we should do on all architectures?
+> On the one hand, it would save a hardware fault when and if the pte is
+> dirtied later; on the other hand, it seems wrong to claim pte dirty when
+> not (though I didn't find anywhere that would care).
+
+I don't like the fact that we are adding another CONFIG_S390, if we could
+pre-dirty the pte for all architectures that would be nice. It has no
+ill effects for s390 to make the pte dirty, I can think of no reason
+why it should hurt for other architectures.
+
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
