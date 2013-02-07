@@ -1,82 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 30DD56B0008
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 20:59:05 -0500 (EST)
-Message-ID: <51130A07.2000805@cn.fujitsu.com>
-Date: Thu, 07 Feb 2013 09:57:27 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 37E7E6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 21:27:56 -0500 (EST)
+Received: by mail-ee0-f45.google.com with SMTP id b57so1108544eek.4
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2013 18:27:54 -0800 (PST)
 MIME-Version: 1.0
-Subject: [PATCH RESEND] mm: accurately document nr_free_*_pages functions
- with code comments
-References: <5112138C.7040902@cn.fujitsu.com> <5112FB96.1040606@infradead.org>
-In-Reply-To: <5112FB96.1040606@infradead.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Date: Thu, 7 Feb 2013 11:27:54 +0900
+Message-ID: <CAOAMb1AZaXHiW47MbstoVaDVEbVaSC+fqcZoSM0EXC5RpH7nHw@mail.gmail.com>
+Subject: [PATCH] vmalloc: Remove alloc_map from vmap_block.
+From: Chanho Min <chanho.min@lge.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Cong Wang <amwang@redhat.com>, Nicolas Pitre <nicolas.pitre@linaro.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Functions nr_free_zone_pages, nr_free_buffer_pages and nr_free_pagecache_pages
-are horribly badly named, so accurately document them with code comments
-in case of the misuse of them.
+There is no reason to maintain alloc_map in the vmap_block.
+The use of alloc_map may require heavy bitmap operation sometimes.
+In the worst-case, We need 1024 for-loops to find 1 free bit and
+thus cause overhead. vmap_block is fragmented unnecessarily by
+2 order alignment as well.
 
-Reviewed-by: Randy Dunlap <rdunlap@infradead.org>
-Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Instead we can map by using vb->free in order. When It is freed,
+Its corresponding bit will be set in the dirty_map and all
+free/purge operations are carried out in the dirty_map.
+vmap_block is not fragmented sporadically anymore and thus
+purge_fragmented_blocks_thiscpu in the vb_alloc can be removed.
+
+Signed-off-by: Chanho Min <chanho.min@lge.com>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/page_alloc.c |   23 +++++++++++++++++++----
- 1 files changed, 19 insertions(+), 4 deletions(-)
+ mm/vmalloc.c |   23 +----------------------
+ 1 file changed, 1 insertion(+), 22 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index df2022f..0790716 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2785,6 +2785,15 @@ void free_pages_exact(void *virt, size_t size)
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 5123a16..4fd3555 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -744,7 +744,6 @@ struct vmap_block {
+ 	struct vmap_area *va;
+ 	struct vmap_block_queue *vbq;
+ 	unsigned long free, dirty;
+-	DECLARE_BITMAP(alloc_map, VMAP_BBMAP_BITS);
+ 	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
+ 	struct list_head free_list;
+ 	struct rcu_head rcu_head;
+@@ -810,7 +809,6 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
+ 	vb->va = va;
+ 	vb->free = VMAP_BBMAP_BITS;
+ 	vb->dirty = 0;
+-	bitmap_zero(vb->alloc_map, VMAP_BBMAP_BITS);
+ 	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
+ 	INIT_LIST_HEAD(&vb->free_list);
+
+@@ -863,7 +861,6 @@ static void purge_fragmented_blocks(int cpu)
+ 		if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty !=
+VMAP_BBMAP_BITS) {
+ 			vb->free = 0; /* prevent further allocs after releasing lock */
+ 			vb->dirty = VMAP_BBMAP_BITS; /* prevent purging it again */
+-			bitmap_fill(vb->alloc_map, VMAP_BBMAP_BITS);
+ 			bitmap_fill(vb->dirty_map, VMAP_BBMAP_BITS);
+ 			spin_lock(&vbq->lock);
+ 			list_del_rcu(&vb->free_list);
+@@ -881,11 +878,6 @@ static void purge_fragmented_blocks(int cpu)
+ 	}
  }
- EXPORT_SYMBOL(free_pages_exact);
- 
-+/**
-+ * nr_free_zone_pages - get pages that is beyond high watermark
-+ * @offset: The zone index of the highest zone
-+ *
-+ * The function counts pages which are beyond high watermark within
-+ * all zones at or below a given zone index. For each zone, the
-+ * amount of pages is calculated as:
-+ *     present_pages - high_pages
-+ */
- static unsigned int nr_free_zone_pages(int offset)
+
+-static void purge_fragmented_blocks_thiscpu(void)
+-{
+-	purge_fragmented_blocks(smp_processor_id());
+-}
+-
+ static void purge_fragmented_blocks_allcpus(void)
  {
- 	struct zoneref *z;
-@@ -2805,8 +2814,11 @@ static unsigned int nr_free_zone_pages(int offset)
- 	return sum;
- }
- 
--/*
-- * Amount of free RAM allocatable within ZONE_DMA and ZONE_NORMAL
-+/**
-+ * nr_free_buffer_pages - get pages that is beyond high watermark
-+ *
-+ * The function counts pages which are beyond high watermark within
-+ * ZONE_DMA and ZONE_NORMAL.
-  */
- unsigned int nr_free_buffer_pages(void)
- {
-@@ -2814,8 +2826,11 @@ unsigned int nr_free_buffer_pages(void)
- }
- EXPORT_SYMBOL_GPL(nr_free_buffer_pages);
- 
--/*
-- * Amount of free RAM allocatable within all zones
-+/**
-+ * nr_free_pagecache_pages - get pages that is beyond high watermark
-+ *
-+ * The function counts pages which are beyond high watermark within
-+ * all zones.
-  */
- unsigned int nr_free_pagecache_pages(void)
- {
+ 	int cpu;
+@@ -900,7 +892,6 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
+ 	struct vmap_block *vb;
+ 	unsigned long addr = 0;
+ 	unsigned int order;
+-	int purge = 0;
+
+ 	BUG_ON(size & ~PAGE_MASK);
+ 	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
+@@ -924,17 +915,8 @@ again:
+ 		if (vb->free < 1UL << order)
+ 			goto next;
+
+-		i = bitmap_find_free_region(vb->alloc_map,
+-						VMAP_BBMAP_BITS, order);
++		i = VMAP_BBMAP_BITS - vb->free;
+
+-		if (i < 0) {
+-			if (vb->free + vb->dirty == VMAP_BBMAP_BITS) {
+-				/* fragmented and no outstanding allocations */
+-				BUG_ON(vb->dirty != VMAP_BBMAP_BITS);
+-				purge = 1;
+-			}
+-			goto next;
+-		}
+ 		addr = vb->va->va_start + (i << PAGE_SHIFT);
+ 		BUG_ON(addr_to_vb_idx(addr) !=
+ 				addr_to_vb_idx(vb->va->va_start));
+@@ -950,9 +932,6 @@ next:
+ 		spin_unlock(&vb->lock);
+ 	}
+
+-	if (purge)
+-		purge_fragmented_blocks_thiscpu();
+-
+ 	put_cpu_var(vmap_block_queue);
+ 	rcu_read_unlock();
+
 -- 
-1.7.1
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
