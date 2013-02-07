@@ -1,118 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id B62076B0005
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 01:23:39 -0500 (EST)
-Message-ID: <5113483C.8070509@cn.fujitsu.com>
-Date: Thu, 07 Feb 2013 14:22:52 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 657FC6B0005
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 02:43:42 -0500 (EST)
+Date: Thu, 7 Feb 2013 16:43:38 +0900
+From: Simon Horman <horms@verge.net.au>
+Subject: Re: [PATCH v2] net: fix functions and variables related to
+ netns_ipvs->sysctl_sync_qlen_max
+Message-ID: <20130207074337.GB17306@verge.net.au>
+References: <51131B88.6040809@cn.fujitsu.com>
+ <51132A56.60906@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] acpi, memory-hotplug: Support getting hotplug info
- from SRAT.
-References: <1359106929-3034-1-git-send-email-tangchen@cn.fujitsu.com> <1359106929-3034-4-git-send-email-tangchen@cn.fujitsu.com> <20130204152651.2bca8dba.akpm@linux-foundation.org> <5111BE09.2030509@cn.fujitsu.com> <20130206135409.3d8b37f7.akpm@linux-foundation.org>
-In-Reply-To: <20130206135409.3d8b37f7.akpm@linux-foundation.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51132A56.60906@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, davem@davemloft.net, Julian Anastasov <ja@ssi.bg>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 02/07/2013 05:54 AM, Andrew Morton wrote:
-> On Wed, 06 Feb 2013 10:20:57 +0800
-> Tang Chen<tangchen@cn.fujitsu.com>  wrote:
->
->>>>
->>>> +	if (!strncmp(p, "acpi", max(4, strlen(p))))
->>>> +		movablemem_map.acpi = true;
->>>
->>> Generates a warning:
->>>
->>> mm/page_alloc.c: In function 'cmdline_parse_movablemem_map':
->>> mm/page_alloc.c:5312: warning: comparison of distinct pointer types lacks a cast
->>>
->>> due to max(int, size_t).
->>>
->>> This is easily fixed, but the code looks rather pointless.  If the
->>> incoming string is supposed to be exactly "acpi" then use strcmp().  If
->>> the incoming string must start with "acpi" then use strncmp(p, "acpi", 4).
->>>
->>> IOW, the max is unneeded?
->>
->> Hi Andrew,
->>
->> I think I made another mistake here. I meant to use min(4, strlen(p)) in
->> case p is
->> something like 'aaa' whose length is less then 4. But I mistook it with
->> max().
->>
->> But after I dig into strcmp() in the kernel, I think it is OK to use
->> strcmp().
->> min() or max() is not needed.
->
-> OK, I did that.
->
-> But the code still looks a bit more complex than we need.  Could we do
->
-> static int __init cmdline_parse_movablemem_map(char *p)
-> {
-> 	char *oldp;
-> 	u64 start_at, mem_size;
->
-> 	if (!p)
-> 		goto err;
->
-> 	/*
-> 	 * If user decide to use info from BIOS, all the other user specified
-> 	 * ranges will be ingored.
-> 	 */
-> 	if (!strcmp(p, "acpi")) {
-> 		movablemem_map.acpi = true;
-> 		if (movablemem_map.nr_map) {
-> 			memset(movablemem_map.map, 0,
-> 				sizeof(struct movablemem_entry)
-> 				* movablemem_map.nr_map);
-> 			movablemem_map.nr_map = 0;
-> 		}
-> 		return 0;
-> 	}
->
->
-No, I don't think so.
+On Thu, Feb 07, 2013 at 12:15:18PM +0800, Zhang Yanfei wrote:
+> Since the type of netns_ipvs->sysctl_sync_qlen_max has been changed to
+> unsigned long, type of its related proc var sync_qlen_max should be changed
+> to unsigned long, too. Also the return type of function sysctl_sync_qlen_max().
+> 
+> Besides, the type of ipvs_master_sync_state->sync_queue_len should also be
+> changed to unsigned long.
+> 
+> Changelog from V1:
+> - change type of ipvs_master_sync_state->sync_queue_len to unsigned long
+>   as Simon addressed.
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: David Miller <davem@davemloft.net>
+> Cc: Julian Anastasov <ja@ssi.bg>
+> Cc: Simon Horman <horms@verge.net.au>
+> Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-If user specified like this:
+Acked-by: Simon Horman <horms@verge.net.au>
 
-1) movablemem_map=aaa@bbb ---------- will be added into array
-2) movablemem_map=acpi    ---------- will empty the array
-3) movablemem_map=ccc@ddd ---------- will be added into array again (wrong!)
-
-So, we need to code like this:
-
-+	if (!strncmp(p, "acpi", max(4, strlen(p))))
-+		movablemem_map.acpi = true;
-
-In this way, 3) movablemem_map=ccc@ddd will not go into this if segment.
-
-+
-+	/*
-+	 * If user decide to use info from BIOS, all the other user specified
-+	 * ranges will be ingored.
-+	 */
-+	if (movablemem_map.acpi) {
-+		if (movablemem_map.nr_map) {
-+			memset(movablemem_map.map, 0,
-+				sizeof(struct movablemem_entry)
-+				* movablemem_map.nr_map);
-+			movablemem_map.nr_map = 0;
-+		}
-+		return 0;
-+	}
-
-But it will go into this if segment, and will not add the range into array.
-
-Thanks. :)
-
-
-
+> ---
+>  include/net/ip_vs.h            |    6 +++---
+>  net/netfilter/ipvs/ip_vs_ctl.c |    4 ++--
+>  2 files changed, 5 insertions(+), 5 deletions(-)
+> 
+> diff --git a/include/net/ip_vs.h b/include/net/ip_vs.h
+> index 68c69d5..1d56f92 100644
+> --- a/include/net/ip_vs.h
+> +++ b/include/net/ip_vs.h
+> @@ -874,7 +874,7 @@ struct ip_vs_app {
+>  struct ipvs_master_sync_state {
+>  	struct list_head	sync_queue;
+>  	struct ip_vs_sync_buff	*sync_buff;
+> -	int			sync_queue_len;
+> +	unsigned long		sync_queue_len;
+>  	unsigned int		sync_queue_delay;
+>  	struct task_struct	*master_thread;
+>  	struct delayed_work	master_wakeup_work;
+> @@ -1052,7 +1052,7 @@ static inline int sysctl_sync_ports(struct netns_ipvs *ipvs)
+>  	return ACCESS_ONCE(ipvs->sysctl_sync_ports);
+>  }
+>  
+> -static inline int sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
+> +static inline unsigned long sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
+>  {
+>  	return ipvs->sysctl_sync_qlen_max;
+>  }
+> @@ -1099,7 +1099,7 @@ static inline int sysctl_sync_ports(struct netns_ipvs *ipvs)
+>  	return 1;
+>  }
+>  
+> -static inline int sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
+> +static inline unsigned long sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
+>  {
+>  	return IPVS_SYNC_QLEN_MAX;
+>  }
+> diff --git a/net/netfilter/ipvs/ip_vs_ctl.c b/net/netfilter/ipvs/ip_vs_ctl.c
+> index ec664cb..d79a530 100644
+> --- a/net/netfilter/ipvs/ip_vs_ctl.c
+> +++ b/net/netfilter/ipvs/ip_vs_ctl.c
+> @@ -1747,9 +1747,9 @@ static struct ctl_table vs_vars[] = {
+>  	},
+>  	{
+>  		.procname	= "sync_qlen_max",
+> -		.maxlen		= sizeof(int),
+> +		.maxlen		= sizeof(unsigned long),
+>  		.mode		= 0644,
+> -		.proc_handler	= proc_dointvec,
+> +		.proc_handler	= proc_doulongvec_minmax,
+>  	},
+>  	{
+>  		.procname	= "sync_sock_size",
+> -- 
+> 1.7.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
