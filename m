@@ -1,103 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id BE0756B0005
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 06:02:06 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CDCED3EE0B5
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 20:02:04 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B4E6945DEBC
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 20:02:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B8C745DEB2
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 20:02:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7FCE91DB8041
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 20:02:04 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 297961DB8038
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 20:02:04 +0900 (JST)
-Message-ID: <51138999.3090006@jp.fujitsu.com>
-Date: Thu, 07 Feb 2013 20:01:45 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 5D0016B0005
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 06:07:06 -0500 (EST)
+Date: Thu, 7 Feb 2013 12:06:52 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 0/6 RFC] Mapping range lock
+Message-ID: <20130207110652.GA20564@quack.suse.cz>
+References: <1359668994-13433-1-git-send-email-jack@suse.cz>
+ <20130131160757.06d7f1c2.akpm@linux-foundation.org>
+ <20130204123831.GE7523@quack.suse.cz>
+ <20130205232512.GR2667@dastard>
+ <20130206192534.GB11254@quack.suse.cz>
+ <20130207024342.GX2667@dastard>
 MIME-Version: 1.0
-Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from add_to_page_cache_locked
-References: <20121224142526.020165D3@pobox.sk> <20121228162209.GA1455@dhcp22.suse.cz> <20121230020947.AA002F34@pobox.sk> <20121230110815.GA12940@dhcp22.suse.cz> <20130125160723.FAE73567@pobox.sk> <20130125163130.GF4721@dhcp22.suse.cz> <20130205134937.GA22804@dhcp22.suse.cz> <20130205154947.CD6411E2@pobox.sk> <20130205160934.GB22804@dhcp22.suse.cz> <20130206021721.1AE9E3C7@pobox.sk> <20130206140119.GD10254@dhcp22.suse.cz>
-In-Reply-To: <20130206140119.GD10254@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130207024342.GX2667@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-(2013/02/06 23:01), Michal Hocko wrote:
-> On Wed 06-02-13 02:17:21, azurIt wrote:
->>> 5-memcg-fix-1.patch is not complete. It doesn't contain the folloup I
->>> mentioned in a follow up email. Here is the full patch:
->>
->>
->> Here is the log where OOM, again, killed MySQL server [search for "(mysqld)"]:
->> http://www.watchdog.sk/lkml/oom_mysqld6
->
-> [...]
-> WARNING: at mm/memcontrol.c:2409 T.1149+0x2d9/0x610()
-> Hardware name: S5000VSA
-> gfp_mask:4304 nr_pages:1 oom:0 ret:2
-> Pid: 3545, comm: apache2 Tainted: G        W    3.2.37-grsec #1
-> Call Trace:
->   [<ffffffff8105502a>] warn_slowpath_common+0x7a/0xb0
->   [<ffffffff81055116>] warn_slowpath_fmt+0x46/0x50
->   [<ffffffff81108163>] ? mem_cgroup_margin+0x73/0xa0
->   [<ffffffff8110b6f9>] T.1149+0x2d9/0x610
->   [<ffffffff812af298>] ? blk_finish_plug+0x18/0x50
->   [<ffffffff8110c6b4>] mem_cgroup_cache_charge+0xc4/0xf0
->   [<ffffffff810ca6bf>] add_to_page_cache_locked+0x4f/0x140
->   [<ffffffff810ca7d2>] add_to_page_cache_lru+0x22/0x50
->   [<ffffffff810cad32>] filemap_fault+0x252/0x4f0
->   [<ffffffff810eab18>] __do_fault+0x78/0x5a0
->   [<ffffffff810edcb4>] handle_pte_fault+0x84/0x940
->   [<ffffffff810e2460>] ? vma_prio_tree_insert+0x30/0x50
->   [<ffffffff810f2508>] ? vma_link+0x88/0xe0
->   [<ffffffff810ee6a8>] handle_mm_fault+0x138/0x260
->   [<ffffffff8102709d>] do_page_fault+0x13d/0x460
->   [<ffffffff810f46fc>] ? do_mmap_pgoff+0x3dc/0x430
->   [<ffffffff815b61ff>] page_fault+0x1f/0x30
-> ---[ end trace 8817670349022007 ]---
-> apache2 invoked oom-killer: gfp_mask=0x0, order=0, oom_adj=0, oom_score_adj=0
-> apache2 cpuset=uid mems_allowed=0
-> Pid: 3545, comm: apache2 Tainted: G        W    3.2.37-grsec #1
-> Call Trace:
->   [<ffffffff810ccd2e>] dump_header+0x7e/0x1e0
->   [<ffffffff810ccc2f>] ? find_lock_task_mm+0x2f/0x70
->   [<ffffffff810cd1f5>] oom_kill_process+0x85/0x2a0
->   [<ffffffff810cd8a5>] out_of_memory+0xe5/0x200
->   [<ffffffff810cda7d>] pagefault_out_of_memory+0xbd/0x110
->   [<ffffffff81026e76>] mm_fault_error+0xb6/0x1a0
->   [<ffffffff8102734e>] do_page_fault+0x3ee/0x460
->   [<ffffffff810f46fc>] ? do_mmap_pgoff+0x3dc/0x430
->   [<ffffffff815b61ff>] page_fault+0x1f/0x30
->
-> The first trace comes from the debugging WARN and it clearly points to
-> a file fault path. __do_fault pre-charges a page in case we need to
-> do CoW (copy-on-write) for the returned page. This one falls back to
-> memcg OOM and never returns ENOMEM as I have mentioned earlier.
-> However, the fs fault handler (filemap_fault here) can fallback to
-> page_cache_read if the readahead (do_sync_mmap_readahead) fails
-> to get page to the page cache. And we can see this happening in
-> the first trace. page_cache_read then calls add_to_page_cache_lru
-> and eventually gets to add_to_page_cache_locked which calls
-> mem_cgroup_cache_charge_no_oom so we will get ENOMEM if oom should
-> happen. This ENOMEM gets to the fault handler and kaboom.
->
+On Thu 07-02-13 13:43:42, Dave Chinner wrote:
+> On Wed, Feb 06, 2013 at 08:25:34PM +0100, Jan Kara wrote:
+> > On Wed 06-02-13 10:25:12, Dave Chinner wrote:
+> > > On Mon, Feb 04, 2013 at 01:38:31PM +0100, Jan Kara wrote:
+> > > > On Thu 31-01-13 16:07:57, Andrew Morton wrote:
+> > > > > > c) i_mutex doesn't allow any paralellism of operations using it and some
+> > > > > >    filesystems workaround this for specific cases (e.g. DIO reads). Using
+> > > > > >    range locking allows for concurrent operations (e.g. writes, DIO) on
+> > > > > >    different parts of the file. Of course, range locking itself isn't
+> > > > > >    enough to make the parallelism possible. Filesystems still have to
+> > > > > >    somehow deal with the concurrency when manipulating inode allocation
+> > > > > >    data. But the range locking at least provides a common VFS mechanism for
+> > > > > >    serialization VFS itself needs and it's upto each filesystem to
+> > > > > >    serialize more if it needs to.
+> > > > > 
+> > > > > That would be useful to end-users, but I'm having trouble predicting
+> > > > > *how* useful.
+> > > >   As Zheng said, there are people interested in this for DIO. Currently
+> > > > filesystems each invent their own tweaks to avoid the serialization at
+> > > > least for the easiest cases.
+> > > 
+> > > The thing is, this won't replace the locking those filesystems use
+> > > to parallelise DIO - it just adds another layer of locking they'll
+> > > need to use. The locks filesystems like XFS use to serialise IO
+> > > against hole punch also serialise against many more internal
+> > > functions and so if these range locks don't have the same capability
+> > > we're going to have to retain those locks even after the range locks
+> > > are introduced. It basically means we're going to have two layers
+> > > of range locks - one for IO sanity and atomicity, and then this
+> > > layer just for hole punch vs mmap.
+> > > 
+> > > As i've said before, what we really need in XFS is IO range locks
+> > > because we need to be able to serialise operations against IO in
+> > > progress, not page cache operations in progress.
+> >   Hum, I'm not sure I follow you here. So mapping tree lock + PageLocked +
+> > PageWriteback serialize all IO for part of the file underlying the page.
+> > I.e. at most one of truncate (punch hole), DIO, writeback, buffered write,
+> > buffered read, page fault can run on that part of file.
+> 
+> Right, it serialises page cache operations sufficient to avoid
+> page cache coherence problems, but it does not serialise operations
+> sufficiently to provide atomicity between operations that should be
+> atomic w.r.t. each other.
+> 
+> > So how come it
+> > doesn't provide enough serialization for XFS?
+> > 
+> > Ah, is it the problem that if two threads do overlapping buffered writes
+> > to a file then we can end up with data mixed from the two writes (if we
+> > didn't have something like i_mutex)?
+> 
+> That's one case of specific concern - the POSIX write() atomicity
+> guarantee
+  So I was searching for this both yesterday and today and I didn't find
+anywhere any comment explaining how concurrent writes should behave. But
+regardless how spec defines it, we provided write vs write exclusion so far
+and I can imagine changing this could break some applications. So here I
+agree we probably have no choice...
 
-Hmm. do we need to increase the "limit" virtually at memcg oom until
-the oom-killed process dies ? It may be doable by increasing stock->cache
-of each cpu....I think kernel can offer extra virtual charge up to
-oom-killed process's memory usage.....
+> - but it indicates the cause of many of my other concerns,
+> too. e.g. write vs prealloc, write vs punch, read vs truncate, write
+> vs truncate, buffered vs direct write, etc.
+> 
+> Basically, page-cache granularity locking for buffered IO means that
+> it cannot be wholly serialised against any other operation in
+> progress. That means we can't use the range lock to provide a
+> barrier to guarantee that no IO is currently in progress at all, and
+> hence it doesn't provide the IO barrier semantics we need for
+> various operations within XFS.
+  Well, I never really thought about write() call as about a single
+operation but rather as about a sequence of block-sized operations. But I
+agree this is a developer / implementation centric view and doesn't make
+much sence from user POV. Users could reasonably expect that if they do
+write to a range and punch hole to the same range then they either see the
+whole range empty or whole range written. Or the similar problem with a
+truncate you mention below. The page granularity of buffered IO locking
+doesn't provide that level of consistency.
 
-Thanks,
--Kame
+So I agree with you that if we want to get rid of i_mutex we'd need to lock
+the whole range specified by the syscall (at least for writes, for reads
+I'm not that convinced because that would heavily reduce the amount of
+parallelism we have in the code now for some workloads - there the page
+granularity would be better I think and consistency would be unchanged from
+what we have now).
+
+But if we are going to do the locking for the range specified by syscall
+it's going to make the write path heavier on CPU by 2% or so for small
+writes workload from my measurements. And I'm not sure that's acceptable :(
+Sigh... But I guess I'll code it without handling mmap for now and see what
+the situation exactly is (how much we gain from dropping i_mutex etc.).
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
