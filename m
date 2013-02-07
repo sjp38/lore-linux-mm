@@ -1,12 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 842F86B0005
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 22:13:45 -0500 (EST)
-Message-ID: <51131B88.6040809@cn.fujitsu.com>
-Date: Thu, 07 Feb 2013 11:12:08 +0800
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 30DEB6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 23:16:59 -0500 (EST)
+Message-ID: <51132A56.60906@cn.fujitsu.com>
+Date: Thu, 07 Feb 2013 12:15:18 +0800
 From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCH] net: fix functions and variables related to netns_ipvs->sysctl_sync_qlen_max
+Subject: [PATCH v2] net: fix functions and variables related to netns_ipvs->sysctl_sync_qlen_max
+References: <51131B88.6040809@cn.fujitsu.com>
+In-Reply-To: <51131B88.6040809@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -18,19 +20,36 @@ Since the type of netns_ipvs->sysctl_sync_qlen_max has been changed to
 unsigned long, type of its related proc var sync_qlen_max should be changed
 to unsigned long, too. Also the return type of function sysctl_sync_qlen_max().
 
+Besides, the type of ipvs_master_sync_state->sync_queue_len should also be
+changed to unsigned long.
+
+Changelog from V1:
+- change type of ipvs_master_sync_state->sync_queue_len to unsigned long
+  as Simon addressed.
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: David Miller <davem@davemloft.net>
 Cc: Julian Anastasov <ja@ssi.bg>
 Cc: Simon Horman <horms@verge.net.au>
 Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- include/net/ip_vs.h            |    4 ++--
+ include/net/ip_vs.h            |    6 +++---
  net/netfilter/ipvs/ip_vs_ctl.c |    4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
+ 2 files changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/include/net/ip_vs.h b/include/net/ip_vs.h
-index 68c69d5..ba3bd85 100644
+index 68c69d5..1d56f92 100644
 --- a/include/net/ip_vs.h
 +++ b/include/net/ip_vs.h
+@@ -874,7 +874,7 @@ struct ip_vs_app {
+ struct ipvs_master_sync_state {
+ 	struct list_head	sync_queue;
+ 	struct ip_vs_sync_buff	*sync_buff;
+-	int			sync_queue_len;
++	unsigned long		sync_queue_len;
+ 	unsigned int		sync_queue_delay;
+ 	struct task_struct	*master_thread;
+ 	struct delayed_work	master_wakeup_work;
 @@ -1052,7 +1052,7 @@ static inline int sysctl_sync_ports(struct netns_ipvs *ipvs)
  	return ACCESS_ONCE(ipvs->sysctl_sync_ports);
  }
