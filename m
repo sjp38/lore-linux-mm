@@ -1,72 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id A58E66B0005
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 16:35:21 -0500 (EST)
-Received: by mail-qc0-f178.google.com with SMTP id j34so1185879qco.9
-        for <linux-mm@kvack.org>; Thu, 07 Feb 2013 13:35:20 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20130206171047.d27b5772.akpm@linux-foundation.org>
-References: <1359591980-29542-1-git-send-email-walken@google.com>
-	<1359591980-29542-2-git-send-email-walken@google.com>
-	<5112F7AF.6010307@oracle.com>
-	<20130206171047.d27b5772.akpm@linux-foundation.org>
-Date: Thu, 7 Feb 2013 13:35:20 -0800
-Message-ID: <CANN689FV+0Z_TuqWKdsmUHk7HMFDuk31uQO=eH79+249nfOQrQ@mail.gmail.com>
-Subject: Re: [PATCH 1/3] mm: use long type for page counts in mm_populate()
- and get_user_pages()
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 72D246B0005
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 18:26:11 -0500 (EST)
+Date: Thu, 7 Feb 2013 15:26:09 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH RESEND] mm: accurately document nr_free_*_pages
+ functions with code comments
+Message-Id: <20130207152609.0dd07498.akpm@linux-foundation.org>
+In-Reply-To: <51130A07.2000805@cn.fujitsu.com>
+References: <5112138C.7040902@cn.fujitsu.com>
+	<5112FB96.1040606@infradead.org>
+	<51130A07.2000805@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, Feb 6, 2013 at 5:10 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Wed, 06 Feb 2013 19:39:11 -0500
-> Sasha Levin <sasha.levin@oracle.com> wrote:
->
->> We're now hitting the VM_BUG_ON() which was added in the last hunk of the
->> patch:
->
-> hm, why was that added.
->
-> Michel, I seem to have confused myself over this series.  I saw a
-> report this morning which led me to drop
-> mm-accelerate-munlock-treatment-of-thp-pages.patch but now I can't find
-> that report and I'm wondering if I should have dropped
-> mm-accelerate-mm_populate-treatment-of-thp-pages.patch instead.
->
-> Given that and Sasha's new report I think I'll drop
->
-> mm-use-long-type-for-page-counts-in-mm_populate-and-get_user_pages.patch
-> mm-use-long-type-for-page-counts-in-mm_populate-and-get_user_pages-fix.patch
-> mm-use-long-type-for-page-counts-in-mm_populate-and-get_user_pages-fix-fix.patch
-> mm-accelerate-mm_populate-treatment-of-thp-pages.patch
-> mm-accelerate-munlock-treatment-of-thp-pages.patch
->
-> and let's start again?
+On Thu, 07 Feb 2013 09:57:27 +0800
+Zhang Yanfei <zhangyanfei@cn.fujitsu.com> wrote:
 
-All right. My bad, there were issues in the patch series. I think
-there were two:
+> Functions nr_free_zone_pages, nr_free_buffer_pages and nr_free_pagecache_pages
+> are horribly badly named, so accurately document them with code comments
+> in case of the misuse of them.
 
-- The VM_BUG_ON(!reg) in "mm: use long type for page counts in
-mm_populate() and get_user_pages()". The intention there was to test
-for what happened in the original overflow case, which is that gup
-would return 0 as the passed nr_pages argument (when passed as an int)
-would be <= 0. As it turns out, this didn't account for the other case
-where gup returns 0, which is when the first page is file-backed, not
-found in page cache, and the mmap_sem gets dropped due to a non-NULL
-"nonblocking" argument (as is the case with mm_populate())
+Looks OK.  I fiddled with it a bit:
 
-- The issue in munlock, where the page mask wasn't correctly computed
-due to an off by 1 issue.
-
-I agree a clean resend seems the most appropriate course of action at
-this point. Sorry for the trouble :/
-
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+--- a/mm/page_alloc.c~mm-accurately-document-nr_free__pages-functions-with-code-comments-fix
++++ a/mm/page_alloc.c
+@@ -2813,12 +2813,12 @@ void free_pages_exact(void *virt, size_t
+ EXPORT_SYMBOL(free_pages_exact);
+ 
+ /**
+- * nr_free_zone_pages - get pages that is beyond high watermark
++ * nr_free_zone_pages - count number of pages beyond high watermark
+  * @offset: The zone index of the highest zone
+  *
+- * The function counts pages which are beyond high watermark within
+- * all zones at or below a given zone index. For each zone, the
+- * amount of pages is calculated as:
++ * nr_free_zone_pages() counts the number of counts pages which are beyond the
++ * high watermark within all zones at or below a given zone index.  For each
++ * zone, the number of pages is calculated as:
+  *     present_pages - high_pages
+  */
+ static unsigned long nr_free_zone_pages(int offset)
+@@ -2842,10 +2842,10 @@ static unsigned long nr_free_zone_pages(
+ }
+ 
+ /**
+- * nr_free_buffer_pages - get pages that is beyond high watermark
++ * nr_free_buffer_pages - count number of pages beyond high watermark
+  *
+- * The function counts pages which are beyond high watermark within
+- * ZONE_DMA and ZONE_NORMAL.
++ * nr_free_buffer_pages() counts the number of pages which are beyond the high
++ * watermark within ZONE_DMA and ZONE_NORMAL.
+  */
+ unsigned long nr_free_buffer_pages(void)
+ {
+@@ -2854,10 +2854,10 @@ unsigned long nr_free_buffer_pages(void)
+ EXPORT_SYMBOL_GPL(nr_free_buffer_pages);
+ 
+ /**
+- * nr_free_pagecache_pages - get pages that is beyond high watermark
++ * nr_free_pagecache_pages - count number of pages beyond high watermark
+  *
+- * The function counts pages which are beyond high watermark within
+- * all zones.
++ * nr_free_pagecache_pages() counts the number of pages which are beyond the
++ * high watermark within all zones.
+  */
+ unsigned long nr_free_pagecache_pages(void)
+ {
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
