@@ -1,58 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 835196B0005
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 07:59:14 -0500 (EST)
-Received: from /spool/local
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Thu, 7 Feb 2013 12:57:29 -0000
-Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r17Cx0iE34865332
-	for <linux-mm@kvack.org>; Thu, 7 Feb 2013 12:59:00 GMT
-Received: from d06av10.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r17BnQqN029404
-	for <linux-mm@kvack.org>; Thu, 7 Feb 2013 06:49:26 -0500
-Date: Thu, 7 Feb 2013 13:59:04 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH] mm: don't overwrite mm->def_flags in do_mlockall()
-Message-ID: <20130207135904.0ca7a3d5@thinkpad>
-In-Reply-To: <20130206125103.61748ed0.akpm@linux-foundation.org>
-References: <1360165774-55458-1-git-send-email-gerald.schaefer@de.ibm.com>
-	<20130206125103.61748ed0.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id E44036B0005
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 11:14:02 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] HWPOISON: fix misjudgement of page_action() for errors on mlocked pages
+Date: Thu,  7 Feb 2013 11:13:40 -0500
+Message-Id: <1360253620-10223-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Michel Lespinasse <walken@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>
+Cc: gong.chen@linux.intel.com, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 6 Feb 2013 12:51:03 -0800
-Andrew Morton <akpm@linux-foundation.org> wrote:
+memory_failure() can't handle memory errors on mlocked pages correctly,
+because page_action() judges such errors as ones on "unknown pages"
+instead of ones on "unevictable LRU page" or "mlocked LRU page".
+In order to determine page_state page_action() checks page flags at the
+timing of the judgement, but such page flags are not the same with those
+just after memory_failure() is called, because memory_failure() does
+unmapping of the error pages before doing page_action(). This unmapping
+changes the page state, especially page_remove_rmap() (called from
+try_to_unmap_one()) clears PG_mlocked, so page_action() can't catch mlocked
+pages after that.
 
-> On Wed,  6 Feb 2013 16:49:34 +0100
-> Gerald Schaefer <gerald.schaefer@de.ibm.com> wrote:
-> 
-> > With commit 8e72033 "thp: make MADV_HUGEPAGE check for
-> > mm->def_flags" the VM_NOHUGEPAGE flag may be set on s390 in
-> > mm->def_flags for certain processes, to prevent future thp
-> > mappings. This would be overwritten by do_mlockall(), which sets it
-> > back to 0 with an optional VM_LOCKED flag set.
-> > 
-> > To fix this, instead of overwriting mm->def_flags in do_mlockall(),
-> > only the VM_LOCKED flag should be set or cleared.
-> 
-> What are the user-visible effects here?  Looking at the 274023da1e8
-> changelog, I'm guessing that it might be pretty nasty - kvm breakage?
+With this patch, we store the page flag of the error page before doing
+unmap, and (only) if the first check with page flags at the time decided
+the error page is unknown, we do the second check with the stored page flag.
+This implementation doesn't change error handling for the page types
+for which the first check can determine the page state correctly.
 
-Yes, though at the moment there should be no mlockall()/munlockall()
-involved with kvm/qemu. So currently no user-visible effects, Vivek
-found this while reading the do_mlockall() code, but it might be a
-good idea to add this to stable.
-Could you add a "Cc: stable@vger.kernel.org # v3.7+"?
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/memory-failure.c | 27 ++++++++++++++++++++++-----
+ 1 file changed, 22 insertions(+), 5 deletions(-)
 
-Thanks,
-Gerald
+diff --git v3.8-rc5.orig/mm/memory-failure.c v3.8-rc5/mm/memory-failure.c
+index c60d86c..e6d6022 100644
+--- v3.8-rc5.orig/mm/memory-failure.c
++++ v3.8-rc5/mm/memory-failure.c
+@@ -1093,6 +1093,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 	struct page *hpage;
+ 	int res;
+ 	unsigned int nr_pages;
++	unsigned long page_flags;
+ 
+ 	if (!sysctl_memory_failure_recovery)
+ 		panic("Memory failure from trap %d on page %lx", trapno, pfn);
+@@ -1201,6 +1202,15 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 	lock_page(hpage);
+ 
+ 	/*
++	 * We use page flags to determine what action should be taken,
++	 * but it can be modified by the error containment action.
++	 * One example is mlocked page, where PG_mlocked is cleared by
++	 * page_remove_rmap() in try_to_unmap_one(). So to determine page
++	 * status correctly, we store the page flags at this timing.
++	 */
++	page_flags = p->flags;
++
++	/*
+ 	 * unpoison always clear PG_hwpoison inside page lock
+ 	 */
+ 	if (!PageHWPoison(p)) {
+@@ -1258,12 +1268,19 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 	}
+ 
+ 	res = -EBUSY;
+-	for (ps = error_states;; ps++) {
+-		if ((p->flags & ps->mask) == ps->res) {
+-			res = page_action(ps, p, pfn);
++	/*
++	 * The first check uses the current page flag which might not have any
++	 * relevant information. The second check with stored page flags are
++	 * carried out only if the first check can't determine the page status.
++	 */
++	for (ps = error_states;; ps++)
++		if ((p->flags & ps->mask) == ps->res)
+ 			break;
+-		}
+-	}
++	if (!ps->mask)
++		for (ps = error_states;; ps++)
++			if ((page_flags & ps->mask) == ps->res)
++				break;
++	res = page_action(ps, p, pfn);
+ out:
+ 	unlock_page(hpage);
+ 	return res;
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
