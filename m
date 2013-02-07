@@ -1,51 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 5EAD76B0007
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 11:14:16 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH] HWPOISON: change order of error_states[]'s elements
-Date: Thu,  7 Feb 2013 11:14:06 -0500
-Message-Id: <1360253646-10331-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 89BEE6B0005
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 11:15:38 -0500 (EST)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 7 Feb 2013 09:14:47 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id D42C619D8042
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 09:14:37 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r17GEZuJ145094
+	for <linux-mm@kvack.org>; Thu, 7 Feb 2013 09:14:36 -0700
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r17GGaM5022100
+	for <linux-mm@kvack.org>; Thu, 7 Feb 2013 09:16:37 -0700
+Message-ID: <5113D291.2020903@linux.vnet.ibm.com>
+Date: Thu, 07 Feb 2013 10:13:05 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCHv2 8/9] zswap: add to mm/
+References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com> <1357590280-31535-9-git-send-email-sjenning@linux.vnet.ibm.com> <51030ADA.8030403@redhat.com> <510698F5.5060205@linux.vnet.ibm.com> <5107A2B8.4070505@parallels.com>
+In-Reply-To: <5107A2B8.4070505@parallels.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>
-Cc: gong.chen@linux.intel.com, Wu Fengguang <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Lord Glauber Costa of Sealand <glommer@parallels.com>
+Cc: Rik van Riel <riel@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-error_states[] has two separate states "unevictable LRU page" and
-"mlocked LRU page", and the former one has the higher priority now.
-But because of that the latter one is rarely chosen because pages with
-PageMlocked highly likely have PG_unevictable set. On the other hand,
-PG_unevictable without PageMlocked is common for ramfs or SHM_LOCKed
-shared memory, so reversing the priority of these two states helps us
-clearly distinguish them.
+On 01/29/2013 04:21 AM, Lord Glauber Costa of Sealand wrote:
+> On 01/28/2013 07:27 PM, Seth Jennings wrote:
+>> Yes, I prototyped a shrinker interface for zswap, but, as we both
+>> figured, it shrinks the zswap compressed pool too aggressively to the
+>> point of being useless.
+> Can't you advertise a smaller number of objects that you actively have?
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- mm/memory-failure.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+Thanks for looking at the code!
 
-diff --git v3.8-rc5.orig/mm/memory-failure.c v3.8-rc5/mm/memory-failure.c
-index e6d6022..837bce2 100644
---- v3.8-rc5.orig/mm/memory-failure.c
-+++ v3.8-rc5/mm/memory-failure.c
-@@ -856,12 +856,12 @@ static struct page_state {
- 	{ sc|dirty,	sc|dirty,	"dirty swapcache",	me_swapcache_dirty },
- 	{ sc|dirty,	sc,		"clean swapcache",	me_swapcache_clean },
- 
--	{ unevict|dirty, unevict|dirty,	"dirty unevictable LRU", me_pagecache_dirty },
--	{ unevict,	unevict,	"clean unevictable LRU", me_pagecache_clean },
--
- 	{ mlock|dirty,	mlock|dirty,	"dirty mlocked LRU",	me_pagecache_dirty },
- 	{ mlock,	mlock,		"clean mlocked LRU",	me_pagecache_clean },
- 
-+	{ unevict|dirty, unevict|dirty,	"dirty unevictable LRU", me_pagecache_dirty },
-+	{ unevict,	unevict,	"clean unevictable LRU", me_pagecache_clean },
-+
- 	{ lru|dirty,	lru|dirty,	"dirty LRU",	me_pagecache_dirty },
- 	{ lru|dirty,	lru,		"clean LRU",	me_pagecache_clean },
- 
--- 
-1.7.11.7
+An interesting idea.  I'm just not sure how you would manage the
+underlying policy of how aggressively does zswap allow itself to be
+shrunk?  The fact that zswap _only_ operates under memory pressure
+makes that policy difficult, because it is under continuous shrinking
+pressure, unlike other shrinkable caches in the kernel that spend most
+of their time operating in unconstrained or lightly/intermittently
+strained conditions.
+
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
