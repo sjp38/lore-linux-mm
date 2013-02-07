@@ -1,73 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id B6C816B0005
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 18:47:37 -0500 (EST)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id C70FF6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 19:03:41 -0500 (EST)
+Received: by mail-da0-f47.google.com with SMTP id s35so894576dak.34
+        for <linux-mm@kvack.org>; Wed, 06 Feb 2013 16:03:41 -0800 (PST)
+Date: Wed, 6 Feb 2013 16:03:38 -0800
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie
+ to a config option
+Message-ID: <20130207000338.GB18984@kroah.com>
+References: <1360175261-13287-1-git-send-email-dan.magenheimer@oracle.com>
+ <20130206190924.GB32275@kroah.com>
+ <761b5c6e-df13-49ff-b322-97a737def114@default>
+ <20130206214316.GA21148@kroah.com>
+ <abbc2f75-2982-470c-a3ca-675933d112c3@default>
 MIME-Version: 1.0
-Message-ID: <a06fbc6b-8731-4bfe-82ff-05e8d14d8595@default>
-Date: Wed, 6 Feb 2013 15:47:29 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCHv3 5/6] zswap: add to mm/
-References: <1359409767-30092-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1359409767-30092-6-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130129062756.GH4752@blaptop> <51080658.7060709@linux.vnet.ibm.com>
-In-Reply-To: <51080658.7060709@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <abbc2f75-2982-470c-a3ca-675933d112c3@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: sjenning@linux.vnet.ibm.com, Konrad Wilk <konrad.wilk@oracle.com>, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@linuxdriverproject.org, ngupta@vflare.org
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Subject: Re: [PATCHv3 5/6] zswap: add to mm/
->=20
-> On 01/29/2013 12:27 AM, Minchan Kim wrote:
-> > First feeling is it's simple and nice approach.
-> > Although we have some problems to decide policy, it could solve by late=
-r patch
-> > so I hope we make basic infrasture more solid by lots of comment.
->=20
-> Thanks very much for the review!
-> >
-> > Another question.
-> >
-> > What's the benefit of using mempool for zsmalloc?
-> > As you know, zsmalloc doesn't use mempool as default.
-> > I guess you see some benefit. if so, zram could be changed.
-> > If we can change zsmalloc's default scheme to use mempool,
-> > all of customer of zsmalloc could be enhanced, too.
->=20
-> In the case of zswap, through experimentation, I found that adding a
-> mempool behind the zsmalloc pool added some elasticity to the pool.
-> Fewer stores failed if we kept a small reserve of pages around instead
-> of having to go back to the buddy allocator who, under memory
-> pressure, is more likely to reject our request.
->=20
-> I don't see this situation being applicable to all zsmalloc users
-> however.  I don't think we want incorporate it directly into zsmalloc
-> for now.  The ability to register custom page alloc/free functions at
-> pool creation time allows users to do something special, like back
-> with a mempool, if they want to do that.
+On Wed, Feb 06, 2013 at 02:42:11PM -0800, Dan Magenheimer wrote:
+> > Yes, but these mm changes are in no one's trees, and I have no idea if
+> > they ever will be merged.
+> 
+> OK, I can try pushing on the "egg" side for awhile :-(
+> 
+> > This patch looks to me that it is adding new functionality, and not
+> > working to get it moved out of staging.
+> 
+> Not true... it is fixing broken functionality that was left latent
+> for too long due to last summer's unpleasant disagreements.  And this
+> functionality was a key reason why "zcache2" was created... because mm
+> developers (e.g. Andrea) insisted that it must be present before compression
+> functionality would be added into mm.  As evidence to support this,
+> note that Seth's first zswap patchset includes similar functionality
+> even though Seth argued vociferously last summer that the functionality
+> wasn't needed before "old" zcache should be promoted.
+> 
+> > So, how about I try being mean again.  I will accept no more patches for
+> > the zcache/zram/zsmalloc code, unless is it an obvious bugfix, or it is
+> > to move it out of the drivers/staging/ tree.  You all have had many
+> > years to get your act together, and it's getting really frustrating from
+> > my end.
+> 
+> I do very much understand your frustration and you have every right
+> to be mean.
+> 
+> But, since this really is technically patching up existing critical
+> functionality that was known to be broken, I would be very grateful
+> if you would reconsider applying this patch.  I agree there will be no
+> (more) non-bugfix staging/zcache patches from me. I've proposed a topic [1]
+> for LSF/MM in April to discuss all this... I totally agree it's time to
+> promote in-kernel compression out of staging and into mm proper.
+> But without this patch fixing required functionality, it will be
+> harder to promote.
+> 
+> In other words.... pretty pleeeeze? I swear this is the last time.  :-]
 
-(sorry, still catching up on backlog after being gone last week)
+That's what you said last time :)
 
-IIUC, by using mempool, you are essentially setting aside a
-special cache of pageframes that only zswap can use (or other
-users of mempool, I don't know what other subsystems use it).
-So one would expect that fewer stores would fail if more
-pageframes are available to zswap, the same as if you had
-increased zswap_max_pool_percent by some small fraction.
+So, how about this, please draw up a specific plan for how you are going
+to get this code out of drivers/staging/  I want to see the steps
+involved, who is going to be doing the work, and who you are going to
+have to get to agree with your changes to make it happen.
 
-But by setting those pageframes aside, you are keeping them from
-general use, which may be a use with a higher priority as determined
-by the mm system.
+After that, then I'll consider taking stuff like this, as it's "obvious"
+that this is the way forward.  Right now I have no idea at all if this
+is something new that you are adding, or if it's something that really
+is helping to get the code merged.
 
-This seems wrong to me.  Should every subsystem hide a bunch of
-pageframes away in case it might need them?
+Yeah, a plan, I know it goes against normal kernel development
+procedures, but hey, we're in our early 20's now, it's about time we
+started getting responsible.
 
-Or am I missing something?
-
-Dan
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
