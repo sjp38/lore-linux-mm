@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 78C2D6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 20:09:20 -0500 (EST)
-Date: Thu, 7 Feb 2013 10:09:14 +0900
-From: Simon Horman <horms@verge.net.au>
-Subject: Re: [PATCH 6/7] net: change type of netns_ipvs->sysctl_sync_qlen_max
-Message-ID: <20130207010914.GA9070@verge.net.au>
-References: <alpine.LFD.2.00.1302061115590.1664@ja.ssi.bg>
- <5112240C.1010105@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <5112240C.1010105@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 79FC96B0008
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 20:10:49 -0500 (EST)
+Date: Wed, 6 Feb 2013 17:10:47 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] mm: use long type for page counts in mm_populate()
+ and get_user_pages()
+Message-Id: <20130206171047.d27b5772.akpm@linux-foundation.org>
+In-Reply-To: <5112F7AF.6010307@oracle.com>
+References: <1359591980-29542-1-git-send-email-walken@google.com>
+	<1359591980-29542-2-git-send-email-walken@google.com>
+	<5112F7AF.6010307@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Julian Anastasov <ja@ssi.bg>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, mgorman@suse.de
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Michel Lespinasse <walken@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Feb 06, 2013 at 05:36:12PM +0800, Zhang Yanfei wrote:
-> ao? 2013a1'02ae??06ae?JPY 17:29, Julian Anastasov a??e??:
-> > 
-> > 	Hello,
-> > 
-> > 	Sorry that I'm writing a private email but I
-> > deleted your original message by mistake. Your change
-> > of the sysctl_sync_qlen_max from int to long is may be
-> > not enough.
-> > 
-> > 	net/netfilter/ipvs/ip_vs_ctl.c contains
-> > proc var "sync_qlen_max" that should be changed to
-> > sizeof(unsigned long) and updated with proc_doulongvec_minmax.
-> > 
-> 
-> Thanks for pointing this. I will update this in patch v2.
+On Wed, 06 Feb 2013 19:39:11 -0500
+Sasha Levin <sasha.levin@oracle.com> wrote:
 
-Hi Zhang,
+> We're now hitting the VM_BUG_ON() which was added in the last hunk of the
+> patch:
 
-Thanks for helping to keep IPVS up to date.
+hm, why was that added.
 
-It seems to me that include/net/ip_vs.h:sysctl_sync_qlen_max()
-and its call site, net/netfilter/ipvs/ip_vs_sync.c:sb_queue_tail()
-may also need to be updated.
+Michel, I seem to have confused myself over this series.  I saw a
+report this morning which led me to drop
+mm-accelerate-munlock-treatment-of-thp-pages.patch but now I can't find
+that report and I'm wondering if I should have dropped
+mm-accelerate-mm_populate-treatment-of-thp-pages.patch instead.
 
-Could you look at including that in v2 too?
+Given that and Sasha's new report I think I'll drop
+
+mm-use-long-type-for-page-counts-in-mm_populate-and-get_user_pages.patch
+mm-use-long-type-for-page-counts-in-mm_populate-and-get_user_pages-fix.patch
+mm-use-long-type-for-page-counts-in-mm_populate-and-get_user_pages-fix-fix.patch
+mm-accelerate-mm_populate-treatment-of-thp-pages.patch
+mm-accelerate-munlock-treatment-of-thp-pages.patch
+
+and let's start again?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
