@@ -1,112 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id B6BB16B0005
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 21:33:08 -0500 (EST)
-Message-ID: <51131248.3080203@huawei.com>
-Date: Thu, 7 Feb 2013 10:32:40 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id ABFAF6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 21:43:47 -0500 (EST)
+Date: Thu, 7 Feb 2013 13:43:42 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 0/6 RFC] Mapping range lock
+Message-ID: <20130207024342.GX2667@dastard>
+References: <1359668994-13433-1-git-send-email-jack@suse.cz>
+ <20130131160757.06d7f1c2.akpm@linux-foundation.org>
+ <20130204123831.GE7523@quack.suse.cz>
+ <20130205232512.GR2667@dastard>
+ <20130206192534.GB11254@quack.suse.cz>
 MIME-Version: 1.0
-Subject: [PATCH V2] ia64/mm: fix a bad_page bug when crash kernel booting
-References: <51074786.5030007@huawei.com> <1359995565.7515.178.camel@mfleming-mobl1.ger.corp.intel.com>
-In-Reply-To: <1359995565.7515.178.camel@mfleming-mobl1.ger.corp.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130206192534.GB11254@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Fleming <matt.fleming@intel.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, fenghua.yu@intel.com, Liujiang <jiang.liu@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, WuJianguo <wujianguo@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 2013/2/5 0:32, Matt Fleming wrote:
+On Wed, Feb 06, 2013 at 08:25:34PM +0100, Jan Kara wrote:
+> On Wed 06-02-13 10:25:12, Dave Chinner wrote:
+> > On Mon, Feb 04, 2013 at 01:38:31PM +0100, Jan Kara wrote:
+> > > On Thu 31-01-13 16:07:57, Andrew Morton wrote:
+> > > > > c) i_mutex doesn't allow any paralellism of operations using it and some
+> > > > >    filesystems workaround this for specific cases (e.g. DIO reads). Using
+> > > > >    range locking allows for concurrent operations (e.g. writes, DIO) on
+> > > > >    different parts of the file. Of course, range locking itself isn't
+> > > > >    enough to make the parallelism possible. Filesystems still have to
+> > > > >    somehow deal with the concurrency when manipulating inode allocation
+> > > > >    data. But the range locking at least provides a common VFS mechanism for
+> > > > >    serialization VFS itself needs and it's upto each filesystem to
+> > > > >    serialize more if it needs to.
+> > > > 
+> > > > That would be useful to end-users, but I'm having trouble predicting
+> > > > *how* useful.
+> > >   As Zheng said, there are people interested in this for DIO. Currently
+> > > filesystems each invent their own tweaks to avoid the serialization at
+> > > least for the easiest cases.
+> > 
+> > The thing is, this won't replace the locking those filesystems use
+> > to parallelise DIO - it just adds another layer of locking they'll
+> > need to use. The locks filesystems like XFS use to serialise IO
+> > against hole punch also serialise against many more internal
+> > functions and so if these range locks don't have the same capability
+> > we're going to have to retain those locks even after the range locks
+> > are introduced. It basically means we're going to have two layers
+> > of range locks - one for IO sanity and atomicity, and then this
+> > layer just for hole punch vs mmap.
+> > 
+> > As i've said before, what we really need in XFS is IO range locks
+> > because we need to be able to serialise operations against IO in
+> > progress, not page cache operations in progress.
+>   Hum, I'm not sure I follow you here. So mapping tree lock + PageLocked +
+> PageWriteback serialize all IO for part of the file underlying the page.
+> I.e. at most one of truncate (punch hole), DIO, writeback, buffered write,
+> buffered read, page fault can run on that part of file.
 
-> On Tue, 2013-01-29 at 11:52 +0800, Xishi Qiu wrote:
->> On ia64 platform, I set "crashkernel=1024M-:600M", and dmesg shows 128M-728M
->> memory is reserved for crash kernel. Then "echo c > /proc/sysrq-trigger" to
->> test kdump.
->>
->> When crash kernel booting, efi_init() will aligns the memory address in
->> IA64_GRANULE_SIZE(16M), so 720M-728M memory will be dropped, It means
->> crash kernel only manage 128M-720M memory.
->>
->> But initrd start and end are fixed in boot loader, it is before efi_init(),
->> so initrd size maybe overflow when free_initrd_mem().
-> 
-> [...]
-> 
->> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
->> index b755ea9..cfdb1eb 100644
->> --- a/arch/ia64/mm/init.c
->> +++ b/arch/ia64/mm/init.c
->> @@ -207,6 +207,17 @@ free_initrd_mem (unsigned long start, unsigned long end)
->>  	start = PAGE_ALIGN(start);
->>  	end = end & PAGE_MASK;
->>
->> +	/*
->> +	 * Initrd size is fixed in boot loader, but kernel parameter max_addr
->> +	 * which aligns in granules is fixed after boot loader, so initrd size
->> +	 * maybe overflow.
->> +	 */
->> +	if (max_addr != ~0UL) {
->> +		end = GRANULEROUNDDOWN(end);
->> +		if (start > end)
->> +			start = end;
->> +	}
->> +
->>  	if (start < end)
->>  		printk(KERN_INFO "Freeing initrd memory: %ldkB freed\n", (end - start) >> 10);
-> 
-> I don't think this is the correct fix.
-> 
-> Now, my ia64-fu is weak, but could it be that there's actually a bug in
-> efi_init() and that the following patch would be the best way to fix
-> this?
-> 
-> ---
-> 
-> diff --git a/arch/ia64/kernel/efi.c b/arch/ia64/kernel/efi.c
-> index f034563..8d579f1 100644
-> --- a/arch/ia64/kernel/efi.c
-> +++ b/arch/ia64/kernel/efi.c
-> @@ -482,7 +482,7 @@ efi_init (void)
->  		if (memcmp(cp, "mem=", 4) == 0) {
->  			mem_limit = memparse(cp + 4, &cp);
->  		} else if (memcmp(cp, "max_addr=", 9) == 0) {
-> -			max_addr = GRANULEROUNDDOWN(memparse(cp + 9, &cp));
-> +			max_addr = GRANULEROUNDUP(memparse(cp + 9, &cp));
->  		} else if (memcmp(cp, "min_addr=", 9) == 0) {
->  			min_addr = GRANULEROUNDDOWN(memparse(cp + 9, &cp));
->  		} else {
-> 
-> 
+Right, it serialises page cache operations sufficient to avoid
+page cache coherence problems, but it does not serialise operations
+sufficiently to provide atomicity between operations that should be
+atomic w.r.t. each other.
 
-Sorry, this bug will be happen when use Sparse-Memory(section is valid, but last
-several pages are invalid). If use Flat-Memory, crash kernel will boot successfully.
-I think the following patch would be better.
+> So how come it
+> doesn't provide enough serialization for XFS?
+> 
+> Ah, is it the problem that if two threads do overlapping buffered writes
+> to a file then we can end up with data mixed from the two writes (if we
+> didn't have something like i_mutex)?
 
-Hi Andrew, will you just ignore the earlier patch and consider the following one? :>
+That's one case of specific concern - the POSIX write() atomicity
+guarantee - but it indicates the cause of many of my other concerns,
+too. e.g. write vs prealloc, write vs punch, read vs truncate, write
+vs truncate, buffered vs direct write, etc.
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- arch/ia64/mm/init.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+Basically, page-cache granularity locking for buffered IO means that
+it cannot be wholly serialised against any other operation in
+progress. That means we can't use the range lock to provide a
+barrier to guarantee that no IO is currently in progress at all, and
+hence it doesn't provide the IO barrier semantics we need for
+various operations within XFS.
 
-diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-index 082e383..23f2ee3 100644
---- a/arch/ia64/mm/init.c
-+++ b/arch/ia64/mm/init.c
-@@ -213,6 +213,8 @@ free_initrd_mem (unsigned long start, unsigned long end)
- 	for (; start < end; start += PAGE_SIZE) {
- 		if (!virt_addr_valid(start))
- 			continue;
-+		if ((start >> PAGE_SHIFT) >= max_low_pfn)
-+			continue;
- 		page = virt_to_page(start);
- 		ClearPageReserved(page);
- 		init_page_count(page);
+An example of this is that the online defrag ioctl requires copyin +
+mtime updates in the write path are atomic w.r.t the swap extents
+ioctl so that it can detect concurrent modification of the file being
+defragged and abort. The page cache based range locks simply don't
+provide this coverage, and so we'd need to maintain the IO operation
+locking we currently have to provide this exclusion..
+
+Truncate is something I also see as particularly troublesome,
+because the i_mutex current provides mutual exclusion against the
+operational range of a buffered write (i.e. at the .aio_write level)
+and not page granularity like this patch set would result in. Hence
+the behaviour of write vs truncate races could change quite
+significantly. e.g.  instead of "write completes then truncate" or
+"truncate completes then write", we could have "partial write,
+truncate, write continues and completes" resulting in a bunch of
+zeros inside the range the write call wrote to. The application
+won't even realise that the data it wrote was corrupted by the
+racing truncate.....
+
+IOWs, I think that the fundamental unit of atomicity we need here is
+the operational range of the syscall i.e. that each of the protected
+operations needs to execute atomically as a whole with respect to
+each other, not in a piecemeal fashion where some use whole range
+locking and others use fine-grained page-range locking...
+
+Cheers,
+
+Dave.
 -- 
-1.7.6.1
-
-
-
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
