@@ -1,91 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id D3F636B0005
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 19:55:14 -0500 (EST)
-Message-ID: <5112FB96.1040606@infradead.org>
-Date: Wed, 06 Feb 2013 16:55:50 -0800
-From: Randy Dunlap <rdunlap@infradead.org>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 78C2D6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 20:09:20 -0500 (EST)
+Date: Thu, 7 Feb 2013 10:09:14 +0900
+From: Simon Horman <horms@verge.net.au>
+Subject: Re: [PATCH 6/7] net: change type of netns_ipvs->sysctl_sync_qlen_max
+Message-ID: <20130207010914.GA9070@verge.net.au>
+References: <alpine.LFD.2.00.1302061115590.1664@ja.ssi.bg>
+ <5112240C.1010105@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: accurately document nr_free_*_pages functions with
- code comments
-References: <5112138C.7040902@cn.fujitsu.com>
-In-Reply-To: <5112138C.7040902@cn.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <5112240C.1010105@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Julian Anastasov <ja@ssi.bg>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, mgorman@suse.de
 
-On 02/06/13 00:25, Zhang Yanfei wrote:
-> Functions nr_free_zone_pages, nr_free_buffer_pages and nr_free_pagecache_pages
-> are horribly badly named, so accurately document them with code comments
-> in case of the misuse of them.
+On Wed, Feb 06, 2013 at 05:36:12PM +0800, Zhang Yanfei wrote:
+> ao? 2013a1'02ae??06ae?JPY 17:29, Julian Anastasov a??e??:
+> > 
+> > 	Hello,
+> > 
+> > 	Sorry that I'm writing a private email but I
+> > deleted your original message by mistake. Your change
+> > of the sysctl_sync_qlen_max from int to long is may be
+> > not enough.
+> > 
+> > 	net/netfilter/ipvs/ip_vs_ctl.c contains
+> > proc var "sync_qlen_max" that should be changed to
+> > sizeof(unsigned long) and updated with proc_doulongvec_minmax.
+> > 
 > 
-> Signed-off-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-> ---
->  mm/page_alloc.c |   23 +++++++++++++++++++----
->  1 files changed, 19 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index df2022f..0790716 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2785,6 +2785,15 @@ void free_pages_exact(void *virt, size_t size)
->  }
->  EXPORT_SYMBOL(free_pages_exact);
->  
-> +/**
-> + * nr_free_zone_pages - get pages that is beyond high watermark
-> + * @offset - The zone index of the highest zone
+> Thanks for pointing this. I will update this in patch v2.
 
-Function parameter format uses a ':', not a '-'.  E.g.,
+Hi Zhang,
 
- * @offset: the zone index of the highest zone
+Thanks for helping to keep IPVS up to date.
 
+It seems to me that include/net/ip_vs.h:sysctl_sync_qlen_max()
+and its call site, net/netfilter/ipvs/ip_vs_sync.c:sb_queue_tail()
+may also need to be updated.
 
-> + *
-> + * The function counts pages which are beyond high watermark within
-> + * all zones at or below a given zone index. For each zone, the
-> + * amount of pages is calculated as:
-> + *     present_pages - high_pages
-> + */
->  static unsigned int nr_free_zone_pages(int offset)
->  {
->  	struct zoneref *z;
-> @@ -2805,8 +2814,11 @@ static unsigned int nr_free_zone_pages(int offset)
->  	return sum;
->  }
->  
-> -/*
-> - * Amount of free RAM allocatable within ZONE_DMA and ZONE_NORMAL
-> +/**
-> + * nr_free_buffer_pages - get pages that is beyond high watermark
-> + *
-> + * The function counts pages which are beyond high watermark within
-> + * ZONE_DMA and ZONE_NORMAL.
->   */
->  unsigned int nr_free_buffer_pages(void)
->  {
-> @@ -2814,8 +2826,11 @@ unsigned int nr_free_buffer_pages(void)
->  }
->  EXPORT_SYMBOL_GPL(nr_free_buffer_pages);
->  
-> -/*
-> - * Amount of free RAM allocatable within all zones
-> +/**
-> + * nr_free_pagecache_pages - get pages that is beyond high watermark
-> + *
-> + * The function counts pages which are beyond high watermark within
-> + * all zones.
->   */
->  unsigned int nr_free_pagecache_pages(void)
->  {
-> 
-
-
--- 
-~Randy
+Could you look at including that in v2 too?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
