@@ -1,118 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 37E7E6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 21:27:56 -0500 (EST)
-Received: by mail-ee0-f45.google.com with SMTP id b57so1108544eek.4
-        for <linux-mm@kvack.org>; Wed, 06 Feb 2013 18:27:54 -0800 (PST)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id B6BB16B0005
+	for <linux-mm@kvack.org>; Wed,  6 Feb 2013 21:33:08 -0500 (EST)
+Message-ID: <51131248.3080203@huawei.com>
+Date: Thu, 7 Feb 2013 10:32:40 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Date: Thu, 7 Feb 2013 11:27:54 +0900
-Message-ID: <CAOAMb1AZaXHiW47MbstoVaDVEbVaSC+fqcZoSM0EXC5RpH7nHw@mail.gmail.com>
-Subject: [PATCH] vmalloc: Remove alloc_map from vmap_block.
-From: Chanho Min <chanho.min@lge.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH V2] ia64/mm: fix a bad_page bug when crash kernel booting
+References: <51074786.5030007@huawei.com> <1359995565.7515.178.camel@mfleming-mobl1.ger.corp.intel.com>
+In-Reply-To: <1359995565.7515.178.camel@mfleming-mobl1.ger.corp.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Cong Wang <amwang@redhat.com>, Nicolas Pitre <nicolas.pitre@linaro.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matt Fleming <matt.fleming@intel.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, fenghua.yu@intel.com, Liujiang <jiang.liu@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, WuJianguo <wujianguo@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>
 
-There is no reason to maintain alloc_map in the vmap_block.
-The use of alloc_map may require heavy bitmap operation sometimes.
-In the worst-case, We need 1024 for-loops to find 1 free bit and
-thus cause overhead. vmap_block is fragmented unnecessarily by
-2 order alignment as well.
+On 2013/2/5 0:32, Matt Fleming wrote:
 
-Instead we can map by using vb->free in order. When It is freed,
-Its corresponding bit will be set in the dirty_map and all
-free/purge operations are carried out in the dirty_map.
-vmap_block is not fragmented sporadically anymore and thus
-purge_fragmented_blocks_thiscpu in the vb_alloc can be removed.
+> On Tue, 2013-01-29 at 11:52 +0800, Xishi Qiu wrote:
+>> On ia64 platform, I set "crashkernel=1024M-:600M", and dmesg shows 128M-728M
+>> memory is reserved for crash kernel. Then "echo c > /proc/sysrq-trigger" to
+>> test kdump.
+>>
+>> When crash kernel booting, efi_init() will aligns the memory address in
+>> IA64_GRANULE_SIZE(16M), so 720M-728M memory will be dropped, It means
+>> crash kernel only manage 128M-720M memory.
+>>
+>> But initrd start and end are fixed in boot loader, it is before efi_init(),
+>> so initrd size maybe overflow when free_initrd_mem().
+> 
+> [...]
+> 
+>> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+>> index b755ea9..cfdb1eb 100644
+>> --- a/arch/ia64/mm/init.c
+>> +++ b/arch/ia64/mm/init.c
+>> @@ -207,6 +207,17 @@ free_initrd_mem (unsigned long start, unsigned long end)
+>>  	start = PAGE_ALIGN(start);
+>>  	end = end & PAGE_MASK;
+>>
+>> +	/*
+>> +	 * Initrd size is fixed in boot loader, but kernel parameter max_addr
+>> +	 * which aligns in granules is fixed after boot loader, so initrd size
+>> +	 * maybe overflow.
+>> +	 */
+>> +	if (max_addr != ~0UL) {
+>> +		end = GRANULEROUNDDOWN(end);
+>> +		if (start > end)
+>> +			start = end;
+>> +	}
+>> +
+>>  	if (start < end)
+>>  		printk(KERN_INFO "Freeing initrd memory: %ldkB freed\n", (end - start) >> 10);
+> 
+> I don't think this is the correct fix.
+> 
+> Now, my ia64-fu is weak, but could it be that there's actually a bug in
+> efi_init() and that the following patch would be the best way to fix
+> this?
+> 
+> ---
+> 
+> diff --git a/arch/ia64/kernel/efi.c b/arch/ia64/kernel/efi.c
+> index f034563..8d579f1 100644
+> --- a/arch/ia64/kernel/efi.c
+> +++ b/arch/ia64/kernel/efi.c
+> @@ -482,7 +482,7 @@ efi_init (void)
+>  		if (memcmp(cp, "mem=", 4) == 0) {
+>  			mem_limit = memparse(cp + 4, &cp);
+>  		} else if (memcmp(cp, "max_addr=", 9) == 0) {
+> -			max_addr = GRANULEROUNDDOWN(memparse(cp + 9, &cp));
+> +			max_addr = GRANULEROUNDUP(memparse(cp + 9, &cp));
+>  		} else if (memcmp(cp, "min_addr=", 9) == 0) {
+>  			min_addr = GRANULEROUNDDOWN(memparse(cp + 9, &cp));
+>  		} else {
+> 
+> 
 
-Signed-off-by: Chanho Min <chanho.min@lge.com>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Sorry, this bug will be happen when use Sparse-Memory(section is valid, but last
+several pages are invalid). If use Flat-Memory, crash kernel will boot successfully.
+I think the following patch would be better.
+
+Hi Andrew, will you just ignore the earlier patch and consider the following one? :>
+
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 ---
- mm/vmalloc.c |   23 +----------------------
- 1 file changed, 1 insertion(+), 22 deletions(-)
+ arch/ia64/mm/init.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 5123a16..4fd3555 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -744,7 +744,6 @@ struct vmap_block {
- 	struct vmap_area *va;
- 	struct vmap_block_queue *vbq;
- 	unsigned long free, dirty;
--	DECLARE_BITMAP(alloc_map, VMAP_BBMAP_BITS);
- 	DECLARE_BITMAP(dirty_map, VMAP_BBMAP_BITS);
- 	struct list_head free_list;
- 	struct rcu_head rcu_head;
-@@ -810,7 +809,6 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
- 	vb->va = va;
- 	vb->free = VMAP_BBMAP_BITS;
- 	vb->dirty = 0;
--	bitmap_zero(vb->alloc_map, VMAP_BBMAP_BITS);
- 	bitmap_zero(vb->dirty_map, VMAP_BBMAP_BITS);
- 	INIT_LIST_HEAD(&vb->free_list);
-
-@@ -863,7 +861,6 @@ static void purge_fragmented_blocks(int cpu)
- 		if (vb->free + vb->dirty == VMAP_BBMAP_BITS && vb->dirty !=
-VMAP_BBMAP_BITS) {
- 			vb->free = 0; /* prevent further allocs after releasing lock */
- 			vb->dirty = VMAP_BBMAP_BITS; /* prevent purging it again */
--			bitmap_fill(vb->alloc_map, VMAP_BBMAP_BITS);
- 			bitmap_fill(vb->dirty_map, VMAP_BBMAP_BITS);
- 			spin_lock(&vbq->lock);
- 			list_del_rcu(&vb->free_list);
-@@ -881,11 +878,6 @@ static void purge_fragmented_blocks(int cpu)
- 	}
- }
-
--static void purge_fragmented_blocks_thiscpu(void)
--{
--	purge_fragmented_blocks(smp_processor_id());
--}
--
- static void purge_fragmented_blocks_allcpus(void)
- {
- 	int cpu;
-@@ -900,7 +892,6 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
- 	struct vmap_block *vb;
- 	unsigned long addr = 0;
- 	unsigned int order;
--	int purge = 0;
-
- 	BUG_ON(size & ~PAGE_MASK);
- 	BUG_ON(size > PAGE_SIZE*VMAP_MAX_ALLOC);
-@@ -924,17 +915,8 @@ again:
- 		if (vb->free < 1UL << order)
- 			goto next;
-
--		i = bitmap_find_free_region(vb->alloc_map,
--						VMAP_BBMAP_BITS, order);
-+		i = VMAP_BBMAP_BITS - vb->free;
-
--		if (i < 0) {
--			if (vb->free + vb->dirty == VMAP_BBMAP_BITS) {
--				/* fragmented and no outstanding allocations */
--				BUG_ON(vb->dirty != VMAP_BBMAP_BITS);
--				purge = 1;
--			}
--			goto next;
--		}
- 		addr = vb->va->va_start + (i << PAGE_SHIFT);
- 		BUG_ON(addr_to_vb_idx(addr) !=
- 				addr_to_vb_idx(vb->va->va_start));
-@@ -950,9 +932,6 @@ next:
- 		spin_unlock(&vb->lock);
- 	}
-
--	if (purge)
--		purge_fragmented_blocks_thiscpu();
--
- 	put_cpu_var(vmap_block_queue);
- 	rcu_read_unlock();
-
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index 082e383..23f2ee3 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -213,6 +213,8 @@ free_initrd_mem (unsigned long start, unsigned long end)
+ 	for (; start < end; start += PAGE_SIZE) {
+ 		if (!virt_addr_valid(start))
+ 			continue;
++		if ((start >> PAGE_SHIFT) >= max_low_pfn)
++			continue;
+ 		page = virt_to_page(start);
+ 		ClearPageReserved(page);
+ 		init_page_count(page);
 -- 
-1.7.9.5
+1.7.6.1
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
