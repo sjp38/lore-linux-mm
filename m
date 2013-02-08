@@ -1,100 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 98C556B0005
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 07:38:57 -0500 (EST)
-Date: Fri, 8 Feb 2013 13:38:54 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM if PF_NO_MEMCG_OOM
- is set
-Message-ID: <20130208123854.GB7557@dhcp22.suse.cz>
-References: <20130205134937.GA22804@dhcp22.suse.cz>
- <20130205154947.CD6411E2@pobox.sk>
- <20130205160934.GB22804@dhcp22.suse.cz>
- <20130206021721.1AE9E3C7@pobox.sk>
- <20130206140119.GD10254@dhcp22.suse.cz>
- <20130206142219.GF10254@dhcp22.suse.cz>
- <20130206160051.GG10254@dhcp22.suse.cz>
- <20130208060304.799F362F@pobox.sk>
- <20130208094420.GA7557@dhcp22.suse.cz>
- <20130208120249.FD733220@pobox.sk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130208120249.FD733220@pobox.sk>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 886C26B0005
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 08:07:40 -0500 (EST)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH 0/7] memcg targeted shrinking
+Date: Fri,  8 Feb 2013 17:07:30 +0400
+Message-Id: <1360328857-28070-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Dave Shrinnker <david@fromorbit.com>, linux-fsdevel@vger.kernel.org
 
-On Fri 08-02-13 12:02:49, azurIt wrote:
-> >
-> >Do you have logs from that time period?
-> >
-> >I have only glanced through the stacks and most of the threads are
-> >waiting in the mem_cgroup_handle_oom (mostly from the page fault path
-> >where we do not have other options than waiting) which suggests that
-> >your memory limit is seriously underestimated. If you look at the number
-> >of charging failures (memory.failcnt per-group file) then you will get
-> >9332083 failures in _average_ per group. This is a lot!
-> >Not all those failures end with OOM, of course. But it clearly signals
-> >that the workload need much more memory than the limit allows.
-> 
-> 
-> What type of logs? I have all.
+This patchset implements targeted shrinking for memcg when kmem limits are
+present. So far, we've been accounting kernel objects but failing allocations
+when short of memory. This is because our only option would be to call the
+global shrinker, depleting objects from all caches and breaking isolation.
 
-kernel log would be sufficient.
+This patchset builds upon the recent work from David Chinner
+(http://oss.sgi.com/archives/xfs/2012-11/msg00643.html) to implement NUMA
+aware per-node LRUs. I build heavily on its API, and its presence is implied.
 
-> Memory usage graph:
-> http://www.watchdog.sk/lkml/memory2.png
-> 
-> New kernel was booted about 1:15. Data in memcg-bug-4.tar.gz were taken about 2:35 and data in memcg-bug-5.tar.gz about 5:25. There was always lots of free memory. Higher memory consumption between 3:39 and 5:33 was caused by data backup and was completed few minutes before i restarted the server (this was just a coincidence).
-> 
-> 
-> 
-> >There are only 5 groups in this one and all of them have no memory
-> >charged (so no OOM going on). All tasks are somewhere in the ptrace
-> >code.
-> 
-> 
-> It's all from the same cgroup but from different time.
-> 
-> 
-> 
-> >grep cache -r .
-> >./1360297489/memory.stat:cache 0
-> >./1360297489/memory.stat:total_cache 65642496
-> >./1360297491/memory.stat:cache 0
-> >./1360297491/memory.stat:total_cache 65642496
-> >./1360297492/memory.stat:cache 0
-> >./1360297492/memory.stat:total_cache 65642496
-> >./1360297490/memory.stat:cache 0
-> >./1360297490/memory.stat:total_cache 65642496
-> >./1360297488/memory.stat:cache 0
-> >./1360297488/memory.stat:total_cache 65642496
-> >
-> >which suggests that this is a parent group and the memory is charged in
-> >a child group. I guess that all those are under OOM as the number seems
-> >like they have limit at 62M.
-> 
-> 
-> The cgroup has limit 330M (346030080 bytes).
+The main idea is to associate per-memcg lists with each of the LRUs. The main
+LRU still provides a single entry point and when adding or removing an element
+from the LRU, we use the page information to figure out which memcg it belongs
+to and relay it to the right list.
 
-This limit is for top level groups, right? Those seem to children which
-have 62MB charged - is that a limit for those children?
+This patchset is still not perfect, and some uses cases still need to be
+dealt with. But I wanted to get this out in the open sooner rather than
+later. In particular, I have the following (noncomprehensive) todo list:
 
-> As i said, these two processes
+TODO:
+* shrink dead memcgs when global pressure kicks in.
+* balance global reclaim among memcgs.
+* improve testing and reliability (I am still seeing some stalls in some cases)
 
-Which are those two processes?
+Glauber Costa (7):
+  vmscan: also shrink slab in memcg pressure
+  memcg,list_lru: duplicate LRUs upon kmemcg creation
+  lru: add an element to a memcg list
+  list_lru: also include memcg lists in counts and scans
+  list_lru: per-memcg walks
+  super: targeted memcg reclaim
+  memcg: per-memcg kmem shrinking
 
-> were stucked and was impossible to kill them. They were,
-> maybe, the processes which i was trying to 'strace' before - 'strace'
-> was freezed as always when the cgroup has this problem and i killed it
-> (i was just trying if it is the original cgroup problem).
+ fs/dcache.c                |   7 +-
+ fs/inode.c                 |   6 +-
+ fs/internal.h              |   5 +-
+ fs/super.c                 |  37 ++++--
+ include/linux/list_lru.h   |  81 +++++++++++-
+ include/linux/memcontrol.h |  34 +++++
+ include/linux/shrinker.h   |   4 +
+ include/linux/swap.h       |   2 +
+ lib/list_lru.c             | 301 ++++++++++++++++++++++++++++++++++++++-------
+ mm/memcontrol.c            | 271 ++++++++++++++++++++++++++++++++++++++--
+ mm/slab_common.c           |   1 -
+ mm/vmscan.c                |  78 +++++++++++-
+ 12 files changed, 747 insertions(+), 80 deletions(-)
 
-I have no idea what is the strace role here.
 -- 
-Michal Hocko
-SUSE Labs
+1.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
