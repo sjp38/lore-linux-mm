@@ -1,212 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id B9ABE6B0005
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 13:45:20 -0500 (EST)
-Received: from /spool/local
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Fri, 8 Feb 2013 18:43:55 -0000
-Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r18Ij7xr36307080
-	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 18:45:07 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r18IjFd5001331
-	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 11:45:15 -0700
-Date: Fri, 8 Feb 2013 19:45:10 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH 11/11] ksm: stop hotremove lockdep warning
-Message-ID: <20130208194510.65fadd37@thinkpad.boeblingen.de.com>
-In-Reply-To: <alpine.LNX.2.00.1301251808120.29196@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
-	<alpine.LNX.2.00.1301251808120.29196@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 7C9596B0005
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 14:33:33 -0500 (EST)
+Date: Fri, 8 Feb 2013 14:33:18 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
+Message-ID: <20130208193318.GA15951@cmpxchg.org>
+References: <1357235661-29564-1-git-send-email-mhocko@suse.cz>
+ <1357235661-29564-5-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1357235661-29564-5-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On Fri, 25 Jan 2013 18:10:18 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
-
-> Complaints are rare, but lockdep still does not understand the way
-> ksm_memory_callback(MEM_GOING_OFFLINE) takes ksm_thread_mutex, and
-> holds it until the ksm_memory_callback(MEM_OFFLINE): that appears
-> to be a problem because notifier callbacks are made under down_read
-> of blocking_notifier_head->rwsem (so first the mutex is taken while
-> holding the rwsem, then later the rwsem is taken while still holding
-> the mutex); but is not in fact a problem because mem_hotplug_mutex
-> is held throughout the dance.
+On Thu, Jan 03, 2013 at 06:54:18PM +0100, Michal Hocko wrote:
+> Now that per-node-zone-priority iterator caches memory cgroups rather
+> than their css ids we have to be careful and remove them from the
+> iterator when they are on the way out otherwise they might hang for
+> unbounded amount of time (until the global/targeted reclaim triggers the
+> zone under priority to find out the group is dead and let it to find the
+> final rest).
 > 
-> There was an attempt to fix this with mutex_lock_nested(); but if that
-> happened to fool lockdep two years ago, apparently it does so no
-> longer.
+> This is solved by hooking into mem_cgroup_css_offline and checking all
+> per-node-zone-priority iterators up the way to the root cgroup. If the
+> current memcg is found in the respective iter->last_visited then it is
+> replaced by the previous one in the same sub-hierarchy.
 > 
-> I had hoped to eradicate this issue in extending KSM page migration
-> not to need the ksm_thread_mutex.  But then realized that although
-> the page migration itself is safe, we do still need to lock out ksmd
-> and other users of get_ksm_page() while offlining memory - at some
-> point between MEM_GOING_OFFLINE and MEM_OFFLINE, the struct pages
-> themselves may vanish, and get_ksm_page()'s accesses to them become a
-> violation.
+> This guarantees that no group gets more reclaiming than necessary and
+> the next iteration will continue without noticing that the removed group
+> has disappeared.
 > 
-> So, give up on holding ksm_thread_mutex itself from MEM_GOING_OFFLINE
-> to MEM_OFFLINE, and add a KSM_RUN_OFFLINE flag, and
-> wait_while_offlining() checks, to achieve the same lockout without
-> being caught by lockdep. This is less elegant for KSM, but it's more
-> important to keep lockdep useful to other users - and I apologize for
-> how long it took to fix.
-
-Thanks a lot for the patch! I verified that it fixes the lockdep warning
-that we got on memory hotremove.
-
-> 
-> Reported-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Spotted-by: Ying Han <yinghan@google.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > ---
->  mm/ksm.c |   55 +++++++++++++++++++++++++++++++++++++++--------------
->  1 file changed, 41 insertions(+), 14 deletions(-)
+>  mm/memcontrol.c |   89 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 89 insertions(+)
 > 
-> --- mmotm.orig/mm/ksm.c	2013-01-25 14:37:06.880206290 -0800
-> +++ mmotm/mm/ksm.c	2013-01-25 14:38:53.984208836 -0800
-> @@ -226,7 +226,9 @@ static unsigned int ksm_merge_across_nod
->  #define KSM_RUN_STOP	0
->  #define KSM_RUN_MERGE	1
->  #define KSM_RUN_UNMERGE	2
-> -static unsigned int ksm_run = KSM_RUN_STOP;
-> +#define KSM_RUN_OFFLINE	4
-> +static unsigned long ksm_run = KSM_RUN_STOP;
-> +static void wait_while_offlining(void);
-> 
->  static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
->  static DEFINE_MUTEX(ksm_thread_mutex);
-> @@ -1700,6 +1702,7 @@ static int ksm_scan_thread(void *nothing
-> 
->  	while (!kthread_should_stop()) {
->  		mutex_lock(&ksm_thread_mutex);
-> +		wait_while_offlining();
->  		if (ksmd_should_run())
->  			ksm_do_scan(ksm_thread_pages_to_scan);
->  		mutex_unlock(&ksm_thread_mutex);
-> @@ -2056,6 +2059,22 @@ void ksm_migrate_page(struct page *newpa
->  #endif /* CONFIG_MIGRATION */
-> 
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> +static int just_wait(void *word)
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e9f5c47..4f81abd 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -6375,10 +6375,99 @@ free_out:
+>  	return ERR_PTR(error);
+>  }
+>  
+> +/*
+> + * Helper to find memcg's previous group under the given root
+> + * hierarchy.
+> + */
+> +struct mem_cgroup *__find_prev_memcg(struct mem_cgroup *root,
+> +		struct mem_cgroup *memcg)
 > +{
-> +	schedule();
-> +	return 0;
+> +	struct cgroup *memcg_cgroup = memcg->css.cgroup;
+> +	struct cgroup *root_cgroup = root->css.cgroup;
+> +	struct cgroup *prev_cgroup = NULL;
+> +	struct cgroup *iter;
+> +
+> +	cgroup_for_each_descendant_pre(iter, root_cgroup) {
+> +		if (iter == memcg_cgroup)
+> +			break;
+> +		prev_cgroup = iter;
+> +	}
+> +
+> +	return (prev_cgroup) ? mem_cgroup_from_cont(prev_cgroup) : NULL;
 > +}
 > +
-> +static void wait_while_offlining(void)
+> +/*
+> + * Remove the given memcg under given root from all per-node per-zone
+> + * per-priority chached iterators.
+> + */
+> +static void mem_cgroup_uncache_reclaim_iters(struct mem_cgroup *root,
+> +		struct mem_cgroup *memcg)
 > +{
-> +	while (ksm_run & KSM_RUN_OFFLINE) {
-> +		mutex_unlock(&ksm_thread_mutex);
-> +		wait_on_bit(&ksm_run, ilog2(KSM_RUN_OFFLINE),
-> +				just_wait, TASK_UNINTERRUPTIBLE);
-> +		mutex_lock(&ksm_thread_mutex);
+> +	int node;
+> +
+> +	for_each_node(node) {
+> +		struct mem_cgroup_per_node *pn = root->info.nodeinfo[node];
+> +		int zone;
+> +
+> +		for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+> +			struct mem_cgroup_per_zone *mz;
+> +			int prio;
+> +
+> +			mz = &pn->zoneinfo[zone];
+> +			for (prio = 0; prio < DEF_PRIORITY + 1; prio++) {
+> +				struct mem_cgroup_reclaim_iter *iter;
+> +
+> +				/*
+> +				 * Just drop the reference on the removed memcg
+> +				 * cached last_visited. No need to lock iter as
+> +				 * the memcg is on the way out and cannot be
+> +				 * reclaimed.
+> +				 */
+> +				iter = &mz->reclaim_iter[prio];
+> +				if (root == memcg) {
+> +					if (iter->last_visited)
+> +						css_put(&iter->last_visited->css);
+> +					continue;
+> +				}
+> +
+> +				rcu_read_lock();
+> +				spin_lock(&iter->iter_lock);
+> +				if (iter->last_visited == memcg) {
+> +					iter->last_visited = __find_prev_memcg(
+> +							root, memcg);
+> +					css_put(&memcg->css);
+> +				}
+> +				spin_unlock(&iter->iter_lock);
+> +				rcu_read_unlock();
+> +			}
+> +		}
 > +	}
 > +}
 > +
->  static void ksm_check_stable_tree(unsigned long start_pfn,
->  				  unsigned long end_pfn)
->  {
-> @@ -2098,15 +2117,15 @@ static int ksm_memory_callback(struct no
->  	switch (action) {
->  	case MEM_GOING_OFFLINE:
->  		/*
-> -		 * Keep it very simple for now: just lock out ksmd
-> and
-> -		 * MADV_UNMERGEABLE while any memory is going
-> offline.
-> -		 * mutex_lock_nested() is necessary because lockdep
-> was alarmed
-> -		 * that here we take ksm_thread_mutex inside
-> notifier chain
-> -		 * mutex, and later take notifier chain mutex inside
-> -		 * ksm_thread_mutex to unlock it.   But that's safe
-> because both
-> -		 * are inside mem_hotplug_mutex.
-> +		 * Prevent ksm_do_scan(),
-> unmerge_and_remove_all_rmap_items()
-> +		 * and remove_all_stable_nodes() while memory is
-> going offline:
-> +		 * it is unsafe for them to touch the stable tree at
-> this time.
-> +		 * But unmerge_ksm_pages(), rmap lookups and other
-> entry points
-> +		 * which do not need the ksm_thread_mutex are all
-> safe. */
-> -		mutex_lock_nested(&ksm_thread_mutex,
-> SINGLE_DEPTH_NESTING);
-> +		mutex_lock(&ksm_thread_mutex);
-> +		ksm_run |= KSM_RUN_OFFLINE;
-> +		mutex_unlock(&ksm_thread_mutex);
->  		break;
-> 
->  	case MEM_OFFLINE:
-> @@ -2122,11 +2141,20 @@ static int ksm_memory_callback(struct no
->  		/* fallthrough */
-> 
->  	case MEM_CANCEL_OFFLINE:
-> +		mutex_lock(&ksm_thread_mutex);
-> +		ksm_run &= ~KSM_RUN_OFFLINE;
->  		mutex_unlock(&ksm_thread_mutex);
-> +
-> +		smp_mb();	/* wake_up_bit advises this */
-> +		wake_up_bit(&ksm_run, ilog2(KSM_RUN_OFFLINE));
->  		break;
->  	}
->  	return NOTIFY_OK;
->  }
-> +#else
-> +static void wait_while_offlining(void)
+> +/*
+> + * Remove the given memcg from all cached reclaim iterators.
+> + */
+> +static void mem_cgroup_uncache_from_reclaim(struct mem_cgroup *memcg)
 > +{
+> +	struct mem_cgroup *parent = memcg;
+> +
+> +	do {
+> +		mem_cgroup_uncache_reclaim_iters(parent, memcg);
+> +	} while ((parent = parent_mem_cgroup(parent)));
+> +
+> +	/*
+> +	 * if the root memcg is not hierarchical we have to check it
+> +	 * explicitely.
+> +	 */
+> +	if (!root_mem_cgroup->use_hierarchy)
+> +		mem_cgroup_uncache_reclaim_iters(root_mem_cgroup, memcg);
 > +}
->  #endif /* CONFIG_MEMORY_HOTREMOVE */
-> 
->  #ifdef CONFIG_SYSFS
-> @@ -2189,7 +2217,7 @@ KSM_ATTR(pages_to_scan);
->  static ssize_t run_show(struct kobject *kobj, struct kobj_attribute
-> *attr, char *buf)
->  {
-> -	return sprintf(buf, "%u\n", ksm_run);
-> +	return sprintf(buf, "%lu\n", ksm_run);
->  }
-> 
->  static ssize_t run_store(struct kobject *kobj, struct kobj_attribute
-> *attr, @@ -2212,6 +2240,7 @@ static ssize_t run_store(struct kobject
->  	 */
-> 
->  	mutex_lock(&ksm_thread_mutex);
-> +	wait_while_offlining();
->  	if (ksm_run != flags) {
->  		ksm_run = flags;
->  		if (flags & KSM_RUN_UNMERGE) {
-> @@ -2254,6 +2283,7 @@ static ssize_t merge_across_nodes_store(
->  		return -EINVAL;
-> 
->  	mutex_lock(&ksm_thread_mutex);
-> +	wait_while_offlining();
->  	if (ksm_merge_across_nodes != knob) {
->  		if (ksm_pages_shared || remove_all_stable_nodes())
->  			err = -EBUSY;
-> @@ -2366,10 +2396,7 @@ static int __init ksm_init(void)
->  #endif /* CONFIG_SYSFS */
-> 
->  #ifdef CONFIG_MEMORY_HOTREMOVE
-> -	/*
-> -	 * Choose a high priority since the callback takes
-> ksm_thread_mutex:
-> -	 * later callbacks could only be taking locks which nest
-> within that.
-> -	 */
-> +	/* There is no significance to this priority 100 */
->  	hotplug_memory_notifier(ksm_memory_callback, 100);
->  #endif
->  	return 0;
-> 
+
+for each in hierarchy:
+  for each node:
+    for each zone:
+      for each reclaim priority:
+
+every time a cgroup is destroyed.  I don't think such a hammer is
+justified in general, let alone for consolidating code a little.
+
+Can we invalidate the position cache lazily?  Have a global "cgroup
+destruction" counter and store a snapshot of that counter whenever we
+put a cgroup pointer in the position cache.  We only use the cached
+pointer if that counter has not changed in the meantime, so we know
+that the cgroup still exists.
+
+It is pretty pretty imprecise and we invalidate the whole cache every
+time a cgroup is destroyed, but I think that should be okay.  If not,
+better ideas are welcome.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
