@@ -1,173 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 0896E6B0007
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 14:33:36 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id bj3so2256647pad.34
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2013 11:33:36 -0800 (PST)
-Date: Fri, 8 Feb 2013 11:33:40 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 6/11] ksm: remove old stable nodes more thoroughly
-In-Reply-To: <20130205175551.GL21389@suse.de>
-Message-ID: <alpine.LNX.2.00.1302081057110.4233@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <alpine.LNX.2.00.1301251800550.29196@eggly.anvils> <20130205175551.GL21389@suse.de>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 6866A6B0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 15:25:54 -0500 (EST)
+Date: Fri, 8 Feb 2013 21:25:51 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH v2 3/3] mm: accelerate munlock() treatment of THP pages
+Message-ID: <20130208202550.GB9817@redhat.com>
+References: <1359962232-20811-1-git-send-email-walken@google.com>
+ <1359962232-20811-4-git-send-email-walken@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1359962232-20811-4-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michel Lespinasse <walken@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 5 Feb 2013, Mel Gorman wrote:
-> On Fri, Jan 25, 2013 at 06:01:59PM -0800, Hugh Dickins wrote:
-> > Switching merge_across_nodes after running KSM is liable to oops on stale
-> > nodes still left over from the previous stable tree.  It's not something
-> > that people will often want to do, but it would be lame to demand a reboot
-> > when they're trying to determine which merge_across_nodes setting is best.
-> > 
-> > How can this happen?  We only permit switching merge_across_nodes when
-> > pages_shared is 0, and usually set run 2 to force that beforehand, which
-> > ought to unmerge everything: yet oopses still occur when you then run 1.
-> > 
+Hi Michel,
+
+On Sun, Feb 03, 2013 at 11:17:12PM -0800, Michel Lespinasse wrote:
+> munlock_vma_pages_range() was always incrementing addresses by PAGE_SIZE
+> at a time. When munlocking THP pages (or the huge zero page), this resulted
+> in taking the mm->page_table_lock 512 times in a row.
 > 
-> When reviewing patch 1, I missed that the pages_shared check would prevent
-> most of the problems I was envisioning with leftover entries in the
-> stable tree. Sorry about that.
-
-No apology necessary!
-
+> We can do better by making use of the page_mask returned by follow_page_mask
+> (for the huge zero page case), or the size of the page munlock_vma_page()
+> operated on (for the true THP page case).
 > 
-> > Three causes:
-> > 
-> > 1. The old stable tree (built according to the inverse merge_across_nodes)
-> > has not been fully torn down.  A stable node lingers until get_ksm_page()
-> > notices that the page it references no longer references it: but the page
-> > is not necessarily freed as soon as expected, particularly when swapcache.
-> > 
-> > Fix this with a pass through the old stable tree, applying get_ksm_page()
-> > to each of the remaining nodes (most found stale and removed immediately),
-> > with forced removal of any left over.  Unless the page is still mapped:
-> > I've not seen that case, it shouldn't occur, but better to WARN_ON_ONCE
-> > and EBUSY than BUG.
+> Note - I am sending this as RFC only for now as I can't currently put
+> my finger on what if anything prevents split_huge_page() from operating
+> concurrently on the same page as munlock_vma_page(), which would mess
+> up our NR_MLOCK statistics. Is this a latent bug or is there a subtle
+> point I missed here ?
 
-But once I applied the testing for this to the completed patch series,
-I did start seeing that WARN_ON_ONCE: it's made safe by the EBUSY,
-but not working as intended.  Cause outlined below.
+I agree something looks fishy: nor mmap_sem for writing, nor the page
+lock can stop split_huge_page_refcount.
 
-> > 
-> > 2. __ksm_enter() has a nice little optimization, to insert the new mm
-> > just behind ksmd's cursor, so there's a full pass for it to stabilize
-> > (or be removed) before ksmd addresses it.  Nice when ksmd is running,
-> > but not so nice when we're trying to unmerge all mms: we were missing
-> > those mms forked and inserted behind the unmerge cursor.  Easily fixed
-> > by inserting at the end when KSM_RUN_UNMERGE.
-> > 
-> > 3. It is possible for a KSM page to be faulted back from swapcache into
-> > an mm, just after unmerge_and_remove_all_rmap_items() scanned past it.
-> > Fix this by copying on fault when KSM_RUN_UNMERGE: but that is private
-> > to ksm.c, so dissolve the distinction between ksm_might_need_to_copy()
-> > and ksm_does_need_to_copy(), doing it all in the one call into ksm.c.
+Now the mlock side was intended to be safe because mlock_vma_page is
+called within follow_page while holding the PT lock or the
+page_table_lock (so split_huge_page_refcount will have to wait for it
+to be released before it can run). See follow_trans_huge_pmd
+assert_spin_locked and the pte_unmap_unlock after mlock_vma_page
+returns.
 
-What I found is that a 4th cause emerges once KSM migration
-is properly working: that interval during page migration when the old
-page has been fully unmapped but the new not yet mapped in its place.
+Problem is, the lock side dependen on the TestSetPageMlocked below to
+be always repeated on the head page (follow_trans_huge_pmd will always
+pass the head page to mlock_vma_page).
 
-The KSM COW breaking cannot see a page there then, so it ends up with
-a (newly migrated) KSM page left behind.  Almost certainly has to be
-fixed in follow_page(), but I've not yet settled on its final form -
-the fix I have works well, but a different approach might be better.
+void mlock_vma_page(struct page *page)
+{
+	BUG_ON(!PageLocked(page));
 
-I'm also puzzled that I've never in practice been hit by a 5th cause:
-swapoff's try_to_unuse() is much like faulting, and ought to have the
-same ksm_might_need_to_copy() safeguards as faulting (or at least,
-I cannot see why not).
+	if (!TestSetPageMlocked(page)) {
 
-> > --- mmotm.orig/mm/ksm.c	2013-01-25 14:36:58.856206099 -0800
-> > +++ mmotm/mm/ksm.c	2013-01-25 14:37:00.768206145 -0800
-> > @@ -644,6 +644,57 @@ static int unmerge_ksm_pages(struct vm_a
-> >  /*
-> >   * Only called through the sysfs control interface:
-> >   */
-> > +static int remove_stable_node(struct stable_node *stable_node)
-> > +{
-> > +	struct page *page;
-> > +	int err;
-> > +
-> > +	page = get_ksm_page(stable_node, true);
-> > +	if (!page) {
-> > +		/*
-> > +		 * get_ksm_page did remove_node_from_stable_tree itself.
-> > +		 */
-> > +		return 0;
-> > +	}
-> > +
-> > +	if (WARN_ON_ONCE(page_mapped(page)))
-> > +		err = -EBUSY;
-> > +	else {
-> > +		/*
-> 
-> It will probably be very obvious to people familiar with ksm.c but even
-> so maybe remind the reader that the pages must already have been unmerged
-> 
-> * This page must already have been unmerged and should be stale.
-> * It might be in a pagevec waiting to be freed or it might be
+But what if the head page was split in between two different
+follow_page calls? The second call wouldn't take the pmd_trans_huge
+path anymore and the stats would be increased too much.
 
-Okay, I'll add a little more comment there;
-but I need to think longer for exactly how to express it.
+The problem on the munlock side is even more apparent as you pointed
+out above but now I think the mlock side was problematic too.
 
-> ......
-> 
-> 
-> 
-> > +		 * This page might be in a pagevec waiting to be freed,
-> > +		 * or it might be PageSwapCache (perhaps under writeback),
-> > +		 * or it might have been removed from swapcache a moment ago.
-> > +		 */
-> > +		set_page_stable_node(page, NULL);
-> > +		remove_node_from_stable_tree(stable_node);
-> > +		err = 0;
-> > +	}
-> > +
-> > +	unlock_page(page);
-> > +	put_page(page);
-> > +	return err;
-> > +}
-> > +
-> > +static int remove_all_stable_nodes(void)
-> > +{
-> > +	struct stable_node *stable_node;
-> > +	int nid;
-> > +	int err = 0;
-> > +
-> > +	for (nid = 0; nid < nr_node_ids; nid++) {
-> > +		while (root_stable_tree[nid].rb_node) {
-> > +			stable_node = rb_entry(root_stable_tree[nid].rb_node,
-> > +						struct stable_node, node);
-> > +			if (remove_stable_node(stable_node)) {
-> > +				err = -EBUSY;
-> > +				break;	/* proceed to next nid */
-> > +			}
-> 
-> If remove_stable_node() returns an error then it's quite possible that it'll
-> go boom when that page is encountered later but it's not guaranteed. It'd
-> be best effort to continue removing as many of the stable nodes anyway.
-> We're in trouble either way of course.
+The good thing is, your accelleration code for the mlock side should
+have fixed the mlock race already: not ever risking to end up calling
+mlock_vma_page twice on the head page is not an "accelleration" only,
+it should also be a natural fix for the race.
 
-If it returns an error, then indeed something we don't yet understand
-has occurred, and we shall want to debug it.  But unless it's due to
-corruption somewhere, we shouldn't be in much trouble, shouldn't go boom:
-remove_all_stable_nodes() error is ignored at the end of unmerging, it
-will be tried again when changing merge_across_nodes, and an error
-then will just prevent changing merge_across_nodes at that time.  So
-the mysteriously unremovable stable nodes remain the same kind of tree.
+To fix the munlock side, which is still present, I think one way would
+be to do mlock and unlock within get_user_pages, so they run in the
+same place protected by the PT lock or page_table_lock.
 
-> 
-> Otherwise I didn't spot a problem so as weak as it is due my familiarity
-> with KSM;
-> 
-> Acked-by: Mel Gorman <mgorman@suse.de>
+There are few things that stop split_huge_page_refcount:
+page_table_lock, lru_lock, compound_lock, anon_vma lock. So if we keep
+calling munlock_vma_page outside of get_user_pages (so outside of the
+page_table_lock) the other way would be to use the compound_lock.
+
+NOTE: this a purely aesthetical issue in /proc/meminfo, there's
+nothing functional (at least in the kernel) connected to it, so no
+panic :).
 
 Thanks,
-Hugh
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
