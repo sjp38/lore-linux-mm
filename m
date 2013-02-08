@@ -1,47 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 639B76B000A
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 08:34:44 -0500 (EST)
-Date: Fri, 8 Feb 2013 07:34:41 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH 0/3] mm: rename confusing function names
-Message-ID: <20130208133441.GH3460@sgi.com>
-References: <51113CE3.5090000@gmail.com>
- <20130205192640.GC6481@cmpxchg.org>
- <20130205141332.04fcceac.akpm@linux-foundation.org>
- <5111AC7D.9070505@cn.fujitsu.com>
- <20130205172057.3be4dbd4.akpm@linux-foundation.org>
- <5111B318.9020204@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 5460C6B0005
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 08:56:18 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_if_PF=5FNO=5FMEMCG=5FOOM_is_set?=
+Date: Fri, 08 Feb 2013 14:56:16 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20130205134937.GA22804@dhcp22.suse.cz>, <20130205154947.CD6411E2@pobox.sk>, <20130205160934.GB22804@dhcp22.suse.cz>, <20130206021721.1AE9E3C7@pobox.sk>, <20130206140119.GD10254@dhcp22.suse.cz>, <20130206142219.GF10254@dhcp22.suse.cz>, <20130206160051.GG10254@dhcp22.suse.cz>, <20130208060304.799F362F@pobox.sk>, <20130208094420.GA7557@dhcp22.suse.cz>, <20130208120249.FD733220@pobox.sk> <20130208123854.GB7557@dhcp22.suse.cz>
+In-Reply-To: <20130208123854.GB7557@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5111B318.9020204@cn.fujitsu.com>
+Message-Id: <20130208145616.FB78CE24@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Linux MM <linux-mm@kvack.org>, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, m.szyprowski@samsung.com, linux-kernel@vger.kernel.org
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-> > static unsigned int nr_free_zone_pages(int offset)
-> > {
-> > 	...
-> > 	unsigned int sum = 0;
-> > 	...
-> > 	return sum;
-> > }
-> > 
-> > How long will it be until these things start exploding from
-> > sums-of-zones which exceed 16TB?  
-> > 
-> 
-> You mean overflow? Hmm.. it might happens. Change the sum to
-> unsigned long is ok?
+>kernel log would be sufficient.
 
-We are in the process right now of building a 32TB machine.  Let me make
-a note about this right away.  Thankfully, the memory will be spread
-over 256 zones so it should not impact us right away.
 
-Thanks,
-Robin
+Full kernel log from kernel with you newest patch:
+http://watchdog.sk/lkml/kern2.log
+
+
+
+>This limit is for top level groups, right? Those seem to children which
+>have 62MB charged - is that a limit for those children?
+
+
+It was the limit for parent cgroup and processes were in one (the same) child cgroup. Child cgroup has no memory limit set (so limit for parent was also limit for child - 330 MB).
+
+
+
+>Which are those two processes?
+
+
+Data are inside memcg-bug-5.tar.gz in directories bug/<timestamp>/<pids>/
+
+
+>I have no idea what is the strace role here.
+
+
+I was stracing exactly two processes from that cgroup and exactly two processes were stucked later and was immpossible to kill them. Both of them were waiting on 'ptrace_stop'. Maybe it's completely unrelated, just guessing.
+
+
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
