@@ -1,105 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 57EFD6B0005
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 07:25:06 -0500 (EST)
-Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Fri, 8 Feb 2013 22:19:23 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 17E442BB0050
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 23:24:48 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r18CCWR559441296
-	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 23:12:33 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r18COkKY021011
-	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 23:24:46 +1100
-Message-ID: <5114EE1C.1040802@linux.vnet.ibm.com>
-Date: Fri, 08 Feb 2013 17:52:52 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 98C556B0005
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 07:38:57 -0500 (EST)
+Date: Fri, 8 Feb 2013 13:38:54 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM if PF_NO_MEMCG_OOM
+ is set
+Message-ID: <20130208123854.GB7557@dhcp22.suse.cz>
+References: <20130205134937.GA22804@dhcp22.suse.cz>
+ <20130205154947.CD6411E2@pobox.sk>
+ <20130205160934.GB22804@dhcp22.suse.cz>
+ <20130206021721.1AE9E3C7@pobox.sk>
+ <20130206140119.GD10254@dhcp22.suse.cz>
+ <20130206142219.GF10254@dhcp22.suse.cz>
+ <20130206160051.GG10254@dhcp22.suse.cz>
+ <20130208060304.799F362F@pobox.sk>
+ <20130208094420.GA7557@dhcp22.suse.cz>
+ <20130208120249.FD733220@pobox.sk>
 MIME-Version: 1.0
-Subject: [LSF/MM TOPIC][ATTEND] Linux VM Infrastructure to support Memory
- Power Management
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130208120249.FD733220@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
+On Fri 08-02-13 12:02:49, azurIt wrote:
+> >
+> >Do you have logs from that time period?
+> >
+> >I have only glanced through the stacks and most of the threads are
+> >waiting in the mem_cgroup_handle_oom (mostly from the page fault path
+> >where we do not have other options than waiting) which suggests that
+> >your memory limit is seriously underestimated. If you look at the number
+> >of charging failures (memory.failcnt per-group file) then you will get
+> >9332083 failures in _average_ per group. This is a lot!
+> >Not all those failures end with OOM, of course. But it clearly signals
+> >that the workload need much more memory than the limit allows.
+> 
+> 
+> What type of logs? I have all.
 
-Today, we are increasingly seeing computer systems sporting larger and larger
-amounts of RAM, in order to meet workload demands. However, memory consumes a
-significant amount of power, potentially upto more than a third of total system
-power on server systems. So naturally, memory becomes the next big target for
-power management - on embedded systems and smartphones, and all the way upto
-large server systems.
+kernel log would be sufficient.
 
-Modern memory hardware such as DDR3 support a number of power management
-capabilities. And new firmware standards such as ACPI 5.0 have added support
-for exposing the power-management capabilities of the underlying memory hardware
-to the Operating System. So it is upto the kernel's MM subsystem to make the
-best use of these capabilities and manage memory power-efficiently.
-It had been demonstrated on a Samsung Exynos board (with 2 GB RAM) that upto
-6% of total system power can be saved by making the Linux kernel MM subsystem
-power-aware[1]. (More savings can be expected on systems with larger amounts
-of memory, and perhaps improved further using better MM designs).
+> Memory usage graph:
+> http://www.watchdog.sk/lkml/memory2.png
+> 
+> New kernel was booted about 1:15. Data in memcg-bug-4.tar.gz were taken about 2:35 and data in memcg-bug-5.tar.gz about 5:25. There was always lots of free memory. Higher memory consumption between 3:39 and 5:33 was caused by data backup and was completed few minutes before i restarted the server (this was just a coincidence).
+> 
+> 
+> 
+> >There are only 5 groups in this one and all of them have no memory
+> >charged (so no OOM going on). All tasks are somewhere in the ptrace
+> >code.
+> 
+> 
+> It's all from the same cgroup but from different time.
+> 
+> 
+> 
+> >grep cache -r .
+> >./1360297489/memory.stat:cache 0
+> >./1360297489/memory.stat:total_cache 65642496
+> >./1360297491/memory.stat:cache 0
+> >./1360297491/memory.stat:total_cache 65642496
+> >./1360297492/memory.stat:cache 0
+> >./1360297492/memory.stat:total_cache 65642496
+> >./1360297490/memory.stat:cache 0
+> >./1360297490/memory.stat:total_cache 65642496
+> >./1360297488/memory.stat:cache 0
+> >./1360297488/memory.stat:total_cache 65642496
+> >
+> >which suggests that this is a parent group and the memory is charged in
+> >a child group. I guess that all those are under OOM as the number seems
+> >like they have limit at 62M.
+> 
+> 
+> The cgroup has limit 330M (346030080 bytes).
 
-Often this simply translates to having the Linux MM understand the granularity
-at which RAM modules can be power-managed, and consolidating the memory
-allocations and references to a minimum no. of these power-manageable
-"memory regions". It is of particular interest to note that most of these
-memory hardware have the intelligence to automatically save power, such as
-putting memory banks into (content-preserving) low-power states when not
-referenced for a threshold amount of time. All that the kernel has to do, is
-avoid wrecking the power-savings logic by scattering its allocations and
-references all over the system memory. IOW, the kernel/MM doesn't really need
-to keep track of memory DIMMs and perform their power-state transitions - most
-often it is automatically handled by the hardware/memory-controller. The MM
-has to just co-operate by keeping the references consolidated to a minimum
-no. of memory regions.
+This limit is for top level groups, right? Those seem to children which
+have 62MB charged - is that a limit for those children?
 
-To that end, I had recently posted patchsets implementing 2 very different MM
-designs, namely the "Hierarchy" design[2] (originally developed by Ankita Garg)
-and the new "Sorted-buddy" design[3]. The challenge with the latter design is
-that it can potentially lead to increased run-time memory allocation overheads.
-At the summit, I would like to brainstorm on ideas and designs for reducing the
-run-time cost of implementing memory power management, and seek suggestions and
-feedback from MM developers on the issues involved.
+> As i said, these two processes
 
-About myself:
-------------
-I have been contributing to CPU- and System-wide power management subsystems in
-the kernel such as CPU idle and Suspend-to-RAM, in terms of enhancements to their
-reliability/scalability. In particular, I have contributed to some of the
-core kernel infrastructure that Suspend-to-RAM depends on, such as Freezer and
-CPU hotplug, and have been working towards redesigning CPU hotplug to get rid of
-some of its pain points.
+Which are those two processes?
 
-Recently I have been looking at conserving memory power, and came up with the
-"Sorted-buddy" design [3] of the Linux MM, which alters the buddy allocator to
-keep memory allocations consolidated to a minimum no. of memory regions. I would
-like to discuss this topic with other MM developers at the summit and get
-feedback on the best way to take this technology forward.
+> were stucked and was impossible to kill them. They were,
+> maybe, the processes which i was trying to 'strace' before - 'strace'
+> was freezed as always when the cgroup has this problem and i killed it
+> (i was just trying if it is the original cgroup problem).
 
-
-References:
-----------
-
-1. Estimate of potential power savings on Samsung exynos board
-   http://article.gmane.org/gmane.linux.kernel.mm/65935
-
-2. "Hierarchy" design for Memory Power Management:
-    http://lwn.net/Articles/445045/ (Original posting by Ankita Garg)
-    http://lwn.net/Articles/523311/ (Forward-port to 3.7-rc3)
-
-3. "Sorted-buddy" design for Memory Power Management:
-    http://article.gmane.org/gmane.linux.power-management.general/28498/
-
-
-Regards,
-Srivatsa S. Bhat
+I have no idea what is the strace role here.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
