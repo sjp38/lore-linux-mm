@@ -1,64 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id D0F826B0007
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 09:59:57 -0500 (EST)
-Date: Fri, 8 Feb 2013 15:59:45 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/6] fs: Take mapping lock in generic read paths
-Message-ID: <20130208145945.GA10030@quack.suse.cz>
-References: <1359668994-13433-1-git-send-email-jack@suse.cz>
- <1359668994-13433-3-git-send-email-jack@suse.cz>
- <20130131155940.7b1f8e0e.akpm@linux-foundation.org>
- <20130204124715.GF7523@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id A5A256B0005
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 10:21:41 -0500 (EST)
+Received: by mail-qe0-f48.google.com with SMTP id 3so1731093qea.35
+        for <linux-mm@kvack.org>; Fri, 08 Feb 2013 07:21:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130204124715.GF7523@quack.suse.cz>
+In-Reply-To: <5114DF05.7070702@mellanox.com>
+References: <5114DF05.7070702@mellanox.com>
+Date: Fri, 8 Feb 2013 10:21:40 -0500
+Message-ID: <CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
+ hardware access to the CPU page tables of user processes
+From: Jerome Glisse <j.glisse@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Shachar Raindel <raindel@mellanox.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-On Mon 04-02-13 13:47:15, Jan Kara wrote:
-> On Thu 31-01-13 15:59:40, Andrew Morton wrote:
-> > On Thu, 31 Jan 2013 22:49:50 +0100
-> > Jan Kara <jack@suse.cz> wrote:
-> > 
-> > > Add mapping lock to struct address_space and grab it in all paths
-> > > creating pages in page cache to read data into them. That means buffered
-> > > read, readahead, and page fault code.
-> > 
-> > Boy, this does look expensive in both speed and space.
->   I'm not sure I'll be able to do much with the space cost but hopefully
-> the CPU cost could be reduced.
-> 
-> > As you pointed out in [0/n], it's 2-3%.  As always with pagecache
-> > stuff, the cost of filling the page generally swamps any inefficiencies
-> > in preparing that page.
->   Yes, I measured it with with ramdisk backed fs exactly to remove the cost
-> of filling the page from the picture. But there are systems where IO is CPU
-> bound (e.g. when you have PCIe attached devices) and although there is the
-> additional cost of block layer which will further hide the cost of page
-> cache itself I assume the added 2-3% incurred by page cache itself will be
-> measurable on such systems. So that's why I'd like to reduce the CPU cost
-> of range locking.
-  So I played a bit more with the code and I was able to reduce the space
-cost to a single pointer in struct address_space and unmeasurable impact in
-write path. I still see ~ 1% regression in the read path and I'm not sure
-why that is as the fast path now only adds a test for one value. But maybe
-there's some thinko somewhere. Anyway I'm optimistic that at least in
-the current form the code could be massaged so that the CPU cost is in the
-noise.
+On Fri, Feb 8, 2013 at 6:18 AM, Shachar Raindel <raindel@mellanox.com> wrot=
+e:
+> Hi,
+>
+> We would like to present a reference implementation for safely sharing
+> memory pages from user space with the hardware, without pinning.
+>
+> We will be happy to hear the community feedback on our prototype
+> implementation, and suggestions for future improvements.
+>
+> We would also like to discuss adding features to the core MM subsystem to
+> assist hardware access to user memory without pinning.
+>
+> Following is a longer motivation and explanation on the technology
+> presented:
+>
+> Many application developers would like to be able to be able to communica=
+te
+> directly with the hardware from the userspace.
+>
+> Use cases for that includes high performance networking API such as
+> InfiniBand, RoCE and iWarp and interfacing with GPUs.
+>
+> Currently, if the user space application wants to share system memory wit=
+h
+> the hardware device, the kernel component must pin the memory pages in RA=
+M,
+> using get_user_pages.
+>
+> This is a hurdle, as it usually makes large portions the application memo=
+ry
+> unmovable. This pinning also makes the user space development model very
+> complicated =96 one needs to register memory before using it for communic=
+ation
+> with the hardware.
+>
+> We use the mmu-notifiers [1] mechanism to inform the hardware when the
+> mapping of a page is changed. If the hardware tries to access a page whic=
+h
+> is not yet mapped for the hardware, it requests a resolution for the page
+> address from the kernel.
+>
+> This mechanism allows the hardware to access the entire address space of =
+the
+> user application, without pinning even a single page.
+>
+> We would like to use the LSF/MM forum opportunity to discuss open issues =
+we
+> have for further development, such as:
+>
+> -Allowing the hardware to perform page table walk, similar to
+> get_user_pages_fast to resolve user pages that are already in RAM.
+>
+> -Batching page eviction by various kernel subsystems (swapper, page-cache=
+)
+> to reduce the amount of communication needed with the hardware in such
+> events
+>
+> -Hinting from the hardware to the MM regarding page fetches which are
+> speculative, similarly to prefetching done by the page-cache
+>
+> -Page-in notifications from the kernel to the driver, such that we can ke=
+ep
+> our secondary TLB in sync with the kernel page table without incurring pa=
+ge
+> faults.
+>
+> -Allowed and banned actions while in an MMU notifier callback. We have
+> already done some work on making the MMU notifiers sleepable [2], but the=
+re
+> might be additional limitations, which we would like to discuss.
+>
+> -Hinting from the MMU notifiers as for the reason for the notification - =
+for
+> example we would like to react differently if a page was moved by NUMA
+> migration vs. page being swapped out.
+>
+> [1] http://lwn.net/Articles/266320/
+>
+> [2] http://comments.gmane.org/gmane.linux.kernel.mm/85002
+>
+> Thanks,
+>
+> --Shachar
 
-I write "in the current form" because as Dave Chinner pointed out we need
-to lock the whole range used by write() at once to ever have a chance to
-drop i_mutex and that will require some non-trivial changes. So I'll be
-looking into that now...
+As a GPU driver developer i can say that this is something we want to
+do in a very near future. Also i think we would like another
+capabilities :
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+- hint to mm on memory range that are best not to evict (easier for
+driver to know what is hot and gonna see activities)
+
+Dunno how big the change to the page eviction path would need to be.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
