@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id BE4626B000D
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 989E76B0008
 	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 08:07:40 -0500 (EST)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 7/7] memcg: per-memcg kmem shrinking
-Date: Fri,  8 Feb 2013 17:07:37 +0400
-Message-Id: <1360328857-28070-8-git-send-email-glommer@parallels.com>
+Subject: [PATCH 6/7] super: targeted memcg reclaim
+Date: Fri,  8 Feb 2013 17:07:36 +0400
+Message-Id: <1360328857-28070-7-git-send-email-glommer@parallels.com>
 In-Reply-To: <1360328857-28070-1-git-send-email-glommer@parallels.com>
 References: <1360328857-28070-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,23 +13,12 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Dave Shrinnker <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-If the kernel limit is smaller than the user limit, we will have
-situations in which our allocations fail but freeing user pages will buy
-us nothing.  In those, we would like to call a specialized memcg
-reclaimer that only frees kernel memory and leave the user memory alone.
-Those are also expected to fail when we account memcg->kmem, instead of
-when we account memcg->res. Based on that, this patch implements a
-memcg-specific reclaimer, that only shrinks kernel objects, withouth
-touching user pages.
+We now have all our dentries and inodes placed in memcg-specific LRU
+lists. All we have to do, is to restrict the reclaim to the said lists
+in case of memcg pressure.
 
-There might be situations in which there are plenty of objects to
-shrink, but we can't do it because the __GFP_FS flag is not set.
-Although they can happen with user pages, they are a lot more common
-with fs-metadata: this is the case with almost all inode allocation.
-
-Those allocations are, however, capable of waiting.  So we can just span
-a worker, let it finish its job and proceed with the allocation. As slow
-as it is, at this point we are already past any hopes anyway.
+Marking the superblock shrinker and its LRUs as memcg-aware will
+guarantee that the shrinkers will get invoked during targetted reclaim.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 Cc: Dave Chinner <dchinner@redhat.com>
@@ -41,269 +30,193 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/swap.h |   2 +
- mm/memcontrol.c      | 102 +++++++++++++++++++++++++++++++++++++++++++++++++--
- mm/vmscan.c          |  37 ++++++++++++++++++-
- 3 files changed, 137 insertions(+), 4 deletions(-)
+ fs/dcache.c   |  7 ++++---
+ fs/inode.c    |  6 +++---
+ fs/internal.h |  5 +++--
+ fs/super.c    | 37 +++++++++++++++++++++++++++----------
+ 4 files changed, 37 insertions(+), 18 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 8c66486..ff74226 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -259,6 +259,8 @@ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
- extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
- 						  gfp_t gfp_mask, bool noswap);
-+extern unsigned long try_to_free_mem_cgroup_kmem(struct mem_cgroup *mem,
-+						 gfp_t gfp_mask);
- extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 						gfp_t gfp_mask, bool noswap,
- 						struct zone *zone,
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index bfb4b5b..7dc9ec1 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -294,6 +294,8 @@ struct mem_cgroup {
- 	atomic_t	numainfo_events;
- 	atomic_t	numainfo_updating;
- #endif
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 7f107fb..6f74887 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -907,14 +907,15 @@ static int dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock,
+  * This function may fail to free any resources if all the dentries are in
+  * use.
+  */
 +
-+	struct work_struct kmemcg_shrink_work;
- 	/*
- 	 * Should the accounting and control be hierarchical, per subtree?
+ long prune_dcache_sb(struct super_block *sb, long nr_to_scan,
+-		     nodemask_t *nodes_to_walk)
++		     nodemask_t *nodes_to_walk, struct mem_cgroup *memcg)
+ {
+ 	LIST_HEAD(dispose);
+ 	long freed;
+ 
+-	freed = list_lru_walk_nodemask(&sb->s_dentry_lru, dentry_lru_isolate,
+-				       &dispose, nr_to_scan, nodes_to_walk);
++	freed = list_lru_walk_nodemask_memcg(&sb->s_dentry_lru,
++		dentry_lru_isolate, &dispose, nr_to_scan, nodes_to_walk, memcg);
+ 	shrink_dentry_list(&dispose);
+ 	return freed;
+ }
+diff --git a/fs/inode.c b/fs/inode.c
+index 5bb1e21..61673be 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -746,13 +746,13 @@ static int inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock,
+  * then are freed outside inode_lock by dispose_list().
+  */
+ long prune_icache_sb(struct super_block *sb, long nr_to_scan,
+-		     nodemask_t *nodes_to_walk)
++			nodemask_t *nodes_to_walk, struct mem_cgroup *memcg)
+ {
+ 	LIST_HEAD(freeable);
+ 	long freed;
+ 
+-	freed = list_lru_walk_nodemask(&sb->s_inode_lru, inode_lru_isolate,
+-				       &freeable, nr_to_scan, nodes_to_walk);
++	freed = list_lru_walk_nodemask_memcg(&sb->s_inode_lru,
++		inode_lru_isolate, &freeable, nr_to_scan, nodes_to_walk, memcg);
+ 	dispose_list(&freeable);
+ 	return freed;
+ }
+diff --git a/fs/internal.h b/fs/internal.h
+index 0f37896..5e2211f 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -16,6 +16,7 @@ struct file_system_type;
+ struct linux_binprm;
+ struct path;
+ struct mount;
++struct mem_cgroup;
+ 
+ /*
+  * block_dev.c
+@@ -111,7 +112,7 @@ extern int open_check_o_direct(struct file *f);
+  */
+ extern spinlock_t inode_sb_list_lock;
+ extern long prune_icache_sb(struct super_block *sb, long nr_to_scan,
+-			    nodemask_t *nodes_to_scan);
++		    nodemask_t *nodes_to_scan, struct mem_cgroup *memcg);
+ extern void inode_add_lru(struct inode *inode);
+ 
+ /*
+@@ -128,4 +129,4 @@ extern int invalidate_inodes(struct super_block *, bool);
+  */
+ extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
+ extern long prune_dcache_sb(struct super_block *sb, long nr_to_scan,
+-			    nodemask_t *nodes_to_scan);
++		    nodemask_t *nodes_to_scan, struct mem_cgroup *memcg);
+diff --git a/fs/super.c b/fs/super.c
+index fe3aa4c..f687cc2 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -34,6 +34,7 @@
+ #include <linux/cleancache.h>
+ #include <linux/fsnotify.h>
+ #include <linux/lockdep.h>
++#include <linux/memcontrol.h>
+ #include "internal.h"
+ 
+ 
+@@ -56,6 +57,7 @@ static char *sb_writers_name[SB_FREEZE_LEVELS] = {
+ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ {
+ 	struct super_block *sb;
++	struct mem_cgroup *memcg = sc->target_mem_cgroup;
+ 	long	fs_objects = 0;
+ 	long	total_objects;
+ 	long	freed = 0;
+@@ -74,11 +76,13 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ 	if (!grab_super_passive(sb))
+ 		return -1;
+ 
+-	if (sb->s_op && sb->s_op->nr_cached_objects)
++	if (sb->s_op && sb->s_op->nr_cached_objects && !memcg)
+ 		fs_objects = sb->s_op->nr_cached_objects(sb, &sc->nodes_to_scan);
+ 
+-	inodes = list_lru_count_nodemask(&sb->s_inode_lru, &sc->nodes_to_scan);
+-	dentries = list_lru_count_nodemask(&sb->s_dentry_lru, &sc->nodes_to_scan);
++	inodes = list_lru_count_nodemask_memcg(&sb->s_inode_lru,
++					 &sc->nodes_to_scan, memcg);
++	dentries = list_lru_count_nodemask_memcg(&sb->s_dentry_lru,
++					   &sc->nodes_to_scan, memcg);
+ 	total_objects = dentries + inodes + fs_objects + 1;
+ 
+ 	/* proportion the scan between the caches */
+@@ -89,8 +93,8 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ 	 * prune the dcache first as the icache is pinned by it, then
+ 	 * prune the icache, followed by the filesystem specific caches
  	 */
-@@ -376,6 +378,9 @@ struct mem_cgroup {
- #endif
- };
+-	freed = prune_dcache_sb(sb, dentries, &sc->nodes_to_scan);
+-	freed += prune_icache_sb(sb, inodes, &sc->nodes_to_scan);
++	freed = prune_dcache_sb(sb, dentries, &sc->nodes_to_scan, memcg);
++	freed += prune_icache_sb(sb, inodes, &sc->nodes_to_scan, memcg);
  
-+
-+static DEFINE_MUTEX(set_limit_mutex);
-+
- #ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
- static LIST_HEAD(dangling_memcgs);
- static DEFINE_MUTEX(dangling_memcgs_mutex);
-@@ -430,6 +435,7 @@ enum {
- 	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
- 	KMEM_ACCOUNTED_ACTIVATED, /* static key enabled. */
- 	KMEM_ACCOUNTED_DEAD, /* dead memcg with pending kmem charges */
-+	KMEM_MAY_SHRINK, /* kmem limit < mem limit, shrink kmem only */
- };
- 
- /* We account when limit is on, but only after call sites are patched */
-@@ -468,6 +474,36 @@ static bool memcg_kmem_test_and_clear_dead(struct mem_cgroup *memcg)
- 	return test_and_clear_bit(KMEM_ACCOUNTED_DEAD,
- 				  &memcg->kmem_account_flags);
- }
-+
-+/*
-+ * If the kernel limit is smaller than the user limit, we will have situations
-+ * in which our allocations fail but freeing user pages will buy us nothing.
-+ * In those, we would like to call a specialized memcg reclaimer that only
-+ * frees kernel memory and leave the user memory alone.
-+ *
-+ * This test exists so we can differentiate between those. Everytime one of the
-+ * limits is updated, we need to run it. The set_limit_mutex must be held, so
-+ * they don't change again.
-+ */
-+static void memcg_update_shrink_status(struct mem_cgroup *memcg)
-+{
-+	mutex_lock(&set_limit_mutex);
-+	if (res_counter_read_u64(&memcg->kmem, RES_LIMIT) <
-+		res_counter_read_u64(&memcg->res, RES_LIMIT))
-+		set_bit(KMEM_MAY_SHRINK, &memcg->kmem_account_flags);
-+	else
-+		clear_bit(KMEM_MAY_SHRINK, &memcg->kmem_account_flags);
-+	mutex_unlock(&set_limit_mutex);
-+}
-+
-+static bool memcg_kmem_should_shrink(struct mem_cgroup *memcg)
-+{
-+	return test_bit(KMEM_MAY_SHRINK, &memcg->kmem_account_flags);
-+}
-+#else
-+static void memcg_update_shrink_status(struct mem_cgroup *memcg)
-+{
-+}
- #endif
- 
- /* Stuffs for move charges at task migration. */
-@@ -2882,8 +2918,6 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
- 	memcg_check_events(memcg, page);
- }
- 
--static DEFINE_MUTEX(set_limit_mutex);
--
- #ifdef CONFIG_MEMCG_KMEM
- static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
+ 	if (fs_objects) {
+ 		fs_objects = (sc->nr_to_scan * fs_objects) / total_objects;
+@@ -106,20 +110,26 @@ static long super_cache_count(struct shrinker *shrink, struct shrink_control *sc
  {
-@@ -2925,6 +2959,7 @@ static int mem_cgroup_slabinfo_read(struct cgroup *cont, struct cftype *cft,
- }
- #endif
+ 	struct super_block *sb;
+ 	long	total_objects = 0;
++	struct mem_cgroup *memcg = sc->target_mem_cgroup;
  
-+static int memcg_try_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size);
- static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
- {
- 	struct res_counter *fail_res;
-@@ -2932,7 +2967,7 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
- 	int ret = 0;
- 	bool may_oom;
+ 	sb = container_of(shrink, struct super_block, s_shrink);
  
--	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
-+	ret = memcg_try_charge_kmem(memcg, gfp, size);
- 	if (ret)
- 		return ret;
+ 	if (!grab_super_passive(sb))
+ 		return 0;
  
-@@ -2973,6 +3008,25 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
- 	return ret;
- }
- 
-+/*
-+ * There might be situations in which there are plenty of objects to shrink,
-+ * but we can't do it because the __GFP_FS flag is not set.  This is the case
-+ * with almost all inode allocation. They do are, however, capable of waiting.
-+ * So we can just span a worker, let it finish its job and proceed with the
-+ * allocation. As slow as it is, at this point we are already past any hopes
-+ * anyway.
-+ */
-+static void kmemcg_shrink_work_fn(struct work_struct *w)
-+{
-+	struct mem_cgroup *memcg;
-+
-+	memcg = container_of(w, struct mem_cgroup, kmemcg_shrink_work);
-+
-+	if (!try_to_free_mem_cgroup_kmem(memcg, GFP_KERNEL))
-+		congestion_wait(BLK_RW_ASYNC, HZ/10);
-+}
-+
-+
- static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
- {
- 	res_counter_uncharge(&memcg->res, size);
-@@ -3049,6 +3103,7 @@ int memcg_update_cache_sizes(struct mem_cgroup *memcg)
- 	memcg_update_array_size(num + 1);
- 
- 	INIT_LIST_HEAD(&memcg->memcg_slab_caches);
-+	INIT_WORK(&memcg->kmemcg_shrink_work, kmemcg_shrink_work_fn);
- 	mutex_init(&memcg->slab_caches_mutex);
- 
- 	return 0;
-@@ -3319,6 +3374,36 @@ static inline void memcg_resume_kmem_account(void)
- 	current->memcg_kmem_skip_account--;
- }
- 
-+static int memcg_try_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
-+{
-+	int retries = MEM_CGROUP_RECLAIM_RETRIES;
-+	struct res_counter *fail_res;
-+	int ret;
-+
-+	do {
-+		ret = res_counter_charge(&memcg->kmem, size, &fail_res);
-+		if (!ret)
-+			return ret;
-+
-+		if (!memcg_kmem_should_shrink(memcg) || !(gfp & __GFP_WAIT))
-+			return ret;
-+
-+		if (!(gfp & __GFP_FS)) {
-+			/*
-+			 * we are already short on memory, every queue
-+			 * allocation is likely to fail
-+			 */
-+			memcg_stop_kmem_account();
-+			schedule_work(&memcg->kmemcg_shrink_work);
-+			memcg_resume_kmem_account();
-+		} else if (!try_to_free_mem_cgroup_kmem(memcg, gfp))
-+			congestion_wait(BLK_RW_ASYNC, HZ/10);
-+
-+	} while (retries--);
-+
-+	return ret;
-+}
-+
- static struct mem_cgroup *mem_cgroup_from_kmem_page(struct page *page)
- {
- 	struct page_cgroup *pc;
-@@ -5399,6 +5484,9 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
- 			ret = memcg_update_kmem_limit(cont, val);
- 		else
- 			return -EINVAL;
-+
-+		if (!ret)
-+			memcg_update_shrink_status(memcg);
- 		break;
- 	case RES_SOFT_LIMIT:
- 		ret = res_counter_memparse_write_strategy(buffer, &val);
-@@ -5411,6 +5499,8 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
- 		 */
- 		if (type == _MEM)
- 			ret = res_counter_set_soft_limit(&memcg->res, val);
-+		else if (type == _KMEM)
-+			ret = res_counter_set_soft_limit(&memcg->kmem, val);
- 		else
- 			ret = -EINVAL;
- 		break;
-@@ -6178,6 +6268,12 @@ static struct cftype mem_cgroup_files[] = {
- 		.read = mem_cgroup_read,
- 	},
- 	{
-+		.name = "kmem.soft_limit_in_bytes",
-+		.private = MEMFILE_PRIVATE(_KMEM, RES_SOFT_LIMIT),
-+		.write_string = mem_cgroup_write,
-+		.read = mem_cgroup_read,
-+	},
-+	{
- 		.name = "kmem.usage_in_bytes",
- 		.private = MEMFILE_PRIVATE(_KMEM, RES_USAGE),
- 		.read = mem_cgroup_read,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 8af0e2b..e4de27a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2499,7 +2499,42 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 
- 	return nr_reclaimed;
- }
--#endif
-+
-+#ifdef CONFIG_MEMCG_KMEM
-+/*
-+ * This function is called when we are under kmem-specific pressure.  It will
-+ * only trigger in environments with kmem.limit_in_bytes < limit_in_bytes, IOW,
-+ * with a lower kmem allowance than the memory allowance.
-+ *
-+ * In this situation, freeing user pages from the cgroup won't do us any good.
-+ * What we really need is to call the memcg-aware shrinkers, in the hope of
-+ * freeing pages holding kmem objects. It may also be that we won't be able to
-+ * free any pages, but will get rid of old objects opening up space for new
-+ * ones.
-+ */
-+unsigned long try_to_free_mem_cgroup_kmem(struct mem_cgroup *memcg,
-+					  gfp_t gfp_mask)
-+{
-+	struct shrink_control shrink = {
-+		.gfp_mask = gfp_mask,
-+		.target_mem_cgroup = memcg,
-+	};
-+
-+	if (!(gfp_mask & __GFP_WAIT))
-+		return 0;
-+
-+	nodes_setall(shrink.nodes_to_scan);
-+
+-	if (sb->s_op && sb->s_op->nr_cached_objects)
 +	/*
-+	 * We haven't scanned any user LRU, so we basically come up with
-+	 * crafted values of nr_scanned and LRU page (1 and 0 respectively).
-+	 * This should be enough to tell shrink_slab that the freeing
-+	 * responsibility is all on himself.
++	 * Ideally we would pass memcg to nr_cached_objects, and
++	 * let the underlying filesystem decide. Most likely the
++	 * path will be if (!memcg) return;, but even then.
 +	 */
-+	return shrink_slab(&shrink, 1, 0);
-+}
-+#endif /* CONFIG_MEMCG_KMEM */
-+#endif /* CONFIG_MEMCG */
++	if (sb->s_op && sb->s_op->nr_cached_objects && !memcg)
+ 		total_objects = sb->s_op->nr_cached_objects(sb,
+ 						 &sc->nodes_to_scan);
  
- static void age_active_anon(struct zone *zone, struct scan_control *sc)
- {
+-	total_objects += list_lru_count_nodemask(&sb->s_dentry_lru,
+-						 &sc->nodes_to_scan);
+-	total_objects += list_lru_count_nodemask(&sb->s_inode_lru,
+-						 &sc->nodes_to_scan);
++	total_objects += list_lru_count_nodemask_memcg(&sb->s_dentry_lru,
++						 &sc->nodes_to_scan, memcg);
++	total_objects += list_lru_count_nodemask_memcg(&sb->s_inode_lru,
++						 &sc->nodes_to_scan, memcg);
+ 
+ 	total_objects = vfs_pressure_ratio(total_objects);
+ 	drop_super(sb);
+@@ -198,8 +208,12 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+ 		INIT_HLIST_NODE(&s->s_instances);
+ 		INIT_HLIST_BL_HEAD(&s->s_anon);
+ 		INIT_LIST_HEAD(&s->s_inodes);
++
++		lru_memcg_enable(&s->s_dentry_lru);
+ 		list_lru_init(&s->s_dentry_lru);
++		lru_memcg_enable(&s->s_inode_lru);
+ 		list_lru_init(&s->s_inode_lru);
++
+ 		INIT_LIST_HEAD(&s->s_mounts);
+ 		init_rwsem(&s->s_umount);
+ 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
+@@ -235,6 +249,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+ 		s->s_shrink.scan_objects = super_cache_scan;
+ 		s->s_shrink.count_objects = super_cache_count;
+ 		s->s_shrink.batch = 1024;
++		s->s_shrink.memcg_shrinker = true;
+ 	}
+ out:
+ 	return s;
+@@ -317,6 +332,8 @@ void deactivate_locked_super(struct super_block *s)
+ 
+ 		/* caches are now gone, we can safely kill the shrinker now */
+ 		unregister_shrinker(&s->s_shrink);
++		list_lru_destroy(&s->s_dentry_lru);
++		list_lru_destroy(&s->s_inode_lru);
+ 		put_filesystem(fs);
+ 		put_super(s);
+ 	} else {
 -- 
 1.8.1
 
