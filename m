@@ -1,230 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Fri, 8 Feb 2013 11:32:37 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of
- get_user_pages() called get_user_pages_non_movable()
-Message-ID: <20130208023237.GK11197@blaptop>
-References: <1360056113-14294-1-git-send-email-linfeng@cn.fujitsu.com>
- <1360056113-14294-2-git-send-email-linfeng@cn.fujitsu.com>
- <20130205120137.GG21389@suse.de>
- <20130206004234.GD11197@blaptop>
- <20130206095617.GN21389@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130206095617.GN21389@suse.de>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 6C77B6B0008
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 21:53:23 -0500 (EST)
+Date: Fri, 8 Feb 2013 11:45:09 +0900
+From: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
+Subject: Re: [PATCH v2] Add the values related to buddy system for filtering
+ free pages.
+Message-Id: <20130208114509.0755d9012cdfbcbd99c3a4ff@mxc.nes.nec.co.jp>
+In-Reply-To: <1360240151.12251.15.camel@lisamlinux.fc.hp.com>
+References: <20121210103913.020858db777e2f48c59713b6@mxc.nes.nec.co.jp>
+	<20121219161856.e6aa984f.akpm@linux-foundation.org>
+	<20121220112103.d698c09a9d1f27a253a63d37@mxc.nes.nec.co.jp>
+	<33710E6CAA200E4583255F4FB666C4E20AB2DEA3@G01JPEXMBYT03>
+	<87licsrwpg.fsf@xmission.com>
+	<20121227173523.5e414c342fed3e59a887fa87@mxc.nes.nec.co.jp>
+	<1360240151.12251.15.camel@lisamlinux.fc.hp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: lisa.mitchell@hp.com
+Cc: vgoyal@redhat.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, d.hatayama@jp.fujitsu.com, ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com
 
-Hi Mel,
+Hello Lisa,
 
-On Wed, Feb 06, 2013 at 09:56:17AM +0000, Mel Gorman wrote:
-> On Wed, Feb 06, 2013 at 09:42:34AM +0900, Minchan Kim wrote:
-> > On Tue, Feb 05, 2013 at 12:01:37PM +0000, Mel Gorman wrote:
-> > > On Tue, Feb 05, 2013 at 05:21:52PM +0800, Lin Feng wrote:
-> > > > get_user_pages() always tries to allocate pages from movable zone, which is not
-> > > >  reliable to memory hotremove framework in some case.
-> > > > 
-> > > > This patch introduces a new library function called get_user_pages_non_movable()
-> > > >  to pin pages only from zone non-movable in memory.
-> > > > It's a wrapper of get_user_pages() but it makes sure that all pages come from
-> > > > non-movable zone via additional page migration.
-> > > > 
-> > > > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > > > Cc: Mel Gorman <mgorman@suse.de>
-> > > > Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> > > > Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> > > > Cc: Jeff Moyer <jmoyer@redhat.com>
-> > > > Cc: Minchan Kim <minchan@kernel.org>
-> > > > Cc: Zach Brown <zab@redhat.com>
-> > > > Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
-> > > > Reviewed-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
-> > > > Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
+On Thu, 07 Feb 2013 05:29:11 -0700
+Lisa Mitchell <lisa.mitchell@hp.com> wrote:
+
+> > > > Also, I have one question. Can we always think of 1st and 2nd kernels
+> > > > are same?
 > > > 
-> > > I already had started the review of V1 before this was sent
-> > > unfortunately. However, I think the feedback I gave for V1 is still
-> > > valid so I'll wait for comments on that review before digging further.
+> > > Not at all.  Distros frequently implement it with the same kernel in
+> > > both role but it should be possible to use an old crusty stable kernel
+> > > as the 2nd kernel.
+> > > 
+> > > > If I understand correctly, kexec/kdump can use the 2nd kernel different
+> > > > from the 1st's. So, differnet kernels need to do the same thing as makedumpfile
+> > > > does. If assuming two are same, problem is mush simplified.
+> > > 
+> > > As a developer it becomes attractive to use a known stable kernel to
+> > > capture the crash dump even as I experiment with a brand new kernel.
 > > 
-> > Mel, Andrew
+> > To allow to use the 2nd kernel different from the 1st's, I think we have
+> > to take care of each kernel version with the logic included in makedumpfile
+> > for them. That's to say, makedumpfile goes on as before.
 > > 
-> > Sorry for making noise if you already confirmed the direction but I have a concern
-> > about that.
-> 
-> I haven't confirmed any sort of direction, nor do I determine the
-> direction for memory hot-remove which I'm only paying vague attention to.
-> I stated a while ago that I think the use of ZONE_MOVABLE is a bad idea
-> for "guaranteeing" memory hot-remove and is already going the "wrong"
-> direction. That's just my opinion.
-> 
-> This patch is about mitigating (but not solving) the problem of long-lived
-> pins. In the general case, about all I could think of for that is that the
-
-Agreed.
-
-> kernel would have to warn the administrator what applications had pinned
-> the memory and wait for the user to shut them down. To guarantee anything,
-> it would be necessary for subsystems to implement a callback for migration
-> to unpin pages, barrier operations until migration completes and pin the
-> new pfns.
-
-It could be applied for SUBSYSTEM but it's very hard for all DRIVER developer,
-and I doubt we can give them a common template most of driver developers can
-reuse it.
-
-> 
-> > Because IMHO, we can't expect most of user for MEMORY_HOTPLUG will release
-> > pinned pages immediately.
-> 
-> Indeed not, but it's not really what this patch is about. This patch is
-> about moving the pages before they get permanently pinned. It mitigates
-> the problem but does not solve it because there is no guarantee that the
-> driver pinning a page will flag it properly.
-
-True.
-And I doubt what memory-hotplug guys really want is best effort,
-not guarantee. Anway, CMA want to guarantee, even low latency and I hope
-this patch solves both memory-hotplug and CMA solve the problem.
-
-> 
-> > In addtion, MEMORY_HOTPLUG could be used for embedded system
-> > for reducing power by PASR and some drivers in embedded could use GUP anytime and anywhere.
-> > They can't know in advance they will use pinned pages long time or release in short time
-> > because it depends on some event like user's response which is very not predetermined.
-> 
-> True. This patch does not solve that problem.
-> 
-> > So for solving it, we can add some WARN_ON in CMA/MEMORY_HOTPLUG part just in case of
-> > failing migration by page count and then, investigate they are really using GUP and
-> > it's REALLY a culprit. If so, yell to them "Please use GUP_NM instead"?
-> 
-> Within the context of this patch, that is their main option. Finding
-> who is holding the pin is a problem. For userspace-pinned buffers it's
-> straight-forward as rmap will identify what processes are holding the
-> pin (page->list vmas->mm, lookup all tasks until p->mm == mm) and report
-> that. For driver-related pins, it's not as straight-forward. I guess there
-
-True.
-
-> could be callback to give meaningful information on it but no guarantee
-> that drivers pinning pages will implement it. In that case all you could do
-
-Nod.
-
-> was dump page->mapping and punt it at a kernel developer to figure out the
-> responsible driver. This might be managable for memory hot-remove where
-> there is an administator but may not work at all for embedded users.
-
-Yeab. Even there are proprietary modules in embedded, we can't see soruce code.
-
-> 
-> There is the possibility that callbacks could be introduced for
-> migrate_unpin() and migrate_pin() that takes a list of PFN pairs
-> (old,new). The unpin callback should release the old PFNs and barrier
-> against any operations until the migrate_pfn() callback is called with
-> the updated pfns to be repinned. Again it would fully depend on subsystems
-> implementing it properly.
-> 
-> The callback interface would be more robust but puts a lot more work on
-> the driver side where your milage will vary.
-
-True.
-
-> 
-> > Yes. it could be done but it would be rather trobulesome job. Even it couldn't be triggered
-> > during QE phase so that trouble doesn't end until all guys uses GUP_NM.
-> > Let's consider another case. Some driver pin the page in very short time
-> > so he decide to use GUP instead of GUP_NM but someday, someuser start to use the driver
-> > very often so although pinning time is very short, it could be forever pinning effect
-> > if the use calls it very often. In the end, we should change it with GUP_NM, again.
-> > IMHO, In future, we ends up changing most of GUP user with GUP_NM if CMA and MEMORY_HOTPLUG
-> > is available all over the world.
 > > 
+> > Thanks
+> > Atsushi Kumagai
 > 
-> Same thing, callbacks to unpin and barrier would handle such a case by
-> effectively freezing the driver or subsystem responsible for the page.
 > 
-> > So, what's wrong if we replace get_user_pages with get_user_pages_non_movable
-> > in MEMORY_HOTPLUG/CMA without exposing get_user_pages_non_movable?
-> > 
-> > I mean this
-> > 
-> > #ifdef CONFIG_MIGRATE_ISOLATE
-> > int get_user_pages()
-> > {
-> >         return __get_user_pages_non_movable();
-> > }
-> > #else
-> > int get_user_pages()
-> > {
-> >         return old_get_user_pages();
-> > }
-> > #endif
-> > 
+> Atsushi and Vivek:  
 > 
-> That will migrate everything out of ZONE_MOVABLE every time it's pinned.
-> One consequence is that direct IO can never use ZONE_MOVABLE on these
-> systems. It'll create a variation of the lowmem exhaustion problem.
+> I'm trying to get the status of whether the patch submitted in
+> https://lkml.org/lkml/2012/11/21/90  is going to be accepted upstream
+> and get in some version of the Linux 3.8 kernel.   I'm replying to the
+> last email thread above on kexec_lists and lkml.org  that I could find
+> about this patch.  
+> 
+> I was counting on this kernel patch to improve performance of
+> makedumpfilev1.5.1, so at least it wouldn't be a regression in
+> performance over makedumpfile v1.4.   It was listed as recommended in
+> the makedumpfilev1.5.1 release posting:
+> http://lists.infradead.org/pipermail/kexec/2012-December/007460.html
+> 
+> 
+> All the conversations in the thread since this patch was committed seem
+> to voice some reservations now, and reference other fixes being tried to
+> improve performance.
+> 
+> Does that mean you are abandoning getting this patch accepted upstream,
+> in favor of pursuing other alternatives?
 
-For example, there is 4G highmem zone and half of it is movable zone.
-In thit case, we can use extra 2G highmem zone space instead of lowmem.
-But I agree it could end up pinning many pages of lowmem so the problem
-would happens. IMHO, it should be trade-off for using MEMORY-HOTPLUG/CMA?
+No, this patch has been merged into -next, we should just wait for it to be
+merged into linus tree.
 
-> 
-> > IMHO, get_user_pages isn't performance sensitive function. If user was sensitive
-> > about it, he should have tried get_user_pages_fast.
-> 
-> That opens a different cans of works. get_user_pages is part of the
-> gup_fast slowpath.
-> 
-> > THP degradation by increasing MIGRATE_UNMOVABLE?
-> 
-> The patch should not be converting MIGRATE_MOVABLE requests to
-> MIGRATE_UNMOVABLE. I covered this in the review of v1.
+  http://git.kernel.org/?p=linux/kernel/git/next/linux-next.git;a=commit;h=0c63e90dd1c7b35ae2ea9475ba67cf68d8801a26
 
-I guess memory-hotplug guys want to use GUP_NM for long-time pin user.
-So doesn't it make sense to migrate the page into MIGRATE_UNMOVABLE?
-But I'm not sure GUP_NM's semantic.
+What interests us now is improvement for interfaces of /proc/vmcore,
+it's not alternative but another idea which can be consistent with
+this patch.
+
+
+Thanks
+Atsushi Kumagai
 
 > 
-> > Lin said most of GUP pages release the page in short so is it really problem?
-> > Even in embedded, we don't use THP yet but CMA and GUP call would be not too often
-> > but failing of CMA would be critical.
-> > 
+> I had hoped this patch would be okay to get accepted upstream, and then
+> other improvements could be built on top of it.  
 > 
-> To guarantee CMA can migrate pages pinned by drivers I think you need
-> migrate-related callsbacks to unpin, barrier the driver until migration
-> completes and repin.
-
-I agree it's a ideal solution when we consider in future but as you already
-mentioned, it's not easy for all drivers.
-In fact, I don't want to insist on my opinion for CMA because I guess CMA
-design is not good from the beginning.
-
-I just posted my concern and want to discuss to solve the problem but
-if there are not plain solution now, let me pass the decision to maintainer.
-
-Thanks for sharing your opinion, Mel!
-
+> Is that not the case?   
 > 
-> I do not know, or at least have no heard, of anyone working on such a
-> scheme.
+> Or has further review concluded now that this change is a bad idea due
+> to adding dependence of this new makedumpfile feature on some deep
+> kernel memory internals?
 > 
-> -- 
-> Mel Gorman
-> SUSE Labs
+> Thanks,
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+> Lisa Mitchell
+> 
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
