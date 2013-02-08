@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id BDE5C6B000A
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 01:50:17 -0500 (EST)
-Date: Fri, 8 Feb 2013 01:50:11 -0500
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 4F8D66B000A
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 02:01:29 -0500 (EST)
+Date: Fri, 8 Feb 2013 02:01:14 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC] Comments and questions
-Message-ID: <20130208065011.GA7511@cmpxchg.org>
-References: <201301210343.r0L3h0rP030204@como.maths.usyd.edu.au>
+Subject: Re: [PATCH] vmalloc: Remove alloc_map from vmap_block.
+Message-ID: <20130208070114.GB7511@cmpxchg.org>
+References: <CAOAMb1AZaXHiW47MbstoVaDVEbVaSC+fqcZoSM0EXC5RpH7nHw@mail.gmail.com>
+ <CAOAMb1BwVCPMLRMkMZuHhoi-meULJ-jG+O5sU4ppkR_MLDQ5dg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201301210343.r0L3h0rP030204@como.maths.usyd.edu.au>
+In-Reply-To: <CAOAMb1BwVCPMLRMkMZuHhoi-meULJ-jG+O5sU4ppkR_MLDQ5dg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paul.szabo@sydney.edu.au
-Cc: linux-mm@kvack.org, 695182@bugs.debian.org
+To: Chanho Min <chanho.min@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Cong Wang <amwang@redhat.com>, Nicolas Pitre <nicolas.pitre@linaro.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chanho Min <chanho0207@gmail.com>
 
-On Mon, Jan 21, 2013 at 02:43:00PM +1100, paul.szabo@sydney.edu.au wrote:
-> The setting of highmem_is_dirtyable seems used only to calculate limits
-> and threshholds, not used in any decisions: seems odd.
+On Fri, Feb 08, 2013 at 12:37:13PM +0900, Chanho Min wrote:
+> >I started looking for workloads to profile but then lost interest.
+> >The current code can theoretically end up walking through a lot of
+> >partially used blocks if a string of allocations never fit any of
+> >them.  The number of these blocks depends on previous allocations that
+> >leave them unusable for future allocations and whether any other
+> >vmalloc/vmap user recently flushed them all.  So it's painful to think
+> >about it and hard to impossible to pin down should this ever actually
+> >result in a performance problem.
+> 
+> vm_map_ram() is allowed to be called by external kernel module.
+> I profiled some kernel module as bellow perf log. Its mapping behavior
+> was most of the workload. yes, we can improve its inefficient mapping.
+> But, This shows the allocation bitmap has the potential to cause significant
+> overhead.
 
-That's okay.  We prefer placing page cache in highmem either way, this
-flag is just about whether the amount of allowable dirty cache scales
-with the amount of available lowmem or whether it scales with all of
-memory, including highmem.  Per default we scale with the amount of
-lowmem.  Because even though the user data can live in highmem, the
-management of this data requires lowmem, so lowmem ends up being the
-bottle neck.  The flag is for people that know how to set up their
-systems such as not to exhaust lowmem and avoid OOM kills.
+No question that you can find a scenario where this bitmap becomes
+expensive.  And I don't think we should leave the code as is, because
+it really is a waste of time for cpus and readers of the code.
 
-> [Subtraction of min_free_kbytes reported previously.]
+The question is whether we put the bitmap to good use and implement
+partial block recycling, or keep with the current allocation model but
+make it a little less expensive.
 
-This is fixed upstream with these two commits:
-
-commit ab8fabd46f811d5153d8a0cd2fac9a0d41fb593d
-Author: Johannes Weiner <jweiner@redhat.com>
-Date:   Tue Jan 10 15:07:42 2012 -0800
-
-    mm: exclude reserved pages from dirtyable memory
-
-commit c8b74c2f6604923de91f8aa6539f8bb934736754
-Author: Sonny Rao <sonnyrao@chromium.org>
-Date:   Thu Dec 20 15:05:07 2012 -0800
-
-    mm: fix calculation of dirtyable memory
-
-Since this was a conceptual fix and not based on actual bug reports,
-it was never included in -stable kernels.  Unless I am mistaken, we
-still do not have an actual bug report that demands for these patches.
+Nobody actually seems interested in implementing partial block
+recycling and we do have multiple patches to ditch the bitmap.  I
+think we should probably merge the patch that we have and save some
+wasted cycles, that doesn't prevent anyone from improving the
+algorithm later on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
