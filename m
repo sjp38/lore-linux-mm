@@ -1,99 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id C25666B0005
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 12:10:15 -0500 (EST)
-Date: Fri, 8 Feb 2013 18:10:12 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM if PF_NO_MEMCG_OOM
- is set
-Message-ID: <20130208171012.GH7557@dhcp22.suse.cz>
-References: <20130206140119.GD10254@dhcp22.suse.cz>
- <20130206142219.GF10254@dhcp22.suse.cz>
- <20130206160051.GG10254@dhcp22.suse.cz>
- <20130208060304.799F362F@pobox.sk>
- <20130208094420.GA7557@dhcp22.suse.cz>
- <20130208120249.FD733220@pobox.sk>
- <20130208123854.GB7557@dhcp22.suse.cz>
- <20130208145616.FB78CE24@pobox.sk>
- <20130208152402.GD7557@dhcp22.suse.cz>
- <20130208165805.8908B143@pobox.sk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130208165805.8908B143@pobox.sk>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id B9ABE6B0005
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 13:45:20 -0500 (EST)
+Received: from /spool/local
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Fri, 8 Feb 2013 18:43:55 -0000
+Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r18Ij7xr36307080
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 18:45:07 GMT
+Received: from d06av04.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r18IjFd5001331
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 11:45:15 -0700
+Date: Fri, 8 Feb 2013 19:45:10 +0100
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Subject: Re: [PATCH 11/11] ksm: stop hotremove lockdep warning
+Message-ID: <20130208194510.65fadd37@thinkpad.boeblingen.de.com>
+In-Reply-To: <alpine.LNX.2.00.1301251808120.29196@eggly.anvils>
+References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils>
+	<alpine.LNX.2.00.1301251808120.29196@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 08-02-13 16:58:05, azurIt wrote:
-[...]
-> I took the kernel log from yesterday from the same time frame:
+On Fri, 25 Jan 2013 18:10:18 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
+
+> Complaints are rare, but lockdep still does not understand the way
+> ksm_memory_callback(MEM_GOING_OFFLINE) takes ksm_thread_mutex, and
+> holds it until the ksm_memory_callback(MEM_OFFLINE): that appears
+> to be a problem because notifier callbacks are made under down_read
+> of blocking_notifier_head->rwsem (so first the mutex is taken while
+> holding the rwsem, then later the rwsem is taken while still holding
+> the mutex); but is not in fact a problem because mem_hotplug_mutex
+> is held throughout the dance.
 > 
-> $ grep "killed as a result of limit" kern2.log | sed 's@.*\] @@' | sort | uniq -c | sort -k1 -n
->       1 Task in /1252/uid killed as a result of limit of /1252
->       1 Task in /1709/uid killed as a result of limit of /1709
->       2 Task in /1185/uid killed as a result of limit of /1185
->       2 Task in /1388/uid killed as a result of limit of /1388
->       2 Task in /1567/uid killed as a result of limit of /1567
->       2 Task in /1650/uid killed as a result of limit of /1650
->       3 Task in /1527/uid killed as a result of limit of /1527
->       5 Task in /1552/uid killed as a result of limit of /1552
->    1634 Task in /1258/uid killed as a result of limit of /1258
+> There was an attempt to fix this with mutex_lock_nested(); but if that
+> happened to fool lockdep two years ago, apparently it does so no
+> longer.
 > 
-> As you can see, there were much more OOM in '1258' and no such
-> problems like this night (well, there were never such problems before
-> :) ).
-
-Well, all the patch does is that it prevents from the deadlock we have
-seen earlier. Previously the writer would block on the oom wait queue
-while it fails with ENOMEM now. Caller sees this as a short write which
-can be retried (it is a question whether userspace can cope with that
-properly). All other OOMs are preserved.
-
-I suspect that all the problems you are seeing now are just side effects
-of the OOM conditions.
-
-> As i said, cgroup 1258 were freezing every few minutes with your
-> latest patch so there must be something wrong (it usually freezes
-> about once per day). And it was really freezed (i checked that), the
-> sypthoms were:
-
-I assume you have checked that the killed processes eventually die,
-right?
-
->  - cannot strace any of cgroup processes
->  - no new processes were started, still the same processes were 'running'
->  - kernel was unable to resolve this by it's own
->  - all processes togather were taking 100% CPU
->  - the whole memory limit was used
-> (see memcg-bug-4.tar.gz for more info)
-
-Well, I do not see anything supsicious during that time period
-(timestamps translate between Fri Feb  8 02:34:05 and Fri Feb  8
-02:36:48). The kernel log shows a lot of oom during that time. All
-killed processes die eventually.
-
-> Unfortunately i forget to check if killing only few of the processes
-> will resolve it (i always killed them all yesterday night). Don't
-> know if is was in deadlock or not but kernel was definitely unable
-> to resolve the problem.
-
-Nothing shows it would be a deadlock so far. It is well possible that
-the userspace went mad when seeing a lot of processes dying because it
-doesn't expect it.
-
-> And there is still a mystery of two freezed processes which cannot be
-> killed.
+> I had hoped to eradicate this issue in extending KSM page migration
+> not to need the ksm_thread_mutex.  But then realized that although
+> the page migration itself is safe, we do still need to lock out ksmd
+> and other users of get_ksm_page() while offlining memory - at some
+> point between MEM_GOING_OFFLINE and MEM_OFFLINE, the struct pages
+> themselves may vanish, and get_ksm_page()'s accesses to them become a
+> violation.
 > 
-> By the way, i KNOW that so much OOM is not healthy but the client
-> simply don't want to buy more memory. He knows about the problem of
-> unsufficient memory limit.
+> So, give up on holding ksm_thread_mutex itself from MEM_GOING_OFFLINE
+> to MEM_OFFLINE, and add a KSM_RUN_OFFLINE flag, and
+> wait_while_offlining() checks, to achieve the same lockout without
+> being caught by lockdep. This is less elegant for KSM, but it's more
+> important to keep lockdep useful to other users - and I apologize for
+> how long it took to fix.
 
-Well, then you would see a permanent flood of OOM killing, I am afraid.
--- 
-Michal Hocko
-SUSE Labs
+Thanks a lot for the patch! I verified that it fixes the lockdep warning
+that we got on memory hotremove.
+
+> 
+> Reported-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+>  mm/ksm.c |   55 +++++++++++++++++++++++++++++++++++++++--------------
+>  1 file changed, 41 insertions(+), 14 deletions(-)
+> 
+> --- mmotm.orig/mm/ksm.c	2013-01-25 14:37:06.880206290 -0800
+> +++ mmotm/mm/ksm.c	2013-01-25 14:38:53.984208836 -0800
+> @@ -226,7 +226,9 @@ static unsigned int ksm_merge_across_nod
+>  #define KSM_RUN_STOP	0
+>  #define KSM_RUN_MERGE	1
+>  #define KSM_RUN_UNMERGE	2
+> -static unsigned int ksm_run = KSM_RUN_STOP;
+> +#define KSM_RUN_OFFLINE	4
+> +static unsigned long ksm_run = KSM_RUN_STOP;
+> +static void wait_while_offlining(void);
+> 
+>  static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
+>  static DEFINE_MUTEX(ksm_thread_mutex);
+> @@ -1700,6 +1702,7 @@ static int ksm_scan_thread(void *nothing
+> 
+>  	while (!kthread_should_stop()) {
+>  		mutex_lock(&ksm_thread_mutex);
+> +		wait_while_offlining();
+>  		if (ksmd_should_run())
+>  			ksm_do_scan(ksm_thread_pages_to_scan);
+>  		mutex_unlock(&ksm_thread_mutex);
+> @@ -2056,6 +2059,22 @@ void ksm_migrate_page(struct page *newpa
+>  #endif /* CONFIG_MIGRATION */
+> 
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> +static int just_wait(void *word)
+> +{
+> +	schedule();
+> +	return 0;
+> +}
+> +
+> +static void wait_while_offlining(void)
+> +{
+> +	while (ksm_run & KSM_RUN_OFFLINE) {
+> +		mutex_unlock(&ksm_thread_mutex);
+> +		wait_on_bit(&ksm_run, ilog2(KSM_RUN_OFFLINE),
+> +				just_wait, TASK_UNINTERRUPTIBLE);
+> +		mutex_lock(&ksm_thread_mutex);
+> +	}
+> +}
+> +
+>  static void ksm_check_stable_tree(unsigned long start_pfn,
+>  				  unsigned long end_pfn)
+>  {
+> @@ -2098,15 +2117,15 @@ static int ksm_memory_callback(struct no
+>  	switch (action) {
+>  	case MEM_GOING_OFFLINE:
+>  		/*
+> -		 * Keep it very simple for now: just lock out ksmd
+> and
+> -		 * MADV_UNMERGEABLE while any memory is going
+> offline.
+> -		 * mutex_lock_nested() is necessary because lockdep
+> was alarmed
+> -		 * that here we take ksm_thread_mutex inside
+> notifier chain
+> -		 * mutex, and later take notifier chain mutex inside
+> -		 * ksm_thread_mutex to unlock it.   But that's safe
+> because both
+> -		 * are inside mem_hotplug_mutex.
+> +		 * Prevent ksm_do_scan(),
+> unmerge_and_remove_all_rmap_items()
+> +		 * and remove_all_stable_nodes() while memory is
+> going offline:
+> +		 * it is unsafe for them to touch the stable tree at
+> this time.
+> +		 * But unmerge_ksm_pages(), rmap lookups and other
+> entry points
+> +		 * which do not need the ksm_thread_mutex are all
+> safe. */
+> -		mutex_lock_nested(&ksm_thread_mutex,
+> SINGLE_DEPTH_NESTING);
+> +		mutex_lock(&ksm_thread_mutex);
+> +		ksm_run |= KSM_RUN_OFFLINE;
+> +		mutex_unlock(&ksm_thread_mutex);
+>  		break;
+> 
+>  	case MEM_OFFLINE:
+> @@ -2122,11 +2141,20 @@ static int ksm_memory_callback(struct no
+>  		/* fallthrough */
+> 
+>  	case MEM_CANCEL_OFFLINE:
+> +		mutex_lock(&ksm_thread_mutex);
+> +		ksm_run &= ~KSM_RUN_OFFLINE;
+>  		mutex_unlock(&ksm_thread_mutex);
+> +
+> +		smp_mb();	/* wake_up_bit advises this */
+> +		wake_up_bit(&ksm_run, ilog2(KSM_RUN_OFFLINE));
+>  		break;
+>  	}
+>  	return NOTIFY_OK;
+>  }
+> +#else
+> +static void wait_while_offlining(void)
+> +{
+> +}
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+> 
+>  #ifdef CONFIG_SYSFS
+> @@ -2189,7 +2217,7 @@ KSM_ATTR(pages_to_scan);
+>  static ssize_t run_show(struct kobject *kobj, struct kobj_attribute
+> *attr, char *buf)
+>  {
+> -	return sprintf(buf, "%u\n", ksm_run);
+> +	return sprintf(buf, "%lu\n", ksm_run);
+>  }
+> 
+>  static ssize_t run_store(struct kobject *kobj, struct kobj_attribute
+> *attr, @@ -2212,6 +2240,7 @@ static ssize_t run_store(struct kobject
+>  	 */
+> 
+>  	mutex_lock(&ksm_thread_mutex);
+> +	wait_while_offlining();
+>  	if (ksm_run != flags) {
+>  		ksm_run = flags;
+>  		if (flags & KSM_RUN_UNMERGE) {
+> @@ -2254,6 +2283,7 @@ static ssize_t merge_across_nodes_store(
+>  		return -EINVAL;
+> 
+>  	mutex_lock(&ksm_thread_mutex);
+> +	wait_while_offlining();
+>  	if (ksm_merge_across_nodes != knob) {
+>  		if (ksm_pages_shared || remove_all_stable_nodes())
+>  			err = -EBUSY;
+> @@ -2366,10 +2396,7 @@ static int __init ksm_init(void)
+>  #endif /* CONFIG_SYSFS */
+> 
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+> -	/*
+> -	 * Choose a high priority since the callback takes
+> ksm_thread_mutex:
+> -	 * later callbacks could only be taking locks which nest
+> within that.
+> -	 */
+> +	/* There is no significance to this priority 100 */
+>  	hotplug_memory_notifier(ksm_memory_callback, 100);
+>  #endif
+>  	return 0;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
