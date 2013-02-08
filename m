@@ -1,120 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id A5A256B0005
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 10:21:41 -0500 (EST)
-Received: by mail-qe0-f48.google.com with SMTP id 3so1731093qea.35
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2013 07:21:40 -0800 (PST)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 491936B0005
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 10:24:05 -0500 (EST)
+Date: Fri, 8 Feb 2013 16:24:02 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM if PF_NO_MEMCG_OOM
+ is set
+Message-ID: <20130208152402.GD7557@dhcp22.suse.cz>
+References: <20130205160934.GB22804@dhcp22.suse.cz>
+ <20130206021721.1AE9E3C7@pobox.sk>
+ <20130206140119.GD10254@dhcp22.suse.cz>
+ <20130206142219.GF10254@dhcp22.suse.cz>
+ <20130206160051.GG10254@dhcp22.suse.cz>
+ <20130208060304.799F362F@pobox.sk>
+ <20130208094420.GA7557@dhcp22.suse.cz>
+ <20130208120249.FD733220@pobox.sk>
+ <20130208123854.GB7557@dhcp22.suse.cz>
+ <20130208145616.FB78CE24@pobox.sk>
 MIME-Version: 1.0
-In-Reply-To: <5114DF05.7070702@mellanox.com>
-References: <5114DF05.7070702@mellanox.com>
-Date: Fri, 8 Feb 2013 10:21:40 -0500
-Message-ID: <CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
- hardware access to the CPU page tables of user processes
-From: Jerome Glisse <j.glisse@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130208145616.FB78CE24@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shachar Raindel <raindel@mellanox.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri, Feb 8, 2013 at 6:18 AM, Shachar Raindel <raindel@mellanox.com> wrot=
-e:
-> Hi,
->
-> We would like to present a reference implementation for safely sharing
-> memory pages from user space with the hardware, without pinning.
->
-> We will be happy to hear the community feedback on our prototype
-> implementation, and suggestions for future improvements.
->
-> We would also like to discuss adding features to the core MM subsystem to
-> assist hardware access to user memory without pinning.
->
-> Following is a longer motivation and explanation on the technology
-> presented:
->
-> Many application developers would like to be able to be able to communica=
-te
-> directly with the hardware from the userspace.
->
-> Use cases for that includes high performance networking API such as
-> InfiniBand, RoCE and iWarp and interfacing with GPUs.
->
-> Currently, if the user space application wants to share system memory wit=
-h
-> the hardware device, the kernel component must pin the memory pages in RA=
-M,
-> using get_user_pages.
->
-> This is a hurdle, as it usually makes large portions the application memo=
-ry
-> unmovable. This pinning also makes the user space development model very
-> complicated =96 one needs to register memory before using it for communic=
-ation
-> with the hardware.
->
-> We use the mmu-notifiers [1] mechanism to inform the hardware when the
-> mapping of a page is changed. If the hardware tries to access a page whic=
-h
-> is not yet mapped for the hardware, it requests a resolution for the page
-> address from the kernel.
->
-> This mechanism allows the hardware to access the entire address space of =
-the
-> user application, without pinning even a single page.
->
-> We would like to use the LSF/MM forum opportunity to discuss open issues =
-we
-> have for further development, such as:
->
-> -Allowing the hardware to perform page table walk, similar to
-> get_user_pages_fast to resolve user pages that are already in RAM.
->
-> -Batching page eviction by various kernel subsystems (swapper, page-cache=
-)
-> to reduce the amount of communication needed with the hardware in such
-> events
->
-> -Hinting from the hardware to the MM regarding page fetches which are
-> speculative, similarly to prefetching done by the page-cache
->
-> -Page-in notifications from the kernel to the driver, such that we can ke=
-ep
-> our secondary TLB in sync with the kernel page table without incurring pa=
-ge
-> faults.
->
-> -Allowed and banned actions while in an MMU notifier callback. We have
-> already done some work on making the MMU notifiers sleepable [2], but the=
-re
-> might be additional limitations, which we would like to discuss.
->
-> -Hinting from the MMU notifiers as for the reason for the notification - =
-for
-> example we would like to react differently if a page was moved by NUMA
-> migration vs. page being swapped out.
->
-> [1] http://lwn.net/Articles/266320/
->
-> [2] http://comments.gmane.org/gmane.linux.kernel.mm/85002
->
-> Thanks,
->
-> --Shachar
+On Fri 08-02-13 14:56:16, azurIt wrote:
+> >kernel log would be sufficient.
+> 
+> 
+> Full kernel log from kernel with you newest patch:
+> http://watchdog.sk/lkml/kern2.log
 
-As a GPU driver developer i can say that this is something we want to
-do in a very near future. Also i think we would like another
-capabilities :
+OK, so the log says that there is a little slaughter on your yard:
+$ grep "Memory cgroup out of memory:" kern2.log | wc -l
+220
 
-- hint to mm on memory range that are best not to evict (easier for
-driver to know what is hot and gonna see activities)
+$ grep "Memory cgroup out of memory:" kern2.log | sed 's@.*Kill process \([0-9]*\) .*@\1@' | sort -u | wc -l
+220
 
-Dunno how big the change to the page eviction path would need to be.
+Which means that the oom killer didn't try to kill any task more than
+once which is good because it tells us that the killed task manages to
+die before we trigger oom again. So this is definitely not a deadlock.
+You are just hitting OOM very often.
+$ grep "killed as a result of limit" kern2.log | sed 's@.*\] @@' | sort | uniq -c | sort -k1 -n
+      1 Task in /1091/uid killed as a result of limit of /1091
+      1 Task in /1223/uid killed as a result of limit of /1223
+      1 Task in /1229/uid killed as a result of limit of /1229
+      1 Task in /1255/uid killed as a result of limit of /1255
+      1 Task in /1424/uid killed as a result of limit of /1424
+      1 Task in /1470/uid killed as a result of limit of /1470
+      1 Task in /1567/uid killed as a result of limit of /1567
+      2 Task in /1080/uid killed as a result of limit of /1080
+      3 Task in /1381/uid killed as a result of limit of /1381
+      4 Task in /1185/uid killed as a result of limit of /1185
+      4 Task in /1289/uid killed as a result of limit of /1289
+      4 Task in /1709/uid killed as a result of limit of /1709
+      5 Task in /1279/uid killed as a result of limit of /1279
+      6 Task in /1020/uid killed as a result of limit of /1020
+      6 Task in /1527/uid killed as a result of limit of /1527
+      9 Task in /1388/uid killed as a result of limit of /1388
+     17 Task in /1281/uid killed as a result of limit of /1281
+     22 Task in /1599/uid killed as a result of limit of /1599
+     30 Task in /1155/uid killed as a result of limit of /1155
+     31 Task in /1258/uid killed as a result of limit of /1258
+     71 Task in /1293/uid killed as a result of limit of /1293
 
-Cheers,
-Jerome
+So the group 1293 suffers the most. I would check how much memory the
+worklod in the group really needs because this level of OOM cannot
+possible be healthy.
+
+The log also says that the deadlock prevention implemented by the patch
+triggered and some writes really failed due to potential OOM:
+$ grep "If this message shows up" kern2.log 
+Feb  8 01:17:10 server01 kernel: [  431.033593] __mem_cgroup_try_charge: task:apache2 pid:6733 got ENOMEM without OOM for memcg:ffff8803807d5600. If this message shows up very often for the same task then there is a risk that the process is not able to make any progress because of the current limit. Try to enlarge the hard limit.
+Feb  8 01:22:52 server01 kernel: [  773.556782] __mem_cgroup_try_charge: task:apache2 pid:12092 got ENOMEM without OOM for memcg:ffff8803807d5600. If this message shows up very often for the same task then there is a risk that the process is not able to make any progress because of the current limit. Try to enlarge the hard limit.
+Feb  8 01:22:52 server01 kernel: [  773.567916] __mem_cgroup_try_charge: task:apache2 pid:12093 got ENOMEM without OOM for memcg:ffff8803807d5600. If this message shows up very often for the same task then there is a risk that the process is not able to make any progress because of the current limit. Try to enlarge the hard limit.
+Feb  8 01:29:00 server01 kernel: [ 1141.355693] __mem_cgroup_try_charge: task:apache2 pid:17734 got ENOMEM without OOM for memcg:ffff88036e956e00. If this message shows up very often for the same task then there is a risk that the process is not able to make any progress because of the current limit. Try to enlarge the hard limit.
+Feb  8 03:30:39 server01 kernel: [ 8440.346811] __mem_cgroup_try_charge: task:apache2 pid:8687 got ENOMEM without OOM for memcg:ffff8803654d6e00. If this message shows up very often for the same task then there is a risk that the process is not able to make any progress because of the current limit. Try to enlarge the hard limit.
+
+This doesn't look very unhealthy. I have expected that write would fail
+more often but it seems that the biggest memory pressure comes from
+mmaps and page faults which have no way other than OOM.
+
+So my suggestion would be to reconsider limits for groups to provide
+more realistical environment.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
