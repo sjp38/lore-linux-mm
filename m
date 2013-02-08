@@ -1,50 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 4D0EA6B0002
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 16:02:45 -0500 (EST)
-Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_if_PF=5FNO=5FMEMCG=5FOOM_is_set?=
-Date: Fri, 08 Feb 2013 22:02:43 +0100
-From: "azurIt" <azurit@pobox.sk>
-References: <20130206140119.GD10254@dhcp22.suse.cz>, <20130206142219.GF10254@dhcp22.suse.cz>, <20130206160051.GG10254@dhcp22.suse.cz>, <20130208060304.799F362F@pobox.sk>, <20130208094420.GA7557@dhcp22.suse.cz>, <20130208120249.FD733220@pobox.sk>, <20130208123854.GB7557@dhcp22.suse.cz>, <20130208145616.FB78CE24@pobox.sk>, <20130208152402.GD7557@dhcp22.suse.cz>, <20130208165805.8908B143@pobox.sk> <20130208171012.GH7557@dhcp22.suse.cz>
-In-Reply-To: <20130208171012.GH7557@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id B07C86B0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 16:55:06 -0500 (EST)
+Message-ID: <5115743D.3090903@sgi.com>
+Date: Fri, 8 Feb 2013 15:55:09 -0600
+From: Nathan Zimmer <nzimmer@sgi.com>
 MIME-Version: 1.0
-Message-Id: <20130208220243.EDEE0825@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: Re: Improving lock pages
+References: <20130115173814.GA13329@gulag1.americas.sgi.com> <20130206163129.GR21389@suse.de>
+In-Reply-To: <20130206163129.GR21389@suse.de>
+Content-Type: text/plain; charset="ISO-8859-15"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: holt@sgi.com, linux-mm@kvack.org
 
+On 02/06/2013 10:31 AM, Mel Gorman wrote:
+> On Tue, Jan 15, 2013 at 11:38:14AM -0600, Nathan Zimmer wrote:
+>> Hello Mel,
+> Hi Nathan,
 >
->I assume you have checked that the killed processes eventually die,
->right?
+>>      You helped some time ago with contention in lock_pages on very large boxes.
+> It was Nick Piggin and Jack Steiner that helped the situation within SLES
+> and before my time. I inherited the relevant patches but made relatively
+> few contributions to the effort.
 >
-
-
-When i killed them by hand, yes, they dissappeard from process list (i saw it). I don't know if they really died when OOM killed them.
-
-
->Well, I do not see anything supsicious during that time period
->(timestamps translate between Fri Feb  8 02:34:05 and Fri Feb  8
->02:36:48). The kernel log shows a lot of oom during that time. All
->killed processes die eventually.
-
-
-No, they didn't died by OOM when cgroup was freezed. Just check PIDs from memcg-bug-4.tar.gz and try to find them in kernel log. Why are all PIDs waiting on 'mem_cgroup_handle_oom' and there is no OOM message in the log? Data in memcg-bug-4.tar.gz are only for 2 minutes but i let it run for about 15-20 minutes, no single process killed by OOM. I'm 100% sure that OOM was not killing them (maybe it was trying to but it didn't happen).
-
-
+>> You worked with Jack Steiner on this.  Currently I am tasked with improving this
+>> area even more.  So I am fishing for any more ideas that would be productive or
+>> worth trying.
+>>
+>> I have some numbers from a 512 machine.
+>>
+>> Linux uvpsw1 3.0.51-0.7.9-default #1 SMP Thu Nov 29 22:12:17 UTC 2012 (f3be9d0) x86_64 x86_64 x86_64 GNU/Linux
+>>        0.166850
+>>        0.082339
+>>        0.248428
+>>        0.081197
+>>        0.127635
+> Ok, this looks like a SLES 11 SP2 kernel and so includes some unlock/lock
+> page optimisations.
 >
->Nothing shows it would be a deadlock so far. It is well possible that
->the userspace went mad when seeing a lot of processes dying because it
->doesn't expect it.
+>> Linux uvpsw1 3.8.0-rc1-medusa_ntz_clean-dirty #32 SMP Tue Jan 8 16:01:04 CST 2013 x86_64 x86_64 x86_64 GNU/Linux
+>>        0.151778
+>>        0.118343
+>>        0.135750
+>>        0.437019
+>>        0.120536
+>>
+> And this is a mainline-ish kernel which doesn't.
 >
+> The main reason I never made an strong effort to push them upstream
+> because the problems are barely observable on any machine I had access to.
+> The unlock page optimisation requires a page flag and while it helps
+> profiles a little, the effects are barely observable on smaller machines
+> (at least since I last checked).  One machine it was reported to help
+> dramatically was a 768-way 128 node machine.
+>
+> Forthe 512-way machine you're testing with the figures are marginal. The
+> time to exit is shorter but the amount of time is tiny and very close to
+> noise. I forward ported the relevant patches but on a 48-way machine the
+> results for the same test were well within the noise and the standard
+> deviation was higher.
+One thing I had noticed the performance curve on this issue is worse 
+then linear.
+This has made it tough to measure/capture data on smaller boxes.
 
+> I know you're tasked with improving this area more but what are you
+> using as your example workload? What's the minimum sized machine needed
+> for the optimisations to make a difference?
+>
+Right now I am just using the time_exit test I posted earlier.
+I know it is a bit artificial and am open to suggestion.
 
-Lots of processes are dying also now, without your latest patch, and no such things are happening. I'm sure there is something more it this, maybe it revealed another bug?
+One of the rough goals is to get under a second on a 4096 box.
 
+Also here are some numbers from a larger box with 3.8-rc4...
+nzimmer@uv48-sys:~/tests/time_exit> for I in $(seq 1 5); { ./time_exit 
+-p 3 2048; }
+       0.762282
+       0.810356
+       0.777785
+       0.840679
+       0.743509
 
-azur
+nzimmer@uv48-sys:~/tests/time_exit> for I in $(seq 1 5); { ./time_exit 
+-p 3 4096; }
+       2.550571
+       2.374378
+       2.669021
+       2.703232
+       2.679028
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
