@@ -1,89 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id CA11D6B0005
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 06:18:39 -0500 (EST)
-Message-ID: <5114DF05.7070702@mellanox.com>
-Date: Fri, 8 Feb 2013 13:18:29 +0200
-From: Shachar Raindel <raindel@mellanox.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 57EFD6B0005
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 07:25:06 -0500 (EST)
+Received: from /spool/local
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Fri, 8 Feb 2013 22:19:23 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 17E442BB0050
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 23:24:48 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r18CCWR559441296
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 23:12:33 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r18COkKY021011
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 23:24:46 +1100
+Message-ID: <5114EE1C.1040802@linux.vnet.ibm.com>
+Date: Fri, 08 Feb 2013 17:52:52 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [LSF/MM TOPIC] Hardware initiated paging of user process pages, hardware
- access to the CPU page tables of user processes
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 8bit
+Subject: [LSF/MM TOPIC][ATTEND] Linux VM Infrastructure to support Memory
+ Power Management
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: lsf-pc@lists.linux-foundation.org
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
+Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hi,
 
-We would like to present a reference implementation for safely sharing 
-memory pages from user space with the hardware, without pinning.
+Today, we are increasingly seeing computer systems sporting larger and larger
+amounts of RAM, in order to meet workload demands. However, memory consumes a
+significant amount of power, potentially upto more than a third of total system
+power on server systems. So naturally, memory becomes the next big target for
+power management - on embedded systems and smartphones, and all the way upto
+large server systems.
 
-We will be happy to hear the community feedback on our prototype 
-implementation, and suggestions for future improvements.
+Modern memory hardware such as DDR3 support a number of power management
+capabilities. And new firmware standards such as ACPI 5.0 have added support
+for exposing the power-management capabilities of the underlying memory hardware
+to the Operating System. So it is upto the kernel's MM subsystem to make the
+best use of these capabilities and manage memory power-efficiently.
+It had been demonstrated on a Samsung Exynos board (with 2 GB RAM) that upto
+6% of total system power can be saved by making the Linux kernel MM subsystem
+power-aware[1]. (More savings can be expected on systems with larger amounts
+of memory, and perhaps improved further using better MM designs).
 
-We would also like to discuss adding features to the core MM subsystem 
-to assist hardware access to user memory without pinning.
+Often this simply translates to having the Linux MM understand the granularity
+at which RAM modules can be power-managed, and consolidating the memory
+allocations and references to a minimum no. of these power-manageable
+"memory regions". It is of particular interest to note that most of these
+memory hardware have the intelligence to automatically save power, such as
+putting memory banks into (content-preserving) low-power states when not
+referenced for a threshold amount of time. All that the kernel has to do, is
+avoid wrecking the power-savings logic by scattering its allocations and
+references all over the system memory. IOW, the kernel/MM doesn't really need
+to keep track of memory DIMMs and perform their power-state transitions - most
+often it is automatically handled by the hardware/memory-controller. The MM
+has to just co-operate by keeping the references consolidated to a minimum
+no. of memory regions.
 
-Following is a longer motivation and explanation on the technology 
-presented:
+To that end, I had recently posted patchsets implementing 2 very different MM
+designs, namely the "Hierarchy" design[2] (originally developed by Ankita Garg)
+and the new "Sorted-buddy" design[3]. The challenge with the latter design is
+that it can potentially lead to increased run-time memory allocation overheads.
+At the summit, I would like to brainstorm on ideas and designs for reducing the
+run-time cost of implementing memory power management, and seek suggestions and
+feedback from MM developers on the issues involved.
 
-Many application developers would like to be able to be able to 
-communicate directly with the hardware from the userspace.
+About myself:
+------------
+I have been contributing to CPU- and System-wide power management subsystems in
+the kernel such as CPU idle and Suspend-to-RAM, in terms of enhancements to their
+reliability/scalability. In particular, I have contributed to some of the
+core kernel infrastructure that Suspend-to-RAM depends on, such as Freezer and
+CPU hotplug, and have been working towards redesigning CPU hotplug to get rid of
+some of its pain points.
 
-Use cases for that includes high performance networking API such as 
-InfiniBand, RoCE and iWarp and interfacing with GPUs.
+Recently I have been looking at conserving memory power, and came up with the
+"Sorted-buddy" design [3] of the Linux MM, which alters the buddy allocator to
+keep memory allocations consolidated to a minimum no. of memory regions. I would
+like to discuss this topic with other MM developers at the summit and get
+feedback on the best way to take this technology forward.
 
-Currently, if the user space application wants to share system memory 
-with the hardware device, the kernel component must pin the memory pages 
-in RAM, using get_user_pages.
 
-This is a hurdle, as it usually makes large portions the application 
-memory unmovable. This pinning also makes the user space development 
-model very complicated a?? one needs to register memory before using it 
-for communication with the hardware.
+References:
+----------
 
-We use the mmu-notifiers [1] mechanism to inform the hardware when the 
-mapping of a page is changed. If the hardware tries to access a page 
-which is not yet mapped for the hardware, it requests a resolution for 
-the page address from the kernel.
+1. Estimate of potential power savings on Samsung exynos board
+   http://article.gmane.org/gmane.linux.kernel.mm/65935
 
-This mechanism allows the hardware to access the entire address space of 
-the user application, without pinning even a single page.
+2. "Hierarchy" design for Memory Power Management:
+    http://lwn.net/Articles/445045/ (Original posting by Ankita Garg)
+    http://lwn.net/Articles/523311/ (Forward-port to 3.7-rc3)
 
-We would like to use the LSF/MM forum opportunity to discuss open issues 
-we have for further development, such as:
+3. "Sorted-buddy" design for Memory Power Management:
+    http://article.gmane.org/gmane.linux.power-management.general/28498/
 
--Allowing the hardware to perform page table walk, similar to 
-get_user_pages_fast to resolve user pages that are already in RAM.
 
--Batching page eviction by various kernel subsystems (swapper, 
-page-cache) to reduce the amount of communication needed with the 
-hardware in such events
-
--Hinting from the hardware to the MM regarding page fetches which are 
-speculative, similarly to prefetching done by the page-cache
-
--Page-in notifications from the kernel to the driver, such that we can 
-keep our secondary TLB in sync with the kernel page table without 
-incurring page faults.
-
--Allowed and banned actions while in an MMU notifier callback. We have 
-already done some work on making the MMU notifiers sleepable [2], but 
-there might be additional limitations, which we would like to discuss.
-
--Hinting from the MMU notifiers as for the reason for the notification - 
-for example we would like to react differently if a page was moved by 
-NUMA migration vs. page being swapped out.
-
-[1] http://lwn.net/Articles/266320/
-
-[2] http://comments.gmane.org/gmane.linux.kernel.mm/85002
-
-Thanks,
-
---Shachar
+Regards,
+Srivatsa S. Bhat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
