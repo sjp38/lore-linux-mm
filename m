@@ -1,86 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 6866A6B0002
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 15:25:54 -0500 (EST)
-Date: Fri, 8 Feb 2013 21:25:51 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH v2 3/3] mm: accelerate munlock() treatment of THP pages
-Message-ID: <20130208202550.GB9817@redhat.com>
-References: <1359962232-20811-1-git-send-email-walken@google.com>
- <1359962232-20811-4-git-send-email-walken@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1359962232-20811-4-git-send-email-walken@google.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 0FAFF6B0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 15:28:26 -0500 (EST)
+Received: from /spool/local
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Fri, 8 Feb 2013 13:28:26 -0700
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 3482D3E4003F
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 13:28:09 -0700 (MST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r18KSGk7254360
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 13:28:16 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r18KSFmQ009506
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 13:28:15 -0700
+Subject: [PATCH 2/2] make /dev/kmem return error for highmem
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+Date: Fri, 08 Feb 2013 12:28:14 -0800
+References: <20130208202813.62965F25@kernel.stglabs.ibm.com>
+In-Reply-To: <20130208202813.62965F25@kernel.stglabs.ibm.com>
+Message-Id: <20130208202814.E1196596@kernel.stglabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, bp@alien8.de, hpa@zytor.com, mingo@kernel.org, tglx@linutronix.de, Dave Hansen <dave@linux.vnet.ibm.com>
 
-Hi Michel,
 
-On Sun, Feb 03, 2013 at 11:17:12PM -0800, Michel Lespinasse wrote:
-> munlock_vma_pages_range() was always incrementing addresses by PAGE_SIZE
-> at a time. When munlocking THP pages (or the huge zero page), this resulted
-> in taking the mm->page_table_lock 512 times in a row.
-> 
-> We can do better by making use of the page_mask returned by follow_page_mask
-> (for the huge zero page case), or the size of the page munlock_vma_page()
-> operated on (for the true THP page case).
-> 
-> Note - I am sending this as RFC only for now as I can't currently put
-> my finger on what if anything prevents split_huge_page() from operating
-> concurrently on the same page as munlock_vma_page(), which would mess
-> up our NR_MLOCK statistics. Is this a latent bug or is there a subtle
-> point I missed here ?
+I was auding the /dev/mem code for more questionable uses of
+__pa(), and ran across this.
 
-I agree something looks fishy: nor mmap_sem for writing, nor the page
-lock can stop split_huge_page_refcount.
+My assumption is that if you use /dev/kmem, you expect to be
+able to read the kernel virtual mappings.  However, those
+mappings _stop_ as soon as we hit high memory.  The
+pfn_valid() check in here is good for memory holes, but since
+highmem pages are still valid, it does no good for those.
 
-Now the mlock side was intended to be safe because mlock_vma_page is
-called within follow_page while holding the PT lock or the
-page_table_lock (so split_huge_page_refcount will have to wait for it
-to be released before it can run). See follow_trans_huge_pmd
-assert_spin_locked and the pte_unmap_unlock after mlock_vma_page
-returns.
+Also, since we are now checking that __pa() is being done on
+valid virtual addresses, this might have tripped the new
+check.  Even with the new check, this code would have been
+broken with the NUMA remapping code had we not ripped it
+out:
 
-Problem is, the lock side dependen on the TestSetPageMlocked below to
-be always repeated on the head page (follow_trans_huge_pmd will always
-pass the head page to mlock_vma_page).
+	https://patchwork.kernel.org/patch/2075911/
 
-void mlock_vma_page(struct page *page)
-{
-	BUG_ON(!PageLocked(page));
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+---
 
-	if (!TestSetPageMlocked(page)) {
+ linux-2.6.git-dave/drivers/char/mem.c |   11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
-But what if the head page was split in between two different
-follow_page calls? The second call wouldn't take the pmd_trans_huge
-path anymore and the stats would be increased too much.
-
-The problem on the munlock side is even more apparent as you pointed
-out above but now I think the mlock side was problematic too.
-
-The good thing is, your accelleration code for the mlock side should
-have fixed the mlock race already: not ever risking to end up calling
-mlock_vma_page twice on the head page is not an "accelleration" only,
-it should also be a natural fix for the race.
-
-To fix the munlock side, which is still present, I think one way would
-be to do mlock and unlock within get_user_pages, so they run in the
-same place protected by the PT lock or page_table_lock.
-
-There are few things that stop split_huge_page_refcount:
-page_table_lock, lru_lock, compound_lock, anon_vma lock. So if we keep
-calling munlock_vma_page outside of get_user_pages (so outside of the
-page_table_lock) the other way would be to use the compound_lock.
-
-NOTE: this a purely aesthetical issue in /proc/meminfo, there's
-nothing functional (at least in the kernel) connected to it, so no
-panic :).
-
-Thanks,
-Andrea
+diff -puN drivers/char/mem.c~make-kmem-return-error-for-highmem drivers/char/mem.c
+--- linux-2.6.git/drivers/char/mem.c~make-kmem-return-error-for-highmem	2013-02-08 12:27:57.033770045 -0800
++++ linux-2.6.git-dave/drivers/char/mem.c	2013-02-08 12:27:57.041770125 -0800
+@@ -337,10 +337,19 @@ static int mmap_mem(struct file *file, s
+ #ifdef CONFIG_DEVKMEM
+ static int mmap_kmem(struct file *file, struct vm_area_struct *vma)
+ {
++	unsigned long kernel_vaddr;
+ 	unsigned long pfn;
+ 
++	kernel_vaddr = (u64)vma->vm_pgoff << PAGE_SHIFT;
++	/*
++	 * pfn_valid() (below) does not trip for highmem addresses.  This
++	 * essentially means that we will be mapping gibberish in for them
++	 * instead of what the _kernel_ has mapped at the requested address.
++	 */
++	if (kernel_vaddr >= high_memory)
++		return -EIO;
+ 	/* Turn a kernel-virtual address into a physical page frame */
+-	pfn = __pa((u64)vma->vm_pgoff << PAGE_SHIFT) >> PAGE_SHIFT;
++	pfn = __pa(kernel_vaddr) >> PAGE_SHIFT;
+ 
+ 	/*
+ 	 * RED-PEN: on some architectures there is more mapped memory than
+diff -puN mm/nommu.c~make-kmem-return-error-for-highmem mm/nommu.c
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
