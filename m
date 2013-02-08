@@ -1,127 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id C5A0E6B0008
-	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 23:16:54 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2EF593EE0B5
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 13:16:53 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 18B8C45DE50
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 13:16:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0227845DE4D
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 13:16:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id EAE671DB803A
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 13:16:52 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 97AE91DB8038
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 13:16:52 +0900 (JST)
-Message-ID: <51147C1B.1000402@jp.fujitsu.com>
-Date: Fri, 08 Feb 2013 13:16:27 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 1A4AF6B000A
+	for <linux-mm@kvack.org>; Thu,  7 Feb 2013 23:27:04 -0500 (EST)
+Received: by mail-ea0-f201.google.com with SMTP id l13so223399eaa.4
+        for <linux-mm@kvack.org>; Thu, 07 Feb 2013 20:27:02 -0800 (PST)
+From: Greg Thelen <gthelen@google.com>
 Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from add_to_page_cache_locked
-References: <20121230020947.AA002F34@pobox.sk> <20121230110815.GA12940@dhcp22.suse.cz> <20130125160723.FAE73567@pobox.sk> <20130125163130.GF4721@dhcp22.suse.cz> <20130205134937.GA22804@dhcp22.suse.cz> <20130205154947.CD6411E2@pobox.sk> <20130205160934.GB22804@dhcp22.suse.cz> <20130206021721.1AE9E3C7@pobox.sk> <20130206140119.GD10254@dhcp22.suse.cz> <51138999.3090006@jp.fujitsu.com> <20130207123140.GA15820@dhcp22.suse.cz>
-In-Reply-To: <20130207123140.GA15820@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+References: <20121230020947.AA002F34@pobox.sk>
+	<20121230110815.GA12940@dhcp22.suse.cz>
+	<20130125160723.FAE73567@pobox.sk>
+	<20130125163130.GF4721@dhcp22.suse.cz>
+	<20130205134937.GA22804@dhcp22.suse.cz>
+	<20130205154947.CD6411E2@pobox.sk>
+	<20130205160934.GB22804@dhcp22.suse.cz>
+	<xr93wqum4sh4.fsf@gthelen.mtv.corp.google.com>
+	<20130205174651.GA3959@dhcp22.suse.cz>
+	<xr93a9ri4op6.fsf@gthelen.mtv.corp.google.com>
+	<20130205185953.GB3959@dhcp22.suse.cz>
+Date: Thu, 07 Feb 2013 20:27:00 -0800
+In-Reply-To: <20130205185953.GB3959@dhcp22.suse.cz> (Michal Hocko's message of
+	"Tue, 5 Feb 2013 19:59:53 +0100")
+Message-ID: <xr93ip63ig6j.fsf@gthelen.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-(2013/02/07 21:31), Michal Hocko wrote:
-> On Thu 07-02-13 20:01:45, KAMEZAWA Hiroyuki wrote:
->> (2013/02/06 23:01), Michal Hocko wrote:
->>> On Wed 06-02-13 02:17:21, azurIt wrote:
->>>>> 5-memcg-fix-1.patch is not complete. It doesn't contain the folloup I
->>>>> mentioned in a follow up email. Here is the full patch:
->>>>
->>>>
->>>> Here is the log where OOM, again, killed MySQL server [search for "(mysqld)"]:
->>>> http://www.watchdog.sk/lkml/oom_mysqld6
->>>
->>> [...]
->>> WARNING: at mm/memcontrol.c:2409 T.1149+0x2d9/0x610()
->>> Hardware name: S5000VSA
->>> gfp_mask:4304 nr_pages:1 oom:0 ret:2
->>> Pid: 3545, comm: apache2 Tainted: G        W    3.2.37-grsec #1
->>> Call Trace:
->>>   [<ffffffff8105502a>] warn_slowpath_common+0x7a/0xb0
->>>   [<ffffffff81055116>] warn_slowpath_fmt+0x46/0x50
->>>   [<ffffffff81108163>] ? mem_cgroup_margin+0x73/0xa0
->>>   [<ffffffff8110b6f9>] T.1149+0x2d9/0x610
->>>   [<ffffffff812af298>] ? blk_finish_plug+0x18/0x50
->>>   [<ffffffff8110c6b4>] mem_cgroup_cache_charge+0xc4/0xf0
->>>   [<ffffffff810ca6bf>] add_to_page_cache_locked+0x4f/0x140
->>>   [<ffffffff810ca7d2>] add_to_page_cache_lru+0x22/0x50
->>>   [<ffffffff810cad32>] filemap_fault+0x252/0x4f0
->>>   [<ffffffff810eab18>] __do_fault+0x78/0x5a0
->>>   [<ffffffff810edcb4>] handle_pte_fault+0x84/0x940
->>>   [<ffffffff810e2460>] ? vma_prio_tree_insert+0x30/0x50
->>>   [<ffffffff810f2508>] ? vma_link+0x88/0xe0
->>>   [<ffffffff810ee6a8>] handle_mm_fault+0x138/0x260
->>>   [<ffffffff8102709d>] do_page_fault+0x13d/0x460
->>>   [<ffffffff810f46fc>] ? do_mmap_pgoff+0x3dc/0x430
->>>   [<ffffffff815b61ff>] page_fault+0x1f/0x30
->>> ---[ end trace 8817670349022007 ]---
->>> apache2 invoked oom-killer: gfp_mask=0x0, order=0, oom_adj=0, oom_score_adj=0
->>> apache2 cpuset=uid mems_allowed=0
->>> Pid: 3545, comm: apache2 Tainted: G        W    3.2.37-grsec #1
->>> Call Trace:
->>>   [<ffffffff810ccd2e>] dump_header+0x7e/0x1e0
->>>   [<ffffffff810ccc2f>] ? find_lock_task_mm+0x2f/0x70
->>>   [<ffffffff810cd1f5>] oom_kill_process+0x85/0x2a0
->>>   [<ffffffff810cd8a5>] out_of_memory+0xe5/0x200
->>>   [<ffffffff810cda7d>] pagefault_out_of_memory+0xbd/0x110
->>>   [<ffffffff81026e76>] mm_fault_error+0xb6/0x1a0
->>>   [<ffffffff8102734e>] do_page_fault+0x3ee/0x460
->>>   [<ffffffff810f46fc>] ? do_mmap_pgoff+0x3dc/0x430
->>>   [<ffffffff815b61ff>] page_fault+0x1f/0x30
->>>
->>> The first trace comes from the debugging WARN and it clearly points to
->>> a file fault path. __do_fault pre-charges a page in case we need to
->>> do CoW (copy-on-write) for the returned page. This one falls back to
->>> memcg OOM and never returns ENOMEM as I have mentioned earlier.
->>> However, the fs fault handler (filemap_fault here) can fallback to
->>> page_cache_read if the readahead (do_sync_mmap_readahead) fails
->>> to get page to the page cache. And we can see this happening in
->>> the first trace. page_cache_read then calls add_to_page_cache_lru
->>> and eventually gets to add_to_page_cache_locked which calls
->>> mem_cgroup_cache_charge_no_oom so we will get ENOMEM if oom should
->>> happen. This ENOMEM gets to the fault handler and kaboom.
->>>
->>
->> Hmm. do we need to increase the "limit" virtually at memcg oom until
->> the oom-killed process dies ? It may be doable by increasing stock->cache
->> of each cpu....I think kernel can offer extra virtual charge up to
->> oom-killed process's memory usage.....
+On Tue, Feb 05 2013, Michal Hocko wrote:
+
+> On Tue 05-02-13 10:09:57, Greg Thelen wrote:
+>> On Tue, Feb 05 2013, Michal Hocko wrote:
+>> 
+>> > On Tue 05-02-13 08:48:23, Greg Thelen wrote:
+>> >> On Tue, Feb 05 2013, Michal Hocko wrote:
+>> >> 
+>> >> > On Tue 05-02-13 15:49:47, azurIt wrote:
+>> >> > [...]
+>> >> >> Just to be sure - am i supposed to apply this two patches?
+>> >> >> http://watchdog.sk/lkml/patches/
+>> >> >
+>> >> > 5-memcg-fix-1.patch is not complete. It doesn't contain the folloup I
+>> >> > mentioned in a follow up email. Here is the full patch:
+>> >> > ---
+>> >> > From f2bf8437d5b9bb38a95a432bf39f32c584955171 Mon Sep 17 00:00:00 2001
+>> >> > From: Michal Hocko <mhocko@suse.cz>
+>> >> > Date: Mon, 26 Nov 2012 11:47:57 +0100
+>> >> > Subject: [PATCH] memcg: do not trigger OOM from add_to_page_cache_locked
+>> >> >
+>> >> > memcg oom killer might deadlock if the process which falls down to
+>> >> > mem_cgroup_handle_oom holds a lock which prevents other task to
+>> >> > terminate because it is blocked on the very same lock.
+>> >> > This can happen when a write system call needs to allocate a page but
+>> >> > the allocation hits the memcg hard limit and there is nothing to reclaim
+>> >> > (e.g. there is no swap or swap limit is hit as well and all cache pages
+>> >> > have been reclaimed already) and the process selected by memcg OOM
+>> >> > killer is blocked on i_mutex on the same inode (e.g. truncate it).
+>> >> >
+>> >> > Process A
+>> >> > [<ffffffff811109b8>] do_truncate+0x58/0xa0		# takes i_mutex
+>> >> > [<ffffffff81121c90>] do_last+0x250/0xa30
+>> >> > [<ffffffff81122547>] path_openat+0xd7/0x440
+>> >> > [<ffffffff811229c9>] do_filp_open+0x49/0xa0
+>> >> > [<ffffffff8110f7d6>] do_sys_open+0x106/0x240
+>> >> > [<ffffffff8110f950>] sys_open+0x20/0x30
+>> >> > [<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
+>> >> > [<ffffffffffffffff>] 0xffffffffffffffff
+>> >> >
+>> >> > Process B
+>> >> > [<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+>> >> > [<ffffffff8110b5ab>] T.1146+0x5ab/0x5c0
+>> >> > [<ffffffff8110c22e>] mem_cgroup_cache_charge+0xbe/0xe0
+>> >> > [<ffffffff810ca28c>] add_to_page_cache_locked+0x4c/0x140
+>> >> > [<ffffffff810ca3a2>] add_to_page_cache_lru+0x22/0x50
+>> >> > [<ffffffff810ca45b>] grab_cache_page_write_begin+0x8b/0xe0
+>> >> > [<ffffffff81193a18>] ext3_write_begin+0x88/0x270
+>> >> > [<ffffffff810c8fc6>] generic_file_buffered_write+0x116/0x290
+>> >> > [<ffffffff810cb3cc>] __generic_file_aio_write+0x27c/0x480
+>> >> > [<ffffffff810cb646>] generic_file_aio_write+0x76/0xf0           # takes ->i_mutex
+>> >> > [<ffffffff8111156a>] do_sync_write+0xea/0x130
+>> >> > [<ffffffff81112183>] vfs_write+0xf3/0x1f0
+>> >> > [<ffffffff81112381>] sys_write+0x51/0x90
+>> >> > [<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
+>> >> > [<ffffffffffffffff>] 0xffffffffffffffff
+>> >> 
+>> >> It looks like grab_cache_page_write_begin() passes __GFP_FS into
+>> >> __page_cache_alloc() and mem_cgroup_cache_charge().  Which makes me
+>> >> think that this deadlock is also possible in the page allocator even
+>> >> before getting to add_to_page_cache_lru.  no?
+>> >
+>> > I am not that familiar with VFS but i_mutex is a high level lock AFAIR
+>> > and it shouldn't be called from the pageout path so __page_cache_alloc
+>> > should be safe.
+>> 
+>> I wasn't clear, sorry.  My concern is not that pageout() grabs i_mutex.
+>> My concern is that __page_cache_alloc() will invoke the oom killer and
+>> select a victim which wants i_mutex.  This victim will deadlock because
+>> the oom killer caller already holds i_mutex.  
 >
-> If we can guarantee that the overflow charges do not exceed the memory
-> usage of the killed process then this would work. The question is, how
-> do we find out how much we can overflow. immigrate_on_move will play
-> some role as well as the amount of the shared memory. I am afraid this
-> would get too complex. Nevertheless the idea is nice.
->
-Yes, that's the problem. If we don't do in correct way, resouce usage
-undeflow can happen. I guess we can count it per task_struct at charging
-page-faulted anon pages.
+> That would be true for the memcg oom because that one is blocking but
+> the global oom just puts the allocator into sleep for a while and then
+> the allocator should back off eventually (unless this is NOFAIL
+> allocation). I would need to look closer whether this is really the case
+> - I haven't seen that allocator code path for a while...
 
-_Or_ in other consideration, for example, we do charge 1MB per thread
-regardless of its memory usage. And use it as a security at OOM-killing.
-Implemtation will be easy but explanation may be difficult..
+I think the page allocator can loop forever waiting for an oom victim to
+terminate even without NOFAIL.  Especially if the oom victim wants a
+resource exclusively held by the allocating thread (e.g. i_mutex).  It
+looks like the same deadlock you describe is also possible (though more
+rare) without memcg.
 
-Thanks,
--Kame
+If the looping thread is an eligible oom victim (i.e. not oom disabled,
+not an kernel thread, etc) then the page allocator can return NULL in so
+long as NOFAIL is not used.  So any allocator which is able to call the
+oom killer and is not oom disabled (kernel thread, etc) is already
+exposed to the possibility of page allocator failure.  So if the page
+allocator could detect the deadlock, then it could safely return NULL.
+Maybe after looping N times without forward progress the page allocator
+should consider failing unless NOFAIL is given.
 
-
-
-
-Thanks,
--Kame
-
-
+Switching back to the memcg oom situation, can we similarly return NULL
+if memcg oom kill has been tried a reasonable number of times.  Simply
+failing the memcg charge with ENOMEM seems easier to support than
+exceeding limit (Kame's loan patch).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
