@@ -1,96 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id B07C86B0002
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 16:55:06 -0500 (EST)
-Message-ID: <5115743D.3090903@sgi.com>
-Date: Fri, 8 Feb 2013 15:55:09 -0600
-From: Nathan Zimmer <nzimmer@sgi.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id C6C966B0002
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 18:16:30 -0500 (EST)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Fri, 8 Feb 2013 16:16:30 -0700
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 7487D19D8042
+	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 16:16:27 -0700 (MST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r18NGPAo198766
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 16:16:27 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r18NGLo5023057
+	for <linux-mm@kvack.org>; Fri, 8 Feb 2013 16:16:23 -0700
+Message-ID: <51158742.4030803@linux.vnet.ibm.com>
+Date: Fri, 08 Feb 2013 15:16:18 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: Improving lock pages
-References: <20130115173814.GA13329@gulag1.americas.sgi.com> <20130206163129.GR21389@suse.de>
-In-Reply-To: <20130206163129.GR21389@suse.de>
-Content-Type: text/plain; charset="ISO-8859-15"; format=flowed
+Subject: Re: [PATCH 1/2] add helper for highmem checks
+References: <20130208202813.62965F25@kernel.stglabs.ibm.com> <51156507.50900@zytor.com>
+In-Reply-To: <51156507.50900@zytor.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: holt@sgi.com, linux-mm@kvack.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, bp@alien8.de, mingo@kernel.org, tglx@linutronix.de
 
-On 02/06/2013 10:31 AM, Mel Gorman wrote:
-> On Tue, Jan 15, 2013 at 11:38:14AM -0600, Nathan Zimmer wrote:
->> Hello Mel,
-> Hi Nathan,
->
->>      You helped some time ago with contention in lock_pages on very large boxes.
-> It was Nick Piggin and Jack Steiner that helped the situation within SLES
-> and before my time. I inherited the relevant patches but made relatively
-> few contributions to the effort.
->
->> You worked with Jack Steiner on this.  Currently I am tasked with improving this
->> area even more.  So I am fishing for any more ideas that would be productive or
->> worth trying.
->>
->> I have some numbers from a 512 machine.
->>
->> Linux uvpsw1 3.0.51-0.7.9-default #1 SMP Thu Nov 29 22:12:17 UTC 2012 (f3be9d0) x86_64 x86_64 x86_64 GNU/Linux
->>        0.166850
->>        0.082339
->>        0.248428
->>        0.081197
->>        0.127635
-> Ok, this looks like a SLES 11 SP2 kernel and so includes some unlock/lock
-> page optimisations.
->
->> Linux uvpsw1 3.8.0-rc1-medusa_ntz_clean-dirty #32 SMP Tue Jan 8 16:01:04 CST 2013 x86_64 x86_64 x86_64 GNU/Linux
->>        0.151778
->>        0.118343
->>        0.135750
->>        0.437019
->>        0.120536
->>
-> And this is a mainline-ish kernel which doesn't.
->
-> The main reason I never made an strong effort to push them upstream
-> because the problems are barely observable on any machine I had access to.
-> The unlock page optimisation requires a page flag and while it helps
-> profiles a little, the effects are barely observable on smaller machines
-> (at least since I last checked).  One machine it was reported to help
-> dramatically was a 768-way 128 node machine.
->
-> Forthe 512-way machine you're testing with the figures are marginal. The
-> time to exit is shorter but the amount of time is tiny and very close to
-> noise. I forward ported the relevant patches but on a 48-way machine the
-> results for the same test were well within the noise and the standard
-> deviation was higher.
-One thing I had noticed the performance curve on this issue is worse 
-then linear.
-This has made it tough to measure/capture data on smaller boxes.
+On 02/08/2013 12:50 PM, H. Peter Anvin wrote:
+> On 02/08/2013 12:28 PM, Dave Hansen wrote:
+>> +static inline phys_addr_t last_lowmem_phys_addr(void)
+>> +{
+>> +    /*
+>> +     * 'high_memory' is not a pointer that can be dereferenced, so
+>> +     * avoid calling __pa() on it directly.
+>> +     */
+>> +    return __pa(high_memory - 1);
+>> +}
+>> +static inline bool phys_addr_is_highmem(phys_addr_t addr)
+>> +{
+>> +    return addr > last_lowmem_paddr();
+>> +}
+>> +
+> 
+> Are we sure that high_memory - 1 is always a valid reference?  Consider
+> especially the case where there is MMIO beyond end of memory on a system
+> which has less RAM than the HIGHMEM boundary...
 
-> I know you're tasked with improving this area more but what are you
-> using as your example workload? What's the minimum sized machine needed
-> for the optimisations to make a difference?
->
-Right now I am just using the time_exit test I posted earlier.
-I know it is a bit artificial and am open to suggestion.
+Yeah, I think it is.  "high_memory" should point at either the end of
+RAM, or the end of the linear map, whichever is lower.  See setup_arch():
 
-One of the rough goals is to get under a second on a 4096 box.
+        max_pfn = e820_end_of_ram_pfn();
+	...
+        high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
 
-Also here are some numbers from a larger box with 3.8-rc4...
-nzimmer@uv48-sys:~/tests/time_exit> for I in $(seq 1 5); { ./time_exit 
--p 3 2048; }
-       0.762282
-       0.810356
-       0.777785
-       0.840679
-       0.743509
+or in the highmem init code:
 
-nzimmer@uv48-sys:~/tests/time_exit> for I in $(seq 1 5); { ./time_exit 
--p 3 4096; }
-       2.550571
-       2.374378
-       2.669021
-       2.703232
-       2.679028
+        high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
