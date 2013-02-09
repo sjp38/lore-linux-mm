@@ -1,148 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 053246B000A
-	for <linux-mm@kvack.org>; Fri,  8 Feb 2013 19:04:06 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id kl14so2321841pab.4
-        for <linux-mm@kvack.org>; Fri, 08 Feb 2013 16:04:06 -0800 (PST)
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id C39606B0002
+	for <linux-mm@kvack.org>; Sat,  9 Feb 2013 00:25:33 -0500 (EST)
+Received: by mail-vb0-f52.google.com with SMTP id fa15so2801052vbb.11
+        for <linux-mm@kvack.org>; Fri, 08 Feb 2013 21:25:32 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <510632BD.3010702@parallels.com>
+References: <510632BD.3010702@parallels.com>
+Date: Fri, 8 Feb 2013 21:25:32 -0800
+Message-ID: <CANN689FNsmFfHX6zqnefE9yzHBed1tXi6ppPzOkcxBZgCLYg2A@mail.gmail.com>
+Subject: Re: [ATTEND][LSF/MM TOPIC] the memory controller
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH v3 3/3] mm: accelerate munlock() treatment of THP pages
-Date: Fri,  8 Feb 2013 16:03:57 -0800
-Message-Id: <1360368237-26768-4-git-send-email-walken@google.com>
-In-Reply-To: <1360368237-26768-1-git-send-email-walken@google.com>
-References: <1360368237-26768-1-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Lord Glauber Costa of Sealand <glommer@parallels.com>
+Cc: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 
-munlock_vma_pages_range() was always incrementing addresses by PAGE_SIZE
-at a time. When munlocking THP pages (or the huge zero page), this resulted
-in taking the mm->page_table_lock 512 times in a row.
+On Mon, Jan 28, 2013 at 12:11 AM, Lord Glauber Costa of Sealand
+<glommer@parallels.com> wrote:
+> * memcg/global oom handling: I believe that the OOM killer could be
+> significantly improved to allow for more deterministic killing of tasks,
+> specially in containers scenarios where memcg is heavily deployed. In
+> some situations, a group encompasses a whole service, and under
+> pressure, it would be better to shut down the group altogether with all
+> its tasks, while in others it would be better to keep the current
+> behavior of shooting down a single task.
 
-We can do better by making use of the page_mask returned by follow_page_mask
-(for the huge zero page case), or the size of the page munlock_vma_page()
-operated on (for the true THP page case).
+We at Google have some OOM wish-list as well:
+- having an option to kill the entire cgroup when a contained task is
+selected to die;
+- recursive setting of OOM kill priorities in a cgroup hierarchy
 
-Note - I am sending this as RFC only for now as I can't currently put
-my finger on what if anything prevents split_huge_page() from operating
-concurrently on the same page as munlock_vma_page(), which would mess
-up our NR_MLOCK statistics. Is this a latent bug or is there a subtle
-point I missed here ?
+I am frankly not the best person to talk about this; however if this
+topic was selected I could plan for it and bring on a few notes :)
 
-Signed-off-by: Michel Lespinasse <walken@google.com>
-
----
- mm/internal.h |  2 +-
- mm/mlock.c    | 34 +++++++++++++++++++++++-----------
- 2 files changed, 24 insertions(+), 12 deletions(-)
-
-diff --git a/mm/internal.h b/mm/internal.h
-index 1c0c4cc0fcf7..8562de0a5197 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -195,7 +195,7 @@ static inline int mlocked_vma_newpage(struct vm_area_struct *vma,
-  * must be called with vma's mmap_sem held for read or write, and page locked.
-  */
- extern void mlock_vma_page(struct page *page);
--extern void munlock_vma_page(struct page *page);
-+extern unsigned int munlock_vma_page(struct page *page);
- 
- /*
-  * Clear the page's PageMlocked().  This can be useful in a situation where
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 1f863a1481d3..486c7f1b5462 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -102,13 +102,16 @@ void mlock_vma_page(struct page *page)
-  * can't isolate the page, we leave it for putback_lru_page() and vmscan
-  * [page_referenced()/try_to_unmap()] to deal with.
-  */
--void munlock_vma_page(struct page *page)
-+unsigned int munlock_vma_page(struct page *page)
- {
-+	unsigned int page_mask = 0;
-+
- 	BUG_ON(!PageLocked(page));
- 
- 	if (TestClearPageMlocked(page)) {
--		mod_zone_page_state(page_zone(page), NR_MLOCK,
--				    -hpage_nr_pages(page));
-+		unsigned int nr_pages = hpage_nr_pages(page);
-+		mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
-+		page_mask = nr_pages - 1;
- 		if (!isolate_lru_page(page)) {
- 			int ret = SWAP_AGAIN;
- 
-@@ -141,6 +144,8 @@ void munlock_vma_page(struct page *page)
- 				count_vm_event(UNEVICTABLE_PGMUNLOCKED);
- 		}
- 	}
-+
-+	return page_mask;
- }
- 
- /**
-@@ -159,7 +164,6 @@ long __mlock_vma_pages_range(struct vm_area_struct *vma,
- 		unsigned long start, unsigned long end, int *nonblocking)
- {
- 	struct mm_struct *mm = vma->vm_mm;
--	unsigned long addr = start;
- 	unsigned long nr_pages = (end - start) / PAGE_SIZE;
- 	int gup_flags;
- 
-@@ -185,7 +189,7 @@ long __mlock_vma_pages_range(struct vm_area_struct *vma,
- 	if (vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC))
- 		gup_flags |= FOLL_FORCE;
- 
--	return __get_user_pages(current, mm, addr, nr_pages, gup_flags,
-+	return __get_user_pages(current, mm, start, nr_pages, gup_flags,
- 				NULL, NULL, nonblocking);
- }
- 
-@@ -222,13 +226,12 @@ static int __mlock_posix_error_return(long retval)
- void munlock_vma_pages_range(struct vm_area_struct *vma,
- 			     unsigned long start, unsigned long end)
- {
--	unsigned long addr;
--
--	lru_add_drain();
- 	vma->vm_flags &= ~VM_LOCKED;
- 
--	for (addr = start; addr < end; addr += PAGE_SIZE) {
-+	while (start < end) {
- 		struct page *page;
-+		unsigned int page_mask, page_increm;
-+
- 		/*
- 		 * Although FOLL_DUMP is intended for get_dump_page(),
- 		 * it just so happens that its special treatment of the
-@@ -236,13 +239,22 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
- 		 * suits munlock very well (and if somehow an abnormal page
- 		 * has sneaked into the range, we won't oops here: great).
- 		 */
--		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
-+		page = follow_page_mask(vma, start, FOLL_GET | FOLL_DUMP,
-+					&page_mask);
- 		if (page && !IS_ERR(page)) {
- 			lock_page(page);
--			munlock_vma_page(page);
-+			lru_add_drain();
-+			/*
-+			 * Any THP page found by follow_page_mask() may have
-+			 * gotten split before reaching munlock_vma_page(),
-+			 * so we need to recompute the page_mask here.
-+			 */
-+			page_mask = munlock_vma_page(page);
- 			unlock_page(page);
- 			put_page(page);
- 		}
-+		page_increm = 1 + (~(start >> PAGE_SHIFT) & page_mask);
-+		start += page_increm * PAGE_SIZE;
- 		cond_resched();
- 	}
- }
 -- 
-1.8.1
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
