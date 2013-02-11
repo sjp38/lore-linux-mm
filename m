@@ -1,120 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 9784D6B0005
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 17:39:58 -0500 (EST)
-Date: Mon, 11 Feb 2013 17:39:43 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
-Message-ID: <20130211223943.GC15951@cmpxchg.org>
-References: <1357235661-29564-1-git-send-email-mhocko@suse.cz>
- <1357235661-29564-5-git-send-email-mhocko@suse.cz>
- <20130208193318.GA15951@cmpxchg.org>
- <20130211151649.GD19922@dhcp22.suse.cz>
- <20130211175619.GC13218@cmpxchg.org>
- <20130211192929.GB29000@dhcp22.suse.cz>
- <20130211195824.GB15951@cmpxchg.org>
- <20130211212756.GC29000@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 6BCA36B0008
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 17:47:04 -0500 (EST)
+Message-ID: <511974D3.8020900@zytor.com>
+Date: Mon, 11 Feb 2013 14:46:43 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130211212756.GC29000@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/2] add helper for highmem checks
+References: <20130208202813.62965F25@kernel.stglabs.ibm.com> <20130209094121.GB17728@pd.tnic> <20130209104751.GC17728@pd.tnic> <51192B39.9060501@linux.vnet.ibm.com> <20130211182826.GE2683@pd.tnic> <7794bbcd-5d5a-4e81-87fd-68b0aa17a556@email.android.com> <20130211223405.GF2683@pd.tnic>
+In-Reply-To: <20130211223405.GF2683@pd.tnic>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
+To: Borislav Petkov <bp@alien8.de>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, tglx@linutronix.de
 
-On Mon, Feb 11, 2013 at 10:27:56PM +0100, Michal Hocko wrote:
-> On Mon 11-02-13 14:58:24, Johannes Weiner wrote:
-> > On Mon, Feb 11, 2013 at 08:29:29PM +0100, Michal Hocko wrote:
-> > > On Mon 11-02-13 12:56:19, Johannes Weiner wrote:
-> > > > On Mon, Feb 11, 2013 at 04:16:49PM +0100, Michal Hocko wrote:
-> > > > > Maybe we could keep the counter per memcg but that would mean that we
-> > > > > would need to go up the hierarchy as well. We wouldn't have to go over
-> > > > > node-zone-priority cleanup so it would be much more lightweight.
-> > > > > 
-> > > > > I am not sure this is necessarily better than explicit cleanup because
-> > > > > it brings yet another kind of generation number to the game but I guess
-> > > > > I can live with it if people really thing the relaxed way is much
-> > > > > better.
-> > > > > What do you think about the patch below (untested yet)?
-> > > > 
-> > > > Better, but I think you can get rid of both locks:
-> > > 
-> > > What is the other lock you have in mind.
-> > 
-> > The iter lock itself.  I mean, multiple reclaimers can still race but
-> > there won't be any corruption (if you make iter->dead_count a long,
-> > setting it happens atomically, we nly need the memcg->dead_count to be
-> > an atomic because of the inc) and the worst that could happen is that
-> > a reclaim starts at the wrong point in hierarchy, right?
+On 02/11/2013 02:34 PM, Borislav Petkov wrote:
+> On Mon, Feb 11, 2013 at 11:44:12AM -0800, H. Peter Anvin wrote:
+>> Oh, craptastic. X used to hash /dev/mem to get a random seed. It
+>> should have stopped that long ago, and used /dev/[u]random.
 > 
-> The lack of synchronization basically means that 2 parallel reclaimers
-> can reclaim every group exactly once (ideally) or up to each group
-> twice in the worst case.
-> So the exclusion was quite comfortable.
-
-It's quite unlikely, though.  Don't forget that they actually reclaim
-in between, I just can't see them line up perfectly and race to the
-iterator at the same time repeatedly.  It's more likely to happen at
-the higher priority levels where less reclaim happens, and then it's
-not a big deal anyway.  With lower priority levels, when the glitches
-would be more problematic, they also become even less likely.
-
-> > But as you said in the changelog that introduced the lock, it's never
-> > actually been a practical problem.
+> That's because debian still has this WINGs window manager which hasn't
+> seen any new releases since 2005: http://voins.program.ru/wdm/ and I'm
+> using it because I don't want the pompous crap of the other display
+> managers.
 > 
-> That is true but those bugs would be subtle though so I wouldn't be
-> opposed to prevent from them before we get burnt. But if you think that
-> we should keep the previous semantic I can drop that patch.
-
-I just think that the problem is unlikely and not that big of a deal.
-
-> > You just need to put the wmb back in place, so that we never see the
-> > dead_count give the green light while the cached position is stale, or
-> > we'll tryget random memory.
-> > 
-> > > > mem_cgroup_iter:
-> > > > rcu_read_lock()
-> > > > if atomic_read(&root->dead_count) == iter->dead_count:
-> > > >   smp_rmb()
-> > > >   if tryget(iter->position):
-> > > >     position = iter->position
-> > > > memcg = find_next(postion)
-> > > > css_put(position)
-> > > > iter->position = memcg
-> > > > smp_wmb() /* Write position cache BEFORE marking it uptodate */
-> > > > iter->dead_count = atomic_read(&root->dead_count)
-> > > > rcu_read_unlock()
-> > > 
-> > > Updated patch bellow:
-> > 
-> > Cool, thanks.  I hope you don't find it too ugly anymore :-)
+> But this one uses /dev/mem as a randomFile only by default - there's a
+> configuration variable DisplayManager.randomFile which can be pointed
+> away from /dev/mem so that's easily fixable.
 > 
-> It's getting trick and you know how people love when you have to play
-> and rely on atomics with memory barriers...
-
-My bumper sticker reads "I don't believe in mutual exclusion" (the
-kernel hacker's version of smile for the red light camera).
-
-I mean, you were the one complaining about the lock...
-
-> > That way, if the dead count gives the go-ahead, you KNOW that the
-> > position cache is valid, because it has been updated first.
+> Mind you, I wouldnt've caught the issue if I wasn't using this ancient
+> thing in its default settings :o).
 > 
-> OK, you are right. We can live without css_tryget because dead_count is
-> either OK which means that css would be alive at least this rcu period
-> (and RCU walk would be safe as well) or it is incremented which means
-> that we have started css_offline already and then css is dead already.
-> So css_tryget can be dropped.
 
-Not quite :)
+The X server itself used to do that.  Are you saying that wdm is a
+*privileged process*?
 
-The dead_count check is for completed destructions, but the try_get is
-needed to detect a race with an ongoing destruction.
-
-Basically, the dead_count verifies the iterator pointer is valid (and
-the rcu reader lock keeps it that way), the try_get verifies that the
-object pointed to is still alive.
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
