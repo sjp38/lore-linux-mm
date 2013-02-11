@@ -1,47 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 11E396B0008
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 14:41:51 -0500 (EST)
-Message-ID: <51194960.5080909@redhat.com>
-Date: Mon, 11 Feb 2013 14:41:20 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 2CA7F6B0008
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 14:44:38 -0500 (EST)
+In-Reply-To: <20130211182826.GE2683@pd.tnic>
+References: <20130208202813.62965F25@kernel.stglabs.ibm.com> <20130209094121.GB17728@pd.tnic> <20130209104751.GC17728@pd.tnic> <51192B39.9060501@linux.vnet.ibm.com> <20130211182826.GE2683@pd.tnic>
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86: mm: Check if PUD is large when validating a kernel
- address
-References: <20130211145236.GX21389@suse.de>
-In-Reply-To: <20130211145236.GX21389@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 1/2] add helper for highmem checks
+From: "H. Peter Anvin" <hpa@zytor.com>
+Date: Mon, 11 Feb 2013 11:44:12 -0800
+Message-ID: <7794bbcd-5d5a-4e81-87fd-68b0aa17a556@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Borislav Petkov <bp@alien8.de>, Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, tglx@linutronix.de
 
-On 02/11/2013 09:52 AM, Mel Gorman wrote:
-> A user reported the following oops when a backup process read
-> /proc/kcore.
->
->   BUG: unable to handle kernel paging request at ffffbb00ff33b000
+Oh, craptastic.  X used to hash /dev/mem to get a random seed.  It should have stopped that long ago, and used /dev/[u]random.
 
-> Investigation determined that the bug triggered when reading system RAM
-> at the 4G mark. On this system, that was the first address using 1G pages
-> for the virt->phys direct mapping so the PUD is pointing to a physical
-> address, not a PMD page.  The problem is that the page table walker in
-> kern_addr_valid() is not checking pud_large() and treats the physical
-> address as if it was a PMD.  If it happens to look like pmd_none then it'll
-> silently fail, probably returning zeros instead of real data. If the data
-> happens to look like a present PMD though, it will be walked resulting in
-> the oops above. This patch adds the necessary pud_large() check.
->
-> Unfortunately the problem was not readily reproducible and now they are
-> running the backup program without accessing /proc/kcore so the patch has
-> not been validated but I think it makes sense. If reviewers agree then it
-> should also be included in -stable back as far as 3.0-stable.
->
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Borislav Petkov <bp@alien8.de> wrote:
 
-Reviewed-by: Rik van Riel <riel@redhat.coM>
+>On Mon, Feb 11, 2013 at 09:32:41AM -0800, Dave Hansen wrote:
+>> That's crazy. Didn't expect that at all.
+>>
+>> I guess X is happier getting an error than getting random pages back.
+>
+>Yeah, I think this is something special only this window manager wdm
+>does. The line below has appeared repeatedly in the logs earlier:
+>
+>Feb  5 23:02:02 a1 wdm: Cannot read randomFile "/dev/mem", errno = 14
+>
+>This happens when wdm starts so I'm going to guess it uses it for
+>something funny, "randomFile" it calls it??
+>
+>With the WARN_ON check added and booting 3.8-rc6, it would choke wdm
+>somehow and it wouldn't start properly so that even the error out above
+>doesn't happen. Oh well ...
+>
+>> I'm working on a set of patches now that should get it _working_
+>> instead of just returning an error.
+>
+>Yeah, send them on and I'll run them.
+>
+>Thanks.
+
+-- 
+Sent from my mobile phone. Please excuse brevity and lack of formatting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
