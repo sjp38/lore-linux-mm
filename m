@@ -1,74 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id A68426B0002
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 10:16:55 -0500 (EST)
-Date: Mon, 11 Feb 2013 16:16:49 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
-Message-ID: <20130211151649.GD19922@dhcp22.suse.cz>
-References: <1357235661-29564-1-git-send-email-mhocko@suse.cz>
- <1357235661-29564-5-git-send-email-mhocko@suse.cz>
- <20130208193318.GA15951@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130208193318.GA15951@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 1A65D6B0005
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 11:39:38 -0500 (EST)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH] memcg: fix kmemcg registration for late caches
+Date: Mon, 11 Feb 2013 20:39:57 +0400
+Message-Id: <1360600797-27793-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, cgroups@vger.kernel.org, Glauber Costa <glommer@parallels.com>
 
-On Fri 08-02-13 14:33:18, Johannes Weiner wrote:
-[...]
-> for each in hierarchy:
->   for each node:
->     for each zone:
->       for each reclaim priority:
-> 
-> every time a cgroup is destroyed.  I don't think such a hammer is
-> justified in general, let alone for consolidating code a little.
-> 
-> Can we invalidate the position cache lazily?  Have a global "cgroup
-> destruction" counter and store a snapshot of that counter whenever we
-> put a cgroup pointer in the position cache.  We only use the cached
-> pointer if that counter has not changed in the meantime, so we know
-> that the cgroup still exists.
+The designed workflow for the caches in kmemcg is: register it with
+memcg_register_cache() if kmemcg is already available or later on when a
+new kmemcg appears at memcg_update_cache_sizes() which will handle all
+caches in the system. The caches created at boot time will be handled by
+the later, and the memcg-caches as well as any system caches that are
+registered later on by the former.
 
-Currently we have:
-rcu_read_lock()	// keeps cgroup links safe
-	iter->iter_lock	// keeps selection exclusive for a specific iterator
-	1) global_counter == iter_counter
-	2) css_tryget(cached_memcg)  // check it is still alive
-rcu_read_unlock()
+There is a bug, however, in memcg_register_cache: we correctly set up
+the array size, but do not mark the cache as a root cache. This means
+that allocations for any cache appearing late in the game will see
+memcg->memcg_params->is_root_cache == false, and in particular, trigger
+VM_BUG_ON(!cachep->memcg_params->is_root_cache) in
+__memcg_kmem_cache_get.
 
-What would protect us from races when css would disappear between 1 and
-2?
+The obvious fix is to include the missing assignment.
 
-css is invalidated from worker context scheduled from __css_put and it
-is using dentry locking which we surely do not want to pull here. We
-could hook into css_offline which is called with cgroup_mutex but we
-cannot use this one here because it is no longer exported and Tejun
-would kill us for that.
-So we can add a new global memcg internal lock to do this atomically.
-Ohh, this is getting uglier...
-	
-> It is pretty pretty imprecise and we invalidate the whole cache every
-> time a cgroup is destroyed, but I think that should be okay. 
-
-I am not sure this is OK because this gives an indirect way of
-influencing reclaim in one hierarchy by another one which opens a door
-for regressions (or malicious over-reclaim in the extreme case).
-So I do not like this very much.
-
-> If not, better ideas are welcome.
-
-Maybe we could keep the counter per memcg but that would mean that we
-would need to go up the hierarchy as well. We wouldn't have to go over
-node-zone-priority cleanup so it would be much more lightweight.
-
-I am not sure this is necessarily better than explicit cleanup because
-it brings yet another kind of generation number to the game but I guess
-I can live with it if people really thing the relaxed way is much
-better.
-What do you think about the patch below (untested yet)?
+Signed-off-by: Glauber Costa <glommer@parallels.com>
 ---
+ mm/memcontrol.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 03ebf68..d4e83d0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3147,7 +3147,9 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 	if (memcg) {
+ 		s->memcg_params->memcg = memcg;
+ 		s->memcg_params->root_cache = root_cache;
+-	}
++	} else
++		s->memcg_params->is_root_cache = true;
++
+ 	return 0;
+ }
+ 
+-- 
+1.8.1.2
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
