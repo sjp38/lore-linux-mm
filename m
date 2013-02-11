@@ -1,170 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id A5C5A6B000D
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 05:17:11 -0500 (EST)
-Message-ID: <5118C522.3070905@parallels.com>
-Date: Mon, 11 Feb 2013 14:17:06 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 9018A6B000D
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 05:27:34 -0500 (EST)
+Date: Mon, 11 Feb 2013 11:27:30 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/6] lib: Implement range locks
+Message-ID: <20130211102730.GA5318@quack.suse.cz>
+References: <1359668994-13433-1-git-send-email-jack@suse.cz>
+ <1359668994-13433-2-git-send-email-jack@suse.cz>
+ <CANN689ExHJjXvAdYM=eYP_hZFT78SHZb1AbJv6743Q=KjohBVQ@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: Add memory.pressure_level events
-References: <20130211000220.GA28247@lizard.gateway.2wire.net>
-In-Reply-To: <20130211000220.GA28247@lizard.gateway.2wire.net>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANN689ExHJjXvAdYM=eYP_hZFT78SHZb1AbJv6743Q=KjohBVQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Michel Lespinasse <walken@google.com>
+Cc: Jan Kara <jack@suse.cz>, LKML <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Anton,
+On Sun 10-02-13 21:42:32, Michel Lespinasse wrote:
+> Hi Jan,
+> 
+> On Thu, Jan 31, 2013 at 1:49 PM, Jan Kara <jack@suse.cz> wrote:
+> > Implement range locking using interval tree.
+> 
+> Yay! I like to see interval trees being put to good use.
+  Yeah, you saved me some coding of interval tree implementation :) The
+code I originally planned would be slightly more efficient I think but
+yours is far more simpler.
 
-> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-> new file mode 100644
-> index 0000000..7922503
+> > +/*
+> > + * Range locking
+> > + *
+> > + * We allow exclusive locking of arbitrary ranges. We guarantee that each
+> > + * range is locked only after all conflicting range locks requested previously
+> > + * have been unlocked. Thus we achieve fairness and avoid livelocks.
+> > + *
+> > + * The cost of lock and unlock of a range is O(log(R_all)+R_int) where R_all is
+> > + * total number of ranges and R_int is the number of ranges intersecting the
+> > + * operated range.
+> > + */
+> 
+> I think the cost is actually O((1+R_int)log(R_all)) as each
+> interval_tree_iter_{first,next} call is O(log(R_all))
+  Right. I'll fix that in the comment.
+ 
+> Not that it'll make a huge difference in practice - the cost will be
+> cheap enough either way.
+> 
+> > +struct range_lock {
+> > +       struct interval_tree_node node;
+> > +       struct task_struct *task;
+> > +       /* Number of ranges which are blocking acquisition of the lock */
+> s/ranges/previously requested ranges/
+> 
+> I think it's worth writing this down as I originally found this confusing.
+> 
+> BTW, I like how you only count previously requested ranges in order to
+> guarantee fairness. This was absolutely not obvious to me.
+  OK, I'll update the comment.
 
+> > +#define RANGE_LOCK_INITIALIZER(start, end) {\
+> > +       .node = {\
+> > +               .start = (start),\
+> > +               .end = (end)\
+> > +       }\
+> > +}
+> 
+> I have not found any uses of this, but it seems it wouldn't work as
+> you want .last instead of .end
+  I'll just delete it I guess.
 
-> +struct vmpressure_event {
-> +	struct eventfd_ctx *efd;
-> +	enum vmpressure_levels level;
-> +	struct list_head node;
-> +};
-> +
-> +static bool vmpressure_event(struct vmpressure *vmpr,
-> +			     unsigned long s, unsigned long r)
-> +{
-> +	struct vmpressure_event *ev;
-> +	int level = vmpressure_calc_level(vmpressure_win, s, r);
-> +	bool signalled = 0;
-> +
-> +	mutex_lock(&vmpr->events_lock);
-> +
-> +	list_for_each_entry(ev, &vmpr->events, node) {
-> +		if (level >= ev->level) {
-> +			eventfd_signal(ev->efd, 1);
-> +			signalled++;
-> +		}
-> +	}
-> +
-> +	mutex_unlock(&vmpr->events_lock);
-> +
-> +	return signalled;
-> +}
-> +
-> +static struct vmpressure *vmpressure_parent(struct vmpressure *vmpr)
-> +{
-> +	struct cgroup *cg = vmpr_to_css(vmpr)->cgroup->parent;
-> +
-> +	if (!cg)
-> +		return NULL;
-> +	return cg_to_vmpr(cg);
-> +}
+> BTW, it's important to make it clear that last is the last value that
+> is *included* in the interval, not the first value that follows it.
+  In current versions I have this noted at function definitions.
 
-Unfortunately, "parent" in memcg have different meanings for information
-propagation purposes depending on the value of the flag "use_hierarchy".
-That is set for deprecation, but still...
+> > +void range_lock_init(struct range_lock *lock, unsigned long start,
+> > +                    unsigned long end);
+> > +void range_lock(struct range_lock_tree *tree, struct range_lock *lock);
+> > +void range_unlock(struct range_lock_tree *tree, struct range_lock *lock);
+> 
+> Is there a point to separating the init and lock stages ? maybe the API could be
+> void range_lock(struct range_lock_tree *tree, struct range_lock *lock,
+> unsigned long start, unsigned long last);
+> void range_unlock(struct range_lock_tree *tree, struct range_lock *lock);
+  I was thinking about this as well. Currently I don't have a place which
+would make it beneficial to separate _init and _lock but I can imagine such
+uses (where you don't want to pass the interval information down the stack
+and it's easier to pass the whole lock structure). Also it looks a bit
+confusing to pass (tree, lock, start, last) to the locking functon. So I
+left it there. 
 
-I suggest you use the helper mem_cgroup_parent, that will already give
-you the right parent (either immediate parent or root) with all that
-taken into account.
+OTOH I had to somewhat change the API so that the locking phase is now
+separated in "lock_prep" phase which inserts the node into the tree and
+counts blocking ranges and "wait" phase which waits for the blocking ranges
+to unlock. The reason for this split is that while "lock_prep" needs to
+happen under some lock synchronizing operations on the tree, "wait" phase
+can be easily lockless. So this allows me to remove the knowledge of how
+operations on the tree are synchronized from range locking code itself.
+That further allowed me to use mapping->tree_lock for synchronization and
+basically reduce the cost of mapping range locking close to 0 for buffered
+IO (just a single tree lookup in the tree in the fast path).
 
-> +
-> +static int vmpressure_register_level(struct cgroup *cg, struct cftype *cft,
-> +				     struct eventfd_ctx *eventfd,
-> +				     const char *args)
-> +{
-> +	struct vmpressure *vmpr = cg_to_vmpr(cg);
-> +	struct vmpressure_event *ev;
-> +	int lvl;
-> +
-> +	for (lvl = 0; lvl < VMPRESSURE_NUM_LEVELS; lvl++) {
-> +		if (!strcmp(vmpressure_str_levels[lvl], args))
-> +			break;
-> +	}
-> +
-> +	if (lvl >= VMPRESSURE_NUM_LEVELS)
-> +		return -EINVAL;
-> +
-> +	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-> +	if (!ev)
-> +		return -ENOMEM;
-> +
-> +	ev->efd = eventfd;
-> +	ev->level = lvl;
-> +
-> +	mutex_lock(&vmpr->events_lock);
-> +	list_add(&ev->node, &vmpr->events);
-> +	mutex_unlock(&vmpr->events_lock);
-> +
-> +	return 0;
-> +}
-> +
-> +static void vmpressure_unregister_level(struct cgroup *cg, struct cftype *cft,
-> +					struct eventfd_ctx *eventfd)
-> +{
-> +	struct vmpressure *vmpr = cg_to_vmpr(cg);
-> +	struct vmpressure_event *ev;
-> +
-> +	mutex_lock(&vmpr->events_lock);
-> +	list_for_each_entry(ev, &vmpr->events, node) {
-> +		if (ev->efd != eventfd)
-> +			continue;
-> +		list_del(&ev->node);
-> +		kfree(ev);
-> +		break;
-> +	}
-> +	mutex_unlock(&vmpr->events_lock);
-> +}
-> +
-> +static struct cftype vmpressure_cgroup_files[] = {
-> +	{
-> +		.name = "pressure_level",
-> +		.read = vmpressure_read_level,
-> +		.register_event = vmpressure_register_level,
-> +		.unregister_event = vmpressure_unregister_level,
-> +	},
-> +	{},
-> +};
-> +
+So maybe we want to reduce the number of calls for locking from 3 to 2 by
+removing the _init phase. I'm not really decided as for mapping range lock
+itself, the lock operation is squashed into 1 call anyway and we don't have
+other users now...
 
-> +
-> +void __init enable_pressure_cgroup(void)
-> +{
-> +	WARN_ON(cgroup_add_cftypes(&mem_cgroup_subsys,
-> +				   vmpressure_cgroup_files));
-> +}
+> (I changed end to last because I think end makes it sound like it's
+> the first value after the interval, while last makes it clear that
+> it's the last value in the interval)
+  This may be a useful change. I'll use that I think.
 
-There is no functionality discovery going on here, and this is
-conditional on nothing. Isn't it better then to just add the register +
-read functions to memcontrol.c and add the files in the memcontrol cftype ?
+> > +/*
+> > + * Implementation of range locks.
+> > + *
+> > + * We keep interval tree of locked and to-be-locked ranges. When new range lock
+> > + * is requested, we add its interval to the tree and store number of intervals
+> > + * intersecting it to 'blocking_ranges'.
+> > + *
+> > + * When a range is unlocked, we again walk intervals that intersect with the
+> > + * unlocked one and decrement their 'blocking_ranges'.  We wake up owner of any
+> > + * range lock whose 'blocking_ranges' drops to 0.
+> > + */
+> 
+> May be worth repeating the comment about how this achieves fairness
+> and avoids livelocks.
+  Good idea. Added.
 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 88c5fed..34f09b9 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1982,6 +1982,10 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
->  			}
->  			memcg = mem_cgroup_iter(root, memcg, &reclaim);
->  		} while (memcg);
-> +
-> +		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
-> +			   sc->nr_scanned - nr_scanned, nr_reclaimed);
-> +
->  	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
->  					 sc->nr_scanned - nr_scanned, sc));
->  }
-> @@ -2167,6 +2171,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  		count_vm_event(ALLOCSTALL);
->  
->  	do {
-> +		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
-> +				sc->priority);
->  		sc->nr_scanned = 0;
->  		aborted_reclaim = shrink_zones(zonelist, sc);
->  
-vmscan part seems okay to me.
+> > +void range_lock_init(struct range_lock *lock, unsigned long start,
+> > +                    unsigned long end)
+> > +{
+> > +       lock->node.start = start;
+> > +       lock->node.last = end;
+> > +       RB_CLEAR_NODE(&lock->node.rb);
+> 
+> I really wish people didn't unnecessarily use RB_CLEAR_NODE before
+> inserting nodes in an rbtree.
+> RB_CLEAR_NODE is never necessary unless you want to tag unused nodes
+> and check them later using RB_EMPTY_NODES.
+  OK, removed and noted in memory.
 
+> > +void range_lock(struct range_lock_tree *tree, struct range_lock *lock)
+> > +{
+> > +       struct interval_tree_node *node;
+> > +       unsigned long flags;
+> > +
+> > +       spin_lock_irqsave(&tree->lock, flags);
+> 
+> Are you expecting range locks to be used from hardirq context ? If
+> not, it may be more appropriate to just use spin_lock_bh ?
+  They are used from ->end_io context. I'm actually not sure whether that's
+hardirq or just bh (I guess just bh). Anyway I use mapping->tree_lock for
+now.
 
+> > +       node = interval_tree_iter_first(&tree->root, lock->node.start,
+> > +                                       lock->node.last);
+> > +       while (node) {
+> > +               lock->blocking_ranges++;
+> > +               node = interval_tree_iter_next(node, lock->node.start,
+> > +                                              lock->node.last);
+> > +       }
+> 
+> Nitpicking here, but I think this is slightly easier to read as a for loop:
+> for (node = interval_tree_iter_first(...);
+>      node;
+>      node = interval_tree_iter_next(...))
+>         lock->blocking_ranges++;
+  OK.
 
+> > +       /* Do we need to go to sleep? */
+> > +       while (lock->blocking_ranges) {
+> > +               lock->task = current;
+> > +               __set_current_state(TASK_UNINTERRUPTIBLE);
+> > +               spin_unlock_irqrestore(&tree->lock, flags);
+> > +               schedule();
+> > +               spin_lock_irqsave(&tree->lock, flags);
+> > +       }
+> > +       spin_unlock_irqrestore(&tree->lock, flags);
+> 
+> I think I would prefer:
+>         lock->task = tsk = current;
+>         spin_unlock_irqrestore(&tree->lock, flags);
+>         while (true) {
+>                 set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+>                 if (!lock->blocking_ranges)
+>                         break;
+>                 schedule();
+>         }
+>         set_task_state(tsk, TASK_RUNNING);
+> 
+> This avoids an unnecessary spinlock acquisition when we obtain the range lock.
+> (You can optionally choose to avoid the whole thing and just unlock
+> the spinlock if !lock->blocking_ranges)
+  This code is somewhat different in the latest version...
+
+> > +static void range_lock_unblock(struct range_lock *lock)
+> > +{
+> > +       if (!--lock->blocking_ranges)
+> > +               wake_up_process(lock->task);
+> > +}
+> > +
+> > +void range_unlock(struct range_lock_tree *tree, struct range_lock *lock)
+> > +{
+> > +       struct interval_tree_node *node;
+> > +       unsigned long flags;
+> > +
+> > +       spin_lock_irqsave(&tree->lock, flags);
+> > +       interval_tree_remove(&lock->node, &tree->root);
+> > +       node = interval_tree_iter_first(&tree->root, lock->node.start,
+> > +                                       lock->node.last);
+> > +       while (node) {
+> > +               range_lock_unblock((struct range_lock *)node);
+> > +               node = interval_tree_iter_next(node, lock->node.start,
+> > +                                              lock->node.last);
+> > +       }
+> 
+> Maybe just a personal preference, but I prefer a for loop.
+  OK, although I don't see a difference in this case...
+
+> Also, I would prefer container_of() instead of a cast.
+  Ah, that's indeed better.
+
+> Finally, I don't think I see the benefit of having a separate
+> range_lock_unblock function instead of a couple lines to do it within
+> the for loop.
+  Yup.
+
+> The above may sound critical, but I actually like your proposal a lot :)
+  Thanks for detailed review!
+
+> Reviewed-by: Michel Lespinasse <walken@google.com>
+  I actually didn't add this because there are some differences in the
+current version...
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
