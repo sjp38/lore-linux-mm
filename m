@@ -1,141 +1,559 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 758BA6B0005
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 17:05:09 -0500 (EST)
-MIME-Version: 1.0
-Message-ID: <334c7852-9d68-4cda-b25c-01dc5b74aaed@default>
-Date: Mon, 11 Feb 2013 14:05:01 -0800 (PST)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id ACF2A6B0005
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 17:07:29 -0500 (EST)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie to
- a config option
-References: <1360175261-13287-1-git-send-email-dan.magenheimer@oracle.com>
- <20130206190924.GB32275@kroah.com>
- <761b5c6e-df13-49ff-b322-97a737def114@default>
- <20130206214316.GA21148@kroah.com>
- <abbc2f75-2982-470c-a3ca-675933d112c3@default>
- <20130207000338.GB18984@kroah.com>
- <7393d8c5-fb02-4087-93d1-0f999fb3cafd@default>
- <20130211214944.GA22090@kroah.com>
-In-Reply-To: <20130211214944.GA22090@kroah.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie to a config option
+Date: Mon, 11 Feb 2013 14:07:22 -0800
+Message-Id: <1360620442-20580-1-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: sjenning@linux.vnet.ibm.com, minchan@kernel.org, Konrad Wilk <konrad.wilk@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@linuxdriverproject.org, ngupta@vflare.org
+To: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, dan.magenheimer@oracle.com
 
-> From: Greg KH [mailto:gregkh@linuxfoundation.org]
-> Subject: Re: [PATCH] staging/zcache: Fix/improve zcache writeback code, t=
-ie to a config option
->=20
-> On Mon, Feb 11, 2013 at 01:43:58PM -0800, Dan Magenheimer wrote:
-> > > From: Greg KH [mailto:gregkh@linuxfoundation.org]
-> >
-> > > So, how about this, please draw up a specific plan for how you are go=
-ing
-> > > to get this code out of drivers/staging/  I want to see the steps
-> > > involved, who is going to be doing the work, and who you are going to
-> > > have to get to agree with your changes to make it happen.
-> > >  :
-> > > Yeah, a plan, I know it goes against normal kernel development
-> > > procedures, but hey, we're in our early 20's now, it's about time we
-> > > started getting responsible.
-> >
-> > Hi Greg --
-> >
-> > I'm a big fan of planning, though a wise boss once told me:
-> > "Plans fail... planning succeeds".
-> >
-> > So here's the plan I've been basically trying to pursue since about
-> > ten months ago, ignoring the diversion due to "zcache1 vs zcache2"
-> > from last summer.  There is no new functionality on this plan
-> > other than as necessary from feedback obtained at or prior to
-> > LSF/MM in April 2012.
-> >
-> > Hope this meets your needs, and feedback welcome!
-> > Dan
-> >
-> > =3D=3D=3D=3D=3D=3D=3D
-> >
-> > ** ZCACHE PLAN FOR PROMOTION FROM STAGING **
-> >
-> > PLAN STEPS
-> >
-> > 1. merge zcache and ramster to eliminate horrible code duplication
-> > 2. converge on a predictable, writeback-capable allocator
-> > 3. use debugfs instead of sysfs (per akpm feedback in 2011)
-> > 4. zcache side of cleancache/mm WasActive patch
-> > 5. zcache side of frontswap exclusive gets
-> > 6. zcache must be able to writeback to physical swap disk
-> >     (per Andrea Arcangeli feedback in 2011)
-> > 7. implement adequate policy for writeback
-> > 8. frontswap/cleancache work to allow zcache to be loaded
-> >     as a module
-> > 9. get core mm developer to review
-> > 10. incorporate feedback from review
-> > 11. get review/acks from 1-2 additional mm developers
-> > 12. incorporate any feedback from additional mm reviews
-> > 13. propose location/file-naming in mm tree
-> > 14. repeat 9-13 as necessary until akpm is happy and merges
-> >
-> > STATUS/OWNERSHIP
-> >
-> > 1. DONE as part of "new" zcache; now in staging/zcache
-> > 2. DONE as part of "new" zcache (cf zbud.[ch]); now in staging/zcache
-> >     (this was the core of the zcache1 vs zcache2 flail)
-> > 3. DONE as part of "new" zcache; now in staging/zcache
-> > 4. DONE as part of "new" zcache; per cleancache performance
-> >     feedback see https://lkml.org/lkml/2011/8/17/351, now
-> >     in staging/zcache; dependent on proposed mm patch, see
-> >     https://lkml.org/lkml/2012/1/25/300
-> > 5. DONE as part of "new" zcache; performance tuning only,
-> >     now in staging/zcache; dependent on frontswap patch
-> >     merged in 3.7 (33c2a174)
-> > 6. PROTOTYPED as part of "new" zcache; protoype is now
-> >     in staging/zcache but has bad memory leak; reimplemented
-> >     to use sjennings clever tricks and proposed mm patches
-> >     with new version posted https://lkml.org/lkml/2013/2/6/437;
-> >     rejected by GregKH as it smells like new functionality
-> >
-> >     (******** YOU ARE HERE *********)
-> >
-> > 7. PROTOTYPED as part of "new" zcache; now in staging/zcache;
-> >     needs more review (plan to discuss at LSF/MM 2013)
-> > 8. IN PROGRESS; owned by Konrad Wilk; v2 recently posted
-> >    http://lkml.org/lkml/2013/2/1/542
-> > 9. IN PROGRESS; owned by Konrad Wilk; Mel Gorman provided
-> >    great feedback in August 2012 (unfortunately of "old"
-> >    zcache)
-> > 10. Konrad posted series of fixes (that now need rebasing)
-> >     https://lkml.org/lkml/2013/2/1/566
-> > 11. NOT DONE; owned by Konrad Wilk
-> > 12. TBD (depends on quantity of feedback)
-> > 13. PROPOSED; one suggestion proposed by Dan; needs
-> >     more ideas/feedback
-> > 14. TBD (depends on feedback)
-> >
-> > WHO NEEDS TO AGREE
-> >
-> > Not sure I can answer that.  Seth seems to now be pursuing
-> > a separate but semi-parallel track.  Akpm clearly has to
-> > approve for any mm merge to happen.  Minchan has interest
-> > but may be happy if/when zram is merged into mm.  Konrad
-> > may be maintainer if akpm decides compression is maintainable
-> > separately from the rest of mm.  (More LSF/MM 2013 discussion.)
->=20
-> Thanks so much for this, this looks great.
->=20
-> So, according to your plan, I shouldn't have rejected those patches,
-> right?  :)
->=20
-> If so, please resend them in the next day or so, so that they can get
-> into 3.9, and then you can move on to the next steps of what you need to
-> do here.
->=20
-> Sound good?
+It was observed by Andrea Arcangeli in 2011 that zcache can get "full"
+and there must be some way for compressed swap pages to be (uncompressed
+and then) sent through to the backing swap disk.  A prototype of this
+functionality, called "unuse", was added in 2012 as part of a major update
+to zcache (aka "zcache2"), but was left unfinished due to the unfortunate
+temporary fork of zcache.
 
-Excellent.  Thanks very much.  Resend coming right up!
-Dan
+This earlier version of the code had an unresolved memory leak
+and was anyway dependent on not-yet-upstream frontswap and mm changes.
+The code was meanwhile adapted by Seth Jennings for similar
+functionality in zswap (which he calls "flush").  Seth also made some
+clever simplifications which are herein ported back to zcache.  As a
+result of those simplifications, the frontswap changes are no longer
+necessary, but a slightly different (and simpler) set of mm changes are
+still required [1].  The memory leak is also fixed.
+
+Due to feedback from akpm in a zswap thread, this functionality in zcache
+has now been renamed from "unuse" to "writeback".
+
+Although this zcache writeback code now works, there are open questions
+as how best to handle the policy that drives it.  As a result, this
+patch also ties writeback to a new config option.  And, since the
+code still depends on not-yet-upstreamed mm patches, to avoid build
+problems, the config option added by this patch temporarily depends
+on "BROKEN"; this config dependency can be removed in trees that
+contain the necessary mm patches.
+
+[1] https://lkml.org/lkml/2013/1/29/540/ https://lkml.org/lkml/2013/1/29/539/
+
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+---
+
+(Resend, per gregkh, no changes since previous post on Feb 06)
+
+ drivers/staging/zcache/Kconfig       |   17 ++
+ drivers/staging/zcache/zcache-main.c |  332 +++++++++++++++++++++++++++-------
+ 2 files changed, 284 insertions(+), 65 deletions(-)
+
+diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
+index c1dbd04..7358270 100644
+--- a/drivers/staging/zcache/Kconfig
++++ b/drivers/staging/zcache/Kconfig
+@@ -24,3 +24,20 @@ config RAMSTER
+ 	  while minimizing total RAM across the cluster.  RAMster, like
+ 	  zcache2, compresses swap pages into local RAM, but then remotifies
+ 	  the compressed pages to another node in the RAMster cluster.
++
++# Depends on not-yet-upstreamed mm patches to export end_swap_bio_write and
++# __add_to_swap_cache, and implement __swap_writepage (which is swap_writepage
++# without the frontswap call. When these are in-tree, the dependency on
++# BROKEN can be removed
++config ZCACHE_WRITEBACK
++	bool "Allow compressed swap pages to be writtenback to swap disk"
++	depends on ZCACHE=y && BROKEN
++	default n
++	help
++	  Zcache caches compressed swap pages (and other data) in RAM which
++	  often improves performance by avoiding I/O's due to swapping.
++	  In some workloads with very long-lived large processes, it can
++	  instead reduce performance.  Writeback decompresses zcache-compressed
++	  pages (in LRU order) when under memory pressure and writes them to
++	  the backing swap disk to ameliorate this problem.  Policy driving
++	  writeback is still under development.
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index c1ac905..5bf14c3 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -22,6 +22,10 @@
+ #include <linux/atomic.h>
+ #include <linux/math64.h>
+ #include <linux/crypto.h>
++#include <linux/swap.h>
++#include <linux/swapops.h>
++#include <linux/pagemap.h>
++#include <linux/writeback.h>
+ 
+ #include <linux/cleancache.h>
+ #include <linux/frontswap.h>
+@@ -55,6 +59,9 @@ static inline void frontswap_tmem_exclusive_gets(bool b)
+ }
+ #endif
+ 
++/* enable (or fix code) when Seth's patches are accepted upstream */
++#define zcache_writeback_enabled 0
++
+ static int zcache_enabled __read_mostly;
+ static int disable_cleancache __read_mostly;
+ static int disable_frontswap __read_mostly;
+@@ -181,6 +188,8 @@ static unsigned long zcache_last_active_anon_pageframes;
+ static unsigned long zcache_last_inactive_anon_pageframes;
+ static unsigned long zcache_eph_nonactive_puts_ignored;
+ static unsigned long zcache_pers_nonactive_puts_ignored;
++static unsigned long zcache_writtenback_pages;
++static long zcache_outstanding_writeback_pages;
+ 
+ #ifdef CONFIG_DEBUG_FS
+ #include <linux/debugfs.h>
+@@ -239,6 +248,9 @@ static int zcache_debugfs_init(void)
+ 	zdfs64("eph_zbytes_max", S_IRUGO, root, &zcache_eph_zbytes_max);
+ 	zdfs64("pers_zbytes", S_IRUGO, root, &zcache_pers_zbytes);
+ 	zdfs64("pers_zbytes_max", S_IRUGO, root, &zcache_pers_zbytes_max);
++	zdfs("outstanding_writeback_pages", S_IRUGO, root,
++				&zcache_outstanding_writeback_pages);
++	zdfs("writtenback_pages", S_IRUGO, root, &zcache_writtenback_pages);
+ 	return 0;
+ }
+ #undef	zdebugfs
+@@ -285,6 +297,18 @@ void zcache_dump(void)
+ 	pr_info("zcache: eph_zpages_max=%lu\n", zcache_eph_zpages_max);
+ 	pr_info("zcache: pers_zpages=%lu\n", zcache_pers_zpages);
+ 	pr_info("zcache: pers_zpages_max=%lu\n", zcache_pers_zpages_max);
++	pr_info("zcache: last_active_file_pageframes=%lu\n",
++				zcache_last_active_file_pageframes);
++	pr_info("zcache: last_inactive_file_pageframes=%lu\n",
++				zcache_last_inactive_file_pageframes);
++	pr_info("zcache: last_active_anon_pageframes=%lu\n",
++				zcache_last_active_anon_pageframes);
++	pr_info("zcache: last_inactive_anon_pageframes=%lu\n",
++				zcache_last_inactive_anon_pageframes);
++	pr_info("zcache: eph_nonactive_puts_ignored=%lu\n",
++				zcache_eph_nonactive_puts_ignored);
++	pr_info("zcache: pers_nonactive_puts_ignored=%lu\n",
++				zcache_pers_nonactive_puts_ignored);
+ 	pr_info("zcache: eph_zbytes=%llu\n",
+ 				(unsigned long long)zcache_eph_zbytes);
+ 	pr_info("zcache: eph_zbytes_max=%llu\n",
+@@ -292,7 +316,10 @@ void zcache_dump(void)
+ 	pr_info("zcache: pers_zbytes=%llu\n",
+ 				(unsigned long long)zcache_pers_zbytes);
+ 	pr_info("zcache: pers_zbytes_max=%llu\n",
+-			(unsigned long long)zcache_pers_zbytes_max);
++				(unsigned long long)zcache_pers_zbytes_max);
++	pr_info("zcache: outstanding_writeback_pages=%lu\n",
++				zcache_outstanding_writeback_pages);
++	pr_info("zcache: writtenback_pages=%lu\n", zcache_writtenback_pages);
+ }
+ #endif
+ 
+@@ -449,14 +476,6 @@ static struct page *zcache_alloc_page(void)
+ 	return page;
+ }
+ 
+-#ifdef FRONTSWAP_HAS_UNUSE
+-static void zcache_unacct_page(void)
+-{
+-	zcache_pageframes_freed =
+-		atomic_inc_return(&zcache_pageframes_freed_atomic);
+-}
+-#endif
+-
+ static void zcache_free_page(struct page *page)
+ {
+ 	long curr_pageframes;
+@@ -959,7 +978,7 @@ static struct page *zcache_evict_eph_pageframe(void)
+ 					&zcache_eph_zbytes_atomic);
+ 	zcache_eph_zpages = atomic_sub_return(zpages,
+ 					&zcache_eph_zpages_atomic);
+-	zcache_evicted_eph_zpages++;
++	zcache_evicted_eph_zpages += zpages;
+ 	zcache_eph_pageframes =
+ 		atomic_dec_return(&zcache_eph_pageframes_atomic);
+ 	zcache_evicted_eph_pageframes++;
+@@ -967,77 +986,253 @@ out:
+ 	return page;
+ }
+ 
+-#ifdef FRONTSWAP_HAS_UNUSE
++#ifdef CONFIG_ZCACHE_WRITEBACK
++
++static atomic_t zcache_outstanding_writeback_pages_atomic = ATOMIC_INIT(0);
++
+ static void unswiz(struct tmem_oid oid, u32 index,
+ 				unsigned *type, pgoff_t *offset);
+ 
+ /*
+- *  Choose an LRU persistent pageframe and attempt to "unuse" it by
+- *  calling frontswap_unuse on both zpages.
++ *  Choose an LRU persistent pageframe and attempt to write it back to
++ *  the backing swap disk by calling frontswap_writeback on both zpages.
+  *
+  *  This is work-in-progress.
+  */
+ 
+-static int zcache_frontswap_unuse(void)
++static void zcache_end_swap_write(struct bio *bio, int err)
++{
++	end_swap_bio_write(bio, err);
++	zcache_outstanding_writeback_pages =
++	  atomic_dec_return(&zcache_outstanding_writeback_pages_atomic);
++	zcache_writtenback_pages++;
++}
++
++/*
++ * zcache_get_swap_cache_page
++ *
++ * This is an adaption of read_swap_cache_async()
++ *
++ * If success, page is returned in retpage
++ * Returns 0 if page was already in the swap cache, page is not locked
++ * Returns 1 if the new page needs to be populated, page is locked
++ */
++static int zcache_get_swap_cache_page(int type, pgoff_t offset,
++				struct page *new_page)
++{
++	struct page *found_page;
++	swp_entry_t entry = swp_entry(type, offset);
++	int err;
++
++	BUG_ON(new_page == NULL);
++	do {
++		/*
++		 * First check the swap cache.  Since this is normally
++		 * called after lookup_swap_cache() failed, re-calling
++		 * that would confuse statistics.
++		 */
++		found_page = find_get_page(&swapper_space, entry.val);
++		if (found_page)
++			return 0;
++
++		/*
++		 * call radix_tree_preload() while we can wait.
++		 */
++		err = radix_tree_preload(GFP_KERNEL);
++		if (err)
++			break;
++
++		/*
++		 * Swap entry may have been freed since our caller observed it.
++		 */
++		err = swapcache_prepare(entry);
++		if (err == -EEXIST) { /* seems racy */
++			radix_tree_preload_end();
++			continue;
++		}
++		if (err) { /* swp entry is obsolete ? */
++			radix_tree_preload_end();
++			break;
++		}
++
++		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
++		__set_page_locked(new_page);
++		SetPageSwapBacked(new_page);
++		err = __add_to_swap_cache(new_page, entry);
++		if (likely(!err)) {
++			radix_tree_preload_end();
++			lru_cache_add_anon(new_page);
++			return 1;
++		}
++		radix_tree_preload_end();
++		ClearPageSwapBacked(new_page);
++		__clear_page_locked(new_page);
++		/*
++		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
++		 * clear SWAP_HAS_CACHE flag.
++		 */
++		swapcache_free(entry, NULL);
++		/* FIXME: is it possible to get here without err==-ENOMEM?
++		 * If not, we can dispense with the do loop, use goto retry */
++	} while (err != -ENOMEM);
++
++	return -ENOMEM;
++}
++
++/*
++ * Given a frontswap zpage in zcache (identified by type/offset) and
++ * an empty page, put the page into the swap cache, use frontswap
++ * to get the page from zcache into the empty page, then give it
++ * to the swap subsystem to send to disk (carefully avoiding the
++ * possibility that frontswap might snatch it back).
++ * Returns < 0 if error, 0 if successful, and 1 if successful but
++ * the newpage passed in not needed and should be freed.
++ */
++static int zcache_frontswap_writeback_zpage(int type, pgoff_t offset,
++					struct page *newpage)
++{
++	struct page *page = newpage;
++	int ret;
++	struct writeback_control wbc = {
++		.sync_mode = WB_SYNC_NONE,
++	};
++
++	ret = zcache_get_swap_cache_page(type, offset, page);
++	if (ret < 0)
++		return ret;
++	else if (ret == 0) {
++		/* more uptodate page is already in swapcache */
++		__frontswap_invalidate_page(type, offset);
++		return 1;
++	}
++
++	BUG_ON(!frontswap_has_exclusive_gets); /* load must also invalidate */
++	/* FIXME: how is it possible to get here when page is unlocked? */
++	__frontswap_load(page);
++	SetPageUptodate(page);  /* above does SetPageDirty, is that enough? */
++
++	/* start writeback */
++	SetPageReclaim(page);
++	/*
++	 * Return value is ignored here because it doesn't change anything
++	 * for us.  Page is returned unlocked.
++	 */
++	(void)__swap_writepage(page, &wbc, zcache_end_swap_write);
++	page_cache_release(page);
++	zcache_outstanding_writeback_pages =
++	    atomic_inc_return(&zcache_outstanding_writeback_pages_atomic);
++
++	return 0;
++}
++
++/*
++ * The following is still a magic number... we want to allow forward progress
++ * for writeback because it clears out needed RAM when under pressure, but
++ * we don't want to allow writeback to absorb and queue too many GFP_KERNEL
++ * pages if the swap device is very slow.
++ */
++#define ZCACHE_MAX_OUTSTANDING_WRITEBACK_PAGES 6400
++
++/*
++ * Try to allocate two free pages, first using a non-aggressive alloc,
++ * then by evicting zcache ephemeral (clean pagecache) pages, and last
++ * by aggressive GFP_KERNEL alloc.  We allow zbud to choose a pageframe
++ * consisting of 1-2 zbuds/zpages, then call the writeback_zpage helper
++ * function above for each.
++ */
++static int zcache_frontswap_writeback(void)
+ {
+ 	struct tmem_handle th[2];
+-	int ret = -ENOMEM;
+-	int nzbuds, unuse_ret;
++	int ret = 0;
++	int nzbuds, writeback_ret;
+ 	unsigned type;
+-	struct page *newpage1 = NULL, *newpage2 = NULL;
++	struct page *znewpage1 = NULL, *znewpage2 = NULL;
+ 	struct page *evictpage1 = NULL, *evictpage2 = NULL;
++	struct page *newpage1 = NULL, *newpage2 = NULL;
++	struct page *page1 = NULL, *page2 = NULL;
+ 	pgoff_t offset;
+ 
+-	newpage1 = alloc_page(ZCACHE_GFP_MASK);
+-	newpage2 = alloc_page(ZCACHE_GFP_MASK);
+-	if (newpage1 == NULL)
++	znewpage1 = alloc_page(ZCACHE_GFP_MASK);
++	znewpage2 = alloc_page(ZCACHE_GFP_MASK);
++	if (znewpage1 == NULL)
+ 		evictpage1 = zcache_evict_eph_pageframe();
+-	if (newpage2 == NULL)
++	if (znewpage2 == NULL)
+ 		evictpage2 = zcache_evict_eph_pageframe();
+-	if (evictpage1 == NULL || evictpage2 == NULL)
++
++	if ((evictpage1 == NULL || evictpage2 == NULL) &&
++	    atomic_read(&zcache_outstanding_writeback_pages_atomic) >
++				ZCACHE_MAX_OUTSTANDING_WRITEBACK_PAGES) {
+ 		goto free_and_out;
+-	/* ok, we have two pages pre-allocated */
++	}
++	if (znewpage1 == NULL && evictpage1 == NULL)
++		newpage1 = alloc_page(GFP_KERNEL);
++	if (znewpage2 == NULL && evictpage2 == NULL)
++		newpage2 = alloc_page(GFP_KERNEL);
++	if (newpage1 == NULL || newpage2 == NULL)
++			goto free_and_out;
++
++	/* ok, we have two pageframes pre-allocated, get a pair of zbuds */
+ 	nzbuds = zbud_make_zombie_lru(&th[0], NULL, NULL, false);
+ 	if (nzbuds == 0) {
+ 		ret = -ENOENT;
+ 		goto free_and_out;
+ 	}
++
++	/* process the first zbud */
+ 	unswiz(th[0].oid, th[0].index, &type, &offset);
+-	unuse_ret = frontswap_unuse(type, offset,
+-				newpage1 != NULL ? newpage1 : evictpage1,
+-				ZCACHE_GFP_MASK);
+-	if (unuse_ret != 0)
++	page1 = (znewpage1 != NULL) ? znewpage1 :
++			((newpage1 != NULL) ? newpage1 : evictpage1);
++	writeback_ret = zcache_frontswap_writeback_zpage(type, offset, page1);
++	if (writeback_ret < 0) {
++		ret = -ENOMEM;
+ 		goto free_and_out;
+-	else if (evictpage1 != NULL)
+-		zcache_unacct_page();
+-	newpage1 = NULL;
+-	evictpage1 = NULL;
+-	if (nzbuds == 2) {
+-		unswiz(th[1].oid, th[1].index, &type, &offset);
+-		unuse_ret = frontswap_unuse(type, offset,
+-				newpage2 != NULL ? newpage2 : evictpage2,
+-				ZCACHE_GFP_MASK);
+-		if (unuse_ret != 0)
+-			goto free_and_out;
+-		else if (evictpage2 != NULL)
+-			zcache_unacct_page();
+ 	}
+-	ret = 0;
+-	goto out;
++	if (evictpage1 != NULL)
++		zcache_pageframes_freed =
++			atomic_inc_return(&zcache_pageframes_freed_atomic);
++	if (writeback_ret == 0) {
++		/* zcache_get_swap_cache_page will free, don't double free */
++		znewpage1 = NULL;
++		newpage1 = NULL;
++		evictpage1 = NULL;
++	}
++	if (nzbuds < 2)
++		goto free_and_out;
++
++	/* if there is a second zbud, process it */
++	unswiz(th[1].oid, th[1].index, &type, &offset);
++	page2 = (znewpage2 != NULL) ? znewpage2 :
++			((newpage2 != NULL) ? newpage2 : evictpage2);
++	writeback_ret = zcache_frontswap_writeback_zpage(type, offset, page2);
++	if (writeback_ret < 0) {
++		ret = -ENOMEM;
++		goto free_and_out;
++	}
++	if (evictpage2 != NULL)
++		zcache_pageframes_freed =
++			atomic_inc_return(&zcache_pageframes_freed_atomic);
++	if (writeback_ret == 0) {
++		znewpage2 = NULL;
++		newpage2 = NULL;
++		evictpage2 = NULL;
++	}
+ 
+ free_and_out:
++	if (znewpage1 != NULL)
++		page_cache_release(znewpage1);
++	if (znewpage2 != NULL)
++		page_cache_release(znewpage2);
+ 	if (newpage1 != NULL)
+-		__free_page(newpage1);
++		page_cache_release(newpage1);
+ 	if (newpage2 != NULL)
+-		__free_page(newpage2);
++		page_cache_release(newpage2);
+ 	if (evictpage1 != NULL)
+ 		zcache_free_page(evictpage1);
+ 	if (evictpage2 != NULL)
+ 		zcache_free_page(evictpage2);
+-out:
+ 	return ret;
+ }
+-#endif
++#endif /* CONFIG_ZCACHE_WRITEBACK */
+ 
+ /*
+  * When zcache is disabled ("frozen"), pools can be created and destroyed,
+@@ -1051,7 +1246,10 @@ static bool zcache_freeze;
+ /*
+  * This zcache shrinker interface reduces the number of ephemeral pageframes
+  * used by zcache to approximately the same as the total number of LRU_FILE
+- * pageframes in use.
++ * pageframes in use, and now also reduces the number of persistent pageframes
++ * used by zcache to approximately the same as the total number of LRU_ANON
++ * pageframes in use.  FIXME POLICY: Probably the writeback should only occur
++ * if the eviction doesn't free enough pages.
+  */
+ static int shrink_zcache_memory(struct shrinker *shrink,
+ 				struct shrink_control *sc)
+@@ -1060,11 +1258,9 @@ static int shrink_zcache_memory(struct shrinker *shrink,
+ 	int ret = -1;
+ 	int nr = sc->nr_to_scan;
+ 	int nr_evict = 0;
+-	int nr_unuse = 0;
++	int nr_writeback = 0;
+ 	struct page *page;
+-#ifdef FRONTSWAP_HAS_UNUSE
+-	int unuse_ret;
+-#endif
++	int  file_pageframes_inuse, anon_pageframes_inuse;
+ 
+ 	if (nr <= 0)
+ 		goto skip_evict;
+@@ -1080,8 +1276,12 @@ static int shrink_zcache_memory(struct shrinker *shrink,
+ 		global_page_state(NR_LRU_BASE + LRU_ACTIVE_FILE);
+ 	zcache_last_inactive_file_pageframes =
+ 		global_page_state(NR_LRU_BASE + LRU_INACTIVE_FILE);
+-	nr_evict = zcache_eph_pageframes - zcache_last_active_file_pageframes +
+-		zcache_last_inactive_file_pageframes;
++	file_pageframes_inuse = zcache_last_active_file_pageframes +
++				zcache_last_inactive_file_pageframes;
++	if (zcache_eph_pageframes > file_pageframes_inuse)
++		nr_evict = zcache_eph_pageframes - file_pageframes_inuse;
++	else
++		nr_evict = 0;
+ 	while (nr_evict-- > 0) {
+ 		page = zcache_evict_eph_pageframe();
+ 		if (page == NULL)
+@@ -1093,18 +1293,20 @@ static int shrink_zcache_memory(struct shrinker *shrink,
+ 		global_page_state(NR_LRU_BASE + LRU_ACTIVE_ANON);
+ 	zcache_last_inactive_anon_pageframes =
+ 		global_page_state(NR_LRU_BASE + LRU_INACTIVE_ANON);
+-	nr_unuse = zcache_pers_pageframes - zcache_last_active_anon_pageframes +
+-		zcache_last_inactive_anon_pageframes;
+-#ifdef FRONTSWAP_HAS_UNUSE
+-	/* rate limit for testing */
+-	if (nr_unuse > 32)
+-		nr_unuse = 32;
+-	while (nr_unuse-- > 0) {
+-		unuse_ret = zcache_frontswap_unuse();
+-		if (unuse_ret == -ENOMEM)
++	anon_pageframes_inuse = zcache_last_active_anon_pageframes +
++				zcache_last_inactive_anon_pageframes;
++	if (zcache_pers_pageframes > anon_pageframes_inuse)
++		nr_writeback = zcache_pers_pageframes - anon_pageframes_inuse;
++	else
++		nr_writeback = 0;
++	while (nr_writeback-- > 0) {
++#ifdef CONFIG_ZCACHE_WRITEBACK
++		int writeback_ret;
++		writeback_ret = zcache_frontswap_writeback();
++		if (writeback_ret == -ENOMEM)
++#endif
+ 			break;
+ 	}
+-#endif
+ 	in_progress = false;
+ 
+ skip_evict:
+@@ -1345,7 +1547,7 @@ static int zcache_local_new_pool(uint32_t flags)
+ int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bool eph)
+ {
+ 	struct tmem_pool *pool;
+-	struct zcache_client *cli = NULL;
++	struct zcache_client *cli;
+ 	uint32_t flags = eph ? 0 : TMEM_POOL_PERSIST;
+ 	int ret = -1;
+ 
+@@ -1523,7 +1725,7 @@ static inline struct tmem_oid oswiz(unsigned type, u32 ind)
+ 	return oid;
+ }
+ 
+-#ifdef FRONTSWAP_HAS_UNUSE
++#ifdef CONFIG_ZCACHE_WRITEBACK
+ static void unswiz(struct tmem_oid oid, u32 index,
+ 				unsigned *type, pgoff_t *offset)
+ {
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
