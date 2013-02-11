@@ -1,65 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 442706B0005
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 17:13:38 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id hz1so3237218pad.38
-        for <linux-mm@kvack.org>; Mon, 11 Feb 2013 14:13:37 -0800 (PST)
-Date: Mon, 11 Feb 2013 14:13:48 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 11/11] ksm: stop hotremove lockdep warning
-In-Reply-To: <20130208194510.65fadd37@thinkpad.boeblingen.de.com>
-Message-ID: <alpine.LNX.2.00.1302111410290.1174@eggly.anvils>
-References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <alpine.LNX.2.00.1301251808120.29196@eggly.anvils> <20130208194510.65fadd37@thinkpad.boeblingen.de.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 7D6E06B0005
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 17:34:11 -0500 (EST)
+Date: Mon, 11 Feb 2013 23:34:05 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 1/2] add helper for highmem checks
+Message-ID: <20130211223405.GF2683@pd.tnic>
+References: <20130208202813.62965F25@kernel.stglabs.ibm.com>
+ <20130209094121.GB17728@pd.tnic>
+ <20130209104751.GC17728@pd.tnic>
+ <51192B39.9060501@linux.vnet.ibm.com>
+ <20130211182826.GE2683@pd.tnic>
+ <7794bbcd-5d5a-4e81-87fd-68b0aa17a556@email.android.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <7794bbcd-5d5a-4e81-87fd-68b0aa17a556@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, tglx@linutronix.de
 
-On Fri, 8 Feb 2013, Gerald Schaefer wrote:
-> On Fri, 25 Jan 2013 18:10:18 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
-> 
-> > Complaints are rare, but lockdep still does not understand the way
-> > ksm_memory_callback(MEM_GOING_OFFLINE) takes ksm_thread_mutex, and
-> > holds it until the ksm_memory_callback(MEM_OFFLINE): that appears
-> > to be a problem because notifier callbacks are made under down_read
-> > of blocking_notifier_head->rwsem (so first the mutex is taken while
-> > holding the rwsem, then later the rwsem is taken while still holding
-> > the mutex); but is not in fact a problem because mem_hotplug_mutex
-> > is held throughout the dance.
-> > 
-> > There was an attempt to fix this with mutex_lock_nested(); but if that
-> > happened to fool lockdep two years ago, apparently it does so no
-> > longer.
-> > 
-> > I had hoped to eradicate this issue in extending KSM page migration
-> > not to need the ksm_thread_mutex.  But then realized that although
-> > the page migration itself is safe, we do still need to lock out ksmd
-> > and other users of get_ksm_page() while offlining memory - at some
-> > point between MEM_GOING_OFFLINE and MEM_OFFLINE, the struct pages
-> > themselves may vanish, and get_ksm_page()'s accesses to them become a
-> > violation.
-> > 
-> > So, give up on holding ksm_thread_mutex itself from MEM_GOING_OFFLINE
-> > to MEM_OFFLINE, and add a KSM_RUN_OFFLINE flag, and
-> > wait_while_offlining() checks, to achieve the same lockout without
-> > being caught by lockdep. This is less elegant for KSM, but it's more
-> > important to keep lockdep useful to other users - and I apologize for
-> > how long it took to fix.
-> 
-> Thanks a lot for the patch! I verified that it fixes the lockdep warning
-> that we got on memory hotremove.
-> 
-> > 
-> > Reported-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> > Signed-off-by: Hugh Dickins <hughd@google.com>
+On Mon, Feb 11, 2013 at 11:44:12AM -0800, H. Peter Anvin wrote:
+> Oh, craptastic. X used to hash /dev/mem to get a random seed. It
+> should have stopped that long ago, and used /dev/[u]random.
 
-Thank you for reporting and testing and reporting back:
-sorry again for taking so long to fix it.
+That's because debian still has this WINGs window manager which hasn't
+seen any new releases since 2005: http://voins.program.ru/wdm/ and I'm
+using it because I don't want the pompous crap of the other display
+managers.
 
-Hugh
+But this one uses /dev/mem as a randomFile only by default - there's a
+configuration variable DisplayManager.randomFile which can be pointed
+away from /dev/mem so that's easily fixable.
+
+Mind you, I wouldnt've caught the issue if I wasn't using this ancient
+thing in its default settings :o).
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Sent from a fat crate under my desk. Formatting is fine.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
