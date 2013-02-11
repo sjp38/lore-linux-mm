@@ -1,831 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id C9B556B0008
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 09:27:26 -0500 (EST)
-Received: from /spool/local
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Mon, 11 Feb 2013 14:25:34 -0000
-Received: from d06av12.portsmouth.uk.ibm.com (d06av12.portsmouth.uk.ibm.com [9.149.37.247])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1BERC8M28508200
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 14:27:12 GMT
-Received: from d06av12.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av12.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1BERJUB011015
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 07:27:20 -0700
-Date: Mon, 11 Feb 2013 15:27:15 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] s390/mm: implement software dirty bits
-Message-ID: <20130211152715.03fab00a@mschwide>
-In-Reply-To: <20130207111838.27fea18f@mschwide>
-References: <1360087925-8456-1-git-send-email-schwidefsky@de.ibm.com>
-	<1360087925-8456-3-git-send-email-schwidefsky@de.ibm.com>
-	<alpine.LNX.2.00.1302061504340.7256@eggly.anvils>
-	<20130207111838.27fea18f@mschwide>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id B0C616B0002
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 09:52:41 -0500 (EST)
+Date: Mon, 11 Feb 2013 14:52:36 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] x86: mm: Check if PUD is large when validating a kernel
+ address
+Message-ID: <20130211145236.GX21389@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-s390@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Hugh,
+A user reported the following oops when a backup process read
+/proc/kcore.
 
-On Thu, 7 Feb 2013 11:18:38 -0800
-Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+ BUG: unable to handle kernel paging request at ffffbb00ff33b000
+ IP: [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
+ PGD 0
+ Oops: 0000 [#1] SMP
+ CPU 6
+ Modules linked in: af_packet nfs lockd fscache auth_rpcgss nfs_acl sunrpc 8021q garp stp llc cpufreq_conservative cpufreq_userspace cpufreq_powersave acpi_cpufreq mperf microcode fuse nls_iso8859_1 nls_cp437 vfat fat loop dm_mod ioatdma ipv6 ipv6_lib igb dca i7core_edac edac_core i2c_i801 i2c_core cdc_ether usbnet bnx2 mii iTCO_wdt iTCO_vendor_support shpchp rtc_cmos pci_hotplug tpm_tis sg tpm pcspkr tpm_bios serio_raw button ext3 jbd mbcache uhci_hcd ehci_hcd usbcore sd_mod crc_t10dif usb_common processor thermal_sys hwmon scsi_dh_emc scsi_dh_rdac scsi_dh_alua scsi_dh_hp_sw scsi_dh ata_generic ata_piix libata megaraid_sas scsi_mod
 
-> On Wed, 6 Feb 2013 16:20:40 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
->=20
-> Anon page and accounted file pages won't need the mk_pte optimization,
-> that is there for tmpfs/shmem. We could do that in common code as well,
-> to make the dependency on PageDirty more obvious.
->=20
-> > --- 3.8-rc6/mm/memory.c	2013-01-09 19:25:05.028321379 -0800
-> > +++ linux/mm/memory.c	2013-02-06 15:01:17.904387877 -0800
-> > @@ -3338,6 +3338,10 @@ static int __do_fault(struct mm_struct *
-> >  				dirty_page =3D page;
-> >  				get_page(dirty_page);
-> >  			}
-> > +#ifdef CONFIG_S390
-> > +			else if (pte_write(entry) && PageDirty(page))
-> > +				pte_mkdirty(entry);
-> > +#endif
-> >  		}
-> >  		set_pte_at(mm, address, page_table, entry);
-> >=20
-> > And then I wonder, is that something we should do on all architectures?
-> > On the one hand, it would save a hardware fault when and if the pte is
-> > dirtied later; on the other hand, it seems wrong to claim pte dirty when
-> > not (though I didn't find anywhere that would care).
->=20
-> I don't like the fact that we are adding another CONFIG_S390, if we could
-> pre-dirty the pte for all architectures that would be nice. It has no
-> ill effects for s390 to make the pte dirty, I can think of no reason
-> why it should hurt for other architectures.
+ Pid: 16196, comm: Hibackp Not tainted 3.0.13-0.27-default #1 IBM System x3550 M3 -[7944 K3G]-/94Y7614
+ RIP: 0010:[<ffffffff8103157e>]  [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
+ RSP: 0018:ffff88094165fe80  EFLAGS: 00010246
+ RAX: 00003300ff33b000 RBX: ffff880100000000 RCX: 0000000000000000
+ RDX: 0000000100000000 RSI: ffff880000000000 RDI: ff32b300ff33b400
+ RBP: 0000000000001000 R08: 00003ffffffff000 R09: 0000000000000000
+ R10: 22302e31223d6e6f R11: 0000000000000246 R12: 0000000000001000
+ R13: 0000000000003000 R14: 0000000000571be0 R15: ffff88094165ff50
+ FS:  00007ff152d33700(0000) GS:ffff88097f2c0000(0000) knlGS:0000000000000000
+ CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+ CR2: ffffbb00ff33b000 CR3: 00000009405a3000 CR4: 00000000000006e0
+ DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+ DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+ Process Hibackp (pid: 16196, threadinfo ffff88094165e000, task ffff8808eb9ba600)
+ Stack:
+  ffffffff811b8aaa 0000000000004000 ffff880943fea480 ffff8808ef2bae50
+  ffff880943d32980 fffffffffffffffb ffff8808ef2bae40 ffff88094165ff50
+  0000000000004000 000000000056ebe0 ffffffff811ad847 000000000056ebe0
+ Call Trace:
+  [<ffffffff811b8aaa>] read_kcore+0x17a/0x370
+  [<ffffffff811ad847>] proc_reg_read+0x77/0xc0
+  [<ffffffff81151687>] vfs_read+0xc7/0x130
+  [<ffffffff811517f3>] sys_read+0x53/0xa0
+  [<ffffffff81449692>] system_call_fastpath+0x16/0x1b
 
-Having though further on the issue, it does not make sense to force all
-architectures to set the dirty bit in the pte as this would make
-try_to_unmap_one to call set_page_dirty even for ptes which have not
-been used for writing. set_page_dirty is a non-trivial function that
-calls mapping->a_ops->set_page_dirty or __set_page_dirty_buffers. These
-cycles should imho not be spent on architectures with h/w pte dirty
-bits.
+Investigation determined that the bug triggered when reading system RAM
+at the 4G mark. On this system, that was the first address using 1G pages
+for the virt->phys direct mapping so the PUD is pointing to a physical
+address, not a PMD page.  The problem is that the page table walker in
+kern_addr_valid() is not checking pud_large() and treats the physical
+address as if it was a PMD.  If it happens to look like pmd_none then it'll
+silently fail, probably returning zeros instead of real data. If the data
+happens to look like a present PMD though, it will be walked resulting in
+the oops above. This patch adds the necessary pud_large() check.
 
-To avoid CONFIG_S390 in common code I'd like to introduce a new
-__ARCH_WANT_PTE_WRITE_DIRTY define which then is used in __do_fault
-like this:
+Unfortunately the problem was not readily reproducible and now they are
+running the backup program without accessing /proc/kcore so the patch has
+not been validated but I think it makes sense. If reviewers agree then it
+should also be included in -stable back as far as 3.0-stable.
 
-				dirty_page =3D page;
-				get_page(dirty_page);
-			}
-#ifdef __ARCH_WANT_PTE_WRITE_DIRTY
-			/*
-			 * Architectures that use software dirty bits may
-			 * want to set the dirty bit in the pte if the pte
-			 * is writable and the PageDirty bit is set for the
-			 * page. This avoids unnecessary protection faults
-			 * for writable mappings which do not use
-			 * mapping_cap_account_dirty, e.g. tmpfs and shmem.
-			 */
-			else if (pte_write(entry) && PageDirty(page))
-				entry =3D pte_mkdirty(entry);
-#endif
-		}
-		set_pte_at(mm, address, page_table, entry);
-
-Updated patch below. I guess this is ready to be added to the
-features branch of linux-s390.
-
+Cc: stable@vger.kernel.org
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
-=46rom 881ceba55bc58e69aa6157dd806a5297dae096d1 Mon Sep 17 00:00:00 2001
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Date: Wed, 7 Nov 2012 13:17:37 +0100
-Subject: [PATCH] s390/mm: implement software dirty bits
+ arch/x86/include/asm/pgtable.h |    5 +++++
+ arch/x86/mm/init_64.c          |    3 +++
+ 2 files changed, 8 insertions(+)
 
-The s390 architecture is unique in respect to dirty page detection,
-it uses the change bit in the per-page storage key to track page
-modifications. All other architectures track dirty bits by means
-of page table entries. This property of s390 has caused numerous
-problems in the past, e.g. see git commit ef5d437f71afdf4a
-"mm: fix XFS oops due to dirty pages without buffers on s390".
-
-To avoid future issues in regard to per-page dirty bits convert
-s390 to a fault based software dirty bit detection mechanism. All
-user page table entries which are marked as clean will be hardware
-read-only, even if the pte is supposed to be writable. A write by
-the user process will trigger a protection fault which will cause
-the user pte to be marked as dirty and the hardware read-only bit
-is removed.
-
-With this change the dirty bit in the storage key is irrelevant
-for Linux as a host, but the storage key is still required for
-KVM guests. The effect is that page_test_and_clear_dirty and the
-related code can be removed. The referenced bit in the storage
-key is still used by the page_test_and_clear_young primitive to
-provide page age information.
-
-For page cache pages of mappings with mapping_cap_account_dirty
-there will not be any change in behavior as the dirty bit tracking
-already uses read-only ptes to control the amount of dirty pages.
-Only for swap cache pages and pages of mappings without
-mapping_cap_account_dirty there can be additional protection faults.
-To avoid an excessive number of additional faults the __do_fault
-function will check for PageDirty if the pte is writable and
-pre-dirties the pte. That avoids all additional faults for tmpfs
-and shmem pages until these pages are added to the swap cache.
-As this code is only required for architectures with software dirty
-bits it is compiled only if __ARCH_WANT_PTE_WRITE_DIRTY is defined.
-
-Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
----
- arch/s390/include/asm/page.h    |  22 -------
- arch/s390/include/asm/pgtable.h | 126 ++++++++++++++++++++++++++----------=
-----
- arch/s390/include/asm/sclp.h    |   1 -
- arch/s390/include/asm/setup.h   |  16 ++---
- arch/s390/kvm/kvm-s390.c        |   2 +-
- arch/s390/lib/uaccess_pt.c      |   2 +-
- arch/s390/mm/pageattr.c         |   2 +-
- arch/s390/mm/vmem.c             |  24 ++++----
- drivers/s390/char/sclp_cmd.c    |  10 +---
- include/asm-generic/pgtable.h   |  10 ----
- include/linux/page-flags.h      |   8 ---
- mm/memory.c                     |  12 ++++
- mm/rmap.c                       |  24 --------
- 13 files changed, 120 insertions(+), 139 deletions(-)
-
-diff --git a/arch/s390/include/asm/page.h b/arch/s390/include/asm/page.h
-index a86ad40840..75ce9b0 100644
---- a/arch/s390/include/asm/page.h
-+++ b/arch/s390/include/asm/page.h
-@@ -155,28 +155,6 @@ static inline int page_reset_referenced(unsigned long =
-addr)
- #define _PAGE_ACC_BITS		0xf0	/* HW access control bits	*/
-=20
- /*
-- * Test and clear dirty bit in storage key.
-- * We can't clear the changed bit atomically. This is a potential
-- * race against modification of the referenced bit. This function
-- * should therefore only be called if it is not mapped in any
-- * address space.
-- *
-- * Note that the bit gets set whenever page content is changed. That means
-- * also when the page is modified by DMA or from inside the kernel.
-- */
--#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
--static inline int page_test_and_clear_dirty(unsigned long pfn, int mapped)
--{
--	unsigned char skey;
--
--	skey =3D page_get_storage_key(pfn << PAGE_SHIFT);
--	if (!(skey & _PAGE_CHANGED))
--		return 0;
--	page_set_storage_key(pfn << PAGE_SHIFT, skey & ~_PAGE_CHANGED, mapped);
--	return 1;
--}
--
--/*
-  * Test and clear referenced bit in storage key.
-  */
- #define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtabl=
-e.h
-index a009d4d..cd90c1d 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -29,6 +29,7 @@
- #ifndef __ASSEMBLY__
- #include <linux/sched.h>
- #include <linux/mm_types.h>
-+#include <linux/page-flags.h>
- #include <asm/bug.h>
- #include <asm/page.h>
-=20
-@@ -221,13 +222,15 @@ extern unsigned long MODULES_END;
- /* Software bits in the page table entry */
- #define _PAGE_SWT	0x001		/* SW pte type bit t */
- #define _PAGE_SWX	0x002		/* SW pte type bit x */
--#define _PAGE_SWC	0x004		/* SW pte changed bit (for KVM) */
--#define _PAGE_SWR	0x008		/* SW pte referenced bit (for KVM) */
--#define _PAGE_SPECIAL	0x010		/* SW associated with special page */
-+#define _PAGE_SWC	0x004		/* SW pte changed bit */
-+#define _PAGE_SWR	0x008		/* SW pte referenced bit */
-+#define _PAGE_SWW	0x010		/* SW pte write bit */
-+#define _PAGE_SPECIAL	0x020		/* SW associated with special page */
- #define __HAVE_ARCH_PTE_SPECIAL
-=20
- /* Set of bits not changed in pte_modify */
--#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_SPECIAL | _PAGE_SWC | _PAGE_SWR)
-+#define _PAGE_CHG_MASK		(PAGE_MASK | _PAGE_SPECIAL | _PAGE_CO | \
-+				 _PAGE_SWC | _PAGE_SWR)
-=20
- /* Six different types of pages. */
- #define _PAGE_TYPE_EMPTY	0x400
-@@ -321,6 +324,7 @@ extern unsigned long MODULES_END;
-=20
- /* Bits in the region table entry */
- #define _REGION_ENTRY_ORIGIN	~0xfffUL/* region/segment table origin	    */
-+#define _REGION_ENTRY_RO	0x200	/* region protection bit	    */
- #define _REGION_ENTRY_INV	0x20	/* invalid region table entry	    */
- #define _REGION_ENTRY_TYPE_MASK	0x0c	/* region/segment table type mask   */
- #define _REGION_ENTRY_TYPE_R1	0x0c	/* region first table type	    */
-@@ -382,9 +386,10 @@ extern unsigned long MODULES_END;
-  */
- #define PAGE_NONE	__pgprot(_PAGE_TYPE_NONE)
- #define PAGE_RO		__pgprot(_PAGE_TYPE_RO)
--#define PAGE_RW		__pgprot(_PAGE_TYPE_RW)
-+#define PAGE_RW		__pgprot(_PAGE_TYPE_RO | _PAGE_SWW)
-+#define PAGE_RWC	__pgprot(_PAGE_TYPE_RW | _PAGE_SWW | _PAGE_SWC)
-=20
--#define PAGE_KERNEL	PAGE_RW
-+#define PAGE_KERNEL	PAGE_RWC
- #define PAGE_SHARED	PAGE_KERNEL
- #define PAGE_COPY	PAGE_RO
-=20
-@@ -632,23 +637,23 @@ static inline pgste_t pgste_update_all(pte_t *ptep, p=
-gste_t pgste)
- 	bits =3D skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
- 	/* Clear page changed & referenced bit in the storage key */
- 	if (bits & _PAGE_CHANGED)
--		page_set_storage_key(address, skey ^ bits, 1);
-+		page_set_storage_key(address, skey ^ bits, 0);
- 	else if (bits)
- 		page_reset_referenced(address);
- 	/* Transfer page changed & referenced bit to guest bits in pgste */
- 	pgste_val(pgste) |=3D bits << 48;		/* RCP_GR_BIT & RCP_GC_BIT */
- 	/* Get host changed & referenced bits from pgste */
- 	bits |=3D (pgste_val(pgste) & (RCP_HR_BIT | RCP_HC_BIT)) >> 52;
--	/* Clear host bits in pgste. */
-+	/* Transfer page changed & referenced bit to kvm user bits */
-+	pgste_val(pgste) |=3D bits << 45;		/* KVM_UR_BIT & KVM_UC_BIT */
-+	/* Clear relevant host bits in pgste. */
- 	pgste_val(pgste) &=3D ~(RCP_HR_BIT | RCP_HC_BIT);
- 	pgste_val(pgste) &=3D ~(RCP_ACC_BITS | RCP_FP_BIT);
- 	/* Copy page access key and fetch protection bit to pgste */
- 	pgste_val(pgste) |=3D
- 		(unsigned long) (skey & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56;
--	/* Transfer changed and referenced to kvm user bits */
--	pgste_val(pgste) |=3D bits << 45;		/* KVM_UR_BIT & KVM_UC_BIT */
--	/* Transfer changed & referenced to pte sofware bits */
--	pte_val(*ptep) |=3D bits << 1;		/* _PAGE_SWR & _PAGE_SWC */
-+	/* Transfer referenced bit to pte */
-+	pte_val(*ptep) |=3D (bits & _PAGE_REFERENCED) << 1;
- #endif
- 	return pgste;
-=20
-@@ -661,20 +666,25 @@ static inline pgste_t pgste_update_young(pte_t *ptep,=
- pgste_t pgste)
-=20
- 	if (!pte_present(*ptep))
- 		return pgste;
-+	/* Get referenced bit from storage key */
- 	young =3D page_reset_referenced(pte_val(*ptep) & PAGE_MASK);
--	/* Transfer page referenced bit to pte software bit (host view) */
--	if (young || (pgste_val(pgste) & RCP_HR_BIT))
-+	if (young)
-+		pgste_val(pgste) |=3D RCP_GR_BIT;
-+	/* Get host referenced bit from pgste */
-+	if (pgste_val(pgste) & RCP_HR_BIT) {
-+		pgste_val(pgste) &=3D ~RCP_HR_BIT;
-+		young =3D 1;
-+	}
-+	/* Transfer referenced bit to kvm user bits and pte */
-+	if (young) {
-+		pgste_val(pgste) |=3D KVM_UR_BIT;
- 		pte_val(*ptep) |=3D _PAGE_SWR;
--	/* Clear host referenced bit in pgste. */
--	pgste_val(pgste) &=3D ~RCP_HR_BIT;
--	/* Transfer page referenced bit to guest bit in pgste */
--	pgste_val(pgste) |=3D (unsigned long) young << 50; /* set RCP_GR_BIT */
-+	}
- #endif
- 	return pgste;
--
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 5199db2..1c1a955 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -142,6 +142,11 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
+ 	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
  }
-=20
--static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
-+static inline void pgste_set_key(pte_t *ptep, pgste_t pgste, pte_t entry)
- {
- #ifdef CONFIG_PGSTE
- 	unsigned long address;
-@@ -688,10 +698,23 @@ static inline void pgste_set_pte(pte_t *ptep, pgste_t=
- pgste, pte_t entry)
- 	/* Set page access key and fetch protection bit from pgste */
- 	nkey |=3D (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
- 	if (okey !=3D nkey)
--		page_set_storage_key(address, nkey, 1);
-+		page_set_storage_key(address, nkey, 0);
- #endif
- }
-=20
-+static inline void pgste_set_pte(pte_t *ptep, pte_t entry)
+ 
++static inline unsigned long pud_pfn(pud_t pud)
 +{
-+	if (!MACHINE_HAS_ESOP && (pte_val(entry) & _PAGE_SWW)) {
-+		/*
-+		 * Without enhanced suppression-on-protection force
-+		 * the dirty bit on for all writable ptes.
-+		 */
-+		pte_val(entry) |=3D _PAGE_SWC;
-+		pte_val(entry) &=3D ~_PAGE_RO;
-+	}
-+	*ptep =3D entry;
++	return (pud_val(pud) & PTE_PFN_MASK) >> PAGE_SHIFT;
 +}
 +
- /**
-  * struct gmap_struct - guest address space
-  * @mm: pointer to the parent mm_struct
-@@ -750,11 +773,14 @@ static inline void set_pte_at(struct mm_struct *mm, u=
-nsigned long addr,
-=20
- 	if (mm_has_pgste(mm)) {
- 		pgste =3D pgste_get_lock(ptep);
--		pgste_set_pte(ptep, pgste, entry);
--		*ptep =3D entry;
-+		pgste_set_key(ptep, pgste, entry);
-+		pgste_set_pte(ptep, entry);
- 		pgste_set_unlock(ptep, pgste);
--	} else
-+	} else {
-+		if (!(pte_val(entry) & _PAGE_INVALID) && MACHINE_HAS_EDAT1)
-+			pte_val(entry) |=3D _PAGE_CO;
- 		*ptep =3D entry;
-+	}
- }
-=20
- /*
-@@ -763,16 +789,12 @@ static inline void set_pte_at(struct mm_struct *mm, u=
-nsigned long addr,
-  */
- static inline int pte_write(pte_t pte)
- {
--	return (pte_val(pte) & _PAGE_RO) =3D=3D 0;
-+	return (pte_val(pte) & _PAGE_SWW) !=3D 0;
- }
-=20
- static inline int pte_dirty(pte_t pte)
- {
--#ifdef CONFIG_PGSTE
--	if (pte_val(pte) & _PAGE_SWC)
--		return 1;
--#endif
--	return 0;
-+	return (pte_val(pte) & _PAGE_SWC) !=3D 0;
- }
-=20
- static inline int pte_young(pte_t pte)
-@@ -822,11 +844,14 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t ne=
-wprot)
- {
- 	pte_val(pte) &=3D _PAGE_CHG_MASK;
- 	pte_val(pte) |=3D pgprot_val(newprot);
-+	if ((pte_val(pte) & _PAGE_SWC) && (pte_val(pte) & _PAGE_SWW))
-+		pte_val(pte) &=3D ~_PAGE_RO;
- 	return pte;
- }
-=20
- static inline pte_t pte_wrprotect(pte_t pte)
- {
-+	pte_val(pte) &=3D ~_PAGE_SWW;
- 	/* Do not clobber _PAGE_TYPE_NONE pages!  */
- 	if (!(pte_val(pte) & _PAGE_INVALID))
- 		pte_val(pte) |=3D _PAGE_RO;
-@@ -835,20 +860,26 @@ static inline pte_t pte_wrprotect(pte_t pte)
-=20
- static inline pte_t pte_mkwrite(pte_t pte)
- {
--	pte_val(pte) &=3D ~_PAGE_RO;
-+	pte_val(pte) |=3D _PAGE_SWW;
-+	if (pte_val(pte) & _PAGE_SWC)
-+		pte_val(pte) &=3D ~_PAGE_RO;
- 	return pte;
- }
-=20
- static inline pte_t pte_mkclean(pte_t pte)
- {
--#ifdef CONFIG_PGSTE
- 	pte_val(pte) &=3D ~_PAGE_SWC;
--#endif
-+	/* Do not clobber _PAGE_TYPE_NONE pages!  */
-+	if (!(pte_val(pte) & _PAGE_INVALID))
-+		pte_val(pte) |=3D _PAGE_RO;
- 	return pte;
- }
-=20
- static inline pte_t pte_mkdirty(pte_t pte)
- {
-+	pte_val(pte) |=3D _PAGE_SWC;
-+	if (pte_val(pte) & _PAGE_SWW)
-+		pte_val(pte) &=3D ~_PAGE_RO;
- 	return pte;
- }
-=20
-@@ -886,10 +917,10 @@ static inline pte_t pte_mkhuge(pte_t pte)
- 		pte_val(pte) |=3D _SEGMENT_ENTRY_INV;
- 	}
- 	/*
--	 * Clear SW pte bits SWT and SWX, there are no SW bits in a segment
--	 * table entry.
-+	 * Clear SW pte bits, there are no SW bits in a segment table entry.
- 	 */
--	pte_val(pte) &=3D ~(_PAGE_SWT | _PAGE_SWX);
-+	pte_val(pte) &=3D ~(_PAGE_SWT | _PAGE_SWX | _PAGE_SWC |
-+			  _PAGE_SWR | _PAGE_SWW);
- 	/*
- 	 * Also set the change-override bit because we don't need dirty bit
- 	 * tracking for hugetlbfs pages.
-@@ -1041,9 +1072,11 @@ static inline void ptep_modify_prot_commit(struct mm=
-_struct *mm,
- 					   unsigned long address,
- 					   pte_t *ptep, pte_t pte)
- {
--	*ptep =3D pte;
--	if (mm_has_pgste(mm))
-+	if (mm_has_pgste(mm)) {
-+		pgste_set_pte(ptep, pte);
- 		pgste_set_unlock(ptep, *(pgste_t *)(ptep + PTRS_PER_PTE));
-+	} else
-+		*ptep =3D pte;
- }
-=20
- #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
-@@ -1111,10 +1144,13 @@ static inline pte_t ptep_set_wrprotect(struct mm_st=
-ruct *mm,
-=20
- 		if (!mm_exclusive(mm))
- 			__ptep_ipte(address, ptep);
--		*ptep =3D pte_wrprotect(pte);
-+		pte =3D pte_wrprotect(pte);
-=20
--		if (mm_has_pgste(mm))
-+		if (mm_has_pgste(mm)) {
-+			pgste_set_pte(ptep, pte);
- 			pgste_set_unlock(ptep, pgste);
-+		} else
-+			*ptep =3D pte;
- 	}
- 	return pte;
- }
-@@ -1132,10 +1168,12 @@ static inline int ptep_set_access_flags(struct vm_a=
-rea_struct *vma,
- 		pgste =3D pgste_get_lock(ptep);
-=20
- 	__ptep_ipte(address, ptep);
--	*ptep =3D entry;
-=20
--	if (mm_has_pgste(vma->vm_mm))
-+	if (mm_has_pgste(vma->vm_mm)) {
-+		pgste_set_pte(ptep, entry);
- 		pgste_set_unlock(ptep, pgste);
-+	} else
-+		*ptep =3D entry;
- 	return 1;
- }
-=20
-@@ -1246,6 +1284,8 @@ static inline int pmd_trans_splitting(pmd_t pmd)
- static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 			      pmd_t *pmdp, pmd_t entry)
- {
-+	if (!(pmd_val(entry) & _SEGMENT_ENTRY_INV) && MACHINE_HAS_EDAT1)
-+		pmd_val(entry) |=3D _SEGMENT_ENTRY_CO;
- 	*pmdp =3D entry;
- }
-=20
-@@ -1486,6 +1526,8 @@ extern int s390_enable_sie(void);
-  */
- #define pgtable_cache_init()	do { } while (0)
-=20
-+#define __ARCH_WANT_PTE_WRITE_DIRTY
+ #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
+ 
+ static inline int pmd_large(pmd_t pte)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 2ead3c8..75c9a6a 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -831,6 +831,9 @@ int kern_addr_valid(unsigned long addr)
+ 	if (pud_none(*pud))
+ 		return 0;
+ 
++	if (pud_large(*pud))
++		return pfn_valid(pud_pfn(*pud));
 +
- #include <asm-generic/pgtable.h>
-=20
- #endif /* _S390_PAGE_H */
-diff --git a/arch/s390/include/asm/sclp.h b/arch/s390/include/asm/sclp.h
-index 8337886..06a1361 100644
---- a/arch/s390/include/asm/sclp.h
-+++ b/arch/s390/include/asm/sclp.h
-@@ -46,7 +46,6 @@ int sclp_cpu_deconfigure(u8 cpu);
- void sclp_facilities_detect(void);
- unsigned long long sclp_get_rnmax(void);
- unsigned long long sclp_get_rzm(void);
--u8 sclp_get_fac85(void);
- int sclp_sdias_blk_count(void);
- int sclp_sdias_copy(void *dest, int blk_num, int nr_blks);
- int sclp_chp_configure(struct chp_id chpid);
-diff --git a/arch/s390/include/asm/setup.h b/arch/s390/include/asm/setup.h
-index f69f76b..f685751 100644
---- a/arch/s390/include/asm/setup.h
-+++ b/arch/s390/include/asm/setup.h
-@@ -64,13 +64,14 @@ extern unsigned int s390_user_mode;
-=20
- #define MACHINE_FLAG_VM		(1UL << 0)
- #define MACHINE_FLAG_IEEE	(1UL << 1)
--#define MACHINE_FLAG_CSP	(1UL << 3)
--#define MACHINE_FLAG_MVPG	(1UL << 4)
--#define MACHINE_FLAG_DIAG44	(1UL << 5)
--#define MACHINE_FLAG_IDTE	(1UL << 6)
--#define MACHINE_FLAG_DIAG9C	(1UL << 7)
--#define MACHINE_FLAG_MVCOS	(1UL << 8)
--#define MACHINE_FLAG_KVM	(1UL << 9)
-+#define MACHINE_FLAG_CSP	(1UL << 2)
-+#define MACHINE_FLAG_MVPG	(1UL << 3)
-+#define MACHINE_FLAG_DIAG44	(1UL << 4)
-+#define MACHINE_FLAG_IDTE	(1UL << 5)
-+#define MACHINE_FLAG_DIAG9C	(1UL << 6)
-+#define MACHINE_FLAG_MVCOS	(1UL << 7)
-+#define MACHINE_FLAG_KVM	(1UL << 8)
-+#define MACHINE_FLAG_ESOP	(1UL << 9)
- #define MACHINE_FLAG_EDAT1	(1UL << 10)
- #define MACHINE_FLAG_EDAT2	(1UL << 11)
- #define MACHINE_FLAG_LPAR	(1UL << 12)
-@@ -84,6 +85,7 @@ extern unsigned int s390_user_mode;
- #define MACHINE_IS_LPAR		(S390_lowcore.machine_flags & MACHINE_FLAG_LPAR)
-=20
- #define MACHINE_HAS_DIAG9C	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG=
-9C)
-+#define MACHINE_HAS_ESOP	(S390_lowcore.machine_flags & MACHINE_FLAG_ESOP)
- #define MACHINE_HAS_PFMF	MACHINE_HAS_EDAT1
- #define MACHINE_HAS_HPAGE	MACHINE_HAS_EDAT1
-=20
-diff --git a/arch/s390/kvm/kvm-s390.c b/arch/s390/kvm/kvm-s390.c
-index f090e81..2923781 100644
---- a/arch/s390/kvm/kvm-s390.c
-+++ b/arch/s390/kvm/kvm-s390.c
-@@ -147,7 +147,7 @@ int kvm_dev_ioctl_check_extension(long ext)
- 		r =3D KVM_MAX_VCPUS;
- 		break;
- 	case KVM_CAP_S390_COW:
--		r =3D sclp_get_fac85() & 0x2;
-+		r =3D MACHINE_HAS_ESOP;
- 		break;
- 	default:
- 		r =3D 0;
-diff --git a/arch/s390/lib/uaccess_pt.c b/arch/s390/lib/uaccess_pt.c
-index 9017a63..a70ee84 100644
---- a/arch/s390/lib/uaccess_pt.c
-+++ b/arch/s390/lib/uaccess_pt.c
-@@ -50,7 +50,7 @@ static __always_inline unsigned long follow_table(struct =
-mm_struct *mm,
- 	ptep =3D pte_offset_map(pmd, addr);
- 	if (!pte_present(*ptep))
- 		return -0x11UL;
--	if (write && !pte_write(*ptep))
-+	if (write && (!pte_write(*ptep) || !pte_dirty(*ptep)))
- 		return -0x04UL;
-=20
- 	return (pte_val(*ptep) & PAGE_MASK) + (addr & ~PAGE_MASK);
-diff --git a/arch/s390/mm/pageattr.c b/arch/s390/mm/pageattr.c
-index 29ccee3..d21040e 100644
---- a/arch/s390/mm/pageattr.c
-+++ b/arch/s390/mm/pageattr.c
-@@ -127,7 +127,7 @@ void kernel_map_pages(struct page *page, int numpages, =
-int enable)
- 			pte_val(*pte) =3D _PAGE_TYPE_EMPTY;
- 			continue;
- 		}
--		*pte =3D mk_pte_phys(address, __pgprot(_PAGE_TYPE_RW));
-+		pte_val(*pte) =3D __pa(address);
- 	}
- }
-=20
-diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-index 6ed1426..79699f46 100644
---- a/arch/s390/mm/vmem.c
-+++ b/arch/s390/mm/vmem.c
-@@ -85,11 +85,9 @@ static int vmem_add_mem(unsigned long start, unsigned lo=
-ng size, int ro)
- 	pud_t *pu_dir;
- 	pmd_t *pm_dir;
- 	pte_t *pt_dir;
--	pte_t  pte;
- 	int ret =3D -ENOMEM;
-=20
- 	while (address < end) {
--		pte =3D mk_pte_phys(address, __pgprot(ro ? _PAGE_RO : 0));
- 		pg_dir =3D pgd_offset_k(address);
- 		if (pgd_none(*pg_dir)) {
- 			pu_dir =3D vmem_pud_alloc();
-@@ -101,9 +99,9 @@ static int vmem_add_mem(unsigned long start, unsigned lo=
-ng size, int ro)
- #if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
- 		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
- 		    !(address & ~PUD_MASK) && (address + PUD_SIZE <=3D end)) {
--			pte_val(pte) |=3D _REGION3_ENTRY_LARGE;
--			pte_val(pte) |=3D _REGION_ENTRY_TYPE_R3;
--			pud_val(*pu_dir) =3D pte_val(pte);
-+			pud_val(*pu_dir) =3D __pa(address) |
-+				_REGION_ENTRY_TYPE_R3 | _REGION3_ENTRY_LARGE |
-+				(ro ? _REGION_ENTRY_RO : 0);
- 			address +=3D PUD_SIZE;
- 			continue;
- 		}
-@@ -118,8 +116,9 @@ static int vmem_add_mem(unsigned long start, unsigned l=
-ong size, int ro)
- #if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
- 		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
- 		    !(address & ~PMD_MASK) && (address + PMD_SIZE <=3D end)) {
--			pte_val(pte) |=3D _SEGMENT_ENTRY_LARGE;
--			pmd_val(*pm_dir) =3D pte_val(pte);
-+			pmd_val(*pm_dir) =3D __pa(address) |
-+				_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
-+				(ro ? _SEGMENT_ENTRY_RO : 0);
- 			address +=3D PMD_SIZE;
- 			continue;
- 		}
-@@ -132,7 +131,7 @@ static int vmem_add_mem(unsigned long start, unsigned l=
-ong size, int ro)
- 		}
-=20
- 		pt_dir =3D pte_offset_kernel(pm_dir, address);
--		*pt_dir =3D pte;
-+		pte_val(*pt_dir) =3D __pa(address) | (ro ? _PAGE_RO : 0);
- 		address +=3D PAGE_SIZE;
- 	}
- 	ret =3D 0;
-@@ -199,7 +198,6 @@ int __meminit vmemmap_populate(struct page *start, unsi=
-gned long nr, int node)
- 	pud_t *pu_dir;
- 	pmd_t *pm_dir;
- 	pte_t *pt_dir;
--	pte_t  pte;
- 	int ret =3D -ENOMEM;
-=20
- 	start_addr =3D (unsigned long) start;
-@@ -237,9 +235,8 @@ int __meminit vmemmap_populate(struct page *start, unsi=
-gned long nr, int node)
- 				new_page =3D vmemmap_alloc_block(PMD_SIZE, node);
- 				if (!new_page)
- 					goto out;
--				pte =3D mk_pte_phys(__pa(new_page), PAGE_RW);
--				pte_val(pte) |=3D _SEGMENT_ENTRY_LARGE;
--				pmd_val(*pm_dir) =3D pte_val(pte);
-+				pmd_val(*pm_dir) =3D __pa(new_page) |
-+					_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE;
- 				address =3D (address + PMD_SIZE) & PMD_MASK;
- 				continue;
- 			}
-@@ -260,8 +257,7 @@ int __meminit vmemmap_populate(struct page *start, unsi=
-gned long nr, int node)
- 			new_page =3D__pa(vmem_alloc_pages(0));
- 			if (!new_page)
- 				goto out;
--			pte =3D pfn_pte(new_page >> PAGE_SHIFT, PAGE_KERNEL);
--			*pt_dir =3D pte;
-+			pte_val(*pt_dir) =3D __pa(new_page);
- 		}
- 		address +=3D PAGE_SIZE;
- 	}
-diff --git a/drivers/s390/char/sclp_cmd.c b/drivers/s390/char/sclp_cmd.c
-index c44d13f..30a2255 100644
---- a/drivers/s390/char/sclp_cmd.c
-+++ b/drivers/s390/char/sclp_cmd.c
-@@ -56,7 +56,6 @@ static int __initdata early_read_info_sccb_valid;
-=20
- u64 sclp_facilities;
- static u8 sclp_fac84;
--static u8 sclp_fac85;
- static unsigned long long rzm;
- static unsigned long long rnmax;
-=20
-@@ -131,7 +130,8 @@ void __init sclp_facilities_detect(void)
- 	sccb =3D &early_read_info_sccb;
- 	sclp_facilities =3D sccb->facilities;
- 	sclp_fac84 =3D sccb->fac84;
--	sclp_fac85 =3D sccb->fac85;
-+	if (sccb->fac85 & 0x02)
-+		S390_lowcore.machine_flags |=3D MACHINE_FLAG_ESOP;
- 	rnmax =3D sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
- 	rzm =3D sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
- 	rzm <<=3D 20;
-@@ -171,12 +171,6 @@ unsigned long long sclp_get_rzm(void)
- 	return rzm;
- }
-=20
--u8 sclp_get_fac85(void)
--{
--	return sclp_fac85;
--}
--EXPORT_SYMBOL_GPL(sclp_get_fac85);
--
- /*
-  * This function will be called after sclp_facilities_detect(), which gets
-  * called from early.c code. Therefore the sccb should have valid contents.
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 5cf680a..bfd8768 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -197,16 +197,6 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- #endif
-=20
--#ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
--#define page_test_and_clear_dirty(pfn, mapped)	(0)
--#endif
--
--#ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
--#define pte_maybe_dirty(pte)		pte_dirty(pte)
--#else
--#define pte_maybe_dirty(pte)		(1)
--#endif
--
- #ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
- #define page_test_and_clear_young(pfn) (0)
- #endif
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 70473da..6d53675 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -303,21 +303,13 @@ static inline void __SetPageUptodate(struct page *pag=
-e)
-=20
- static inline void SetPageUptodate(struct page *page)
- {
--#ifdef CONFIG_S390
--	if (!test_and_set_bit(PG_uptodate, &page->flags))
--		page_set_storage_key(page_to_phys(page), PAGE_DEFAULT_KEY, 0);
--#else
- 	/*
- 	 * Memory barrier must be issued before setting the PG_uptodate bit,
- 	 * so that all previous stores issued in order to bring the page
- 	 * uptodate are actually visible before PageUptodate becomes true.
--	 *
--	 * s390 doesn't need an explicit smp_wmb here because the test and
--	 * set bit already provides full barriers.
- 	 */
- 	smp_wmb();
- 	set_bit(PG_uptodate, &(page)->flags);
--#endif
- }
-=20
- CLEARPAGEFLAG(Uptodate, uptodate)
-diff --git a/mm/memory.c b/mm/memory.c
-index bb1369f..b3da90d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3338,6 +3338,18 @@ static int __do_fault(struct mm_struct *mm, struct v=
-m_area_struct *vma,
- 				dirty_page =3D page;
- 				get_page(dirty_page);
- 			}
-+#ifdef __ARCH_WANT_PTE_WRITE_DIRTY
-+			/*
-+			 * Architectures that use software dirty bits may
-+			 * want to set the dirty bit in the pte if the pte
-+			 * is writable and the PageDirty bit is set for the
-+			 * page. This avoids unnecessary protection faults
-+			 * for writable mappings which do not use
-+			 * mapping_cap_account_dirty, e.g. tmpfs and shmem.
-+			 */
-+			else if (pte_write(entry) && PageDirty(page))
-+				entry =3D pte_mkdirty(entry);
-+#endif
- 		}
- 		set_pte_at(mm, address, page_table, entry);
-=20
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 2c78f8c..3d38edf 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1126,7 +1126,6 @@ void page_add_file_rmap(struct page *page)
-  */
- void page_remove_rmap(struct page *page)
- {
--	struct address_space *mapping =3D page_mapping(page);
- 	bool anon =3D PageAnon(page);
- 	bool locked;
- 	unsigned long flags;
-@@ -1144,29 +1143,6 @@ void page_remove_rmap(struct page *page)
- 		goto out;
-=20
- 	/*
--	 * Now that the last pte has gone, s390 must transfer dirty
--	 * flag from storage key to struct page.  We can usually skip
--	 * this if the page is anon, so about to be freed; but perhaps
--	 * not if it's in swapcache - there might be another pte slot
--	 * containing the swap entry, but page not yet written to swap.
--	 *
--	 * And we can skip it on file pages, so long as the filesystem
--	 * participates in dirty tracking (note that this is not only an
--	 * optimization but also solves problems caused by dirty flag in
--	 * storage key getting set by a write from inside kernel); but need to
--	 * catch shm and tmpfs and ramfs pages which have been modified since
--	 * creation by read fault.
--	 *
--	 * Note that mapping must be decided above, before decrementing
--	 * mapcount (which luckily provides a barrier): once page is unmapped,
--	 * it could be truncated and page->mapping reset to NULL at any moment.
--	 * Note also that we are relying on page_mapping(page) to set mapping
--	 * to &swapper_space when PageSwapCache(page).
--	 */
--	if (mapping && !mapping_cap_account_dirty(mapping) &&
--	    page_test_and_clear_dirty(page_to_pfn(page), 1))
--		set_page_dirty(page);
--	/*
- 	 * Hugepages are not counted in NR_ANON_PAGES nor NR_FILE_MAPPED
- 	 * and not charged by memcg for now.
- 	 */
---=20
-1.7.12.4
+ 	pmd = pmd_offset(pud, addr);
+ 	if (pmd_none(*pmd))
+ 		return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
