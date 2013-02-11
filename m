@@ -1,73 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 37EFD6B0005
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 14:14:20 -0500 (EST)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 4B5FA6B0005
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 14:29:35 -0500 (EST)
+Received: by mail-ee0-f49.google.com with SMTP id d4so3396715eek.8
+        for <linux-mm@kvack.org>; Mon, 11 Feb 2013 11:29:33 -0800 (PST)
+Date: Mon, 11 Feb 2013 20:29:29 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
+Message-ID: <20130211192929.GB29000@dhcp22.suse.cz>
+References: <1357235661-29564-1-git-send-email-mhocko@suse.cz>
+ <1357235661-29564-5-git-send-email-mhocko@suse.cz>
+ <20130208193318.GA15951@cmpxchg.org>
+ <20130211151649.GD19922@dhcp22.suse.cz>
+ <20130211175619.GC13218@cmpxchg.org>
 MIME-Version: 1.0
-Message-ID: <c12553f9-2472-4dc2-b19e-ff17e5e462af@default>
-Date: Mon, 11 Feb 2013 11:13:38 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCHv2 8/9] zswap: add to mm/
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1357590280-31535-9-git-send-email-sjenning@linux.vnet.ibm.com>
- <51030ADA.8030403@redhat.com> <510698F5.5060205@linux.vnet.ibm.com>
- <5107A2B8.4070505@parallels.com> <5113D291.2020903@linux.vnet.ibm.com>
-In-Reply-To: <5113D291.2020903@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130211175619.GC13218@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Lord Glauber Costa of Sealand <glommer@parallels.com>
-Cc: Rik van Riel <riel@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Subject: Re: [PATCHv2 8/9] zswap: add to mm/
->=20
-> On 01/29/2013 04:21 AM, Lord Glauber Costa of Sealand wrote:
-> > On 01/28/2013 07:27 PM, Seth Jennings wrote:
-> >> Yes, I prototyped a shrinker interface for zswap, but, as we both
-> >> figured, it shrinks the zswap compressed pool too aggressively to the
-> >> point of being useless.
-> > Can't you advertise a smaller number of objects that you actively have?
->=20
-> Thanks for looking at the code!
->=20
-> An interesting idea.  I'm just not sure how you would manage the
-> underlying policy of how aggressively does zswap allow itself to be
-> shrunk?  The fact that zswap _only_ operates under memory pressure
-> makes that policy difficult, because it is under continuous shrinking
-> pressure, unlike other shrinkable caches in the kernel that spend most
-> of their time operating in unconstrained or lightly/intermittently
-> strained conditions.
+On Mon 11-02-13 12:56:19, Johannes Weiner wrote:
+> On Mon, Feb 11, 2013 at 04:16:49PM +0100, Michal Hocko wrote:
+> > On Fri 08-02-13 14:33:18, Johannes Weiner wrote:
+> > [...]
+> > > for each in hierarchy:
+> > >   for each node:
+> > >     for each zone:
+> > >       for each reclaim priority:
+> > > 
+> > > every time a cgroup is destroyed.  I don't think such a hammer is
+> > > justified in general, let alone for consolidating code a little.
+> > > 
+> > > Can we invalidate the position cache lazily?  Have a global "cgroup
+> > > destruction" counter and store a snapshot of that counter whenever we
+> > > put a cgroup pointer in the position cache.  We only use the cached
+> > > pointer if that counter has not changed in the meantime, so we know
+> > > that the cgroup still exists.
+> > 
+> > Currently we have:
+> > rcu_read_lock()	// keeps cgroup links safe
+> > 	iter->iter_lock	// keeps selection exclusive for a specific iterator
+> > 	1) global_counter == iter_counter
+> > 	2) css_tryget(cached_memcg)  // check it is still alive
+> > rcu_read_unlock()
+> > 
+> > What would protect us from races when css would disappear between 1 and
+> > 2?
+> 
+> rcu
 
-Hi Seth --
+That was my first attempt but then I convinced myself it might not be
+sufficient. But now that I think about it more I guess you are right.
+ 
+> > css is invalidated from worker context scheduled from __css_put and it
+> > is using dentry locking which we surely do not want to pull here. We
+> > could hook into css_offline which is called with cgroup_mutex but we
+> > cannot use this one here because it is no longer exported and Tejun
+> > would kill us for that.
+> > So we can add a new global memcg internal lock to do this atomically.
+> > Ohh, this is getting uglier...
+> 
+> A racing final css_put() means that the tryget fails, but our RCU read
+> lock keeps the CSS allocated.  If the dead_count is uptodate, it means
+> that the rcu read lock was acquired before the synchronize_rcu()
+> before the css is freed.
 
-Zswap (as well as zcache) doesn't "_only_ operate under memory
-pressure".  It _grows_ only under memory pressure but can get
-smaller via frontswap_loads and frontswap_invalidates
-at other times.  I agree that writeback (from zswap to the
-real swap disk, what zswap calls "flush") need only occur
-when under memory pressure, but that's when a shrinker is called.
+yes.
 
-FYI, the way that zcache does this (for swap pages) is the
-zcache shrinker drives the number of wholepages used to store
-zpages down to match the number of wholepages used for anonymous
-pages.  In zswap terms, that means you would call zswap_flush_entry
-in a zswap shrinker thread continually until
+> 
+> > > It is pretty pretty imprecise and we invalidate the whole cache every
+> > > time a cgroup is destroyed, but I think that should be okay. 
+> > 
+> > I am not sure this is OK because this gives an indirect way of
+> > influencing reclaim in one hierarchy by another one which opens a door
+> > for regressions (or malicious over-reclaim in the extreme case).
+> > So I do not like this very much.
+> > 
+> > > If not, better ideas are welcome.
+> > 
+> > Maybe we could keep the counter per memcg but that would mean that we
+> > would need to go up the hierarchy as well. We wouldn't have to go over
+> > node-zone-priority cleanup so it would be much more lightweight.
+> > 
+> > I am not sure this is necessarily better than explicit cleanup because
+> > it brings yet another kind of generation number to the game but I guess
+> > I can live with it if people really thing the relaxed way is much
+> > better.
+> > What do you think about the patch below (untested yet)?
+> 
+> Better, but I think you can get rid of both locks:
 
- zswap_pool_pages <=3D global_page_state(NR_LRU_BASE + LRU_ACTIVE_ANON) +
-                     global_page_state(NR_LRU_BASE + LRU_INACTIVE_ANON)
+What is the other lock you have in mind.
 
-The zcache shrinker (currently) ignores nr_to_scan entirely;
-the fact that the zcache shrinker is called is the signal for
-zswap/zcache to start flush/writeback (moving compressed pages out to
-swap disk).  This isn't a great match for the system shrinker
-API but it seems to avoid the "aggressively to the point of
-being useless" problem so is at least a step in the right direction.
+> mem_cgroup_iter:
+> rcu_read_lock()
+> if atomic_read(&root->dead_count) == iter->dead_count:
+>   smp_rmb()
+>   if tryget(iter->position):
+>     position = iter->position
+> memcg = find_next(postion)
+> css_put(position)
+> iter->position = memcg
+> smp_wmb() /* Write position cache BEFORE marking it uptodate */
+> iter->dead_count = atomic_read(&root->dead_count)
+> rcu_read_unlock()
 
-Dan
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Updated patch bellow:
+---
