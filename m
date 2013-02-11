@@ -1,44 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 06FB26B0008
-	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 13:10:21 -0500 (EST)
-Message-ID: <511933F5.9000902@zytor.com>
-Date: Mon, 11 Feb 2013 10:09:57 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 4FFE36B0005
+	for <linux-mm@kvack.org>; Mon, 11 Feb 2013 13:28:33 -0500 (EST)
+Date: Mon, 11 Feb 2013 19:28:26 +0100
+From: Borislav Petkov <bp@alien8.de>
 Subject: Re: [PATCH 1/2] add helper for highmem checks
-References: <20130208202813.62965F25@kernel.stglabs.ibm.com> <20130209094121.GB17728@pd.tnic> <20130209104751.GC17728@pd.tnic> <51192B39.9060501@linux.vnet.ibm.com>
+Message-ID: <20130211182826.GE2683@pd.tnic>
+References: <20130208202813.62965F25@kernel.stglabs.ibm.com>
+ <20130209094121.GB17728@pd.tnic>
+ <20130209104751.GC17728@pd.tnic>
+ <51192B39.9060501@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 In-Reply-To: <51192B39.9060501@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Borislav Petkov <bp@alien8.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, tglx@linutronix.de
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hpa@zytor.com, mingo@kernel.org, tglx@linutronix.de
 
-On 02/11/2013 09:32 AM, Dave Hansen wrote:
-> On 02/09/2013 02:47 AM, Borislav Petkov wrote:
->> On Sat, Feb 09, 2013 at 10:41:21AM +0100, Borislav Petkov wrote:
->> With this change, they definitely fix something because I even get X on
->> the box started. Previously, it would spit out the warning and wouldn't
->> start X with the login window. And my suspicion is that wdm (WINGs
->> display manager) I'm using, does /dev/mem accesses when it starts and it
->> obviously failed. Now not so much :-)
->
-> That's crazy.  Didn't expect that at all.
+On Mon, Feb 11, 2013 at 09:32:41AM -0800, Dave Hansen wrote:
+> That's crazy. Didn't expect that at all.
 >
 > I guess X is happier getting an error than getting random pages back.
-> I'm working on a set of patches now that should get it _working_ instead
-> of just returning an error.
->
 
-Awesome :)
+Yeah, I think this is something special only this window manager wdm
+does. The line below has appeared repeatedly in the logs earlier:
 
-	-hpa
+Feb  5 23:02:02 a1 wdm: Cannot read randomFile "/dev/mem", errno = 14
+
+This happens when wdm starts so I'm going to guess it uses it for
+something funny, "randomFile" it calls it??
+
+With the WARN_ON check added and booting 3.8-rc6, it would choke wdm
+somehow and it wouldn't start properly so that even the error out above
+doesn't happen. Oh well ...
+
+> I'm working on a set of patches now that should get it _working_
+> instead of just returning an error.
+
+Yeah, send them on and I'll run them.
+
+Thanks.
 
 -- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+Regards/Gruss,
+    Boris.
+
+Sent from a fat crate under my desk. Formatting is fine.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
