@@ -1,123 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 020046B0007
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 12:43:18 -0500 (EST)
-Date: Tue, 12 Feb 2013 18:43:14 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] x86: mm: Check if PUD is large when validating a kernel
- address
-Message-ID: <20130212174314.GA18528@dhcp22.suse.cz>
-References: <20130211145236.GX21389@suse.de>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id B57206B0007
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 12:50:06 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Tue, 12 Feb 2013 12:50:05 -0500
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 12D5A38CB16B
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 11:29:29 -0500 (EST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1CGTP6h039264
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 11:29:26 -0500
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1CGTKob007290
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 09:29:21 -0700
+Date: Tue, 12 Feb 2013 08:10:51 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
+Message-ID: <20130212161051.GQ2666@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20130208193318.GA15951@cmpxchg.org>
+ <20130211151649.GD19922@dhcp22.suse.cz>
+ <20130211175619.GC13218@cmpxchg.org>
+ <20130211192929.GB29000@dhcp22.suse.cz>
+ <20130211195824.GB15951@cmpxchg.org>
+ <20130211212756.GC29000@dhcp22.suse.cz>
+ <20130211223943.GC15951@cmpxchg.org>
+ <20130212095419.GB4863@dhcp22.suse.cz>
+ <20130212151002.GD15951@cmpxchg.org>
+ <20130212154330.GG4863@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130211145236.GX21389@suse.de>
+In-Reply-To: <20130212154330.GG4863@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On Mon 11-02-13 14:52:36, Mel Gorman wrote:
-> A user reported the following oops when a backup process read
-> /proc/kcore.
+On Tue, Feb 12, 2013 at 04:43:30PM +0100, Michal Hocko wrote:
+> On Tue 12-02-13 10:10:02, Johannes Weiner wrote:
+> > On Tue, Feb 12, 2013 at 10:54:19AM +0100, Michal Hocko wrote:
+> > > On Mon 11-02-13 17:39:43, Johannes Weiner wrote:
+> > > > On Mon, Feb 11, 2013 at 10:27:56PM +0100, Michal Hocko wrote:
+> > > > > On Mon 11-02-13 14:58:24, Johannes Weiner wrote:
+> > > > > > That way, if the dead count gives the go-ahead, you KNOW that the
+> > > > > > position cache is valid, because it has been updated first.
+> > > > > 
+> > > > > OK, you are right. We can live without css_tryget because dead_count is
+> > > > > either OK which means that css would be alive at least this rcu period
+> > > > > (and RCU walk would be safe as well) or it is incremented which means
+> > > > > that we have started css_offline already and then css is dead already.
+> > > > > So css_tryget can be dropped.
+> > > > 
+> > > > Not quite :)
+> > > > 
+> > > > The dead_count check is for completed destructions,
+> > > 
+> > > Not quite :P. dead_count is incremented in css_offline callback which is
+> > > called before the cgroup core releases its last reference and unlinks
+> > > the group from the siblinks. css_tryget would already fail at this stage
+> > > because CSS_DEACT_BIAS is in place at that time but this doesn't break
+> > > RCU walk. So I think we are safe even without css_get.
+> > 
+> > But you drop the RCU lock before you return.
+> >
+> > dead_count IS incremented for every destruction, but it's not reliable
+> > for concurrent ones, is what I meant.  Again, if there is a dead_count
+> > mismatch, your pointer might be dangling, easy case.  However, even if
+> > there is no mismatch, you could still race with a destruction that has
+> > marked the object dead, and then frees it once you drop the RCU lock,
+> > so you need try_get() to check if the object is dead, or you could
+> > return a pointer to freed or soon to be freed memory.
 > 
->  BUG: unable to handle kernel paging request at ffffbb00ff33b000
->  IP: [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
->  PGD 0
->  Oops: 0000 [#1] SMP
->  CPU 6
->  Modules linked in: af_packet nfs lockd fscache auth_rpcgss nfs_acl sunrpc 8021q garp stp llc cpufreq_conservative cpufreq_userspace cpufreq_powersave acpi_cpufreq mperf microcode fuse nls_iso8859_1 nls_cp437 vfat fat loop dm_mod ioatdma ipv6 ipv6_lib igb dca i7core_edac edac_core i2c_i801 i2c_core cdc_ether usbnet bnx2 mii iTCO_wdt iTCO_vendor_support shpchp rtc_cmos pci_hotplug tpm_tis sg tpm pcspkr tpm_bios serio_raw button ext3 jbd mbcache uhci_hcd ehci_hcd usbcore sd_mod crc_t10dif usb_common processor thermal_sys hwmon scsi_dh_emc scsi_dh_rdac scsi_dh_alua scsi_dh_hp_sw scsi_dh ata_generic ata_piix libata megaraid_sas scsi_mod
+> Wait a moment. But what prevents from the following race?
 > 
->  Pid: 16196, comm: Hibackp Not tainted 3.0.13-0.27-default #1 IBM System x3550 M3 -[7944 K3G]-/94Y7614
->  RIP: 0010:[<ffffffff8103157e>]  [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
->  RSP: 0018:ffff88094165fe80  EFLAGS: 00010246
->  RAX: 00003300ff33b000 RBX: ffff880100000000 RCX: 0000000000000000
->  RDX: 0000000100000000 RSI: ffff880000000000 RDI: ff32b300ff33b400
->  RBP: 0000000000001000 R08: 00003ffffffff000 R09: 0000000000000000
->  R10: 22302e31223d6e6f R11: 0000000000000246 R12: 0000000000001000
->  R13: 0000000000003000 R14: 0000000000571be0 R15: ffff88094165ff50
->  FS:  00007ff152d33700(0000) GS:ffff88097f2c0000(0000) knlGS:0000000000000000
->  CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->  CR2: ffffbb00ff33b000 CR3: 00000009405a3000 CR4: 00000000000006e0
->  DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
->  DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
->  Process Hibackp (pid: 16196, threadinfo ffff88094165e000, task ffff8808eb9ba600)
->  Stack:
->   ffffffff811b8aaa 0000000000004000 ffff880943fea480 ffff8808ef2bae50
->   ffff880943d32980 fffffffffffffffb ffff8808ef2bae40 ffff88094165ff50
->   0000000000004000 000000000056ebe0 ffffffff811ad847 000000000056ebe0
->  Call Trace:
->   [<ffffffff811b8aaa>] read_kcore+0x17a/0x370
->   [<ffffffff811ad847>] proc_reg_read+0x77/0xc0
->   [<ffffffff81151687>] vfs_read+0xc7/0x130
->   [<ffffffff811517f3>] sys_read+0x53/0xa0
->   [<ffffffff81449692>] system_call_fastpath+0x16/0x1b
+> rcu_read_lock()
+> 						mem_cgroup_css_offline(memcg)
+> 						root->dead_count++
+> iter->last_dead_count = root->dead_count
+> iter->last_visited = memcg
+> 						// final
+> 						css_put(memcg);
+> // last_visited is still valid
+> rcu_read_unlock()
+> [...]
+> // next iteration
+> rcu_read_lock()
+> iter->last_dead_count == root->dead_count
+> // KABOOM
 > 
-> Investigation determined that the bug triggered when reading system RAM
-> at the 4G mark. On this system, that was the first address using 1G pages
-> for the virt->phys direct mapping so the PUD is pointing to a physical
-> address, not a PMD page.  The problem is that the page table walker in
-> kern_addr_valid() is not checking pud_large() and treats the physical
-> address as if it was a PMD.  If it happens to look like pmd_none then it'll
-> silently fail, probably returning zeros instead of real data. If the data
-> happens to look like a present PMD though, it will be walked resulting in
-> the oops above. This patch adds the necessary pud_large() check.
-> 
-> Unfortunately the problem was not readily reproducible and now they are
-> running the backup program without accessing /proc/kcore so the patch has
-> not been validated but I think it makes sense. If reviewers agree then it
-> should also be included in -stable back as far as 3.0-stable.
-> 
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> The race window between dead_count++ and css_put is quite big but that
+> is not important because that css_put can happen anytime before we start
+> the next iteration and take rcu_read_lock.
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+The usual approach is to make sure that there is a grace period (either
+synchronize_rcu() or call_rcu()) between the time that the data is
+made inaccessible to readers (this would be mem_cgroup_css_offline()?)
+and the time it is freed (css_put(), correct?).
 
-> ---
->  arch/x86/include/asm/pgtable.h |    5 +++++
->  arch/x86/mm/init_64.c          |    3 +++
->  2 files changed, 8 insertions(+)
-> 
-> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-> index 5199db2..1c1a955 100644
-> --- a/arch/x86/include/asm/pgtable.h
-> +++ b/arch/x86/include/asm/pgtable.h
-> @@ -142,6 +142,11 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
->  	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
->  }
->  
-> +static inline unsigned long pud_pfn(pud_t pud)
-> +{
-> +	return (pud_val(pud) & PTE_PFN_MASK) >> PAGE_SHIFT;
-> +}
-> +
->  #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
->  
->  static inline int pmd_large(pmd_t pte)
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 2ead3c8..75c9a6a 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -831,6 +831,9 @@ int kern_addr_valid(unsigned long addr)
->  	if (pud_none(*pud))
->  		return 0;
->  
-> +	if (pud_large(*pud))
-> +		return pfn_valid(pud_pfn(*pud));
-> +
->  	pmd = pmd_offset(pud, addr);
->  	if (pmd_none(*pmd))
->  		return 0;
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
