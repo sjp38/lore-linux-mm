@@ -1,79 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 6F7966B0005
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 01:41:04 -0500 (EST)
-Date: Tue, 12 Feb 2013 01:40:51 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] x86: mm: Check if PUD is large when validating a kernel
- address
-Message-ID: <20130212064051.GA8372@cmpxchg.org>
-References: <20130211145236.GX21389@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130211145236.GX21389@suse.de>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 71C866B0005
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 03:46:44 -0500 (EST)
+Received: from /spool/local
+	by e06smtp18.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Tue, 12 Feb 2013 08:44:48 -0000
+Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1C8kUWm21364940
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 08:46:30 GMT
+Received: from d06av11.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1C8kcPj016778
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 01:46:38 -0700
+Date: Tue, 12 Feb 2013 09:46:36 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH] s390/mm: implement software dirty bits
+Message-ID: <20130212094636.56299155@mschwide>
+In-Reply-To: <alpine.LNX.2.00.1302111315070.1174@eggly.anvils>
+References: <1360087925-8456-1-git-send-email-schwidefsky@de.ibm.com>
+	<1360087925-8456-3-git-send-email-schwidefsky@de.ibm.com>
+	<alpine.LNX.2.00.1302061504340.7256@eggly.anvils>
+	<20130207111838.27fea18f@mschwide>
+	<20130211152715.03fab00a@mschwide>
+	<alpine.LNX.2.00.1302111315070.1174@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-s390@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Russell King <linux@arm.linux.org.uk>
 
-On Mon, Feb 11, 2013 at 02:52:36PM +0000, Mel Gorman wrote:
-> A user reported the following oops when a backup process read
-> /proc/kcore.
-> 
->  BUG: unable to handle kernel paging request at ffffbb00ff33b000
->  IP: [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
->  PGD 0
->  Oops: 0000 [#1] SMP
->  CPU 6
->  Modules linked in: af_packet nfs lockd fscache auth_rpcgss nfs_acl sunrpc 8021q garp stp llc cpufreq_conservative cpufreq_userspace cpufreq_powersave acpi_cpufreq mperf microcode fuse nls_iso8859_1 nls_cp437 vfat fat loop dm_mod ioatdma ipv6 ipv6_lib igb dca i7core_edac edac_core i2c_i801 i2c_core cdc_ether usbnet bnx2 mii iTCO_wdt iTCO_vendor_support shpchp rtc_cmos pci_hotplug tpm_tis sg tpm pcspkr tpm_bios serio_raw button ext3 jbd mbcache uhci_hcd ehci_hcd usbcore sd_mod crc_t10dif usb_common processor thermal_sys hwmon scsi_dh_emc scsi_dh_rdac scsi_dh_alua scsi_dh_hp_sw scsi_dh ata_generic ata_piix libata megaraid_sas scsi_mod
-> 
->  Pid: 16196, comm: Hibackp Not tainted 3.0.13-0.27-default #1 IBM System x3550 M3 -[7944 K3G]-/94Y7614
->  RIP: 0010:[<ffffffff8103157e>]  [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
->  RSP: 0018:ffff88094165fe80  EFLAGS: 00010246
->  RAX: 00003300ff33b000 RBX: ffff880100000000 RCX: 0000000000000000
->  RDX: 0000000100000000 RSI: ffff880000000000 RDI: ff32b300ff33b400
->  RBP: 0000000000001000 R08: 00003ffffffff000 R09: 0000000000000000
->  R10: 22302e31223d6e6f R11: 0000000000000246 R12: 0000000000001000
->  R13: 0000000000003000 R14: 0000000000571be0 R15: ffff88094165ff50
->  FS:  00007ff152d33700(0000) GS:ffff88097f2c0000(0000) knlGS:0000000000000000
->  CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->  CR2: ffffbb00ff33b000 CR3: 00000009405a3000 CR4: 00000000000006e0
->  DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
->  DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
->  Process Hibackp (pid: 16196, threadinfo ffff88094165e000, task ffff8808eb9ba600)
->  Stack:
->   ffffffff811b8aaa 0000000000004000 ffff880943fea480 ffff8808ef2bae50
->   ffff880943d32980 fffffffffffffffb ffff8808ef2bae40 ffff88094165ff50
->   0000000000004000 000000000056ebe0 ffffffff811ad847 000000000056ebe0
->  Call Trace:
->   [<ffffffff811b8aaa>] read_kcore+0x17a/0x370
->   [<ffffffff811ad847>] proc_reg_read+0x77/0xc0
->   [<ffffffff81151687>] vfs_read+0xc7/0x130
->   [<ffffffff811517f3>] sys_read+0x53/0xa0
->   [<ffffffff81449692>] system_call_fastpath+0x16/0x1b
-> 
-> Investigation determined that the bug triggered when reading system RAM
-> at the 4G mark. On this system, that was the first address using 1G pages
-> for the virt->phys direct mapping so the PUD is pointing to a physical
-> address, not a PMD page.  The problem is that the page table walker in
-> kern_addr_valid() is not checking pud_large() and treats the physical
-> address as if it was a PMD.  If it happens to look like pmd_none then it'll
-> silently fail, probably returning zeros instead of real data. If the data
-> happens to look like a present PMD though, it will be walked resulting in
-> the oops above. This patch adds the necessary pud_large() check.
-> 
-> Unfortunately the problem was not readily reproducible and now they are
-> running the backup program without accessing /proc/kcore so the patch has
-> not been validated but I think it makes sense. If reviewers agree then it
-> should also be included in -stable back as far as 3.0-stable.
-> 
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+On Mon, 11 Feb 2013 14:08:23 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> On Mon, 11 Feb 2013, Martin Schwidefsky wrote:
+> > On Thu, 7 Feb 2013 11:18:38 -0800
+> > Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+> > > On Wed, 6 Feb 2013 16:20:40 -0800 (PST)
+> > > Hugh Dickins <hughd@google.com> wrote:
+> > > 
+> > > Anon page and accounted file pages won't need the mk_pte optimization,
+> > > that is there for tmpfs/shmem. We could do that in common code as well,
+> > > to make the dependency on PageDirty more obvious.
+> > > 
+> > > > --- 3.8-rc6/mm/memory.c	2013-01-09 19:25:05.028321379 -0800
+> > > > +++ linux/mm/memory.c	2013-02-06 15:01:17.904387877 -0800
+> > > > @@ -3338,6 +3338,10 @@ static int __do_fault(struct mm_struct *
+> > > >  				dirty_page = page;
+> > > >  				get_page(dirty_page);
+> > > >  			}
+> > > > +#ifdef CONFIG_S390
+> > > > +			else if (pte_write(entry) && PageDirty(page))
+> > > > +				pte_mkdirty(entry);
+> > > > +#endif
+> > > >  		}
+> > > >  		set_pte_at(mm, address, page_table, entry);
+> > > > 
+> > > > And then I wonder, is that something we should do on all architectures?
+> > > > On the one hand, it would save a hardware fault when and if the pte is
+> > > > dirtied later; on the other hand, it seems wrong to claim pte dirty when
+> > > > not (though I didn't find anywhere that would care).
+> > > 
+> > > I don't like the fact that we are adding another CONFIG_S390, if we could
+> > > pre-dirty the pte for all architectures that would be nice. It has no
+> > > ill effects for s390 to make the pte dirty, I can think of no reason
+> > > why it should hurt for other architectures.
+> > 
+> > Having though further on the issue, it does not make sense to force all
+> > architectures to set the dirty bit in the pte as this would make
+> > try_to_unmap_one to call set_page_dirty even for ptes which have not
+> > been used for writing.
+> 
+> In this particular case of shmem/tmpfs/ramfs (perhaps a few unaccounted
+> others too, I doubt many are mmap'able), on pages that were already
+> PageDirty when mapped.  And ramfs doesn't get as far as try_to_unmap_one,
+> because it has already failed the page_evictable test.
 
-Agreed also on the backporting to -stable as far as possible.
+The important case is shmem for databases, no? 
+
+> > set_page_dirty is a non-trivial function that
+> > calls mapping->a_ops->set_page_dirty or __set_page_dirty_buffers. These
+> > cycles should imho not be spent on architectures with h/w pte dirty
+> > bits.
+> 
+> The almost no-op __set_page_dirty_no_writeback is actually the one
+> that gets called.  Now, I don't disagree with you that I'd prefer not
+> to have to call it; but I'd also prefer to do the same thing on s390
+> as other architectures.
+
+Even if that would mean that unnecessary cycles are spent on the other
+architectures? My feeling is that we should try to avoid that.
+ 
+> I'm undecided which I prefer.  Before you wrote, I was going to suggest
+> that you put your original patch into your tree for linux-next, then I
+> propose an mm patch on top, restoring the s390 mk_pte() to normalcy, and
+> adding the pte_mkdirty() to __do_fault() as above; but with a comment
+> (you have), taking out the #ifdef, doing it on all architectures - so
+> that if we see a problem on one (because some code elsewhere is deducing
+> something from pte_dirty), it's advance warning of a problem on s390.
+> But if anyone objected to my patch, it would cast doubt upon yours.
+
+That is certainly a workable approach.
+
+> > 
+> > To avoid CONFIG_S390 in common code I'd like to introduce a new
+> > __ARCH_WANT_PTE_WRITE_DIRTY define which then is used in __do_fault
+> > like this:
+> 
+> My personal opinion is that an __ARCH_WANT_PTE_WRITE_DIRTY that is set
+> by only a single architecture just obfuscates the issue, that CONFIG_S390
+> is clearer for everyone.  Much of my dislike of page_test_and_clear_dirty
+> was that it looks so brilliantly generic, and yet is so peculiar to s390.
+> 
+> But it's quite likely that I'm in a minority of one on that:
+> #ifdef CONFIG_HUGHD
+> #define __DEVELOPER_PREFERS_MORE_EXPLICIT_SINGLE_ARCH_DEPENDENCE 1
+> #endif
+> 
+> And at least #ifdef CONFIG_S390_OR_WHATEVER flags it as exceptional:
+> this might be a case where I'd say the ugliness of an #ifdef is good.
+> I am glad that you've come around to doing it this way, rather than
+> hiding the PageDirty peculiarity down in arch/s390's mk_pte().
+
+I am not so sure about that. Arm seems to have exactly the same problem,
+they do not set the h/w write bit as long as the user ptes are not dirty.
+My guess is that arm is the second architectures that could use the define.
+
+Putting the arm maintainer on CC. Russell, the question is if a pre-dirty
+of writable user PTEs if the PageDirty bit is set would help arm to avoid
+protection faults for tmpfs/shmem. The relevant hunk from the patch:
+
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3338,6 +3338,18 @@ static int __do_fault(struct mm_struct *mm, struct vm_are
+a_struct *vma,
+                                dirty_page = page;
+                                get_page(dirty_page);
+                        }
++#ifdef __ARCH_WANT_PTE_WRITE_DIRTY
++                       /*
++                        * Architectures that use software dirty bits may
++                        * want to set the dirty bit in the pte if the pte
++                        * is writable and the PageDirty bit is set for the
++                        * page. This avoids unnecessary protection faults
++                        * for writable mappings which do not use
++                        * mapping_cap_account_dirty, e.g. tmpfs and shmem.
++                        */
++                       else if (pte_write(entry) && PageDirty(page))
++                               entry = pte_mkdirty(entry);
++#endif
+                }
+                set_pte_at(mm, address, page_table, entry);
+ 
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
