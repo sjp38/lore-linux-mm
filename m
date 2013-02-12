@@ -1,73 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id B172E6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 09:56:39 -0500 (EST)
-Date: Tue, 12 Feb 2013 15:56:35 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: fix kmemcg registration for late caches
-Message-ID: <20130212145635.GF4863@dhcp22.suse.cz>
-References: <1360600797-27793-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 71A656B0005
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 10:10:24 -0500 (EST)
+Date: Tue, 12 Feb 2013 10:10:02 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
+Message-ID: <20130212151002.GD15951@cmpxchg.org>
+References: <1357235661-29564-1-git-send-email-mhocko@suse.cz>
+ <1357235661-29564-5-git-send-email-mhocko@suse.cz>
+ <20130208193318.GA15951@cmpxchg.org>
+ <20130211151649.GD19922@dhcp22.suse.cz>
+ <20130211175619.GC13218@cmpxchg.org>
+ <20130211192929.GB29000@dhcp22.suse.cz>
+ <20130211195824.GB15951@cmpxchg.org>
+ <20130211212756.GC29000@dhcp22.suse.cz>
+ <20130211223943.GC15951@cmpxchg.org>
+ <20130212095419.GB4863@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1360600797-27793-1-git-send-email-glommer@parallels.com>
+In-Reply-To: <20130212095419.GB4863@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On Mon 11-02-13 20:39:57, Glauber Costa wrote:
-> The designed workflow for the caches in kmemcg is: register it with
-> memcg_register_cache() if kmemcg is already available or later on when a
-> new kmemcg appears at memcg_update_cache_sizes() which will handle all
-> caches in the system. The caches created at boot time will be handled by
-> the later, and the memcg-caches as well as any system caches that are
-> registered later on by the former.
+On Tue, Feb 12, 2013 at 10:54:19AM +0100, Michal Hocko wrote:
+> On Mon 11-02-13 17:39:43, Johannes Weiner wrote:
+> > On Mon, Feb 11, 2013 at 10:27:56PM +0100, Michal Hocko wrote:
+> > > On Mon 11-02-13 14:58:24, Johannes Weiner wrote:
+> > > > That way, if the dead count gives the go-ahead, you KNOW that the
+> > > > position cache is valid, because it has been updated first.
+> > > 
+> > > OK, you are right. We can live without css_tryget because dead_count is
+> > > either OK which means that css would be alive at least this rcu period
+> > > (and RCU walk would be safe as well) or it is incremented which means
+> > > that we have started css_offline already and then css is dead already.
+> > > So css_tryget can be dropped.
+> > 
+> > Not quite :)
+> > 
+> > The dead_count check is for completed destructions,
 > 
-> There is a bug, however, in memcg_register_cache: we correctly set up
-> the array size, but do not mark the cache as a root cache. This means
-> that allocations for any cache appearing late in the game will see
-> memcg->memcg_params->is_root_cache == false, and in particular, trigger
-> VM_BUG_ON(!cachep->memcg_params->is_root_cache) in
-> __memcg_kmem_cache_get.
-> 
-> The obvious fix is to include the missing assignment.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Not quite :P. dead_count is incremented in css_offline callback which is
+> called before the cgroup core releases its last reference and unlinks
+> the group from the siblinks. css_tryget would already fail at this stage
+> because CSS_DEACT_BIAS is in place at that time but this doesn't break
+> RCU walk. So I think we are safe even without css_get.
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+But you drop the RCU lock before you return.
 
-> ---
->  mm/memcontrol.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 03ebf68..d4e83d0 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3147,7 +3147,9 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
->  	if (memcg) {
->  		s->memcg_params->memcg = memcg;
->  		s->memcg_params->root_cache = root_cache;
-> -	}
-> +	} else
-> +		s->memcg_params->is_root_cache = true;
-> +
->  	return 0;
->  }
->  
-> -- 
-> 1.8.1.2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+dead_count IS incremented for every destruction, but it's not reliable
+for concurrent ones, is what I meant.  Again, if there is a dead_count
+mismatch, your pointer might be dangling, easy case.  However, even if
+there is no mismatch, you could still race with a destruction that has
+marked the object dead, and then frees it once you drop the RCU lock,
+so you need try_get() to check if the object is dead, or you could
+return a pointer to freed or soon to be freed memory.
 
--- 
-Michal Hocko
-SUSE Labs
+/*
+ * If the dead_count mismatches, a destruction has happened or is
+ * happening concurrently.  If the dead_count matches, a destruction
+ * might still happen concurrently, but since we checked under RCU,
+ * that destruction won't free the object until we release the RCU
+ * reader lock.  Thus, the dead_count check verifies the pointer is
+ * still valid, css_tryget() verifies the cgroup pointed to is alive.
+ */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
