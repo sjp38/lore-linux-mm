@@ -1,163 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 71C866B0005
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 03:46:44 -0500 (EST)
-Received: from /spool/local
-	by e06smtp18.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Tue, 12 Feb 2013 08:44:48 -0000
-Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1C8kUWm21364940
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 08:46:30 GMT
-Received: from d06av11.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1C8kcPj016778
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 01:46:38 -0700
-Date: Tue, 12 Feb 2013 09:46:36 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] s390/mm: implement software dirty bits
-Message-ID: <20130212094636.56299155@mschwide>
-In-Reply-To: <alpine.LNX.2.00.1302111315070.1174@eggly.anvils>
-References: <1360087925-8456-1-git-send-email-schwidefsky@de.ibm.com>
-	<1360087925-8456-3-git-send-email-schwidefsky@de.ibm.com>
-	<alpine.LNX.2.00.1302061504340.7256@eggly.anvils>
-	<20130207111838.27fea18f@mschwide>
-	<20130211152715.03fab00a@mschwide>
-	<alpine.LNX.2.00.1302111315070.1174@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 2D1C16B0005
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 04:54:27 -0500 (EST)
+Date: Tue, 12 Feb 2013 10:54:19 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
+Message-ID: <20130212095419.GB4863@dhcp22.suse.cz>
+References: <1357235661-29564-1-git-send-email-mhocko@suse.cz>
+ <1357235661-29564-5-git-send-email-mhocko@suse.cz>
+ <20130208193318.GA15951@cmpxchg.org>
+ <20130211151649.GD19922@dhcp22.suse.cz>
+ <20130211175619.GC13218@cmpxchg.org>
+ <20130211192929.GB29000@dhcp22.suse.cz>
+ <20130211195824.GB15951@cmpxchg.org>
+ <20130211212756.GC29000@dhcp22.suse.cz>
+ <20130211223943.GC15951@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130211223943.GC15951@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-s390@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Russell King <linux@arm.linux.org.uk>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On Mon, 11 Feb 2013 14:08:23 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
-
-> On Mon, 11 Feb 2013, Martin Schwidefsky wrote:
-> > On Thu, 7 Feb 2013 11:18:38 -0800
-> > Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
-> > > On Wed, 6 Feb 2013 16:20:40 -0800 (PST)
-> > > Hugh Dickins <hughd@google.com> wrote:
-> > > 
-> > > Anon page and accounted file pages won't need the mk_pte optimization,
-> > > that is there for tmpfs/shmem. We could do that in common code as well,
-> > > to make the dependency on PageDirty more obvious.
-> > > 
-> > > > --- 3.8-rc6/mm/memory.c	2013-01-09 19:25:05.028321379 -0800
-> > > > +++ linux/mm/memory.c	2013-02-06 15:01:17.904387877 -0800
-> > > > @@ -3338,6 +3338,10 @@ static int __do_fault(struct mm_struct *
-> > > >  				dirty_page = page;
-> > > >  				get_page(dirty_page);
-> > > >  			}
-> > > > +#ifdef CONFIG_S390
-> > > > +			else if (pte_write(entry) && PageDirty(page))
-> > > > +				pte_mkdirty(entry);
-> > > > +#endif
-> > > >  		}
-> > > >  		set_pte_at(mm, address, page_table, entry);
+On Mon 11-02-13 17:39:43, Johannes Weiner wrote:
+> On Mon, Feb 11, 2013 at 10:27:56PM +0100, Michal Hocko wrote:
+> > On Mon 11-02-13 14:58:24, Johannes Weiner wrote:
+> > > On Mon, Feb 11, 2013 at 08:29:29PM +0100, Michal Hocko wrote:
+> > > > On Mon 11-02-13 12:56:19, Johannes Weiner wrote:
+> > > > > On Mon, Feb 11, 2013 at 04:16:49PM +0100, Michal Hocko wrote:
+> > > > > > Maybe we could keep the counter per memcg but that would mean that we
+> > > > > > would need to go up the hierarchy as well. We wouldn't have to go over
+> > > > > > node-zone-priority cleanup so it would be much more lightweight.
+> > > > > > 
+> > > > > > I am not sure this is necessarily better than explicit cleanup because
+> > > > > > it brings yet another kind of generation number to the game but I guess
+> > > > > > I can live with it if people really thing the relaxed way is much
+> > > > > > better.
+> > > > > > What do you think about the patch below (untested yet)?
+> > > > > 
+> > > > > Better, but I think you can get rid of both locks:
 > > > > 
-> > > > And then I wonder, is that something we should do on all architectures?
-> > > > On the one hand, it would save a hardware fault when and if the pte is
-> > > > dirtied later; on the other hand, it seems wrong to claim pte dirty when
-> > > > not (though I didn't find anywhere that would care).
+> > > > What is the other lock you have in mind.
 > > > 
-> > > I don't like the fact that we are adding another CONFIG_S390, if we could
-> > > pre-dirty the pte for all architectures that would be nice. It has no
-> > > ill effects for s390 to make the pte dirty, I can think of no reason
-> > > why it should hurt for other architectures.
+> > > The iter lock itself.  I mean, multiple reclaimers can still race but
+> > > there won't be any corruption (if you make iter->dead_count a long,
+> > > setting it happens atomically, we nly need the memcg->dead_count to be
+> > > an atomic because of the inc) and the worst that could happen is that
+> > > a reclaim starts at the wrong point in hierarchy, right?
 > > 
-> > Having though further on the issue, it does not make sense to force all
-> > architectures to set the dirty bit in the pte as this would make
-> > try_to_unmap_one to call set_page_dirty even for ptes which have not
-> > been used for writing.
+> > The lack of synchronization basically means that 2 parallel reclaimers
+> > can reclaim every group exactly once (ideally) or up to each group
+> > twice in the worst case.
+> > So the exclusion was quite comfortable.
 > 
-> In this particular case of shmem/tmpfs/ramfs (perhaps a few unaccounted
-> others too, I doubt many are mmap'able), on pages that were already
-> PageDirty when mapped.  And ramfs doesn't get as far as try_to_unmap_one,
-> because it has already failed the page_evictable test.
+> It's quite unlikely, though.  Don't forget that they actually reclaim
+> in between, I just can't see them line up perfectly and race to the
+> iterator at the same time repeatedly.  It's more likely to happen at
+> the higher priority levels where less reclaim happens, and then it's
+> not a big deal anyway.  With lower priority levels, when the glitches
+> would be more problematic, they also become even less likely.
 
-The important case is shmem for databases, no? 
-
-> > set_page_dirty is a non-trivial function that
-> > calls mapping->a_ops->set_page_dirty or __set_page_dirty_buffers. These
-> > cycles should imho not be spent on architectures with h/w pte dirty
-> > bits.
-> 
-> The almost no-op __set_page_dirty_no_writeback is actually the one
-> that gets called.  Now, I don't disagree with you that I'd prefer not
-> to have to call it; but I'd also prefer to do the same thing on s390
-> as other architectures.
-
-Even if that would mean that unnecessary cycles are spent on the other
-architectures? My feeling is that we should try to avoid that.
+Fair enough, I will drop that patch in the next version.
  
-> I'm undecided which I prefer.  Before you wrote, I was going to suggest
-> that you put your original patch into your tree for linux-next, then I
-> propose an mm patch on top, restoring the s390 mk_pte() to normalcy, and
-> adding the pte_mkdirty() to __do_fault() as above; but with a comment
-> (you have), taking out the #ifdef, doing it on all architectures - so
-> that if we see a problem on one (because some code elsewhere is deducing
-> something from pte_dirty), it's advance warning of a problem on s390.
-> But if anyone objected to my patch, it would cast doubt upon yours.
-
-That is certainly a workable approach.
-
+> > > But as you said in the changelog that introduced the lock, it's never
+> > > actually been a practical problem.
 > > 
-> > To avoid CONFIG_S390 in common code I'd like to introduce a new
-> > __ARCH_WANT_PTE_WRITE_DIRTY define which then is used in __do_fault
-> > like this:
+> > That is true but those bugs would be subtle though so I wouldn't be
+> > opposed to prevent from them before we get burnt. But if you think that
+> > we should keep the previous semantic I can drop that patch.
 > 
-> My personal opinion is that an __ARCH_WANT_PTE_WRITE_DIRTY that is set
-> by only a single architecture just obfuscates the issue, that CONFIG_S390
-> is clearer for everyone.  Much of my dislike of page_test_and_clear_dirty
-> was that it looks so brilliantly generic, and yet is so peculiar to s390.
+> I just think that the problem is unlikely and not that big of a deal.
 > 
-> But it's quite likely that I'm in a minority of one on that:
-> #ifdef CONFIG_HUGHD
-> #define __DEVELOPER_PREFERS_MORE_EXPLICIT_SINGLE_ARCH_DEPENDENCE 1
-> #endif
+> > > You just need to put the wmb back in place, so that we never see the
+> > > dead_count give the green light while the cached position is stale, or
+> > > we'll tryget random memory.
+> > > 
+> > > > > mem_cgroup_iter:
+> > > > > rcu_read_lock()
+> > > > > if atomic_read(&root->dead_count) == iter->dead_count:
+> > > > >   smp_rmb()
+> > > > >   if tryget(iter->position):
+> > > > >     position = iter->position
+> > > > > memcg = find_next(postion)
+> > > > > css_put(position)
+> > > > > iter->position = memcg
+> > > > > smp_wmb() /* Write position cache BEFORE marking it uptodate */
+> > > > > iter->dead_count = atomic_read(&root->dead_count)
+> > > > > rcu_read_unlock()
+> > > > 
+> > > > Updated patch bellow:
+> > > 
+> > > Cool, thanks.  I hope you don't find it too ugly anymore :-)
+> > 
+> > It's getting trick and you know how people love when you have to play
+> > and rely on atomics with memory barriers...
 > 
-> And at least #ifdef CONFIG_S390_OR_WHATEVER flags it as exceptional:
-> this might be a case where I'd say the ugliness of an #ifdef is good.
-> I am glad that you've come around to doing it this way, rather than
-> hiding the PageDirty peculiarity down in arch/s390's mk_pte().
+> My bumper sticker reads "I don't believe in mutual exclusion" (the
+> kernel hacker's version of smile for the red light camera).
 
-I am not so sure about that. Arm seems to have exactly the same problem,
-they do not set the h/w write bit as long as the user ptes are not dirty.
-My guess is that arm is the second architectures that could use the define.
-
-Putting the arm maintainer on CC. Russell, the question is if a pre-dirty
-of writable user PTEs if the PageDirty bit is set would help arm to avoid
-protection faults for tmpfs/shmem. The relevant hunk from the patch:
-
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3338,6 +3338,18 @@ static int __do_fault(struct mm_struct *mm, struct vm_are
-a_struct *vma,
-                                dirty_page = page;
-                                get_page(dirty_page);
-                        }
-+#ifdef __ARCH_WANT_PTE_WRITE_DIRTY
-+                       /*
-+                        * Architectures that use software dirty bits may
-+                        * want to set the dirty bit in the pte if the pte
-+                        * is writable and the PageDirty bit is set for the
-+                        * page. This avoids unnecessary protection faults
-+                        * for writable mappings which do not use
-+                        * mapping_cap_account_dirty, e.g. tmpfs and shmem.
-+                        */
-+                       else if (pte_write(entry) && PageDirty(page))
-+                               entry = pte_mkdirty(entry);
-+#endif
-                }
-                set_pte_at(mm, address, page_table, entry);
+Ohh, those easy riders.
  
+> I mean, you were the one complaining about the lock...
+> 
+> > > That way, if the dead count gives the go-ahead, you KNOW that the
+> > > position cache is valid, because it has been updated first.
+> > 
+> > OK, you are right. We can live without css_tryget because dead_count is
+> > either OK which means that css would be alive at least this rcu period
+> > (and RCU walk would be safe as well) or it is incremented which means
+> > that we have started css_offline already and then css is dead already.
+> > So css_tryget can be dropped.
+> 
+> Not quite :)
+> 
+> The dead_count check is for completed destructions,
+
+Not quite :P. dead_count is incremented in css_offline callback which is
+called before the cgroup core releases its last reference and unlinks
+the group from the siblinks. css_tryget would already fail at this stage
+because CSS_DEACT_BIAS is in place at that time but this doesn't break
+RCU walk. So I think we are safe even without css_get.
+
+Or am I missing something?
+[...]
 -- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
