@@ -1,63 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 81AC16B0005
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 05:43:46 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2E7F73EE0BD
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:43:45 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E46E45DEC5
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:43:45 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E702F45DEBA
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:43:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D32B81DB8045
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:43:44 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 81ABE1DB803B
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:43:44 +0900 (JST)
-Message-ID: <511B6E52.1090800@jp.fujitsu.com>
-Date: Wed, 13 Feb 2013 19:43:30 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id B5D4B6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 05:47:59 -0500 (EST)
+Date: Wed, 13 Feb 2013 10:47:55 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Improving lock pages
+Message-ID: <20130213104755.GH4100@suse.de>
+References: <20130115173814.GA13329@gulag1.americas.sgi.com>
+ <20130206163129.GR21389@suse.de>
+ <5115743D.3090903@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] memcg: replace cgroup_lock with memcg specific memcg_lock
- fix
-References: <1360569889-843-1-git-send-email-glommer@parallels.com> <1360569889-843-3-git-send-email-glommer@parallels.com>
-In-Reply-To: <1360569889-843-3-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <5115743D.3090903@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+To: Nathan Zimmer <nzimmer@sgi.com>
+Cc: holt@sgi.com, linux-mm@kvack.org
 
-(2013/02/11 17:04), Glauber Costa wrote:
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Reported-by: Dan Carpenter <dan.carpenter@oracle.com>
-
-I'm sorry I missed this...
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-> ---
->   mm/memcontrol.c | 2 +-
->   1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 28252c9..03ebf68 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5884,7 +5884,7 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
->   	mutex_lock(&memcg_create_mutex);
->   	/* oom-kill-disable is a flag for subhierarchy. */
->   	if ((parent->use_hierarchy) || memcg_has_children(memcg)) {
-> -		cgroup_unlock();
-> +		mutex_unlock(&memcg_create_mutex);
->   		return -EINVAL;
->   	}
->   	memcg->oom_kill_disable = val;
+On Fri, Feb 08, 2013 at 03:55:09PM -0600, Nathan Zimmer wrote:
+> >The main reason I never made an strong effort to push them upstream
+> >because the problems are barely observable on any machine I had access to.
+> >The unlock page optimisation requires a page flag and while it helps
+> >profiles a little, the effects are barely observable on smaller machines
+> >(at least since I last checked).  One machine it was reported to help
+> >dramatically was a 768-way 128 node machine.
+> >
+> >Forthe 512-way machine you're testing with the figures are marginal. The
+> >time to exit is shorter but the amount of time is tiny and very close to
+> >noise. I forward ported the relevant patches but on a 48-way machine the
+> >results for the same test were well within the noise and the standard
+> >deviation was higher.
+>
+> One thing I had noticed the performance curve on this issue is worse
+> then linear.
+> This has made it tough to measure/capture data on smaller boxes.
 > 
 
+While this is true the figures you present are of marginal gain given the
+complexity involved.  I know the patches also affected boot-times quite
+significantly but this was not a common task for the machines involved.
+
+> >I know you're tasked with improving this area more but what are you
+> >using as your example workload? What's the minimum sized machine needed
+> >for the optimisations to make a difference?
+> >
+>
+> Right now I am just using the time_exit test I posted earlier.
+> I know it is a bit artificial and am open to suggestion.
+> 
+
+I'm not currently aware of a workload that is dominated by lock_page
+contention and I was expecting SGI was. There are plenty of times where we
+stall on lock_page but it's usually IO related and not because processes
+trying to acquire the lock went to sleep too quickly.
+
+> One of the rough goals is to get under a second on a 4096 box.
+> 
+> Also here are some numbers from a larger box with 3.8-rc4...
+> nzimmer@uv48-sys:~/tests/time_exit> for I in $(seq 1 5); {
+> ./time_exit -p 3 2048; }
+>       0.762282
+>       0.810356
+>       0.777785
+>       0.840679
+>       0.743509
+> 
+> nzimmer@uv48-sys:~/tests/time_exit> for I in $(seq 1 5); {
+> ./time_exit -p 3 4096; }
+>       2.550571
+>       2.374378
+>       2.669021
+>       2.703232
+>       2.679028
+> 
+
+I collapsed the patches, editted them a bit and pushed them to the
+mm-lock-page-optimise-v1r1 branch in the git repository
+git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux.git 
+
+The patches are rebased against 3.8-rc6 but I did not pay any special
+attention to actually improving them. I did leave a few notes on what could
+be done in the changelog. You could try them out as a starting point and
+see if they can be reduced to the minimum you require. Unfortunately I
+suspect that you'll need a more compelling test case than time_exit on a
+4096-way machine to justify pushing them to mainline.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
