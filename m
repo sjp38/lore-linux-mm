@@ -1,100 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 55B786B0005
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 04:51:17 -0500 (EST)
-Date: Wed, 13 Feb 2013 10:51:13 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
-Message-ID: <20130213095113.GA23562@dhcp22.suse.cz>
-References: <20130211195824.GB15951@cmpxchg.org>
- <20130211212756.GC29000@dhcp22.suse.cz>
- <20130211223943.GC15951@cmpxchg.org>
- <20130212095419.GB4863@dhcp22.suse.cz>
- <20130212151002.GD15951@cmpxchg.org>
- <20130212154330.GG4863@dhcp22.suse.cz>
- <20130212161051.GQ2666@linux.vnet.ibm.com>
- <20130212172526.GC25235@cmpxchg.org>
- <20130212183148.GW2666@linux.vnet.ibm.com>
- <20130212195358.GE25235@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 57B466B0005
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 05:00:21 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 917203EE0BC
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:00:19 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7947145DE52
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:00:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 545DD45DE4F
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:00:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 418511DB8040
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:00:19 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E92411DB803B
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:00:18 +0900 (JST)
+Message-ID: <511B6422.8030408@jp.fujitsu.com>
+Date: Wed, 13 Feb 2013 19:00:02 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130212195358.GE25235@cmpxchg.org>
+Subject: Re: [PATCH] memcg: fix kmemcg registration for late caches
+References: <1360600797-27793-1-git-send-email-glommer@parallels.com>
+In-Reply-To: <1360600797-27793-1-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Tue 12-02-13 14:53:58, Johannes Weiner wrote:
-[...]
-> iteration:
-> rcu_read_lock()
-> dead_count = atomic_read(&hierarchy->dead_count)
-> smp_rmb()
-> previous = iterator->position
-> if (iterator->dead_count != dead_count)
->    /* A cgroup in our hierarchy was killed, pointer might be dangling */
->    don't use iterator
-> if (!tryget(&previous))
->    /* The cgroup is marked dead, don't use it */
->    don't use iterator
-> next = find_next_and_tryget(hierarchy, &previous)
-> /* what happens if destruction of next starts NOW? */
-
-OK, I thought that this depends on the ordering of CSS_DEACT_BIAS and
-dead_count writes - because there is no memory ordering enforced between
-those two. But it shouldn't matter because we are checking both. If the
-increment is seen sooner then we do not care about css_tryget and if css
-is deactivated before dead_count++ then the css_tryget would shout.
-
-More interesting ordering, however, is dead_count++ vs. css_put from
-cgroup core. Say we have the following:
-
-	CPU0			CPU1			CPU2
-
-iter->position = A;
-iter->dead_count = dead_count;
-rcu_read_unlock()
-return A
-
-mem_cgroup_iter_break
-  css_put(A)					bias(A)
-  						css_offline()
-  						css_put(A) // in cgroup_destroy_locked
-							   // last ref and A will be freed
-  			rcu_read_lock()
-			read parent->dead_count
-						parent->dead_count++ // got reordered from css_offline
-			css_tryget(A) // kaboom
-
-The reordering window is really huge and I think it is impossible
-to trigger in real life. And mem_cgroup_reparent_charges calls
-mem_cgroup_start_move unconditionally which in turn calls
-synchronize_rcu() which is a full barrier AFAIU so dead_count++ cannot
-be reordered ATM.
-But should we rely on that? Shouldn't we add smp_wmb
-after dead_count++ as I had in an earlier version of the patch?
-
-> css_put(previous)
-> iterator->position = next
-> smp_wmb()
-> iterator->dead_count = dead_count /* my suggestion, instead of a second atomic_read() */
-> rcu_read_unlock()
-> return next /* caller drops ref eventually, iterator->cgroup becomes weak */
+(2013/02/12 1:39), Glauber Costa wrote:
+> The designed workflow for the caches in kmemcg is: register it with
+> memcg_register_cache() if kmemcg is already available or later on when a
+> new kmemcg appears at memcg_update_cache_sizes() which will handle all
+> caches in the system. The caches created at boot time will be handled by
+> the later, and the memcg-caches as well as any system caches that are
+> registered later on by the former.
 > 
-> destruction:
-> bias(cgroup->refcount) /* disables future tryget */
-> //synchronize_rcu() /* Michal's suggestion */
-> atomic_inc(&cgroup->hierarchy->dead_count)
-> synchronize_rcu()
-> free(cgroup)
+> There is a bug, however, in memcg_register_cache: we correctly set up
+> the array size, but do not mark the cache as a root cache. This means
+> that allocations for any cache appearing late in the game will see
+> memcg->memcg_params->is_root_cache == false, and in particular, trigger
+> VM_BUG_ON(!cachep->memcg_params->is_root_cache) in
+> __memcg_kmem_cache_get.
+> 
+> The obvious fix is to include the missing assignment.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
 
-Other than that this should work. I will update the patch accordingly.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+> ---
+>   mm/memcontrol.c | 4 +++-
+>   1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 03ebf68..d4e83d0 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3147,7 +3147,9 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
+>   	if (memcg) {
+>   		s->memcg_params->memcg = memcg;
+>   		s->memcg_params->root_cache = root_cache;
+> -	}
+> +	} else
+> +		s->memcg_params->is_root_cache = true;
+> +
+>   	return 0;
+>   }
+>   
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
