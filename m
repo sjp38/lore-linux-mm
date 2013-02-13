@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id DDEC96B0005
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 19:19:14 -0500 (EST)
-Date: Tue, 12 Feb 2013 16:19:12 -0800
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id EEF696B0007
+	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 19:22:24 -0500 (EST)
+Date: Tue, 12 Feb 2013 16:22:22 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH V3] ia64/mm: fix a bad_page bug when crash kernel
  booting
-Message-Id: <20130212161912.6a9e9293.akpm@linux-foundation.org>
+Message-Id: <20130212162222.e4103ddb.akpm@linux-foundation.org>
 In-Reply-To: <CA+8MBb+3_xWv1wMWv0+gwWm9exPCNTZWG3mXQnBsUbc5fJnuiA@mail.gmail.com>
 References: <51074786.5030007@huawei.com>
 	<1359995565.7515.178.camel@mfleming-mobl1.ger.corp.intel.com>
@@ -37,32 +37,22 @@ Tony Luck <tony.luck@gmail.com> wrote:
 > arch/ia64/mm/init.c:216: error: implicit declaration of function
 > 'GRANULEROUNDDOWN'
 > 
-> with "git blame" saying that these lines in init.c were added/changed by
-> 
-> commit 5a54b4fb8f554b15c6113e30ca8412b7fe11c62e
-> Author: Xishi Qiu <qiuxishi@huawei.com>
-> Date:   Thu Feb 7 12:25:59 2013 +1100
-> 
->     ia64/mm: fix a bad_page bug when crash kernel booting
-> 
 
-Presumably this:
+`max_addr' is an awesomely bad name for a global identifier, btw.
 
---- a/arch/ia64/mm/init.c~ia64-mm-fix-a-bad_page-bug-when-crash-kernel-booting-fix
-+++ a/arch/ia64/mm/init.c
-@@ -27,6 +27,7 @@
- #include <asm/machvec.h>
- #include <asm/numa.h>
- #include <asm/patch.h>
-+#include <asm/meminit.h>
- #include <asm/pgalloc.h>
- #include <asm/sal.h>
- #include <asm/sections.h>
-_
+And this:
+
+-static u64 mem_limit = ~0UL, max_addr = ~0UL, min_addr = 0UL;
++u64 mem_limit = ~0UL, max_addr = ~0UL, min_addr = 0UL;
+
+needlessly exported `mem_limit' and `min_addr' as well.  These too are
+very poor global identifiers.
+
+Also, Matt suggested an alternative implementation which afaik hasn't
+been responded to.
 
 
-But, umm, why am I sitting here trying to maintain an ia64 bugfix and
-handling bug reports from the ia64 maintainer?  Wanna swap?
+I think I'll just drop the patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
