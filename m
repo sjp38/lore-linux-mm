@@ -1,78 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 57B466B0005
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 05:00:21 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 917203EE0BC
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:00:19 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 7947145DE52
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:00:19 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 545DD45DE4F
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:00:19 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 418511DB8040
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:00:19 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E92411DB803B
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:00:18 +0900 (JST)
-Message-ID: <511B6422.8030408@jp.fujitsu.com>
-Date: Wed, 13 Feb 2013 19:00:02 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: fix kmemcg registration for late caches
-References: <1360600797-27793-1-git-send-email-glommer@parallels.com>
-In-Reply-To: <1360600797-27793-1-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 89A7B6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 05:07:13 -0500 (EST)
+Received: by mail-wg0-f44.google.com with SMTP id dr12so798782wgb.23
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2013 02:07:11 -0800 (PST)
+Message-ID: <1360750028.24917.28.camel@mfleming-mobl1.ger.corp.intel.com>
+Subject: Re: [PATCH V3] ia64/mm: fix a bad_page bug when crash kernel booting
+From: Matt Fleming <matt.fleming@intel.com>
+Date: Wed, 13 Feb 2013 10:07:08 +0000
+In-Reply-To: <5113450C.1080109@huawei.com>
+References: <51074786.5030007@huawei.com>
+	 <1359995565.7515.178.camel@mfleming-mobl1.ger.corp.intel.com>
+	 <51131248.3080203@huawei.com> <5113450C.1080109@huawei.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, fenghua.yu@intel.com, Liujiang <jiang.liu@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, WuJianguo <wujianguo@huawei.com>
 
-(2013/02/12 1:39), Glauber Costa wrote:
-> The designed workflow for the caches in kmemcg is: register it with
-> memcg_register_cache() if kmemcg is already available or later on when a
-> new kmemcg appears at memcg_update_cache_sizes() which will handle all
-> caches in the system. The caches created at boot time will be handled by
-> the later, and the memcg-caches as well as any system caches that are
-> registered later on by the former.
+On Thu, 2013-02-07 at 14:09 +0800, Xishi Qiu wrote:
+> > Sorry, this bug will be happen when use Sparse-Memory(section is valid, but last
 > 
-> There is a bug, however, in memcg_register_cache: we correctly set up
-> the array size, but do not mark the cache as a root cache. This means
-> that allocations for any cache appearing late in the game will see
-> memcg->memcg_params->is_root_cache == false, and in particular, trigger
-> VM_BUG_ON(!cachep->memcg_params->is_root_cache) in
-> __memcg_kmem_cache_get.
+> > several pages are invalid). If use Flat-Memory, crash kernel will boot successfully.
+> > I think the following patch would be better.
+> > 
+> > Hi Andrew, will you just ignore the earlier patch and consider the following one? :>
+> > 
+> > Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> > ---
+> >  arch/ia64/mm/init.c |    2 ++
+> >  1 files changed, 2 insertions(+), 0 deletions(-)
+> > 
+> > diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+> > index 082e383..23f2ee3 100644
+> > --- a/arch/ia64/mm/init.c
+> > +++ b/arch/ia64/mm/init.c
+> > @@ -213,6 +213,8 @@ free_initrd_mem (unsigned long start, unsigned long end)
+> >  	for (; start < end; start += PAGE_SIZE) {
+> >  		if (!virt_addr_valid(start))
+> >  			continue;
+> > +		if ((start >> PAGE_SHIFT) >= max_low_pfn)
 > 
-> The obvious fix is to include the missing assignment.
+> I confused the vaddr and paddr, really sorry for it.
 > 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
+> In efi_init() memory aligns in IA64_GRANULE_SIZE(16M). If set "crashkernel=1024M-:600M"
+> and use sparse memory model, when crash kernel booting it changes [128M-728M] to [128M-720M].
+> But initrd memory is in [709M-727M], and virt_addr_valid() *can not* check the invalid pages
+> when freeing initrd memory. There are some pages missed at the end of the seciton.
+> 
+> ChangeLog V3:
+> 	fixed vaddr mistake
+> ChangeLog V2:
+> 	add invalid pages check when freeing initrd memory
+> 
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 > ---
->   mm/memcontrol.c | 4 +++-
->   1 file changed, 3 insertions(+), 1 deletion(-)
+>  arch/ia64/mm/init.c |    4 ++++
+>  1 files changed, 4 insertions(+), 0 deletions(-)
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 03ebf68..d4e83d0 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3147,7 +3147,9 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
->   	if (memcg) {
->   		s->memcg_params->memcg = memcg;
->   		s->memcg_params->root_cache = root_cache;
-> -	}
-> +	} else
-> +		s->memcg_params->is_root_cache = true;
-> +
->   	return 0;
->   }
->   
-> 
+> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+> index 082e383..8a269f8 100644
+> --- a/arch/ia64/mm/init.c
+> +++ b/arch/ia64/mm/init.c
+> @@ -173,6 +173,7 @@ void __init
+>  free_initrd_mem (unsigned long start, unsigned long end)
+>  {
+>  	struct page *page;
+> +	unsigned long pfn;
+>  	/*
+>  	 * EFI uses 4KB pages while the kernel can use 4KB or bigger.
+>  	 * Thus EFI and the kernel may have different page sizes. It is
+> @@ -213,6 +214,9 @@ free_initrd_mem (unsigned long start, unsigned long end)
+>  	for (; start < end; start += PAGE_SIZE) {
+>  		if (!virt_addr_valid(start))
+>  			continue;
+> +		pfn = __pa(start) >> PAGE_SHIFT;
+> +		if (pfn >= max_low_pfn)
+> +			continue;
+>  		page = virt_to_page(start);
+>  		ClearPageReserved(page);
+>  		init_page_count(page);
 
+I would have presumed that fixing this bug would involve modifying the
+ia64-specific kexec code?
+
+Tony, Fenghua? Any thoughts?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
