@@ -1,907 +1,724 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id D050B6B0005
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 01:24:47 -0500 (EST)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Tue, 12 Feb 2013 23:24:47 -0700
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id BF81C1FF0043
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 23:24:44 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1D6OiBV239404
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 23:24:44 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1D6Ohdl006500
-	for <linux-mm@kvack.org>; Tue, 12 Feb 2013 23:24:44 -0700
-Message-ID: <511B31A6.1080500@linux.vnet.ibm.com>
-Date: Wed, 13 Feb 2013 00:24:38 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 736876B0005
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 01:42:56 -0500 (EST)
+Received: by mail-bk0-f74.google.com with SMTP id jk13so51417bkc.1
+        for <linux-mm@kvack.org>; Tue, 12 Feb 2013 22:42:54 -0800 (PST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH] memcg: Add memory.pressure_level events
+References: <20130211000220.GA28247@lizard.gateway.2wire.net>
+Date: Tue, 12 Feb 2013 22:42:51 -0800
+In-Reply-To: <20130211000220.GA28247@lizard.gateway.2wire.net> (Anton
+	Vorontsov's message of "Sun, 10 Feb 2013 16:02:20 -0800")
+Message-ID: <xr9338x01zpw.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 6/7] zswap: add flushing support
-References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com> <1359495627-30285-7-git-send-email-sjenning@linux.vnet.ibm.com> <20130201072721.GC6262@blaptop>
-In-Reply-To: <20130201072721.GC6262@blaptop>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On 02/01/2013 01:27 AM, Minchan Kim wrote:
-> On Tue, Jan 29, 2013 at 03:40:26PM -0600, Seth Jennings wrote:
->> This patchset adds support for flush pages out of the compressed
->> pool to the swap device
->>
+On Sun, Feb 10 2013, Anton Vorontsov wrote:
 
-Thanks for the review Minchan! Sorry for the delayed response.  I'm
-prepping v5 for posting.
+> With this patch userland applications that want to maintain the
+> interactivity/memory allocation cost can use the new pressure level
+> notifications. The levels are defined like this:
+>
+> The "low" level means that the system is reclaiming memory for new
+> allocations. Monitoring reclaiming activity might be useful for
+> maintaining overall system's cache level. Upon notification, the program
+> (typically "Activity Manager") might analyze vmstat and act in advance
+> (i.e. prematurely shutdown unimportant services).
+>
+> The "medium" level means that the system is experiencing medium memory
+> pressure, there is some mild swapping activity. Upon this event
+> applications may decide to analyze vmstat/zoneinfo/memcg or internal
+> memory usage statistics and free any resources that can be easily
+> reconstructed or re-read from a disk.
+>
+> The "critical" level means that the system is actively thrashing, it is
+> about to out of memory (OOM) or even the in-kernel OOM killer is on its
+> way to trigger. Applications should do whatever they can to help the
+> system. It might be too late to consult with vmstat or any other
+> statistics, so it's advisable to take an immediate action.
+>
+> The events are propagated upward until the event is handled, i.e. the
+> events are not pass-through. Here is what this means: for example you have
+> three cgroups: A->B->C. Now you set up an event listener on cgroup A and
+> cgroup B, and suppose group C experiences some pressure. In this
+> situation, only group B will receive the notification, i.e. group A will
+> not receive it. This is done to avoid excessive "broadcasting" of
+> messages, which disturbs the system and which is especially bad if we are
+> low on memory or thrashing. So, organize the cgroups wisely, or propagate
+> the events manually (or, ask us to implement the pass-through events,
+> explaining why would you need them.)
+>
+> The file mempressure.level is used to show the current memory pressure
+> level, and cgroups event control file can be used to setup an eventfd
+> notification with a specific memory pressure level threshold.
+>
+> Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+> Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
+> ---
+>
+> Hi all,
+>
+> Here comes another iteration of the memory pressure saga. The previous
+> version of the patch (and discussion) can be found here:
+>
+> 	http://lkml.org/lkml/2013/1/4/55
+>
+> And here are changes in this revision:
+>
+> - Andrew Morton was concerned that the mempressure stuff was tied to
+>   memcg, which was non-issue since mempressure wasn't actually bolted into
+>   memcg at that time. But now it is. :) So now you need memcg to use
+>   mempressure. Why? It makes things easier, simpler (e.g. this ends any
+>   questions on how two different cgroups would interact, which can be
+>   complex when two are distinct entities). Plus, as I understood it,
+>   that's how cgroup folks want to see it eventually;
+>
+> - Only cgroups API implemented. Let's start with making memcg people
+>   happy, i.e. handling the most complex cases, and then we can start with
+>   any niche solutions;
+>
+> - Implemented Minchan Kim's idea of checking gfp mask. Unfortunately, it
+>   is not as simple as checking '__GFP_HIGHMEM | __GFP_MOVABLE', since we
+>   also need to account files caches and kswapd reclaim. But even so we can
+>   filter out DMA or atomic allocations, which are not interesting for
+>   userland. Plus it opens doors for other gfp tuning, so definitely a good
+>   stuff;
+>
+> - Per Leonid Moiseichuk's comments decreased vmpressure_level_critical to
+>   95. I didn't look close enough, but it seems that we the minimum step is
+>   indeed ~3%, and 99% makes it actually 100%. 95% should be fine;
+>
+> - Per Kamezawa Hiroyuki added some words into documentation about that
+>   it's always a good idea to consult with vmstat/zoneinfo/memcg statistics
+>   before taking any action (with the exception of critical level). Also
+>   added 'TODO' wrt. automatic window adjustment;
+>
+> - Documented events propagation strategy;
+>
+> - Removed ulong/uint usage, per Andrew's comments;
+>
+> - Glauber Costa didn't like too short and non-descriptive mpc_ naming,
+>   suggesting mempressure_ instead. And Andrew suggested mpcg_. I went with
+>   something completely different: vmpressure_/vmpr_. :) Also renamed
+>   xxx2yyy() to xxx_to_yyy() per Glauber Costa suggestion.
+>
+> - _OOM level renamed to _CRITICAL. Andrew wanted _HIGH affix, but by using
+>   'critical' I want to denote that this level is the last one (e.g. we
+>   might want to introduce _HIGH some time later, if we can find a good
+>   definition for it);
+>
+> - This patch does not include shrinker interface. In the last series I
+>   showed that implementing shrinker is possible, and that it actually can
+>   be useful. At the same time I explained that shrinker is not a
+>   substitution for the pressure levels. So, once we settle on the simple
+>   thing, I might continue my shrinker efforts (which, btw, QEMU guys found
+>   interesting and potentionally useful).
+>
+>   For those who curious, the shrinker patch is here:
+>
+>   http://lkml.org/lkml/2013/1/4/56
+>
+> - Now tested with various debugging & preempt checks enabled, plus added
+>   small comments on locks usage, thanks to Andrew;
+>
+> - Rebased onto the current linux-next;
+>
+> - While the thing somewhat changed, I preserved Kirill's ack. Kirill at
+>   least liked the idea, and I desperately need Acks. :-D
+>
+> Thanks!
+>
+> Anton
+>
+>  Documentation/cgroups/memory.txt |  66 ++++++++-
+>  init/Kconfig                     |  13 ++
+>  mm/Makefile                      |   1 +
+>  mm/internal.h                    |  34 +++++
+>  mm/memcontrol.c                  |  25 ++++
+>  mm/vmpressure.c                  | 300 +++++++++++++++++++++++++++++++++++++++
+>  mm/vmscan.c                      |   6 +
+>  7 files changed, 444 insertions(+), 1 deletion(-)
+>  create mode 100644 mm/vmpressure.c
+>
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index addb1f1..006ef58 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -40,6 +40,7 @@ Features:
+>   - soft limit
+>   - moving (recharging) account at moving a task is selectable.
+>   - usage threshold notifier
+> + - memory pressure notifier
+>   - oom-killer disable knob and oom-notifier
+>   - Root cgroup has no limit controls.
+>  
+> @@ -65,6 +66,7 @@ Brief summary of control files.
+>   memory.stat			 # show various statistics
+>   memory.use_hierarchy		 # set/show hierarchical account enabled
+>   memory.force_empty		 # trigger forced move charge to parent
+> + memory.pressure_level		 # show the memory pressure level
+>   memory.swappiness		 # set/show swappiness parameter of vmscan
+>  				 (See sysctl's vm.swappiness)
+>   memory.move_charge_at_immigrate # set/show controls of moving charges
+> @@ -778,7 +780,69 @@ At reading, current status of OOM is shown.
+>  	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
+>  				 be stopped.)
+>  
+> -11. TODO
+> +11. Memory Pressure
+> +
+> +To maintain the interactivity/memory allocation cost, one can use the
+> +pressure level notifications, and the levels are defined like this:
+> +
+> +The "low" level means that the system is reclaiming memory for new
+> +allocations. Monitoring reclaiming activity might be useful for
+> +maintaining overall system's cache level. Upon notification, the program
+> +(typically "Activity Manager") might analyze vmstat and act in advance
+> +(i.e. prematurely shutdown unimportant services).
+> +
+> +The "medium" level means that the system is experiencing medium memory
+> +pressure, there is some mild swapping activity. Upon this event
+> +applications may decide to analyze vmstat/zoneinfo/memcg or internal
+> +memory usage statistics and free any resources that can be easily
+> +reconstructed or re-read from a disk.
+> +
+> +The "critical" level means that the system is actively thrashing, it is
+> +about to out of memory (OOM) or even the in-kernel OOM killer is on its
+> +way to trigger. Applications should do whatever they can to help the
+> +system. It might be too late to consult with vmstat or any other
+> +statistics, so it's advisable to take an immediate action.
+> +
+> +The events are propagated upward until the event is handled, i.e. the
+> +events are not pass-through. Here is what this means: for example you have
+> +three cgroups: A->B->C. Now you set up an event listener on cgroup A and
+> +cgroup B, and suppose group C experiences some pressure. In this
+> +situation, only group B will receive the notification, i.e. group A will
+> +not receive it. This is done to avoid excessive "broadcasting" of
+> +messages, which disturbs the system and which is especially bad if we are
+> +low on memory or thrashing. So, organize the cgroups wisely, or propagate
+> +the events manually (or, ask us to implement the pass-through events,
+> +explaining why would you need them.)
+> +
+> +The file mempressure.level is used to show the current memory pressure
+> +level, and cgroups event control file can be used to setup an eventfd
+> +notification with a specific memory pressure level threshold.
+> +
+> + Read:
+> +   Reads mempory presure levels: low, medium or critical.
+> + Write:
+> +   Not implemented.
+> + Test:
+> +   Here is a script: make a new cgroup, set up a memory limit, set up a
+> +   notification on the parent cgroup, make child cgroup experience a
+> +   critical pressure. Expected result is that the parent cgroup gets a
+> +   notification:
+> +
+> +   (Note that we are seting up a listener on parent's cgroup, and then
+> +   creating a child cgroup, showing how event propagation works.)
+> +
+> +   # cd /sys/fs/cgroup/memory/
+> +   # cgroup_event_listener memory.pressure_level low &
+> +   # mkdir foo
+> +   # cd foo
+> +   # echo 8000000 > memory.limit_in_bytes
+> +   # echo $$ > tasks
+> +   # dd if=/dev/zero | read x
+> +
+> +   (Expect a bunch of notifications, and eventually, the oom-killer will
+> +   trigger.)
+> +
+> +12. TODO
+>  
+>  1. Add support for accounting huge pages (as a separate controller)
+>  2. Make per-cgroup scanner reclaim not-shared pages first
+> diff --git a/init/Kconfig b/init/Kconfig
+> index ccd1ca5..6d61ef5 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -908,6 +908,19 @@ config MEMCG_DEBUG_ASYNC_DESTROY
+>  	  This is a developer-oriented debugging facility only, and no
+>  	  guarantees of interface stability will be given.
+>  
+> +config MEMCG_PRESSURE
+> +	bool "Memory Resource Controller Pressure Monitor"
+> +	help
+> +	  The memory pressure monitor provides a facility for userland
+> +	  programs to watch for memory pressure on per-cgroup basis. This
+> +	  is useful if you have programs that want to respond to the
+> +	  pressure, possibly improving memory management.
+> +
+> +	  For more information see Memory Pressure section in
+> +	  Documentation/cgroups/memory.txt.
+> +
+> +	  If unsure, say N.
+> +
+>  config CGROUP_HUGETLB
+>  	bool "HugeTLB Resource Controller for Control Groups"
+>  	depends on RESOURCE_COUNTERS && HUGETLB_PAGE
+> diff --git a/mm/Makefile b/mm/Makefile
+> index 3a46287..51f7f52 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -51,6 +51,7 @@ obj-$(CONFIG_MIGRATION) += migrate.o
+>  obj-$(CONFIG_QUICKLIST) += quicklist.o
+>  obj-$(CONFIG_TRANSPARENT_HUGEPAGE) += huge_memory.o
+>  obj-$(CONFIG_MEMCG) += memcontrol.o page_cgroup.o
+> +obj-$(CONFIG_MEMCG_PRESSURE) += vmpressure.o
+>  obj-$(CONFIG_CGROUP_HUGETLB) += hugetlb_cgroup.o
+>  obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
+>  obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 1c0c4cc..eb50685 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -374,4 +374,38 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>  #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
+>  #define ALLOC_CMA		0x80 /* allow allocations from CMA areas */
+>  
+> +struct vmpressure {
+> +#ifdef CONFIG_MEMCG_PRESSURE
+> +	unsigned int scanned;
+> +	unsigned int reclaimed;
+> +	/* The lock is used to keep the scanned/reclaimed above in sync. */
+> +	struct mutex sr_lock;
+> +
+> +	struct list_head events;
+> +	/* Have to grab the lock on events traversal or modifications. */
+> +	struct mutex events_lock;
+> +
+> +	struct work_struct work;
+> +#endif /* CONFIG_MEMCG_PRESSURE */
+> +};
+> +
+> +struct mem_cgroup;
+> +#ifdef CONFIG_MEMCG_PRESSURE
+> +extern void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+> +		       unsigned long scanned, unsigned long reclaimed);
+> +extern void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio);
+> +extern void vmpressure_init(struct vmpressure *vmpr);
+> +extern struct vmpressure *memcg_to_vmpr(struct mem_cgroup *memcg);
+> +extern struct cgroup_subsys_state *vmpr_to_css(struct vmpressure *vmpr);
+> +extern struct vmpressure *css_to_vmpr(struct cgroup_subsys_state *css);
+> +extern void __init enable_pressure_cgroup(void);
+> +#else
+> +static inline void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+> +			      unsigned long scanned, unsigned long reclaimed) {}
+> +static inline void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg,
+> +				   int prio) {}
+> +static inline void vmpressure_init(struct vmpressure *vmpr) {}
+> +static inline void __init enable_pressure_cgroup(void) {}
+> +#endif /* CONFIG_MEMCG_PRESSURE */
+> +
+>  #endif	/* __MM_INTERNAL_H */
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 25ac5f4..60f277a 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -370,6 +370,9 @@ struct mem_cgroup {
+>  	atomic_t	numainfo_events;
+>  	atomic_t	numainfo_updating;
+>  #endif
+> +
+> +	struct vmpressure vmpr;
+> +
+>  	/*
+>  	 * Per cgroup active and inactive list, similar to the
+>  	 * per zone LRU lists.
+> @@ -575,6 +578,26 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+>  	return (memcg == root_mem_cgroup);
+>  }
+>  
+> +/* Some nice accessors for the vmpressure. */
+> +#ifdef CONFIG_MEMCG_PRESSURE
+> +struct vmpressure *memcg_to_vmpr(struct mem_cgroup *memcg)
+> +{
+> +	if (!memcg)
+> +		memcg = root_mem_cgroup;
+> +	return &memcg->vmpr;
+> +}
+> +
+> +struct cgroup_subsys_state *vmpr_to_css(struct vmpressure *vmpr)
+> +{
+> +	return &container_of(vmpr, struct mem_cgroup, vmpr)->css;
+> +}
+> +
+> +struct vmpressure *css_to_vmpr(struct cgroup_subsys_state *css)
+> +{
+> +	return &mem_cgroup_from_css(css)->vmpr;
+> +}
+> +#endif /* CONFIG_MEMCG_PRESSURE */
+> +
+>  /* Writing them here to avoid exposing memcg's inner layout */
+>  #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
+>  
+> @@ -6291,6 +6314,7 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+>  	memcg->move_charge_at_immigrate = 0;
+>  	mutex_init(&memcg->thresholds_lock);
+>  	spin_lock_init(&memcg->move_lock);
+> +	vmpressure_init(&memcg->vmpr);
+>  
+>  	return &memcg->css;
+>  
+> @@ -7018,6 +7042,7 @@ static int __init mem_cgroup_init(void)
+>  {
+>  	hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
+>  	enable_swap_cgroup();
+> +	enable_pressure_cgroup();
+>  	mem_cgroup_soft_limit_tree_init();
+>  	memcg_stock_init();
+>  	return 0;
+> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+> new file mode 100644
+> index 0000000..7922503
+> --- /dev/null
+> +++ b/mm/vmpressure.c
+> @@ -0,0 +1,300 @@
+> +/*
+> + * Linux VM pressure
+> + *
+> + * Copyright 2012 Linaro Ltd.
+> + *		  Anton Vorontsov <anton.vorontsov@linaro.org>
+> + *
+> + * Based on ideas from Andrew Morton, David Rientjes, KOSAKI Motohiro,
+> + * Leonid Moiseichuk, Mel Gorman, Minchan Kim and Pekka Enberg.
+> + *
+> + * This program is free software; you can redistribute it and/or modify it
+> + * under the terms of the GNU General Public License version 2 as published
+> + * by the Free Software Foundation.
+> + */
+> +
+> +#include <linux/cgroup.h>
+> +#include <linux/fs.h>
+> +#include <linux/sched.h>
+> +#include <linux/mm.h>
+> +#include <linux/vmstat.h>
+> +#include <linux/eventfd.h>
+> +#include <linux/swap.h>
+> +#include <linux/printk.h>
+> +#include "internal.h"
+> +
+> +/*
+> + * Generic VM Pressure routines (no cgroups or any other API details)
+> + */
+> +
+> +/*
+> + * The window size is the number of scanned pages before we try to analyze
+> + * the scanned/reclaimed ratio (or difference).
+> + *
+> + * It is used as a rate-limit tunable for the "low" level notification,
+> + * and for averaging medium/critical levels. Using small window sizes can
+> + * cause lot of false positives, but too big window size will delay the
+> + * notifications.
+> + *
+> + * TODO: Make the window size depend on machine size, as we do for vmstat
+> + * thresholds.
+> + */
+> +static const unsigned int vmpressure_win = SWAP_CLUSTER_MAX * 16;
+> +static const unsigned int vmpressure_level_med = 60;
+> +static const unsigned int vmpressure_level_critical = 95;
+> +static const unsigned int vmpressure_level_critical_prio = 3;
+> +
+> +enum vmpressure_levels {
+> +	VMPRESSURE_LOW = 0,
+> +	VMPRESSURE_MEDIUM,
+> +	VMPRESSURE_CRITICAL,
+> +	VMPRESSURE_NUM_LEVELS,
+> +};
+> +
+> +static const char *vmpressure_str_levels[] = {
+> +	[VMPRESSURE_LOW] = "low",
+> +	[VMPRESSURE_MEDIUM] = "medium",
+> +	[VMPRESSURE_CRITICAL] = "critical",
+> +};
+> +
+> +static enum vmpressure_levels vmpressure_level(unsigned int pressure)
+> +{
+> +	if (pressure >= vmpressure_level_critical)
+> +		return VMPRESSURE_CRITICAL;
+> +	else if (pressure >= vmpressure_level_med)
+> +		return VMPRESSURE_MEDIUM;
+> +	return VMPRESSURE_LOW;
+> +}
+> +
+> +static unsigned long vmpressure_calc_level(unsigned int win,
+> +					   unsigned int s, unsigned int r)
 
-> 
-> I know you don't have a enough time since you sent previous patch.
-> Please add lots of words next time.
-> 
-> 1. advertise "awesome feature", which igrate from zswap to real swap device
-> 2. What's the tmppage?
-> 3. frontswap_load/store/invalidate/flush race and object life time
-> 4. policy to reclaim.
+Should seems like the return type of this function should be enum
+vmpressure_levels?  If yes, then the 'return 0' below should be
+VMPRESSURE_LOW.  And it would be nice if there was a little comment
+describing the meaning of the win, s, and r parameters.  The "We
+calculate ..." comment below makes me think that win is the number of
+pages scanned, which makes me wonder what the s param is.
 
-Will do.
+> +{
+> +	unsigned long p;
+> +
+> +	if (!s)
+> +		return 0;
+> +
+> +	/*
+> +	 * We calculate the ratio (in percents) of how many pages were
+> +	 * scanned vs. reclaimed in a given time frame (window). Note that
+> +	 * time is in VM reclaimer's "ticks", i.e. number of pages
+> +	 * scanned. This makes it possible to set desired reaction time
+> +	 * and serves as a ratelimit.
+> +	 */
+> +	p = win - (r * win / s);
+> +	p = p * 100 / win;
+> +
+> +	pr_debug("%s: %3lu  (s: %6u  r: %6u)\n", __func__, p, s, r);
+> +
+> +	return vmpressure_level(p);
+> +}
+> +
+> +void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+> +		unsigned long scanned, unsigned long reclaimed)
+> +{
+> +	struct vmpressure *vmpr = memcg_to_vmpr(memcg);
+> +
+> +	/*
+> +	 * So far we are only interested application memory, or, in case
+> +	 * of low pressure, in FS/IO memory reclaim. We are also
+> +	 * interested indirect reclaim (kswapd sets sc->gfp_mask to
+> +	 * GFP_KERNEL).
+> +	 */
+> +	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
+> +		return;
+> +
+> +	if (!scanned)
+> +		return;
+> +
+> +	mutex_lock(&vmpr->sr_lock);
+> +	vmpr->scanned += scanned;
+> +	vmpr->reclaimed += reclaimed;
+> +	mutex_unlock(&vmpr->sr_lock);
+> +
+> +	if (scanned < vmpressure_win || work_pending(&vmpr->work))
+> +		return;
+> +	schedule_work(&vmpr->work);
+> +}
+> +
+> +void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
+> +{
+> +	if (prio > vmpressure_level_critical_prio)
+> +		return;
+> +
+> +	/* OK, the prio is below the threshold, we're about to oom. */
+> +	vmpressure(gfp, memcg, vmpressure_win, 0);
+> +}
+> +
+> +static struct vmpressure *wk_to_vmpr(struct work_struct *wk)
+> +{
+> +	return container_of(wk, struct vmpressure, work);
+> +}
+> +
+> +static struct vmpressure *cg_to_vmpr(struct cgroup *cg)
+> +{
+> +	return css_to_vmpr(cgroup_subsys_state(cg, mem_cgroup_subsys_id));
+> +}
+> +
+> +struct vmpressure_event {
+> +	struct eventfd_ctx *efd;
+> +	enum vmpressure_levels level;
+> +	struct list_head node;
+> +};
+> +
+> +static bool vmpressure_event(struct vmpressure *vmpr,
+> +			     unsigned long s, unsigned long r)
+> +{
+> +	struct vmpressure_event *ev;
+> +	int level = vmpressure_calc_level(vmpressure_win, s, r);
+> +	bool signalled = 0;
+s/bool/int/
+> +
+> +	mutex_lock(&vmpr->events_lock);
+> +
+> +	list_for_each_entry(ev, &vmpr->events, node) {
+> +		if (level >= ev->level) {
+> +			eventfd_signal(ev->efd, 1);
+> +			signalled++;
+> +		}
+> +	}
+> +
+> +	mutex_unlock(&vmpr->events_lock);
+> +
+> +	return signalled;
+"return signalled != 0" or "return !!signaled"
+> +}
+> +
+> +static struct vmpressure *vmpressure_parent(struct vmpressure *vmpr)
+> +{
+> +	struct cgroup *cg = vmpr_to_css(vmpr)->cgroup->parent;
+> +
+> +	if (!cg)
+> +		return NULL;
+> +	return cg_to_vmpr(cg);
+> +}
+> +
+> +static void vmpressure_wk_fn(struct work_struct *wk)
+> +{
+> +	struct vmpressure *vmpr = wk_to_vmpr(wk);
+> +	unsigned long s;
+> +	unsigned long r;
+> +
+> +	mutex_lock(&vmpr->sr_lock);
+> +	s = vmpr->scanned;
+> +	r = vmpr->reclaimed;
+> +	vmpr->scanned = 0;
+> +	vmpr->reclaimed = 0;
+> +	mutex_unlock(&vmpr->sr_lock);
+> +
+> +	do {
+> +		if (vmpressure_event(vmpr, s, r))
+> +			break;
+> +		/*
+> +		 * If not handled, propagate the event upward into the
+> +		 * hierarchy.
+> +		 */
+> +	} while ((vmpr = vmpressure_parent(vmpr)));
+> +}
+> +
+> +/* cgroups "frontend" for vmpressure. */
+> +
+> +static ssize_t vmpressure_read_level(struct cgroup *cg, struct cftype *cft,
+> +				     struct file *file, char __user *buf,
+> +				     size_t sz, loff_t *ppos)
+> +{
+> +	struct vmpressure *vmpr = cg_to_vmpr(cg);
+> +	unsigned int level;
+> +	const char *str;
+> +	ssize_t len = 0;
+> +
+> +	if (*ppos >= sz)
+> +		return 0;
+> +
+> +	mutex_lock(&vmpr->sr_lock);
+> +
+> +	level = vmpressure_calc_level(vmpressure_win,
+> +			vmpr->scanned, vmpr->reclaimed);
+> +
+> +	mutex_unlock(&vmpr->sr_lock);
+> +
+> +	str = vmpressure_str_levels[level];
+> +	len += strlen(str) + 1;
+> +	if (len > sz)
+> +		return -EINVAL;
+> +
+> +	if (copy_to_user(buf, str, len - 1))
+> +		return -EFAULT;
+> +	if (copy_to_user(buf + len - 1, "\n", 1))
+> +		return -EFAULT;
+> +
+> +	*ppos += sz;
+> +	return len;
+> +}
+> +
+> +static int vmpressure_register_level(struct cgroup *cg, struct cftype *cft,
+> +				     struct eventfd_ctx *eventfd,
+> +				     const char *args)
+> +{
+> +	struct vmpressure *vmpr = cg_to_vmpr(cg);
+> +	struct vmpressure_event *ev;
+> +	int lvl;
+> +
+> +	for (lvl = 0; lvl < VMPRESSURE_NUM_LEVELS; lvl++) {
+> +		if (!strcmp(vmpressure_str_levels[lvl], args))
+> +			break;
+> +	}
+> +
+> +	if (lvl >= VMPRESSURE_NUM_LEVELS)
+> +		return -EINVAL;
+> +
+> +	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+> +	if (!ev)
+> +		return -ENOMEM;
+> +
+> +	ev->efd = eventfd;
+> +	ev->level = lvl;
+> +
+> +	mutex_lock(&vmpr->events_lock);
+> +	list_add(&ev->node, &vmpr->events);
+> +	mutex_unlock(&vmpr->events_lock);
+> +
+> +	return 0;
+> +}
+> +
+> +static void vmpressure_unregister_level(struct cgroup *cg, struct cftype *cft,
+> +					struct eventfd_ctx *eventfd)
+> +{
+> +	struct vmpressure *vmpr = cg_to_vmpr(cg);
+> +	struct vmpressure_event *ev;
+> +
+> +	mutex_lock(&vmpr->events_lock);
+> +	list_for_each_entry(ev, &vmpr->events, node) {
+> +		if (ev->efd != eventfd)
+> +			continue;
+> +		list_del(&ev->node);
+> +		kfree(ev);
+> +		break;
+> +	}
+> +	mutex_unlock(&vmpr->events_lock);
+> +}
+> +
+> +static struct cftype vmpressure_cgroup_files[] = {
+> +	{
+> +		.name = "pressure_level",
+> +		.read = vmpressure_read_level,
+> +		.register_event = vmpressure_register_level,
+> +		.unregister_event = vmpressure_unregister_level,
+> +	},
+> +	{},
+> +};
+> +
+> +void vmpressure_init(struct vmpressure *vmpr)
+> +{
+> +	mutex_init(&vmpr->sr_lock);
+> +	mutex_init(&vmpr->events_lock);
+> +	INIT_LIST_HEAD(&vmpr->events);
+> +	INIT_WORK(&vmpr->work, vmpressure_wk_fn);
+> +}
+> +
+> +void __init enable_pressure_cgroup(void)
+> +{
+> +	WARN_ON(cgroup_add_cftypes(&mem_cgroup_subsys,
+> +				   vmpressure_cgroup_files));
+> +}
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 88c5fed..34f09b9 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1982,6 +1982,10 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  			}
+>  			memcg = mem_cgroup_iter(root, memcg, &reclaim);
+>  		} while (memcg);
+> +
+> +		vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
+> +			   sc->nr_scanned - nr_scanned, nr_reclaimed);
 
-> 
->> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->> ---
->>  mm/zswap.c | 451 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
->>  1 file changed, 434 insertions(+), 17 deletions(-)
->>
->> diff --git a/mm/zswap.c b/mm/zswap.c
->> index a6c2928..b8e5673 100644
->> --- a/mm/zswap.c
->> +++ b/mm/zswap.c
->> @@ -34,6 +34,12 @@
->>  #include <linux/mempool.h>
->>  #include <linux/zsmalloc.h>
->>  
->> +#include <linux/mm_types.h>
->> +#include <linux/page-flags.h>
->> +#include <linux/swapops.h>
->> +#include <linux/writeback.h>
->> +#include <linux/pagemap.h>
->> +
->>  /*********************************
->>  * statistics
->>  **********************************/
->> @@ -41,6 +47,8 @@
->>  static atomic_t zswap_pool_pages = ATOMIC_INIT(0);
->>  /* The number of compressed pages currently stored in zswap */
->>  static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
->> +/* The number of outstanding pages awaiting writeback */
->> +static atomic_t zswap_outstanding_flushes = ATOMIC_INIT(0);
->>  
->>  /*
->>   * The statistics below are not protected from concurrent access for
->> @@ -49,9 +57,14 @@ static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
->>   * certain event is occurring.
->>  */
->>  static u64 zswap_pool_limit_hit;
->> +static u64 zswap_flushed_pages;
->>  static u64 zswap_reject_compress_poor;
->> +static u64 zswap_flush_attempted;
->> +static u64 zswap_reject_tmppage_fail;
-> 
-> What's does it mean? Hmm, I looked at the code.
-> It means fail to allocator for tmppage.
+(sc->nr_scanned - nr_scanned) is the number of pages scanned in above
+while loop but nr_reclaimed is the starting position of the reclaim
+counter before the loop.  It seems like you want:
+	vmpressure(sc->gfp_mask, sc->target_mem_cgroup,
+		   sc->nr_scanned - nr_scanned, 
+		   sc->nr_reclaimed - nr_reclaimed);
 
-I'll add a comment for this and additional information about the roll of
-the tmppage mechanism in the code since it's a little unusual.
-
-> 
-> How about "zswap_tmppage_alloc_fail"?
-
-The method to my naming madness was that any stat that counted a reason
-for a failed store started with zswap_reject_*
-
-> 
->> +static u64 zswap_reject_flush_fail;
-> 
-> I am confused, too so looked at code but fail to find usecase.
-> Remove?
-
-Good call. I'll remove.  Must have been left over from something else.
-
-> 
->>  static u64 zswap_reject_zsmalloc_fail;
-> 
-> We can remove this because get it by (zswap_flush_attempted - zswap_saved_by_flush)
-> 
-
-This is true.  I'll keep it in for now since it's not completely obvious
-is can be derived from other stats without looking at the code.
-
->>  static u64 zswap_reject_kmemcache_fail;
->> +static u64 zswap_saved_by_flush;
-> 
-> I can't think better naming but need a comment at a minimum.
-
-Yeah...
-
-> 
->>  static u64 zswap_duplicate_entry;
->>  
->>  /*********************************
->> @@ -80,6 +93,14 @@ static unsigned int zswap_max_compression_ratio = 80;
->>  module_param_named(max_compression_ratio,
->>  			zswap_max_compression_ratio, uint, 0644);
->>  
->> +/*
->> + * Maximum number of outstanding flushes allowed at any given time.
->> + * This is to prevent decompressing an unbounded number of compressed
->> + * pages into the swap cache all at once, and to help with writeback
->> + * congestion.
->> +*/
->> +#define ZSWAP_MAX_OUTSTANDING_FLUSHES 64
->> +
->>  /*********************************
->>  * compression functions
->>  **********************************/
->> @@ -145,14 +166,23 @@ static void zswap_comp_exit(void)
->>  **********************************/
-> 
-> Please introduce why we need LRU and refcount.
-
-Will do.
-
-> 
->>  struct zswap_entry {
->>  	struct rb_node rbnode;
->> +	struct list_head lru;
->> +	int refcount;
-> 
-> Just nit,
-> I understand why you don't use atomic but it would be nice to
-> write down it in description of patch for preventing unnecessary
-> arguing.
-
-Yes.  For the record, the reason is that we must take the tree lock in
-order to change the refcount of an entry contained in the tree.
-Incrementing an atomic under lock would be redundantly atomic.
-
-> 
->>  	unsigned type;
->>  	pgoff_t offset;
->>  	unsigned long handle;
->>  	unsigned int length;
->>  };
->>  
->> +/*
->> + * The tree lock in the zswap_tree struct protects a few things:
->> + * - the rbtree
->> + * - the lru list
->> + * - the refcount field of each entry in the tree
->> + */
->>  struct zswap_tree {
->>  	struct rb_root rbroot;
->> +	struct list_head lru;
->>  	spinlock_t lock;
->>  	struct zs_pool *pool;
->>  };
->> @@ -184,6 +214,8 @@ static inline struct zswap_entry *zswap_entry_cache_alloc(gfp_t gfp)
->>  	entry = kmem_cache_alloc(zswap_entry_cache, gfp);
->>  	if (!entry)
->>  		return NULL;
->> +	INIT_LIST_HEAD(&entry->lru);
->> +	entry->refcount = 1;
->>  	return entry;
->>  }
->>  
->> @@ -192,6 +224,17 @@ static inline void zswap_entry_cache_free(struct zswap_entry *entry)
->>  	kmem_cache_free(zswap_entry_cache, entry);
->>  }
->>  
->> +static inline void zswap_entry_get(struct zswap_entry *entry)
->> +{
->> +	entry->refcount++;
->> +}
->> +
->> +static inline int zswap_entry_put(struct zswap_entry *entry)
->> +{
->> +	entry->refcount--;
->> +	return entry->refcount;
->> +}
->> +
->>  /*********************************
->>  * rbtree functions
->>  **********************************/
->> @@ -367,6 +410,278 @@ static struct zs_ops zswap_zs_ops = {
->>  };
->>  
->>  /*********************************
->> +* flush code
->> +**********************************/
-> 
-> As Andrew pointed out, let's change the naming.
-> I'd like to imply "send back to original seat" instead of flush because
-> the page is just intercepted by frontswap on the way.
-> More thining about it, current implentation go with it but we can
-> add indirection layer of swap so frontswap page could be migrated other
-> swap slot to enhance swapout bandwidth so "migrate the swap page to elsewhere"
-> is more proper. I'd like to depend on native speakers. :)
-
-I'm going to use "writeback" for now since "resumed writeback" is what
-I'm naming this process in zswap.
-> 
->> +static void zswap_end_swap_write(struct bio *bio, int err)
->> +{
->> +	end_swap_bio_write(bio, err);
->> +	atomic_dec(&zswap_outstanding_flushes);
->> +	zswap_flushed_pages++;
->> +}
->> +
->> +/*
->> + * zswap_get_swap_cache_page
->> + *
->> + * This is an adaption of read_swap_cache_async()
-> 
-> Please write down what's this function's goal and why we need it
-> if need because of function's complexity.
-
-Will do.
-
-> 
->> + *
->> + * If success, page is returned in retpage
->> + * Returns 0 if page was already in the swap cache, page is not locked
->> + * Returns 1 if the new page needs to be populated, page is locked
-> 
->       Return -ENOMEM if the allocation is failed.
-> 
->> + */
->> +static int zswap_get_swap_cache_page(swp_entry_t entry,
->> +				struct page **retpage)
->> +{
->> +	struct page *found_page, *new_page = NULL;
->> +	int err;
->> +
->> +	*retpage = NULL;
->> +	do {
->> +		/*
->> +		 * First check the swap cache.  Since this is normally
->> +		 * called after lookup_swap_cache() failed, re-calling
->> +		 * that would confuse statistics.
->> +		 */
->> +		found_page = find_get_page(&swapper_space, entry.val);
->> +		if (found_page)
->> +			break;
->> +
->> +		/*
->> +		 * Get a new page to read into from swap.
->> +		 */
->> +		if (!new_page) {
->> +			new_page = alloc_page(GFP_KERNEL);
->> +			if (!new_page)
->> +				break; /* Out of memory */
->> +		}
->> +
->> +		/*
->> +		 * call radix_tree_preload() while we can wait.
->> +		 */
->> +		err = radix_tree_preload(GFP_KERNEL);
->> +		if (err)
->> +			break;
->> +
->> +		/*
->> +		 * Swap entry may have been freed since our caller observed it.
->> +		 */
->> +		err = swapcache_prepare(entry);
->> +		if (err == -EEXIST) { /* seems racy */
->> +			radix_tree_preload_end();
->> +			continue;
->> +		}
->> +		if (err) { /* swp entry is obsolete ? */
->> +			radix_tree_preload_end();
->> +			break;
->> +		}
->> +
->> +		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
->> +		__set_page_locked(new_page);
->> +		SetPageSwapBacked(new_page);
->> +		err = __add_to_swap_cache(new_page, entry);
->> +		if (likely(!err)) {
->> +			radix_tree_preload_end();
->> +			lru_cache_add_anon(new_page);
->> +			*retpage = new_page;
->> +			return 1;
->> +		}
->> +		radix_tree_preload_end();
->> +		ClearPageSwapBacked(new_page);
->> +		__clear_page_locked(new_page);
->> +		/*
->> +		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
->> +		 * clear SWAP_HAS_CACHE flag.
->> +		 */
->> +		swapcache_free(entry, NULL);
->> +	} while (err != -ENOMEM);
->> +
->> +	if (new_page)
->> +		page_cache_release(new_page);
->> +	if (!found_page)
->> +		return -ENOMEM;
->> +	*retpage = found_page;
->> +	return 0;
->> +}
->> +
->> +static int zswap_flush_entry(struct zswap_entry *entry)
->> +{
->> +	unsigned long type = entry->type;
->> +	struct zswap_tree *tree = zswap_trees[type];
->> +	struct page *page;
->> +	swp_entry_t swpentry;
->> +	u8 *src, *dst;
->> +	unsigned int dlen;
->> +	int ret, refcount;
->> +	struct writeback_control wbc = {
->> +		.sync_mode = WB_SYNC_NONE,
->> +	};
->> +
->> +	/* get/allocate page in the swap cache */
->> +	swpentry = swp_entry(type, entry->offset);
->> +	ret = zswap_get_swap_cache_page(swpentry, &page);
-> 
-> IMHO, zswap_get_swap_cache_page have to ruturn meaningful enum type
-> so we have to use switch instead of if-else series.
-
-Yes, that would be cleaner.  During development, I was hoping I could
-find a way to use the existing read_swap_cache_async(), but I couldn't
-figure out a clean way to do it.
-
-> 
->> +	if (ret < 0)
->> +		return ret;
->> +	else if (ret) {
->> +		/* decompress */
->> +		dlen = PAGE_SIZE;
->> +		src = zs_map_object(tree->pool, entry->handle, ZS_MM_RO);
->> +		dst = kmap_atomic(page);
->> +		ret = zswap_comp_op(ZSWAP_COMPOP_DECOMPRESS, src, entry->length,
->> +				dst, &dlen);
->> +		kunmap_atomic(dst);
->> +		zs_unmap_object(tree->pool, entry->handle);
->> +		BUG_ON(ret);
->> +		BUG_ON(dlen != PAGE_SIZE);
->> +		SetPageUptodate(page);
->> +	} else {
->> +		/* page is already in the swap cache, ignore for now */
->> +		spin_lock(&tree->lock);
->> +		refcount = zswap_entry_put(entry);
->> +		spin_unlock(&tree->lock);
->> +
->> +		if (likely(refcount))
->> +			return 0;
-> 
-> It doesn't mean we are writing out and migrated so it would be better
-> to return non-zero.
-> 
->> +
->> +		/* if the refcount is zero, invalidate must have come in */
->> +		/* free */
->> +		zs_free(tree->pool, entry->handle);
->> +		zswap_entry_cache_free(entry);
->> +		atomic_dec(&zswap_stored_pages);
-> 
-> It would be better to factor out these functions.
-
-Yes. I'll add this.
-
-> 
-> void free_or_destroy_or_something_zswap_entry(...)
-> {
->         zs_free
->         zswap_entry_cache_free
->         atomic_dec
-> }
-> 
->> +
->> +		return 0;
->> +	}
->> +
->> +	/* start writeback */
->> +	SetPageReclaim(page);
->> +	/*
->> +	 * Return value is ignored here because it doesn't change anything
->> +	 * for us.  Page is returned unlocked.
->> +	 */
->> +	(void)__swap_writepage(page, &wbc, zswap_end_swap_write);
->> +	page_cache_release(page);
->> +	atomic_inc(&zswap_outstanding_flushes);
->> +
->> +	/* remove */
->> +	spin_lock(&tree->lock);
->> +	refcount = zswap_entry_put(entry);
->> +	if (refcount > 1) {
-> 
-> Let's be a kind.
->                 /* If the race happens with zswap_frontswap_load,
->                  * we move the zswap_entry into tail again because
->                  * it used recenlty so there is no point to remove
->                  * it in memory.
->                  * It could be duplicated copy between in-memory and
->                  * real swap device but no biggie.
->                  */
-
-I didn't follow this one :-/
-
-> 
->> +		/* load in progress, load will free */
->> +		spin_unlock(&tree->lock);
->> +		return 0;
->> +	}
->> +	if (refcount == 1)
->> +		/* no invalidate yet, remove from rbtree */
->> +		rb_erase(&entry->rbnode, &tree->rbroot);
->> +	spin_unlock(&tree->lock);
->> +
->> +	/* free */
->> +	zs_free(tree->pool, entry->handle);
->> +	zswap_entry_cache_free(entry);
->> +	atomic_dec(&zswap_stored_pages);
->> +
->> +	return 0;
->> +}
->> +
->> +static void zswap_flush_entries(unsigned type, int nr)
-> 
-> Just nit,
-> It would be useful to return the number of migrated pages
-
-I can do that.  Wouldn't be used though (for now).
-
-> 
->> +{
->> +	struct zswap_tree *tree = zswap_trees[type];
->> +	struct zswap_entry *entry;
->> +	int i, ret;
->> +
->> +/*
->> + * This limits is arbitrary for now until a better
->> + * policy can be implemented. This is so we don't
->> + * eat all of RAM decompressing pages for writeback.
->> + */
-> 
-> Indent.
-
-Yes.
-
-> 
->> +	if (atomic_read(&zswap_outstanding_flushes) >
->> +		ZSWAP_MAX_OUTSTANDING_FLUSHES)
->> +		return;
->> +
->> +	for (i = 0; i < nr; i++) {
-> 
-> As other people already pointed out, LRU reclaim could be a
-> problem because of spreading object across several slab.
-> Just an idea. I'd like to reclaim per SLAB instead of object.
-> For it, we have to add some age facility into zsmalloc, could
-> be enalbed optionally by Kconfig.
-> 
-> The zsmalloc gives an age every allocated object.
-> For example, we allocate some object following as
-> 
-> Object allocation orer : O(A), O(B), O(C), O(D), O(E)
-> 
-> so lru ordering is same.
-> 
-> LRU ordering : head-O(A)->O(B)->O(C)->O(D)->O(E)->tail
-> (tail is recent used object)
-> 
-> The zsmalloc could give an age following as,
-> 
-> O(A,1), O(B,2), O(C,3), O(D,4), O(E, 5)
-> 
-> They are located in following as.
-> 
->      zspage 1:4         zspage 2:5          zspage 3:6
-> | O(A, 1), O(C, 3) | -- | O(E, 5) | -- | O(B, 2), O(D, 4) |
-> 
-> 
-> When zswap try to reclaim, it needs smallest age's zspage
-> so it is zspage 1 as age 4.
-> It is likely to include less recently used object and we surely get a free page
-> for us.
-> 
->> +		/* dequeue from lru */
->> +		spin_lock(&tree->lock);
->> +		if (list_empty(&tree->lru)) {
->> +			spin_unlock(&tree->lock);
->> +			break;
->> +		}
->> +		entry = list_first_entry(&tree->lru,
->> +				struct zswap_entry, lru);
->> +		list_del(&entry->lru);
-> 
-> Use list_del_init and list_empty.
-
-Ah yes, very good.
-
-> 
->> +		zswap_entry_get(entry);
-> 
-> When do you decrease ref count if zswap_flush_entry fails by alloc fail?
-
-Good catch.  I'll fix it up.
-
-> 
->> +		spin_unlock(&tree->lock);
->> +		ret = zswap_flush_entry(entry);
->> +		if (ret) {
->> +			/* put back on the lru */
->> +			spin_lock(&tree->lock);
->> +			list_add(&entry->lru, &tree->lru);
->> +			spin_unlock(&tree->lock);
->> +		} else {
->> +			if (atomic_read(&zswap_outstanding_flushes) >
->> +				ZSWAP_MAX_OUTSTANDING_FLUSHES)
->> +				break;
->> +		}
->> +	}
->> +}
->> +
->> +/*******************************************
->> +* page pool for temporary compression result
->> +********************************************/
->> +#define ZSWAP_TMPPAGE_POOL_PAGES 16
->> +static LIST_HEAD(zswap_tmppage_list);
->> +static DEFINE_SPINLOCK(zswap_tmppage_lock);
->> +
->> +static void zswap_tmppage_pool_destroy(void)
->> +{
->> +	struct page *page, *tmppage;
->> +
->> +	spin_lock(&zswap_tmppage_lock);
->> +	list_for_each_entry_safe(page, tmppage, &zswap_tmppage_list, lru) {
->> +		list_del(&page->lru);
->> +		__free_pages(page, 1);
->> +	}
->> +	spin_unlock(&zswap_tmppage_lock);
->> +}
->> +
->> +static int zswap_tmppage_pool_create(void)
->> +{
->> +	int i;
->> +	struct page *page;
->> +
->> +	for (i = 0; i < ZSWAP_TMPPAGE_POOL_PAGES; i++) {
->> +		page = alloc_pages(GFP_KERNEL, 1);
->> +		if (!page) {
->> +			zswap_tmppage_pool_destroy();
->> +			return -ENOMEM;
->> +		}
->> +		spin_lock(&zswap_tmppage_lock);
->> +		list_add(&page->lru, &zswap_tmppage_list);
->> +		spin_unlock(&zswap_tmppage_lock);
->> +	}
->> +	return 0;
->> +}
->> +
->> +static inline struct page *zswap_tmppage_alloc(void)
->> +{
->> +	struct page *page;
->> +
->> +	spin_lock(&zswap_tmppage_lock);
->> +	if (list_empty(&zswap_tmppage_list)) {
->> +		spin_unlock(&zswap_tmppage_lock);
->> +		return NULL;
->> +	}
->> +	page = list_first_entry(&zswap_tmppage_list, struct page, lru);
->> +	list_del(&page->lru);
->> +	spin_unlock(&zswap_tmppage_lock);
->> +	return page;
->> +}
->> +
->> +static inline void zswap_tmppage_free(struct page *page)
->> +{
->> +	spin_lock(&zswap_tmppage_lock);
->> +	list_add(&page->lru, &zswap_tmppage_list);
->> +	spin_unlock(&zswap_tmppage_lock);
->> +}
->> +
->> +/*********************************
->>  * frontswap hooks
->>  **********************************/
->>  /* attempts to compress and store an single page */
->> @@ -378,7 +693,9 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset, struct page *pag
->>  	unsigned int dlen = PAGE_SIZE;
->>  	unsigned long handle;
->>  	char *buf;
->> -	u8 *src, *dst;
->> +	u8 *src, *dst, *tmpdst;
->> +	struct page *tmppage;
->> +	bool flush_attempted = 0;
->>  
->>  	if (!tree) {
->>  		ret = -ENODEV;
->> @@ -392,12 +709,12 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset, struct page *pag
->>  	kunmap_atomic(src);
->>  	if (ret) {
->>  		ret = -EINVAL;
->> -		goto putcpu;
->> +		goto freepage;
->>  	}
->>  	if ((dlen * 100 / PAGE_SIZE) > zswap_max_compression_ratio) {
->>  		zswap_reject_compress_poor++;
->>  		ret = -E2BIG;
->> -		goto putcpu;
->> +		goto freepage;
->>  	}
->>  
->>  	/* store */
->> @@ -405,15 +722,46 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset, struct page *pag
->>  		__GFP_NORETRY | __GFP_HIGHMEM | __GFP_NOMEMALLOC |
->>  			__GFP_NOWARN);
->>  	if (!handle) {
->> -		zswap_reject_zsmalloc_fail++;
->> -		ret = -ENOMEM;
->> -		goto putcpu;
->> +		zswap_flush_attempted++;
->> +		/*
->> +		 * Copy compressed buffer out of per-cpu storage so
->> +		 * we can re-enable preemption.
->> +		*/
->> +		tmppage = zswap_tmppage_alloc();
->> +		if (!tmppage) {
->> +			zswap_reject_tmppage_fail++;
->> +			ret = -ENOMEM;
->> +			goto freepage;
->> +		}
->> +		flush_attempted = 1;
->> +		tmpdst = page_address(tmppage);
->> +		memcpy(tmpdst, dst, dlen);
->> +		dst = tmpdst;
->> +		put_cpu_var(zswap_dstmem);
-> 
-> Just use copy for enabling preemption? I don't have a good idea but surely
-> we could have better approach at the end. Let's think about it.
-> 
->> +
->> +		/* try to free up some space */
->> +		/* TODO: replace with more targeted policy */
->> +		zswap_flush_entries(type, 16);
->> +		/* try again, allowing wait */
->> +		handle = zs_malloc(tree->pool, dlen,
->> +			__GFP_NORETRY | __GFP_HIGHMEM | __GFP_NOMEMALLOC |
->> +				__GFP_NOWARN);
->> +		if (!handle) {
->> +			/* still no space, fail */
->> +			zswap_reject_zsmalloc_fail++;
->> +			ret = -ENOMEM;
->> +			goto freepage;
->> +		}
->> +		zswap_saved_by_flush++;
->>  	}
->>  
->>  	buf = zs_map_object(tree->pool, handle, ZS_MM_WO);
->>  	memcpy(buf, dst, dlen);
->>  	zs_unmap_object(tree->pool, handle);
->> -	put_cpu_var(zswap_dstmem);
->> +	if (flush_attempted)
->> +		zswap_tmppage_free(tmppage);
->> +	else
->> +		put_cpu_var(zswap_dstmem);
->>  
->>  	/* allocate entry */
->>  	entry = zswap_entry_cache_alloc(GFP_KERNEL);
->> @@ -436,16 +784,19 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset, struct page *pag
->>  		ret = zswap_rb_insert(&tree->rbroot, entry, &dupentry);
->>  		if (ret == -EEXIST) {
->>  			zswap_duplicate_entry++;
->> -
->> -			/* remove from rbtree */
->> +			/* remove from rbtree and lru */
->>  			rb_erase(&dupentry->rbnode, &tree->rbroot);
->> -			
->> -			/* free */
->> -			zs_free(tree->pool, dupentry->handle);
->> -			zswap_entry_cache_free(dupentry);
->> -			atomic_dec(&zswap_stored_pages);
->> +			if (dupentry->lru.next != LIST_POISON1)
->> +				list_del(&dupentry->lru);
->> +			if (!zswap_entry_put(dupentry)) {
->> +				/* free */
->> +				zs_free(tree->pool, dupentry->handle);
->> +				zswap_entry_cache_free(dupentry);
->> +				atomic_dec(&zswap_stored_pages);
->> +			}
->>  		}
->>  	} while (ret == -EEXIST);
->> +	list_add_tail(&entry->lru, &tree->lru);
->>  	spin_unlock(&tree->lock);
->>  
->>  	/* update stats */
->> @@ -453,8 +804,11 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset, struct page *pag
->>  
->>  	return 0;
->>  
->> -putcpu:
->> -	put_cpu_var(zswap_dstmem);
->> +freepage:
->> +	if (flush_attempted)
->> +		zswap_tmppage_free(tmppage);
->> +	else
->> +		put_cpu_var(zswap_dstmem);
->>  reject:
->>  	return ret;
->>  }
->> @@ -469,10 +823,21 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset, struct page *page
->>  	struct zswap_entry *entry;
->>  	u8 *src, *dst;
->>  	unsigned int dlen;
->> +	int refcount;
->>  
->>  	/* find */
->>  	spin_lock(&tree->lock);
->>  	entry = zswap_rb_search(&tree->rbroot, offset);
->> +	if (!entry) {
->> +		/* entry was flushed */
->> +		spin_unlock(&tree->lock);
->> +		return -1;
->> +	}
-> 
-> Let's be a kind.
-> 
->         /* flusher/invalidate can destroy entry under us */
-
-Sure :)
-
-Thanks Minchan!
-
-Seth
-
->> +	zswap_entry_get(entry);
->> +
->> +	/* remove from lru */
->> +	if (entry->lru.next != LIST_POISON1)
->> +		list_del(&entry->lru);
-> 
->         if (!list_empty(&entry->lru))
->                 list_del_init(&entry->lru);
-> 
->>  	spin_unlock(&tree->lock);
->>  
->>  	/* decompress */
->> @@ -484,6 +849,25 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset, struct page *page
->>  	kunmap_atomic(dst);
->>  	zs_unmap_object(tree->pool, entry->handle);
->>  
->> +	spin_lock(&tree->lock);
->> +	refcount = zswap_entry_put(entry);
->> +	if (likely(refcount)) {
->> +		list_add_tail(&entry->lru, &tree->lru);
->> +		spin_unlock(&tree->lock);
->> +		return 0;
->> +	}
->> +	spin_unlock(&tree->lock);
->> +
->> +	/*
->> +	 * We don't have to unlink from the rbtree because zswap_flush_entry()
->> +	 * or zswap_frontswap_invalidate page() has already done this for us if we
->> +	 * are the last reference.
->> +	 */
->> +	/* free */
->> +	zs_free(tree->pool, entry->handle);
->> +	zswap_entry_cache_free(entry);
->> +	atomic_dec(&zswap_stored_pages);
->> +
->>  	return 0;
->>  }
->>  
->> @@ -492,14 +876,27 @@ static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
->>  {
->>  	struct zswap_tree *tree = zswap_trees[type];
->>  	struct zswap_entry *entry;
->> +	int refcount;
->>  
->>  	/* find */
->>  	spin_lock(&tree->lock);
->>  	entry = zswap_rb_search(&tree->rbroot, offset);
->> +	if (!entry) {
->> +		/* entry was flushed */
->> +		spin_unlock(&tree->lock);
->> +		return;
->> +	}
->>  
->> -	/* remove from rbtree */
->> +	/* remove from rbtree and lru */
->>  	rb_erase(&entry->rbnode, &tree->rbroot);
->> +	if (entry->lru.next != LIST_POISON1)
->> +		list_del(&entry->lru);
->> +	refcount = zswap_entry_put(entry);
->>  	spin_unlock(&tree->lock);
->> +	if (refcount) {
->> +		/* must be flushing */
->> +		return;
->> +	}
->>  
->>  	/* free */
->>  	zs_free(tree->pool, entry->handle);
->> @@ -528,6 +925,7 @@ static void zswap_frontswap_invalidate_area(unsigned type)
->>  		node = next;
->>  	}
->>  	tree->rbroot = RB_ROOT;
->> +	INIT_LIST_HEAD(&tree->lru);
->>  	spin_unlock(&tree->lock);
->>  }
->>  
->> @@ -543,6 +941,7 @@ static void zswap_frontswap_init(unsigned type)
->>  	if (!tree->pool)
->>  		goto freetree;
->>  	tree->rbroot = RB_ROOT;
->> +	INIT_LIST_HEAD(&tree->lru);
->>  	spin_lock_init(&tree->lock);
->>  	zswap_trees[type] = tree;
->>  	return;
->> @@ -578,20 +977,32 @@ static int __init zswap_debugfs_init(void)
->>  	if (!zswap_debugfs_root)
->>  		return -ENOMEM;
->>  
->> +	debugfs_create_u64("saved_by_flush", S_IRUGO,
->> +			zswap_debugfs_root, &zswap_saved_by_flush);
->>  	debugfs_create_u64("pool_limit_hit", S_IRUGO,
->>  			zswap_debugfs_root, &zswap_pool_limit_hit);
->> +	debugfs_create_u64("reject_flush_attempted", S_IRUGO,
->> +			zswap_debugfs_root, &zswap_flush_attempted);
->> +	debugfs_create_u64("reject_tmppage_fail", S_IRUGO,
->> +			zswap_debugfs_root, &zswap_reject_tmppage_fail);
->> +	debugfs_create_u64("reject_flush_fail", S_IRUGO,
->> +			zswap_debugfs_root, &zswap_reject_flush_fail);
->>  	debugfs_create_u64("reject_zsmalloc_fail", S_IRUGO,
->>  			zswap_debugfs_root, &zswap_reject_zsmalloc_fail);
->>  	debugfs_create_u64("reject_kmemcache_fail", S_IRUGO,
->>  			zswap_debugfs_root, &zswap_reject_kmemcache_fail);
->>  	debugfs_create_u64("reject_compress_poor", S_IRUGO,
->>  			zswap_debugfs_root, &zswap_reject_compress_poor);
->> +	debugfs_create_u64("flushed_pages", S_IRUGO,
->> +			zswap_debugfs_root, &zswap_flushed_pages);
->>  	debugfs_create_u64("duplicate_entry", S_IRUGO,
->>  			zswap_debugfs_root, &zswap_duplicate_entry);
->>  	debugfs_create_atomic_t("pool_pages", S_IRUGO,
->>  			zswap_debugfs_root, &zswap_pool_pages);
->>  	debugfs_create_atomic_t("stored_pages", S_IRUGO,
->>  			zswap_debugfs_root, &zswap_stored_pages);
->> +	debugfs_create_atomic_t("outstanding_flushes", S_IRUGO,
->> +			zswap_debugfs_root, &zswap_outstanding_flushes);
->>  
->>  	return 0;
->>  }
->> @@ -627,6 +1038,10 @@ static int __init init_zswap(void)
->>  		pr_err("zswap: page pool initialization failed\n");
->>  		goto pagepoolfail;
->>  	}
->> +	if (zswap_tmppage_pool_create()) {
->> +		pr_err("zswap: workmem pool initialization failed\n");
->> +		goto tmppoolfail;
->> +	}
->>  	if (zswap_comp_init()) {
->>  		pr_err("zswap: compressor initialization failed\n");
->>  		goto compfail;
->> @@ -642,6 +1057,8 @@ static int __init init_zswap(void)
->>  pcpufail:
->>  	zswap_comp_exit();
->>  compfail:
->> +	zswap_tmppage_pool_destroy();
->> +tmppoolfail:
->>  	zswap_page_pool_destroy();
->>  pagepoolfail:
->>  	zswap_entry_cache_destory();
->> -- 
->> 1.8.1.1
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> +
+>  	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+>  					 sc->nr_scanned - nr_scanned, sc));
+>  }
+> @@ -2167,6 +2171,8 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  		count_vm_event(ALLOCSTALL);
+>  
+>  	do {
+> +		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+> +				sc->priority);
+>  		sc->nr_scanned = 0;
+>  		aborted_reclaim = shrink_zones(zonelist, sc);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
