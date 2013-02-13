@@ -1,64 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id F1A4A6B0005
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 07:56:22 -0500 (EST)
-Date: Wed, 13 Feb 2013 13:56:17 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
-Message-ID: <20130213125617.GD23562@dhcp22.suse.cz>
-References: <20130211223943.GC15951@cmpxchg.org>
- <20130212095419.GB4863@dhcp22.suse.cz>
- <20130212151002.GD15951@cmpxchg.org>
- <20130212154330.GG4863@dhcp22.suse.cz>
- <20130212161332.GI4863@dhcp22.suse.cz>
- <20130212162442.GJ4863@dhcp22.suse.cz>
- <63d3b5fa-dbc6-4bc9-8867-f9961e644305@email.android.com>
- <20130212171216.GA17663@dhcp22.suse.cz>
- <20130212173741.GD25235@cmpxchg.org>
- <20130213103459.GB23562@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 78CAE6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 10:03:42 -0500 (EST)
+Date: Wed, 13 Feb 2013 09:03:40 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] mm: export mmu notifier invalidates
+Message-ID: <20130213150340.GJ3460@sgi.com>
+References: <20130212213534.GA5052@sgi.com>
+ <20130212135726.a40ff76f.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130213103459.GB23562@dhcp22.suse.cz>
+In-Reply-To: <20130212135726.a40ff76f.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Cliff Wickman <cpw@sgi.com>, linux-mm@kvack.org, aarcange@redhat.com, mgorman@suse.de
 
-On Wed 13-02-13 11:34:59, Michal Hocko wrote:
-> On Tue 12-02-13 12:37:41, Johannes Weiner wrote:
-> > On Tue, Feb 12, 2013 at 06:12:16PM +0100, Michal Hocko wrote:
-> [...]
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index 727ec39..31bb9b0 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -144,8 +144,13 @@ struct mem_cgroup_stat_cpu {
-> > >  };
-> > >  
-> > >  struct mem_cgroup_reclaim_iter {
-> > > -	/* last scanned hierarchy member with elevated css ref count */
-> > > +	/*
-> > > +	 * last scanned hierarchy member. Valid only if last_dead_count
-> > > +	 * matches memcg->dead_count of the hierarchy root group.
-> > > +	 */
-> > >  	struct mem_cgroup *last_visited;
-> > > +	unsigned int last_dead_count;
-> > 
-> > Since we read and write this without a lock, I would feel more
-> > comfortable if this were a full word, i.e. unsigned long.  That
-> > guarantees we don't see any partial states.
+On Tue, Feb 12, 2013 at 01:57:26PM -0800, Andrew Morton wrote:
+> On Tue, 12 Feb 2013 15:35:34 -0600
+> Cliff Wickman <cpw@sgi.com> wrote:
 > 
-> OK. Changed. Although I though that int is read/modified atomically as
-> well if it is aligned to its size.
+> > 
+> > Commenting on this patch ended with Andrea's post on 07Jan, which was
+> > a more-or-less endorsement and a question about support for extended vma
+> > abstractions in kernel modules out of tree.
+> > (that comment can be found at http://marc.info/?l=linux-mm&m=135757292605395&w=2)
+> > 
+> > I'd like to make the request again to consider export of these two symbols. 
+> > 
+> > 
+> > We at SGI have a need to address some very high physical address ranges with
+> > our GRU (global reference unit), sometimes across partitioned machine boundaries
+> > and sometimes with larger addresses than the cpu supports.
+> > We do this with the aid of our own 'extended vma' module which mimics the vma.
+> > When something (either unmap or exit) frees an 'extended vma' we use the mmu
+> > notifiers to clean them up.
+> > 
+> > We had been able to mimic the functions __mmu_notifier_invalidate_range_start()
+> > and __mmu_notifier_invalidate_range_end() by locking the per-mm lock and 
+> > walking the per-mm notifier list.  But with the change to a global srcu
+> > lock (static in mmu_notifier.c) we can no longer do that.  Our module has
+> > no access to that lock.
+> > 
+> > So we request that these two functions be exported.
+> > 
+> > ...
+> >
+> > +EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
+> > +EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_end);
+> 
+> erk.  Having remote, modular, out-of-tree *sending* mmu notifications
+> is pretty abusive :(
+> 
+> I don't have a problem with the patch personally.  It's a GPL export
+> and it's only 2 lines and if we break it, you own both pieces ;)
+> 
+> But in a better world, the core kernel would support your machines
+> adequately and you wouldn't need to maintain that out-of-tree MM code. 
+> What are the prospects of this?
 
-Ohh, I guess what was your concern. If last_dead_count was int then it
-would fit into the same full word slot with generation and so the
-parallel read-modify-update cycle could be an issue.
+We can put it on our todo list.  Getting a user of this infrastructure
+will require changes by Dimitri for the GRU driver (drivers/misc/sgi-gru).
+He is currently focused on getting the design of some upcoming hardware
+finalized and design changes tested in our simulation environment so he
+will be consumed for the next several months.
 
--- 
-Michal Hocko
-SUSE Labs
+If you would like, I can clean up the driver in my spare time and submit
+it for review.  Would you consider allowing its inclusion without the
+GRU driver as a user?
+
+In the transition period, could we allow this change in and then remove
+the exports as part of that driver being accepted?  That would help us
+with an upcoming distro release.
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
