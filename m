@@ -1,100 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id BFF896B0007
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 13:13:16 -0500 (EST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH] staging: zcache: add TODO file
-Date: Wed, 13 Feb 2013 10:13:06 -0800
-Message-Id: <1360779186-17189-1-git-send-email-dan.magenheimer@oracle.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id C332C6B0007
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 13:39:00 -0500 (EST)
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: [PATCHv5 2/8] zsmalloc: add documentation
+Date: Wed, 13 Feb 2013 12:38:45 -0600
+Message-Id: <1360780731-11708-3-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com>
+References: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, dan.magenheimer@oracle.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Add zcache TODO file
+This patch adds a documentation file for zsmalloc at
+Documentation/vm/zsmalloc.txt
 
-Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 ---
- drivers/staging/zcache/TODO |   69 +++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 69 insertions(+), 0 deletions(-)
- create mode 100644 drivers/staging/zcache/TODO
+ Documentation/vm/zsmalloc.txt |   68 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 68 insertions(+)
+ create mode 100644 Documentation/vm/zsmalloc.txt
 
-diff --git a/drivers/staging/zcache/TODO b/drivers/staging/zcache/TODO
+diff --git a/Documentation/vm/zsmalloc.txt b/Documentation/vm/zsmalloc.txt
 new file mode 100644
-index 0000000..c1e26d4
+index 0000000..85aa617
 --- /dev/null
-+++ b/drivers/staging/zcache/TODO
-@@ -0,0 +1,69 @@
++++ b/Documentation/vm/zsmalloc.txt
+@@ -0,0 +1,68 @@
++zsmalloc Memory Allocator
 +
-+** ZCACHE PLAN FOR PROMOTION FROM STAGING **
++Overview
 +
-+Last updated: Feb 13, 2013
++zmalloc a new slab-based memory allocator,
++zsmalloc, for storing compressed pages.  It is designed for
++low fragmentation and high allocation success rate on
++large object, but <= PAGE_SIZE allocations.
 +
-+PLAN STEPS
++zsmalloc differs from the kernel slab allocator in two primary
++ways to achieve these design goals.
 +
-+1. merge zcache and ramster to eliminate horrible code duplication
-+2. converge on a predictable, writeback-capable allocator
-+3. use debugfs instead of sysfs (per akpm feedback in 2011)
-+4. zcache side of cleancache/mm WasActive patch
-+5. zcache side of frontswap exclusive gets
-+6. zcache must be able to writeback to physical swap disk
-+    (per Andrea Arcangeli feedback in 2011)
-+7. implement adequate policy for writeback
-+8. frontswap/cleancache work to allow zcache to be loaded
-+    as a module
-+9. get core mm developer to review
-+10. incorporate feedback from review
-+11. get review/acks from 1-2 additional mm developers
-+12. incorporate any feedback from additional mm reviews
-+13. propose location/file-naming in mm tree
-+14. repeat 9-13 as necessary until akpm is happy and merges
++zsmalloc never requires high order page allocations to back
++slabs, or "size classes" in zsmalloc terms. Instead it allows
++multiple single-order pages to be stitched together into a
++"zspage" which backs the slab.  This allows for higher allocation
++success rate under memory pressure.
 +
-+STATUS/OWNERSHIP
++Also, zsmalloc allows objects to span page boundaries within the
++zspage.  This allows for lower fragmentation than could be had
++with the kernel slab allocator for objects between PAGE_SIZE/2
++and PAGE_SIZE.  With the kernel slab allocator, if a page compresses
++to 60% of it original size, the memory savings gained through
++compression is lost in fragmentation because another object of
++the same size can't be stored in the leftover space.
 +
-+1. DONE as part of "new" zcache; in staging/zcache for 3.9
-+2. DONE as part of "new" zcache (cf zbud.[ch]); in staging/zcache for 3.9
-+    (this was the core of the zcache1 vs zcache2 flail)
-+3. DONE as part of "new" zcache; in staging/zcache for 3.9
-+4. DONE (w/caveats) as part of "new" zcache; per cleancache performance
-+    feedback see https://lkml.org/lkml/2011/8/17/351, in
-+    staging/zcache for 3.9; dependent on proposed mm patch, see
-+    https://lkml.org/lkml/2012/1/25/300 
-+5. DONE as part of "new" zcache; performance tuning only,
-+    in staging/zcache for 3.9; dependent on frontswap patch
-+    merged in 3.7 (33c2a174)
-+6. DONE (w/caveats), prototyped as part of "new" zcache, had
-+    bad memory leak; reimplemented to use sjennings clever tricks
-+    and proposed mm patches with new version in staging/zcache
-+    for 3.9, see https://lkml.org/lkml/2013/2/6/437;
-+7. PROTOTYPED as part of "new" zcache; in staging/zcache for 3.9;
-+    needs more review (plan to discuss at LSF/MM 2013)
-+8. IN PROGRESS; owned by Konrad Wilk; v2 recently posted
-+   http://lkml.org/lkml/2013/2/1/542
-+9. IN PROGRESS; owned by Konrad Wilk; Mel Gorman provided
-+   great feedback in August 2012 (unfortunately of "old"
-+   zcache)
-+10. Konrad posted series of fixes (that now need rebasing)
-+    https://lkml.org/lkml/2013/2/1/566 
-+11. NOT DONE; owned by Konrad Wilk
-+12. TBD (depends on quantity of feedback)
-+13. PROPOSED; one suggestion proposed by Dan; needs more ideas/feedback
-+14. TBD (depends on feedback)
++This ability to span pages results in zsmalloc allocations not being
++directly addressable by the user.  The user is given an
++non-dereferencable handle in response to an allocation request.
++That handle must be mapped, using zs_map_object(), which returns
++a pointer to the mapped region that can be used.  The mapping is
++necessary since the object data may reside in two different
++noncontigious pages.
 +
-+WHO NEEDS TO AGREE
++For 32-bit systems, zsmalloc has the added benefit of being
++able to back slabs with HIGHMEM pages, something not possible
++with the kernel slab allocators (SLAB or SLUB).
 +
-+Not sure.  Seth Jennings is now pursuing a separate but semi-parallel
-+track.  Akpm clearly has to approve for any mm merge to happen.  Minchan
-+Kim has interest but may be happy if/when zram is merged into mm.  Konrad
-+Wilk may be maintainer if akpm decides compression is maintainable
-+separately from the rest of mm.  (More LSF/MM 2013 discussion.)
++Usage:
 +
-+ZCACHE FUTURE NEW FUNCTIONALITY
++#include <linux/zsmalloc.h>
 +
-+A. Support zsmalloc as an alternative high-density allocator
-+    (See https://lkml.org/lkml/2013/1/23/511)
-+B. Support zero-filled pages more efficiently
-+C. Possibly support three zbuds per pageframe when space allows
++/* create a new pool */
++struct zs_pool *pool = zs_create_pool("mypool", GFP_KERNEL);
++
++/* allocate a 256 byte object */
++unsigned long handle = zs_malloc(pool, 256);
++
++/*
++ * Map the object to get a dereferenceable pointer in "read-write mode"
++ * (see zsmalloc.h for additional modes)
++ */
++void *ptr = zs_map_object(pool, handle, ZS_MM_RW);
++
++/* do something with ptr */
++
++/*
++ * Unmap the object when done dealing with it. You should try to
++ * minimize the time for which the object is mapped since preemption
++ * is disabled during the mapped period.
++ */
++zs_unmap_object(pool, handle);
++
++/* free the object */
++zs_free(pool, handle);
++
++/* destroy the pool */
++zs_destroy_pool(pool); 
 -- 
-1.7.1
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
