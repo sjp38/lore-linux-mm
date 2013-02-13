@@ -1,96 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 50B666B0005
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 06:39:43 -0500 (EST)
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: [PATCH] mm: Limit pgd range freeing to mm->task_size
-Date: Wed, 13 Feb 2013 11:39:29 +0000
-Message-Id: <1360755569-27282-1-git-send-email-catalin.marinas@arm.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id F1A4A6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 07:56:22 -0500 (EST)
+Date: Wed, 13 Feb 2013 13:56:17 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
+Message-ID: <20130213125617.GD23562@dhcp22.suse.cz>
+References: <20130211223943.GC15951@cmpxchg.org>
+ <20130212095419.GB4863@dhcp22.suse.cz>
+ <20130212151002.GD15951@cmpxchg.org>
+ <20130212154330.GG4863@dhcp22.suse.cz>
+ <20130212161332.GI4863@dhcp22.suse.cz>
+ <20130212162442.GJ4863@dhcp22.suse.cz>
+ <63d3b5fa-dbc6-4bc9-8867-f9961e644305@email.android.com>
+ <20130212171216.GA17663@dhcp22.suse.cz>
+ <20130212173741.GD25235@cmpxchg.org>
+ <20130213103459.GB23562@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130213103459.GB23562@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Russell King <linux@arm.linux.org.uk>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-ARM processors with LPAE enabled use 3 levels of page tables, with an
-entry in the top level (pgd) covering 1GB of virtual space. Because of
-the branch relocation limitations on ARM, the loadable modules are
-mapped 16MB below PAGE_OFFSET, making the corresponding 1GB pgd shared
-between kernel modules and user space.
+On Wed 13-02-13 11:34:59, Michal Hocko wrote:
+> On Tue 12-02-13 12:37:41, Johannes Weiner wrote:
+> > On Tue, Feb 12, 2013 at 06:12:16PM +0100, Michal Hocko wrote:
+> [...]
+> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > index 727ec39..31bb9b0 100644
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -144,8 +144,13 @@ struct mem_cgroup_stat_cpu {
+> > >  };
+> > >  
+> > >  struct mem_cgroup_reclaim_iter {
+> > > -	/* last scanned hierarchy member with elevated css ref count */
+> > > +	/*
+> > > +	 * last scanned hierarchy member. Valid only if last_dead_count
+> > > +	 * matches memcg->dead_count of the hierarchy root group.
+> > > +	 */
+> > >  	struct mem_cgroup *last_visited;
+> > > +	unsigned int last_dead_count;
+> > 
+> > Since we read and write this without a lock, I would feel more
+> > comfortable if this were a full word, i.e. unsigned long.  That
+> > guarantees we don't see any partial states.
+> 
+> OK. Changed. Although I though that int is read/modified atomically as
+> well if it is aligned to its size.
 
-Since free_pgtables() is called with ceiling == 0, free_pgd_range() (and
-subsequently called functions) also frees the page table
-shared between user space and kernel modules (which is normally handled
-by the ARM-specific pgd_free() function).
+Ohh, I guess what was your concern. If last_dead_count was int then it
+would fit into the same full word slot with generation and so the
+parallel read-modify-update cycle could be an issue.
 
-This patch changes the ceiling argument to mm->task_size for the
-free_pgtables() and free_pgd_range() function calls. We cannot use
-TASK_SIZE since this macro may not be a run-time constant on 64-bit
-systems supporting compat applications.
-
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Russell King <linux@arm.linux.org.uk>
----
-
-Hi Andrew,
-
-I posted this patch a couple of times in the past. The latest
-incarnation (using mm->task_size instead of TASK_SIZE) is a result of
-discussions I had with Andrea and benh at the last KS.
-
-Do you have any comments on it? It fixes a problem on ARM (32-bit) with
-LPAE.
-
-Thanks.
-
- fs/exec.c | 4 ++--
- mm/mmap.c | 4 ++--
- 2 files changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/fs/exec.c b/fs/exec.c
-index 20df02c..04c1534 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -613,7 +613,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
- 		 * when the old and new regions overlap clear from new_end.
- 		 */
- 		free_pgd_range(&tlb, new_end, old_end, new_end,
--			vma->vm_next ? vma->vm_next->vm_start : 0);
-+			vma->vm_next ? vma->vm_next->vm_start : mm->task_size);
- 	} else {
- 		/*
- 		 * otherwise, clean from old_start; this is done to not touch
-@@ -622,7 +622,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
- 		 * for the others its just a little faster.
- 		 */
- 		free_pgd_range(&tlb, old_start, old_end, new_end,
--			vma->vm_next ? vma->vm_next->vm_start : 0);
-+			vma->vm_next ? vma->vm_next->vm_start : mm->task_size);
- 	}
- 	tlb_finish_mmu(&tlb, new_end, old_end);
- 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 35730ee..e15d294 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2262,7 +2262,7 @@ static void unmap_region(struct mm_struct *mm,
- 	update_hiwater_rss(mm);
- 	unmap_vmas(&tlb, vma, start, end);
- 	free_pgtables(&tlb, vma, prev ? prev->vm_end : FIRST_USER_ADDRESS,
--				 next ? next->vm_start : 0);
-+				 next ? next->vm_start : mm->task_size);
- 	tlb_finish_mmu(&tlb, start, end);
- }
- 
-@@ -2640,7 +2640,7 @@ void exit_mmap(struct mm_struct *mm)
- 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
- 	unmap_vmas(&tlb, vma, 0, -1);
- 
--	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
-+	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, mm->task_size);
- 	tlb_finish_mmu(&tlb, 0, -1);
- 
- 	/*
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
