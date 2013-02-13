@@ -1,81 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 78CAE6B0005
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 10:03:42 -0500 (EST)
-Date: Wed, 13 Feb 2013 09:03:40 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH] mm: export mmu notifier invalidates
-Message-ID: <20130213150340.GJ3460@sgi.com>
-References: <20130212213534.GA5052@sgi.com>
- <20130212135726.a40ff76f.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 51FDA6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 10:20:28 -0500 (EST)
+Received: from /spool/local
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Wed, 13 Feb 2013 08:15:54 -0700
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 3F284C40003
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 08:15:35 -0700 (MST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1DFFYI9268668
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 08:15:34 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1DFFRd5008748
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 08:15:27 -0700
+Message-ID: <511BADEA.3070403@linux.vnet.ibm.com>
+Date: Wed, 13 Feb 2013 07:14:50 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130212135726.a40ff76f.akpm@linux-foundation.org>
+Subject: Re: OOM triggered with plenty of memory free
+References: <20130213031056.GA32135@marvin.atrad.com.au> <alpine.DEB.2.02.1302121917020.11158@chino.kir.corp.google.com> <20130213042552.GC32135@marvin.atrad.com.au>
+In-Reply-To: <20130213042552.GC32135@marvin.atrad.com.au>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Cliff Wickman <cpw@sgi.com>, linux-mm@kvack.org, aarcange@redhat.com, mgorman@suse.de
+To: Jonathan Woithe <jwoithe@atrad.com.au>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-On Tue, Feb 12, 2013 at 01:57:26PM -0800, Andrew Morton wrote:
-> On Tue, 12 Feb 2013 15:35:34 -0600
-> Cliff Wickman <cpw@sgi.com> wrote:
+On 02/12/2013 08:25 PM, Jonathan Woithe wrote:
+>> > Better yet would be to try to upgrade these machines to a more recent 
+>> > kernel to see if it is already fixed.  Are we allowed to upgrade or at 
+>> > least enable kmemleak?
+> Upgrading to a recent kernel would be a possibility if it was proven to fix
+> the problem; doing it "just to check" will be impossible I fear, at least on
+> the production systems.  Enabling KMEMLEAK on 2.6.35.x may be doable.
 > 
-> > 
-> > Commenting on this patch ended with Andrea's post on 07Jan, which was
-> > a more-or-less endorsement and a question about support for extended vma
-> > abstractions in kernel modules out of tree.
-> > (that comment can be found at http://marc.info/?l=linux-mm&m=135757292605395&w=2)
-> > 
-> > I'd like to make the request again to consider export of these two symbols. 
-> > 
-> > 
-> > We at SGI have a need to address some very high physical address ranges with
-> > our GRU (global reference unit), sometimes across partitioned machine boundaries
-> > and sometimes with larger addresses than the cpu supports.
-> > We do this with the aid of our own 'extended vma' module which mimics the vma.
-> > When something (either unmap or exit) frees an 'extended vma' we use the mmu
-> > notifiers to clean them up.
-> > 
-> > We had been able to mimic the functions __mmu_notifier_invalidate_range_start()
-> > and __mmu_notifier_invalidate_range_end() by locking the per-mm lock and 
-> > walking the per-mm notifier list.  But with the change to a global srcu
-> > lock (static in mmu_notifier.c) we can no longer do that.  Our module has
-> > no access to that lock.
-> > 
-> > So we request that these two functions be exported.
-> > 
-> > ...
-> >
-> > +EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
-> > +EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_end);
+> I will see whether I can gain access to a test system and if so, try a more
+> recent kernel to see if it makes any difference.
 > 
-> erk.  Having remote, modular, out-of-tree *sending* mmu notifications
-> is pretty abusive :(
-> 
-> I don't have a problem with the patch personally.  It's a GPL export
-> and it's only 2 lines and if we break it, you own both pieces ;)
-> 
-> But in a better world, the core kernel would support your machines
-> adequately and you wouldn't need to maintain that out-of-tree MM code. 
-> What are the prospects of this?
+> I'll advise which of these options proves practical as soon as possible and
+> report any findings which come out of them.
 
-We can put it on our todo list.  Getting a user of this infrastructure
-will require changes by Dimitri for the GRU driver (drivers/misc/sgi-gru).
-He is currently focused on getting the design of some upcoming hardware
-finalized and design changes tested in our simulation environment so he
-will be consumed for the next several months.
+Are there any non-upstream bits in the kernel?  Any third-party drivers
+or filesystems?
 
-If you would like, I can clean up the driver in my spare time and submit
-it for review.  Would you consider allowing its inclusion without the
-GRU driver as a user?
+David's analysis looks spot-on.  The only other thing I'll add is that
+it just looks weird that all three kmalloc() caches are so _even_:
 
-In the transition period, could we allow this change in and then remove
-the exports as part of that driver being accepted?  That would help us
-with an upcoming distro release.
+>> kmalloc-128       1234556 1235168    128   32    1 : tunables    0    0    0 : slabdata  38599  38599      0
+>> kmalloc-64        1238117 1238144     64   64    1 : tunables    0    0    0 : slabdata  19346  19346      0
+>> kmalloc-32        1236600 1236608     32  128    1 : tunables    0    0    0 : slabdata   9661   9661      0
 
-Thanks,
-Robin
+It's almost like something goes and does 3 allocations in series and
+leaks them all.
+
+There are also quite a few buffer_heads:
+
+> buffer_head       496273 640794     56   73    1 : tunables    0    0    0 : slabdata   8778   8778      0
+
+which seem out-of-whack for the small amount of memory being used for
+I/O-related stuff.  That kinda points in the direction of I/O or
+filesystems.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
