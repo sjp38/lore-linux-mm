@@ -1,89 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 0FAF56B0005
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 11:03:40 -0500 (EST)
-Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 13 Feb 2013 09:01:44 -0700
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 8C7783E4006D
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 09:01:19 -0700 (MST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1DG1Ew9500494
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 09:01:16 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1DG18fd007042
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 09:01:10 -0700
-Message-ID: <511BB8A7.9040305@linux.vnet.ibm.com>
-Date: Wed, 13 Feb 2013 10:00:39 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id CDB1A6B0008
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 11:49:46 -0500 (EST)
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 2/7] zsmalloc: promote to lib/
-References: <1359495627-30285-1-git-send-email-sjenning@linux.vnet.ibm.com> <1359495627-30285-3-git-send-email-sjenning@linux.vnet.ibm.com> <20130129145134.813672cf.akpm@linux-foundation.org>
-In-Reply-To: <20130129145134.813672cf.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-ID: <4943cb48-5725-49a3-a095-edfde72ca822@default>
+Date: Wed, 13 Feb 2013 08:47:50 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [LSF/MM TOPIC] In-kernel compression in the MM subsystem
+References: <601542b0-4c92-4d90-aed8-826235c06eab@default>
+ <1360117134.2403.4.camel@kernel.cn.ibm.com>
+ <73fe6782-21f4-47c5-886f-367374a3e600@default>
+ <1360742910.1473.10.camel@kernel.cn.ibm.com>
+In-Reply-To: <1360742910.1473.10.camel@kernel.cn.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>
 
-On 01/29/2013 04:51 PM, Andrew Morton wrote:
-> On Tue, 29 Jan 2013 15:40:22 -0600
-> Seth Jennings <sjenning@linux.vnet.ibm.com> wrote:
-> 
->> This patch promotes the slab-based zsmalloc memory allocator
->> from the staging tree to lib/
-> 
-> Hate to rain on the parade, but...  we haven't reviewed zsmalloc
-> yet.  At least, I haven't, and I haven't seen others do so.
-> 
-> So how's about we forget that zsmalloc was previously in staging and
-> send the zsmalloc code out for review?  With a very good changelog
-> explaining why it exists, what problems it solves, etc.
-> 
-> 
-> I peeked.
-> 
-> Don't answer any of the below questions - they are examples of
-> concepts which should be accessible to readers of the
-> hopefully-forthcoming very-good-changelog.
+> From: Simon Jeons [mailto:simon.jeons@gmail.com]
+> Subject: Re: [LSF/MM TOPIC] In-kernel compression in the MM subsystem
+>=20
+> On Wed, 2013-02-06 at 10:40 -0800, Dan Magenheimer wrote:
+> > > From: Simon Jeons [mailto:simon.jeons@gmail.com]
+> > > Subject: Re: [LSF/MM TOPIC] In-kernel compression in the MM subsystem
+> > >
+> > > Hi Dan,
+> > > On Sat, 2013-01-26 at 12:16 -0800, Dan Magenheimer wrote:
+> > > > There's lots of interesting things going on in kernel memory
+> > > > management, but one only(?) increases the effective amount
+> > > > of data that can be stored in a fixed amount of RAM: in-kernel
+> > > > compression.
+> > > >
+> > > > Since ramzswap/compcache (now zram) was first proposed in 2009
+> > > > as an in-memory compressed swap device, there have been a number
+> > > > of in-kernel compression solutions proposed, including
+> > > > zcache, kztmem, and now zswap.  Each shows promise to improve
+> > > > performance by using compression under memory pressure to
+> > > > reduce I/O due to swapping and/or paging.  Each is still
+> > > > in staging (though zram may be promoted by LSFMM 2013)
+> > > > because each also brings a number of perplexing challenges.
+> > > >
+> > > > I think it's time to start converging on which one or more
+> > > > of these solutions, if any, should be properly promoted and
+> > > > more fully integrated into the kernel memory management
+> > > > subsystem.  Before this can occur, it's important to build a
+> > > > broader understanding and, hopefully, also a broader consensus
+> > > > among the MM community on a number of key challenges and questions
+> > > > in order to guide and drive further development and merging.
+> > > >
+> > > > I would like to collect a list of issues/questions, and
+> > > > start a discussion at LSF/MM by presenting this list, select
+> > > > the most important, then lead a discussion on how ever many
+> > > > there is time for.  Most likely this is an MM-only discussion
+> > > > though a subset might be suitable for a cross-talk presentataion.
+> > > >
+> > >
+> > > Is there benchmark to test each component in tmem?
+> >
+> > Hi Simon --
+> >
+> > I'm not sure what you mean.  Could you add a few words
+> > to clarify?
+> >
+>=20
+> Hi Dan,
+>=20
+> Some questions about zsmalloc:
+>=20
+> 1) What's the meaning of comment above USE_PGTABLE_MAPPING macro "This
+> cause zsmalloc to use page table mapping rather than copying for object
+> mapping"?
+> 2) How zsmalloc handle object span two pages? It seems that in function
+> init_zspage, link->next =3D obj_location_to_handle(next_page, 0); you
+> encode next_page and 0 to object, then how can zs_malloc find this free
+> object? IIUC, this encode skip the object span two pages.
+> 3) Why must map after malloc if want to use a object?
+> 4) What's the number of ZS_MAX_ALLOC_SIZE and ZS_MIN_ALLOC_SIZE? There
+> are too many macros to figure it out.
 
-I know you just said "don't answer", but I wanted to say why certain
-points aren't included in the new patchset I'm about to post later today.
+Hi Simon --
 
-> 
-> - kmap_atomic() returns a void* - there's no need to cast its return value.
+Those are good questions, but you are asking the wrong person.
+I stopped using zsmalloc in zcache (and ramster) because it
+has certain issues and it didn't appear to me those issues
+would/could be resolved.  I wrote a custom allocator (see zbud.c)
+to avoid those issues.  This is explained in:
+http://lkml.indiana.edu/hypermail/linux/kernel/1208.1/03763.html=20
 
-In places where we do pointer arithmetic, we do the cast to avoid
-incrementing a void *, which is acceptable for gcc, but not everyone.
-
-> 
-> - Remove private MAX(), use the (much better implemented) max().
-
-We can't use max() or max_t() because ZS_SIZE_CLASSES, which uses
-ZS_MIN_ALLOC_SIZE, is used to define and array size in struct zs_pool.
-So the expression must be able to be fully evaluated by the precompiler.
-
-> 
-> - It says "This was one of the major issues with its predecessor
->   (xvmalloc)", but drivers/staging/ramster/xvmalloc.c is still in the tree.
-
-Yes, this was a little mess.  I think you'll find that isn't the case
-anymore.  Dan has removed those files from zcache/ramster.
-
-> 
-> - USE_PGTABLE_MAPPING should be done via Kconfig.
-
-Minchan did this work and will be included in the next version of the
-patchset.
-
-I've added more documentation/comments in the new patchset.  Hopefully,
-it will help with understanding the more complicated parts of the code.
+I'd be interested in hearing your ideas/requirements for
+in-kernel compression!
 
 Thanks,
-Seth
+Dan
+
+P.S. Note that "old" zcache (which uses zsmalloc) will be gone in
+3.8 and "new" zcache (which uses zbud and merges in ramster)
+will be in drivers/staging/zcache in 3.8.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
