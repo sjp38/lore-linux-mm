@@ -1,92 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 89A7B6B0005
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 05:07:13 -0500 (EST)
-Received: by mail-wg0-f44.google.com with SMTP id dr12so798782wgb.23
-        for <linux-mm@kvack.org>; Wed, 13 Feb 2013 02:07:11 -0800 (PST)
-Message-ID: <1360750028.24917.28.camel@mfleming-mobl1.ger.corp.intel.com>
-Subject: Re: [PATCH V3] ia64/mm: fix a bad_page bug when crash kernel booting
-From: Matt Fleming <matt.fleming@intel.com>
-Date: Wed, 13 Feb 2013 10:07:08 +0000
-In-Reply-To: <5113450C.1080109@huawei.com>
-References: <51074786.5030007@huawei.com>
-	 <1359995565.7515.178.camel@mfleming-mobl1.ger.corp.intel.com>
-	 <51131248.3080203@huawei.com> <5113450C.1080109@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id B670C6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 05:35:02 -0500 (EST)
+Date: Wed, 13 Feb 2013 11:34:59 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 4/7] memcg: remove memcg from the reclaim iterators
+Message-ID: <20130213103459.GB23562@dhcp22.suse.cz>
+References: <20130211212756.GC29000@dhcp22.suse.cz>
+ <20130211223943.GC15951@cmpxchg.org>
+ <20130212095419.GB4863@dhcp22.suse.cz>
+ <20130212151002.GD15951@cmpxchg.org>
+ <20130212154330.GG4863@dhcp22.suse.cz>
+ <20130212161332.GI4863@dhcp22.suse.cz>
+ <20130212162442.GJ4863@dhcp22.suse.cz>
+ <63d3b5fa-dbc6-4bc9-8867-f9961e644305@email.android.com>
+ <20130212171216.GA17663@dhcp22.suse.cz>
+ <20130212173741.GD25235@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130212173741.GD25235@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, fenghua.yu@intel.com, Liujiang <jiang.liu@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, WuJianguo <wujianguo@huawei.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On Thu, 2013-02-07 at 14:09 +0800, Xishi Qiu wrote:
-> > Sorry, this bug will be happen when use Sparse-Memory(section is valid, but last
+On Tue 12-02-13 12:37:41, Johannes Weiner wrote:
+> On Tue, Feb 12, 2013 at 06:12:16PM +0100, Michal Hocko wrote:
+[...]
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 727ec39..31bb9b0 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -144,8 +144,13 @@ struct mem_cgroup_stat_cpu {
+> >  };
+> >  
+> >  struct mem_cgroup_reclaim_iter {
+> > -	/* last scanned hierarchy member with elevated css ref count */
+> > +	/*
+> > +	 * last scanned hierarchy member. Valid only if last_dead_count
+> > +	 * matches memcg->dead_count of the hierarchy root group.
+> > +	 */
+> >  	struct mem_cgroup *last_visited;
+> > +	unsigned int last_dead_count;
 > 
-> > several pages are invalid). If use Flat-Memory, crash kernel will boot successfully.
-> > I think the following patch would be better.
-> > 
-> > Hi Andrew, will you just ignore the earlier patch and consider the following one? :>
-> > 
-> > Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> > ---
-> >  arch/ia64/mm/init.c |    2 ++
-> >  1 files changed, 2 insertions(+), 0 deletions(-)
-> > 
-> > diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-> > index 082e383..23f2ee3 100644
-> > --- a/arch/ia64/mm/init.c
-> > +++ b/arch/ia64/mm/init.c
-> > @@ -213,6 +213,8 @@ free_initrd_mem (unsigned long start, unsigned long end)
-> >  	for (; start < end; start += PAGE_SIZE) {
-> >  		if (!virt_addr_valid(start))
-> >  			continue;
-> > +		if ((start >> PAGE_SHIFT) >= max_low_pfn)
-> 
-> I confused the vaddr and paddr, really sorry for it.
-> 
-> In efi_init() memory aligns in IA64_GRANULE_SIZE(16M). If set "crashkernel=1024M-:600M"
-> and use sparse memory model, when crash kernel booting it changes [128M-728M] to [128M-720M].
-> But initrd memory is in [709M-727M], and virt_addr_valid() *can not* check the invalid pages
-> when freeing initrd memory. There are some pages missed at the end of the seciton.
-> 
-> ChangeLog V3:
-> 	fixed vaddr mistake
-> ChangeLog V2:
-> 	add invalid pages check when freeing initrd memory
-> 
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  arch/ia64/mm/init.c |    4 ++++
->  1 files changed, 4 insertions(+), 0 deletions(-)
-> 
-> diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
-> index 082e383..8a269f8 100644
-> --- a/arch/ia64/mm/init.c
-> +++ b/arch/ia64/mm/init.c
-> @@ -173,6 +173,7 @@ void __init
->  free_initrd_mem (unsigned long start, unsigned long end)
->  {
->  	struct page *page;
-> +	unsigned long pfn;
->  	/*
->  	 * EFI uses 4KB pages while the kernel can use 4KB or bigger.
->  	 * Thus EFI and the kernel may have different page sizes. It is
-> @@ -213,6 +214,9 @@ free_initrd_mem (unsigned long start, unsigned long end)
->  	for (; start < end; start += PAGE_SIZE) {
->  		if (!virt_addr_valid(start))
->  			continue;
-> +		pfn = __pa(start) >> PAGE_SHIFT;
-> +		if (pfn >= max_low_pfn)
-> +			continue;
->  		page = virt_to_page(start);
->  		ClearPageReserved(page);
->  		init_page_count(page);
+> Since we read and write this without a lock, I would feel more
+> comfortable if this were a full word, i.e. unsigned long.  That
+> guarantees we don't see any partial states.
 
-I would have presumed that fixing this bug would involve modifying the
-ia64-specific kexec code?
-
-Tony, Fenghua? Any thoughts?
+OK. Changed. Although I though that int is read/modified atomically as
+well if it is aligned to its size.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
