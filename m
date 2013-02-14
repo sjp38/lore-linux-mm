@@ -1,70 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id A76236B0002
-	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 17:49:44 -0500 (EST)
-Date: Thu, 14 Feb 2013 09:19:31 +1030
-From: Jonathan Woithe <jwoithe@atrad.com.au>
-Subject: Re: OOM triggered with plenty of memory free
-Message-ID: <20130213224931.GA23154@marvin.atrad.com.au>
-References: <20130213031056.GA32135@marvin.atrad.com.au>
- <alpine.DEB.2.02.1302121917020.11158@chino.kir.corp.google.com>
- <20130213042552.GC32135@marvin.atrad.com.au>
- <511BADEA.3070403@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with SMTP id F32166B0002
+	for <linux-mm@kvack.org>; Wed, 13 Feb 2013 22:19:12 -0500 (EST)
+Received: by mail-da0-f52.google.com with SMTP id f10so840106dak.25
+        for <linux-mm@kvack.org>; Wed, 13 Feb 2013 19:19:12 -0800 (PST)
+Date: Wed, 13 Feb 2013 19:19:09 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [Bug 53501] New: Duplicated MemTotal with different values
+In-Reply-To: <20130212195929.7cd2e597.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1302131915170.8584@chino.kir.corp.google.com>
+References: <bug-53501-27@https.bugzilla.kernel.org/> <20130212165107.32be0c33.akpm@linux-foundation.org> <alpine.DEB.2.02.1302121742370.5404@chino.kir.corp.google.com> <20130212195929.7cd2e597.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <511BADEA.3070403@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Jonathan Woithe <jwoithe@atrad.com.au>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiang Liu <liuj97@gmail.com>, sworddragon2@aol.com, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On Wed, Feb 13, 2013 at 07:14:50AM -0800, Dave Hansen wrote:
-> On 02/12/2013 08:25 PM, Jonathan Woithe wrote:
-> > I will see whether I can gain access to a test system and if so, try a more
-> > recent kernel to see if it makes any difference.
+On Tue, 12 Feb 2013, Andrew Morton wrote:
+
+> > > > The installed memory on my system is 16 GiB. /proc/meminfo is showing me
+> > > > "MemTotal:       16435048 kB" but /sys/devices/system/node/node0/meminfo is
+> > > > showing me "Node 0 MemTotal:       16776380 kB".
+> > > > 
+> > > > My suggestion: MemTotal in /proc/meminfo should be 16776380 kB too. The old
+> > > > value of 16435048 kB could have its own key "MemAvailable".
+> > > 
+> > > hm, mine does that too.  A discrepancy between `totalram_pages' and
+> > > NODE_DATA(0)->node_present_pages.
+> > > 
+> > > I don't know what the reasons are for that but yes, one would expect
+> > > the per-node MemTotals to sum up to the global one.
+> > > 
 > > 
-> > I'll advise which of these options proves practical as soon as possible and
-> > report any findings which come out of them.
+> > I'd suspect it has something to do with 9feedc9d831e ("mm: introduce new 
+> > field "managed_pages" to struct zone") and 3.8 would be the first kernel 
+> > release with this change.  Is it possible to try 3.7 or, better yet, with 
+> > this patch reverted?
 > 
-> Are there any non-upstream bits in the kernel?  Any third-party drivers
-> or filesystems?
+> My desktop machine at google in inconsistent, as is the 2.6.32-based
+> machine, so it obviously predates 9feedc9d831e.
+> 
 
-No to all three questions.  The kernel is a plain unpatched kernel.org
-2.6.35.11 kernel compiled with the configuration I included in the original
-email.  No third party modules have been loaded.
-
-I should add that I have managed to get access to a test system and over the
-next few days I will run tests on a number of kernels to try to narrow down
-some of the unknowns associated with this problem.
-
-> David's analysis looks spot-on.  The only other thing I'll add is that
-> it just looks weird that all three kmalloc() caches are so _even_:
-> 
-> >> kmalloc-128       1234556 1235168    128   32    1 : tunables    0    0    0 : slabdata  38599  38599      0
-> >> kmalloc-64        1238117 1238144     64   64    1 : tunables    0    0    0 : slabdata  19346  19346      0
-> >> kmalloc-32        1236600 1236608     32  128    1 : tunables    0    0    0 : slabdata   9661   9661      0
-> 
-> It's almost like something goes and does 3 allocations in series and
-> leaks them all.
-> 
-> There are also quite a few buffer_heads:
-> 
-> > buffer_head       496273 640794     56   73    1 : tunables    0    0    0 : slabdata   8778   8778      0
-> 
-> which seem out-of-whack for the small amount of memory being used for
-> I/O-related stuff.  That kinda points in the direction of I/O or
-> filesystems.
-
-As previously stated, there is a lot of network I/O going on (input to the
-tune of 20 MBytes/s) but I don't know if this is the I/O class you're
-referring to.  We are also writing data to disc periodically, but since this
-is post-process the amount is *much* less than the raw input rate (for the
-data acquisition system we're talking of the order of 5 MBytes per minute or
-less).
-
-Regards
-  jonathan
+Hmm, ok.  The question is which one is right: the per-node MemTotal is the 
+amount of present RAM, the spanned range minus holes, and the system 
+MemTotal is the amount of pages released to the buddy allocator by 
+bootmem and discounts not only the memory holes but also reserved pages.  
+Should they both be the amount of RAM present or the amount of unreserved 
+RAM present?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
