@@ -1,65 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 617656B0002
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 17:22:01 -0500 (EST)
-Date: Thu, 14 Feb 2013 14:21:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] net: fix functions and variables related to
- netns_ipvs->sysctl_sync_qlen_max
-Message-Id: <20130214142159.d0516a5f.akpm@linux-foundation.org>
-In-Reply-To: <alpine.LFD.2.00.1302070944480.1810@ja.ssi.bg>
-References: <51131B88.6040809@cn.fujitsu.com>
-	<51132A56.60906@cn.fujitsu.com>
-	<alpine.LFD.2.00.1302070944480.1810@ja.ssi.bg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 2646F6B0002
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 17:25:26 -0500 (EST)
+Date: Thu, 14 Feb 2013 16:25:24 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] mm: export mmu notifier invalidates
+Message-ID: <20130214222524.GI3438@sgi.com>
+References: <20130212213534.GA5052@sgi.com>
+ <20130212135726.a40ff76f.akpm@linux-foundation.org>
+ <20130213150340.GJ3460@sgi.com>
+ <20130213121149.25a0e3bd.akpm@linux-foundation.org>
+ <20130213210305.GV3438@sgi.com>
+ <20130214130856.13d1b5bb.akpm@linux-foundation.org>
+ <20130214213512.GH3438@sgi.com>
+ <20130214135234.234a93f9.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130214135234.234a93f9.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julian Anastasov <ja@ssi.bg>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, davem@davemloft.net, Simon Horman <horms@verge.net.au>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Robin Holt <holt@sgi.com>, Cliff Wickman <cpw@sgi.com>, linux-mm@kvack.org, aarcange@redhat.com, mgorman@suse.de
 
-On Thu, 7 Feb 2013 10:40:26 +0200 (EET)
-Julian Anastasov <ja@ssi.bg> wrote:
-
-> > Another question about the sysctl_sync_qlen_max:
-> > This variable is assigned as:
-> > 
-> > ipvs->sysctl_sync_qlen_max = nr_free_buffer_pages() / 32;
-> > 
-> > The function nr_free_buffer_pages actually means: counts of pages
-> > which are beyond high watermark within ZONE_DMA and ZONE_NORMAL.
-> > 
-> > is it ok to be called here? Some people misused this function because
-> > the function name was misleading them. I am sorry I am totally not
-> > familiar with the ipvs code, so I am just asking you about
-> > this.
+On Thu, Feb 14, 2013 at 01:52:34PM -0800, Andrew Morton wrote:
+> On Thu, 14 Feb 2013 15:35:12 -0600
+> Robin Holt <holt@sgi.com> wrote:
 > 
-> 	Using nr_free_buffer_pages should be fine here.
-> We are using it as rough estimation for the number of sync
-> buffers we can use in NORMAL zones. We are using dev->mtu
-> for such buffers, so it can take a PAGE_SIZE for a buffer.
-> We are not interested in HIGHMEM size. high watermarks
-> should have negliable effect. I'm even not sure whether
-> we need to clamp it for systems with TBs of memory.
+> > I am open to suggestions.  Can you suggest existing kernel functionality
+> > that allows one task to map another virtual address space into their
+> > va space to allow userland-to-userland copies without system calls?
+> > If there is functionality that has been introduced in the last couple
+> > years, I could very well have missed it as I have been fairly heads-down
+> > on other things for some time.
+> 
+> That's conceptually very similar to mm/process_vm_access.c. 
+> process_vm_readv/writev do kernel-based copying rather than a direct
+> mmap.
 
-Using nr_free_buffer_pages() is good-enough-for-now.  There are
-questions around the name of this thing and its exact functionality and
-whether callers are using it appropriately.  But if anything is changed
-there, it will be as part of kernel-wide sweep.
+I will go look at those now.  I am not familiar with them as they went
+in during my "dark period" where I was working on system controller
+functionality and not paying attention to kernel activity.
 
-One thing to bear in mind is memory hot[un]plug.  Anything which was
-sized using nr_free_buffer_pages() (or similar) may become
-inappropriately sized if memory is added or removed.  So any site which
-uses nr_free_buffer_pages() really should be associated with a hotplug
-handler and a great pile of code to resize the structure at runtime. 
-It's pretty ugly stuff :(  I suspect it usually Just Doesn't Matter.
+> 
+> > > To what extent is all this specific to SGI hardware characteristics?
+> > 
+> > SGI's hardware allows two things, a vastly larger virtual address space
+> > and the ability to access memory in other system images on the same numa
+> > fabric which are beyond the processsors physical addressing capabilities.
+> > 
+> > I am fairly sure Cray has taken an older version of XPMEM and stripped
+> > out a bunch of SGI specific bits and implemented it on their hardware.
+> > 
+> > > > The above, of course, is an oversimplification, but should give you and
+> > > > idea of the big picture design goals.
+> > > >
+> > > > Does any of this make sense?  Do you see areas where you think we should
+> > > > extend regular mm functionality to include these functions?
+> > > > 
+> > > > How would you like me to proceed?
+> > > 
+> > > I'm obviously on first base here, but overall approach:
+> > > 
+> > > - Is the top-level feature useful to general Linux users?  Perhaps
+> > >   after suitable generalisations (aka dumbing down :))
+> > 
+> > I am not sure how useful it is.  I know IBM has tried in the past to
+> > get a similar feature introduced.  I believe they settled on a ptrace
+> > extension to do direct user-to-user copies from within the kernel.
+> 
+> process_vm_readv/writev is from Christopher Yeoh@IBM.
+> 
+> > > - Even if the answer to that is "no", should we maintain the feature
+> > >   in-tree rather than out-of-tree?
+> > 
+> > Not sure on the second one, but I believe Linus' objection is security and
+> > I can certainly understand that.  Right now, SGI's xpmem implementation
+> > enforces that all jobs in the task need to have the same UID.  There is
+> > no exception for root or and administrator.
+> 
+> I'd have thought that the security processing of a direct map would be
+> identical to those in process_vm_readv/writev?
+> 
+> If we were to add a general map-this-into-that facility which is
+> available to and runs adequately on our typical machines, I assume your
+> systems would need some SGI-specific augmentation?
 
-Redarding this patch:
-net-change-type-of-netns_ipvs-sysctl_sync_qlen_max.patch and
-net-fix-functions-and-variables-related-to-netns_ipvs-sysctl_sync_qlen_max.patch
-are joined at the hip and should be redone as a single patch with a
-suitable changelog, please.  And with a cc:netdev@vger.kernel.org.
+Yes, for the extended virtual and physical address space and for the
+weird page sizes.
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
