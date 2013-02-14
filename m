@@ -1,87 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 80D406B0002
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 15:39:28 -0500 (EST)
-Date: Thu, 14 Feb 2013 12:39:26 -0800
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id A19006B0002
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 16:08:58 -0500 (EST)
+Date: Thu, 14 Feb 2013 13:08:56 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: fadvise: Drain all pagevecs if POSIX_FADV_DONTNEED
- fails to discard all pages
-Message-Id: <20130214123926.599fcef8.akpm@linux-foundation.org>
-In-Reply-To: <20130214120349.GD7367@suse.de>
-References: <20130214120349.GD7367@suse.de>
+Subject: Re: [PATCH] mm: export mmu notifier invalidates
+Message-Id: <20130214130856.13d1b5bb.akpm@linux-foundation.org>
+In-Reply-To: <20130213210305.GV3438@sgi.com>
+References: <20130212213534.GA5052@sgi.com>
+	<20130212135726.a40ff76f.akpm@linux-foundation.org>
+	<20130213150340.GJ3460@sgi.com>
+	<20130213121149.25a0e3bd.akpm@linux-foundation.org>
+	<20130213210305.GV3438@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Rob van der Heij <rvdheij@gmail.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Robin Holt <holt@sgi.com>
+Cc: Cliff Wickman <cpw@sgi.com>, linux-mm@kvack.org, aarcange@redhat.com, mgorman@suse.de
 
-On Thu, 14 Feb 2013 12:03:49 +0000
-Mel Gorman <mgorman@suse.de> wrote:
+On Wed, 13 Feb 2013 15:03:05 -0600
+Robin Holt <holt@sgi.com> wrote:
 
-> Rob van der Heij reported the following (paraphrased) on private mail.
+> On Wed, Feb 13, 2013 at 12:11:49PM -0800, Andrew Morton wrote:
+> > On Wed, 13 Feb 2013 09:03:40 -0600
+> > Robin Holt <holt@sgi.com> wrote:
+> > 
+> > > > But in a better world, the core kernel would support your machines
+> > > > adequately and you wouldn't need to maintain that out-of-tree MM code. 
+> > > > What are the prospects of this?
+> > > 
+> > > We can put it on our todo list.  Getting a user of this infrastructure
+> > > will require changes by Dimitri for the GRU driver (drivers/misc/sgi-gru).
+> > > He is currently focused on getting the design of some upcoming hardware
+> > > finalized and design changes tested in our simulation environment so he
+> > > will be consumed for the next several months.
+> > > 
+> > > If you would like, I can clean up the driver in my spare time and submit
+> > > it for review.  Would you consider allowing its inclusion without the
+> > > GRU driver as a user?
+> > 
+> > >From Cliff's description it sounded like that driver is
+> > duplicating/augmenting core MM functions.  I was more wondering
+> > whether core MM could be enhanced so that driver becomes obsolete?
 > 
-> 	The scenario is that I want to avoid backups to fill up the page
-> 	cache and purge stuff that is more likely to be used again (this is
-> 	with s390x Linux on z/VM, so I don't give it as much memory that
-> 	we don't care anymore). So I have something with LD_PRELOAD that
-> 	intercepts the close() call (from tar, in this case) and issues
-> 	a posix_fadvise() just before closing the file.
+> That would be fine with me.  The requirements on the driver are fairly
+> small and well known.  We separate virtual addresses above processor
+> addressable space into two "regions".  Memory from 1UL << 53 to 1UL <<
+> 63 is considered one set of virtual addresses.  Memory above 1UL << 63
+> is considered "shared among a process group".
 > 
-> 	This mostly works, except for small files (less than 14 pages)
-> 	that remains in page cache after the face.
+> I will only mention in passing that we also have a driver which exposes
+> mega-size pages which the kernel has not been informed of by the EFI
+> memory map and xvma is used to allow the GRU to fault pages of a supported
+> page size (eg: 64KB, 256KB 512KB, 2MB, 8MB, ... 1TB).
+> 
+> The shared address has a couple unusual features.  One task makes a ioctl
+> (happens to come via XPMEM) which creates a shared_xmm.  This is roughly
+> equivalent to an mm for a pthread app.  Once it is created, a shared_xmm
+> id is returned.  Other tasks then join that shared xmm.
+> 
+> At any time, any process can created shared mmap entries (again, currently
+> via XPMEM).  Again, this is like a pthread in that this new mapping is
+> now referencable from all tasks at the same virtual address.
+> 
+> There are similar functions for removing the shared mapping.
+> 
+> The non-shared case is equivalent to a regular mm/vma, but beyond
+> processor addressable space.
+> 
+> SGI's MPI utilizes these address spaces for directly mapping portions
+> of the other tasks address space.  This can include processes in other
+> portions of the machine beyond the processor's ability to physically
+> address.
 
-Sigh.  We've had the "my backups swamp pagecache" thing for 15 years
-and it's still happening.
+What exactly is "SGI's MPI" from the kernel POV?  A separate
+out-of-tree driver?
 
-It should be possible nowadays to toss your backup application into a
-container to constrain its pagecache usage.  So we can type
+If the objective is to "directly map portions of the other tasks
+address space" then how does this slicing-up of physical address
+regions come into play?  If one wishes to map another mm's memory,
+wouldn't you just go ahead and map it, regardless of physical address?
 
-	run-in-a-memcg -m 200MB /my/backup/program
+To what extent is all this specific to SGI hardware characteristics?
 
-and voila.  Does such a script exist and work?
+> The above, of course, is an oversimplification, but should give you and
+> idea of the big picture design goals.
+>
+> Does any of this make sense?  Do you see areas where you think we should
+> extend regular mm functionality to include these functions?
+> 
+> How would you like me to proceed?
 
-> --- a/mm/fadvise.c
-> +++ b/mm/fadvise.c
-> @@ -17,6 +17,7 @@
->  #include <linux/fadvise.h>
->  #include <linux/writeback.h>
->  #include <linux/syscalls.h>
-> +#include <linux/swap.h>
->  
->  #include <asm/unistd.h>
->  
-> @@ -120,9 +121,22 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
->  		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
->  		end_index = (endbyte >> PAGE_CACHE_SHIFT);
->  
-> -		if (end_index >= start_index)
-> -			invalidate_mapping_pages(mapping, start_index,
-> +		if (end_index >= start_index) {
-> +			unsigned long count = invalidate_mapping_pages(mapping,
-> +						start_index, end_index);
-> +
-> +			/*
-> +			 * If fewer pages were invalidated than expected then
-> +			 * it is possible that some of the pages were on
-> +			 * a per-cpu pagevec for a remote CPU. Drain all
-> +			 * pagevecs and try again.
-> +			 */
-> +			if (count < (end_index - start_index + 1)) {
-> +				lru_add_drain_all();
-> +				invalidate_mapping_pages(mapping, start_index,
->  						end_index);
-> +			}
-> +		}
->  		break;
->  	default:
->  		ret = -EINVAL;
+I'm obviously on first base here, but overall approach:
 
-Those LRU pagevecs are a right pain.  They provided useful gains way
-back when I first inflicted them upon Linux, but it would be nice to
-confirm whether they're still worthwhile and if so, whether the
-benefits can be replicated with some less intrusive scheme.
+- Is the top-level feature useful to general Linux users?  Perhaps
+  after suitable generalisations (aka dumbing down :))
+
+- Even if the answer to that is "no", should we maintain the feature
+  in-tree rather than out-of-tree?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
