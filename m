@@ -1,109 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 5527A6B000D
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 08:26:56 -0500 (EST)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH v4 6/6] cgroup: remove css_get_next
-Date: Thu, 14 Feb 2013 14:26:36 +0100
-Message-Id: <1360848396-16564-7-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1360848396-16564-1-git-send-email-mhocko@suse.cz>
-References: <1360848396-16564-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 31D266B0002
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 12:07:45 -0500 (EST)
+Received: by mail-la0-f44.google.com with SMTP id eb20so2588513lab.17
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2013 09:07:43 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20130214120349.GD7367@suse.de>
+References: <20130214120349.GD7367@suse.de>
+Date: Thu, 14 Feb 2013 18:07:42 +0100
+Message-ID: <CAJCc=ki3gbz=TgzbgFJeJBSXyjKtaifkVL11tYz2xrY9tANLSA@mail.gmail.com>
+Subject: Re: [PATCH] mm: fadvise: Drain all pagevecs if POSIX_FADV_DONTNEED
+ fails to discard all pages
+From: Rob van der Heij <rvdheij@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Now that we have generic and well ordered cgroup tree walkers there is
-no need to keep css_get_next in the place.
+On 14 February 2013 13:03, Mel Gorman <mgorman@suse.de> wrote:
+> Rob van der Heij reported the following (paraphrased) on private mail.
+>
+>         The scenario is that I want to avoid backups to fill up the page
+>         cache and purge stuff that is more likely to be used again (this is
+>         with s390x Linux on z/VM, so I don't give it as much memory that
+>         we don't care anymore). So I have something with LD_PRELOAD that
+>         intercepts the close() call (from tar, in this case) and issues
+>         a posix_fadvise() just before closing the file.
+>
+>         This mostly works, except for small files (less than 14 pages)
+>         that remains in page cache after the face.
+>
+> Unfortunately Rob has not had a chance to test this exact patch but the
+> test program below should be reproducing the problem he described.
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Li Zefan <lizefan@huawei.com>
----
- include/linux/cgroup.h |    7 -------
- kernel/cgroup.c        |   49 ------------------------------------------------
- 2 files changed, 56 deletions(-)
+I'm happy with the patch and couldn't find another scenario that
+breaks. This is going to help us reduce the footprint in virtualized
+environments, as long as the programs are well behaved. Thanks.
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 7d73905..a4d86b0 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -685,13 +685,6 @@ void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
- 
- struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id);
- 
--/*
-- * Get a cgroup whose id is greater than or equal to id under tree of root.
-- * Returning a cgroup_subsys_state or NULL.
-- */
--struct cgroup_subsys_state *css_get_next(struct cgroup_subsys *ss, int id,
--		struct cgroup_subsys_state *root, int *foundid);
--
- /* Returns true if root is ancestor of cg */
- bool css_is_ancestor(struct cgroup_subsys_state *cg,
- 		     const struct cgroup_subsys_state *root);
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index f34c41b..3013ec4 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -5384,55 +5384,6 @@ struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id)
- }
- EXPORT_SYMBOL_GPL(css_lookup);
- 
--/**
-- * css_get_next - lookup next cgroup under specified hierarchy.
-- * @ss: pointer to subsystem
-- * @id: current position of iteration.
-- * @root: pointer to css. search tree under this.
-- * @foundid: position of found object.
-- *
-- * Search next css under the specified hierarchy of rootid. Calling under
-- * rcu_read_lock() is necessary. Returns NULL if it reaches the end.
-- */
--struct cgroup_subsys_state *
--css_get_next(struct cgroup_subsys *ss, int id,
--	     struct cgroup_subsys_state *root, int *foundid)
--{
--	struct cgroup_subsys_state *ret = NULL;
--	struct css_id *tmp;
--	int tmpid;
--	int rootid = css_id(root);
--	int depth = css_depth(root);
--
--	if (!rootid)
--		return NULL;
--
--	BUG_ON(!ss->use_id);
--	WARN_ON_ONCE(!rcu_read_lock_held());
--
--	/* fill start point for scan */
--	tmpid = id;
--	while (1) {
--		/*
--		 * scan next entry from bitmap(tree), tmpid is updated after
--		 * idr_get_next().
--		 */
--		tmp = idr_get_next(&ss->idr, &tmpid);
--		if (!tmp)
--			break;
--		if (tmp->depth >= depth && tmp->stack[depth] == rootid) {
--			ret = rcu_dereference(tmp->css);
--			if (ret) {
--				*foundid = tmpid;
--				break;
--			}
--		}
--		/* continue to scan from next id */
--		tmpid = tmpid + 1;
--	}
--	return ret;
--}
--
- /*
-  * get corresponding css from file open on cgroupfs directory
-  */
--- 
-1.7.10.4
+Reported-and-tested-by: Rob van der Heij <rvdheij@gmail.com>
+
+> The issue is the per-cpu pagevecs for LRU additions. If the pages are added
+> by one CPU but fadvise() is called on another then the pages remain resident
+> as the invalidate_mapping_pages() only drains the local pagevecs via its
+> call to pagevec_release(). The user-visible effect is that a program that
+> uses fadvise() properly is not obeyed.
+>
+> A possible fix for this is to put the necessary smarts into
+> invalidate_mapping_pages() to globally drain the LRU pagevecs if a pagevec
+> page could not be discarded. The downside with this is that an inode cache
+> shrink would send a global IPI and memory pressure potentially causing
+> global IPI storms is very undesirable.
+>
+> Instead, this patch adds a check during fadvise(POSIX_FADV_DONTNEED) to
+> check if invalidate_mapping_pages() discarded all the requested pages. If a
+> subset of pages are discarded it drains the LRU pagevecs and tries again. If
+> the second attempt fails, it assumes it is due to the pages being mapped,
+> locked or dirty and does not care. With this patch, an application using
+> fadvise() correctly will be obeyed but there is a downside that a malicious
+> application can force the kernel to send global IPIs and increase overhead.
+>
+> If accepted, I would like this to be considered as a -stable candidate.
+> It's not an urgent issue but it's a system call that is not working as
+> advertised which is weak.
+>
+> The following test program demonstrates the problem. It should never
+> report that pages are still resident but will without this patch. It
+> assumes that CPU 0 and 1 exist.
+>
+> int main() {
+>         int fd;
+>         int pagesize = getpagesize();
+>         ssize_t written = 0, expected;
+>         char *buf;
+>         unsigned char *vec;
+>         int resident, i;
+>         cpu_set_t set;
+>
+>         /* Prepare a buffer for writing */
+>         expected = FILESIZE_PAGES * pagesize;
+>         buf = malloc(expected + 1);
+>         if (buf == NULL) {
+>                 printf("ENOMEM\n");
+>                 exit(EXIT_FAILURE);
+>         }
+>         buf[expected] = 0;
+>         memset(buf, 'a', expected);
+>
+>         /* Prepare the mincore vec */
+>         vec = malloc(FILESIZE_PAGES);
+>         if (vec == NULL) {
+>                 printf("ENOMEM\n");
+>                 exit(EXIT_FAILURE);
+>         }
+>
+>         /* Bind ourselves to CPU 0 */
+>         CPU_ZERO(&set);
+>         CPU_SET(0, &set);
+>         if (sched_setaffinity(getpid(), sizeof(set), &set) == -1) {
+>                 perror("sched_setaffinity");
+>                 exit(EXIT_FAILURE);
+>         }
+>
+>         /* open file, unlink and write buffer */
+>         fd = open("fadvise-test-file", O_CREAT|O_EXCL|O_RDWR);
+>         if (fd == -1) {
+>                 perror("open");
+>                 exit(EXIT_FAILURE);
+>         }
+>         unlink("fadvise-test-file");
+>         while (written < expected) {
+>                 ssize_t this_write;
+>                 this_write = write(fd, buf + written, expected - written);
+>
+>                 if (this_write == -1) {
+>                         perror("write");
+>                         exit(EXIT_FAILURE);
+>                 }
+>
+>                 written += this_write;
+>         }
+>         free(buf);
+>
+>         /*
+>          * Force ourselves to another CPU. If fadvise only flushes the local
+>          * CPUs pagevecs then the fadvise will fail to discard all file pages
+>          */
+>         CPU_ZERO(&set);
+>         CPU_SET(1, &set);
+>         if (sched_setaffinity(getpid(), sizeof(set), &set) == -1) {
+>                 perror("sched_setaffinity");
+>                 exit(EXIT_FAILURE);
+>         }
+>
+>         /* sync and fadvise to discard the page cache */
+>         fsync(fd);
+>         if (posix_fadvise(fd, 0, expected, POSIX_FADV_DONTNEED) == -1) {
+>                 perror("posix_fadvise");
+>                 exit(EXIT_FAILURE);
+>         }
+>
+>         /* map the file and use mincore to see which parts of it are resident */
+>         buf = mmap(NULL, expected, PROT_READ, MAP_SHARED, fd, 0);
+>         if (buf == NULL) {
+>                 perror("mmap");
+>                 exit(EXIT_FAILURE);
+>         }
+>         if (mincore(buf, expected, vec) == -1) {
+>                 perror("mincore");
+>                 exit(EXIT_FAILURE);
+>         }
+>
+>         /* Check residency */
+>         for (i = 0, resident = 0; i < FILESIZE_PAGES; i++) {
+>                 if (vec[i])
+>                         resident++;
+>         }
+>         if (resident != 0) {
+>                 printf("Nr unexpected pages resident: %d\n", resident);
+>                 exit(EXIT_FAILURE);
+>         }
+>
+>         munmap(buf, expected);
+>         close(fd);
+>         free(vec);
+>         exit(EXIT_SUCCESS);
+> }
+>
+> Cc: stable@vger.kernel.org
+> Reported-by: Rob van der Heij <rvdheij@gmail.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  mm/fadvise.c |   18 ++++++++++++++++--
+>  1 file changed, 16 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/fadvise.c b/mm/fadvise.c
+> index a47f0f5..909ec55 100644
+> --- a/mm/fadvise.c
+> +++ b/mm/fadvise.c
+> @@ -17,6 +17,7 @@
+>  #include <linux/fadvise.h>
+>  #include <linux/writeback.h>
+>  #include <linux/syscalls.h>
+> +#include <linux/swap.h>
+>
+>  #include <asm/unistd.h>
+>
+> @@ -120,9 +121,22 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
+>                 start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
+>                 end_index = (endbyte >> PAGE_CACHE_SHIFT);
+>
+> -               if (end_index >= start_index)
+> -                       invalidate_mapping_pages(mapping, start_index,
+> +               if (end_index >= start_index) {
+> +                       unsigned long count = invalidate_mapping_pages(mapping,
+> +                                               start_index, end_index);
+> +
+> +                       /*
+> +                        * If fewer pages were invalidated than expected then
+> +                        * it is possible that some of the pages were on
+> +                        * a per-cpu pagevec for a remote CPU. Drain all
+> +                        * pagevecs and try again.
+> +                        */
+> +                       if (count < (end_index - start_index + 1)) {
+> +                               lru_add_drain_all();
+> +                               invalidate_mapping_pages(mapping, start_index,
+>                                                 end_index);
+> +                       }
+> +               }
+>                 break;
+>         default:
+>                 ret = -EINVAL;
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
