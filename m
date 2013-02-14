@@ -1,83 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 994C16B0007
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 16:52:36 -0500 (EST)
-Date: Thu, 14 Feb 2013 13:52:34 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: export mmu notifier invalidates
-Message-Id: <20130214135234.234a93f9.akpm@linux-foundation.org>
-In-Reply-To: <20130214213512.GH3438@sgi.com>
-References: <20130212213534.GA5052@sgi.com>
-	<20130212135726.a40ff76f.akpm@linux-foundation.org>
-	<20130213150340.GJ3460@sgi.com>
-	<20130213121149.25a0e3bd.akpm@linux-foundation.org>
-	<20130213210305.GV3438@sgi.com>
-	<20130214130856.13d1b5bb.akpm@linux-foundation.org>
-	<20130214213512.GH3438@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id B8D3E6B0002
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 17:19:19 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id hz10so1448021pad.35
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2013 14:19:19 -0800 (PST)
+Date: Thu, 14 Feb 2013 14:19:26 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 6/11] ksm: remove old stable nodes more thoroughly
+In-Reply-To: <20130214115805.GC7367@suse.de>
+Message-ID: <alpine.LNX.2.00.1302141353020.2195@eggly.anvils>
+References: <alpine.LNX.2.00.1301251747590.29196@eggly.anvils> <alpine.LNX.2.00.1301251800550.29196@eggly.anvils> <20130205175551.GL21389@suse.de> <alpine.LNX.2.00.1302081057110.4233@eggly.anvils> <20130214115805.GC7367@suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Cliff Wickman <cpw@sgi.com>, linux-mm@kvack.org, aarcange@redhat.com, mgorman@suse.de
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 14 Feb 2013 15:35:12 -0600
-Robin Holt <holt@sgi.com> wrote:
-
-> I am open to suggestions.  Can you suggest existing kernel functionality
-> that allows one task to map another virtual address space into their
-> va space to allow userland-to-userland copies without system calls?
-> If there is functionality that has been introduced in the last couple
-> years, I could very well have missed it as I have been fairly heads-down
-> on other things for some time.
-
-That's conceptually very similar to mm/process_vm_access.c. 
-process_vm_readv/writev do kernel-based copying rather than a direct
-mmap.
-
-> > To what extent is all this specific to SGI hardware characteristics?
-> 
-> SGI's hardware allows two things, a vastly larger virtual address space
-> and the ability to access memory in other system images on the same numa
-> fabric which are beyond the processsors physical addressing capabilities.
-> 
-> I am fairly sure Cray has taken an older version of XPMEM and stripped
-> out a bunch of SGI specific bits and implemented it on their hardware.
-> 
-> > > The above, of course, is an oversimplification, but should give you and
-> > > idea of the big picture design goals.
-> > >
-> > > Does any of this make sense?  Do you see areas where you think we should
-> > > extend regular mm functionality to include these functions?
-> > > 
-> > > How would you like me to proceed?
+On Thu, 14 Feb 2013, Mel Gorman wrote:
+> On Fri, Feb 08, 2013 at 11:33:40AM -0800, Hugh Dickins wrote:
 > > 
-> > I'm obviously on first base here, but overall approach:
+> > What I found is that a 4th cause emerges once KSM migration
+> > is properly working: that interval during page migration when the old
+> > page has been fully unmapped but the new not yet mapped in its place.
 > > 
-> > - Is the top-level feature useful to general Linux users?  Perhaps
-> >   after suitable generalisations (aka dumbing down :))
 > 
-> I am not sure how useful it is.  I know IBM has tried in the past to
-> get a similar feature introduced.  I believe they settled on a ptrace
-> extension to do direct user-to-user copies from within the kernel.
-
-process_vm_readv/writev is from Christopher Yeoh@IBM.
-
-> > - Even if the answer to that is "no", should we maintain the feature
-> >   in-tree rather than out-of-tree?
+> For anyone else watching -- normal page migration expects to be protected
+> during that particular window with migration ptes. Any references to the
+> PTE mapping a page being migrated faults on a swap-like PTE and waits
+> in migration_entry_wait().
 > 
-> Not sure on the second one, but I believe Linus' objection is security and
-> I can certainly understand that.  Right now, SGI's xpmem implementation
-> enforces that all jobs in the task need to have the same UID.  There is
-> no exception for root or and administrator.
+> > The KSM COW breaking cannot see a page there then, so it ends up with
+> > a (newly migrated) KSM page left behind.  Almost certainly has to be
+> > fixed in follow_page(), but I've not yet settled on its final form -
+> > the fix I have works well, but a different approach might be better.
+> > 
 
-I'd have thought that the security processing of a direct map would be
-identical to those in process_vm_readv/writev?
+The fix I had (following migration entry to old page) was a bit too
+PageKsm specfic, and probably wrong for when get_user_pages() needs
+to get a hold on the _new_ page.
 
-If we were to add a general map-this-into-that facility which is
-available to and runs adequately on our typical machines, I assume your
-systems would need some SGI-specific augmentation?
+> 
+> follow_page() is one option. My guess is that you're thinking of adding
+> a FOLL_ flag that will cause follow_page() to check is_migration_entry()
+> and migration_entry_wait() if the flag is present.
+
+Maybe a FOLL_flag, but I was thinking of doing it always.  The usual
+get_user_pages() case will already wait in handle_mm_fault() and works
+okay, and I didn't identify a problem case for follow_page() apart from
+this ksm.c usage; but I did wonder if someone might have or add code
+which gets similarly caught out by the migration case.
+
+It's not a change I'd dare to make (without a FOLL_flag) if Andrea
+hadn't already added a wait_split_huge_page() into follow_page();
+and I need to convince myself that adding another cause for waiting
+is necessarily safe (perhaps adding a might_sleep would be good).
+
+Sorry, I expected to have posted follow-up patches days and days ago,
+but in fact my time has vanished elsewhere and I've not even started.
+
+> 
+> Otherwise you would need to check for migration ptes in a number of places
+> under page lock and then hold the lock for long periods of time to prevent
+> migration starting. I did not check this option in depth because it quickly
+> looked like it would be a mess, with long page lock hold times and might
+> not even be workable.
+
+Yes, I think that's more or less why I quickly decided on doing it in
+follow_page().
+
+Another option would be to move the ksm_migrate_page() callsite, and
+allow it to reject the migration attempt when "inconvenient" (I haven't
+stopped to think of the definition of inconvenient).  Though it wouldn't
+fail often enough for anyone out there to care, that option just feels
+like a shameful cop-out to me: I'm trying to improve migration, not add
+strange cases when it fails.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
