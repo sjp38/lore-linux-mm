@@ -1,181 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 31D266B0002
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 12:07:45 -0500 (EST)
-Received: by mail-la0-f44.google.com with SMTP id eb20so2588513lab.17
-        for <linux-mm@kvack.org>; Thu, 14 Feb 2013 09:07:43 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20130214120349.GD7367@suse.de>
-References: <20130214120349.GD7367@suse.de>
-Date: Thu, 14 Feb 2013 18:07:42 +0100
-Message-ID: <CAJCc=ki3gbz=TgzbgFJeJBSXyjKtaifkVL11tYz2xrY9tANLSA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 80D406B0002
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 15:39:28 -0500 (EST)
+Date: Thu, 14 Feb 2013 12:39:26 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mm: fadvise: Drain all pagevecs if POSIX_FADV_DONTNEED
  fails to discard all pages
-From: Rob van der Heij <rvdheij@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-Id: <20130214123926.599fcef8.akpm@linux-foundation.org>
+In-Reply-To: <20130214120349.GD7367@suse.de>
+References: <20130214120349.GD7367@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Rob van der Heij <rvdheij@gmail.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 14 February 2013 13:03, Mel Gorman <mgorman@suse.de> wrote:
+On Thu, 14 Feb 2013 12:03:49 +0000
+Mel Gorman <mgorman@suse.de> wrote:
+
 > Rob van der Heij reported the following (paraphrased) on private mail.
->
->         The scenario is that I want to avoid backups to fill up the page
->         cache and purge stuff that is more likely to be used again (this is
->         with s390x Linux on z/VM, so I don't give it as much memory that
->         we don't care anymore). So I have something with LD_PRELOAD that
->         intercepts the close() call (from tar, in this case) and issues
->         a posix_fadvise() just before closing the file.
->
->         This mostly works, except for small files (less than 14 pages)
->         that remains in page cache after the face.
->
-> Unfortunately Rob has not had a chance to test this exact patch but the
-> test program below should be reproducing the problem he described.
+> 
+> 	The scenario is that I want to avoid backups to fill up the page
+> 	cache and purge stuff that is more likely to be used again (this is
+> 	with s390x Linux on z/VM, so I don't give it as much memory that
+> 	we don't care anymore). So I have something with LD_PRELOAD that
+> 	intercepts the close() call (from tar, in this case) and issues
+> 	a posix_fadvise() just before closing the file.
+> 
+> 	This mostly works, except for small files (less than 14 pages)
+> 	that remains in page cache after the face.
 
-I'm happy with the patch and couldn't find another scenario that
-breaks. This is going to help us reduce the footprint in virtualized
-environments, as long as the programs are well behaved. Thanks.
+Sigh.  We've had the "my backups swamp pagecache" thing for 15 years
+and it's still happening.
 
-Reported-and-tested-by: Rob van der Heij <rvdheij@gmail.com>
+It should be possible nowadays to toss your backup application into a
+container to constrain its pagecache usage.  So we can type
 
-> The issue is the per-cpu pagevecs for LRU additions. If the pages are added
-> by one CPU but fadvise() is called on another then the pages remain resident
-> as the invalidate_mapping_pages() only drains the local pagevecs via its
-> call to pagevec_release(). The user-visible effect is that a program that
-> uses fadvise() properly is not obeyed.
->
-> A possible fix for this is to put the necessary smarts into
-> invalidate_mapping_pages() to globally drain the LRU pagevecs if a pagevec
-> page could not be discarded. The downside with this is that an inode cache
-> shrink would send a global IPI and memory pressure potentially causing
-> global IPI storms is very undesirable.
->
-> Instead, this patch adds a check during fadvise(POSIX_FADV_DONTNEED) to
-> check if invalidate_mapping_pages() discarded all the requested pages. If a
-> subset of pages are discarded it drains the LRU pagevecs and tries again. If
-> the second attempt fails, it assumes it is due to the pages being mapped,
-> locked or dirty and does not care. With this patch, an application using
-> fadvise() correctly will be obeyed but there is a downside that a malicious
-> application can force the kernel to send global IPIs and increase overhead.
->
-> If accepted, I would like this to be considered as a -stable candidate.
-> It's not an urgent issue but it's a system call that is not working as
-> advertised which is weak.
->
-> The following test program demonstrates the problem. It should never
-> report that pages are still resident but will without this patch. It
-> assumes that CPU 0 and 1 exist.
->
-> int main() {
->         int fd;
->         int pagesize = getpagesize();
->         ssize_t written = 0, expected;
->         char *buf;
->         unsigned char *vec;
->         int resident, i;
->         cpu_set_t set;
->
->         /* Prepare a buffer for writing */
->         expected = FILESIZE_PAGES * pagesize;
->         buf = malloc(expected + 1);
->         if (buf == NULL) {
->                 printf("ENOMEM\n");
->                 exit(EXIT_FAILURE);
->         }
->         buf[expected] = 0;
->         memset(buf, 'a', expected);
->
->         /* Prepare the mincore vec */
->         vec = malloc(FILESIZE_PAGES);
->         if (vec == NULL) {
->                 printf("ENOMEM\n");
->                 exit(EXIT_FAILURE);
->         }
->
->         /* Bind ourselves to CPU 0 */
->         CPU_ZERO(&set);
->         CPU_SET(0, &set);
->         if (sched_setaffinity(getpid(), sizeof(set), &set) == -1) {
->                 perror("sched_setaffinity");
->                 exit(EXIT_FAILURE);
->         }
->
->         /* open file, unlink and write buffer */
->         fd = open("fadvise-test-file", O_CREAT|O_EXCL|O_RDWR);
->         if (fd == -1) {
->                 perror("open");
->                 exit(EXIT_FAILURE);
->         }
->         unlink("fadvise-test-file");
->         while (written < expected) {
->                 ssize_t this_write;
->                 this_write = write(fd, buf + written, expected - written);
->
->                 if (this_write == -1) {
->                         perror("write");
->                         exit(EXIT_FAILURE);
->                 }
->
->                 written += this_write;
->         }
->         free(buf);
->
->         /*
->          * Force ourselves to another CPU. If fadvise only flushes the local
->          * CPUs pagevecs then the fadvise will fail to discard all file pages
->          */
->         CPU_ZERO(&set);
->         CPU_SET(1, &set);
->         if (sched_setaffinity(getpid(), sizeof(set), &set) == -1) {
->                 perror("sched_setaffinity");
->                 exit(EXIT_FAILURE);
->         }
->
->         /* sync and fadvise to discard the page cache */
->         fsync(fd);
->         if (posix_fadvise(fd, 0, expected, POSIX_FADV_DONTNEED) == -1) {
->                 perror("posix_fadvise");
->                 exit(EXIT_FAILURE);
->         }
->
->         /* map the file and use mincore to see which parts of it are resident */
->         buf = mmap(NULL, expected, PROT_READ, MAP_SHARED, fd, 0);
->         if (buf == NULL) {
->                 perror("mmap");
->                 exit(EXIT_FAILURE);
->         }
->         if (mincore(buf, expected, vec) == -1) {
->                 perror("mincore");
->                 exit(EXIT_FAILURE);
->         }
->
->         /* Check residency */
->         for (i = 0, resident = 0; i < FILESIZE_PAGES; i++) {
->                 if (vec[i])
->                         resident++;
->         }
->         if (resident != 0) {
->                 printf("Nr unexpected pages resident: %d\n", resident);
->                 exit(EXIT_FAILURE);
->         }
->
->         munmap(buf, expected);
->         close(fd);
->         free(vec);
->         exit(EXIT_SUCCESS);
-> }
->
-> Cc: stable@vger.kernel.org
-> Reported-by: Rob van der Heij <rvdheij@gmail.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->  mm/fadvise.c |   18 ++++++++++++++++--
->  1 file changed, 16 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/fadvise.c b/mm/fadvise.c
-> index a47f0f5..909ec55 100644
+	run-in-a-memcg -m 200MB /my/backup/program
+
+and voila.  Does such a script exist and work?
+
 > --- a/mm/fadvise.c
 > +++ b/mm/fadvise.c
 > @@ -17,6 +17,7 @@
@@ -183,35 +49,39 @@ Reported-and-tested-by: Rob van der Heij <rvdheij@gmail.com>
 >  #include <linux/writeback.h>
 >  #include <linux/syscalls.h>
 > +#include <linux/swap.h>
->
+>  
 >  #include <asm/unistd.h>
->
+>  
 > @@ -120,9 +121,22 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
->                 start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
->                 end_index = (endbyte >> PAGE_CACHE_SHIFT);
->
-> -               if (end_index >= start_index)
-> -                       invalidate_mapping_pages(mapping, start_index,
-> +               if (end_index >= start_index) {
-> +                       unsigned long count = invalidate_mapping_pages(mapping,
-> +                                               start_index, end_index);
+>  		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
+>  		end_index = (endbyte >> PAGE_CACHE_SHIFT);
+>  
+> -		if (end_index >= start_index)
+> -			invalidate_mapping_pages(mapping, start_index,
+> +		if (end_index >= start_index) {
+> +			unsigned long count = invalidate_mapping_pages(mapping,
+> +						start_index, end_index);
 > +
-> +                       /*
-> +                        * If fewer pages were invalidated than expected then
-> +                        * it is possible that some of the pages were on
-> +                        * a per-cpu pagevec for a remote CPU. Drain all
-> +                        * pagevecs and try again.
-> +                        */
-> +                       if (count < (end_index - start_index + 1)) {
-> +                               lru_add_drain_all();
-> +                               invalidate_mapping_pages(mapping, start_index,
->                                                 end_index);
-> +                       }
-> +               }
->                 break;
->         default:
->                 ret = -EINVAL;
->
+> +			/*
+> +			 * If fewer pages were invalidated than expected then
+> +			 * it is possible that some of the pages were on
+> +			 * a per-cpu pagevec for a remote CPU. Drain all
+> +			 * pagevecs and try again.
+> +			 */
+> +			if (count < (end_index - start_index + 1)) {
+> +				lru_add_drain_all();
+> +				invalidate_mapping_pages(mapping, start_index,
+>  						end_index);
+> +			}
+> +		}
+>  		break;
+>  	default:
+>  		ret = -EINVAL;
+
+Those LRU pagevecs are a right pain.  They provided useful gains way
+back when I first inflicted them upon Linux, but it would be nice to
+confirm whether they're still worthwhile and if so, whether the
+benefits can be replicated with some less intrusive scheme.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
