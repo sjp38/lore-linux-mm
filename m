@@ -1,121 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 43A666B0007
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 20:48:05 -0500 (EST)
-Message-ID: <1360892876.5374.332.camel@deadeye.wl.decadent.org.uk>
-Subject: Re: [PATCH] mm: Try harder to allocate vmemmap blocks
-From: Ben Hutchings <ben@decadent.org.uk>
-Date: Fri, 15 Feb 2013 01:47:56 +0000
-In-Reply-To: <20130214064048.GB8372@cmpxchg.org>
-References: <1360816468.5374.285.camel@deadeye.wl.decadent.org.uk>
-	 <20130214064048.GB8372@cmpxchg.org>
-Content-Type: multipart/signed; micalg="pgp-sha512";
-	protocol="application/pgp-signature"; boundary="=-BcSc6EkT8ptcWItClZFW"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 4B3FE6B0002
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 01:35:08 -0500 (EST)
+Date: Fri, 15 Feb 2013 01:34:50 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 1/2] mm: fincore()
+Message-ID: <20130215063450.GA24047@cmpxchg.org>
+References: <87a9rbh7b4.fsf@rustcorp.com.au>
+ <20130211162701.GB13218@cmpxchg.org>
+ <20130211141239.f4decf03.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130211141239.f4decf03.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Stewart Smith <stewart@flamingspork.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
+On Mon, Feb 11, 2013 at 02:12:39PM -0800, Andrew Morton wrote:
+> Also, having to mmap the file to be able to query pagecache state is a
+> hack.  Whatever happened to the fincore() patch?
 
---=-BcSc6EkT8ptcWItClZFW
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+I don't know, but how about this one:
 
-On Thu, 2013-02-14 at 01:40 -0500, Johannes Weiner wrote:
-> On Thu, Feb 14, 2013 at 04:34:28AM +0000, Ben Hutchings wrote:
-> > Hot-adding memory on x86_64 normally requires huge page allocation.
-> > When this is done to a VM guest, it's usually because the system is
-> > already tight on memory, so the request tends to fail.  Try to avoid
-> > this by adding __GFP_REPEAT to the allocation flags.
-> >=20
-> > Reported-and-tested-by: Bernhard Schmidt <Bernhard.Schmidt@lrz.de>
-> > Reference: http://bugs.debian.org/699913
-> > Signed-off-by: Ben Hutchings <ben@decadent.org.uk>
->=20
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
->=20
-> > We could go even further and use __GFP_NOFAIL, but I'm not sure
-> > whether that would be a good idea.
->=20
-> If __GFP_REPEAT is not enough, I'd rather fall back to regular page
-> backing at this point:
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 1/2] mm: fincore()
 
-Oh yes, I had considered doing that before settling on __GFP_REPEAT.  It
-does seem worth doing.  Perhaps you could also log a specific warning,
-as the use of 4K page entries for this could have a significant
-performance impact.
+Provide a syscall to determine whether a given file's pages are cached
+in memory.  This is more elegant than mmapping the file for the sole
+purpose of using mincore(), and also works on NOMMU.
 
-Ben.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/syscalls.h |   2 +
+ mm/Makefile              |   2 +-
+ mm/fincore.c             | 128 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 131 insertions(+), 1 deletion(-)
+ create mode 100644 mm/fincore.c
 
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 2ead3c8..1f5301d 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -919,6 +919,7 @@ vmemmap_populate(struct page *start_page, unsigned lo=
-ng size, int node)
->  {
->  	unsigned long addr =3D (unsigned long)start_page;
->  	unsigned long end =3D (unsigned long)(start_page + size);
-> +	int use_huge =3D cpu_has_pse;
->  	unsigned long next;
->  	pgd_t *pgd;
->  	pud_t *pud;
-> @@ -934,8 +935,8 @@ vmemmap_populate(struct page *start_page, unsigned lo=
-ng size, int node)
->  		pud =3D vmemmap_pud_populate(pgd, addr, node);
->  		if (!pud)
->  			return -ENOMEM;
-> -
-> -		if (!cpu_has_pse) {
-> +retry_pmd:
-> +		if (!use_huge) {
->  			next =3D (addr + PAGE_SIZE) & PAGE_MASK;
->  			pmd =3D vmemmap_pmd_populate(pud, addr, node);
-> =20
-> @@ -957,8 +958,10 @@ vmemmap_populate(struct page *start_page, unsigned l=
-ong size, int node)
->  				pte_t entry;
-> =20
->  				p =3D vmemmap_alloc_block_buf(PMD_SIZE, node);
-> -				if (!p)
-> -					return -ENOMEM;
-> +				if (!p) {
-> +					use_huge =3D 0;
-> +					goto retry_pmd;
-> +				}
-> =20
->  				entry =3D pfn_pte(__pa(p) >> PAGE_SHIFT,
->  						PAGE_KERNEL_LARGE);
->=20
-
---=20
-Ben Hutchings
-Absolutum obsoletum. (If it works, it's out of date.) - Stafford Beer
-
---=-BcSc6EkT8ptcWItClZFW
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIVAwUAUR2TzOe/yOyVhhEJAQrHLxAAvig8MTSrx6d2mMUkdCG08QeyGWmVkW7b
-1R2aCnmNexKdV/lRsu4FT2Fjm9BHhESJd3tv8IMMBfosRffnS+faYnZO7MDzBFRM
-JzTQZ1WQY8BAdCPEloQ8LllD9F8xlMiriZrqP+BzUK+AGi4gpAImN7RzQtZPxXkf
-aYSSTHPwy7zTq2jn1y6Jt/7digJicGNUU3g4dC3L3d0ZZuw4+epnMV1wyZQyiQ9J
-/6YxAFA3C/+mgVH3uuDKH2PX8+3oNPHIOmGkdaGQ/4KQLTNMaRqD3GCYn6IsMboT
-czbk33Jtja1ttH9RJorjsOePlTCvAeRAfPMgUy++VuBB/mi+40c8FWH+geAu6M+u
-BJQ1Y0HgUjVt2GHZVgQt3bUDWoic0xxk3Qfvov46zX8b/7PNTRcTwBv5r6ogZ9ac
-+BO/bk3TWNsyyrsB/CknO46/INn6Y206ixl7hJlA++NyYKQQIBeLBv/n8hEB8H1+
-lvyCW10Gybk+W3R5gfau7zt/LFSsef60Lldtwmc5i71BHzLE2VdWU+X5rU0C68zW
-UKaawrxV2W+oTnz5nRb887FevgABeOzE1fR63t2wG/LE+wsLpqzaJXNsVW4VBgcU
-y3ggbwgCnGmOhFKgW8OySeCrZeqekHx/G/q/Ocdv0k6tfkPdvseHA1wg35G5oyF4
-eiwMB+08le0=
-=siSQ
------END PGP SIGNATURE-----
-
---=-BcSc6EkT8ptcWItClZFW--
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 313a8e0..3ceab2a 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -897,4 +897,6 @@ asmlinkage long sys_process_vm_writev(pid_t pid,
+ asmlinkage long sys_kcmp(pid_t pid1, pid_t pid2, int type,
+ 			 unsigned long idx1, unsigned long idx2);
+ asmlinkage long sys_finit_module(int fd, const char __user *uargs, int flags);
++asmlinkage long sys_fincore(unsigned int fd, loff_t start, loff_t len,
++			    unsigned char __user * vec);
+ #endif
+diff --git a/mm/Makefile b/mm/Makefile
+index 185a22b..221cdae 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -17,7 +17,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+ 			   util.o mmzone.o vmstat.o backing-dev.o \
+ 			   mm_init.o mmu_context.o percpu.o slab_common.o \
+ 			   compaction.o balloon_compaction.o \
+-			   interval_tree.o $(mmu-y)
++			   interval_tree.o fincore.o $(mmu-y)
+ 
+ obj-y += init-mm.o
+ 
+diff --git a/mm/fincore.c b/mm/fincore.c
+new file mode 100644
+index 0000000..d504611
+--- /dev/null
++++ b/mm/fincore.c
+@@ -0,0 +1,128 @@
++#include <linux/syscalls.h>
++#include <linux/pagemap.h>
++#include <linux/file.h>
++#include <linux/fs.h>
++#include <linux/mm.h>
++
++static long do_fincore(struct address_space *mapping, pgoff_t pgstart,
++		       unsigned long nr_pages, unsigned char *vec)
++{
++	pgoff_t pgend = pgstart + nr_pages;
++	struct radix_tree_iter iter;
++	void **slot;
++	long nr = 0;
++
++	rcu_read_lock();
++restart:
++	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, pgstart) {
++		unsigned char present;
++		struct page *page;
++
++		/* Handle holes */
++		if (iter.index != pgstart + nr) {
++			if (iter.index < pgend)
++				nr_pages = iter.index - pgstart;
++			break;
++		}
++repeat:
++		page = radix_tree_deref_slot(slot);
++		if (unlikely(!page))
++			continue;
++
++		if (radix_tree_exception(page)) {
++			if (radix_tree_deref_retry(page)) {
++				/*
++				 * Transient condition which can only trigger
++				 * when entry at index 0 moves out of or back
++				 * to root: none yet gotten, safe to restart.
++				 */
++				WARN_ON(iter.index);
++				goto restart;
++			}
++			present = 0;
++		} else {
++			if (!page_cache_get_speculative(page))
++				goto repeat;
++
++			/* Has the page moved? */
++			if (unlikely(page != *slot)) {
++				page_cache_release(page);
++				goto repeat;
++			}
++
++			present = PageUptodate(page);
++			page_cache_release(page);
++		}
++		vec[nr] = present;
++
++		if (++nr == nr_pages)
++			break;
++	}
++	rcu_read_unlock();
++
++	if (nr < nr_pages)
++		memset(vec + nr, 0, nr_pages - nr);
++
++	return nr_pages;
++}
++
++/*
++ * The fincore(2) system call.
++ *
++ * fincore() returns the memory residency status of the given file's
++ * pages, in the range [start, start + len].
++ * The status is returned in a vector of bytes.  The least significant
++ * bit of each byte is 1 if the referenced page is in memory, otherwise
++ * it is zero.
++ *
++ * Because the status of a page can change after fincore() checks it
++ * but before it returns to the application, the returned vector may
++ * contain stale information.
++ *
++ * return values:
++ *  zero    - success
++ *  -EBADF  - fd isn't a valid open file descriptor
++ *  -EFAULT - vec points to an illegal address
++ *  -EINVAL - start is not a multiple of PAGE_CACHE_SIZE
++ */
++SYSCALL_DEFINE4(fincore, unsigned int, fd, loff_t, start, loff_t, len,
++		unsigned char __user *, vec)
++{
++	unsigned long nr_pages;
++	pgoff_t pgstart;
++	struct fd f;
++	long ret;
++
++	if (start & ~PAGE_CACHE_MASK)
++		return -EINVAL;
++
++	f = fdget(fd);
++	if (!f.file)
++		return -EBADF;
++
++	pgstart = start >> PAGE_CACHE_SHIFT;
++	nr_pages = DIV_ROUND_UP(len, PAGE_CACHE_SIZE);
++
++	while (nr_pages) {
++		unsigned char tmp[64];
++
++		ret = do_fincore(f.file->f_mapping, pgstart,
++				 min(nr_pages, sizeof(tmp)), tmp);
++		if (ret <= 0)
++			break;
++
++		if (copy_to_user(vec, tmp, ret)) {
++			ret = -EFAULT;
++			break;
++		}
++
++		nr_pages -= ret;
++		pgstart += ret;
++		vec += ret;
++		ret = 0;
++	}
++
++	fdput(f);
++
++	return ret;
++}
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
