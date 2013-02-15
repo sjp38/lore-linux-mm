@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id F269B6B0093
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 17:55:55 -0500 (EST)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 70D2F6B0096
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 17:56:21 -0500 (EST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [ 1/4] x86/mm: Check if PUD is large when validating a kernel address
-Date: Fri, 15 Feb 2013 14:55:50 -0800
-Message-Id: <20130215225523.686282468@linuxfoundation.org>
-In-Reply-To: <20130215225523.525656849@linuxfoundation.org>
-References: <20130215225523.525656849@linuxfoundation.org>
+Subject: [ 4/8] x86/mm: Check if PUD is large when validating a kernel address
+Date: Fri, 15 Feb 2013 14:56:11 -0800
+Message-Id: <20130215225431.385985324@linuxfoundation.org>
+In-Reply-To: <20130215225430.841634159@linuxfoundation.org>
+References: <20130215225430.841634159@linuxfoundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.coM>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org
 
-3.0-stable review patch.  If anyone has any objections, please let me know.
+3.4-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -84,7 +84,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  static inline int pmd_large(pmd_t pte)
 --- a/arch/x86/mm/init_64.c
 +++ b/arch/x86/mm/init_64.c
-@@ -831,6 +831,9 @@ int kern_addr_valid(unsigned long addr)
+@@ -821,6 +821,9 @@ int kern_addr_valid(unsigned long addr)
  	if (pud_none(*pud))
  		return 0;
  
