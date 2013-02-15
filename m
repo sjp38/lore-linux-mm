@@ -1,96 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 2F3946B0080
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 17:25:23 -0500 (EST)
-Message-ID: <511EB5CB.2060602@redhat.com>
-Date: Fri, 15 Feb 2013 17:25:15 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id A52206B0082
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 17:28:19 -0500 (EST)
+Date: Fri, 15 Feb 2013 17:28:03 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/2] mm: fincore()
+Message-ID: <20130215222803.GA23930@cmpxchg.org>
+References: <87a9rbh7b4.fsf@rustcorp.com.au>
+ <20130211162701.GB13218@cmpxchg.org>
+ <20130211141239.f4decf03.akpm@linux-foundation.org>
+ <20130215063450.GA24047@cmpxchg.org>
+ <20130215131451.138e83ce.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: extra free kbytes tunable
-References: <alpine.DEB.2.02.1302111734090.13090@dflat> <A5ED84D3BB3A384992CBB9C77DEDA4D414A98EBF@USINDEM103.corp.hds.com>
-In-Reply-To: <A5ED84D3BB3A384992CBB9C77DEDA4D414A98EBF@USINDEM103.corp.hds.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130215131451.138e83ce.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seiji Aguchi <seiji.aguchi@hds.com>
-Cc: dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hughd@google.com" <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Stewart Smith <stewart@flamingspork.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On 02/15/2013 05:21 PM, Seiji Aguchi wrote:
-> Rik, Satoru,
->
-> Do you have any comments?
+On Fri, Feb 15, 2013 at 01:14:51PM -0800, Andrew Morton wrote:
+> On Fri, 15 Feb 2013 01:34:50 -0500
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > On Mon, Feb 11, 2013 at 02:12:39PM -0800, Andrew Morton wrote:
+> > > Also, having to mmap the file to be able to query pagecache state is a
+> > > hack.  Whatever happened to the fincore() patch?
+> > 
+> > I don't know, but how about this one:
+> 
+> This appears to be remotely derived from Chris's original
+> (http://lwn.net/Articles/371540/).  The comments, at least ;) Some
+> mention in the changelog would be appropriate.
 
-IIRC at the time the patch was rejected as too inelegant.
+It's actually copy-pasted from mm/mincore.c, but we both had the same
+idea of sorting the error codes by numeric value.  Funny.  I'll
+mention him.
 
-However, nobody else seems to have come up with a better plan, and
-there are users in need of a fix for this problem.
+> > Provide a syscall to determine whether a given file's pages are cached
+> > in memory.  This is more elegant than mmapping the file for the sole
+> > purpose of using mincore(), and also works on NOMMU.
+> > 
+> 
+> Obviously we'll be needing more than this at the appropriate time so
+> Michael can write the manpage.
+> 
+> Please provide a nice tools/testing/selftests/fincore/ along with this
+> code?
 
-I would still like to see a fix for the problem merged upstream.
+Will do.
 
->> -----Original Message-----
->> From: linux-kernel-owner@vger.kernel.org [mailto:linux-kernel-owner@vger.kernel.org] On Behalf Of dormando
->> Sent: Monday, February 11, 2013 9:01 PM
->> To: Rik van Riel
->> Cc: Randy Dunlap; Satoru Moriya; linux-kernel@vger.kernel.org; linux-mm@kvack.org; lwoodman@redhat.com; Seiji Aguchi;
->> akpm@linux-foundation.org; hughd@google.com
->> Subject: extra free kbytes tunable
->>
->> Hi,
->>
->> As discussed in this thread:
->> http://marc.info/?l=linux-mm&m=131490523222031&w=2
->> (with this cleanup as well: https://lkml.org/lkml/2011/9/2/225)
->>
->> A tunable was proposed to allow specifying the distance between pages_min and the low watermark before kswapd is kicked in to
->> free up pages. I'd like to re-open this thread since the patch did not appear to go anywhere.
->>
->> We have a server workload wherein machines with 100G+ of "free" memory (used by page cache), scattered but frequent random io
->> reads from 12+ SSD's, and 5gbps+ of internet traffic, will frequently hit direct reclaim in a few different ways.
->>
->> 1) It'll run into small amounts of reclaim randomly (a few hundred thousand).
->>
->> 2) A burst of reads or traffic can cause extra pressure, which kswapd occasionally responds to by freeing up 40g+ of the pagecache all
->> at once
->> (!) while pausing the system (Argh).
->>
->> 3) A blip in an upstream provider or failover from a peer causes the kernel to allocate massive amounts of memory for retransmission
->> queues/etc, potentially along with buffered IO reads and (some, but not often a ton) of new allocations from an application. This
->> paired with 2) can cause the box to stall for 15+ seconds.
->>
->> We're seeing this more in 3.4/3.5/3.6, saw it less in 2.6.38. Mass reclaims are more common in newer kernels, but reclaims still happen
->> in all kernels without raising min_free_kbytes dramatically.
->>
->> I've found that setting "lowmem_reserve_ratio" to something like "1 1 32"
->> (thus protecting the DMA32 zone) causes 2) to happen less often, and is generally less violent with 1).
->>
->> Setting min_free_kbytes to 15G or more, paired with the above, has been the best at mitigating the issue. This is simply trying to raise
->> the distance between the min and low watermarks. With min_free_kbytes set to 15000000, that gives us a whopping 1.8G (!!!) of
->> leeway before slamming into direct reclaim.
->>
->> So, this patch is unfortunate but wonderful at letting us reclaim 10G+ of otherwise lost memory. Could we please revisit it?
->>
->> I saw a lot of discussion on doing this automatically, or making kswapd more efficient to it, and I'd love to do that. Beyond making
->> kswapd psychic I haven't seen any better options yet.
->>
->> The issue is more complex than simply having an application warn of an impending allocation, since this can happen via read load on
->> disk or from kernel page allocations for the network, or a combination of the two (or three, if you add the app back in).
->>
->> It's going to get worse as we push machines with faster SSD's and bigger networks. I'm open to any ideas on how to make kswapd
->> more efficient in our case, or really anything at all that works.
->>
->> I have more details, but cut it down as much as I could for this mail.
->>
->> Thanks,
->> -Dormando
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in the body of a message to majordomo@vger.kernel.org More
->> majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
+> > --- /dev/null
+> > +++ b/mm/fincore.c
+> > @@ -0,0 +1,128 @@
+> > +#include <linux/syscalls.h>
+> > +#include <linux/pagemap.h>
+> > +#include <linux/file.h>
+> > +#include <linux/fs.h>
+> > +#include <linux/mm.h>
+> > +
+> > +static long do_fincore(struct address_space *mapping, pgoff_t pgstart,
+> > +		       unsigned long nr_pages, unsigned char *vec)
+> > +{
+> > +	pgoff_t pgend = pgstart + nr_pages;
+> > +	struct radix_tree_iter iter;
+> > +	void **slot;
+> > +	long nr = 0;
+> > +
+> > +	rcu_read_lock();
+> > +restart:
+> > +	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, pgstart) {
+> > +		unsigned char present;
+> > +		struct page *page;
+> > +
+> > +		/* Handle holes */
+> > +		if (iter.index != pgstart + nr) {
+> > +			if (iter.index < pgend)
+> > +				nr_pages = iter.index - pgstart;
+> > +			break;
+> 
+> This break looks odd - it terminates the entire function.  Am too lazy
+> to work out why ;)
 
+"Hole" and "no more pages in that file" share the same code to zero
+out the vector.
 
--- 
-All rights reversed
+> > +		}
+> > +repeat:
+> > +		page = radix_tree_deref_slot(slot);
+> > +		if (unlikely(!page))
+> > +			continue;
+> 
+> Is a bug, isn't it?  Need to zero vec[nr].
+
+It works but I'll make it less awkward.  The continue will not
+increase nr, so the next page lookup will trigger the hole detection
+above and zero vec[nr].
+
+> > +		if (radix_tree_exception(page)) {
+> > +			if (radix_tree_deref_retry(page)) {
+> > +				/*
+> > +				 * Transient condition which can only trigger
+> > +				 * when entry at index 0 moves out of or back
+> > +				 * to root: none yet gotten, safe to restart.
+> > +				 */
+> > +				WARN_ON(iter.index);
+> > +				goto restart;
+> > +			}
+> > +			present = 0;
+> > +		} else {
+> > +			if (!page_cache_get_speculative(page))
+> > +				goto repeat;
+> > +
+> > +			/* Has the page moved? */
+> > +			if (unlikely(page != *slot)) {
+> > +				page_cache_release(page);
+> > +				goto repeat;
+> > +			}
+> > +
+> > +			present = PageUptodate(page);
+> 
+> hm, OK, so we assume that test_bit() returns 1 or 0 and not just
+> "true".  That's OK, iirc.
+
+Metoo.
+
+> Why does it have to be uptodate?  It could be present and under read()
+> IO.  That's "in core"?
+
+I always thought of this as data-residency, i.e. the presence of
+pages, not page frames, so I wouldn't consider pages in-core when they
+are still in-flight.  mincore has the same notion.
+
+> > +			page_cache_release(page);
+> > +		}
+> > +		vec[nr] = present;
+> > +
+> > +		if (++nr == nr_pages)
+> > +			break;
+> > +	}
+> > +	rcu_read_unlock();
+> > +
+> > +	if (nr < nr_pages)
+> > +		memset(vec + nr, 0, nr_pages - nr);
+> > +
+> > +	return nr_pages;
+> > +}
+> > +
+> > +/*
+> > + * The fincore(2) system call.
+> > + *
+> > + * fincore() returns the memory residency status of the given file's
+> > + * pages, in the range [start, start + len].
+> > + * The status is returned in a vector of bytes.  The least significant
+> > + * bit of each byte is 1 if the referenced page is in memory, otherwise
+> > + * it is zero.
+> 
+> Yes, and there will be immediate calmour to add more goodies to the
+> other seven bits.  PageDirty, referenced state, etc.  We should think
+> about this now, at the design stage rather than grafting things on
+> later.
+
+I'm interested in your "etc.".  PG_error, PG_active, PG_writeback,
+page huge?
+
+> > + * Because the status of a page can change after fincore() checks it
+> > + * but before it returns to the application, the returned vector may
+> > + * contain stale information.
+> > + *
+> > + * return values:
+> > + *  zero    - success
+> > + *  -EBADF  - fd isn't a valid open file descriptor
+> > + *  -EFAULT - vec points to an illegal address
+> > + *  -EINVAL - start is not a multiple of PAGE_CACHE_SIZE
+> > + */
+> > +SYSCALL_DEFINE4(fincore, unsigned int, fd, loff_t, start, loff_t, len,
+> > +		unsigned char __user *, vec)
+> > +{
+> > +	unsigned long nr_pages;
+> > +	pgoff_t pgstart;
+> > +	struct fd f;
+> > +	long ret;
+> > +
+> > +	if (start & ~PAGE_CACHE_MASK)
+> > +		return -EINVAL;
+> 
+> This restriction appears to be unnecessary?
+
+I thought about it too, but whether the kernel rounds or not, you need
+to know the page size and do the rounding in userspace in order to
+supply an appropriately sized vector.  And then I just copied mincore
+semantics for consistency ;-)
+
+> > +	f = fdget(fd);
+> > +	if (!f.file)
+> > +		return -EBADF;
+> 
+> I fear what happens if we run this syscall against a random fd from
+> /dev/some-gizmo.  Suggest adding tests for S_ISREG and non-null ->mapping.
+
+Good idea, I'll add this.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
