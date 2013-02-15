@@ -1,488 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id CF2DA6B0005
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 04:22:12 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id F35D63EE0AE
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 18:22:10 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D827045DE50
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 18:22:07 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id B815845DE4D
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 18:22:07 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A542AE38002
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 18:22:07 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4EA8A1DB802F
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 18:22:07 +0900 (JST)
-Message-ID: <511DFE22.4000003@jp.fujitsu.com>
-Date: Fri, 15 Feb 2013 18:21:38 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id A8AC16B0007
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 05:30:51 -0500 (EST)
+Message-ID: <511E0E36.3060206@parallels.com>
+Date: Fri, 15 Feb 2013 14:30:14 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/7] memcg,list_lru: duplicate LRUs upon kmemcg creation
-References: <1360328857-28070-1-git-send-email-glommer@parallels.com> <1360328857-28070-3-git-send-email-glommer@parallels.com>
-In-Reply-To: <1360328857-28070-3-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: [PATCH 1/7] vmscan: also shrink slab in memcg pressure
+References: <1360328857-28070-1-git-send-email-glommer@parallels.com> <1360328857-28070-2-git-send-email-glommer@parallels.com> <511DF3CB.7020206@jp.fujitsu.com>
+In-Reply-To: <511DF3CB.7020206@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Dave Shrinnker <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-(2013/02/08 22:07), Glauber Costa wrote:
-> When a new memcg is created, we need to open up room for its descriptors
-> in all of the list_lrus that are marked per-memcg. The process is quite
-> similar to the one we are using for the kmem caches: we initialize the
-> new structures in an array indexed by kmemcg_id, and grow the array if
-> needed. Key data like the size of the array will be shared between the
-> kmem cache code and the list_lru code (they basically describe the same
-> thing)
+>> @@ -45,6 +48,7 @@ struct shrinker {
+>>   
+>>   	int seeks;	/* seeks to recreate an obj */
+>>   	long batch;	/* reclaim batch size, 0 = default */
+>> +	bool memcg_shrinker;
+>>   
 > 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Cc: Dave Chinner <dchinner@redhat.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
->   include/linux/list_lru.h   |  47 +++++++++++++++++
->   include/linux/memcontrol.h |   6 +++
->   lib/list_lru.c             | 115 +++++++++++++++++++++++++++++++++++++---
->   mm/memcontrol.c            | 128 ++++++++++++++++++++++++++++++++++++++++++---
->   mm/slab_common.c           |   1 -
->   5 files changed, 283 insertions(+), 14 deletions(-)
+> What is this boolean for ? When is this set ?
+It is set when a subsystem declares that its shrinker is memcg capable.
+Therefore, it won't be done until all infrastructure is in place. Take a
+look at the super.c patches at the end of the series.
+
+
+>>   static bool global_reclaim(struct scan_control *sc)
+>>   {
+>>   	return true;
+>>   }
+>> +
+>> +static bool has_kmem_reclaim(struct scan_control *sc)
+>> +{
+>> +	return true;
+>> +}
+>> +
+>> +static unsigned long
+>> +zone_nr_reclaimable_pages(struct scan_control *sc, struct zone *zone)
+>> +{
+>> +	return zone_reclaimable_pages(zone);
+>> +}
+>>   #endif
 > 
-> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-> index 02796da..370b989 100644
-> --- a/include/linux/list_lru.h
-> +++ b/include/linux/list_lru.h
-> @@ -16,11 +16,58 @@ struct list_lru_node {
->   	long			nr_items;
->   } ____cacheline_aligned_in_smp;
->   
-> +struct list_lru_array {
-> +	struct list_lru_node node[1];
-> +};
-
-size is up to nr_node_ids ?
-
-> +
->   struct list_lru {
-> +	struct list_head	lrus;
->   	struct list_lru_node	node[MAX_NUMNODES];
->   	nodemask_t		active_nodes;
-> +#ifdef CONFIG_MEMCG_KMEM
-> +	struct list_lru_array	**memcg_lrus;
-> +#endif
->   };
-size is up to memcg_limited_groups_array_size ?
-
-
->   
-> +struct mem_cgroup;
-> +#ifdef CONFIG_MEMCG_KMEM
-> +/*
-> + * We will reuse the last bit of the pointer to tell the lru subsystem that
-> + * this particular lru should be replicated when a memcg comes in.
-> + */
-> +static inline void lru_memcg_enable(struct list_lru *lru)
-> +{
-> +	lru->memcg_lrus = (void *)0x1ULL;
-> +}
-> +
-
-This "enable" is not used in this patch itself, right ?
-
-> +/*
-> + * This will return true if we have already allocated and assignment a memcg
-> + * pointer set to the LRU. Therefore, we need to mask the first bit out
-> + */
-> +static inline bool lru_memcg_is_assigned(struct list_lru *lru)
-> +{
-> +	return (unsigned long)lru->memcg_lrus & ~0x1ULL;
-> +}
-> +
-> +struct list_lru_array *lru_alloc_array(void);
-> +int memcg_update_all_lrus(unsigned long num);
-> +void list_lru_destroy(struct list_lru *lru);
-> +void list_lru_destroy_memcg(struct mem_cgroup *memcg);
-> +#else
-> +static inline void lru_memcg_enable(struct list_lru *lru)
-> +{
-> +}
-> +
-> +static inline bool lru_memcg_is_assigned(struct list_lru *lru)
-> +{
-> +	return false;
-> +}
-> +
-> +static inline void list_lru_destroy(struct list_lru *lru)
-> +{
-> +}
-> +#endif
-> +
->   int list_lru_init(struct list_lru *lru);
->   int list_lru_add(struct list_lru *lru, struct list_head *item);
->   int list_lru_del(struct list_lru *lru, struct list_head *item);
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index b7de557..f9558d0 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -23,6 +23,7 @@
->   #include <linux/vm_event_item.h>
->   #include <linux/hardirq.h>
->   #include <linux/jump_label.h>
-> +#include <linux/list_lru.h>
->   
->   struct mem_cgroup;
->   struct page_cgroup;
-> @@ -475,6 +476,11 @@ void memcg_update_array_size(int num_groups);
->   struct kmem_cache *
->   __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
->   
-> +int memcg_new_lru(struct list_lru *lru);
-> +
-> +int memcg_kmem_update_lru_size(struct list_lru *lru, int num_groups,
-> +			       bool new_lru);
-> +
->   void mem_cgroup_destroy_cache(struct kmem_cache *cachep);
->   void kmem_cache_destroy_memcg_children(struct kmem_cache *s);
->   
-> diff --git a/lib/list_lru.c b/lib/list_lru.c
-> index 0f08ed6..3b0e89d 100644
-> --- a/lib/list_lru.c
-> +++ b/lib/list_lru.c
-> @@ -8,6 +8,7 @@
->   #include <linux/module.h>
->   #include <linux/mm.h>
->   #include <linux/list_lru.h>
-> +#include <linux/memcontrol.h>
->   
->   int
->   list_lru_add(
-> @@ -184,18 +185,118 @@ list_lru_dispose_all(
->   	return total;
->   }
->   
-> -int
-> -list_lru_init(
-> -	struct list_lru	*lru)
-> +/*
-> + * This protects the list of all LRU in the system. One only needs
-> + * to take when registering an LRU, or when duplicating the list of lrus.
-> + * Transversing an LRU can and should be done outside the lock
-> + */
-> +static DEFINE_MUTEX(all_lrus_mutex);
-> +static LIST_HEAD(all_lrus);
-> +
-> +static void list_lru_init_one(struct list_lru_node *lru)
-> +{
-> +	spin_lock_init(&lru->lock);
-> +	INIT_LIST_HEAD(&lru->list);
-> +	lru->nr_items = 0;
-> +}
-> +
-> +struct list_lru_array *lru_alloc_array(void)
-> +{
-> +	struct list_lru_array *lru_array;
-> +	int i;
-> +
-> +	lru_array = kzalloc(nr_node_ids * sizeof(struct list_lru_node),
-> +				GFP_KERNEL);
-> +	if (!lru_array)
-> +		return NULL;
-> +
-> +	for (i = 0; i < nr_node_ids ; i++)
-> +		list_lru_init_one(&lru_array->node[i]);
-> +
-> +	return lru_array;
-> +}
-> +
-> +int __list_lru_init(struct list_lru *lru)
->   {
->   	int i;
->   
->   	nodes_clear(lru->active_nodes);
-> -	for (i = 0; i < MAX_NUMNODES; i++) {
-> -		spin_lock_init(&lru->node[i].lock);
-> -		INIT_LIST_HEAD(&lru->node[i].list);
-> -		lru->node[i].nr_items = 0;
-> +	for (i = 0; i < MAX_NUMNODES; i++)
-> +		list_lru_init_one(&lru->node[i]);
-
-Hmm. lru_list is up to MAX_NUMNODES, your new one is up to nr_node_ids...
-
-> +
-> +	return 0;
-> +}
-> +
-> +#ifdef CONFIG_MEMCG_KMEM
-> +static int memcg_init_lru(struct list_lru *lru)
-> +{
-> +	int ret;
-> +
-> +	if (!lru->memcg_lrus)
-> +		return 0;
-> +
-> +	INIT_LIST_HEAD(&lru->lrus);
-> +	mutex_lock(&all_lrus_mutex);
-> +	list_add(&lru->lrus, &all_lrus);
-> +	ret = memcg_new_lru(lru);
-> +	mutex_unlock(&all_lrus_mutex);
-> +	return ret;
-> +}
-
- only writer takes this mutex ?
-
-> +
-> +int memcg_update_all_lrus(unsigned long num)
-> +{
-> +	int ret = 0;
-> +	struct list_lru *lru;
-> +
-> +	mutex_lock(&all_lrus_mutex);
-> +	list_for_each_entry(lru, &all_lrus, lrus) {
-> +		if (!lru->memcg_lrus)
-> +			continue;
-> +
-> +		ret = memcg_kmem_update_lru_size(lru, num, false);
-> +		if (ret)
-> +			goto out;
-> +	}
-> +out:
-> +	mutex_unlock(&all_lrus_mutex);
-> +	return ret;
-> +}
-> +
-> +void list_lru_destroy(struct list_lru *lru)
-> +{
-> +	if (!lru->memcg_lrus)
-> +		return;
-> +
-> +	mutex_lock(&all_lrus_mutex);
-> +	list_del(&lru->lrus);
-> +	mutex_unlock(&all_lrus_mutex);
-> +}
-> +
-> +void list_lru_destroy_memcg(struct mem_cgroup *memcg)
-> +{
-> +	struct list_lru *lru;
-> +	mutex_lock(&all_lrus_mutex);
-> +	list_for_each_entry(lru, &all_lrus, lrus) {
-> +		lru->memcg_lrus[memcg_cache_id(memcg)] = NULL;
-> +		/* everybody must beaware that this memcg is no longer valid */
-
-Hm, the object pointed by this array entry will be freed by some other func ?
-
-> +		wmb();
->   	}
-> +	mutex_unlock(&all_lrus_mutex);
-> +}
-> +#else
-> +static int memcg_init_lru(struct list_lru *lru)
-> +{
->   	return 0;
->   }
-> +#endif
-> +
-> +int list_lru_init(struct list_lru *lru)
-> +{
-> +	int ret;
-> +	ret = __list_lru_init(lru);
-> +	if (ret)
-> +		return ret;
-> +
-> +	return memcg_init_lru(lru);
-> +}
->   EXPORT_SYMBOL_GPL(list_lru_init);
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b1d4dfa..b9e1941 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3032,16 +3032,30 @@ int memcg_update_cache_sizes(struct mem_cgroup *memcg)
->   	memcg_kmem_set_activated(memcg);
->   
->   	ret = memcg_update_all_caches(num+1);
-> -	if (ret) {
-> -		ida_simple_remove(&kmem_limited_groups, num);
-> -		memcg_kmem_clear_activated(memcg);
-> -		return ret;
-> -	}
-> +	if (ret)
-> +		goto out;
-> +
-> +	/*
-> +	 * We should make sure that the array size is not updated until we are
-> +	 * done; otherwise we have no easy way to know whether or not we should
-> +	 * grow the array.
-> +	 */
-> +	ret = memcg_update_all_lrus(num + 1);
-> +	if (ret)
-> +		goto out;
->   
->   	memcg->kmemcg_id = num;
-> +
-> +	memcg_update_array_size(num + 1);
-> +
->   	INIT_LIST_HEAD(&memcg->memcg_slab_caches);
->   	mutex_init(&memcg->slab_caches_mutex);
-> +
->   	return 0;
-> +out:
-> +	ida_simple_remove(&kmem_limited_groups, num);
-> +	memcg_kmem_clear_activated(memcg);
-> +	return ret;
->   }
->   
->   static size_t memcg_caches_array_size(int num_groups)
-> @@ -3121,6 +3135,106 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
->   	return 0;
->   }
->   
-> +/*
-> + * memcg_kmem_update_lru_size - fill in kmemcg info into a list_lru
-> + *
-> + * @lru: the lru we are operating with
-> + * @num_groups: how many kmem-limited cgroups we have
-> + * @new_lru: true if this is a new_lru being created, false if this
-> + * was triggered from the memcg side
-> + *
-> + * Returns 0 on success, and an error code otherwise.
-> + *
-> + * This function can be called either when a new kmem-limited memcg appears,
-> + * or when a new list_lru is created. The work is roughly the same in two cases,
-> + * but in the later we never have to expand the array size.
-> + *
-> + * This is always protected by the all_lrus_mutex from the list_lru side.
-> + */
-> +int memcg_kmem_update_lru_size(struct list_lru *lru, int num_groups,
-> +			       bool new_lru)
-> +{
-> +	struct list_lru_array **new_lru_array;
-> +	struct list_lru_array *lru_array;
-> +
-
-Both are named as array ...confusing ;)
-
-> +	lru_array = lru_alloc_array();
-> +	if (!lru_array)
-> +		return -ENOMEM;
-> +
-> +	/* need some fucked up locking around the list acquisition */
-> +	if ((num_groups > memcg_limited_groups_array_size) || new_lru) {
-> +		int i;
-> +		struct list_lru_array **old_array;
-> +		size_t size = memcg_caches_array_size(num_groups);
-> +
-> +		new_lru_array = kzalloc(size * sizeof(void *), GFP_KERNEL);
-> +		if (!new_lru_array) {
-> +			kfree(lru_array);
-> +			return -ENOMEM;
-> +		}
-> +
-> +		for (i = 0; i < memcg_limited_groups_array_size; i++) {
-> +			if (!lru_memcg_is_assigned(lru) || lru->memcg_lrus[i])
-> +				continue;
-> +			new_lru_array[i] =  lru->memcg_lrus[i];
-> +		}
-> +
-> +		old_array = lru->memcg_lrus;
-> +		lru->memcg_lrus = new_lru_array;
-> +		/*
-> +		 * We don't need a barrier here because we are just copying
-> +		 * information over. Anybody operating in memcg_lrus will
-> +		 * either follow the new array or the old one and they contain
-> +		 * exactly the same information. The new space in the end is
-> +		 * always empty anyway.
-> +		 *
-> +		 * We do have to make sure that no more users of the old
-> +		 * memcg_lrus array exist before we free, and this is achieved
-> +		 * by the synchronize_lru below.
-> +		 */
-> +		if (lru_memcg_is_assigned(lru)) {
-> +			synchronize_rcu();
-> +			kfree(old_array);
-> +		}
-> +
-> +	}
-> +
-> +	if (lru_memcg_is_assigned(lru)) {
-> +		lru->memcg_lrus[num_groups - 1] = lru_array;
-
-Can't this pointer already set ?
-
-> +		/*
-> +		 * Here we do need the barrier, because of the state transition
-> +		 * implied by the assignment of the array. All users should be
-> +		 * able to see it
-> +		 */
-> +		wmb();
-> +	}
-> +
-> +	return 0;
-> +
-> +}
-> +
-> +int memcg_new_lru(struct list_lru *lru)
-> +{
-> +	struct mem_cgroup *iter;
-> +
-> +	if (!memcg_kmem_enabled())
-> +		return 0;
-> +
-> +	for_each_mem_cgroup(iter) {
-> +		int ret;
-> +		int memcg_id = memcg_cache_id(iter);
-> +		if (memcg_id < 0)
-> +			continue;
-> +
-> +		ret = memcg_kmem_update_lru_size(lru, memcg_id + 1, true);
-> +		if (ret) {
-> +			mem_cgroup_iter_break(root_mem_cgroup, iter);
-> +			return ret;
-> +		}
-> +	}
-> +	return 0;
-> +}
-> +
->   int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
->   			 struct kmem_cache *root_cache)
->   {
-> @@ -5914,8 +6028,10 @@ static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
->   	 * possible that the charges went down to 0 between mark_dead and the
->   	 * res_counter read, so in that case, we don't need the put
->   	 */
-> -	if (memcg_kmem_test_and_clear_dead(memcg))
-> +	if (memcg_kmem_test_and_clear_dead(memcg)) {
-> +		list_lru_destroy_memcg(memcg);
->   		mem_cgroup_put(memcg);
-> +	}
->   }
->   #else
->   static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> indek
-x 3f3cd97..2470d11 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -102,7 +102,6 @@ int memcg_update_all_caches(int num_memcgs)
->   			goto out;
->   	}
->   
-> -	memcg_update_array_size(num_memcgs);
->   out:
->   	mutex_unlock(&slab_mutex);
->   	return ret;
+> Can't be in a devided patch ?
 > 
+if you prefer this way, sure, I can separate it.
 
+>>   static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+>> @@ -221,6 +252,9 @@ unsigned long shrink_slab(struct shrink_control *sc,
+>>   		long batch_size = shrinker->batch ? shrinker->batch
+>>   						  : SHRINK_BATCH;
+>>   
+>> +		if (!shrinker->memcg_shrinker && sc->target_mem_cgroup)
+>> +			continue;
+>> +
+> 
+> What does this mean ?
 
-Thanks,
--Kame
+It means that if target_mem_cgroup is set, we should skip all the
+shrinkers that are not memcg capable. Maybe if I invert the order it
+will be clearer?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
