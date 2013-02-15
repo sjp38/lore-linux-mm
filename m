@@ -1,61 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id E22F56B0007
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 05:41:43 -0500 (EST)
-Message-ID: <511E10FA.2040708@parallels.com>
-Date: Fri, 15 Feb 2013 14:42:02 +0400
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 7B3106B0008
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 05:46:04 -0500 (EST)
+Message-ID: <511E11FD.9050102@parallels.com>
+Date: Fri, 15 Feb 2013 14:46:21 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/7] memcg targeted shrinking
-References: <1360328857-28070-1-git-send-email-glommer@parallels.com> <xr93ip5unz52.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr93ip5unz52.fsf@gthelen.mtv.corp.google.com>
+Subject: Re: [PATCH 1/7] vmscan: also shrink slab in memcg pressure
+References: <1360328857-28070-1-git-send-email-glommer@parallels.com> <1360328857-28070-2-git-send-email-glommer@parallels.com> <xr93mwv6nz7p.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <xr93mwv6nz7p.fsf@gthelen.mtv.corp.google.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Thelen <gthelen@google.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Dave Shrinnker <david@fromorbit.com>, linux-fsdevel@vger.kernel.org
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Dave Shrinnker <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On 02/15/2013 05:28 AM, Greg Thelen wrote:
-> On Fri, Feb 08 2013, Glauber Costa wrote:
+>>  
+>> @@ -384,6 +387,11 @@ static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
+>>  				struct page *newpage)
+>>  {
+>>  }
+>> +
+>> +static inline unsigned long
+>> +memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
+>> +{
 > 
->> This patchset implements targeted shrinking for memcg when kmem limits are
->> present. So far, we've been accounting kernel objects but failing allocations
->> when short of memory. This is because our only option would be to call the
->> global shrinker, depleting objects from all caches and breaking isolation.
->>
->> This patchset builds upon the recent work from David Chinner
->> (http://oss.sgi.com/archives/xfs/2012-11/msg00643.html) to implement NUMA
->> aware per-node LRUs. I build heavily on its API, and its presence is implied.
->>
->> The main idea is to associate per-memcg lists with each of the LRUs. The main
->> LRU still provides a single entry point and when adding or removing an element
->> from the LRU, we use the page information to figure out which memcg it belongs
->> to and relay it to the right list.
->>
->> This patchset is still not perfect, and some uses cases still need to be
->> dealt with. But I wanted to get this out in the open sooner rather than
->> later. In particular, I have the following (noncomprehensive) todo list:
->>
->> TODO:
->> * shrink dead memcgs when global pressure kicks in.
->> * balance global reclaim among memcgs.
->> * improve testing and reliability (I am still seeing some stalls in some cases)
+> 	return 0;
 > 
-> Do you have a git tree with these changes so I can see Dave's numa LRUs
-> plus these changes?
+ok
+
+>> +bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+>>  {
+>>  	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+>>  }
+>> @@ -991,6 +991,15 @@ mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
+>>  	return ret;
+>>  }
+>>  
+>> +unsigned long
+>> +memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
+>> +{
+>> +	int nid = zone_to_nid(zone);
+>> +	int zid = zone_idx(zone);
+>> +
+>> +	return mem_cgroup_zone_nr_lru_pages(memcg, nid, zid, LRU_ALL);
 > 
-I've just uploaded the exact same thing I have sent here to:
+> Without swap enabled it seems like LRU_ALL_FILE is more appropriate.
+> Maybe something like test_mem_cgroup_node_reclaimable().
+> 
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git
+You are right, I will look into it.
 
-The branch is kmemcg-lru-shrinker. Note that there is also another
-branch kmemcg-shrinker that contains some other simple patches that were
-not yet taken and are more stable. I eventually have to merge the two.
+>> +}
+>> +
+>>  static unsigned long
+>>  mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+>>  			int nid, unsigned int lru_mask)
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 6d96280..8af0e2b 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -138,11 +138,42 @@ static bool global_reclaim(struct scan_control *sc)
+>>  {
+>>  	return !sc->target_mem_cgroup;
+>>  }
+>> +
+>> +/*
+>> + * kmem reclaim should usually not be triggered when we are doing targetted
+>> + * reclaim. It is only valid when global reclaim is triggered, or when the
+>> + * underlying memcg has kmem objects.
+>> + */
+>> +static bool has_kmem_reclaim(struct scan_control *sc)
+>> +{
+>> +	return !sc->target_mem_cgroup ||
+>> +	(sc->target_mem_cgroup && memcg_kmem_is_active(sc->target_mem_cgroup));
+> 
+> Isn't this the same as:
+> 	return !sc->target_mem_cgroup ||
+> 		memcg_kmem_is_active(sc->target_mem_cgroup);
+> 
 
-I also still need to incorporate the feedback from you and Kame into
-that. I will be traveling until next Wednesday, so expect changes in
-there around Thursday.
+Yes, it is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
