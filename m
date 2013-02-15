@@ -1,29 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 85FA46B006C
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 15:39:20 -0500 (EST)
-Date: Fri, 15 Feb 2013 15:39:13 -0500 (EST)
-Message-Id: <20130215.153913.1285091915738918107.davem@davemloft.net>
-Subject: Re: [patch 1/2] mm: fincore()
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20130215063450.GA24047@cmpxchg.org>
-References: <20130211162701.GB13218@cmpxchg.org>
-	<20130211141239.f4decf03.akpm@linux-foundation.org>
-	<20130215063450.GA24047@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 3F30B6B0070
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 16:03:28 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id wy12so755712pbc.35
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2013 13:03:27 -0800 (PST)
+Message-ID: <511EA29C.3030301@linaro.org>
+Date: Fri, 15 Feb 2013 13:03:24 -0800
+From: John Stultz <john.stultz@linaro.org>
+MIME-Version: 1.0
+Subject: [LSF/MM TOPIC][ATTEND] Volatile Ranges
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org
-Cc: akpm@linux-foundation.org, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, npiggin@suse.de, stewart@flamingspork.com, linux-mm@kvack.org, linux-arch@vger.kernel.org
+To: lsf-pc@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
 
-From: Johannes Weiner <hannes@cmpxchg.org>
-Date: Fri, 15 Feb 2013 01:34:50 -0500
+Sorry for being late here.
 
-> +	nr_pages = DIV_ROUND_UP(len, PAGE_CACHE_SIZE);
+I wanted to propose some further discussion on the volatile ranges concept.
 
-A small nit, maybe use PAGE_CACHE_ALIGN() here.
+Basically trying to sort out a coherent story around:
+
+* My attempts at volatile ranges for shared tmpfs files (similar 
+functionality as Android's ashmem provides)
+
+* Minchan's volatile ranges for anonymous memory
+
+* How to track page volatility & purged state (via VMAs vs file 
+address_space)
+
+* Purged data semantics (ie: Mozilla's request for SIGBUS on purged data 
+access vs zero fill)
+
+* Aging anonymous pages in swapless systems
+
+thanks
+-john
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
