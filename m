@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 7B3106B0008
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 05:46:04 -0500 (EST)
-Message-ID: <511E11FD.9050102@parallels.com>
-Date: Fri, 15 Feb 2013 14:46:21 +0400
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 294EC6B000C
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 05:54:38 -0500 (EST)
+Message-ID: <511E13FF.8020803@parallels.com>
+Date: Fri, 15 Feb 2013 14:54:55 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] vmscan: also shrink slab in memcg pressure
-References: <1360328857-28070-1-git-send-email-glommer@parallels.com> <1360328857-28070-2-git-send-email-glommer@parallels.com> <xr93mwv6nz7p.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr93mwv6nz7p.fsf@gthelen.mtv.corp.google.com>
+Subject: Re: [PATCH 2/7] memcg,list_lru: duplicate LRUs upon kmemcg creation
+References: <1360328857-28070-1-git-send-email-glommer@parallels.com> <1360328857-28070-3-git-send-email-glommer@parallels.com> <xr934nhenz18.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <xr934nhenz18.fsf@gthelen.mtv.corp.google.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,72 +16,72 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Thelen <gthelen@google.com>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Dave Shrinnker <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
+
+>>
+>> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+>> index 02796da..370b989 100644
+>> --- a/include/linux/list_lru.h
+>> +++ b/include/linux/list_lru.h
+>> @@ -16,11 +16,58 @@ struct list_lru_node {
+>>  	long			nr_items;
+>>  } ____cacheline_aligned_in_smp;
 >>  
->> @@ -384,6 +387,11 @@ static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
->>  				struct page *newpage)
->>  {
->>  }
+>> +struct list_lru_array {
+>> +	struct list_lru_node node[1];
+>> +};
 >> +
->> +static inline unsigned long
->> +memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
->> +{
+>>  struct list_lru {
+>> +	struct list_head	lrus;
+>>  	struct list_lru_node	node[MAX_NUMNODES];
+>>  	nodemask_t		active_nodes;
+>> +#ifdef CONFIG_MEMCG_KMEM
+>> +	struct list_lru_array	**memcg_lrus;
 > 
-> 	return 0;
-> 
-ok
+> Probably need a comment regarding that 0x1 is a magic value and
+> describing what indexes this lazily constructed array. 
 
->> +bool memcg_kmem_is_active(struct mem_cgroup *memcg)
->>  {
->>  	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
->>  }
->> @@ -991,6 +991,15 @@ mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
->>  	return ret;
->>  }
->>  
->> +unsigned long
->> +memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
->> +{
->> +	int nid = zone_to_nid(zone);
->> +	int zid = zone_idx(zone);
->> +
->> +	return mem_cgroup_zone_nr_lru_pages(memcg, nid, zid, LRU_ALL);
-> 
-> Without swap enabled it seems like LRU_ALL_FILE is more appropriate.
-> Maybe something like test_mem_cgroup_node_reclaimable().
+Ok.
+
+> Is the primary
+> index memcg_kmem_id and the secondary index a nid?
 > 
 
-You are right, I will look into it.
+Precisely. The first level is an array of pointers to list_lru_array.
+And each list_lru_array is an array of nids.
 
->> +}
->> +
->>  static unsigned long
->>  mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
->>  			int nid, unsigned int lru_mask)
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 6d96280..8af0e2b 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -138,11 +138,42 @@ static bool global_reclaim(struct scan_control *sc)
->>  {
->>  	return !sc->target_mem_cgroup;
->>  }
->> +
+>> +struct mem_cgroup;
+>> +#ifdef CONFIG_MEMCG_KMEM
 >> +/*
->> + * kmem reclaim should usually not be triggered when we are doing targetted
->> + * reclaim. It is only valid when global reclaim is triggered, or when the
->> + * underlying memcg has kmem objects.
+>> + * We will reuse the last bit of the pointer to tell the lru subsystem that
+>> + * this particular lru should be replicated when a memcg comes in.
 >> + */
->> +static bool has_kmem_reclaim(struct scan_control *sc)
->> +{
->> +	return !sc->target_mem_cgroup ||
->> +	(sc->target_mem_cgroup && memcg_kmem_is_active(sc->target_mem_cgroup));
 > 
-> Isn't this the same as:
-> 	return !sc->target_mem_cgroup ||
-> 		memcg_kmem_is_active(sc->target_mem_cgroup);
+> From this patch it seems like 0x1 is a magic value rather than bit 0
+> being special.  memcg_lrus is either 0x1 or a pointer to an array of
+> struct list_lru_array.  The array is indexed by memcg_kmem_id.
 > 
 
-Yes, it is.
+Well, I thought in terms of "set the last bit". To be honest, when I
+first designed this, I figured it could possibly be useful to keep the
+bit set at all times, and that is why I used the LSB. Since I turned out
+not using it, maybe we could actually resort to a fully fledged magical
+to avoid the confusion?
+
+>> +static inline void lru_memcg_enable(struct list_lru *lru)
+>> +/*
+>> + * This will return true if we have already allocated and assignment a memcg
+>> + * pointer set to the LRU. Therefore, we need to mask the first bit out
+>> + */
+>> +static inline bool lru_memcg_is_assigned(struct list_lru *lru)
+>> +{
+>> +	return (unsigned long)lru->memcg_lrus & ~0x1ULL;
+> 
+> Is this equivalent to?
+> 	return lru->memcg_lrus != NULL && lru->memcg_lrus != 0x1
+> 
+yes. What I've explained above should help clarifying why I wrote it
+this way. But if we use an actual magical (0x1 is a bad magical, IMHO),
+the intentions become a lot clearer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
