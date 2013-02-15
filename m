@@ -1,66 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id BD3096B000E
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 05:56:50 -0500 (EST)
-Message-ID: <511E1485.5080109@parallels.com>
-Date: Fri, 15 Feb 2013 14:57:09 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 75C7A6B0012
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 06:04:07 -0500 (EST)
+Date: Fri, 15 Feb 2013 12:04:04 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: fadvise: Drain all pagevecs if POSIX_FADV_DONTNEED
+ fails to discard all pages
+Message-ID: <20130215110401.GA31037@dhcp22.suse.cz>
+References: <20130214120349.GD7367@suse.de>
+ <20130214123926.599fcef8.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/7] lru: add an element to a memcg list
-References: <1360328857-28070-1-git-send-email-glommer@parallels.com> <1360328857-28070-4-git-send-email-glommer@parallels.com> <xr93txpemkeo.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr93txpemkeo.fsf@gthelen.mtv.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130214123926.599fcef8.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Dave Shrinnker <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rob van der Heij <rvdheij@gmail.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 02/15/2013 05:32 AM, Greg Thelen wrote:
-> On Fri, Feb 08 2013, Glauber Costa wrote:
+On Thu 14-02-13 12:39:26, Andrew Morton wrote:
+> On Thu, 14 Feb 2013 12:03:49 +0000
+> Mel Gorman <mgorman@suse.de> wrote:
 > 
->> With the infrastructure we now have, we can add an element to a memcg
->> LRU list instead of the global list. The memcg lists are still
->> per-node.
+> > Rob van der Heij reported the following (paraphrased) on private mail.
+> > 
+> > 	The scenario is that I want to avoid backups to fill up the page
+> > 	cache and purge stuff that is more likely to be used again (this is
+> > 	with s390x Linux on z/VM, so I don't give it as much memory that
+> > 	we don't care anymore). So I have something with LD_PRELOAD that
+> > 	intercepts the close() call (from tar, in this case) and issues
+> > 	a posix_fadvise() just before closing the file.
+> > 
+> > 	This mostly works, except for small files (less than 14 pages)
+> > 	that remains in page cache after the face.
 > 
-> [...]
+> Sigh.  We've had the "my backups swamp pagecache" thing for 15 years
+> and it's still happening.
 > 
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index b9e1941..bfb4b5b 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -3319,6 +3319,36 @@ static inline void memcg_resume_kmem_account(void)
->>  	current->memcg_kmem_skip_account--;
->>  }
->>  
->> +static struct mem_cgroup *mem_cgroup_from_kmem_page(struct page *page)
->> +{
->> +	struct page_cgroup *pc;
->> +	struct mem_cgroup *memcg = NULL;
->> +
->> +	pc = lookup_page_cgroup(page);
->> +	if (!PageCgroupUsed(pc))
->> +		return NULL;
->> +
->> +	lock_page_cgroup(pc);
->> +	if (PageCgroupUsed(pc))
->> +		memcg = pc->mem_cgroup;
->> +	unlock_page_cgroup(pc);
+> It should be possible nowadays to toss your backup application into a
+> container to constrain its pagecache usage.  So we can type
 > 
-> Once we drop the lock, is there anything that needs protection
-> (e.g. PageCgroupUsed)?  If there's no problem, then what's the point of
-> taking the lock?
+> 	run-in-a-memcg -m 200MB /my/backup/program
 > 
+> and voila.  Does such a script exist and work?
 
-This is the same pattern already used in the rest of memcg, and I just
-transposing it here. From my understanding, we need to make sure that if
-the Used bit is not set, we don't rely on the memcg information. So we
-take the lock to guarantee that the big is not cleared in the meantime.
-But after that, we should be fine.
+The script would be as simple as:
+cgcreate -g memory:backups/`whoami`
+cgset -r memory.limit_in_bytes=200MB backups/`whoami`
+cgexec -g memory:backups/`whoami` /my/backup/program
 
-Kame, you have any input?
-
-
+It just expects that admin sets up backups group which allows the user
+to create a subgroup (w permission on the directory) and probably set up
+some reasonable cap for all backups
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
