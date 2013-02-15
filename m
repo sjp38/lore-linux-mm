@@ -1,51 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id E0BBA6B0088
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 17:46:30 -0500 (EST)
-Date: Fri, 15 Feb 2013 14:46:29 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] ia64: rename cache_show to topology_cache_show
-Message-Id: <20130215144629.be18bae9.akpm@linux-foundation.org>
-In-Reply-To: <1360931904-5720-1-git-send-email-mhocko@suse.cz>
-References: <511e236a.o0ibbB2U8xMoURgd%fengguang.wu@intel.com>
-	<1360931904-5720-1-git-send-email-mhocko@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id A1D246B008C
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 17:49:37 -0500 (EST)
+From: Satoru Moriya <satoru.moriya@hds.com>
+Subject: RE: extra free kbytes tunable
+Date: Fri, 15 Feb 2013 22:49:32 +0000
+Message-ID: <8631DC5930FA9E468F04F3FD3A5D007214B0CCF3@USINDEM103.corp.hds.com>
+References: <alpine.DEB.2.02.1302111734090.13090@dflat>
+ <A5ED84D3BB3A384992CBB9C77DEDA4D414A98EBF@USINDEM103.corp.hds.com>
+In-Reply-To: <A5ED84D3BB3A384992CBB9C77DEDA4D414A98EBF@USINDEM103.corp.hds.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, Glauber Costa <glommer@parallels.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>
+To: Seiji Aguchi <seiji.aguchi@hds.com>, dormando <dormando@rydia.net>, Rik
+ van Riel <riel@redhat.com>
+Cc: Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hughd@google.com" <hughd@google.com>
 
-On Fri, 15 Feb 2013 13:38:24 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
-
-> Fenguang Wu has reported the following compile time issue
-> arch/ia64/kernel/topology.c:278:16: error: conflicting types for 'cache_show'
-> include/linux/slab.h:224:5: note: previous declaration of 'cache_show' was here
-> 
-> which has been introduced by 749c5415 (memcg: aggregate memcg cache
-> values in slabinfo). Let's rename ia64 local function to prevent from
-> the name conflict.
-
-Confused.  Tony fixed this ages ago?
-
-: commit 4fafc8c21487f6b5259d462e9bee98661a02390d
-: Author: Tony Luck <tony.luck@intel.com>
-: Date:   Wed Nov 7 15:51:04 2012 -0800
-: 
-:     [IA64] Resolve name space collision for cache_show()
-:     
-:     We have a local static function named rather generically
-:     "cache_show()". Changes in progress in the slab code want
-:     to use this same name globally - so they are adding their
-:     declaration to <linux/slab.h> which then causes the compiler
-:     to choke with:
-:     
-:     arch/ia64/kernel/topology.c:278: error: conflicting types for 'cache_show'
-:     
-:     Fix by adding an "ia64_" prefix to our local function.
-
+T24gMDIvMTUvMjAxMyAwNToyMSBQTSwgU2VpamkgQWd1Y2hpIHdyb3RlOg0KPiBSaWssIFNhdG9y
+dSwNCj4gDQo+IERvIHlvdSBoYXZlIGFueSBjb21tZW50cz8NCj4gDQo+IFNlaWppDQoNCkhtbSwg
+dGhpcyBzZWVtcyB3aGF0IHdlIHdhbnRlZCB0byBrbm93IGluIHRoZSBwcmV2aW91cyB0aHJlYWQu
+DQoNCkJlY2F1c2UgZXh0cmFfZnJlZV9rYnl0ZXMgaXMgcXVpdGUgc2ltcGxlIGFuZCBpdCBmaXhl
+cyB0aGUgcHJvYmxlbSwNCml0IHNob3VsZCBiZSBtZXJnZWQgaW50byB1cHN0cmVhbS4NCg0KUmVn
+YXJkcywNClNhdG9ydQ0KDQoNCj4+IC0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+PiBGcm9t
+OiBsaW51eC1rZXJuZWwtb3duZXJAdmdlci5rZXJuZWwub3JnIA0KPj4gW21haWx0bzpsaW51eC1r
+ZXJuZWwtb3duZXJAdmdlci5rZXJuZWwub3JnXSBPbiBCZWhhbGYgT2YgZG9ybWFuZG8NCj4+IFNl
+bnQ6IE1vbmRheSwgRmVicnVhcnkgMTEsIDIwMTMgOTowMSBQTQ0KPj4gVG86IFJpayB2YW4gUmll
+bA0KPj4gQ2M6IFJhbmR5IER1bmxhcDsgU2F0b3J1IE1vcml5YTsgbGludXgta2VybmVsQHZnZXIu
+a2VybmVsLm9yZzsgDQo+PiBsaW51eC1tbUBrdmFjay5vcmc7IGx3b29kbWFuQHJlZGhhdC5jb207
+IFNlaWppIEFndWNoaTsgDQo+PiBha3BtQGxpbnV4LWZvdW5kYXRpb24ub3JnOyBodWdoZEBnb29n
+bGUuY29tDQo+PiBTdWJqZWN0OiBleHRyYSBmcmVlIGtieXRlcyB0dW5hYmxlDQo+Pg0KPj4gSGks
+DQo+Pg0KPj4gQXMgZGlzY3Vzc2VkIGluIHRoaXMgdGhyZWFkOg0KPj4gaHR0cDovL21hcmMuaW5m
+by8/bD1saW51eC1tbSZtPTEzMTQ5MDUyMzIyMjAzMSZ3PTINCj4+ICh3aXRoIHRoaXMgY2xlYW51
+cCBhcyB3ZWxsOiBodHRwczovL2xrbWwub3JnL2xrbWwvMjAxMS85LzIvMjI1KQ0KPj4NCj4+IEEg
+dHVuYWJsZSB3YXMgcHJvcG9zZWQgdG8gYWxsb3cgc3BlY2lmeWluZyB0aGUgZGlzdGFuY2UgYmV0
+d2VlbiANCj4+IHBhZ2VzX21pbiBhbmQgdGhlIGxvdyB3YXRlcm1hcmsgYmVmb3JlIGtzd2FwZCBp
+cyBraWNrZWQgaW4gdG8gZnJlZSB1cCANCj4+IHBhZ2VzLiBJJ2QgbGlrZSB0byByZS1vcGVuIHRo
+aXMgdGhyZWFkIHNpbmNlIHRoZSBwYXRjaCBkaWQgbm90IGFwcGVhciB0byBnbyBhbnl3aGVyZS4N
+Cj4+DQo+PiBXZSBoYXZlIGEgc2VydmVyIHdvcmtsb2FkIHdoZXJlaW4gbWFjaGluZXMgd2l0aCAx
+MDBHKyBvZiAiZnJlZSIgDQo+PiBtZW1vcnkgKHVzZWQgYnkgcGFnZSBjYWNoZSksIHNjYXR0ZXJl
+ZCBidXQgZnJlcXVlbnQgcmFuZG9tIGlvIHJlYWRzIA0KPj4gZnJvbSAxMisgU1NEJ3MsIGFuZCA1
+Z2Jwcysgb2YgaW50ZXJuZXQgdHJhZmZpYywgd2lsbCBmcmVxdWVudGx5IGhpdCANCj4+IGRpcmVj
+dCByZWNsYWltIGluIGEgZmV3IGRpZmZlcmVudCB3YXlzLg0KPj4NCj4+IDEpIEl0J2xsIHJ1biBp
+bnRvIHNtYWxsIGFtb3VudHMgb2YgcmVjbGFpbSByYW5kb21seSAoYSBmZXcgaHVuZHJlZCB0aG91
+c2FuZCkuDQo+Pg0KPj4gMikgQSBidXJzdCBvZiByZWFkcyBvciB0cmFmZmljIGNhbiBjYXVzZSBl
+eHRyYSBwcmVzc3VyZSwgd2hpY2gga3N3YXBkIA0KPj4gb2NjYXNpb25hbGx5IHJlc3BvbmRzIHRv
+IGJ5IGZyZWVpbmcgdXAgNDBnKyBvZiB0aGUgcGFnZWNhY2hlIGFsbCBhdCANCj4+IG9uY2UNCj4+
+ICghKSB3aGlsZSBwYXVzaW5nIHRoZSBzeXN0ZW0gKEFyZ2gpLg0KPj4NCj4+IDMpIEEgYmxpcCBp
+biBhbiB1cHN0cmVhbSBwcm92aWRlciBvciBmYWlsb3ZlciBmcm9tIGEgcGVlciBjYXVzZXMgdGhl
+IA0KPj4ga2VybmVsIHRvIGFsbG9jYXRlIG1hc3NpdmUgYW1vdW50cyBvZiBtZW1vcnkgZm9yIHJl
+dHJhbnNtaXNzaW9uIA0KPj4gcXVldWVzL2V0YywgcG90ZW50aWFsbHkgYWxvbmcgd2l0aCBidWZm
+ZXJlZCBJTyByZWFkcyBhbmQgKHNvbWUsIGJ1dCANCj4+IG5vdCBvZnRlbiBhIHRvbikgb2YgbmV3
+IGFsbG9jYXRpb25zIGZyb20gYW4gYXBwbGljYXRpb24uIFRoaXMgcGFpcmVkIA0KPj4gd2l0aCAy
+KSBjYW4gY2F1c2UgdGhlIGJveCB0byBzdGFsbCBmb3IgMTUrIHNlY29uZHMuDQo+Pg0KPj4gV2Un
+cmUgc2VlaW5nIHRoaXMgbW9yZSBpbiAzLjQvMy41LzMuNiwgc2F3IGl0IGxlc3MgaW4gMi42LjM4
+LiBNYXNzIA0KPj4gcmVjbGFpbXMgYXJlIG1vcmUgY29tbW9uIGluIG5ld2VyIGtlcm5lbHMsIGJ1
+dCByZWNsYWltcyBzdGlsbCBoYXBwZW4gDQo+PiBpbiBhbGwga2VybmVscyB3aXRob3V0IHJhaXNp
+bmcgbWluX2ZyZWVfa2J5dGVzIGRyYW1hdGljYWxseS4NCj4+DQo+PiBJJ3ZlIGZvdW5kIHRoYXQg
+c2V0dGluZyAibG93bWVtX3Jlc2VydmVfcmF0aW8iIHRvIHNvbWV0aGluZyBsaWtlICIxIDEgMzIi
+DQo+PiAodGh1cyBwcm90ZWN0aW5nIHRoZSBETUEzMiB6b25lKSBjYXVzZXMgMikgdG8gaGFwcGVu
+IGxlc3Mgb2Z0ZW4sIGFuZCANCj4+IGlzIGdlbmVyYWxseSBsZXNzIHZpb2xlbnQgd2l0aCAxKS4N
+Cj4+DQo+PiBTZXR0aW5nIG1pbl9mcmVlX2tieXRlcyB0byAxNUcgb3IgbW9yZSwgcGFpcmVkIHdp
+dGggdGhlIGFib3ZlLCBoYXMgDQo+PiBiZWVuIHRoZSBiZXN0IGF0IG1pdGlnYXRpbmcgdGhlIGlz
+c3VlLiBUaGlzIGlzIHNpbXBseSB0cnlpbmcgdG8gcmFpc2UgDQo+PiB0aGUgZGlzdGFuY2UgYmV0
+d2VlbiB0aGUgbWluIGFuZCBsb3cgd2F0ZXJtYXJrcy4gV2l0aCBtaW5fZnJlZV9rYnl0ZXMgDQo+
+PiBzZXQgdG8gMTUwMDAwMDAsIHRoYXQgZ2l2ZXMgdXMgYSB3aG9wcGluZyAxLjhHICghISEpIG9m
+IGxlZXdheSBiZWZvcmUgDQo+PiBzbGFtbWluZyBpbnRvIGRpcmVjdCByZWNsYWltLg0KPj4NCj4+
+IFNvLCB0aGlzIHBhdGNoIGlzIHVuZm9ydHVuYXRlIGJ1dCB3b25kZXJmdWwgYXQgbGV0dGluZyB1
+cyByZWNsYWltIA0KPj4gMTBHKyBvZiBvdGhlcndpc2UgbG9zdCBtZW1vcnkuIENvdWxkIHdlIHBs
+ZWFzZSByZXZpc2l0IGl0Pw0KPj4NCj4+IEkgc2F3IGEgbG90IG9mIGRpc2N1c3Npb24gb24gZG9p
+bmcgdGhpcyBhdXRvbWF0aWNhbGx5LCBvciBtYWtpbmcgDQo+PiBrc3dhcGQgbW9yZSBlZmZpY2ll
+bnQgdG8gaXQsIGFuZCBJJ2QgbG92ZSB0byBkbyB0aGF0LiBCZXlvbmQgbWFraW5nIA0KPj4ga3N3
+YXBkIHBzeWNoaWMgSSBoYXZlbid0IHNlZW4gYW55IGJldHRlciBvcHRpb25zIHlldC4NCj4+DQo+
+PiBUaGUgaXNzdWUgaXMgbW9yZSBjb21wbGV4IHRoYW4gc2ltcGx5IGhhdmluZyBhbiBhcHBsaWNh
+dGlvbiB3YXJuIG9mIA0KPj4gYW4gaW1wZW5kaW5nIGFsbG9jYXRpb24sIHNpbmNlIHRoaXMgY2Fu
+IGhhcHBlbiB2aWEgcmVhZCBsb2FkIG9uIGRpc2sgDQo+PiBvciBmcm9tIGtlcm5lbCBwYWdlIGFs
+bG9jYXRpb25zIGZvciB0aGUgbmV0d29yaywgb3IgYSBjb21iaW5hdGlvbiBvZiANCj4+IHRoZSB0
+d28gKG9yIHRocmVlLCBpZiB5b3UgYWRkIHRoZSBhcHAgYmFjayBpbikuDQo+Pg0KPj4gSXQncyBn
+b2luZyB0byBnZXQgd29yc2UgYXMgd2UgcHVzaCBtYWNoaW5lcyB3aXRoIGZhc3RlciBTU0QncyBh
+bmQgDQo+PiBiaWdnZXIgbmV0d29ya3MuIEknbSBvcGVuIHRvIGFueSBpZGVhcyBvbiBob3cgdG8g
+bWFrZSBrc3dhcGQgbW9yZSANCj4+IGVmZmljaWVudCBpbiBvdXIgY2FzZSwgb3IgcmVhbGx5IGFu
+eXRoaW5nIGF0IGFsbCB0aGF0IHdvcmtzLg0KPj4NCj4+IEkgaGF2ZSBtb3JlIGRldGFpbHMsIGJ1
+dCBjdXQgaXQgZG93biBhcyBtdWNoIGFzIEkgY291bGQgZm9yIHRoaXMgbWFpbC4NCj4+DQo+PiBU
+aGFua3MsDQo+PiAtRG9ybWFuZG8NCj4+IC0tDQo+PiBUbyB1bnN1YnNjcmliZSBmcm9tIHRoaXMg
+bGlzdDogc2VuZCB0aGUgbGluZSAidW5zdWJzY3JpYmUgDQo+PiBsaW51eC1rZXJuZWwiIGluIHRo
+ZSBib2R5IG9mIGEgbWVzc2FnZSB0byBtYWpvcmRvbW9Admdlci5rZXJuZWwub3JnIA0KPj4gTW9y
+ZSBtYWpvcmRvbW8gaW5mbyBhdCAgaHR0cDovL3ZnZXIua2VybmVsLm9yZy9tYWpvcmRvbW8taW5m
+by5odG1sDQo+PiBQbGVhc2UgcmVhZCB0aGUgRkFRIGF0ICBodHRwOi8vd3d3LnR1eC5vcmcvbGtt
+bC8NCj4gDQo+IC0tDQo+IFRvIHVuc3Vic2NyaWJlLCBzZW5kIGEgbWVzc2FnZSB3aXRoICd1bnN1
+YnNjcmliZSBsaW51eC1tbScgaW4gdGhlIGJvZHkgDQo+IHRvIG1ham9yZG9tb0BrdmFjay5vcmcu
+ICBGb3IgbW9yZSBpbmZvIG9uIExpbnV4IE1NLA0KPiBzZWU6IGh0dHA6Ly93d3cubGludXgtbW0u
+b3JnLyAuDQo+IERvbid0IGVtYWlsOiA8YSBocmVmPWlsdG86ImRvbnRAa3ZhY2sub3JnIj4gZW1h
+aWxAa3ZhY2sub3JnIDwvYT4NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
