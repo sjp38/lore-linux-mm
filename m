@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 2E4936B0030
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 0C4286B0038
 	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 15:20:51 -0500 (EST)
 From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: [PATCH 09/11] cleancache: Use static_key instead of cleancache_ops and cleancache_enabled.
-Date: Fri, 15 Feb 2013 15:20:33 -0500
-Message-Id: <1360959635-18922-10-git-send-email-konrad.wilk@oracle.com>
+Subject: [PATCH 10/11] xen: tmem: enable Xen tmem shim to be built/loaded as a module
+Date: Fri, 15 Feb 2013 15:20:34 -0500
+Message-Id: <1360959635-18922-11-git-send-email-konrad.wilk@oracle.com>
 In-Reply-To: <1360959635-18922-1-git-send-email-konrad.wilk@oracle.com>
 References: <1360959635-18922-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,230 +13,230 @@ List-ID: <linux-mm.kvack.org>
 To: dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, ngupta@vflare.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, minchan@kernel.org
 Cc: ric.masonn@gmail.com, lliubbo@gmail.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-As ways to determine whether to allow certain functions to be
-called.
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
 
-This makes it easier to understand the code - the three functions
-that can be called by the filesystem irregardless whether a backend is set or
-not cleancache_init_fs, cleancache_init_shared_fs, and cleancache_invalidate_fs.
+Allow Xen tmem shim to be built/loaded as a module.  Xen self-ballooning
+and frontswap-selfshrinking are now also "lazily" initialized when the
+Xen tmem shim is loaded as a module, unless explicitly disabled
+by module parameters.
 
-The rest of the cleancache functions end up being NOPs when the backend
-has not yet registered.
+Note runtime dependency disallows loading if cleancache/frontswap lazy
+initialization patches are not present.
 
+If built-in (not built as a module), the original mechanism of enabling via
+a kernel boot parameter is retained, but this should be considered deprecated.
+
+Note that module unload is explicitly not yet supported.
+
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+[v1: Removed the [CLEANCACHE|FRONTSWAP]_HAS_LAZY_INIT ifdef]
+[v2: Squashed the xen/tmem: Remove the subsys call patch in]
 Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 ---
- include/linux/cleancache.h | 16 +++++++++-----
- include/linux/frontswap.h  |  2 +-
- mm/cleancache.c            | 53 +++++++++++++++-------------------------------
- 3 files changed, 29 insertions(+), 42 deletions(-)
+ drivers/xen/Kconfig           |  4 ++--
+ drivers/xen/tmem.c            | 38 +++++++++++++++++++++++++++++---------
+ drivers/xen/xen-selfballoon.c | 13 +++++--------
+ include/xen/tmem.h            |  8 ++++++++
+ 4 files changed, 44 insertions(+), 19 deletions(-)
 
-diff --git a/include/linux/cleancache.h b/include/linux/cleancache.h
-index dfa1ccb..09df0e4 100644
---- a/include/linux/cleancache.h
-+++ b/include/linux/cleancache.h
-@@ -42,9 +42,15 @@ extern void __cleancache_put_page(struct page *);
- extern void __cleancache_invalidate_page(struct address_space *, struct page *);
- extern void __cleancache_invalidate_inode(struct address_space *);
- extern void __cleancache_invalidate_fs(struct super_block *);
--extern int cleancache_enabled;
+diff --git a/drivers/xen/Kconfig b/drivers/xen/Kconfig
+index cabfa97..981646e 100644
+--- a/drivers/xen/Kconfig
++++ b/drivers/xen/Kconfig
+@@ -145,9 +145,9 @@ config SWIOTLB_XEN
+ 	select SWIOTLB
+ 
+ config XEN_TMEM
+-	bool
++	tristate
+ 	depends on !ARM
+-	default y if (CLEANCACHE || FRONTSWAP)
++	default m if (CLEANCACHE || FRONTSWAP)
+ 	help
+ 	  Shim to interface in-kernel Transcendent Memory hooks
+ 	  (e.g. cleancache and frontswap) to Xen tmem hypercalls.
+diff --git a/drivers/xen/tmem.c b/drivers/xen/tmem.c
+index 15e776c..9a4a9ec 100644
+--- a/drivers/xen/tmem.c
++++ b/drivers/xen/tmem.c
+@@ -5,6 +5,7 @@
+  * Author: Dan Magenheimer
+  */
+ 
++#include <linux/module.h>
+ #include <linux/kernel.h>
+ #include <linux/types.h>
+ #include <linux/init.h>
+@@ -128,6 +129,7 @@ static int xen_tmem_flush_object(u32 pool_id, struct tmem_oid oid)
+ 	return xen_tmem_op(TMEM_FLUSH_OBJECT, pool_id, oid, 0, 0, 0, 0, 0);
+ }
+ 
++#ifndef CONFIG_XEN_TMEM_MODULE
+ bool __read_mostly tmem_enabled = false;
+ 
+ static int __init enable_tmem(char *s)
+@@ -136,6 +138,7 @@ static int __init enable_tmem(char *s)
+ 	return 1;
+ }
+ __setup("tmem", enable_tmem);
++#endif
  
  #ifdef CONFIG_CLEANCACHE
-+#include <linux/jump_label.h>
-+extern struct static_key cleancache_key;
-+
-+static inline bool cleancache_enabled(void)
-+{
-+	return static_key_false(&cleancache_key);
-+}
- static inline bool cleancache_fs_enabled(struct page *page)
- {
- 	return page->mapping->host->i_sb->cleancache_poolid >= 0;
-@@ -86,14 +92,14 @@ static inline int cleancache_get_page(struct page *page)
- {
- 	int ret = -1;
- 
--	if (cleancache_enabled && cleancache_fs_enabled(page))
-+	if (cleancache_enabled() && cleancache_fs_enabled(page))
- 		ret = __cleancache_get_page(page);
- 	return ret;
+ static int xen_tmem_destroy_pool(u32 pool_id)
+@@ -227,14 +230,19 @@ static int tmem_cleancache_init_shared_fs(char *uuid, size_t pagesize)
+ 	return xen_tmem_new_pool(shared_uuid, TMEM_POOL_SHARED, pagesize);
  }
  
- static inline void cleancache_put_page(struct page *page)
- {
--	if (cleancache_enabled && cleancache_fs_enabled(page))
-+	if (cleancache_enabled() && cleancache_fs_enabled(page))
- 		__cleancache_put_page(page);
- }
- 
-@@ -101,13 +107,13 @@ static inline void cleancache_invalidate_page(struct address_space *mapping,
- 					struct page *page)
- {
- 	/* careful... page->mapping is NULL sometimes when this is called */
--	if (cleancache_enabled && cleancache_fs_enabled_mapping(mapping))
-+	if (cleancache_enabled() && cleancache_fs_enabled_mapping(mapping))
- 		__cleancache_invalidate_page(mapping, page);
- }
- 
- static inline void cleancache_invalidate_inode(struct address_space *mapping)
- {
--	if (cleancache_enabled && cleancache_fs_enabled_mapping(mapping))
-+	if (cleancache_enabled() && cleancache_fs_enabled_mapping(mapping))
- 		__cleancache_invalidate_inode(mapping);
- }
- 
-diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
-index c120b90..3d72f14 100644
---- a/include/linux/frontswap.h
-+++ b/include/linux/frontswap.h
-@@ -113,7 +113,7 @@ static inline int frontswap_load(struct page *page)
- 
- static inline void frontswap_invalidate_page(unsigned type, pgoff_t offset)
- {
--	if (frontswap_enabled)
-+	if (static_key_false(&frontswap_key))
- 		__frontswap_invalidate_page(type, offset);
- }
- 
-diff --git a/mm/cleancache.c b/mm/cleancache.c
-index 5d8dbb9..de0b905 100644
---- a/mm/cleancache.c
-+++ b/mm/cleancache.c
-@@ -24,9 +24,17 @@
-  * is not claimed (e.g. cleancache is config'ed on but remains
-  * disabled), so is preferred to the slower alternative: a function
-  * call that checks a non-global.
-+ *
-+ * When set to false (default) all calls to the cleancache functions, except
-+ * the __cleancache_invalidate_fs and __cleancache_init_[shared|]fs are guarded
-+ * by the if (cleancache_enabled()) return. This means multiple threads (from
-+ * different filesystems) will be doing a NOP - b/c by default the
-+ * cleancache_enabled() is returing false. The usage of a static_key allows
-+ * us to patch up the code and allow the flood-gates to open when a backend
-+ * has registered. Vice versa when unloading a backend.
-  */
--int cleancache_enabled __read_mostly;
--EXPORT_SYMBOL(cleancache_enabled);
-+struct static_key cleancache_key __read_mostly;
-+EXPORT_SYMBOL(cleancache_key);
- 
- /*
-  * cleancache_ops is set by cleancache_ops_register to contain the pointers
-@@ -70,18 +78,6 @@ static char *uuids[MAX_INITIALIZABLE_FS];
-  */
- static DEFINE_MUTEX(poolid_mutex);
- /*
-- * When set to false (default) all calls to the cleancache functions, except
-- * the __cleancache_invalidate_fs and __cleancache_init_[shared|]fs are guarded
-- * by the if (!cleancache_ops) return. This means multiple threads (from
-- * different filesystems) will be checking cleancache_ops. The usage of a
-- * bool instead of a atomic_t or a bool guarded by a spinlock is OK - we are
-- * OK if the time between the backend's have been initialized (and
-- * cleancache_ops has been set to not NULL) and when the filesystems start
-- * actually calling the backends. The inverse (when unloading) is obviously
-- * not good - but this shim does not do that (yet).
-- */
+-static bool __initdata use_cleancache = true;
 -
--/*
-  * The backends and filesystems work all asynchronously. This is b/c the
-  * backends can be built as modules.
-  * The usual sequence of events is:
-@@ -89,13 +85,13 @@ static DEFINE_MUTEX(poolid_mutex);
-  * 		[shared_|]fs_poolid_map and uuids for.
-  *
-  * 	b). user does I/Os -> we call the rest of __cleancache_* functions
-- * 		which return immediately as cleancache_ops is NULL.
-+ * 		which return immediately as cleancache_enabled() returns false.
-  *
-  * 	c). modprobe zcache -> cleancache_register_ops. We init the backend
-  * 		and set cleancache_ops to the backend, and for any fs_poolid_map
-  * 		(which is set by __cleancache_init_fs) we initialize the poolid.
-  *
-- * 	d). user does I/Os -> now that clean_ops is not NULL all the
-+ * 	d). user does I/Os -> now that cleancache_enabled is turned to on, the
-  * 		__cleancache_* functions can call the backend. They all check
-  * 		that fs_poolid_map is valid and if so invoke the backend.
-  *
-@@ -111,8 +107,8 @@ static DEFINE_MUTEX(poolid_mutex);
-  * of unmounting process).
-  *
-  * Note: The acute reader will notice that there is no "rmmod zcache" case.
-- * This is b/c the functionality for that is not yet implemented and when
-- * done, will require some extra locking not yet devised.
-+ * This is b/c the functionality for that is not yet implemented in the
-+ * backend. In here, it will require turning the cleancache_key off.
-  */
- 
- /*
-@@ -139,6 +135,8 @@ struct cleancache_ops *cleancache_register_ops(struct cleancache_ops *ops)
- 	 */
- 	barrier();
- 	cleancache_ops = ops;
-+	if (!static_key_enabled(&cleancache_key))
-+		static_key_slow_inc(&cleancache_key);
- 	mutex_unlock(&poolid_mutex);
- 	return old;
++static bool disable_cleancache __read_mostly;
++static bool disable_selfballooning __read_mostly;
++#ifdef CONFIG_XEN_TMEM_MODULE
++module_param(disable_cleancache, bool, S_IRUGO);
++module_param(disable_selfballooning, bool, S_IRUGO);
++#else
+ static int __init no_cleancache(char *s)
+ {
+-	use_cleancache = false;
++	disable_cleancache = true;
+ 	return 1;
  }
-@@ -242,11 +240,6 @@ int __cleancache_get_page(struct page *page)
- 	int fake_pool_id;
- 	struct cleancache_filekey key = { .u.key = { 0 } };
+ __setup("nocleancache", no_cleancache);
++#endif
  
--	if (!cleancache_ops) {
--		cleancache_failed_gets++;
--		goto out;
--	}
+ static struct cleancache_ops tmem_cleancache_ops = {
+ 	.put_page = tmem_cleancache_put_page,
+@@ -353,14 +361,19 @@ static void tmem_frontswap_init(unsigned ignored)
+ 		    xen_tmem_new_pool(private, TMEM_POOL_PERSIST, PAGE_SIZE);
+ }
+ 
+-static bool __initdata use_frontswap = true;
 -
- 	VM_BUG_ON(!PageLocked(page));
- 	fake_pool_id = page->mapping->host->i_sb->cleancache_poolid;
- 	if (fake_pool_id < 0)
-@@ -284,11 +277,6 @@ void __cleancache_put_page(struct page *page)
- 	int fake_pool_id;
- 	struct cleancache_filekey key = { .u.key = { 0 } };
++static bool disable_frontswap __read_mostly;
++static bool disable_frontswap_selfshrinking __read_mostly;
++#ifdef CONFIG_XEN_TMEM_MODULE
++module_param(disable_frontswap, bool, S_IRUGO);
++module_param(disable_frontswap_selfshrinking, bool, S_IRUGO);
++#else
+ static int __init no_frontswap(char *s)
+ {
+-	use_frontswap = false;
++	disable_frontswap = true;
+ 	return 1;
+ }
+ __setup("nofrontswap", no_frontswap);
++#endif
  
--	if (!cleancache_ops) {
--		cleancache_puts++;
--		return;
--	}
--
- 	VM_BUG_ON(!PageLocked(page));
- 	fake_pool_id = page->mapping->host->i_sb->cleancache_poolid;
- 	if (fake_pool_id < 0)
-@@ -320,9 +308,6 @@ void __cleancache_invalidate_page(struct address_space *mapping,
- 	int fake_pool_id = mapping->host->i_sb->cleancache_poolid;
- 	struct cleancache_filekey key = { .u.key = { 0 } };
+ static struct frontswap_ops tmem_frontswap_ops = {
+ 	.store = tmem_frontswap_store,
+@@ -371,12 +384,12 @@ static struct frontswap_ops tmem_frontswap_ops = {
+ };
+ #endif
  
--	if (!cleancache_ops)
--		return;
--
- 	if (fake_pool_id >= 0) {
- 		pool_id = get_poolid_from_fake(fake_pool_id);
- 		if (pool_id < 0)
-@@ -353,9 +338,6 @@ void __cleancache_invalidate_inode(struct address_space *mapping)
- 	int fake_pool_id = mapping->host->i_sb->cleancache_poolid;
- 	struct cleancache_filekey key = { .u.key = { 0 } };
- 
--	if (!cleancache_ops)
--		return;
--
- 	if (fake_pool_id < 0)
- 		return;
- 
-@@ -389,7 +371,7 @@ void __cleancache_invalidate_fs(struct super_block *sb)
- 		fs_poolid_map[index] = FS_UNKNOWN;
+-static int __init xen_tmem_init(void)
++static int xen_tmem_init(void)
+ {
+ 	if (!xen_domain())
+ 		return 0;
+ #ifdef CONFIG_FRONTSWAP
+-	if (tmem_enabled && use_frontswap) {
++	if (tmem_enabled && !disable_frontswap) {
+ 		char *s = "";
+ 		struct frontswap_ops *old_ops =
+ 			frontswap_register_ops(&tmem_frontswap_ops);
+@@ -390,7 +403,7 @@ static int __init xen_tmem_init(void)
+ #endif
+ #ifdef CONFIG_CLEANCACHE
+ 	BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
+-	if (tmem_enabled && use_cleancache) {
++	if (tmem_enabled && !disable_cleancache) {
+ 		char *s = "";
+ 		struct cleancache_ops *old_ops =
+ 			cleancache_register_ops(&tmem_cleancache_ops);
+@@ -400,7 +413,14 @@ static int __init xen_tmem_init(void)
+ 				 "Xen Transcendent Memory%s\n", s);
  	}
- 	sb->cleancache_poolid = -1;
--	if (cleancache_ops)
-+	if (cleancache_enabled())
- 		cleancache_ops->invalidate_fs(old_poolid);
- 	mutex_unlock(&poolid_mutex);
- }
-@@ -414,7 +396,6 @@ static int __init init_cleancache(void)
- 		fs_poolid_map[i] = FS_UNKNOWN;
- 		shared_fs_poolid_map[i] = FS_UNKNOWN;
- 	}
--	cleancache_enabled = 1;
+ #endif
++#ifdef CONFIG_XEN_SELFBALLOONING
++	xen_selfballoon_init(!disable_selfballooning,
++				!disable_frontswap_selfshrinking);
++#endif
  	return 0;
  }
- module_init(init_cleancache)
+ 
+ module_init(xen_tmem_init)
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("Dan Magenheimer <dan.magenheimer@oracle.com>");
++MODULE_DESCRIPTION("Shim to Xen transcendent memory");
+diff --git a/drivers/xen/xen-selfballoon.c b/drivers/xen/xen-selfballoon.c
+index 2552d3e..f2ef569 100644
+--- a/drivers/xen/xen-selfballoon.c
++++ b/drivers/xen/xen-selfballoon.c
+@@ -121,7 +121,7 @@ static DECLARE_DELAYED_WORK(selfballoon_worker, selfballoon_process);
+ static bool frontswap_selfshrinking __read_mostly;
+ 
+ /* Enable/disable with kernel boot option. */
+-static bool use_frontswap_selfshrink __initdata = true;
++static bool use_frontswap_selfshrink = true;
+ 
+ /*
+  * The default values for the following parameters were deemed reasonable
+@@ -185,7 +185,7 @@ static int __init xen_nofrontswap_selfshrink_setup(char *s)
+ __setup("noselfshrink", xen_nofrontswap_selfshrink_setup);
+ 
+ /* Disable with kernel boot option. */
+-static bool use_selfballooning __initdata = true;
++static bool use_selfballooning = true;
+ 
+ static int __init xen_noselfballooning_setup(char *s)
+ {
+@@ -196,7 +196,7 @@ static int __init xen_noselfballooning_setup(char *s)
+ __setup("noselfballooning", xen_noselfballooning_setup);
+ #else /* !CONFIG_FRONTSWAP */
+ /* Enable with kernel boot option. */
+-static bool use_selfballooning __initdata = false;
++static bool use_selfballooning;
+ 
+ static int __init xen_selfballooning_setup(char *s)
+ {
+@@ -537,7 +537,7 @@ int register_xen_selfballooning(struct device *dev)
+ }
+ EXPORT_SYMBOL(register_xen_selfballooning);
+ 
+-static int __init xen_selfballoon_init(void)
++int xen_selfballoon_init(bool use_selfballooning, bool use_frontswap_selfshrink)
+ {
+ 	bool enable = false;
+ 
+@@ -571,7 +571,4 @@ static int __init xen_selfballoon_init(void)
+ 
+ 	return 0;
+ }
+-
+-subsys_initcall(xen_selfballoon_init);
+-
+-MODULE_LICENSE("GPL");
++EXPORT_SYMBOL(xen_selfballoon_init);
+diff --git a/include/xen/tmem.h b/include/xen/tmem.h
+index 591550a..3930a90 100644
+--- a/include/xen/tmem.h
++++ b/include/xen/tmem.h
+@@ -3,7 +3,15 @@
+ 
+ #include <linux/types.h>
+ 
++#ifdef CONFIG_XEN_TMEM_MODULE
++#define tmem_enabled true
++#else
+ /* defined in drivers/xen/tmem.c */
+ extern bool tmem_enabled;
++#endif
++
++#ifdef CONFIG_XEN_SELFBALLOONING
++extern int xen_selfballoon_init(bool, bool);
++#endif
+ 
+ #endif /* _XEN_TMEM_H */
 -- 
 1.8.0.2
 
