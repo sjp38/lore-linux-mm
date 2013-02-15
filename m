@@ -1,227 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id A01CA6B0007
-	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 20:00:49 -0500 (EST)
-Received: from epcpsbgr5.samsung.com
- (u145.gpu120.samsung.co.kr [203.254.230.145])
- by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0MI800AA9LH6UXD0@mailout2.samsung.com> for linux-mm@kvack.org;
- Fri, 15 Feb 2013 10:00:48 +0900 (KST)
-Received: from localhost.localdomain ([10.90.51.45])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MI800K9HLH5N110@mmp1.samsung.com> for linux-mm@kvack.org;
- Fri, 15 Feb 2013 10:00:47 +0900 (KST)
-From: Chanho Park <chanho61.park@samsung.com>
-Subject: [PATCH] arm: mm: lockless get_user_pages_fast
-Date: Fri, 15 Feb 2013 10:00:12 +0900
-Message-id: <1360890012-4684-1-git-send-email-chanho61.park@samsung.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 460CC6B0007
+	for <linux-mm@kvack.org>; Thu, 14 Feb 2013 20:27:25 -0500 (EST)
+Received: by mail-ye0-f202.google.com with SMTP id r9so310697yen.1
+        for <linux-mm@kvack.org>; Thu, 14 Feb 2013 17:27:24 -0800 (PST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH 1/7] vmscan: also shrink slab in memcg pressure
+References: <1360328857-28070-1-git-send-email-glommer@parallels.com>
+	<1360328857-28070-2-git-send-email-glommer@parallels.com>
+Date: Thu, 14 Feb 2013 17:27:22 -0800
+Message-ID: <xr93mwv6nz7p.fsf@gthelen.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@arm.linux.org.uk
-Cc: catalin.marinas@arm.com, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, Chanho Park <chanho61.park@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Myungjoo Ham <myungjoo.ham@samsung.com>, Inki Dae <inki.dae@samsung.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Dave Shrinnker <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-This patch adds get_user_pages_fast(old name is "fast_gup") for ARM.
-The fast_gup can walk pagetable without taking mmap_sem or any locks. If there
-is not a pte with the correct permissions for the access, we fall back to slow
-path(get_user_pages) to get remaining pages. This patch is written on reference
-the x86's gup implementation. Traversing of hugepages is excluded because ARM
-haven't supported hugepages yet[1], just only RFC.
+On Fri, Feb 08 2013, Glauber Costa wrote:
 
-[1]: http://lists.infradead.org/pipermail/linux-arm-kernel/2012-October/126382.html
+> Without the surrounding infrastructure, this patch is a bit of a hammer:
+> it will basically shrink objects from all memcgs under memcg pressure.
+> At least, however, we will keep the scan limited to the shrinkers marked
+> as per-memcg.
+>
+> Future patches will implement the in-shrinker logic to filter objects
+> based on its memcg association.
+>
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Cc: Dave Chinner <dchinner@redhat.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  include/linux/memcontrol.h | 16 ++++++++++++++++
+>  include/linux/shrinker.h   |  4 ++++
+>  mm/memcontrol.c            | 11 ++++++++++-
+>  mm/vmscan.c                | 41 ++++++++++++++++++++++++++++++++++++++---
+>  4 files changed, 68 insertions(+), 4 deletions(-)
+>
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 0108a56..b7de557 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -200,6 +200,9 @@ void mem_cgroup_split_huge_fixup(struct page *head);
+>  bool mem_cgroup_bad_page_check(struct page *page);
+>  void mem_cgroup_print_bad_page(struct page *page);
+>  #endif
+> +
+> +unsigned long
+> +memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone);
+>  #else /* CONFIG_MEMCG */
+>  struct mem_cgroup;
+>  
+> @@ -384,6 +387,11 @@ static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
+>  				struct page *newpage)
+>  {
+>  }
+> +
+> +static inline unsigned long
+> +memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
+> +{
 
-Signed-off-by: Chanho Park <chanho61.park@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
-Cc: Myungjoo Ham <myungjoo.ham@samsung.com>
-Cc: Inki Dae <inki.dae@samsung.com>
----
- arch/arm/mm/Makefile |    2 +-
- arch/arm/mm/gup.c    |  160 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 161 insertions(+), 1 deletion(-)
- create mode 100644 arch/arm/mm/gup.c
+	return 0;
 
-diff --git a/arch/arm/mm/Makefile b/arch/arm/mm/Makefile
-index 8a9c4cb..1f01c0b 100644
---- a/arch/arm/mm/Makefile
-+++ b/arch/arm/mm/Makefile
-@@ -6,7 +6,7 @@ obj-y				:= dma-mapping.o extable.o fault.o init.o \
- 				   iomap.o
- 
- obj-$(CONFIG_MMU)		+= fault-armv.o flush.o idmap.o ioremap.o \
--				   mmap.o pgd.o mmu.o vmregion.o
-+				   mmap.o pgd.o mmu.o vmregion.o gup.o
- 
- ifneq ($(CONFIG_MMU),y)
- obj-y				+= nommu.o
-diff --git a/arch/arm/mm/gup.c b/arch/arm/mm/gup.c
-new file mode 100644
-index 0000000..ed54fd8
---- /dev/null
-+++ b/arch/arm/mm/gup.c
-@@ -0,0 +1,160 @@
-+/*
-+ * linux/arch/arm/mm/gup.c - Lockless get_user_pages_fast for arm
-+ *
-+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
-+ *		http://www.samsung.com
-+ * Author : Chanho Park <chanho61.park@samsung.com>
-+ *
-+ * This code is written on reference from the x86 and PowerPC versions, by:
-+ *
-+ *	Copyright (C) 2008 Nick Piggin
-+ *	Copyright (C) 2008 Novell Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ */
-+
-+#include <linux/sched.h>
-+#include <linux/mm.h>
-+#include <linux/pagemap.h>
-+#include <linux/rwsem.h>
-+#include <asm/pgtable.h>
-+
-+/*
-+ * The performance critical leaf functions are made noinline otherwise gcc
-+ * inlines everything into a single function which results in too much
-+ * register pressure.
-+ */
-+static noinline int gup_pte_range(pmd_t *pmdp, unsigned long addr,
-+		unsigned long end, int write, struct page **pages, int *nr)
-+{
-+	pte_t *ptep, pte;
-+
-+	ptep = pte_offset_kernel(pmdp, addr);
-+	do {
-+		struct page *page;
-+
-+		pte = *ptep;
-+		smp_rmb();
-+
-+		if (!pte_present_user(pte) || (write && !pte_write(pte)))
-+			return 0;
-+
-+		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
-+		page = pte_page(pte);
-+
-+		if (!page_cache_get_speculative(page))
-+			return 0;
-+
-+		pages[*nr] = page;
-+		(*nr)++;
-+
-+	} while (ptep++, addr += PAGE_SIZE, addr != end);
-+
-+	return 1;
-+}
-+
-+static int gup_pmd_range(pud_t *pudp, unsigned long addr, unsigned long end,
-+		int write, struct page **pages, int *nr)
-+{
-+	unsigned long next;
-+	pmd_t *pmdp;
-+
-+	pmdp = pmd_offset(pudp, addr);
-+	do {
-+		next = pmd_addr_end(addr, end);
-+		if (pmd_none(*pmdp))
-+			return 0;
-+		else if (!gup_pte_range(pmdp, addr, next, write, pages, nr))
-+			return 0;
-+	} while (pmdp++, addr = next, addr != end);
-+
-+	return 1;
-+}
-+
-+static int gup_pud_range(pgd_t *pgdp, unsigned long addr, unsigned long end,
-+		int write, struct page **pages, int *nr)
-+{
-+	unsigned long next;
-+	pud_t *pudp;
-+
-+	pudp = pud_offset(pgdp, addr);
-+	do {
-+		next = pud_addr_end(addr, end);
-+		if (pud_none(*pudp))
-+			return 0;
-+		else if (!gup_pmd_range(pudp, addr, next, write, pages, nr))
-+			return 0;
-+	} while (pudp++, addr = next, addr != end);
-+
-+	return 1;
-+}
-+
-+int get_user_pages_fast(unsigned long start, int nr_pages, int write,
-+			struct page **pages)
-+{
-+	struct mm_struct *mm = current->mm;
-+	unsigned long addr, len, end;
-+	unsigned long next;
-+	pgd_t *pgdp;
-+	int nr = 0;
-+
-+	start &= PAGE_MASK;
-+	addr = start;
-+	len = (unsigned long) nr_pages << PAGE_SHIFT;
-+	end = start + len;
-+
-+	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
-+					start, len)))
-+		goto slow_irqon;
-+
-+	/*
-+	 * This doesn't prevent pagetable teardown, but does prevent
-+	 * the pagetables from being freed on arm.
-+	 *
-+	 * So long as we atomically load page table pointers versus teardown,
-+	 * we can follow the address down to the the page and take a ref on it.
-+	 */
-+	local_irq_disable();
-+
-+	pgdp = pgd_offset(mm, addr);
-+	do {
-+		next = pgd_addr_end(addr, end);
-+		if (pgd_none(*pgdp))
-+			goto slow;
-+		else if (!gup_pud_range(pgdp, addr, next, write, pages, &nr))
-+			goto slow;
-+	} while (pgdp++, addr = next, addr != end);
-+
-+	local_irq_enable();
-+
-+	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
-+	return nr;
-+
-+	{
-+		int ret;
-+
-+slow:
-+		local_irq_enable();
-+slow_irqon:
-+		/* Try to get the remaining pages with get_user_pages */
-+		start += nr << PAGE_SHIFT;
-+		pages += nr;
-+
-+		down_read(&mm->mmap_sem);
-+		ret = get_user_pages(current, mm, start,
-+			(end - start) >> PAGE_SHIFT, write, 0, pages, NULL);
-+		up_read(&mm->mmap_sem);
-+
-+		/* Have to be a bit careful with return values */
-+		if (nr > 0) {
-+			if (ret < 0)
-+				ret = nr;
-+			else
-+				ret += nr;
-+		}
-+
-+		return ret;
-+	}
-+}
--- 
-1.7.9.5
+> +}
+>  #endif /* CONFIG_MEMCG */
+>  
+>  #if !defined(CONFIG_MEMCG) || !defined(CONFIG_DEBUG_VM)
+> @@ -436,6 +444,8 @@ static inline bool memcg_kmem_enabled(void)
+>  	return static_key_false(&memcg_kmem_enabled_key);
+>  }
+>  
+> +bool memcg_kmem_is_active(struct mem_cgroup *memcg);
+> +
+>  /*
+>   * In general, we'll do everything in our power to not incur in any overhead
+>   * for non-memcg users for the kmem functions. Not even a function call, if we
+> @@ -569,6 +579,12 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+>  	return __memcg_kmem_get_cache(cachep, gfp);
+>  }
+>  #else
+> +
+> +static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+> +{
+> +	return false;
+> +}
+> +
+>  #define for_each_memcg_cache_index(_idx)	\
+>  	for (; NULL; )
+>  
+> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> index d4636a0..a767f2e 100644
+> --- a/include/linux/shrinker.h
+> +++ b/include/linux/shrinker.h
+> @@ -20,6 +20,9 @@ struct shrink_control {
+>  
+>  	/* shrink from these nodes */
+>  	nodemask_t nodes_to_scan;
+> +
+> +	/* reclaim from this memcg only (if not NULL) */
+> +	struct mem_cgroup *target_mem_cgroup;
+>  };
+>  
+>  /*
+> @@ -45,6 +48,7 @@ struct shrinker {
+>  
+>  	int seeks;	/* seeks to recreate an obj */
+>  	long batch;	/* reclaim batch size, 0 = default */
+> +	bool memcg_shrinker;
+>  
+>  	/* These are for internal use */
+>  	struct list_head list;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 3817460..b1d4dfa 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -442,7 +442,7 @@ static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
+>  	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+>  }
+>  
+> -static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+> +bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+>  {
+>  	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+>  }
+> @@ -991,6 +991,15 @@ mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
+>  	return ret;
+>  }
+>  
+> +unsigned long
+> +memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
+> +{
+> +	int nid = zone_to_nid(zone);
+> +	int zid = zone_idx(zone);
+> +
+> +	return mem_cgroup_zone_nr_lru_pages(memcg, nid, zid, LRU_ALL);
+
+Without swap enabled it seems like LRU_ALL_FILE is more appropriate.
+Maybe something like test_mem_cgroup_node_reclaimable().
+
+> +}
+> +
+>  static unsigned long
+>  mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+>  			int nid, unsigned int lru_mask)
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 6d96280..8af0e2b 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -138,11 +138,42 @@ static bool global_reclaim(struct scan_control *sc)
+>  {
+>  	return !sc->target_mem_cgroup;
+>  }
+> +
+> +/*
+> + * kmem reclaim should usually not be triggered when we are doing targetted
+> + * reclaim. It is only valid when global reclaim is triggered, or when the
+> + * underlying memcg has kmem objects.
+> + */
+> +static bool has_kmem_reclaim(struct scan_control *sc)
+> +{
+> +	return !sc->target_mem_cgroup ||
+> +	(sc->target_mem_cgroup && memcg_kmem_is_active(sc->target_mem_cgroup));
+
+Isn't this the same as:
+	return !sc->target_mem_cgroup ||
+		memcg_kmem_is_active(sc->target_mem_cgroup);
+
+[...]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
