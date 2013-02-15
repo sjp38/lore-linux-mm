@@ -1,49 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id A56666B0025
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 10:02:08 -0500 (EST)
-Date: Fri, 15 Feb 2013 16:02:05 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: introduce __linear_page_index()
-Message-ID: <20130215150205.GC31037@dhcp22.suse.cz>
-References: <1360047819-6669-1-git-send-email-b32955@freescale.com>
- <20130205132741.1e1a4e04.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id A735C6B0010
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 11:14:13 -0500 (EST)
+Received: by mail-la0-f41.google.com with SMTP id fo12so3587886lab.28
+        for <linux-mm@kvack.org>; Fri, 15 Feb 2013 08:14:11 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130205132741.1e1a4e04.akpm@linux-foundation.org>
+In-Reply-To: <20130215110401.GA31037@dhcp22.suse.cz>
+References: <20130214120349.GD7367@suse.de>
+	<20130214123926.599fcef8.akpm@linux-foundation.org>
+	<20130215110401.GA31037@dhcp22.suse.cz>
+Date: Fri, 15 Feb 2013 17:14:10 +0100
+Message-ID: <CAJCc=ki+_PVT8fH43PoDVN2-5Wq0a1vQfFihJ_6F7==+RSAzYQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: fadvise: Drain all pagevecs if POSIX_FADV_DONTNEED
+ fails to discard all pages
+From: Rob van der Heij <rvdheij@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Huang Shijie <b32955@freescale.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 05-02-13 13:27:41, Andrew Morton wrote:
-[...]
-> > +static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
-> > +					unsigned long address)
-> > +{
-> >  	if (unlikely(is_vm_hugetlb_page(vma)))
-> >  		return linear_hugepage_index(vma, address);
-> > -	pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
-> > -	pgoff += vma->vm_pgoff;
-> > -	return pgoff >> (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> > +	return __linear_page_index(vma, address) >>
-> > +				(PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> >  }
-> 
-> I don't think we need bother creating both linear_page_index() and
-> __linear_page_index().  Realistically, we won't be supporting
-> PAGE_SHIFT!=PAGE_CACHE_SHIFT.  And most (or all?) of the sites which
-> you changed should have been using PAGE_CACHE_SHIFT anyway!
+On 15 February 2013 12:04, Michal Hocko <mhocko@suse.cz> wrote:
+> On Thu 14-02-13 12:39:26, Andrew Morton wrote:
+>> On Thu, 14 Feb 2013 12:03:49 +0000
+>> Mel Gorman <mgorman@suse.de> wrote:
+>>
+>> > Rob van der Heij reported the following (paraphrased) on private mail.
+>> >
+>> >     The scenario is that I want to avoid backups to fill up the page
+>> >     cache and purge stuff that is more likely to be used again (this is
+>> >     with s390x Linux on z/VM, so I don't give it as much memory that
+>> >     we don't care anymore). So I have something with LD_PRELOAD that
+>> >     intercepts the close() call (from tar, in this case) and issues
+>> >     a posix_fadvise() just before closing the file.
+>> >
+>> >     This mostly works, except for small files (less than 14 pages)
+>> >     that remains in page cache after the face.
+>>
+>> Sigh.  We've had the "my backups swamp pagecache" thing for 15 years
+>> and it's still happening.
+>>
+>> It should be possible nowadays to toss your backup application into a
+>> container to constrain its pagecache usage.  So we can type
+>>
+>>       run-in-a-memcg -m 200MB /my/backup/program
+>>
+>> and voila.  Does such a script exist and work?
+>
+> The script would be as simple as:
+> cgcreate -g memory:backups/`whoami`
+> cgset -r memory.limit_in_bytes=200MB backups/`whoami`
+> cgexec -g memory:backups/`whoami` /my/backup/program
+>
+> It just expects that admin sets up backups group which allows the user
+> to create a subgroup (w permission on the directory) and probably set up
+> some reasonable cap for all backups
 
-Except for hugetlb (huge_pmd_share, unmap_ref_private) which uses
-PAGE_SHIFT to get an index into mapping. History proves there was
-some confusion about those in the past (36e4f20a fixing 0c176d52). So
-__linear_page_index makes some sense here.
+Cool. This is promising enough to bridge my skills gap. It appears to
+work as promised, but I would have to understand why it takes
+significantly more CPU than my ugly posix_fadvise() call on close...
 
--- 
-Michal Hocko
-SUSE Labs
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
