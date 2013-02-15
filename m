@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 75C7A6B0012
-	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 06:04:07 -0500 (EST)
-Date: Fri, 15 Feb 2013 12:04:04 +0100
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 08A016B0011
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 07:38:33 -0500 (EST)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: fadvise: Drain all pagevecs if POSIX_FADV_DONTNEED
- fails to discard all pages
-Message-ID: <20130215110401.GA31037@dhcp22.suse.cz>
-References: <20130214120349.GD7367@suse.de>
- <20130214123926.599fcef8.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130214123926.599fcef8.akpm@linux-foundation.org>
+Subject: [PATCH] ia64: rename cache_show to topology_cache_show
+Date: Fri, 15 Feb 2013 13:38:24 +0100
+Message-Id: <1360931904-5720-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <511e236a.o0ibbB2U8xMoURgd%fengguang.wu@intel.com>
+References: <511e236a.o0ibbB2U8xMoURgd%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rob van der Heij <rvdheij@gmail.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, Glauber Costa <glommer@parallels.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>
 
-On Thu 14-02-13 12:39:26, Andrew Morton wrote:
-> On Thu, 14 Feb 2013 12:03:49 +0000
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > Rob van der Heij reported the following (paraphrased) on private mail.
-> > 
-> > 	The scenario is that I want to avoid backups to fill up the page
-> > 	cache and purge stuff that is more likely to be used again (this is
-> > 	with s390x Linux on z/VM, so I don't give it as much memory that
-> > 	we don't care anymore). So I have something with LD_PRELOAD that
-> > 	intercepts the close() call (from tar, in this case) and issues
-> > 	a posix_fadvise() just before closing the file.
-> > 
-> > 	This mostly works, except for small files (less than 14 pages)
-> > 	that remains in page cache after the face.
-> 
-> Sigh.  We've had the "my backups swamp pagecache" thing for 15 years
-> and it's still happening.
-> 
-> It should be possible nowadays to toss your backup application into a
-> container to constrain its pagecache usage.  So we can type
-> 
-> 	run-in-a-memcg -m 200MB /my/backup/program
-> 
-> and voila.  Does such a script exist and work?
+Fenguang Wu has reported the following compile time issue
+arch/ia64/kernel/topology.c:278:16: error: conflicting types for 'cache_show'
+include/linux/slab.h:224:5: note: previous declaration of 'cache_show' was here
 
-The script would be as simple as:
-cgcreate -g memory:backups/`whoami`
-cgset -r memory.limit_in_bytes=200MB backups/`whoami`
-cgexec -g memory:backups/`whoami` /my/backup/program
+which has been introduced by 749c5415 (memcg: aggregate memcg cache
+values in slabinfo). Let's rename ia64 local function to prevent from
+the name conflict.
 
-It just expects that admin sets up backups group which allows the user
-to create a subgroup (w permission on the directory) and probably set up
-some reasonable cap for all backups
-[...]
+Reported-by: Fenguang Wu <fengguang.wu@intel.com>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ arch/ia64/kernel/topology.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/arch/ia64/kernel/topology.c b/arch/ia64/kernel/topology.c
+index c64460b..d9e2152 100644
+--- a/arch/ia64/kernel/topology.c
++++ b/arch/ia64/kernel/topology.c
+@@ -275,7 +275,8 @@ static struct attribute * cache_default_attrs[] = {
+ #define to_object(k) container_of(k, struct cache_info, kobj)
+ #define to_attr(a) container_of(a, struct cache_attr, attr)
+ 
+-static ssize_t cache_show(struct kobject * kobj, struct attribute * attr, char * buf)
++static ssize_t topology_cache_show(struct kobject * kobj,
++		struct attribute * attr, char * buf)
+ {
+ 	struct cache_attr *fattr = to_attr(attr);
+ 	struct cache_info *this_leaf = to_object(kobj);
+@@ -286,7 +287,7 @@ static ssize_t cache_show(struct kobject * kobj, struct attribute * attr, char *
+ }
+ 
+ static const struct sysfs_ops cache_sysfs_ops = {
+-	.show   = cache_show
++	.show   = topology_cache_show
+ };
+ 
+ static struct kobj_type cache_ktype = {
 -- 
-Michal Hocko
-SUSE Labs
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
