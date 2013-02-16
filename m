@@ -1,74 +1,144 @@
-From: dormando <dormando@rydia.net>
-Subject: extra free kbytes tunable
-Date: Mon, 11 Feb 2013 18:01:26 -0800 (PST)
-Message-ID: <alpine.DEB.2.02.1302111734090.13090@dflat>
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] staging: zcache: add TODO file
+Date: Sat, 16 Feb 2013 08:29:02 +0800
+Message-ID: <17303.4724234187$1360974883@news.gmane.org>
+References: <1360779186-17189-1-git-send-email-dan.magenheimer@oracle.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Rik van Riel <riel@redhat.com>
-Cc: Randy Dunlap <rdunlap@xenotime.net>, Satoru Moriya <smoriya@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lwoodman@redhat.com, Seiji Aguchi <saguchi@redhat.com>, akpm@linux-foundation.org, hughd@google.com
-List-Id: linux-mm.kvack.org
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1U6Vjg-0000MC-Ee
+	for glkm-linux-mm-2@m.gmane.org; Sat, 16 Feb 2013 01:34:36 +0100
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 678626B000A
+	for <linux-mm@kvack.org>; Fri, 15 Feb 2013 19:34:13 -0500 (EST)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Sat, 16 Feb 2013 05:57:13 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id DD7F63940055
+	for <linux-mm@kvack.org>; Sat, 16 Feb 2013 05:59:04 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1G0T2x432309408
+	for <linux-mm@kvack.org>; Sat, 16 Feb 2013 05:59:02 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1G0T34w014226
+	for <linux-mm@kvack.org>; Sat, 16 Feb 2013 00:29:04 GMT
+Content-Disposition: inline
+In-Reply-To: <1360779186-17189-1-git-send-email-dan.magenheimer@oracle.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, dan.magenheimer@oracle.com
 
-Hi,
+Hi Dan,
+On Wed, Feb 13, 2013 at 10:13:06AM -0800, Dan Magenheimer wrote:
+>Add zcache TODO file
+>
+>Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+>---
+> drivers/staging/zcache/TODO |   69 +++++++++++++++++++++++++++++++++++++++++++
+> 1 files changed, 69 insertions(+), 0 deletions(-)
+> create mode 100644 drivers/staging/zcache/TODO
+>
+>diff --git a/drivers/staging/zcache/TODO b/drivers/staging/zcache/TODO
+>new file mode 100644
+>index 0000000..c1e26d4
+>--- /dev/null
+>+++ b/drivers/staging/zcache/TODO
+>@@ -0,0 +1,69 @@
+>+
+>+** ZCACHE PLAN FOR PROMOTION FROM STAGING **
+>+
 
-As discussed in this thread:
-http://marc.info/?l=linux-mm&m=131490523222031&w=2
-(with this cleanup as well: https://lkml.org/lkml/2011/9/2/225)
+Great plan! :)
 
-A tunable was proposed to allow specifying the distance between pages_min
-and the low watermark before kswapd is kicked in to free up pages. I'd
-like to re-open this thread since the patch did not appear to go anywhere.
+>+Last updated: Feb 13, 2013
+>+
+>+PLAN STEPS
+>+
+>+1. merge zcache and ramster to eliminate horrible code duplication
+>+2. converge on a predictable, writeback-capable allocator
+>+3. use debugfs instead of sysfs (per akpm feedback in 2011)
+>+4. zcache side of cleancache/mm WasActive patch
+>+5. zcache side of frontswap exclusive gets
+>+6. zcache must be able to writeback to physical swap disk
+>+    (per Andrea Arcangeli feedback in 2011)
+>+7. implement adequate policy for writeback
+>+8. frontswap/cleancache work to allow zcache to be loaded
+>+    as a module
+>+9. get core mm developer to review
+>+10. incorporate feedback from review
+>+11. get review/acks from 1-2 additional mm developers
+>+12. incorporate any feedback from additional mm reviews
+>+13. propose location/file-naming in mm tree
+>+14. repeat 9-13 as necessary until akpm is happy and merges
+>+
+>+STATUS/OWNERSHIP
+>+
+>+1. DONE as part of "new" zcache; in staging/zcache for 3.9
+>+2. DONE as part of "new" zcache (cf zbud.[ch]); in staging/zcache for 3.9
+>+    (this was the core of the zcache1 vs zcache2 flail)
+>+3. DONE as part of "new" zcache; in staging/zcache for 3.9
+>+4. DONE (w/caveats) as part of "new" zcache; per cleancache performance
+>+    feedback see https://lkml.org/lkml/2011/8/17/351, in
+>+    staging/zcache for 3.9; dependent on proposed mm patch, see
+>+    https://lkml.org/lkml/2012/1/25/300 
+>+5. DONE as part of "new" zcache; performance tuning only,
+>+    in staging/zcache for 3.9; dependent on frontswap patch
+>+    merged in 3.7 (33c2a174)
+>+6. DONE (w/caveats), prototyped as part of "new" zcache, had
+>+    bad memory leak; reimplemented to use sjennings clever tricks
+>+    and proposed mm patches with new version in staging/zcache
+>+    for 3.9, see https://lkml.org/lkml/2013/2/6/437;
+>+7. PROTOTYPED as part of "new" zcache; in staging/zcache for 3.9;
+>+    needs more review (plan to discuss at LSF/MM 2013)
+>+8. IN PROGRESS; owned by Konrad Wilk; v2 recently posted
+>+   http://lkml.org/lkml/2013/2/1/542
+>+9. IN PROGRESS; owned by Konrad Wilk; Mel Gorman provided
+>+   great feedback in August 2012 (unfortunately of "old"
+>+   zcache)
+>+10. Konrad posted series of fixes (that now need rebasing)
+>+    https://lkml.org/lkml/2013/2/1/566 
+>+11. NOT DONE; owned by Konrad Wilk
+>+12. TBD (depends on quantity of feedback)
+>+13. PROPOSED; one suggestion proposed by Dan; needs more ideas/feedback
+>+14. TBD (depends on feedback)
+>+
+>+WHO NEEDS TO AGREE
+>+
+>+Not sure.  Seth Jennings is now pursuing a separate but semi-parallel
+>+track.  Akpm clearly has to approve for any mm merge to happen.  Minchan
+>+Kim has interest but may be happy if/when zram is merged into mm.  Konrad
+>+Wilk may be maintainer if akpm decides compression is maintainable
+>+separately from the rest of mm.  (More LSF/MM 2013 discussion.)
+>+
+>+ZCACHE FUTURE NEW FUNCTIONALITY
+>+
+>+A. Support zsmalloc as an alternative high-density allocator
+>+    (See https://lkml.org/lkml/2013/1/23/511)
+>+B. Support zero-filled pages more efficiently
 
-We have a server workload wherein machines with 100G+ of "free" memory
-(used by page cache), scattered but frequent random io reads from 12+
-SSD's, and 5gbps+ of internet traffic, will frequently hit direct reclaim
-in a few different ways.
+I'm interested in and will try it if no guys focus on it.
 
-1) It'll run into small amounts of reclaim randomly (a few hundred
-thousand).
+Regards,
+Wanpeng Li 
 
-2) A burst of reads or traffic can cause extra pressure, which kswapd
-occasionally responds to by freeing up 40g+ of the pagecache all at once
-(!) while pausing the system (Argh).
+>+C. Possibly support three zbuds per pageframe when space allows
+>-- 
+>1.7.1
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-3) A blip in an upstream provider or failover from a peer causes the
-kernel to allocate massive amounts of memory for retransmission
-queues/etc, potentially along with buffered IO reads and (some, but not
-often a ton) of new allocations from an application. This paired with 2)
-can cause the box to stall for 15+ seconds.
-
-We're seeing this more in 3.4/3.5/3.6, saw it less in 2.6.38. Mass
-reclaims are more common in newer kernels, but reclaims still happen in
-all kernels without raising min_free_kbytes dramatically.
-
-I've found that setting "lowmem_reserve_ratio" to something like "1 1 32"
-(thus protecting the DMA32 zone) causes 2) to happen less often, and is
-generally less violent with 1).
-
-Setting min_free_kbytes to 15G or more, paired with the above, has been
-the best at mitigating the issue. This is simply trying to raise the
-distance between the min and low watermarks. With min_free_kbytes set to
-15000000, that gives us a whopping 1.8G (!!!) of leeway before slamming
-into direct reclaim.
-
-So, this patch is unfortunate but wonderful at letting us reclaim 10G+ of
-otherwise lost memory. Could we please revisit it?
-
-I saw a lot of discussion on doing this automatically, or making kswapd
-more efficient to it, and I'd love to do that. Beyond making kswapd
-psychic I haven't seen any better options yet.
-
-The issue is more complex than simply having an application warn of an
-impending allocation, since this can happen via read load on disk or from
-kernel page allocations for the network, or a combination of the two (or
-three, if you add the app back in).
-
-It's going to get worse as we push machines with faster SSD's and bigger
-networks. I'm open to any ideas on how to make kswapd more efficient in
-our case, or really anything at all that works.
-
-I have more details, but cut it down as much as I could for this mail.
-
-Thanks,
--Dormando
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
