@@ -1,53 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 81AAB6B0002
-	for <linux-mm@kvack.org>; Sun, 17 Feb 2013 17:03:03 -0500 (EST)
-Received: by mail-ee0-f45.google.com with SMTP id b57so2510946eek.4
-        for <linux-mm@kvack.org>; Sun, 17 Feb 2013 14:03:01 -0800 (PST)
-Message-ID: <51215393.1070409@suse.cz>
-Date: Sun, 17 Feb 2013 23:02:59 +0100
-From: Jiri Slaby <jslaby@suse.cz>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id A43B46B0002
+	for <linux-mm@kvack.org>; Sun, 17 Feb 2013 17:15:07 -0500 (EST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [patch 1/2] mm: fincore()
+In-Reply-To: <20130215154235.0fb36f53.akpm@linux-foundation.org>
+References: <87a9rbh7b4.fsf@rustcorp.com.au> <20130211162701.GB13218@cmpxchg.org> <20130211141239.f4decf03.akpm@linux-foundation.org> <20130215063450.GA24047@cmpxchg.org> <20130215132738.c85c9eda.akpm@linux-foundation.org> <20130215231304.GB23930@cmpxchg.org> <20130215154235.0fb36f53.akpm@linux-foundation.org>
+Date: Sat, 16 Feb 2013 14:53:43 +1030
+Message-ID: <87621skhtc.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Subject: kswapd craziness round 2
-Content-Type: text/plain; charset=ISO-8859-2
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Stewart Smith <stewart@flamingspork.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-Hi,
+Andrew Morton <akpm@linux-foundation.org> writes:
+> On Fri, 15 Feb 2013 18:13:04 -0500
+> Johannes Weiner <hannes@cmpxchg.org> wrote:
+>> I dunno.  The byte vector might not be optimal but its worst cases
+>> seem more attractive, is just as extensible, and dead simple to use.
+>
+> But I think "which pages from this 4TB file are in core" will not be an
+> uncommon usage, and writing a gig of memory to find three pages is just
+> awful.
 
-You still feel the sour taste of the "kswapd craziness in v3.7" thread,
-right? Welcome to the hell, part two :{.
+Actually, I don't know of any usage for this call.
 
-I believe this started happening after update from
-3.8.0-rc4-next-20130125 to 3.8.0-rc7-next-20130211. The same as before,
-many hours of uptime are needed and perhaps some suspend/resume cycles
-too. Memory pressure is not high, plenty of I/O cache:
-# free
-             total       used       free     shared    buffers     cached
-Mem:       6026692    5571184     455508          0     351252    2016648
--/+ buffers/cache:    3203284    2823408
-Swap:            0          0          0
+I'd really like to use it for backup programs, so they stop pulling
+random crap into memory (but leave things already resident).  But that
+needs to madvise(MADV_DONTNEED) on the page, so need mmap.
 
-kswap is working very toughly though:
-root       580  0.6  0.0      0     0 ?        S    uno12  46:21 [kswapd0]
+So why not just use mincore?
 
-This happens on I/O activity right now. For example by updatedb or find
-/. This is what the stack trace of kswapd0 looks like:
-[<ffffffff8113c431>] shrink_slab+0xa1/0x2d0
-[<ffffffff8113ecd1>] kswapd+0x541/0x930
-[<ffffffff810a3000>] kthread+0xc0/0xd0
-[<ffffffff816beb5c>] ret_from_fork+0x7c/0xb0
-[<ffffffffffffffff>] 0xffffffffffffffff
-
-Any ideas?
-
-thanks,
--- 
-js
-suse labs
+Cheers,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
