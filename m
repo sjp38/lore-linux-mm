@@ -1,91 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 4352F6B00AE
-	for <linux-mm@kvack.org>; Sat, 16 Feb 2013 01:28:57 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id xa12so899286pbc.8
-        for <linux-mm@kvack.org>; Fri, 15 Feb 2013 22:28:56 -0800 (PST)
-Message-ID: <511F2721.2000305@gmail.com>
-Date: Sat, 16 Feb 2013 14:28:49 +0800
-From: Ric Mason <ric.masonn@gmail.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id D5CD56B00B1
+	for <linux-mm@kvack.org>; Sat, 16 Feb 2013 03:15:48 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fa10so2070608pad.27
+        for <linux-mm@kvack.org>; Sat, 16 Feb 2013 00:15:48 -0800 (PST)
+Message-ID: <511F402D.6090006@gmail.com>
+Date: Sat, 16 Feb 2013 16:15:41 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] zsmalloc: Add Kconfig for enabling PTE method
-References: <1359937421-19921-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1359937421-19921-1-git-send-email-minchan@kernel.org>
+Subject: Re: zcache+zram working together?
+References: <bec77f0e-ff96-45df-b090-70120185f560@default> <20121211064230.GE22698@blaptop>
+In-Reply-To: <20121211064230.GE22698@blaptop>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On 02/04/2013 08:23 AM, Minchan Kim wrote:
-> Zsmalloc has two methods 1) copy-based and 2) pte based to access
-> allocations that span two pages.
-> You can see history why we supported two approach from [1].
+On 12/11/2012 02:42 PM, Minchan Kim wrote:
+> On Fri, Dec 07, 2012 at 01:31:35PM -0800, Dan Magenheimer wrote:
+>> Last summer, during the great(?) zcache-vs-zcache2 debate,
+>> I wondered if there might be some way to obtain the strengths
+>> of both.  While following Luigi's recent efforts toward
+>> using zram for ChromeOS "swap", I thought of an interesting
+>> interposition of zram and zcache that, at first blush, makes
+>> almost no sense at all, but after more thought, may serve as a
+>> foundation for moving towards a more optimal solution for use
+>> of "adaptive compression" in the kernel, at least for
+>> embedded systems.
+>>
+>> To quickly review:
+>>
+>> Zram (when used for swap) compresses only anonymous pages and
+>> only when they are swapped but uses the high-density zsmalloc
+>> allocator and eliminates the need for a true swap device, thus
+>> making zram a good fit for embedded systems.  But, because zram
+>> appears to the kernel as a swap device, zram data must traverse
+>> the block I/O subsystem and is somewhat difficult to monitor and
+>> control without significant changes to the swap and/or block
+>> I/O subsystem, which are designed to handle fixed block-sized
+>> data.
+>>
+>> Zcache (zcache2) compresses BOTH clean page cache pages that
+>> would otherwise be evicted, and anonymous pages that would
+>> otherwise be sent to a swap device.  Both paths use in-kernel
+>> hooks (cleancache and frontswap respectively) which avoid
+>> most or all of the block I/O subsystem and the swap subsystem.
+>> Because of this and since it is designed using transcendent
+>> memory ("tmem") principles, zcache has a great deal more
+>> flexibility in control and monitoring.  Zcache uses the simpler,
+>> more predictable "zbud" allocator which achieves lower density
+>> but provides greater flexibility under high pressure.
+>> But zcache requires a swap device as a "backup" so seems
+>> unsuitable for embedded systems.
+>>
+>> (Minchan, I know at one point you were working on some
+>> documentation to contrast zram and zcache so you may
+>> have something more to add here...)
+>>
+>> What if one were to enable both?  This is possible today with
+>> no kernel change at all by configuring both zram and zcache2
+>> into the kernel and then configuring zram at boottime.
+>>
+>> When memory pressure is dominated by file pages, zcache (via
+>> the cleancache hooks) provides compression to optimize memory
+>> utilization.  As more pressure is exerted by anonymous pages,
+>> "swapping" occurs but the frontswap hooks route the data to
+>> zcache which, as necessary, reclaims physical pages used by
+>> compressed file pages to use for compressed anonymous pages.
+>> At this point, any compressions unsuitable for zbud are rejected
+>> by zcache and passed through to the "backup" swap device...
+>> which is zram!  Under high pressure from anonymous pages,
+>> zcache can also be configured to "unuse" pages to zram (though
+>> this functionality is still not merged).
+>>
+>> I've plugged zcache and zram together and watched them
+>> work/cooperate, via their respective debugfs statistics.
+>> While I don't have benchmarking results and may not have
+>> time anytime soon to do much work on this, it seems like
+>> there is some potential here, so I thought I'd publish the
+>> idea so that others can give it a go and/or look at
+>> other ways (including kernel changes) to combine the two.
+>>
+>> Feedback welcome and (early) happy holidays!
+> Interesting, Dan!
+> I would like to get a chance to investigate it if I have a time
+> in future.
 >
-> But it was bad choice that adding hard coding to select architecture
-> which want to use pte based method. This patch removed it and adds
-> new Kconfig to select the approach.
->
-> This patch is based on next-20130202.
->
-> [1] https://lkml.org/lkml/2012/7/11/58
->
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> Cc: Nitin Gupta <ngupta@vflare.org>
-> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
-> Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->   drivers/staging/zsmalloc/Kconfig         |   12 ++++++++++++
->   drivers/staging/zsmalloc/zsmalloc-main.c |   11 -----------
->   2 files changed, 12 insertions(+), 11 deletions(-)
->
-> diff --git a/drivers/staging/zsmalloc/Kconfig b/drivers/staging/zsmalloc/Kconfig
-> index 9084565..2359123 100644
-> --- a/drivers/staging/zsmalloc/Kconfig
-> +++ b/drivers/staging/zsmalloc/Kconfig
-> @@ -8,3 +8,15 @@ config ZSMALLOC
->   	  non-standard allocator interface where a handle, not a pointer, is
->   	  returned by an alloc().  This handle must be mapped in order to
->   	  access the allocated space.
-> +
-> +config ZSMALLOC_PGTABLE_MAPPING
-> +        bool "Use page table mapping to access allocations that span two pages"
-> +        depends on ZSMALLOC
-> +        default n
-> +        help
-> +	  By default, zsmalloc uses a copy-based object mapping method to access
-> +	  allocations that span two pages. However, if a particular architecture
-> +	  performs VM mapping faster than copying, then you should select this.
-> +	  This causes zsmalloc to use page table mapping rather than copying
-> +	  for object mapping. You can check speed with zsmalloc benchmark[1].
-> +	  [1] https://github.com/spartacus06/zsmalloc
+> Another synergy with BOTH is to remove CMA completely because
+> it makes mm core code complicated with hooking and still have a
+> problem with pinned page and eviction working set for getting
 
-Is there benchmark to test zcache? eg. internal fragmentation level ...
-> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-> index 06f73a9..b161ca1 100644
-> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
-> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-> @@ -218,17 +218,6 @@ struct zs_pool {
->   #define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
->   #define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
->   
-> -/*
-> - * By default, zsmalloc uses a copy-based object mapping method to access
-> - * allocations that span two pages. However, if a particular architecture
-> - * performs VM mapping faster than copying, then it should be added here
-> - * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
-> - * page table mapping rather than copying for object mapping.
-> -*/
-> -#if defined(CONFIG_ARM)
-> -#define USE_PGTABLE_MAPPING
-> -#endif
-> -
->   struct mapping_area {
->   #ifdef USE_PGTABLE_MAPPING
->   	struct vm_struct *vm; /* vm area for mapping object that span pages */
+Do you mean get_user_pages? Could you explain in details about the 
+downside of CMA?
+
+> contiguous memory.
+>
+> If we can replace CMA with zcache/zram, it would be very good.
+>
+> 1. Remove many core code hooking
+> 2. zcache/zram will have eviction pages of LRU order so
+>     discarding of them would be much sense when user want to get
+>     contiguous memory space.
+>
+>> Dan
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
