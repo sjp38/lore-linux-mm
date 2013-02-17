@@ -1,236 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 975AF6B00C0
-	for <linux-mm@kvack.org>; Sat, 16 Feb 2013 22:25:43 -0500 (EST)
-Received: by mail-qa0-f54.google.com with SMTP id hg5so846378qab.13
-        for <linux-mm@kvack.org>; Sat, 16 Feb 2013 19:25:42 -0800 (PST)
-Message-ID: <51204DB1.9000203@gmail.com>
-Date: Sun, 17 Feb 2013 11:25:37 +0800
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 7D9F46B00C3
+	for <linux-mm@kvack.org>; Sat, 16 Feb 2013 22:33:06 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so1135405pbc.38
+        for <linux-mm@kvack.org>; Sat, 16 Feb 2013 19:33:05 -0800 (PST)
+Message-ID: <51204F6C.2090603@gmail.com>
+Date: Sun, 17 Feb 2013 11:33:00 +0800
 From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
-Subject: Re: behavior of zram stats, and zram allocation limit
-References: <CAA25o9Q4gMPeLf3uYJzMNR1EU4D3OPeje24X4PNsUVHGoqyY5g@mail.gmail.com> <20121123055144.GC13626@bbox>
-In-Reply-To: <20121123055144.GC13626@bbox>
+Subject: Re: another allocation livelock with zram
+References: <CAA25o9T8cBhuFnesnxHDsv3PmV8tiHKoLz0dGQeUSCvtpBBv3A@mail.gmail.com>
+In-Reply-To: <CAA25o9T8cBhuFnesnxHDsv3PmV8tiHKoLz0dGQeUSCvtpBBv3A@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>
+To: Luigi Semenzato <semenzato@google.com>
+Cc: linux-mm@kvack.org
 
-On 11/23/2012 01:51 PM, Minchan Kim wrote:
-> On Wed, Nov 21, 2012 at 02:58:48PM -0800, Luigi Semenzato wrote:
->> Hi,
->>
->> Two questions for zram developers/users.  (Please let me know if it is
->> NOT acceptable to use this list for these questions.)
->>
->> 1. When I run a synthetic load using zram from kernel 3.4.0,
->> compr_data_size from /sys/block/zram0 seems to decrease even though
->> orig_data_size stays constant (see below).  Is this a bug that was
->> fixed in a later release?  (The synthetic load is a bunch of processes
->> that allocate memory, fill half of it with data from /dev/urandom, and
->> touch the memory randomly.)  I looked at the code and it looks right.
->> :-P
->>
->> 2. Is there a way of setting the max amount of RAM that zram is
->> allowed to allocate?  Right now I can set the size of the
->> *uncompressed* swap device, but how much memory gets allocated depends
->> on the compression ratio, which could vary.
-> There is no method to limit the RAM size but I think we can implement
-> it easily. The only thing we need is just a "voice of customer".
-> Why do you need it?
-
-But in current codes, where implement limit to *uncompressed* swap 
-device? I can't find it in zram_drv.c, could you point out to me?
-
+On 11/21/2012 07:46 AM, Luigi Semenzato wrote:
+> Greetings MM folks,
 >
->> Thanks!
->>
->>
->> localhost ~ # ./zraminfo
->>       compr_data_size:    220570516 (210 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    230383616 (219 MB)
->>           notify_free:         1553 (0 MB)
->>             num_reads:         6093 (0 MB)
->>            num_writes:       150955 (0 MB)
->>        orig_data_size:    599126016 (571 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         4040 (0 MB)
->>     eff. compr. ratio:  2.50
->> localhost ~ #
->> localhost ~ # ./zraminfo
->>       compr_data_size:    208845619 (199 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    213528576 (203 MB)
->>           notify_free:        76808 (0 MB)
->>             num_reads:        81918 (0 MB)
->>            num_writes:       202924 (0 MB)
->>        orig_data_size:    586076160 (558 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         7434 (0 MB)
->>     eff. compr. ratio:  2.80
->> localhost ~ # ./zraminfo
->>       compr_data_size:    205964814 (196 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    210976768 (201 MB)
->>           notify_free:        91823 (0 MB)
->>             num_reads:       105170 (0 MB)
->>            num_writes:       218485 (0 MB)
->>        orig_data_size:    614526976 (586 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         8666 (0 MB)
->>     eff. compr. ratio:  2.98
->> localhost ~ # ./zraminfo
->>       compr_data_size:    229739564 (219 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    235798528 (224 MB)
->>           notify_free:       108381 (0 MB)
->>             num_reads:       147372 (0 MB)
->>            num_writes:       251829 (0 MB)
->>        orig_data_size:    697163776 (664 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         9972 (0 MB)
->>     eff. compr. ratio:  3.01
->> localhost ~ # ./zraminfo
->>       compr_data_size:    229458612 (218 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    234651648 (223 MB)
->>           notify_free:       132169 (0 MB)
->>             num_reads:       203970 (0 MB)
->>            num_writes:       282732 (0 MB)
->>        orig_data_size:    751472640 (716 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:        11139 (0 MB)
->>     eff. compr. ratio:  3.27
->> localhost ~ # ./zraminfo
->>       compr_data_size:    217296398 (207 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    222715904 (212 MB)
->>           notify_free:       151071 (0 MB)
->>             num_reads:       243898 (0 MB)
->>            num_writes:       302316 (0 MB)
->>        orig_data_size:    778227712 (742 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:        10195 (0 MB)
->>     eff. compr. ratio:  3.58
->> localhost ~ # ./zraminfo
->>       compr_data_size:    221631885 (211 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    227188736 (216 MB)
->>           notify_free:       166323 (0 MB)
->>             num_reads:       278621 (0 MB)
->>            num_writes:       323811 (0 MB)
->>        orig_data_size:    821809152 (783 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:        10737 (0 MB)
->>     eff. compr. ratio:  3.70
->> localhost ~ # ./zraminfo
->>       compr_data_size:    216354938 (206 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    221990912 (211 MB)
->>           notify_free:       182529 (0 MB)
->>             num_reads:       322923 (0 MB)
->>            num_writes:       342028 (0 MB)
->>        orig_data_size:    849281024 (809 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:        10990 (0 MB)
->>     eff. compr. ratio:  3.92
->> localhost ~ # ./zraminfo
->>       compr_data_size:    163852068 (156 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    170209280 (162 MB)
->>           notify_free:       212669 (0 MB)
->>             num_reads:       358680 (0 MB)
->>            num_writes:       342896 (0 MB)
->>        orig_data_size:    777981952 (741 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         7466 (0 MB)
->>     eff. compr. ratio:  4.77
->> localhost ~ # ./zraminfo
->>       compr_data_size:    164434814 (156 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    170631168 (162 MB)
->>           notify_free:       218105 (0 MB)
->>             num_reads:       368430 (0 MB)
->>            num_writes:       349043 (0 MB)
->>        orig_data_size:    785846272 (749 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         7996 (0 MB)
->>     eff. compr. ratio:  4.78
->> localhost ~ # ./zraminfo
->>       compr_data_size:    129945717 (123 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    136237056 (129 MB)
->>           notify_free:       241461 (0 MB)
->>             num_reads:       404654 (0 MB)
->>            num_writes:       360153 (0 MB)
->>        orig_data_size:    763969536 (728 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         7911 (0 MB)
->>     eff. compr. ratio:  5.88
->> localhost ~ # ./zraminfo
->>       compr_data_size:    134384535 (128 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    140816384 (134 MB)
->>           notify_free:       242365 (0 MB)
->>             num_reads:       406159 (0 MB)
->>            num_writes:       362829 (0 MB)
->>        orig_data_size:    773607424 (737 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         7975 (0 MB)
->>     eff. compr. ratio:  5.69
->> localhost ~ # ./zraminfo
->>       compr_data_size:    133314196 (127 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    139538432 (133 MB)
->>           notify_free:       252447 (0 MB)
->>             num_reads:       411617 (0 MB)
->>            num_writes:       365459 (0 MB)
->>        orig_data_size:    754352128 (719 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         7954 (0 MB)
->>     eff. compr. ratio:  5.68
->> localhost ~ # ./zraminfo
->>       compr_data_size:    124826153 (119 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    131440640 (125 MB)
->>           notify_free:       263839 (0 MB)
->>             num_reads:       427837 (0 MB)
->>            num_writes:       375085 (0 MB)
->>        orig_data_size:    762548224 (727 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         7504 (0 MB)
->>     eff. compr. ratio:  6.08
->> localhost ~ # ./zraminfo
->>       compr_data_size:     94379398 (90 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:    105000960 (100 MB)
->>           notify_free:       291596 (0 MB)
->>             num_reads:       465420 (0 MB)
->>            num_writes:       386267 (0 MB)
->>        orig_data_size:    721780736 (688 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         7482 (0 MB)
->>     eff. compr. ratio:  7.31
->> localhost ~ # ./zraminfo
->>       compr_data_size:     67124988 (64 MB)
->>              disksize:   3101462528 (2957 MB)
->>        mem_used_total:     73981952 (70 MB)
->>           notify_free:       336548 (0 MB)
->>             num_reads:       499935 (0 MB)
->>            num_writes:       400298 (0 MB)
->>        orig_data_size:    700309504 (667 MB)
->>                  size:      6057544 (5 MB)
->>            zero_pages:         7495 (0 MB)
->>     eff. compr. ratio: 10.41
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> and thanks again for fixing my previous hang-with-zram problem.  I am
+> now running into a similar problem and I hope I will not take
+> advantage of your kindness by asking for further advice.
+>
+> By running a few dozen memory-hungry processes on an ARM cpu with 2 Gb
+> RAM, with zram enabled, I can easily get into a situation where all
+> processes are either:
+>
+> 1. blocked in a futex
+> 2. trying unsuccessfully to allocate memory
+>
+> This happens when there should still be plenty of memory: the zram
+> swap device is about 1/3 full. (The output of SysRq-M is at the end.)
+> Yet the SI and SO fields of vmstat stay at 0, and CPU utilization is
+> 100% system.
+>
+> procs -----------memory---------- ---swap-- -----io---- -system-- ----cpu----
+>   r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa
+> 46  0 1076432  13636   2844 216648    0    0     0     0  621  229  0 100  0  0
+> 44  0 1076432  13636   2844 216648    0    0     0     0  618  204  0 100  0  0
+>
+> I added counters in various places in the page allocator to see which
+> paths were being taken and noticed the following facts:
+>
+> - alloc_page_slowpath is looping, apparently trying to rebalance.  It
+> calls alloc_pages_direct_reclaim at a rate of about 155 times/second,
+> and gets one page about once every 500 calls.  Did_some_progress is
+
+You use which tool to get this data?
+
+> always set to true.  Then should_alloc_retry returns true (because
+> order < PAGE_ALLOC_COSTLY_ORDER).
+>
+> - kswapd is asleep and is not woken up because alloc_page_slowpath
+> never goes to the "restart" label.
+>
+> My questions are:
+>
+> 1. is it obvious to any of you what is going wrong?
+> 1.1 is the allocation failing because nobody is waking up kswapd?  And
+> if so, why not?
+>
+> 2. if it's not obvious, what are the next things to look into?
+>
+> 3. is there a better way of debugging this?
+>
+> Thanks!
+> Luigi
+>
+> [    0.000000] Linux version 3.4.0
+> (semenzato@luigi.mtv.corp.google.com) (gcc version 4.6.x-google
+> 20120301 (prerelease) (gcc-4.6.3_cos_gg_2a32ae6) ) #26 SMP Tue Nov 20
+> 14:27:15 PST 2012
+> [    0.000000] CPU: ARMv7 Processor [410fc0f4] revision 4 (ARMv7), cr=10c5387d
+> [    0.000000] CPU: PIPT / VIPT nonaliasing data cache, PIPT instruction cache
+> [    0.000000] Machine: SAMSUNG EXYNOS5 (Flattened Device Tree),
+> model: Google Snow
+> ...
+> [  198.564328] SysRq : Show Memory
+> [  198.564347] Mem-info:
+> [  198.564355] Normal per-cpu:
+> [  198.564364] CPU    0: hi:  186, btch:  31 usd:   0
+> [  198.564373] CPU    1: hi:  186, btch:  31 usd:   0
+> [  198.564381] HighMem per-cpu:
+> [  198.564389] CPU    0: hi:   90, btch:  15 usd:   0
+> [  198.564397] CPU    1: hi:   90, btch:  15 usd:   0
+> [  198.564411] active_anon:196868 inactive_anon:66835 isolated_anon:47
+> [  198.564415]  active_file:13931 inactive_file:11043 isolated_file:0
+> [  198.564419]  unevictable:0 dirty:4 writeback:1 unstable:0
+> [  198.564423]  free:3409 slab_reclaimable:2583 slab_unreclaimable:3337
+> [  198.564427]  mapped:137910 shmem:29899 pagetables:3972 bounce:0
+> [  198.564449] Normal free:13384kB min:5380kB low:6724kB high:8068kB
+> active_anon:782052kB inactive_anon:261808kB active_file:25020kB
+> inactive_file:24900kB unevictable:0kB isolated(anon):16kB
+> isolated(file):0kB present:1811520kB mlocked:0kB dirty:12kB
+> writeback:0kB mapped:461296kB shmem:115892kB slab_reclaimable:10332kB
+> slab_unreclaimable:13348kB kernel_stack:3008kB pagetables:15888kB
+> unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:107282320
+> all_unreclaimable? no
+> [  198.564474] lowmem_reserve[]: 0 2095 2095
+> [  198.564499] HighMem free:252kB min:260kB low:456kB high:656kB
+> active_anon:5420kB inactive_anon:5532kB active_file:30704kB
+> inactive_file:19272kB unevictable:0kB isolated(anon):172kB
+> isolated(file):0kB present:268224kB mlocked:0kB dirty:4kB
+> writeback:4kB mapped:90344kB shmem:3704kB slab_reclaimable:0kB
+> slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB
+> bounce:0kB writeback_tmp:0kB pages_scanned:7081406 all_unreclaimable?
+> no
+> [  198.564523] lowmem_reserve[]: 0 0 0
+> [  198.564536] Normal: 1570*4kB 6*8kB 1*16kB 0*32kB 0*64kB 1*128kB
+> 1*256kB 1*512kB 0*1024kB 1*2048kB 1*4096kB = 13384kB
+> [  198.564574] HighMem: 59*4kB 2*8kB 0*16kB 0*32kB 0*64kB 0*128kB
+> 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 252kB
+> [  198.564610] 123112 total pagecache pages
+> [  198.564616] 68239 pages in swap cache
+> [  198.564622] Swap cache stats: add 466115, delete 397876, find 31817/56350
+> [  198.564630] Free swap  = 1952336kB
+> [  198.564635] Total swap = 3028768kB
+> [  198.564640] xxcount_nr_reclaimed 358488
+> [  198.564646] xxcount_nr_reclaims 6201
+> [  198.564651] xxcount_aborted_reclaim 0
+> [  198.564656] xxcount_more_to_do 5137
+> [  198.564662] xxcount_direct_reclaims 17065
+> [  198.564667] xxcount_failed_direct_reclaims 10708
+> [  198.564673] xxcount_no_progress 5696
+> [  198.564678] xxcount_restarts 5696
+> [  198.564683] xxcount_should_alloc_retry 5008
+> [  198.564688] xxcount_direct_compact 1
+> [  198.564693] xxcount_alloc_failed 115
+> [  198.564699] xxcount_gfp_nofail 0
+> [  198.564704] xxcount_costly_order 5009
+> [  198.564709] xxcount_repeat 0
+> [  198.564714] xxcount_kswapd_nap 2210
+> [  198.564719] xxcount_kswapd_sleep 17
+> [  198.564724] xxcount_kswapd_loop 2211
+> [  198.564729] xxcount_kswapd_try_to_sleep 2210
+> [  198.575349] 524288 pages of RAM
+> [  198.575358] 4420 free pages
+> [  198.575365] 7122 reserved pages
+> [  198.575371] 4091 slab pages
+> [  198.575378] 302549 pages shared
+> [  198.575384] 68239 pages swap cached
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
