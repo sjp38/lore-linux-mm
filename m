@@ -1,56 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 5575B6B00CD
-	for <linux-mm@kvack.org>; Sun, 17 Feb 2013 02:39:40 -0500 (EST)
-Message-ID: <5120893D.6090705@freescale.com>
-Date: Sun, 17 Feb 2013 15:39:41 +0800
-From: Huang Shijie <b32955@freescale.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 1E4786B0083
+	for <linux-mm@kvack.org>; Sun, 17 Feb 2013 04:11:00 -0500 (EST)
+Received: by mail-gh0-f170.google.com with SMTP id g14so400630ghb.29
+        for <linux-mm@kvack.org>; Sun, 17 Feb 2013 01:10:59 -0800 (PST)
+Message-ID: <51209E9C.3020507@gmail.com>
+Date: Sun, 17 Feb 2013 17:10:52 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: introduce __linear_page_index()
-References: <1360047819-6669-1-git-send-email-b32955@freescale.com> <20130205132741.1e1a4e04.akpm@linux-foundation.org>
-In-Reply-To: <20130205132741.1e1a4e04.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC] Reproducible OOM with just a few sleeps
+References: <201301120331.r0C3VxXc016220@como.maths.usyd.edu.au> <50F41D9D.1000403@linux.vnet.ibm.com>
+In-Reply-To: <50F41D9D.1000403@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: paul.szabo@sydney.edu.au, linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org
 
-=E4=BA=8E 2013=E5=B9=B402=E6=9C=8806=E6=97=A5 05:27, Andrew Morton =E5=86=
-=99=E9=81=93:
-> On Tue, 5 Feb 2013 15:03:39 +0800
-> Huang Shijie<b32955@freescale.com>  wrote:
+On 01/14/2013 11:00 PM, Dave Hansen wrote:
+> On 01/11/2013 07:31 PM, paul.szabo@sydney.edu.au wrote:
+>> Seems that any i386 PAE machine will go OOM just by running a few
+>> processes. To reproduce:
+>>    sh -c 'n=0; while [ $n -lt 19999 ]; do sleep 600 & ((n=n+1)); done'
+>> My machine has 64GB RAM. With previous OOM episodes, it seemed that
+>> running (booting) it with mem=32G might avoid OOM; but an OOM was
+>> obtained just the same, and also with lower memory:
+>>    Memory    sleeps to OOM       free shows total
+>>    (mem=64G)  5300               64447796
+>>    mem=32G   10200               31155512
+>>    mem=16G   13400               14509364
+>>    mem=8G    14200               6186296
+>>    mem=6G    15200               4105532
+>>    mem=4G    16400               2041364
+>> The machine does not run out of highmem, nor does it use any swap.
+> I think what you're seeing here is that, as the amount of total memory
+> increases, the amount of lowmem available _decreases_ due to inflation
+> of mem_map[] (and a few other more minor things).  The number of sleeps
+
+So if he config sparse memory, the issue can be solved I think.
+
+> you can do is bound by the number of processes, as you noticed from
+> ulimit.  Creating processes that don't use much memory eats a relatively
+> large amount of low memory.
 >
->> +static inline pgoff_t __linear_page_index(struct vm_area_struct *vma,
->>   					unsigned long address)
->>   {
->>   	pgoff_t pgoff;
->> +
->> +	pgoff =3D (address - vma->vm_start)>>  PAGE_SHIFT;
->> +	return pgoff + vma->vm_pgoff;
->> +}
->> +
->> +static inline pgoff_t linear_page_index(struct vm_area_struct *vma,
->> +					unsigned long address)
->> +{
->>   	if (unlikely(is_vm_hugetlb_page(vma)))
->>   		return linear_hugepage_index(vma, address);
->> -	pgoff =3D (address - vma->vm_start)>>  PAGE_SHIFT;
->> -	pgoff +=3D vma->vm_pgoff;
->> -	return pgoff>>  (PAGE_CACHE_SHIFT - PAGE_SHIFT);
->> +	return __linear_page_index(vma, address)>>
->> +				(PAGE_CACHE_SHIFT - PAGE_SHIFT);
->>   }
-> I don't think we need bother creating both linear_page_index() and
-> __linear_page_index().  Realistically, we won't be supporting
-Just as Hocko said, the unmap_ref_private() (in hugetlb.c) may also uses=20
-the __linear_page_index().
-So it's better to the two helpers : linear_page_index() and=20
-__linear_page_index().
-do you agree?
+> This is a sad (and counterintuitive) fact: more RAM actually *CREATES*
+> RAM bottlenecks on 32-bit systems.
+>
+>> On my large machine, 'free' fails to show about 2GB memory, e.g. with
+>> mem=16G it shows:
+>>
+>> root@zeno:~# free -l
+>>               total       used       free     shared    buffers     cached
+>> Mem:      14509364     435440   14073924          0       4068     111328
+>> Low:        769044     120232     648812
+>> High:     13740320     315208   13425112
+>> -/+ buffers/cache:     320044   14189320
+>> Swap:    134217724          0  134217724
+> You probably have a memory hole.  mem=16G means "give me all the memory
+> below the physical address at 16GB".  It does *NOT* mean, "give me
+> enough memory such that 'free' will show ~16G available."  If you have a
+> 1.5GB hole below 16GB, and you do mem=16G, you'll end up with ~14.5GB
+> available.
+>
+> The e820 map (during early boot in dmesg) or /proc/iomem will let you
+> locate your memory holes.
 
-thanks
-Huang Shijie
+Dear Dave, two questions here:
+
+1) e820 map is read from BIOS, correct? So if all kinds of ranges dump 
+from /proc/iomem are setup by BIOS?
+2) only "System RAM" range dump from /proc/iomem can be treated as real 
+memory, all other ranges can be treated as holes, correct?
+
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
