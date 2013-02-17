@@ -1,97 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 6902B6B00B6
-	for <linux-mm@kvack.org>; Sat, 16 Feb 2013 11:27:52 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id wz12so1024750pbc.31
-        for <linux-mm@kvack.org>; Sat, 16 Feb 2013 08:27:51 -0800 (PST)
-From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH 2/2] mm: protect si_meminfo() and si_meminfo_node() from memory hotplug operations
-Date: Sun, 17 Feb 2013 00:27:26 +0800
-Message-Id: <1361032046-1725-2-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1361032046-1725-1-git-send-email-jiang.liu@huawei.com>
-References: <1361032046-1725-1-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <alpine.DEB.2.02.1302131915170.8584@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1302131915170.8584@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 270F16B00B9
+	for <linux-mm@kvack.org>; Sat, 16 Feb 2013 20:36:52 -0500 (EST)
+Date: Sun, 17 Feb 2013 09:36:49 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH] ia64: rename cache_show to topology_cache_show
+Message-ID: <20130217013649.GB6775@localhost>
+References: <511e236a.o0ibbB2U8xMoURgd%fengguang.wu@intel.com>
+ <1360931904-5720-1-git-send-email-mhocko@suse.cz>
+ <20130215144629.be18bae9.akpm@linux-foundation.org>
+ <20130216121853.GA12196@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130216121853.GA12196@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, sworddragon2@aol.com
-Cc: Jiang Liu <jiang.liu@huawei.com>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>
 
-There's typical usage of si_meminfo as below:
-	si_meminfo(&si);
-	threshold = si->totalram - si.totalhigh;
+On Sat, Feb 16, 2013 at 01:18:53PM +0100, Michal Hocko wrote:
+> On Fri 15-02-13 14:46:29, Andrew Morton wrote:
+> > On Fri, 15 Feb 2013 13:38:24 +0100
+> > Michal Hocko <mhocko@suse.cz> wrote:
+> > 
+> > > Fenguang Wu has reported the following compile time issue
+> > > arch/ia64/kernel/topology.c:278:16: error: conflicting types for 'cache_show'
+> > > include/linux/slab.h:224:5: note: previous declaration of 'cache_show' was here
+> > > 
+> > > which has been introduced by 749c5415 (memcg: aggregate memcg cache
+> > > values in slabinfo). Let's rename ia64 local function to prevent from
+> > > the name conflict.
+> > 
+> > Confused.  Tony fixed this ages ago?
+> 
+> Yes but it was after 3.7 so I didn't have it in my tree and I found out
+> only after I sent this email. Sorry about the confusion.
 
-It may cause underflow if memory hotplug races with si_meminfo() because
-there's no mechanism to protect si_meminfo() from memory hotplug
-operations. And some callers expects that si_meminfo() is a lightweight
-operations. So introduce a lightweight mechanism to protect si_meminfo()
-from memory hotplug operations.
+Michal, sorry about the confusions. Does this indicate anything
+improveable in the build test/notification?
 
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
----
- mm/page_alloc.c |   24 +++++++++++++++++++++---
- 1 file changed, 21 insertions(+), 3 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6884dc5..5cf03d4 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2831,18 +2831,34 @@ static inline void show_node(struct zone *zone)
- void si_meminfo(struct sysinfo *val)
- {
- 	int nid;
--	unsigned long present_pages = 0;
-+	unsigned long present_pages;
- 
-+	val->sharedram = 0;
-+	val->mem_unit = PAGE_SIZE;
-+
-+restart:
-+	present_pages = 0;
- 	for_each_node_state(nid, N_MEMORY)
- 		present_pages += node_present_pages(nid);
- 
- 	val->totalram = present_pages;
--	val->sharedram = 0;
- 	val->freeram = global_page_state(NR_FREE_PAGES);
- 	val->bufferram = nr_blockdev_pages();
- 	val->totalhigh = totalhigh_pages;
- 	val->freehigh = nr_free_highpages();
--	val->mem_unit = PAGE_SIZE;
-+
-+	/*
-+	 * si_meminfo() may generate invalid results because it isn't protected
-+	 * from memory hotplug operaitons. And some callers expect that it's an
-+	 * lightweigh operation. So provide minimal protections without heavy
-+	 * overhead.
-+	 */
-+	if (val->totalram < val->freeram ||
-+	    val->totalram < val->bufferram ||
-+	    val->totalram < val->totalhigh ||
-+	    val->totalhigh < val->freehigh ||
-+	    val->freeram < val->freehigh)
-+		goto restart;
- }
- 
- EXPORT_SYMBOL(si_meminfo);
-@@ -2854,6 +2870,7 @@ void si_meminfo_node(struct sysinfo *val, int nid)
- 	unsigned long managed_pages = 0;
- 	pg_data_t *pgdat = NODE_DATA(nid);
- 
-+	lock_memory_hotplug();
- 	for (zone_type = 0; zone_type < MAX_NR_ZONES; zone_type++)
- 		managed_pages += pgdat->node_zones[zone_type].managed_pages;
- 
-@@ -2874,6 +2891,7 @@ void si_meminfo_node(struct sysinfo *val, int nid)
- 	val->freehigh = 0;
- #endif
- 	val->mem_unit = PAGE_SIZE;
-+	unlock_memory_hotplug();
- }
- #endif
- 
--- 
-1.7.9.5
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
