@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 67BF76B0002
-	for <linux-mm@kvack.org>; Sun, 17 Feb 2013 18:48:33 -0500 (EST)
-Date: Sun, 17 Feb 2013 15:48:31 -0800 (PST)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 7C06C6B0002
+	for <linux-mm@kvack.org>; Sun, 17 Feb 2013 18:54:03 -0500 (EST)
+Date: Sun, 17 Feb 2013 15:54:02 -0800 (PST)
 From: dormando <dormando@rydia.net>
-Subject: [PATCH] add extra free kbytes tunable
+Subject: Re: extra free kbytes tunable
 In-Reply-To: <511EB5CB.2060602@redhat.com>
-Message-ID: <alpine.DEB.2.02.1302171546120.10836@dflat>
+Message-ID: <alpine.DEB.2.02.1302171551350.10836@dflat>
 References: <alpine.DEB.2.02.1302111734090.13090@dflat> <A5ED84D3BB3A384992CBB9C77DEDA4D414A98EBF@USINDEM103.corp.hds.com> <511EB5CB.2060602@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -15,208 +15,114 @@ List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>
 Cc: Seiji Aguchi <seiji.aguchi@hds.com>, Satoru Moriya <satoru.moriya@hds.com>, Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hughd@google.com" <hughd@google.com>
 
-From: Rik van Riel <riel@redhat.com>
 
-Add a userspace visible knob to tell the VM to keep an extra amount
-of memory free, by increasing the gap between each zone's min and
-low watermarks.
 
-This is useful for realtime applications that call system
-calls and have a bound on the number of allocations that happen
-in any short time period.  In this application, extra_free_kbytes
-would be left at an amount equal to or larger than than the
-maximum number of allocations that happen in any burst.
+On Fri, 15 Feb 2013, Rik van Riel wrote:
 
-It may also be useful to reduce the memory use of virtual
-machines (temporarily?), in a way that does not cause memory
-fragmentation like ballooning does.
----
- Documentation/sysctl/vm.txt |   16 ++++++++++++++++
- include/linux/mmzone.h      |    2 +-
- include/linux/swap.h        |    2 ++
- kernel/sysctl.c             |   11 +++++++++--
- mm/page_alloc.c             |   39 +++++++++++++++++++++++++++++----------
- 5 files changed, 57 insertions(+), 13 deletions(-)
+> On 02/15/2013 05:21 PM, Seiji Aguchi wrote:
+> > Rik, Satoru,
+> >
+> > Do you have any comments?
+>
+> IIRC at the time the patch was rejected as too inelegant.
+>
+> However, nobody else seems to have come up with a better plan, and
+> there are users in need of a fix for this problem.
+>
+> I would still like to see a fix for the problem merged upstream.
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 078701f..5d12bbd 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -28,6 +28,7 @@ Currently, these files are in /proc/sys/vm:
- - dirty_writeback_centisecs
- - drop_caches
- - extfrag_threshold
-+- extra_free_kbytes
- - hugepages_treat_as_movable
- - hugetlb_shm_group
- - laptop_mode
-@@ -167,6 +168,21 @@ fragmentation index is <= extfrag_threshold. The default value is 500.
+I merged in the cleanups to your original patch, rebased it off of linus'
+master from a day or two ago and re-sent (not sure how to preserve
+authorship in that case? Apologies for goofing it).
 
- ==============================================================
+I'm willing to argue it, or investigate better options. I'm going to be
+stuck maintaining this patch since we can't really afford to have
+production hang, or waste 12g+ of RAM per box.
 
-+extra_free_kbytes
-+
-+This parameter tells the VM to keep extra free memory between the threshold
-+where background reclaim (kswapd) kicks in, and the threshold where direct
-+reclaim (by allocating processes) kicks in.
-+
-+This is useful for workloads that require low latency memory allocations
-+and have a bounded burstiness in memory allocations, for example a
-+realtime application that receives and transmits network traffic
-+(causing in-kernel memory allocations) with a maximum total message burst
-+size of 200MB may need 200MB of extra free memory to avoid direct reclaim
-+related latencies.
-+
-+==============================================================
-+
- hugepages_treat_as_movable
-
- This parameter is only useful when kernelcore= is specified at boot time to
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 73b64a3..7f8f883 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -881,7 +881,7 @@ static inline int is_dma(struct zone *zone)
-
- /* These two functions are used to setup the per zone pages min values */
- struct ctl_table;
--int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
-+int free_kbytes_sysctl_handler(struct ctl_table *, int,
- 					void __user *, size_t *, loff_t *);
- extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
- int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 68df9c1..66a12c4 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -215,6 +215,8 @@ struct swap_list_t {
- /* linux/mm/page_alloc.c */
- extern unsigned long totalram_pages;
- extern unsigned long totalreserve_pages;
-+extern int min_free_kbytes;
-+extern int extra_free_kbytes;
- extern unsigned long dirty_balance_reserve;
- extern unsigned int nr_free_buffer_pages(void);
- extern unsigned int nr_free_pagecache_pages(void);
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index c88878d..102e9a1 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -104,7 +104,6 @@ extern char core_pattern[];
- extern unsigned int core_pipe_limit;
- #endif
- extern int pid_max;
--extern int min_free_kbytes;
- extern int pid_max_min, pid_max_max;
- extern int sysctl_drop_caches;
- extern int percpu_pagelist_fraction;
-@@ -1246,10 +1245,18 @@ static struct ctl_table vm_table[] = {
- 		.data		= &min_free_kbytes,
- 		.maxlen		= sizeof(min_free_kbytes),
- 		.mode		= 0644,
--		.proc_handler	= min_free_kbytes_sysctl_handler,
-+		.proc_handler	= free_kbytes_sysctl_handler,
- 		.extra1		= &zero,
- 	},
- 	{
-+		.procname   = "extra_free_kbytes",
-+		.data       = &extra_free_kbytes,
-+		.maxlen     = sizeof(extra_free_kbytes),
-+		.mode       = 0644,
-+		.proc_handler   = free_kbytes_sysctl_handler,
-+		.extra1     = &zero,
-+	},
-+	{
- 		.procname	= "percpu_pagelist_fraction",
- 		.data		= &percpu_pagelist_fraction,
- 		.maxlen		= sizeof(percpu_pagelist_fraction),
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9673d96..5380d84 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -194,8 +194,21 @@ static char * const zone_names[MAX_NR_ZONES] = {
- 	 "Movable",
- };
-
-+/*
-+ * Try to keep at least this much lowmem free.  Do not allow normal
-+ * allocations below this point, only high priority ones. Automatically
-+ * tuned according to the amount of memory in the system.
-+ */
- int min_free_kbytes = 1024;
-
-+/*
-+ * Extra memory for the system to try freeing between the min and
-+ * low watermarks.  Useful for workloads that require low latency
-+ * memory allocations in bursts larger than the normal gap between
-+ * low and min.
-+ */
-+int extra_free_kbytes;
-+
- static unsigned long __meminitdata nr_kernel_pages;
- static unsigned long __meminitdata nr_all_pages;
- static unsigned long __meminitdata dma_reserve;
-@@ -5217,6 +5230,7 @@ static void setup_per_zone_lowmem_reserve(void)
- static void __setup_per_zone_wmarks(void)
- {
- 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
-+	unsigned long pages_low = extra_free_kbytes >> (PAGE_SHIFT - 10);
- 	unsigned long lowmem_pages = 0;
- 	struct zone *zone;
- 	unsigned long flags;
-@@ -5228,11 +5242,14 @@ static void __setup_per_zone_wmarks(void)
- 	}
-
- 	for_each_zone(zone) {
--		u64 tmp;
-+		u64 min, low;
-
- 		spin_lock_irqsave(&zone->lock, flags);
--		tmp = (u64)pages_min * zone->present_pages;
--		do_div(tmp, lowmem_pages);
-+		min = (u64)pages_min * zone->present_pages;
-+		do_div(min, lowmem_pages);
-+		low = (u64)pages_low * zone->present_pages;
-+		do_div(low, vm_total_pages);
-+
- 		if (is_highmem(zone)) {
- 			/*
- 			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
-@@ -5256,11 +5273,13 @@ static void __setup_per_zone_wmarks(void)
- 			 * If it's a lowmem zone, reserve a number of pages
- 			 * proportionate to the zone's size.
- 			 */
--			zone->watermark[WMARK_MIN] = tmp;
-+			zone->watermark[WMARK_MIN] = min;
- 		}
-
--		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
--		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
-+		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) +
-+					low + (min >> 2);
-+		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) +
-+					low + (min >> 1);
-
- 		setup_zone_migrate_reserve(zone);
- 		spin_unlock_irqrestore(&zone->lock, flags);
-@@ -5371,11 +5390,11 @@ int __meminit init_per_zone_wmark_min(void)
- module_init(init_per_zone_wmark_min)
-
- /*
-- * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so
-- *	that we can call two helper functions whenever min_free_kbytes
-- *	changes.
-+ * free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so
-+ * that we can call two helper functions whenever min_free_kbytes
-+ * or extra_free_kbytes changes.
-  */
--int min_free_kbytes_sysctl_handler(ctl_table *table, int write,
-+int free_kbytes_sysctl_handler(ctl_table *table, int write,
- 	void __user *buffer, size_t *length, loff_t *ppos)
- {
- 	proc_dointvec(table, write, buffer, length, ppos);
--- 
-1.7.4.1
+> > > -----Original Message-----
+> > > From: linux-kernel-owner@vger.kernel.org
+> > > [mailto:linux-kernel-owner@vger.kernel.org] On Behalf Of dormando
+> > > Sent: Monday, February 11, 2013 9:01 PM
+> > > To: Rik van Riel
+> > > Cc: Randy Dunlap; Satoru Moriya; linux-kernel@vger.kernel.org;
+> > > linux-mm@kvack.org; lwoodman@redhat.com; Seiji Aguchi;
+> > > akpm@linux-foundation.org; hughd@google.com
+> > > Subject: extra free kbytes tunable
+> > >
+> > > Hi,
+> > >
+> > > As discussed in this thread:
+> > > http://marc.info/?l=linux-mm&m=131490523222031&w=2
+> > > (with this cleanup as well: https://lkml.org/lkml/2011/9/2/225)
+> > >
+> > > A tunable was proposed to allow specifying the distance between pages_min
+> > > and the low watermark before kswapd is kicked in to
+> > > free up pages. I'd like to re-open this thread since the patch did not
+> > > appear to go anywhere.
+> > >
+> > > We have a server workload wherein machines with 100G+ of "free" memory
+> > > (used by page cache), scattered but frequent random io
+> > > reads from 12+ SSD's, and 5gbps+ of internet traffic, will frequently hit
+> > > direct reclaim in a few different ways.
+> > >
+> > > 1) It'll run into small amounts of reclaim randomly (a few hundred
+> > > thousand).
+> > >
+> > > 2) A burst of reads or traffic can cause extra pressure, which kswapd
+> > > occasionally responds to by freeing up 40g+ of the pagecache all
+> > > at once
+> > > (!) while pausing the system (Argh).
+> > >
+> > > 3) A blip in an upstream provider or failover from a peer causes the
+> > > kernel to allocate massive amounts of memory for retransmission
+> > > queues/etc, potentially along with buffered IO reads and (some, but not
+> > > often a ton) of new allocations from an application. This
+> > > paired with 2) can cause the box to stall for 15+ seconds.
+> > >
+> > > We're seeing this more in 3.4/3.5/3.6, saw it less in 2.6.38. Mass
+> > > reclaims are more common in newer kernels, but reclaims still happen
+> > > in all kernels without raising min_free_kbytes dramatically.
+> > >
+> > > I've found that setting "lowmem_reserve_ratio" to something like "1 1 32"
+> > > (thus protecting the DMA32 zone) causes 2) to happen less often, and is
+> > > generally less violent with 1).
+> > >
+> > > Setting min_free_kbytes to 15G or more, paired with the above, has been
+> > > the best at mitigating the issue. This is simply trying to raise
+> > > the distance between the min and low watermarks. With min_free_kbytes set
+> > > to 15000000, that gives us a whopping 1.8G (!!!) of
+> > > leeway before slamming into direct reclaim.
+> > >
+> > > So, this patch is unfortunate but wonderful at letting us reclaim 10G+ of
+> > > otherwise lost memory. Could we please revisit it?
+> > >
+> > > I saw a lot of discussion on doing this automatically, or making kswapd
+> > > more efficient to it, and I'd love to do that. Beyond making
+> > > kswapd psychic I haven't seen any better options yet.
+> > >
+> > > The issue is more complex than simply having an application warn of an
+> > > impending allocation, since this can happen via read load on
+> > > disk or from kernel page allocations for the network, or a combination of
+> > > the two (or three, if you add the app back in).
+> > >
+> > > It's going to get worse as we push machines with faster SSD's and bigger
+> > > networks. I'm open to any ideas on how to make kswapd
+> > > more efficient in our case, or really anything at all that works.
+> > >
+> > > I have more details, but cut it down as much as I could for this mail.
+> > >
+> > > Thanks,
+> > > -Dormando
+> > > --
+> > > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > > the body of a message to majordomo@vger.kernel.org More
+> > > majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > > Please read the FAQ at  http://www.tux.org/lkml/
+>
+>
+> --
+> All rights reversed
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
