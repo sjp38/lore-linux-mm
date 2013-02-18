@@ -1,27 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 7763A6B0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 13:09:32 -0500 (EST)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 6CC786B0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 13:25:02 -0500 (EST)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 18 Feb 2013 13:09:31 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id CEAC26E801A
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 13:09:26 -0500 (EST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1II9RWk332134
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 13:09:28 -0500
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1IIAhCG026600
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 11:10:44 -0700
-Message-ID: <51226E0B.5080000@linux.vnet.ibm.com>
-Date: Mon, 18 Feb 2013 12:08:11 -0600
+	Mon, 18 Feb 2013 11:25:01 -0700
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 88ABB1FF001A
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 11:20:08 -0700 (MST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1IIOkpX289210
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 11:24:46 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1IIOcJD010044
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 11:24:39 -0700
+Message-ID: <512271E1.9000105@linux.vnet.ibm.com>
+Date: Mon, 18 Feb 2013 12:24:33 -0600
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] zsmalloc: Add Kconfig for enabling PTE method
-References: <1360117028-5625-1-git-send-email-minchan@kernel.org> <51207655.5000209@gmail.com>
-In-Reply-To: <51207655.5000209@gmail.com>
+Subject: Re: [PATCH] zsmalloc: Add Kconfig for enabling PTE method
+References: <1359937421-19921-1-git-send-email-minchan@kernel.org> <511F2721.2000305@gmail.com>
+In-Reply-To: <511F2721.2000305@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -29,28 +29,77 @@ List-ID: <linux-mm.kvack.org>
 To: Ric Mason <ric.masonn@gmail.com>
 Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On 02/17/2013 12:19 AM, Ric Mason wrote:
-> On 02/06/2013 10:17 AM, Minchan Kim wrote:
->> Zsmalloc has two methods 1) copy-based and 2) pte-based to access
->> allocations that span two pages. You can see history why we supported
->> two approach from [1].
+On 02/16/2013 12:28 AM, Ric Mason wrote:
+> On 02/04/2013 08:23 AM, Minchan Kim wrote:
+>> Zsmalloc has two methods 1) copy-based and 2) pte based to access
+>> allocations that span two pages.
+>> You can see history why we supported two approach from [1].
 >>
->> In summary, copy-based method is 3 times fater in x86 while pte-based
->> is 6 times faster in ARM.
+>> But it was bad choice that adding hard coding to select architecture
+>> which want to use pte based method. This patch removed it and adds
+>> new Kconfig to select the approach.
+>>
+>> This patch is based on next-20130202.
+>>
+>> [1] https://lkml.org/lkml/2012/7/11/58
+>>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>> Cc: Nitin Gupta <ngupta@vflare.org>
+>> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+>> Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
+>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+>> ---
+>>   drivers/staging/zsmalloc/Kconfig         |   12 ++++++++++++
+>>   drivers/staging/zsmalloc/zsmalloc-main.c |   11 -----------
+>>   2 files changed, 12 insertions(+), 11 deletions(-)
+>>
+>> diff --git a/drivers/staging/zsmalloc/Kconfig
+>> b/drivers/staging/zsmalloc/Kconfig
+>> index 9084565..2359123 100644
+>> --- a/drivers/staging/zsmalloc/Kconfig
+>> +++ b/drivers/staging/zsmalloc/Kconfig
+>> @@ -8,3 +8,15 @@ config ZSMALLOC
+>>         non-standard allocator interface where a handle, not a
+>> pointer, is
+>>         returned by an alloc().  This handle must be mapped in order to
+>>         access the allocated space.
+>> +
+>> +config ZSMALLOC_PGTABLE_MAPPING
+>> +        bool "Use page table mapping to access allocations that
+>> span two pages"
+>> +        depends on ZSMALLOC
+>> +        default n
+>> +        help
+>> +      By default, zsmalloc uses a copy-based object mapping method
+>> to access
+>> +      allocations that span two pages. However, if a particular
+>> architecture
+>> +      performs VM mapping faster than copying, then you should
+>> select this.
+>> +      This causes zsmalloc to use page table mapping rather than
+>> copying
+>> +      for object mapping. You can check speed with zsmalloc
+>> benchmark[1].
+>> +      [1] https://github.com/spartacus06/zsmalloc
 > 
-> Why in some arches copy-based method is better and in the other arches
-> pte-based is better? What's the root reason?
+> Is there benchmark to test zcache? eg. internal fragmentation level ...
 
-Minchan might know more about this (or Russell King) but I'll give it
-a try.
+First, zsmalloc is not used in zcache right now so just wanted to say
+that.  It is used in zram and the proposed zswap
+(https://lwn.net/Articles/528817/)
 
-MMU designs can vary pretty significantly from arch to arch.  An
-operation that is cheap on one MMU design can be expensive on another,
-especially once SMP gets involved, possibly resulting in
-inter-processor interrupts.
+There is not an official benchmark.  However anything that generates
+activity that will hit the frontswap or cleancache hooks will do.
+These are workloads that overcommit memory and use swap, or access
+file sets whose size is larger that the system page cache.
 
-RAM speed is also a factor since the copy-method will use more memory
-bandwidth.  Embedded systems typically won't have really fast memory.
+The closest thing to a fragmentation metric is an effective
+compression ratio that can be calculated with debugfs attributes:
+
+zcache_[eph|pers]_zbytes / (zcache_[eph|pers]_pageframes * PAGE_SIZE)
+
+eph for cleancache, and pers for frontswap.
 
 Seth
 
