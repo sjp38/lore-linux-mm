@@ -1,71 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id C73546B0005
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 05:48:52 -0500 (EST)
-Received: by mail-we0-f169.google.com with SMTP id t11so4663731wey.14
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2013 02:48:51 -0800 (PST)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 208A16B0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 09:50:23 -0500 (EST)
+Date: Mon, 18 Feb 2013 14:50:18 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC][ATTEND] a few topics I'd like to discuss
+Message-ID: <20130218145018.GJ4365@suse.de>
+References: <CAHGf_=rb0t4gbm0Egw9D3RUuwbgL8U6hPwBwS46C27mgAvJp0g@mail.gmail.com>
 MIME-Version: 1.0
-Date: Mon, 18 Feb 2013 18:48:50 +0800
-Message-ID: <CAFNq8R4UYvygk8+X+NZgyGjgU5vBsEv1UM6MiUxah6iW8=0HrQ@mail.gmail.com>
-Subject: Should a swapped out page be deleted from swap cache?
-From: Li Haifeng <omycle@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAHGf_=rb0t4gbm0Egw9D3RUuwbgL8U6hPwBwS46C27mgAvJp0g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-For explain my question, the two points should be displayed as below.
+On Sun, Feb 17, 2013 at 01:44:33AM -0500, KOSAKI Motohiro wrote:
+> Sorry for the delay.
+> 
+> I would like to discuss the following topics:
+> 
+> 
+> 
+> * Hugepage migration ? Currently, hugepage is not migratable and can?t
+> use pages in ZONE_MOVABLE.  It is not happy from point of CMA/hotplug
+> view.
+> 
 
-1.  If an anonymous page is swapped out, this page will be deleted
-from swap cache and be put back into buddy system.
+migrate_huge_page() ?
 
-2. When a page is swapped out, the sharing count of swap slot must not
-be zero. That is, page_swapcount(page) will not return zero.
+It's also possible to allocate hugetlbfs pages in ZONE_MOVABLE but must
+be enabled via /proc/sys/vm/hugepages_treat_as_movable.
 
-Are both of them above right?
+> * Remove ZONE_MOVABLE ?Very long term goal. Maybe not suitable in this year.
+> 
 
-According the two points above, I was confused to the line 655 below.
-When a page is swapped out, the return value of page_swapcount(page)
-will not be zero. So, the page couldn't be deleted from swap cache.
+Whatever about removing it totally I would like to see node memory hot-remove
+not depending on ZONE_MOVABLE.
 
- 644  * If swap is getting full, or if there are no more mappings of this page,
- 645  * then try_to_free_swap is called to free its swap space.
- 646  */
- 647 int try_to_free_swap(struct page *page)
- 648 {
- 649         VM_BUG_ON(!PageLocked(page));
- 650
- 651         if (!PageSwapCache(page))
- 652                 return 0;
- 653         if (PageWriteback(page))
- 654                 return 0;
- 655         if (page_swapcount(page))//Has referenced by other swap out page.
- 656                 return 0;
- 657
- 658         /*
- 659          * Once hibernation has begun to create its image of memory,
- 660          * there's a danger that one of the calls to try_to_free_swap()
- 661          * - most probably a call from __try_to_reclaim_swap() while
- 662          * hibernation is allocating its own swap pages for the image,
- 663          * but conceivably even a call from memory reclaim - will free
- 664          * the swap from a page which has already been recorded in the
- 665          * image as a clean swapcache page, and then reuse its swap for
- 666          * another page of the image.  On waking from hibernation, the
- 667          * original page might be freed under memory pressure, then
- 668          * later read back in from swap, now with the wrong data.
- 669          *
- 670          * Hibration suspends storage while it is writing the image
- 671          * to disk so check that here.
- 672          */
- 673         if (pm_suspended_storage())
- 674                 return 0;
- 675
- 676         delete_from_swap_cache(page);
- 677         SetPageDirty(page);
- 678         return 1;
- 679 }
-
-Thanks.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
