@@ -1,90 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 6AA336B0002
-	for <linux-mm@kvack.org>; Sun, 17 Feb 2013 23:54:15 -0500 (EST)
-Date: Mon, 18 Feb 2013 13:54:10 +0900
-From: Simon Horman <horms@verge.net.au>
-Subject: Re: [PATCH v2] net: fix functions and variables related to
- netns_ipvs->sysctl_sync_qlen_max
-Message-ID: <20130218045410.GC25347@verge.net.au>
-References: <51131B88.6040809@cn.fujitsu.com>
- <51132A56.60906@cn.fujitsu.com>
- <alpine.LFD.2.00.1302070944480.1810@ja.ssi.bg>
- <20130214142159.d0516a5f.akpm@linux-foundation.org>
- <alpine.LFD.2.00.1302152304010.1746@ja.ssi.bg>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id B8C006B0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 01:14:56 -0500 (EST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [patch 1/2] mm: fincore()
+In-Reply-To: <20130215154235.0fb36f53.akpm@linux-foundation.org>
+References: <87a9rbh7b4.fsf@rustcorp.com.au> <20130211162701.GB13218@cmpxchg.org> <20130211141239.f4decf03.akpm@linux-foundation.org> <20130215063450.GA24047@cmpxchg.org> <20130215132738.c85c9eda.akpm@linux-foundation.org> <20130215231304.GB23930@cmpxchg.org> <20130215154235.0fb36f53.akpm@linux-foundation.org>
+Date: Mon, 18 Feb 2013 16:11:08 +1030
+Message-ID: <87zjz2i3gr.fsf@rustcorp.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LFD.2.00.1302152304010.1746@ja.ssi.bg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julian Anastasov <ja@ssi.bg>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, davem@davemloft.net, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Stewart Smith <stewart@flamingspork.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On Fri, Feb 15, 2013 at 11:39:34PM +0200, Julian Anastasov wrote:
-> 
-> 	Hello,
-> 
-> On Thu, 14 Feb 2013, Andrew Morton wrote:
-> 
-> > On Thu, 7 Feb 2013 10:40:26 +0200 (EET)
-> > Julian Anastasov <ja@ssi.bg> wrote:
-> > 
-> > > > Another question about the sysctl_sync_qlen_max:
-> > > > This variable is assigned as:
-> > > > 
-> > > > ipvs->sysctl_sync_qlen_max = nr_free_buffer_pages() / 32;
-> > > > 
-> > > > The function nr_free_buffer_pages actually means: counts of pages
-> > > > which are beyond high watermark within ZONE_DMA and ZONE_NORMAL.
-> > > > 
-> > > > is it ok to be called here? Some people misused this function because
-> > > > the function name was misleading them. I am sorry I am totally not
-> > > > familiar with the ipvs code, so I am just asking you about
-> > > > this.
-> > > 
-> > > 	Using nr_free_buffer_pages should be fine here.
-> > > We are using it as rough estimation for the number of sync
-> > > buffers we can use in NORMAL zones. We are using dev->mtu
-> > > for such buffers, so it can take a PAGE_SIZE for a buffer.
-> > > We are not interested in HIGHMEM size. high watermarks
-> > > should have negliable effect. I'm even not sure whether
-> > > we need to clamp it for systems with TBs of memory.
-> > 
-> > Using nr_free_buffer_pages() is good-enough-for-now.  There are
-> > questions around the name of this thing and its exact functionality and
-> > whether callers are using it appropriately.  But if anything is changed
-> > there, it will be as part of kernel-wide sweep.
-> > 
-> > One thing to bear in mind is memory hot[un]plug.  Anything which was
-> > sized using nr_free_buffer_pages() (or similar) may become
-> > inappropriately sized if memory is added or removed.  So any site which
-> > uses nr_free_buffer_pages() really should be associated with a hotplug
-> > handler and a great pile of code to resize the structure at runtime. 
-> > It's pretty ugly stuff :(  I suspect it usually Just Doesn't Matter.
-> 
-> 	I'll try to think on this hotplug problem
-> and also on the si_meminfo usage in net/netfilter/ipvs/ip_vs_ctl.c
-> which is quite wrong for systems with HIGHMEM, may be
-> we need there a free+reclaimable+file function for
-> NORMAL zone.
-> 
-> > Redarding this patch:
-> > net-change-type-of-netns_ipvs-sysctl_sync_qlen_max.patch and
-> > net-fix-functions-and-variables-related-to-netns_ipvs-sysctl_sync_qlen_max.patch
-> > are joined at the hip and should be redone as a single patch with a
-> > suitable changelog, please.  And with a cc:netdev@vger.kernel.org.
-> 
-> 	Agreed, Zhang Yanfei and Simon? I'm just not sure,
-> may be this combined patch should hit only the
-> ipvs->nf->net trees? Or may be net-next, if we don't have
-> time for 3.8.
+Andrew Morton <akpm@linux-foundation.org> writes:
+> The syscall should handle the common usages very well.  But it
+> shouldn't handle uncommon usages very badly!
 
-ipvs->nf->net seems to be the most logical approach unless
-Andrew wishes to take it.
+If the user is actually dealing with the contents of the file, following
+the established mincore is preferred, since it's in the noise anyway.
 
-I assume that at this point its too late for v3.8 and I'm not
-entirely clear that the changes is needed there anyway.
+Which comes back to needing a user; I'll see what I can come up with.
+
+Cheers,
+Rusty.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
