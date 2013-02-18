@@ -1,108 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Mon, 18 Feb 2013 15:17:16 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/2] mm: hotplug: implement non-movable version of
- get_user_pages() called get_user_pages_non_movable()
-Message-ID: <20130218151716.GL4365@suse.de>
-References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com>
- <1359972248-8722-2-git-send-email-linfeng@cn.fujitsu.com>
- <20130204160624.5c20a8a0.akpm@linux-foundation.org>
- <20130205115722.GF21389@suse.de>
- <512203C4.8010608@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id D1D7E6B0005
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 10:50:00 -0500 (EST)
+Date: Mon, 18 Feb 2013 15:49:44 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] mm: Limit pgd range freeing to mm->task_size
+Message-ID: <20130218154944.GA1678@arm.com>
+References: <1360755569-27282-1-git-send-email-catalin.marinas@arm.com>
+ <20130213134756.b90f8e1b.akpm@linux-foundation.org>
+ <alpine.LNX.2.00.1302141227500.1911@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <512203C4.8010608@cn.fujitsu.com>
+In-Reply-To: <alpine.LNX.2.00.1302141227500.1911@eggly.anvils>
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lin Feng <linfeng@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Russell King <linux@arm.linux.org.uk>
 
-On Mon, Feb 18, 2013 at 06:34:44PM +0800, Lin Feng wrote:
-> >>> +			if (!migrate_pre_flag) {
-> >>> +				if (migrate_prep())
-> >>> +					goto put_page;
-> > 
-> > CONFIG_MEMORY_HOTREMOVE depends on CONFIG_MIGRATION so this will never
-> > return failure. You could make this BUG_ON(migrate_prep()), remove this
-> > goto and the migrate_pre_flag check below becomes redundant.
-> Sorry, I don't quite catch on this. Without migrate_pre_flag, the BUG_ON() check
-> will call/check migrate_prep() every time we isolate a single page, do we have
-> to do so?
+Hugh,
 
-I was referring to the migrate_pre_flag check further down and I'm not
-suggesting it be removed from here as you do want to call migrate_prep()
-only once. However, as it'll never return failure for any kernel
-configuration that allows memory hot-remove, this goto can be
-removed and the flow simplified.
-
+On Thu, Feb 14, 2013 at 09:24:09PM +0000, Hugh Dickins wrote:
+> On Wed, 13 Feb 2013, Andrew Morton wrote:
+> > On Wed, 13 Feb 2013 11:39:29 +0000
+> > Catalin Marinas <catalin.marinas@arm.com> wrote:
 > > 
-> >>> +				migrate_pre_flag = 1;
-> >>> +			}
-> >>> +
-> >>> +			if (!isolate_lru_page(pages[i])) {
-> >>> +				inc_zone_page_state(pages[i], NR_ISOLATED_ANON +
-> >>> +						 page_is_file_cache(pages[i]));
-> >>> +				list_add_tail(&pages[i]->lru, &pagelist);
-> >>> +			} else {
-> >>> +				isolate_err = 1;
-> >>> +				goto put_page;
-> >>> +			}
+> > > ARM processors with LPAE enabled use 3 levels of page tables, with an
+> > > entry in the top level (pgd) covering 1GB of virtual space. Because of
+> > > the branch relocation limitations on ARM, the loadable modules are
+> > > mapped 16MB below PAGE_OFFSET, making the corresponding 1GB pgd shared
+> > > between kernel modules and user space.
+> > > 
+> > > Since free_pgtables() is called with ceiling == 0, free_pgd_range() (and
+> > > subsequently called functions) also frees the page table
+> > > shared between user space and kernel modules (which is normally handled
+> > > by the ARM-specific pgd_free() function).
+> > > 
+> > > This patch changes the ceiling argument to mm->task_size for the
+> > > free_pgtables() and free_pgd_range() function calls. We cannot use
+> > > TASK_SIZE since this macro may not be a run-time constant on 64-bit
+> > > systems supporting compat applications.
 > > 
-> > isolate_lru_page() takes the LRU lock every time. If
-> > get_user_pages_non_movable is used heavily then you may encounter lock
-> > contention problems. Batching this lock would be a separate patch and should
-> > not be necessary yet but you should at least comment on it as a reminder.
-> Farsighted, should improve it in the future.
+> > I'm trying to work out why we're using 0 in there at all, rather than
+> > ->task_size.  But that's lost in the mists of time.
+> > 
+> > As you've discovered, handling of task_size and TASK_SIZE is somewhat
+> > inconsistent across architectures and with compat tasks.  I guess we
+> > toss it in there and see if anything breaks...
 > 
-> > 
-> > I think that a goto could also have been avoided here if you used break. The
-> > i == ret check below would be false and it would just fall through.
-> > Overall the flow would be a bit easier to follow.
-> Yes, I noticed this before. I thought using goto could save some micro ops
-> (here is only the i == ret check) though lower the readability but still be clearly. 
+> ... and an x86_64 kernel quickly shows,
+> with either 64-bit or 32-bit userspace, that exit_mmap() breaks at
+> WARN_ON(mm->nr_ptes > (FIRST_USER_ADDRESS+PMD_SIZE-1)>>PMD_SHIFT);
 > 
-> Also there are some other place in current kernel facing such performance/readability 
-> race condition, but it seems that the developers prefer readability, why? While I
-> think performance is fatal to kernel..
+> We couldn't think of using mm->task_size in 2.6.12 because it didn't
+> exist then; but although it sounds plausible, and on many architectures
+> (x86_32?) it should be fine, in general it's not quite the right thing
+> to use.  0 is an easy rounded-up-whatever-the-increment version of
+> TASK_SIZE (okay, it's missing an implicit 1 before all its 0s).
 > 
+> The ceiling passed to free_pgtables() says how far up it can go in
+> freeing pts and pmds and puds and pgds: when doing munmap(), you have
+> to be careful not to stray beyond the range you're freeing; when doing
+> exit_mmap(), you have to be careful to free all the areas you might
+> have had to avoid before.
 
-Memory hot-remove and page migration are not performance critical paths.
-For page migration, the cost will be likely dominated by the page copy but
-it's also possible the cost will be dominated by locking. The difference
-between a break and goto will not even be measurable.
+Yes, on ARM+LPAE we make sure we free what's left of the shared pgd (a
+pmd page).
 
-> > <SNIP>
-> >
-> > result. It's a little clumsy but the memory hot-remove failure message
-> > could list what applications have pinned the pages that cannot be removed
-> > so the administrator has the option of force-killing the application. It
-> > is possible to discover what application is pinning a page from userspace
-> > but it would involve an expensive search with /proc/kpagemap
-> > 
-> >>> +	if (migrate_pre_flag && !isolate_err) {
-> >>> +		ret = migrate_pages(&pagelist, alloc_migrate_target, 1,
-> >>> +					false, MIGRATE_SYNC, MR_SYSCALL);
-> > 
-> > The conversion of alloc_migrate_target is a bit problematic. It strips
-> > the __GFP_MOVABLE flag and the consequence of this is that it converts
-> > those allocation requests to MIGRATE_UNMOVABLE. This potentially is a large
-> > number of pages, particularly if the number of get_user_pages_non_movable()
-> > increases for short-lived pins like direct IO.
->
-> Sorry, I don't quite understand here neither. If we use the following new 
-> migration allocation function as you said, the increasing number of 
-> get_user_pages_non_movable() will also lead to large numbers of MIGRATE_UNMOVABLE
-> pages. What's the difference, do I miss something?
+> mm->task_size does not necessarily fall on a nice boundary: use it
+> instead of 0 and exit_mmap() is liable to leave unfreed page tables
+> at several levels.
 > 
+> I'm sure that Catalin is right that he needs to adjust that ceiling arg
+> to free_pgtables() to cope with a level shared between user and kernel.
+> 
+> I met the same problem two years ago, when doing a patch (which worked
+> but went nowhere: x86 people kept on changing the early pagetable setup)
+> to make CONFIG_VMSPLIT_2G_OPT and 3G_OPT compatible with CONFIG_X86_PAE.
+> That shared a level beween user and kernel too: everything could be
+> handled down in the arch code, except this free_pgtables() ceiling arg.
+> 
+> (I did not make any change to the free_pgd_range() calls in fs/exec.c,
+> I'm not familiar with those at all: my patch appeared to work fine
+> without touching them, but now I wonder.)
+> 
+> Here's the mm/mmap.c part of my patch (but it now looks like the
+> default should go into include/asm-generic):
 
-The replacement function preserves the __GFP_MOVABLE flag. It cannot use
-ZONE_MOVABLE but otherwise the newly allocated page will be grouped with
-other movable pages.
+Thanks for the patch. It is related to FIRST_USER_ADDRESS which is
+defined in asm/pgtable.h, so asm-generic/pgtable.h looks like a good
+place. We can actually make FIRST_USER_ADDRESS generic as well since
+apart from arm and unicore32 all the other architectures define it as 0.
+
+I'll shortly post a series of two patches with your patch and the ARM
+definition of USER_PGTABLES_CEILING.
 
 -- 
-Mel Gorman
-SUSE Labs
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
