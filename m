@@ -1,99 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id C50E46B0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 13:07:14 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fb11so2964842pad.28
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2013 10:07:14 -0800 (PST)
-Date: Mon, 18 Feb 2013 10:06:24 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Should a swapped out page be deleted from swap cache?
-In-Reply-To: <CAFNq8R4UYvygk8+X+NZgyGjgU5vBsEv1UM6MiUxah6iW8=0HrQ@mail.gmail.com>
-Message-ID: <alpine.LNX.2.00.1302180939200.2246@eggly.anvils>
-References: <CAFNq8R4UYvygk8+X+NZgyGjgU5vBsEv1UM6MiUxah6iW8=0HrQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 32BDE6B0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 13:08:30 -0500 (EST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <5120c705-5fcf-4e33-8562-22e8ad4b6c54@default>
+Date: Mon, 18 Feb 2013 10:07:59 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH v2] zsmalloc: Add Kconfig for enabling PTE method
+References: <1360117028-5625-1-git-send-email-minchan@kernel.org>
+ <51207655.5000209@gmail.com>
+In-Reply-To: <51207655.5000209@gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Haifeng <omycle@gmail.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ric Mason <ric.masonn@gmail.com>, Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>
 
-On Mon, 18 Feb 2013, Li Haifeng wrote:
+> From: Ric Mason [mailto:ric.masonn@gmail.com]
+> Sent: Saturday, February 16, 2013 11:19 PM
+> To: Minchan Kim
+> Cc: Greg Kroah-Hartman; linux-mm@kvack.org; linux-kernel@vger.kernel.org;=
+ Andrew Morton; Seth
+> Jennings; Nitin Gupta; Dan Magenheimer; Konrad Rzeszutek Wilk
+> Subject: Re: [PATCH v2] zsmalloc: Add Kconfig for enabling PTE method
+>=20
+> On 02/06/2013 10:17 AM, Minchan Kim wrote:
+> > Zsmalloc has two methods 1) copy-based and 2) pte-based to access
+> > allocations that span two pages. You can see history why we supported
+> > two approach from [1].
+> >
+> > In summary, copy-based method is 3 times fater in x86 while pte-based
+> > is 6 times faster in ARM.
+>=20
+> Why in some arches copy-based method is better and in the other arches
+> pte-based is better? What's the root reason?
 
-> For explain my question, the two points should be displayed as below.
-> 
-> 1.  If an anonymous page is swapped out, this page will be deleted
-> from swap cache and be put back into buddy system.
+Minchan, if you post another version, I think these precise numbers
+(of "times faster") should be removed.  The speed is very data
+dependent, because the copy-based method is copying a zpage which
+may vary widely in size from ~100 bytes to nearly PAGE_SIZE bytes,
+a factor of 40x or more.
 
-Yes, unless the page is referenced again before it comes to be
-deleted from swap cache.
+Please at least say "up to 3 times" or "approximately 3x faster for
+an average compressed page".
 
-> 
-> 2. When a page is swapped out, the sharing count of swap slot must not
-> be zero. That is, page_swapcount(page) will not return zero.
+Ric, the copy-based method does an extra copy of N bytes (where
+N is the compressed size of a page).  The pte-based method requires
+extra TLB actions.  The relative speed of TLB operations vs
+copying is very architecture-dependent.  It is also probably
+dependent on the specific implementation of the architecture
+(i.e x86 sandybridge is likely very different than x86
+nehalem) and, as noted above, dependent on N which is
+unpredictable.
 
-I would not say "must not": we just prefer not to waste time on swapping
-a page out if its use count has already gone to 0.  And its use count
-might go down to 0 an instant after swap_writepage() makes that check.
-
-> 
-> Are both of them above right?
-> 
-> According the two points above, I was confused to the line 655 below.
-> When a page is swapped out, the return value of page_swapcount(page)
-> will not be zero. So, the page couldn't be deleted from swap cache.
-
-Yes, we cannot free the swap as long as its data might be needed again.
-
-But a swap cache page may linger in memory for an indefinite time,
-in between being queued for write out, and actually being freed from
-the end of the lru by memory pressure.
-
-At various points where we hold the page lock on a swap cache page,
-it's worth checking whether it is still actually needed, or could
-now be freed from swap cache, and the corresponding swap slot freed:
-that's what try_to_free_swap() does.
-
-Hugh
-
-> 
->  644  * If swap is getting full, or if there are no more mappings of this page,
->  645  * then try_to_free_swap is called to free its swap space.
->  646  */
->  647 int try_to_free_swap(struct page *page)
->  648 {
->  649         VM_BUG_ON(!PageLocked(page));
->  650
->  651         if (!PageSwapCache(page))
->  652                 return 0;
->  653         if (PageWriteback(page))
->  654                 return 0;
->  655         if (page_swapcount(page))//Has referenced by other swap out page.
->  656                 return 0;
->  657
->  658         /*
->  659          * Once hibernation has begun to create its image of memory,
->  660          * there's a danger that one of the calls to try_to_free_swap()
->  661          * - most probably a call from __try_to_reclaim_swap() while
->  662          * hibernation is allocating its own swap pages for the image,
->  663          * but conceivably even a call from memory reclaim - will free
->  664          * the swap from a page which has already been recorded in the
->  665          * image as a clean swapcache page, and then reuse its swap for
->  666          * another page of the image.  On waking from hibernation, the
->  667          * original page might be freed under memory pressure, then
->  668          * later read back in from swap, now with the wrong data.
->  669          *
->  670          * Hibration suspends storage while it is writing the image
->  671          * to disk so check that here.
->  672          */
->  673         if (pm_suspended_storage())
->  674                 return 0;
->  675
->  676         delete_from_swap_cache(page);
->  677         SetPageDirty(page);
->  678         return 1;
->  679 }
-> 
-> Thanks.
+So it makes sense to have both choices, but it's not at all clear
+how to select which one to use!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
