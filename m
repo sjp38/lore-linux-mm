@@ -1,106 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 6CC786B0002
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 13:25:02 -0500 (EST)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id AA07E6B0002
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 14:04:20 -0500 (EST)
 Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 18 Feb 2013 11:25:01 -0700
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 88ABB1FF001A
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 11:20:08 -0700 (MST)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1IIOkpX289210
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 11:24:46 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1IIOcJD010044
-	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 11:24:39 -0700
-Message-ID: <512271E1.9000105@linux.vnet.ibm.com>
-Date: Mon, 18 Feb 2013 12:24:33 -0600
+	Mon, 18 Feb 2013 14:04:19 -0500
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id B80EF6E801E
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 14:04:14 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1IJ4G2u271914
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 14:04:16 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1IJ4F8l020157
+	for <linux-mm@kvack.org>; Mon, 18 Feb 2013 14:04:15 -0500
+Message-ID: <51227B29.4020909@linux.vnet.ibm.com>
+Date: Mon, 18 Feb 2013 13:04:09 -0600
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] zsmalloc: Add Kconfig for enabling PTE method
-References: <1359937421-19921-1-git-send-email-minchan@kernel.org> <511F2721.2000305@gmail.com>
-In-Reply-To: <511F2721.2000305@gmail.com>
+Subject: Re: [PATCHv5 1/8] zsmalloc: add to mm/
+References: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com> <1360780731-11708-2-git-send-email-sjenning@linux.vnet.ibm.com> <511EFC5A.3030408@gmail.com>
+In-Reply-To: <511EFC5A.3030408@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ric Mason <ric.masonn@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 02/16/2013 12:28 AM, Ric Mason wrote:
-> On 02/04/2013 08:23 AM, Minchan Kim wrote:
->> Zsmalloc has two methods 1) copy-based and 2) pte based to access
->> allocations that span two pages.
->> You can see history why we supported two approach from [1].
+On 02/15/2013 09:26 PM, Ric Mason wrote:
+> On 02/14/2013 02:38 AM, Seth Jennings wrote:
+>> =========
+>> DO NOT MERGE, FOR REVIEW ONLY
+>> This patch introduces zsmalloc as new code, however, it already
+>> exists in drivers/staging.  In order to build successfully, you
+>> must select EITHER to driver/staging version OR this version.
+>> Once zsmalloc is reviewed in this format (and hopefully accepted),
+>> I will create a new patchset that properly promotes zsmalloc from
+>> staging.
+>> =========
 >>
->> But it was bad choice that adding hard coding to select architecture
->> which want to use pte based method. This patch removed it and adds
->> new Kconfig to select the approach.
+>> This patchset introduces a new slab-based memory allocator,
+>> zsmalloc, for storing compressed pages.  It is designed for
+>> low fragmentation and high allocation success rate on
+>> large object, but <= PAGE_SIZE allocations.
 >>
->> This patch is based on next-20130202.
+>> zsmalloc differs from the kernel slab allocator in two primary
+>> ways to achieve these design goals.
 >>
->> [1] https://lkml.org/lkml/2012/7/11/58
+>> zsmalloc never requires high order page allocations to back
+>> slabs, or "size classes" in zsmalloc terms. Instead it allows
+>> multiple single-order pages to be stitched together into a
+>> "zspage" which backs the slab.  This allows for higher allocation
+>> success rate under memory pressure.
 >>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
->> Cc: Nitin Gupta <ngupta@vflare.org>
->> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
->> Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
->> Signed-off-by: Minchan Kim <minchan@kernel.org>
->> ---
->>   drivers/staging/zsmalloc/Kconfig         |   12 ++++++++++++
->>   drivers/staging/zsmalloc/zsmalloc-main.c |   11 -----------
->>   2 files changed, 12 insertions(+), 11 deletions(-)
->>
->> diff --git a/drivers/staging/zsmalloc/Kconfig
->> b/drivers/staging/zsmalloc/Kconfig
->> index 9084565..2359123 100644
->> --- a/drivers/staging/zsmalloc/Kconfig
->> +++ b/drivers/staging/zsmalloc/Kconfig
->> @@ -8,3 +8,15 @@ config ZSMALLOC
->>         non-standard allocator interface where a handle, not a
->> pointer, is
->>         returned by an alloc().  This handle must be mapped in order to
->>         access the allocated space.
->> +
->> +config ZSMALLOC_PGTABLE_MAPPING
->> +        bool "Use page table mapping to access allocations that
->> span two pages"
->> +        depends on ZSMALLOC
->> +        default n
->> +        help
->> +      By default, zsmalloc uses a copy-based object mapping method
->> to access
->> +      allocations that span two pages. However, if a particular
->> architecture
->> +      performs VM mapping faster than copying, then you should
->> select this.
->> +      This causes zsmalloc to use page table mapping rather than
->> copying
->> +      for object mapping. You can check speed with zsmalloc
->> benchmark[1].
->> +      [1] https://github.com/spartacus06/zsmalloc
+>> Also, zsmalloc allows objects to span page boundaries within the
+>> zspage.  This allows for lower fragmentation than could be had
+>> with the kernel slab allocator for objects between PAGE_SIZE/2
+>> and PAGE_SIZE.  With the kernel slab allocator, if a page compresses
+>> to 60% of it original size, the memory savings gained through
+>> compression is lost in fragmentation because another object of
+>> the same size can't be stored in the leftover space.
 > 
-> Is there benchmark to test zcache? eg. internal fragmentation level ...
+> Why you say so? slab/slub allocator both have policies to setup
+> suitable order of pages in each slab cache in order to reduce
+> fragmentation. Which codes show you slab object can't span page
+> boundaries? Could you pointed out to me?
 
-First, zsmalloc is not used in zcache right now so just wanted to say
-that.  It is used in zram and the proposed zswap
-(https://lwn.net/Articles/528817/)
+I might need to reword this. What I meant to say is "non-contiguous
+page boundaries".
 
-There is not an official benchmark.  However anything that generates
-activity that will hit the frontswap or cleancache hooks will do.
-These are workloads that overcommit memory and use swap, or access
-file sets whose size is larger that the system page cache.
+zsmalloc allows an object to span non-contiguous page boundaries
+within a zspage.  This obviously can't be done by slab/slub since they
+give addresses directly to users and the object data must be
+contiguous.  This is one reason why zsmalloc allocations require
+mapping to obtain a usable address.
 
-The closest thing to a fragmentation metric is an effective
-compression ratio that can be calculated with debugfs attributes:
-
-zcache_[eph|pers]_zbytes / (zcache_[eph|pers]_pageframes * PAGE_SIZE)
-
-eph for cleancache, and pers for frontswap.
-
+Thanks,
 Seth
 
 --
