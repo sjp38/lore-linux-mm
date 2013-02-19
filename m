@@ -1,59 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Message-ID: <51234C12.4020404@cn.fujitsu.com>
-Date: Tue, 19 Feb 2013 17:55:30 +0800
-From: Lin Feng <linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 036466B0005
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 05:07:49 -0500 (EST)
+Received: by mail-gh0-f171.google.com with SMTP id r17so750747ghr.16
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 02:07:49 -0800 (PST)
+Message-ID: <51234EEC.3010700@gmail.com>
+Date: Tue, 19 Feb 2013 18:07:40 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: hotplug: implement non-movable version of get_user_pages()
- called get_user_pages_non_movable()
-References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com> <1359972248-8722-2-git-send-email-linfeng@cn.fujitsu.com> <20130204160624.5c20a8a0.akpm@linux-foundation.org> <20130205115722.GF21389@suse.de> <512203C4.8010608@cn.fujitsu.com> <20130218151716.GL4365@suse.de>
-In-Reply-To: <20130218151716.GL4365@suse.de>
+Subject: Re: [PATCH] zsmalloc: Fix TLB coherency and build problem
+References: <1359334808-19794-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1359334808-19794-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-15
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Matt Sealey <matt@genesi-usa.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Russell King <linux@arm.linux.org.uk>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-Hi Mel,
+On 01/28/2013 09:00 AM, Minchan Kim wrote:
+> Recently, Matt Sealey reported he fail to build zsmalloc caused by
+> using of local_flush_tlb_kernel_range which are architecture dependent
+> function so !CONFIG_SMP in ARM couldn't implement it so it ends up
+> build error following as.
 
-On 02/18/2013 11:17 PM, Mel Gorman wrote:
->>> > > <SNIP>
->>> > >
->>> > > result. It's a little clumsy but the memory hot-remove failure message
->>> > > could list what applications have pinned the pages that cannot be removed
->>> > > so the administrator has the option of force-killing the application. It
->>> > > is possible to discover what application is pinning a page from userspace
->>> > > but it would involve an expensive search with /proc/kpagemap
->>> > > 
->>>>> > >>> +	if (migrate_pre_flag && !isolate_err) {
->>>>> > >>> +		ret = migrate_pages(&pagelist, alloc_migrate_target, 1,
->>>>> > >>> +					false, MIGRATE_SYNC, MR_SYSCALL);
->>> > > 
->>> > > The conversion of alloc_migrate_target is a bit problematic. It strips
->>> > > the __GFP_MOVABLE flag and the consequence of this is that it converts
->>> > > those allocation requests to MIGRATE_UNMOVABLE. This potentially is a large
->>> > > number of pages, particularly if the number of get_user_pages_non_movable()
->>> > > increases for short-lived pins like direct IO.
->> >
->> > Sorry, I don't quite understand here neither. If we use the following new 
->> > migration allocation function as you said, the increasing number of 
->> > get_user_pages_non_movable() will also lead to large numbers of MIGRATE_UNMOVABLE
->> > pages. What's the difference, do I miss something?
->> > 
-> The replacement function preserves the __GFP_MOVABLE flag. It cannot use
-> ZONE_MOVABLE but otherwise the newly allocated page will be grouped with
-> other movable pages.
+Confuse me!
 
-Ah, got it " But GFP_MOVABLE is not only a zone specifier but also an allocation policy.".
+1) Why I see flush_tlb_kernel_range is different in different architecture?
+2) Does local here means local cpu? If the answer is yes, why ARM 
+doesn't support it?
 
-Could I clear __GFP_HIGHMEM flag in alloc_migrate_target depending on private parameter so
-that we can keep MIGRATE_UNMOVABLE policy also allocate page none movable zones with little
-change?
-
-Does that approach work? Otherwise I have to follow your suggestion.
-
-thanks,
-linfeng
+>
+>    MODPOST 216 modules
+>    LZMA    arch/arm/boot/compressed/piggy.lzma
+>    AS      arch/arm/boot/compressed/lib1funcs.o
+> ERROR: "v7wbi_flush_kern_tlb_range"
+> [drivers/staging/zsmalloc/zsmalloc.ko] undefined!
+> make[1]: *** [__modpost] Error 1
+> make: *** [modules] Error 2
+> make: *** Waiting for unfinished jobs....
+>
+> The reason we used that function is copy method by [1]
+> was really slow in ARM but at that time.
+>
+> More severe problem is ARM can prefetch speculatively on other CPUs
+> so under us, other TLBs can have an entry only if we do flush local
+> CPU. Russell King pointed that. Thanks!
+> We don't have many choices except using flush_tlb_kernel_range.
+>
+> My experiment in ARMv7 processor 4 core didn't make any difference with
+> zsmapbench[2] between local_flush_tlb_kernel_range and flush_tlb_kernel_range
+> but still page-table based is much better than copy-based.
+>
+> * bigger is better.
+>
+> 1. local_flush_tlb_kernel_range: 3918795 mappings
+> 2. flush_tlb_kernel_range : 3989538 mappings
+> 3. copy-based: 635158 mappings
+>
+> This patch replace local_flush_tlb_kernel_range with
+> flush_tlb_kernel_range which are avaialbe in all architectures
+> because we already have used it in vmalloc allocator which are
+> generic one so build problem should go away and performane loss
+> shoud be void.
+>
+> [1] f553646, zsmalloc: add page table mapping method
+> [2] https://github.com/spartacus06/zsmapbench
+>
+> Cc: stable@vger.kernel.org
+> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Cc: Russell King <linux@arm.linux.org.uk>
+> Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Reported-by: Matt Sealey <matt@genesi-usa.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>
+> Matt, Could you test this patch?
+>
+>   drivers/staging/zsmalloc/zsmalloc-main.c |   10 ++++------
+>   1 file changed, 4 insertions(+), 6 deletions(-)
+>
+> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
+> index eb00772..82e627c 100644
+> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
+> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
+> @@ -222,11 +222,9 @@ struct zs_pool {
+>   /*
+>    * By default, zsmalloc uses a copy-based object mapping method to access
+>    * allocations that span two pages. However, if a particular architecture
+> - * 1) Implements local_flush_tlb_kernel_range() and 2) Performs VM mapping
+> - * faster than copying, then it should be added here so that
+> - * USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use page table
+> - * mapping rather than copying
+> - * for object mapping.
+> + * performs VM mapping faster than copying, then it should be added here
+> + * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
+> + * page table mapping rather than copying for object mapping.
+>   */
+>   #if defined(CONFIG_ARM)
+>   #define USE_PGTABLE_MAPPING
+> @@ -663,7 +661,7 @@ static inline void __zs_unmap_object(struct mapping_area *area,
+>   
+>   	flush_cache_vunmap(addr, end);
+>   	unmap_kernel_range_noflush(addr, PAGE_SIZE * 2);
+> -	local_flush_tlb_kernel_range(addr, end);
+> +	flush_tlb_kernel_range(addr, end);
+>   }
+>   
+>   #else /* USE_PGTABLE_MAPPING */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
