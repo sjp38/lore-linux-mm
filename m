@@ -1,128 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id A130C6B0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 02:10:18 -0500 (EST)
-Received: by mail-la0-f53.google.com with SMTP id fr10so6163653lab.40
-        for <linux-mm@kvack.org>; Mon, 18 Feb 2013 23:10:16 -0800 (PST)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id C80E06B0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 03:32:47 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id rr4so2110814pbb.13
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 00:32:46 -0800 (PST)
+Message-ID: <512338A6.1030602@gmail.com>
+Date: Tue, 19 Feb 2013 16:32:38 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAFNq8R5q7=wx6WgDwYUrgntMfewHEU=YHTCG4CZp3JcYZsCzhw@mail.gmail.com>
-References: <CAHbM+PPcATz+QdY3=8ns_oFnv5vNi_NerU8hLnQ-EPVDwqSQpw@mail.gmail.com>
-	<CAFNq8R5q7=wx6WgDwYUrgntMfewHEU=YHTCG4CZp3JcYZsCzhw@mail.gmail.com>
-Date: Tue, 19 Feb 2013 12:40:15 +0530
-Message-ID: <CAHbM+PNL+m098RWZN1EjYeLh-kLUsoOJAYBDXecmJ0-ci7oYgA@mail.gmail.com>
-Subject: Re: A noobish question on mm
-From: Soham Chakraborty <sohamwonderpiku4u@gmail.com>
-Content-Type: multipart/alternative; boundary=f46d04343d3c962f4504d60e8805
+Subject: Re: Should a swapped out page be deleted from swap cache?
+References: <CAFNq8R4UYvygk8+X+NZgyGjgU5vBsEv1UM6MiUxah6iW8=0HrQ@mail.gmail.com> <alpine.LNX.2.00.1302180939200.2246@eggly.anvils>
+In-Reply-To: <alpine.LNX.2.00.1302180939200.2246@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Haifeng <omycle@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Li Haifeng <omycle@gmail.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
---f46d04343d3c962f4504d60e8805
-Content-Type: text/plain; charset=ISO-8859-1
-
-On Tue, Feb 19, 2013 at 12:08 PM, Li Haifeng <omycle@gmail.com> wrote:
-
-> 2013/2/19 Soham Chakraborty <sohamwonderpiku4u@gmail.com>:
-> > Hey dude,
-> >
-> > Apologies for this kind of approach but I was not sure whether I can
-> > directly mail the list with such a noobish question. I have been poking
-> > around in mm subsystem for around 2 years now and I have never got a
-> fine,
-> > bullet proof answer to this question.
-> >
-> > Why would something swap even if there is free or cached memory
-> available.
+On 02/19/2013 02:06 AM, Hugh Dickins wrote:
+> On Mon, 18 Feb 2013, Li Haifeng wrote:
 >
-> It's known that swap operation is done with memory reclaiming.There
-> are three occasions for memory reclaiming: low on memory reclaiming,
-> Hibernation reclaiming, periodic reclaiming.
+>> For explain my question, the two points should be displayed as below.
+>>
+>> 1.  If an anonymous page is swapped out, this page will be deleted
+>> from swap cache and be put back into buddy system.
+> Yes, unless the page is referenced again before it comes to be
+> deleted from swap cache.
 >
-> For periodic reclaiming, some page may be swapped out even if there is
-> free or cached memory available.
+>> 2. When a page is swapped out, the sharing count of swap slot must not
+>> be zero. That is, page_swapcount(page) will not return zero.
+> I would not say "must not": we just prefer not to waste time on swapping
+> a page out if its use count has already gone to 0.  And its use count
+> might go down to 0 an instant after swap_writepage() makes that check.
 >
-
-So, meaning even if there is free or cached memory available, periodic
-reclaiming might cause some pages to be swapped out. Is this the rationale.
-If so, which part of the source explains this behavior
-
-
-> Please correct me if my understanding is wrong.
+>> Are both of them above right?
+>>
+>> According the two points above, I was confused to the line 655 below.
+>> When a page is swapped out, the return value of page_swapcount(page)
+>> will not be zero. So, the page couldn't be deleted from swap cache.
+> Yes, we cannot free the swap as long as its data might be needed again.
 >
-> Regards,
-> Haifeng Li
-> >
-> > I have read about all possible theories including lru algorithm,
-> > vm.swappiness, kernel heuristics, overcommit of memory and all. But I for
-> > the heck of me, can't understand what is the issue. And I can't make the
-> end
-> > users satisfied too. I keep blabbering kernel heuristics too much.
-> >
-> > Do you have any answer to this question. If you think this is worthy of
-> > going to list, I will surely do so.
-> >
-> > Soham
+> But a swap cache page may linger in memory for an indefinite time,
+> in between being queued for write out, and actually being freed from
+> the end of the lru by memory pressure.
 >
+> At various points where we hold the page lock on a swap cache page,
+> it's worth checking whether it is still actually needed, or could
+> now be freed from swap cache, and the corresponding swap slot freed:
+> that's what try_to_free_swap() does.
 
---f46d04343d3c962f4504d60e8805
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Hi Hugh,
 
-<br><br><div class=3D"gmail_quote">On Tue, Feb 19, 2013 at 12:08 PM, Li Hai=
-feng <span dir=3D"ltr">&lt;<a href=3D"mailto:omycle@gmail.com" target=3D"_b=
-lank">omycle@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_=
-quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1=
-ex">
-2013/2/19 Soham Chakraborty &lt;<a href=3D"mailto:sohamwonderpiku4u@gmail.c=
-om">sohamwonderpiku4u@gmail.com</a>&gt;:<br>
-<div class=3D"im">&gt; Hey dude,<br>
-&gt;<br>
-&gt; Apologies for this kind of approach but I was not sure whether I can<b=
-r>
-&gt; directly mail the list with such a noobish question. I have been pokin=
-g<br>
-&gt; around in mm subsystem for around 2 years now and I have never got a f=
-ine,<br>
-&gt; bullet proof answer to this question.<br>
-&gt;<br>
-&gt; Why would something swap even if there is free or cached memory availa=
-ble.<br>
-<br>
-</div>It&#39;s known that swap operation is done with memory reclaiming.The=
-re<br>
-are three occasions for memory reclaiming: low on memory reclaiming,<br>
-Hibernation reclaiming, periodic reclaiming.<br>
-<br>
-For periodic reclaiming, some page may be swapped out even if there is<br>
-<div class=3D"im">free or cached memory available.<br></div></blockquote><d=
-iv><br></div><div>So, meaning even if there is free or cached memory availa=
-ble, periodic reclaiming might cause some pages to be swapped out. Is this =
-the rationale. If so, which part of the source explains this=A0behavior=A0 =
-=A0</div>
-<div><br></div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex=
-;border-left:1px #ccc solid;padding-left:1ex"><div class=3D"im">
-<br>
-</div>Please correct me if my understanding is wrong.<br>
-<br>
-Regards,<br>
-Haifeng Li<br>
-<div class=3D"HOEnZb"><div class=3D"h5">&gt;<br>
-&gt; I have read about all possible theories including lru algorithm,<br>
-&gt; vm.swappiness, kernel heuristics, overcommit of memory and all. But I =
-for<br>
-&gt; the heck of me, can&#39;t understand what is the issue. And I can&#39;=
-t make the end<br>
-&gt; users satisfied too. I keep blabbering kernel heuristics too much.<br>
-&gt;<br>
-&gt; Do you have any answer to this question. If you think this is worthy o=
-f<br>
-&gt; going to list, I will surely do so.<br>
-&gt;<br>
-&gt; Soham<br>
-</div></div></blockquote></div><br>
+There is a call of try_to_free_swap in function swap_writepage, if 
+swap_writepage is call from shrink_page_list path, PageSwapCache(page) 
+== trure, PageWriteback(page) maybe false, page_swapcount(page) == 0, 
+then will delete the page from swap cache and free swap slot, where I miss?
 
---f46d04343d3c962f4504d60e8805--
+>
+> Hugh
+>
+>>   644  * If swap is getting full, or if there are no more mappings of this page,
+>>   645  * then try_to_free_swap is called to free its swap space.
+>>   646  */
+>>   647 int try_to_free_swap(struct page *page)
+>>   648 {
+>>   649         VM_BUG_ON(!PageLocked(page));
+>>   650
+>>   651         if (!PageSwapCache(page))
+>>   652                 return 0;
+>>   653         if (PageWriteback(page))
+>>   654                 return 0;
+>>   655         if (page_swapcount(page))//Has referenced by other swap out page.
+>>   656                 return 0;
+>>   657
+>>   658         /*
+>>   659          * Once hibernation has begun to create its image of memory,
+>>   660          * there's a danger that one of the calls to try_to_free_swap()
+>>   661          * - most probably a call from __try_to_reclaim_swap() while
+>>   662          * hibernation is allocating its own swap pages for the image,
+>>   663          * but conceivably even a call from memory reclaim - will free
+>>   664          * the swap from a page which has already been recorded in the
+>>   665          * image as a clean swapcache page, and then reuse its swap for
+>>   666          * another page of the image.  On waking from hibernation, the
+>>   667          * original page might be freed under memory pressure, then
+>>   668          * later read back in from swap, now with the wrong data.
+>>   669          *
+>>   670          * Hibration suspends storage while it is writing the image
+>>   671          * to disk so check that here.
+>>   672          */
+>>   673         if (pm_suspended_storage())
+>>   674                 return 0;
+>>   675
+>>   676         delete_from_swap_cache(page);
+>>   677         SetPageDirty(page);
+>>   678         return 1;
+>>   679 }
+>>
+>> Thanks.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
