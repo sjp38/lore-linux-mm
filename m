@@ -1,98 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 668796B0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 10:27:55 -0500 (EST)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 75FAC6B0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 11:12:12 -0500 (EST)
+Received: by mail-ie0-f180.google.com with SMTP id bn7so8528169ieb.25
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 08:12:11 -0800 (PST)
 MIME-Version: 1.0
-Message-ID: <1f089254-3abe-4c63-a72a-c9e564ae7d0d@default>
-Date: Tue, 19 Feb 2013 07:27:24 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: Questin about swap_slot free and invalidate page
-References: <20130131051140.GB23548@blaptop>
- <alpine.LNX.2.00.1302031732520.4050@eggly.anvils>
- <20130204024950.GD2688@blaptop>
- <d6fc41b7-8448-40be-84c3-c24d0833bd85@default> <51236C11.1010208@gmail.com>
-In-Reply-To: <51236C11.1010208@gmail.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20130131144026.bd735c07.akpm@linux-foundation.org>
+References: <20130118155724.GA8507@otc-wbsnb-06>
+	<20130131144026.bd735c07.akpm@linux-foundation.org>
+Date: Wed, 20 Feb 2013 00:12:11 +0800
+Message-ID: <CANN689Gvf9SeF9PG+8f_eBBM4vZLyroRr2nhjTcqiHuja-WUSQ@mail.gmail.com>
+Subject: Re: PAGE_CACHE_SIZE vs. PAGE_SIZE
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-> From: Ric Mason [mailto:ric.masonn@gmail.com]
-> Sent: Tuesday, February 19, 2013 5:12 AM
-> To: Dan Magenheimer
-> Cc: Minchan Kim; Hugh Dickins; Nitin Gupta; Seth Jennings; Konrad Rzeszut=
-ek Wilk; linux-mm@kvack.org;
-> linux-kernel@vger.kernel.org; Andrew Morton
-> Subject: Re: Questin about swap_slot free and invalidate page
->=20
-> On 02/05/2013 05:28 AM, Dan Magenheimer wrote:
-> >> From: Minchan Kim [mailto:minchan@kernel.org]
-> >> Sent: Sunday, February 03, 2013 7:50 PM
-> >> To: Hugh Dickins
-> >> Cc: Nitin Gupta; Dan Magenheimer; Seth Jennings; Konrad Rzeszutek Wilk=
-; linux-mm@kvack.org; linux-
-> >> kernel@vger.kernel.org; Andrew Morton
-> >> Subject: Re: Questin about swap_slot free and invalidate page
-> >>
-> >> Hi Hugh,
-> >>
-> >> On Sun, Feb 03, 2013 at 05:51:14PM -0800, Hugh Dickins wrote:
-> >>> On Thu, 31 Jan 2013, Minchan Kim wrote:
-> >>>
-> >>>> When I reviewed zswap, I was curious about frontswap_store.
-> >>>> It said following as.
-> >>>>
-> >>>>   * If frontswap already contains a page with matching swaptype and
-> >>>>   * offset, the frontswap implementation may either overwrite the da=
-ta and
-> >>>>   * return success or invalidate the page from frontswap and return =
-failure.
-> >>>>
-> >>>> It didn't say why it happens. we already have __frontswap_invalidate=
-_page
-> >>>> and call it whenever swap_slot frees. If we don't free swap slot,
-> >>>> scan_swap_map can't find the slot for swap out so I thought overwrit=
-ing of
-> >>>> data shouldn't happen in frontswap.
-> >>>>
-> >> I am waiting Dan's reply(He will come in this week) and then, judge wh=
-at's
-> >> the best.
-> > Hugh is right that handling the possibility of duplicates is
-> > part of the tmem ABI.  If there is any possibility of duplicates,
-> > the ABI defines how a backend must handle them to avoid data
-> > coherency issues.
-> >
-> > The kernel implements an in-kernel API which implements the tmem
-> > ABI.  If the frontend and backend can always agree that duplicate
->=20
-> Which ABI in zcache implement that?
+On Fri, Feb 1, 2013 at 6:40 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Fri, 18 Jan 2013 17:57:25 +0200
+> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+>
+>> Hi,
+>>
+>> PAGE_CACHE_* macros were introduced long time ago in hope to implement
+>> page cache with larger chunks than one page in future.
+>>
+>> In fact it was never done.
+>>
+>> Some code paths assume PAGE_CACHE_SIZE <= PAGE_SIZE. E.g. we use
+>> zero_user_segments() to clear stale parts of page on cache filling, but
+>> the function is implemented only for individual small page.
+>>
+>> It's unlikely that global switch to PAGE_CACHE_SIZE > PAGE_SIZE will never
+>> happen since it will affect to much code at once.
+>>
+>> I think support of larger chunks in page cache can be in implemented in
+>> some form of THP with per-fs enabling.
+>>
+>> Is it time to get rid of PAGE_CACHE_* macros?
+>> I can prepare patchset if it's okay.
+>
+> The distinct PAGE_CACHE_SIZE has never been used for anything, but I do
+> kinda like it for documentary reasons: PAGE_SIZE is a raw, low-level
+> thing and PAGE_CACHE_SIZE is the specialized
+> we're-doing-pagecache-stuff thing.
+>
+> But I'm sure I could get used to not having it ;)
 
-https://oss.oracle.com/projects/tmem/dist/documentation/api/tmemspec-v001.p=
-df
+Personally I always find such distinctions without a difference - like
+page_cache_release vs put_page - rather confusing, especially when
+working near the fs/mm boundary (for example in and under
+handle_pte_fault())
 
-The in-kernel APIs are frontswap and cleancache.  For more information abou=
-t
-tmem, see http://lwn.net/Articles/454795/=20
-=20
-> > are never possible, I agree that the backend could avoid that
-> > special case.  However, duplicates occur rarely enough and the
-> > consequences (data loss) are bad enough that I think the case
-> > should still be checked, at least with a BUG_ON.  I also wonder
-> > if it is worth it to make changes to the core swap subsystem
-> > to avoid code to implement a zswap corner case.
-> >
-> > Remember that zswap is an oversimplified special case of tmem
-> > that handles only one frontend (Linux frontswap) and one backend
-> > (zswap).  Tmem goes well beyond that and already supports other
-> > more general backends including Xen and ramster, and could also
-> > support other frontends such as a BSD or Solaris equivalent
-> > of frontswap, for example with a Linux ramster/zcache backend.
-> > I'm not sure how wise it is to tear out generic code and replace
-> > it with simplistic code unless there is absolutely no chance that
-> > the generic code will be necessary.
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
