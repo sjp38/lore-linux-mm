@@ -1,75 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Message-ID: <51238033.6010005@cn.fujitsu.com>
-Date: Tue, 19 Feb 2013 21:37:55 +0800
-From: Lin Feng <linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 668796B0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 10:27:55 -0500 (EST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: hotplug: implement non-movable version of get_user_pages()
- called get_user_pages_non_movable()
-References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com> <1359972248-8722-2-git-send-email-linfeng@cn.fujitsu.com> <20130204160624.5c20a8a0.akpm@linux-foundation.org> <20130205115722.GF21389@suse.de> <20130205133244.GH21389@suse.de>
-In-Reply-To: <20130205133244.GH21389@suse.de>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-15
+Message-ID: <1f089254-3abe-4c63-a72a-c9e564ae7d0d@default>
+Date: Tue, 19 Feb 2013 07:27:24 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Questin about swap_slot free and invalidate page
+References: <20130131051140.GB23548@blaptop>
+ <alpine.LNX.2.00.1302031732520.4050@eggly.anvils>
+ <20130204024950.GD2688@blaptop>
+ <d6fc41b7-8448-40be-84c3-c24d0833bd85@default> <51236C11.1010208@gmail.com>
+In-Reply-To: <51236C11.1010208@gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, mhocko@suse.cz, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-Hi Mel,
+> From: Ric Mason [mailto:ric.masonn@gmail.com]
+> Sent: Tuesday, February 19, 2013 5:12 AM
+> To: Dan Magenheimer
+> Cc: Minchan Kim; Hugh Dickins; Nitin Gupta; Seth Jennings; Konrad Rzeszut=
+ek Wilk; linux-mm@kvack.org;
+> linux-kernel@vger.kernel.org; Andrew Morton
+> Subject: Re: Questin about swap_slot free and invalidate page
+>=20
+> On 02/05/2013 05:28 AM, Dan Magenheimer wrote:
+> >> From: Minchan Kim [mailto:minchan@kernel.org]
+> >> Sent: Sunday, February 03, 2013 7:50 PM
+> >> To: Hugh Dickins
+> >> Cc: Nitin Gupta; Dan Magenheimer; Seth Jennings; Konrad Rzeszutek Wilk=
+; linux-mm@kvack.org; linux-
+> >> kernel@vger.kernel.org; Andrew Morton
+> >> Subject: Re: Questin about swap_slot free and invalidate page
+> >>
+> >> Hi Hugh,
+> >>
+> >> On Sun, Feb 03, 2013 at 05:51:14PM -0800, Hugh Dickins wrote:
+> >>> On Thu, 31 Jan 2013, Minchan Kim wrote:
+> >>>
+> >>>> When I reviewed zswap, I was curious about frontswap_store.
+> >>>> It said following as.
+> >>>>
+> >>>>   * If frontswap already contains a page with matching swaptype and
+> >>>>   * offset, the frontswap implementation may either overwrite the da=
+ta and
+> >>>>   * return success or invalidate the page from frontswap and return =
+failure.
+> >>>>
+> >>>> It didn't say why it happens. we already have __frontswap_invalidate=
+_page
+> >>>> and call it whenever swap_slot frees. If we don't free swap slot,
+> >>>> scan_swap_map can't find the slot for swap out so I thought overwrit=
+ing of
+> >>>> data shouldn't happen in frontswap.
+> >>>>
+> >> I am waiting Dan's reply(He will come in this week) and then, judge wh=
+at's
+> >> the best.
+> > Hugh is right that handling the possibility of duplicates is
+> > part of the tmem ABI.  If there is any possibility of duplicates,
+> > the ABI defines how a backend must handle them to avoid data
+> > coherency issues.
+> >
+> > The kernel implements an in-kernel API which implements the tmem
+> > ABI.  If the frontend and backend can always agree that duplicate
+>=20
+> Which ABI in zcache implement that?
 
-On 02/05/2013 09:32 PM, Mel Gorman wrote:
-> On Tue, Feb 05, 2013 at 11:57:22AM +0000, Mel Gorman wrote:
->>
->>>> +				migrate_pre_flag = 1;
->>>> +			}
->>>> +
->>>> +			if (!isolate_lru_page(pages[i])) {
->>>> +				inc_zone_page_state(pages[i], NR_ISOLATED_ANON +
->>>> +						 page_is_file_cache(pages[i]));
->>>> +				list_add_tail(&pages[i]->lru, &pagelist);
->>>> +			} else {
->>>> +				isolate_err = 1;
->>>> +				goto put_page;
->>>> +			}
->>
->> isolate_lru_page() takes the LRU lock every time.
-> 
-> Credit to Michal Hocko for bringing this up but with the number of
-> other issues I missed that this is also broken with respect to huge page
-> handling. hugetlbfs pages will not be on the LRU so the isolation will mess
-> up and the migration has to be handled differently.  Ordinarily hugetlbfs
-> pages cannot be allocated from ZONE_MOVABLE but it is possible to configure
-> it to be allowed via /proc/sys/vm/hugepages_treat_as_movable. If this
-> encounters a hugetlbfs page, it'll just blow up.
+https://oss.oracle.com/projects/tmem/dist/documentation/api/tmemspec-v001.p=
+df
 
-I look into the migrate_huge_page() codes find that if we support the hugetlbfs
-non movable migration, we have to invent another alloc_huge_page_node_nonmovable() 
-or such allocate interface, which cost is large(exploding the codes and great impact
-on current alloc_huge_page_node()) but gains little, I think that pinning hugepage
-is a corner case. 
-
-So can we skip over hugepage without migration but give some WARN_ON() info, is
-it acceptable?
-
-> 
-> The other is that this almost certainly broken for transhuge page
-> handling. gup returns the head and tail pages and ordinarily this is ok
-
-I can't find codes doing such things :(, could you please point me out?
-
-> because the caller only cares about the physical address. Migration will
-> also split a hugepage if it receives it but you are potentially adding
-> tail pages to a list here and then migrating them. The split of the first
-> page will get very confused. I'm not exactly sure what the result will be
-> but it won't be pretty.
-> 
-> Was THP enabled when this was tested? Was CONFIG_DEBUG_LIST enabled
-> during testing?
-
-I checked my config file that both CONFIG options aboved are enabled. However it was 
-only be tested by two services invoking io_setup(), it works fine..
-
-thanks,
-linfeng
+The in-kernel APIs are frontswap and cleancache.  For more information abou=
+t
+tmem, see http://lwn.net/Articles/454795/=20
+=20
+> > are never possible, I agree that the backend could avoid that
+> > special case.  However, duplicates occur rarely enough and the
+> > consequences (data loss) are bad enough that I think the case
+> > should still be checked, at least with a BUG_ON.  I also wonder
+> > if it is worth it to make changes to the core swap subsystem
+> > to avoid code to implement a zswap corner case.
+> >
+> > Remember that zswap is an oversimplified special case of tmem
+> > that handles only one frontend (Linux frontswap) and one backend
+> > (zswap).  Tmem goes well beyond that and already supports other
+> > more general backends including Xen and ramster, and could also
+> > support other frontends such as a BSD or Solaris equivalent
+> > of frontswap, for example with a Linux ramster/zcache backend.
+> > I'm not sure how wise it is to tear out generic code and replace
+> > it with simplistic code unless there is absolutely no chance that
+> > the generic code will be necessary.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
