@@ -1,68 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 38B116B0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 13:50:43 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id wz12so2390228pbc.31
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 10:50:42 -0800 (PST)
-Date: Tue, 19 Feb 2013 10:49:40 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Should a swapped out page be deleted from swap cache?
-In-Reply-To: <CAFj3OHXredBPjjLMaqnAq0tYKbLXaO0DOfs8zGYzV4ntsXvi6A@mail.gmail.com>
-Message-ID: <alpine.LNX.2.00.1302191040010.2248@eggly.anvils>
-References: <CAFNq8R4UYvygk8+X+NZgyGjgU5vBsEv1UM6MiUxah6iW8=0HrQ@mail.gmail.com> <alpine.LNX.2.00.1302180939200.2246@eggly.anvils> <CAFNq8R5x3tD9Fn4TWna58VfdiRedPkrTDkeHXStkL7yBngL1mw@mail.gmail.com> <5122E591.5090108@gmail.com>
- <CAFNq8R5Y+obN0pufXriqmRUajPPq=N6XMAhQUgbzObvCpbbpxA@mail.gmail.com> <CAFj3OHXredBPjjLMaqnAq0tYKbLXaO0DOfs8zGYzV4ntsXvi6A@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id A255D6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 13:55:07 -0500 (EST)
+From: Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>
+Subject: [PATCH 78/81] x86/mm: Check if PUD is large when validating a kernel address
+Date: Tue, 19 Feb 2013 15:49:41 -0300
+Message-Id: <1361299784-8830-79-git-send-email-herton.krzesinski@canonical.com>
+In-Reply-To: <1361299784-8830-1-git-send-email-herton.krzesinski@canonical.com>
+References: <1361299784-8830-1-git-send-email-herton.krzesinski@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: Li Haifeng <omycle@gmail.com>, Will Huck <will.huckk@gmail.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org, kernel-team@lists.ubuntu.com
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>
 
-On Tue, 19 Feb 2013, Sha Zhengju wrote:
-> On Tue, Feb 19, 2013 at 2:53 PM, Li Haifeng <omycle@gmail.com> wrote:
-> > 2013/2/19 Will Huck <will.huckk@gmail.com>:
-> >> On 02/19/2013 10:04 AM, Li Haifeng wrote:
-> >>>
-> >>> If a anonymous page is swapped out and  comes to be reclaimable,
-> >>> shrink_page_list() will call __remove_mapping() to delete the page
-> >>> swapped out from swap cache. Corresponding code lists as below.
+3.5.7.6 -stable review patch.  If anyone has any objections, please let me know.
 
-Correct.
+------------------
 
-> >>
-> >>
-> >> I'm not sure if
-> >> if (PageAnon(page) && !PageSwapCache(page)) {
-> >>  .................
-> >> }
-> >> will add the page to swap cache again.
+From: Mel Gorman <mgorman@suse.de>
 
-No, it's already in the swap cache.  Of course, the original pageframe
-may be removed from swap cache, freed, data later read back from swap into
-a new swap cache pageframe, that be mapped into user memory, removed from
-swap cache and swap freed, then later arrive here in page reclaim at the
-PageAnon(page) && !PageSwapCache(page) to be added to swap again.
+commit 0ee364eb316348ddf3e0dfcd986f5f13f528f821 upstream.
 
-> >>
-> >
-> > Adding the page to swap cache is the first stage of memory reclaiming.
-> >
-> > When an anonymous page will be reclaimed, it should be swapped out. If
-> > it's not in the swap cache, it will insert into swap cache first and
-> > set the bit of PG_swapcache on page->flags. Then, it will be swapped
-> > out by try_to_unmap(). After it's swapped out, and no processes swap
+A user reported the following oops when a backup process reads
+/proc/kcore:
 
-Almost correct...
+ BUG: unable to handle kernel paging request at ffffbb00ff33b000
+ IP: [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
+ [...]
 
-> 
-> Swapout(writing to swap disk) is not done by try_to_unmap() which only
-> tries to remove all page table mappings to a page. Before unmapping,
-> add_to_swap() will set the swap cache page dirty and it will be
-> written out by pageout()->swap_writepage().
+ Call Trace:
+  [<ffffffff811b8aaa>] read_kcore+0x17a/0x370
+  [<ffffffff811ad847>] proc_reg_read+0x77/0xc0
+  [<ffffffff81151687>] vfs_read+0xc7/0x130
+  [<ffffffff811517f3>] sys_read+0x53/0xa0
+  [<ffffffff81449692>] system_call_fastpath+0x16/0x1b
 
-... but yes, try_to_unmap() is not the one that writes out to swap.
+Investigation determined that the bug triggered when reading
+system RAM at the 4G mark. On this system, that was the first
+address using 1G pages for the virt->phys direct mapping so the
+PUD is pointing to a physical address, not a PMD page.
 
-Hugh
+The problem is that the page table walker in kern_addr_valid() is
+not checking pud_large() and treats the physical address as if
+it was a PMD.  If it happens to look like pmd_none then it'll
+silently fail, probably returning zeros instead of real data. If
+the data happens to look like a present PMD though, it will be
+walked resulting in the oops above.
+
+This patch adds the necessary pud_large() check.
+
+Unfortunately the problem was not readily reproducible and now
+they are running the backup program without accessing
+/proc/kcore so the patch has not been validated but I think it
+makes sense.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.coM>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/20130211145236.GX21389@suse.de
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>
+---
+ arch/x86/include/asm/pgtable.h |    5 +++++
+ arch/x86/mm/init_64.c          |    3 +++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index c3520d7..3f3dd52 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -142,6 +142,11 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
+ 	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
+ }
+ 
++static inline unsigned long pud_pfn(pud_t pud)
++{
++	return (pud_val(pud) & PTE_PFN_MASK) >> PAGE_SHIFT;
++}
++
+ #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
+ 
+ static inline int pmd_large(pmd_t pte)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 3baff25..ce42da7 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -829,6 +829,9 @@ int kern_addr_valid(unsigned long addr)
+ 	if (pud_none(*pud))
+ 		return 0;
+ 
++	if (pud_large(*pud))
++		return pfn_valid(pud_pfn(*pud));
++
+ 	pmd = pmd_offset(pud, addr);
+ 	if (pmd_none(*pmd))
+ 		return 0;
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
