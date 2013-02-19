@@ -1,115 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 036466B0005
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 05:07:49 -0500 (EST)
-Received: by mail-gh0-f171.google.com with SMTP id r17so750747ghr.16
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 02:07:49 -0800 (PST)
-Message-ID: <51234EEC.3010700@gmail.com>
-Date: Tue, 19 Feb 2013 18:07:40 +0800
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 94F8E6B0009
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 05:25:40 -0500 (EST)
+Received: by mail-yh0-f42.google.com with SMTP id w49so1182372yhw.29
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 02:25:39 -0800 (PST)
+Message-ID: <5123531B.8090301@gmail.com>
+Date: Tue, 19 Feb 2013 18:25:31 +0800
 From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] zsmalloc: Fix TLB coherency and build problem
-References: <1359334808-19794-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1359334808-19794-1-git-send-email-minchan@kernel.org>
+Subject: Re: [patch 1/2] mm: fincore()
+References: <87a9rbh7b4.fsf@rustcorp.com.au> <20130211162701.GB13218@cmpxchg.org> <20130211141239.f4decf03.akpm@linux-foundation.org> <20130215063450.GA24047@cmpxchg.org>
+In-Reply-To: <20130215063450.GA24047@cmpxchg.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Matt Sealey <matt@genesi-usa.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Russell King <linux@arm.linux.org.uk>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rusty Russell <rusty@rustcorp.com.au>, LKML <linux-kernel@vger.kernel.org>, Nick Piggin <npiggin@suse.de>, Stewart Smith <stewart@flamingspork.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On 01/28/2013 09:00 AM, Minchan Kim wrote:
-> Recently, Matt Sealey reported he fail to build zsmalloc caused by
-> using of local_flush_tlb_kernel_range which are architecture dependent
-> function so !CONFIG_SMP in ARM couldn't implement it so it ends up
-> build error following as.
-
-Confuse me!
-
-1) Why I see flush_tlb_kernel_range is different in different architecture?
-2) Does local here means local cpu? If the answer is yes, why ARM 
-doesn't support it?
-
+Hi Johannes,
+On 02/15/2013 02:34 PM, Johannes Weiner wrote:
+> On Mon, Feb 11, 2013 at 02:12:39PM -0800, Andrew Morton wrote:
+>> Also, having to mmap the file to be able to query pagecache state is a
+>> hack.  Whatever happened to the fincore() patch?
+> I don't know, but how about this one:
 >
->    MODPOST 216 modules
->    LZMA    arch/arm/boot/compressed/piggy.lzma
->    AS      arch/arm/boot/compressed/lib1funcs.o
-> ERROR: "v7wbi_flush_kern_tlb_range"
-> [drivers/staging/zsmalloc/zsmalloc.ko] undefined!
-> make[1]: *** [__modpost] Error 1
-> make: *** [modules] Error 2
-> make: *** Waiting for unfinished jobs....
->
-> The reason we used that function is copy method by [1]
-> was really slow in ARM but at that time.
->
-> More severe problem is ARM can prefetch speculatively on other CPUs
-> so under us, other TLBs can have an entry only if we do flush local
-> CPU. Russell King pointed that. Thanks!
-> We don't have many choices except using flush_tlb_kernel_range.
->
-> My experiment in ARMv7 processor 4 core didn't make any difference with
-> zsmapbench[2] between local_flush_tlb_kernel_range and flush_tlb_kernel_range
-> but still page-table based is much better than copy-based.
->
-> * bigger is better.
->
-> 1. local_flush_tlb_kernel_range: 3918795 mappings
-> 2. flush_tlb_kernel_range : 3989538 mappings
-> 3. copy-based: 635158 mappings
->
-> This patch replace local_flush_tlb_kernel_range with
-> flush_tlb_kernel_range which are avaialbe in all architectures
-> because we already have used it in vmalloc allocator which are
-> generic one so build problem should go away and performane loss
-> shoud be void.
->
-> [1] f553646, zsmalloc: add page table mapping method
-> [2] https://github.com/spartacus06/zsmapbench
->
-> Cc: stable@vger.kernel.org
-> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
-> Cc: Russell King <linux@arm.linux.org.uk>
-> Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
-> Cc: Nitin Gupta <ngupta@vflare.org>
-> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> Reported-by: Matt Sealey <matt@genesi-usa.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: [patch 1/2] mm: fincore()
 >
-> Matt, Could you test this patch?
+> Provide a syscall to determine whether a given file's pages are cached
+> in memory.  This is more elegant than mmapping the file for the sole
+> purpose of using mincore(), and also works on NOMMU.
+
+Who is the user of mincore()/fincore()? In which scenario user processes 
+need to know their pages are resident in memory or not?
+
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>   include/linux/syscalls.h |   2 +
+>   mm/Makefile              |   2 +-
+>   mm/fincore.c             | 128 +++++++++++++++++++++++++++++++++++++++++++++++
+>   3 files changed, 131 insertions(+), 1 deletion(-)
+>   create mode 100644 mm/fincore.c
 >
->   drivers/staging/zsmalloc/zsmalloc-main.c |   10 ++++------
->   1 file changed, 4 insertions(+), 6 deletions(-)
->
-> diff --git a/drivers/staging/zsmalloc/zsmalloc-main.c b/drivers/staging/zsmalloc/zsmalloc-main.c
-> index eb00772..82e627c 100644
-> --- a/drivers/staging/zsmalloc/zsmalloc-main.c
-> +++ b/drivers/staging/zsmalloc/zsmalloc-main.c
-> @@ -222,11 +222,9 @@ struct zs_pool {
->   /*
->    * By default, zsmalloc uses a copy-based object mapping method to access
->    * allocations that span two pages. However, if a particular architecture
-> - * 1) Implements local_flush_tlb_kernel_range() and 2) Performs VM mapping
-> - * faster than copying, then it should be added here so that
-> - * USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use page table
-> - * mapping rather than copying
-> - * for object mapping.
-> + * performs VM mapping faster than copying, then it should be added here
-> + * so that USE_PGTABLE_MAPPING is defined. This causes zsmalloc to use
-> + * page table mapping rather than copying for object mapping.
->   */
->   #if defined(CONFIG_ARM)
->   #define USE_PGTABLE_MAPPING
-> @@ -663,7 +661,7 @@ static inline void __zs_unmap_object(struct mapping_area *area,
+> diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+> index 313a8e0..3ceab2a 100644
+> --- a/include/linux/syscalls.h
+> +++ b/include/linux/syscalls.h
+> @@ -897,4 +897,6 @@ asmlinkage long sys_process_vm_writev(pid_t pid,
+>   asmlinkage long sys_kcmp(pid_t pid1, pid_t pid2, int type,
+>   			 unsigned long idx1, unsigned long idx2);
+>   asmlinkage long sys_finit_module(int fd, const char __user *uargs, int flags);
+> +asmlinkage long sys_fincore(unsigned int fd, loff_t start, loff_t len,
+> +			    unsigned char __user * vec);
+>   #endif
+> diff --git a/mm/Makefile b/mm/Makefile
+> index 185a22b..221cdae 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -17,7 +17,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+>   			   util.o mmzone.o vmstat.o backing-dev.o \
+>   			   mm_init.o mmu_context.o percpu.o slab_common.o \
+>   			   compaction.o balloon_compaction.o \
+> -			   interval_tree.o $(mmu-y)
+> +			   interval_tree.o fincore.o $(mmu-y)
 >   
->   	flush_cache_vunmap(addr, end);
->   	unmap_kernel_range_noflush(addr, PAGE_SIZE * 2);
-> -	local_flush_tlb_kernel_range(addr, end);
-> +	flush_tlb_kernel_range(addr, end);
->   }
+>   obj-y += init-mm.o
 >   
->   #else /* USE_PGTABLE_MAPPING */
+> diff --git a/mm/fincore.c b/mm/fincore.c
+> new file mode 100644
+> index 0000000..d504611
+> --- /dev/null
+> +++ b/mm/fincore.c
+> @@ -0,0 +1,128 @@
+> +#include <linux/syscalls.h>
+> +#include <linux/pagemap.h>
+> +#include <linux/file.h>
+> +#include <linux/fs.h>
+> +#include <linux/mm.h>
+> +
+> +static long do_fincore(struct address_space *mapping, pgoff_t pgstart,
+> +		       unsigned long nr_pages, unsigned char *vec)
+> +{
+> +	pgoff_t pgend = pgstart + nr_pages;
+> +	struct radix_tree_iter iter;
+> +	void **slot;
+> +	long nr = 0;
+> +
+> +	rcu_read_lock();
+> +restart:
+> +	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, pgstart) {
+> +		unsigned char present;
+> +		struct page *page;
+> +
+> +		/* Handle holes */
+> +		if (iter.index != pgstart + nr) {
+> +			if (iter.index < pgend)
+> +				nr_pages = iter.index - pgstart;
+> +			break;
+> +		}
+> +repeat:
+> +		page = radix_tree_deref_slot(slot);
+> +		if (unlikely(!page))
+> +			continue;
+> +
+> +		if (radix_tree_exception(page)) {
+> +			if (radix_tree_deref_retry(page)) {
+> +				/*
+> +				 * Transient condition which can only trigger
+> +				 * when entry at index 0 moves out of or back
+> +				 * to root: none yet gotten, safe to restart.
+> +				 */
+> +				WARN_ON(iter.index);
+> +				goto restart;
+> +			}
+> +			present = 0;
+> +		} else {
+> +			if (!page_cache_get_speculative(page))
+> +				goto repeat;
+> +
+> +			/* Has the page moved? */
+> +			if (unlikely(page != *slot)) {
+> +				page_cache_release(page);
+> +				goto repeat;
+> +			}
+> +
+> +			present = PageUptodate(page);
+> +			page_cache_release(page);
+> +		}
+> +		vec[nr] = present;
+> +
+> +		if (++nr == nr_pages)
+> +			break;
+> +	}
+> +	rcu_read_unlock();
+> +
+> +	if (nr < nr_pages)
+> +		memset(vec + nr, 0, nr_pages - nr);
+> +
+> +	return nr_pages;
+> +}
+> +
+> +/*
+> + * The fincore(2) system call.
+> + *
+> + * fincore() returns the memory residency status of the given file's
+> + * pages, in the range [start, start + len].
+> + * The status is returned in a vector of bytes.  The least significant
+> + * bit of each byte is 1 if the referenced page is in memory, otherwise
+> + * it is zero.
+> + *
+> + * Because the status of a page can change after fincore() checks it
+> + * but before it returns to the application, the returned vector may
+> + * contain stale information.
+> + *
+> + * return values:
+> + *  zero    - success
+> + *  -EBADF  - fd isn't a valid open file descriptor
+> + *  -EFAULT - vec points to an illegal address
+> + *  -EINVAL - start is not a multiple of PAGE_CACHE_SIZE
+> + */
+> +SYSCALL_DEFINE4(fincore, unsigned int, fd, loff_t, start, loff_t, len,
+> +		unsigned char __user *, vec)
+> +{
+> +	unsigned long nr_pages;
+> +	pgoff_t pgstart;
+> +	struct fd f;
+> +	long ret;
+> +
+> +	if (start & ~PAGE_CACHE_MASK)
+> +		return -EINVAL;
+> +
+> +	f = fdget(fd);
+> +	if (!f.file)
+> +		return -EBADF;
+> +
+> +	pgstart = start >> PAGE_CACHE_SHIFT;
+> +	nr_pages = DIV_ROUND_UP(len, PAGE_CACHE_SIZE);
+> +
+> +	while (nr_pages) {
+> +		unsigned char tmp[64];
+> +
+> +		ret = do_fincore(f.file->f_mapping, pgstart,
+> +				 min(nr_pages, sizeof(tmp)), tmp);
+> +		if (ret <= 0)
+> +			break;
+> +
+> +		if (copy_to_user(vec, tmp, ret)) {
+> +			ret = -EFAULT;
+> +			break;
+> +		}
+> +
+> +		nr_pages -= ret;
+> +		pgstart += ret;
+> +		vec += ret;
+> +		ret = 0;
+> +	}
+> +
+> +	fdput(f);
+> +
+> +	return ret;
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
