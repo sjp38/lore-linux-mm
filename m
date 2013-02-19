@@ -1,62 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 75FAC6B0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 11:12:12 -0500 (EST)
-Received: by mail-ie0-f180.google.com with SMTP id bn7so8528169ieb.25
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 08:12:11 -0800 (PST)
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id C8D746B0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 13:08:59 -0500 (EST)
+Received: by mail-da0-f53.google.com with SMTP id w3so3072108dad.40
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 10:08:59 -0800 (PST)
+Date: Tue, 19 Feb 2013 10:08:12 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/2] mm: Allow arch code to control the user page table
+ ceiling
+In-Reply-To: <1361204311-14127-2-git-send-email-catalin.marinas@arm.com>
+Message-ID: <alpine.LNX.2.00.1302191005320.2139@eggly.anvils>
+References: <1361204311-14127-1-git-send-email-catalin.marinas@arm.com> <1361204311-14127-2-git-send-email-catalin.marinas@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20130131144026.bd735c07.akpm@linux-foundation.org>
-References: <20130118155724.GA8507@otc-wbsnb-06>
-	<20130131144026.bd735c07.akpm@linux-foundation.org>
-Date: Wed, 20 Feb 2013 00:12:11 +0800
-Message-ID: <CANN689Gvf9SeF9PG+8f_eBBM4vZLyroRr2nhjTcqiHuja-WUSQ@mail.gmail.com>
-Subject: Re: PAGE_CACHE_SIZE vs. PAGE_SIZE
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Nick Piggin <npiggin@kernel.dk>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <ak@linux.intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org
 
-On Fri, Feb 1, 2013 at 6:40 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Fri, 18 Jan 2013 17:57:25 +0200
-> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
->
->> Hi,
->>
->> PAGE_CACHE_* macros were introduced long time ago in hope to implement
->> page cache with larger chunks than one page in future.
->>
->> In fact it was never done.
->>
->> Some code paths assume PAGE_CACHE_SIZE <= PAGE_SIZE. E.g. we use
->> zero_user_segments() to clear stale parts of page on cache filling, but
->> the function is implemented only for individual small page.
->>
->> It's unlikely that global switch to PAGE_CACHE_SIZE > PAGE_SIZE will never
->> happen since it will affect to much code at once.
->>
->> I think support of larger chunks in page cache can be in implemented in
->> some form of THP with per-fs enabling.
->>
->> Is it time to get rid of PAGE_CACHE_* macros?
->> I can prepare patchset if it's okay.
->
-> The distinct PAGE_CACHE_SIZE has never been used for anything, but I do
-> kinda like it for documentary reasons: PAGE_SIZE is a raw, low-level
-> thing and PAGE_CACHE_SIZE is the specialized
-> we're-doing-pagecache-stuff thing.
->
-> But I'm sure I could get used to not having it ;)
+On Mon, 18 Feb 2013, Catalin Marinas wrote:
 
-Personally I always find such distinctions without a difference - like
-page_cache_release vs put_page - rather confusing, especially when
-working near the fs/mm boundary (for example in and under
-handle_pte_fault())
+> From: Hugh Dickins <hughd@google.com>
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+You're being generous to me :)
+Thanks for doing most of the work, yes, this looks fine.
+BUt I'd have expected a Cc stable below: see comment on 2/2.
+
+Hugh
+
+> 
+> On architectures where a pgd entry may be shared between user and kernel
+> (ARM+LPAE), freeing page tables needs a ceiling other than 0. This patch
+> introduces a generic USER_PGTABLES_CEILING that arch code can override.
+> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> [catalin.marinas@arm.com: commit log; shift_arg_pages(), asm-generic/pgtables.h changes]
+> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Russell King <linux@arm.linux.org.uk>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  fs/exec.c                     |  4 ++--
+>  include/asm-generic/pgtable.h | 10 ++++++++++
+>  mm/mmap.c                     |  4 ++--
+>  3 files changed, 14 insertions(+), 4 deletions(-)
+> 
+> diff --git a/fs/exec.c b/fs/exec.c
+> index 20df02c..547eaaa 100644
+> --- a/fs/exec.c
+> +++ b/fs/exec.c
+> @@ -613,7 +613,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
+>  		 * when the old and new regions overlap clear from new_end.
+>  		 */
+>  		free_pgd_range(&tlb, new_end, old_end, new_end,
+> -			vma->vm_next ? vma->vm_next->vm_start : 0);
+> +			vma->vm_next ? vma->vm_next->vm_start : USER_PGTABLES_CEILING);
+>  	} else {
+>  		/*
+>  		 * otherwise, clean from old_start; this is done to not touch
+> @@ -622,7 +622,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
+>  		 * for the others its just a little faster.
+>  		 */
+>  		free_pgd_range(&tlb, old_start, old_end, new_end,
+> -			vma->vm_next ? vma->vm_next->vm_start : 0);
+> +			vma->vm_next ? vma->vm_next->vm_start : USER_PGTABLES_CEILING);
+>  	}
+>  	tlb_finish_mmu(&tlb, new_end, old_end);
+>  
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+> index 5cf680a..f50a87d 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -7,6 +7,16 @@
+>  #include <linux/mm_types.h>
+>  #include <linux/bug.h>
+>  
+> +/*
+> + * On almost all architectures and configurations, 0 can be used as the
+> + * upper ceiling to free_pgtables(): on many architectures it has the same
+> + * effect as using TASK_SIZE.  However, there is one configuration which
+> + * must impose a more careful limit, to avoid freeing kernel pgtables.
+> + */
+> +#ifndef USER_PGTABLES_CEILING
+> +#define USER_PGTABLES_CEILING	0UL
+> +#endif
+> +
+>  #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+>  extern int ptep_set_access_flags(struct vm_area_struct *vma,
+>  				 unsigned long address, pte_t *ptep,
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index d1e4124..e262710 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2262,7 +2262,7 @@ static void unmap_region(struct mm_struct *mm,
+>  	update_hiwater_rss(mm);
+>  	unmap_vmas(&tlb, vma, start, end);
+>  	free_pgtables(&tlb, vma, prev ? prev->vm_end : FIRST_USER_ADDRESS,
+> -				 next ? next->vm_start : 0);
+> +				 next ? next->vm_start : USER_PGTABLES_CEILING);
+>  	tlb_finish_mmu(&tlb, start, end);
+>  }
+>  
+> @@ -2640,7 +2640,7 @@ void exit_mmap(struct mm_struct *mm)
+>  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+>  	unmap_vmas(&tlb, vma, 0, -1);
+>  
+> -	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
+> +	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+>  	tlb_finish_mmu(&tlb, 0, -1);
+>  
+>  	/*
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
