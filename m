@@ -1,73 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id F01916B0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 08:28:02 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id un1so2237005pbc.40
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 05:28:02 -0800 (PST)
-Message-ID: <51237DDB.2050305@gmail.com>
-Date: Tue, 19 Feb 2013 21:27:55 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Message-ID: <51238033.6010005@cn.fujitsu.com>
+Date: Tue, 19 Feb 2013 21:37:55 +0800
+From: Lin Feng <linfeng@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: cma: fix accounting of CMA pages placed in high memory
-References: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com> <20130204233430.GA2610@blaptop> <5110B05B.5070109@samsung.com>
-In-Reply-To: <5110B05B.5070109@samsung.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH 1/2] mm: hotplug: implement non-movable version of get_user_pages()
+ called get_user_pages_non_movable()
+References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com> <1359972248-8722-2-git-send-email-linfeng@cn.fujitsu.com> <20130204160624.5c20a8a0.akpm@linux-foundation.org> <20130205115722.GF21389@suse.de> <20130205133244.GH21389@suse.de>
+In-Reply-To: <20130205133244.GH21389@suse.de>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-15
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, kyungmin.park@samsung.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, mhocko@suse.cz, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 02/05/2013 03:10 PM, Marek Szyprowski wrote:
-> Hello,
->
-> On 2/5/2013 12:34 AM, Minchan Kim wrote:
->> On Mon, Feb 04, 2013 at 11:27:05AM +0100, Marek Szyprowski wrote:
->> > The total number of low memory pages is determined as
->> > totalram_pages - totalhigh_pages, so without this patch all CMA
->> > pageblocks placed in highmem were accounted to low memory.
+Hi Mel,
+
+On 02/05/2013 09:32 PM, Mel Gorman wrote:
+> On Tue, Feb 05, 2013 at 11:57:22AM +0000, Mel Gorman wrote:
 >>
->> So what's the end user effect? With the effect, we have to decide
->> routing it on stable.
+>>>> +				migrate_pre_flag = 1;
+>>>> +			}
+>>>> +
+>>>> +			if (!isolate_lru_page(pages[i])) {
+>>>> +				inc_zone_page_state(pages[i], NR_ISOLATED_ANON +
+>>>> +						 page_is_file_cache(pages[i]));
+>>>> +				list_add_tail(&pages[i]->lru, &pagelist);
+>>>> +			} else {
+>>>> +				isolate_err = 1;
+>>>> +				goto put_page;
+>>>> +			}
 >>
->> >
->> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
->> > ---
->> >  mm/page_alloc.c |    4 ++++
->> >  1 file changed, 4 insertions(+)
->> >
->> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> > index f5bab0a..6415d93 100644
->> > --- a/mm/page_alloc.c
->> > +++ b/mm/page_alloc.c
->> > @@ -773,6 +773,10 @@ void __init init_cma_reserved_pageblock(struct 
->> page *page)
->> >      set_pageblock_migratetype(page, MIGRATE_CMA);
->> >      __free_pages(page, pageblock_order);
->> >      totalram_pages += pageblock_nr_pages;
->> > +#ifdef CONFIG_HIGHMEM
->>
->> We don't need #ifdef/#endif.
->
-> #ifdef is required to let this code compile when highmem is not enabled,
-> becuase totalhigh_pages is defined as 0, see include/linux/highmem.h
->
+>> isolate_lru_page() takes the LRU lock every time.
+> 
+> Credit to Michal Hocko for bringing this up but with the number of
+> other issues I missed that this is also broken with respect to huge page
+> handling. hugetlbfs pages will not be on the LRU so the isolation will mess
+> up and the migration has to be handled differently.  Ordinarily hugetlbfs
+> pages cannot be allocated from ZONE_MOVABLE but it is possible to configure
+> it to be allowed via /proc/sys/vm/hugepages_treat_as_movable. If this
+> encounters a hugetlbfs page, it'll just blow up.
 
-Hi Marek,
+I look into the migrate_huge_page() codes find that if we support the hugetlbfs
+non movable migration, we have to invent another alloc_huge_page_node_nonmovable() 
+or such allocate interface, which cost is large(exploding the codes and great impact
+on current alloc_huge_page_node()) but gains little, I think that pinning hugepage
+is a corner case. 
 
-1) Why can support CMA regions placed in highmem? CMA is for dma buffer, 
-correct? Then how can old dma device access highmem?
-2) Why there is no totalhigh_pages variable define in the case of config 
-highmem?
+So can we skip over hugepage without migration but give some WARN_ON() info, is
+it acceptable?
 
->> > +    if (PageHighMem(page))
->> > +        totalhigh_pages += pageblock_nr_pages;
->> > +#endif
->> >  }
->> >  #endif
->> >
->
-> Best regards
+> 
+> The other is that this almost certainly broken for transhuge page
+> handling. gup returns the head and tail pages and ordinarily this is ok
+
+I can't find codes doing such things :(, could you please point me out?
+
+> because the caller only cares about the physical address. Migration will
+> also split a hugepage if it receives it but you are potentially adding
+> tail pages to a list here and then migrating them. The split of the first
+> page will get very confused. I'm not exactly sure what the result will be
+> but it won't be pretty.
+> 
+> Was THP enabled when this was tested? Was CONFIG_DEBUG_LIST enabled
+> during testing?
+
+I checked my config file that both CONFIG options aboved are enabled. However it was 
+only be tested by two services invoking io_setup(), it works fine..
+
+thanks,
+linfeng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
