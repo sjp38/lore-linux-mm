@@ -1,56 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 0645E6B0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 08:17:17 -0500 (EST)
-Message-ID: <51237B37.8080207@cn.fujitsu.com>
-Date: Tue, 19 Feb 2013 21:16:39 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id F01916B0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 08:28:02 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id un1so2237005pbc.40
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 05:28:02 -0800 (PST)
+Message-ID: <51237DDB.2050305@gmail.com>
+Date: Tue, 19 Feb 2013 21:27:55 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [Bug fix PATCH 1/2] acpi, movablemem_map: Do not zero numa_meminfo
- in numa_init().
-References: <1361278904-8690-1-git-send-email-tangchen@cn.fujitsu.com> <1361278904-8690-2-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1361278904-8690-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: Re: [PATCH] mm: cma: fix accounting of CMA pages placed in high memory
+References: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com> <20130204233430.GA2610@blaptop> <5110B05B.5070109@samsung.com>
+In-Reply-To: <5110B05B.5070109@samsung.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, Shaohua Li <shli@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, kyungmin.park@samsung.com
 
-Sorry, add cc Li Shaohua.
+On 02/05/2013 03:10 PM, Marek Szyprowski wrote:
+> Hello,
+>
+> On 2/5/2013 12:34 AM, Minchan Kim wrote:
+>> On Mon, Feb 04, 2013 at 11:27:05AM +0100, Marek Szyprowski wrote:
+>> > The total number of low memory pages is determined as
+>> > totalram_pages - totalhigh_pages, so without this patch all CMA
+>> > pageblocks placed in highmem were accounted to low memory.
+>>
+>> So what's the end user effect? With the effect, we have to decide
+>> routing it on stable.
+>>
+>> >
+>> > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+>> > ---
+>> >  mm/page_alloc.c |    4 ++++
+>> >  1 file changed, 4 insertions(+)
+>> >
+>> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> > index f5bab0a..6415d93 100644
+>> > --- a/mm/page_alloc.c
+>> > +++ b/mm/page_alloc.c
+>> > @@ -773,6 +773,10 @@ void __init init_cma_reserved_pageblock(struct 
+>> page *page)
+>> >      set_pageblock_migratetype(page, MIGRATE_CMA);
+>> >      __free_pages(page, pageblock_order);
+>> >      totalram_pages += pageblock_nr_pages;
+>> > +#ifdef CONFIG_HIGHMEM
+>>
+>> We don't need #ifdef/#endif.
+>
+> #ifdef is required to let this code compile when highmem is not enabled,
+> becuase totalhigh_pages is defined as 0, see include/linux/highmem.h
+>
 
-Reported-by: Li Shaohua <shli@kernel.org>
+Hi Marek,
 
+1) Why can support CMA regions placed in highmem? CMA is for dma buffer, 
+correct? Then how can old dma device access highmem?
+2) Why there is no totalhigh_pages variable define in the case of config 
+highmem?
 
-On 02/19/2013 09:01 PM, Tang Chen wrote:
-> early_parse_srat() is called before numa_init(), and has initialized
-> numa_meminfo. So do not zero numa_meminfo in numa_init(), otherwise
-> we will lose memory numa info.
+>> > +    if (PageHighMem(page))
+>> > +        totalhigh_pages += pageblock_nr_pages;
+>> > +#endif
+>> >  }
+>> >  #endif
+>> >
 >
-> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
-> ---
->   arch/x86/mm/numa.c |    6 ++++--
->   1 files changed, 4 insertions(+), 2 deletions(-)
->
-> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-> index 3545585..ff3633c 100644
-> --- a/arch/x86/mm/numa.c
-> +++ b/arch/x86/mm/numa.c
-> @@ -559,10 +559,12 @@ static int __init numa_init(int (*init_func)(void))
->   	for (i = 0; i<  MAX_LOCAL_APIC; i++)
->   		set_apicid_to_node(i, NUMA_NO_NODE);
->
-> -	/* Do not clear numa_nodes_parsed because SRAT was parsed earlier. */
-> +	/*
-> +	 * Do not clear numa_nodes_parsed or zero numa_meminfo here, because
-> +	 * SRAT was parsed earlier in early_parse_srat().
-> +	 */
->   	nodes_clear(node_possible_map);
->   	nodes_clear(node_online_map);
-> -	memset(&numa_meminfo, 0, sizeof(numa_meminfo));
->   	WARN_ON(memblock_set_node(0, ULLONG_MAX, MAX_NUMNODES));
->   	numa_reset_distance();
->
+> Best regards
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
