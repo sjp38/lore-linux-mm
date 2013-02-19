@@ -1,35 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 47E286B0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 16:56:57 -0500 (EST)
-Received: by mail-vc0-f182.google.com with SMTP id fl17so4649003vcb.41
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 13:56:56 -0800 (PST)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id DD9456B0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 17:33:42 -0500 (EST)
+Date: Tue, 19 Feb 2013 22:33:32 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH 1/2] mm: Allow arch code to control the user page table
+ ceiling
+Message-ID: <20130219223330.GA6889@MacBook-Pro.local>
+References: <1361204311-14127-1-git-send-email-catalin.marinas@arm.com>
+ <1361204311-14127-2-git-send-email-catalin.marinas@arm.com>
+ <alpine.LNX.2.00.1302191005320.2139@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <5113450C.1080109@huawei.com>
-References: <51074786.5030007@huawei.com>
-	<1359995565.7515.178.camel@mfleming-mobl1.ger.corp.intel.com>
-	<51131248.3080203@huawei.com>
-	<5113450C.1080109@huawei.com>
-Date: Tue, 19 Feb 2013 13:56:55 -0800
-Message-ID: <CA+8MBbKuBheEj9t8whJBc=S7NdxCF8MvuD2Ajm7suP=7JC01fg@mail.gmail.com>
-Subject: Re: [PATCH V3] ia64/mm: fix a bad_page bug when crash kernel booting
-From: Tony Luck <tony.luck@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1302191005320.2139@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Matt Fleming <matt.fleming@intel.com>, fenghua.yu@intel.com, Liujiang <jiang.liu@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, WuJianguo <wujianguo@huawei.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-Foolishly sent an earlier reply from Outlook which appears
-to have mangled/lost it. Trying again ...
+On Tue, Feb 19, 2013 at 06:08:12PM +0000, Hugh Dickins wrote:
+> On Mon, 18 Feb 2013, Catalin Marinas wrote:
+> 
+> > From: Hugh Dickins <hughd@google.com>
+> 
+> You're being generous to me :)
 
-> In efi_init() memory aligns in IA64_GRANULE_SIZE(16M). If set "crashkernel=1024M-:600M"
+OTOH, there are better chances to get the patch upstream ;)
 
-Is this where the real problem begins?  Should we insist that users
-provide crashkernel
-parameters rounded to GRANULE boundaries?
+> Thanks for doing most of the work, yes, this looks fine.
+> BUt I'd have expected a Cc stable below: see comment on 2/2.
 
--Tony
+Yes, I will add cc stable. When I post patches for review I usually
+avoid cc'ing stable since Git has the habit of actually sending the
+email to stable@vger.kernel.org (and I want it to email the other people
+on cc).
+
+Thanks.
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
