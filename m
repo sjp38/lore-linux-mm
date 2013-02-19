@@ -1,112 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 761EF6B0002
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 06:57:34 -0500 (EST)
-Date: Tue, 19 Feb 2013 11:57:30 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: fadvise: Drain all pagevecs if POSIX_FADV_DONTNEED
- fails to discard all pages
-Message-ID: <20130219115729.GS4365@suse.de>
-References: <20130214120349.GD7367@suse.de>
- <20130214123926.599fcef8.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id E3DD56B0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 07:12:09 -0500 (EST)
+Received: by mail-qa0-f47.google.com with SMTP id j8so1775571qah.13
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 04:12:08 -0800 (PST)
+Message-ID: <51236C11.1010208@gmail.com>
+Date: Tue, 19 Feb 2013 20:12:01 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130214123926.599fcef8.akpm@linux-foundation.org>
+Subject: Re: Questin about swap_slot free and invalidate page
+References: <20130131051140.GB23548@blaptop> <alpine.LNX.2.00.1302031732520.4050@eggly.anvils> <20130204024950.GD2688@blaptop> <d6fc41b7-8448-40be-84c3-c24d0833bd85@default>
+In-Reply-To: <d6fc41b7-8448-40be-84c3-c24d0833bd85@default>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rob van der Heij <rvdheij@gmail.com>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Feb 14, 2013 at 12:39:26PM -0800, Andrew Morton wrote:
-> On Thu, 14 Feb 2013 12:03:49 +0000
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > Rob van der Heij reported the following (paraphrased) on private mail.
-> > 
-> > 	The scenario is that I want to avoid backups to fill up the page
-> > 	cache and purge stuff that is more likely to be used again (this is
-> > 	with s390x Linux on z/VM, so I don't give it as much memory that
-> > 	we don't care anymore). So I have something with LD_PRELOAD that
-> > 	intercepts the close() call (from tar, in this case) and issues
-> > 	a posix_fadvise() just before closing the file.
-> > 
-> > 	This mostly works, except for small files (less than 14 pages)
-> > 	that remains in page cache after the face.
-> 
-> Sigh.  We've had the "my backups swamp pagecache" thing for 15 years
-> and it's still happening.
-> 
+On 02/05/2013 05:28 AM, Dan Magenheimer wrote:
+>> From: Minchan Kim [mailto:minchan@kernel.org]
+>> Sent: Sunday, February 03, 2013 7:50 PM
+>> To: Hugh Dickins
+>> Cc: Nitin Gupta; Dan Magenheimer; Seth Jennings; Konrad Rzeszutek Wilk; linux-mm@kvack.org; linux-
+>> kernel@vger.kernel.org; Andrew Morton
+>> Subject: Re: Questin about swap_slot free and invalidate page
+>>
+>> Hi Hugh,
+>>
+>> On Sun, Feb 03, 2013 at 05:51:14PM -0800, Hugh Dickins wrote:
+>>> On Thu, 31 Jan 2013, Minchan Kim wrote:
+>>>
+>>>> When I reviewed zswap, I was curious about frontswap_store.
+>>>> It said following as.
+>>>>
+>>>>   * If frontswap already contains a page with matching swaptype and
+>>>>   * offset, the frontswap implementation may either overwrite the data and
+>>>>   * return success or invalidate the page from frontswap and return failure.
+>>>>
+>>>> It didn't say why it happens. we already have __frontswap_invalidate_page
+>>>> and call it whenever swap_slot frees. If we don't free swap slot,
+>>>> scan_swap_map can't find the slot for swap out so I thought overwriting of
+>>>> data shouldn't happen in frontswap.
+>>>>
+>>>> As I looked the code, the curplit is reuse_swap_page. It couldn't free swap
+>>>> slot if the page founded is PG_writeback but miss calling frontswap_invalidate_page
+>>>> so data overwriting on frontswap can happen. I'm not sure frontswap guys
+>>>> already discussed it long time ago.
+>>>>
+>>>> If we can fix it, we can remove duplication entry handling logic
+>>>> in all of backend of frontswap. All of backend should handle it although
+>>>> it's pretty rare. Of course, zram could be fixed. It might be trivial now
+>>>> but more there are many backend of frontswap, more it would be a headache.
+>>>>
+>>>> If we are trying to fix it in swap layer,  we might fix it following as
+>>>>
+>>>> int reuse_swap_page(struct page *page)
+>>>> {
+>>>>          ..
+>>>>          ..
+>>>>          if (count == 1) {
+>>>>                  if (!PageWriteback(page)) {
+>>>>                          delete_from_swap_cache(page);
+>>>>                          SetPageDirty(page);
+>>>>                  } else {
+>>>>                          frontswap_invalidate_page();
+>>>>                          swap_slot_free_notify();
+>>>>                  }
+>>>>          }
+>>>> }
+>>>>
+>>>> But not sure, it is worth at the moment and there might be other places
+>>>> to be fixed.(I hope Hugh can point out if we are missing something if he
+>>>> has a time)
+>>> I expect you are right that reuse_swap_page() is the only way it would
+>>> happen for frontswap; but I'm too unfamiliar with frontswap to promise
+>>> you that - it's better that you insert WARN_ONs in your testing to verify.
+>>>
+>>> But I think it's a general tmem property, isn't it?  To define what
+>>> happens if you do give it the same key again.  So I doubt it's something
+>> I am too unfamiliar with tmem property but thing I am seeing is
+>> EXPORT_SYMBOL(__frontswap_store). It's a one of frontend and is tighly very
+>> coupled with swap subsystem.
+>>
+>>> that has to be fixed; but if you do find it helpful to fix it, bear in
+>>> mind that reuse_swap_page() is an odd corner, which may one day give the
+>>> "stable pages" DIF/DIX people trouble, though they've not yet complained.
+>>>
+>>> I'd prefer a patch not specific to frontswap, but along the lines below:
+>>> I think that's the most robust way to express it, though I don't think
+>>> the (count == 0) case can actually occur inside that block (whereas
+>>> count == 0 certainly can occur in the !PageSwapCache case).
+>>>
+>>> I believe that I once upon a time took statistics of how often the
+>>> PageWriteback case happens here, and concluded that it wasn't often
+>>> enough that refusing to reuse in this case would be likely to slow
+>>> anyone down noticeably.
+>> I agree. I had a test about that with zram and that case wasn't common.
+>> so your patch looks good to me.
+>>
+>> I am waiting Dan's reply(He will come in this week) and then, judge what's
+>> the best.
+> Hugh is right that handling the possibility of duplicates is
+> part of the tmem ABI.  If there is any possibility of duplicates,
+> the ABI defines how a backend must handle them to avoid data
+> coherency issues.
+>
+> The kernel implements an in-kernel API which implements the tmem
+> ABI.  If the frontend and backend can always agree that duplicate
 
-Yes. There have been variations of it too such as applications being pushed
-prematurely into swap. I'm not certain how well we currently handle that
-because I haven't checked in a few months.
+Which ABI in zcache implement that?
 
-> It should be possible nowadays to toss your backup application into a
-> container to constrain its pagecache usage.  So we can type
-> 
-> 	run-in-a-memcg -m 200MB /my/backup/program
-> 
-> and voila.  Does such a script exist and work?
-> 
-
-Michal already gave an example. It might work slower if the backup
-application has to stall in direct reclaim to keep the container within
-limits though.
-
-> > --- a/mm/fadvise.c
-> > +++ b/mm/fadvise.c
-> > @@ -17,6 +17,7 @@
-> >  #include <linux/fadvise.h>
-> >  #include <linux/writeback.h>
-> >  #include <linux/syscalls.h>
-> > +#include <linux/swap.h>
-> >  
-> >  #include <asm/unistd.h>
-> >  
-> > @@ -120,9 +121,22 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
-> >  		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
-> >  		end_index = (endbyte >> PAGE_CACHE_SHIFT);
-> >  
-> > -		if (end_index >= start_index)
-> > -			invalidate_mapping_pages(mapping, start_index,
-> > +		if (end_index >= start_index) {
-> > +			unsigned long count = invalidate_mapping_pages(mapping,
-> > +						start_index, end_index);
-> > +
-> > +			/*
-> > +			 * If fewer pages were invalidated than expected then
-> > +			 * it is possible that some of the pages were on
-> > +			 * a per-cpu pagevec for a remote CPU. Drain all
-> > +			 * pagevecs and try again.
-> > +			 */
-> > +			if (count < (end_index - start_index + 1)) {
-> > +				lru_add_drain_all();
-> > +				invalidate_mapping_pages(mapping, start_index,
-> >  						end_index);
-> > +			}
-> > +		}
-> >  		break;
-> >  	default:
-> >  		ret = -EINVAL;
-> 
-> Those LRU pagevecs are a right pain.  They provided useful gains way
-> back when I first inflicted them upon Linux, but it would be nice to
-> confirm whether they're still worthwhile and if so, whether the
-> benefits can be replicated with some less intrusive scheme.
-> 
-
-I know. Unfortunately I've had "Implement pagevec removal and test" on my
-TODO list for the guts of a year now. It's long overdue to actually sit down
-and just do it. It's a similar story for the per-cpu lists in front of the
-page allocator which are overdue to see if they can be replaced. I actually
-have a prototype replacement for that lying around but it performed slower
-in tests and has bit-rotted since but it ran slower and has bit-rotted
-since as it was based on kernel 3.4.
-
--- 
-Mel Gorman
-SUSE Labs
+> are never possible, I agree that the backend could avoid that
+> special case.  However, duplicates occur rarely enough and the
+> consequences (data loss) are bad enough that I think the case
+> should still be checked, at least with a BUG_ON.  I also wonder
+> if it is worth it to make changes to the core swap subsystem
+> to avoid code to implement a zswap corner case.
+>
+> Remember that zswap is an oversimplified special case of tmem
+> that handles only one frontend (Linux frontswap) and one backend
+> (zswap).  Tmem goes well beyond that and already supports other
+> more general backends including Xen and ramster, and could also
+> support other frontends such as a BSD or Solaris equivalent
+> of frontswap, for example with a Linux ramster/zcache backend.
+> I'm not sure how wise it is to tear out generic code and replace
+> it with simplistic code unless there is absolutely no chance that
+> the generic code will be necessary.
+>
+> My two cents,
+> Dan
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
