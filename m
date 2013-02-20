@@ -1,92 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id EB0F16B0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 00:19:29 -0500 (EST)
-Date: Tue, 19 Feb 2013 21:19:27 -0800 (PST)
-From: dormando <dormando@rydia.net>
-Subject: Re: [PATCH] add extra free kbytes tunable
-In-Reply-To: <20130219152936.f079c971.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.02.1302192100100.23162@dflat>
-References: <alpine.DEB.2.02.1302111734090.13090@dflat> <A5ED84D3BB3A384992CBB9C77DEDA4D414A98EBF@USINDEM103.corp.hds.com> <511EB5CB.2060602@redhat.com> <alpine.DEB.2.02.1302171546120.10836@dflat> <20130219152936.f079c971.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id B513C6B0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 00:21:19 -0500 (EST)
+Received: by mail-da0-f47.google.com with SMTP id s35so3335569dak.6
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 21:21:19 -0800 (PST)
+Message-ID: <51245D48.4030102@gmail.com>
+Date: Wed, 20 Feb 2013 13:21:12 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [Bug 53501] New: Duplicated MemTotal with different values
+References: <bug-53501-27@https.bugzilla.kernel.org/> <20130212165107.32be0c33.akpm@linux-foundation.org> <alpine.DEB.2.02.1302121742370.5404@chino.kir.corp.google.com> <20130212195929.7cd2e597.akpm@linux-foundation.org> <alpine.DEB.2.02.1302131915170.8584@chino.kir.corp.google.com> <511C61AD.2010702@gmail.com> <alpine.DEB.2.02.1302141624430.27961@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1302141624430.27961@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Seiji Aguchi <seiji.aguchi@hds.com>, Satoru Moriya <satoru.moriya@hds.com>, Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "hughd@google.com" <hughd@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Jiang Liu <liuj97@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, sworddragon2@aol.com, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+
+Hi David,
+On 02/15/2013 08:26 AM, David Rientjes wrote:
+> On Thu, 14 Feb 2013, Jiang Liu wrote:
+>
+>>> Hmm, ok.  The question is which one is right: the per-node MemTotal is the
+>>> amount of present RAM, the spanned range minus holes, and the system
+>>> MemTotal is the amount of pages released to the buddy allocator by
+>>> bootmem and discounts not only the memory holes but also reserved pages.
+>>> Should they both be the amount of RAM present or the amount of unreserved
+>>> RAM present?
+>>>
+>> Hi David,
+>> 	We have worked out a patch set to address this issue. The first two
+>> patches have been merged into v3.8, and another two patches are queued in
+>> Andrew's mm tree for v3.9.
+>> 	The patch set introduces a new field named managed_pages into struct
+>> zone to distinguish between pages present in a zone and pages managed by the
+>> buddy system. So
+>> zone->present_pages = zone->spanned_pages - pages_in_hole;
+>> zone->managed_pages = pages_managed_by_buddy_system_in_the_zone;
+>> 	We have also added a field named "managed" into /proc/zoneinfo, but
+>> haven't touch /proc/meminfo and /sys/devices/system/node/nodex/meminfo yet.
+>> If preferred, we could work out another patch to enhance these two files
+>> as suggested above.
+> I'm glad this is a known issue that you're working on, but my question
+> still stands: if MemTotal is going to be consistent throughout
+> /proc/meminfo and /sys/devices/system/node/nodeX/meminfo, which is
+> correct?  The present RAM minus holes or the amount available to the buddy
+> allocator not including reserved memory?
+
+What I confuse is why have /proc/meminfo and /proc/vmstat at the same 
+time, they both use to monitor memory subsystem states. What's the root 
+reason?
 
 >
-> The problem is that adding this tunable will constrain future VM
-> implementations.  We will forever need to at least retain the
-> pseudo-file.  We will also need to make some effort to retain its
-> behaviour.
->
-> It would of course be better to fix things so you don't need to tweak
-> VM internals to get acceptable behaviour.
-
-I sympathize with this. It's presently all that keeps us afloat though.
-I'll whine about it again later if nothing else pans out.
-
-> You said:
->
-> : We have a server workload wherein machines with 100G+ of "free" memory
-> : (used by page cache), scattered but frequent random io reads from 12+
-> : SSD's, and 5gbps+ of internet traffic, will frequently hit direct reclaim
-> : in a few different ways.
-> :
-> : 1) It'll run into small amounts of reclaim randomly (a few hundred
-> : thousand).
-> :
-> : 2) A burst of reads or traffic can cause extra pressure, which kswapd
-> : occasionally responds to by freeing up 40g+ of the pagecache all at once
-> : (!) while pausing the system (Argh).
-> :
-> : 3) A blip in an upstream provider or failover from a peer causes the
-> : kernel to allocate massive amounts of memory for retransmission
-> : queues/etc, potentially along with buffered IO reads and (some, but not
-> : often a ton) of new allocations from an application. This paired with 2)
-> : can cause the box to stall for 15+ seconds.
->
-> Can we prioritise these?  2) looks just awful - kswapd shouldn't just
-> go off and free 40G of pagecache.  Do you know what's actually in that
-> pagecache?  Large number of small files or small number of (very) large
-> files?
-
-We have a handful of huge files (6-12ish 200g+) that are mmap'ed and
-accessed via address. occasionally madvise (WILLNEED) applied to the
-address ranges before attempting to use them. There're a mix of other
-files but nothing significant. The mmap's are READONLY and writes are done
-via pwrite-ish functions.
-
-I could use some guidance on inspecting/tracing the problem. I've been
-trying to reproduce it in a lab, and respecting to 2)'s issue I've found:
-
-- The amount of memory freed back up is either a percentage of total
-memory or a percentage of free memory. (a machine with 48G of ram will
-"only" free up an extra 4-7g)
-
-- It's most likely to happen after a fresh boot, or if "3 > drop_caches"
-is applied with the application down. As it fills it seems to get itself
-into trouble, but becomes more stable after that. Unfortunately 1) and 3)
-still apply to a stable instance.
-
-- Protecting the DMA32 zone with something like "1 1 32" into
-lowmem_reserve_ratio makes the mass-reclaiming less likely to happen.
-
-- While watching "sar -B 1" I'll see kswapd wake up, and scan up to a few
-hundred thousand pages before finding anything it actually wants to
-reclaim (low vmeff). I've only been able to reproduce this from a clean
-start. It can take up to 3 seconds before kswapd starts actually
-reclaiming pages.
-
-- So far as I can tell we're almost exclusively using 0 order allocations.
-THP is disabled.
-
-There's not much dirty memory involved. It's not flushing out writes while
-reclaiming, it just kills off massive amount of cached memory.
-
-We're not running the machines particularily hard... Often less than 30%
-CPU usage at peak.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
