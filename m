@@ -1,53 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 9C2E56B0005
-	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 18:54:23 -0500 (EST)
-Date: Wed, 20 Feb 2013 08:54:21 +0900
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 8FB666B0002
+	for <linux-mm@kvack.org>; Tue, 19 Feb 2013 19:06:35 -0500 (EST)
+Date: Wed, 20 Feb 2013 09:06:33 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: behavior of zram stats, and zram allocation limit
-Message-ID: <20130219235421.GC16950@blaptop>
-References: <CAA25o9Q4gMPeLf3uYJzMNR1EU4D3OPeje24X4PNsUVHGoqyY5g@mail.gmail.com>
- <20121123055144.GC13626@bbox>
- <51204DB1.9000203@gmail.com>
+Subject: Re: zcache+zram working together?
+Message-ID: <20130220000633.GD16950@blaptop>
+References: <bec77f0e-ff96-45df-b090-70120185f560@default>
+ <20121211064230.GE22698@blaptop>
+ <511F402D.6090006@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51204DB1.9000203@gmail.com>
+In-Reply-To: <511F402D.6090006@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
-Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Sun, Feb 17, 2013 at 11:25:37AM +0800, Jaegeuk Hanse wrote:
-> On 11/23/2012 01:51 PM, Minchan Kim wrote:
-> >On Wed, Nov 21, 2012 at 02:58:48PM -0800, Luigi Semenzato wrote:
-> >>Hi,
+On Sat, Feb 16, 2013 at 04:15:41PM +0800, Simon Jeons wrote:
+> On 12/11/2012 02:42 PM, Minchan Kim wrote:
+> >On Fri, Dec 07, 2012 at 01:31:35PM -0800, Dan Magenheimer wrote:
+> >>Last summer, during the great(?) zcache-vs-zcache2 debate,
+> >>I wondered if there might be some way to obtain the strengths
+> >>of both.  While following Luigi's recent efforts toward
+> >>using zram for ChromeOS "swap", I thought of an interesting
+> >>interposition of zram and zcache that, at first blush, makes
+> >>almost no sense at all, but after more thought, may serve as a
+> >>foundation for moving towards a more optimal solution for use
+> >>of "adaptive compression" in the kernel, at least for
+> >>embedded systems.
 > >>
-> >>Two questions for zram developers/users.  (Please let me know if it is
-> >>NOT acceptable to use this list for these questions.)
+> >>To quickly review:
 > >>
-> >>1. When I run a synthetic load using zram from kernel 3.4.0,
-> >>compr_data_size from /sys/block/zram0 seems to decrease even though
-> >>orig_data_size stays constant (see below).  Is this a bug that was
-> >>fixed in a later release?  (The synthetic load is a bunch of processes
-> >>that allocate memory, fill half of it with data from /dev/urandom, and
-> >>touch the memory randomly.)  I looked at the code and it looks right.
-> >>:-P
+> >>Zram (when used for swap) compresses only anonymous pages and
+> >>only when they are swapped but uses the high-density zsmalloc
+> >>allocator and eliminates the need for a true swap device, thus
+> >>making zram a good fit for embedded systems.  But, because zram
+> >>appears to the kernel as a swap device, zram data must traverse
+> >>the block I/O subsystem and is somewhat difficult to monitor and
+> >>control without significant changes to the swap and/or block
+> >>I/O subsystem, which are designed to handle fixed block-sized
+> >>data.
 > >>
-> >>2. Is there a way of setting the max amount of RAM that zram is
-> >>allowed to allocate?  Right now I can set the size of the
-> >>*uncompressed* swap device, but how much memory gets allocated depends
-> >>on the compression ratio, which could vary.
-> >There is no method to limit the RAM size but I think we can implement
-> >it easily. The only thing we need is just a "voice of customer".
-> >Why do you need it?
+> >>Zcache (zcache2) compresses BOTH clean page cache pages that
+> >>would otherwise be evicted, and anonymous pages that would
+> >>otherwise be sent to a swap device.  Both paths use in-kernel
+> >>hooks (cleancache and frontswap respectively) which avoid
+> >>most or all of the block I/O subsystem and the swap subsystem.
+> >>Because of this and since it is designed using transcendent
+> >>memory ("tmem") principles, zcache has a great deal more
+> >>flexibility in control and monitoring.  Zcache uses the simpler,
+> >>more predictable "zbud" allocator which achieves lower density
+> >>but provides greater flexibility under high pressure.
+> >>But zcache requires a swap device as a "backup" so seems
+> >>unsuitable for embedded systems.
+> >>
+> >>(Minchan, I know at one point you were working on some
+> >>documentation to contrast zram and zcache so you may
+> >>have something more to add here...)
+> >>
+> >>What if one were to enable both?  This is possible today with
+> >>no kernel change at all by configuring both zram and zcache2
+> >>into the kernel and then configuring zram at boottime.
+> >>
+> >>When memory pressure is dominated by file pages, zcache (via
+> >>the cleancache hooks) provides compression to optimize memory
+> >>utilization.  As more pressure is exerted by anonymous pages,
+> >>"swapping" occurs but the frontswap hooks route the data to
+> >>zcache which, as necessary, reclaims physical pages used by
+> >>compressed file pages to use for compressed anonymous pages.
+> >>At this point, any compressions unsuitable for zbud are rejected
+> >>by zcache and passed through to the "backup" swap device...
+> >>which is zram!  Under high pressure from anonymous pages,
+> >>zcache can also be configured to "unuse" pages to zram (though
+> >>this functionality is still not merged).
+> >>
+> >>I've plugged zcache and zram together and watched them
+> >>work/cooperate, via their respective debugfs statistics.
+> >>While I don't have benchmarking results and may not have
+> >>time anytime soon to do much work on this, it seems like
+> >>there is some potential here, so I thought I'd publish the
+> >>idea so that others can give it a go and/or look at
+> >>other ways (including kernel changes) to combine the two.
+> >>
+> >>Feedback welcome and (early) happy holidays!
+> >Interesting, Dan!
+> >I would like to get a chance to investigate it if I have a time
+> >in future.
+> >
+> >Another synergy with BOTH is to remove CMA completely because
+> >it makes mm core code complicated with hooking and still have a
+> >problem with pinned page and eviction working set for getting
 > 
-> But in current codes, where implement limit to *uncompressed* swap
-> device? I can't find it in zram_drv.c, could you point out to me?
+> Do you mean get_user_pages? Could you explain in details about the
+> downside of CMA?
 
-Swap layer would manage it by get_swap_page.
+Good question.
 
-- 
+1. Ignore workingset.
+   CMA can sweep out woring set pages in CMA area for getting contiguous
+   memory.
+
+2. No guarantee of contigous memory area
+   As I metioned, get_user_pages could pin the page so ends up failing
+   migration.
+
+3. Latency
+   CMA reclaims all pages in CMA area when we need it. It means sometime
+   we should write out dirty pages so it could make big overhead POV latency.
+   Even, unmapping of all pages from pte of all processes isn't trivial.
+
+4. Adding many hooks in MM code. - Personally, I really hate it.
+
+-- 
 Kind regards,
 Minchan Kim
 
