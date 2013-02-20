@@ -1,114 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 288996B0009
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 17:28:09 -0500 (EST)
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 54A0B6B000C
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 17:30:13 -0500 (EST)
 Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 20 Feb 2013 15:26:29 -0700
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 683F3D11CF6
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 17:05:13 -0500 (EST)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1KM5EKk283900
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 17:05:14 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1KM5EGa001411
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 19:05:14 -0300
+	Wed, 20 Feb 2013 15:29:38 -0700
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 9F96138CD0B0
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 17:05:36 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1KM5a9j297388
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 17:05:36 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1KM5VmS012087
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 19:05:36 -0300
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCHv6 2/8] zsmalloc: add documentation
-Date: Wed, 20 Feb 2013 16:04:42 -0600
-Message-Id: <1361397888-14863-3-git-send-email-sjenning@linux.vnet.ibm.com>
+Subject: [PATCHv6 8/8] zswap: add documentation
+Date: Wed, 20 Feb 2013 16:04:48 -0600
+Message-Id: <1361397888-14863-9-git-send-email-sjenning@linux.vnet.ibm.com>
 In-Reply-To: <1361397888-14863-1-git-send-email-sjenning@linux.vnet.ibm.com>
 References: <1361397888-14863-1-git-send-email-sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-This patch adds a documentation file for zsmalloc at
-Documentation/vm/zsmalloc.txt
+This patch adds the documentation file for the zswap functionality
 
 Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 ---
- Documentation/vm/zsmalloc.txt | 68 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 68 insertions(+)
- create mode 100644 Documentation/vm/zsmalloc.txt
+ Documentation/vm/zswap.txt | 82 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 82 insertions(+)
+ create mode 100644 Documentation/vm/zswap.txt
 
-diff --git a/Documentation/vm/zsmalloc.txt b/Documentation/vm/zsmalloc.txt
+diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
 new file mode 100644
-index 0000000..85aa617
+index 0000000..f29b82f
 --- /dev/null
-+++ b/Documentation/vm/zsmalloc.txt
-@@ -0,0 +1,68 @@
-+zsmalloc Memory Allocator
++++ b/Documentation/vm/zswap.txt
+@@ -0,0 +1,82 @@
++Overview:
 +
-+Overview
++Zswap is a lightweight compressed cache for swap pages. It takes
++pages that are in the process of being swapped out and attempts to
++compress them into a dynamically allocated RAM-based memory pool.
++If this process is successful, the writeback to the swap device is
++deferred and, in many cases, avoided completely.A  This results in
++a significant I/O reduction and performance gains for systems that
++are swapping.
 +
-+zmalloc a new slab-based memory allocator,
-+zsmalloc, for storing compressed pages.  It is designed for
-+low fragmentation and high allocation success rate on
-+large object, but <= PAGE_SIZE allocations.
++Zswap provides compressed swap caching that basically trades CPU cycles
++for reduced swap I/O.A  This trade-off can result in a significant
++performance improvement as reads to/writes from to the compressed
++cache almost always faster that reading from a swap device
++which incurs the latency of an asynchronous block I/O read.
 +
-+zsmalloc differs from the kernel slab allocator in two primary
-+ways to achieve these design goals.
++Some potential benefits:
++* Desktop/laptop users with limited RAM capacities can mitigate the
++A A A  performance impact of swapping.
++* Overcommitted guests that share a common I/O resource can
++A A A  dramatically reduce their swap I/O pressure, avoiding heavy
++A A A  handed I/O throttling by the hypervisor.A  This allows more work
++A A A  to get done with less impact to the guest workload and guests
++A A A  sharing the I/O subsystem
++* Users with SSDs as swap devices can extend the life of the device by
++A A A  drastically reducing life-shortening writes.
 +
-+zsmalloc never requires high order page allocations to back
-+slabs, or "size classes" in zsmalloc terms. Instead it allows
-+multiple single-order pages to be stitched together into a
-+"zspage" which backs the slab.  This allows for higher allocation
-+success rate under memory pressure.
++Zswap evicts pages from compressed cache on an LRU basis to the backing
++swap device when the compress pool reaches it size limit or the pool is
++unable to obtain additional pages from the buddy allocator.A  This
++requirement had been identified in prior community discussions.
 +
-+Also, zsmalloc allows objects to span page boundaries within the
-+zspage.  This allows for lower fragmentation than could be had
-+with the kernel slab allocator for objects between PAGE_SIZE/2
-+and PAGE_SIZE.  With the kernel slab allocator, if a page compresses
-+to 60% of it original size, the memory savings gained through
-+compression is lost in fragmentation because another object of
-+the same size can't be stored in the leftover space.
++To enabled zswap, the "enabled" attribute must be set to 1 at boot time.
++e.g. zswap.enabled=1
 +
-+This ability to span pages results in zsmalloc allocations not being
-+directly addressable by the user.  The user is given an
-+non-dereferencable handle in response to an allocation request.
-+That handle must be mapped, using zs_map_object(), which returns
-+a pointer to the mapped region that can be used.  The mapping is
-+necessary since the object data may reside in two different
-+noncontigious pages.
++Design:
 +
-+For 32-bit systems, zsmalloc has the added benefit of being
-+able to back slabs with HIGHMEM pages, something not possible
-+with the kernel slab allocators (SLAB or SLUB).
++Zswap receives pages for compression through the Frontswap API and
++is able to evict pages from its own compressed pool on an LRU basis
++and write them back to the backing swap device in the case that the
++compressed pool is full or unable to secure additional pages from
++the buddy allocator.
 +
-+Usage:
++Zswap makes use of zsmalloc for the managing the compressed memory
++pool.  This is because zsmalloc is specifically designed to minimize
++fragmentation on large (> PAGE_SIZE/2) allocation sizes.  Each
++allocation in zsmalloc is not directly accessible by address.
++Rather, a handle is return by the allocation routine and that handle
++must be mapped before being accessed.  The compressed memory pool grows
++on demand and shrinks as compressed pages are freed.  The pool is
++not preallocated.
 +
-+#include <linux/zsmalloc.h>
++When a swap page is passed from frontswap to zswap, zswap maintains
++a mapping of the swap entry, a combination of the swap type and swap
++offset, to the zsmalloc handle that references that compressed swap
++page.  This mapping is achieved with a red-black tree per swap type.
++The swap offset is the search key for the tree nodes.
 +
-+/* create a new pool */
-+struct zs_pool *pool = zs_create_pool("mypool", GFP_KERNEL);
++During a page fault on a PTE that is a swap entry, frontswap calls
++the zswap load function to decompress the page into the page
++allocated by the page fault handler.
 +
-+/* allocate a 256 byte object */
-+unsigned long handle = zs_malloc(pool, 256);
++Once there are no PTEs referencing a swap page stored in zswap
++(i.e. the count in the swap_map goes to 0) the swap code calls
++the zswap invalidate function, via frontswap, to free the compressed
++entry.
 +
-+/*
-+ * Map the object to get a dereferenceable pointer in "read-write mode"
-+ * (see zsmalloc.h for additional modes)
-+ */
-+void *ptr = zs_map_object(pool, handle, ZS_MM_RW);
++Zswap seeks to be simple in its policies.  Sysfs attributes allow for
++two user controlled policies:
++* max_compression_ratio - Maximum compression ratio, as as percentage,
++    for an acceptable compressed page. Any page that does not compress
++    by at least this ratio will be rejected.
++* max_pool_percent - The maximum percentage of memory that the compressed
++    pool can occupy.
 +
-+/* do something with ptr */
++Zswap allows the compressor to be selected at kernel boot time by
++setting the a??compressora?? attribute.  The default compressor is lzo.
++e.g. zswap.compressor=deflate
 +
-+/*
-+ * Unmap the object when done dealing with it. You should try to
-+ * minimize the time for which the object is mapped since preemption
-+ * is disabled during the mapped period.
-+ */
-+zs_unmap_object(pool, handle);
-+
-+/* free the object */
-+zs_free(pool, handle);
-+
-+/* destroy the pool */
-+zs_destroy_pool(pool); 
++A debugfs interface is provided for various statistic about pool size,
++number of pages stored, and various counters for the reasons pages
++are rejected.
 -- 
 1.8.1.1
 
