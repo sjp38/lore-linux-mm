@@ -1,41 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Message-ID: <5124B991.1020302@cn.fujitsu.com>
-Date: Wed, 20 Feb 2013 19:54:57 +0800
-From: Lin Feng <linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 4876D6B0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 07:32:17 -0500 (EST)
+Message-ID: <5124C22B.8030401@cn.fujitsu.com>
+Date: Wed, 20 Feb 2013 20:31:39 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: hotplug: implement non-movable version of get_user_pages()
- called get_user_pages_non_movable()
-References: <1359972248-8722-1-git-send-email-linfeng@cn.fujitsu.com> <1359972248-8722-2-git-send-email-linfeng@cn.fujitsu.com> <20130204160624.5c20a8a0.akpm@linux-foundation.org> <20130205115722.GF21389@suse.de> <20130205133244.GH21389@suse.de> <51249E3E.9070909@gmail.com> <5124A42B.1020905@cn.fujitsu.com> <5124B42A.1020908@gmail.com>
-In-Reply-To: <5124B42A.1020908@gmail.com>
+Subject: Re: [Bug fix PATCH 1/2] acpi, movablemem_map: Exclude memblock.reserved
+ ranges when parsing SRAT.
+References: <1361358056-1793-1-git-send-email-tangchen@cn.fujitsu.com> <1361358056-1793-2-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1361358056-1793-2-git-send-email-tangchen@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-15
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, mhocko@suse.cz, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+On 02/20/2013 07:00 PM, Tang Chen wrote:
+> As mentioned by HPA before, when we are using movablemem_map=acpi, if all the
+> memory ranges in SRAT is hotpluggable, then no memory can be used by kernel.
+>
+> Before parsing SRAT, memblock has already reserve some memory ranges for other
+> purposes, such as for kernel image, and so on. We cannot prevent kernel from
+> using these memory. So we need to exclude these ranges even if these memory is
+> hotpluggable.
+>
+> This patch changes the movablemem_map=acpi option's behavior. The memory ranges
+> reserved by memblock will not be added into movablemem_map.map[]. So even if
+> all the memory is hotpluggable, there will always be memory that could be used
+> by the kernel.
+>
+> Reported-by: H Peter Anvin<hpa@zytor.com>
+> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
+> ---
+>   arch/x86/mm/srat.c |   18 +++++++++++++++++-
+>   1 files changed, 17 insertions(+), 1 deletions(-)
+>
+> diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
+> index 62ba97b..b8028b2 100644
+> --- a/arch/x86/mm/srat.c
+> +++ b/arch/x86/mm/srat.c
+> @@ -145,7 +145,7 @@ static inline int save_add_info(void) {return 0;}
+>   static void __init
+>   handle_movablemem(int node, u64 start, u64 end, u32 hotpluggable)
+>   {
+> -	int overlap;
+> +	int overlap, i;
+>   	unsigned long start_pfn, end_pfn;
+>
+>   	start_pfn = PFN_DOWN(start);
+> @@ -161,8 +161,24 @@ handle_movablemem(int node, u64 start, u64 end, u32 hotpluggable)
+>   	 *
+>   	 * Using movablemem_map, we can prevent memblock from allocating memory
+>   	 * on ZONE_MOVABLE at boot time.
+> +	 *
+> +	 * Before parsing SRAT, memblock has already reserve some memory ranges
+> +	 * for other purposes, such as for kernel image. We cannot prevent
+> +	 * kernel from using these memory, so we need to exclude these memory
+> +	 * even if it is hotpluggable.
+>   	 */
+>   	if (hotpluggable&&  movablemem_map.acpi) {
+> +		/* Exclude ranges reserved by memblock. */
+> +		struct memblock_type *rgn =&memblock.reserved;
+> +
+> +		for (i = 0; i<  rgn->cnt; i++) {
+> +			if (end<= rgn->regions[i].base ||
+> +			    start>= rgn->regions[i].base +
+> +			    rgn->regions[i].size)
 
+Hi all,
 
-On 02/20/2013 07:31 PM, Simon Jeons wrote:
-> On 02/20/2013 06:23 PM, Lin Feng wrote:
->> Hi Simon,
->>
->> On 02/20/2013 05:58 PM, Simon Jeons wrote:
->>>> The other is that this almost certainly broken for transhuge page
->>>> handling. gup returns the head and tail pages and ordinarily this is ok
->>> When need gup thp? in kvm case?
->> gup just pins the wanted pages(for x86 is 4k size) of user address space in memory.
->> We can't expect the pages have been allocated for user address space are thp or
->> normal page. So we need to deal with them and I think it have nothing to do with kvm.
-> 
-> Ok, I'm curious about userspace process call which funtion(will call gup) to pin pages except make_pages_present?
-No, userspace process doesn't pin any pages directly but through some syscalls like io_setup() indirectly
-for other purpose because kernel can't pagefault and it have to keep the page alive.
-Kernel wants to communicate with the userspace such as to notify some events so it need some sort of buffer
-that both Kernel and User space can both access, which leads to so called pin pages by gup.  
+Here, I scan the memblock.reserved each time we parse an entry because the
+rgn->regions[i].nid is set to MAX_NUMNODES in memblock_reserve(). So I 
+cannot
+obtain the nid which the kernel resides in directly from memblock.reserved.
 
-thanks,
-linfeng
+I think there could be some problems if the memory ranges in SRAT are not in
+increasing order, since if [3,4) [1,2) are all on node0, and kernel is not
+using [3,4), but using [1,2), then I cannot remove [3,4) because I don't 
+know
+on which node [3,4) is.
+
+Any idea for this ?
+
+And by the way, I think this approach works well when the memory entries in
+SRAT are arranged in increasing order.
+
+Thanks. :)
+
+> +				continue;
+> +			goto out;
+> +		}
+> +
+>   		insert_movablemem_map(start_pfn, end_pfn);
+>
+>   		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
