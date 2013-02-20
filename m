@@ -1,33 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 1109E6B0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 05:44:24 -0500 (EST)
-Received: by mail-vb0-f49.google.com with SMTP id s24so4826847vbi.8
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2013 02:44:24 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CANZA+xgRWQe2fm8Gok4SxRXEeRU5CztijG4HKNeTDFQfSgHPPw@mail.gmail.com>
-References: <CANZA+xgRWQe2fm8Gok4SxRXEeRU5CztijG4HKNeTDFQfSgHPPw@mail.gmail.com>
-Date: Wed, 20 Feb 2013 18:44:23 +0800
-Message-ID: <CANZA+xgXcwQe8S3+HfaF4QRCTB-XoWS0pvtO4CJT0CT0MMQZqQ@mail.gmail.com>
-Subject: What does the PG_swapbacked of page flags actually mean?
-From: common An <xx.kernel@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id ED67A6B0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 06:01:40 -0500 (EST)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [Bug fix PATCH 1/2] acpi, movablemem_map: Exclude memblock.reserved ranges when parsing SRAT.
+Date: Wed, 20 Feb 2013 19:00:55 +0800
+Message-Id: <1361358056-1793-2-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1361358056-1793-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1361358056-1793-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-PG_swapbacked is a bit for page->flags.
+As mentioned by HPA before, when we are using movablemem_map=acpi, if all the
+memory ranges in SRAT is hotpluggable, then no memory can be used by kernel.
 
-In kernel code, its comment is "page is backed by RAM/swap". But I couldn't
-understand it.
-1. Does the RAM mean DRAM? How page is backed by RAM?
-2. When the page is page-out to swap file, the bit PG_swapbacked will be set
-to demonstrate this page is backed by swap. Is it right?
-3. In general, when will call SetPageSwapBacked() to set the bit?
+Before parsing SRAT, memblock has already reserve some memory ranges for other
+purposes, such as for kernel image, and so on. We cannot prevent kernel from
+using these memory. So we need to exclude these ranges even if these memory is
+hotpluggable.
 
-Could anybody kindly explain for me?
+This patch changes the movablemem_map=acpi option's behavior. The memory ranges
+reserved by memblock will not be added into movablemem_map.map[]. So even if
+all the memory is hotpluggable, there will always be memory that could be used
+by the kernel.
 
-Thanks very much.
+Reported-by: H Peter Anvin <hpa@zytor.com>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+---
+ arch/x86/mm/srat.c |   18 +++++++++++++++++-
+ 1 files changed, 17 insertions(+), 1 deletions(-)
+
+diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
+index 62ba97b..b8028b2 100644
+--- a/arch/x86/mm/srat.c
++++ b/arch/x86/mm/srat.c
+@@ -145,7 +145,7 @@ static inline int save_add_info(void) {return 0;}
+ static void __init
+ handle_movablemem(int node, u64 start, u64 end, u32 hotpluggable)
+ {
+-	int overlap;
++	int overlap, i;
+ 	unsigned long start_pfn, end_pfn;
+ 
+ 	start_pfn = PFN_DOWN(start);
+@@ -161,8 +161,24 @@ handle_movablemem(int node, u64 start, u64 end, u32 hotpluggable)
+ 	 *
+ 	 * Using movablemem_map, we can prevent memblock from allocating memory
+ 	 * on ZONE_MOVABLE at boot time.
++	 *
++	 * Before parsing SRAT, memblock has already reserve some memory ranges
++	 * for other purposes, such as for kernel image. We cannot prevent
++	 * kernel from using these memory, so we need to exclude these memory
++	 * even if it is hotpluggable.
+ 	 */
+ 	if (hotpluggable && movablemem_map.acpi) {
++		/* Exclude ranges reserved by memblock. */
++		struct memblock_type *rgn = &memblock.reserved;
++
++		for (i = 0; i < rgn->cnt; i++) {
++			if (end <= rgn->regions[i].base ||
++			    start >= rgn->regions[i].base +
++			    rgn->regions[i].size)
++				continue;
++			goto out;
++		}
++
+ 		insert_movablemem_map(start_pfn, end_pfn);
+ 
+ 		/*
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
