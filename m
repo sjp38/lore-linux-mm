@@ -2,30 +2,18 @@ From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of
  get_user_pages() called get_user_pages_non_movable()
 Date: Wed, 20 Feb 2013 19:37:57 +0800
-Message-ID: <19348.4896830798$1361360320@news.gmane.org>
+Message-ID: <2773.66713057763$1361360322@news.gmane.org>
 References: <1360056113-14294-1-git-send-email-linfeng@cn.fujitsu.com>
  <1360056113-14294-2-git-send-email-linfeng@cn.fujitsu.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by plane.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1U880Q-0006kq-72
-	for glkm-linux-mm-2@m.gmane.org; Wed, 20 Feb 2013 12:38:34 +0100
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 6F1626B0008
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 06:38:11 -0500 (EST)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 20 Feb 2013 21:30:46 +1000
+Return-path: <owner-linux-aio@kvack.org>
 Content-Disposition: inline
 In-Reply-To: <1360056113-14294-2-git-send-email-linfeng@cn.fujitsu.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+Sender: owner-linux-aio@kvack.org
 Cc: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Lin Feng <linfeng@cn.fujitsu.com>
+List-Id: linux-mm.kvack.org
 
 On Tue, Feb 05, 2013 at 05:21:52PM +0800, Lin Feng wrote:
 >get_user_pages() always tries to allocate pages from movable zone, which is not
@@ -220,7 +208,7 @@ isolated to non movable zone."?
 >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+To unsubscribe, send a message with 'unsubscribe linux-aio' in
+the body to majordomo@kvack.org.  For more info on Linux AIO,
+see: http://www.kvack.org/aio/
+Don't email: <a href=mailto:"aart@kvack.org">aart@kvack.org</a>
