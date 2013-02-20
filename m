@@ -1,39 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 8DCB86B0007
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 06:01:42 -0500 (EST)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [Bug fix PATCH 0/2] Make whatever node kernel resides in un-hotpluggable.
-Date: Wed, 20 Feb 2013 19:00:54 +0800
-Message-Id: <1361358056-1793-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 09F8E6B0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 06:03:48 -0500 (EST)
+Received: by mail-gg0-f169.google.com with SMTP id j5so965621ggn.28
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2013 03:03:48 -0800 (PST)
+Message-ID: <5124AD8E.9040105@gmail.com>
+Date: Wed, 20 Feb 2013 19:03:42 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [Lsf-pc] [LSF/MM TOPIC][ATTEND] a few topics I'd like to discuss
+References: <CAHGf_=rb0t4gbm0Egw9D3RUuwbgL8U6hPwBwS46C27mgAvJp0g@mail.gmail.com> <20130218145018.GJ4365@suse.de>
+In-Reply-To: <20130218145018.GJ4365@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, lsf-pc@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-As mentioned by HPA before, when we are using movablemem_map=acpi, if all the
-memory in SRAT is hotpluggable, then the kernel will have no memory to use, and
-will fail to boot.
+On 02/18/2013 10:50 PM, Mel Gorman wrote:
+> On Sun, Feb 17, 2013 at 01:44:33AM -0500, KOSAKI Motohiro wrote:
+>> Sorry for the delay.
+>>
+>> I would like to discuss the following topics:
+>>
+>>
+>>
+>> * Hugepage migration ? Currently, hugepage is not migratable and can?t
+>> use pages in ZONE_MOVABLE.  It is not happy from point of CMA/hotplug
+>> view.
+>>
+> migrate_huge_page() ?
 
-Before parsing SRAT, memblock has already reserved some memory in memblock.reserve,
-which is used by the kernel, such as storing the kernel image. We are not able to
-prevent the kernel from using these memory. So, these 2 patches make the node which
-the kernel resides in un-hotpluggable.
+It seems that migrate_huge_page just called in memory failure path, why 
+can't support in memory hotplug path?
 
-patch1: Do not add the memory reserved by memblock into movablemenm_map.map[].
-patch2: Do not add any other memory ranges in the same node into movablemenm_map.map[],
-        so that make the node which the kernel resides in un-hotpluggable.
-
-Tang Chen (2):
-  acpi, movablemem_map: Exclude memblock.reserved ranges when parsing
-    SRAT.
-  acpi, movablemem_map: Make whatever nodes the kernel resides in
-    un-hotpluggable.
-
- Documentation/kernel-parameters.txt |    6 ++++++
- arch/x86/mm/srat.c                  |   35 ++++++++++++++++++++++++++++++++++-
- include/linux/mm.h                  |    1 +
- 3 files changed, 41 insertions(+), 1 deletions(-)
+>
+> It's also possible to allocate hugetlbfs pages in ZONE_MOVABLE but must
+> be enabled via /proc/sys/vm/hugepages_treat_as_movable.
+>
+>> * Remove ZONE_MOVABLE ?Very long term goal. Maybe not suitable in this year.
+>>
+> Whatever about removing it totally I would like to see node memory hot-remove
+> not depending on ZONE_MOVABLE.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
