@@ -1,92 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 29BEF6B0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 00:31:40 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id bj3so3860272pad.34
-        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 21:31:39 -0800 (PST)
-Message-ID: <51245FB4.6050506@gmail.com>
-Date: Wed, 20 Feb 2013 13:31:32 +0800
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id E68856B0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 00:50:26 -0500 (EST)
+Received: by mail-yh0-f49.google.com with SMTP id m1so1378568yhg.36
+        for <linux-mm@kvack.org>; Tue, 19 Feb 2013 21:50:26 -0800 (PST)
+Message-ID: <5124641C.5020209@gmail.com>
+Date: Wed, 20 Feb 2013 13:50:20 +0800
 From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: cma: fix accounting of CMA pages placed in high memory
-References: <1359973626-3900-1-git-send-email-m.szyprowski@samsung.com> <20130204233430.GA2610@blaptop> <5110B05B.5070109@samsung.com> <51237DDB.2050305@gmail.com> <CAH9JG2V4+qXLMq5nbuN37nb4xrPB11L91q=2NKrVDautyyK2Bw@mail.gmail.com>
-In-Reply-To: <CAH9JG2V4+qXLMq5nbuN37nb4xrPB11L91q=2NKrVDautyyK2Bw@mail.gmail.com>
+Subject: Re: OOM triggered with plenty of memory free
+References: <20130213031056.GA32135@marvin.atrad.com.au> <alpine.DEB.2.02.1302121917020.11158@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1302121917020.11158@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyungmin Park <kmpark@infradead.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de
+To: David Rientjes <rientjes@google.com>
+Cc: Jonathan Woithe <jwoithe@atrad.com.au>, linux-mm@kvack.org
 
-On 02/20/2013 10:57 AM, Kyungmin Park wrote:
-> On Tue, Feb 19, 2013 at 10:27 PM, Simon Jeons <simon.jeons@gmail.com> wrote:
->> On 02/05/2013 03:10 PM, Marek Szyprowski wrote:
->>> Hello,
->>>
->>> On 2/5/2013 12:34 AM, Minchan Kim wrote:
->>>> On Mon, Feb 04, 2013 at 11:27:05AM +0100, Marek Szyprowski wrote:
->>>>> The total number of low memory pages is determined as
->>>>> totalram_pages - totalhigh_pages, so without this patch all CMA
->>>>> pageblocks placed in highmem were accounted to low memory.
->>>> So what's the end user effect? With the effect, we have to decide
->>>> routing it on stable.
->>>>
->>>>> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
->>>>> ---
->>>>>   mm/page_alloc.c |    4 ++++
->>>>>   1 file changed, 4 insertions(+)
->>>>>
->>>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>>>> index f5bab0a..6415d93 100644
->>>>> --- a/mm/page_alloc.c
->>>>> +++ b/mm/page_alloc.c
->>>>> @@ -773,6 +773,10 @@ void __init init_cma_reserved_pageblock(struct
->>>>> page *page)
->>>>>       set_pageblock_migratetype(page, MIGRATE_CMA);
->>>>>       __free_pages(page, pageblock_order);
->>>>>       totalram_pages += pageblock_nr_pages;
->>>>> +#ifdef CONFIG_HIGHMEM
->>>> We don't need #ifdef/#endif.
->>>
->>> #ifdef is required to let this code compile when highmem is not enabled,
->>> becuase totalhigh_pages is defined as 0, see include/linux/highmem.h
->>>
->> Hi Marek,
->>
->> 1) Why can support CMA regions placed in highmem?
-> Some vendors use reserved memory at highmem, and it's hard to modify
-> to use lowmem, so just CMA can support highmem and no need to adjust
-> address used at reserved memory.
->> CMA is for dma buffer, correct? Then how can old dma device access highmem?
-> What's the "old dma device"? To support it, we also modify
+Hi David,
+On 02/13/2013 11:30 AM, David Rientjes wrote:
 
-I mean dma devices which should still use bounce buffer, then these 
-devices will use bounce buffer to access CMA region in highmem or ...?
+Another question of OOM:
 
-> arch/arm/mm/dma-mapping.c for handling highmem address.
+I read drivers/staging/android/lowmemorykiller.c, it seems that 
+android's oom just care about oom_score/oom_score_adj exported in /proc 
+which will lead to good user experience, but who will set these values 
+if users playing android mobiles? Is there userspace monitor process 
+will do it? If the answer is yes, then how it determines one process is 
+important or not?
+
+> On Wed, 13 Feb 2013, Jonathan Woithe wrote:
 >
->> 2) Why there is no totalhigh_pages variable define in the case of config
->> highmem?
-> I don't know. it's just defined in case of highmem. that's reason to
-> use #ifdef/endif. we don't know hisotrical reason.
+>> We have a number of Linux systems in the field controlling some
+>> instrumentation.  They are backed by UPS and local generators so uptimes are
+>> often several hundred days.  Recently we have noticed that after a few
+>> hundred days of uptime one of these systems started to trigger the OOM
+>> killer repeatedly even though "free" reports plenty of memory free.  After
+>> speaking with a few people at linux.conf.au it was thought that an
+>> exhaustion of lowmem may be implicated and the suggestion was to ask here to
+>> see if anyone had ideas as to what the underlying cause might be.
+>>
+> The allocation triggering the oom killer is a standard GFP_KERNEL
+> allocation, your lowmem is not depleted.
 >
-> Thank you,
-> Kyungmin Park
+>> The output of "ps auxw" is practically unchanged from the time the machine
+>> boots.
 >>
->>>>> +    if (PageHighMem(page))
->>>>> +        totalhigh_pages += pageblock_nr_pages;
->>>>> +#endif
->>>>>   }
->>>>>   #endif
->>>>>
->>>
->>> Best regards
+>> Some system specifications:
+>>   - CPU: i7 860 at 2.8 GHz
+>>   - Mainboard: Advantech AIMB-780
+>>   - RAM: 4 GB
+>>   - Kernel: 2.6.35.11 SMP, 32 bit (kernel.org kernel, no patches applied)
+> I'm afraid you're not going to get much help with a 2 1/2 year old kernel.
+>
+>> The machine is set up to boot during which time the data acquisition program
+>> is started.  The system then runs indefinitely.  Beyond the data acquisition
+>> program the machine does very little.  The memory usage of all processes on
+>> the system (including the data acquisition program) as reported by "ps"
+>> remains unchanged for the lifetime of the processes.
 >>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> This isn't surprising, the vast majority of RAM is consumed by slab.
+>
+>> I have however been able to obtain the slabinfo from another machine
+>> operating in a similar way to the one which faulted.  Its uptime is just
+>> over 100 days and has not yet started misbehaving.  I have noted that the
+>> active_objs and num_objs fields for the kmalloc-32, kmalloc-64 and
+>> kmalloc-128 lines in particular are very large and seem to be increasing
+>> without limit over both short and long timescales (eg: over an hour, the
+>> kmalloc-128 active_objs increased from 2093227 to 2094021).  If the
+>> acquisition is stopped (ie: software idling, hardware not sending data to
+>> ethernet port) these statistics do not appear to increase over a 30 minute
+>> period.  I do not know whether this is significant.
+>>
+> You're exactly right, and this is what is causing your oom condition.
+>
+>> The first OOM report (about 3 days before we were made aware of the problem):
+>>
+>>    kernel: ftp invoked oom-killer: gfp_mask=0xd0, order=0, oom_adj=0
+>>    kernel: Pid: 22217, comm: ftp Not tainted 2.6.35.11-smp #2
+> ...
+>>    kernel: DMA free:3480kB min:64kB low:80kB high:96kB active_anon:0kB inactive_anon:0kB active_file:12kB inactive_file:52kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15800kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:148kB slab_unreclaimable:12148kB kernel_stack:16kB pagetables:0kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:151 all_unreclaimable? yes
+>>    kernel: lowmem_reserve[]: 0 865 2991 2991
+>>    kernel: Normal free:3856kB min:3728kB low:4660kB high:5592kB active_anon:0kB inactive_anon:0kB active_file:916kB inactive_file:1068kB unevictable:0kB isolated(anon):0kB isolated(file):128kB present:885944kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:7572kB slab_unreclaimable:797376kB kernel_stack:3136kB pagetables:36kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:3616 all_unreclaimable? yes
+>>    kernel: lowmem_reserve[]: 0 0 17014 17014
+> This allocation cannot allocate in highmem, it needs to be allocated from
+> ZONE_NORMAL above.  Notice how your free watermark, 3856KB, is below the
+> min watermark, 3728KB.  This indicates you've simply exhausted the amount
+> of memory on the system.
+>
+> Notice also that the amount of RAM this zone has is 865MB and over 90% of
+> it is slab.
+>
+>> slabinfo after 106 days uptime and continuous operation:
+>>
+>> slabinfo - version: 2.1
+>> # name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>
+> ...
+>> kmalloc-128       1234556 1235168    128   32    1 : tunables    0    0    0 : slabdata  38599  38599      0
+>> kmalloc-64        1238117 1238144     64   64    1 : tunables    0    0    0 : slabdata  19346  19346      0
+>> kmalloc-32        1236600 1236608     32  128    1 : tunables    0    0    0 : slabdata   9661   9661      0
+> You've most certainly got a memory leak here and it's surprising to see it
+> over three separate slab caches.
+>
+> Any investigation that we could do into that leak would at best result in
+> a kernel patch to your 2.6.35 kernel; I'm not sure if there is a fix for a
+> memory leak that matches your symptoms between 2.6.35.11 and 2.6.35.14.
+>
+> Better yet would be to try to upgrade these machines to a more recent
+> kernel to see if it is already fixed.  Are we allowed to upgrade or at
+> least enable kmemleak?
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
