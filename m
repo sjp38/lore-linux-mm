@@ -1,34 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 45EFE6B0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 09:22:59 -0500 (EST)
-Received: by mail-ie0-f175.google.com with SMTP id c12so9777636ieb.20
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2013 06:22:58 -0800 (PST)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 519C16B0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 09:24:03 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id 13so9968306iea.14
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2013 06:24:02 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <5124C6CF.1020001@gmail.com>
+In-Reply-To: <1359699013-7160-1-git-send-email-hannes@cmpxchg.org>
 References: <1359699013-7160-1-git-send-email-hannes@cmpxchg.org>
-	<5124C6CF.1020001@gmail.com>
-Date: Wed, 20 Feb 2013 22:22:58 +0800
-Message-ID: <CANN689FizixMWu7hKMV055=SY_Sg1rmYrB_KAEwOBP1tEOZw+Q@mail.gmail.com>
+Date: Wed, 20 Feb 2013 22:24:02 +0800
+Message-ID: <CANN689Hwp-fm-SUzAXAqLKGkGHxjw2X+pkQRr01=Fjq=BaSoDQ@mail.gmail.com>
 Subject: Re: [patch] mm: mlock: document scary-looking stack expansion mlock chain
 From: Michel Lespinasse <walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Feb 20, 2013 at 8:51 PM, Ric Mason <ric.masonn@gmail.com> wrote:
-> On 02/01/2013 02:10 PM, Johannes Weiner wrote:
->>
->> The fact that mlock calls get_user_pages, and get_user_pages might
->> call mlock when expanding a stack looks like a potential recursion.
+On Fri, Feb 1, 2013 at 2:10 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> The fact that mlock calls get_user_pages, and get_user_pages might
+> call mlock when expanding a stack looks like a potential recursion.
 >
-> Why expand stack need call mlock? I can't find it in the codes, could you
-> point out to me?
+> However, mlock makes sure the requested range is already contained
+> within a vma, so no stack expansion will actually happen from mlock.
+>
+> Should this ever change: the stack expansion mlocks only the newly
+> expanded range and so will not result in recursive expansion.
+>
+> Reported-by: Al Viro <viro@ZenIV.linux.org.uk>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Its hidden in find_expand_vma(). Basically if the existing stack is
-already mlocked, any additional stack expansions get mlocked as well.
+Acked-by: Michel Lespinasse <walken@google.com>
 
 -- 
 Michel "Walken" Lespinasse
