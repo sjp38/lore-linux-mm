@@ -1,54 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 8953F6B0008
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 13:21:48 -0500 (EST)
-Received: by mail-ve0-f178.google.com with SMTP id db10so8265052veb.9
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 10:21:47 -0800 (PST)
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 33ED16B0008
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 13:27:51 -0500 (EST)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 21 Feb 2013 13:27:50 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 3CD376E8057
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 13:27:45 -0500 (EST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1LIRjIq279922
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 13:27:46 -0500
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1LIQ6sR016367
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 11:26:08 -0700
+Message-ID: <512666B2.1020609@linux.vnet.ibm.com>
+Date: Thu, 21 Feb 2013 12:25:54 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <51242908.2050308@huawei.com>
-References: <51074786.5030007@huawei.com>
-	<1359995565.7515.178.camel@mfleming-mobl1.ger.corp.intel.com>
-	<51131248.3080203@huawei.com>
-	<5113450C.1080109@huawei.com>
-	<CA+8MBbKuBheEj9t8whJBc=S7NdxCF8MvuD2Ajm7suP=7JC01fg@mail.gmail.com>
-	<51242908.2050308@huawei.com>
-Date: Thu, 21 Feb 2013 10:21:46 -0800
-Message-ID: <CA+8MBbJdOCh5Hh-K6wRDzACy-a4S1qV2S5zxwJk2MhAhZvxbqg@mail.gmail.com>
-Subject: Re: [PATCH V3] ia64/mm: fix a bad_page bug when crash kernel booting
-From: Tony Luck <tony.luck@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCHv6 0/8] zswap: compressed swap caching
+References: <1361397888-14863-1-git-send-email-sjenning@linux.vnet.ibm.com> <9e251fb2-be82-41d2-b6cd-e46525b263cb@default>
+In-Reply-To: <9e251fb2-be82-41d2-b6cd-e46525b263cb@default>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Matt Fleming <matt.fleming@intel.com>, fenghua.yu@intel.com, Liujiang <jiang.liu@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, WuJianguo <wujianguo@huawei.com>, linux-arch@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Tue, Feb 19, 2013 at 5:38 PM, Xishi Qiu <qiuxishi@huawei.com> wrote:
-> Seems like a good idea, should we modify "\linux\Documentation\kernel-parameters.txt"?
+On 02/21/2013 09:50 AM, Dan Magenheimer wrote:
+>> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+>> Subject: [PATCHv6 0/8] zswap: compressed swap caching
+>>
+>> Changelog:
+>>
+>> v6:
+>> * fix improper freeing of rbtree (Cody)
+> 
+> Cody's bug fix reminded me of a rather fundamental question:
+> 
+> Why does zswap use a rbtree instead of a radix tree?
+> 
+> Intuitively, I'd expect that pgoff_t values would
+> have a relatively high level of locality AND at any one time
+> the set of stored pgoff_t values would be relatively non-sparse.
+> This would argue that a radix tree would result in fewer nodes
+> touched on average for lookup/insert/remove.
 
-Perhaps in Documentation/kdump/kdump.txt (which the crashkernel entry
-in kernel-parameters.txt
-points at).  The ia64 section of kdump.txt notes that the start
-address will be rounded up to
-a GRANULE boundary, but doesn't talk about restrictions on the size.
+I considered using a radix tree, but I don't think there is a compelling
+reason to choose a radix tree over a red-black tree in this case
+(explanation below).
 
-I wonder if any other architectures have alignment restrictions on the
-addresses in
-"crashkernel" parameters? Does x86 like them to be 2MB aligned?
+>From a runtime standpoint, a radix tree might be faster.  The swap
+offsets will be largely in linearly bunched groups over the indexed
+range.  However, there are also memory constraints to consider in this
+particular situation.
 
-Second question is whether we should check and warn in parse_crashkernel_mem()?
-I think the answer is "yes" (since the consequences of getting this
-wrong don't show
-up till much later, and the errors aren't all that obviously connected
-back to the original
-mistake).  Perhaps each architecture that cares could provide defines:
+Using a radix tree could result in intermediate radix_tree_node
+allocations in the store (insert) path in addition to the zswap_entry
+allocation.  Since we are under memory pressure, using the red-black
+tree, whose metadata is included in the struct zswap_entry, reduces the
+number of opportunities to fail.
 
-#define ARCH_CRASH_KERNEL_START_ALIGN (... arch value here ...)
-#define ARCH_CRASH_KERNEL_SIZE_ALIGN (... arch value here ...)
+On my system, the radix_tree_node structure is 568 bytes.  The
+radix_tree_node cache requires 4 pages per slab, an order-2 page
+allocation.  Growing that cache will be difficult under the pressure.
 
-[Suggestion provided mostly to provoke somebody to provide a more
-elegant solution]
+In my mind, cost of even a single node allocation failure resulting in
+an additional page swapped to disk will more that wipe out any possible
+performance advantage using a radix tree might have.
 
--Tony
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
