@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 843A96B0023
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 11:48:00 -0500 (EST)
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 3C5436B0023
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 11:48:03 -0500 (EST)
 Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 21 Feb 2013 22:16:05 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 8417B1258051
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:18:43 +0530 (IST)
+	Thu, 21 Feb 2013 22:15:30 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B822D1258052
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:18:45 +0530 (IST)
 Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1LGlpot19923042
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:17:52 +0530
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1LGlsA229622370
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:17:54 +0530
 Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1LGlqYS010851
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 03:47:53 +1100
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1LGlsfR011039
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 03:47:56 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH -V2 10/21] powerpc: print both base and actual page size on hash failure
-Date: Thu, 21 Feb 2013 22:17:17 +0530
-Message-Id: <1361465248-10867-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC PATCH -V2 13/21] mm/THP: HPAGE_SHIFT is not a #define on some arch
+Date: Thu, 21 Feb 2013 22:17:20 +0530
+Message-Id: <1361465248-10867-14-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1361465248-10867-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1361465248-10867-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -28,82 +28,68 @@ Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <anees
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
+On archs like powerpc that support different huge page sizes, HPAGE_SHIFT
+and other derived values like HPAGE_PMD_ORDER are not constants. So move
+that to hugepage_init
+
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/mmu-hash64.h |    3 ++-
- arch/powerpc/mm/hash_utils_64.c       |   12 +++++++-----
- arch/powerpc/mm/hugetlbpage-hash64.c  |    2 +-
- 3 files changed, 10 insertions(+), 7 deletions(-)
+ include/linux/huge_mm.h |    3 ---
+ mm/huge_memory.c        |    9 ++++++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/mmu-hash64.h b/arch/powerpc/include/asm/mmu-hash64.h
-index c7bc181..ca4f174 100644
---- a/arch/powerpc/include/asm/mmu-hash64.h
-+++ b/arch/powerpc/include/asm/mmu-hash64.h
-@@ -327,7 +327,8 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
- 		     unsigned int shift, unsigned int mmu_psize);
- extern void hash_failure_debug(unsigned long ea, unsigned long access,
- 			       unsigned long vsid, unsigned long trap,
--			       int ssize, int psize, unsigned long pte);
-+			       int ssize, int psize, int lpsize,
-+			       unsigned long pte);
- extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
- 			     unsigned long pstart, unsigned long prot,
- 			     int psize, int ssize);
-diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
-index 48edb46..df48ba5 100644
---- a/arch/powerpc/mm/hash_utils_64.c
-+++ b/arch/powerpc/mm/hash_utils_64.c
-@@ -917,14 +917,14 @@ static inline int subpage_protection(struct mm_struct *mm, unsigned long ea)
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 1d76f8c..0022b70 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -119,9 +119,6 @@ extern void __split_huge_page_pmd(struct vm_area_struct *vma,
+ 	} while (0)
+ extern void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
+ 		pmd_t *pmd);
+-#if HPAGE_PMD_ORDER > MAX_ORDER
+-#error "hugepages can't be allocated by the buddy allocator"
+-#endif
+ extern int hugepage_madvise(struct vm_area_struct *vma,
+ 			    unsigned long *vm_flags, int advice);
+ extern void __vma_adjust_trans_huge(struct vm_area_struct *vma,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index b5783d8..1940ee0 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -44,7 +44,7 @@ unsigned long transparent_hugepage_flags __read_mostly =
+ 	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
  
- void hash_failure_debug(unsigned long ea, unsigned long access,
- 			unsigned long vsid, unsigned long trap,
--			int ssize, int psize, unsigned long pte)
-+			int ssize, int psize, int lpsize, unsigned long pte)
- {
- 	if (!printk_ratelimit())
- 		return;
- 	pr_info("mm: Hashing failure ! EA=0x%lx access=0x%lx current=%s\n",
- 		ea, access, current->comm);
--	pr_info("    trap=0x%lx vsid=0x%lx ssize=%d psize=%d pte=0x%lx\n",
--		trap, vsid, ssize, psize, pte);
-+	pr_info("    trap=0x%lx vsid=0x%lx ssize=%d base psize=%d psize %d pte=0x%lx\n",
-+		trap, vsid, ssize, psize, lpsize, pte);
- }
+ /* default scan 8*512 pte (or vmas) every 30 second */
+-static unsigned int khugepaged_pages_to_scan __read_mostly = HPAGE_PMD_NR*8;
++static unsigned int khugepaged_pages_to_scan __read_mostly;
+ static unsigned int khugepaged_pages_collapsed;
+ static unsigned int khugepaged_full_scans;
+ static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
+@@ -59,7 +59,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+  * it would have happened if the vma was large enough during page
+  * fault.
+  */
+-static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
++static unsigned int khugepaged_max_ptes_none __read_mostly;
  
- /* Result code is:
-@@ -1097,7 +1097,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
- 	 */
- 	if (rc == -1)
- 		hash_failure_debug(ea, access, vsid, trap, ssize, psize,
--				   pte_val(*ptep));
-+				   psize, pte_val(*ptep));
- #ifndef CONFIG_PPC_64K_PAGES
- 	DBG_LOW(" o-pte: %016lx\n", pte_val(*ptep));
- #else
-@@ -1175,7 +1175,9 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
- 	 */
- 	if (rc == -1)
- 		hash_failure_debug(ea, access, vsid, trap, ssize,
--				   mm->context.user_psize, pte_val(*ptep));
-+				   mm->context.user_psize,
-+				   mm->context.user_psize,
-+				   pte_val(*ptep));
+ static int khugepaged(void *none);
+ static int mm_slots_hash_init(void);
+@@ -621,11 +621,14 @@ static int __init hugepage_init(void)
+ 	int err;
+ 	struct kobject *hugepage_kobj;
  
- 	local_irq_restore(flags);
- }
-diff --git a/arch/powerpc/mm/hugetlbpage-hash64.c b/arch/powerpc/mm/hugetlbpage-hash64.c
-index e0d52ee..06ecb55 100644
---- a/arch/powerpc/mm/hugetlbpage-hash64.c
-+++ b/arch/powerpc/mm/hugetlbpage-hash64.c
-@@ -129,7 +129,7 @@ repeat:
- 		if (unlikely(slot == -2)) {
- 			*ptep = __pte(old_pte);
- 			hash_failure_debug(ea, access, vsid, trap, ssize,
--					   mmu_psize, old_pte);
-+					   mmu_psize, mmu_psize, old_pte);
- 			return -1;
- 		}
+-	if (!has_transparent_hugepage()) {
++	if (!has_transparent_hugepage() || (HPAGE_PMD_ORDER > MAX_ORDER)) {
+ 		transparent_hugepage_flags = 0;
+ 		return -EINVAL;
+ 	}
  
++	khugepaged_pages_to_scan = HPAGE_PMD_NR*8;
++	khugepaged_max_ptes_none = HPAGE_PMD_NR-1;
++
+ 	err = hugepage_init_sysfs(&hugepage_kobj);
+ 	if (err)
+ 		return err;
 -- 
 1.7.10
 
