@@ -1,54 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 263066B0002
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 16:42:43 -0500 (EST)
-MIME-Version: 1.0
-Message-ID: <7793705b-a076-4c5a-be4d-9572d7560860@default>
-Date: Thu, 21 Feb 2013 13:42:21 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: Questin about swap_slot free and invalidate page
-References: <20130131051140.GB23548@blaptop>
- <alpine.LNX.2.00.1302031732520.4050@eggly.anvils>
- <20130204024950.GD2688@blaptop>
- <d6fc41b7-8448-40be-84c3-c24d0833bd85@default> <51236C11.1010208@gmail.com>
- <1f089254-3abe-4c63-a72a-c9e564ae7d0d@default> <51242F0D.4040201@gmail.com>
-In-Reply-To: <51242F0D.4040201@gmail.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id E6CA26B0002
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 16:49:06 -0500 (EST)
+Date: Thu, 21 Feb 2013 13:49:04 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 10/18] mm: teach truncate_inode_pages_range() to
+ handle non page aligned ranges
+Message-Id: <20130221134905.9a1e2c9e.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LFD.2.00.1302210929590.19354@localhost>
+References: <1360055531-26309-1-git-send-email-lczerner@redhat.com>
+	<1360055531-26309-11-git-send-email-lczerner@redhat.com>
+	<20130207154042.92430aed.akpm@linux-foundation.org>
+	<alpine.LFD.2.00.1302080948110.3225@localhost>
+	<alpine.LFD.2.00.1302210929590.19354@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: =?UTF-8?Q?Luk=C3=A1=C5=A1?= Czerner <lczerner@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>
 
-> From: Ric Mason [mailto:ric.masonn@gmail.com]
-> Subject: Re: Questin about swap_slot free and invalidate page
->=20
-> On 02/19/2013 11:27 PM, Dan Magenheimer wrote:
-> >> From: Ric Mason [mailto:ric.masonn@gmail.com]
-> >>> Hugh is right that handling the possibility of duplicates is
-> >>> part of the tmem ABI.  If there is any possibility of duplicates,
-> >>> the ABI defines how a backend must handle them to avoid data
-> >>> coherency issues.
-> >>>
-> >>> The kernel implements an in-kernel API which implements the tmem
-> >>> ABI.  If the frontend and backend can always agree that duplicate
-> >> Which ABI in zcache implement that?
-> > https://oss.oracle.com/projects/tmem/dist/documentation/api/tmemspec-v0=
-01.pdf
-> >
-> > The in-kernel APIs are frontswap and cleancache.  For more information =
-about
-> > tmem, see http://lwn.net/Articles/454795/
->=20
-> But you mentioned that you have in-kernel API which can handle
-> duplicate.  Do you mean zcache_cleancache/frontswap_put_page? I think
-> they just overwrite instead of optional flush the page on the
-> second(duplicate) put as mentioned in your tmemspec.
+On Thu, 21 Feb 2013 09:33:56 +0100 (CET)
+Luk____ Czerner <lczerner@redhat.com> wrote:
 
-Maybe I am misunderstanding your question...  The spec allows
-overwrite (and return success) OR flush the page (and return
-failure).  Zcache does the latter (flush).  The code that implements
-it is in tmem_put.
+> what's the status of the patch set ?
+
+Forgotten about :(
+
+> Can we get this in in this merge window ?
+
+Please do a full resend after 3.9-rc1 and let's take it up again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
