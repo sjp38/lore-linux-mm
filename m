@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 7CD576B0012
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 11:47:59 -0500 (EST)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 843A96B0023
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 11:48:00 -0500 (EST)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 21 Feb 2013 22:15:06 +0530
+	Thu, 21 Feb 2013 22:16:05 +0530
 Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 94803E0056
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:18:54 +0530 (IST)
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 8417B1258051
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:18:43 +0530 (IST)
 Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1LGlosk26607716
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:17:50 +0530
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1LGlpot19923042
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:17:52 +0530
 Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1LGlps9010770
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 03:47:52 +1100
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1LGlqYS010851
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 03:47:53 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH -V2 09/21] powerpc: Update tlbie/tlbiel as per ISA doc
-Date: Thu, 21 Feb 2013 22:17:16 +0530
-Message-Id: <1361465248-10867-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC PATCH -V2 10/21] powerpc: print both base and actual page size on hash failure
+Date: Thu, 21 Feb 2013 22:17:17 +0530
+Message-Id: <1361465248-10867-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1361465248-10867-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1361465248-10867-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -28,135 +28,82 @@ Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <anees
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-This make sure we handle Multiple page size segment correctly.
-
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/mm/hash_native_64.c |   52 +++++++++++++++++++++++++++++---------
- 1 file changed, 40 insertions(+), 12 deletions(-)
+ arch/powerpc/include/asm/mmu-hash64.h |    3 ++-
+ arch/powerpc/mm/hash_utils_64.c       |   12 +++++++-----
+ arch/powerpc/mm/hugetlbpage-hash64.c  |    2 +-
+ 3 files changed, 10 insertions(+), 7 deletions(-)
 
-diff --git a/arch/powerpc/mm/hash_native_64.c b/arch/powerpc/mm/hash_native_64.c
-index 3d30b23..3bc57e2 100644
---- a/arch/powerpc/mm/hash_native_64.c
-+++ b/arch/powerpc/mm/hash_native_64.c
-@@ -39,7 +39,7 @@
+diff --git a/arch/powerpc/include/asm/mmu-hash64.h b/arch/powerpc/include/asm/mmu-hash64.h
+index c7bc181..ca4f174 100644
+--- a/arch/powerpc/include/asm/mmu-hash64.h
++++ b/arch/powerpc/include/asm/mmu-hash64.h
+@@ -327,7 +327,8 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
+ 		     unsigned int shift, unsigned int mmu_psize);
+ extern void hash_failure_debug(unsigned long ea, unsigned long access,
+ 			       unsigned long vsid, unsigned long trap,
+-			       int ssize, int psize, unsigned long pte);
++			       int ssize, int psize, int lpsize,
++			       unsigned long pte);
+ extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
+ 			     unsigned long pstart, unsigned long prot,
+ 			     int psize, int ssize);
+diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
+index 48edb46..df48ba5 100644
+--- a/arch/powerpc/mm/hash_utils_64.c
++++ b/arch/powerpc/mm/hash_utils_64.c
+@@ -917,14 +917,14 @@ static inline int subpage_protection(struct mm_struct *mm, unsigned long ea)
  
- DEFINE_RAW_SPINLOCK(native_tlbie_lock);
- 
--static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
-+static inline void __tlbie(unsigned long vpn, int bpsize, int apsize, int ssize)
+ void hash_failure_debug(unsigned long ea, unsigned long access,
+ 			unsigned long vsid, unsigned long trap,
+-			int ssize, int psize, unsigned long pte)
++			int ssize, int psize, int lpsize, unsigned long pte)
  {
- 	unsigned long va;
- 	unsigned int penc;
-@@ -59,19 +59,33 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
- 	 */
- 	va &= ~(0xffffULL << 48);
- 
--	switch (psize) {
-+	switch (bpsize) {
- 	case MMU_PAGE_4K:
-+		/* clear out bits after (52) [0....52.....63] */
-+		va &= ~((1ul << (64 - 52)) - 1);
- 		va |= ssize << 8;
-+		va |= mmu_psize_defs[apsize].sllp << 6;
- 		asm volatile(ASM_FTR_IFCLR("tlbie %0,0", PPC_TLBIE(%1,%0), %2)
- 			     : : "r" (va), "r"(0), "i" (CPU_FTR_ARCH_206)
- 			     : "memory");
- 		break;
- 	default:
- 		/* We need 14 to 14 + i bits of va */
--		penc = mmu_psize_defs[psize].penc[apsize];
--		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
-+		penc = mmu_psize_defs[bpsize].penc[apsize];
-+		/* clear out bits after (44) [0....44.....63] */
-+		va &= ~((1ul << (64 - 44)) - 1);
- 		va |= penc << 12;
- 		va |= ssize << 8;
-+		/* Add AVAL part */
-+		if (bpsize != apsize) {
-+			/*
-+			 * MPSS, 64K base page size and 16MB parge page size
-+			 * We don't need all the bits, but this seems to work.
-+			 * vpn cover upto 65 bits of va. (0...65) and we need
-+			 * 56..62 bits of va.
-+			 */
-+			va |= ((vpn >> 2) & 0xfe);
-+		}
- 		va |= 1; /* L */
- 		asm volatile(ASM_FTR_IFCLR("tlbie %0,1", PPC_TLBIE(%1,%0), %2)
- 			     : : "r" (va), "r"(0), "i" (CPU_FTR_ARCH_206)
-@@ -80,7 +94,7 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
- 	}
+ 	if (!printk_ratelimit())
+ 		return;
+ 	pr_info("mm: Hashing failure ! EA=0x%lx access=0x%lx current=%s\n",
+ 		ea, access, current->comm);
+-	pr_info("    trap=0x%lx vsid=0x%lx ssize=%d psize=%d pte=0x%lx\n",
+-		trap, vsid, ssize, psize, pte);
++	pr_info("    trap=0x%lx vsid=0x%lx ssize=%d base psize=%d psize %d pte=0x%lx\n",
++		trap, vsid, ssize, psize, lpsize, pte);
  }
  
--static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
-+static inline void __tlbiel(unsigned long vpn, int bpsize, int apsize, int ssize)
- {
- 	unsigned long va;
- 	unsigned int penc;
-@@ -94,18 +108,32 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
+ /* Result code is:
+@@ -1097,7 +1097,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
  	 */
- 	va &= ~(0xffffULL << 48);
+ 	if (rc == -1)
+ 		hash_failure_debug(ea, access, vsid, trap, ssize, psize,
+-				   pte_val(*ptep));
++				   psize, pte_val(*ptep));
+ #ifndef CONFIG_PPC_64K_PAGES
+ 	DBG_LOW(" o-pte: %016lx\n", pte_val(*ptep));
+ #else
+@@ -1175,7 +1175,9 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
+ 	 */
+ 	if (rc == -1)
+ 		hash_failure_debug(ea, access, vsid, trap, ssize,
+-				   mm->context.user_psize, pte_val(*ptep));
++				   mm->context.user_psize,
++				   mm->context.user_psize,
++				   pte_val(*ptep));
  
--	switch (psize) {
-+	switch (bpsize) {
- 	case MMU_PAGE_4K:
-+		/* clear out bits after(52) [0....52.....63] */
-+		va &= ~((1ul << (64 - 52)) - 1);
- 		va |= ssize << 8;
-+		va |= mmu_psize_defs[apsize].sllp << 6;
- 		asm volatile(".long 0x7c000224 | (%0 << 11) | (0 << 21)"
- 			     : : "r"(va) : "memory");
- 		break;
- 	default:
- 		/* We need 14 to 14 + i bits of va */
--		penc = mmu_psize_defs[psize].penc[apsize];
--		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
-+		penc = mmu_psize_defs[bpsize].penc[apsize];
-+		/* clear out bits after(44) [0....44.....63] */
-+		va &= ~((1ul << (64 - 44)) - 1);
- 		va |= penc << 12;
- 		va |= ssize << 8;
-+		/* Add AVAL part */
-+		if (bpsize != apsize) {
-+			/*
-+			 * MPSS, 64K base page size and 16MB parge page size
-+			 * We don't need all the bits, but this seems to work.
-+			 * vpn cover upto 65 bits of va. (0...65) and we need
-+			 * 56..62 bits of va.
-+			 */
-+			va |= ((vpn >> 2) & 0xfe);
-+		}
- 		va |= 1; /* L */
- 		asm volatile(".long 0x7c000224 | (%0 << 11) | (1 << 21)"
- 			     : : "r"(va) : "memory");
-@@ -114,22 +142,22 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
- 
+ 	local_irq_restore(flags);
  }
+diff --git a/arch/powerpc/mm/hugetlbpage-hash64.c b/arch/powerpc/mm/hugetlbpage-hash64.c
+index e0d52ee..06ecb55 100644
+--- a/arch/powerpc/mm/hugetlbpage-hash64.c
++++ b/arch/powerpc/mm/hugetlbpage-hash64.c
+@@ -129,7 +129,7 @@ repeat:
+ 		if (unlikely(slot == -2)) {
+ 			*ptep = __pte(old_pte);
+ 			hash_failure_debug(ea, access, vsid, trap, ssize,
+-					   mmu_psize, old_pte);
++					   mmu_psize, mmu_psize, old_pte);
+ 			return -1;
+ 		}
  
--static inline void tlbie(unsigned long vpn, int psize, int apsize,
-+static inline void tlbie(unsigned long vpn, int bpsize, int apsize,
- 			 int ssize, int local)
- {
- 	unsigned int use_local = local && mmu_has_feature(MMU_FTR_TLBIEL);
- 	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
- 
- 	if (use_local)
--		use_local = mmu_psize_defs[psize].tlbiel;
-+		use_local = mmu_psize_defs[bpsize].tlbiel;
- 	if (lock_tlbie && !use_local)
- 		raw_spin_lock(&native_tlbie_lock);
- 	asm volatile("ptesync": : :"memory");
- 	if (use_local) {
--		__tlbiel(vpn, psize, apsize, ssize);
-+		__tlbiel(vpn, bpsize, apsize, ssize);
- 		asm volatile("ptesync": : :"memory");
- 	} else {
--		__tlbie(vpn, psize, apsize, ssize);
-+		__tlbie(vpn, bpsize, apsize, ssize);
- 		asm volatile("eieio; tlbsync; ptesync": : :"memory");
- 	}
- 	if (lock_tlbie && !use_local)
 -- 
 1.7.10
 
