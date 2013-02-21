@@ -1,39 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id CAFD76B0008
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 14:44:46 -0500 (EST)
-Message-ID: <512678F9.8020603@synopsys.com>
-Date: Fri, 22 Feb 2013 01:13:53 +0530
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 923CB6B0011
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 15:10:47 -0500 (EST)
 From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] memblock: add assertion for zero allocation size
-References: <1361471962-25164-1-git-send-email-vgupta@synopsys.com> <1361471962-25164-2-git-send-email-vgupta@synopsys.com> <CAE9FiQXSPHjRsCWcHpz7s1gQjNGuj5_X_YE2Ln=EA7_-Ka_cNg@mail.gmail.com> <51267695.8090800@synopsys.com> <20130221193639.GN3570@htj.dyndns.org>
+Subject: [PATCH v2 1/2] memblock: add assertion for zero allocation alignment
+Date: Fri, 22 Feb 2013 01:40:21 +0530
+Message-ID: <1361477421-3964-1-git-send-email-vgupta@synopsys.com>
 In-Reply-To: <20130221193639.GN3570@htj.dyndns.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+References: <20130221193639.GN3570@htj.dyndns.org>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>
-Cc: Yinghai Lu <yinghai@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Marc Gauthier <marc@tensilica.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, Andrew Morton <akpm@linux-foundation.org>, Yinghai Lu <yinghai@kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Friday 22 February 2013 01:06 AM, Tejun Heo wrote:
-> On Fri, Feb 22, 2013 at 01:03:41AM +0530, Vineet Gupta wrote:
->> Where - you mean if user passes 0, just make it 1. Nah - it's better to complain
->> and get the call site fixed !
->>
->>> or BUG_ON(!align) instead?
->> That could be done too but you would also need BUG_ON(!size) - to catch another
->> API abuse.
->> BUG_ON(!size) however catches both the cases.
-> How about "if (WARN_ON(!align)) align = __alignof__(long long);"?
-> Early BUG_ON()s can be painful to debug depending on setup.
+This came to light when calling memblock allocator from arc port (for
+copying flattended DT). If a "0" alignment is passed, the allocator
+round_up() call incorrectly rounds up the size to 0.
 
-Totally agree - been there - seen that :-)
-Also for caller passing zero, the panic will force the caller to fix it.
-I'll respin the patch.
+round_up(num, alignto) => ((num - 1) | (alignto -1)) + 1
 
-Thx,
--Vineet
+While the obvious allocation failure causes kernel to panic, it is
+better to warn the caller to fix the code.
+
+Tejun suggested that instead of BUG_ON(!align) - which might be
+ineffective due to pending console init and such, it is better to
+WARN_ON, and continue the boot with a reasonable default align.
+
+Caller passing @size need not be handled similarly as the subsequent
+panic will indicate that anyhow.
+
+Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Yinghai Lu <yinghai@kernel.org>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+---
+ mm/memblock.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
+
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 1bcd9b9..f3804bd 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -824,6 +824,9 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
+ 	/* align @size to avoid excessive fragmentation on reserved array */
+ 	size = round_up(size, align);
+ 
++	if (WARN_ON(!align))
++		align = __alignof__(long long);
++
+ 	found = memblock_find_in_range_node(0, max_addr, size, align, nid);
+ 	if (found && !memblock_reserve(found, size))
+ 		return found;
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
