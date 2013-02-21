@@ -1,44 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 3346C6B002F
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 04:35:41 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fb11so4608913pad.14
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 01:35:40 -0800 (PST)
-Date: Thu, 21 Feb 2013 17:35:27 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [patch 1/4 v3]swap: change block allocation algorithm for SSD
-Message-ID: <20130221093527.GA892@kernel.org>
-References: <20130221021710.GA32580@kernel.org>
- <CAH9JG2XmbeNgVmd1gMkOxsa3v6J9pOZed6CYXUeSaiyLhTnMJg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAH9JG2XmbeNgVmd1gMkOxsa3v6J9pOZed6CYXUeSaiyLhTnMJg@mail.gmail.com>
+From: Lin Feng <linfeng@cn.fujitsu.com>
+Subject: [PATCH V3 0/2] mm: hotplug: implement non-movable version of get_user_pages() to kill long-time pin pages
+Date: Thu, 21 Feb 2013 19:01:42 +0800
+Message-Id: <1361444504-31888-1-git-send-email-linfeng@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyungmin Park <kmpark@infradead.org>
-Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, minchan@kernel.org
+To: akpm@linux-foundation.org, mgorman@suse.de, bcrl@kvack.org, viro@zeniv.linux.org.uk
+Cc: khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, tangchen@cn.fujitsu.com, guz.fnst@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Lin Feng <linfeng@cn.fujitsu.com>
 
-On Thu, Feb 21, 2013 at 05:13:35PM +0900, Kyungmin Park wrote:
-> Hi,
-> 
-> It's not related topic with this patch, but now I'm integrating with
-> zswap with this patch but zswap uses each own writeback codes so it
-> can't use this cluster concept.
-> 
-> I'm still can't find proper approaches to integrate zswap (+writeback)
-> with this concept.
-> 
-> Do you have any ideas or plan to work with zswap?
+Currently get_user_pages() always tries to allocate pages from movable zone,
+as discussed in thread https://lkml.org/lkml/2012/11/29/69, in some case users
+of get_user_pages() is easy to pin user pages for a long time(for now we found
+that pages pinned as aio ring pages is such case), which is fatal for memory
+hotplug/remove framework.
 
-I didn't look at zswap. At first glance, when zswap fallbacks to writeback, it
-will make swap very sparse (so cause bad IO pattern), since some pages are
-compressed, some not. Is this the problem you are trying to solve? This should
-exist without my patch too. Sorry, I have no idea. I'm afraid zswap need manage
-the swap partion by itself.
+So the 1st patch introduces a new library function called
+get_user_pages_non_movable() to pin pages only from zone non-movable in memory.
+It's a wrapper of get_user_pages() but it try its best to make sure that all
+pages come from non-movable zone via additional page migration. While if
+migration fails, it will keep the base functionality of get_user_pages().
 
-Thanks,
-Shaohua
+The 2nd patch gets around the aio ring pages can't be migrated bug caused by
+get_user_pages() via using the new function. It only works when configed with
+CONFIG_MEMORY_HOTREMOVE, otherwise it falls back to use the old version of
+get_user_pages().
+
+---
+ChangeLog v2->v3:
+ Patch1:
+ - Handle the hugepage and THP migration bug pointed out by Mel.
+ - In response to the other review comments suggested by Mel.
+ - Updated according to mm-tree.
+
+ Patch2:
+ - Updated according to mm-tree.
+
+ChangeLog v1->v2:
+ Patch1:
+ - Fix the negative return value bug pointed out by Andrew and other
+   suggestions pointed out by Andrew and Jeff.
+
+ Patch2:
+ - Kill the CONFIG_MEMORY_HOTREMOVE dependence suggested by Jeff.
+---
+Lin Feng (2):
+  mm: hotplug: implement non-movable version of get_user_pages() called
+    get_user_pages_non_movable()
+  fs/aio.c: use get_user_pages_non_movable() to pin ring pages when
+    support memory hotremove
+
+ fs/aio.c               |    4 +-
+ include/linux/mm.h     |   14 ++++++
+ include/linux/mmzone.h |    4 ++
+ mm/memory.c            |  103 ++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_isolation.c    |    8 ++++
+ 5 files changed, 131 insertions(+), 2 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
