@@ -1,54 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 9E2BA6B0002
-	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 21:22:29 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id wz12so3257328pbc.17
-        for <linux-mm@kvack.org>; Wed, 20 Feb 2013 18:22:28 -0800 (PST)
-Date: Thu, 21 Feb 2013 10:22:19 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: [patch 2/4 v3]swap: __swap_duplicate check bad swap entry
-Message-ID: <20130221022219.GE32580@kernel.org>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id C60246B0002
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2013 21:25:21 -0500 (EST)
+Received: by mail-vb0-f46.google.com with SMTP id b13so5479071vby.33
+        for <linux-mm@kvack.org>; Wed, 20 Feb 2013 18:25:20 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <CANZA+xgRWQe2fm8Gok4SxRXEeRU5CztijG4HKNeTDFQfSgHPPw@mail.gmail.com>
+References: <CANZA+xgRWQe2fm8Gok4SxRXEeRU5CztijG4HKNeTDFQfSgHPPw@mail.gmail.com>
+Date: Thu, 21 Feb 2013 10:25:20 +0800
+Message-ID: <CANZA+xgjxezRuu4N2JpXbXjpKCz7825x_ZmdOe-DuxtMzGix-A@mail.gmail.com>
+Subject: Re: What does the PG_swapbacked of page flags actually mean?
+From: common An <xx.kernel@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: hughd@google.com, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linaro-kernel@lists.linaro.org, riel@redhat.com
 
-Sorry if you receive this one twice, last mail get mail address messed.
+On Wed, Feb 20, 2013 at 6:43 PM, common An <xx.kernel@gmail.com> wrote:
+> PG_swapbacked is a bit for page->flags.
+>
+> In kernel code, its comment is "page is backed by RAM/swap". But I couldn't
+> understand it.
+> 1. Does the RAM mean DRAM? How page is backed by RAM?
+> 2. When the page is page-out to swap file, the bit PG_swapbacked will be set
+> to demonstrate this page is backed by swap. Is it right?
+> 3. In general, when will call SetPageSwapBacked() to set the bit?
 
-In swapin_readahead(), read_swap_cache_async() can read a bad swap entry,
-because we don't check if readahead swap entry is bad. This doesn't break
-anything but such swapin page is wasteful and can only be freed at page
-reclaim. We avoid read such swap entry.
+>From : http://www.gossamer-threads.com/lists/linux/kernel/840692#840692
 
-And next patch will mark a swap entry bad temporarily for discard. Without this
-patch, swap entry count will be messed.
+Every anonymous, tmpfs or shared memory segment page is potentially
+swap backed. That is the whole point of the PG_swapbacked flag.
 
-Thanks Hugh to inspire swapin_readahead could use bad swap entry.
+A page from a filesystem like ext3 or NFS cannot suddenly turn into
+a swap backed page. This page "nature" is not changed during the
+lifetime of a page.
 
-Signed-off-by: Shaohua Li <shli@fusionio.com>
----
- mm/swapfile.c |    5 +++++
- 1 file changed, 5 insertions(+)
+But, I am still a little confusing.
 
-Index: linux/mm/swapfile.c
-===================================================================
---- linux.orig/mm/swapfile.c	2013-02-18 15:21:09.285317914 +0800
-+++ linux/mm/swapfile.c	2013-02-18 15:21:34.545004083 +0800
-@@ -2374,6 +2374,11 @@ static int __swap_duplicate(swp_entry_t
- 		goto unlock_out;
- 
- 	count = p->swap_map[offset];
-+	if (unlikely(swap_count(count) == SWAP_MAP_BAD)) {
-+		err = -ENOENT;
-+		goto unlock_out;
-+	}
-+
- 	has_cache = count & SWAP_HAS_CACHE;
- 	count &= ~SWAP_HAS_CACHE;
- 	err = 0;
+>
+> Could anybody kindly explain for me?
+>
+> Thanks very much.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
