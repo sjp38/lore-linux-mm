@@ -1,112 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 7FDE16B0006
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 15:49:31 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 6199C6B0002
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 15:52:59 -0500 (EST)
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Subject: [PATCH v3 1/2] memblock: add assertion for zero allocation alignment
+Date: Fri, 22 Feb 2013 02:22:20 +0530
+Message-ID: <1361479940-8078-1-git-send-email-vgupta@synopsys.com>
+In-Reply-To: <CAE9FiQV20uj_kOViCOd4gdPFuAf28fEbjhGCrzNogQWx5T3+zg@mail.gmail.com>
+References: <CAE9FiQV20uj_kOViCOd4gdPFuAf28fEbjhGCrzNogQWx5T3+zg@mail.gmail.com>
 MIME-Version: 1.0
-Message-ID: <d7dec1e1-86fd-42b6-83c6-01340ece8d4a@default>
-Date: Thu, 21 Feb 2013 12:49:21 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: Better integration of compression with the broader linux-mm
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Mel, Rik, Hugh, Andrea --
+This came to light when calling memblock allocator from arc port (for
+copying flattended DT). If a "0" alignment is passed, the allocator
+round_up() call incorrectly rounds up the size to 0.
 
-(Andrew and others also invited to read/comment!)
+round_up(num, alignto) => ((num - 1) | (alignto -1)) + 1
 
-In the last couple of years, I've had conversations or email
-discussions with each of you which touched on a possibly
-important future memory management policy topic.  After
-giving it some deep thought, I wonder if I might beg for
-a few moments of your time to think about it with me and
-provide some feedback?
+While the obvious allocation failure causes kernel to panic, it is
+better to warn the caller to fix the code.
 
-There are now three projects that use in-kernel compression
-to increase the amount of data that can be stored in RAM
-(zram, zcache, and now zswap).  Each uses pages of data
-"hooked" from the MM subsystem, compresses the pages of data
-(into "zpages"), allocates pageframes from the MM subsystem,
-and uses those allocated pageframes to store the zpages.
-Other hooks decompress the data on demand back into pageframes.
-Any pageframes containing zpages are managed by the
-compression project code and, to the MM subsystem, the RAM
-is just gone, the same as if the pageframes were absorbed
-by a RAM-voracious device driver.
+Tejun suggested that instead of BUG_ON(!align) - which might be
+ineffective due to pending console init and such, it is better to
+WARN_ON, and continue the boot with a reasonable default align.
 
-Storing more data in RAM is generally a "good thing".
-What may be a "bad thing", however, is that the MM
-subsystem is losing control of a large fraction of the
-RAM that it would otherwise be managing.  Since it
-is MM's job to "load balance" different memory demands
-on the kernel, compression may be positively improving
-the efficiency of one class of memory while impairing
-overall RAM "harmony" across the set of all classes.
-(This is a question that, in some form, all of you
-have asked me.)
+Caller passing @size need not be handled similarly as the subsequent
+panic will indicate that anyhow.
 
-In short, the issue becomes: Is it possible to get the
-"good thing" without the "bad thing"?  In other words,
-is there a way to more closely integrate the management
-of zpages along with the rest of RAM, and ensure that
-MM is responsible for both?  And is it possible to do
-this without a radical rewrite of MM, which would never
-get merged?  And, if so... a question at the top of my
-mind right now... how should this future integration
-impact the design/redesign/merging of zram/zcache/zswap?
+Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Yinghai Lu <yinghai@kernel.org>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+---
+ mm/memblock.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-So here's what I'm thinking...
-
-First, it's important to note that currently the only
-two classes of memory that are "hooked" are clean
-pagecache pages (by zcache only) and anonymous pages
-(by all three).  There is potential that other classes
-(dcache?) may be candidates for compression in the future
-but let's ignore them for now.
-
-Both "file" pages and "anon" pages are currently
-subdivided into "inactive" and "active" subclasses and
-kswapd currently "load balances" the four subclasses:
-file_active, file_inactive, anon_active, and anon_inactive.
-
-What I'm thinking is that compressed pages are really
-just a third type of subclass, i.e. active, inactive,
-and compressed ("very inactive").  However, since the
-size of a zpage varies dramatically and unpredictably --
-and thus so does the storage density -- the MM subsystem
-should care NOT about the number of zpages, but the
-number of pageframes currently being used to store zpages!
-
-So we want the MM subsystem to track and manage:
-
-1a) quantity of pageframes containing file_active pages
-1b) quantity of pageframes containing file_inactive pages
-1c) quantity of pageframes containing file_zpages
-2a) quantity of pageframes containing anon_active pages
-2b) quantity of pageframes containing anon_inactive pages
-2c) quantity of pageframes containing anon_zpages
-
-For (1a/2a) and (1b/2b), of course, quantity of pageframes
-is exactly the same as the number of pages, and the
-kernel already tracks and manages these.  For (1c/2c)
-however, MM only need care about the number of pageframes, not
-the number of zpages.  It is the MM-compression sub-subsystem's
-responsibility to take direction from the MM subsystem as
-to the total number of pageframes it uses... how (and how
-efficiently) it stores zpages in that number of pageframes
-is its own business.  If MM tells MM-compression to
-reduce "quantity of pageframes containing anon_zpages"
-it must be able to do that.
-
-OK, does that make sense?  If so, I have thoughts on
-a more detailed implementation, but will hold that
-until after some discussion/feedback.
-
-Thanks in advance for any time you can spare!
-Dan
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 1bcd9b9..8080cf8 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -821,6 +821,9 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
+ {
+ 	phys_addr_t found;
+ 
++	if (WARN_ON(!align))
++		align = __alignof__(long long);
++
+ 	/* align @size to avoid excessive fragmentation on reserved array */
+ 	size = round_up(size, align);
+ 
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
