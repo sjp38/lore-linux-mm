@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 8A09E6B002A
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 11:48:05 -0500 (EST)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id BA08B6B002B
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 11:48:06 -0500 (EST)
 Received: from /spool/local
 	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 21 Feb 2013 22:16:10 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 52DAAE0056
+	Thu, 21 Feb 2013 22:16:11 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 1CAA0E0053
 	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:19:01 +0530 (IST)
 Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1LGlvmw23986264
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1LGlvnD31588390
 	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:17:57 +0530
 Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1LGlvFN011401
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1LGlwtf011459
 	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 03:47:59 +1100
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH -V2 18/21] powerpc/THP: Add code to handle HPTE faults for large pages
-Date: Thu, 21 Feb 2013 22:17:25 +0530
-Message-Id: <1361465248-10867-19-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [RFC PATCH -V2 20/21] powerpc/THP: get_user_pages_fast changes
+Date: Thu, 21 Feb 2013 22:17:27 +0530
+Message-Id: <1361465248-10867-21-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1361465248-10867-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1361465248-10867-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -28,538 +28,116 @@ Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <anees
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-We now have pmd entries covering to 16MB range. To implement THP on powerpc,
-we double the size of PMD. The second half is used to deposit the pgtable (PTE page).
-We also use the depoisted PTE page for tracking the HPTE information. The information
-include [ secondary group | 3 bit hidx | valid ]. We use one byte per each HPTE entry.
-With 16MB huge page and 64K HPTE we need 256 entries and with 4K HPTE we need
-4096 entries. Both will fit in a 4K PTE page.
+handle large pages for get_user_pages_fast. Also take care of large page splitting.
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/mmu-hash64.h    |    5 +
- arch/powerpc/include/asm/pgtable-ppc64.h |   33 ++----
- arch/powerpc/kernel/io-workarounds.c     |    2 +-
- arch/powerpc/kvm/book3s_64_mmu_hv.c      |    2 +-
- arch/powerpc/kvm/book3s_hv_rm_mmu.c      |    5 +-
- arch/powerpc/mm/Makefile                 |    1 +
- arch/powerpc/mm/hash_utils_64.c          |   12 ++-
- arch/powerpc/mm/hugetlbpage.c            |   25 ++++-
- arch/powerpc/mm/largepage-hash64.c       |  170 ++++++++++++++++++++++++++++++
- arch/powerpc/mm/pgtable.c                |   38 +++++++
- arch/powerpc/mm/tlb_hash64.c             |    2 +-
- arch/powerpc/perf/callchain.c            |    2 +-
- arch/powerpc/platforms/pseries/eeh.c     |    2 +-
- 13 files changed, 257 insertions(+), 42 deletions(-)
- create mode 100644 arch/powerpc/mm/largepage-hash64.c
+ arch/powerpc/mm/gup.c |   84 +++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 82 insertions(+), 2 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/mmu-hash64.h b/arch/powerpc/include/asm/mmu-hash64.h
-index ca4f174..6a23278 100644
---- a/arch/powerpc/include/asm/mmu-hash64.h
-+++ b/arch/powerpc/include/asm/mmu-hash64.h
-@@ -325,6 +325,11 @@ extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
- int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
- 		     pte_t *ptep, unsigned long trap, int local, int ssize,
- 		     unsigned int shift, unsigned int mmu_psize);
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+extern int __hash_page_thp(unsigned long ea, unsigned long access,
-+			   unsigned long vsid, pmd_t *pmdp, unsigned long trap,
-+			   int local, int ssize, unsigned int psize);
-+#endif
- extern void hash_failure_debug(unsigned long ea, unsigned long access,
- 			       unsigned long vsid, unsigned long trap,
- 			       int ssize, int psize, int lpsize,
-diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
-index 0da8840..bd35707 100644
---- a/arch/powerpc/include/asm/pgtable-ppc64.h
-+++ b/arch/powerpc/include/asm/pgtable-ppc64.h
-@@ -350,39 +350,18 @@ static inline void pgtable_cache_add(unsigned shift, void (*ctor)(void *))
- 	return __pgtable_cache_add(shift, sizeof(void *) << shift, ctor);
+diff --git a/arch/powerpc/mm/gup.c b/arch/powerpc/mm/gup.c
+index d7efdbf..835c1ae 100644
+--- a/arch/powerpc/mm/gup.c
++++ b/arch/powerpc/mm/gup.c
+@@ -55,6 +55,72 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
+ 	return 1;
  }
- 
--/*
-- * find_linux_pte returns the address of a linux pte for a given
-- * effective address and directory.  If not found, it returns zero.
-- */
--static inline pte_t *find_linux_pte(pgd_t *pgdir, unsigned long ea)
--{
--	pgd_t *pg;
--	pud_t *pu;
--	pmd_t *pm;
--	pte_t *pt = NULL;
--
--	pg = pgdir + pgd_index(ea);
--	if (!pgd_none(*pg)) {
--		pu = pud_offset(pg, ea);
--		if (!pud_none(*pu)) {
--			pm = pmd_offset(pu, ea);
--			if (pmd_present(*pm))
--				pt = pte_offset_kernel(pm, ea);
--		}
--	}
--	return pt;
--}
--
--#ifdef CONFIG_HUGETLB_PAGE
-+pte_t *find_linux_pte(pgd_t *pgdir, unsigned long ea, unsigned int *thp);
-+#if defined(CONFIG_HUGETLB_PAGE)
- pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
--				 unsigned *shift);
-+				 unsigned *shift, unsigned int *thp);
- #else
- static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
--					       unsigned *shift)
-+					       unsigned *shift,
-+					       unsigned int *thp)
- {
- 	if (shift)
- 		*shift = 0;
--	return find_linux_pte(pgdir, ea);
-+	return find_linux_pte(pgdir, ea, thp);
- }
- #endif /* !CONFIG_HUGETLB_PAGE */
- 
-diff --git a/arch/powerpc/kernel/io-workarounds.c b/arch/powerpc/kernel/io-workarounds.c
-index 50e90b7..a37c5d2 100644
---- a/arch/powerpc/kernel/io-workarounds.c
-+++ b/arch/powerpc/kernel/io-workarounds.c
-@@ -70,7 +70,7 @@ struct iowa_bus *iowa_mem_find_bus(const PCI_IO_ADDR addr)
- 		if (vaddr < PHB_IO_BASE || vaddr >= PHB_IO_END)
- 			return NULL;
- 
--		ptep = find_linux_pte(init_mm.pgd, vaddr);
-+		ptep = find_linux_pte(init_mm.pgd, vaddr, NULL);
- 		if (ptep == NULL)
- 			paddr = 0;
- 		else
-diff --git a/arch/powerpc/kvm/book3s_64_mmu_hv.c b/arch/powerpc/kvm/book3s_64_mmu_hv.c
-index 8cc18ab..4f2a7dc 100644
---- a/arch/powerpc/kvm/book3s_64_mmu_hv.c
-+++ b/arch/powerpc/kvm/book3s_64_mmu_hv.c
-@@ -683,7 +683,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
- 			 */
- 			rcu_read_lock_sched();
- 			ptep = find_linux_pte_or_hugepte(current->mm->pgd,
--							 hva, NULL);
-+							 hva, NULL, NULL);
- 			if (ptep && pte_present(*ptep)) {
- 				pte = kvmppc_read_update_linux_pte(ptep, 1);
- 				if (pte_write(pte))
-diff --git a/arch/powerpc/kvm/book3s_hv_rm_mmu.c b/arch/powerpc/kvm/book3s_hv_rm_mmu.c
-index 19c93ba..5a9b7f6 100644
---- a/arch/powerpc/kvm/book3s_hv_rm_mmu.c
-+++ b/arch/powerpc/kvm/book3s_hv_rm_mmu.c
-@@ -27,7 +27,7 @@ static void *real_vmalloc_addr(void *x)
- 	unsigned long addr = (unsigned long) x;
- 	pte_t *p;
- 
--	p = find_linux_pte(swapper_pg_dir, addr);
-+	p = find_linux_pte(swapper_pg_dir, addr, NULL);
- 	if (!p || !pte_present(*p))
- 		return NULL;
- 	/* assume we don't have huge pages in vmalloc space... */
-@@ -145,6 +145,7 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
- 	unlock_rmap(rmap);
- }
- 
-+/* FIXME!! check */
- static pte_t lookup_linux_pte(pgd_t *pgdir, unsigned long hva,
- 			      int writing, unsigned long *pte_sizep)
- {
-@@ -152,7 +153,7 @@ static pte_t lookup_linux_pte(pgd_t *pgdir, unsigned long hva,
- 	unsigned long ps = *pte_sizep;
- 	unsigned int shift;
- 
--	ptep = find_linux_pte_or_hugepte(pgdir, hva, &shift);
-+	ptep = find_linux_pte_or_hugepte(pgdir, hva, &shift, NULL);
- 	if (!ptep)
- 		return __pte(0);
- 	if (shift)
-diff --git a/arch/powerpc/mm/Makefile b/arch/powerpc/mm/Makefile
-index 3787b61..6b09f9d 100644
---- a/arch/powerpc/mm/Makefile
-+++ b/arch/powerpc/mm/Makefile
-@@ -33,6 +33,7 @@ obj-y				+= hugetlbpage.o
- obj-$(CONFIG_PPC_STD_MMU_64)	+= hugetlbpage-hash64.o
- obj-$(CONFIG_PPC_BOOK3E_MMU)	+= hugetlbpage-book3e.o
- endif
-+obj-$(CONFIG_TRANSPARENT_HUGEPAGE) += largepage-hash64.o
- obj-$(CONFIG_PPC_SUBPAGE_PROT)	+= subpage-prot.o
- obj-$(CONFIG_NOT_COHERENT_CACHE) += dma-noncoherent.o
- obj-$(CONFIG_HIGHMEM)		+= highmem.o
-diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
-index a06b55a..3a1752f 100644
---- a/arch/powerpc/mm/hash_utils_64.c
-+++ b/arch/powerpc/mm/hash_utils_64.c
-@@ -939,7 +939,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
- 	unsigned long vsid;
- 	struct mm_struct *mm;
- 	pte_t *ptep;
--	unsigned hugeshift;
-+	unsigned hugeshift, thp;
- 	const struct cpumask *tmp;
- 	int rc, user_region = 0, local = 0;
- 	int psize, ssize;
-@@ -1005,7 +1005,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
- #endif /* CONFIG_PPC_64K_PAGES */
- 
- 	/* Get PTE and page size from page tables */
--	ptep = find_linux_pte_or_hugepte(pgdir, ea, &hugeshift);
-+	ptep = find_linux_pte_or_hugepte(pgdir, ea, &hugeshift, &thp);
- 	if (ptep == NULL || !pte_present(*ptep)) {
- 		DBG_LOW(" no PTE !\n");
- 		return 1;
-@@ -1028,6 +1028,12 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
- 					ssize, hugeshift, psize);
- #endif /* CONFIG_HUGETLB_PAGE */
  
 +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	if (thp)
-+		return __hash_page_thp(ea, access, vsid, (pmd_t *)ptep,
-+				       trap, local, ssize, psize);
-+#endif
-+
- #ifndef CONFIG_PPC_64K_PAGES
- 	DBG_LOW(" i-pte: %016lx\n", pte_val(*ptep));
- #else
-@@ -1133,7 +1139,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
- 	pgdir = mm->pgd;
- 	if (pgdir == NULL)
- 		return;
--	ptep = find_linux_pte(pgdir, ea);
-+	ptep = find_linux_pte(pgdir, ea, NULL);
- 	if (!ptep)
- 		return;
- 
-diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
-index 1a6de0a..422a132 100644
---- a/arch/powerpc/mm/hugetlbpage.c
-+++ b/arch/powerpc/mm/hugetlbpage.c
-@@ -67,7 +67,8 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
- 
- #define hugepd_none(hpd)	((hpd).pd == 0)
- 
--pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift)
-+pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
-+				 unsigned *shift, unsigned int *thp)
- {
- 	pgd_t *pg;
- 	pud_t *pu;
-@@ -77,6 +78,8 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
- 
- 	if (shift)
- 		*shift = 0;
-+	if (thp)
-+		*thp = 0;
- 
- 	pg = pgdir + pgd_index(ea);
- 	if (is_hugepd(pg)) {
-@@ -91,12 +94,24 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
- 			pm = pmd_offset(pu, ea);
- 			if (is_hugepd(pm))
- 				hpdp = (hugepd_t *)pm;
--			else if (!pmd_none(*pm)) {
-+			else if (pmd_large(*pm)) {
-+				/* THP page */
-+				if (thp) {
-+					*thp = 1;
-+					/*
-+					 * This should be ok, except for few
-+					 * flags most of the pte, large page
-+					 * pmd bits map. We don't use the
-+					 * returned value as pte_t in the caller.
-+					 */
-+					return (pte_t *)pm;
-+				} else
-+					return NULL;
-+			} else if (!pmd_none(*pm)) {
- 				return pte_offset_kernel(pm, ea);
- 			}
- 		}
- 	}
--
- 	if (!hpdp)
- 		return NULL;
- 
-@@ -108,7 +123,7 @@ EXPORT_SYMBOL_GPL(find_linux_pte_or_hugepte);
- 
- pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
- {
--	return find_linux_pte_or_hugepte(mm->pgd, addr, NULL);
-+	return find_linux_pte_or_hugepte(mm->pgd, addr, NULL, NULL);
- }
- 
- static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
-@@ -614,7 +629,7 @@ follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
- 	unsigned shift;
- 	unsigned long mask;
- 
--	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &shift);
-+	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &shift, NULL);
- 
- 	/* Verify it is a huge page else bail. */
- 	if (!ptep || !shift)
-diff --git a/arch/powerpc/mm/largepage-hash64.c b/arch/powerpc/mm/largepage-hash64.c
-new file mode 100644
-index 0000000..2a5fc39
---- /dev/null
-+++ b/arch/powerpc/mm/largepage-hash64.c
-@@ -0,0 +1,170 @@
-+/*
-+ * PPC64 THP Support for hash based MMUs
-+ */
-+
-+#include <linux/mm.h>
-+#include <linux/hugetlb.h>
-+#include <asm/pgtable.h>
-+#include <asm/pgalloc.h>
-+#include <asm/cacheflush.h>
-+#include <asm/machdep.h>
-+#include <asm/udbg.h>
-+
-+/*
-+ * A linux huge page PMD was changed and the corresponding hash table entry
-+ * neesd to be flushed. FIXME!! there is no batching support yet.
-+ *
-+ * The linux huge page PMD now include the pmd entries followed by the address
-+ * to the stashed pgtable_t. The stashed pgtable_t contains the hpte bits.
-+ * [ secondary group | 3 bit hidx | valid ]. We use one byte per each HPTE entry.
-+ * With 16MB huge page and 64K HPTE we need 256 entries and with 4K HPTE we need
-+ * 4096 entries. Both will fit in a 4K pgtable_t.
-+ */
-+int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
-+		    pmd_t *pmdp, unsigned long trap, int local, int ssize,
-+		    unsigned int psize)
++static inline int gup_huge_pmd(pmd_t *pmdp, unsigned long addr,
++			       unsigned long end, int write,
++			       struct page **pages, int *nr)
 +{
-+	unsigned int index, valid;
-+	unsigned char *hpte_slot_array;
-+	unsigned long rflags, pa, hidx;
-+	unsigned long old_pmd, new_pmd;
-+	int ret, lpsize = MMU_PAGE_16M;
-+	unsigned long vpn, hash, shift, slot;
++	int refs;
++	pmd_t pmd;
++	unsigned long mask;
++	struct page *head, *page, *tail;
 +
-+	/*
-+	 * atomically mark the linux large page PMD busy and dirty
-+	 */
++	pmd = *pmdp;
++	mask = PMD_HUGE_PRESENT | PMD_HUGE_USER;
++	if (write)
++		mask |= PMD_HUGE_RW;
++
++	if ((pmd_val(pmd) & mask) != mask)
++		return 0;
++
++	/* large pages are never "special" */
++	VM_BUG_ON(!pfn_valid(pmd_pfn(pmd)));
++
++	refs = 0;
++	head = pmd_page(pmd);
++	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
++	tail = page;
 +	do {
-+		old_pmd = pmd_val(*pmdp);
-+		/* If PMD busy, retry the access */
-+		if (unlikely(old_pmd & PMD_HUGE_BUSY))
-+			return 0;
-+		/* If PMD permissions don't match, take page fault */
-+		if (unlikely(access & ~old_pmd))
-+			return 1;
-+		/*
-+		 * Try to lock the PTE, add ACCESSED and DIRTY if it was
-+		 * a write access
-+		 */
-+		new_pmd = old_pmd | PMD_HUGE_BUSY | PMD_HUGE_ACCESSED;
-+		if (access & _PAGE_RW)
-+			new_pmd |= PMD_HUGE_DIRTY;
-+	} while (old_pmd != __cmpxchg_u64((unsigned long *)pmdp,
-+					  old_pmd, new_pmd));
-+	/*
-+	 * derive the rflags. Default enable read (0x2)
-+	 */
-+	rflags = 0x2 | (!(new_pmd & PMD_HUGE_RW));
-+	/* PMD_HUGE_EXEC -> HW_NO_EXEC since it's inverted */
-+	rflags |= ((new_pmd & PMD_HUGE_EXEC) ? 0 : HPTE_R_N);
++		VM_BUG_ON(compound_head(page) != head);
++		pages[*nr] = page;
++		(*nr)++;
++		page++;
++		refs++;
++	} while (addr += PAGE_SIZE, addr != end);
 +
-+#if 0 /* FIXME!! */
-+	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE)) {
-+
-+		/*
-+		 * No CPU has hugepages but lacks no execute, so we
-+		 * don't need to worry about that case
-+		 */
-+		rflags = hash_page_do_lazy_icache(rflags, __pte(old_pte), trap);
-+	}
-+#endif
-+	/*
-+	 * Find the slot index details for this ea, using base page size.
-+	 */
-+	shift = mmu_psize_defs[psize].shift;
-+	index = (ea & (HUGE_PAGE_SIZE - 1)) >> shift;
-+	BUG_ON(index > 4096);
-+
-+	vpn = hpt_vpn(ea, vsid, ssize);
-+	hash = hpt_hash(vpn, shift, ssize);
-+	/*
-+	 * The hpte hindex are stored in the pgtable whose address is in the
-+	 * second half of the PMD
-+	 */
-+	hpte_slot_array = *(char **)(pmdp + PTRS_PER_PMD);
-+
-+	valid = hpte_slot_array[index]  & 0x1;
-+	if (unlikely(valid)) {
-+		/* update the hpte bits */
-+		hidx =  hpte_slot_array[index]  >> 1;
-+		if (hidx & _PTEIDX_SECONDARY)
-+			hash = ~hash;
-+		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-+		slot += hidx & _PTEIDX_GROUP_IX;
-+
-+		ret = ppc_md.hpte_updatepp(slot, rflags, vpn,
-+					   psize, ssize, local);
-+		/*
-+		 * We failed to update, try to insert a new entry.
-+		 */
-+		if (ret == -1) {
-+			/*
-+			 * large pte is marked busy, so we can be sure
-+			 * nobody is looking at hpte_slot_array. hence we can
-+			 * safely update this here.
-+			 */
-+			hpte_slot_array[index] = 0;
-+			valid = 0;
-+		}
++	if (!page_cache_add_speculative(head, refs)) {
++		*nr -= refs;
++		return 0;
 +	}
 +
-+	if (likely(!valid)) {
-+		unsigned long hpte_group;
-+
-+		/* insert new entry */
-+		pa = pmd_pfn(__pmd(old_pmd)) << PAGE_SHIFT;
-+repeat:
-+		hpte_group = ((hash & htab_hash_mask) * HPTES_PER_GROUP) & ~0x7UL;
-+
-+		/* clear the busy bits and set the hash pte bits */
-+		new_pmd = (new_pmd & ~PMD_HUGE_HPTEFLAGS) | PMD_HUGE_HASHPTE;
-+
-+#if 0
-+		/* Add in WIMG bits. FIXME!! enabled by default */
-+		rflags |= (new_pmd & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
-+				      _PAGE_COHERENT | _PAGE_GUARDED));
-+#endif
-+		/* Insert into the hash table, primary slot */
-+		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, 0,
-+					  psize, lpsize, ssize);
-+		/*
-+		 * Primary is full, try the secondary
-+		 */
-+		if (unlikely(slot == -1)) {
-+			hpte_group = ((~hash & htab_hash_mask) *
-+				      HPTES_PER_GROUP) & ~0x7UL;
-+			slot = ppc_md.hpte_insert(hpte_group, vpn, pa,
-+						  rflags, HPTE_V_SECONDARY,
-+						  psize, lpsize, ssize);
-+			if (slot == -1) {
-+				if (mftb() & 0x1)
-+					hpte_group = ((hash & htab_hash_mask) *
-+						      HPTES_PER_GROUP) & ~0x7UL;
-+
-+				ppc_md.hpte_remove(hpte_group);
-+				goto repeat;
-+			}
-+		}
-+		/*
-+		 * Hypervisor failure. Restore old pmd and return -1
-+		 * similar to __hash_page_*
-+		 */
-+		if (unlikely(slot == -2)) {
-+			*pmdp = __pmd(old_pmd);
-+			hash_failure_debug(ea, access, vsid, trap, ssize,
-+					   psize, lpsize, old_pmd);
-+			return -1;
-+		}
-+		/*
-+		 * large pte is marked busy, so we can be sure
-+		 * nobody is looking at hpte_slot_array. hence we can
-+		 * safely update this here.
-+		 */
-+		hpte_slot_array[index] = slot << 1 | 0x1;
++	if (unlikely(pmd_val(pmd) != pmd_val(*pmdp))) {
++		*nr -= refs;
++		while (refs--)
++			put_page(head);
++		return 0;
 +	}
 +	/*
-+	 * No need to use ldarx/stdcx here
++	 * Any tail page need their mapcount reference taken before we
++	 * return.
 +	 */
-+	*pmdp = __pmd(new_pmd & ~PMD_HUGE_BUSY);
-+	return 0;
++	while (refs--) {
++		if (PageTail(tail))
++			get_huge_page_tail(tail);
++		tail++;
++	}
++
++	return 1;
 +}
-diff --git a/arch/powerpc/mm/pgtable.c b/arch/powerpc/mm/pgtable.c
-index ef91331..6dfc744 100644
---- a/arch/powerpc/mm/pgtable.c
-+++ b/arch/powerpc/mm/pgtable.c
-@@ -564,3 +564,41 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
- }
- 
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++#else
 +
-+/*
-+ * find_linux_pte returns the address of a linux pte for a given
-+ * effective address and directory.  If not found, it returns zero.
-+ */
-+pte_t *find_linux_pte(pgd_t *pgdir, unsigned long ea, unsigned int *thp)
++static inline int gup_huge_pmd(pmd_t *pmdp, unsigned long addr,
++			       unsigned long end, int write,
++			       struct page **pages, int *nr)
 +{
-+	pgd_t *pg;
-+	pud_t *pu;
-+	pmd_t *pm;
-+	pte_t *pt = NULL;
-+
-+	if (thp)
-+		*thp = 0;
-+	pg = pgdir + pgd_index(ea);
-+	if (!pgd_none(*pg)) {
-+		pu = pud_offset(pg, ea);
-+		if (!pud_none(*pu)) {
-+			pm = pmd_offset(pu, ea);
-+			if (pmd_large(*pm)) {
-+				/* THP page */
-+				if (thp) {
-+					*thp = 1;
-+					/*
-+					 * This should be ok, except for few
-+					 * flags most of the pte, large page
-+					 * pmd bits map. We don't use the
-+					 * returned value as pte_t in the caller.
-+					 */
-+					return (pte_t *)pm;
-+				} else
-+					return NULL;
-+			} else if (pmd_present(*pm))
-+				pt = pte_offset_kernel(pm, ea);
-+		}
-+	}
-+	return pt;
++	return 1;
 +}
-diff --git a/arch/powerpc/mm/tlb_hash64.c b/arch/powerpc/mm/tlb_hash64.c
-index 023ec8a..9a951d5 100644
---- a/arch/powerpc/mm/tlb_hash64.c
-+++ b/arch/powerpc/mm/tlb_hash64.c
-@@ -206,7 +206,7 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
- 	local_irq_save(flags);
- 	arch_enter_lazy_mmu_mode();
- 	for (; start < end; start += PAGE_SIZE) {
--		pte_t *ptep = find_linux_pte(mm->pgd, start);
-+		pte_t *ptep = find_linux_pte(mm->pgd, start, NULL);
- 		unsigned long pte;
++#endif
++
+ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 		int write, struct page **pages, int *nr)
+ {
+@@ -66,9 +132,23 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 		pmd_t pmd = *pmdp;
  
- 		if (ptep == NULL)
-diff --git a/arch/powerpc/perf/callchain.c b/arch/powerpc/perf/callchain.c
-index 74d1e78..578cac7 100644
---- a/arch/powerpc/perf/callchain.c
-+++ b/arch/powerpc/perf/callchain.c
-@@ -125,7 +125,7 @@ static int read_user_stack_slow(void __user *ptr, void *ret, int nb)
- 	if (!pgdir)
- 		return -EFAULT;
- 
--	ptep = find_linux_pte_or_hugepte(pgdir, addr, &shift);
-+	ptep = find_linux_pte_or_hugepte(pgdir, addr, &shift, NULL);
- 	if (!shift)
- 		shift = PAGE_SHIFT;
- 
-diff --git a/arch/powerpc/platforms/pseries/eeh.c b/arch/powerpc/platforms/pseries/eeh.c
-index 9a04322..d6f8f0e 100644
---- a/arch/powerpc/platforms/pseries/eeh.c
-+++ b/arch/powerpc/platforms/pseries/eeh.c
-@@ -261,7 +261,7 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
- 	pte_t *ptep;
- 	unsigned long pa;
- 
--	ptep = find_linux_pte(init_mm.pgd, token);
-+	ptep = find_linux_pte(init_mm.pgd, token, NULL);
- 	if (!ptep)
- 		return token;
- 	pa = pte_pfn(*ptep) << PAGE_SHIFT;
+ 		next = pmd_addr_end(addr, end);
+-		if (pmd_none(pmd))
++		/*
++		 * The pmd_trans_splitting() check below explains why
++		 * pmdp_splitting_flush has to flush the tlb, to stop
++		 * this gup-fast code from running while we set the
++		 * splitting bit in the pmd. Returning zero will take
++		 * the slow path that will call wait_split_huge_page()
++		 * if the pmd is still in splitting state. gup-fast
++		 * can't because it has irq disabled and
++		 * wait_split_huge_page() would never return as the
++		 * tlb flush IPI wouldn't run.
++		 */
++		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+ 			return 0;
+-		if (is_hugepd(pmdp)) {
++		if (unlikely(pmd_large(pmd))) {
++			if (!gup_huge_pmd(pmdp, addr, next, write, pages, nr))
++				return 0;
++		} else if (is_hugepd(pmdp)) {
+ 			if (!gup_hugepd((hugepd_t *)pmdp, PMD_SHIFT,
+ 					addr, next, write, pages, nr))
+ 				return 0;
 -- 
 1.7.10
 
