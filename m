@@ -1,133 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 634AA6B0002
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 716276B0008
 	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 00:38:54 -0500 (EST)
-Date: Fri, 22 Feb 2013 16:23:51 +1100
+Date: Fri, 22 Feb 2013 16:37:35 +1100
 From: Paul Mackerras <paulus@samba.org>
-Subject: Re: [RFC PATCH -V2 05/21] powerpc: Reduce PTE table memory wastage
-Message-ID: <20130222052351.GE6139@drongo>
+Subject: Re: [RFC PATCH -V2 08/21] powerpc: Decode the pte-lp-encoding bits
+ correctly.
+Message-ID: <20130222053735.GH6139@drongo>
 References: <1361465248-10867-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1361465248-10867-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1361465248-10867-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1361465248-10867-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1361465248-10867-9-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Cc: benh@kernel.crashing.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On Thu, Feb 21, 2013 at 10:17:12PM +0530, Aneesh Kumar K.V wrote:
+On Thu, Feb 21, 2013 at 10:17:15PM +0530, Aneesh Kumar K.V wrote:
 > From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> We now have PTE page consuming only 2K of the 64K page.This is in order to
-
-In fact the PTE page together with the hash table indexes occupies 4k,
-doesn't it?  The comments in the code are similarly confusing since
-they talk about 2k but actually allocate 4k.
-
-> facilitate transparent huge page support, which works much better if our PMDs
-> cover 16MB instead of 256MB.
+> We look at both the segment base page size and actual page size and store
+> the pte-lp-encodings in an array per base page size.
 > 
-> Inorder to reduce the wastage, we now have multiple PTE page fragment
-  ^ In order (two words)
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-> from the same PTE page.
+This needs more than 2 lines of patch description.  In fact what
+you're doing is adding general mixed page-size segment (MPSS)
+support.  Doing this should mean that you can also get rid of the
+MMU_PAGE_64K_AP value from the list in asm/mmu.h.
 
-A patch like this needs a more complete description and explanation
-than you have given.  For instance, you could mention that the code
-that you're adding for the 32-bit and non-64k cases are just copies of
-the previously generic code from pgalloc.h (actually, this movement
-might be something that could be split out as a separate patch).
-Also, you should describe in outline how you keep a list of pages that
-aren't fully allocated and have a bitmap of which 4k sections are in
-use, and also how your scheme interacts with RCU.
+>  struct mmu_psize_def
+>  {
+>  	unsigned int	shift;	/* number of bits */
+> -	unsigned int	penc;	/* HPTE encoding */
+> +	unsigned int	penc[MMU_PAGE_COUNT];	/* HPTE encoding */
 
-[snip]
+I guess this is reasonable, though adding space for 14 page size
+encodings seems a little bit over the top.  Also, you don't seem to
+have any way to indicate which encodings are valid, since 0 is a valid
+encoding.  Maybe you need to add a valid bit higher up to indicate
+which page sizes are valid.
 
-> +#ifdef CONFIG_PPC_64K_PAGES
-> +/*
-> + * we support 15 fragments per PTE page. This is limited by how many
-
-Why only 15?  Don't we get 16 fragments per page?
-
-> + * bits we can pack in page->_mapcount. We use the first half for
-> + * tracking the usage for rcu page table free.
-
-What does "first" mean?  The high half or the low half?
-
-> +unsigned long *page_table_alloc(struct mm_struct *mm, unsigned long vmaddr)
-> +{
-> +	struct page *page;
-> +	unsigned int mask, bit;
-> +	unsigned long *table;
-> +
-> +	/* Allocate fragments of a 4K page as 1K/2K page table */
-
-A 4k page?  Do you mean a 64k page?  And what is 1K to do with
-anything?
-
-> +#ifdef CONFIG_SMP
-> +static void __page_table_free_rcu(void *table)
-> +{
-> +	unsigned int bit;
-> +	struct page *page;
+> diff --git a/arch/powerpc/kvm/book3s_hv.c b/arch/powerpc/kvm/book3s_hv.c
+> index 71d0c90..d2c9932 100644
+> --- a/arch/powerpc/kvm/book3s_hv.c
+> +++ b/arch/powerpc/kvm/book3s_hv.c
+> @@ -1515,7 +1515,12 @@ static void kvmppc_add_seg_page_size(struct kvm_ppc_one_seg_page_size **sps,
+>  	(*sps)->page_shift = def->shift;
+>  	(*sps)->slb_enc = def->sllp;
+>  	(*sps)->enc[0].page_shift = def->shift;
+> -	(*sps)->enc[0].pte_enc = def->penc;
 > +	/*
-> +	 * this is a PTE page free 2K page table
-> +	 * fragment of a 64K page.
-> +	 */
-> +	page = virt_to_page(table);
-> +	bit = 1 << ((__pa(table) & ~PAGE_MASK) / PTE_FRAG_SIZE);
-> +	bit <<= FRAG_MASK_BITS;
-> +	/*
-> +	 * clear the higher half and if nobody used the page in
-> +	 * between, even lower half would be zero.
-> +	 */
-> +	if (atomic_xor_bits(&page->_mapcount, bit) == 0) {
-> +		pgtable_page_dtor(page);
-> +		atomic_set(&page->_mapcount, -1);
-> +		__free_page(page);
-> +	}
-> +}
-> +
-> +static void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table)
-> +{
-> +	struct page *page;
-> +	struct mm_struct *mm;
-> +	unsigned int bit, mask;
-> +
-> +	mm = tlb->mm;
-> +	/* Free 2K page table fragment of a 64K page */
-> +	page = virt_to_page(table);
-> +	bit = 1 << ((__pa(table) & ~PAGE_MASK) / PTE_FRAG_SIZE);
-> +	spin_lock(&mm->page_table_lock);
-> +	/*
-> +	 * stash the actual mask in higher half, and clear the lower half
-> +	 * and selectively, add remove from pgtable list
-> +	 */
-> +	mask = atomic_xor_bits(&page->_mapcount, bit | (bit << FRAG_MASK_BITS));
-> +	if (!(mask & FRAG_MASK))
-> +		list_del(&page->lru);
-> +	else {
-> +		/*
-> +		 * Add the page table page to pgtable_list so that
-> +		 * the free fragment can be used by the next alloc
-> +		 */
-> +		list_del_init(&page->lru);
-> +		list_add_tail(&page->lru, &mm->context.pgtable_list);
-> +	}
-> +	spin_unlock(&mm->page_table_lock);
-> +	tlb_remove_table(tlb, table);
-> +}
+> +	 * FIXME!!
+> +	 * This is returned to user space. Do we need to
+> +	 * return details of MPSS here ?
 
-This looks like you're allowing a fragment that is being freed to be
-reallocated and used again during the grace period when we are waiting
-for any references to the fragment to disappear.  Doesn't that allow a
-race where one CPU traversing the page table and using the fragment in
-its old location in the tree could see a PTE created after the
-fragment was reallocated?  In other words, why is it safe to allow the
-fragment to be used during the grace period?  If it is safe, it at
-least needs a comment explaining why.
+Yes, we do, probably a separate entry for each valid base/actual page
+size pair.
+
+> +static inline int hpte_actual_psize(struct hash_pte *hptep, int psize)
+> +{
+> +	unsigned int mask;
+> +	int i, penc, shift;
+> +	/* Look at the 8 bit LP value */
+> +	unsigned int lp = (hptep->r >> LP_SHIFT) & ((1 << (LP_BITS + 1)) - 1);
+
+Why LP_BITS + 1 here?  You seem to be extracting and comparing 9 bits
+rather than 8.  Why is that?
+
+> @@ -395,12 +422,13 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
+>  			/* valid entries have a shift value */
+>  			if (!mmu_psize_defs[size].shift)
+>  				continue;
+> -
+> -			if (penc == mmu_psize_defs[size].penc)
+> -				break;
+> +			for (a_size = 0; a_size < MMU_PAGE_COUNT; a_size++)
+> +				if (penc == mmu_psize_defs[size].penc[a_size])
+> +					goto out;
+
+I think this will get false matches due to unused/invalid entries
+in mmu_psize_defs[size].penc[] containing 0.
 
 Paul.
 
