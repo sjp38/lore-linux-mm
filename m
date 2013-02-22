@@ -1,154 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 1E4C96B0002
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 20:26:56 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id wz12so93959pbc.3
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 17:26:55 -0800 (PST)
-Message-ID: <5126C957.3070902@gmail.com>
-Date: Fri, 22 Feb 2013 09:26:47 +0800
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 601466B0002
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 21:57:11 -0500 (EST)
+Received: by mail-qa0-f49.google.com with SMTP id o13so184366qaj.15
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 18:57:10 -0800 (PST)
+Message-ID: <5126DE7B.2010203@gmail.com>
+Date: Fri, 22 Feb 2013 10:56:59 +0800
 From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Subject: Re: Better integration of compression with the broader linux-mm
-References: <d7dec1e1-86fd-42b6-83c6-01340ece8d4a@default> <20130222004030.GI16950@blaptop> <5126C6B0.6080103@gmail.com> <20130222011918.GJ16950@blaptop>
-In-Reply-To: <20130222011918.GJ16950@blaptop>
+Subject: Re: [PATCHv5 2/8] zsmalloc: add documentation
+References: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com> <1360780731-11708-3-git-send-email-sjenning@linux.vnet.ibm.com> <511F254D.2010909@gmail.com> <51227DF4.9020900@linux.vnet.ibm.com> <5125DFAA.4050706@gmail.com> <5126423F.7040705@linux.vnet.ibm.com>
+In-Reply-To: <5126423F.7040705@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 02/22/2013 09:19 AM, Minchan Kim wrote:
-> On Fri, Feb 22, 2013 at 09:15:28AM +0800, Ric Mason wrote:
->> On 02/22/2013 08:40 AM, Minchan Kim wrote:
->>> On Thu, Feb 21, 2013 at 12:49:21PM -0800, Dan Magenheimer wrote:
->>>> Hi Mel, Rik, Hugh, Andrea --
->>>>
->>>> (Andrew and others also invited to read/comment!)
->>>>
->>>> In the last couple of years, I've had conversations or email
->>>> discussions with each of you which touched on a possibly
->>>> important future memory management policy topic.  After
->>>> giving it some deep thought, I wonder if I might beg for
->>>> a few moments of your time to think about it with me and
->>>> provide some feedback?
->>>>
->>>> There are now three projects that use in-kernel compression
->>>> to increase the amount of data that can be stored in RAM
->>>> (zram, zcache, and now zswap).  Each uses pages of data
->>>> "hooked" from the MM subsystem, compresses the pages of data
->>>> (into "zpages"), allocates pageframes from the MM subsystem,
->>>> and uses those allocated pageframes to store the zpages.
->>>> Other hooks decompress the data on demand back into pageframes.
->>>> Any pageframes containing zpages are managed by the
->>>> compression project code and, to the MM subsystem, the RAM
->>>> is just gone, the same as if the pageframes were absorbed
->>>> by a RAM-voracious device driver.
->>>>
->>>> Storing more data in RAM is generally a "good thing".
->>>> What may be a "bad thing", however, is that the MM
->>>> subsystem is losing control of a large fraction of the
->>>> RAM that it would otherwise be managing.  Since it
->>>> is MM's job to "load balance" different memory demands
->>>> on the kernel, compression may be positively improving
->>>> the efficiency of one class of memory while impairing
->>>> overall RAM "harmony" across the set of all classes.
->>>> (This is a question that, in some form, all of you
->>>> have asked me.)
->>>>
->>>> In short, the issue becomes: Is it possible to get the
->>>> "good thing" without the "bad thing"?  In other words,
->>>> is there a way to more closely integrate the management
->>>> of zpages along with the rest of RAM, and ensure that
->>>> MM is responsible for both?  And is it possible to do
->>>> this without a radical rewrite of MM, which would never
->>>> get merged?  And, if so... a question at the top of my
->>>> mind right now... how should this future integration
->>>> impact the design/redesign/merging of zram/zcache/zswap?
->>>>
->>>> So here's what I'm thinking...
->>>>
->>>> First, it's important to note that currently the only
->>>> two classes of memory that are "hooked" are clean
->>>> pagecache pages (by zcache only) and anonymous pages
->>>> (by all three).  There is potential that other classes
->>>> (dcache?) may be candidates for compression in the future
->>>> but let's ignore them for now.
->>>>
->>>> Both "file" pages and "anon" pages are currently
->>>> subdivided into "inactive" and "active" subclasses and
->>>> kswapd currently "load balances" the four subclasses:
->>>> file_active, file_inactive, anon_active, and anon_inactive.
->>>>
->>>> What I'm thinking is that compressed pages are really
->>>> just a third type of subclass, i.e. active, inactive,
->>>> and compressed ("very inactive").  However, since the
->>>> size of a zpage varies dramatically and unpredictably --
->>>> and thus so does the storage density -- the MM subsystem
->>>> should care NOT about the number of zpages, but the
->>>> number of pageframes currently being used to store zpages!
->>>>
->>>> So we want the MM subsystem to track and manage:
->>>>
->>>> 1a) quantity of pageframes containing file_active pages
->>>> 1b) quantity of pageframes containing file_inactive pages
->>>> 1c) quantity of pageframes containing file_zpages
->>>> 2a) quantity of pageframes containing anon_active pages
->>>> 2b) quantity of pageframes containing anon_inactive pages
->>>> 2c) quantity of pageframes containing anon_zpages
->>>>
->>>> For (1a/2a) and (1b/2b), of course, quantity of pageframes
->>>> is exactly the same as the number of pages, and the
->>>> kernel already tracks and manages these.  For (1c/2c)
->>>> however, MM only need care about the number of pageframes, not
->>>> the number of zpages.  It is the MM-compression sub-subsystem's
->>>> responsibility to take direction from the MM subsystem as
->>>> to the total number of pageframes it uses... how (and how
->>>> efficiently) it stores zpages in that number of pageframes
->>>> is its own business.  If MM tells MM-compression to
->>>> reduce "quantity of pageframes containing anon_zpages"
->>>> it must be able to do that.
->>>>
->>>> OK, does that make sense?  If so, I have thoughts on
->>> I think that's a good idea.
->>> MM can give general API like alloc_pages(GFP_ZSPAGE) and put together
->>> sub pages of zspage into LRU_[FILE|ANON]_ZPAGES which would be
->>> zone/node aware as well as system-wide LRU.
+On 02/21/2013 11:50 PM, Seth Jennings wrote:
+> On 02/21/2013 02:49 AM, Ric Mason wrote:
+>> On 02/19/2013 03:16 AM, Seth Jennings wrote:
+>>> On 02/16/2013 12:21 AM, Ric Mason wrote:
+>>>> On 02/14/2013 02:38 AM, Seth Jennings wrote:
+>>>>> This patch adds a documentation file for zsmalloc at
+>>>>> Documentation/vm/zsmalloc.txt
+>>>>>
+>>>>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>>>>> ---
+>>>>>     Documentation/vm/zsmalloc.txt |   68
+>>>>> +++++++++++++++++++++++++++++++++++++++++
+>>>>>     1 file changed, 68 insertions(+)
+>>>>>     create mode 100644 Documentation/vm/zsmalloc.txt
+>>>>>
+>>>>> diff --git a/Documentation/vm/zsmalloc.txt
+>>>>> b/Documentation/vm/zsmalloc.txt
+>>>>> new file mode 100644
+>>>>> index 0000000..85aa617
+>>>>> --- /dev/null
+>>>>> +++ b/Documentation/vm/zsmalloc.txt
+>>>>> @@ -0,0 +1,68 @@
+>>>>> +zsmalloc Memory Allocator
+>>>>> +
+>>>>> +Overview
+>>>>> +
+>>>>> +zmalloc a new slab-based memory allocator,
+>>>>> +zsmalloc, for storing compressed pages.  It is designed for
+>>>>> +low fragmentation and high allocation success rate on
+>>>>> +large object, but <= PAGE_SIZE allocations.
+>>>>> +
+>>>>> +zsmalloc differs from the kernel slab allocator in two primary
+>>>>> +ways to achieve these design goals.
+>>>>> +
+>>>>> +zsmalloc never requires high order page allocations to back
+>>>>> +slabs, or "size classes" in zsmalloc terms. Instead it allows
+>>>>> +multiple single-order pages to be stitched together into a
+>>>>> +"zspage" which backs the slab.  This allows for higher allocation
+>>>>> +success rate under memory pressure.
+>>>>> +
+>>>>> +Also, zsmalloc allows objects to span page boundaries within the
+>>>>> +zspage.  This allows for lower fragmentation than could be had
+>>>>> +with the kernel slab allocator for objects between PAGE_SIZE/2
+>>>>> +and PAGE_SIZE.  With the kernel slab allocator, if a page compresses
+>>>>> +to 60% of it original size, the memory savings gained through
+>>>>> +compression is lost in fragmentation because another object of
+>>>>> +the same size can't be stored in the leftover space.
+>>>>> +
+>>>>> +This ability to span pages results in zsmalloc allocations not being
+>>>>> +directly addressable by the user.  The user is given an
+>>>>> +non-dereferencable handle in response to an allocation request.
+>>>>> +That handle must be mapped, using zs_map_object(), which returns
+>>>>> +a pointer to the mapped region that can be used.  The mapping is
+>>>>> +necessary since the object data may reside in two different
+>>>>> +noncontigious pages.
+>>>> Do you mean the reason of  to use a zsmalloc object must map after
+>>>> malloc is object data maybe reside in two different nocontiguous pages?
+>>> Yes, that is one reason for the mapping.  The other reason (more of an
+>>> added bonus) is below.
 >>>
->>> Each sub pages could have a function pointer in struct page somewhere.
->>> which would be each MM-compression subsystem's reclaim function.
->>> So MM can ask to MM-compression subsystem to reclaim the page
->>> when needs happens.
->> Why need function pointer in struct page? Since zspages are on
->> LRU_[FILE|ANON]_ZPAGES, page reclaim subsystem call reclaim them
->> directly.
-> It would be a subpage of zspage and zspage format might be different in each
-> MM-compression subsystem so MM layter can't reclaim them without helping from
-> MM-compression subsytsem, IMHO.
+>>>>> +
+>>>>> +For 32-bit systems, zsmalloc has the added benefit of being
+>>>>> +able to back slabs with HIGHMEM pages, something not possible
+>>>> What's the meaning of "back slabs with HIGHMEM pages"?
+>>> By HIGHMEM, I'm referring to the HIGHMEM memory zone on 32-bit systems
+>>> with larger that 1GB (actually a little less) of RAM.  The upper 3GB
+>>> of the 4GB address space, depending on kernel build options, is not
+>>> directly addressable by the kernel, but can be mapped into the kernel
+>>> address space with functions like kmap() or kmap_atomic().
+>>>
+>>> These pages can't be used by slab/slub because they are not
+>>> continuously mapped into the kernel address space.  However, since
+>>> zsmalloc requires a mapping anyway to handle objects that span
+>>> non-contiguous page boundaries, we do the kernel mapping as part of
+>>> the process.
+>>>
+>>> So zspages, the conceptual slab in zsmalloc backed by single-order
+>>> pages can include pages from the HIGHMEM zone as well.
+>> Thanks for your clarify,
+>>   http://lwn.net/Articles/537422/, your article about zswap in lwn.
+>>   "Additionally, the kernel slab allocator does not allow objects that
+>> are less
+>> than a page in size to span a page boundary. This means that if an
+>> object is
+>> PAGE_SIZE/2 + 1 bytes in size, it effectively use an entire page,
+>> resulting in
+>> ~50% waste. Hense there are *no kmalloc() cache size* between
+>> PAGE_SIZE/2 and
+>> PAGE_SIZE."
+>> Are your sure? It seems that kmalloc cache support big size, your can
+>> check in
+>> include/linux/kmalloc_sizes.h
+> Yes, kmalloc can allocate large objects > PAGE_SIZE, but there are no
+> cache sizes _between_ PAGE_SIZE/2 and PAGE_SIZE.  For example, on a
+> system with 4k pages, there are no caches between kmalloc-2048 and
+> kmalloc-4096.
 
-Thanks for your clarify. Also I think zspages result in memory can't 
-hotplug.
+kmalloc object > PAGE_SIZE/2 or > PAGE_SIZE should also allocate from 
+slab cache, correct? Then how can alloc object w/o slab cache which 
+contains this object size objects?
 
 >
->>> It can remove MM-compression's own policy and can add unified abstration
->>> layer from MM. Of course, MM can get a complete control.
->>>
->>>> a more detailed implementation, but will hold that
->>>> until after some discussion/feedback.
->>>>
->>>> Thanks in advance for any time you can spare!
->>>> Dan
->>>>
->>>> --
->>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>>> see: http://www.linux-mm.org/ .
->>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Seth
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
