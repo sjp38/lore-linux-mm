@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 601466B0002
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 21:57:11 -0500 (EST)
-Received: by mail-qa0-f49.google.com with SMTP id o13so184366qaj.15
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 18:57:10 -0800 (PST)
-Message-ID: <5126DE7B.2010203@gmail.com>
-Date: Fri, 22 Feb 2013 10:56:59 +0800
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id D21CA6B0002
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 21:59:13 -0500 (EST)
+Received: by mail-qe0-f66.google.com with SMTP id 1so19298qec.5
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 18:59:12 -0800 (PST)
+Message-ID: <5126DEF6.9010303@gmail.com>
+Date: Fri, 22 Feb 2013 10:59:02 +0800
 From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCHv5 2/8] zsmalloc: add documentation
@@ -115,9 +115,7 @@ On 02/21/2013 11:50 PM, Seth Jennings wrote:
 > system with 4k pages, there are no caches between kmalloc-2048 and
 > kmalloc-4096.
 
-kmalloc object > PAGE_SIZE/2 or > PAGE_SIZE should also allocate from 
-slab cache, correct? Then how can alloc object w/o slab cache which 
-contains this object size objects?
+Since slub cache can merge, is it the root reason?
 
 >
 > Seth
