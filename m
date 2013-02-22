@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 7CE716B0002
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 03:06:06 -0500 (EST)
-Date: Fri, 22 Feb 2013 09:06:00 +0100 (CET)
-From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
-Subject: Re: [PATCH v2 10/18] mm: teach truncate_inode_pages_range() to handle
- non page aligned ranges
-In-Reply-To: <20130221134905.9a1e2c9e.akpm@linux-foundation.org>
-Message-ID: <alpine.LFD.2.00.1302220905200.14141@localhost>
-References: <1360055531-26309-1-git-send-email-lczerner@redhat.com> <1360055531-26309-11-git-send-email-lczerner@redhat.com> <20130207154042.92430aed.akpm@linux-foundation.org> <alpine.LFD.2.00.1302080948110.3225@localhost> <alpine.LFD.2.00.1302210929590.19354@localhost>
- <20130221134905.9a1e2c9e.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 8AC5F6B0002
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 03:23:34 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_if_PF=5FNO=5FMEMCG=5FOOM_is_set?=
+Date: Fri, 22 Feb 2013 09:23:32 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20130208094420.GA7557@dhcp22.suse.cz>, <20130208120249.FD733220@pobox.sk>, <20130208123854.GB7557@dhcp22.suse.cz>, <20130208145616.FB78CE24@pobox.sk>, <20130208152402.GD7557@dhcp22.suse.cz>, <20130208165805.8908B143@pobox.sk>, <20130208171012.GH7557@dhcp22.suse.cz>, <20130208220243.EDEE0825@pobox.sk>, <20130210150310.GA9504@dhcp22.suse.cz>, <20130210174619.24F20488@pobox.sk> <20130211112240.GC19922@dhcp22.suse.cz>
+In-Reply-To: <20130211112240.GC19922@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323328-1987193048-1361520364=:14141"
+Message-Id: <20130222092332.4001E4B6@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+>Unfortunately I am not able to reproduce this behavior even if I try
+>to hammer OOM like mad so I am afraid I cannot help you much without
+>further debugging patches.
+>I do realize that experimenting in your environment is a problem but I
+>do not many options left. Please do not use strace and rather collect
+>/proc/pid/stack instead. It would be also helpful to get group/tasks
+>file to have a full list of tasks in the group
 
---8323328-1987193048-1361520364=:14141
-Content-Type: TEXT/PLAIN; charset=ISO-8859-15
-Content-Transfer-Encoding: 8BIT
 
-On Thu, 21 Feb 2013, Andrew Morton wrote:
 
-> Date: Thu, 21 Feb 2013 13:49:04 -0800
-> From: Andrew Morton <akpm@linux-foundation.org>
-> To: Luka? Czerner <lczerner@redhat.com>
-> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
->     linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
->     Hugh Dickins <hughd@google.com>
-> Subject: Re: [PATCH v2 10/18] mm: teach truncate_inode_pages_range() to handle
->      non page aligned ranges
-> 
-> On Thu, 21 Feb 2013 09:33:56 +0100 (CET)
-> Luk____ Czerner <lczerner@redhat.com> wrote:
-> 
-> > what's the status of the patch set ?
-> 
-> Forgotten about :(
-> 
-> > Can we get this in in this merge window ?
-> 
-> Please do a full resend after 3.9-rc1 and let's take it up again.
-> 
+Hi Michal,
 
-I'll do that. Thanks.
 
--Lukas
---8323328-1987193048-1361520364=:14141--
+sorry that i didn't response for a while. Today i installed kernel with your two patches and i'm running it now. I'm still having problems with OOM which is not able to handle low memory and is not killing processes. Here is some info:
+
+- data from cgroup 1258 while it was under OOM and no processes were killed (so OOM don't stop and cgroup was freezed)
+http://watchdog.sk/lkml/memcg-bug-6.tar.gz
+
+I noticed problem about on 8:39 and waited until 8:57 (nothing happend). Then i killed process 19864 which seems to help and other processes probably ends and cgroup started to work. But problem accoured again about 20 seconds later, so i killed all processes at 8:58. The problem is occuring all the time since then. All processes (in that cgroup) are always in state 'D' when it occurs.
+
+
+- kernel log from boot until now
+http://watchdog.sk/lkml/kern3.gz
+
+
+Btw, something probably happened also at about 3:09 but i wasn't able to gather any data because my 'load check script' killed all apache processes (load was more than 100).
+
+
+
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
