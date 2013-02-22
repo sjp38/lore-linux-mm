@@ -1,130 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id D21CA6B0002
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 21:59:13 -0500 (EST)
-Received: by mail-qe0-f66.google.com with SMTP id 1so19298qec.5
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 18:59:12 -0800 (PST)
-Message-ID: <5126DEF6.9010303@gmail.com>
-Date: Fri, 22 Feb 2013 10:59:02 +0800
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 24FDC6B0002
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:13:33 -0500 (EST)
+Received: by mail-qa0-f48.google.com with SMTP id j8so192253qah.0
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 19:13:32 -0800 (PST)
+Message-ID: <5126E253.2030105@gmail.com>
+Date: Fri, 22 Feb 2013 11:13:23 +0800
 From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 2/8] zsmalloc: add documentation
-References: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com> <1360780731-11708-3-git-send-email-sjenning@linux.vnet.ibm.com> <511F254D.2010909@gmail.com> <51227DF4.9020900@linux.vnet.ibm.com> <5125DFAA.4050706@gmail.com> <5126423F.7040705@linux.vnet.ibm.com>
-In-Reply-To: <5126423F.7040705@linux.vnet.ibm.com>
+Subject: Re: Questin about swap_slot free and invalidate page
+References: <20130131051140.GB23548@blaptop> <alpine.LNX.2.00.1302031732520.4050@eggly.anvils> <20130204024950.GD2688@blaptop> <d6fc41b7-8448-40be-84c3-c24d0833bd85@default> <51236C11.1010208@gmail.com> <1f089254-3abe-4c63-a72a-c9e564ae7d0d@default> <51242F0D.4040201@gmail.com> <7793705b-a076-4c5a-be4d-9572d7560860@default>
+In-Reply-To: <7793705b-a076-4c5a-be4d-9572d7560860@default>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 02/21/2013 11:50 PM, Seth Jennings wrote:
-> On 02/21/2013 02:49 AM, Ric Mason wrote:
->> On 02/19/2013 03:16 AM, Seth Jennings wrote:
->>> On 02/16/2013 12:21 AM, Ric Mason wrote:
->>>> On 02/14/2013 02:38 AM, Seth Jennings wrote:
->>>>> This patch adds a documentation file for zsmalloc at
->>>>> Documentation/vm/zsmalloc.txt
+On 02/22/2013 05:42 AM, Dan Magenheimer wrote:
+>> From: Ric Mason [mailto:ric.masonn@gmail.com]
+>> Subject: Re: Questin about swap_slot free and invalidate page
+>>
+>> On 02/19/2013 11:27 PM, Dan Magenheimer wrote:
+>>>> From: Ric Mason [mailto:ric.masonn@gmail.com]
+>>>>> Hugh is right that handling the possibility of duplicates is
+>>>>> part of the tmem ABI.  If there is any possibility of duplicates,
+>>>>> the ABI defines how a backend must handle them to avoid data
+>>>>> coherency issues.
 >>>>>
->>>>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->>>>> ---
->>>>>     Documentation/vm/zsmalloc.txt |   68
->>>>> +++++++++++++++++++++++++++++++++++++++++
->>>>>     1 file changed, 68 insertions(+)
->>>>>     create mode 100644 Documentation/vm/zsmalloc.txt
->>>>>
->>>>> diff --git a/Documentation/vm/zsmalloc.txt
->>>>> b/Documentation/vm/zsmalloc.txt
->>>>> new file mode 100644
->>>>> index 0000000..85aa617
->>>>> --- /dev/null
->>>>> +++ b/Documentation/vm/zsmalloc.txt
->>>>> @@ -0,0 +1,68 @@
->>>>> +zsmalloc Memory Allocator
->>>>> +
->>>>> +Overview
->>>>> +
->>>>> +zmalloc a new slab-based memory allocator,
->>>>> +zsmalloc, for storing compressed pages.  It is designed for
->>>>> +low fragmentation and high allocation success rate on
->>>>> +large object, but <= PAGE_SIZE allocations.
->>>>> +
->>>>> +zsmalloc differs from the kernel slab allocator in two primary
->>>>> +ways to achieve these design goals.
->>>>> +
->>>>> +zsmalloc never requires high order page allocations to back
->>>>> +slabs, or "size classes" in zsmalloc terms. Instead it allows
->>>>> +multiple single-order pages to be stitched together into a
->>>>> +"zspage" which backs the slab.  This allows for higher allocation
->>>>> +success rate under memory pressure.
->>>>> +
->>>>> +Also, zsmalloc allows objects to span page boundaries within the
->>>>> +zspage.  This allows for lower fragmentation than could be had
->>>>> +with the kernel slab allocator for objects between PAGE_SIZE/2
->>>>> +and PAGE_SIZE.  With the kernel slab allocator, if a page compresses
->>>>> +to 60% of it original size, the memory savings gained through
->>>>> +compression is lost in fragmentation because another object of
->>>>> +the same size can't be stored in the leftover space.
->>>>> +
->>>>> +This ability to span pages results in zsmalloc allocations not being
->>>>> +directly addressable by the user.  The user is given an
->>>>> +non-dereferencable handle in response to an allocation request.
->>>>> +That handle must be mapped, using zs_map_object(), which returns
->>>>> +a pointer to the mapped region that can be used.  The mapping is
->>>>> +necessary since the object data may reside in two different
->>>>> +noncontigious pages.
->>>> Do you mean the reason of  to use a zsmalloc object must map after
->>>> malloc is object data maybe reside in two different nocontiguous pages?
->>> Yes, that is one reason for the mapping.  The other reason (more of an
->>> added bonus) is below.
+>>>>> The kernel implements an in-kernel API which implements the tmem
+>>>>> ABI.  If the frontend and backend can always agree that duplicate
+>>>> Which ABI in zcache implement that?
+>>> https://oss.oracle.com/projects/tmem/dist/documentation/api/tmemspec-v001.pdf
 >>>
->>>>> +
->>>>> +For 32-bit systems, zsmalloc has the added benefit of being
->>>>> +able to back slabs with HIGHMEM pages, something not possible
->>>> What's the meaning of "back slabs with HIGHMEM pages"?
->>> By HIGHMEM, I'm referring to the HIGHMEM memory zone on 32-bit systems
->>> with larger that 1GB (actually a little less) of RAM.  The upper 3GB
->>> of the 4GB address space, depending on kernel build options, is not
->>> directly addressable by the kernel, but can be mapped into the kernel
->>> address space with functions like kmap() or kmap_atomic().
->>>
->>> These pages can't be used by slab/slub because they are not
->>> continuously mapped into the kernel address space.  However, since
->>> zsmalloc requires a mapping anyway to handle objects that span
->>> non-contiguous page boundaries, we do the kernel mapping as part of
->>> the process.
->>>
->>> So zspages, the conceptual slab in zsmalloc backed by single-order
->>> pages can include pages from the HIGHMEM zone as well.
->> Thanks for your clarify,
->>   http://lwn.net/Articles/537422/, your article about zswap in lwn.
->>   "Additionally, the kernel slab allocator does not allow objects that
->> are less
->> than a page in size to span a page boundary. This means that if an
->> object is
->> PAGE_SIZE/2 + 1 bytes in size, it effectively use an entire page,
->> resulting in
->> ~50% waste. Hense there are *no kmalloc() cache size* between
->> PAGE_SIZE/2 and
->> PAGE_SIZE."
->> Are your sure? It seems that kmalloc cache support big size, your can
->> check in
->> include/linux/kmalloc_sizes.h
-> Yes, kmalloc can allocate large objects > PAGE_SIZE, but there are no
-> cache sizes _between_ PAGE_SIZE/2 and PAGE_SIZE.  For example, on a
-> system with 4k pages, there are no caches between kmalloc-2048 and
-> kmalloc-4096.
+>>> The in-kernel APIs are frontswap and cleancache.  For more information about
+>>> tmem, see http://lwn.net/Articles/454795/
+>> But you mentioned that you have in-kernel API which can handle
+>> duplicate.  Do you mean zcache_cleancache/frontswap_put_page? I think
+>> they just overwrite instead of optional flush the page on the
+>> second(duplicate) put as mentioned in your tmemspec.
+> Maybe I am misunderstanding your question...  The spec allows
+> overwrite (and return success) OR flush the page (and return
+> failure).  Zcache does the latter (flush).  The code that implements
+> it is in tmem_put.
 
-Since slub cache can merge, is it the root reason?
+Thanks for your point out.  Pers pages can have duplicate put since swap 
+cache page can be reused. Can eph pages also have duplicate put? If yes, 
+when can happen?
 
 >
-> Seth
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
