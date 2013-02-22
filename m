@@ -1,76 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id BB27B6B0002
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 01:59:42 -0500 (EST)
-Received: by mail-gg0-f178.google.com with SMTP id 21so68022ggh.23
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:59:41 -0800 (PST)
-Date: Thu, 21 Feb 2013 22:55:52 -0800
-From: Anton Vorontsov <anton@enomsg.org>
-Subject: Re: [PATCH v2] memcg: Add memory.pressure_level events
-Message-ID: <20130222065552.GA26194@lizard.gateway.2wire.net>
-References: <20130219044012.GA23356@lizard.sbx00618.mountca.wayport.net>
- <20130220001743.GE16950@blaptop>
- <CAOS58YOPjcH_pFFhPLJEAdaLkm5FoOy9mG2i-PkWAcb7O6V_Kw@mail.gmail.com>
- <20130221230425.GA22792@lizard.fhda.edu>
- <20130221235608.GH16950@blaptop>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 747F36B0002
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 02:13:08 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id rp2so244546pbb.34
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 23:13:07 -0800 (PST)
+Message-ID: <51271A7D.6020305@gmail.com>
+Date: Fri, 22 Feb 2013 15:13:01 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20130221235608.GH16950@blaptop>
+Subject: Re: [PATCH 2/7] ksm: treat unstable nid like in stable tree
+References: <alpine.LNX.2.00.1302210013120.17843@eggly.anvils> <alpine.LNX.2.00.1302210019390.17843@eggly.anvils>
+In-Reply-To: <alpine.LNX.2.00.1302210019390.17843@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, Orna Agmon Ben-Yehuda <ladypine@gmail.com>, Muli Ben-Yehuda <mulix@mulix.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Feb 22, 2013 at 08:56:08AM +0900, Minchan Kim wrote:
-> [...] The my point is that you have a plan to support? Why I have a
-> question is that you said your goal is to replace lowmemory killer
+On 02/21/2013 04:20 PM, Hugh Dickins wrote:
+> An inconsistency emerged in reviewing the NUMA node changes to KSM:
+> when meeting a page from the wrong NUMA node in a stable tree, we say
+> that it's okay for comparisons, but not as a leaf for merging; whereas
+> when meeting a page from the wrong NUMA node in an unstable tree, we
+> bail out immediately.
 
-In short: yes, of course, if the non-memcg interface will be in demand.
+IIUC
+- ksm page from the wrong NUMA node will be add to current node's stable 
+tree
+- normal page from the wrong NUMA node will be merged to current node's 
+stable tree  <- where I miss here? I didn't see any special handling in 
+function stable_tree_search for this case.
+- normal page from the wrong NUMA node will compare but not as a leaf 
+for merging after the patch
 
-> but android don't have enabled CONFIG_MEMCG as you know well
-> so they should enable it for using just notifier? or they need another hack to
-> connect notifier to global thing?
-
-A hack is not an option for me. :-) My final goal is to switch Android to
-use the notifier without need for hacks/external patches or
-drivers/staging.
-
-But my current goal is to make the most generic case work, and do this in
-the most correct way. That is, vmpressure + MEMCG. Once I accomplish this,
-I can then think of any niche needs (such as Android).
-
-There will be two possibilities for Android:
-
-1. Obviously, turn on CONFIG_MEMCG. We need to measure its effect on real
-   devices, and see if it makes sense. (Plus, maybe there are other uses
-   for MEMCG on Android?)
-
-or
-
-2. Implement /sys/fs/cgroups/memory/memory.pressure_level interface
-   without MEMCG. Doing this will be really easy as we'll already have
-   vmpressure() core, and Android has CROUPS=y. But I do expect some
-   discussion like 'why don't you fix memcg instead?'. We'll have to
-   answer this question by looking back at '1.'
-
-Also note that cgroups vmpressure notifiers were tried by QEMU folks, and
-it seemed to be useful:
-
-   http://lists.gnu.org/archive/html/qemu-devel/2012-12/msg02821.html 
-
-So, nowadays it is not only about Android. Some time ago I also got an
-email from Orna Agmon Ben-Yehuda, who suggested to use vmpressure stuff
-with 'memcached' (but I didn't find time to actually try it, so far. :(
-Thanks for the email, btw!).
-
-So it is useful with or without MEMCG, and if we will really need to
-support vmpressure without MEMCG, I will have to implement the support in
-addition to MEMCG case, yes.
-
-Thanks,
-
-Anton
+>
+> Now, it might be that a wrong NUMA node in an unstable tree is more
+> likely to correlate with instablility (different content, with rbnode
+> now misplaced) than page migration; but even so, we are accustomed to
+> instablility in the unstable tree.
+>
+> Without strong evidence for which strategy is generally better, I'd
+> rather be consistent with what's done in the stable tree: accept a page
+> from the wrong NUMA node for comparison, but not as a leaf for merging.
+>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+>   mm/ksm.c |   19 +++++++++----------
+>   1 file changed, 9 insertions(+), 10 deletions(-)
+>
+> --- mmotm.orig/mm/ksm.c	2013-02-20 22:28:23.584001392 -0800
+> +++ mmotm/mm/ksm.c	2013-02-20 22:28:27.288001480 -0800
+> @@ -1340,16 +1340,6 @@ struct rmap_item *unstable_tree_search_i
+>   			return NULL;
+>   		}
+>   
+> -		/*
+> -		 * If tree_page has been migrated to another NUMA node, it
+> -		 * will be flushed out and put into the right unstable tree
+> -		 * next time: only merge with it if merge_across_nodes.
+> -		 */
+> -		if (!ksm_merge_across_nodes && page_to_nid(tree_page) != nid) {
+> -			put_page(tree_page);
+> -			return NULL;
+> -		}
+> -
+>   		ret = memcmp_pages(page, tree_page);
+>   
+>   		parent = *new;
+> @@ -1359,6 +1349,15 @@ struct rmap_item *unstable_tree_search_i
+>   		} else if (ret > 0) {
+>   			put_page(tree_page);
+>   			new = &parent->rb_right;
+> +		} else if (!ksm_merge_across_nodes &&
+> +			   page_to_nid(tree_page) != nid) {
+> +			/*
+> +			 * If tree_page has been migrated to another NUMA node,
+> +			 * it will be flushed out and put in the right unstable
+> +			 * tree next time: only merge with it when across_nodes.
+> +			 */
+> +			put_page(tree_page);
+> +			return NULL;
+>   		} else {
+>   			*tree_pagep = tree_page;
+>   			return tree_rmap_item;
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
