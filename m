@@ -1,44 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 779946B0002
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 14:22:20 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id xa12so564830pbc.22
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2013 11:22:19 -0800 (PST)
-Message-ID: <5127C55F.1090506@gmail.com>
-Date: Sat, 23 Feb 2013 03:22:07 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 04D336B0002
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 14:57:16 -0500 (EST)
+Message-ID: <5127CD9B.7050406@ubuntu.com>
+Date: Fri, 22 Feb 2013 14:57:15 -0500
+From: Phillip Susi <psusi@ubuntu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: let /proc/meminfo report physical memory installed
- as "MemTotal"
-References: <alpine.DEB.2.02.1302191326150.6322@chino.kir.corp.google.com> <1361381245-14664-1-git-send-email-jiang.liu@huawei.com> <20130220144917.7d289ef0.akpm@linux-foundation.org> <512658AA.5060806@gmail.com> <20130221133141.73855348.akpm@linux-foundation.org>
-In-Reply-To: <20130221133141.73855348.akpm@linux-foundation.org>
+Subject: POSIX_FADV_DONTNEED implemented wrong
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, sworddragon2@aol.com, Jiang Liu <jiang.liu@huawei.com>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 
-On 02/22/2013 05:31 AM, Andrew Morton wrote:
-> On Fri, 22 Feb 2013 01:26:02 +0800
-> Jiang Liu <liuj97@gmail.com> wrote:
-> 
->> 	It's really hard, but I think it deserve it because have reduced
->> about 460 lines of code when fixing this bug. So how about following
->> patchset?
->> 	The first 27 patches introduces some help functions to simplify
->> free_initmem() and free_initrd_mem() for most arches.
->> 	The 28th patch increases zone->managed_pages when freeing reserved
->> pages.
->> 	The 29th patch change /sys/.../nodex/meminfo to report "available
->> pages within the node" as MemTatoal.
-> 
-> yikes.
-> 
-> Let's defer the problem for now.  Please send the patches out in the
-> usual fashion after 3.9-rc1 and we'll take a look?
-> 
-Sure, will send out those patches after 3.9-rc1 is out.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+I believe the current implementation for this is wrong.  For clean
+pages, it immediately discards them from the cache, and for dirty
+ones, it immediately tries to initiate writeout if the bdi is not
+congested.  I believe this is wrong for three reasons:
+
+1)  It is completely useless for writing files.  This hint should
+allow a program generating lots of writes to files that will not
+likely be read again to reduce the cache pressure that causes.
+
+2)  When there is little to no cache pressure, this hint should not
+cause the disk to spin up.
+
+3)  This is supposed to be a hint that caching this data is unlikely
+to do any good, so the cache should favor other data instead.  Just
+because one process does not think it will be used again does not mean
+it won't be, so when there is little to no cache pressure, we
+shouldn't go discarding potentially useful data.
+
+I'd like to change this to simply force the pages to the inactive
+list, so they will be reclaimed sooner than other pages, but not
+immediately discarded, or written out.
+
+Also the related POSIX_FADV_NOREUSE is currently unimplemented, and
+this should also cause the cache pages to skip the active list and go
+straight to the inactive list.
+
+Any thoughts or hints on how to go about doing this?
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.17 (MingW32)
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+
+iQEcBAEBAgAGBQJRJ82ZAAoJEJrBOlT6nu75i3YIAMjrwhzL28m/WbsD4m2BQaX9
+swz0OlO9AimoQLE0vvbYSRYFmlGAayQafIOJU1GiLSijPGmHqisOePZpWnCKbesP
+PeoHFxC+jDNHGrmIDHGOgq7ELAX6DNh5yU1sBhvo7iSnDCfjdfvJP7wWNyzCD/bD
+FT7bEgQ1vjd6bB3812Qj3PBs/UHvHUj8zAJDAiArqMJSW6LgxINzjyXs030NRqxS
+A1RUVUJ/4ydJz7SS4uitFWmObrpImIt6oxpQnIb1SOzL67KNx/YwMgWq/hknAS3H
+ravePc2VwH2aS/gcyo2VW3OLHlIXOxgbjhZWbKidkNv6KsccEqqY8yFeO+fCvjA=
+=dsVO
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
