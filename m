@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 89CA96B0002
-	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 22:51:41 -0500 (EST)
-Received: by mail-qa0-f46.google.com with SMTP id o13so217804qaj.19
-        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 19:51:40 -0800 (PST)
-Message-ID: <5126EB45.10700@gmail.com>
-Date: Fri, 22 Feb 2013 11:51:33 +0800
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 389556B0002
+	for <linux-mm@kvack.org>; Thu, 21 Feb 2013 23:13:41 -0500 (EST)
+Received: by mail-qc0-f171.google.com with SMTP id d1so117121qca.30
+        for <linux-mm@kvack.org>; Thu, 21 Feb 2013 20:13:39 -0800 (PST)
+Message-ID: <5126F06A.8010106@gmail.com>
+Date: Fri, 22 Feb 2013 12:13:30 +0800
 From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie
@@ -49,10 +49,24 @@ On 02/07/2013 02:27 AM, Dan Magenheimer wrote:
 >
 > [1] https://lkml.org/lkml/2013/1/29/540/ https://lkml.org/lkml/2013/1/29/539/
 
-This patch leads to backend interact with core mm directly,  is it core 
-mm should interact with frontend instead of backend? In addition, 
-frontswap has already have shrink funtion, should we can take advantage 
-of it?
+shrink_zcache_memory:
+
+while(nr_evict-- > 0) {
+     page = zcache_evict_eph_pageframe();
+     if (page == NULL)
+         break;
+     zcache_free_page(page);
+}
+
+zcache_evict_eph_pageframe
+->zbud_evict_pageframe_lru
+     ->zbud_evict_tmem
+         ->tmem_flush_page
+             ->zcache_pampd_free
+                 ->zcache_free_page  <- zbudpage has already been free here
+
+If the zcache_free_page called in shrink_zcache_memory can be treated as 
+a double free?
 
 >
 > Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
