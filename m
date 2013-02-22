@@ -1,43 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id B1FBC6B0002
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 16:41:24 -0500 (EST)
-Message-ID: <5127E601.6080202@redhat.com>
-Date: Fri, 22 Feb 2013 16:41:21 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 323C46B0002
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 16:52:57 -0500 (EST)
+Message-ID: <5127E8B7.9080202@ubuntu.com>
+Date: Fri, 22 Feb 2013 16:52:55 -0500
+From: Phillip Susi <psusi@ubuntu.com>
 MIME-Version: 1.0
-Subject: Re: [Lsf-pc] [LSF/MM TOPIC][ATTEND] topics I'd like to discuss
-References: <51279035.5050304@redhat.com>
-In-Reply-To: <51279035.5050304@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: POSIX_FADV_DONTNEED implemented wrong
+References: <5127CD9B.7050406@ubuntu.com> <20130222202921.GB4824@cmpxchg.org>
+In-Reply-To: <20130222202921.GB4824@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lsf-pc@lists.linux-foundation.org
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Larry Woodman <lwoodman@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
 
-On 02/22/2013 10:35 AM, Larry Woodman wrote:
-> 1.) Using mmu notifiers to set up the page tables for integrated
-> devices(GPUs) and allowing the generic
->       kernel pagefault handler to resolve translations for those devices.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-This functionality is also desired by people who want to run
-memory coherency over infiniband and some other very fast
-network fabrics, as well as by the people who want to offload
-work to specialized cores in their system.
+On 2/22/2013 3:29 PM, Johannes Weiner wrote:
+>> 1)  It is completely useless for writing files.  This hint
+>> should allow a program generating lots of writes to files that
+>> will not likely be read again to reduce the cache pressure that
+>> causes.
+> 
+> Wouldn't direct IO make more sense in that case?
 
-Since there are multiple use cases for this kind of functionality,
-I believe that it is important we get the infrastructure right,
-and discussing this topic at LSF/MM sounds like a good idea.
+It could, but doing direct aio is a lot more complicated than just using
+posix_fadvise. Also it has problem #3: even if it is unlikely, it
+*may* be used again, so it makes sense to cache it if we have plenty
+of ram.
 
-> 2.) Replication of pagecache pages on NUMA nodes.
+> Minchan worked on deactivating pages on truncation.  Maybe all it 
+> takes is to implement deactivate_mapping_range() or something to 
+> combine a page cache walk with deactivate_page().
 
-What about this would you like to discuss?
+Looks like a good idea!
 
-Is there some proposal of code to do this?
+> While you are at it, madvise(MADV_DONTNEED) does not do anything
+> to the page cache, but it probably should.  :-)
 
--- 
-All rights reversed
+It seems to be implemented by discarding the pages, even if dirty.
+This also seems to be wrong.  According to posix, this is a hint that
+it will not access the pages again any time *soon*, not that the data
+will never be needed again and so it can be discarded.
+
+It looks like MADV_SEQUENTIAL is missing the second part of its
+implementation: making sure the pages will be discarded soon after
+they are accessed.
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.17 (MingW32)
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+
+iQEcBAEBAgAGBQJRJ+i3AAoJEJrBOlT6nu759/IIAMbFAjJGmI7hkpt1GMtUfty8
+n72BoygV3bDULpZ8BybJonRfiVw/ze9sVf6KhojB2dm9bvdZHl11DDGvf9Ro8OSr
+dcjWUQxbHzuzGtUtnUEZPOAj6Ux6cetBtmjUxjnLyJrijK+W+cEHzWnzUZXWddlo
+XcPe3IHNmj7YlTH+tcPevLCeTlzfFkjq/t4JXuZWmFW97MmMe5wTCScS0eiBYpHM
+SVVL+VJ8TPG9Hnk/9oP0RqAyg+SjshGfaqhM8mTFvS4FtMbp/gXFz8GnewxG322h
+ZdgwZqafiWsNeC8KitcTwKlxMU5fWFDLfHXKoFWgX2P7hVh8zJ9T6Ugi4KeaAN4=
+=RFzN
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
