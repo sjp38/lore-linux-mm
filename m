@@ -1,61 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 88F606B0002
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 15:29:27 -0500 (EST)
-Date: Fri, 22 Feb 2013 15:29:21 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: POSIX_FADV_DONTNEED implemented wrong
-Message-ID: <20130222202921.GB4824@cmpxchg.org>
-References: <5127CD9B.7050406@ubuntu.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id CB0766B0002
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 15:39:12 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id e20so528865dak.0
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2013 12:39:12 -0800 (PST)
+Date: Fri, 22 Feb 2013 12:38:26 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 0/7] ksm: responses to NUMA review
+In-Reply-To: <5126E987.7020809@gmail.com>
+Message-ID: <alpine.LNX.2.00.1302221227530.6100@eggly.anvils>
+References: <alpine.LNX.2.00.1302210013120.17843@eggly.anvils> <5126E987.7020809@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5127CD9B.7050406@ubuntu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Phillip Susi <psusi@ubuntu.com>
-Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Feb 22, 2013 at 02:57:15PM -0500, Phillip Susi wrote:
-> -----BEGIN PGP SIGNED MESSAGE-----
-> Hash: SHA1
+On Fri, 22 Feb 2013, Ric Mason wrote:
+> On 02/21/2013 04:17 PM, Hugh Dickins wrote:
+> > Here's a second KSM series, based on mmotm 2013-02-19-17-20: partly in
+> > response to Mel's review feedback, partly fixes to issues that I found
+> > myself in doing more review and testing.  None of the issues fixed are
+> > truly show-stoppers, though I would prefer them fixed sooner than later.
 > 
-> I believe the current implementation for this is wrong.  For clean
-> pages, it immediately discards them from the cache, and for dirty
-> ones, it immediately tries to initiate writeout if the bdi is not
-> congested.  I believe this is wrong for three reasons:
-> 
-> 1)  It is completely useless for writing files.  This hint should
-> allow a program generating lots of writes to files that will not
-> likely be read again to reduce the cache pressure that causes.
+> Do you have any ideas ksm support page cache and tmpfs?
 
-Wouldn't direct IO make more sense in that case?
+No.  It's only been asked as a hypothetical question: I don't know of
+anyone actually needing it, and I wouldn't have time to do it myself.
 
-> 2)  When there is little to no cache pressure, this hint should not
-> cause the disk to spin up.
+It would be significantly more invasive than just dealing with anonymous
+memory: with anon, we already have the infrastructure for read-only pages,
+but we don't at present have any notion of read-only pagecache.
 
-It's a hard problem to link memory pressure to writeback in a smart
-way, we haven't been all too successful with it.  But maybe it makes
-sense to remove the writeout in fadvise, since the user can do that up
-front if the user is willing to give up throughput and energy for
-memory.
+Just doing it in tmpfs?  Well, yes, that might be easier: since v3.1's
+radix_tree rework, shmem/tmpfs mostly goes through its own interfaces
+to pagecache, so read-only pagecache, and hence KSM, might be easier
+to implement there than more generally.
 
-> 3)  This is supposed to be a hint that caching this data is unlikely
-> to do any good, so the cache should favor other data instead.  Just
-> because one process does not think it will be used again does not mean
-> it won't be, so when there is little to no cache pressure, we
-> shouldn't go discarding potentially useful data.
-> 
-> I'd like to change this to simply force the pages to the inactive
-> list, so they will be reclaimed sooner than other pages, but not
-> immediately discarded, or written out.
-
-Minchan worked on deactivating pages on truncation.  Maybe all it
-takes is to implement deactivate_mapping_range() or something to
-combine a page cache walk with deactivate_page().
-
-While you are at it, madvise(MADV_DONTNEED) does not do anything to
-the page cache, but it probably should.  :-)
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
