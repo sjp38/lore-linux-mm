@@ -1,145 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 219926B0002
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 16:03:11 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 22 Feb 2013 16:03:09 -0500
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id EE189C9002B
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 16:03:05 -0500 (EST)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1ML355X342722
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 16:03:05 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1ML31OA030188
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 16:03:05 -0500
-Message-ID: <5127DD01.4080003@linux.vnet.ibm.com>
-Date: Fri, 22 Feb 2013 15:02:57 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id DA8736B0002
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 16:04:31 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id kp14so677449pab.19
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2013 13:04:31 -0800 (PST)
+Date: Fri, 22 Feb 2013 13:03:51 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 2/7] ksm: treat unstable nid like in stable tree
+In-Reply-To: <51271A7D.6020305@gmail.com>
+Message-ID: <alpine.LNX.2.00.1302221250440.6100@eggly.anvils>
+References: <alpine.LNX.2.00.1302210013120.17843@eggly.anvils> <alpine.LNX.2.00.1302210019390.17843@eggly.anvils> <51271A7D.6020305@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 2/8] zsmalloc: add documentation
-References: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com> <1360780731-11708-3-git-send-email-sjenning@linux.vnet.ibm.com> <511F254D.2010909@gmail.com> <51227DF4.9020900@linux.vnet.ibm.com> <5125DFAA.4050706@gmail.com> <5126423F.7040705@linux.vnet.ibm.com> <5126DE7B.2010203@gmail.com>
-In-Reply-To: <5126DE7B.2010203@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ric Mason <ric.masonn@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 02/21/2013 08:56 PM, Ric Mason wrote:
-> On 02/21/2013 11:50 PM, Seth Jennings wrote:
->> On 02/21/2013 02:49 AM, Ric Mason wrote:
->>> On 02/19/2013 03:16 AM, Seth Jennings wrote:
->>>> On 02/16/2013 12:21 AM, Ric Mason wrote:
->>>>> On 02/14/2013 02:38 AM, Seth Jennings wrote:
->>>>>> This patch adds a documentation file for zsmalloc at
->>>>>> Documentation/vm/zsmalloc.txt
->>>>>>
->>>>>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->>>>>> ---
->>>>>>     Documentation/vm/zsmalloc.txt |   68
->>>>>> +++++++++++++++++++++++++++++++++++++++++
->>>>>>     1 file changed, 68 insertions(+)
->>>>>>     create mode 100644 Documentation/vm/zsmalloc.txt
->>>>>>
->>>>>> diff --git a/Documentation/vm/zsmalloc.txt
->>>>>> b/Documentation/vm/zsmalloc.txt
->>>>>> new file mode 100644
->>>>>> index 0000000..85aa617
->>>>>> --- /dev/null
->>>>>> +++ b/Documentation/vm/zsmalloc.txt
->>>>>> @@ -0,0 +1,68 @@
->>>>>> +zsmalloc Memory Allocator
->>>>>> +
->>>>>> +Overview
->>>>>> +
->>>>>> +zmalloc a new slab-based memory allocator,
->>>>>> +zsmalloc, for storing compressed pages.  It is designed for
->>>>>> +low fragmentation and high allocation success rate on
->>>>>> +large object, but <= PAGE_SIZE allocations.
->>>>>> +
->>>>>> +zsmalloc differs from the kernel slab allocator in two primary
->>>>>> +ways to achieve these design goals.
->>>>>> +
->>>>>> +zsmalloc never requires high order page allocations to back
->>>>>> +slabs, or "size classes" in zsmalloc terms. Instead it allows
->>>>>> +multiple single-order pages to be stitched together into a
->>>>>> +"zspage" which backs the slab.  This allows for higher allocation
->>>>>> +success rate under memory pressure.
->>>>>> +
->>>>>> +Also, zsmalloc allows objects to span page boundaries within the
->>>>>> +zspage.  This allows for lower fragmentation than could be had
->>>>>> +with the kernel slab allocator for objects between PAGE_SIZE/2
->>>>>> +and PAGE_SIZE.  With the kernel slab allocator, if a page
->>>>>> compresses
->>>>>> +to 60% of it original size, the memory savings gained through
->>>>>> +compression is lost in fragmentation because another object of
->>>>>> +the same size can't be stored in the leftover space.
->>>>>> +
->>>>>> +This ability to span pages results in zsmalloc allocations not
->>>>>> being
->>>>>> +directly addressable by the user.  The user is given an
->>>>>> +non-dereferencable handle in response to an allocation request.
->>>>>> +That handle must be mapped, using zs_map_object(), which returns
->>>>>> +a pointer to the mapped region that can be used.  The mapping is
->>>>>> +necessary since the object data may reside in two different
->>>>>> +noncontigious pages.
->>>>> Do you mean the reason of  to use a zsmalloc object must map after
->>>>> malloc is object data maybe reside in two different nocontiguous
->>>>> pages?
->>>> Yes, that is one reason for the mapping.  The other reason (more
->>>> of an
->>>> added bonus) is below.
->>>>
->>>>>> +
->>>>>> +For 32-bit systems, zsmalloc has the added benefit of being
->>>>>> +able to back slabs with HIGHMEM pages, something not possible
->>>>> What's the meaning of "back slabs with HIGHMEM pages"?
->>>> By HIGHMEM, I'm referring to the HIGHMEM memory zone on 32-bit
->>>> systems
->>>> with larger that 1GB (actually a little less) of RAM.  The upper 3GB
->>>> of the 4GB address space, depending on kernel build options, is not
->>>> directly addressable by the kernel, but can be mapped into the kernel
->>>> address space with functions like kmap() or kmap_atomic().
->>>>
->>>> These pages can't be used by slab/slub because they are not
->>>> continuously mapped into the kernel address space.  However, since
->>>> zsmalloc requires a mapping anyway to handle objects that span
->>>> non-contiguous page boundaries, we do the kernel mapping as part of
->>>> the process.
->>>>
->>>> So zspages, the conceptual slab in zsmalloc backed by single-order
->>>> pages can include pages from the HIGHMEM zone as well.
->>> Thanks for your clarify,
->>>   http://lwn.net/Articles/537422/, your article about zswap in lwn.
->>>   "Additionally, the kernel slab allocator does not allow objects that
->>> are less
->>> than a page in size to span a page boundary. This means that if an
->>> object is
->>> PAGE_SIZE/2 + 1 bytes in size, it effectively use an entire page,
->>> resulting in
->>> ~50% waste. Hense there are *no kmalloc() cache size* between
->>> PAGE_SIZE/2 and
->>> PAGE_SIZE."
->>> Are your sure? It seems that kmalloc cache support big size, your can
->>> check in
->>> include/linux/kmalloc_sizes.h
->> Yes, kmalloc can allocate large objects > PAGE_SIZE, but there are no
->> cache sizes _between_ PAGE_SIZE/2 and PAGE_SIZE.  For example, on a
->> system with 4k pages, there are no caches between kmalloc-2048 and
->> kmalloc-4096.
+On Fri, 22 Feb 2013, Ric Mason wrote:
+> On 02/21/2013 04:20 PM, Hugh Dickins wrote:
+> > An inconsistency emerged in reviewing the NUMA node changes to KSM:
+> > when meeting a page from the wrong NUMA node in a stable tree, we say
+> > that it's okay for comparisons, but not as a leaf for merging; whereas
+> > when meeting a page from the wrong NUMA node in an unstable tree, we
+> > bail out immediately.
 > 
-> kmalloc object > PAGE_SIZE/2 or > PAGE_SIZE should also allocate from
-> slab cache, correct? Then how can alloc object w/o slab cache which
-> contains this object size objects?
+> IIUC
+> - ksm page from the wrong NUMA node will be add to current node's stable tree
 
-I have to admit, I didn't understand the question.
+That should never happen (and when I was checking with a WARN_ON it did
+not happen).  What can happen is that a node already in a stable tree
+has its page migrated away to another NUMA node.
 
-Thanks,
-Seth
+> - normal page from the wrong NUMA node will be merged to current node's
+> stable tree  <- where I miss here? I didn't see any special handling in
+> function stable_tree_search for this case.
+
+	nid = get_kpfn_nid(page_to_pfn(page));
+	root = root_stable_tree + nid;
+
+to choose the right tree for the page, and
+
+				if (get_kpfn_nid(stable_node->kpfn) !=
+						NUMA(stable_node->nid)) {
+					put_page(tree_page);
+					goto replace;
+				}
+
+to make sure that we don't latch on to a node whose page got migrated away.
+
+> - normal page from the wrong NUMA node will compare but not as a leaf for
+> merging after the patch
+
+I don't understand you there, but hope my remarks above resolve it.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
