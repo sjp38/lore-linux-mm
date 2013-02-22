@@ -1,71 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 077166B0006
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 12:58:11 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 22 Feb 2013 12:58:10 -0500
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id BE15AC90026
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 12:58:05 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1MHw5IV273394
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 12:58:05 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1MHw4bZ023363
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 14:58:05 -0300
-Message-ID: <5127B1AA.4080904@linux.vnet.ibm.com>
-Date: Fri, 22 Feb 2013 11:58:02 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 779946B0002
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 14:22:20 -0500 (EST)
+Received: by mail-pb0-f49.google.com with SMTP id xa12so564830pbc.22
+        for <linux-mm@kvack.org>; Fri, 22 Feb 2013 11:22:19 -0800 (PST)
+Message-ID: <5127C55F.1090506@gmail.com>
+Date: Sat, 23 Feb 2013 03:22:07 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv6 1/8] zsmalloc: add to mm/
-References: <1361397888-14863-1-git-send-email-sjenning@linux.vnet.ibm.com> <1361397888-14863-2-git-send-email-sjenning@linux.vnet.ibm.com> <20130222094001.GB8077@lge.com>
-In-Reply-To: <20130222094001.GB8077@lge.com>
+Subject: Re: [PATCH v2] mm: let /proc/meminfo report physical memory installed
+ as "MemTotal"
+References: <alpine.DEB.2.02.1302191326150.6322@chino.kir.corp.google.com> <1361381245-14664-1-git-send-email-jiang.liu@huawei.com> <20130220144917.7d289ef0.akpm@linux-foundation.org> <512658AA.5060806@gmail.com> <20130221133141.73855348.akpm@linux-foundation.org>
+In-Reply-To: <20130221133141.73855348.akpm@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, sworddragon2@aol.com, Jiang Liu <jiang.liu@huawei.com>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On 02/22/2013 03:40 AM, Joonsoo Kim wrote:
-> On Wed, Feb 20, 2013 at 04:04:41PM -0600, Seth Jennings wrote:
->> =========
->> DO NOT MERGE, FOR REVIEW ONLY
->> This patch introduces zsmalloc as new code, however, it already
->> exists in drivers/staging.  In order to build successfully, you
->> must select EITHER to driver/staging version OR this version.
->> Once zsmalloc is reviewed in this format (and hopefully accepted),
->> I will create a new patchset that properly promotes zsmalloc from
->> staging.
->> =========
->>
->> This patchset introduces a new slab-based memory allocator,
->> zsmalloc, for storing compressed pages.  It is designed for
->> low fragmentation and high allocation success rate on
->> large object, but <= PAGE_SIZE allocations.
->>
->> zsmalloc differs from the kernel slab allocator in two primary
->> ways to achieve these design goals.
->>
->> zsmalloc never requires high order page allocations to back
->> slabs, or "size classes" in zsmalloc terms. Instead it allows
->> multiple single-order pages to be stitched together into a
->> "zspage" which backs the slab.  This allows for higher allocation
->> success rate under memory pressure.
+On 02/22/2013 05:31 AM, Andrew Morton wrote:
+> On Fri, 22 Feb 2013 01:26:02 +0800
+> Jiang Liu <liuj97@gmail.com> wrote:
 > 
-> I have one more concern. It may be possibly stale question.
-> I think that zsmalloc makes system memories more fragmented.
-> Pages for zsmalloc can't be moved and may be spread at random location
-> because it's order is just 0, so high order allocation success rate
-> will be decreased. How do you think about it?
-
-For now, this is true.  NUMA and migration awareness, IMO, are the
-highest priorities for additional development on zsmalloc (after merging).
-
-Thanks,
-Seth
+>> 	It's really hard, but I think it deserve it because have reduced
+>> about 460 lines of code when fixing this bug. So how about following
+>> patchset?
+>> 	The first 27 patches introduces some help functions to simplify
+>> free_initmem() and free_initrd_mem() for most arches.
+>> 	The 28th patch increases zone->managed_pages when freeing reserved
+>> pages.
+>> 	The 29th patch change /sys/.../nodex/meminfo to report "available
+>> pages within the node" as MemTatoal.
+> 
+> yikes.
+> 
+> Let's defer the problem for now.  Please send the patches out in the
+> usual fashion after 3.9-rc1 and we'll take a look?
+> 
+Sure, will send out those patches after 3.9-rc1 is out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
