@@ -1,167 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 7DB076B0002
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 11:39:22 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rcjenn@linux.vnet.ibm.com>;
-	Fri, 22 Feb 2013 11:39:19 -0500
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 9167B6E801A
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 11:39:15 -0500 (EST)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1MGd6tD17891408
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 11:39:06 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1MGd53m006544
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 13:39:05 -0300
-Date: Fri, 22 Feb 2013 10:38:16 -0600
-From: Robert Jennings <rcj@linux.vnet.ibm.com>
-Subject: Re: Better integration of compression with the broader linux-mm
-Message-ID: <20130222163815.GA14280@linux.vnet.ibm.com>
-References: <d7dec1e1-86fd-42b6-83c6-01340ece8d4a@default>
- <20130222004030.GI16950@blaptop>
- <5126C6B0.6080103@gmail.com>
- <20130222011918.GJ16950@blaptop>
- <5126C957.3070902@gmail.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 762016B0006
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 11:45:25 -0500 (EST)
+Message-ID: <5127A0A3.6040904@ubuntu.com>
+Date: Fri, 22 Feb 2013 11:45:23 -0500
+From: Phillip Susi <psusi@ubuntu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5126C957.3070902@gmail.com>
+Subject: Re: [PATCH] fadvise: perform WILLNEED readahead in a workqueue
+References: <20121215005448.GA7698@dcvr.yhbt.net> <20121216024520.GH9806@dastard>
+In-Reply-To: <20121216024520.GH9806@dastard>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Eric Wong <normalperson@yhbt.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-* Ric Mason (ric.masonn@gmail.com) wrote:
-> On 02/22/2013 09:19 AM, Minchan Kim wrote:
-> >On Fri, Feb 22, 2013 at 09:15:28AM +0800, Ric Mason wrote:
-> >>On 02/22/2013 08:40 AM, Minchan Kim wrote:
-> >>>On Thu, Feb 21, 2013 at 12:49:21PM -0800, Dan Magenheimer wrote:
-> >>>>Hi Mel, Rik, Hugh, Andrea --
-> >>>>
-> >>>>(Andrew and others also invited to read/comment!)
-> >>>>
-> >>>>In the last couple of years, I've had conversations or email
-> >>>>discussions with each of you which touched on a possibly
-> >>>>important future memory management policy topic.  After
-> >>>>giving it some deep thought, I wonder if I might beg for
-> >>>>a few moments of your time to think about it with me and
-> >>>>provide some feedback?
-> >>>>
-> >>>>There are now three projects that use in-kernel compression
-> >>>>to increase the amount of data that can be stored in RAM
-> >>>>(zram, zcache, and now zswap).  Each uses pages of data
-> >>>>"hooked" from the MM subsystem, compresses the pages of data
-> >>>>(into "zpages"), allocates pageframes from the MM subsystem,
-> >>>>and uses those allocated pageframes to store the zpages.
-> >>>>Other hooks decompress the data on demand back into pageframes.
-> >>>>Any pageframes containing zpages are managed by the
-> >>>>compression project code and, to the MM subsystem, the RAM
-> >>>>is just gone, the same as if the pageframes were absorbed
-> >>>>by a RAM-voracious device driver.
-> >>>>
-> >>>>Storing more data in RAM is generally a "good thing".
-> >>>>What may be a "bad thing", however, is that the MM
-> >>>>subsystem is losing control of a large fraction of the
-> >>>>RAM that it would otherwise be managing.  Since it
-> >>>>is MM's job to "load balance" different memory demands
-> >>>>on the kernel, compression may be positively improving
-> >>>>the efficiency of one class of memory while impairing
-> >>>>overall RAM "harmony" across the set of all classes.
-> >>>>(This is a question that, in some form, all of you
-> >>>>have asked me.)
-> >>>>
-> >>>>In short, the issue becomes: Is it possible to get the
-> >>>>"good thing" without the "bad thing"?  In other words,
-> >>>>is there a way to more closely integrate the management
-> >>>>of zpages along with the rest of RAM, and ensure that
-> >>>>MM is responsible for both?  And is it possible to do
-> >>>>this without a radical rewrite of MM, which would never
-> >>>>get merged?  And, if so... a question at the top of my
-> >>>>mind right now... how should this future integration
-> >>>>impact the design/redesign/merging of zram/zcache/zswap?
-> >>>>
-> >>>>So here's what I'm thinking...
-> >>>>
-> >>>>First, it's important to note that currently the only
-> >>>>two classes of memory that are "hooked" are clean
-> >>>>pagecache pages (by zcache only) and anonymous pages
-> >>>>(by all three).  There is potential that other classes
-> >>>>(dcache?) may be candidates for compression in the future
-> >>>>but let's ignore them for now.
-> >>>>
-> >>>>Both "file" pages and "anon" pages are currently
-> >>>>subdivided into "inactive" and "active" subclasses and
-> >>>>kswapd currently "load balances" the four subclasses:
-> >>>>file_active, file_inactive, anon_active, and anon_inactive.
-> >>>>
-> >>>>What I'm thinking is that compressed pages are really
-> >>>>just a third type of subclass, i.e. active, inactive,
-> >>>>and compressed ("very inactive").  However, since the
-> >>>>size of a zpage varies dramatically and unpredictably --
-> >>>>and thus so does the storage density -- the MM subsystem
-> >>>>should care NOT about the number of zpages, but the
-> >>>>number of pageframes currently being used to store zpages!
-> >>>>
-> >>>>So we want the MM subsystem to track and manage:
-> >>>>
-> >>>>1a) quantity of pageframes containing file_active pages
-> >>>>1b) quantity of pageframes containing file_inactive pages
-> >>>>1c) quantity of pageframes containing file_zpages
-> >>>>2a) quantity of pageframes containing anon_active pages
-> >>>>2b) quantity of pageframes containing anon_inactive pages
-> >>>>2c) quantity of pageframes containing anon_zpages
-> >>>>
-> >>>>For (1a/2a) and (1b/2b), of course, quantity of pageframes
-> >>>>is exactly the same as the number of pages, and the
-> >>>>kernel already tracks and manages these.  For (1c/2c)
-> >>>>however, MM only need care about the number of pageframes, not
-> >>>>the number of zpages.  It is the MM-compression sub-subsystem's
-> >>>>responsibility to take direction from the MM subsystem as
-> >>>>to the total number of pageframes it uses... how (and how
-> >>>>efficiently) it stores zpages in that number of pageframes
-> >>>>is its own business.  If MM tells MM-compression to
-> >>>>reduce "quantity of pageframes containing anon_zpages"
-> >>>>it must be able to do that.
-> >>>>
-> >>>>OK, does that make sense?  If so, I have thoughts on
-> >>>I think that's a good idea.
-> >>>MM can give general API like alloc_pages(GFP_ZSPAGE) and put together
-> >>>sub pages of zspage into LRU_[FILE|ANON]_ZPAGES which would be
-> >>>zone/node aware as well as system-wide LRU.
-> >>>
-> >>>Each sub pages could have a function pointer in struct page somewhere.
-> >>>which would be each MM-compression subsystem's reclaim function.
-> >>>So MM can ask to MM-compression subsystem to reclaim the page
-> >>>when needs happens.
-> >>Why need function pointer in struct page? Since zspages are on
-> >>LRU_[FILE|ANON]_ZPAGES, page reclaim subsystem call reclaim them
-> >>directly.
-> >It would be a subpage of zspage and zspage format might be different in each
-> >MM-compression subsystem so MM layter can't reclaim them without helping from
-> >MM-compression subsytsem, IMHO.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+On 12/15/2012 9:45 PM, Dave Chinner wrote:
+> On Sat, Dec 15, 2012 at 12:54:48AM +0000, Eric Wong wrote:
+>> Applications streaming large files may want to reduce disk
+>> spinups and I/O latency by performing large amounts of readahead
+>> up front. Applications also tend to read files soon after opening
+>> them, so waiting on a slow fadvise may cause unpleasant latency
+>> when the application starts reading the file.
+>> 
+>> As a userspace hacker, I'm sometimes tempted to create a
+>> background thread in my app to run readahead().  However, I
+>> believe doing this in the kernel will make life easier for other
+>> userspace hackers.
+>> 
+>> Since fadvise makes no guarantees about when (or even if)
+>> readahead is performed, this change should not hurt existing
+>> applications.
+>> 
+>> "strace -T" timing on an uncached, one gigabyte file:
+>> 
+>> Before: fadvise64(3, 0, 0, POSIX_FADV_WILLNEED) = 0 <2.484832> 
+>> After: fadvise64(3, 0, 0, POSIX_FADV_WILLNEED) = 0 <0.000061>
 > 
-> Thanks for your clarify. Also I think zspages result in memory can't
-> hotplug.
+> You've basically asked fadvise() to readahead the entire file if
+> it can. That means it is likely to issue enough readahead to fill
+> the IO queue, and that's where all the latency is coming from. If
+> all you are trying to do is reduce the latency of the first read,
+> then only readahead the initial range that you are going to need to
+> read...
 
-There is an isolation notifier chain which could be used.  It allows
-users of non-migratable pages to free memory for hotplug.  It was added
-in commit 925cc71 (see description there) and moved to current location
-by commit ee6f509.
+It shouldn't take 2 seconds to queue up some async reads.  Are you
+using ext3?  The blocks have to be mapped in order to queue the reads,
+and without ext4 extents, this means the indirect blocks have to be
+read and can cause fadvise to block.
 
-This improves the chances for memory hotplug removal and where possible
-users of non-migratable pages should employ this notifier.  There's no
-guanantee that memory can be removed because a section which has
-non-migratable pages may have some pages that are not covered by an
-isolation notifier.
 
-The notifier tries to account for all non-migratable pages through the
-memory_isolate_chain.  If that is sucessful it is expected that those
-pages will be freed later through the memory notifier chain and removal
-contines for that section.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.17 (MingW32)
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
 
---Rob Jennings
+iQEcBAEBAgAGBQJRJ6CjAAoJEJrBOlT6nu759s8IAKmIyZYDk1JSRP6oJaGaGZ/r
+aZCBH52wTPH8DaqFGe+62L8lyIQ5hD15Y+zTuaWh+fJ7C1k/lU8F/QbKCG2D+xCB
+vfLF0WRx63fWLLg8xZTRU1x8X6sG+Byp+UYWNspTDrL15ChlaqqGGmwLNo4JxLa8
++AGQVt1WMU3TitD9CUMUfYFWGUQsMR0gWeJkJnjHiEZ7VoGzft2PTlnvElzIk76u
+3cmwfoKHrnXzi50rPtP2gonRjMwd8VY859qOk0zlHoMDMcXklAWeIN9PEUIMx+VP
+fMnBm6u48cKXPYGvQrGMOdjxlt7k4LhGDZxIlvmwNHWUSaifmkJ8oBMvfbAYtUA=
+=G5rE
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
