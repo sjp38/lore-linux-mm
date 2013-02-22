@@ -1,37 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 394DF6B0002
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 08:00:20 -0500 (EST)
-Date: Fri, 22 Feb 2013 14:00:17 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM if PF_NO_MEMCG_OOM
- is set
-Message-ID: <20130222130017.GB32285@dhcp22.suse.cz>
-References: <20130222125217.GA32285@dhcp22.suse.cz>
- <20130222135442.ADFFF498@pobox.sk>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 1E12C6B0002
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 08:42:07 -0500 (EST)
+Message-ID: <512775CA.2030603@parallels.com>
+Date: Fri, 22 Feb 2013 17:42:34 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130222135442.ADFFF498@pobox.sk>
+Subject: Re: [PATCH] mm: slab: Verify the nodeid passed to ____cache_alloc_node
+References: <943811281.6485888.1361484478519.JavaMail.root@redhat.com>
+In-Reply-To: <943811281.6485888.1361484478519.JavaMail.root@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Aaron Tomlin <atomlin@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik <riel@redhat.com>
 
-On Fri 22-02-13 13:54:42, azurIt wrote:
-> >I am not sure how much time I'll have for this today but just to make
-> >sure we are on the same page, could you point me to the two patches you
-> >have applied in the mean time?
-> 
-> 
-> Here:
-> http://watchdog.sk/lkml/patches2
-
-OK, looks correct.
-
--- 
-Michal Hocko
-SUSE Labs
+On 02/22/2013 02:07 AM, Aaron Tomlin wrote:
+> The addition of this BUG_ON should make debugging easier.
+> While I understand that this code path is "hot", surely
+> it is better to assert the condition than to wait until
+> some random NULL pointer dereference or page fault. If the
+> caller passes an invalid nodeid, at this stage in my opinion
+> it's already a BUG.
+If you assert with VM_BUG_ON, it will be active on debugging kernels
+only, which I believe is better suited for a hotpath.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
