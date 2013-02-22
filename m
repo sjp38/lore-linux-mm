@@ -1,44 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 0244F6B0002
-	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 07:52:21 -0500 (EST)
-Date: Fri, 22 Feb 2013 13:52:17 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM if PF_NO_MEMCG_OOM
- is set
-Message-ID: <20130222125217.GA32285@dhcp22.suse.cz>
-References: <20130208123854.GB7557@dhcp22.suse.cz>
- <20130208145616.FB78CE24@pobox.sk>
- <20130208152402.GD7557@dhcp22.suse.cz>
- <20130208165805.8908B143@pobox.sk>
- <20130208171012.GH7557@dhcp22.suse.cz>
- <20130208220243.EDEE0825@pobox.sk>
- <20130210150310.GA9504@dhcp22.suse.cz>
- <20130210174619.24F20488@pobox.sk>
- <20130211112240.GC19922@dhcp22.suse.cz>
- <20130222092332.4001E4B6@pobox.sk>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 9563E6B0002
+	for <linux-mm@kvack.org>; Fri, 22 Feb 2013 07:54:44 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_if_PF=5FNO=5FMEMCG=5FOOM_is_set?=
+Date: Fri, 22 Feb 2013 13:54:42 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20130208123854.GB7557@dhcp22.suse.cz>, <20130208145616.FB78CE24@pobox.sk>, <20130208152402.GD7557@dhcp22.suse.cz>, <20130208165805.8908B143@pobox.sk>, <20130208171012.GH7557@dhcp22.suse.cz>, <20130208220243.EDEE0825@pobox.sk>, <20130210150310.GA9504@dhcp22.suse.cz>, <20130210174619.24F20488@pobox.sk>, <20130211112240.GC19922@dhcp22.suse.cz>, <20130222092332.4001E4B6@pobox.sk> <20130222125217.GA32285@dhcp22.suse.cz>
+In-Reply-To: <20130222125217.GA32285@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130222092332.4001E4B6@pobox.sk>
+Message-Id: <20130222135442.ADFFF498@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-Hi,
+>I am not sure how much time I'll have for this today but just to make
+>sure we are on the same page, could you point me to the two patches you
+>have applied in the mean time?
 
-On Fri 22-02-13 09:23:32, azurIt wrote:
-[...]
-> sorry that i didn't response for a while. Today i installed kernel
-> with your two patches and i'm running it now.
 
-I am not sure how much time I'll have for this today but just to make
-sure we are on the same page, could you point me to the two patches you
-have applied in the mean time?
--- 
-Michal Hocko
-SUSE Labs
+Here:
+http://watchdog.sk/lkml/patches2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
