@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id A7BCD6B0006
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 17:58:04 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id AB1916B0008
+	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 17:58:05 -0500 (EST)
 From: Phillip Susi <psusi@ubuntu.com>
-Subject: [PATCH 1/2] mm: fadvise: fix POSIX_FADV_DONTNEED
-Date: Sat, 23 Feb 2013 17:58:00 -0500
-Message-Id: <1361660281-22165-2-git-send-email-psusi@ubuntu.com>
+Subject: [PATCH 2/2] mm: fadvise: implement POSIX_FADV_NOREUSE
+Date: Sat, 23 Feb 2013 17:58:01 -0500
+Message-Id: <1361660281-22165-3-git-send-email-psusi@ubuntu.com>
 In-Reply-To: <1361660281-22165-1-git-send-email-psusi@ubuntu.com>
 References: <1361660281-22165-1-git-send-email-psusi@ubuntu.com>
 In-Reply-To: <5127E8B7.9080202@ubuntu.com>
@@ -14,112 +14,69 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 
-The previous implementation initiated writeout for a non congested bdi, and
-then discarded any clean pages.   This had 3 problems:
-
-1) The writeout would spin up the disk unnecessarily
-2) Discarding pages under low cache pressure is a waste
-3) It was useless on files being written, and thus full of dirty pages
-
-Now we just move the pages to the inactive list so they will be reclaimed
-sooner.
+This hint was a nop, now it causes the read/write path to deactivate pages
+after reading/writing them, so they will be reclaimed sooner.
 ---
- include/linux/fs.h |  2 ++
- mm/fadvise.c       |  8 ++------
- mm/filemap.c       | 43 +++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 47 insertions(+), 6 deletions(-)
+ include/linux/fs.h |  3 +++
+ mm/fadvise.c       |  1 +
+ mm/filemap.c       | 11 ++++++++---
+ 3 files changed, 12 insertions(+), 3 deletions(-)
 
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 7d2e893..2abd193 100644
+index 2abd193..de26ee3 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -2198,6 +2198,8 @@ extern int __filemap_fdatawrite_range(struct address_space *mapping,
- 				loff_t start, loff_t end, int sync_mode);
- extern int filemap_fdatawrite_range(struct address_space *mapping,
- 				loff_t start, loff_t end);
-+extern void filemap_deactivate_range(struct address_space *mapping, pgoff_t start,
-+				     pgoff_t end);
+@@ -121,6 +121,9 @@ typedef void (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
+ /* File is opened with O_PATH; almost nothing can be done with it */
+ #define FMODE_PATH		((__force fmode_t)0x4000)
  
- extern int vfs_fsync_range(struct file *file, loff_t start, loff_t end,
- 			   int datasync);
++/* POSIX_FADV_NOREUSE has been set */
++#define FMODE_NOREUSE		((__force fmode_t)0x8000)
++
+ /* File was opened by fanotify and shouldn't generate fanotify events */
+ #define FMODE_NONOTIFY		((__force fmode_t)0x1000000)
+ 
 diff --git a/mm/fadvise.c b/mm/fadvise.c
-index a47f0f5..fbd58b0 100644
+index fbd58b0..b42bf5b 100644
 --- a/mm/fadvise.c
 +++ b/mm/fadvise.c
-@@ -112,17 +112,13 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
+@@ -110,6 +110,7 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
+ 					   nrpages);
+ 		break;
  	case POSIX_FADV_NOREUSE:
++		f.file->f_mode |= FMODE_NOREUSE;
  		break;
  	case POSIX_FADV_DONTNEED:
--		if (!bdi_write_congested(mapping->backing_dev_info))
--			__filemap_fdatawrite_range(mapping, offset, endbyte,
--						   WB_SYNC_NONE);
--
  		/* First and last FULL page! */
- 		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
- 		end_index = (endbyte >> PAGE_CACHE_SHIFT);
- 
- 		if (end_index >= start_index)
--			invalidate_mapping_pages(mapping, start_index,
--						end_index);
-+			filemap_deactivate_range(mapping, start_index,
-+						 end_index);
- 		break;
- 	default:
- 		ret = -EINVAL;
 diff --git a/mm/filemap.c b/mm/filemap.c
-index c610076..bcdcdbf 100644
+index bcdcdbf..cba2f41 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -217,7 +217,49 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
- 	return ret;
- }
- 
-+/**
-+ * filemap_deactivate_range - moves pages in range to the inactive list
-+ * @mapping:	the address_space which holds the pages to deactivate
-+ * @start:	offset where the range starts
-+ * @end:	offset where the range ends (inclusive)
-+ */
-+void filemap_deactivate_range(struct address_space *mapping, pgoff_t start,
-+			      pgoff_t end)
-+{
-+	struct pagevec pvec;
-+	pgoff_t index = start;
-+	int i;
-+
-+	/*
-+	 * Note: this function may get called on a shmem/tmpfs mapping:
-+	 * pagevec_lookup() might then return 0 prematurely (because it
-+	 * got a gangful of swap entries); but it's hardly worth worrying
-+	 * about - it can rarely have anything to free from such a mapping
-+	 * (most pages are dirty), and already skips over any difficulties.
-+	 */
-+
-+	pagevec_init(&pvec, 0);
-+	while (index <= end && pagevec_lookup(&pvec, mapping, index,
-+			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
-+		mem_cgroup_uncharge_start();
-+		for (i = 0; i < pagevec_count(&pvec); i++) {
-+			struct page *page = pvec.pages[i];
-+
-+			/* We rely upon deletion not changing page->index */
-+			index = page->index;
-+			if (index > end)
-+				break;
-+
-+			WARN_ON(page->index != index);
-+			deactivate_page(page);
+@@ -1215,8 +1215,11 @@ page_ok:
+ 		 * When a sequential read accesses a page several times,
+ 		 * only mark it as accessed the first time.
+ 		 */
+-		if (prev_index != index || offset != prev_offset)
+-			mark_page_accessed(page);
++		if (prev_index != index || offset != prev_offset) {
++			if (filp->f_mode & FMODE_NOREUSE)
++				deactivate_page(page);
++			else mark_page_accessed(page);
 +		}
-+		pagevec_release(&pvec);
-+		mem_cgroup_uncharge_end();
-+		cond_resched();
-+		index++;
-+	}
-+}
-+
- static inline int __filemap_fdatawrite(struct address_space *mapping,
- 	int sync_mode)
- {
+ 		prev_index = index;
+ 
+ 		/*
+@@ -2378,7 +2381,9 @@ again:
+ 		pagefault_enable();
+ 		flush_dcache_page(page);
+ 
+-		mark_page_accessed(page);
++		if (file->f_mode & FMODE_NOREUSE)
++			deactivate_page(page);
++		else mark_page_accessed(page);
+ 		status = a_ops->write_end(file, mapping, pos, bytes, copied,
+ 						page, fsdata);
+ 		if (unlikely(status < 0))
 -- 
 1.8.1.2
 
