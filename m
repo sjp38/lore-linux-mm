@@ -1,53 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 32B326B0002
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 02:05:31 -0500 (EST)
-Received: by mail-ob0-f172.google.com with SMTP id tb18so1254766obb.3
-        for <linux-mm@kvack.org>; Fri, 22 Feb 2013 23:05:30 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id 7D8566B0006
+	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 11:18:08 -0500 (EST)
+Received: from /spool/local
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sun, 24 Feb 2013 02:13:24 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 24AD92CE802D
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 03:18:01 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1NG5aQ59634260
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 03:05:37 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1NGHxRU024382
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 03:17:59 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH -V2 03/21] powerpc: Don't hard code the size of pte page
+In-Reply-To: <20130222050607.GC6139@drongo>
+References: <1361465248-10867-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1361465248-10867-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130222050607.GC6139@drongo>
+Date: Sat, 23 Feb 2013 21:47:57 +0530
+Message-ID: <87621jc8cq.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1361475708-25991-9-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1361475708-25991-9-git-send-email-n-horiguchi@ah.jp.nec.com>
-Date: Sat, 23 Feb 2013 15:05:30 +0800
-Message-ID: <CAJd=RBDvqFYUgy+d=DJTBZoaafXoDP+QodAh2CzV2XpDMjaw7Q@mail.gmail.com>
-Subject: Re: [PATCH 8/9] memory-hotplug: enable memory hotplug to handle hugepage
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>
+To: Paul Mackerras <paulus@samba.org>
+Cc: benh@kernel.crashing.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-Hello Naoya
+Paul Mackerras <paulus@samba.org> writes:
 
-[add Michal in cc list]
-
-On Fri, Feb 22, 2013 at 3:41 AM, Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com> wrote:
+> On Thu, Feb 21, 2013 at 10:17:10PM +0530, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> USE PTRS_PER_PTE to indicate the size of pte page.
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> powerpc: Don't hard code the size of pte page
+>> 
+>> USE PTRS_PER_PTE to indicate the size of pte page.
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 >
-> +/* Returns true for head pages of in-use hugepages, otherwise returns false. */
-> +int is_hugepage_movable(struct page *hpage)
-s/int/bool/  can we?
-> +{
-> +       struct page *page;
-> +       struct page *tmp;
-> +       struct hstate *h = page_hstate(hpage);
-Make sense to compute hstate for a tail page?
-> +       int ret = 0;
-> +
-> +       VM_BUG_ON(!PageHuge(hpage));
-> +       if (PageTail(hpage))
-> +               return 0;
-VM_BUG_ON(!PageHuge(hpage) || PageTail(hpage)), can we?
-> +       spin_lock(&hugetlb_lock);
-> +       list_for_each_entry_safe(page, tmp, &h->hugepage_activelist, lru)
-s/_safe//  can we?
-> +               if (page == hpage)
-> +                       ret = 1;
-Can we bail out with ret set to be true?
-> +       spin_unlock(&hugetlb_lock);
-> +       return ret;
-> +}
+> Description and signoff are duplicated.  Description could be more
+> informative, for example - why would we want to do this?
+>
+>> +/*
+>> + * hidx is in the second half of the page table. We use the
+>> + * 8 bytes per each pte entry.
+>
+> The casual reader probably wouldn't know what "hidx" is.  The comment
+> needs at least to use a better name than "hidx".
+
+how about
+
++/*
++ * We save the slot number & secondary bit in the second half of the
++ * PTE page. We use the 8 bytes per each pte entry.
++ */
+
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
