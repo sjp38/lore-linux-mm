@@ -1,54 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id F04E66B0005
-	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 15:40:37 -0500 (EST)
-Message-ID: <512A7AC4.5000006@ubuntu.com>
-Date: Sun, 24 Feb 2013 15:40:36 -0500
-From: Phillip Susi <psusi@ubuntu.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id E97C26B0005
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 16:25:45 -0500 (EST)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Sun, 24 Feb 2013 14:25:45 -0700
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 927FE19D803D
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 14:25:41 -0700 (MST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1OLPgLm287580
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 14:25:42 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1OLPfKi003607
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 14:25:41 -0700
+Message-ID: <512A8550.2040200@linux.vnet.ibm.com>
+Date: Sun, 24 Feb 2013 13:25:36 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 1/2] mm: fadvise: fix POSIX_FADV_DONTNEED
-References: <1361660281-22165-1-git-send-email-psusi@ubuntu.com> <1361660281-22165-2-git-send-email-psusi@ubuntu.com> <5129710F.6060804@linux.vnet.ibm.com> <51298B0C.2020400@ubuntu.com> <512A5AC4.30808@linux.vnet.ibm.com>
-In-Reply-To: <512A5AC4.30808@linux.vnet.ibm.com>
+References: <1361660281-22165-1-git-send-email-psusi@ubuntu.com> <1361660281-22165-2-git-send-email-psusi@ubuntu.com> <5129710F.6060804@linux.vnet.ibm.com> <51298B0C.2020400@ubuntu.com> <512A5AC4.30808@linux.vnet.ibm.com> <512A7AC4.5000006@ubuntu.com>
+In-Reply-To: <512A7AC4.5000006@ubuntu.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
+To: Phillip Susi <psusi@ubuntu.com>
 Cc: linux-mm@kvack.org
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+On 02/24/2013 12:40 PM, Phillip Susi wrote:
+>> > I actually really like the concept behind your patch.  It looks
+>> > like very useful functionality.  I'm just saying that I know it
+>> > will break _existing_ users.
+> I'm not seeing how it will break anything.  Which aspect of the
+> current behavior is the app relying on?  If it is the immediate
+> removal of clean pages from the cache, then it should not care about
+> the new behavior since the pages will still be removed very soon when
+> under high cache pressure.
 
-On 02/24/2013 01:24 PM, Dave Hansen wrote:
-> These are folks that want to use the page cache, but also want to
-> be in control of when it gets written out (sync_file_range() is
-> used) and when it goes away.  Sure, they can use O_DIRECT and do
-> all of the buffering internally, but that means changing the
-> application.
-> 
-> I actually really like the concept behind your patch.  It looks
-> like very useful functionality.  I'm just saying that I know it
-> will break _existing_ users.
+Essentially, they don't want any I/O initiated except that which is
+initiated by the app.  If you let the system get in to reclaim, it'll
+start doing dirty writeout for pages other than those the app is
+interested in.
 
-I'm not seeing how it will break anything.  Which aspect of the
-current behavior is the app relying on?  If it is the immediate
-removal of clean pages from the cache, then it should not care about
-the new behavior since the pages will still be removed very soon when
-under high cache pressure.
+I'm also not sure how far the "just use O_DIRECT" argument is going to go:
 
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-Comment: Using GnuPG with undefined - http://www.enigmail.net/
-
-iQEcBAEBAgAGBQJRKnrEAAoJEJrBOlT6nu75swEIALnyhEwJ38Q6UUIfwFZcOgGm
-J1HF6e0jvoDmcjqwC+bInmnaYVtsbeimGZSbugxOTHw+pwNiV7twPf+b6KOrPt6F
-GzVpHtVP2dCrrnhsWwCjIcJYBDOlRx2lpVEiOWPE6WpH2O8/GmlTadCx+bWjndbg
-0lIdbmhaBOIlI2jWaSen0xWVaJM9Peh5cA7hS8lZOYYSckiKbZ1fsLV378zc8ltp
-yC39SzZ0JuAfJfYqGI56fWfOdwHLbZiyYB8VmKIRsGtHU89ITvWH8vF7h5pf9VaV
-cwdrNa4d2aLrpy95O2gMW0V+G+0lFDrpUszZets0u5r6ihi9jjt/akyImIO4U58=
-=qMk5
------END PGP SIGNATURE-----
+	https://lkml.org/lkml/2007/1/10/233
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
