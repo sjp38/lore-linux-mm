@@ -1,69 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id C0C6F6B0005
-	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 16:29:08 -0500 (EST)
-Message-ID: <1361741338.21499.38.camel@thor.lan>
-Subject: Re: [PATCH 0/5] [v3] fix illegal use of __pa() in KVM code
-From: Peter Hurley <peter@hurleysoftware.com>
-Date: Sun, 24 Feb 2013 16:28:58 -0500
-In-Reply-To: <20130122212428.8DF70119@kernel.stglabs.ibm.com>
-References: <20130122212428.8DF70119@kernel.stglabs.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 8CD576B0005
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 17:10:35 -0500 (EST)
+Date: Mon, 25 Feb 2013 09:10:13 +1100
+From: paul.szabo@sydney.edu.au
+Message-Id: <201302242210.r1OMADAd021416@como.maths.usyd.edu.au>
+Subject: Re: [RFC] Reproducible OOM with just a few sleeps
+In-Reply-To: <51209E9C.3020507@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
+To: dave@linux.vnet.ibm.com, simon.jeons@gmail.com
+Cc: 695182@bugs.debian.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+Dear Simon,
 
-On Tue, 2013-01-22 at 13:24 -0800, Dave Hansen wrote:
-> This series fixes a hard-to-debug early boot hang on 32-bit
-> NUMA systems.  It adds coverage to the debugging code,
-> adds some helpers, and eventually fixes the original bug I
-> was hitting.
+> So if he config sparse memory, the issue can be solved I think.
 
-Hi Dave,
+In my config file I have:
 
-Now that the alloc_remap() has been/is being removed, is most/all of
-this being reverted?
+CONFIG_HAVE_SPARSE_IRQ=y
+CONFIG_SPARSE_IRQ=y
+CONFIG_ARCH_SPARSEMEM_ENABLE=y
+# CONFIG_SPARSEMEM_MANUAL is not set
+CONFIG_SPARSEMEM_STATIC=y
+# CONFIG_INPUT_SPARSEKMAP is not set
+# CONFIG_SPARSE_RCU_POINTER is not set
 
-I ask because I was fixing a different bug in KVM's para-virt clock and
-saw part of this series (from [PATCH 5/5] fix kvm's use of __pa() on
-percpu areas):
+Is that sufficient for sparse memory, or should I try something else?
+Or maybe, you meant that some kernel source patches might be possible
+in the sparse memory code?
 
-diff -puN arch/x86/kernel/kvmclock.c~fix-kvm-__pa-use-on-percpu-areas arch/x86/kernel/kvmclock.c
---- linux-2.6.git/arch/x86/kernel/kvmclock.c~fix-kvm-__pa-use-on-percpu-areas   2013-01-22 13:17:16.428317508 -0800
-+++ linux-2.6.git-dave/arch/x86/kernel/kvmclock.c       2013-01-22 13:17:16.432317541 -0800
-@@ -162,8 +162,8 @@ int kvm_register_clock(char *txt)
-        int low, high, ret;
-        struct pvclock_vcpu_time_info *src = &hv_clock[cpu].pvti;
- 
--       low = (int)__pa(src) | 1;
--       high = ((u64)__pa(src) >> 32);
-+       low = (int)slow_virt_to_phys(src) | 1;
-+       high = ((u64)slow_virt_to_phys(src) >> 32);
-        ret = native_write_msr_safe(msr_kvm_system_time, low, high);
-        printk(KERN_INFO "kvm-clock: cpu %d, msr %x:%x, %s\n",
-               cpu, high, low, txt);
+Thanks, Paul
 
-which confused me because hv_clock is the __va of allocated physical
-memory, not a per-cpu variable.
-
-	mem = memblock_alloc(size, PAGE_SIZE);
-	if (!mem)
-		return;
-	hv_clock = __va(mem);
-
-So in short, my questions are:
-1) is the slow_virt_to_phys() necessary anymore?
-2) if yes, does it apply to the code above?
-3) if yes, would you explain in more detail what the 32-bit NUMA mm is
-doing, esp. wrt. when __va(__pa) is not identical across all cpus?
-
-Regards,
-Peter Hurley
-
+Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
+School of Mathematics and Statistics   University of Sydney    Australia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
