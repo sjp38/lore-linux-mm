@@ -1,55 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 7C2A56B0005
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 20:47:03 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Sat, 23 Feb 2013 20:47:02 -0500
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 9A288C9001B
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 20:46:59 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1O1kx8S326646
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 20:46:59 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1O1kxQm005066
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 22:46:59 -0300
-Message-ID: <5129710F.6060804@linux.vnet.ibm.com>
-Date: Sat, 23 Feb 2013 17:46:55 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 5D3016B0005
+	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 22:37:50 -0500 (EST)
+Message-ID: <51298B0C.2020400@ubuntu.com>
+Date: Sat, 23 Feb 2013 22:37:48 -0500
+From: Phillip Susi <psusi@ubuntu.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 1/2] mm: fadvise: fix POSIX_FADV_DONTNEED
-References: <1361660281-22165-1-git-send-email-psusi@ubuntu.com> <1361660281-22165-2-git-send-email-psusi@ubuntu.com>
-In-Reply-To: <1361660281-22165-2-git-send-email-psusi@ubuntu.com>
+References: <1361660281-22165-1-git-send-email-psusi@ubuntu.com> <1361660281-22165-2-git-send-email-psusi@ubuntu.com> <5129710F.6060804@linux.vnet.ibm.com>
+In-Reply-To: <5129710F.6060804@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Phillip Susi <psusi@ubuntu.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org
 
-On 02/23/2013 02:58 PM, Phillip Susi wrote:
-> 2) Discarding pages under low cache pressure is a waste
-> 3) It was useless on files being written, and thus full of dirty pages
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+On 02/23/2013 08:46 PM, Dave Hansen wrote:
+> Folks actually use this in practice to flush the page cache out:
 > 
-> Now we just move the pages to the inactive list so they will be reclaimed
-> sooner.
+> http://git.sr71.net/?p=eyefi-config.git;a=blob;f=eyefi-linux.c;h=b77a891995109f6caa288925a13985cc495d7b2d;hb=HEAD#l62
+>
+>  I have really good reasons for really wanting to be _rid_ of the
+> page cache no matter how much memory pressure there is.
+> 
+> I've seen people at IBM using this to ensure that they stay out of 
+> memory reclaim completely.  I don't completely agree with the
+> approach, but this would completely ruin their performance since
+> the VM-initiated writeout is so relatively slow for them.
+> 
+> I think this patch is a really bad idea.  If you want the behavior 
+> you're proposing, I'd suggest using another flag.
 
-Folks actually use this in practice to flush the page cache out:
+This is the correct behavior prescribed by posix.  If you have been
+using it for that purpose in the past, then you were using the wrong
+syscall.  If you want to begin writeout now, then you should be using
+sync_file_range().  As it was, it only initiated writeout if the
+backing device was not already congested, which is going to no longer
+be the case rather soon if you ( or other tasks ) are writing
+significant amounts of data.
 
-http://git.sr71.net/?p=eyefi-config.git;a=blob;f=eyefi-linux.c;h=b77a891995109f6caa288925a13985cc495d7b2d;hb=HEAD#l62
+If you really want to stay out of memory reclaim entirely, then you
+should be using O_DIRECT.
 
-I have really good reasons for really wanting to be _rid_ of the page
-cache no matter how much memory pressure there is.
 
-I've seen people at IBM using this to ensure that they stay out of
-memory reclaim completely.  I don't completely agree with the approach,
-but this would completely ruin their performance since the VM-initiated
-writeout is so relatively slow for them.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+Comment: Using GnuPG with undefined - http://www.enigmail.net/
 
-I think this patch is a really bad idea.  If you want the behavior
-you're proposing, I'd suggest using another flag.
+iQEcBAEBAgAGBQJRKYsKAAoJEJrBOlT6nu75nLAH/AyZetl9eFqSsXEXoSVsmimW
+ih9Nwlhqy1g4zSuThHWIS41t2XQ6vrwh7NDkGdFSwJ0GWVoWIFu5E31LofbCQEYk
+ApsTrUflUk/Cn/82oCCBzxv9G4RrmG+ywcz9SCG62uOHs3+e2525+aPzt0mPMsBR
+672J5wPXV59NmEp2jNl2VFObnBQBWKxQR9xFfZ/jzvtjW+KtVvg+G4eG+3gFGfqi
+gExlAnh6V05AS9ut7GUNDhWkJky/2qQl7sE53NbYC738f6I70vF38IMF68Taojcw
+kWWW3gc8tZvhlYVnZqWqbK9Yz7+fBxca73ELtCI5i89gcV6VBekdFTqjq4HnWyg=
+=7et5
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
