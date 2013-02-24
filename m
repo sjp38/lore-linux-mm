@@ -1,84 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id AB1916B0008
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 17:58:05 -0500 (EST)
-From: Phillip Susi <psusi@ubuntu.com>
-Subject: [PATCH 2/2] mm: fadvise: implement POSIX_FADV_NOREUSE
-Date: Sat, 23 Feb 2013 17:58:01 -0500
-Message-Id: <1361660281-22165-3-git-send-email-psusi@ubuntu.com>
-In-Reply-To: <1361660281-22165-1-git-send-email-psusi@ubuntu.com>
-References: <1361660281-22165-1-git-send-email-psusi@ubuntu.com>
-In-Reply-To: <5127E8B7.9080202@ubuntu.com>
-References: <5127E8B7.9080202@ubuntu.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 118DE6B0005
+	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 19:35:23 -0500 (EST)
+Date: Sun, 24 Feb 2013 00:35:22 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2] slub: correctly bootstrap boot caches
+In-Reply-To: <CAAmzW4OG6b+7t2S3PUY710CDHkbSb9BWxzxWULm5EzJP4BGEXA@mail.gmail.com>
+Message-ID: <0000013d09a01f03-376fad0e-700d-4a04-8da2-89e6b3a22408-000000@email.amazonses.com>
+References: <1361550000-14173-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.02.1302221034380.7600@gentwo.org> <alpine.DEB.2.02.1302221057430.7600@gentwo.org> <0000013d02d9ee83-9b41b446-ee42-4498-863e-33b3175c007c-000000@email.amazonses.com>
+ <5127A607.3040603@parallels.com> <0000013d02ee5bf7-a2d47cfc-64fb-4faa-b92e-e567aeb6b587-000000@email.amazonses.com> <CAAmzW4OG6b+7t2S3PUY710CDHkbSb9BWxzxWULm5EzJP4BGEXA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Pekka Enberg <penberg@kernel.org>
 
-This hint was a nop, now it causes the read/write path to deactivate pages
-after reading/writing them, so they will be reclaimed sooner.
----
- include/linux/fs.h |  3 +++
- mm/fadvise.c       |  1 +
- mm/filemap.c       | 11 ++++++++---
- 3 files changed, 12 insertions(+), 3 deletions(-)
+On Sat, 23 Feb 2013, JoonSoo Kim wrote:
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 2abd193..de26ee3 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -121,6 +121,9 @@ typedef void (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
- /* File is opened with O_PATH; almost nothing can be done with it */
- #define FMODE_PATH		((__force fmode_t)0x4000)
- 
-+/* POSIX_FADV_NOREUSE has been set */
-+#define FMODE_NOREUSE		((__force fmode_t)0x8000)
-+
- /* File was opened by fanotify and shouldn't generate fanotify events */
- #define FMODE_NONOTIFY		((__force fmode_t)0x1000000)
- 
-diff --git a/mm/fadvise.c b/mm/fadvise.c
-index fbd58b0..b42bf5b 100644
---- a/mm/fadvise.c
-+++ b/mm/fadvise.c
-@@ -110,6 +110,7 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
- 					   nrpages);
- 		break;
- 	case POSIX_FADV_NOREUSE:
-+		f.file->f_mode |= FMODE_NOREUSE;
- 		break;
- 	case POSIX_FADV_DONTNEED:
- 		/* First and last FULL page! */
-diff --git a/mm/filemap.c b/mm/filemap.c
-index bcdcdbf..cba2f41 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1215,8 +1215,11 @@ page_ok:
- 		 * When a sequential read accesses a page several times,
- 		 * only mark it as accessed the first time.
- 		 */
--		if (prev_index != index || offset != prev_offset)
--			mark_page_accessed(page);
-+		if (prev_index != index || offset != prev_offset) {
-+			if (filp->f_mode & FMODE_NOREUSE)
-+				deactivate_page(page);
-+			else mark_page_accessed(page);
-+		}
- 		prev_index = index;
- 
- 		/*
-@@ -2378,7 +2381,9 @@ again:
- 		pagefault_enable();
- 		flush_dcache_page(page);
- 
--		mark_page_accessed(page);
-+		if (file->f_mode & FMODE_NOREUSE)
-+			deactivate_page(page);
-+		else mark_page_accessed(page);
- 		status = a_ops->write_end(file, mapping, pos, bytes, copied,
- 						page, fsdata);
- 		if (unlikely(status < 0))
--- 
-1.8.1.2
+> With flushing, deactivate_slab() occur and it has some overhead to
+> deactivate objects.
+> If my patch properly fix this situation, it is better to use mine
+> which has no overhead.
+
+Well this occurs during boot and its not that performance critical.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
