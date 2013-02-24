@@ -1,64 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 5D3016B0005
-	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 22:37:50 -0500 (EST)
-Message-ID: <51298B0C.2020400@ubuntu.com>
-Date: Sat, 23 Feb 2013 22:37:48 -0500
-From: Phillip Susi <psusi@ubuntu.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id B8D0F6B0005
+	for <linux-mm@kvack.org>; Sat, 23 Feb 2013 22:44:01 -0500 (EST)
+Received: by mail-da0-f46.google.com with SMTP id p5so963223dak.33
+        for <linux-mm@kvack.org>; Sat, 23 Feb 2013 19:44:00 -0800 (PST)
+Date: Sun, 24 Feb 2013 11:58:52 +0800
+From: Zheng Liu <gnehzuil.liu@gmail.com>
 Subject: Re: [PATCH 1/2] mm: fadvise: fix POSIX_FADV_DONTNEED
-References: <1361660281-22165-1-git-send-email-psusi@ubuntu.com> <1361660281-22165-2-git-send-email-psusi@ubuntu.com> <5129710F.6060804@linux.vnet.ibm.com>
-In-Reply-To: <5129710F.6060804@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-ID: <20130224035851.GA5916@gmail.com>
+References: <5127E8B7.9080202@ubuntu.com>
+ <1361660281-22165-2-git-send-email-psusi@ubuntu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1361660281-22165-2-git-send-email-psusi@ubuntu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
+To: Phillip Susi <psusi@ubuntu.com>
 Cc: linux-mm@kvack.org
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
-
-On 02/23/2013 08:46 PM, Dave Hansen wrote:
-> Folks actually use this in practice to flush the page cache out:
+On Sat, Feb 23, 2013 at 05:58:00PM -0500, Phillip Susi wrote:
+> The previous implementation initiated writeout for a non congested bdi, and
+> then discarded any clean pages.   This had 3 problems:
 > 
-> http://git.sr71.net/?p=eyefi-config.git;a=blob;f=eyefi-linux.c;h=b77a891995109f6caa288925a13985cc495d7b2d;hb=HEAD#l62
->
->  I have really good reasons for really wanting to be _rid_ of the
-> page cache no matter how much memory pressure there is.
+> 1) The writeout would spin up the disk unnecessarily
+> 2) Discarding pages under low cache pressure is a waste
+> 3) It was useless on files being written, and thus full of dirty pages
 > 
-> I've seen people at IBM using this to ensure that they stay out of 
-> memory reclaim completely.  I don't completely agree with the
-> approach, but this would completely ruin their performance since
-> the VM-initiated writeout is so relatively slow for them.
+> Now we just move the pages to the inactive list so they will be reclaimed
+> sooner.
+
+Hi Phillip,
+
+I think we need to initiate writeout.  IIRC, when we try to free pages,
+we would wait on page writeback.  That will cause a huge latency for
+some applications.  If these pages have been written out, we just need
+to invalidate them.  IMO we can move these pages to inactive list and
+write them out.
+
+Regards,
+                                                - Zheng
+
+> ---
+>  include/linux/fs.h |  2 ++
+>  mm/fadvise.c       |  8 ++------
+>  mm/filemap.c       | 43 +++++++++++++++++++++++++++++++++++++++++++
+>  3 files changed, 47 insertions(+), 6 deletions(-)
 > 
-> I think this patch is a really bad idea.  If you want the behavior 
-> you're proposing, I'd suggest using another flag.
-
-This is the correct behavior prescribed by posix.  If you have been
-using it for that purpose in the past, then you were using the wrong
-syscall.  If you want to begin writeout now, then you should be using
-sync_file_range().  As it was, it only initiated writeout if the
-backing device was not already congested, which is going to no longer
-be the case rather soon if you ( or other tasks ) are writing
-significant amounts of data.
-
-If you really want to stay out of memory reclaim entirely, then you
-should be using O_DIRECT.
-
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-Comment: Using GnuPG with undefined - http://www.enigmail.net/
-
-iQEcBAEBAgAGBQJRKYsKAAoJEJrBOlT6nu75nLAH/AyZetl9eFqSsXEXoSVsmimW
-ih9Nwlhqy1g4zSuThHWIS41t2XQ6vrwh7NDkGdFSwJ0GWVoWIFu5E31LofbCQEYk
-ApsTrUflUk/Cn/82oCCBzxv9G4RrmG+ywcz9SCG62uOHs3+e2525+aPzt0mPMsBR
-672J5wPXV59NmEp2jNl2VFObnBQBWKxQR9xFfZ/jzvtjW+KtVvg+G4eG+3gFGfqi
-gExlAnh6V05AS9ut7GUNDhWkJky/2qQl7sE53NbYC738f6I70vF38IMF68Taojcw
-kWWW3gc8tZvhlYVnZqWqbK9Yz7+fBxca73ELtCI5i89gcV6VBekdFTqjq4HnWyg=
-=7et5
------END PGP SIGNATURE-----
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 7d2e893..2abd193 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -2198,6 +2198,8 @@ extern int __filemap_fdatawrite_range(struct address_space *mapping,
+>  				loff_t start, loff_t end, int sync_mode);
+>  extern int filemap_fdatawrite_range(struct address_space *mapping,
+>  				loff_t start, loff_t end);
+> +extern void filemap_deactivate_range(struct address_space *mapping, pgoff_t start,
+> +				     pgoff_t end);
+>  
+>  extern int vfs_fsync_range(struct file *file, loff_t start, loff_t end,
+>  			   int datasync);
+> diff --git a/mm/fadvise.c b/mm/fadvise.c
+> index a47f0f5..fbd58b0 100644
+> --- a/mm/fadvise.c
+> +++ b/mm/fadvise.c
+> @@ -112,17 +112,13 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
+>  	case POSIX_FADV_NOREUSE:
+>  		break;
+>  	case POSIX_FADV_DONTNEED:
+> -		if (!bdi_write_congested(mapping->backing_dev_info))
+> -			__filemap_fdatawrite_range(mapping, offset, endbyte,
+> -						   WB_SYNC_NONE);
+> -
+>  		/* First and last FULL page! */
+>  		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
+>  		end_index = (endbyte >> PAGE_CACHE_SHIFT);
+>  
+>  		if (end_index >= start_index)
+> -			invalidate_mapping_pages(mapping, start_index,
+> -						end_index);
+> +			filemap_deactivate_range(mapping, start_index,
+> +						 end_index);
+>  		break;
+>  	default:
+>  		ret = -EINVAL;
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index c610076..bcdcdbf 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -217,7 +217,49 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
+>  	return ret;
+>  }
+>  
+> +/**
+> + * filemap_deactivate_range - moves pages in range to the inactive list
+> + * @mapping:	the address_space which holds the pages to deactivate
+> + * @start:	offset where the range starts
+> + * @end:	offset where the range ends (inclusive)
+> + */
+> +void filemap_deactivate_range(struct address_space *mapping, pgoff_t start,
+> +			      pgoff_t end)
+> +{
+> +	struct pagevec pvec;
+> +	pgoff_t index = start;
+> +	int i;
+> +
+> +	/*
+> +	 * Note: this function may get called on a shmem/tmpfs mapping:
+> +	 * pagevec_lookup() might then return 0 prematurely (because it
+> +	 * got a gangful of swap entries); but it's hardly worth worrying
+> +	 * about - it can rarely have anything to free from such a mapping
+> +	 * (most pages are dirty), and already skips over any difficulties.
+> +	 */
+> +
+> +	pagevec_init(&pvec, 0);
+> +	while (index <= end && pagevec_lookup(&pvec, mapping, index,
+> +			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
+> +		mem_cgroup_uncharge_start();
+> +		for (i = 0; i < pagevec_count(&pvec); i++) {
+> +			struct page *page = pvec.pages[i];
+> +
+> +			/* We rely upon deletion not changing page->index */
+> +			index = page->index;
+> +			if (index > end)
+> +				break;
+> +
+> +			WARN_ON(page->index != index);
+> +			deactivate_page(page);
+> +		}
+> +		pagevec_release(&pvec);
+> +		mem_cgroup_uncharge_end();
+> +		cond_resched();
+> +		index++;
+> +	}
+> +}
+> +
+>  static inline int __filemap_fdatawrite(struct address_space *mapping,
+>  	int sync_mode)
+>  {
+> -- 
+> 1.8.1.2
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
