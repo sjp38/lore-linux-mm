@@ -1,46 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 3B33C6B0005
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 02:08:05 -0500 (EST)
-Received: by mail-ob0-f170.google.com with SMTP id wc20so2557622obb.29
-        for <linux-mm@kvack.org>; Sun, 24 Feb 2013 23:08:04 -0800 (PST)
-Message-ID: <512B0DC9.5010102@gmail.com>
-Date: Mon, 25 Feb 2013 15:07:53 +0800
-From: Will Huck <will.huckk@gmail.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id BA17F6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 03:30:44 -0500 (EST)
+Date: Mon, 25 Feb 2013 10:30:39 +0200
+From: Gleb Natapov <gleb@redhat.com>
+Subject: Re: [PATCH 0/5] [v3] fix illegal use of __pa() in KVM code
+Message-ID: <20130225083039.GB21422@redhat.com>
+References: <20130122212428.8DF70119@kernel.stglabs.ibm.com>
+ <1361741338.21499.38.camel@thor.lan>
 MIME-Version: 1.0
-Subject: Re: [Bug fix PATCH 1/2] acpi, movablemem_map: Exclude memblock.reserved
- ranges when parsing SRAT.
-References: <1361358056-1793-1-git-send-email-tangchen@cn.fujitsu.com> <1361358056-1793-2-git-send-email-tangchen@cn.fujitsu.com> <5124C22B.8030401@cn.fujitsu.com> <5124C32E.1080902@gmail.com> <3908561D78D1C84285E8C5FCA982C28F1E06B55D@ORSMSX108.amr.corp.intel.com> <512564B1.8020008@gmail.com> <3908561D78D1C84285E8C5FCA982C28F1E06B636@ORSMSX108.amr.corp.intel.com>
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F1E06B636@ORSMSX108.amr.corp.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1361741338.21499.38.camel@thor.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "hpa@zytor.com" <hpa@zytor.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "rob@landley.net" <rob@landley.net>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "guz.fnst@cn.fujitsu.com" <guz.fnst@cn.fujitsu.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "lliubbo@gmail.com" <lliubbo@gmail.com>, "jaegeuk.hanse@gmail.com" <jaegeuk.hanse@gmail.com>, "glommer@parallels.com" <glommer@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Peter Hurley <peter@hurleysoftware.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On 02/21/2013 08:23 AM, Luck, Tony wrote:
->> Thanks for your clarify. What's the relationship between memory ranges
->> and address ranges here?
-> The ranges in the SRAT table might cover more memory than is present on
-> the system.  E.g. on some large Itanium systems the SRAT table would say
-> that 0-1TB was on node0, 1-2TB on node1, etc.
->
-> The EFI memory map described the memory actually present (perhaps just
-> a handful of GB on each node).
->
-> X86 systems tend not to have such radically sparse layouts, so this may be less
-> of a distinction.
->
->> What's the relationship between memory/address ranges and /proc/iomem?
-> I *think* that /proc/iomem just shows what is in e820 (for the memory entries,
-> it also adds in I/O ranges that come from other ACPI sources).
+On Sun, Feb 24, 2013 at 04:28:58PM -0500, Peter Hurley wrote:
+> 
+> On Tue, 2013-01-22 at 13:24 -0800, Dave Hansen wrote:
+> > This series fixes a hard-to-debug early boot hang on 32-bit
+> > NUMA systems.  It adds coverage to the debugging code,
+> > adds some helpers, and eventually fixes the original bug I
+> > was hitting.
+> 
+> Hi Dave,
+> 
+> Now that the alloc_remap() has been/is being removed, is most/all of
+> this being reverted?
+> 
+> I ask because I was fixing a different bug in KVM's para-virt clock and
+> saw part of this series (from [PATCH 5/5] fix kvm's use of __pa() on
+> percpu areas):
+> 
+> diff -puN arch/x86/kernel/kvmclock.c~fix-kvm-__pa-use-on-percpu-areas arch/x86/kernel/kvmclock.c
+> --- linux-2.6.git/arch/x86/kernel/kvmclock.c~fix-kvm-__pa-use-on-percpu-areas   2013-01-22 13:17:16.428317508 -0800
+> +++ linux-2.6.git-dave/arch/x86/kernel/kvmclock.c       2013-01-22 13:17:16.432317541 -0800
+> @@ -162,8 +162,8 @@ int kvm_register_clock(char *txt)
+>         int low, high, ret;
+>         struct pvclock_vcpu_time_info *src = &hv_clock[cpu].pvti;
+>  
+> -       low = (int)__pa(src) | 1;
+> -       high = ((u64)__pa(src) >> 32);
+> +       low = (int)slow_virt_to_phys(src) | 1;
+> +       high = ((u64)slow_virt_to_phys(src) >> 32);
+>         ret = native_write_msr_safe(msr_kvm_system_time, low, high);
+>         printk(KERN_INFO "kvm-clock: cpu %d, msr %x:%x, %s\n",
+>                cpu, high, low, txt);
+> 
+I think this hunk was converted by mistake since the code does not use
+per cpu allocations, but since __pa() and slow_virt_to_phys() should
+return the same thing here it does not matter much.
 
-Funtion detect_memory use int 0x15 to get e820 memory map information, 
-but why the address range is not contigous and seprate to several ranges?
+> which confused me because hv_clock is the __va of allocated physical
+> memory, not a per-cpu variable.
+> 
+> 	mem = memblock_alloc(size, PAGE_SIZE);
+> 	if (!mem)
+> 		return;
+> 	hv_clock = __va(mem);
+> 
+> So in short, my questions are:
+> 1) is the slow_virt_to_phys() necessary anymore?
+> 2) if yes, does it apply to the code above?
+> 3) if yes, would you explain in more detail what the 32-bit NUMA mm is
+> doing, esp. wrt. when __va(__pa) is not identical across all cpus?
+> 
+> Regards,
+> Peter Hurley
+> 
 
->
-> -Tony
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
