@@ -1,66 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 58C336B0005
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:05:57 -0500 (EST)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 90C656B0005
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:18:11 -0500 (EST)
+Date: Mon, 25 Feb 2013 12:18:10 -0500 (EST)
+From: Aaron Tomlin <atomlin@redhat.com>
+Message-ID: <591256534.8212978.1361812690861.JavaMail.root@redhat.com>
+In-Reply-To: <813482873.8209105.1361812140956.JavaMail.root@redhat.com>
+Subject: Re: [PATCH v2] mm: slab: Verify the nodeid passed to
+ ____cache_alloc_node
 MIME-Version: 1.0
-Message-ID: <69936094-e2fc-44bd-b179-f567e8681bec@default>
-Date: Mon, 25 Feb 2013 09:05:38 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCHv5 1/8] zsmalloc: add to mm/
-References: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1360780731-11708-2-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130219091804.GA13989@lge.com> <5123BC4D.1010404@linux.vnet.ibm.com>
- <20130219233733.GA16950@blaptop> <20130222092420.GA8077@lge.com>
- <5127CF34.9040302@linux.vnet.ibm.com>
-In-Reply-To: <5127CF34.9040302@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Rik <riel@redhat.com>, glommer@parallels.com
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Sent: Friday, February 22, 2013 1:04 PM
-> To: Joonsoo Kim
-> Subject: Re: [PATCHv5 1/8] zsmalloc: add to mm/
->=20
-> On 02/22/2013 03:24 AM, Joonsoo Kim wrote:
-> >
-> > It's my quick thought. So there is no concrete idea.
-> > As Seth said, with a FULL list, zsmalloc always access all zspage.
-> > So, if we want to know what pages are for zsmalloc, we can know it.
-> > The EMPTY list can be used for pool of zsmalloc itself. With it, we don=
-'t
-> > need to free zspage directly, we can keep zspages, so can reduce
-> > alloc/free overhead. But, I'm not sure whether it is useful.
->=20
-> I think it's a good idea.  zswap actually does this "keeping some free
-> pages around for later allocations" outside zsmalloc in a mempool that
-> zswap manages.  Minchan once mentioned bringing that inside zsmalloc
-> and this would be a way we could do it.
+Hi,
 
-I think it's a very bad idea.  If I understand, the suggestion will
-hide away some quantity (possibly a very large quantity) of pages
-for the sole purpose of zswap, in case zswap gets around to using them
-sometime in the future.  In the meantime, those pages are not available
-for use by any other kernel subsystems or by userland processes.
-An idle page is a wasted page.
+This patch is in response to bz#42967 [1]. Using VM_BUG_ON
+instead of a generic BUG_ON so it's used only when 
+CONFIG_DEBUG_VM is set, given that ____cache_alloc_node()
+is a hot code path.
 
-While you might defend the mempool use for a handful of pages,
-frontswap writes/reads thousands of pages in a bursty way,
-and then can go idle for a very long time.  This may not be
-readily apparent with artificially-created memory pressure
-from kernbench with -jN (high N).  Leaving thousands
-of pages in zswap's personal free list may cause memory pressure
-that would otherwise never have existed.
+Cheers,
+Aaron
 
-> Just want to be clear that I'd be in favor of looking at this after
-> the merge.
+[1]: https://bugzilla.kernel.org/show_bug.cgi?id=42967
 
-I disagree... I think this is exactly the kind of fundamental
-MM interaction that should be well understood and resolved
-BEFORE anything gets merged.
+---8<---
+mm: slab: Verify the nodeid passed to ____cache_alloc_node
+    
+If the nodeid is > num_online_nodes() this can cause an
+Oops and a panic(). The purpose of this patch is to assert
+if this condition is true to aid debugging efforts rather
+than some random NULL pointer dereference or page fault.
+    
+Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
+
+ slab.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index e7667a3..735e8bd 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3412,6 +3412,7 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
+ 	void *obj;
+ 	int x;
+ 
++	VM_BUG_ON(nodeid > num_online_nodes());
+ 	l3 = cachep->nodelists[nodeid];
+ 	BUG_ON(!l3);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
