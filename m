@@ -1,82 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 9D6B06B0005
-	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 21:13:11 -0500 (EST)
-Date: Mon, 25 Feb 2013 11:13:08 +0900
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id C7BA56B0005
+	for <linux-mm@kvack.org>; Sun, 24 Feb 2013 21:54:05 -0500 (EST)
+Date: Mon, 25 Feb 2013 11:54:03 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] mm: remove MIGRATE_ISOLATE check in hotpath
-Message-ID: <20130225021308.GA6498@blaptop>
-References: <1358209006-18859-1-git-send-email-minchan@kernel.org>
- <20130115153625.96265439.akpm@linux-foundation.org>
+Subject: Re: [PATCHv5 7/8] zswap: add swap page writeback support
+Message-ID: <20130225025403.GB6498@blaptop>
+References: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1360780731-11708-8-git-send-email-sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130115153625.96265439.akpm@linux-foundation.org>
+In-Reply-To: <1360780731-11708-8-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Nazarewicz <mina86@mina86.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Hi Andrew,
+Hi Seth,
 
-Sorry for late reply and I totally missed it. :(
-
-On Tue, Jan 15, 2013 at 03:36:25PM -0800, Andrew Morton wrote:
-> On Tue, 15 Jan 2013 09:16:46 +0900
-> Minchan Kim <minchan@kernel.org> wrote:
+On Wed, Feb 13, 2013 at 12:38:50PM -0600, Seth Jennings wrote:
+> This patch adds support for evicting swap pages that are currently
+> compressed in zswap to the swap device.  This functionality is very
+> important and make zswap a true cache in that, once the cache is full
+> or can't grow due to memory pressure, the oldest pages can be moved
+> out of zswap to the swap device so newer pages can be compressed and
+> stored in zswap.
 > 
-> > Now mm several functions test MIGRATE_ISOLATE and some of those
-> > are hotpath but MIGRATE_ISOLATE is used only if we enable
-> > CONFIG_MEMORY_ISOLATION(ie, CMA, memory-hotplug and memory-failure)
-> > which are not common config option. So let's not add unnecessary
-> > overhead and code when we don't enable CONFIG_MEMORY_ISOLATION.
+> This introduces a good amount of new code to guarantee coherency.
+> Most notably, and LRU list is added to the zswap_tree structure,
+> and refcounts are added to each entry to ensure that one code path
+> doesn't free then entry while another code path is operating on it.
 > 
-> ugh.  Better than nothing, I guess.
-> 
-> There remain call sites which do open-coded
-> 
-> 	get_pageblock_migratetype(page) != MIGRATE_ISOLATE
-> 
-> (undo_isolate_page_range() is one).  Wanna clean these up as well?
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-Oops, Sure.
+In this time, I didn't review the code in detail yet but it seems
+resolve of all review point in previous interation. Thanks!
+But unfortunately, I couldn't find anything related to tmppage handling
+so I'd like to ask.
 
-> 
-> >
-> > ...
-> >
-> > @@ -683,7 +683,7 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
-> >  	zone->pages_scanned = 0;
-> >  
-> >  	__free_one_page(page, zone, order, migratetype);
-> > -	if (unlikely(migratetype != MIGRATE_ISOLATE))
-> > +	if (unlikely(!is_migrate_isolate(migratetype)))
-> >  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
-> >  	spin_unlock(&zone->lock);
-> >  }
-> 
-> The code both before and after this patch is assuming that the
-> migratetype in free_one_page is likely to be MIGRATE_ISOLATE.  Seems
-> wrong.  If CONFIG_MEMORY_ISOLATION=n this ends up doing
-> if(unlikely(true)) which is harmless-but-amusing.
+The reason of tmppage is temporal buffer to keep compressed data during
+writeback to avoid unnecessary compressing again when we retry?
+Is it really critical about performance? What's the wrong if we remove
+tmppage handling?
 
->From the beginning of [2139cbe627, cma: fix counting of isolated pages],
-it was wrong. We can't make sure it's very likely.
-If it is called by order-0 page free path, it is but if it is called by
-high order page free path, we can't.
-So I think it would be better to remove unlikley.
+zswap_frontswap_store
+retry:
+        get_cpu_var(zswap_dstmem);
+        zswap_com_op(COMPRESS)
+        zs_malloc()
+        if (!handle) {
+                put_cpu_var(zswap_dstmem);
+                if (retry > MAX_RETRY)
+                        goto error_nomem;
+                zswap_flush_entries()
+                goto retry;
+        }
 
-They are trivial patch so send it now or send it after you release
-first mmotm after finishing merge window?
-
-Andrew, Which is better?
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Kind regards,
