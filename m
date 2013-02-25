@@ -1,138 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id D78716B0006
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:29:41 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 25 Feb 2013 12:29:40 -0500
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 9EC856E8048
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:29:34 -0500 (EST)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1PHTacm312846
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:29:36 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1PHTZmH014885
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:29:36 -0500
-Message-ID: <512B9D8C.3090506@linux.vnet.ibm.com>
-Date: Mon, 25 Feb 2013 11:21:16 -0600
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id B30C76B0007
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:29:44 -0500 (EST)
 MIME-Version: 1.0
-Subject: Re: [PATCHv6 4/8] zswap: add to mm/
-References: <1361397888-14863-1-git-send-email-sjenning@linux.vnet.ibm.com> <1361397888-14863-5-git-send-email-sjenning@linux.vnet.ibm.com> <20130225043551.GA12158@lge.com>
-In-Reply-To: <20130225043551.GA12158@lge.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-ID: <c515af54-0972-41e6-96c2-8a6df9a9df5e@default>
+Date: Mon, 25 Feb 2013 09:29:35 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie to
+ a config option
+References: <1360175261-13287-1-git-send-email-dan.magenheimer@oracle.com>
+ <5126EB45.10700@gmail.com>
+In-Reply-To: <5126EB45.10700@gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com, minchan@kernel.org
 
-On 02/24/2013 10:35 PM, Joonsoo Kim wrote:
-> Hello, Seth.
-> Here comes minor comments.
-> 
-<snip>
->> +static int __zswap_cpu_notifier(unsigned long action, unsigned long cpu)
->> +{
->> +	struct crypto_comp *tfm;
->> +	u8 *dst;
->> +
->> +	switch (action) {
->> +	case CPU_UP_PREPARE:
->> +		tfm = crypto_alloc_comp(zswap_compressor, 0, 0);
->> +		if (IS_ERR(tfm)) {
->> +			pr_err("can't allocate compressor transform\n");
->> +			return NOTIFY_BAD;
->> +		}
->> +		*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = tfm;
->> +		dst = (u8 *)__get_free_pages(GFP_KERNEL, 1);
-> 
-> Order 1 is really needed?
-> Following code uses only PAGE_SIZE, not 2 * PAGE_SIZE.
+> From: Ric Mason [mailto:ric.masonn@gmail.com]
+> Subject: Re: [PATCH] staging/zcache: Fix/improve zcache writeback code, t=
+ie to a config option
+>=20
+> On 02/07/2013 02:27 AM, Dan Magenheimer wrote:
+> > It was observed by Andrea Arcangeli in 2011 that zcache can get "full"
+> > and there must be some way for compressed swap pages to be (uncompresse=
+d
+> > and then) sent through to the backing swap disk.  A prototype of this
+> > functionality, called "unuse", was added in 2012 as part of a major upd=
+ate
+> > to zcache (aka "zcache2"), but was left unfinished due to the unfortuna=
+te
+> > temporary fork of zcache.
+> >
+> > This earlier version of the code had an unresolved memory leak
+> > and was anyway dependent on not-yet-upstream frontswap and mm changes.
+> > The code was meanwhile adapted by Seth Jennings for similar
+> > functionality in zswap (which he calls "flush").  Seth also made some
+> > clever simplifications which are herein ported back to zcache.  As a
+> > result of those simplifications, the frontswap changes are no longer
+> > necessary, but a slightly different (and simpler) set of mm changes are
+> > still required [1].  The memory leak is also fixed.
+> >
+> > Due to feedback from akpm in a zswap thread, this functionality in zcac=
+he
+> > has now been renamed from "unuse" to "writeback".
+> >
+> > Although this zcache writeback code now works, there are open questions
+> > as how best to handle the policy that drives it.  As a result, this
+> > patch also ties writeback to a new config option.  And, since the
+> > code still depends on not-yet-upstreamed mm patches, to avoid build
+> > problems, the config option added by this patch temporarily depends
+> > on "BROKEN"; this config dependency can be removed in trees that
+> > contain the necessary mm patches.
+> >
+> > [1] https://lkml.org/lkml/2013/1/29/540/ https://lkml.org/lkml/2013/1/2=
+9/539/
+>=20
+> This patch leads to backend interact with core mm directly,  is it core
+> mm should interact with frontend instead of backend? In addition,
+> frontswap has already have shrink funtion, should we can take advantage
+> of it?
 
-Yes, probably should add a comment here.
+Good questions!
 
-Some compression modules in the kernel, notably LZO, do not guard
-against buffer overrun during compression.  In cases where LZO tries
-to compress a page with high entropy (e.g. a page containing already
-compressed data like JPEG), the compressed result can actually be
-larger than the original data.  In this case, if the compression
-buffer is only one page, we overrun.  I actually encountered this
-during development.
+If you have ideas (or patches) that handle the interaction with
+the frontend instead of backend, we can take a look at them.
+But for zcache (and zswap), the backend already interacts with
+the core mm, for example to allocate and free pageframes.
 
-> 
->> +		if (!dst) {
->> +			pr_err("can't allocate compressor buffer\n");
->> +			crypto_free_comp(tfm);
->> +			*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = NULL;
->> +			return NOTIFY_BAD;
->> +		}
-<snip>
->> +	buf = zs_map_object(tree->pool, handle, ZS_MM_WO);
->> +	memcpy(buf, dst, dlen);
->> +	zs_unmap_object(tree->pool, handle);
->> +	put_cpu_var(zswap_dstmem);
->> +
->> +	/* allocate entry */
->> +	entry = zswap_entry_cache_alloc(GFP_KERNEL);
->> +	if (!entry) {
->> +		zs_free(tree->pool, handle);
->> +		zswap_reject_kmemcache_fail++;
->> +		ret = -ENOMEM;
->> +		goto reject;
->> +	}
-> 
-> How about moving up zswap_entry_cache_alloc()?
-> It can save compression processing time
-> if zswap_entry_cache_alloc() is failed.
+The existing frontswap shrink function cause data pages to be sucked
+back from the backend.  The data pages are put back in the swapcache
+and they aren't marked in any way so it is possible the data page
+might soon (or immediately) be sent back to the backend.
 
-Will do.
+This code is used for backends that can't "callback" the frontend, such
+as the Xen tmem backend and ramster.  But I do agree that there
+might be a good use for the frontswap shrink function for zcache
+(and zswap).  Any ideas?
 
-> 
->> +
->> +	/* populate entry */
->> +	entry->type = type;
->> +	entry->offset = offset;
->> +	entry->handle = handle;
->> +	entry->length = dlen;
->> +
-<snip>
->> +/* invalidates all pages for the given swap type */
->> +static void zswap_frontswap_invalidate_area(unsigned type)
->> +{
->> +	struct zswap_tree *tree = zswap_trees[type];
->> +	struct rb_node *node;
->> +	struct zswap_entry *entry;
->> +
->> +	if (!tree)
->> +		return;
->> +
->> +	/* walk the tree and free everything */
->> +	spin_lock(&tree->lock);
->> +	/*
->> +	 * TODO: Even though this code should not be executed because
->> +	 * the try_to_unuse() in swapoff should have emptied the tree,
->> +	 * it is very wasteful to rebalance the tree after every
->> +	 * removal when we are freeing the whole tree.
->> +	 *
->> +	 * If post-order traversal code is ever added to the rbtree
->> +	 * implementation, it should be used here.
->> +	 */
->> +	while ((node = rb_first(&tree->rbroot))) {
->> +		entry = rb_entry(node, struct zswap_entry, rbnode);
->> +		rb_erase(&entry->rbnode, &tree->rbroot);
->> +		zs_free(tree->pool, entry->handle);
->> +		zswap_entry_cache_free(entry);
->> +	}
-> 
-> You should decrease zswap_stored_pages in while loop.
-
-Yes. Will do.
-
-Thanks,
-Seth
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
