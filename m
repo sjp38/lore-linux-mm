@@ -1,85 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 7CC346B0005
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 11:58:14 -0500 (EST)
-Date: Mon, 25 Feb 2013 11:57:56 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1361811476-la4ql3y2-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CAJd=RBDvqFYUgy+d=DJTBZoaafXoDP+QodAh2CzV2XpDMjaw7Q@mail.gmail.com>
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1361475708-25991-9-git-send-email-n-horiguchi@ah.jp.nec.com>
- <CAJd=RBDvqFYUgy+d=DJTBZoaafXoDP+QodAh2CzV2XpDMjaw7Q@mail.gmail.com>
-Subject: Re: [PATCH 8/9] memory-hotplug: enable memory hotplug to handle
- hugepage
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 58C336B0005
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:05:57 -0500 (EST)
+MIME-Version: 1.0
+Message-ID: <69936094-e2fc-44bd-b179-f567e8681bec@default>
+Date: Mon, 25 Feb 2013 09:05:38 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCHv5 1/8] zsmalloc: add to mm/
+References: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1360780731-11708-2-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20130219091804.GA13989@lge.com> <5123BC4D.1010404@linux.vnet.ibm.com>
+ <20130219233733.GA16950@blaptop> <20130222092420.GA8077@lge.com>
+ <5127CF34.9040302@linux.vnet.ibm.com>
+In-Reply-To: <5127CF34.9040302@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Hi Hillf,
-
-On Sat, Feb 23, 2013 at 03:05:30PM +0800, Hillf Danton wrote:
-> Hello Naoya
-> 
-> [add Michal in cc list]
-> 
-> On Fri, Feb 22, 2013 at 3:41 AM, Naoya Horiguchi
-> <n-horiguchi@ah.jp.nec.com> wrote:
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Sent: Friday, February 22, 2013 1:04 PM
+> To: Joonsoo Kim
+> Subject: Re: [PATCHv5 1/8] zsmalloc: add to mm/
+>=20
+> On 02/22/2013 03:24 AM, Joonsoo Kim wrote:
 > >
-> > +/* Returns true for head pages of in-use hugepages, otherwise returns false. */
-> > +int is_hugepage_movable(struct page *hpage)
-> s/int/bool/  can we?
+> > It's my quick thought. So there is no concrete idea.
+> > As Seth said, with a FULL list, zsmalloc always access all zspage.
+> > So, if we want to know what pages are for zsmalloc, we can know it.
+> > The EMPTY list can be used for pool of zsmalloc itself. With it, we don=
+'t
+> > need to free zspage directly, we can keep zspages, so can reduce
+> > alloc/free overhead. But, I'm not sure whether it is useful.
+>=20
+> I think it's a good idea.  zswap actually does this "keeping some free
+> pages around for later allocations" outside zsmalloc in a mempool that
+> zswap manages.  Minchan once mentioned bringing that inside zsmalloc
+> and this would be a way we could do it.
 
-Yes, we can. I'll do this.
+I think it's a very bad idea.  If I understand, the suggestion will
+hide away some quantity (possibly a very large quantity) of pages
+for the sole purpose of zswap, in case zswap gets around to using them
+sometime in the future.  In the meantime, those pages are not available
+for use by any other kernel subsystems or by userland processes.
+An idle page is a wasted page.
 
-> > +{
-> > +       struct page *page;
-> > +       struct page *tmp;
-> > +       struct hstate *h = page_hstate(hpage);
-> Make sense to compute hstate for a tail page?
+While you might defend the mempool use for a handful of pages,
+frontswap writes/reads thousands of pages in a bursty way,
+and then can go idle for a very long time.  This may not be
+readily apparent with artificially-created memory pressure
+from kernbench with -jN (high N).  Leaving thousands
+of pages in zswap's personal free list may cause memory pressure
+that would otherwise never have existed.
 
-No need to do this here.
-It's better to put it after PageTail check.
+> Just want to be clear that I'd be in favor of looking at this after
+> the merge.
 
-> > +       int ret = 0;
-> > +
-> > +       VM_BUG_ON(!PageHuge(hpage));
-> > +       if (PageTail(hpage))
-> > +               return 0;
-> VM_BUG_ON(!PageHuge(hpage) || PageTail(hpage)), can we?
-
-I think that firing BUG_ON() for tail pages is overkill.
-Pfn range over which scan_movable_pages() runs could start
-at the pfn inside the hugepage when we try to hot-remove
-the memory block used by 1GB hugepage. In that case,
-is_hugepage_movable() can be called for tail pages as a
-normal behavior.
-
-But anyway, I'll add the comment for this corner case.
-
-> > +       spin_lock(&hugetlb_lock);
-> > +       list_for_each_entry_safe(page, tmp, &h->hugepage_activelist, lru)
-> s/_safe//  can we?
-
-OK.
-
-> > +               if (page == hpage)
-> > +                       ret = 1;
-> Can we bail out with ret set to be true?
-
-Yes, inserting break is good for performance.
-
-> > +       spin_unlock(&hugetlb_lock);
-> > +       return ret;
-> > +}
-
-Thank you!
-Naoya
+I disagree... I think this is exactly the kind of fundamental
+MM interaction that should be well understood and resolved
+BEFORE anything gets merged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
