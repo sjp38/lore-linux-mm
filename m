@@ -1,57 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 90C656B0005
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:18:11 -0500 (EST)
-Date: Mon, 25 Feb 2013 12:18:10 -0500 (EST)
-From: Aaron Tomlin <atomlin@redhat.com>
-Message-ID: <591256534.8212978.1361812690861.JavaMail.root@redhat.com>
-In-Reply-To: <813482873.8209105.1361812140956.JavaMail.root@redhat.com>
-Subject: Re: [PATCH v2] mm: slab: Verify the nodeid passed to
- ____cache_alloc_node
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 349B66B0005
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:21:14 -0500 (EST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Message-ID: <622b6670-f311-40d5-9c8d-f5dd3e03633c@default>
+Date: Mon, 25 Feb 2013 09:20:55 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: Questin about swap_slot free and invalidate page
+References: <20130131051140.GB23548@blaptop>
+ <alpine.LNX.2.00.1302031732520.4050@eggly.anvils>
+ <20130204024950.GD2688@blaptop>
+ <d6fc41b7-8448-40be-84c3-c24d0833bd85@default> <51236C11.1010208@gmail.com>
+ <1f089254-3abe-4c63-a72a-c9e564ae7d0d@default> <51242F0D.4040201@gmail.com>
+ <7793705b-a076-4c5a-be4d-9572d7560860@default> <5126E253.2030105@gmail.com>
+In-Reply-To: <5126E253.2030105@gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Rik <riel@redhat.com>, glommer@parallels.com
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-Hi,
+> From: Ric Mason [mailto:ric.masonn@gmail.com]
+> Subject: Re: Questin about swap_slot free and invalidate page
+>=20
+> On 02/22/2013 05:42 AM, Dan Magenheimer wrote:
+> >> From: Ric Mason [mailto:ric.masonn@gmail.com]
+> >> Subject: Re: Questin about swap_slot free and invalidate page
+> >>
+> >> On 02/19/2013 11:27 PM, Dan Magenheimer wrote:
+> >>>> From: Ric Mason [mailto:ric.masonn@gmail.com]
+> >>>>> Hugh is right that handling the possibility of duplicates is
+> >>>>> part of the tmem ABI.  If there is any possibility of duplicates,
+> >>>>> the ABI defines how a backend must handle them to avoid data
+> >>>>> coherency issues.
+> >>>>>
+> >>>>> The kernel implements an in-kernel API which implements the tmem
+> >>>>> ABI.  If the frontend and backend can always agree that duplicate
+> >>>> Which ABI in zcache implement that?
+> >>> https://oss.oracle.com/projects/tmem/dist/documentation/api/tmemspec-=
+v001.pdf
+> >>>
+> >>> The in-kernel APIs are frontswap and cleancache.  For more informatio=
+n about
+> >>> tmem, see http://lwn.net/Articles/454795/
+> >> But you mentioned that you have in-kernel API which can handle
+> >> duplicate.  Do you mean zcache_cleancache/frontswap_put_page? I think
+> >> they just overwrite instead of optional flush the page on the
+> >> second(duplicate) put as mentioned in your tmemspec.
+> > Maybe I am misunderstanding your question...  The spec allows
+> > overwrite (and return success) OR flush the page (and return
+> > failure).  Zcache does the latter (flush).  The code that implements
+> > it is in tmem_put.
+>=20
+> Thanks for your point out.  Pers pages can have duplicate put since swap
+> cache page can be reused. Can eph pages also have duplicate put? If yes,
+> when can happen?
 
-This patch is in response to bz#42967 [1]. Using VM_BUG_ON
-instead of a generic BUG_ON so it's used only when 
-CONFIG_DEBUG_VM is set, given that ____cache_alloc_node()
-is a hot code path.
+Yes, I have seen it.  I am not sure of the exact circumstances
+when it happens as I am not an expert in the VFS subsystem.
+(Chris Mason wrote the VFS cleancache hooks in 2009.)
 
-Cheers,
-Aaron
-
-[1]: https://bugzilla.kernel.org/show_bug.cgi?id=42967
-
----8<---
-mm: slab: Verify the nodeid passed to ____cache_alloc_node
-    
-If the nodeid is > num_online_nodes() this can cause an
-Oops and a panic(). The purpose of this patch is to assert
-if this condition is true to aid debugging efforts rather
-than some random NULL pointer dereference or page fault.
-    
-Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
-
- slab.c |    1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/slab.c b/mm/slab.c
-index e7667a3..735e8bd 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3412,6 +3412,7 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
- 	void *obj;
- 	int x;
- 
-+	VM_BUG_ON(nodeid > num_online_nodes());
- 	l3 = cachep->nodelists[nodeid];
- 	BUG_ON(!l3);
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
