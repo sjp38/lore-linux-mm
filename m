@@ -1,85 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id B30C76B0007
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:29:44 -0500 (EST)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id A25B86B0006
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:39:52 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 25 Feb 2013 12:39:51 -0500
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 8CFECC9001B
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:39:47 -0500 (EST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1PHdiPX25952418
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 12:39:45 -0500
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1PHbvc9001613
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 10:37:57 -0700
+Message-ID: <512BA147.2090308@linux.vnet.ibm.com>
+Date: Mon, 25 Feb 2013 11:37:11 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Message-ID: <c515af54-0972-41e6-96c2-8a6df9a9df5e@default>
-Date: Mon, 25 Feb 2013 09:29:35 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie to
- a config option
-References: <1360175261-13287-1-git-send-email-dan.magenheimer@oracle.com>
- <5126EB45.10700@gmail.com>
-In-Reply-To: <5126EB45.10700@gmail.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCHv5 7/8] zswap: add swap page writeback support
+References: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com> <1360780731-11708-8-git-send-email-sjenning@linux.vnet.ibm.com> <20130225025403.GB6498@blaptop>
+In-Reply-To: <20130225025403.GB6498@blaptop>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com, minchan@kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-> From: Ric Mason [mailto:ric.masonn@gmail.com]
-> Subject: Re: [PATCH] staging/zcache: Fix/improve zcache writeback code, t=
-ie to a config option
->=20
-> On 02/07/2013 02:27 AM, Dan Magenheimer wrote:
-> > It was observed by Andrea Arcangeli in 2011 that zcache can get "full"
-> > and there must be some way for compressed swap pages to be (uncompresse=
-d
-> > and then) sent through to the backing swap disk.  A prototype of this
-> > functionality, called "unuse", was added in 2012 as part of a major upd=
-ate
-> > to zcache (aka "zcache2"), but was left unfinished due to the unfortuna=
-te
-> > temporary fork of zcache.
-> >
-> > This earlier version of the code had an unresolved memory leak
-> > and was anyway dependent on not-yet-upstream frontswap and mm changes.
-> > The code was meanwhile adapted by Seth Jennings for similar
-> > functionality in zswap (which he calls "flush").  Seth also made some
-> > clever simplifications which are herein ported back to zcache.  As a
-> > result of those simplifications, the frontswap changes are no longer
-> > necessary, but a slightly different (and simpler) set of mm changes are
-> > still required [1].  The memory leak is also fixed.
-> >
-> > Due to feedback from akpm in a zswap thread, this functionality in zcac=
-he
-> > has now been renamed from "unuse" to "writeback".
-> >
-> > Although this zcache writeback code now works, there are open questions
-> > as how best to handle the policy that drives it.  As a result, this
-> > patch also ties writeback to a new config option.  And, since the
-> > code still depends on not-yet-upstreamed mm patches, to avoid build
-> > problems, the config option added by this patch temporarily depends
-> > on "BROKEN"; this config dependency can be removed in trees that
-> > contain the necessary mm patches.
-> >
-> > [1] https://lkml.org/lkml/2013/1/29/540/ https://lkml.org/lkml/2013/1/2=
-9/539/
->=20
-> This patch leads to backend interact with core mm directly,  is it core
-> mm should interact with frontend instead of backend? In addition,
-> frontswap has already have shrink funtion, should we can take advantage
-> of it?
+On 02/24/2013 08:54 PM, Minchan Kim wrote:
+> Hi Seth,
+> 
+> On Wed, Feb 13, 2013 at 12:38:50PM -0600, Seth Jennings wrote:
+>> This patch adds support for evicting swap pages that are currently
+>> compressed in zswap to the swap device.  This functionality is very
+>> important and make zswap a true cache in that, once the cache is full
+>> or can't grow due to memory pressure, the oldest pages can be moved
+>> out of zswap to the swap device so newer pages can be compressed and
+>> stored in zswap.
+>>
+>> This introduces a good amount of new code to guarantee coherency.
+>> Most notably, and LRU list is added to the zswap_tree structure,
+>> and refcounts are added to each entry to ensure that one code path
+>> doesn't free then entry while another code path is operating on it.
+>>
+>> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> 
+> In this time, I didn't review the code in detail yet but it seems
+> resolve of all review point in previous interation. Thanks!
+> But unfortunately, I couldn't find anything related to tmppage handling
+> so I'd like to ask.
+> 
+> The reason of tmppage is temporal buffer to keep compressed data during
+> writeback to avoid unnecessary compressing again when we retry?
 
-Good questions!
+Yes.
 
-If you have ideas (or patches) that handle the interaction with
-the frontend instead of backend, we can take a look at them.
-But for zcache (and zswap), the backend already interacts with
-the core mm, for example to allocate and free pageframes.
+> Is it really critical about performance?
 
-The existing frontswap shrink function cause data pages to be sucked
-back from the backend.  The data pages are put back in the swapcache
-and they aren't marked in any way so it is possible the data page
-might soon (or immediately) be sent back to the backend.
+It's hard to measure.  There is no guarantee that
+zswap_flush_entries() has made room for the allocation so if we fail
+again, we've compressed the page twice and still fail
 
-This code is used for backends that can't "callback" the frontend, such
-as the Xen tmem backend and ramster.  But I do agree that there
-might be a good use for the frontswap shrink function for zcache
-(and zswap).  Any ideas?
+So my motivation was to prevent the second compression.  It does add
+significant complexity though without a completely clear (i.e.
+measurable) benefit.
 
-Dan
+
+What's the wrong if we remove
+> tmppage handling?
+> 
+> zswap_frontswap_store
+> retry:
+>         get_cpu_var(zswap_dstmem);
+>         zswap_com_op(COMPRESS)
+>         zs_malloc()
+>         if (!handle) {
+>                 put_cpu_var(zswap_dstmem);
+>                 if (retry > MAX_RETRY)
+>                         goto error_nomem;
+>                 zswap_flush_entries()
+>                 goto retry;
+>         }
+
+I dislike "jump up" labels, but yes, something like this could be done.
+
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
