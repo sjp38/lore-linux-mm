@@ -1,83 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id D33936B0005
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 22:31:32 -0500 (EST)
-Message-ID: <512C2C90.8090709@ubuntu.com>
-Date: Mon, 25 Feb 2013 22:31:28 -0500
-From: Phillip Susi <psusi@ubuntu.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 3EF086B0005
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 23:21:28 -0500 (EST)
+Date: Tue, 26 Feb 2013 13:21:23 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/2] mm: fadvise: fix POSIX_FADV_DONTNEED
+Message-ID: <20130226042123.GA23907@blaptop>
+References: <5127E8B7.9080202@ubuntu.com>
+ <1361660281-22165-2-git-send-email-psusi@ubuntu.com>
 MIME-Version: 1.0
-Subject: Re: readahead blocking on ext4 ( was: Something amiss with IO throttling
- )
-References: <512C0746.6020408@ubuntu.com>
-In-Reply-To: <512C0746.6020408@ubuntu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1361660281-22165-2-git-send-email-psusi@ubuntu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: ext4 development <linux-ext4@vger.kernel.org>
+To: Phillip Susi <psusi@ubuntu.com>
+Cc: linux-mm@kvack.org, andrea@betterlinux.com, Andrew Morton <akpm@linux-foundation.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+Hello,
 
-On 02/25/2013 07:52 PM, Phillip Susi wrote:
-> There seems to be something wrong with IO throttling in recent 
-> kernels.  I have noticed two problems recently:
+On Sat, Feb 23, 2013 at 05:58:00PM -0500, Phillip Susi wrote:
+> The previous implementation initiated writeout for a non congested bdi, and
+> then discarded any clean pages.   This had 3 problems:
 > 
-> 1)  I noticed that the man page for readahead() states that it
-> blocks until the data has been read, which is incorrect.  The whole
-> point of the call is that it initiates background read(ahead), in
-> the hopes that it will finish before the data is actually read,
-> just like posix_fadvise(POSIX_FADV_WILLNEED).  Testing however,
-> indicates that indeed, both readahead() and fadvise with
-> POSIX_FADV_WILLNEED does appear to be blocking at least for most of
-> the time it takes to read a large file.  In my case I'm reading a
-> 400mb file after dropping cache and having 2+gb of free ram, and
-> the readahead/fadvise blocks for nearly the 5 seconds it takes to
-> read that.
+> 1) The writeout would spin up the disk unnecessarily
+> 2) Discarding pages under low cache pressure is a waste
+> 3) It was useless on files being written, and thus full of dirty pages
+> 
+> Now we just move the pages to the inactive list so they will be reclaimed
+> sooner.
+> ---
+>  include/linux/fs.h |  2 ++
+>  mm/fadvise.c       |  8 ++------
+>  mm/filemap.c       | 43 +++++++++++++++++++++++++++++++++++++++++++
+>  3 files changed, 47 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index 7d2e893..2abd193 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -2198,6 +2198,8 @@ extern int __filemap_fdatawrite_range(struct address_space *mapping,
+>  				loff_t start, loff_t end, int sync_mode);
+>  extern int filemap_fdatawrite_range(struct address_space *mapping,
+>  				loff_t start, loff_t end);
+> +extern void filemap_deactivate_range(struct address_space *mapping, pgoff_t start,
+> +				     pgoff_t end);
+>  
+>  extern int vfs_fsync_range(struct file *file, loff_t start, loff_t end,
+>  			   int datasync);
+> diff --git a/mm/fadvise.c b/mm/fadvise.c
+> index a47f0f5..fbd58b0 100644
+> --- a/mm/fadvise.c
+> +++ b/mm/fadvise.c
+> @@ -112,17 +112,13 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
+>  	case POSIX_FADV_NOREUSE:
+>  		break;
+>  	case POSIX_FADV_DONTNEED:
+> -		if (!bdi_write_congested(mapping->backing_dev_info))
+> -			__filemap_fdatawrite_range(mapping, offset, endbyte,
+> -						   WB_SYNC_NONE);
+> -
+>  		/* First and last FULL page! */
+>  		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
+>  		end_index = (endbyte >> PAGE_CACHE_SHIFT);
+>  
+>  		if (end_index >= start_index)
+> -			invalidate_mapping_pages(mapping, start_index,
+> -						end_index);
+> +			filemap_deactivate_range(mapping, start_index,
+> +						 end_index);
+>  		break;
+>  	default:
+>  		ret = -EINVAL;
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index c610076..bcdcdbf 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -217,7 +217,49 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
+>  	return ret;
+>  }
+>  
+> +/**
+> + * filemap_deactivate_range - moves pages in range to the inactive list
+> + * @mapping:	the address_space which holds the pages to deactivate
+> + * @start:	offset where the range starts
+> + * @end:	offset where the range ends (inclusive)
+> + */
+> +void filemap_deactivate_range(struct address_space *mapping, pgoff_t start,
+> +			      pgoff_t end)
+> +{
+> +	struct pagevec pvec;
+> +	pgoff_t index = start;
+> +	int i;
+> +
+> +	/*
+> +	 * Note: this function may get called on a shmem/tmpfs mapping:
+> +	 * pagevec_lookup() might then return 0 prematurely (because it
+> +	 * got a gangful of swap entries); but it's hardly worth worrying
+> +	 * about - it can rarely have anything to free from such a mapping
+> +	 * (most pages are dirty), and already skips over any difficulties.
+> +	 */
+> +
+> +	pagevec_init(&pvec, 0);
+> +	while (index <= end && pagevec_lookup(&pvec, mapping, index,
+> +			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
+> +		mem_cgroup_uncharge_start();
+> +		for (i = 0; i < pagevec_count(&pvec); i++) {
+> +			struct page *page = pvec.pages[i];
+> +
+> +			/* We rely upon deletion not changing page->index */
+> +			index = page->index;
+> +			if (index > end)
+> +				break;
+> +
+> +			WARN_ON(page->index != index);
+> +			deactivate_page(page);
+> +		}
+> +		pagevec_release(&pvec);
+> +		mem_cgroup_uncharge_end();
+> +		cond_resched();
+> +		index++;
+> +	}
+> +}
+> +
+>  static inline int __filemap_fdatawrite(struct address_space *mapping,
+>  	int sync_mode)
+>  {
+> -- 
+> 1.8.1.2
+> 
 
-Well, I solved this part and no longer think it is related to the
-second problem.  It turns out that the file I was using for testing
-had been downloaded via bit torrent, and while the data blocks were
-100% contiguous, the extent tree was slightly fragmented.  The file
-used 3 level 0 extent tree blocks, so it seems that the readahead
-blocked until most of the file was read, and the third extent tree
-block then could be read, and the remaining blocks mapped by it could
-be queued, then readahead would return.
+Just FYI,
+there was a person tried to solve similar problem, Andrea Righi. Ccing him,
 
-I'm adding linux-ext4 to Cc, and I'm hoping we can come up with some
-ideas to improve this.  It seems to me that the extent tree blocks
-should be read first, then all of the data blocks queued up so
-readahead only has to block once and shortly before returning.  What
-do you think?
+Personally, I like this but unfortunately maintainer didn't like it
+due to breaking compatibility and I understand.
+https://lkml.org/lkml/2011/6/28/468
 
-Also it may be interesting to note that the three extent tree blocks
-were allocated seemingly at random:
+You might need another round with akpm. :(
 
-EXTENTS:
-(ETB0):33795, (0-30975):370688-401663, (30976-40191):401664-410879,
-(ETB0):483328, (40192-72575):410880-443263,
-(72576-81919):443264-452607, (ETB0):483329, (81920-111578):452608-482266
-
-Shouldn't the extent tree blocks be clustered a little better?  And
-shouldn't the actual extents be merged a little better?  With 111578
-logical blocks and a max of 32767 ( or was it 32768 initialized
-blocks, and 32767 uninit? ) per extent, this whole file should be able
-to fit within the 4 extents embedded in the inode, with no need for
-any extent tree blocks.
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-Comment: Using GnuPG with undefined - http://www.enigmail.net/
-
-iQEcBAEBAgAGBQJRLCyQAAoJEJrBOlT6nu75PEkIAK+SWfo6ugAV6cvgqGWiNkuz
-eAn6IfaGxdg/6TLH+xsnQbI8KTqe8Zg9VXTZyenfwdC2lsgFz2WOI19yzMbR6eWi
-fddzadKuvPbKN8BgpmF3I61wAOG1YdbpEcvJRHhyFU211+I10shOeowGnyIuj7II
-uoyGeBaWN1MpIuTzLySFVLAYdbZOofYlTbrxrjiCavAHhjG91WfZExMVR60OkY0z
-dxBQ0NF5B+YIx+egOx1fVbstXxfrFTIIqVSLpK6fF44DUN/rHWIRivT3vARJt1Pa
-ZxFmqyGMLUgqaq71n9B4L5FmfQ+anYM33plufm4cUjFfoEqBbowZvSnwN2p1mQk=
-=H8i2
------END PGP SIGNATURE-----
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
