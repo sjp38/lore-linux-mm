@@ -1,126 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id D26586B0006
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 19:00:42 -0500 (EST)
-Date: Tue, 26 Feb 2013 09:00:40 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] mm: remove MIGRATE_ISOLATE check in hotpath
-Message-ID: <20130226000040.GA17802@blaptop>
-References: <1358209006-18859-1-git-send-email-minchan@kernel.org>
- <20130115153625.96265439.akpm@linux-foundation.org>
- <20130225021308.GA6498@blaptop>
- <20130225145011.68e55812.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id DA8446B0005
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 19:12:20 -0500 (EST)
+Received: by mail-pb0-f46.google.com with SMTP id uo15so1972119pbc.5
+        for <linux-mm@kvack.org>; Mon, 25 Feb 2013 16:12:20 -0800 (PST)
+Message-ID: <512BFDDD.1050903@gmail.com>
+Date: Tue, 26 Feb 2013 08:12:13 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130225145011.68e55812.akpm@linux-foundation.org>
+Subject: Re: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie
+ to a config option
+References: <1360175261-13287-1-git-send-email-dan.magenheimer@oracle.com> <5126EB45.10700@gmail.com> <c515af54-0972-41e6-96c2-8a6df9a9df5e@default>
+In-Reply-To: <c515af54-0972-41e6-96c2-8a6df9a9df5e@default>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Nazarewicz <mina86@mina86.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com, minchan@kernel.org
 
-On Mon, Feb 25, 2013 at 02:50:11PM -0800, Andrew Morton wrote:
-> On Mon, 25 Feb 2013 11:13:08 +0900
-> Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > > 
-> > > >
-> > > > ...
-> > > >
-> > > > @@ -683,7 +683,7 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
-> > > >  	zone->pages_scanned = 0;
-> > > >  
-> > > >  	__free_one_page(page, zone, order, migratetype);
-> > > > -	if (unlikely(migratetype != MIGRATE_ISOLATE))
-> > > > +	if (unlikely(!is_migrate_isolate(migratetype)))
-> > > >  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
-> > > >  	spin_unlock(&zone->lock);
-> > > >  }
-> > > 
-> > > The code both before and after this patch is assuming that the
-> > > migratetype in free_one_page is likely to be MIGRATE_ISOLATE.  Seems
-> > > wrong.  If CONFIG_MEMORY_ISOLATION=n this ends up doing
-> > > if(unlikely(true)) which is harmless-but-amusing.
-> > 
-> > >From the beginning of [2139cbe627, cma: fix counting of isolated pages],
-> > it was wrong. We can't make sure it's very likely.
-> > If it is called by order-0 page free path, it is but if it is called by
-> > high order page free path, we can't.
-> > So I think it would be better to remove unlikley.
-> 
-> Order-0 pages surely preponderate, so I'd say that "likely" is the way
-> to go.
+On 02/26/2013 01:29 AM, Dan Magenheimer wrote:
+>> From: Ric Mason [mailto:ric.masonn@gmail.com]
+>> Subject: Re: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie to a config option
+>>
+>> On 02/07/2013 02:27 AM, Dan Magenheimer wrote:
+>>> It was observed by Andrea Arcangeli in 2011 that zcache can get "full"
+>>> and there must be some way for compressed swap pages to be (uncompressed
+>>> and then) sent through to the backing swap disk.  A prototype of this
+>>> functionality, called "unuse", was added in 2012 as part of a major update
+>>> to zcache (aka "zcache2"), but was left unfinished due to the unfortunate
+>>> temporary fork of zcache.
+>>>
+>>> This earlier version of the code had an unresolved memory leak
+>>> and was anyway dependent on not-yet-upstream frontswap and mm changes.
+>>> The code was meanwhile adapted by Seth Jennings for similar
+>>> functionality in zswap (which he calls "flush").  Seth also made some
+>>> clever simplifications which are herein ported back to zcache.  As a
+>>> result of those simplifications, the frontswap changes are no longer
+>>> necessary, but a slightly different (and simpler) set of mm changes are
+>>> still required [1].  The memory leak is also fixed.
+>>>
+>>> Due to feedback from akpm in a zswap thread, this functionality in zcache
+>>> has now been renamed from "unuse" to "writeback".
+>>>
+>>> Although this zcache writeback code now works, there are open questions
+>>> as how best to handle the policy that drives it.  As a result, this
+>>> patch also ties writeback to a new config option.  And, since the
+>>> code still depends on not-yet-upstreamed mm patches, to avoid build
+>>> problems, the config option added by this patch temporarily depends
+>>> on "BROKEN"; this config dependency can be removed in trees that
+>>> contain the necessary mm patches.
+>>>
+>>> [1] https://lkml.org/lkml/2013/1/29/540/ https://lkml.org/lkml/2013/1/29/539/
+>> This patch leads to backend interact with core mm directly,  is it core
+>> mm should interact with frontend instead of backend? In addition,
+>> frontswap has already have shrink funtion, should we can take advantage
+>> of it?
+> Good questions!
+>
+> If you have ideas (or patches) that handle the interaction with
+> the frontend instead of backend, we can take a look at them.
+> But for zcache (and zswap), the backend already interacts with
+> the core mm, for example to allocate and free pageframes.
+>
+> The existing frontswap shrink function cause data pages to be sucked
+> back from the backend.  The data pages are put back in the swapcache
+> and they aren't marked in any way so it is possible the data page
+> might soon (or immediately) be sent back to the backend.
 
-Okay then, let's rule out high order allocation.
-Firstly, let's look CONFIG_MEMORY_ISOLATION=y case.
-In case of order-0, free_hot_cold_page calls free_one_page very unlikely.
+Then can frontswap shrink work well?
 
-void free_hot_cold_page ()
-{
-        ...
-        if (migratetype >= MIGRATE_PCPTYPES) {
-                if (unlikely(is_migrate_isolate(migratetype))) {
-                        free_one_page(zone, page, 0, migratetype);
-                        goto out;
-                }
-        ...
-}
-
-So, if free_one_page is called for order-0 page, it's for only MIGRATE_ISOLATE.
-So unlikely(!is_migrate_isolate(migratetype)) in free_one_page does make sense
-to me.
-
-In case of CONFIG_MEMORY_ISOLATION=n case, below is_migrate_isolate is always
-false so it could be compiled out so free_one_page is called only
-for high order page free path. So if you don't mind high order free path
-hitting on likely/unlikely, I think current code doesn't have any problem.
-
- if (migratetype >= MIGRATE_PCPTYPES) {
-                if (unlikely(is_migrate_isolate(migratetype))) { ==> always false
-                        free_one_page(zone, page, 0, migratetype);
-                        goto out;
-                }
-
-In summary, if you don't care of high order free path, there is no problem.
-
-> 
-> I don't recall anyone ever demonstrating that likely/unlikely actually
-> does anything useful.  It would be interesting to have a play around,
-> see if it actually does good things to the code generation.
-
-Yes. especially about page alloc/free path. 
-
-> 
-> I think someone (perhaps in or near Dave Jones?) once had a patch which
-> added counters to likely/unlikely, so the kernel can accumulate and
-> then report upon the hit/miss ratio at each site.  iirc, an alarmingly
-> large number of the sites were deoptimisations!
-
-It seems you mean "Branch Profiling (Trace likely/unlikely profiler)" made by
-Steven Rostedt. Anyway, it's a rather troublesome job and needs many workload
-but worthy. Will queue it up to my future TODO. :)
-
-> 
-> > They are trivial patch so send it now or send it after you release
-> > first mmotm after finishing merge window?
-> 
-> It's in mainline now.
-
-I will send fix about only undo_isolate_page_range if you don't object my
-above opinion.
-
-Thanks.
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+>
+> This code is used for backends that can't "callback" the frontend, such
+> as the Xen tmem backend and ramster.  But I do agree that there
+> might be a good use for the frontswap shrink function for zcache
+> (and zswap).  Any ideas?
+>
+> Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
