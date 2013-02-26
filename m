@@ -1,241 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Message-ID: <512C7C13.9050602@cn.fujitsu.com>
-Date: Tue, 26 Feb 2013 17:10:43 +0800
-From: Lin Feng <linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 288736B0005
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2013 05:47:42 -0500 (EST)
+Date: Tue, 26 Feb 2013 10:47:31 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] add extra free kbytes tunable
+Message-ID: <20130226104731.GB22498@suse.de>
+References: <alpine.DEB.2.02.1302111734090.13090@dflat>
+ <A5ED84D3BB3A384992CBB9C77DEDA4D414A98EBF@USINDEM103.corp.hds.com>
+ <511EB5CB.2060602@redhat.com>
+ <alpine.DEB.2.02.1302171546120.10836@dflat>
+ <20130219152936.f079c971.akpm@linux-foundation.org>
+ <alpine.DEB.2.02.1302192100100.23162@dflat>
+ <20130222175634.GA4824@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH V3 1/2] mm: hotplug: implement non-movable version of
- get_user_pages() called get_user_pages_non_movable()
-References: <1361444504-31888-1-git-send-email-linfeng@cn.fujitsu.com> <1361444504-31888-2-git-send-email-linfeng@cn.fujitsu.com>
-In-Reply-To: <1361444504-31888-2-git-send-email-linfeng@cn.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130222175634.GA4824@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de
-Cc: Lin Feng <linfeng@cn.fujitsu.com>, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, minchan@kernel.org, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, tangchen@cn.fujitsu.com, guz.fnst@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: dormando <dormando@rydia.net>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Seiji Aguchi <seiji.aguchi@hds.com>, Satoru Moriya <satoru.moriya@hds.com>, Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, "hughd@google.com" <hughd@google.com>, Mel Gorman <mel@csn.ul.ie>
 
-Hi Andrew, Mel and other guys,
+On Fri, Feb 22, 2013 at 12:56:34PM -0500, Johannes Weiner wrote:
+> > > <SNIP>
+> > >
+> > > : We have a server workload wherein machines with 100G+ of "free" memory
+> > > : (used by page cache), scattered but frequent random io reads from 12+
+> > > : SSD's, and 5gbps+ of internet traffic, will frequently hit direct reclaim
+> > > : in a few different ways.
+> > > :
+> > > : 1) It'll run into small amounts of reclaim randomly (a few hundred
+> > > : thousand).
+> > > :
+> > > : 2) A burst of reads or traffic can cause extra pressure, which kswapd
+> > > : occasionally responds to by freeing up 40g+ of the pagecache all at once
+> > > : (!) while pausing the system (Argh).
+> > > :
+> > > : 3) A blip in an upstream provider or failover from a peer causes the
+> > > : kernel to allocate massive amounts of memory for retransmission
+> > > : queues/etc, potentially along with buffered IO reads and (some, but not
+> > > : often a ton) of new allocations from an application. This paired with 2)
+> > > : can cause the box to stall for 15+ seconds.
+> > >
+> > > Can we prioritise these?  2) looks just awful - kswapd shouldn't just
+> > > go off and free 40G of pagecache.  Do you know what's actually in that
+> > > pagecache?  Large number of small files or small number of (very) large
+> > > files?
+> > 
+> > We have a handful of huge files (6-12ish 200g+) that are mmap'ed and
+> > accessed via address. occasionally madvise (WILLNEED) applied to the
+> > address ranges before attempting to use them. There're a mix of other
+> > files but nothing significant. The mmap's are READONLY and writes are done
+> > via pwrite-ish functions.
+> > 
+> > I could use some guidance on inspecting/tracing the problem. I've been
+> > trying to reproduce it in a lab, and respecting to 2)'s issue I've found:
+> > 
+> > - The amount of memory freed back up is either a percentage of total
+> > memory or a percentage of free memory. (a machine with 48G of ram will
+> > "only" free up an extra 4-7g)
+> > 
+> > - It's most likely to happen after a fresh boot, or if "3 > drop_caches"
+> > is applied with the application down. As it fills it seems to get itself
+> > into trouble, but becomes more stable after that. Unfortunately 1) and 3)
+> > still apply to a stable instance.
+> > 
+> > - Protecting the DMA32 zone with something like "1 1 32" into
+> > lowmem_reserve_ratio makes the mass-reclaiming less likely to happen.
+> > 
+> > - While watching "sar -B 1" I'll see kswapd wake up, and scan up to a few
+> > hundred thousand pages before finding anything it actually wants to
+> > reclaim (low vmeff). I've only been able to reproduce this from a clean
+> > start. It can take up to 3 seconds before kswapd starts actually
+> > reclaiming pages.
+> > 
+> > - So far as I can tell we're almost exclusively using 0 order allocations.
+> > THP is disabled.
+> > 
+> > There's not much dirty memory involved. It's not flushing out writes while
+> > reclaiming, it just kills off massive amount of cached memory.
+> 
+> Mapped file pages have to get scanned twice before they are reclaimed
+> because we don't have enough usage information after the first scan.
+> 
+> In your case, when you start this workload after a fresh boot or
+> dropping the caches, there will be 48G of mapped file pages that have
+> never been scanned before and that need to be looked at twice.
+> 
+> Unfortunately, if kswapd does not make progress (and it won't for some
+> time at first), it will scan more and more aggressively with
+> increasing scan priority.  And when the 48G of pages are finally
+> cycled, kswapd's scan window is a large percentage of your machine's
+> memory, and it will free every single page in it.
+> 
+> I think we should think about capping kswapd zone reclaim cycles just
+> as we do for direct reclaim.  It's a little ridiculous that it can run
+> unbounded and reclaim every page in a zone without ever checking back
+> against the watermark.  We still increase the scan window evenly when
+> we don't make forward progress, but we are more carefully inching zone
+> levels back toward the watermarks.
+> 
 
-How about this V3 patch, any comments?
+While on the surface I think this will appear to work, I worry that it
+will cause kswapds priorities to continually reset even when it's under
+real pressure as opposed to "failing to reclaim because of use-once".
+With nr_to_reclaim always at SWAP_CLUSTER_MAX, we'll hit this check and
+reset after each zone scan.
 
-thanks,
-linfeng
+                if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
+                        break;
 
-On 02/21/2013 07:01 PM, Lin Feng wrote:
-> get_user_pages() always tries to allocate pages from movable zone, which is not
->  reliable to memory hotremove framework in some case.
-> 
-> This patch introduces a new library function called get_user_pages_non_movable()
->  to pin pages only from zone non-movable in memory.
-> It's a wrapper of get_user_pages() but it makes sure that all pages come from
-> non-movable zone via additional page migration. But if migration fails it
-> will at least keep the base functionality of get_user_pages().
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Cc: Jeff Moyer <jmoyer@redhat.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Zach Brown <zab@redhat.com>
-> Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Reviewed-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
-> Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
-> ---
->  include/linux/mm.h     |   14 ++++++
->  include/linux/mmzone.h |    4 ++
->  mm/memory.c            |  103 ++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/page_isolation.c    |    8 ++++
->  4 files changed, 129 insertions(+), 0 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 5625c1c..737dc39 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1025,6 +1025,20 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  		    struct vm_area_struct **vmas);
->  int get_user_pages_fast(unsigned long start, int nr_pages, int write,
->  			struct page **pages);
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int get_user_pages_non_movable(struct task_struct *tsk, struct mm_struct *mm,
-> +		unsigned long start, int nr_pages, int write, int force,
-> +		struct page **pages, struct vm_area_struct **vmas);
-> +#else
-> +static inline
-> +int get_user_pages_non_movable(struct task_struct *tsk, struct mm_struct *mm,
-> +		unsigned long start, int nr_pages, int write, int force,
-> +		struct page **pages, struct vm_area_struct **vmas)
-> +{
-> +	return get_user_pages(tsk, mm, start, nr_pages, write, force, pages,
-> +				vmas);
-> +}
-> +#endif
->  struct kvec;
->  int get_kernel_pages(const struct kvec *iov, int nr_pages, int write,
->  			struct page **pages);
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index ab20a60..c31007e 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -851,6 +851,10 @@ static inline int is_normal_idx(enum zone_type idx)
->  	return (idx == ZONE_NORMAL);
->  }
->  
-> +static inline int zone_is_movable(struct zone *zone)
-> +{
-> +	return zone_idx(zone) == ZONE_MOVABLE;
-> +}
->  /**
->   * is_highmem - helper function to quickly check if a struct zone is a 
->   *              highmem zone or not.  This is an attempt to keep references
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 16ca5d0..83db7dd 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -58,6 +58,8 @@
->  #include <linux/elf.h>
->  #include <linux/gfp.h>
->  #include <linux/migrate.h>
-> +#include <linux/page-isolation.h>
-> +#include <linux/mm_inline.h>
->  #include <linux/string.h>
->  
->  #include <asm/io.h>
-> @@ -2014,6 +2016,107 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  }
->  EXPORT_SYMBOL(get_user_pages);
->  
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +/**
-> + * It's a wrapper of get_user_pages() but it makes sure that all pages come from
-> + * non-movable zone via additional page migration. It's designed for memory
-> + * hotremove framework.
-> + *
-> + * Currently get_user_pages() always tries to allocate pages from movable zone,
-> + * in some case users of get_user_pages() is easy to pin user pages for a long
-> + * time(for now we found that pages pinned as aio ring pages is such case),
-> + * which is fatal for memory hotremove framework.
-> + *
-> + * This function first calls get_user_pages() to get the candidate pages, and
-> + * then check to ensure all pages are from non movable zone. Otherwise migrate
-> + * them to non movable zone, then retry. It will at most retry once. If
-> + * migration fails, it will keep the base functionality of get_user_pages()
-> + * and issue WARN message for memory hot-remove people.
-> + *
-> + * Fixme: now we don't support non movable version of GUP for hugepage.
-> + */
-> +int get_user_pages_non_movable(struct task_struct *tsk, struct mm_struct *mm,
-> +		unsigned long start, int nr_pages, int write, int force,
-> +		struct page **pages, struct vm_area_struct **vmas)
-> +{
-> +	int ret, i, tried = 0;
-> +	bool isolate_err, migrate_prepped;
-> +	LIST_HEAD(pagelist);
-> +
-> +retry:
-> +	BUG_ON(tried == 2);
-> +	ret = get_user_pages(tsk, mm, start, nr_pages, write, force, pages,
-> +				vmas);
-> +	/* No ZONE_MOVABLE populated, all pages are from non movable zone */
-> +	if (movable_zone == ZONE_MOVABLE || ret <= 0)
-> +		return ret;
-> +
-> +	isolate_err = false;
-> +	migrate_prepped = false;
-> +
-> +	for (i = 0; i < ret; i++) {
-> +		if (zone_is_movable(page_zone(pages[i]))) {
-> +			/* Fixme: improve for hugepage non movable support */
-> +			if (PageHuge(pages[i])) {
-> +				WARN_ONCE(1, "Non movable GUP for hugepages "
-> +					"haven't been implemented yet, it may "
-> +					"lead to memory hot-remove failure.\n");
-> +				continue;
-> +			}
-> +
-> +			/* Hugepage or THP's head page has covered tail pages */
-> +			if (PageTail(pages[i]) && (page_count(pages[i]) == 1))
-> +				continue;
-> +
-> +			if (!migrate_prepped) {
-> +				BUG_ON(migrate_prep());
-> +				migrate_prepped = true;
-> +			}
-> +
-> +			/* Fixme: isolate_lru_page() takes the LRU lock every
-> +			 * time, batching the lock could avoid potential lock
-> +			 * contention problems. -Mel Gorman
-> +			 */
-> +			if (!isolate_lru_page(pages[i])) {
-> +				inc_zone_page_state(pages[i], NR_ISOLATED_ANON +
-> +						 page_is_file_cache(pages[i]));
-> +				list_add(&pages[i]->lru, &pagelist);
-> +			} else {
-> +				isolate_err = true;
-> +				break;
-> +			}
-> +		}
-> +	}
-> +
-> +	/* All pages are non movable, we are done :) */
-> +	if (i == ret && list_empty(&pagelist))
-> +		return ret;
-> +
-> +	/* Undo the effects of former get_user_pages(), ready for another try */
-> +	release_pages(pages, ret, 1);
-> +
-> +	if (!isolate_err) {
-> +		ret = migrate_pages(&pagelist, alloc_migrate_target, 1,
-> +					MIGRATE_SYNC, MR_SYSCALL);
-> +		/* Steal pages from non-movable zone successfully? */
-> +		if (!ret) {
-> +			tried++;
-> +			goto retry;
-> +		}
-> +	}
-> +
-> +	putback_lru_pages(&pagelist);
-> +	/* Migration failed, in order to keep at least the base functionality of
-> +	 * get_user_pages(), we pin pages again but give WARN info to remind
-> +	 * memory hot-remove people, which is a trade-off.
-> +	 */
-> +	WARN_ONCE(1, "Non movable zone migration failed, "
-> +		"it may lead to memroy hot-remove failure.\n");
-> +	return get_user_pages(tsk, mm, start, nr_pages, write, force, pages,
-> +				vmas);
-> +}
-> +EXPORT_SYMBOL(get_user_pages_non_movable);
-> +#endif
->  /**
->   * get_dump_page() - pin user page in memory while writing it to core dump
->   * @addr: user address
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 383bdbb..7823ea5 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -247,6 +247,9 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
->  	return ret ? 0 : -EBUSY;
->  }
->  
-> +/**
-> + * @private: 0 means page can be alloced from movable zone, otherwise forbidden
-> + */
->  struct page *alloc_migrate_target(struct page *page, unsigned long private,
->  				  int **resultp)
->  {
-> @@ -254,6 +257,11 @@ struct page *alloc_migrate_target(struct page *page, unsigned long private,
->  
->  	if (PageHighMem(page))
->  		gfp_mask |= __GFP_HIGHMEM;
-> +#if defined(CONFIG_MEMORY_HOTREMOVE) && defined(CONFIG_HIGHMEM)
-> +	BUILD_BUG_ON(1);
-> +#endif
-> +	if (unlikely(private != 0))
-> +		gfp_mask &= ~__GFP_HIGHMEM;
->  
->  	return alloc_page(gfp_mask);
->  }
-> 
+It'll fail the watermark check and restart of course but it does mean we
+would call shrink_slab() for every SWAP_CLUSTER_MAX*nr_unbalaced_zones
+pages scanned which will have other consequences. It'll behave differently
+but not necessarily better.
+
+In general, IO causing anonymous workloads to stall has gotten a lot worse
+during the last few kernels without us properly realising it other than
+interactivity in the presence of IO has gone down the crapper again. Late
+last week I fixed up an mmtests that runs memcachetest as the primary
+workload while doing varying amounts of IO in the background and found this
+
+http://www.csn.ul.ie/~mel/postings/reclaim-20130221/global-dhp__parallelio-memcachetest-ext4/hydra/report.html
+
+Snippet looks like this;
+                                            3.0.56                      3.6.10                       3.7.4                   3.8.0-rc4
+                                          mainline                    mainline                    mainline                    mainline
+Ops memcachetest-0M             10125.00 (  0.00%)          10091.00 ( -0.34%)          11038.00 (  9.02%)          10864.00 (  7.30%)
+Ops memcachetest-749M           10097.00 (  0.00%)           8546.00 (-15.36%)           8770.00 (-13.14%)           4872.00 (-51.75%)
+Ops memcachetest-1623M          10161.00 (  0.00%)           3149.00 (-69.01%)           3645.00 (-64.13%)           2760.00 (-72.84%)
+Ops memcachetest-2498M           8095.00 (  0.00%)           2527.00 (-68.78%)           2461.00 (-69.60%)           2282.00 (-71.81%)
+Ops memcachetest-3372M           7814.00 (  0.00%)           2369.00 (-69.68%)           2396.00 (-69.34%)           2323.00 (-70.27%)
+Ops memcachetest-4247M           3818.00 (  0.00%)           2366.00 (-38.03%)           2391.00 (-37.38%)           2274.00 (-40.44%)
+Ops memcachetest-5121M           3852.00 (  0.00%)           2335.00 (-39.38%)           2384.00 (-38.11%)           2233.00 (-42.03%)
+
+This is showing transactions/second -- more the better. 3.0.56 was pretty
+bad in itself because a large amount of IO in the background wrecked the
+throughput. It's gotten a lot worse since then. 3.8 results have
+completed but a quick check tells me the results are no better which is
+not surprising as there were no relevant commits since 3.8-rc4.
+
+Ops swapin-0M                       0.00 (  0.00%)              0.00 (  0.00%)              0.00 (  0.00%)              0.00 (  0.00%)
+Ops swapin-749M                     0.00 (  0.00%)          36002.00 (-99.00%)          50499.00 (-99.00%)         155135.00 (-99.00%)
+Ops swapin-1623M                    8.00 (  0.00%)         176816.00 (-2210100.00%)         172010.00 (-2150025.00%)         206212.00 (-2577550.00%)
+Ops swapin-2498M                26291.00 (  0.00%)         195448.00 (-643.40%)         200911.00 (-664.18%)         209180.00 (-695.63%)
+Ops swapin-3372M                27787.00 (  0.00%)         179221.00 (-544.98%)         183509.00 (-560.41%)         182371.00 (-556.32%)
+Ops swapin-4247M               105081.00 (  0.00%)         157617.00 (-50.00%)         158054.00 (-50.41%)         167478.00 (-59.38%)
+Ops swapin-5121M                89589.00 (  0.00%)         148095.00 (-65.30%)         151012.00 (-68.56%)         159079.00 (-77.57%)
+
+This is indicating that we are making the wrong reclaim decisions
+because of the amount of swapins.
+
+Ops majorfaults-0M                  1.00 (  0.00%)              1.00 (  0.00%)              9.00 (-800.00%)              0.00 (  0.00%)
+Ops majorfaults-749M                2.00 (  0.00%)           5356.00 (-267700.00%)           7872.00 (-393500.00%)          22472.00 (-1123500.00%)
+Ops majorfaults-1623M              30.00 (  0.00%)          26950.00 (-89733.33%)          25074.00 (-83480.00%)          28815.00 (-95950.00%)
+Ops majorfaults-2498M            6459.00 (  0.00%)          27719.00 (-329.15%)          27904.00 (-332.02%)          29001.00 (-349.00%)
+Ops majorfaults-3372M            5133.00 (  0.00%)          25565.00 (-398.05%)          26444.00 (-415.18%)          25789.00 (-402.42%)
+Ops majorfaults-4247M           19822.00 (  0.00%)          22767.00 (-14.86%)          22936.00 (-15.71%)          23475.00 (-18.43%)
+Ops majorfaults-5121M           17689.00 (  0.00%)          21292.00 (-20.37%)          21820.00 (-23.35%)          22234.00 (-25.69%)
+
+Major faults are also high.
+
+I have not had enough time to investigate this because other bugs cropped
+up. I can tell you that it's not bisectable as there are multiple root
+causes and it's not always reliably reproducible (with this test at least).
+
+Unfortunately I'm also dropping offline today for a week and then I'll
+have to play catchup again when I get back. It's going to be close to 2
+weeks before I can start figuring out what went wrong here but I plan to
+start with 3.0 and work forward and see how I get on.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
