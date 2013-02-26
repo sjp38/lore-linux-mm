@@ -1,82 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id DA8446B0005
-	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 19:12:20 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id uo15so1972119pbc.5
-        for <linux-mm@kvack.org>; Mon, 25 Feb 2013 16:12:20 -0800 (PST)
-Message-ID: <512BFDDD.1050903@gmail.com>
-Date: Tue, 26 Feb 2013 08:12:13 +0800
-From: Ric Mason <ric.masonn@gmail.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 2B81B6B0007
+	for <linux-mm@kvack.org>; Mon, 25 Feb 2013 19:20:20 -0500 (EST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie
- to a config option
-References: <1360175261-13287-1-git-send-email-dan.magenheimer@oracle.com> <5126EB45.10700@gmail.com> <c515af54-0972-41e6-96c2-8a6df9a9df5e@default>
-In-Reply-To: <c515af54-0972-41e6-96c2-8a6df9a9df5e@default>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <413ecbbe-cc87-4f9e-a938-aad32e8fe7a9@default>
+Date: Mon, 25 Feb 2013 16:20:03 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCHv5 1/8] zsmalloc: add to mm/
+References: <1360780731-11708-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1360780731-11708-2-git-send-email-sjenning@linux.vnet.ibm.com>
+ <20130219091804.GA13989@lge.com> <5123BC4D.1010404@linux.vnet.ibm.com>
+ <20130219233733.GA16950@blaptop> <20130222092420.GA8077@lge.com>
+ <5127CF34.9040302@linux.vnet.ibm.com>
+ <69936094-e2fc-44bd-b179-f567e8681bec@default>
+ <512BB825.7070304@linux.vnet.ibm.com>
+In-Reply-To: <512BB825.7070304@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, Konrad Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com, minchan@kernel.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 02/26/2013 01:29 AM, Dan Magenheimer wrote:
->> From: Ric Mason [mailto:ric.masonn@gmail.com]
->> Subject: Re: [PATCH] staging/zcache: Fix/improve zcache writeback code, tie to a config option
->>
->> On 02/07/2013 02:27 AM, Dan Magenheimer wrote:
->>> It was observed by Andrea Arcangeli in 2011 that zcache can get "full"
->>> and there must be some way for compressed swap pages to be (uncompressed
->>> and then) sent through to the backing swap disk.  A prototype of this
->>> functionality, called "unuse", was added in 2012 as part of a major update
->>> to zcache (aka "zcache2"), but was left unfinished due to the unfortunate
->>> temporary fork of zcache.
->>>
->>> This earlier version of the code had an unresolved memory leak
->>> and was anyway dependent on not-yet-upstream frontswap and mm changes.
->>> The code was meanwhile adapted by Seth Jennings for similar
->>> functionality in zswap (which he calls "flush").  Seth also made some
->>> clever simplifications which are herein ported back to zcache.  As a
->>> result of those simplifications, the frontswap changes are no longer
->>> necessary, but a slightly different (and simpler) set of mm changes are
->>> still required [1].  The memory leak is also fixed.
->>>
->>> Due to feedback from akpm in a zswap thread, this functionality in zcache
->>> has now been renamed from "unuse" to "writeback".
->>>
->>> Although this zcache writeback code now works, there are open questions
->>> as how best to handle the policy that drives it.  As a result, this
->>> patch also ties writeback to a new config option.  And, since the
->>> code still depends on not-yet-upstreamed mm patches, to avoid build
->>> problems, the config option added by this patch temporarily depends
->>> on "BROKEN"; this config dependency can be removed in trees that
->>> contain the necessary mm patches.
->>>
->>> [1] https://lkml.org/lkml/2013/1/29/540/ https://lkml.org/lkml/2013/1/29/539/
->> This patch leads to backend interact with core mm directly,  is it core
->> mm should interact with frontend instead of backend? In addition,
->> frontswap has already have shrink funtion, should we can take advantage
->> of it?
-> Good questions!
->
-> If you have ideas (or patches) that handle the interaction with
-> the frontend instead of backend, we can take a look at them.
-> But for zcache (and zswap), the backend already interacts with
-> the core mm, for example to allocate and free pageframes.
->
-> The existing frontswap shrink function cause data pages to be sucked
-> back from the backend.  The data pages are put back in the swapcache
-> and they aren't marked in any way so it is possible the data page
-> might soon (or immediately) be sent back to the backend.
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Subject: Re: [PATCHv5 1/8] zsmalloc: add to mm/
+>=20
+> On 02/25/2013 11:05 AM, Dan Magenheimer wrote:
+> >> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> >> Sent: Friday, February 22, 2013 1:04 PM
+> >> To: Joonsoo Kim
+> >> Subject: Re: [PATCHv5 1/8] zsmalloc: add to mm/
+> >>
+> >> On 02/22/2013 03:24 AM, Joonsoo Kim wrote:
+> >>>
+> >>> It's my quick thought. So there is no concrete idea.
+> >>> As Seth said, with a FULL list, zsmalloc always access all zspage.
+> >>> So, if we want to know what pages are for zsmalloc, we can know it.
+> >>> The EMPTY list can be used for pool of zsmalloc itself. With it, we d=
+on't
+> >>> need to free zspage directly, we can keep zspages, so can reduce
+> >>> alloc/free overhead. But, I'm not sure whether it is useful.
+> >>
+> >> I think it's a good idea.  zswap actually does this "keeping some free
+> >> pages around for later allocations" outside zsmalloc in a mempool that
+> >> zswap manages.  Minchan once mentioned bringing that inside zsmalloc
+> >> and this would be a way we could do it.
+> >
+> > I think it's a very bad idea.  If I understand, the suggestion will
+> > hide away some quantity (possibly a very large quantity) of pages
+> > for the sole purpose of zswap, in case zswap gets around to using them
+> > sometime in the future.  In the meantime, those pages are not available
+> > for use by any other kernel subsystems or by userland processes.
+> > An idle page is a wasted page.
+> >
+> > While you might defend the mempool use for a handful of pages,
+> > frontswap writes/reads thousands of pages in a bursty way,
+> > and then can go idle for a very long time.  This may not be
+> > readily apparent with artificially-created memory pressure
+> > from kernbench with -jN (high N).  Leaving thousands
+> > of pages in zswap's personal free list may cause memory pressure
+> > that would otherwise never have existed.
+>=20
+> I experimentally determined that this pool increased allocation
+> success rate and, therefore, reduced the number of pages going to the
+> swap device.
 
-Then can frontswap shrink work well?
+Of course it does.  But you can't experimentally determine how
+pre-allocating pages will impact overall performance, especially
+over a wide range of workloads that may or may not even swap.
 
->
-> This code is used for backends that can't "callback" the frontend, such
-> as the Xen tmem backend and ramster.  But I do agree that there
-> might be a good use for the frontswap shrink function for zcache
-> (and zswap).  Any ideas?
->
-> Dan
+> The zswap mempool has a target size of 256 pages.  This places an
+> upper bound on the number of pages held in reserve for zswap.  So we
+> aren't talking about "thousands of pages".
+
+I used "thousands of pages" in reference to Joonsoo's idea about
+releasing pages to the EMPTY list, not about mempool.  I wasn't
+aware that mempool has a target size of 256 pages, but even
+that smaller amount seems wrong to me, especially if the
+mempool user (zswap) will blithely use many thousands of pages
+in a burst.
+=20
+> And yes, the pool does remove up to 1MB of memory (on a 4k PAGE_SIZE)
+> from general use, which causes the reclaim to start very slightly earlier=
+.
+>=20
+> >
+> >> Just want to be clear that I'd be in favor of looking at this after
+> >> the merge.
+> >
+> > I disagree... I think this is exactly the kind of fundamental
+> > MM interaction that should be well understood and resolved
+> > BEFORE anything gets merged.
+>=20
+> While there is discussion to be had here, I don't agree that it's
+> "fundamental" and should not block merging.
+>=20
+> The mempool does serve a purpose and adds measurable benefit. However,
+> if it is determined at some future time that having a reserved pool of
+> any size in zswap is bad practice, it can be removed trivially.
+
+We had this argument last summer... Sure, _any_ cache can be shown
+to add some measurable benefit under the right circumstances.
+Any cacheing solution also has some often subtle side effects
+on some workloads, that can have more costs than benefits.
+Our cache (zcache and/or zswap and/or zram) is not just a cache
+but it is also stealing capacity from its backing store (total
+kernel RAM), so is even more likely to have side effects.
+
+While I firmly believe -- intuitively -- that compression should
+eventually be a feature of the MM subsystem, I don't think we
+have enough understanding yet of the interactions or the
+policies needed to control those interactions or the impact
+of those policies on the underlying zram/zcache/zswap design choices.
+For example, zswap completely ignores the pagecache... is that
+a good thing or a bad thing, and why?
+
+Seth, I'm not trying to piss you off, but last summer you seemed
+hell-bent on promoting zcache out of staging, and it didn't
+happen so you hacked off the part of zcache you were most interested
+in, forked it and rewrote it, and are now trying to merge that
+fork into MM ASAP.  Why?  Why can't we work together on solving
+the hard problems instead of infighting and reimplementing the wheel?
+
+Dan "shakes head"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
