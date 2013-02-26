@@ -1,55 +1,41 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 4D9D96B0005
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2013 07:45:43 -0500 (EST)
-Message-ID: <1361882727.3235.14.camel@thor.lan>
-Subject: Re: [PATCH 0/5] [v3] fix illegal use of __pa() in KVM code
-From: Peter Hurley <peter@hurleysoftware.com>
-Date: Tue, 26 Feb 2013 07:45:27 -0500
-In-Reply-To: <512B784E.5070002@linux.vnet.ibm.com>
-References: <20130122212428.8DF70119@kernel.stglabs.ibm.com>
-	 <1361741338.21499.38.camel@thor.lan> <512B784E.5070002@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
+Return-Path: <brian@airsis.com>
+Date: Tue, 26 Feb 2013 22:59:04 +0100
+From: "Vance Melendez" <brian@airsis.com>
+Reply-To: brian@airsis.com
+Message-ID: <003877703.05481319233977@airsis.com>
+Subject: I added your profile  to my contact list
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+  boundary="----------ED3B4F2153486729"
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
 
-On Mon, 2013-02-25 at 06:42 -0800, Dave Hansen wrote:
-> On 02/24/2013 01:28 PM, Peter Hurley wrote:
-> > Now that the alloc_remap() has been/is being removed, is most/all of
-> > this being reverted?
-> 
-> I _believe_ alloc_remap() is the only case where we actually remapped
-> low memory.  However, there is still other code that does __pa()
-> translations for percpu areas: per_cpu_ptr_to_phys().  I _think_ it's
-> still theoretically possible to get some percpu data in the vmalloc() area.
-> 
-> > So in short, my questions are:
-> > 1) is the slow_virt_to_phys() necessary anymore?
+------------ED3B4F2153486729
+Content-Type: text/plain; charset=Windows-1252
+Content-Transfer-Encoding: 7bit
 
-Ah, yep. Thanks for pointing out per_cpu_ptr_to_phys().
+(Ksenya 25y.o) New reply for you.
 
-> kvm_vcpu_arch has a
-> 
->         struct pvclock_vcpu_time_info hv_clock;
-> 
-> and I believe I mistook the two 'hv_clock's for each other.  However,
-> this doesn't hurt anything, and the performance difference is probably
-> horribly tiny.
+Hi! I am Ksenya 25y.o
+I have new photos, please chek mailbox for new reply here:
+http://rugirlsz.ru
 
-Ok. It was confusing because the fixmap of that same phys memblock done
-by pvclock was broken and I couldn't understand why the hvclock memblock
-needed to be looked-up per cpu. Mystery solved.
+yours Ksenya
+kisses
 
-Regards,
-Peter Hurley
+Note!
+New free service! check info at the site!
+( to unsubscribe -click  link and enter e-mail address.)
+------------ED3B4F2153486729
+Content-Type: text/html; charset=Windows-1252
+Content-Transfer-Encoding: 7bit
 
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE></TITLE>
+</HEAD>
+<BODY>
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<html><body>(Ksenya 25y.o) New reply for you.<br><br>Hi! I am Ksenya 25y.o<br>I have new photos, please chek mailbox for new reply here:<br><a href=http://rugirlsz.ru>http://rugirlsz.ru</a><br><br>yours Ksenya<br>kisses<br><br>Note!<br>New free service! check info at the site!<br>( to unsubscribe -click  link and enter e-mail address.)</body></html>
+
+</BODY></HTML>
+------------ED3B4F2153486729--
