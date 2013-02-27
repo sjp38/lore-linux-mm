@@ -1,175 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 0C3366B0002
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2013 16:53:07 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id up1so635025pbc.37
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2013 13:53:07 -0800 (PST)
-Date: Wed, 27 Feb 2013 16:09:25 -0500
-From: Andrew Shewmaker <agshew@gmail.com>
-Subject: [RFC PATCH v2 2/2] mm: tuning hardcoded reserved memory
-Message-ID: <20130227210925.GB8429@localhost.localdomain>
+	by kanga.kvack.org (Postfix) with SMTP id 6E4456B0002
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2013 17:13:40 -0500 (EST)
+Received: by mail-da0-f53.google.com with SMTP id n34so507246dal.26
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2013 14:13:39 -0800 (PST)
+Date: Wed, 27 Feb 2013 14:13:37 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, show_mem: suppress page counts in non-blockable
+ contexts
+In-Reply-To: <512E2B91.6000506@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.02.1302271410230.7155@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1302261642520.11109@chino.kir.corp.google.com> <512E2B91.6000506@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Add a rootuser_reserve_pages knob to allow admins of large memory 
-systems running with overcommit disabled to change the hardcoded 
-memory reserve to something other than 3%.
+On Wed, 27 Feb 2013, Dave Hansen wrote:
 
-Signed-off-by: Andrew Shewmaker <agshew@gmail.com>
+> On 02/26/2013 04:46 PM, David Rientjes wrote:
+> > diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+> > --- a/arch/arm/mm/init.c
+> > +++ b/arch/arm/mm/init.c
+> > @@ -99,6 +99,9 @@ void show_mem(unsigned int filter)
+> >  	printk("Mem-info:\n");
+> >  	show_free_areas(filter);
+> > 
+> > +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> > +		return;
+> > +
+> 
+> Won't this just look like a funky truncated warning to the end user?
+> 
 
----
-
-Patch based off of mmotm git tree as of February 27th.
-
-I set rootuser_reserve pages to be a default of 1000, and I suppose 
-I should have initialzed similarly to the way min_free_kbytes is, 
-scaling it with the size of the box. However, I wanted to get a 
-simple version of this patch out for feedback to see if it has any 
-chance of acceptance or if I need to take an entirely different 
-approach.
-
-Any feedback will be appreciated!
-
- Documentation/sysctl/vm.txt |  9 +++++++++
- include/linux/mm.h          |  2 ++
- kernel/sysctl.c             |  8 ++++++++
- mm/mmap.c                   | 30 +++++++++++++++++++++++-------
- 4 files changed, 42 insertions(+), 7 deletions(-)
-
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 078701f..3a71de9 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -51,6 +51,7 @@ Currently, these files are in /proc/sys/vm:
- - page-cluster
- - panic_on_oom
- - percpu_pagelist_fraction
-+- rootuser_reserve_pages
- - stat_interval
- - swappiness
- - vfs_cache_pressure
-@@ -628,6 +629,14 @@ the high water marks for each per cpu page list.
- 
- ==============================================================
- 
-+rootuser_reserve_pages
-+
-+The number of free pages left in the system that should be reserved for users
-+with the capability cap_sys_admin. The default falue is 3% of total system 
-+memory. Changing this takes effect whenever an application requests memory.
-+
-+==============================================================
-+
- stat_interval
- 
- The time interval between which vm statistics are updated.  The default
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 66e2f7c..af7b39f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1677,6 +1677,8 @@ int in_gate_area_no_mm(unsigned long addr);
- 
- int drop_caches_sysctl_handler(struct ctl_table *, int,
- 					void __user *, size_t *, loff_t *);
-+int rootuser_reserve_pages_sysctl_handler(struct ctl_table *, int,
-+					void __user *, size_t *, loff_t *);
- unsigned long shrink_slab(struct shrink_control *shrink,
- 			  unsigned long nr_pages_scanned,
- 			  unsigned long lru_pages);
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index c88878d..cd1987e 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -96,6 +96,7 @@
- /* External variables not in a header file. */
- extern int sysctl_overcommit_memory;
- extern int sysctl_overcommit_ratio;
-+extern int sysctl_rootuser_reserve_pages;
- extern int max_threads;
- extern int suid_dumpable;
- #ifdef CONFIG_COREDUMP
-@@ -1413,6 +1414,13 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &one,
- 	},
- #endif
-+	{
-+		.procname	= "rootuser_reserve_pages",
-+		.data		= &sysctl_rootuser_reserve_pages,
-+		.maxlen		= sizeof(sysctl_rootuser_reserve_pages),
-+		.mode		= 0644,
-+		.proc_handler	= rootuser_reserve_pages_sysctl_handler,
-+	},
- 	{ }
- };
- 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index d1e4124..b58af97 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -32,6 +32,7 @@
- #include <linux/khugepaged.h>
- #include <linux/uprobes.h>
- #include <linux/rbtree_augmented.h>
-+#include <linux/sysctl.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -83,6 +84,7 @@ EXPORT_SYMBOL(vm_get_page_prot);
- int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;  /* heuristic overcommit */
- int sysctl_overcommit_ratio __read_mostly = 50;	/* default is 50% */
- int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
-+int sysctl_rootuser_reserve_pages __read_mostly = 1000;
- /*
-  * Make sure vm_committed_as in one cacheline and not cacheline shared with
-  * other variables. It can be updated by several CPUs frequently.
-@@ -165,7 +167,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 		 * Leave the last 3% for root
- 		 */
- 		if (!cap_sys_admin)
--			free -= free / 32;
-+			free -= sysctl_rootuser_reserve_pages;
- 
- 		if (free > pages)
- 			return 0;
-@@ -179,9 +181,9 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- 	 * Leave the last 3% for root
- 	 */
- 	if (!cap_sys_admin)
--		allowed -= allowed / 32;
-+		allowed -= sysctl_rootuser_reserve_pages;
- 	allowed += total_swap_pages;
- 
- 	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
- 		return 0;
- error:
-@@ -3052,3 +3049,22 @@ void __init mmap_init(void)
- 	ret = percpu_counter_init(&vm_committed_as, 0);
- 	VM_BUG_ON(ret);
- }
-+
-+/*
-+ * rootuser_reserve_pages_sysctl_handler - just a wrapper around proc_dointvec_minmax() so 
-+ *	that we can cap the number of pages to the current number of free pages.
-+ */
-+int rootuser_reserve_pages_sysctl_handler(ctl_table *table, int write, 
-+	void __user *buffer, size_t *length, loff_t *ppos)
-+{
-+	unsigned long free;
-+
-+	proc_dointvec(table, write, buffer, length, ppos);
-+
-+	if (write) {
-+		free = global_page_state(NR_FREE_PAGES);
-+		if (sysctl_rootuser_reserve_pages > free)
-+			sysctl_rootuser_reserve_pages = free;
-+	}
-+	return 0;
-+}
+No, because of the uninhibited call to show_free_areas() above.  This 
+still dumps the pcp state, global and per-node page type breakdown, and 
+free pages at given order.  The only things suppresses are the total 
+pages, pages reserved, pages shared, and pages non-shared counts that are 
+quite expensive to determine because it walks all memory while irqs are 
+disabled and increases with the amount of RAM a system has.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
