@@ -1,149 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 6B2926B0005
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2013 04:41:00 -0500 (EST)
-Date: Wed, 27 Feb 2013 10:40:54 +0100
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 5CDCE6B0005
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2013 05:00:28 -0500 (EST)
+Date: Wed, 27 Feb 2013 11:00:24 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: implement low limits
-Message-ID: <20130227094054.GC16719@dhcp22.suse.cz>
-References: <8121361952156@webcorp1g.yandex-team.ru>
+Subject: Re: [patch] mm, show_mem: suppress page counts in non-blockable
+ contexts
+Message-ID: <20130227100024.GA16724@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1302261642520.11109@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8121361952156@webcorp1g.yandex-team.ru>
+In-Reply-To: <alpine.DEB.2.02.1302261642520.11109@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <klamm@yandex-team.ru>
-Cc: Johannes Weiner-Arquette <hannes@cmpxchg.org>, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, Rik van Riel <riel@redhat.com>, mel@csn.ul.ie, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Ying Han <yinghan@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 27-02-13 12:02:36, Roman Gushchin wrote:
-> Hi, all!
+On Tue 26-02-13 16:46:08, David Rientjes wrote:
+> On large systems with a lot of memory, walking all RAM to determine page 
+> types may take a half second or even more.
 > 
-> I've implemented low limits for memory cgroups. The primary goal was
-> to add an ability to protect some memory from reclaiming without using
-> mlock(). A kind of "soft mlock()".
+> In non-blockable contexts, the page allocator will emit a page allocation 
+> failure warning unless __GFP_NOWARN is specified.  In such contexts, irqs 
+> are typically disabled and such a lengthy delay may result in soft 
+> lockups.
 
-Let me restate what I have already mentioned in the private
-communication.
+But we are trying to prevent from soft lockups by calling
+touch_nmi_watchdog every now when iterating over pages so the lock up
+detector shouldn't trigger.
 
-We already have soft limit which can be implemented to achieve the
-same/similar functionality and in fact this is a long term objective (at
-least for me). I hope I will be able to post my code soon. The last post
-by Ying Hand (cc-ing her) was here:
-http://comments.gmane.org/gmane.linux.kernel.mm/83499
+Anyway, I think that the additional information (which can be really
+costly as you are describing) is not that useful. Most of the useful
+information is already printed by show_free_areas. Or does it help when
+we know how much memory is shared/reserved/etc. when the allocation
+fails?
 
-To be honest I do not like introduction of a new limit because we have
-two already and the situation would get over complicated.
-
-More comments on the code bellow.
-
-[...]
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 53b8201..d8e6ee6 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1743,6 +1743,53 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  			 NULL, "Memory cgroup out of memory");
->  }
+So I do agree with the dropping the additional information for the
+allocation failure path (sysrq+m might still show it) but I fail to see
+how the lockup detector plays any role here. Can we just drop it because
+it is not that interesting and it is costly so it is not worth
+bothering?
+ 
+> To fix this, suppress the page walk in such contexts when printing the 
+> page allocation failure warning.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  arch/arm/mm/init.c       | 3 +++
+>  arch/ia64/mm/contig.c    | 2 ++
+>  arch/ia64/mm/discontig.c | 2 ++
+>  arch/parisc/mm/init.c    | 2 ++
+>  arch/unicore32/mm/init.c | 3 +++
+>  include/linux/mm.h       | 3 ++-
+>  lib/show_mem.c           | 3 +++
+>  mm/page_alloc.c          | 7 +++++++
+>  8 files changed, 24 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+> --- a/arch/arm/mm/init.c
+> +++ b/arch/arm/mm/init.c
+> @@ -99,6 +99,9 @@ void show_mem(unsigned int filter)
+>  	printk("Mem-info:\n");
+>  	show_free_areas(filter);
 >  
-> +/*
-> + * If a cgroup is under low limit or enough close to it,
-> + * decrease speed of page scanning.
-> + *
-> + * mem_cgroup_low_limit_scale() returns a number
-> + * from range [0, DEF_PRIORITY - 2], which is used
-> + * in the reclaim code as a scanning priority modifier.
-> + *
-> + * If the low limit is not set, it returns 0;
-> + *
-> + * usage - low_limit > usage / 8  => 0
-> + * usage - low_limit > usage / 16 => 1
-> + * usage - low_limit > usage / 32 => 2
-> + * ...
-> + * usage - low_limit > usage / (2 ^ DEF_PRIORITY - 3) => DEF_PRIORITY - 3
-> + * usage < low_limit => DEF_PRIORITY - 2
-
-Could you clarify why you have used this calculation. The comment
-exlaims _what_ is done but not _why_ it is done.
-
-It is also strange (and unexplained) that the low limit will work
-differently depending on the memcg memory usage - bigger groups have a
-bigger chance to be reclaimed even if they are under the limit.
-
-> + *
-> + */
-> +unsigned int mem_cgroup_low_limit_scale(struct lruvec *lruvec)
-> +{
-> +	struct mem_cgroup_per_zone *mz;
-> +	struct mem_cgroup *memcg;
-> +	unsigned long long low_limit;
-> +	unsigned long long usage;
-> +	unsigned int i;
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
 > +
-> +	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);
-> +	memcg = mz->memcg;
-> +	if (!memcg)
-> +		return 0;
+>  	for_each_bank (i, mi) {
+>  		struct membank *bank = &mi->bank[i];
+>  		unsigned int pfn1, pfn2;
+> diff --git a/arch/ia64/mm/contig.c b/arch/ia64/mm/contig.c
+> --- a/arch/ia64/mm/contig.c
+> +++ b/arch/ia64/mm/contig.c
+> @@ -47,6 +47,8 @@ void show_mem(unsigned int filter)
+>  	printk(KERN_INFO "Mem-info:\n");
+>  	show_free_areas(filter);
+>  	printk(KERN_INFO "Node memory in pages:\n");
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
+>  	for_each_online_pgdat(pgdat) {
+>  		unsigned long present;
+>  		unsigned long flags;
+> diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
+> --- a/arch/ia64/mm/discontig.c
+> +++ b/arch/ia64/mm/discontig.c
+> @@ -623,6 +623,8 @@ void show_mem(unsigned int filter)
+>  
+>  	printk(KERN_INFO "Mem-info:\n");
+>  	show_free_areas(filter);
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
+>  	printk(KERN_INFO "Node memory in pages:\n");
+>  	for_each_online_pgdat(pgdat) {
+>  		unsigned long present;
+> diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
+> --- a/arch/parisc/mm/init.c
+> +++ b/arch/parisc/mm/init.c
+> @@ -697,6 +697,8 @@ void show_mem(unsigned int filter)
+>  
+>  	printk(KERN_INFO "Mem-info:\n");
+>  	show_free_areas(filter);
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
+>  #ifndef CONFIG_DISCONTIGMEM
+>  	i = max_mapnr;
+>  	while (i-- > 0) {
+> diff --git a/arch/unicore32/mm/init.c b/arch/unicore32/mm/init.c
+> --- a/arch/unicore32/mm/init.c
+> +++ b/arch/unicore32/mm/init.c
+> @@ -66,6 +66,9 @@ void show_mem(unsigned int filter)
+>  	printk(KERN_DEFAULT "Mem-info:\n");
+>  	show_free_areas(filter);
+>  
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
 > +
-> +	low_limit = res_counter_read_u64(&memcg->res, RES_LOW_LIMIT);
-> +	if (!low_limit)
-> +		return 0;
+>  	for_each_bank(i, mi) {
+>  		struct membank *bank = &mi->bank[i];
+>  		unsigned int pfn1, pfn2;
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -898,7 +898,8 @@ extern void pagefault_out_of_memory(void);
+>   * Flags passed to show_mem() and show_free_areas() to suppress output in
+>   * various contexts.
+>   */
+> -#define SHOW_MEM_FILTER_NODES	(0x0001u)	/* filter disallowed nodes */
+> +#define SHOW_MEM_FILTER_NODES		(0x0001u)	/* disallowed nodes */
+> +#define SHOW_MEM_FILTER_PAGE_COUNT	(0x0002u)	/* page type count */
+>  
+>  extern void show_free_areas(unsigned int flags);
+>  extern bool skip_free_areas_node(unsigned int flags, int nid);
+> diff --git a/lib/show_mem.c b/lib/show_mem.c
+> --- a/lib/show_mem.c
+> +++ b/lib/show_mem.c
+> @@ -18,6 +18,9 @@ void show_mem(unsigned int filter)
+>  	printk("Mem-Info:\n");
+>  	show_free_areas(filter);
+>  
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
 > +
-> +	usage = res_counter_read_u64(&memcg->res, RES_USAGE);
-> +
-> +	if (usage < low_limit)
-> +		return DEF_PRIORITY - 2;
-> +
-> +	for (i = 0; i < DEF_PRIORITY - 2; i++)
-> +		if (usage - low_limit > (usage >> (i + 3)))
-> +			break;
-
-why this doesn't depend in the current reclaim priority?
-
-> +
-> +	return i;
-> +}
-> +
->  static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
->  					gfp_t gfp_mask,
->  					unsigned long flags)
-[...]
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 88c5fed..9c1c702 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1660,6 +1660,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  	bool force_scan = false;
->  	unsigned long ap, fp;
->  	enum lru_list lru;
-> +	unsigned int low_limit_scale = 0;
+>  	for_each_online_pgdat(pgdat) {
+>  		unsigned long i, flags;
+>  
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2009,6 +2009,13 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
+>  		return;
 >  
 >  	/*
->  	 * If the zone or memcg is small, nr[l] can be 0.  This
-> @@ -1779,6 +1780,9 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  	fraction[1] = fp;
->  	denominator = ap + fp + 1;
->  out:
-> +	if (global_reclaim(sc))
-> +		low_limit_scale = mem_cgroup_low_limit_scale(lruvec);
-
-What if the group is reclaimed as a result from parent hitting its
-limit?
-
+> +	 * Walking all memory to count page types is very expensive and should
+> +	 * be inhibited in non-blockable contexts.
+> +	 */
+> +	if (!(gfp_mask & __GFP_WAIT))
+> +		filter |= SHOW_MEM_FILTER_PAGE_COUNT;
 > +
->  	for_each_evictable_lru(lru) {
->  		int file = is_file_lru(lru);
->  		unsigned long size;
-> @@ -1786,6 +1790,7 @@ out:
->  
->  		size = get_lru_size(lruvec, lru);
->  		scan = size >> sc->priority;
-> +		scan >>= low_limit_scale;
->  
->  		if (!scan && force_scan)
->  			scan = min(size, SWAP_CLUSTER_MAX);
+> +	/*
+>  	 * This documents exceptions given to allocations in certain
+>  	 * contexts that are allowed to allocate outside current's set
+>  	 * of allowed nodes.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-Thanks!
 -- 
 Michal Hocko
 SUSE Labs
