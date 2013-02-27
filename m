@@ -1,51 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 128816B0007
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2013 05:39:39 -0500 (EST)
-From: Roman Gushchin <klamm@yandex-team.ru>
-In-Reply-To: <20130227094054.GC16719@dhcp22.suse.cz>
-References: <8121361952156@webcorp1g.yandex-team.ru> <20130227094054.GC16719@dhcp22.suse.cz>
-Subject: Re: [PATCH] memcg: implement low limits
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 089B06B0005
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2013 08:46:34 -0500 (EST)
+Message-ID: <512E0E53.9010908@parallels.com>
+Date: Wed, 27 Feb 2013 17:46:59 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Message-Id: <17521361961576@webcorp1g.yandex-team.ru>
-Date: Wed, 27 Feb 2013 14:39:36 +0400
+Subject: Re: [PATCH v2] slub: correctly bootstrap boot caches
+References: <1361550000-14173-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.02.1302221034380.7600@gentwo.org> <alpine.DEB.2.02.1302221057430.7600@gentwo.org> <0000013d02d9ee83-9b41b446-ee42-4498-863e-33b3175c007c-000000@email.amazonses.com> <5127A607.3040603@parallels.com> <0000013d02ee5bf7-a2d47cfc-64fb-4faa-b92e-e567aeb6b587-000000@email.amazonses.com> <CAOJsxLFzrw0pCzUG7Ru4dB9=aPoNKHiJ_y3bopiFvBhzV9A5Zg@mail.gmail.com>
+In-Reply-To: <CAOJsxLFzrw0pCzUG7Ru4dB9=aPoNKHiJ_y3bopiFvBhzV9A5Zg@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner-Arquette <hannes@cmpxchg.org>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ying Han <yinghan@google.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <js1304@gmail.com>
 
-27.02.2013, 13:41, "Michal Hocko" <mhocko@suse.cz>:
-> Let me restate what I have already mentioned in the private
-> communication.
->
-> We already have soft limit which can be implemented to achieve the
-> same/similar functionality and in fact this is a long term objective (at
-> least for me). I hope I will be able to post my code soon. The last post
-> by Ying Hand (cc-ing her) was here:
-> http://comments.gmane.org/gmane.linux.kernel.mm/83499
->
-> To be honest I do not like introduction of a new limit because we have
-> two already and the situation would get over complicated.
-
-I think, there are three different tasks:
-1) keeping cgroups below theirs hard limit to avoid direct reclaim (for performance reasons),
-2) cgroup's prioritization during global reclaim,
-3) granting some amount of memory to a selected cgroup (and protecting it from reclaim without significant reasons)
-
-IMHO, combining them all in one limit will simplify a kernel code, but will also make a user's (or administrator's) 
-life much more complicated. Introducing low limits can make the situation simpler.
-
->
-> More comments on the code bellow.
-
-Thank you very much!
-I'll address them in an other letter.
-
---
-Regards,
-Roman
+On 02/27/2013 11:47 AM, Pekka Enberg wrote:
+> On Fri, Feb 22, 2013 at 7:23 PM, Christoph Lameter <cl@linux.com> wrote:
+>> On Fri, 22 Feb 2013, Glauber Costa wrote:
+>>
+>>> On 02/22/2013 09:01 PM, Christoph Lameter wrote:
+>>>> Argh. This one was the final version:
+>>>>
+>>>> https://patchwork.kernel.org/patch/2009521/
+>>>>
+>>>
+>>> It seems it would work. It is all the same to me.
+>>> Which one do you prefer?
+>>
+>> Flushing seems to be simpler and less code.
+> 
+> Well, I completely lost track of what to apply... Can someone please
+> send me the final version that everybody agrees on with proper ACKs
+> and other attributions?
+> 
+You can apply this one as-is with Christoph's ACK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
