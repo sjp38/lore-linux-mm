@@ -1,26 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id B35736B0005
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2013 11:39:47 -0500 (EST)
-Date: Wed, 27 Feb 2013 16:39:46 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2] slub: correctly bootstrap boot caches
-In-Reply-To: <512E0E53.9010908@parallels.com>
-Message-ID: <0000013d1c86259f-7383724d-ebf2-4c69-a0a6-10c1bcfec55d-000000@email.amazonses.com>
-References: <1361550000-14173-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.02.1302221034380.7600@gentwo.org> <alpine.DEB.2.02.1302221057430.7600@gentwo.org> <0000013d02d9ee83-9b41b446-ee42-4498-863e-33b3175c007c-000000@email.amazonses.com>
- <5127A607.3040603@parallels.com> <0000013d02ee5bf7-a2d47cfc-64fb-4faa-b92e-e567aeb6b587-000000@email.amazonses.com> <CAOJsxLFzrw0pCzUG7Ru4dB9=aPoNKHiJ_y3bopiFvBhzV9A5Zg@mail.gmail.com> <512E0E53.9010908@parallels.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 881C26B0002
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2013 12:06:41 -0500 (EST)
+Date: Wed, 27 Feb 2013 12:06:27 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1361984787-yx7rovrg-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130227072517.GA30971@gchen.bj.intel.com>
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1361475708-25991-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20130227072517.GA30971@gchen.bj.intel.com>
+Subject: Re: [PATCH 3/9] soft-offline: use migrate_pages() instead of
+ migrate_huge_page()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <js1304@gmail.com>
+To: gong.chen@linux.intel.com
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
 
-On Wed, 27 Feb 2013, Glauber Costa wrote:
+On Wed, Feb 27, 2013 at 02:25:17AM -0500, Chen Gong wrote:
+> On Thu, Feb 21, 2013 at 02:41:42PM -0500, Naoya Horiguchi wrote:
+> > Date: Thu, 21 Feb 2013 14:41:42 -0500
+...
+> > diff --git v3.8.orig/mm/memory-failure.c v3.8/mm/memory-failure.c
+> > index bc126f6..01e4676 100644
+> > --- v3.8.orig/mm/memory-failure.c
+> > +++ v3.8/mm/memory-failure.c
+...
+> > +		atomic_long_add(1<<compound_trans_order(hpage), &mce_bad_pages);
+> 
+> mce_bad_pages has been substituted by num_poisoned_pages.
 
-> You can apply this one as-is with Christoph's ACK.
+This patchset is based on v3.8 (as show in diff header), where the
+replacing patch "memory-failure: use num_poisoned_pages instead of
+mce_bad_pages" is not merged yet. I'll rebase on v3.8-rc1 in the
+next post.
 
-Right.
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
