@@ -1,176 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 5CDCE6B0005
-	for <linux-mm@kvack.org>; Wed, 27 Feb 2013 05:00:28 -0500 (EST)
-Date: Wed, 27 Feb 2013 11:00:24 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, show_mem: suppress page counts in non-blockable
- contexts
-Message-ID: <20130227100024.GA16724@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1302261642520.11109@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 4C8E36B0005
+	for <linux-mm@kvack.org>; Wed, 27 Feb 2013 05:11:22 -0500 (EST)
+From: Roman Gushchin <klamm@yandex-team.ru>
+In-Reply-To: <xr93y5eacgmj.fsf@gthelen.mtv.corp.google.com>
+References: <8121361952156@webcorp1g.yandex-team.ru> <xr93y5eacgmj.fsf@gthelen.mtv.corp.google.com>
+Subject: Re: [PATCH] memcg: implement low limits
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1302261642520.11109@chino.kir.corp.google.com>
+Message-Id: <16331361959879@webcorp2g.yandex-team.ru>
+Date: Wed, 27 Feb 2013 14:11:19 +0400
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=koi8-r
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Johannes Weiner-Arquette <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, "bsingharora@gmail.com" <bsingharora@gmail.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue 26-02-13 16:46:08, David Rientjes wrote:
-> On large systems with a lot of memory, walking all RAM to determine page 
-> types may take a half second or even more.
-> 
-> In non-blockable contexts, the page allocator will emit a page allocation 
-> failure warning unless __GFP_NOWARN is specified.  In such contexts, irqs 
-> are typically disabled and such a lengthy delay may result in soft 
-> lockups.
+> So the new low limit is not a rigid limit. ?Global reclaim can reclaim
+> from a cgroup when its usage is below low_limit_in_bytes although such
+> reclaim is less aggressive than when usage is above low_limit_in_bytes.
+> Correct?
 
-But we are trying to prevent from soft lockups by calling
-touch_nmi_watchdog every now when iterating over pages so the lock up
-detector shouldn't trigger.
+That's true.
+But such reclaim occurs only on very small reclaiming priorities, 
+so it's not a common behavior. It's mostly a protection against 
+a case when all cgroups are under low limit (a results of wrong cgroups configuration).
 
-Anyway, I think that the additional information (which can be really
-costly as you are describing) is not that useful. Most of the useful
-information is already printed by show_free_areas. Or does it help when
-we know how much memory is shared/reserved/etc. when the allocation
-fails?
+>
+> Why doesn't memcg reclaim (i.e. !global_reclaim) also consider
+> low_limit_in_bytes?
 
-So I do agree with the dropping the additional information for the
-allocation failure path (sysrq+m might still show it) but I fail to see
-how the lockup detector plays any role here. Can we just drop it because
-it is not that interesting and it is costly so it is not worth
-bothering?
- 
-> To fix this, suppress the page walk in such contexts when printing the 
-> page allocation failure warning.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  arch/arm/mm/init.c       | 3 +++
->  arch/ia64/mm/contig.c    | 2 ++
->  arch/ia64/mm/discontig.c | 2 ++
->  arch/parisc/mm/init.c    | 2 ++
->  arch/unicore32/mm/init.c | 3 +++
->  include/linux/mm.h       | 3 ++-
->  lib/show_mem.c           | 3 +++
->  mm/page_alloc.c          | 7 +++++++
->  8 files changed, 24 insertions(+), 1 deletion(-)
-> 
-> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-> --- a/arch/arm/mm/init.c
-> +++ b/arch/arm/mm/init.c
-> @@ -99,6 +99,9 @@ void show_mem(unsigned int filter)
->  	printk("Mem-info:\n");
->  	show_free_areas(filter);
->  
-> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
-> +		return;
-> +
->  	for_each_bank (i, mi) {
->  		struct membank *bank = &mi->bank[i];
->  		unsigned int pfn1, pfn2;
-> diff --git a/arch/ia64/mm/contig.c b/arch/ia64/mm/contig.c
-> --- a/arch/ia64/mm/contig.c
-> +++ b/arch/ia64/mm/contig.c
-> @@ -47,6 +47,8 @@ void show_mem(unsigned int filter)
->  	printk(KERN_INFO "Mem-info:\n");
->  	show_free_areas(filter);
->  	printk(KERN_INFO "Node memory in pages:\n");
-> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
-> +		return;
->  	for_each_online_pgdat(pgdat) {
->  		unsigned long present;
->  		unsigned long flags;
-> diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
-> --- a/arch/ia64/mm/discontig.c
-> +++ b/arch/ia64/mm/discontig.c
-> @@ -623,6 +623,8 @@ void show_mem(unsigned int filter)
->  
->  	printk(KERN_INFO "Mem-info:\n");
->  	show_free_areas(filter);
-> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
-> +		return;
->  	printk(KERN_INFO "Node memory in pages:\n");
->  	for_each_online_pgdat(pgdat) {
->  		unsigned long present;
-> diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
-> --- a/arch/parisc/mm/init.c
-> +++ b/arch/parisc/mm/init.c
-> @@ -697,6 +697,8 @@ void show_mem(unsigned int filter)
->  
->  	printk(KERN_INFO "Mem-info:\n");
->  	show_free_areas(filter);
-> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
-> +		return;
->  #ifndef CONFIG_DISCONTIGMEM
->  	i = max_mapnr;
->  	while (i-- > 0) {
-> diff --git a/arch/unicore32/mm/init.c b/arch/unicore32/mm/init.c
-> --- a/arch/unicore32/mm/init.c
-> +++ b/arch/unicore32/mm/init.c
-> @@ -66,6 +66,9 @@ void show_mem(unsigned int filter)
->  	printk(KERN_DEFAULT "Mem-info:\n");
->  	show_free_areas(filter);
->  
-> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
-> +		return;
-> +
->  	for_each_bank(i, mi) {
->  		struct membank *bank = &mi->bank[i];
->  		unsigned int pfn1, pfn2;
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -898,7 +898,8 @@ extern void pagefault_out_of_memory(void);
->   * Flags passed to show_mem() and show_free_areas() to suppress output in
->   * various contexts.
->   */
-> -#define SHOW_MEM_FILTER_NODES	(0x0001u)	/* filter disallowed nodes */
-> +#define SHOW_MEM_FILTER_NODES		(0x0001u)	/* disallowed nodes */
-> +#define SHOW_MEM_FILTER_PAGE_COUNT	(0x0002u)	/* page type count */
->  
->  extern void show_free_areas(unsigned int flags);
->  extern bool skip_free_areas_node(unsigned int flags, int nid);
-> diff --git a/lib/show_mem.c b/lib/show_mem.c
-> --- a/lib/show_mem.c
-> +++ b/lib/show_mem.c
-> @@ -18,6 +18,9 @@ void show_mem(unsigned int filter)
->  	printk("Mem-Info:\n");
->  	show_free_areas(filter);
->  
-> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
-> +		return;
-> +
->  	for_each_online_pgdat(pgdat) {
->  		unsigned long i, flags;
->  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2009,6 +2009,13 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
->  		return;
->  
->  	/*
-> +	 * Walking all memory to count page types is very expensive and should
-> +	 * be inhibited in non-blockable contexts.
-> +	 */
-> +	if (!(gfp_mask & __GFP_WAIT))
-> +		filter |= SHOW_MEM_FILTER_PAGE_COUNT;
-> +
-> +	/*
->  	 * This documents exceptions given to allocations in certain
->  	 * contexts that are allowed to allocate outside current's set
->  	 * of allowed nodes.
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+For some configurations (for instance, low_limit_in_bytes == limit_in_bytes) it will work ugly.
+May be it's better to introduce some restrictions on setting memcg limits, but it will be
+a much more significant change from a user's point of view.
 
--- 
-Michal Hocko
-SUSE Labs
+>
+> Do you have demonstration of how this improves system operation?
+
+Assume, you have a machine with some production processes (db, web servers, etc) and a set 
+of additional helper processes. You have to protect production processes from steeling theirs 
+memory by other processes.
+You have constant memory starvation, so kswapd works fast permanently. The production processes 
+use, for instance, 80-90% of all physical memory.
+Setting low limit for production cgroup to 80% of physical memory solves this problem easily and secure.
+
+And I see no possibility to solve this task with current hard- and soft limits.
+So, even if I set hard limit for all other processes to 20% of physical memory, it doesn't mean that 
+production cgroup will not been scanned/reclaimed. Some magic with soft limits can help in some cases, 
+but it's much more complex in configuration (see below).
+
+> Why is soft_limit insufficient?
+
+
+1) If I want to grant (and protect) some amount of memory to a cgroup, i have to set soft limits for 
+all other cgroups. I must consider total amount of memory, number of cgroups, theirs soft and hard limits.
+Low limits provide an easier interface.
+2) It works only on DEF_PRIORITY priority.
+3) Also, it can be so, that my preferable cgroup is higher above it's soft limit than 
+other cgroups (and it's hard to control), so it will be reclaimed more intensively than necessary.
+
+>> ?Signed-off-by: Roman Gushchin <klamm@yandex-team.ru>
+>> ?---
+>> ??include/linux/memcontrol.h ?| ???7 +++++
+>> ??include/linux/res_counter.h | ??17 +++++++++++
+>> ??kernel/res_counter.c ???????| ???2 ++
+>> ??mm/memcontrol.c ????????????| ??67 +++++++++++++++++++++++++++++++++++++++++++
+>> ??mm/vmscan.c ????????????????| ???5 ++++
+>> ??5 files changed, 98 insertions(+)
+>
+> Need to update Documentation/cgroups/memory.txt explaining the external
+> behavior of this new know and how it interacts with soft_limit_in_bytes.
+
+Will do.
+
+Thank you!
+
+--
+Regards,
+Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
