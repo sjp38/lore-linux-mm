@@ -1,65 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 64B9C6B0005
-	for <linux-mm@kvack.org>; Tue, 26 Feb 2013 15:54:23 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20130213031056.GA32135@marvin.atrad.com.au>
-	<alpine.DEB.2.02.1302121917020.11158@chino.kir.corp.google.com>
-	<20130213042552.GC32135@marvin.atrad.com.au>
-	<511BADEA.3070403@linux.vnet.ibm.com>
-	<20130226063916.GM16712@marvin.atrad.com.au>
-	<512CD435.30704@linux.vnet.ibm.com>
-Date: Tue, 26 Feb 2013 12:54:08 -0800
-In-Reply-To: <512CD435.30704@linux.vnet.ibm.com> (Dave Hansen's message of
-	"Tue, 26 Feb 2013 07:26:45 -0800")
-Message-ID: <87d2vmkd8v.fsf@xmission.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 058456B0005
+	for <linux-mm@kvack.org>; Tue, 26 Feb 2013 19:46:10 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id bg4so56594pad.40
+        for <linux-mm@kvack.org>; Tue, 26 Feb 2013 16:46:10 -0800 (PST)
+Date: Tue, 26 Feb 2013 16:46:08 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, show_mem: suppress page counts in non-blockable
+ contexts
+Message-ID: <alpine.DEB.2.02.1302261642520.11109@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: OOM triggered with plenty of memory free
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Jonathan Woithe <jwoithe@atrad.com.au>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Dave Hansen <dave@linux.vnet.ibm.com> writes:
+On large systems with a lot of memory, walking all RAM to determine page 
+types may take a half second or even more.
 
-> On 02/25/2013 10:39 PM, Jonathan Woithe wrote:
->> On Wed, Feb 13, 2013 at 07:14:50AM -0800, Dave Hansen wrote:
->>> David's analysis looks spot-on.  The only other thing I'll add is that
->>> it just looks weird that all three kmalloc() caches are so _even_:
->>>
->>>>> kmalloc-128       1234556 1235168    128   32    1 : tunables    0    0    0 : slabdata  38599  38599      0
->>>>> kmalloc-64        1238117 1238144     64   64    1 : tunables    0    0    0 : slabdata  19346  19346      0
->>>>> kmalloc-32        1236600 1236608     32  128    1 : tunables    0    0    0 : slabdata   9661   9661      0
->>>
->>> It's almost like something goes and does 3 allocations in series and
->>> leaks them all.
-> ...
->> Given these observations it seems that 2.6.35.11 was leaking memory,
->> probably as a result of a bug in the fork() execution path.  At this stage
->> kmemleak is not showing the same recurring problem under 3.7.9.
->
-> Your kmemleak data shows that the leaks are always from either 'struct
-> cred', or 'struct pid'.  Those are _generally_ tied to tasks, but you
-> only have a couple thousand task_structs.
->
-> My suspicion would be that something is allocating those structures, but
-> a refcount got leaked somewhere.  2.6.35.11 is about the same era that
-> this code went in:
->
-> http://lists.linux-foundation.org/pipermail/containers/2010-June/024720.html
->
-> and it deals with both creds and 'struct pid'.  Eric, do you recall any
-> bugs like this that got fixed along the way?
->
-> I do think it's fairly safe to assume that 3.7.9 doesn't have this
-> bug.
+In non-blockable contexts, the page allocator will emit a page allocation 
+failure warning unless __GFP_NOWARN is specified.  In such contexts, irqs 
+are typically disabled and such a lengthy delay may result in soft 
+lockups.
 
-I remember that at one point there was a very subtle leak of I think
-struct pid.  That leak was not associated with the socket code but
-something else.
+To fix this, suppress the page walk in such contexts when printing the 
+page allocation failure warning.
 
-Eric
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ arch/arm/mm/init.c       | 3 +++
+ arch/ia64/mm/contig.c    | 2 ++
+ arch/ia64/mm/discontig.c | 2 ++
+ arch/parisc/mm/init.c    | 2 ++
+ arch/unicore32/mm/init.c | 3 +++
+ include/linux/mm.h       | 3 ++-
+ lib/show_mem.c           | 3 +++
+ mm/page_alloc.c          | 7 +++++++
+ 8 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -99,6 +99,9 @@ void show_mem(unsigned int filter)
+ 	printk("Mem-info:\n");
+ 	show_free_areas(filter);
+ 
++	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
++		return;
++
+ 	for_each_bank (i, mi) {
+ 		struct membank *bank = &mi->bank[i];
+ 		unsigned int pfn1, pfn2;
+diff --git a/arch/ia64/mm/contig.c b/arch/ia64/mm/contig.c
+--- a/arch/ia64/mm/contig.c
++++ b/arch/ia64/mm/contig.c
+@@ -47,6 +47,8 @@ void show_mem(unsigned int filter)
+ 	printk(KERN_INFO "Mem-info:\n");
+ 	show_free_areas(filter);
+ 	printk(KERN_INFO "Node memory in pages:\n");
++	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
++		return;
+ 	for_each_online_pgdat(pgdat) {
+ 		unsigned long present;
+ 		unsigned long flags;
+diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
+--- a/arch/ia64/mm/discontig.c
++++ b/arch/ia64/mm/discontig.c
+@@ -623,6 +623,8 @@ void show_mem(unsigned int filter)
+ 
+ 	printk(KERN_INFO "Mem-info:\n");
+ 	show_free_areas(filter);
++	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
++		return;
+ 	printk(KERN_INFO "Node memory in pages:\n");
+ 	for_each_online_pgdat(pgdat) {
+ 		unsigned long present;
+diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
+--- a/arch/parisc/mm/init.c
++++ b/arch/parisc/mm/init.c
+@@ -697,6 +697,8 @@ void show_mem(unsigned int filter)
+ 
+ 	printk(KERN_INFO "Mem-info:\n");
+ 	show_free_areas(filter);
++	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
++		return;
+ #ifndef CONFIG_DISCONTIGMEM
+ 	i = max_mapnr;
+ 	while (i-- > 0) {
+diff --git a/arch/unicore32/mm/init.c b/arch/unicore32/mm/init.c
+--- a/arch/unicore32/mm/init.c
++++ b/arch/unicore32/mm/init.c
+@@ -66,6 +66,9 @@ void show_mem(unsigned int filter)
+ 	printk(KERN_DEFAULT "Mem-info:\n");
+ 	show_free_areas(filter);
+ 
++	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
++		return;
++
+ 	for_each_bank(i, mi) {
+ 		struct membank *bank = &mi->bank[i];
+ 		unsigned int pfn1, pfn2;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -898,7 +898,8 @@ extern void pagefault_out_of_memory(void);
+  * Flags passed to show_mem() and show_free_areas() to suppress output in
+  * various contexts.
+  */
+-#define SHOW_MEM_FILTER_NODES	(0x0001u)	/* filter disallowed nodes */
++#define SHOW_MEM_FILTER_NODES		(0x0001u)	/* disallowed nodes */
++#define SHOW_MEM_FILTER_PAGE_COUNT	(0x0002u)	/* page type count */
+ 
+ extern void show_free_areas(unsigned int flags);
+ extern bool skip_free_areas_node(unsigned int flags, int nid);
+diff --git a/lib/show_mem.c b/lib/show_mem.c
+--- a/lib/show_mem.c
++++ b/lib/show_mem.c
+@@ -18,6 +18,9 @@ void show_mem(unsigned int filter)
+ 	printk("Mem-Info:\n");
+ 	show_free_areas(filter);
+ 
++	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
++		return;
++
+ 	for_each_online_pgdat(pgdat) {
+ 		unsigned long i, flags;
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2009,6 +2009,13 @@ void warn_alloc_failed(gfp_t gfp_mask, int order, const char *fmt, ...)
+ 		return;
+ 
+ 	/*
++	 * Walking all memory to count page types is very expensive and should
++	 * be inhibited in non-blockable contexts.
++	 */
++	if (!(gfp_mask & __GFP_WAIT))
++		filter |= SHOW_MEM_FILTER_PAGE_COUNT;
++
++	/*
+ 	 * This documents exceptions given to allocations in certain
+ 	 * contexts that are allowed to allocate outside current's set
+ 	 * of allowed nodes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
