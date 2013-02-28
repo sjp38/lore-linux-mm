@@ -1,90 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id E4F4F6B0006
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 16:27:47 -0500 (EST)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 28 Feb 2013 14:27:47 -0700
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 6A64F1FF0049
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 14:22:52 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1SLRbYh030914
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 14:27:38 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1SLQmun030464
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 14:26:48 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH 11/24] page_alloc: in move_freepages(), skip pages instead of VM_BUG on node differences.
-Date: Thu, 28 Feb 2013 13:26:08 -0800
-Message-Id: <1362086781-16725-2-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <1362086781-16725-1-git-send-email-cody@linux.vnet.ibm.com>
-References: <1362086781-16725-1-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
-References: <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 3E4F66B0005
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 16:33:48 -0500 (EST)
+Message-ID: <1362087226.1231.21.camel@gandalf.local.home>
+Subject: Re: [PATCH RESEND] mm: trace filemap add and del
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Thu, 28 Feb 2013 16:33:46 -0500
+In-Reply-To: <1362084420-3840-1-git-send-email-robert.jarzmik@free.fr>
+References: <1362084420-3840-1-git-send-email-robert.jarzmik@free.fr>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>
-Cc: Cody P Schafer <cody@linux.vnet.ibm.com>, David Hansen <dave@linux.vnet.ibm.com>
+To: Robert Jarzmik <robert.jarzmik@free.fr>
+Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Hugh Dickins <hughd@google.com>, Frederic Weisbecker <fweisbec@gmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-With dynamic numa, pages are going to be gradully moved from one node to
-another, causing the page ranges that move_freepages() examines to
-contain pages that actually belong to another node.
+On Thu, 2013-02-28 at 21:47 +0100, Robert Jarzmik wrote:
+> Use the events API to trace filemap loading and unloading of file pieces
+> into the page cache.
+> 
+> This patch aims at tracing the eviction reload cycle of executable and
+> shared libraries pages in a memory constrained environment.
+> 
+> The typical usage is to spot a specific device and inode (for example
+> /lib/libc.so) to see the eviction cycles, and find out if frequently used
+> code is rather spread across many pages (bad) or coallesced (good).
+> 
+> Signed-off-by: Robert Jarzmik <robert.jarzmik@free.fr>
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Steven Rostedt <rostedt@goodmis.org>
+> Cc: Frederic Weisbecker <fweisbec@gmail.com>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>  include/trace/events/filemap.h |   79 ++++++++++++++++++++++++++++++++++++++++
+>  mm/filemap.c                   |    5 +++
+>  2 files changed, 84 insertions(+)
+>  create mode 100644 include/trace/events/filemap.h
+> 
+> diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+> new file mode 100644
+> index 0000000..2d36386
+> --- /dev/null
+> +++ b/include/trace/events/filemap.h
+> @@ -0,0 +1,79 @@
+> +#undef TRACE_SYSTEM
+> +#define TRACE_SYSTEM filemap
+> +
+> +#if !defined(_TRACE_FILEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
+> +#define _TRACE_FILEMAP_H
+> +
+> +#include <linux/types.h>
+> +#include <linux/tracepoint.h>
+> +#include <linux/mm.h>
+> +#include <linux/memcontrol.h>
+> +#include <linux/device.h>
+> +#include <linux/kdev_t.h>
+> +
+> +TRACE_EVENT(mm_filemap_delete_from_page_cache,
+> +
+> +	TP_PROTO(struct page *page),
+> +
+> +	TP_ARGS(page),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(struct page *, page)
+> +		__field(unsigned long, i_ino)
+> +		__field(unsigned long, index)
+> +		__field(dev_t, s_dev)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->page = page;
+> +		__entry->i_ino = page->mapping->host->i_ino;
+> +		__entry->index = page->index;
+> +		if (page->mapping->host->i_sb)
+> +			__entry->s_dev = page->mapping->host->i_sb->s_dev;
+> +		else
+> +			__entry->s_dev = page->mapping->host->i_rdev;
+> +	),
+> +
+> +	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
+> +		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
+> +		__entry->i_ino,
+> +		__entry->page,
+> +		page_to_pfn(__entry->page),
+> +		__entry->index << PAGE_SHIFT)
+> +);
+> +
+> +TRACE_EVENT(mm_filemap_add_to_page_cache,
+> +
+> +	TP_PROTO(struct page *page),
+> +
+> +	TP_ARGS(page),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(struct page *, page)
+> +		__field(unsigned long, i_ino)
+> +		__field(unsigned long, index)
+> +		__field(dev_t, s_dev)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->page = page;
+> +		__entry->i_ino = page->mapping->host->i_ino;
+> +		__entry->index = page->index;
+> +		if (page->mapping->host->i_sb)
+> +			__entry->s_dev = page->mapping->host->i_sb->s_dev;
+> +		else
+> +			__entry->s_dev = page->mapping->host->i_rdev;
+> +	),
+> +
+> +	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
+> +		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
+> +		__entry->i_ino,
+> +		__entry->page,
+> +		page_to_pfn(__entry->page),
+> +		__entry->index << PAGE_SHIFT)
+> +);
 
-When dynamic numa is enabled, we skip these pages instead of VM_BUGing
-out on them.
+The above two events are identical. Please use DECLARE_EVENT_CLASS()
+DEFINE_EVENT() for them. It saves a lot of excess created code.
 
-This additionally moves the VM_BUG_ON() (which detects a change in node)
-so that it follows the pfn_valid_within() check.
+-- Steve
 
-Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
----
- mm/page_alloc.c | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+> +
+> +#endif /* _TRACE_FILEMAP_H */
+> +
+> +/* This part must be outside protection */
+> +#include <trace/define_trace.h>
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index e1979fd..6ed13fc 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -35,6 +35,9 @@
+>  #include <linux/cleancache.h>
+>  #include "internal.h"
+>  
+> +#define CREATE_TRACE_POINTS
+> +#include <trace/events/filemap.h>
+> +
+>  /*
+>   * FIXME: remove all knowledge of the buffer layer from the core VM
+>   */
+> @@ -113,6 +116,7 @@ void __delete_from_page_cache(struct page *page)
+>  {
+>  	struct address_space *mapping = page->mapping;
+>  
+> +	trace_mm_filemap_delete_from_page_cache(page);
+>  	/*
+>  	 * if we're uptodate, flush out into the cleancache, otherwise
+>  	 * invalidate any existing cleancache entries.  We can't leave
+> @@ -463,6 +467,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+>  		if (likely(!error)) {
+>  			mapping->nrpages++;
+>  			__inc_zone_page_state(page, NR_FILE_PAGES);
+> +			trace_mm_filemap_add_to_page_cache(page);
+>  			spin_unlock_irq(&mapping->tree_lock);
+>  		} else {
+>  			page->mapping = NULL;
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bbc9b6e..972d7cc 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -964,6 +964,7 @@ int move_freepages(struct zone *zone,
- 	struct page *page;
- 	unsigned long order;
- 	int pages_moved = 0;
-+	int zone_nid = zone_to_nid(zone);
- 
- #ifndef CONFIG_HOLES_IN_ZONE
- 	/*
-@@ -977,14 +978,24 @@ int move_freepages(struct zone *zone,
- #endif
- 
- 	for (page = start_page; page <= end_page;) {
--		/* Make sure we are not inadvertently changing nodes */
--		VM_BUG_ON(page_to_nid(page) != zone_to_nid(zone));
--
- 		if (!pfn_valid_within(page_to_pfn(page))) {
- 			page++;
- 			continue;
- 		}
- 
-+		if (page_to_nid(page) != zone_nid) {
-+#ifndef CONFIG_DYNAMIC_NUMA
-+			/*
-+			 * In the normal case (without Dynamic NUMA), all pages
-+			 * in a pageblock should belong to the same zone (and
-+			 * as a result all have the same nid).
-+			 */
-+			VM_BUG_ON(page_to_nid(page) != zone_nid);
-+#endif
-+			page++;
-+			continue;
-+		}
-+
- 		if (!PageBuddy(page)) {
- 			page++;
- 			continue;
--- 
-1.8.1.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
