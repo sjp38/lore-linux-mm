@@ -1,61 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 340AB6B0011
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:45:14 -0500 (EST)
-Received: from /spool/local
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 28 Feb 2013 13:45:12 -0700
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 7FC9519D8046
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 13:45:07 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1SKj2nJ026940
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 13:45:03 -0700
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1SKlXJi026516
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 13:47:33 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH 09/24] mm: add nid_zone() helper
-Date: Thu, 28 Feb 2013 12:44:17 -0800
-Message-Id: <1362084272-11282-10-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
-References: <20130228024112.GA24970@negative>
- <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 42D356B0002
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:47:38 -0500 (EST)
+From: Robert Jarzmik <robert.jarzmik@free.fr>
+Subject: [PATCH RESEND] mm: trace filemap add and del
+Date: Thu, 28 Feb 2013 21:47:00 +0100
+Message-Id: <1362084420-3840-1-git-send-email-robert.jarzmik@free.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>
-Cc: David Hansen <dave@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: linux-mm@kvack.org
+Cc: Robert Jarzmik <robert.jarzmik@free.fr>, Dave Chinner <david@fromorbit.com>, Hugh Dickins <hughd@google.com>, Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Add nid_zone(), which returns the zone corresponding to a given nid & zonenum.
+Use the events API to trace filemap loading and unloading of file pieces
+into the page cache.
 
-Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+This patch aims at tracing the eviction reload cycle of executable and
+shared libraries pages in a memory constrained environment.
+
+The typical usage is to spot a specific device and inode (for example
+/lib/libc.so) to see the eviction cycles, and find out if frequently used
+code is rather spread across many pages (bad) or coallesced (good).
+
+Signed-off-by: Robert Jarzmik <robert.jarzmik@free.fr>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Ingo Molnar <mingo@redhat.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/mm.h | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ include/trace/events/filemap.h |   79 ++++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c                   |    5 +++
+ 2 files changed, 84 insertions(+)
+ create mode 100644 include/trace/events/filemap.h
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index e7c3f9a..562304a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -707,9 +707,14 @@ static inline void page_nid_reset_last(struct page *page)
- }
- #endif
- 
-+static inline struct zone *nid_zone(int nid, enum zone_type zonenum)
-+{
-+	return &NODE_DATA(nid)->node_zones[zonenum];
-+}
+diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+new file mode 100644
+index 0000000..2d36386
+--- /dev/null
++++ b/include/trace/events/filemap.h
+@@ -0,0 +1,79 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM filemap
 +
- static inline struct zone *page_zone(const struct page *page)
- {
--	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
-+	return nid_zone(page_to_nid(page), page_zonenum(page));
- }
++#if !defined(_TRACE_FILEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_FILEMAP_H
++
++#include <linux/types.h>
++#include <linux/tracepoint.h>
++#include <linux/mm.h>
++#include <linux/memcontrol.h>
++#include <linux/device.h>
++#include <linux/kdev_t.h>
++
++TRACE_EVENT(mm_filemap_delete_from_page_cache,
++
++	TP_PROTO(struct page *page),
++
++	TP_ARGS(page),
++
++	TP_STRUCT__entry(
++		__field(struct page *, page)
++		__field(unsigned long, i_ino)
++		__field(unsigned long, index)
++		__field(dev_t, s_dev)
++	),
++
++	TP_fast_assign(
++		__entry->page = page;
++		__entry->i_ino = page->mapping->host->i_ino;
++		__entry->index = page->index;
++		if (page->mapping->host->i_sb)
++			__entry->s_dev = page->mapping->host->i_sb->s_dev;
++		else
++			__entry->s_dev = page->mapping->host->i_rdev;
++	),
++
++	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
++		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++		__entry->i_ino,
++		__entry->page,
++		page_to_pfn(__entry->page),
++		__entry->index << PAGE_SHIFT)
++);
++
++TRACE_EVENT(mm_filemap_add_to_page_cache,
++
++	TP_PROTO(struct page *page),
++
++	TP_ARGS(page),
++
++	TP_STRUCT__entry(
++		__field(struct page *, page)
++		__field(unsigned long, i_ino)
++		__field(unsigned long, index)
++		__field(dev_t, s_dev)
++	),
++
++	TP_fast_assign(
++		__entry->page = page;
++		__entry->i_ino = page->mapping->host->i_ino;
++		__entry->index = page->index;
++		if (page->mapping->host->i_sb)
++			__entry->s_dev = page->mapping->host->i_sb->s_dev;
++		else
++			__entry->s_dev = page->mapping->host->i_rdev;
++	),
++
++	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
++		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++		__entry->i_ino,
++		__entry->page,
++		page_to_pfn(__entry->page),
++		__entry->index << PAGE_SHIFT)
++);
++
++#endif /* _TRACE_FILEMAP_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/mm/filemap.c b/mm/filemap.c
+index e1979fd..6ed13fc 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -35,6 +35,9 @@
+ #include <linux/cleancache.h>
+ #include "internal.h"
  
- #ifdef SECTION_IN_PAGE_FLAGS
++#define CREATE_TRACE_POINTS
++#include <trace/events/filemap.h>
++
+ /*
+  * FIXME: remove all knowledge of the buffer layer from the core VM
+  */
+@@ -113,6 +116,7 @@ void __delete_from_page_cache(struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
+ 
++	trace_mm_filemap_delete_from_page_cache(page);
+ 	/*
+ 	 * if we're uptodate, flush out into the cleancache, otherwise
+ 	 * invalidate any existing cleancache entries.  We can't leave
+@@ -463,6 +467,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 		if (likely(!error)) {
+ 			mapping->nrpages++;
+ 			__inc_zone_page_state(page, NR_FILE_PAGES);
++			trace_mm_filemap_add_to_page_cache(page);
+ 			spin_unlock_irq(&mapping->tree_lock);
+ 		} else {
+ 			page->mapping = NULL;
 -- 
-1.8.1.1
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
