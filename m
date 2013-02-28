@@ -1,60 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 0CB1C6B0002
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 14:51:17 -0500 (EST)
-MIME-Version: 1.0
-Message-ID: <175ae3a0-2760-4ec7-869f-46a634ce321d@default>
-Date: Thu, 28 Feb 2013 11:50:58 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCHv6 4/8] zswap: add to mm/
-References: <<1361397888-14863-1-git-send-email-sjenning@linux.vnet.ibm.com>>
- <<1361397888-14863-5-git-send-email-sjenning@linux.vnet.ibm.com>>
- <42ac68b3-cb1f-48da-bd5e-a368ed62826f@default>
-In-Reply-To: <42ac68b3-cb1f-48da-bd5e-a368ed62826f@default>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 7E92A6B0002
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:50 -0500 (EST)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Thu, 28 Feb 2013 15:44:49 -0500
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 3C89B6E804C
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:44 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1SKijQn270516
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:45 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1SKijgX030902
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:45 -0500
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Subject: [RFC][PATCH 00/24] DNUMA: Runtime NUMA memory layout reconfiguration
+Date: Thu, 28 Feb 2013 12:44:08 -0800
+Message-Id: <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
+In-Reply-To: <20130228024112.GA24970@negative>
+References: <20130228024112.GA24970@negative>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Linux MM <linux-mm@kvack.org>
+Cc: David Hansen <dave@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-> From: Dan Magenheimer
-> Sent: Thursday, February 28, 2013 11:13 AM
-> To: Seth Jennings; Andrew Morton
-> Cc: Greg Kroah-Hartman; Nitin Gupta; Minchan Kim; Konrad Rzeszutek Wilk; =
-Dan Magenheimer; Robert
-> Jennings; Jenifer Hopper; Mel Gorman; Johannes Weiner; Rik van Riel; Larr=
-y Woodman; Benjamin
-> Herrenschmidt; Dave Hansen; Joe Perches; Joonsoo Kim; Cody P Schafer; lin=
-ux-mm@kvack.org; linux-
-> kernel@vger.kernel.org; devel@driverdev.osuosl.org
-> Subject: RE: [PATCHv6 4/8] zswap: add to mm/
->=20
-> > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> > Subject: [PATCHv6 4/8] zswap: add to mm/
-> >
-> > +/*
-> > + * Maximum compression ratio, as as percentage, for an acceptable
-> > + * compressed page. Any pages that do not compress by at least
-> > + * this ratio will be rejected.
-> > +*/
-> > +static unsigned int zswap_max_compression_ratio =3D 80;
-> > +module_param_named(max_compression_ratio,
-> > +=09=09=09zswap_max_compression_ratio, uint, 0644);
->=20
-> Unless this is a complete coincidence, I believe that
-> the default value "80" is actually:
->=20
-> (100 * (1L >> ZS_MAX_ZSPAGE_ORDER)) /
->         ((1L >> ZS_MAX_ZSPAGE_ORDER)) + 1)
+Some people asked me to send the email patches for this instead of just posting a git tree link
 
-Doh! If it wasn't obvious, those should be left
-shift operators, not right shift.  So....
+For reference, this is the original message:
+	http://lkml.org/lkml/2013/2/27/374
 
-(100 * (1L << ZS_MAX_ZSPAGE_ORDER)) /
-        ((1L << ZS_MAX_ZSPAGE_ORDER)) + 1)
+--
 
-Sorry for that.
+ arch/x86/Kconfig                 |   1 -
+ arch/x86/include/asm/sparsemem.h |   4 +-
+ arch/x86/mm/numa.c               |  32 +++-
+ include/linux/dnuma.h            |  96 +++++++++++
+ include/linux/memlayout.h        | 111 +++++++++++++
+ include/linux/memory_hotplug.h   |   4 +
+ include/linux/mm.h               |   7 +-
+ include/linux/page-flags.h       |  18 ++
+ include/linux/rbtree.h           |  11 ++
+ init/main.c                      |   2 +
+ lib/rbtree.c                     |  40 +++++
+ mm/Kconfig                       |  44 +++++
+ mm/Makefile                      |   2 +
+ mm/dnuma.c                       | 351 +++++++++++++++++++++++++++++++++++++++
+ mm/internal.h                    |  13 +-
+ mm/memlayout-debugfs.c           | 323 +++++++++++++++++++++++++++++++++++
+ mm/memlayout-debugfs.h           |  35 ++++
+ mm/memlayout.c                   | 267 +++++++++++++++++++++++++++++
+ mm/memory_hotplug.c              |  53 +++---
+ mm/page_alloc.c                  | 112 +++++++++++--
+ 20 files changed, 1486 insertions(+), 40 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
