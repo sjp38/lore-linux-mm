@@ -1,59 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 7E92A6B0002
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:50 -0500 (EST)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id D33C76B0005
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:52 -0500 (EST)
 Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 28 Feb 2013 15:44:49 -0500
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 3C89B6E804C
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:44 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1SKijQn270516
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:45 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1SKijgX030902
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:45 -0500
+	Thu, 28 Feb 2013 15:44:51 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id F253338C8045
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:48 -0500 (EST)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1SKim3v294016
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:48 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1SKimrK023806
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:48 -0500
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC][PATCH 00/24] DNUMA: Runtime NUMA memory layout reconfiguration
-Date: Thu, 28 Feb 2013 12:44:08 -0800
-Message-Id: <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <20130228024112.GA24970@negative>
+Subject: [PATCH 02/24] XXX: x86/Kconfig: simplify NUMA config for NUMA_EMU on X86_32.
+Date: Thu, 28 Feb 2013 12:44:10 -0800
+Message-Id: <1362084272-11282-3-git-send-email-cody@linux.vnet.ibm.com>
+In-Reply-To: <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <20130228024112.GA24970@negative>
+ <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: David Hansen <dave@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-Some people asked me to send the email patches for this instead of just posting a git tree link
+NUMA_EMU depends on NUMA.
+NUMA depends on (X86_64 || (X86_32 && ( list of extended platforms))).
 
-For reference, this is the original message:
-	http://lkml.org/lkml/2013/2/27/374
+This forced enabling an extended platform when using numa emulation on
+x86_32, which is silly.
 
---
+Remoing the list of extended platforms (plus EXPERIMENTAL) results in
+NUMA depending on X86_64 || X86_32, so simply remove all dependencies
+from (except SMP) from NUMA.
 
- arch/x86/Kconfig                 |   1 -
- arch/x86/include/asm/sparsemem.h |   4 +-
- arch/x86/mm/numa.c               |  32 +++-
- include/linux/dnuma.h            |  96 +++++++++++
- include/linux/memlayout.h        | 111 +++++++++++++
- include/linux/memory_hotplug.h   |   4 +
- include/linux/mm.h               |   7 +-
- include/linux/page-flags.h       |  18 ++
- include/linux/rbtree.h           |  11 ++
- init/main.c                      |   2 +
- lib/rbtree.c                     |  40 +++++
- mm/Kconfig                       |  44 +++++
- mm/Makefile                      |   2 +
- mm/dnuma.c                       | 351 +++++++++++++++++++++++++++++++++++++++
- mm/internal.h                    |  13 +-
- mm/memlayout-debugfs.c           | 323 +++++++++++++++++++++++++++++++++++
- mm/memlayout-debugfs.h           |  35 ++++
- mm/memlayout.c                   | 267 +++++++++++++++++++++++++++++
- mm/memory_hotplug.c              |  53 +++---
- mm/page_alloc.c                  | 112 +++++++++++--
- 20 files changed, 1486 insertions(+), 40 deletions(-)
+Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+---
+ arch/x86/Kconfig | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 6a93833..58cd8fb 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1228,7 +1228,6 @@ config DIRECT_GBPAGES
+ config NUMA
+ 	bool "Numa Memory Allocation and Scheduler Support"
+ 	depends on SMP
+-	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || X86_BIGSMP || X86_SUMMIT && ACPI))
+ 	default y if (X86_NUMAQ || X86_SUMMIT || X86_BIGSMP)
+ 	---help---
+ 	  Enable NUMA (Non Uniform Memory Access) support.
+-- 
+1.8.1.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
