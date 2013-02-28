@@ -1,45 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 291596B000A
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 00:25:34 -0500 (EST)
-Received: by mail-qe0-f49.google.com with SMTP id 1so1122586qec.22
-        for <linux-mm@kvack.org>; Wed, 27 Feb 2013 21:25:33 -0800 (PST)
-From: kosaki.motohiro@gmail.com
-Subject: [PATCH 2/2] mempolicy: fix typo
-Date: Thu, 28 Feb 2013 00:25:07 -0500
-Message-Id: <1362029107-3908-2-git-send-email-kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 93ADC6B000E
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 00:27:01 -0500 (EST)
+Received: by mail-ee0-f53.google.com with SMTP id e53so1126231eek.40
+        for <linux-mm@kvack.org>; Wed, 27 Feb 2013 21:27:00 -0800 (PST)
+MIME-Version: 1.0
 In-Reply-To: <CAJd=RBBxTutPsF+XPZGt44eT1f0uPAQfCvQj_UmwdDg82J=F+A@mail.gmail.com>
-References: <CAJd=RBBxTutPsF+XPZGt44eT1f0uPAQfCvQj_UmwdDg82J=F+A@mail.gmail.com>
+References: <512B677D.1040501@oracle.com> <CAHGf_=rur29gFs9R9AYeDwnbVBm3b3cOfAn2xyi=mQ+ZbgzEDA@mail.gmail.com>
+ <512C15F0.6030907@oracle.com> <CAJd=RBBxTutPsF+XPZGt44eT1f0uPAQfCvQj_UmwdDg82J=F+A@mail.gmail.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Thu, 28 Feb 2013 00:26:39 -0500
+Message-ID: <CAHGf_=r5oo+N0_BSd-8-GPeburBnHVAjLEszmNkj+ASMJXqYLQ@mail.gmail.com>
+Subject: Re: mm: BUG in mempolicy's sp_insert
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Dave Jones <davej@redhat.com>, Hillf Danton <dhillf@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Dave Jones <davej@redhat.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Insert new node after updating node in tree.
 
-Currently, n_new is wrongly initialized. start and end parameter
-are inverted. Let's fix it.
-
-Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
----
- mm/mempolicy.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 868d08f..7431001 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2390,7 +2390,7 @@ static int shared_policy_replace(struct shared_policy *sp, unsigned long start,
- 
- 				*mpol_new = *n->policy;
- 				atomic_set(&mpol_new->refcnt, 1);
--				sp_node_init(n_new, n->end, end, mpol_new);
-+				sp_node_init(n_new, end, n->end, mpol_new);
- 				n->end = start;
- 				sp_insert(sp, n_new);
- 				n_new = NULL;
--- 
-1.7.1
+Thanks. you are right. I could reproduce and verified.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
