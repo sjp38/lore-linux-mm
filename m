@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 20B5C6B0009
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:45:03 -0500 (EST)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id DB1BA6B000A
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:45:05 -0500 (EST)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 28 Feb 2013 15:45:02 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id AB32A38C801D
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:59 -0500 (EST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1SKivWS307284
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 15:44:58 -0500
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1SKlSa8026217
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 13:47:28 -0700
+	Thu, 28 Feb 2013 13:45:04 -0700
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 1BC7D1FF0038
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 13:40:10 -0700 (MST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r1SKixk4104004
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 13:44:59 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r1SKixMc026554
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 13:44:59 -0700
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH 07/24] memory_hotplug: export ensure_zone_is_initialized() in mm/internal.h
-Date: Thu, 28 Feb 2013 12:44:15 -0800
-Message-Id: <1362084272-11282-8-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [PATCH 08/24] mm/memory_hotplug: use {pgdat,zone}_is_empty() when resizing zones & pgdats
+Date: Thu, 28 Feb 2013 12:44:16 -0800
+Message-Id: <1362084272-11282-9-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <20130228024112.GA24970@negative>
  <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
@@ -27,47 +27,36 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: David Hansen <dave@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-Export ensure_zone_is_initialized() so that it can be used to initialize
-new zones within the dynamic numa code.
+Use the *_is_empty() helpers to be more clear about what we're actually
+checking for.
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- mm/internal.h       | 8 ++++++++
- mm/memory_hotplug.c | 2 +-
- 2 files changed, 9 insertions(+), 1 deletion(-)
+ mm/memory_hotplug.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 1c0c4cc..6c63752 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -105,6 +105,14 @@ extern void prep_compound_page(struct page *page, unsigned long order);
- extern bool is_free_buddy_page(struct page *page);
- #endif
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+/*
-+ * in mm/memory_hotplug.c
-+ */
-+extern int ensure_zone_is_initialized(struct zone *zone,
-+			unsigned long start_pfn, unsigned long num_pages);
-+#endif
-+
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
- 
- /*
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 9e4c32b..9f43c80 100644
+index 9f43c80..eae4a2a 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -284,7 +284,7 @@ static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
+@@ -242,7 +242,7 @@ static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
+ 	zone_span_writelock(zone);
  
- /* Can fail with -ENOMEM from allocating a wait table with vmalloc() or
-  * alloc_bootmem_node_nopanic() */
--static int __ref ensure_zone_is_initialized(struct zone *zone,
-+int __ref ensure_zone_is_initialized(struct zone *zone,
- 			unsigned long start_pfn, unsigned long num_pages)
- {
- 	if (!zone_is_initialized(zone))
+ 	old_zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+-	if (!zone->spanned_pages || start_pfn < zone->zone_start_pfn)
++	if (zone_is_empty(zone) || start_pfn < zone->zone_start_pfn)
+ 		zone->zone_start_pfn = start_pfn;
+ 
+ 	zone->spanned_pages = max(old_zone_end_pfn, end_pfn) -
+@@ -383,7 +383,7 @@ static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
+ 	unsigned long old_pgdat_end_pfn =
+ 		pgdat->node_start_pfn + pgdat->node_spanned_pages;
+ 
+-	if (!pgdat->node_spanned_pages || start_pfn < pgdat->node_start_pfn)
++	if (pgdat_is_empty(pgdat) || start_pfn < pgdat->node_start_pfn)
+ 		pgdat->node_start_pfn = start_pfn;
+ 
+ 	pgdat->node_spanned_pages = max(old_pgdat_end_pfn, end_pfn) -
 -- 
 1.8.1.1
 
