@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 886B56B0002
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 13:17:05 -0500 (EST)
-Date: Thu, 28 Feb 2013 13:16:52 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1362075412-779292mh-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CAHGf_=qq=+F4HMEE6P_g_ou7dQ6odu=DaefDsURjq5Yhxz99-Q@mail.gmail.com>
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1361475708-25991-10-git-send-email-n-horiguchi@ah.jp.nec.com>
- <CAHGf_=qq=+F4HMEE6P_g_ou7dQ6odu=DaefDsURjq5Yhxz99-Q@mail.gmail.com>
-Subject: Re: [PATCH 9/9] remove /proc/sys/vm/hugepages_treat_as_movable
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 0CB1C6B0002
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 14:51:17 -0500 (EST)
+MIME-Version: 1.0
+Message-ID: <175ae3a0-2760-4ec7-869f-46a634ce321d@default>
+Date: Thu, 28 Feb 2013 11:50:58 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCHv6 4/8] zswap: add to mm/
+References: <<1361397888-14863-1-git-send-email-sjenning@linux.vnet.ibm.com>>
+ <<1361397888-14863-5-git-send-email-sjenning@linux.vnet.ibm.com>>
+ <42ac68b3-cb1f-48da-bd5e-a368ed62826f@default>
+In-Reply-To: <42ac68b3-cb1f-48da-bd5e-a368ed62826f@default>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Thu, Feb 28, 2013 at 01:02:37AM -0500, KOSAKI Motohiro wrote:
-> > -        {
-> > -               .procname       = "hugepages_treat_as_movable",
-> > -               .data           = &hugepages_treat_as_movable,
-> > -               .maxlen         = sizeof(int),
-> > -               .mode           = 0644,
-> > -               .proc_handler   = hugetlb_treat_movable_handler,
-> > -       },
-> 
-> Sorry, no.
-> 
-> This is too aggressive remove. Imagine, a lot of shell script don't
-> have any error check.
+> From: Dan Magenheimer
+> Sent: Thursday, February 28, 2013 11:13 AM
+> To: Seth Jennings; Andrew Morton
+> Cc: Greg Kroah-Hartman; Nitin Gupta; Minchan Kim; Konrad Rzeszutek Wilk; =
+Dan Magenheimer; Robert
+> Jennings; Jenifer Hopper; Mel Gorman; Johannes Weiner; Rik van Riel; Larr=
+y Woodman; Benjamin
+> Herrenschmidt; Dave Hansen; Joe Perches; Joonsoo Kim; Cody P Schafer; lin=
+ux-mm@kvack.org; linux-
+> kernel@vger.kernel.org; devel@driverdev.osuosl.org
+> Subject: RE: [PATCHv6 4/8] zswap: add to mm/
+>=20
+> > From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> > Subject: [PATCHv6 4/8] zswap: add to mm/
+> >
+> > +/*
+> > + * Maximum compression ratio, as as percentage, for an acceptable
+> > + * compressed page. Any pages that do not compress by at least
+> > + * this ratio will be rejected.
+> > +*/
+> > +static unsigned int zswap_max_compression_ratio =3D 80;
+> > +module_param_named(max_compression_ratio,
+> > +=09=09=09zswap_max_compression_ratio, uint, 0644);
+>=20
+> Unless this is a complete coincidence, I believe that
+> the default value "80" is actually:
+>=20
+> (100 * (1L >> ZS_MAX_ZSPAGE_ORDER)) /
+>         ((1L >> ZS_MAX_ZSPAGE_ORDER)) + 1)
 
-Sure, it could break usespace applications.
+Doh! If it wasn't obvious, those should be left
+shift operators, not right shift.  So....
 
-> I suggest to keep this file but change to nop (to output warning is better).
-> About 1-2 years after, we can remove this file safely.
+(100 * (1L << ZS_MAX_ZSPAGE_ORDER)) /
+        ((1L << ZS_MAX_ZSPAGE_ORDER)) + 1)
 
-OK, so I'll leave it for a while with the comment saying that this
-parameter is obsolete and shouldn't be used.
-
-Thanks,
-Naoya
+Sorry for that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
