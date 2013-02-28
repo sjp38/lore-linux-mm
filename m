@@ -1,37 +1,19 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 761BA6B0002
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 06:32:19 -0500 (EST)
-Date: Thu, 28 Feb 2013 19:36:59 +1100
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: [PATCH -V1 05/24] powerpc: Move the pte free routines from
- common header
-Message-ID: <20130228083659.GA8151@iris.ozlabs.ibm.com>
-References: <1361865914-13911-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1361865914-13911-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Return-Path: <voltmeterss92@rossenoch.com>
+Received: from [122.174.202.125] (port=1278 helo=CSRVR)
+	by inbound.rossenoch.com.netsolmail.net with asmtp
+	id 4F607B-000986-38
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 17:44:26 +0530
+Message-ID: <0BD7E5EF4AC14C94809786660B2B8F4B@CSRVR>
+From: "Bonita Duarte" <voltmeterss92@rossenoch.com>
+Subject: Fw: Natural diet supplements
+Date: Thu, 28 Feb 2013 17:44:26 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1361865914-13911-6-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Sender: owner-linux-mm@kvack.org
+Content-Type: text/plain;
+	format=flowed;
+	charset="iso-8859-1";
+	reply-type=original
+Content-Transfer-Encoding: 7bit
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On Tue, Feb 26, 2013 at 01:34:55PM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> This patch move the common code to 32/64 bit headers. We will
-             ^ moves
-
-> later change the 64 bit version to support smaller PTE fragments
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
-Acked-by: Paul Mackerras <paulus@samba.org>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+http://www.lutte.uscreteil.com/www.abcnews.newscorp.today.friend19.php
