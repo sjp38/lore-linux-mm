@@ -1,172 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 62C1E6B0002
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 20:40:27 -0500 (EST)
-Received: by mail-oa0-f42.google.com with SMTP id i18so4945557oag.29
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2013 17:40:26 -0800 (PST)
-Message-ID: <51300702.1050006@gmail.com>
-Date: Fri, 01 Mar 2013 09:40:18 +0800
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id CBD106B0002
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 21:40:50 -0500 (EST)
+Received: by mail-ia0-f177.google.com with SMTP id o25so2227872iad.36
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2013 18:40:50 -0800 (PST)
+Message-ID: <5130152B.9060904@gmail.com>
+Date: Fri, 01 Mar 2013 10:40:43 +0800
 From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Subject: Re: zsmalloc limitations and related topics
-References: <0efe9610-1aa5-4aa9-bde9-227acfa969ca@default>
-In-Reply-To: <0efe9610-1aa5-4aa9-bde9-227acfa969ca@default>
+Subject: Re: [RFC PATCH v2 1/2] mm: tuning hardcoded reserved memory
+References: <20130227205629.GA8429@localhost.localdomain> <20130228141200.3fe7f459.akpm@linux-foundation.org> <20130228034803.GB3829@localhost.localdomain>
+In-Reply-To: <20130228034803.GB3829@localhost.localdomain>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: minchan@kernel.org, sjenning@linux.vnet.ibm.com, Nitin Gupta <nitingupta910@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bob Liu <lliubbo@gmail.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>
+To: Andrew Shewmaker <agshew@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
 
-On 02/28/2013 07:24 AM, Dan Magenheimer wrote:
-> Hi all --
+On 02/28/2013 11:48 AM, Andrew Shewmaker wrote:
+> On Thu, Feb 28, 2013 at 02:12:00PM -0800, Andrew Morton wrote:
+>> On Wed, 27 Feb 2013 15:56:30 -0500
+>> Andrew Shewmaker <agshew@gmail.com> wrote:
+>>
+>>> The following patches are against the mmtom git tree as of February 27th.
+>>>
+>>> The first patch only affects OVERCOMMIT_NEVER mode, entirely removing
+>>> the 3% reserve for other user processes.
+>>>
+>>> The second patch affects both OVERCOMMIT_GUESS and OVERCOMMIT_NEVER
+>>> modes, replacing the hardcoded 3% reserve for the root user with a
+>>> tunable knob.
+>>>
+>> Gee, it's been years since anyone thought about the overcommit code.
+>>
+>> Documentation/vm/overcommit-accounting says that OVERCOMMIT_ALWAYS is
+>> "Appropriate for some scientific applications", but doesn't say why.
+>> You're running a scientific cluster but you're using OVERCOMMIT_NEVER,
+>> I think?  Is the documentation wrong?
+> None of my scientists appeared to use sparse arrays as Alan described.
+> My users would run jobs that appeared to initialize correctly. However,
+> they wouldn't write to every page they malloced (and they wouldn't use
+> calloc), so I saw jobs failing well into a computation once the
+> simulation tried to access a page and the kernel couldn't give it to them.
 >
-> I've been doing some experimentation on zsmalloc in preparation
-> for my topic proposed for LSFMM13 and have run across some
-> perplexing limitations.  Those familiar with the intimate details
-> of zsmalloc might be well aware of these limitations, but they
-> aren't documented or immediately obvious, so I thought it would
-> be worthwhile to air them publicly.  I've also included some
-> measurements from the experimentation and some related thoughts.
->
-> (Some of the terms here are unusual and may be used inconsistently
-> by different developers so a glossary of definitions of the terms
-> used here is appended.)
->
-> ZSMALLOC LIMITATIONS
->
-> Zsmalloc is used for two zprojects: zram and the out-of-tree
-> zswap.  Zsmalloc can achieve high density when "full".  But:
->
-> 1) Zsmalloc has a worst-case density of 0.25 (one zpage per
->     four pageframes).
-> 2) When not full and especially when nearly-empty _after_
->     being full, density may fall below 1.0 as a result of
->     fragmentation.
+> I think Roadrunner (http://en.wikipedia.org/wiki/IBM_Roadrunner) was
+> the first cluster I put into OVERCOMMIT_NEVER mode. Jobs with
+> infeasible memory requirements fail early and the OOM killer
+> gets triggered much less often than in guess mode. More often than not
+> the OOM killer seemed to kill the wrong thing causing a subtle brokenness.
+> Disabling overcommit worked so well during the stabilization and
+> early user phases that we did the same with other clusters.
 
-What's the meaning of nearly-empty _after_ being full?
+Do you mean OVERCOMMIT_NEVER is more suitable for scientific application 
+than OVERCOMMIT_GUESS and OVERCOMMIT_ALWAYS? Or should depend on 
+workload? Since your users would run jobs that wouldn't write to every 
+page they malloced, so why OVERCOMMIT_GUESS is not more suitable for you?
 
-> 3) Zsmalloc has a density of exactly 1.0 for any number of
->     zpages with zsize >= 0.8.
-> 4) Zsmalloc contains several compile-time parameters;
->     the best value of these parameters may be very workload
->     dependent.
 >
-> If density == 1.0, that means we are paying the overhead of
-> compression+decompression for no space advantage.  If
-> density < 1.0, that means using zsmalloc is detrimental,
-> resulting in worse memory pressure than if it were not used.
+>>> __vm_enough_memory reserves 3% of free pages with the default
+>>> overcommit mode and 6% when overcommit is disabled. These hardcoded
+>>> values have become less reasonable as memory sizes have grown.
+>>>
+>>> On scientific clusters, systems are generally dedicated to one user.
+>>> Also, overcommit is sometimes disabled in order to prevent a long
+>>> running job from suddenly failing days or weeks into a calculation.
+>>> In this case, a user wishing to allocate as much memory as possible
+>>> to one process may be prevented from using, for example, around 7GB
+>>> out of 128GB.
+>>>
+>>> The effect is less, but still significant when a user starts a job
+>>> with one process per core. I have repeatedly seen a set of processes
+>>> requesting the same amount of memory fail because one of them could
+>>> not allocate the amount of memory a user would expect to be able to
+>>> allocate.
+>>>
+>>> ...
+>>>
+>>> --- a/mm/mmap.c
+>>> +++ b/mm/mmap.c
+>>> @@ -182,11 +182,6 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+>>>   		allowed -= allowed / 32;
+>>>   	allowed += total_swap_pages;
+>>>   
+>>> -	/* Don't let a single process grow too big:
+>>> -	   leave 3% of the size of this process for other processes */
+>>> -	if (mm)
+>>> -		allowed -= mm->total_vm / 32;
+>>> -
+>>>   	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
+>>>   		return 0;
+>> So what might be the downside for this change?  root can't log in, I
+>> assume.  Have you actually tested for this scenario and observed the
+>> effects?
+>>
+>> If there *are* observable risks and/or to preserve back-compatibility,
+>> I guess we could create a fourth overcommit mode which provides the
+>> headroom which you desire.
+>>
+>> Also, should we be looking at removing root's 3% from OVERCOMMIT_GUESS
+>> as well?
+> The downside of the first patch, which removes the "other" reserve
+> (sorry about the confusing duplicated subject line), is that a user
+> may not be able to kill their process, even if they have a shell prompt.
+> When testing, I did sometimes get into spot where I attempted to execute
+> kill, but got: "bash: fork: Cannot allocate memory". Of course, a
+> user can get in the same predicament with the current 3% reserve--they
+> just have to start processes until 3% becomes negligible.
 >
-> WORKLOAD ANALYSIS
+> With just the first patch, root still has a 3% reserve, so they can
+> still log in.
 >
-> These limitations emphasize that the workload used to evaluate
-> zsmalloc is very important.  Benchmarks that measure data
+> When I resubmit the second patch, adding a tunable rootuser_reserve_pages
+> variable, I'll test both guess and never overcommit modes to see what
+> minimum initial values allow root to login and kill a user's memory
+> hogging process. This will be safer than the current behavior since
+> root's reserve will never shrink to something useless in the case where
+> a user has grabbed all available memory with many processes.
 
-Could you share your benchmark? In order that other guys can take 
-advantage of it.
+The idea of two patches looks reasonable to me.
 
-> throughput or CPU utilization are of questionable value because
-> it is the _content_ of the data that is particularly relevant
-> for compression.  Even more precisely, it is the "entropy"
-> of the data that is relevant, because the amount of
-> compressibility in the data is related to the entropy:
-> I.e. an entirely random pagefull of bits will compress poorly
-> and a highly-regular pagefull of bits will compress well.
-> Since the zprojects manage a large number of zpages, both
-> the mean and distribution of zsize of the workload should
-> be "representative".
 >
-> The workload most widely used to publish results for
-> the various zprojects is a kernel-compile using "make -jN"
-> where N is artificially increased to impose memory pressure.
-> By adding some debug code to zswap, I was able to analyze
-> this workload and found the following:
->
-> 1) The average page compressed by almost a factor of six
->     (mean zsize == 694, stddev == 474)
+> As an estimate of a useful rootuser_reserve_pages, the rss+share size of
 
-stddev is what?
+Sorry for my silly, why you mean share size is not consist in rss size?
 
-> 2) Almost eleven percent of the pages were zero pages.  A
->     zero page compresses to 28 bytes.
-> 3) On average, 77% of the bytes (3156) in the pages-to-be-
->     compressed contained a byte-value of zero.
-> 4) Despite the above, mean density of zsmalloc was measured at
->     3.2 zpages/pageframe, presumably losing nearly half of
->     available space to fragmentation.
+> sshd, bash, and top is about 16MB. Overcommit disabled mode would need
+> closer to 360MB for the same processes. On a 128GB box 3% is 3.8GB, so
+> the new tunable would still be a win.
 >
-> I have no clue if these measurements are representative
-> of a wide range of workloads over the lifetime of a booted
-> machine, but I am suspicious that they are not.  For example,
-> the lzo1x compression algorithm claims to compress data by
-> about a factor of two.
->
-> I would welcome ideas on how to evaluate workloads for
-> "representativeness".  Personally I don't believe we should
-> be making decisions about selecting the "best" algorithms
-> or merging code without an agreement on workloads.
->
-> PAGEFRAME EVACUATION AND RECLAIM
->
-> I've repeatedly stated the opinion that managing the number of
-> pageframes containing compressed pages will be valuable for
-> managing MM interaction/policy when compression is used in
-> the kernel.  After the experimentation above and some brainstorming,
-> I still do not see an effective method for zsmalloc evacuating and
-> reclaiming pageframes, because both are complicated by high density
-> and page-crossing.  In other words, zsmalloc's strengths may
-> also be its Achilles heels.  For zram, as far as I can see,
-> pageframe evacuation/reclaim is irrelevant except perhaps
-> as part of mass defragmentation.  For zcache and zswap, where
-> writethrough is used, pageframe evacuation/reclaim is very relevant.
-> (Note: The writeback implemented in zswap does _zpage_ evacuation
-> without pageframe reclaim.)
->
-> CLOSING THOUGHT
->
-> Since zsmalloc and zbud have different strengths and weaknesses,
-> I wonder if some combination or hybrid might be more optimal?
-> But unless/until we have and can measure a representative workload,
-> only intuition can answer that.
->
-> GLOSSARY
->
-> zproject -- a kernel project using compression (zram, zcache, zswap)
-> zpage -- a compressed sequence of PAGE_SIZE bytes
-> zsize -- the number of bytes in a compressed page
-> pageframe -- the term "page" is widely used both to describe
->      either (1) PAGE_SIZE bytes of data, or (2) a physical RAM
->      area with size=PAGE_SIZE which is PAGE_SIZE-aligned,
->      as represented in the kernel by a struct page.  To be explicit,
->      we refer to (2) as a pageframe.
-> density -- zpages per pageframe; higher is (presumably) better
-> zsmalloc -- a slab-based allocator written by Nitin Gupta to
->       efficiently store zpages and designed to allow zpages
->       to be split across two non-contiguous pageframes
-> zspage -- a grouping of N non-contiguous pageframes managed
->       as a unit by zsmalloc to store zpages for which zsize
->       falls within a certain range.  (The compile-time
->       default maximum size for N is 4).
-> zbud -- a buddy-based allocator written by Dan Magenheimer
->       (specifically for zcache) to predictably store zpages;
->       no more than two zpages are stored in any pageframe
-> pageframe evacuation/reclaim -- the process of removing
->       zpages from one or more pageframes, including pointers/nodes
->       from any data structures referencing those zpages,
->       so that the pageframe(s) can be freed for use by
->       the rest of the kernel
-> writeback --  the process of transferring zpages from
->       storage in a zproject to a backing swap device
-> lzo1x -- a compression algorithm used by default by all the
->       zprojects; the kernel implementation resides in lib/lzo.c
-> entropy -- randomness of data to be compressed; higher entropy
->       means worse data compression
+> I think the tunable would benefit everyone over the current behavior,
+> but would you prefer it if I only made it tunable in a fourth overcommit
+> mode in order to preserve back-compatibility?
 >
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
-> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
