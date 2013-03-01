@@ -1,104 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id D096D6B0002
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2013 04:40:01 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id up1so1639248pbc.9
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2013 01:40:01 -0800 (PST)
-Message-ID: <51307767.70605@gmail.com>
-Date: Fri, 01 Mar 2013 17:39:51 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 75B9C6B0002
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2013 04:57:19 -0500 (EST)
+Date: Fri, 1 Mar 2013 10:57:16 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: +
+ mm-show_mem-suppress-page-counts-in-non-blockable-contexts.patch added to
+ -mm tree
+Message-ID: <20130301095716.GA21443@dhcp22.suse.cz>
+References: <20130228231025.9F11A5A410E@corp2gmr1-2.hot.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86: mm: Check if PUD is large when validating a kernel
- address v2
-References: <20130211145236.GX21389@suse.de> <20130213110202.GI4100@suse.de> <51304E29.40900@gmail.com> <20130301091513.GA11787@gchen.bj.intel.com> <5130731F.4000804@gmail.com> <20130301093537.GA12327@gchen.bj.intel.com>
-In-Reply-To: <20130301093537.GA12327@gchen.bj.intel.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130228231025.9F11A5A410E@corp2gmr1-2.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, rientjes@google.com, dave@linux.vnet.ibm.com, mgorman@suse.de, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 03/01/2013 05:35 PM, Chen Gong wrote:
-> On Fri, Mar 01, 2013 at 05:21:35PM +0800, Simon Jeons wrote:
->> Date: Fri, 01 Mar 2013 17:21:35 +0800
->> From: Simon Jeons <simon.jeons@gmail.com>
->> To: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Andrew
->>   Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org,
->>   linux-mm@kvack.org, riel@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org
->> Subject: Re: [PATCH] x86: mm: Check if PUD is large when validating a
->>   kernel address v2
->> User-Agent: Mozilla/5.0 (X11; Linux i686; rv:17.0) Gecko/20130221
->>   Thunderbird/17.0.3
->>
->> On 03/01/2013 05:15 PM, Chen Gong wrote:
->>> On Fri, Mar 01, 2013 at 02:43:53PM +0800, Simon Jeons wrote:
->>>> Date: Fri, 01 Mar 2013 14:43:53 +0800
->>>> From: Simon Jeons <simon.jeons@gmail.com>
->>>> To: Mel Gorman <mgorman@suse.de>
->>>> CC: Ingo Molnar <mingo@kernel.org>, Andrew Morton
->>>>   <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org,
->>>>   linux-mm@kvack.org, riel@redhat.com, mhocko@suse.cz, hannes@cmpxchg.org
->>>> Subject: Re: [PATCH] x86: mm: Check if PUD is large when validating a
->>>>   kernel address v2
->>>> User-Agent: Mozilla/5.0 (X11; Linux i686; rv:17.0) Gecko/20130221
->>>>   Thunderbird/17.0.3
->>>>
->>>> On 02/13/2013 07:02 PM, Mel Gorman wrote:
->>>>> Andrew or Ingo, please pick up.
->>>>>
->>>>> Changelog since v1
->>>>>    o Add reviewed-bys and acked-bys
->>>>>
->>>>> A user reported a bug whereby a backup process accessing /proc/kcore
->>>>> caused an oops.
->>>>>
->>>>>   BUG: unable to handle kernel paging request at ffffbb00ff33b000
->>>>>   IP: [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
->>>>>   PGD 0
->>>>>   Oops: 0000 [#1] SMP
->>>>>   CPU 6
->>>>>   Modules linked in: af_packet nfs lockd fscache auth_rpcgss nfs_acl sunrpc 8021q garp stp llc cpufreq_conservative cpufreq_userspace cpufreq_powersave acpi_cpufreq mperf microcode fuse nls_iso8859_1 nls_cp437 vfat fat loop dm_mod ioatdma ipv6 ipv6_lib igb dca i7core_edac edac_core i2c_i801 i2c_core cdc_ether usbnet bnx2 mii iTCO_wdt iTCO_vendor_support shpchp rtc_cmos pci_hotplug tpm_tis sg tpm pcspkr tpm_bios serio_raw button ext3 jbd mbcache uhci_hcd ehci_hcd usbcore sd_mod crc_t10dif usb_common processor thermal_sys hwmon scsi_dh_emc scsi_dh_rdac scsi_dh_alua scsi_dh_hp_sw scsi_dh ata_generic ata_piix libata megaraid_sas scsi_mod
->>>>>
->>>>>   Pid: 16196, comm: Hibackp Not tainted 3.0.13-0.27-default #1 IBM System x3550 M3 -[7944 K3G]-/94Y7614
->>>>>   RIP: 0010:[<ffffffff8103157e>]  [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
->>>>>   RSP: 0018:ffff88094165fe80  EFLAGS: 00010246
->>>>>   RAX: 00003300ff33b000 RBX: ffff880100000000 RCX: 0000000000000000
->>>>>   RDX: 0000000100000000 RSI: ffff880000000000 RDI: ff32b300ff33b400
->>>>>   RBP: 0000000000001000 R08: 00003ffffffff000 R09: 0000000000000000
->>>>>   R10: 22302e31223d6e6f R11: 0000000000000246 R12: 0000000000001000
->>>>>   R13: 0000000000003000 R14: 0000000000571be0 R15: ffff88094165ff50
->>>>>   FS:  00007ff152d33700(0000) GS:ffff88097f2c0000(0000) knlGS:0000000000000000
->>>>>   CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->>>>>   CR2: ffffbb00ff33b000 CR3: 00000009405a3000 CR4: 00000000000006e0
->>>>>   DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
->>>>>   DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
->>>>>   Process Hibackp (pid: 16196, threadinfo ffff88094165e000, task ffff8808eb9ba600)
->>>>>   Stack:
->>>>>    ffffffff811b8aaa 0000000000004000 ffff880943fea480 ffff8808ef2bae50
->>>>>    ffff880943d32980 fffffffffffffffb ffff8808ef2bae40 ffff88094165ff50
->>>>>    0000000000004000 000000000056ebe0 ffffffff811ad847 000000000056ebe0
->>>>>   Call Trace:
->>>>>    [<ffffffff811b8aaa>] read_kcore+0x17a/0x370
->>>>>    [<ffffffff811ad847>] proc_reg_read+0x77/0xc0
->>>>>    [<ffffffff81151687>] vfs_read+0xc7/0x130
->>>>>    [<ffffffff811517f3>] sys_read+0x53/0xa0
->>>>>    [<ffffffff81449692>] system_call_fastpath+0x16/0x1b
->>>>>
->>>>> Investigation determined that the bug triggered when reading system RAM
->>>>> at the 4G mark. On this system, that was the first address using 1G pages
->>>> Do you mean there is one page which is 1G?
->>>>
->>> 1GB support in native kernel is started from 2.6.27 with these 2 commits:
->> Why call kernel native? Which kend of kernel is not native?
-> relative to VMM like Xen.
+On Thu 28-02-13 15:10:25, Andrew Morton wrote:
+[...]
+> From: David Rientjes <rientjes@google.com>
+> Subject: mm, show_mem: suppress page counts in non-blockable contexts
+> 
+> On large systems with a lot of memory, walking all RAM to determine page
+> types may take a half second or even more.
+> 
+> In non-blockable contexts, the page allocator will emit a page allocation
+> failure warning unless __GFP_NOWARN is specified.  In such contexts, irqs
+> are typically disabled and such a lengthy delay may result in soft
+> lockups.
 
-Oh, I see. Thanks. :)
+I have already asked about it in the original thread but didn't get any
+answer. How can we get a soft lockup when all implementations of show_mem
+call touch_nmi_watchdog?
 
->
->>> 39c11e6 and b4718e6. For Intel CPU, from Westmere it supports 1GB page.
->>> BTW, IBM System x3550 M3 is a Westmere based system.
->> Is it only used in hugetlbfs page?
-> Yes by now.
+I do agree with the change but the above justification seems misleading.
+Can we just remove the information because it is costly and doesn't give
+us anything relevant to debug allocation failures?
+
+> To fix this, suppress the page walk in such contexts when printing the
+> page allocation failure warning.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  arch/arm/mm/init.c       |    3 +++
+>  arch/ia64/mm/contig.c    |    2 ++
+>  arch/ia64/mm/discontig.c |    2 ++
+>  arch/parisc/mm/init.c    |    2 ++
+>  arch/unicore32/mm/init.c |    3 +++
+>  include/linux/mm.h       |    3 ++-
+>  lib/show_mem.c           |    3 +++
+>  mm/page_alloc.c          |    7 +++++++
+>  8 files changed, 24 insertions(+), 1 deletion(-)
+> 
+> diff -puN arch/arm/mm/init.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts arch/arm/mm/init.c
+> --- a/arch/arm/mm/init.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts
+> +++ a/arch/arm/mm/init.c
+> @@ -99,6 +99,9 @@ void show_mem(unsigned int filter)
+>  	printk("Mem-info:\n");
+>  	show_free_areas(filter);
+>  
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
+> +
+>  	for_each_bank (i, mi) {
+>  		struct membank *bank = &mi->bank[i];
+>  		unsigned int pfn1, pfn2;
+> diff -puN arch/ia64/mm/contig.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts arch/ia64/mm/contig.c
+> --- a/arch/ia64/mm/contig.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts
+> +++ a/arch/ia64/mm/contig.c
+> @@ -47,6 +47,8 @@ void show_mem(unsigned int filter)
+>  	printk(KERN_INFO "Mem-info:\n");
+>  	show_free_areas(filter);
+>  	printk(KERN_INFO "Node memory in pages:\n");
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
+>  	for_each_online_pgdat(pgdat) {
+>  		unsigned long present;
+>  		unsigned long flags;
+> diff -puN arch/ia64/mm/discontig.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts arch/ia64/mm/discontig.c
+> --- a/arch/ia64/mm/discontig.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts
+> +++ a/arch/ia64/mm/discontig.c
+> @@ -623,6 +623,8 @@ void show_mem(unsigned int filter)
+>  
+>  	printk(KERN_INFO "Mem-info:\n");
+>  	show_free_areas(filter);
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
+>  	printk(KERN_INFO "Node memory in pages:\n");
+>  	for_each_online_pgdat(pgdat) {
+>  		unsigned long present;
+> diff -puN arch/parisc/mm/init.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts arch/parisc/mm/init.c
+> --- a/arch/parisc/mm/init.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts
+> +++ a/arch/parisc/mm/init.c
+> @@ -697,6 +697,8 @@ void show_mem(unsigned int filter)
+>  
+>  	printk(KERN_INFO "Mem-info:\n");
+>  	show_free_areas(filter);
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
+>  #ifndef CONFIG_DISCONTIGMEM
+>  	i = max_mapnr;
+>  	while (i-- > 0) {
+> diff -puN arch/unicore32/mm/init.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts arch/unicore32/mm/init.c
+> --- a/arch/unicore32/mm/init.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts
+> +++ a/arch/unicore32/mm/init.c
+> @@ -66,6 +66,9 @@ void show_mem(unsigned int filter)
+>  	printk(KERN_DEFAULT "Mem-info:\n");
+>  	show_free_areas(filter);
+>  
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
+> +
+>  	for_each_bank(i, mi) {
+>  		struct membank *bank = &mi->bank[i];
+>  		unsigned int pfn1, pfn2;
+> diff -puN include/linux/mm.h~mm-show_mem-suppress-page-counts-in-non-blockable-contexts include/linux/mm.h
+> --- a/include/linux/mm.h~mm-show_mem-suppress-page-counts-in-non-blockable-contexts
+> +++ a/include/linux/mm.h
+> @@ -900,7 +900,8 @@ extern void pagefault_out_of_memory(void
+>   * Flags passed to show_mem() and show_free_areas() to suppress output in
+>   * various contexts.
+>   */
+> -#define SHOW_MEM_FILTER_NODES	(0x0001u)	/* filter disallowed nodes */
+> +#define SHOW_MEM_FILTER_NODES		(0x0001u)	/* disallowed nodes */
+> +#define SHOW_MEM_FILTER_PAGE_COUNT	(0x0002u)	/* page type count */
+>  
+>  extern void show_free_areas(unsigned int flags);
+>  extern bool skip_free_areas_node(unsigned int flags, int nid);
+> diff -puN lib/show_mem.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts lib/show_mem.c
+> --- a/lib/show_mem.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts
+> +++ a/lib/show_mem.c
+> @@ -18,6 +18,9 @@ void show_mem(unsigned int filter)
+>  	printk("Mem-Info:\n");
+>  	show_free_areas(filter);
+>  
+> +	if (filter & SHOW_MEM_FILTER_PAGE_COUNT)
+> +		return;
+> +
+>  	for_each_online_pgdat(pgdat) {
+>  		unsigned long i, flags;
+>  
+> diff -puN mm/page_alloc.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts mm/page_alloc.c
+> --- a/mm/page_alloc.c~mm-show_mem-suppress-page-counts-in-non-blockable-contexts
+> +++ a/mm/page_alloc.c
+> @@ -2009,6 +2009,13 @@ void warn_alloc_failed(gfp_t gfp_mask, i
+>  		return;
+>  
+>  	/*
+> +	 * Walking all memory to count page types is very expensive and should
+> +	 * be inhibited in non-blockable contexts.
+> +	 */
+> +	if (!(gfp_mask & __GFP_WAIT))
+> +		filter |= SHOW_MEM_FILTER_PAGE_COUNT;
+> +
+> +	/*
+>  	 * This documents exceptions given to allocations in certain
+>  	 * contexts that are allowed to allocate outside current's set
+>  	 * of allowed nodes.
+> _
+> 
+> Patches currently in -mm which might be from rientjes@google.com are
+> 
+> origin.patch
+> mm-show_mem-suppress-page-counts-in-non-blockable-contexts.patch
+> mm-dmapoolc-fix-null-dev-in-dma_pool_create.patch
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
