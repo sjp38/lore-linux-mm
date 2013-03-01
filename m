@@ -1,31 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 65FF56B0006
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2013 12:48:49 -0500 (EST)
-Date: Fri, 1 Mar 2013 17:48:52 +0000
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [RFC PATCH v2 1/2] mm: tuning hardcoded reserved memory
-Message-ID: <20130301174852.5d568191@www.etchedpixels.co.uk>
-In-Reply-To: <20130228034803.GB3829@localhost.localdomain>
-References: <20130227205629.GA8429@localhost.localdomain>
-	<20130228141200.3fe7f459.akpm@linux-foundation.org>
-	<20130228034803.GB3829@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id AD4336B0005
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2013 15:04:34 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id fa11so2006367pad.9
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2013 12:04:33 -0800 (PST)
+Date: Fri, 1 Mar 2013 12:03:53 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 2/7] ksm: treat unstable nid like in stable tree
+In-Reply-To: <51303CAB.3080406@gmail.com>
+Message-ID: <alpine.LNX.2.00.1303011139270.7398@eggly.anvils>
+References: <alpine.LNX.2.00.1302210013120.17843@eggly.anvils> <alpine.LNX.2.00.1302210019390.17843@eggly.anvils> <51271A7D.6020305@gmail.com> <alpine.LNX.2.00.1302221250440.6100@eggly.anvils> <51303CAB.3080406@gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Shewmaker <agshew@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The 3% reserve was added to the original code *because* users kept hitting
-problems where they couldn't recover. 
+On Fri, 1 Mar 2013, Ric Mason wrote:
+> 
+> I think the ksm implementation for num awareness  is buggy.
 
-I suspect the tunable should nowdays be something related to min(3%,
-someconstant), at the time we did the 3% I think 1GB was an "enterprise
-system" ;)
+Sorry, I just don't understand your comments below,
+but will try to answer or question them as best I can.
 
-Alan
+> 
+> For page migratyion stuff, new page is allocated from node *which page is
+> migrated to*.
+
+Yes, by definition.
+
+> - when meeting a page from the wrong NUMA node in an unstable tree
+>     get_kpfn_nid(page_to_pfn(page)) *==* page_to_nid(tree_page)
+
+I thought you were writing of the wrong NUMA node case,
+but now you emphasize "*==*", which means the right NUMA node.
+
+>     How can say it's okay for comparisons, but not as a leaf for merging?
+
+Pages in the unstable tree are unstable (and it's not even accurate to
+say "pages in the unstable tree"), they and their content can change at
+any moment, so I cannot assert anything of them for sure.
+
+But if we suppose, as an approximation, that they are somewhat likely
+to remain stable (and the unstable tree would be useless without that
+assumption: it tends to work out), but subject to migration, then it makes
+sense to compare content, no matter what NUMA node it is on, in order to
+locate a page of the same content; but wrong to merge with that page if
+it's on the wrong NUMA node, if !merge_across_nodes tells us not to.
+
+
+> - when meeting a page from the wrong NUMA node in an stable tree
+>    - meeting a normal page
+
+What does that line mean, and where does it fit in your argument?
+
+>    - meeting a page which is ksm page before migration
+>      get_kpfn_nid(stable_node->kpfn) != NUMA(stable_node->nid) can't capture
+> them since stable_node is for tree page in current stable tree. They are
+> always equal.
+
+When we meet a ksm page in the stable tree before it's migrated to another
+NUMA node, yes, it will be on the right NUMA node (because we were careful
+only to merge pages from the right NUMA node there), and that test will not
+capture them.  It's for capturng a ksm page in the stable tree after it has
+been migrated to another NUMA node.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
