@@ -1,36 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id C92916B0002
-	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 20:30:43 -0500 (EST)
-Received: by mail-oa0-f44.google.com with SMTP id h1so4881268oag.17
-        for <linux-mm@kvack.org>; Thu, 28 Feb 2013 17:30:43 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id 62C1E6B0002
+	for <linux-mm@kvack.org>; Thu, 28 Feb 2013 20:40:27 -0500 (EST)
+Received: by mail-oa0-f42.google.com with SMTP id i18so4945557oag.29
+        for <linux-mm@kvack.org>; Thu, 28 Feb 2013 17:40:26 -0800 (PST)
+Message-ID: <51300702.1050006@gmail.com>
+Date: Fri, 01 Mar 2013 09:40:18 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAJd=RBBtCxBgoeJ8xcj4zqv7pEk7uAy39V=in4RppDH05GjPkA@mail.gmail.com>
-References: <512B677D.1040501@oracle.com> <CAHGf_=rur29gFs9R9AYeDwnbVBm3b3cOfAn2xyi=mQ+ZbgzEDA@mail.gmail.com>
- <512C15F0.6030907@oracle.com> <CAJd=RBBxTutPsF+XPZGt44eT1f0uPAQfCvQj_UmwdDg82J=F+A@mail.gmail.com>
- <CAHGf_=r5oo+N0_BSd-8-GPeburBnHVAjLEszmNkj+ASMJXqYLQ@mail.gmail.com> <CAJd=RBBtCxBgoeJ8xcj4zqv7pEk7uAy39V=in4RppDH05GjPkA@mail.gmail.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Thu, 28 Feb 2013 20:30:22 -0500
-Message-ID: <CAHGf_=pFebzif0CZs1bt0kXE+F9Y79pO8XWe0VLnAO4iTbPrcA@mail.gmail.com>
-Subject: Re: mm: BUG in mempolicy's sp_insert
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: zsmalloc limitations and related topics
+References: <0efe9610-1aa5-4aa9-bde9-227acfa969ca@default>
+In-Reply-To: <0efe9610-1aa5-4aa9-bde9-227acfa969ca@default>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Dave Jones <davej@redhat.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: minchan@kernel.org, sjenning@linux.vnet.ibm.com, Nitin Gupta <nitingupta910@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bob Liu <lliubbo@gmail.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>
 
-On Thu, Feb 28, 2013 at 1:53 AM, Hillf Danton <dhillf@gmail.com> wrote:
-> On Thu, Feb 28, 2013 at 1:26 PM, KOSAKI Motohiro
-> <kosaki.motohiro@jp.fujitsu.com> wrote:
->>> Insert new node after updating node in tree.
->>
->> Thanks. you are right. I could reproduce and verified.
+On 02/28/2013 07:24 AM, Dan Magenheimer wrote:
+> Hi all --
 >
-> Thank you too;) pleasure to do minor work for you.
+> I've been doing some experimentation on zsmalloc in preparation
+> for my topic proposed for LSFMM13 and have run across some
+> perplexing limitations.  Those familiar with the intimate details
+> of zsmalloc might be well aware of these limitations, but they
+> aren't documented or immediately obvious, so I thought it would
+> be worthwhile to air them publicly.  I've also included some
+> measurements from the experimentation and some related thoughts.
 >
-> btw, how about your belly now? fully recovered?
+> (Some of the terms here are unusual and may be used inconsistently
+> by different developers so a glossary of definitions of the terms
+> used here is appended.)
+>
+> ZSMALLOC LIMITATIONS
+>
+> Zsmalloc is used for two zprojects: zram and the out-of-tree
+> zswap.  Zsmalloc can achieve high density when "full".  But:
+>
+> 1) Zsmalloc has a worst-case density of 0.25 (one zpage per
+>     four pageframes).
+> 2) When not full and especially when nearly-empty _after_
+>     being full, density may fall below 1.0 as a result of
+>     fragmentation.
 
-Yup. I could learned US health care a bit. =)
+What's the meaning of nearly-empty _after_ being full?
+
+> 3) Zsmalloc has a density of exactly 1.0 for any number of
+>     zpages with zsize >= 0.8.
+> 4) Zsmalloc contains several compile-time parameters;
+>     the best value of these parameters may be very workload
+>     dependent.
+>
+> If density == 1.0, that means we are paying the overhead of
+> compression+decompression for no space advantage.  If
+> density < 1.0, that means using zsmalloc is detrimental,
+> resulting in worse memory pressure than if it were not used.
+>
+> WORKLOAD ANALYSIS
+>
+> These limitations emphasize that the workload used to evaluate
+> zsmalloc is very important.  Benchmarks that measure data
+
+Could you share your benchmark? In order that other guys can take 
+advantage of it.
+
+> throughput or CPU utilization are of questionable value because
+> it is the _content_ of the data that is particularly relevant
+> for compression.  Even more precisely, it is the "entropy"
+> of the data that is relevant, because the amount of
+> compressibility in the data is related to the entropy:
+> I.e. an entirely random pagefull of bits will compress poorly
+> and a highly-regular pagefull of bits will compress well.
+> Since the zprojects manage a large number of zpages, both
+> the mean and distribution of zsize of the workload should
+> be "representative".
+>
+> The workload most widely used to publish results for
+> the various zprojects is a kernel-compile using "make -jN"
+> where N is artificially increased to impose memory pressure.
+> By adding some debug code to zswap, I was able to analyze
+> this workload and found the following:
+>
+> 1) The average page compressed by almost a factor of six
+>     (mean zsize == 694, stddev == 474)
+
+stddev is what?
+
+> 2) Almost eleven percent of the pages were zero pages.  A
+>     zero page compresses to 28 bytes.
+> 3) On average, 77% of the bytes (3156) in the pages-to-be-
+>     compressed contained a byte-value of zero.
+> 4) Despite the above, mean density of zsmalloc was measured at
+>     3.2 zpages/pageframe, presumably losing nearly half of
+>     available space to fragmentation.
+>
+> I have no clue if these measurements are representative
+> of a wide range of workloads over the lifetime of a booted
+> machine, but I am suspicious that they are not.  For example,
+> the lzo1x compression algorithm claims to compress data by
+> about a factor of two.
+>
+> I would welcome ideas on how to evaluate workloads for
+> "representativeness".  Personally I don't believe we should
+> be making decisions about selecting the "best" algorithms
+> or merging code without an agreement on workloads.
+>
+> PAGEFRAME EVACUATION AND RECLAIM
+>
+> I've repeatedly stated the opinion that managing the number of
+> pageframes containing compressed pages will be valuable for
+> managing MM interaction/policy when compression is used in
+> the kernel.  After the experimentation above and some brainstorming,
+> I still do not see an effective method for zsmalloc evacuating and
+> reclaiming pageframes, because both are complicated by high density
+> and page-crossing.  In other words, zsmalloc's strengths may
+> also be its Achilles heels.  For zram, as far as I can see,
+> pageframe evacuation/reclaim is irrelevant except perhaps
+> as part of mass defragmentation.  For zcache and zswap, where
+> writethrough is used, pageframe evacuation/reclaim is very relevant.
+> (Note: The writeback implemented in zswap does _zpage_ evacuation
+> without pageframe reclaim.)
+>
+> CLOSING THOUGHT
+>
+> Since zsmalloc and zbud have different strengths and weaknesses,
+> I wonder if some combination or hybrid might be more optimal?
+> But unless/until we have and can measure a representative workload,
+> only intuition can answer that.
+>
+> GLOSSARY
+>
+> zproject -- a kernel project using compression (zram, zcache, zswap)
+> zpage -- a compressed sequence of PAGE_SIZE bytes
+> zsize -- the number of bytes in a compressed page
+> pageframe -- the term "page" is widely used both to describe
+>      either (1) PAGE_SIZE bytes of data, or (2) a physical RAM
+>      area with size=PAGE_SIZE which is PAGE_SIZE-aligned,
+>      as represented in the kernel by a struct page.  To be explicit,
+>      we refer to (2) as a pageframe.
+> density -- zpages per pageframe; higher is (presumably) better
+> zsmalloc -- a slab-based allocator written by Nitin Gupta to
+>       efficiently store zpages and designed to allow zpages
+>       to be split across two non-contiguous pageframes
+> zspage -- a grouping of N non-contiguous pageframes managed
+>       as a unit by zsmalloc to store zpages for which zsize
+>       falls within a certain range.  (The compile-time
+>       default maximum size for N is 4).
+> zbud -- a buddy-based allocator written by Dan Magenheimer
+>       (specifically for zcache) to predictably store zpages;
+>       no more than two zpages are stored in any pageframe
+> pageframe evacuation/reclaim -- the process of removing
+>       zpages from one or more pageframes, including pointers/nodes
+>       from any data structures referencing those zpages,
+>       so that the pageframe(s) can be freed for use by
+>       the rest of the kernel
+> writeback --  the process of transferring zpages from
+>       storage in a zproject to a backing swap device
+> lzo1x -- a compression algorithm used by default by all the
+>       zprojects; the kernel implementation resides in lib/lzo.c
+> entropy -- randomness of data to be compressed; higher entropy
+>       means worse data compression
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
