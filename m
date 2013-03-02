@@ -1,79 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 47EBA6B0005
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2013 21:58:32 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id bh2so2187211pad.16
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2013 18:58:31 -0800 (PST)
-Date: Fri, 1 Mar 2013 18:57:51 -0800 (PST)
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id CC1566B0005
+	for <linux-mm@kvack.org>; Fri,  1 Mar 2013 22:09:10 -0500 (EST)
+Received: by mail-pa0-f51.google.com with SMTP id hz1so2157751pad.24
+        for <linux-mm@kvack.org>; Fri, 01 Mar 2013 19:09:10 -0800 (PST)
+Date: Fri, 1 Mar 2013 19:08:28 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/7] ksm: treat unstable nid like in stable tree
-In-Reply-To: <51315174.4020200@gmail.com>
-Message-ID: <alpine.LNX.2.00.1303011833490.23290@eggly.anvils>
-References: <alpine.LNX.2.00.1302210013120.17843@eggly.anvils> <alpine.LNX.2.00.1302210019390.17843@eggly.anvils> <51271A7D.6020305@gmail.com> <alpine.LNX.2.00.1302221250440.6100@eggly.anvils> <51303CAB.3080406@gmail.com> <alpine.LNX.2.00.1303011139270.7398@eggly.anvils>
- <51315174.4020200@gmail.com>
+Subject: Re: [PATCH] add extra free kbytes tunable
+In-Reply-To: <51316727.1040806@gmail.com>
+Message-ID: <alpine.LNX.2.00.1303011900430.23383@eggly.anvils>
+References: <alpine.DEB.2.02.1302111734090.13090@dflat> <A5ED84D3BB3A384992CBB9C77DEDA4D414A98EBF@USINDEM103.corp.hds.com> <511EB5CB.2060602@redhat.com> <alpine.DEB.2.02.1302171546120.10836@dflat> <20130219152936.f079c971.akpm@linux-foundation.org>
+ <alpine.DEB.2.02.1302192100100.23162@dflat> <20130222175634.GA4824@cmpxchg.org> <51307354.5000401@gmail.com> <51307583.2020006@gmail.com> <alpine.LNX.2.00.1303011431290.9961@eggly.anvils> <5131438B.4090507@gmail.com> <alpine.LNX.2.00.1303011648330.16381@eggly.anvils>
+ <51316727.1040806@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Seiji Aguchi <seiji.aguchi@hds.com>, Satoru Moriya <satoru.moriya@hds.com>, Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Mel Gorman <mel@csn.ul.ie>
 
-On Sat, 2 Mar 2013, Ric Mason wrote:
-> On 03/02/2013 04:03 AM, Hugh Dickins wrote:
-> > On Fri, 1 Mar 2013, Ric Mason wrote:
-> > > I think the ksm implementation for num awareness  is buggy.
-> > Sorry, I just don't understand your comments below,
-> > but will try to answer or question them as best I can.
+On Sat, 2 Mar 2013, Simon Jeons wrote:
+> On 03/02/2013 09:42 AM, Hugh Dickins wrote:
+> > On Sat, 2 Mar 2013, Simon Jeons wrote:
+> > > In function __add_to_swap_cache if add to radix tree successfully will
+> > > result
+> > > in increase NR_FILE_PAGES, why? This is anonymous page instead of file
+> > > backed
+> > > page.
+> > Right, that's hard to understand without historical background.
 > > 
-> > > For page migratyion stuff, new page is allocated from node *which page is
-> > > migrated to*.
-> > Yes, by definition.
-> > 
-> > > - when meeting a page from the wrong NUMA node in an unstable tree
-> > >      get_kpfn_nid(page_to_pfn(page)) *==* page_to_nid(tree_page)
-> > I thought you were writing of the wrong NUMA node case,
-> > but now you emphasize "*==*", which means the right NUMA node.
+> > I think the quick answer would be that we used to (and still do) think
+> > of file-cache and swap-cache as two halves of page-cache.  And then when
 > 
-> Yes, I mean the wrong NUMA node. During page migration, new page has already
-> been allocated in new node and old page maybe freed.  So tree_page is the
-> page in new node's unstable tree, page is also new node page, so
-> get_kpfn_nid(page_to_pfn(page)) *==* page_to_nid(tree_page).
+> shmem page should be treated as file-cache or swap-cache? It is strange since
+> it is consist of anonymous pages and these pages establish files.
 
-I don't understand; but here you seem to be describing a case where two
-pages from the same NUMA node get merged (after both have been migrated
-from another NUMA node?), and there's nothing wrong with that,
-so I won't worry about it further.
+A shmem page is swap-backed file-cache, and it may get transferred to or
+from swap-cache: yes, it's a difficult and confusing case, as I said below.
 
-> > >     - meeting a page which is ksm page before migration
-> > >       get_kpfn_nid(stable_node->kpfn) != NUMA(stable_node->nid) can't
-> > > capture
-> > > them since stable_node is for tree page in current stable tree. They are
-> > > always equal.
-> > When we meet a ksm page in the stable tree before it's migrated to another
-> > NUMA node, yes, it will be on the right NUMA node (because we were careful
-> > only to merge pages from the right NUMA node there), and that test will not
-> > capture them.  It's for capturng a ksm page in the stable tree after it has
-> > been migrated to another NUMA node.
-> 
-> ksm page migrated to another NUMA node still not freed, why? Who take page
-> count of it?
+I would never call it "anonymous", but it is counted in /proc/meminfo's
+Active(anon) or Inactive(anon) rather than in (file), because "anon"
+there is shorthand for "swap-backed".
 
-The old page, the one which used to be a ksm page on the old NUMA node,
-should be freed very soon: since it was isolated from lru, and its page
-count checked, I cannot think of anything to hold a reference to it,
-apart from migration itself - so it just needs to reach putback_lru_page(),
-and then may rest awhile on __lru_cache_add()'s pagevec before being freed.
-
-But I don't see where I said the old page was still not freed.
-
-> If not  freed, since new page is allocated in new node, it is
-> the copy of current ksm page, so current ksm doesn't change,
-> get_kpfn_nid(stable_node->kpfn) *==* NUMA(stable_node->nid).
-
-But ksm_migrate_page() did
-		VM_BUG_ON(stable_node->kpfn != page_to_pfn(oldpage));
-		stable_node->kpfn = page_to_pfn(newpage);
-without changing stable_node->nid.
+> > So you'll find that shmem and swap are counted as file in some places
+> > and anon in others, and it's hard to grasp which is where and why,
+> > without remembering the history.
 
 Hugh
 
