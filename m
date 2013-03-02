@@ -1,52 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 64CA36B0005
-	for <linux-mm@kvack.org>; Fri,  1 Mar 2013 23:06:54 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id wz12so2108693pbc.31
-        for <linux-mm@kvack.org>; Fri, 01 Mar 2013 20:06:53 -0800 (PST)
-Message-ID: <51317AD6.5020406@gmail.com>
-Date: Sat, 02 Mar 2013 12:06:46 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] add extra free kbytes tunable
-References: <alpine.DEB.2.02.1302111734090.13090@dflat> <A5ED84D3BB3A384992CBB9C77DEDA4D414A98EBF@USINDEM103.corp.hds.com> <511EB5CB.2060602@redhat.com> <alpine.DEB.2.02.1302171546120.10836@dflat> <20130219152936.f079c971.akpm@linux-foundation.org> <alpine.DEB.2.02.1302192100100.23162@dflat> <20130222175634.GA4824@cmpxchg.org> <51307354.5000401@gmail.com> <51307583.2020006@gmail.com> <alpine.LNX.2.00.1303011431290.9961@eggly.anvils> <5131438B.4090507@gmail.com> <alpine.LNX.2.00.1303011648330.16381@eggly.anvils> <51316727.1040806@gmail.com> <alpine.LNX.2.00.1303011900430.23383@eggly.anvils>
-In-Reply-To: <alpine.LNX.2.00.1303011900430.23383@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 90ED86B0005
+	for <linux-mm@kvack.org>; Sat,  2 Mar 2013 07:05:36 -0500 (EST)
+From: Robert Jarzmik <robert.jarzmik@free.fr>
+Subject: [PATCH RESEND v2] mm: trace filemap add and del
+Date: Sat,  2 Mar 2013 13:04:55 +0100
+Message-Id: <1362225895-30790-1-git-send-email-robert.jarzmik@free.fr>
+In-Reply-To: <1362084420-3840-1-git-send-email-robert.jarzmik@free.fr>
+References: <1362084420-3840-1-git-send-email-robert.jarzmik@free.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Seiji Aguchi <seiji.aguchi@hds.com>, Satoru Moriya <satoru.moriya@hds.com>, Randy Dunlap <rdunlap@xenotime.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Mel Gorman <mel@csn.ul.ie>
+To: linux-mm@kvack.org
+Cc: Robert Jarzmik <robert.jarzmik@free.fr>, Dave Chinner <david@fromorbit.com>, Hugh Dickins <hughd@google.com>, Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 03/02/2013 11:08 AM, Hugh Dickins wrote:
-> On Sat, 2 Mar 2013, Simon Jeons wrote:
->> On 03/02/2013 09:42 AM, Hugh Dickins wrote:
->>> On Sat, 2 Mar 2013, Simon Jeons wrote:
->>>> In function __add_to_swap_cache if add to radix tree successfully will
->>>> result
->>>> in increase NR_FILE_PAGES, why? This is anonymous page instead of file
->>>> backed
->>>> page.
->>> Right, that's hard to understand without historical background.
->>>
->>> I think the quick answer would be that we used to (and still do) think
->>> of file-cache and swap-cache as two halves of page-cache.  And then when
->> shmem page should be treated as file-cache or swap-cache? It is strange since
->> it is consist of anonymous pages and these pages establish files.
-> A shmem page is swap-backed file-cache, and it may get transferred to or
-> from swap-cache: yes, it's a difficult and confusing case, as I said below.
->
-> I would never call it "anonymous", but it is counted in /proc/meminfo's
-> Active(anon) or Inactive(anon) rather than in (file), because "anon"
-> there is shorthand for "swap-backed".
+Use the events API to trace filemap loading and unloading of file pieces
+into the page cache.
 
-Oh, I see. Thanks. :)
+This patch aims at tracing the eviction reload cycle of executable and
+shared libraries pages in a memory constrained environment.
 
->
->>> So you'll find that shmem and swap are counted as file in some places
->>> and anon in others, and it's hard to grasp which is where and why,
->>> without remembering the history.
-> Hugh
+The typical usage is to spot a specific device and inode (for example
+/lib/libc.so) to see the eviction cycles, and find out if frequently used
+code is rather spread across many pages (bad) or coallesced (good).
+
+Signed-off-by: Robert Jarzmik <robert.jarzmik@free.fr>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Ingo Molnar <mingo@redhat.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+
+---
+Since RESEND v1:
+ - took Stephen's comment into account (use FTrace templates)
+ - took Andrew's comment into account (trace out of lock)
+---
+ include/trace/events/filemap.h |   58 ++++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c                   |    5 ++++
+ 2 files changed, 63 insertions(+)
+ create mode 100644 include/trace/events/filemap.h
+
+diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+new file mode 100644
+index 0000000..0421f49
+--- /dev/null
++++ b/include/trace/events/filemap.h
+@@ -0,0 +1,58 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM filemap
++
++#if !defined(_TRACE_FILEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_FILEMAP_H
++
++#include <linux/types.h>
++#include <linux/tracepoint.h>
++#include <linux/mm.h>
++#include <linux/memcontrol.h>
++#include <linux/device.h>
++#include <linux/kdev_t.h>
++
++DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
++
++	TP_PROTO(struct page *page),
++
++	TP_ARGS(page),
++
++	TP_STRUCT__entry(
++		__field(struct page *, page)
++		__field(unsigned long, i_ino)
++		__field(unsigned long, index)
++		__field(dev_t, s_dev)
++	),
++
++	TP_fast_assign(
++		__entry->page = page;
++		__entry->i_ino = page->mapping->host->i_ino;
++		__entry->index = page->index;
++		if (page->mapping->host->i_sb)
++			__entry->s_dev = page->mapping->host->i_sb->s_dev;
++		else
++			__entry->s_dev = page->mapping->host->i_rdev;
++	),
++
++	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
++		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++		__entry->i_ino,
++		__entry->page,
++		page_to_pfn(__entry->page),
++		__entry->index << PAGE_SHIFT)
++);
++
++DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_delete_from_page_cache,
++	TP_PROTO(struct page *page),
++	TP_ARGS(page)
++	);
++
++DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_add_to_page_cache,
++	TP_PROTO(struct page *page),
++	TP_ARGS(page)
++	);
++
++#endif /* _TRACE_FILEMAP_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/mm/filemap.c b/mm/filemap.c
+index e1979fd..2581826 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -35,6 +35,9 @@
+ #include <linux/cleancache.h>
+ #include "internal.h"
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/filemap.h>
++
+ /*
+  * FIXME: remove all knowledge of the buffer layer from the core VM
+  */
+@@ -113,6 +116,7 @@ void __delete_from_page_cache(struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
+ 
++	trace_mm_filemap_delete_from_page_cache(page);
+ 	/*
+ 	 * if we're uptodate, flush out into the cleancache, otherwise
+ 	 * invalidate any existing cleancache entries.  We can't leave
+@@ -464,6 +468,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 			mapping->nrpages++;
+ 			__inc_zone_page_state(page, NR_FILE_PAGES);
+ 			spin_unlock_irq(&mapping->tree_lock);
++			trace_mm_filemap_add_to_page_cache(page);
+ 		} else {
+ 			page->mapping = NULL;
+ 			/* Leave page->index set: truncation relies upon it */
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
