@@ -1,37 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 717C16B0007
-	for <linux-mm@kvack.org>; Sun,  3 Mar 2013 12:13:29 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id xa12so2587657pbc.8
-        for <linux-mm@kvack.org>; Sun, 03 Mar 2013 09:13:28 -0800 (PST)
-Message-ID: <513384B2.9090308@gmail.com>
-Date: Mon, 04 Mar 2013 01:13:22 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 12A126B0002
+	for <linux-mm@kvack.org>; Sun,  3 Mar 2013 18:49:18 -0500 (EST)
+Received: by mail-da0-f52.google.com with SMTP id x33so2241145dad.11
+        for <linux-mm@kvack.org>; Sun, 03 Mar 2013 15:49:18 -0800 (PST)
+Message-ID: <5133E178.90405@gmail.com>
+Date: Mon, 04 Mar 2013 07:49:12 +0800
+From: Will Huck <will.huckk@gmail.com>
 MIME-Version: 1.0
-Subject: Re: mm: introduce new field "managed_pages" to struct zone
-References: <512EF580.6000608@gmail.com> <5132D918.2000009@gmail.com>
-In-Reply-To: <5132D918.2000009@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 2/2] tmpfs: fix mempolicy object leaks
+References: <1361344302-26565-1-git-send-email-gthelen@google.com> <1361344302-26565-2-git-send-email-gthelen@google.com> <alpine.LNX.2.00.1302201221270.1152@eggly.anvils>
+In-Reply-To: <alpine.LNX.2.00.1302201221270.1152@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: Simon Jeons <simon.jeons@gmail.com>, Jiang Liu <jiang.liu@huawei.com>, "linux-mm@kvack.org >> Linux Memory Management List" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Yinghai Lu <yinghai@kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Greg Thelen <gthelen@google.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/03/2013 01:01 PM, Ric Mason wrote:
-> On 02/28/2013 02:13 PM, Simon Jeons wrote:
->> Hi Jiang,
+
+Hi Hugh,
+On 02/21/2013 04:26 AM, Hugh Dickins wrote:
+> On Tue, 19 Feb 2013, Greg Thelen wrote:
+>
+>> This patch fixes several mempolicy leaks in the tmpfs mount logic.
+>> These leaks are slow - on the order of one object leaked per mount
+>> attempt.
 >>
->> https://patchwork.kernel.org/patch/1781291/
+>> Leak 1 (umount doesn't free mpol allocated in mount):
+>>      while true; do
+>>          mount -t tmpfs -o mpol=interleave,size=100M nodev /mnt
+>>          umount /mnt
+>>      done
 >>
->> You said that the bootmem allocator doesn't touch *highmem pages*, so highmem zones' managed_pages is set to the accurate value "spanned_pages - absent_pages" in function free_area_init_core() and won't be updated anymore. Why it doesn't touch *highmem pages*? Could you point out where you figure out this?
-> 
-> Yeah, why bootmem doesn't touch highmem pages? The patch is buggy. :(
-> 
-Actually I found that assumption may be wrong for some architectures, and I'm
-working on a patchset to clean it up. BTW, what's the issue with that patch?
-Regards!
-Gerry
+>> Leak 2 (errors parsing remount options will leak mpol):
+>>      mount -t tmpfs -o size=100M nodev /mnt
+>>      while true; do
+>>          mount -o remount,mpol=interleave,size=x /mnt 2> /dev/null
+>>      done
+>>      umount /mnt
+>>
+>> Leak 3 (multiple mpol per mount leak mpol):
+>>      while true; do
+>>          mount -t tmpfs -o mpol=interleave,mpol=interleave,size=100M nodev /mnt
+>>          umount /mnt
+>>      done
+>>
+>> This patch fixes all of the above.  I could have broken the patch into
+>> three pieces but is seemed easier to review as one.
+> Yes, I agree, and nicely fixed - but one doubt below.  If you resolve
+> that, please add my Acked-by: Hugh Dickins <hughd@google.com>
+
+Could you explain me why shmem has more relationship with mempolicy? It 
+seems that there are many codes in shmem handle mempolicy, but other 
+components in mm subsystem just have little.
+
+>
+>> Signed-off-by: Greg Thelen <gthelen@google.com>
+>> ---
+>>   mm/shmem.c | 12 +++++++++---
+>>   1 file changed, 9 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/mm/shmem.c b/mm/shmem.c
+>> index efd0b3a..ed2cb26 100644
+>> --- a/mm/shmem.c
+>> +++ b/mm/shmem.c
+>> @@ -2386,6 +2386,7 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
+>>   			       bool remount)
+>>   {
+>>   	char *this_char, *value, *rest;
+>> +	struct mempolicy *mpol = NULL;
+>>   	uid_t uid;
+>>   	gid_t gid;
+>>   
+>> @@ -2414,7 +2415,7 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
+>>   			printk(KERN_ERR
+>>   			    "tmpfs: No value for mount option '%s'\n",
+>>   			    this_char);
+>> -			return 1;
+>> +			goto error;
+>>   		}
+>>   
+>>   		if (!strcmp(this_char,"size")) {
+>> @@ -2463,19 +2464,23 @@ static int shmem_parse_options(char *options, struct shmem_sb_info *sbinfo,
+>>   			if (!gid_valid(sbinfo->gid))
+>>   				goto bad_val;
+>>   		} else if (!strcmp(this_char,"mpol")) {
+>> -			if (mpol_parse_str(value, &sbinfo->mpol))
+>> +			mpol_put(mpol);
+> I haven't tested to check, but don't we need
+> 			mpol = NULL;
+> here, in case the new option turns out to be bad?
+>
+>> +			if (mpol_parse_str(value, &mpol))
+>>   				goto bad_val;
+>>   		} else {
+>>   			printk(KERN_ERR "tmpfs: Bad mount option %s\n",
+>>   			       this_char);
+>> -			return 1;
+>> +			goto error;
+>>   		}
+>>   	}
+>> +	sbinfo->mpol = mpol;
+>>   	return 0;
+>>   
+>>   bad_val:
+>>   	printk(KERN_ERR "tmpfs: Bad value '%s' for mount option '%s'\n",
+>>   	       value, this_char);
+>> +error:
+>> +	mpol_put(mpol);
+>>   	return 1;
+>>   
+>>   }
+>> @@ -2551,6 +2556,7 @@ static void shmem_put_super(struct super_block *sb)
+>>   	struct shmem_sb_info *sbinfo = SHMEM_SB(sb);
+>>   
+>>   	percpu_counter_destroy(&sbinfo->used_blocks);
+>> +	mpol_put(sbinfo->mpol);
+>>   	kfree(sbinfo);
+>>   	sb->s_fs_info = NULL;
+>>   }
+>> -- 
+>> 1.8.1.3
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
