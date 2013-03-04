@@ -1,47 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 5D1246B0002
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 07:59:15 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id fa11so3114659pad.23
-        for <linux-mm@kvack.org>; Mon, 04 Mar 2013 04:59:14 -0800 (PST)
-From: Akinobu Mita <akinobu.mita@gmail.com>
-Subject: [PATCH -v3 06/23] mm/: rename random32() to prandom_u32()
-Date: Mon,  4 Mar 2013 21:58:14 +0900
-Message-Id: <1362401911-14074-7-git-send-email-akinobu.mita@gmail.com>
-In-Reply-To: <1362401911-14074-1-git-send-email-akinobu.mita@gmail.com>
-References: <1362401911-14074-1-git-send-email-akinobu.mita@gmail.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 2CDC46B0002
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 10:09:48 -0500 (EST)
+Date: Mon, 4 Mar 2013 10:09:37 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: Fixup the condition whether the page cache is free
+Message-ID: <20130304150937.GB23767@cmpxchg.org>
+References: <CAFNq8R7tq9kvD9LyhZJ-Cj0kexQfDsPhB4iQYyZ9s9+8Jo82QA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFNq8R7tq9kvD9LyhZJ-Cj0kexQfDsPhB4iQYyZ9s9+8Jo82QA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org
-Cc: Akinobu Mita <akinobu.mita@gmail.com>, linux-mm@kvack.org
+To: Li Haifeng <omycle@gmail.com>
+Cc: "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org
 
-Use more preferable function name which implies using a pseudo-random
-number generator.
+On Mon, Mar 04, 2013 at 09:54:26AM +0800, Li Haifeng wrote:
+> When a page cache is to reclaim, we should to decide whether the page
+> cache is free.
+> IMO, the condition whether a page cache is free should be 3 in page
+> frame reclaiming. The reason lists as below.
+> 
+> When page is allocated, the page->_count is 1(code fragment is code-1 ).
+> And when the page is allocated for reading files from extern disk, the
+> page->_count will increment 1 by page_cache_get() in
+> add_to_page_cache_locked()(code fragment is code-2). When the page is to
+> reclaim, the isolated LRU list also increase the page->_count(code
+> fragment is code-3).
 
-Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: linux-mm@kvack.org
----
+The page count is initialized to 1, but that does not stay with the
+object.  It's a reference that is passed to the allocating task, which
+drops it again when it's done with the page.  I.e. the pattern is like
+this:
 
-No change from v2
+instantiation:
+page = page_cache_alloc()	/* instantiator reference -> 1 */
+add_to_page_cache(page, mapping, offset)
+  get_page(page)		/* page cache reference -> 2 */
+lru_cache_add(page)
+  get_page(page)		/* pagevec reference -> 3 */
+/* ...initiate read, write, associate buffers, ... */
+page_cache_release(page)	/* drop instantiator reference -> 2 + private */
 
- mm/swapfile.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index a1f7772..d417efd 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2120,7 +2120,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	if (p->bdev) {
- 		if (blk_queue_nonrot(bdev_get_queue(p->bdev))) {
- 			p->flags |= SWP_SOLIDSTATE;
--			p->cluster_next = 1 + (random32() % p->highest_bit);
-+			p->cluster_next = 1 + (prandom_u32() % p->highest_bit);
- 		}
- 		if ((swap_flags & SWAP_FLAG_DISCARD) && discard_swap(p) == 0)
- 			p->flags |= SWP_DISCARDABLE;
--- 
-1.8.1.2
+reclaim:
+lru_add_drain()
+  page_cache_release(page)	/* drop pagevec reference -> 1 + private */
+__isolate_lru_page(page)
+  page_cache_get(page)		/* reclaim reference -> 2 + private */
+is_page_cache_freeable(page)
+try_to_free_buffers()		/* drop buffer ref -> 2 */
+__remove_mapping()		/* drop page cache and isolator ref -> 0 */
+free_hot_cold_page()
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
