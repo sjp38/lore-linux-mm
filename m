@@ -1,70 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 2023D6B0002
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 18:36:51 -0500 (EST)
-Message-ID: <1362440204.21357.20.camel@pasglop>
-Subject: Re: [PATCH -V1 06/24] powerpc: Reduce PTE table memory wastage
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Tue, 05 Mar 2013 10:36:44 +1100
-In-Reply-To: <874ngr2zz1.fsf@linux.vnet.ibm.com>
-References: 
-	<1361865914-13911-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <1361865914-13911-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <20130304045853.GB27523@drongo> <874ngr2zz1.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 773DC6B0002
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 18:39:37 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id rr4so3575021pbb.13
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2013 15:39:36 -0800 (PST)
+Message-ID: <513530B1.8050106@gmail.com>
+Date: Tue, 05 Mar 2013 07:39:29 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [Bug 53501] New: Duplicated MemTotal with different values
+References: <bug-53501-27@https.bugzilla.kernel.org/> <20130212165107.32be0c33.akpm@linux-foundation.org> <alpine.DEB.2.02.1302121742370.5404@chino.kir.corp.google.com> <20130212195929.7cd2e597.akpm@linux-foundation.org> <alpine.DEB.2.02.1302131915170.8584@chino.kir.corp.google.com> <511C61AD.2010702@gmail.com> <alpine.DEB.2.02.1302141624430.27961@chino.kir.corp.google.com> <51245D48.4030102@gmail.com> <alpine.DEB.2.02.1302192305560.27407@chino.kir.corp.google.com> <51316242.1010206@gmail.com> <alpine.DEB.2.02.1303040317540.12264@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1303040317540.12264@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Jiang Liu <liuj97@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, sworddragon2@aol.com, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On Mon, 2013-03-04 at 16:28 +0530, Aneesh Kumar K.V wrote:
-> I added the below comment when initializing the list.
-> 
-> +#ifdef CONFIG_PPC_64K_PAGES
-> +       /*
-> +        * Used to support 4K PTE fragment. The pages are added to list,
-> +        * when we have free framents in the page. We track the whether
-> +        * a page frament is available using page._mapcount. A value of
-> +        * zero indicate none of the fragments are used and page can be
-> +        * freed. A value of FRAG_MASK indicate all the fragments are used
-> +        * and hence the page will be removed from the below list.
-> +        */
-> +       INIT_LIST_HEAD(&init_mm.context.pgtable_list);
-> +#endif
-> 
-> I am not sure about why you say there is no consistent rule. Can you
-> elaborate on that ?
+On 03/04/2013 07:18 PM, David Rientjes wrote:
+> On Sat, 2 Mar 2013, Simon Jeons wrote:
+>
+>>> This has nothing to do with this thread, but /proc/vmstat actually does
+>>> not include the MemTotal value being discussed in this thread that
+>>> /proc/meminfo does.  /proc/meminfo is typically the interface used by
+>>> applications, probably mostly for historical purposes since both are
+>> Do you mean /proc/vmstat is not used by  applications.
+>> sar -B 1
+>> pgpgin/s pgpgout/s   fault/s  majflt/s  pgfree/s pgscank/s pgscand/s pgsteal/s
+>> %vmeff
+>> I think they are read from /proc/vmstat
+>>
+> Yes, there is userspace code that parses /proc/vmstat.
 
-Do you really need that list ? I assume it's meant to allow you to find
-free frags when allocating but my worry is that you'll end up losing
-quite a bit of node locality of PTE pages....
-
-It may or may not work but can you investigate doing things differently
-here ? The idea I want you to consider is to always allocate a full
-page, but make the relationship of the fragments to PTE pages fixed. IE.
-the fragment in the page is a function of the VA.
-
-Basically, the algorithm for allocation is roughly:
-
- - Walk the tree down to the PMD ptr (* that can be improved with a
-generic change, see below)
-
- - Check if any of the neighbouring PMDs is populated. If yes, you have
-your page and pick the appropriate fragment based on the VA
-
- - If not, allocate and populate
-
-On free, similarly, you checked if all neighbouring PMDs have been
-cleared, in which case you can fire off the page for RCU freeing.
-
-(*) By changing pte_alloc_one to take the PMD ptr (which the call side
-has right at hand) you can avoid the tree lookup.
-
-Cheers,
-Ben.
-
+Then why both need /proc/meminfo and /proc/vmstat?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
