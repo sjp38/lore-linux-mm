@@ -1,67 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id B3D106B0002
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 07:21:27 -0500 (EST)
-Received: by mail-we0-f195.google.com with SMTP id k14so1170326wer.10
-        for <linux-mm@kvack.org>; Mon, 04 Mar 2013 04:21:26 -0800 (PST)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 2B6D66B0006
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 07:23:02 -0500 (EST)
+Received: by mail-ob0-f171.google.com with SMTP id x4so1832750obh.16
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2013 04:23:01 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <51347A6E.8010608@iskon.hr>
-References: <CAAO_Xo7sEH5W_9xoOjax8ynyjLCx7GBpse+EU0mF=9mEBFhrgw@mail.gmail.com>
-	<51347A6E.8010608@iskon.hr>
-Date: Mon, 4 Mar 2013 20:21:25 +0800
-Message-ID: <CAAO_Xo6bWo4QOvdowLG88NoQr2AEq4jxCWHQXeA8g-VBT4Yk9Q@mail.gmail.com>
-Subject: Re: Inactive memory keep growing and how to release it?
-From: Lenky Gao <lenky.gao@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 4 Mar 2013 20:23:00 +0800
+Message-ID: <CAJd=RBDfEJnEQETd-FFZo8ERRTfKV+-TXvM_c50OgY9UD_+s7A@mail.gmail.com>
+Subject: [PATCH] rmap: recompute pgoff for unmapping huge page
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: multipart/alternative; boundary=bcaec54d43fe002ee804d7186b91
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Cc: Greg KH <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linux-MM <linux-mm@kvack.org>, Hillf Danton <dhillf@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-2013/3/4 Zlatko Calusic <zlatko.calusic@iskon.hr>:
+--bcaec54d43fe002ee804d7186b91
+Content-Type: text/plain; charset=UTF-8
+
+We have to recompute pgoff if the given page is huge, since result based on
+HPAGE_SIZE is inappropriate for scanning the vma interval tree, as shown
+by commit 36e4f20af833(hugetlb: do not use vma_hugecache_offset() for
+vma_prio_tree_foreach)
+
+
+Signed-off-by: Hillf Danton <dhillf@gmail.com>
+---
+
+--- a/mm/rmap.c Mon Mar  4 20:00:00 2013
++++ b/mm/rmap.c Mon Mar  4 20:02:16 2013
+@@ -1513,6 +1513,9 @@ static int try_to_unmap_file(struct page
+  unsigned long max_nl_size = 0;
+  unsigned int mapcount;
+
++ if (PageHuge(page))
++ pgoff = page->index << compound_order(page);
++
+  mutex_lock(&mapping->i_mmap_mutex);
+  vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+  unsigned long address = vma_address(page, vma);
+--
+
+--bcaec54d43fe002ee804d7186b91
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>We have to recompute pgoff if the given page is huge,=
+ since result based on<br></div><div>HPAGE_SIZE is inappropriate for scanni=
+ng the vma interval tree, as shown</div><div>by commit 36e4f20af833(hugetlb=
+: do not use vma_hugecache_offset() for</div>
+<div>vma_prio_tree_foreach)</div><div><br></div><div><br></div><div>Signed-=
+off-by: Hillf Danton &lt;<a href=3D"mailto:dhillf@gmail.com">dhillf@gmail.c=
+om</a>&gt;</div><div>---</div><div><br></div><div>--- a/mm/rmap.c<span clas=
+s=3D"" style=3D"white-space:pre">	</span>Mon Mar =C2=A04 20:00:00 2013</div=
 >
-> The drop_caches mechanism doesn't free dirty page cache pages. And your bash
-> script is creating a lot of dirty pages. Run it like this and see if it
-> helps your case:
->
-> sync; echo 3 > /proc/sys/vm/drop_caches
+<div>+++ b/mm/rmap.c<span class=3D"" style=3D"white-space:pre">	</span>Mon =
+Mar =C2=A04 20:02:16 2013</div><div>@@ -1513,6 +1513,9 @@ static int try_to=
+_unmap_file(struct page</div><div>=C2=A0<span class=3D"" style=3D"white-spa=
+ce:pre">	</span>unsigned long max_nl_size =3D 0;</div>
+<div>=C2=A0<span class=3D"" style=3D"white-space:pre">	</span>unsigned int =
+mapcount;</div><div>=C2=A0</div><div>+<span class=3D"" style=3D"white-space=
+:pre">	</span>if (PageHuge(page))</div><div>+<span class=3D"" style=3D"whit=
+e-space:pre">		</span>pgoff =3D page-&gt;index &lt;&lt; compound_order(page=
+);</div>
+<div>+</div><div>=C2=A0<span class=3D"" style=3D"white-space:pre">	</span>m=
+utex_lock(&amp;mapping-&gt;i_mmap_mutex);</div><div>=C2=A0<span class=3D"" =
+style=3D"white-space:pre">	</span>vma_interval_tree_foreach(vma, &amp;mappi=
+ng-&gt;i_mmap, pgoff, pgoff) {</div>
+<div>=C2=A0<span class=3D"" style=3D"white-space:pre">		</span>unsigned lon=
+g address =3D vma_address(page, vma);</div><div>--</div><div><br></div></di=
+v>
 
-Thanks for your advice.
-
-The inactive memory still cannot be reclaimed after i execute the sync command:
-
-# cat /proc/meminfo | grep Inactive\(file\);
-Inactive(file):   882824 kB
-# sync;
-# echo 3 > /proc/sys/vm/drop_caches
-# cat /proc/meminfo | grep Inactive\(file\);
-Inactive(file):   777664 kB
-
-I find these page becomes orphaned in this function, but do not understand why:
-
-/*
- * If truncate cannot remove the fs-private metadata from the page, the page
- * becomes orphaned.  It will be left on the LRU and may even be mapped into
- * user pagetables if we're racing with filemap_fault().
- *
- * We need to bale out if page->mapping is no longer equal to the original
- * mapping.  This happens a) when the VM reclaimed the page while we waited on
- * its lock, b) when a concurrent invalidate_mapping_pages got there first and
- * c) when tmpfs swizzles a page between a tmpfs inode and swapper_space.
- */
-static int
-truncate_complete_page(struct address_space *mapping, struct page *page)
-{
-...
-
-My file system type is ext3, mounted with the opteion data=journal and
-it is easy to reproduce.
-
-
--- 
-Regards,
-
-Lenky
+--bcaec54d43fe002ee804d7186b91--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
