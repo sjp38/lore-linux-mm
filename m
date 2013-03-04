@@ -1,60 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id AAF666B0002
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 06:15:41 -0500 (EST)
-Message-ID: <5134824D.9070008@synopsys.com>
-Date: Mon, 4 Mar 2013 16:45:25 +0530
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 4BBC26B0006
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 06:18:21 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id kq12so3111011pab.15
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2013 03:18:20 -0800 (PST)
+Date: Mon, 4 Mar 2013 03:18:18 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [Bug 53501] New: Duplicated MemTotal with different values
+In-Reply-To: <51316242.1010206@gmail.com>
+Message-ID: <alpine.DEB.2.02.1303040317540.12264@chino.kir.corp.google.com>
+References: <bug-53501-27@https.bugzilla.kernel.org/> <20130212165107.32be0c33.akpm@linux-foundation.org> <alpine.DEB.2.02.1302121742370.5404@chino.kir.corp.google.com> <20130212195929.7cd2e597.akpm@linux-foundation.org> <alpine.DEB.2.02.1302131915170.8584@chino.kir.corp.google.com>
+ <511C61AD.2010702@gmail.com> <alpine.DEB.2.02.1302141624430.27961@chino.kir.corp.google.com> <51245D48.4030102@gmail.com> <alpine.DEB.2.02.1302192305560.27407@chino.kir.corp.google.com> <51316242.1010206@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 1/2] memblock: add assertion for zero allocation alignment
-References: <CAE9FiQV20uj_kOViCOd4gdPFuAf28fEbjhGCrzNogQWx5T3+zg@mail.gmail.com> <1361479940-8078-1-git-send-email-vgupta@synopsys.com> <CAOS58YPUSmsj2OUNGH7-0709R7MrzWS1dMwCykL0tGsnpyG+ig@mail.gmail.com>
-In-Reply-To: <CAOS58YPUSmsj2OUNGH7-0709R7MrzWS1dMwCykL0tGsnpyG+ig@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Yinghai Lu <yinghai@kernel.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Jiang Liu <liuj97@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, sworddragon2@aol.com, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-Hi Andrew,
+On Sat, 2 Mar 2013, Simon Jeons wrote:
 
-On Friday 22 February 2013 02:23 AM, Tejun Heo wrote:
-> On Thu, Feb 21, 2013 at 12:52 PM, Vineet Gupta
-> <Vineet.Gupta1@synopsys.com> wrote:
->> This came to light when calling memblock allocator from arc port (for
->> copying flattended DT). If a "0" alignment is passed, the allocator
->> round_up() call incorrectly rounds up the size to 0.
->>
->> round_up(num, alignto) => ((num - 1) | (alignto -1)) + 1
->>
->> While the obvious allocation failure causes kernel to panic, it is
->> better to warn the caller to fix the code.
->>
->> Tejun suggested that instead of BUG_ON(!align) - which might be
->> ineffective due to pending console init and such, it is better to
->> WARN_ON, and continue the boot with a reasonable default align.
->>
->> Caller passing @size need not be handled similarly as the subsequent
->> panic will indicate that anyhow.
->>
->> Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Tejun Heo <tj@kernel.org>
->> Cc: Yinghai Lu <yinghai@kernel.org>
->> Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> Cc: Ingo Molnar <mingo@kernel.org>
->> Cc: linux-mm@kvack.org
->> Cc: linux-kernel@vger.kernel.org
+> > This has nothing to do with this thread, but /proc/vmstat actually does
+> > not include the MemTotal value being discussed in this thread that
+> > /proc/meminfo does.  /proc/meminfo is typically the interface used by
+> > applications, probably mostly for historical purposes since both are
 > 
-> Acked-by: Tejun Heo <tj@kernel.org>
-> 
-> Thanks.
+> Do you mean /proc/vmstat is not used by  applications.
+> sar -B 1
+> pgpgin/s pgpgout/s   fault/s  majflt/s  pgfree/s pgscank/s pgscand/s pgsteal/s
+> %vmeff
+> I think they are read from /proc/vmstat
 > 
 
-I'm hoping this will be routed via the mm tree.
-
-Thx,
--Vineet
+Yes, there is userspace code that parses /proc/vmstat.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
