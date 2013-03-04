@@ -1,77 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 259BC6B0002
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 05:41:59 -0500 (EST)
-Date: Mon, 04 Mar 2013 11:41:50 +0100
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-MIME-Version: 1.0
-References: <CAAO_Xo7sEH5W_9xoOjax8ynyjLCx7GBpse+EU0mF=9mEBFhrgw@mail.gmail.com>
-In-Reply-To: <CAAO_Xo7sEH5W_9xoOjax8ynyjLCx7GBpse+EU0mF=9mEBFhrgw@mail.gmail.com>
-Message-ID: <51347A6E.8010608@iskon.hr>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: Re: Inactive memory keep growing and how to release it?
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id B1C466B0002
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 05:46:31 -0500 (EST)
+Received: by mail-ee0-f53.google.com with SMTP id e53so3662097eek.26
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2013 02:46:30 -0800 (PST)
+From: Claudiu Ghioc <claudiughioc@gmail.com>
+Subject: [PATCH] hugetlb: fix sparse warning for hugetlb_register_node
+Date: Mon,  4 Mar 2013 12:46:15 +0200
+Message-Id: <1362393975-22533-1-git-send-email-claudiu.ghioc@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lenky Gao <lenky.gao@gmail.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.cz, aneesh.kumar@linux.vnet.ibm.com, dhillf@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Claudiu Ghioc <claudiu.ghioc@gmail.com>
 
-On 04.03.2013 10:52, Lenky Gao wrote:
-> Hi,
->
-> When i just run a test on Centos 6.2 as follows:
->
-> #!/bin/bash
->
-> while true
-> do
->
-> 	file="/tmp/filetest"
->
-> 	echo $file
->
-> 	dd if=/dev/zero of=${file} bs=512 count=204800 &> /dev/null
->
-> 	sleep 5
-> done
->
-> the inactive memory keep growing:
->
-> #cat /proc/meminfo | grep Inactive\(fi
-> Inactive(file):   420144 kB
-> ...
-> #cat /proc/meminfo | grep Inactive\(fi
-> Inactive(file):   911912 kB
-> ...
-> #cat /proc/meminfo | grep Inactive\(fi
-> Inactive(file):  1547484 kB
-> ...
->
-> and i cannot reclaim it:
->
-> # cat /proc/meminfo | grep Inactive\(fi
-> Inactive(file):  1557684 kB
-> # echo 3 > /proc/sys/vm/drop_caches
-> # cat /proc/meminfo | grep Inactive\(fi
-> Inactive(file):  1520832 kB
->
-> I have tested on other version kernel, such as 2.6.30 and .6.11, the
-> problom also exists.
->
-> When in the final situation, i cannot kmalloc a larger contiguous
-> memory, especially in interrupt context.
-> Can you give some tips to avoid this?
->
+Removed the following sparse warnings:
+*  mm/hugetlb.c:1764:6: warning: symbol
+    'hugetlb_unregister_node' was not declared.
+    Should it be static?
+*   mm/hugetlb.c:1808:6: warning: symbol
+    'hugetlb_register_node' was not declared.
+    Should it be static?
 
-The drop_caches mechanism doesn't free dirty page cache pages. And your 
-bash script is creating a lot of dirty pages. Run it like this and see 
-if it helps your case:
+Signed-off-by: Claudiu Ghioc <claudiu.ghioc@gmail.com>
+---
+ mm/hugetlb.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-sync; echo 3 > /proc/sys/vm/drop_caches
-
-Regards,
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 0a0be33..c65a8a5 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1761,7 +1761,7 @@ static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
+  * Unregister hstate attributes from a single node device.
+  * No-op if no hstate attributes attached.
+  */
+-void hugetlb_unregister_node(struct node *node)
++static void hugetlb_unregister_node(struct node *node)
+ {
+ 	struct hstate *h;
+ 	struct node_hstate *nhs = &node_hstates[node->dev.id];
+@@ -1805,7 +1805,7 @@ static void hugetlb_unregister_all_nodes(void)
+  * Register hstate attributes for a single node device.
+  * No-op if attributes already registered.
+  */
+-void hugetlb_register_node(struct node *node)
++static void hugetlb_register_node(struct node *node)
+ {
+ 	struct hstate *h;
+ 	struct node_hstate *nhs = &node_hstates[node->dev.id];
 -- 
-Zlatko
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
