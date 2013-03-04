@@ -1,144 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id DDADE6B0002
-	for <linux-mm@kvack.org>; Sun,  3 Mar 2013 21:37:23 -0500 (EST)
-Received: from mail107-ch1 (localhost [127.0.0.1])	by
- mail107-ch1-R.bigfish.com (Postfix) with ESMTP id 928EC20223	for
- <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Mon,  4 Mar 2013 02:36:06 +0000
- (UTC)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH 1/1] mm: Export split_page().
-Date: Mon, 4 Mar 2013 02:36:02 +0000
-Message-ID: <b863089d05f442fb9dfc90faa158a001@SN2PR03MB061.namprd03.prod.outlook.com>
-References: <1362364075-14564-1-git-send-email-kys@microsoft.com>
- <20130304020747.GA8265@kroah.com>
- <3a362e994ab64efda79ae3c80342db95@SN2PR03MB061.namprd03.prod.outlook.com>
- <20130304022508.GA8638@kroah.com>
-In-Reply-To: <20130304022508.GA8638@kroah.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 06DEE6B0002
+	for <linux-mm@kvack.org>; Sun,  3 Mar 2013 23:59:31 -0500 (EST)
+Date: Mon, 4 Mar 2013 15:58:53 +1100
+From: Paul Mackerras <paulus@samba.org>
+Subject: Re: [PATCH -V1 06/24] powerpc: Reduce PTE table memory wastage
+Message-ID: <20130304045853.GB27523@drongo>
+References: <1361865914-13911-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1361865914-13911-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1361865914-13911-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
+On Tue, Feb 26, 2013 at 01:34:56PM +0530, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> 
+> We allocate one page for the last level of linux page table. With THP and
+> large page size of 16MB, that would mean we are be wasting large part
+> of that page. To map 16MB area, we only need a PTE space of 2K with 64K
+> page size. This patch reduce the space wastage by sharing the page
+> allocated for the last level of linux page table with multiple pmd
+> entries. We call these smaller chunks PTE page fragments and allocated
+> page, PTE page. We use the page->_mapcount as bitmap to indicate which
+> PTE fragments are free.
+> 
+> page->_mapcount is divided into two halves. The upper half is used for
+> tracking the freed page framents in the RCU grace period.
+> 
+> In order to support systems which doesn't have 64K HPTE support, we also
+> add another 2K to PTE page fragment. The second half of the PTE fragments
+> is used for storing slot and secondary bit information of an HPTE. With this
+> we now have a 4K PTE fragment.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
+This one has taken me hours to review.  Perhaps it's partly because of
+the way that diff has matched things up, but it's difficult to see
+what's moved where, what's common code that is now the 4k page case,
+etc.  For example, pmd_alloc_one() and pmd_free() are unchanged, but
+the diff shows them as removed in one place and added in another.
 
-> -----Original Message-----
-> From: Greg KH [mailto:gregkh@linuxfoundation.org]
-> Sent: Sunday, March 03, 2013 9:25 PM
-> To: KY Srinivasan
-> Cc: linux-kernel@vger.kernel.org; devel@linuxdriverproject.org; olaf@aepf=
-le.de;
-> apw@canonical.com; andi@firstfloor.org; akpm@linux-foundation.org; linux-
-> mm@kvack.org
-> Subject: Re: [PATCH 1/1] mm: Export split_page().
->=20
-> On Mon, Mar 04, 2013 at 02:14:02AM +0000, KY Srinivasan wrote:
-> >
-> >
-> > > -----Original Message-----
-> > > From: Greg KH [mailto:gregkh@linuxfoundation.org]
-> > > Sent: Sunday, March 03, 2013 9:08 PM
-> > > To: KY Srinivasan
-> > > Cc: linux-kernel@vger.kernel.org; devel@linuxdriverproject.org;
-> olaf@aepfle.de;
-> > > apw@canonical.com; andi@firstfloor.org; akpm@linux-foundation.org; li=
-nux-
-> > > mm@kvack.org
-> > > Subject: Re: [PATCH 1/1] mm: Export split_page().
-> > >
-> > > On Sun, Mar 03, 2013 at 06:27:55PM -0800, K. Y. Srinivasan wrote:
-> > > > The split_page() function will be very useful for balloon drivers. =
-On Hyper-V,
-> > > > it will be very efficient to use 2M allocations in the guest as thi=
-s (a) makes
-> > > > the ballooning protocol with the host that much more efficient and =
-(b)
-> moving
-> > > > memory in 2M chunks minimizes fragmentation in the host. Export the
-> > > split_page()
-> > > > function to let the guest allocations be in 2M chunks while the hos=
-t is free to
-> > > > return this memory at arbitrary granularity.
-> > > >
-> > > >
-> > > > Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
-> > > > ---
-> > > >  mm/page_alloc.c |    1 +
-> > > >  1 files changed, 1 insertions(+), 0 deletions(-)
-> > > >
-> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > index 6cacfee..7e0ead6 100644
-> > > > --- a/mm/page_alloc.c
-> > > > +++ b/mm/page_alloc.c
-> > > > @@ -1404,6 +1404,7 @@ void split_page(struct page *page, unsigned i=
-nt
-> order)
-> > > >  	for (i =3D 1; i < (1 << order); i++)
-> > > >  		set_page_refcounted(page + i);
-> > > >  }
-> > > > +EXPORT_SYMBOL_GPL(split_page);
-> > >
-> > > When you export a symbol, you also need to post the code that is goin=
-g
-> > > to use that symbol, otherwise people don't really know how to judge t=
-his
-> > > request.
-> > >
-> > > Can you just make this a part of your balloon driver update patch ser=
-ies
-> > > instead?
-> >
-> > Fair enough; I was hoping to see how inclined the mm folks were with re=
-gards
-> to
-> > exporting this symbol before I went ahead and modified the balloon driv=
-er
-> code to
-> > leverage this. Looking at the Windows guests on Hyper-V, I am convinced=
- 2M
-> balloon
-> > allocations in the Linux (Hyper-V) balloon driver will make significant=
- difference.
-> As you
-> > suggest, I will post this patch as part of the balloon driver changes t=
-hat use this
-> exported
-> > symbol. I am still hoping to get some feedback from the mm guys on this=
-.
->=20
-> I guess the most obvious question about exporting this symbol is, "Why
-> doesn't any of the other hypervisor balloon drivers need this?  What is
-> so special about hyper-v?"
+The other general comment I have is that it's not really clear when a
+page will be on the mm->context.pgtable_list and when it won't.  I
+would like to see an invariant that says something like "the page is
+on the pgtable_list if and only if (page->_mapcount & FRAG_MASK) is
+neither 0 nor FRAG_MASK".  But that doesn't seem to be the case
+exactly, and I can't see any consistent rule, which makes me think
+there are going to be bugs in corner cases.
 
-The balloon protocol that Hyper-V has specified is designed around the abil=
-ity to
-move 2M pages. While the protocol can handle 4k allocations, it is going to=
- be very chatty
-with 4K allocations. Furthermore, the Memory Balancer on the host is also d=
-esigned to work
-best with memory moving around in 2M chunks. While I have not seen the code=
- on the Windows
-host that does this memory balancing, looking at how Windows guests behave =
-in this environment,
-(relative to Linux) I have to assume that the 2M allocations that Windows g=
-uests do are a big part of
-the difference we see.
-=20
->=20
-> Or can those other drivers also need/use it as well, and they were just
-> too chicken to be asking for the export?  :)
+Consider, for example, the case where a page has two fragments still
+in use, and one of them gets queued up by RCU for freeing via a call
+to page_table_free_rcu, and then the other one gets freed through
+page_table_free().  Neither the call to page_table_free_rcu nor the
+call to page_table_free will take the page off the list AFAICS, and
+then __page_table_free_rcu() will free the page while it's still on
+the pgtable_list.
 
-The 2M balloon allocations would make sense if the host is designed accordi=
-ngly.
+More specific comments below...
 
-Regards,
+> -static inline void pgtable_free(void *table, unsigned index_size)
+> -{
+> -	if (!index_size)
+> -		free_page((unsigned long)table);
+> -	else {
+> -		BUG_ON(index_size > MAX_PGTABLE_INDEX_SIZE);
+> -		kmem_cache_free(PGT_CACHE(index_size), table);
+> -	}
+> -}
 
-K. Y
+This is still used in the UP case, both for 4k and 64k, and UP configs
+now fail to build.
 
+>  static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+>  {
+>  	free_page((unsigned long)pte);
+> @@ -156,7 +118,12 @@ static inline void __tlb_remove_table(void *_table)
+>  	void *table = (void *)((unsigned long)_table & ~MAX_PGTABLE_INDEX_SIZE);
+>  	unsigned shift = (unsigned long)_table & MAX_PGTABLE_INDEX_SIZE;
+>  
+> -	pgtable_free(table, shift);
+> +	if (!shift)
+> +		free_page((unsigned long)table);
+> +	else {
+> +		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
+> +		kmem_cache_free(PGT_CACHE(shift), table);
+> +	}
+
+Any particular reason for open-coding pgtable_free() here?
+
+> +/*
+> + * we support 15 fragments per PTE page. This is limited by how many
+> + * bits we can pack in page->_mapcount. We use the first half for
+> + * tracking the usage for rcu page table free.
+> + */
+> +#define FRAG_MASK_BITS	15
+> +#define FRAG_MASK ((1 << FRAG_MASK_BITS) - 1)
+
+Atomic_t variables are 32-bit, so you really should be able to make
+FRAG_MASK_BITS be 16 and avoid wasting the last fragment of each page.
+
+Paul.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
