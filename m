@@ -1,110 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 06DEE6B0002
-	for <linux-mm@kvack.org>; Sun,  3 Mar 2013 23:59:31 -0500 (EST)
-Date: Mon, 4 Mar 2013 15:58:53 +1100
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: [PATCH -V1 06/24] powerpc: Reduce PTE table memory wastage
-Message-ID: <20130304045853.GB27523@drongo>
-References: <1361865914-13911-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1361865914-13911-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 9B7FD6B0002
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 00:25:55 -0500 (EST)
+Date: Mon, 4 Mar 2013 15:55:39 +1030
+From: Jonathan Woithe <jwoithe@atrad.com.au>
+Subject: Re: OOM triggered with plenty of memory free
+Message-ID: <20130304052539.GE31835@marvin.atrad.com.au>
+References: <20130213031056.GA32135@marvin.atrad.com.au>
+ <alpine.DEB.2.02.1302121917020.11158@chino.kir.corp.google.com>
+ <20130213042552.GC32135@marvin.atrad.com.au>
+ <511BADEA.3070403@linux.vnet.ibm.com>
+ <20130226063916.GM16712@marvin.atrad.com.au>
+ <512CD435.30704@linux.vnet.ibm.com>
+ <87d2vmkd8v.fsf@xmission.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1361865914-13911-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <87d2vmkd8v.fsf@xmission.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Jonathan Woithe <jwoithe@atrad.com.au>
 
-On Tue, Feb 26, 2013 at 01:34:56PM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Tue, Feb 26, 2013 at 12:54:08PM -0800, Eric W. Biederman wrote:
+> Dave Hansen <dave@linux.vnet.ibm.com> writes:
 > 
-> We allocate one page for the last level of linux page table. With THP and
-> large page size of 16MB, that would mean we are be wasting large part
-> of that page. To map 16MB area, we only need a PTE space of 2K with 64K
-> page size. This patch reduce the space wastage by sharing the page
-> allocated for the last level of linux page table with multiple pmd
-> entries. We call these smaller chunks PTE page fragments and allocated
-> page, PTE page. We use the page->_mapcount as bitmap to indicate which
-> PTE fragments are free.
+> > On 02/25/2013 10:39 PM, Jonathan Woithe wrote:
+> >> On Wed, Feb 13, 2013 at 07:14:50AM -0800, Dave Hansen wrote:
+> >>> David's analysis looks spot-on.  The only other thing I'll add is that
+> >>> it just looks weird that all three kmalloc() caches are so _even_:
+> >>>
+> >>>>> kmalloc-128       1234556 1235168    128   32    1 : tunables    0    0    0 : slabdata  38599  38599      0
+> >>>>> kmalloc-64        1238117 1238144     64   64    1 : tunables    0    0    0 : slabdata  19346  19346      0
+> >>>>> kmalloc-32        1236600 1236608     32  128    1 : tunables    0    0    0 : slabdata   9661   9661      0
+> >>>
+> >>> It's almost like something goes and does 3 allocations in series and
+> >>> leaks them all.
+> > ...
+> >> Given these observations it seems that 2.6.35.11 was leaking memory,
+> >> probably as a result of a bug in the fork() execution path.  At this stage
+> >> kmemleak is not showing the same recurring problem under 3.7.9.
+> >
+> > Your kmemleak data shows that the leaks are always from either 'struct
+> > cred', or 'struct pid'.  Those are _generally_ tied to tasks, but you
+> > only have a couple thousand task_structs.
+> >
+> > My suspicion would be that something is allocating those structures, but
+> > a refcount got leaked somewhere.  2.6.35.11 is about the same era that
+> > this code went in:
+> >
+> > http://lists.linux-foundation.org/pipermail/containers/2010-June/024720.html
+> >
+> > and it deals with both creds and 'struct pid'.  Eric, do you recall any
+> > bugs like this that got fixed along the way?
+> >
+> > I do think it's fairly safe to assume that 3.7.9 doesn't have this
+> > bug.
 > 
-> page->_mapcount is divided into two halves. The upper half is used for
-> tracking the freed page framents in the RCU grace period.
-> 
-> In order to support systems which doesn't have 64K HPTE support, we also
-> add another 2K to PTE page fragment. The second half of the PTE fragments
-> is used for storing slot and secondary bit information of an HPTE. With this
-> we now have a 4K PTE fragment.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> I remember that at one point there was a very subtle leak of I think
+> struct pid.  That leak was not associated with the socket code but
+> something else.
 
-This one has taken me hours to review.  Perhaps it's partly because of
-the way that diff has matched things up, but it's difficult to see
-what's moved where, what's common code that is now the 4k page case,
-etc.  For example, pmd_alloc_one() and pmd_free() are unchanged, but
-the diff shows them as removed in one place and added in another.
+Thanks for the feedback and assistance with this problem.  Given that 3.7.9
+(and the LTS kernels 3.4.34 and 3.0.67) all seem to be free of the leak it
+seems the sensible approach here is to push a newer kernel onto the affected
+machines.  If time permits I may try a bisect to see what it was and when it
+was fixed, but this would be for academic interest only.
 
-The other general comment I have is that it's not really clear when a
-page will be on the mm->context.pgtable_list and when it won't.  I
-would like to see an invariant that says something like "the page is
-on the pgtable_list if and only if (page->_mapcount & FRAG_MASK) is
-neither 0 nor FRAG_MASK".  But that doesn't seem to be the case
-exactly, and I can't see any consistent rule, which makes me think
-there are going to be bugs in corner cases.
+Curiously enough, 3.4.34 and 3.7.9 are showing a tendency to miss UDP
+packets which we don't see with 3.0.67 or 2.6.35.11.  That's clearly a
+separate issue in a different subsystem though - I'm bisecting to see if I
+can gain any insight into it.
 
-Consider, for example, the case where a page has two fragments still
-in use, and one of them gets queued up by RCU for freeing via a call
-to page_table_free_rcu, and then the other one gets freed through
-page_table_free().  Neither the call to page_table_free_rcu nor the
-call to page_table_free will take the page off the list AFAICS, and
-then __page_table_free_rcu() will free the page while it's still on
-the pgtable_list.
+Thanks again for the information and insights.
 
-More specific comments below...
-
-> -static inline void pgtable_free(void *table, unsigned index_size)
-> -{
-> -	if (!index_size)
-> -		free_page((unsigned long)table);
-> -	else {
-> -		BUG_ON(index_size > MAX_PGTABLE_INDEX_SIZE);
-> -		kmem_cache_free(PGT_CACHE(index_size), table);
-> -	}
-> -}
-
-This is still used in the UP case, both for 4k and 64k, and UP configs
-now fail to build.
-
->  static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
->  {
->  	free_page((unsigned long)pte);
-> @@ -156,7 +118,12 @@ static inline void __tlb_remove_table(void *_table)
->  	void *table = (void *)((unsigned long)_table & ~MAX_PGTABLE_INDEX_SIZE);
->  	unsigned shift = (unsigned long)_table & MAX_PGTABLE_INDEX_SIZE;
->  
-> -	pgtable_free(table, shift);
-> +	if (!shift)
-> +		free_page((unsigned long)table);
-> +	else {
-> +		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
-> +		kmem_cache_free(PGT_CACHE(shift), table);
-> +	}
-
-Any particular reason for open-coding pgtable_free() here?
-
-> +/*
-> + * we support 15 fragments per PTE page. This is limited by how many
-> + * bits we can pack in page->_mapcount. We use the first half for
-> + * tracking the usage for rcu page table free.
-> + */
-> +#define FRAG_MASK_BITS	15
-> +#define FRAG_MASK ((1 << FRAG_MASK_BITS) - 1)
-
-Atomic_t variables are 32-bit, so you really should be able to make
-FRAG_MASK_BITS be 16 and avoid wasting the last fragment of each page.
-
-Paul.
+Regards
+  jonathan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
