@@ -1,109 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 46EE16B0008
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 13:13:32 -0500 (EST)
-Received: from mail268-va3 (localhost [127.0.0.1])	by
- mail268-va3-R.bigfish.com (Postfix) with ESMTP id E847B1580301	for
- <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Mon,  4 Mar 2013 18:11:06 +0000
- (UTC)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH 1/1] mm: Export split_page().
-Date: Mon, 4 Mar 2013 18:10:56 +0000
-Message-ID: <7c3247b488834be19a155df40c61523f@SN2PR03MB061.namprd03.prod.outlook.com>
-References: <1362364075-14564-1-git-send-email-kys@microsoft.com>
- <20130304020747.GA8265@kroah.com>
- <3a362e994ab64efda79ae3c80342db95@SN2PR03MB061.namprd03.prod.outlook.com>
- <20130304022508.GA8638@kroah.com>
- <b863089d05f442fb9dfc90faa158a001@SN2PR03MB061.namprd03.prod.outlook.com>
- <5134D476.3040302@linux.vnet.ibm.com>
-In-Reply-To: <5134D476.3040302@linux.vnet.ibm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 77DE66B0002
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 13:29:48 -0500 (EST)
 MIME-Version: 1.0
+Message-ID: <4e603875-823e-4bc9-afc5-ae85ce4ca0ef@default>
+Date: Mon, 4 Mar 2013 10:29:32 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: zsmalloc limitations and related topics
+References: <0efe9610-1aa5-4aa9-bde9-227acfa969ca@default>
+ <51300702.1050006@gmail.com>
+In-Reply-To: <51300702.1050006@gmail.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: minchan@kernel.org, sjenning@linux.vnet.ibm.com, Nitin Gupta <nitingupta910@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bob Liu <lliubbo@gmail.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>
 
-
-
-> -----Original Message-----
-> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
-> Sent: Monday, March 04, 2013 12:06 PM
-> To: KY Srinivasan
-> Cc: Greg KH; linux-kernel@vger.kernel.org; devel@linuxdriverproject.org;
-> olaf@aepfle.de; apw@canonical.com; andi@firstfloor.org; akpm@linux-
-> foundation.org; linux-mm@kvack.org
-> Subject: Re: [PATCH 1/1] mm: Export split_page().
+> From: Ric Mason [mailto:ric.masonn@gmail.com]
+> Subject: Re: zsmalloc limitations and related topics
 >=20
-> On 03/03/2013 06:36 PM, KY Srinivasan wrote:
-> >> I guess the most obvious question about exporting this symbol is, "Why
-> >> doesn't any of the other hypervisor balloon drivers need this?  What i=
-s
-> >> so special about hyper-v?"
+> On 02/28/2013 07:24 AM, Dan Magenheimer wrote:
+> > Hi all --
 > >
-> > The balloon protocol that Hyper-V has specified is designed around the =
-ability
-> to
-> > move 2M pages. While the protocol can handle 4k allocations, it is goin=
-g to be
-> very chatty
-> > with 4K allocations.
->=20
-> What does "very chatty" mean?  Do you think that there will be a
-> noticeable performance difference ballooning 2M pages vs 4k?
-
-The balloon protocol that Hyper-V host specified allows you to specify page
-ranges - start_pfn: num_pfn. With 2M pages the number of messages that need
-to be exchanges is significantly fewer than with 4K page allocations.
->=20
-> > Furthermore, the Memory Balancer on the host is also designed to work
-> > best with memory moving around in 2M chunks. While I have not seen the
-> code on the Windows
-> > host that does this memory balancing, looking at how Windows guests beh=
-ave
-> in this environment,
-> > (relative to Linux) I have to assume that the 2M allocations that Windo=
-ws
-> guests do are a big part of
-> > the difference we see.
->=20
-> You've been talking about differences.  Could you elaborate on what the
-> differences in behavior are that you are trying to rectify here?
-
-As I look at how smoothly memory is balanced on Windows guests with changin=
-g load conditions
-in the guest relative to what I see with Linux, I see Linux taking more tim=
-e to reach the steady state
-during a balancing operation.  I will experiment with 2M allocations and re=
-port if this issue is addressed.
-
->=20
-> >> Or can those other drivers also need/use it as well, and they were jus=
-t
-> >> too chicken to be asking for the export?  :)
+> > I've been doing some experimentation on zsmalloc in preparation
+> > for my topic proposed for LSFMM13 and have run across some
+> > perplexing limitations.  Those familiar with the intimate details
+> > of zsmalloc might be well aware of these limitations, but they
+> > aren't documented or immediately obvious, so I thought it would
+> > be worthwhile to air them publicly.  I've also included some
+> > measurements from the experimentation and some related thoughts.
 > >
-> > The 2M balloon allocations would make sense if the host is designed
-> accordingly.
+> > (Some of the terms here are unusual and may be used inconsistently
+> > by different developers so a glossary of definitions of the terms
+> > used here is appended.)
+> >
+> > ZSMALLOC LIMITATIONS
+> >
+> > Zsmalloc is used for two zprojects: zram and the out-of-tree
+> > zswap.  Zsmalloc can achieve high density when "full".  But:
+> >
+> > 1) Zsmalloc has a worst-case density of 0.25 (one zpage per
+> >     four pageframes).
+> > 2) When not full and especially when nearly-empty _after_
+> >     being full, density may fall below 1.0 as a result of
+> >     fragmentation.
 >=20
-> How does the guest decide which size pages to allocate?  It seems like a
-> relatively bad idea to be inflating the balloon with 2M pages from the
-> guest in the case where the guest is under memory pressure _and_
-> fragmented.
+> What's the meaning of nearly-empty _after_ being full?
 
-I want to start with 2M allocations and if they fail, fall back onto lower =
-order allocations.
-As I said, the host can support 4K allocations and that will be the final f=
-allback position
-(that is what I have currently implemented). If the guest memory is fragmen=
-ted, then
-obviously we will go in for lower order allocations.
+Step 1:  Add a few (N) pages to zsmalloc.  It is "nearly empty".
+Step 2:  Now add many more pages to zsmalloc until allocation
+         limits are reached.  It is "full".
+Step 3:  Now remove many pages from zsmalloc until there are
+         N pages remaining.  It is now "nearly empty after
+         being full".
 
-Regards,
+Fragmentation characteristics are different comparing
+after Step 1 and after Step 3 even though, in both cases,
+zsmalloc contains N pages.
+=20
+> > 3) Zsmalloc has a density of exactly 1.0 for any number of
+> >     zpages with zsize >=3D 0.8.
+> > 4) Zsmalloc contains several compile-time parameters;
+> >     the best value of these parameters may be very workload
+> >     dependent.
+> >
+> > If density =3D=3D 1.0, that means we are paying the overhead of
+> > compression+decompression for no space advantage.  If
+> > density < 1.0, that means using zsmalloc is detrimental,
+> > resulting in worse memory pressure than if it were not used.
+> >
+> > WORKLOAD ANALYSIS
+> >
+> > These limitations emphasize that the workload used to evaluate
+> > zsmalloc is very important.  Benchmarks that measure data
+>=20
+> Could you share your benchmark? In order that other guys can take
+> advantage of it.
 
-K. Y=20
+As Seth does, I just used "make" of a kernel.  I run it on
+a full graphical installation of EL6.  In order to ensure there
+is memory pressure, I limit physical memory to 1GB, and use
+"make -j20".
 
+> > throughput or CPU utilization are of questionable value because
+> > it is the _content_ of the data that is particularly relevant
+> > for compression.  Even more precisely, it is the "entropy"
+> > of the data that is relevant, because the amount of
+> > compressibility in the data is related to the entropy:
+> > I.e. an entirely random pagefull of bits will compress poorly
+> > and a highly-regular pagefull of bits will compress well.
+> > Since the zprojects manage a large number of zpages, both
+> > the mean and distribution of zsize of the workload should
+> > be "representative".
+> >
+> > The workload most widely used to publish results for
+> > the various zprojects is a kernel-compile using "make -jN"
+> > where N is artificially increased to impose memory pressure.
+> > By adding some debug code to zswap, I was able to analyze
+> > this workload and found the following:
+> >
+> > 1) The average page compressed by almost a factor of six
+> >     (mean zsize =3D=3D 694, stddev =3D=3D 474)
+>=20
+> stddev is what?
+
+Standard deviation.  See:
+http://en.wikipedia.org/wiki/Standard_deviation=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
