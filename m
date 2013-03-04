@@ -1,101 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 8AD096B0002
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 06:52:58 -0500 (EST)
-Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 4 Mar 2013 17:19:30 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id ACE9E3940055
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 17:22:50 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r24Bqltu16122110
-	for <linux-mm@kvack.org>; Mon, 4 Mar 2013 17:22:47 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r24BqowB030245
-	for <linux-mm@kvack.org>; Mon, 4 Mar 2013 22:52:50 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V1 09/24] powerpc: Decode the pte-lp-encoding bits correctly.
-In-Reply-To: <20130304054848.GE27523@drongo>
-References: <1361865914-13911-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1361865914-13911-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130304054848.GE27523@drongo>
-Date: Mon, 04 Mar 2013 17:22:50 +0530
-Message-ID: <87vc971iwd.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id B3D106B0002
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 07:21:27 -0500 (EST)
+Received: by mail-we0-f195.google.com with SMTP id k14so1170326wer.10
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2013 04:21:26 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <51347A6E.8010608@iskon.hr>
+References: <CAAO_Xo7sEH5W_9xoOjax8ynyjLCx7GBpse+EU0mF=9mEBFhrgw@mail.gmail.com>
+	<51347A6E.8010608@iskon.hr>
+Date: Mon, 4 Mar 2013 20:21:25 +0800
+Message-ID: <CAAO_Xo6bWo4QOvdowLG88NoQr2AEq4jxCWHQXeA8g-VBT4Yk9Q@mail.gmail.com>
+Subject: Re: Inactive memory keep growing and how to release it?
+From: Lenky Gao <lenky.gao@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mackerras <paulus@samba.org>
-Cc: benh@kernel.crashing.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Cc: Greg KH <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Paul Mackerras <paulus@samba.org> writes:
-
-> On Tue, Feb 26, 2013 at 01:34:59PM +0530, Aneesh Kumar K.V wrote:
->> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->>=20
->> +static inline int hpte_actual_psize(struct hash_pte *hptep, int psize)
->> +{
->> +	unsigned int mask;
->> +	int i, penc, shift;
->> +	/* Look at the 8 bit LP value */
->> +	unsigned int lp =3D (hptep->r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
->> +
->> +	penc =3D 0;
->> +	for (i =3D 0; i < MMU_PAGE_COUNT; i++) {
->> +		/* valid entries have a shift value */
->> +		if (!mmu_psize_defs[i].shift)
->> +			continue;
->> +
->> +		/* encoding bits per actual page size */
->> +		shift =3D mmu_psize_defs[i].shift - 11;
->> +		if (shift > 9)
->> +			shift =3D 9;
->> +		mask =3D (1 << shift) - 1;
->> +		if ((lp & mask) =3D=3D mmu_psize_defs[psize].penc[i])
->> +			return i;
->> +	}
->> +	return -1;
->> +}
+2013/3/4 Zlatko Calusic <zlatko.calusic@iskon.hr>:
 >
-> This doesn't look right to me.  First, it's not clear what the 11 and
-> 9 refer to, and I think the 9 should be LP_BITS (i.e. 8).  Secondly,
-> the mask for the comparison needs to depend on the actual page size
-> not the base page size.
+> The drop_caches mechanism doesn't free dirty page cache pages. And your bash
+> script is creating a lot of dirty pages. Run it like this and see if it
+> helps your case:
+>
+> sync; echo 3 > /proc/sys/vm/drop_caches
 
-How about the below. I am yet to test this in user space.=20
+Thanks for your advice.
 
-static inline int hpte_actual_psize(struct hash_pte *hptep, int psize)
+The inactive memory still cannot be reclaimed after i execute the sync command:
+
+# cat /proc/meminfo | grep Inactive\(file\);
+Inactive(file):   882824 kB
+# sync;
+# echo 3 > /proc/sys/vm/drop_caches
+# cat /proc/meminfo | grep Inactive\(file\);
+Inactive(file):   777664 kB
+
+I find these page becomes orphaned in this function, but do not understand why:
+
+/*
+ * If truncate cannot remove the fs-private metadata from the page, the page
+ * becomes orphaned.  It will be left on the LRU and may even be mapped into
+ * user pagetables if we're racing with filemap_fault().
+ *
+ * We need to bale out if page->mapping is no longer equal to the original
+ * mapping.  This happens a) when the VM reclaimed the page while we waited on
+ * its lock, b) when a concurrent invalidate_mapping_pages got there first and
+ * c) when tmpfs swizzles a page between a tmpfs inode and swapper_space.
+ */
+static int
+truncate_complete_page(struct address_space *mapping, struct page *page)
 {
-	unsigned int mask;
-	int i, penc, shift;
-	/* Look at the 8 bit LP value */
-	unsigned int lp =3D (hptep->r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
+...
 
-	penc =3D 0;
-	for (i =3D 0; i < MMU_PAGE_COUNT; i++) {
-		/* valid entries have a shift value */
-		if (!mmu_psize_defs[i].shift)
-			continue;
-		/*
-		 * encoding bits per actual page size
-		 *        PTE LP     actual page size
-		 *    rrrr rrrz		=E2=89=A58KB
-		 *    rrrr rrzz		=E2=89=A516KB
-		 *    rrrr rzzz		=E2=89=A532KB
-		 *    rrrr zzzz		=E2=89=A564KB
-		 * .......
-		 */
-		shift =3D mmu_psize_defs[i].shift -
-				mmu_psize_defs[MMU_PAGE_4K].shift;
-		if (shift > LP_BITS)
-			shift =3D LP_BITS;
-		mask =3D (1 << shift) - 1;
-		if ((lp & mask) =3D=3D mmu_psize_defs[psize].penc[i])
-			return i;
-	}
-	return -1;
-}
+My file system type is ext3, mounted with the opteion data=journal and
+it is easy to reproduce.
+
+
+-- 
+Regards,
+
+Lenky
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
