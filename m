@@ -1,77 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 58EF86B0002
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 11:37:22 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id rr4so3188622pbb.13
-        for <linux-mm@kvack.org>; Mon, 04 Mar 2013 08:37:21 -0800 (PST)
-Message-ID: <5134CDBB.60700@gmail.com>
-Date: Tue, 05 Mar 2013 00:37:15 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 829D26B0002
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 12:18:06 -0500 (EST)
+Received: from /spool/local
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Mon, 4 Mar 2013 10:18:00 -0700
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 80A7D19D80A8
+	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 10:06:13 -0700 (MST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r24H697m270360
+	for <linux-mm@kvack.org>; Mon, 4 Mar 2013 10:06:10 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r24H68cb013124
+	for <linux-mm@kvack.org>; Mon, 4 Mar 2013 10:06:08 -0700
+Message-ID: <5134D476.3040302@linux.vnet.ibm.com>
+Date: Mon, 04 Mar 2013 09:05:58 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: mm: introduce new field "managed_pages" to struct zone
-References: <512EF580.6000608@gmail.com> <51336FB4.9000202@gmail.com> <5133E356.6000502@gmail.com>
-In-Reply-To: <5133E356.6000502@gmail.com>
+Subject: Re: [PATCH 1/1] mm: Export split_page().
+References: <1362364075-14564-1-git-send-email-kys@microsoft.com> <20130304020747.GA8265@kroah.com> <3a362e994ab64efda79ae3c80342db95@SN2PR03MB061.namprd03.prod.outlook.com> <20130304022508.GA8638@kroah.com> <b863089d05f442fb9dfc90faa158a001@SN2PR03MB061.namprd03.prod.outlook.com>
+In-Reply-To: <b863089d05f442fb9dfc90faa158a001@SN2PR03MB061.namprd03.prod.outlook.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, "linux-mm@kvack.org >> Linux Memory Management List" <linux-mm@kvack.org>
+To: KY Srinivasan <kys@microsoft.com>
+Cc: Greg KH <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 03/04/2013 07:57 AM, Simon Jeons wrote:
+On 03/03/2013 06:36 PM, KY Srinivasan wrote:
+>> I guess the most obvious question about exporting this symbol is, "Why
+>> doesn't any of the other hypervisor balloon drivers need this?  What is
+>> so special about hyper-v?"
 > 
-> Hi Jiang,
-> On 03/03/2013 11:43 PM, Jiang Liu wrote:
->> Hi Simon,
->>     Bootmem allocator is used to managed DMA and Normal memory only, and it does not manage highmem pages because kernel
->> can't directly access highmem pages.
+> The balloon protocol that Hyper-V has specified is designed around the ability to
+> move 2M pages. While the protocol can handle 4k allocations, it is going to be very chatty
+> with 4K allocations.
+
+What does "very chatty" mean?  Do you think that there will be a
+noticeable performance difference ballooning 2M pages vs 4k?
+
+> Furthermore, the Memory Balancer on the host is also designed to work
+> best with memory moving around in 2M chunks. While I have not seen the code on the Windows
+> host that does this memory balancing, looking at how Windows guests behave in this environment,
+> (relative to Linux) I have to assume that the 2M allocations that Windows guests do are a big part of
+> the difference we see.
+
+You've been talking about differences.  Could you elaborate on what the
+differences in behavior are that you are trying to rectify here?
+
+>> Or can those other drivers also need/use it as well, and they were just
+>> too chicken to be asking for the export?  :)
 > 
-> Why you say so? Could you point out where you figure out bootmem allocator doesn't handle highmem pages? In my understanding, it doesn't distinguish low memory or high memory.
-Hi Simon,
-	According to my understanding, bootmem allocator does only manages lowmem pages.
-For traditional bootmem allocator in mm/bootmem.c, it could only manages directly mapped lowmem pages.
-For new bootmem allocator in mm/nobootmem.c, it depends on memblock to do the real work. Let's take
-x86 as an example:
-1) following code set memblock.current_limit to max_low_pfn.
-arch/x86/kernel/setup.c:	memblock.current_limit = get_max_mapped();
-2) the core of bootmem allocator in nobootmem.c is function __alloc_memory_core_early(),
-which has following code to avoid allocate highmem pages:
-static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
-                                        u64 goal, u64 limit)
-{
-        void *ptr;
-        u64 addr;
+> The 2M balloon allocations would make sense if the host is designed accordingly.
 
-        if (limit > memblock.current_limit)
-                limit = memblock.current_limit;
-
-        addr = memblock_find_in_range_node(goal, limit, size, align, nid);
-        if (!addr)
-                return NULL;
-}
-
-I guess it's the same for other architectures. On the other hand, some other architectures
-may allocate highmem pages during boot by directly using memblock interfaces. For example,
-ppc use memblock interfaces to allocate highmem pages for giagant hugetlb pages.
-
-I'm working a patch set to fix those cases.
-
-Regards!
-Gerry
-
-
-> 
->>     Regards!
->>     Gerry
->>
->> On 02/28/2013 02:13 PM, Simon Jeons wrote:
->>> Hi Jiang,
->>>
->>> https://patchwork.kernel.org/patch/1781291/
->>>
->>> You said that the bootmem allocator doesn't touch *highmem pages*, so highmem zones' managed_pages is set to the accurate value "spanned_pages - absent_pages" in function free_area_init_core() and won't be updated anymore. Why it doesn't touch *highmem pages*? Could you point out where you figure out this?
->>>
-> 
+How does the guest decide which size pages to allocate?  It seems like a
+relatively bad idea to be inflating the balloon with 2M pages from the
+guest in the case where the guest is under memory pressure _and_
+fragmented.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
