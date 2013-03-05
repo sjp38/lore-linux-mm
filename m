@@ -1,165 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 0D38D6B0002
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 14:58:47 -0500 (EST)
-Date: Tue, 5 Mar 2013 20:58:46 +0100
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [RFC PATCH v1 22/33] mm/SPARC: use common help functions to
-	free reserved pages
-Message-ID: <20130305195845.GB12225@merkur.ravnborg.org>
-References: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com> <1362495317-32682-23-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 673056B0006
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 14:59:47 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [RFC/PATCH 0/5] Contiguous Memory Allocator and get_user_pages()
+Date: Tue, 5 Mar 2013 19:59:35 +0000
+References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com> <201303050850.26615.arnd@arndb.de> <5135F77C.9060706@samsung.com>
+In-Reply-To: <5135F77C.9060706@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1362495317-32682-23-git-send-email-jiang.liu@huawei.com>
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201303051959.35471.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-On Tue, Mar 05, 2013 at 10:55:05PM +0800, Jiang Liu wrote:
-> Use common help functions to free reserved pages.
-
-I like how this simplify things!
-
-Please consider how you can also cover the HIGHMEM case,
-so map_high_region(...) is simplified too (in init_32.c).
-
+On Tuesday 05 March 2013, Marek Szyprowski wrote:
+> On 3/5/2013 9:50 AM, Arnd Bergmann wrote:
+> > On Tuesday 05 March 2013, Marek Szyprowski wrote:
 > 
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: Sam Ravnborg <sam@ravnborg.org>
-> ---
->  arch/sparc/kernel/leon_smp.c |   15 +++------------
->  arch/sparc/mm/init_32.c      |   40 ++++++----------------------------------
->  arch/sparc/mm/init_64.c      |   25 ++++---------------------
->  3 files changed, 13 insertions(+), 67 deletions(-)
+> The problem is that the opposite approach is imho easier.
+
+I can understand that, yes ;-)
+
+> get_user_pages()
+> is used in quite a lot of places (I was quite surprised when I've added some
+> debug to it and saw the logs) and it seems to be easier to identify places
+> where references are kept for significant amount of time. Usually such 
+> places
+> are in the device drivers. In our case only videobuf2 and some closed-source
+> driver were causing the real migration problems, so I decided to leave the
+> default approach unchanged.
 > 
-> diff --git a/arch/sparc/mm/init_32.c b/arch/sparc/mm/init_32.c
-> index 48e0c03..2a7b6eb 100644
-> --- a/arch/sparc/mm/init_32.c
-> +++ b/arch/sparc/mm/init_32.c
-> @@ -374,45 +374,17 @@ void __init mem_init(void)
->  
->  void free_initmem (void)
->  {
-> -	unsigned long addr;
-> -	unsigned long freed;
-> -
-> -	addr = (unsigned long)(&__init_begin);
-> -	freed = (unsigned long)(&__init_end) - addr;
-> -	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
-> -		struct page *p;
-> -
-> -		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
-> -		p = virt_to_page(addr);
-> -
-> -		ClearPageReserved(p);
-> -		init_page_count(p);
-> -		__free_page(p);
-> -		totalram_pages++;
-> -		num_physpages++;
-> -	}
-> -	printk(KERN_INFO "Freeing unused kernel memory: %ldk freed\n",
-> -		freed >> 10);
-> +	num_physpages += free_reserved_area((unsigned long)(&__init_begin),
-> +					    (unsigned long)(&__init_end),
-> +					    POISON_FREE_INITMEM,
-> +					    "unused kernel");
-If you change free_initmem_default(...) to return number of pages freed this
-could have been used here.
+> If we use this workaround for every get_user_pages() call we will sooner or
+> later end with most of the anonymous pages migrated to non-movable 
+> pageblocks
+> what make the whole CMA approach a bit pointless.
 
->  }
->  
->  #ifdef CONFIG_BLK_DEV_INITRD
->  void free_initrd_mem(unsigned long start, unsigned long end)
->  {
-> -	if (start < end)
-> -		printk(KERN_INFO "Freeing initrd memory: %ldk freed\n",
-> -			(end - start) >> 10);
-> -	for (; start < end; start += PAGE_SIZE) {
-> -		struct page *p;
-> -
-> -		memset((void *)start, POISON_FREE_INITMEM, PAGE_SIZE);
-> -		p = virt_to_page(start);
-> -
-> -		ClearPageReserved(p);
-> -		init_page_count(p);
-> -		__free_page(p);
-> -		totalram_pages++;
-> -		num_physpages++;
-> -	}
-> +	num_physpages += free_reserved_area(start, end, POISON_FREE_INITMEM,
-> +					    "initrd");
->  }
->  #endif
->  
-> diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-> index 1588d33..03bfd10 100644
-> --- a/arch/sparc/mm/init_64.c
-> +++ b/arch/sparc/mm/init_64.c
-> @@ -2060,8 +2060,7 @@ void __init mem_init(void)
->  	/* We subtract one to account for the mem_map_zero page
->  	 * allocated below.
->  	 */
-> -	totalram_pages -= 1;
-> -	num_physpages = totalram_pages;
-> +	num_physpages = totalram_pages - 1;
->  
->  	/*
->  	 * Set up the zero page, mark it reserved, so that page count
-> @@ -2072,7 +2071,7 @@ void __init mem_init(void)
->  		prom_printf("paging_init: Cannot alloc zero page.\n");
->  		prom_halt();
->  	}
-> -	SetPageReserved(mem_map_zero);
-> +	mark_page_reserved(mem_map_zero);
->  
->  	codepages = (((unsigned long) _etext) - ((unsigned long) _start));
->  	codepages = PAGE_ALIGN(codepages) >> PAGE_SHIFT;
-> @@ -2112,7 +2111,6 @@ void free_initmem(void)
->  	initend = (unsigned long)(__init_end) & PAGE_MASK;
->  	for (; addr < initend; addr += PAGE_SIZE) {
->  		unsigned long page;
-> -		struct page *p;
->  
->  		page = (addr +
->  			((unsigned long) __va(kern_base)) -
-> @@ -2120,13 +2118,8 @@ void free_initmem(void)
->  		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
->  
->  		if (do_free) {
-> -			p = virt_to_page(page);
-> -
-> -			ClearPageReserved(p);
-> -			init_page_count(p);
-> -			__free_page(p);
-> +			free_reserved_page(virt_to_page(page));
->  			num_physpages++;
-> -			totalram_pages++;
->  		}
->  	}
->  }
-> @@ -2134,17 +2127,7 @@ void free_initmem(void)
->  #ifdef CONFIG_BLK_DEV_INITRD
->  void free_initrd_mem(unsigned long start, unsigned long end)
->  {
-> -	if (start < end)
-> -		printk ("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
-> -	for (; start < end; start += PAGE_SIZE) {
-> -		struct page *p = virt_to_page(start);
-> -
-> -		ClearPageReserved(p);
-> -		init_page_count(p);
-> -		__free_page(p);
-> -		num_physpages++;
-> -		totalram_pages++;
-> -	}
-> +	num_physpages += free_reserved_area(start, end, 0, "initrd");
+But you said that most users are in device drivers, and I would expect drivers
+not to touch that many pages.
 
-Please add poison POISON_FREE_INITMEM here. I know this was not done before.
+We already have two interfaces: the generic get_user_pages and the "fast" version
+"get_user_pages_fast" that has a number of restrictions. We could add another
+such restriction to get_user_pages_fast(), which is that it must not hold
+the page reference count for an extended time because it will not migrate
+pages out.
 
-	Sam
+I would assume that most of the in-kernel users of get_user_pages() that
+are called a lot either already use get_user_pages_fast, or can be easily
+converted to it.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
