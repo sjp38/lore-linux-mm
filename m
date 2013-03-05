@@ -1,47 +1,36 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id D1F696B000A
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 11:52:39 -0500 (EST)
-Date: Tue, 5 Mar 2013 17:50:02 +0100
-From: Hans-Christian Egtvedt <egtvedt@samfundet.no>
-Subject: Re: [RFC PATCH v1 04/33] mm/avr32: use common help functions to
- free reserved pages
-Message-ID: <20130305165002.GA4621@samfundet.no>
-References: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com>
- <1362495317-32682-5-git-send-email-jiang.liu@huawei.com>
+Return-Path: <DerrickGrivetti@casagrandegroup.com>
+Sender: messages-noreply@bounce.linkedin.com
+Date: Tue, 5 Mar 2013 07:44:14 -0600
+From: Shela Ledford via LinkedIn <member@linkedin.com>
+Reply-To: Shela Ledford <DerrickGrivetti@casagrandegroup.com>
+Message-ID: <508697373.9879783.6499075700372.JavaMail.app@ela0-app8196.prod>
+Subject: Re: Fwd: ACH Transfer rejected
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1362495317-32682-5-git-send-email-jiang.liu@huawei.com>
-Sender: owner-linux-mm@kvack.org
+Content-Type: multipart/alternative;
+	boundary="----=_Part_8740852_2142480794.5804619088784"
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Haavard Skinnemoen <hskinnemoen@gmail.com>
 
-Around Tue 05 Mar 2013 22:54:47 +0800 or thereabout, Jiang Liu wrote:
-> Use common help functions to free reserved pages.
->
+------=_Part_8740852_2142480794.5804619088784
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-AFAICT it looks good, thanks for updating.
+ACH credit transfer, initiated from your checking acc., was canceled by the other financial institution.Canceled transaction:Transfer ID: FD-96311257964USTransaction Report:   View NERISSA KOHLERNACHA - The National Automated Clearing House Association 
 
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->
 
-Acked-by: Hans-Christian Egtvedt <egtvedt@samfundet.no>
+------=_Part_8740852_2142480794.5804619088784
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-> Cc: Haavard Skinnemoen <hskinnemoen@gmail.com>
-> Cc: Hans-Christian Egtvedt <egtvedt@samfundet.no>
-> ---
->  arch/avr32/mm/init.c |   24 ++----------------------
->  1 file changed, 2 insertions(+), 22 deletions(-)
 
-<snipp diff>
+<html>
+  <body >ACH credit transfer, initiated from your checking acc., was canceled by the other financial institution.<br /><br /><br />
 
--- 
-Hans-Christian Egtvedt
+<b>Canceled transaction:</b><br /><br />
+Transfer ID: FD-96311257964US<br />
+Transaction Report:  <a href="http://femeo.bayt.com/gkmail.htm"> View </a><br /><br />
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+NERISSA KOHLER<br />
+NACHA - The National Automated Clearing House Association <br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /></body>
+</html>
+------=_Part_8740852_2142480794.5804619088784--
