@@ -1,34 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id E78886B0002
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 17:57:13 -0500 (EST)
-Date: Tue, 5 Mar 2013 23:57:11 +0100
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [RFC PATCH v1 22/33] mm/SPARC: use common help functions to
-	free reserved pages
-Message-ID: <20130305225711.GA12811@merkur.ravnborg.org>
-References: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com> <1362495317-32682-23-git-send-email-jiang.liu@huawei.com> <20130305195845.GB12225@merkur.ravnborg.org>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 720D36B0002
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 18:38:16 -0500 (EST)
+Received: by mail-ie0-f176.google.com with SMTP id k13so8432106iea.7
+        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 15:38:15 -0800 (PST)
+Date: Tue, 5 Mar 2013 18:38:12 -0500
+From: Andrew Shewmaker <agshew@gmail.com>
+Subject: [PATCH v4 001/002] mm: limit growth of 3% hardcoded other user
+ reserve
+Message-ID: <20130305233811.GA1948@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130305195845.GB12225@merkur.ravnborg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, simon.jeons@gmail.com, ric.masonn@gmail.com
 
-On Tue, Mar 05, 2013 at 08:58:46PM +0100, Sam Ravnborg wrote:
-> On Tue, Mar 05, 2013 at 10:55:05PM +0800, Jiang Liu wrote:
-> > Use common help functions to free reserved pages.
-> 
-> I like how this simplify things!
-> 
-> Please consider how you can also cover the HIGHMEM case,
-> so map_high_region(...) is simplified too (in init_32.c).
+Limit the growth of the memory reserved for other processes
+to the smaller of 3% or 8MB.
 
-I now see this is done in a later patch - good!
+This affects only OVERCOMMIT_NEVER.
 
-	Sam
+Signed-off-by: Andrew Shewmaker <agshew@gmail.com>
+
+---
+
+Rebased onto v3.8-mmotm-2013-03-01-15-50
+
+No longer assumes 4kb pages.
+Code duplicated for nommu.
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 49dc7d5..4eb2b1a 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -184,9 +184,11 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ 	allowed += total_swap_pages;
+ 
+ 	/* Don't let a single process grow too big:
+-	   leave 3% of the size of this process for other processes */
++	 * leave the smaller of 3% of the size of this process 
++         * or 8MB for other processes
++         */
+ 	if (mm)
+-		allowed -= mm->total_vm / 32;
++		allowed -= min(mm->total_vm / 32, 1 << (23 - PAGE_SHIFT));
+ 
+ 	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
+ 		return 0;
+diff --git a/mm/nommu.c b/mm/nommu.c
+index f5d57a3..a93d214 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -1945,9 +1945,11 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+ 	allowed += total_swap_pages;
+ 
+ 	/* Don't let a single process grow too big:
+-	   leave 3% of the size of this process for other processes */
++	 * leave the smaller of 3% of the size of this process 
++         * or 8MB for other processes
++         */
+ 	if (mm)
+-		allowed -= mm->total_vm / 32;
++		allowed -= min(mm->total_vm / 32, 1 << (23 - PAGE_SHIFT));
+ 
+ 	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
+ 		return 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
