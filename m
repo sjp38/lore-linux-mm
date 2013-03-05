@@ -1,39 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 0E6366B0006
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 03:50:32 -0500 (EST)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [RFC/PATCH 0/5] Contiguous Memory Allocator and get_user_pages()
-Date: Tue, 5 Mar 2013 08:50:26 +0000
-References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 2C8856B0002
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 07:19:25 -0500 (EST)
+Received: by mail-ie0-f171.google.com with SMTP id 10so7638168ied.2
+        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 04:19:24 -0800 (PST)
+Message-ID: <5135E2C7.8050105@gmail.com>
+Date: Tue, 05 Mar 2013 20:19:19 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-15"
+Subject: Re: mm: introduce new field "managed_pages" to struct zone
+References: <512EF580.6000608@gmail.com> <51336FB4.9000202@gmail.com> <5133E356.6000502@gmail.com> <5134CDBB.60700@gmail.com>
+In-Reply-To: <5134CDBB.60700@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <201303050850.26615.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, "linux-mm@kvack.org >> Linux Memory Management List" <linux-mm@kvack.org>
 
-On Tuesday 05 March 2013, Marek Szyprowski wrote:
-> To solving this issue requires preventing locking of the pages, which
-> are placed in CMA regions, for a long time. Our idea is to migrate
-> anonymous page content before locking the page in get_user_pages(). This
-> cannot be done automatically, as get_user_pages() interface is used very
-> often for various operations, which usually last for a short period of
-> time (like for example exec syscall). We have added a new flag
-> indicating that the given get_user_space() call will grab pages for a
-> long time, thus it is suitable to use the migration workaround in such
-> cases.
+On 03/05/2013 12:37 AM, Jiang Liu wrote:
+> On 03/04/2013 07:57 AM, Simon Jeons wrote:
+>> Hi Jiang,
+>> On 03/03/2013 11:43 PM, Jiang Liu wrote:
+>>> Hi Simon,
+>>>      Bootmem allocator is used to managed DMA and Normal memory only, and it does not manage highmem pages because kernel
+>>> can't directly access highmem pages.
+>> Why you say so? Could you point out where you figure out bootmem allocator doesn't handle highmem pages? In my understanding, it doesn't distinguish low memory or high memory.
+> Hi Simon,
 
-Can you explain the tradeoff here? I would have expected that the default
-should be to migrate pages out, and annotate the instances that we know
-are performance critical and short-lived. That would at least appear
-more reliable to me.
+Hi Jiang,
 
-	Arnd
+The comments of max_pfn_mapped is "highest direct mapped pfn over 4GB", 
+so if both bootmem allocator and memblock just manage direct mapping pages?
+BTW, could you show me where you can figure out traditional bootmem 
+allocator manages directly mapping pages?
+
+> 	According to my understanding, bootmem allocator does only manages lowmem pages.
+> For traditional bootmem allocator in mm/bootmem.c, it could only manages directly mapped lowmem pages.
+> For new bootmem allocator in mm/nobootmem.c, it depends on memblock to do the real work. Let's take
+> x86 as an example:
+> 1) following code set memblock.current_limit to max_low_pfn.
+> arch/x86/kernel/setup.c:	memblock.current_limit = get_max_mapped();
+> 2) the core of bootmem allocator in nobootmem.c is function __alloc_memory_core_early(),
+> which has following code to avoid allocate highmem pages:
+> static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
+>                                          u64 goal, u64 limit)
+> {
+>          void *ptr;
+>          u64 addr;
+>
+>          if (limit > memblock.current_limit)
+>                  limit = memblock.current_limit;
+>
+>          addr = memblock_find_in_range_node(goal, limit, size, align, nid);
+>          if (!addr)
+>                  return NULL;
+> }
+>
+> I guess it's the same for other architectures. On the other hand, some other architectures
+> may allocate highmem pages during boot by directly using memblock interfaces. For example,
+> ppc use memblock interfaces to allocate highmem pages for giagant hugetlb pages.
+>
+> I'm working a patch set to fix those cases.
+>
+> Regards!
+> Gerry
+>
+>
+>>>      Regards!
+>>>      Gerry
+>>>
+>>> On 02/28/2013 02:13 PM, Simon Jeons wrote:
+>>>> Hi Jiang,
+>>>>
+>>>> https://patchwork.kernel.org/patch/1781291/
+>>>>
+>>>> You said that the bootmem allocator doesn't touch *highmem pages*, so highmem zones' managed_pages is set to the accurate value "spanned_pages - absent_pages" in function free_area_init_core() and won't be updated anymore. Why it doesn't touch *highmem pages*? Could you point out where you figure out this?
+>>>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
