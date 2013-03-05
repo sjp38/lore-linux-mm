@@ -1,132 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id AA5676B0039
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 10:03:18 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id xa12so4522458pbc.22
-        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 07:03:17 -0800 (PST)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 97A106B003B
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 10:03:28 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id md12so4594490pbc.16
+        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 07:03:27 -0800 (PST)
+Message-ID: <51360939.20306@gmail.com>
+Date: Tue, 05 Mar 2013 23:03:21 +0800
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFC PATCH v1 29/33] mm: accurately calculate zone->managed_pages for highmem zones
-Date: Tue,  5 Mar 2013 22:55:12 +0800
-Message-Id: <1362495317-32682-30-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com>
-References: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com>
+MIME-Version: 1.0
+Subject: Re: mm: introduce new field "managed_pages" to struct zone
+References: <512EF580.6000608@gmail.com> <51336FB4.9000202@gmail.com> <5133E356.6000502@gmail.com> <5134CDBB.60700@gmail.com> <5135E33C.1030708@gmail.com>
+In-Reply-To: <5135E33C.1030708@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, "linux-mm@kvack.org >> Linux Memory Management List" <linux-mm@kvack.org>
 
-Commit "mm: introduce new field "managed_pages" to struct zone" assumes
-that all highmem pages will be freed into the buddy system by function
-mem_init(). But that's not true, some architectures may reserve some
-highmem pages during boot. For example ppc may allocate highmem pages
-for giagant HugeTLB pages, and several architectures check PageReserved
-flag when freeing highmem pages into the buddy system.
+On 03/05/2013 08:21 PM, Simon Jeons wrote:
+> On 03/05/2013 12:37 AM, Jiang Liu wrote:
+>> On 03/04/2013 07:57 AM, Simon Jeons wrote:
+>>> Hi Jiang,
+>>> On 03/03/2013 11:43 PM, Jiang Liu wrote:
+>>>> Hi Simon,
+>>>>      Bootmem allocator is used to managed DMA and Normal memory only, and it does not manage highmem pages because kernel
+>>>> can't directly access highmem pages.
+>>> Why you say so? Could you point out where you figure out bootmem allocator doesn't handle highmem pages? In my understanding, it doesn't distinguish low memory or high memory.
+>> Hi Simon,
+>>     According to my understanding, bootmem allocator does only manages lowmem pages.
+>> For traditional bootmem allocator in mm/bootmem.c, it could only manages directly mapped lowmem pages.
+>> For new bootmem allocator in mm/nobootmem.c, it depends on memblock to do the real work. Let's take
+>> x86 as an example:
+>> 1) following code set memblock.current_limit to max_low_pfn.
+>> arch/x86/kernel/setup.c:    memblock.current_limit = get_max_mapped();
+>> 2) the core of bootmem allocator in nobootmem.c is function __alloc_memory_core_early(),
+>> which has following code to avoid allocate highmem pages:
+>> static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
+>>                                          u64 goal, u64 limit)
+>> {
+>>          void *ptr;
+>>          u64 addr;
+>>
+>>          if (limit > memblock.current_limit)
+>>                  limit = memblock.current_limit;
+>>
+>>          addr = memblock_find_in_range_node(goal, limit, size, align, nid);
+>>          if (!addr)
+>>                  return NULL;
+>> }
+>>
+>> I guess it's the same for other architectures. On the other hand, some other architectures
+>> may allocate highmem pages during boot by directly using memblock interfaces. For example,
+>> ppc use memblock interfaces to allocate highmem pages for giagant hugetlb pages.
+> 
+> highmem is just used for x86, correct? ppc doesn't have highmem I think.
+Hi Simon,
+	Basically any 32 bit architectures may have the requirement to support highmem if it could
+support more than 1GB physical memory. For example, x86, arm, ppc, mips support highmem.
+	Regards!
+	Gerry
 
-So using the same way to calculate zone->managed_pages for both normal
-and highmem zones.
-
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
----
- mm/bootmem.c    |   16 ++++------------
- mm/nobootmem.c  |   14 +++-----------
- mm/page_alloc.c |    1 +
- 3 files changed, 8 insertions(+), 23 deletions(-)
-
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 2b0bcb0..46198d8 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -241,20 +241,12 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
- 	return count;
- }
- 
--static void reset_node_lowmem_managed_pages(pg_data_t *pgdat)
-+static inline void reset_node_managed_pages(pg_data_t *pgdat)
- {
- 	struct zone *z;
- 
--	/*
--	 * In free_area_init_core(), highmem zone's managed_pages is set to
--	 * present_pages, and bootmem allocator doesn't allocate from highmem
--	 * zones. So there's no need to recalculate managed_pages because all
--	 * highmem pages will be managed by the buddy system. Here highmem
--	 * zone also includes highmem movable zone.
--	 */
- 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
--		if (!is_highmem(z))
--			z->managed_pages = 0;
-+		z->managed_pages = 0;
- }
- 
- /**
-@@ -266,7 +258,7 @@ static void reset_node_lowmem_managed_pages(pg_data_t *pgdat)
- unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
- {
- 	register_page_bootmem_info_node(pgdat);
--	reset_node_lowmem_managed_pages(pgdat);
-+	reset_node_managed_pages(pgdat);
- 	return free_all_bootmem_core(pgdat->bdata);
- }
- 
-@@ -282,7 +274,7 @@ unsigned long __init free_all_bootmem(void)
- 	struct pglist_data *pgdat;
- 
- 	for_each_online_pgdat(pgdat)
--		reset_node_lowmem_managed_pages(pgdat);
-+		reset_node_managed_pages(pgdat);
- 
- 	list_for_each_entry(bdata, &bdata_list, list)
- 		total_pages += free_all_bootmem_core(bdata);
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index 5e07d36..960e80a 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -137,20 +137,12 @@ unsigned long __init free_low_memory_core_early(int nodeid)
- 	return count;
- }
- 
--static void reset_node_lowmem_managed_pages(pg_data_t *pgdat)
-+static inline void reset_node_managed_pages(pg_data_t *pgdat)
- {
- 	struct zone *z;
- 
--	/*
--	 * In free_area_init_core(), highmem zone's managed_pages is set to
--	 * present_pages, and bootmem allocator doesn't allocate from highmem
--	 * zones. So there's no need to recalculate managed_pages because all
--	 * highmem pages will be managed by the buddy system. Here highmem
--	 * zone also includes highmem movable zone.
--	 */
- 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
--		if (!is_highmem(z))
--			z->managed_pages = 0;
-+		z->managed_pages = 0;
- }
- 
- /**
-@@ -163,7 +155,7 @@ unsigned long __init free_all_bootmem(void)
- 	struct pglist_data *pgdat;
- 
- 	for_each_online_pgdat(pgdat)
--		reset_node_lowmem_managed_pages(pgdat);
-+		reset_node_managed_pages(pgdat);
- 
- 	/*
- 	 * We need to use MAX_NUMNODES instead of NODE_DATA(0)->node_id
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ad2f619..8106aa5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5137,6 +5137,7 @@ unsigned long free_reserved_area(unsigned long start, unsigned long end,
- void free_highmem_page(struct page *page)
- {
- 	__free_reserved_page(page);
-+	page_zone(page)->managed_pages++;
- 	totalhigh_pages++;
- }
- #endif
--- 
-1.7.9.5
+> 
+>>
+>> I'm working a patch set to fix those cases.
+>>
+>> Regards!
+>> Gerry
+>>
+>>
+>>>>      Regards!
+>>>>      Gerry
+>>>>
+>>>> On 02/28/2013 02:13 PM, Simon Jeons wrote:
+>>>>> Hi Jiang,
+>>>>>
+>>>>> https://patchwork.kernel.org/patch/1781291/
+>>>>>
+>>>>> You said that the bootmem allocator doesn't touch *highmem pages*, so highmem zones' managed_pages is set to the accurate value "spanned_pages - absent_pages" in function free_area_init_core() and won't be updated anymore. Why it doesn't touch *highmem pages*? Could you point out where you figure out this?
+>>>>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
