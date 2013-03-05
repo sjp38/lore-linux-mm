@@ -1,58 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 8613E6B000D
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 01:59:03 -0500 (EST)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout3.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MJ6003GFE1TOQR0@mailout3.samsung.com> for
- linux-mm@kvack.org; Tue, 05 Mar 2013 15:58:46 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [RFC/PATCH 5/5] media: vb2: use FOLL_DURABLE and __get_user_pages() to
- avoid CMA migration issues
-Date: Tue, 05 Mar 2013 07:57:59 +0100
-Message-id: <1362466679-17111-6-git-send-email-m.szyprowski@samsung.com>
-In-reply-to: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
-References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id D5D8D6B0002
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 02:17:32 -0500 (EST)
+Received: by mail-bk0-f43.google.com with SMTP id jm19so24296bkc.30
+        for <linux-mm@kvack.org>; Mon, 04 Mar 2013 23:17:31 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <51344C57.7030807@parallels.com>
+References: <512F0E76.2020707@parallels.com>
+	<CAFj3OHXJckvDPWSnq9R8nZ00Sb0Juxq9oCrGCBeO0UZmgH6OzQ@mail.gmail.com>
+	<51344C57.7030807@parallels.com>
+Date: Tue, 5 Mar 2013 15:17:30 +0800
+Message-ID: <CAFj3OHWJzfJ2_0f59n13fP0fiq5xuLs+DGVSGwzKBbVe_=C5fw@mail.gmail.com>
+Subject: Re: per-cpu statistics
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Cgroups <cgroups@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-V4L2 devices usually grab additional references to user pages for a very
-long period of time, what causes permanent migration failures if the given
-page has been allocated from CMA pageblock. By setting FOLL_DURABLE flag,
-videobuf2 will instruct __get_user_pages() to migrate user pages out of
-CMA pageblocks before blocking them with an additional reference.
+On Mon, Mar 4, 2013 at 3:25 PM, Glauber Costa <glommer@parallels.com> wrote:
+> On 03/01/2013 05:48 PM, Sha Zhengju wrote:
+>> Hi Glauber,
+>>
+>> Forgive me, I'm replying not because I know the reason of current
+>> per-cpu implementation but that I notice you're mentioning something
+>> I'm also interested in. Below is the detail.
+>>
+>>
+>> I'm not sure I fully understand your points, root memcg now don't
+>> charge page already and only do some page stat
+>> accounting(CACHE/RSS/SWAP).
+>
+> Can you point me to the final commits of this in the tree? I am using
+> the latest git mm from mhocko and it is not entirely clear for me what
+> are you talking about.
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
- drivers/media/v4l2-core/videobuf2-dma-contig.c |    8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+Sorry, maybe my "root memcg charge" is confusing. What I mean is that
+root memcg don't do resource counter charge ( mem_cgroup_is_root()
+checking in __mem_cgroup_try_charge()) but still need to do other
+works(in __mem_cgroup_commit_charge): set pc->mem_cgroup,
+SetPageCgroupUsed, and account memcg page statistics such as
+CACHE/RSS.
 
-diff --git a/drivers/media/v4l2-core/videobuf2-dma-contig.c b/drivers/media/v4l2-core/videobuf2-dma-contig.c
-index 10beaee..70649ab 100644
---- a/drivers/media/v4l2-core/videobuf2-dma-contig.c
-+++ b/drivers/media/v4l2-core/videobuf2-dma-contig.c
-@@ -443,9 +443,13 @@ static int vb2_dc_get_user_pages(unsigned long start, struct page **pages,
- 		}
- 	} else {
- 		int n;
-+		int flags = FOLL_TOUCH | FOLL_GET | FOLL_FORCE | FOLL_DURABLE;
- 
--		n = get_user_pages(current, current->mm, start & PAGE_MASK,
--			n_pages, write, 1, pages, NULL);
-+		if (write)
-+			flags |= FOLL_WRITE;
-+
-+		n = __get_user_pages(current, current->mm, start & PAGE_MASK,
-+			n_pages, flags, pages, NULL, NULL);
- 		/* negative error means that no page was pinned */
- 		n = max(n, 0);
- 		if (n != n_pages) {
--- 
-1.7.9.5
+Btw. the original commit is  0c3e73e84f(memcg: improve resource
+counter scalability), but it has been drastically modified now. : )
+
+>
+>>  Now I'm also trying to do some
+>> optimization specific to the overhead of root memcg stat accounting,
+>> and the first attempt is posted here:
+>> https://lkml.org/lkml/2013/1/2/71 . But it only covered
+>> FILE_MAPPED/DIRTY/WRITEBACK(I've add the last two accounting in that
+>> patchset) and Michal Hock accepted the approach (so did Kame) and
+>> suggested I should handle all the stats in the same way including
+>> CACHE/RSS. But I do not handle things related to memcg LRU where I
+>> notice you have done some work.
+>>
+> Yes, LRU is a bit tricky and it is what is keeping me from posting the
+> patchset I have. I haven't fully done it, but I am on my way.
+>
+>
+>> It's possible that we may take different ways to bypass root memcg
+>> stat accounting. The next round of the part will be sent out in
+>> following few days(doing some tests now), and for myself any comments
+>> and collaboration are welcome. (Glad to cc to you of course if you're
+>> also interest in it. :) )
+>>
+>
+> I am interested, of course. As you know, I started to work on this a
+> while ago and had to interrupt it for a while. I resumed it last week,
+> but if you managed to merge something already, I'd happy to rebase.
+>
+
+I do appreciate your support! Thanks!
+
+
+Regards,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
