@@ -1,17 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 3EC626B0007
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 01:58:31 -0500 (EST)
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 01D4A6B0007
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 01:58:34 -0500 (EST)
 Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout1.samsung.com
+ by mailout2.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MJ6001FEE1HS6O0@mailout1.samsung.com> for
- linux-mm@kvack.org; Tue, 05 Mar 2013 15:58:29 +0900 (KST)
+ 17 2011)) with ESMTP id <0MJ600DW5E13EZP0@mailout2.samsung.com> for
+ linux-mm@kvack.org; Tue, 05 Mar 2013 15:58:33 +0900 (KST)
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [RFC/PATCH 1/5] mm: introduce migrate_replace_page() for migrating
- page to the given target
-Date: Tue, 05 Mar 2013 07:57:55 +0100
-Message-id: <1362466679-17111-2-git-send-email-m.szyprowski@samsung.com>
+Subject: [RFC/PATCH 2/5] mm: get_user_pages: use static inline
+Date: Tue, 05 Mar 2013 07:57:56 +0100
+Message-id: <1362466679-17111-3-git-send-email-m.szyprowski@samsung.com>
 In-reply-to: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
 References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,109 +18,188 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org
 Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-Introduce migrate_replace_page() function for migrating single page to the
-given target page.
+__get_user_pages() is already exported function, so get_user_pages()
+can be easily inlined to the caller functions.
 
 Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
 Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- include/linux/migrate.h |    5 ++++
- mm/migrate.c            |   59 +++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 64 insertions(+)
+ include/linux/mm.h |   74 +++++++++++++++++++++++++++++++++++++++++++++++++---
+ mm/memory.c        |   69 ------------------------------------------------
+ 2 files changed, 70 insertions(+), 73 deletions(-)
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index a405d3dc..3a8a6c1 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -35,6 +35,8 @@ enum migrate_reason {
- 
- #ifdef CONFIG_MIGRATION
- 
-+extern int migrate_replace_page(struct page *oldpage, struct page *newpage);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7acc9dc..9806e54 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1019,10 +1019,7 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		      unsigned long start, unsigned long nr_pages,
+ 		      unsigned int foll_flags, struct page **pages,
+ 		      struct vm_area_struct **vmas, int *nonblocking);
+-long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+-		    unsigned long start, unsigned long nr_pages,
+-		    int write, int force, struct page **pages,
+-		    struct vm_area_struct **vmas);
 +
- extern void putback_lru_pages(struct list_head *l);
- extern void putback_movable_pages(struct list_head *l);
- extern int migrate_page(struct address_space *,
-@@ -57,6 +59,9 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
- 				  struct page *newpage, struct page *page);
- #else
- 
-+static inline int migrate_replace_page(struct page *oldpage,
-+		struct page *newpage) { return -ENOSYS; }
-+
- static inline void putback_lru_pages(struct list_head *l) {}
- static inline void putback_movable_pages(struct list_head *l) {}
- static inline int migrate_pages(struct list_head *l, new_page_t x,
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 3bbaf5d..a2a6950 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1067,6 +1067,65 @@ out:
- 	return rc;
- }
+ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 			struct page **pages);
+ struct kvec;
+@@ -1642,6 +1639,75 @@ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+ extern int apply_to_page_range(struct mm_struct *mm, unsigned long address,
+ 			       unsigned long size, pte_fn_t fn, void *data);
  
 +/*
-+ * migrate_replace_page
++ * get_user_pages() - pin user pages in memory
++ * @tsk:	the task_struct to use for page fault accounting, or
++ *		NULL if faults are not to be recorded.
++ * @mm:		mm_struct of target mm
++ * @start:	starting user address
++ * @nr_pages:	number of pages from start to pin
++ * @write:	whether pages will be written to by the caller
++ * @force:	whether to force write access even if user mapping is
++ *		readonly. This will result in the page being COWed even
++ *		in MAP_SHARED mappings. You do not want this.
++ * @pages:	array that receives pointers to the pages pinned.
++ *		Should be at least nr_pages long. Or NULL, if caller
++ *		only intends to ensure the pages are faulted in.
++ * @vmas:	array of pointers to vmas corresponding to each page.
++ *		Or NULL if the caller does not require them.
 + *
-+ * The function takes one single page and a target page (newpage) and
-+ * tries to migrate data to the target page. The caller must ensure that
-+ * the source page is locked with one additional get_page() call, which
-+ * will be freed during the migration. The caller also must release newpage
-+ * if migration fails, otherwise the ownership of the newpage is taken.
-+ * Source page is released if migration succeeds.
++ * Returns number of pages pinned. This may be fewer than the number
++ * requested. If nr_pages is 0 or negative, returns 0. If no pages
++ * were pinned, returns -errno. Each page returned must be released
++ * with a put_page() call when it is finished with. vmas will only
++ * remain valid while mmap_sem is held.
 + *
-+ * Return: error code or 0 on success.
++ * Must be called with mmap_sem held for read or write.
++ *
++ * get_user_pages walks a process's page tables and takes a reference to
++ * each struct page that each user address corresponds to at a given
++ * instant. That is, it takes the page that would be accessed if a user
++ * thread accesses the given user virtual address at that instant.
++ *
++ * This does not guarantee that the page exists in the user mappings when
++ * get_user_pages returns, and there may even be a completely different
++ * page there in some cases (eg. if mmapped pagecache has been invalidated
++ * and subsequently re faulted). However it does guarantee that the page
++ * won't be freed completely. And mostly callers simply care that the page
++ * contains data that was valid *at some point in time*. Typically, an IO
++ * or similar operation cannot guarantee anything stronger anyway because
++ * locks can't be held over the syscall boundary.
++ *
++ * If write=0, the page must not be written to. If the page is written to,
++ * set_page_dirty (or set_page_dirty_lock, as appropriate) must be called
++ * after the page is finished with, and before put_page is called.
++ *
++ * get_user_pages is typically used for fewer-copy IO operations, to get a
++ * handle on the memory by some means other than accesses via the user virtual
++ * addresses. The pages may be submitted for DMA to devices or accessed via
++ * their kernel linear mapping (via the kmap APIs). Care should be taken to
++ * use the correct cache flushing APIs.
++ *
++ * See also get_user_pages_fast, for performance critical applications.
 + */
-+int migrate_replace_page(struct page *page, struct page *newpage)
++static inline long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
++			unsigned long start, unsigned long nr_pages, int write,
++			int force, struct page **pages,
++			struct vm_area_struct **vmas)
 +{
-+	struct zone *zone = page_zone(page);
-+	unsigned long flags;
-+	int ret = -EAGAIN;
-+	int pass;
++	int flags = FOLL_TOUCH;
 +
-+	migrate_prep();
++	if (pages)
++		flags |= FOLL_GET;
++	if (write)
++		flags |= FOLL_WRITE;
++	if (force)
++		flags |= FOLL_FORCE;
 +
-+	spin_lock_irqsave(&zone->lru_lock, flags);
-+
-+	if (PageLRU(page) &&
-+	    __isolate_lru_page(page, ISOLATE_UNEVICTABLE) == 0) {
-+		struct lruvec *lruvec = mem_cgroup_page_lruvec(page, zone);
-+		del_page_from_lru_list(page, lruvec, page_lru(page));
-+		spin_unlock_irqrestore(&zone->lru_lock, flags);
-+	} else {
-+		spin_unlock_irqrestore(&zone->lru_lock, flags);
-+		return -EAGAIN;
-+	}
-+
-+	/* page is now isolated, so release additional reference */
-+	put_page(page);
-+
-+	for (pass = 0; pass < 10 && ret != 0; pass++) {
-+		cond_resched();
-+
-+		if (page_count(page) == 1) {
-+			/* page was freed from under us, so we are done */
-+			ret = 0;
-+			break;
-+		}
-+		ret = __unmap_and_move(page, newpage, 1, MIGRATE_SYNC);
-+	}
-+
-+	if (ret == 0) {
-+		/* take ownership of newpage and add it to lru */
-+		putback_lru_page(newpage);
-+	} else {
-+		/* restore additional reference to the oldpage */
-+		get_page(page);
-+	}
-+
-+	putback_lru_page(page);
-+	return ret;
++	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas,
++				NULL);
 +}
 +
- #ifdef CONFIG_NUMA
- /*
-  * Move a list of individual pages
+ #ifdef CONFIG_PROC_FS
+ void vm_stat_account(struct mm_struct *, unsigned long, struct file *, long);
+ #else
+diff --git a/mm/memory.c b/mm/memory.c
+index 494526a..42dfd8e 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1961,75 +1961,6 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
+ 	return 0;
+ }
+ 
+-/*
+- * get_user_pages() - pin user pages in memory
+- * @tsk:	the task_struct to use for page fault accounting, or
+- *		NULL if faults are not to be recorded.
+- * @mm:		mm_struct of target mm
+- * @start:	starting user address
+- * @nr_pages:	number of pages from start to pin
+- * @write:	whether pages will be written to by the caller
+- * @force:	whether to force write access even if user mapping is
+- *		readonly. This will result in the page being COWed even
+- *		in MAP_SHARED mappings. You do not want this.
+- * @pages:	array that receives pointers to the pages pinned.
+- *		Should be at least nr_pages long. Or NULL, if caller
+- *		only intends to ensure the pages are faulted in.
+- * @vmas:	array of pointers to vmas corresponding to each page.
+- *		Or NULL if the caller does not require them.
+- *
+- * Returns number of pages pinned. This may be fewer than the number
+- * requested. If nr_pages is 0 or negative, returns 0. If no pages
+- * were pinned, returns -errno. Each page returned must be released
+- * with a put_page() call when it is finished with. vmas will only
+- * remain valid while mmap_sem is held.
+- *
+- * Must be called with mmap_sem held for read or write.
+- *
+- * get_user_pages walks a process's page tables and takes a reference to
+- * each struct page that each user address corresponds to at a given
+- * instant. That is, it takes the page that would be accessed if a user
+- * thread accesses the given user virtual address at that instant.
+- *
+- * This does not guarantee that the page exists in the user mappings when
+- * get_user_pages returns, and there may even be a completely different
+- * page there in some cases (eg. if mmapped pagecache has been invalidated
+- * and subsequently re faulted). However it does guarantee that the page
+- * won't be freed completely. And mostly callers simply care that the page
+- * contains data that was valid *at some point in time*. Typically, an IO
+- * or similar operation cannot guarantee anything stronger anyway because
+- * locks can't be held over the syscall boundary.
+- *
+- * If write=0, the page must not be written to. If the page is written to,
+- * set_page_dirty (or set_page_dirty_lock, as appropriate) must be called
+- * after the page is finished with, and before put_page is called.
+- *
+- * get_user_pages is typically used for fewer-copy IO operations, to get a
+- * handle on the memory by some means other than accesses via the user virtual
+- * addresses. The pages may be submitted for DMA to devices or accessed via
+- * their kernel linear mapping (via the kmap APIs). Care should be taken to
+- * use the correct cache flushing APIs.
+- *
+- * See also get_user_pages_fast, for performance critical applications.
+- */
+-long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+-		unsigned long start, unsigned long nr_pages, int write,
+-		int force, struct page **pages, struct vm_area_struct **vmas)
+-{
+-	int flags = FOLL_TOUCH;
+-
+-	if (pages)
+-		flags |= FOLL_GET;
+-	if (write)
+-		flags |= FOLL_WRITE;
+-	if (force)
+-		flags |= FOLL_FORCE;
+-
+-	return __get_user_pages(tsk, mm, start, nr_pages, flags, pages, vmas,
+-				NULL);
+-}
+-EXPORT_SYMBOL(get_user_pages);
+-
+ /**
+  * get_dump_page() - pin user page in memory while writing it to core dump
+  * @addr: user address
 -- 
 1.7.9.5
 
