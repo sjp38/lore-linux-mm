@@ -1,53 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id F06D06B000A
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 08:11:02 -0500 (EST)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 5/5] memcg: do not walk all the way to the root for memcg
-Date: Tue,  5 Mar 2013 17:10:58 +0400
-Message-Id: <1362489058-3455-6-git-send-email-glommer@parallels.com>
-In-Reply-To: <1362489058-3455-1-git-send-email-glommer@parallels.com>
-References: <1362489058-3455-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id A918B6B0002
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 08:47:44 -0500 (EST)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MJ600CKMWUFENC0@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 05 Mar 2013 13:47:42 +0000 (GMT)
+Received: from [127.0.0.1] ([106.116.147.30])
+ by eusync4.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0MJ6009WDWZG3B50@eusync4.samsung.com> for linux-mm@kvack.org;
+ Tue, 05 Mar 2013 13:47:42 +0000 (GMT)
+Message-id: <5135F77C.9060706@samsung.com>
+Date: Tue, 05 Mar 2013 14:47:40 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC/PATCH 0/5] Contiguous Memory Allocator and get_user_pages()
+References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
+ <201303050850.26615.arnd@arndb.de>
+In-reply-to: <201303050850.26615.arnd@arndb.de>
+Content-type: text/plain; charset=UTF-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, handai.szj@gmail.com, anton.vorontsov@linaro.org, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-Since the root is special anyway, and we always get its figures from
-global counters anyway, there is no make all cgroups its descendants,
-wrt res_counters. The sad effect of doing that is that we need to lock
-the root for all allocations, since it is a common ancestor of
-everybody.
+Hello,
 
-Not having the root as a common ancestor should lead to better
-scalability for not-uncommon case of tasks in the cgroup being
-node-bound to different nodes in NUMA systems.
+On 3/5/2013 9:50 AM, Arnd Bergmann wrote:
+> On Tuesday 05 March 2013, Marek Szyprowski wrote:
+> > To solving this issue requires preventing locking of the pages, which
+> > are placed in CMA regions, for a long time. Our idea is to migrate
+> > anonymous page content before locking the page in get_user_pages(). This
+> > cannot be done automatically, as get_user_pages() interface is used very
+> > often for various operations, which usually last for a short period of
+> > time (like for example exec syscall). We have added a new flag
+> > indicating that the given get_user_space() call will grab pages for a
+> > long time, thus it is suitable to use the migration workaround in such
+> > cases.
+>
+> Can you explain the tradeoff here? I would have expected that the default
+> should be to migrate pages out, and annotate the instances that we know
+> are performance critical and short-lived. That would at least appear
+> more reliable to me.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Mel Gorman <mgorman@suse.de>
-CC: Andrew Morton <akpm@linux-foundation.org>
----
- mm/memcontrol.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+The problem is that the opposite approach is imho easier. get_user_pages()
+is used in quite a lot of places (I was quite surprised when I've added some
+debug to it and saw the logs) and it seems to be easier to identify places
+where references are kept for significant amount of time. Usually such 
+places
+are in the device drivers. In our case only videobuf2 and some closed-source
+driver were causing the real migration problems, so I decided to leave the
+default approach unchanged.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6019a32..252dc00 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -6464,7 +6464,7 @@ mem_cgroup_css_online(struct cgroup *cont)
- 	memcg->oom_kill_disable = parent->oom_kill_disable;
- 	memcg->swappiness = mem_cgroup_swappiness(parent);
- 
--	if (parent->use_hierarchy) {
-+	if (parent && !mem_cgroup_is_root(parent) && parent->use_hierarchy) {
- 		res_counter_init(&memcg->res, &parent->res);
- 		res_counter_init(&memcg->memsw, &parent->memsw);
- 		res_counter_init(&memcg->kmem, &parent->kmem);
+If we use this workaround for every get_user_pages() call we will sooner or
+later end with most of the anonymous pages migrated to non-movable 
+pageblocks
+what make the whole CMA approach a bit pointless.
+
+Best regards
 -- 
-1.8.1.2
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
