@@ -1,82 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id E31EC6B0002
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 01:58:26 -0500 (EST)
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 3EC626B0007
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 01:58:31 -0500 (EST)
 Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout2.samsung.com
+ by mailout1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MJ600DW5E13EZP0@mailout2.samsung.com> for
- linux-mm@kvack.org; Tue, 05 Mar 2013 15:58:25 +0900 (KST)
+ 17 2011)) with ESMTP id <0MJ6001FEE1HS6O0@mailout1.samsung.com> for
+ linux-mm@kvack.org; Tue, 05 Mar 2013 15:58:29 +0900 (KST)
 From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [RFC/PATCH 0/5] Contiguous Memory Allocator and get_user_pages()
-Date: Tue, 05 Mar 2013 07:57:54 +0100
-Message-id: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
+Subject: [RFC/PATCH 1/5] mm: introduce migrate_replace_page() for migrating
+ page to the given target
+Date: Tue, 05 Mar 2013 07:57:55 +0100
+Message-id: <1362466679-17111-2-git-send-email-m.szyprowski@samsung.com>
+In-reply-to: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
+References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org
 Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-Hello,
+Introduce migrate_replace_page() function for migrating single page to the
+given target page.
 
-Contiguous Memory Allocator is very sensitive about migration failures
-of the individual pages. A single page, which causes permanent migration
-failure can break large conitguous allocations and cause the failure of
-a multimedia device driver.
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+ include/linux/migrate.h |    5 ++++
+ mm/migrate.c            |   59 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+)
 
-One of the known issues with migration of CMA pages are the problems of
-migrating the anonymous user pages, for which the others called
-get_user_pages(). This takes a reference to the given user pages to let
-kernel to operate directly on the page content. This is usually used for
-preventing swaping out the page contents and doing direct DMA to/from
-userspace.
-
-To solving this issue requires preventing locking of the pages, which
-are placed in CMA regions, for a long time. Our idea is to migrate
-anonymous page content before locking the page in get_user_pages(). This
-cannot be done automatically, as get_user_pages() interface is used very
-often for various operations, which usually last for a short period of
-time (like for example exec syscall). We have added a new flag
-indicating that the given get_user_space() call will grab pages for a
-long time, thus it is suitable to use the migration workaround in such
-cases.
-
-The proposed extensions is used by V4L2/VideoBuf2
-(drivers/media/v4l2-core/videobuf2-dma-contig.c), but that is not the
-only place which might benefit from it, like any driver which use DMA to
-userspace with get_user_pages(). This one is provided to demonstrate the
-use case.
-
-I would like to hear some comments on the presented approach. What do
-you think about it? Is there a chance to get such workaround merged at
-some point to mainline?
-
-Best regards
-Marek Szyprowski
-Samsung Poland R&D Center
-
-
-Patch summary:
-
-Marek Szyprowski (5):
-  mm: introduce migrate_replace_page() for migrating page to the given
-    target
-  mm: get_user_pages: use static inline
-  mm: get_user_pages: use NON-MOVABLE pages when FOLL_DURABLE flag is
-    set
-  mm: get_user_pages: migrate out CMA pages when FOLL_DURABLE flag is
-    set
-  media: vb2: use FOLL_DURABLE and __get_user_pages() to avoid CMA
-    migration issues
-
- drivers/media/v4l2-core/videobuf2-dma-contig.c |    8 +-
- include/linux/highmem.h                        |   12 ++-
- include/linux/migrate.h                        |    5 +
- include/linux/mm.h                             |   76 ++++++++++++-
- mm/internal.h                                  |   12 +++
- mm/memory.c                                    |  136 +++++++++++-------------
- mm/migrate.c                                   |   59 ++++++++++
- 7 files changed, 225 insertions(+), 83 deletions(-)
-
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index a405d3dc..3a8a6c1 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -35,6 +35,8 @@ enum migrate_reason {
+ 
+ #ifdef CONFIG_MIGRATION
+ 
++extern int migrate_replace_page(struct page *oldpage, struct page *newpage);
++
+ extern void putback_lru_pages(struct list_head *l);
+ extern void putback_movable_pages(struct list_head *l);
+ extern int migrate_page(struct address_space *,
+@@ -57,6 +59,9 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 				  struct page *newpage, struct page *page);
+ #else
+ 
++static inline int migrate_replace_page(struct page *oldpage,
++		struct page *newpage) { return -ENOSYS; }
++
+ static inline void putback_lru_pages(struct list_head *l) {}
+ static inline void putback_movable_pages(struct list_head *l) {}
+ static inline int migrate_pages(struct list_head *l, new_page_t x,
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 3bbaf5d..a2a6950 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1067,6 +1067,65 @@ out:
+ 	return rc;
+ }
+ 
++/*
++ * migrate_replace_page
++ *
++ * The function takes one single page and a target page (newpage) and
++ * tries to migrate data to the target page. The caller must ensure that
++ * the source page is locked with one additional get_page() call, which
++ * will be freed during the migration. The caller also must release newpage
++ * if migration fails, otherwise the ownership of the newpage is taken.
++ * Source page is released if migration succeeds.
++ *
++ * Return: error code or 0 on success.
++ */
++int migrate_replace_page(struct page *page, struct page *newpage)
++{
++	struct zone *zone = page_zone(page);
++	unsigned long flags;
++	int ret = -EAGAIN;
++	int pass;
++
++	migrate_prep();
++
++	spin_lock_irqsave(&zone->lru_lock, flags);
++
++	if (PageLRU(page) &&
++	    __isolate_lru_page(page, ISOLATE_UNEVICTABLE) == 0) {
++		struct lruvec *lruvec = mem_cgroup_page_lruvec(page, zone);
++		del_page_from_lru_list(page, lruvec, page_lru(page));
++		spin_unlock_irqrestore(&zone->lru_lock, flags);
++	} else {
++		spin_unlock_irqrestore(&zone->lru_lock, flags);
++		return -EAGAIN;
++	}
++
++	/* page is now isolated, so release additional reference */
++	put_page(page);
++
++	for (pass = 0; pass < 10 && ret != 0; pass++) {
++		cond_resched();
++
++		if (page_count(page) == 1) {
++			/* page was freed from under us, so we are done */
++			ret = 0;
++			break;
++		}
++		ret = __unmap_and_move(page, newpage, 1, MIGRATE_SYNC);
++	}
++
++	if (ret == 0) {
++		/* take ownership of newpage and add it to lru */
++		putback_lru_page(newpage);
++	} else {
++		/* restore additional reference to the oldpage */
++		get_page(page);
++	}
++
++	putback_lru_page(page);
++	return ret;
++}
++
+ #ifdef CONFIG_NUMA
+ /*
+  * Move a list of individual pages
 -- 
 1.7.9.5
 
