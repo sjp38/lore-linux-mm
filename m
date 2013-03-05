@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id AEEEC6B0008
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 08:10:57 -0500 (EST)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 960436B0009
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 08:11:02 -0500 (EST)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 3/5] memcg: make it suck faster
-Date: Tue,  5 Mar 2013 17:10:56 +0400
-Message-Id: <1362489058-3455-4-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 4/5] memcg: do not call page_cgroup_init at system_boot
+Date: Tue,  5 Mar 2013 17:10:57 +0400
+Message-Id: <1362489058-3455-5-git-send-email-glommer@parallels.com>
 In-Reply-To: <1362489058-3455-1-git-send-email-glommer@parallels.com>
 References: <1362489058-3455-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,47 +13,14 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, handai.szj@gmail.com, anton.vorontsov@linaro.org, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-It is an accepted fact that memcg sucks. But can it suck faster?  Or in
-a more fair statement, can it at least stop draining everyone's
-performance when it is not in use?
+If we are not using memcg, there is no reason why we should allocate
+this structure, that will be a memory waste at best. We can do better
+at least in the sparsemem case, and allocate it when the first cgroup
+is requested. It should now not panic on failure, and we have to handle
+this right.
 
-This experimental and slightly crude patch demonstrates that we can do
-that by using static branches to patch it out until the first memcg
-comes to life. There are edges to be trimmed, and I appreciate comments
-for direction. In particular, the events in the root are not fired, but
-I believe this can be done without further problems by calling a
-specialized event check from mem_cgroup_newpage_charge().
-
-My goal was to have enough numbers to demonstrate the performance gain
-that can come from it. I tested it in a 24-way 2-socket Intel box, 24 Gb
-mem. I used Mel Gorman's pft test, that he used to demonstrate this
-problem back in the Kernel Summit. There are three kernels:
-
-nomemcg  : memcg compile disabled.
-base     : memcg enabled, patch not applied.
-bypassed : memcg enabled, with patch applied.
-
-                base    bypassed
-User          109.12      105.64
-System       1646.84     1597.98
-Elapsed       229.56      215.76
-
-             nomemcg    bypassed
-User          104.35      105.64
-System       1578.19     1597.98
-Elapsed       212.33      215.76
-
-So as one can see, the difference between base and nomemcg in terms
-of both system time and elapsed time is quite drastic, and consistent
-with the figures shown by Mel Gorman in the Kernel summit. This is a
-~ 7 % drop in performance, just by having memcg enabled. memcg functions
-appear heavily in the profiles, even if all tasks lives in the root
-memcg.
-
-With bypassed kernel, we drop this down to 1.5 %, which starts to fall
-in the acceptable range. More investigation is needed to see if we can
-claim that last percent back, but I believe at last part of it should
-be.
+flatmem case is a bit more complicated, so that one is left out for
+the moment.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Michal Hocko <mhocko@suse.cz>
@@ -62,416 +29,352 @@ CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Mel Gorman <mgorman@suse.de>
 CC: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/memcontrol.h |  72 ++++++++++++++++----
- mm/memcontrol.c            | 166 +++++++++++++++++++++++++++++++++++++++++----
- mm/page_cgroup.c           |   4 +-
- 3 files changed, 216 insertions(+), 26 deletions(-)
+ include/linux/page_cgroup.h |  28 +++++----
+ init/main.c                 |   2 -
+ mm/memcontrol.c             |   3 +-
+ mm/page_cgroup.c            | 150 ++++++++++++++++++++++++--------------------
+ 4 files changed, 99 insertions(+), 84 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index d6183f0..009f925 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -42,6 +42,26 @@ struct mem_cgroup_reclaim_cookie {
- };
+diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+index 777a524..ec9fb05 100644
+--- a/include/linux/page_cgroup.h
++++ b/include/linux/page_cgroup.h
+@@ -14,6 +14,7 @@ enum {
  
  #ifdef CONFIG_MEMCG
-+extern struct static_key memcg_in_use_key;
-+
-+static inline bool mem_cgroup_subsys_disabled(void)
-+{
-+	return !!mem_cgroup_subsys.disabled;
-+}
-+
-+static inline bool mem_cgroup_disabled(void)
-+{
-+	/*
-+	 * Will always be false if subsys is disabled, because we have no one
-+	 * to bump it up. So the test suffices and we don't have to test the
-+	 * subsystem as well
-+	 */
-+	if (!static_key_false(&memcg_in_use_key))
-+		return true;
-+	return false;
-+}
-+
-+
+ #include <linux/bit_spinlock.h>
++#include <linux/mmzone.h>
+ 
  /*
-  * All "charge" functions with gfp_mask should use GFP_KERNEL or
-  * (gfp_mask & GFP_RECLAIM_MASK). In current implementatin, memcg doesn't
-@@ -53,8 +73,18 @@ struct mem_cgroup_reclaim_cookie {
-  * (Of course, if memcg does memory allocation in future, GFP_KERNEL is sane.)
-  */
+  * Page Cgroup can be considered as an extended mem_map.
+@@ -27,19 +28,17 @@ struct page_cgroup {
+ 	struct mem_cgroup *mem_cgroup;
+ };
  
--extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
-+extern int __mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask);
-+
-+static inline int
-+mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
-+			  gfp_t gfp_mask)
-+{
-+	if (mem_cgroup_disabled())
-+		return 0;
-+	return __mem_cgroup_newpage_charge(page, mm, gfp_mask);
-+}
-+
- /* for swap handling */
- extern int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
- 		struct page *page, gfp_t mask, struct mem_cgroup **memcgp);
-@@ -62,8 +92,17 @@ extern void mem_cgroup_commit_charge_swapin(struct page *page,
- 					struct mem_cgroup *memcg);
- extern void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *memcg);
- 
--extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
--					gfp_t gfp_mask);
-+
-+extern int __mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-+				     gfp_t gfp_mask);
-+static inline int
-+mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask)
-+{
-+	if (mem_cgroup_disabled())
-+		return 0;
-+
-+	return __mem_cgroup_cache_charge(page, mm, gfp_mask);
-+}
- 
- struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
- struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
-@@ -72,8 +111,24 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
- extern void mem_cgroup_uncharge_start(void);
- extern void mem_cgroup_uncharge_end(void);
- 
--extern void mem_cgroup_uncharge_page(struct page *page);
--extern void mem_cgroup_uncharge_cache_page(struct page *page);
-+extern void __mem_cgroup_uncharge_page(struct page *page);
-+extern void __mem_cgroup_uncharge_cache_page(struct page *page);
-+
-+static inline void mem_cgroup_uncharge_page(struct page *page)
-+{
-+	if (mem_cgroup_disabled())
-+		return;
-+
-+	__mem_cgroup_uncharge_page(page);
-+}
-+
-+static inline void mem_cgroup_uncharge_cache_page(struct page *page)
-+{
-+	if (mem_cgroup_disabled())
-+		return;
-+
-+	__mem_cgroup_uncharge_cache_page(page);
-+}
- 
- bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
- 				  struct mem_cgroup *memcg);
-@@ -128,13 +183,6 @@ extern void mem_cgroup_replace_page_cache(struct page *oldpage,
- extern int do_swap_account;
- #endif
- 
--static inline bool mem_cgroup_disabled(void)
--{
--	if (mem_cgroup_subsys.disabled)
--		return true;
--	return false;
+-void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat);
+-
+-#ifdef CONFIG_SPARSEMEM
+-static inline void __init page_cgroup_init_flatmem(void)
++static inline size_t page_cgroup_table_size(int nid)
+ {
 -}
--
- void __mem_cgroup_begin_update_page_stat(struct page *page, bool *locked,
- 					 unsigned long *flags);
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index bfbf1c2..45c1886 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -575,6 +575,9 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
- 	return (memcg == root_mem_cgroup);
- }
- 
-+static bool memcg_charges_allowed = false;
-+struct static_key memcg_in_use_key;
+-extern void __init page_cgroup_init(void);
++#ifdef CONFIG_SPARSEMEM
++	return sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+ #else
+-void __init page_cgroup_init_flatmem(void);
+-static inline void __init page_cgroup_init(void)
+-{
+-}
++	return sizeof(struct page_cgroup) * NODE_DATA(nid)->node_spanned_pages;
+ #endif
++}
++void pgdat_page_cgroup_init(struct pglist_data *pgdat);
 +
- /* Writing them here to avoid exposing memcg's inner layout */
- #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
++extern int page_cgroup_init(void);
  
-@@ -710,6 +713,7 @@ static void disarm_static_keys(struct mem_cgroup *memcg)
+ struct page_cgroup *lookup_page_cgroup(struct page *page);
+ struct page *lookup_cgroup_page(struct page_cgroup *pc);
+@@ -85,7 +84,7 @@ static inline void unlock_page_cgroup(struct page_cgroup *pc)
+ #else /* CONFIG_MEMCG */
+ struct page_cgroup;
+ 
+-static inline void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
++static inline void pgdat_page_cgroup_init(struct pglist_data *pgdat)
  {
- 	disarm_sock_keys(memcg);
- 	disarm_kmem_keys(memcg);
-+	static_key_slow_dec(&memcg_in_use_key);
  }
  
- static void drain_all_stock_async(struct mem_cgroup *memcg);
-@@ -1109,6 +1113,9 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
- 	if (unlikely(!p))
- 		return NULL;
- 
-+	if (mem_cgroup_disabled())
-+		return root_mem_cgroup;
-+
- 	return mem_cgroup_from_css(task_subsys_state(p, mem_cgroup_subsys_id));
- }
- 
-@@ -1157,9 +1164,12 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
- 	struct mem_cgroup *memcg = NULL;
- 	int id = 0;
- 
--	if (mem_cgroup_disabled())
-+	if (mem_cgroup_subsys_disabled())
- 		return NULL;
- 
-+	if (mem_cgroup_disabled())
-+		return root_mem_cgroup;
-+
- 	if (!root)
- 		root = root_mem_cgroup;
- 
-@@ -1335,6 +1345,20 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct zone *zone)
- 	memcg = pc->mem_cgroup;
- 
- 	/*
-+	 * Because we lazily enable memcg only after first child group is
-+	 * created, we can have memcg == 0. Because page cgroup is created with
-+	 * GFP_ZERO, and after charging, all page cgroups will have a non-zero
-+	 * cgroup attached (even if root), we can be sure that this is a
-+	 * used-but-not-accounted page. (due to lazyness). We could get around
-+	 * that by scanning all pages on cgroup init is too expensive. We can
-+	 * ultimately pay, but prefer to just to defer the update until we get
-+	 * here. We could take the opportunity to set PageCgroupUsed, but it
-+	 * won't be that important for the root cgroup.
-+	 */
-+	if (!memcg && PageLRU(page))
-+		pc->mem_cgroup = memcg = root_mem_cgroup;
-+
-+	/*
- 	 * Surreptitiously switch any uncharged offlist page to root:
- 	 * an uncharged page off lru does nothing to secure
- 	 * its former mem_cgroup from sudden removal.
-@@ -3845,11 +3869,18 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
- 	return 0;
- }
- 
--int mem_cgroup_newpage_charge(struct page *page,
-+int __mem_cgroup_newpage_charge(struct page *page,
- 			      struct mm_struct *mm, gfp_t gfp_mask)
- {
--	if (mem_cgroup_disabled())
-+	/*
-+	 * The branch is actually very likely before the first memcg comes in.
-+	 * But since the code is patched out, we'll never reach it. It is only
-+	 * reachable when the code is patched in, and in that case it is
-+	 * unlikely.  It will only happen during initial charges move.
-+	 */
-+	if (unlikely(!memcg_charges_allowed))
- 		return 0;
-+
- 	VM_BUG_ON(page_mapped(page));
- 	VM_BUG_ON(page->mapping && !PageAnon(page));
- 	VM_BUG_ON(!mm);
-@@ -3962,15 +3993,13 @@ void mem_cgroup_commit_charge_swapin(struct page *page,
- 					  MEM_CGROUP_CHARGE_TYPE_ANON);
- }
- 
--int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
--				gfp_t gfp_mask)
-+int __mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-+			      gfp_t gfp_mask)
- {
- 	struct mem_cgroup *memcg = NULL;
- 	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
- 	int ret;
- 
--	if (mem_cgroup_disabled())
--		return 0;
- 	if (PageCompound(page))
- 		return 0;
- 
-@@ -4050,9 +4079,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
- 	struct page_cgroup *pc;
- 	bool anon;
- 
--	if (mem_cgroup_disabled())
--		return NULL;
--
- 	VM_BUG_ON(PageSwapCache(page));
- 
- 	if (PageTransHuge(page)) {
-@@ -4144,7 +4170,7 @@ unlock_out:
+@@ -94,7 +93,12 @@ static inline struct page_cgroup *lookup_page_cgroup(struct page *page)
  	return NULL;
  }
  
--void mem_cgroup_uncharge_page(struct page *page)
-+void __mem_cgroup_uncharge_page(struct page *page)
- {
- 	/* early check. */
- 	if (page_mapped(page))
-@@ -4155,7 +4181,7 @@ void mem_cgroup_uncharge_page(struct page *page)
- 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_ANON, false);
- }
- 
--void mem_cgroup_uncharge_cache_page(struct page *page)
-+void __mem_cgroup_uncharge_cache_page(struct page *page)
- {
- 	VM_BUG_ON(page_mapped(page));
- 	VM_BUG_ON(page->mapping);
-@@ -4220,6 +4246,9 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
- 	struct mem_cgroup *memcg;
- 	int ctype = MEM_CGROUP_CHARGE_TYPE_SWAPOUT;
- 
-+	if (mem_cgroup_disabled())
-+		return;
-+
- 	if (!swapout) /* this was a swap cache but the swap is unused ! */
- 		ctype = MEM_CGROUP_CHARGE_TYPE_DROP;
- 
-@@ -6364,6 +6393,59 @@ free_out:
- 	return ERR_PTR(error);
- }
- 
-+static void memcg_update_root_statistics(void)
+-static inline void page_cgroup_init(void)
++static inline int page_cgroup_init(void)
 +{
-+	int cpu;
-+	u64 pgin, pgout, faults, mjfaults;
-+
-+	pgin = pgout = faults = mjfaults = 0;
-+	for_each_online_cpu(cpu) {
-+		struct vm_event_state *ev = &per_cpu(vm_event_states, cpu);
-+		struct mem_cgroup_stat_cpu *memcg_stat;
-+
-+		memcg_stat = per_cpu_ptr(root_mem_cgroup->stat, cpu);
-+
-+		memcg_stat->events[MEM_CGROUP_EVENTS_PGPGIN] =
-+							ev->event[PGPGIN];
-+		memcg_stat->events[MEM_CGROUP_EVENTS_PGPGOUT] =
-+							ev->event[PGPGOUT];
-+		memcg_stat->events[MEM_CGROUP_EVENTS_PGFAULT] =
-+							ev->event[PGFAULT];
-+		memcg_stat->events[MEM_CGROUP_EVENTS_PGMAJFAULT] =
-+							ev->event[PGMAJFAULT];
-+
-+		memcg_stat->nr_page_events = ev->event[PGPGIN] +
-+					     ev->event[PGPGOUT];
-+	}
-+
-+	root_mem_cgroup->nocpu_base.count[MEM_CGROUP_STAT_RSS] =
-+				memcg_read_root_rss();
-+	root_mem_cgroup->nocpu_base.count[MEM_CGROUP_STAT_CACHE] =
-+				atomic_long_read(&vm_stat[NR_FILE_PAGES]);
-+	root_mem_cgroup->nocpu_base.count[MEM_CGROUP_STAT_FILE_MAPPED] =
-+				atomic_long_read(&vm_stat[NR_FILE_MAPPED]);
++	return 0;
 +}
 +
-+static void memcg_update_root_lru(void)
-+{
-+	struct zone *zone;
-+	struct lruvec *lruvec;
-+	struct mem_cgroup_per_zone *mz;
-+	enum lru_list lru;
-+
-+	for_each_populated_zone(zone) {
-+		spin_lock_irq(&zone->lru_lock);
-+		lruvec = &zone->lruvec;
-+		mz = mem_cgroup_zoneinfo(root_mem_cgroup,
-+				zone_to_nid(zone), zone_idx(zone));
-+
-+		for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
-+			mz->lru_size[lru] =
-+				zone_page_state(zone, NR_LRU_BASE + lru);
-+		spin_unlock_irq(&zone->lru_lock);
-+	}
-+}
-+
- static int
- mem_cgroup_css_online(struct cgroup *cont)
++static inline void page_cgroup_destroy(void)
  {
-@@ -6407,6 +6489,66 @@ mem_cgroup_css_online(struct cgroup *cont)
+ }
+ 
+diff --git a/init/main.c b/init/main.c
+index cee4b5c..1fb3ec0 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -457,7 +457,6 @@ static void __init mm_init(void)
+ 	 * page_cgroup requires contiguous pages,
+ 	 * bigger than MAX_ORDER unless SPARSEMEM.
+ 	 */
+-	page_cgroup_init_flatmem();
+ 	mem_init();
+ 	kmem_cache_init();
+ 	percpu_init_late();
+@@ -592,7 +591,6 @@ asmlinkage void __init start_kernel(void)
+ 		initrd_start = 0;
  	}
+ #endif
+-	page_cgroup_init();
+ 	debug_objects_mem_init();
+ 	kmemleak_init();
+ 	setup_per_cpu_pageset();
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 45c1886..6019a32 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -6377,7 +6377,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+ 		res_counter_init(&memcg->res, NULL);
+ 		res_counter_init(&memcg->memsw, NULL);
+ 		res_counter_init(&memcg->kmem, NULL);
+-	}
++	} else if (page_cgroup_init())
++		goto free_out;
  
- 	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
-+
-+	if (!error) {
-+		static_key_slow_inc(&memcg_in_use_key);
-+		/*
-+		 * The strategy to avoid races here is to let the charges just
-+		 * be globally made until we lock the res counter. Since we are
-+		 * copying charges from global statistics, it doesn't really
-+		 * matter when we do it, as long as we are consistent. So even
-+		 * after the code is patched in, they will continue being
-+		 * globally charged due to memcg_charges_allowed being set to
-+		 * false.
-+		 *
-+		 * Once we hold the res counter lock, though, we can already
-+		 * safely flip it: We will go through with the charging to the
-+		 * root memcg, but won't be able to actually charge it: we have
-+		 * the lock.
-+		 *
-+		 * This works because the mm stats are only updated after the
-+		 * memcg charging suceeds. If we block the charge by holding
-+		 * the res_counter lock, no other charges will happen in the
-+		 * system until we release it.
-+		 *
-+		 * manipulation always safe because the write side is always
-+		 * under the memcg_mutex.
-+		 */
-+		if (!memcg_charges_allowed) {
-+			struct zone *zone;
-+
-+			get_online_cpus();
-+			spin_lock(&root_mem_cgroup->res.lock);
-+
-+			memcg_charges_allowed = true;
-+
-+			root_mem_cgroup->res.usage =
-+				mem_cgroup_read_root(RES_USAGE, _MEM);
-+			root_mem_cgroup->memsw.usage =
-+				mem_cgroup_read_root(RES_USAGE, _MEMSWAP);
-+			/*
-+			 * The max usage figure is not entirely accurate. The
-+			 * memory may have been higher in the past. But since
-+			 * we don't track that globally, this is the best we
-+			 * can do.
-+			 */
-+			root_mem_cgroup->res.max_usage =
-+					root_mem_cgroup->res.usage;
-+			root_mem_cgroup->memsw.max_usage =
-+					root_mem_cgroup->memsw.usage;
-+
-+			memcg_update_root_statistics();
-+			memcg_update_root_lru();
-+			/*
-+			 * We are now 100 % consistent and all charges are
-+			 * transfered.  New charges should reach the
-+			 * res_counter directly.
-+			 */
-+			spin_unlock(&root_mem_cgroup->res.lock);
-+			put_online_cpus();
-+		}
-+	}
-+
- 	mutex_unlock(&memcg_create_mutex);
- 	if (error) {
- 		/*
+ 	memcg->last_scanned_node = MAX_NUMNODES;
+ 	INIT_LIST_HEAD(&memcg->oom_notify);
 diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 6d757e3..a5bd322 100644
+index a5bd322..6d04c28 100644
 --- a/mm/page_cgroup.c
 +++ b/mm/page_cgroup.c
-@@ -68,7 +68,7 @@ void __init page_cgroup_init_flatmem(void)
+@@ -12,11 +12,50 @@
+ #include <linux/kmemleak.h>
  
- 	int nid, fail;
+ static unsigned long total_usage;
++static unsigned long page_cgroup_initialized;
  
--	if (mem_cgroup_disabled())
-+	if (mem_cgroup_subsys_disabled())
- 		return;
+-#if !defined(CONFIG_SPARSEMEM)
++static void *alloc_page_cgroup(size_t size, int nid)
++{
++	gfp_t flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN;
++	void *addr = NULL;
++
++	addr = alloc_pages_exact_nid(nid, size, flags);
++	if (addr) {
++		kmemleak_alloc(addr, size, 1, flags);
++		return addr;
++	}
++
++	if (node_state(nid, N_HIGH_MEMORY))
++		addr = vzalloc_node(size, nid);
++	else
++		addr = vzalloc(size);
+ 
++	return addr;
++}
+ 
+-void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
++static void free_page_cgroup(void *addr)
++{
++	if (is_vmalloc_addr(addr)) {
++		vfree(addr);
++	} else {
++		struct page *page = virt_to_page(addr);
++		int nid = page_to_nid(page);
++		BUG_ON(PageReserved(page));
++		free_pages_exact(addr, page_cgroup_table_size(nid));
++	}
++}
++
++static void page_cgroup_msg(void)
++{
++	printk(KERN_INFO "allocated %ld bytes of page_cgroup\n", total_usage);
++	printk(KERN_INFO "please try 'cgroup_disable=memory' option if you "
++			 "don't want memory cgroups.\nAlternatively, consider "
++			 "deferring your memory cgroups creation.\n");
++}
++
++#if !defined(CONFIG_SPARSEMEM)
++
++void pgdat_page_cgroup_init(struct pglist_data *pgdat)
+ {
+ 	pgdat->node_page_cgroup = NULL;
+ }
+@@ -42,20 +81,16 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
+ 	return base + offset;
+ }
+ 
+-static int __init alloc_node_page_cgroup(int nid)
++static int alloc_node_page_cgroup(int nid)
+ {
+ 	struct page_cgroup *base;
+ 	unsigned long table_size;
+-	unsigned long nr_pages;
+ 
+-	nr_pages = NODE_DATA(nid)->node_spanned_pages;
+-	if (!nr_pages)
++	table_size = page_cgroup_table_size(nid);
++	if (!table_size)
+ 		return 0;
+ 
+-	table_size = sizeof(struct page_cgroup) * nr_pages;
+-
+-	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
+-			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
++	base = alloc_page_cgroup(table_size, nid);
+ 	if (!base)
+ 		return -ENOMEM;
+ 	NODE_DATA(nid)->node_page_cgroup = base;
+@@ -63,27 +98,29 @@ static int __init alloc_node_page_cgroup(int nid)
+ 	return 0;
+ }
+ 
+-void __init page_cgroup_init_flatmem(void)
++int page_cgroup_init(void)
+ {
++	int nid, fail, tmpnid;
+ 
+-	int nid, fail;
+-
+-	if (mem_cgroup_subsys_disabled())
+-		return;
++	/* only initialize it once */
++	if (test_and_set_bit(0, &page_cgroup_initialized))
++		return 0;
  
  	for_each_online_node(nid)  {
-@@ -271,7 +271,7 @@ void __init page_cgroup_init(void)
- 	unsigned long pfn;
- 	int nid;
+ 		fail = alloc_node_page_cgroup(nid);
+ 		if (fail)
+ 			goto fail;
+ 	}
+-	printk(KERN_INFO "allocated %ld bytes of page_cgroup\n", total_usage);
+-	printk(KERN_INFO "please try 'cgroup_disable=memory' option if you"
+-	" don't want memory cgroups\n");
+-	return;
++	page_cgroup_msg();
++	return 0;
+ fail:
+-	printk(KERN_CRIT "allocation of page_cgroup failed.\n");
+-	printk(KERN_CRIT "please try 'cgroup_disable=memory' boot option\n");
+-	panic("Out of memory");
++	for_each_online_node(tmpnid)  {
++		if (tmpnid >= nid)
++			break;
++		free_page_cgroup(NODE_DATA(tmpnid)->node_page_cgroup);
++	}
++
++	return -ENOMEM;
+ }
  
--	if (mem_cgroup_disabled())
-+	if (mem_cgroup_subsys_disabled())
- 		return;
+ #else /* CONFIG_FLAT_NODE_MEM_MAP */
+@@ -105,26 +142,7 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
+ 	return section->page_cgroup + pfn;
+ }
+ 
+-static void *__meminit alloc_page_cgroup(size_t size, int nid)
+-{
+-	gfp_t flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN;
+-	void *addr = NULL;
+-
+-	addr = alloc_pages_exact_nid(nid, size, flags);
+-	if (addr) {
+-		kmemleak_alloc(addr, size, 1, flags);
+-		return addr;
+-	}
+-
+-	if (node_state(nid, N_HIGH_MEMORY))
+-		addr = vzalloc_node(size, nid);
+-	else
+-		addr = vzalloc(size);
+-
+-	return addr;
+-}
+-
+-static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
++static int init_section_page_cgroup(unsigned long pfn, int nid)
+ {
+ 	struct mem_section *section;
+ 	struct page_cgroup *base;
+@@ -135,7 +153,7 @@ static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
+ 	if (section->page_cgroup)
+ 		return 0;
+ 
+-	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
++	table_size = page_cgroup_table_size(nid);
+ 	base = alloc_page_cgroup(table_size, nid);
+ 
+ 	/*
+@@ -159,20 +177,6 @@ static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
+ 	total_usage += table_size;
+ 	return 0;
+ }
+-#ifdef CONFIG_MEMORY_HOTPLUG
+-static void free_page_cgroup(void *addr)
+-{
+-	if (is_vmalloc_addr(addr)) {
+-		vfree(addr);
+-	} else {
+-		struct page *page = virt_to_page(addr);
+-		size_t table_size =
+-			sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+-
+-		BUG_ON(PageReserved(page));
+-		free_pages_exact(addr, table_size);
+-	}
+-}
+ 
+ void __free_page_cgroup(unsigned long pfn)
+ {
+@@ -187,6 +191,7 @@ void __free_page_cgroup(unsigned long pfn)
+ 	ms->page_cgroup = NULL;
+ }
+ 
++#ifdef CONFIG_MEMORY_HOTPLUG
+ int __meminit online_page_cgroup(unsigned long start_pfn,
+ 			unsigned long nr_pages,
+ 			int nid)
+@@ -266,16 +271,16 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
+ 
+ #endif
+ 
+-void __init page_cgroup_init(void)
++int page_cgroup_init(void)
+ {
+ 	unsigned long pfn;
+-	int nid;
++	unsigned long start_pfn, end_pfn;
++	int nid, tmpnid;
+ 
+-	if (mem_cgroup_subsys_disabled())
+-		return;
++	if (test_and_set_bit(0, &page_cgroup_initialized))
++		return 0;
  
  	for_each_node_state(nid, N_MEMORY) {
+-		unsigned long start_pfn, end_pfn;
+ 
+ 		start_pfn = node_start_pfn(nid);
+ 		end_pfn = node_end_pfn(nid);
+@@ -303,16 +308,23 @@ void __init page_cgroup_init(void)
+ 		}
+ 	}
+ 	hotplug_memory_notifier(page_cgroup_callback, 0);
+-	printk(KERN_INFO "allocated %ld bytes of page_cgroup\n", total_usage);
+-	printk(KERN_INFO "please try 'cgroup_disable=memory' option if you "
+-			 "don't want memory cgroups\n");
+-	return;
++	page_cgroup_msg();
++	return 0;
+ oom:
+-	printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
+-	panic("Out of memory");
++	for_each_node_state(tmpnid, N_MEMORY) {
++		if (tmpnid >= nid)
++			break;
++
++		start_pfn = node_start_pfn(tmpnid);
++		end_pfn = node_end_pfn(tmpnid);
++
++		for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION)
++			__free_page_cgroup(pfn);
++	}
++	return -ENOMEM;
+ }
+ 
+-void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
++void pgdat_page_cgroup_init(struct pglist_data *pgdat)
+ {
+ 	return;
+ }
 -- 
 1.8.1.2
 
