@@ -1,98 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id E7A046B0007
-	for <linux-mm@kvack.org>; Mon,  4 Mar 2013 21:12:29 -0500 (EST)
-Date: Tue, 5 Mar 2013 13:02:05 +1100
-From: Paul Mackerras <paulus@samba.org>
-Subject: Re: [PATCH -V1 09/24] powerpc: Decode the pte-lp-encoding bits
- correctly.
-Message-ID: <20130305020205.GB2888@iris.ozlabs.ibm.com>
-References: <1361865914-13911-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1361865914-13911-10-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <20130304054848.GE27523@drongo>
- <87y5e31jem.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <87y5e31jem.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id E31EC6B0002
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 01:58:26 -0500 (EST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MJ600DW5E13EZP0@mailout2.samsung.com> for
+ linux-mm@kvack.org; Tue, 05 Mar 2013 15:58:25 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [RFC/PATCH 0/5] Contiguous Memory Allocator and get_user_pages()
+Date: Tue, 05 Mar 2013 07:57:54 +0100
+Message-id: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-On Mon, Mar 04, 2013 at 05:11:53PM +0530, Aneesh Kumar K.V wrote:
-> Paul Mackerras <paulus@samba.org> writes:
-> >> +static inline int hpte_actual_psize(struct hash_pte *hptep, int psize)
-> >> +{
-> >> +	unsigned int mask;
-> >> +	int i, penc, shift;
-> >> +	/* Look at the 8 bit LP value */
-> >> +	unsigned int lp = (hptep->r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
-> >> +
-> >> +	penc = 0;
-> >> +	for (i = 0; i < MMU_PAGE_COUNT; i++) {
-> >> +		/* valid entries have a shift value */
-> >> +		if (!mmu_psize_defs[i].shift)
-> >> +			continue;
-> >> +
-> >> +		/* encoding bits per actual page size */
-> >> +		shift = mmu_psize_defs[i].shift - 11;
-> >> +		if (shift > 9)
-> >> +			shift = 9;
-> >> +		mask = (1 << shift) - 1;
-> >> +		if ((lp & mask) == mmu_psize_defs[psize].penc[i])
-> >> +			return i;
-> >> +	}
-> >> +	return -1;
-> >> +}
-> >
-> > This doesn't look right to me.  First, it's not clear what the 11 and
-> > 9 refer to, and I think the 9 should be LP_BITS (i.e. 8).  Secondly,
-> > the mask for the comparison needs to depend on the actual page size
-> > not the base page size.
-> 
-> That 11 should be 12.That depends on the fact that we have below mapping
+Hello,
 
-And the 12 should be LP_SHIFT, shouldn't it?
+Contiguous Memory Allocator is very sensitive about migration failures
+of the individual pages. A single page, which causes permanent migration
+failure can break large conitguous allocations and cause the failure of
+a multimedia device driver.
 
->  rrrr rrrz 	a?JPY8KB
-> 
-> Yes, that 9 should be LP_BITs. 
-> 
-> We are generating mask based on actual page size above (variable i in
-> the for loop).
+One of the known issues with migration of CMA pages are the problems of
+migrating the anonymous user pages, for which the others called
+get_user_pages(). This takes a reference to the given user pages to let
+kernel to operate directly on the page content. This is usually used for
+preventing swaping out the page contents and doing direct DMA to/from
+userspace.
 
-OK, yes, you're right.
+To solving this issue requires preventing locking of the pages, which
+are placed in CMA regions, for a long time. Our idea is to migrate
+anonymous page content before locking the page in get_user_pages(). This
+cannot be done automatically, as get_user_pages() interface is used very
+often for various operations, which usually last for a short period of
+time (like for example exec syscall). We have added a new flag
+indicating that the given get_user_space() call will grab pages for a
+long time, thus it is suitable to use the migration workaround in such
+cases.
 
-> > I don't see where in this function you set the penc[] elements for
-> > invalid actual page sizes to -1.
-> 
-> We do the below
-> 
-> --- a/arch/powerpc/mm/hash_utils_64.c
-> +++ b/arch/powerpc/mm/hash_utils_64.c
-> @@ -125,7 +125,7 @@ static struct mmu_psize_def mmu_psize_defaults_old[] = {
->         [MMU_PAGE_4K] = {
->                 .shift  = 12,
->                 .sllp   = 0,
-> -               .penc   = 0,
-> +               .penc   = { [0 ... MMU_PAGE_COUNT - 1] = -1 },
->                 .avpnm  = 0,
+The proposed extensions is used by V4L2/VideoBuf2
+(drivers/media/v4l2-core/videobuf2-dma-contig.c), but that is not the
+only place which might benefit from it, like any driver which use DMA to
+userspace with get_user_pages(). This one is provided to demonstrate the
+use case.
 
-Yes, which sets them for the entries you initialize, but not for the
-others.  For example, the entry for MMU_PAGE_64K will initially be all
-zeroes.  Then we find an entry in the ibm,segment-page-sizes property
-for 64k pages, so we set mmu_psize_defs[MMU_PAGE_64K].shift to 16,
-making that entry valid, but we never set any of the .penc[] entries
-to -1, leading your other code to think that it can do (say) 1M pages
-in a 64k segment using an encoding of 0.
+I would like to hear some comments on the presented approach. What do
+you think about it? Is there a chance to get such workaround merged at
+some point to mainline?
 
-Also, I noticed that the code in the if (base_idx < 0) statement is
-wrong.  It needs to advance prop (and decrease size) by 2 * lpnum,
-not just 2.
+Best regards
+Marek Szyprowski
+Samsung Poland R&D Center
 
-Paul.
+
+Patch summary:
+
+Marek Szyprowski (5):
+  mm: introduce migrate_replace_page() for migrating page to the given
+    target
+  mm: get_user_pages: use static inline
+  mm: get_user_pages: use NON-MOVABLE pages when FOLL_DURABLE flag is
+    set
+  mm: get_user_pages: migrate out CMA pages when FOLL_DURABLE flag is
+    set
+  media: vb2: use FOLL_DURABLE and __get_user_pages() to avoid CMA
+    migration issues
+
+ drivers/media/v4l2-core/videobuf2-dma-contig.c |    8 +-
+ include/linux/highmem.h                        |   12 ++-
+ include/linux/migrate.h                        |    5 +
+ include/linux/mm.h                             |   76 ++++++++++++-
+ mm/internal.h                                  |   12 +++
+ mm/memory.c                                    |  136 +++++++++++-------------
+ mm/migrate.c                                   |   59 ++++++++++
+ 7 files changed, 225 insertions(+), 83 deletions(-)
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
