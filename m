@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 2C8856B0002
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 07:19:25 -0500 (EST)
-Received: by mail-ie0-f171.google.com with SMTP id 10so7638168ied.2
-        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 04:19:24 -0800 (PST)
-Message-ID: <5135E2C7.8050105@gmail.com>
-Date: Tue, 05 Mar 2013 20:19:19 +0800
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id F34E76B0002
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 07:21:20 -0500 (EST)
+Received: by mail-ie0-f176.google.com with SMTP id k13so7611317iea.21
+        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 04:21:20 -0800 (PST)
+Message-ID: <5135E33C.1030708@gmail.com>
+Date: Tue, 05 Mar 2013 20:21:16 +0800
 From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
 Subject: Re: mm: introduce new field "managed_pages" to struct zone
@@ -27,14 +27,6 @@ On 03/05/2013 12:37 AM, Jiang Liu wrote:
 >>> can't directly access highmem pages.
 >> Why you say so? Could you point out where you figure out bootmem allocator doesn't handle highmem pages? In my understanding, it doesn't distinguish low memory or high memory.
 > Hi Simon,
-
-Hi Jiang,
-
-The comments of max_pfn_mapped is "highest direct mapped pfn over 4GB", 
-so if both bootmem allocator and memblock just manage direct mapping pages?
-BTW, could you show me where you can figure out traditional bootmem 
-allocator manages directly mapping pages?
-
 > 	According to my understanding, bootmem allocator does only manages lowmem pages.
 > For traditional bootmem allocator in mm/bootmem.c, it could only manages directly mapped lowmem pages.
 > For new bootmem allocator in mm/nobootmem.c, it depends on memblock to do the real work. Let's take
@@ -60,6 +52,9 @@ allocator manages directly mapping pages?
 > I guess it's the same for other architectures. On the other hand, some other architectures
 > may allocate highmem pages during boot by directly using memblock interfaces. For example,
 > ppc use memblock interfaces to allocate highmem pages for giagant hugetlb pages.
+
+highmem is just used for x86, correct? ppc doesn't have highmem I think.
+
 >
 > I'm working a patch set to fix those cases.
 >
