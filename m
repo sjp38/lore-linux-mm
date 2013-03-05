@@ -1,131 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id E6BE06B003D
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 10:03:28 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id rr4so4547426pbb.27
-        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 07:03:28 -0800 (PST)
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 071D46B0044
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 10:03:42 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id rp2so4568300pbb.20
+        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 07:03:42 -0800 (PST)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFC PATCH v1 30/33] mm: use a dedicated lock to protect totalram_pages and zone->managed_pages
-Date: Tue,  5 Mar 2013 22:55:13 +0800
-Message-Id: <1362495317-32682-31-git-send-email-jiang.liu@huawei.com>
+Subject: [RFC PATCH v1 31/33] mm: avoid using __free_pages_bootmem() at runtime
+Date: Tue,  5 Mar 2013 22:55:14 +0800
+Message-Id: <1362495317-32682-32-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com>
 References: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Yinghai Lu <yinghai@kernel.org>, x86@kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-Currently lock_memory_hotplug()/unlock_memory_hotplug() are used to
-protect totalram_pages and zone->managed_pages. Other than the memory
-hotplug driver, totalram_pages and zone->managed_pages may be modified
-by Xen balloon, virtio_balloon etc at runtime. For those case, memory
-hotplug lock is a little too heavy, so introduce a dedicated lock to
-protect them.
+Avoid using __free_pages_bootmem() at runtime, so we could easily
+manage totalram_pages and zone->managed_pages. With this change applied,
+__free_pages_bootmem() is only used by bootmem.c and nobootmem.c at
+boot time, so mark it as __init. And other callers of
+__free_pages_bootmem() have been switched to free_reserved_page(),
+which handles totalram_pages and zone->managed_pages in a common way.
 
-Now the locking rules for totalram_pages and zone->managed_pages have
-been simpilied as:
-1) no locking for read accesses because they are unsigned long.
-2) no locking for write access at boot time in single-threaded context.
-3) serialize write accesses at run time by managed_page_count_lock.
+This patch also fix a bug in free_pagetable() for x86_64, which should
+increase zone->managed_pages instead of zone->present_pages when freeing
+reserved pages.
 
-Also adjust zone->managed_pages when dealing with reserved pages.
+And free_reserved_page() protects totalram_pages and zone->managed_pages
+with managed_pages_count_lock, so remove the redundant ppb_lock lock in
+put_page_bootmem(). This makes the locking rules much more clear.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Yinghai Lu <yinghai@kernel.org>
+Cc: x86@kernel.org
+Cc: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Rik van Riel <riel@redhat.com>
 Cc: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org (open list:MEMORY MANAGEMENT)
-Cc: linux-kernel@vger.kernel.org (open list)
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 ---
- include/linux/mm.h     |    6 +-----
- include/linux/mmzone.h |   14 ++++++++++----
- mm/page_alloc.c        |   19 +++++++++++++++++++
- 3 files changed, 30 insertions(+), 9 deletions(-)
+ arch/x86/mm/init_64.c |   18 ++----------------
+ mm/memory_hotplug.c   |   16 ++--------------
+ mm/page_alloc.c       |    9 +--------
+ 3 files changed, 5 insertions(+), 38 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 4d1509b..f9cc7f0 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1299,14 +1299,10 @@ extern void free_initmem(void);
- #ifdef	CONFIG_HIGHMEM
- extern void free_highmem_page(struct page *page);
- #endif
-+extern void adjust_managed_page_count(struct page *page, long count);
- extern unsigned long free_reserved_area(unsigned long start, unsigned long end,
- 					int poison, char *s);
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 474e28f..17cfe98 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -711,36 +711,22 @@ EXPORT_SYMBOL_GPL(arch_add_memory);
  
--static inline void adjust_managed_page_count(struct page *page, long count)
--{
--	totalram_pages += count;
--}
--
- static inline void __free_reserved_page(struct page *page)
+ static void __meminit free_pagetable(struct page *page, int order)
  {
- 	ClearPageReserved(page);
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index ede2749..bc58fef 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -474,10 +474,16 @@ struct zone {
- 	 * frequently read in proximity to zone->lock.  It's good to
- 	 * give them a chance of being in the same cacheline.
- 	 *
--	 * Write access to present_pages and managed_pages at runtime should
--	 * be protected by lock_memory_hotplug()/unlock_memory_hotplug().
--	 * Any reader who can't tolerant drift of present_pages and
--	 * managed_pages should hold memory hotplug lock to get a stable value.
-+	 * Write access to present_pages at runtime should be protected by
-+	 * lock_memory_hotplug()/unlock_memory_hotplug().  Any reader who can't
-+	 * tolerant drift of present_pages should hold memory hotplug lock to
-+	 * get a stable value.
-+	 *
-+	 * Read access to managed_pages should be safe because it's unsigned
-+	 * long. Write access to zone->managed_pages and totalram_pages are
-+	 * protected by managed_page_count_lock at runtime. Basically only
-+	 * adjust_managed_page_count() should be used instead of directly
-+	 * touching zone->managed_pages and totalram_pages.
- 	 */
- 	unsigned long		spanned_pages;
- 	unsigned long		present_pages;
+-	struct zone *zone;
+-	bool bootmem = false;
+ 	unsigned long magic;
+ 	unsigned int nr_pages = 1 << order;
+ 
+ 	/* bootmem page has reserved flag */
+ 	if (PageReserved(page)) {
+ 		__ClearPageReserved(page);
+-		bootmem = true;
+ 
+ 		magic = (unsigned long)page->lru.next;
+ 		if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
+ 			while (nr_pages--)
+ 				put_page_bootmem(page++);
+ 		} else
+-			__free_pages_bootmem(page, order);
++			while (nr_pages--)
++				free_reserved_page(page++);
+ 	} else
+ 		free_pages((unsigned long)page_address(page), order);
+-
+-	/*
+-	 * SECTION_INFO pages and MIX_SECTION_INFO pages
+-	 * are all allocated by bootmem.
+-	 */
+-	if (bootmem) {
+-		zone = page_zone(page);
+-		zone_span_writelock(zone);
+-		zone->present_pages += nr_pages;
+-		zone_span_writeunlock(zone);
+-		totalram_pages += nr_pages;
+-	}
+ }
+ 
+ static void __meminit free_pte_table(pte_t *pte_start, pmd_t *pmd)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b81a367b..af9e87f 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -101,12 +101,9 @@ void get_page_bootmem(unsigned long info,  struct page *page,
+ 	atomic_inc(&page->_count);
+ }
+ 
+-/* reference to __meminit __free_pages_bootmem is valid
+- * so use __ref to tell modpost not to generate a warning */
+-void __ref put_page_bootmem(struct page *page)
++void put_page_bootmem(struct page *page)
+ {
+ 	unsigned long type;
+-	static DEFINE_MUTEX(ppb_lock);
+ 
+ 	type = (unsigned long) page->lru.next;
+ 	BUG_ON(type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
+@@ -116,17 +113,8 @@ void __ref put_page_bootmem(struct page *page)
+ 		ClearPagePrivate(page);
+ 		set_page_private(page, 0);
+ 		INIT_LIST_HEAD(&page->lru);
+-
+-		/*
+-		 * Please refer to comment for __free_pages_bootmem()
+-		 * for why we serialize here.
+-		 */
+-		mutex_lock(&ppb_lock);
+-		__free_pages_bootmem(page, 0);
+-		mutex_unlock(&ppb_lock);
+-		totalram_pages++;
++		free_reserved_page(page);
+ 	}
+-
+ }
+ 
+ #ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8106aa5..2692931 100644
+index 2692931..d252443 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -99,6 +99,9 @@ nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
- };
- EXPORT_SYMBOL(node_states);
+@@ -741,14 +741,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	local_irq_restore(flags);
+ }
  
-+/* Protect totalram_pages and zone->managed_pages */
-+static DEFINE_SPINLOCK(managed_page_count_lock);
-+
- unsigned long totalram_pages __read_mostly;
- unsigned long totalreserve_pages __read_mostly;
- /*
-@@ -5113,6 +5116,22 @@ early_param("movablecore", cmdline_parse_movablecore);
- 
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- 
-+void adjust_managed_page_count(struct page *page, long count)
-+{
-+	bool lock = (system_state != SYSTEM_BOOTING);
-+
-+	/* No need to acquire the lock during boot */
-+	if (lock)
-+		spin_lock(&managed_page_count_lock);
-+
-+	page_zone(page)->managed_pages += count;
-+	totalram_pages += count;
-+
-+	if (lock)
-+		spin_unlock(&managed_page_count_lock);
-+}
-+EXPORT_SYMBOL(adjust_managed_page_count);
-+
- unsigned long free_reserved_area(unsigned long start, unsigned long end,
- 				 int poison, char *s)
+-/*
+- * Read access to zone->managed_pages is safe because it's unsigned long,
+- * but we still need to serialize writers. Currently all callers of
+- * __free_pages_bootmem() except put_page_bootmem() should only be used
+- * at boot time. So for shorter boot time, we shift the burden to
+- * put_page_bootmem() to serialize writers.
+- */
+-void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
++void __init __free_pages_bootmem(struct page *page, unsigned int order)
  {
+ 	unsigned int nr_pages = 1 << order;
+ 	unsigned int loop;
 -- 
 1.7.9.5
 
