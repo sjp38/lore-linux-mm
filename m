@@ -1,77 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id F34E76B0002
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 07:21:20 -0500 (EST)
-Received: by mail-ie0-f176.google.com with SMTP id k13so7611317iea.21
-        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 04:21:20 -0800 (PST)
-Message-ID: <5135E33C.1030708@gmail.com>
-Date: Tue, 05 Mar 2013 20:21:16 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
-MIME-Version: 1.0
-Subject: Re: mm: introduce new field "managed_pages" to struct zone
-References: <512EF580.6000608@gmail.com> <51336FB4.9000202@gmail.com> <5133E356.6000502@gmail.com> <5134CDBB.60700@gmail.com>
-In-Reply-To: <5134CDBB.60700@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id C670B6B0002
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 08:10:52 -0500 (EST)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v2 2/5] memcg: provide root figures from system totals
+Date: Tue,  5 Mar 2013 17:10:55 +0400
+Message-Id: <1362489058-3455-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <1362489058-3455-1-git-send-email-glommer@parallels.com>
+References: <1362489058-3455-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, "linux-mm@kvack.org >> Linux Memory Management List" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, handai.szj@gmail.com, anton.vorontsov@linaro.org, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-On 03/05/2013 12:37 AM, Jiang Liu wrote:
-> On 03/04/2013 07:57 AM, Simon Jeons wrote:
->> Hi Jiang,
->> On 03/03/2013 11:43 PM, Jiang Liu wrote:
->>> Hi Simon,
->>>      Bootmem allocator is used to managed DMA and Normal memory only, and it does not manage highmem pages because kernel
->>> can't directly access highmem pages.
->> Why you say so? Could you point out where you figure out bootmem allocator doesn't handle highmem pages? In my understanding, it doesn't distinguish low memory or high memory.
-> Hi Simon,
-> 	According to my understanding, bootmem allocator does only manages lowmem pages.
-> For traditional bootmem allocator in mm/bootmem.c, it could only manages directly mapped lowmem pages.
-> For new bootmem allocator in mm/nobootmem.c, it depends on memblock to do the real work. Let's take
-> x86 as an example:
-> 1) following code set memblock.current_limit to max_low_pfn.
-> arch/x86/kernel/setup.c:	memblock.current_limit = get_max_mapped();
-> 2) the core of bootmem allocator in nobootmem.c is function __alloc_memory_core_early(),
-> which has following code to avoid allocate highmem pages:
-> static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
->                                          u64 goal, u64 limit)
-> {
->          void *ptr;
->          u64 addr;
->
->          if (limit > memblock.current_limit)
->                  limit = memblock.current_limit;
->
->          addr = memblock_find_in_range_node(goal, limit, size, align, nid);
->          if (!addr)
->                  return NULL;
-> }
->
-> I guess it's the same for other architectures. On the other hand, some other architectures
-> may allocate highmem pages during boot by directly using memblock interfaces. For example,
-> ppc use memblock interfaces to allocate highmem pages for giagant hugetlb pages.
+For the root memcg, there is no need to rely on the res_counters if hierarchy
+is enabled The sum of all mem cgroups plus the tasks in root itself, is
+necessarily the amount of memory used for the whole system. Since those figures
+are already kept somewhere anyway, we can just return them here, without too
+much hassle.
 
-highmem is just used for x86, correct? ppc doesn't have highmem I think.
+Limit and soft limit can't be set for the root cgroup, so they are left at
+RESOURCE_MAX. Failcnt is left at 0, because its actual meaning is how many
+times we failed allocations due to the limit being hit. We will fail
+allocations in the root cgroup, but the limit will never the reason.
 
->
-> I'm working a patch set to fix those cases.
->
-> Regards!
-> Gerry
->
->
->>>      Regards!
->>>      Gerry
->>>
->>> On 02/28/2013 02:13 PM, Simon Jeons wrote:
->>>> Hi Jiang,
->>>>
->>>> https://patchwork.kernel.org/patch/1781291/
->>>>
->>>> You said that the bootmem allocator doesn't touch *highmem pages*, so highmem zones' managed_pages is set to the accurate value "spanned_pages - absent_pages" in function free_area_init_core() and won't be updated anymore. Why it doesn't touch *highmem pages*? Could you point out where you figure out this?
->>>>
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+CC: Michal Hocko <mhocko@suse.cz>
+CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Mel Gorman <mgorman@suse.de>
+CC: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/memcontrol.c | 64 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b8b363f..bfbf1c2 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4996,6 +4996,56 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+ 	return val << PAGE_SHIFT;
+ }
+ 
++static u64 memcg_read_root_rss(void)
++{
++	struct task_struct *p;
++
++	u64 rss = 0;
++	read_lock(&tasklist_lock);
++	for_each_process(p) {
++		if (!p->mm)
++			continue;
++		task_lock(p);
++		rss += get_mm_rss(p->mm);
++		task_unlock(p);
++	}
++	read_unlock(&tasklist_lock);
++	return rss;
++}
++
++static u64 mem_cgroup_read_root(enum res_type type, int name)
++{
++	if (name == RES_LIMIT)
++		return RESOURCE_MAX;
++	if (name == RES_SOFT_LIMIT)
++		return RESOURCE_MAX;
++	if (name == RES_FAILCNT)
++		return 0;
++	if (name == RES_MAX_USAGE)
++		return 0;
++
++	if (WARN_ON_ONCE(name != RES_USAGE))
++		return 0;
++
++	switch (type) {
++	case _MEM:
++		return (memcg_read_root_rss() +
++		atomic_long_read(&vm_stat[NR_FILE_PAGES])) << PAGE_SHIFT;
++	case _MEMSWAP: {
++		struct sysinfo i;
++		si_swapinfo(&i);
++
++		return ((memcg_read_root_rss() +
++		atomic_long_read(&vm_stat[NR_FILE_PAGES])) << PAGE_SHIFT) +
++		i.totalswap - i.freeswap;
++	}
++	case _KMEM:
++		return 0;
++	default:
++		BUG();
++	};
++}
++
+ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 			       struct file *file, char __user *buf,
+ 			       size_t nbytes, loff_t *ppos)
+@@ -5012,6 +5062,19 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 	if (!do_swap_account && type == _MEMSWAP)
+ 		return -EOPNOTSUPP;
+ 
++	/*
++	 * If we have root-level hierarchy, we can be certain that the charges
++	 * in root are always global. We can then bypass the root cgroup
++	 * entirely in this case, hopefuly leading to less contention in the
++	 * root res_counters. The charges presented after reading it will
++	 * always be the global charges.
++	 */
++	if (mem_cgroup_disabled() ||
++		(mem_cgroup_is_root(memcg) && memcg->use_hierarchy)) {
++		val = mem_cgroup_read_root(type, name);
++		goto root_bypass;
++	}
++
+ 	switch (type) {
+ 	case _MEM:
+ 		if (name == RES_USAGE)
+@@ -5032,6 +5095,7 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 		BUG();
+ 	}
+ 
++root_bypass:
+ 	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
+ 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
+ }
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
