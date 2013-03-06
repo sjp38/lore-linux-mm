@@ -1,78 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id C99646B0005
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 18:46:35 -0500 (EST)
-Received: by mail-ob0-f176.google.com with SMTP id v19so3040239obq.7
-        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 15:46:34 -0800 (PST)
-Message-ID: <513683D5.1080401@gmail.com>
-Date: Wed, 06 Mar 2013 07:46:29 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 27F916B0005
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 19:05:21 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3218C3EE0C3
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 09:05:19 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1848645DEC0
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 09:05:19 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D6E4B45DEBE
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 09:05:18 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C5CA81DB8041
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 09:05:18 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7ACB71DB803B
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 09:05:18 +0900 (JST)
+Message-ID: <51368824.7050601@jp.fujitsu.com>
+Date: Wed, 06 Mar 2013 09:04:52 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 001/002] mm: limit growth of 3% hardcoded other user
- reserve
-References: <20130305233811.GA1948@localhost.localdomain>
-In-Reply-To: <20130305233811.GA1948@localhost.localdomain>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH v2 1/5] memcg: make nocpu_base available for non hotplug
+References: <1362489058-3455-1-git-send-email-glommer@parallels.com> <1362489058-3455-2-git-send-email-glommer@parallels.com>
+In-Reply-To: <1362489058-3455-2-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Shewmaker <agshew@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, ric.masonn@gmail.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, handai.szj@gmail.com, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>
 
-On 03/06/2013 07:38 AM, Andrew Shewmaker wrote:
-> Limit the growth of the memory reserved for other processes
-> to the smaller of 3% or 8MB.
->
-> This affects only OVERCOMMIT_NEVER.
->
-> Signed-off-by: Andrew Shewmaker <agshew@gmail.com>
+(2013/03/05 22:10), Glauber Costa wrote:
+> We are using nocpu_base to accumulate charges on the main counters
+> during cpu hotplug. I have a similar need, which is transferring charges
+> to the root cgroup when lazily enabling memcg. Because system wide
+> information is not kept per-cpu, it is hard to distribute it. This field
+> works well for this. So we need to make it available for all usages, not
+> only hotplug cases.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Tejun Heo <tj@kernel.org>
 
-Please add changelog, otherwise it's for other guys to review.
+Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
 
->
+Hmm..comments on nocpu_base definition will be updated in later patch ?
+
 > ---
->
-> Rebased onto v3.8-mmotm-2013-03-01-15-50
->
-> No longer assumes 4kb pages.
-> Code duplicated for nommu.
->
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 49dc7d5..4eb2b1a 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -184,9 +184,11 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
->   	allowed += total_swap_pages;
+>   mm/memcontrol.c | 8 ++++----
+>   1 file changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 669d16a..b8b363f 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -921,11 +921,11 @@ static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
+>   	get_online_cpus();
+>   	for_each_online_cpu(cpu)
+>   		val += per_cpu(memcg->stat->count[idx], cpu);
+> -#ifdef CONFIG_HOTPLUG_CPU
+> +
+>   	spin_lock(&memcg->pcp_counter_lock);
+>   	val += memcg->nocpu_base.count[idx];
+>   	spin_unlock(&memcg->pcp_counter_lock);
+> -#endif
+> +
+>   	put_online_cpus();
+>   	return val;
+>   }
+> @@ -945,11 +945,11 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
 >   
->   	/* Don't let a single process grow too big:
-> -	   leave 3% of the size of this process for other processes */
-> +	 * leave the smaller of 3% of the size of this process
-> +         * or 8MB for other processes
-> +         */
->   	if (mm)
-> -		allowed -= mm->total_vm / 32;
-> +		allowed -= min(mm->total_vm / 32, 1 << (23 - PAGE_SHIFT));
+>   	for_each_online_cpu(cpu)
+>   		val += per_cpu(memcg->stat->events[idx], cpu);
+> -#ifdef CONFIG_HOTPLUG_CPU
+> +
+>   	spin_lock(&memcg->pcp_counter_lock);
+>   	val += memcg->nocpu_base.events[idx];
+>   	spin_unlock(&memcg->pcp_counter_lock);
+> -#endif
+> +
+>   	return val;
+>   }
 >   
->   	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
->   		return 0;
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index f5d57a3..a93d214 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -1945,9 +1945,11 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
->   	allowed += total_swap_pages;
->   
->   	/* Don't let a single process grow too big:
-> -	   leave 3% of the size of this process for other processes */
-> +	 * leave the smaller of 3% of the size of this process
-> +         * or 8MB for other processes
-> +         */
->   	if (mm)
-> -		allowed -= mm->total_vm / 32;
-> +		allowed -= min(mm->total_vm / 32, 1 << (23 - PAGE_SHIFT));
->   
->   	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
->   		return 0;
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
