@@ -1,99 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id A09DA6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 03:47:45 -0500 (EST)
-Received: by mail-ve0-f180.google.com with SMTP id jx10so6529974veb.11
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2013 00:47:44 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
-References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
-Date: Wed, 6 Mar 2013 17:47:44 +0900
-Message-ID: <CAEwNFnBQS+Lem9bNWWngTjOgC5OpF8U=rw8e9zfvZdF8a7iONA@mail.gmail.com>
-Subject: Re: [RFC/PATCH 0/5] Contiguous Memory Allocator and get_user_pages()
-From: Minchan Kim <minchan@kernel.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id D52C56B0005
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 03:51:44 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id wy12so5682981pbc.35
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2013 00:51:44 -0800 (PST)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH V2 01/11] mm: frontswap: lazy initialization to allow tmem backends to build/run as modules
+Date: Wed,  6 Mar 2013 16:51:20 +0800
+Message-Id: <1362559890-16710-1-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: linux-mm@kvack.org
+Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, rcj@linux.vnet.ibm.com, ngupta@vflare.org, minchan@kernel.org, ric.masonn@gmail.com, Stefan Hengelein <ilendir@googlemail.com>, Florian Schmaus <fschmaus@gmail.com>, Andor Daam <andor.daam@googlemail.com>, Bob Liu <lliubbo@gmail.com>
 
-Hello,
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
 
-On Tue, Mar 5, 2013 at 3:57 PM, Marek Szyprowski
-<m.szyprowski@samsung.com> wrote:
-> Hello,
->
-> Contiguous Memory Allocator is very sensitive about migration failures
-> of the individual pages. A single page, which causes permanent migration
-> failure can break large conitguous allocations and cause the failure of
-> a multimedia device driver.
->
-> One of the known issues with migration of CMA pages are the problems of
-> migrating the anonymous user pages, for which the others called
-> get_user_pages(). This takes a reference to the given user pages to let
-> kernel to operate directly on the page content. This is usually used for
-> preventing swaping out the page contents and doing direct DMA to/from
-> userspace.
->
-> To solving this issue requires preventing locking of the pages, which
-> are placed in CMA regions, for a long time. Our idea is to migrate
-> anonymous page content before locking the page in get_user_pages(). This
-> cannot be done automatically, as get_user_pages() interface is used very
-> often for various operations, which usually last for a short period of
-> time (like for example exec syscall). We have added a new flag
-> indicating that the given get_user_space() call will grab pages for a
-> long time, thus it is suitable to use the migration workaround in such
-> cases.
->
-> The proposed extensions is used by V4L2/VideoBuf2
-> (drivers/media/v4l2-core/videobuf2-dma-contig.c), but that is not the
-> only place which might benefit from it, like any driver which use DMA to
-> userspace with get_user_pages(). This one is provided to demonstrate the
-> use case.
->
-> I would like to hear some comments on the presented approach. What do
-> you think about it? Is there a chance to get such workaround merged at
-> some point to mainline?
->
+With the goal of allowing tmem backends (zcache, ramster, Xen tmem) to be
+built/loaded as modules rather than built-in and enabled by a boot parameter,
+this patch provides "lazy initialization", allowing backends to register to
+frontswap even after swapon was run. Before a backend registers all calls
+to init are recorded and the creation of tmem_pools delayed until a backend
+registers or until a frontswap store is attempted.
 
-I discussed similar patch from memory-hotplug guys with Mel.
-Look at http://marc.info/?l=linux-mm&m=136014458829566&w=2
+Signed-off-by: Stefan Hengelein <ilendir@googlemail.com>
+Signed-off-by: Florian Schmaus <fschmaus@gmail.com>
+Signed-off-by: Andor Daam <andor.daam@googlemail.com>
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+[v1: Fixes per Seth Jennings suggestions]
+[v2: Removed FRONTSWAP_HAS_.. ]
+[v3: Fix up per Bob Liu <lliubbo@gmail.com> recommendations]
+[v4: Fix up per Andrew's comments]
+Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/frontswap.c |   94 ++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 84 insertions(+), 10 deletions(-)
 
-The conern is that we ends up forcing using FOLL_DURABLE/GUP_NM for
-all drivers and subsystems for making sure CMA/memory-hotplug works
-well.
-
-You mentioned driver grab a page for a long time should use
-FOLL_DURABLE flag but "for a long time" is very ambiguous. For
-example, there is a driver
-
-get_user_pages()
-some operation.
-put_pages
-
-You can make sure some operation is really fast always?
-For example, what if it depends on other event which is normally very
-fast but quite slow once a week or try to do dynamic memory allocation
-but memory pressure is severe?
-
-For 100% working well, at last we need to change all GUP user with
-GUP_NM or your FOLL_DURABLE whatever but the concern Mel pointed out
-is it could cause lowmem exhaustion problem.
-
-At the moment, there is other problem against migratoin, which are not
-related with your patch. ex, zcache, zram, zswap. Their pages couldn't
-be migrated out so I think below Mel's suggestion or some generic
-infrastructure can move pinned page is  more proper way to go.
-
-"To guarantee CMA can migrate pages pinned by drivers I think you need
-migrate-related callsbacks to unpin, barrier the driver until migration
-completes and repin."
-
-Thanks.
-
+diff --git a/mm/frontswap.c b/mm/frontswap.c
+index 2890e67..cbd2b8a 100644
+--- a/mm/frontswap.c
++++ b/mm/frontswap.c
+@@ -80,6 +80,46 @@ static inline void inc_frontswap_succ_stores(void) { }
+ static inline void inc_frontswap_failed_stores(void) { }
+ static inline void inc_frontswap_invalidates(void) { }
+ #endif
++
++/*
++ * Due to the asynchronous nature of the backends loading potentially
++ * _after_ the swap system has been activated, we have chokepoints
++ * on all frontswap functions to not call the backend until the backend
++ * has registered.
++ *
++ * Specifically when no backend is registered (nobody called
++ * frontswap_register_ops) all calls to frontswap_init (which is done via
++ * swapon -> enable_swap_info -> frontswap_init) are registered and remembered
++ * (via the setting of need_init bitmap) but fail to create tmem_pools. When a
++ * backend registers with frontswap at some later point the previous
++ * calls to frontswap_init are executed (by iterating over the need_init
++ * bitmap) to create tmem_pools and set the respective poolids. All of that is
++ * guarded by us using atomic bit operations on the 'need_init' bitmap.
++ *
++ * This would not guards us against the user deciding to call swapoff right as
++ * we are calling the backend to initialize (so swapon is in action).
++ * Fortunatly for us, the swapon_mutex has been taked by the callee so we are
++ * OK. The other scenario where calls to frontswap_store (called via
++ * swap_writepage) is racing with frontswap_invalidate_area (called via
++ * swapoff) is again guarded by the swap subsystem.
++ *
++ * While no backend is registered all calls to frontswap_[store|load|
++ * invalidate_area|invalidate_page] are ignored or fail.
++ *
++ * The time between the backend being registered and the swap file system
++ * calling the backend (via the frontswap_* functions) is indeterminate as
++ * backend_registered is not atomic_t (or a value guarded by a spinlock).
++ * That is OK as we are comfortable missing some of these calls to the newly
++ * registered backend.
++ *
++ * Obviously the opposite (unloading the backend) must be done after all
++ * the frontswap_[store|load|invalidate_area|invalidate_page] start
++ * ignorning or failing the requests - at which point backend_registered
++ * would have to be made in some fashion atomic.
++ */
++static DECLARE_BITMAP(need_init, MAX_SWAPFILES);
++static bool backend_registered __read_mostly;
++
+ /*
+  * Register operations for frontswap, returning previous thus allowing
+  * detection of multiple backends and possible nesting.
+@@ -87,9 +127,22 @@ static inline void inc_frontswap_invalidates(void) { }
+ struct frontswap_ops frontswap_register_ops(struct frontswap_ops *ops)
+ {
+ 	struct frontswap_ops old = frontswap_ops;
++	int i;
+ 
+ 	frontswap_ops = *ops;
+ 	frontswap_enabled = true;
++
++	for (i = 0; i < MAX_SWAPFILES; i++) {
++		if (test_and_clear_bit(i, need_init))
++			(*frontswap_ops.init)(i);
++	}
++	/*
++	 * We MUST have backend_registered set _after_ the frontswap_init's
++	 * have been called. Otherwise __frontswap_store might fail. Hence
++	 * the barrier to make sure compiler does not re-order us.
++	 */
++	barrier();
++	backend_registered = true;
+ 	return old;
+ }
+ EXPORT_SYMBOL(frontswap_register_ops);
+@@ -119,10 +172,16 @@ void __frontswap_init(unsigned type)
+ {
+ 	struct swap_info_struct *sis = swap_info[type];
+ 
+-	BUG_ON(sis == NULL);
+-	if (sis->frontswap_map == NULL)
+-		return;
+-	frontswap_ops.init(type);
++	if (backend_registered) {
++		BUG_ON(sis == NULL);
++		if (sis->frontswap_map == NULL)
++			return;
++		(*frontswap_ops.init)(type);
++	} else {
++		BUG_ON(type > MAX_SWAPFILES);
++		set_bit(type, need_init);
++	}
++
+ }
+ EXPORT_SYMBOL(__frontswap_init);
+ 
+@@ -147,6 +206,11 @@ int __frontswap_store(struct page *page)
+ 	struct swap_info_struct *sis = swap_info[type];
+ 	pgoff_t offset = swp_offset(entry);
+ 
++	if (!backend_registered) {
++		inc_frontswap_failed_stores();
++		return ret;
++	}
++
+ 	BUG_ON(!PageLocked(page));
+ 	BUG_ON(sis == NULL);
+ 	if (frontswap_test(sis, offset))
+@@ -186,6 +250,9 @@ int __frontswap_load(struct page *page)
+ 	struct swap_info_struct *sis = swap_info[type];
+ 	pgoff_t offset = swp_offset(entry);
+ 
++	if (!backend_registered)
++		return ret;
++
+ 	BUG_ON(!PageLocked(page));
+ 	BUG_ON(sis == NULL);
+ 	if (frontswap_test(sis, offset))
+@@ -209,6 +276,9 @@ void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
+ {
+ 	struct swap_info_struct *sis = swap_info[type];
+ 
++	if (!backend_registered)
++		return;
++
+ 	BUG_ON(sis == NULL);
+ 	if (frontswap_test(sis, offset)) {
+ 		frontswap_ops.invalidate_page(type, offset);
+@@ -226,12 +296,15 @@ void __frontswap_invalidate_area(unsigned type)
+ {
+ 	struct swap_info_struct *sis = swap_info[type];
+ 
+-	BUG_ON(sis == NULL);
+-	if (sis->frontswap_map == NULL)
+-		return;
+-	frontswap_ops.invalidate_area(type);
+-	atomic_set(&sis->frontswap_pages, 0);
+-	memset(sis->frontswap_map, 0, sis->max / sizeof(long));
++	if (backend_registered) {
++		BUG_ON(sis == NULL);
++		if (sis->frontswap_map == NULL)
++			return;
++		(*frontswap_ops.invalidate_area)(type);
++		atomic_set(&sis->frontswap_pages, 0);
++		memset(sis->frontswap_map, 0, sis->max / sizeof(long));
++	}
++	clear_bit(type, need_init);
+ }
+ EXPORT_SYMBOL(__frontswap_invalidate_area);
+ 
+@@ -364,6 +437,7 @@ static int __init init_frontswap(void)
+ 	debugfs_create_u64("invalidates", S_IRUGO,
+ 				root, &frontswap_invalidates);
+ #endif
++	frontswap_enabled = 1;
+ 	return 0;
+ }
+ 
 -- 
-Kind regards,
-Minchan Kim
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
