@@ -1,68 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 002856B0005
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 00:03:22 -0500 (EST)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 6 Mar 2013 10:31:09 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 83BE5E004A
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 10:34:31 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2653Eug25886746
-	for <linux-mm@kvack.org>; Wed, 6 Mar 2013 10:33:14 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2653Hcb023806
-	for <linux-mm@kvack.org>; Wed, 6 Mar 2013 16:03:17 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V1 06/24] powerpc: Reduce PTE table memory wastage
-In-Reply-To: <20130305021219.GC2888@iris.ozlabs.ibm.com>
-References: <1361865914-13911-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1361865914-13911-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130304045853.GB27523@drongo> <874ngr2zz1.fsf@linux.vnet.ibm.com> <20130305021219.GC2888@iris.ozlabs.ibm.com>
-Date: Wed, 06 Mar 2013 10:33:16 +0530
-Message-ID: <877gll86i3.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 6F5CB6B0006
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 00:05:48 -0500 (EST)
+Received: by mail-ia0-f169.google.com with SMTP id j5so7127760iaf.28
+        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 21:05:47 -0800 (PST)
+Date: Tue, 5 Mar 2013 21:05:10 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 2/7] ksm: treat unstable nid like in stable tree
+In-Reply-To: <5136ABEE.8000501@gmail.com>
+Message-ID: <alpine.LNX.2.00.1303052031320.29433@eggly.anvils>
+References: <alpine.LNX.2.00.1302210013120.17843@eggly.anvils> <alpine.LNX.2.00.1302210019390.17843@eggly.anvils> <51271A7D.6020305@gmail.com> <alpine.LNX.2.00.1302221250440.6100@eggly.anvils> <51303CAB.3080406@gmail.com> <alpine.LNX.2.00.1303011139270.7398@eggly.anvils>
+ <51315174.4020200@gmail.com> <alpine.LNX.2.00.1303011833490.23290@eggly.anvils> <5136ABEE.8000501@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mackerras <paulus@samba.org>
-Cc: benh@kernel.crashing.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Paul Mackerras <paulus@samba.org> writes:
+On Wed, 6 Mar 2013, Ric Mason wrote:
+[ I've deleted the context because that was about the unstable tree,
+  and here you have moved to asking about a case in the stable tree. ]
+> 
+> For the case of a ksm page is migrated to a different NUMA node and migrate
+> its stable node to  the right tree and collide with an existing stable node.
+> get_kpfn_nid(stable_node->kpfn) != NUMA(stable_node->nid) can capture nothing
 
-> On Mon, Mar 04, 2013 at 04:28:42PM +0530, Aneesh Kumar K.V wrote:
->> The last one that ends up doing atomic_xor_bits which cause the mapcount
->> to go zero, will take the page off the list and free the page. 
->
-> No, look at the example again.  page_table_free_rcu() won't take it
-> off the list because it uses the (mask & FRAG_MASK) == 0 test, which
-> fails (one fragment is still in use).  page_table_free() won't take it
-> off the list because it uses the mask == 0 test, which also fails (one
-> fragment is still waiting for the RCU grace period).  Finally,
-> __page_table_free_rcu() doesn't take it off the list, it just frees
-> the page.  Oops. :)
+That's not so: as I've pointed out before, ksm_migrate_page() updates
+stable_node->kpfn for the new page on the new NUMA node; but it cannot
+(get the right locking to) move the stable_node to its new tree at that time.
 
+It's moved out once ksmd notices that it's in the wrong NUMA node tree -
+perhaps when one its rmap_items reaches the head of cmp_and_merge_page(),
+or perhaps here in stable_tree_search() when it matches another page
+coming in to cmp_and_merge_page().
 
-How about the below
+You may be concentrating on the case when that "another page" is a ksm
+page migrated from a different NUMA node; and overlooking the case of
+when the matching ksm page in this stable tree has itself been migrated.
 
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -425,7 +425,7 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
-        bit = 1 << ((__pa(table) & ~PAGE_MASK) / PTE_FRAG_SIZE);
-        spin_lock(&mm->page_table_lock);
-        mask = atomic_xor_bits(&page->_mapcount, bit);
--       if (mask == 0)
-+       if (!(mask & FRAG_MASK))
-                list_del(&page->lru);
-        else if (mask & FRAG_MASK) {
-                /*
-@@ -446,7 +446,7 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
+> since stable_node is the node in the right stable tree, nothing happen to it
+> before this check. Did you intend to check get_kpfn_nid(page_node->kpfn) !=
+> NUMA(page_node->nid) ?
 
+Certainly not: page_node is usually NULL.  But I could have checked
+get_kpfn_nid(stable_node->kpfn) != nid: I was duplicating the test
+from cmp_and_merge_page(), but here we do have local variable nid.
 
-ie, we always remove the page from the list, when the lower half is
-zero or lower half is FRAG_MASK.  We free the page when _mapcount is 0.
-
--aneesh
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
