@@ -1,116 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id A2D8C6B003B
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 10:52:58 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 6 Mar 2013 10:52:55 -0500
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 3A14A6E8074
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 10:52:49 -0500 (EST)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r26Fqdh659965652
-	for <linux-mm@kvack.org>; Wed, 6 Mar 2013 10:52:39 -0500
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r26FqYwj018611
-	for <linux-mm@kvack.org>; Wed, 6 Mar 2013 08:52:35 -0700
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCHv7 2/8] zsmalloc: add documentation
-Date: Wed,  6 Mar 2013 09:52:17 -0600
-Message-Id: <1362585143-6482-3-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <1362585143-6482-1-git-send-email-sjenning@linux.vnet.ibm.com>
-References: <1362585143-6482-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 566766B0005
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 10:56:58 -0500 (EST)
+Received: by mail-pb0-f45.google.com with SMTP id ro8so6176256pbb.18
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2013 07:56:57 -0800 (PST)
+Message-ID: <5137673F.4030801@gmail.com>
+Date: Wed, 06 Mar 2013 23:56:47 +0800
+From: Jiang Liu <liuj97@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH v1 22/33] mm/SPARC: use common help functions to free
+ reserved pages
+References: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com> <1362495317-32682-23-git-send-email-jiang.liu@huawei.com> <20130305195845.GB12225@merkur.ravnborg.org>
+In-Reply-To: <20130305195845.GB12225@merkur.ravnborg.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>
 
-This patch adds a documentation file for zsmalloc at
-Documentation/vm/zsmalloc.txt
+Hi Sam,
+	Thanks for review!
 
-Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
----
- Documentation/vm/zsmalloc.txt | 68 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 68 insertions(+)
- create mode 100644 Documentation/vm/zsmalloc.txt
+On 03/06/2013 03:58 AM, Sam Ravnborg wrote:
+> On Tue, Mar 05, 2013 at 10:55:05PM +0800, Jiang Liu wrote:
+>> Use common help functions to free reserved pages.
+> 
+> I like how this simplify things!
+> 
+> Please consider how you can also cover the HIGHMEM case,
+> so map_high_region(...) is simplified too (in init_32.c).
+> 
+>>
+>> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+>> Cc: "David S. Miller" <davem@davemloft.net>
+>> Cc: Sam Ravnborg <sam@ravnborg.org>
+>> ---
+>>  arch/sparc/kernel/leon_smp.c |   15 +++------------
+>>  arch/sparc/mm/init_32.c      |   40 ++++++----------------------------------
+>>  arch/sparc/mm/init_64.c      |   25 ++++---------------------
+>>  3 files changed, 13 insertions(+), 67 deletions(-)
+>>
+>> diff --git a/arch/sparc/mm/init_32.c b/arch/sparc/mm/init_32.c
+>> index 48e0c03..2a7b6eb 100644
+>> --- a/arch/sparc/mm/init_32.c
+>> +++ b/arch/sparc/mm/init_32.c
+>> @@ -374,45 +374,17 @@ void __init mem_init(void)
+>>  
+>>  void free_initmem (void)
+>>  {
+>> -	unsigned long addr;
+>> -	unsigned long freed;
+>> -
+>> -	addr = (unsigned long)(&__init_begin);
+>> -	freed = (unsigned long)(&__init_end) - addr;
+>> -	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
+>> -		struct page *p;
+>> -
+>> -		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
+>> -		p = virt_to_page(addr);
+>> -
+>> -		ClearPageReserved(p);
+>> -		init_page_count(p);
+>> -		__free_page(p);
+>> -		totalram_pages++;
+>> -		num_physpages++;
+>> -	}
+>> -	printk(KERN_INFO "Freeing unused kernel memory: %ldk freed\n",
+>> -		freed >> 10);
+>> +	num_physpages += free_reserved_area((unsigned long)(&__init_begin),
+>> +					    (unsigned long)(&__init_end),
+>> +					    POISON_FREE_INITMEM,
+>> +					    "unused kernel");
+> If you change free_initmem_default(...) to return number of pages freed this
+> could have been used here.
+Good suggestion, will make that change.
 
-diff --git a/Documentation/vm/zsmalloc.txt b/Documentation/vm/zsmalloc.txt
-new file mode 100644
-index 0000000..85aa617
---- /dev/null
-+++ b/Documentation/vm/zsmalloc.txt
-@@ -0,0 +1,68 @@
-+zsmalloc Memory Allocator
-+
-+Overview
-+
-+zmalloc a new slab-based memory allocator,
-+zsmalloc, for storing compressed pages.  It is designed for
-+low fragmentation and high allocation success rate on
-+large object, but <= PAGE_SIZE allocations.
-+
-+zsmalloc differs from the kernel slab allocator in two primary
-+ways to achieve these design goals.
-+
-+zsmalloc never requires high order page allocations to back
-+slabs, or "size classes" in zsmalloc terms. Instead it allows
-+multiple single-order pages to be stitched together into a
-+"zspage" which backs the slab.  This allows for higher allocation
-+success rate under memory pressure.
-+
-+Also, zsmalloc allows objects to span page boundaries within the
-+zspage.  This allows for lower fragmentation than could be had
-+with the kernel slab allocator for objects between PAGE_SIZE/2
-+and PAGE_SIZE.  With the kernel slab allocator, if a page compresses
-+to 60% of it original size, the memory savings gained through
-+compression is lost in fragmentation because another object of
-+the same size can't be stored in the leftover space.
-+
-+This ability to span pages results in zsmalloc allocations not being
-+directly addressable by the user.  The user is given an
-+non-dereferencable handle in response to an allocation request.
-+That handle must be mapped, using zs_map_object(), which returns
-+a pointer to the mapped region that can be used.  The mapping is
-+necessary since the object data may reside in two different
-+noncontigious pages.
-+
-+For 32-bit systems, zsmalloc has the added benefit of being
-+able to back slabs with HIGHMEM pages, something not possible
-+with the kernel slab allocators (SLAB or SLUB).
-+
-+Usage:
-+
-+#include <linux/zsmalloc.h>
-+
-+/* create a new pool */
-+struct zs_pool *pool = zs_create_pool("mypool", GFP_KERNEL);
-+
-+/* allocate a 256 byte object */
-+unsigned long handle = zs_malloc(pool, 256);
-+
-+/*
-+ * Map the object to get a dereferenceable pointer in "read-write mode"
-+ * (see zsmalloc.h for additional modes)
-+ */
-+void *ptr = zs_map_object(pool, handle, ZS_MM_RW);
-+
-+/* do something with ptr */
-+
-+/*
-+ * Unmap the object when done dealing with it. You should try to
-+ * minimize the time for which the object is mapped since preemption
-+ * is disabled during the mapped period.
-+ */
-+zs_unmap_object(pool, handle);
-+
-+/* free the object */
-+zs_free(pool, handle);
-+
-+/* destroy the pool */
-+zs_destroy_pool(pool); 
--- 
-1.8.1.5
+> 
+>>  }
+>>  
+>>  #ifdef CONFIG_BLK_DEV_INITRD
+>>  void free_initrd_mem(unsigned long start, unsigned long end)
+>>  {
+>> -	if (start < end)
+>> -		printk(KERN_INFO "Freeing initrd memory: %ldk freed\n",
+>> -			(end - start) >> 10);
+>> -	for (; start < end; start += PAGE_SIZE) {
+>> -		struct page *p;
+>> -
+>> -		memset((void *)start, POISON_FREE_INITMEM, PAGE_SIZE);
+>> -		p = virt_to_page(start);
+>> -
+>> -		ClearPageReserved(p);
+>> -		init_page_count(p);
+>> -		__free_page(p);
+>> -		totalram_pages++;
+>> -		num_physpages++;
+>> -	}
+>> +	num_physpages += free_reserved_area(start, end, POISON_FREE_INITMEM,
+>> +					    "initrd");
+>>  }
+>>  #endif
+>>  
+>> diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+>> index 1588d33..03bfd10 100644
+>> --- a/arch/sparc/mm/init_64.c
+>> +++ b/arch/sparc/mm/init_64.c
+>> @@ -2060,8 +2060,7 @@ void __init mem_init(void)
+>>  	/* We subtract one to account for the mem_map_zero page
+>>  	 * allocated below.
+>>  	 */
+>> -	totalram_pages -= 1;
+>> -	num_physpages = totalram_pages;
+>> +	num_physpages = totalram_pages - 1;
+>>  
+>>  	/*
+>>  	 * Set up the zero page, mark it reserved, so that page count
+>> @@ -2072,7 +2071,7 @@ void __init mem_init(void)
+>>  		prom_printf("paging_init: Cannot alloc zero page.\n");
+>>  		prom_halt();
+>>  	}
+>> -	SetPageReserved(mem_map_zero);
+>> +	mark_page_reserved(mem_map_zero);
+>>  
+>>  	codepages = (((unsigned long) _etext) - ((unsigned long) _start));
+>>  	codepages = PAGE_ALIGN(codepages) >> PAGE_SHIFT;
+>> @@ -2112,7 +2111,6 @@ void free_initmem(void)
+>>  	initend = (unsigned long)(__init_end) & PAGE_MASK;
+>>  	for (; addr < initend; addr += PAGE_SIZE) {
+>>  		unsigned long page;
+>> -		struct page *p;
+>>  
+>>  		page = (addr +
+>>  			((unsigned long) __va(kern_base)) -
+>> @@ -2120,13 +2118,8 @@ void free_initmem(void)
+>>  		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
+>>  
+>>  		if (do_free) {
+>> -			p = virt_to_page(page);
+>> -
+>> -			ClearPageReserved(p);
+>> -			init_page_count(p);
+>> -			__free_page(p);
+>> +			free_reserved_page(virt_to_page(page));
+>>  			num_physpages++;
+>> -			totalram_pages++;
+>>  		}
+>>  	}
+>>  }
+>> @@ -2134,17 +2127,7 @@ void free_initmem(void)
+>>  #ifdef CONFIG_BLK_DEV_INITRD
+>>  void free_initrd_mem(unsigned long start, unsigned long end)
+>>  {
+>> -	if (start < end)
+>> -		printk ("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
+>> -	for (; start < end; start += PAGE_SIZE) {
+>> -		struct page *p = virt_to_page(start);
+>> -
+>> -		ClearPageReserved(p);
+>> -		init_page_count(p);
+>> -		__free_page(p);
+>> -		num_physpages++;
+>> -		totalram_pages++;
+>> -	}
+>> +	num_physpages += free_reserved_area(start, end, 0, "initrd");
+> 
+> Please add poison POISON_FREE_INITMEM here. I know this was not done before.
+Sure, will make it.
+
+> 
+> 	Sam
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
