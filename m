@@ -1,214 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 3BB1C6B0035
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 03:52:04 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id rr4so5672945pbb.41
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2013 00:52:03 -0800 (PST)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 124326B0036
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 03:52:14 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so5666046pbc.24
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2013 00:52:13 -0800 (PST)
 From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH V2 03/11] mm: frontswap: cleanup code
-Date: Wed,  6 Mar 2013 16:51:22 +0800
-Message-Id: <1362559890-16710-3-git-send-email-lliubbo@gmail.com>
+Subject: [PATCH V2 04/11] frontswap: Get rid of swap_lock dependency
+Date: Wed,  6 Mar 2013 16:51:23 +0800
+Message-Id: <1362559890-16710-4-git-send-email-lliubbo@gmail.com>
 In-Reply-To: <1362559890-16710-1-git-send-email-lliubbo@gmail.com>
 References: <1362559890-16710-1-git-send-email-lliubbo@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, rcj@linux.vnet.ibm.com, ngupta@vflare.org, minchan@kernel.org, ric.masonn@gmail.com, Bob Liu <lliubbo@gmail.com>
+Cc: dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, rcj@linux.vnet.ibm.com, ngupta@vflare.org, minchan@kernel.org, ric.masonn@gmail.com, Konrad Rzeszutek Wilk <konrad@darnok.org>, Bob Liu <lliubbo@gmail.com>
 
-After allowing tmem backends to build/run as modules, frontswap_enabled always
-true if defined CONFIG_FRONTSWAP.
-But frontswap_test() depends on whether backend is registered, mv it into
-frontswap.c using fronstswap_ops to make the decision.
+From: Minchan Kim <minchan@kernel.org>
 
-frontswap_set/clear are not used outside frontswap, so don't export them.
+Frontswap initialization routine depends on swap_lock, which want
+to be atomic about frontswap's first appearance.
+IOW, frontswap is not present and will fail all calls OR frontswap is
+fully functional but if new swap_info_struct isn't registered
+by enable_swap_info, swap subsystem doesn't start I/O so there is no
+race
+between init procedure and page I/O working on frontswap.
 
+So let's remove unnecessary swap_lock dependency.
+
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+[v1: Rebased on my branch, reworked to work with backends loading late]
+[v2: Added a check for !map]
+[v3: Made the invalidate path follow the init path]
+[v4: Address comments by Wanpeng Li <liwanp@linux.vnet.ibm.com>]
+Signed-off-by: Konrad Rzeszutek Wilk <konrad@darnok.org>
 Signed-off-by: Bob Liu <lliubbo@gmail.com>
 ---
- include/linux/frontswap.h |   28 +++-------------------
- mm/frontswap.c            |   57 ++++++++++++++++++++++++---------------------
- 2 files changed, 33 insertions(+), 52 deletions(-)
+ include/linux/frontswap.h |    6 +++---
+ mm/frontswap.c            |   31 +++++++++++++++++++++++--------
+ mm/swapfile.c             |   18 +++++++++---------
+ 3 files changed, 35 insertions(+), 20 deletions(-)
 
 diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
-index d4f2987..6c49e1e 100644
+index 6c49e1e..8293262 100644
 --- a/include/linux/frontswap.h
 +++ b/include/linux/frontswap.h
-@@ -22,6 +22,7 @@ extern void frontswap_writethrough(bool);
- #define FRONTSWAP_HAS_EXCLUSIVE_GETS
+@@ -23,7 +23,7 @@ extern void frontswap_writethrough(bool);
  extern void frontswap_tmem_exclusive_gets(bool);
  
-+extern bool __frontswap_test(struct swap_info_struct *, pgoff_t);
- extern void __frontswap_init(unsigned type);
+ extern bool __frontswap_test(struct swap_info_struct *, pgoff_t);
+-extern void __frontswap_init(unsigned type);
++extern void __frontswap_init(unsigned type, unsigned long *map);
  extern int __frontswap_store(struct page *page);
  extern int __frontswap_load(struct page *page);
-@@ -29,26 +30,11 @@ extern void __frontswap_invalidate_page(unsigned, pgoff_t);
- extern void __frontswap_invalidate_area(unsigned);
- 
- #ifdef CONFIG_FRONTSWAP
-+#define frontswap_enabled (1)
- 
- static inline bool frontswap_test(struct swap_info_struct *sis, pgoff_t offset)
- {
--	bool ret = false;
--
--	if (frontswap_enabled && sis->frontswap_map)
--		ret = test_bit(offset, sis->frontswap_map);
--	return ret;
--}
--
--static inline void frontswap_set(struct swap_info_struct *sis, pgoff_t offset)
--{
--	if (frontswap_enabled && sis->frontswap_map)
--		set_bit(offset, sis->frontswap_map);
--}
--
--static inline void frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
--{
--	if (frontswap_enabled && sis->frontswap_map)
--		clear_bit(offset, sis->frontswap_map);
-+	return __frontswap_test(sis, offset);
+ extern void __frontswap_invalidate_page(unsigned, pgoff_t);
+@@ -98,10 +98,10 @@ static inline void frontswap_invalidate_area(unsigned type)
+ 		__frontswap_invalidate_area(type);
  }
  
- static inline void frontswap_map_set(struct swap_info_struct *p,
-@@ -71,14 +57,6 @@ static inline bool frontswap_test(struct swap_info_struct *sis, pgoff_t offset)
- 	return false;
+-static inline void frontswap_init(unsigned type)
++static inline void frontswap_init(unsigned type, unsigned long *map)
+ {
+ 	if (frontswap_enabled)
+-		__frontswap_init(type);
++		__frontswap_init(type, map);
  }
  
--static inline void frontswap_set(struct swap_info_struct *sis, pgoff_t offset)
--{
--}
--
--static inline void frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
--{
--}
--
- static inline void frontswap_map_set(struct swap_info_struct *p,
- 				     unsigned long *map)
- {
+ #endif /* _LINUX_FRONTSWAP_H */
 diff --git a/mm/frontswap.c b/mm/frontswap.c
-index e44c9cb..2760b0f 100644
+index 2760b0f..538367e 100644
 --- a/mm/frontswap.c
 +++ b/mm/frontswap.c
-@@ -27,14 +27,6 @@
- static struct frontswap_ops *frontswap_ops __read_mostly;
- 
- /*
-- * This global enablement flag reduces overhead on systems where frontswap_ops
-- * has not been registered, so is preferred to the slower alternative: a
-- * function call that checks a non-global.
-- */
--bool frontswap_enabled __read_mostly;
--EXPORT_SYMBOL(frontswap_enabled);
--
--/*
-  * If enabled, frontswap_store will return failure even on success.  As
-  * a result, the swap subsystem will always write the page to swap, in
-  * effect converting frontswap into a writethrough cache.  In this mode,
-@@ -128,8 +120,6 @@ struct frontswap_ops *frontswap_register_ops(struct frontswap_ops *ops)
- 	struct frontswap_ops *old = frontswap_ops;
+@@ -121,8 +121,13 @@ struct frontswap_ops *frontswap_register_ops(struct frontswap_ops *ops)
  	int i;
  
--	frontswap_enabled = true;
--
  	for (i = 0; i < MAX_SWAPFILES; i++) {
- 		if (test_and_clear_bit(i, need_init))
+-		if (test_and_clear_bit(i, need_init))
++		if (test_and_clear_bit(i, need_init)) {
++			struct swap_info_struct *sis = swap_info[i];
++			/* __frontswap_init _should_ have set it! */
++			if (!sis->frontswap_map)
++				return ERR_PTR(-EINVAL);
  			ops->init(i);
-@@ -183,9 +173,21 @@ void __frontswap_init(unsigned type)
++		}
+ 	}
+ 	/*
+ 	 * We MUST have frontswap_ops set _after_ the frontswap_init's
+@@ -156,20 +161,30 @@ EXPORT_SYMBOL(frontswap_tmem_exclusive_gets);
+ /*
+  * Called when a swap device is swapon'd.
+  */
+-void __frontswap_init(unsigned type)
++void __frontswap_init(unsigned type, unsigned long *map)
+ {
+ 	struct swap_info_struct *sis = swap_info[type];
+ 
+-	if (frontswap_ops) {
+-		BUG_ON(sis == NULL);
+-		if (sis->frontswap_map == NULL)
+-			return;
++	BUG_ON(sis == NULL);
++
++	/*
++	 * p->frontswap is a bitmap that we MUST have to figure out which page
++	 * has gone in frontswap. Without it there is no point of continuing.
++	 */
++	if (WARN_ON(!map))
++		return;
++	/*
++	 * Irregardless of whether the frontswap backend has been loaded
++	 * before this function or it will be later, we _MUST_ have the
++	 * p->frontswap set to something valid to work properly.
++	 */
++	frontswap_map_set(sis, map);
++	if (frontswap_ops)
+ 		frontswap_ops->init(type);
+-	} else {
++	else {
+ 		BUG_ON(type > MAX_SWAPFILES);
+ 		set_bit(type, need_init);
+ 	}
+-
  }
  EXPORT_SYMBOL(__frontswap_init);
  
--static inline void __frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
-+bool __frontswap_test(struct swap_info_struct *sis,
-+				pgoff_t offset)
-+{
-+	bool ret = false;
-+
-+	if (frontswap_ops && sis->frontswap_map)
-+		ret = test_bit(offset, sis->frontswap_map);
-+	return ret;
-+}
-+EXPORT_SYMBOL(__frontswap_test);
-+
-+static inline void __frontswap_clear(struct swap_info_struct *sis,
-+				pgoff_t offset)
- {
--	frontswap_clear(sis, offset);
-+	clear_bit(offset, sis->frontswap_map);
- 	atomic_dec(&sis->frontswap_pages);
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index e97a0e5..086c287 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1444,8 +1444,7 @@ static int setup_swap_extents(struct swap_info_struct *sis, sector_t *span)
  }
  
-@@ -204,18 +206,20 @@ int __frontswap_store(struct page *page)
- 	struct swap_info_struct *sis = swap_info[type];
- 	pgoff_t offset = swp_offset(entry);
- 
--	if (!frontswap_ops) {
--		inc_frontswap_failed_stores();
-+	/*
-+	 * Return if no backend registed.
-+	 * Don't need to inc frontswap_failed_stores here.
-+	 */
-+	if (!frontswap_ops)
- 		return ret;
--	}
- 
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(sis == NULL);
--	if (frontswap_test(sis, offset))
-+	if (__frontswap_test(sis, offset))
- 		dup = 1;
- 	ret = frontswap_ops->store(type, offset, page);
- 	if (ret == 0) {
--		frontswap_set(sis, offset);
-+		set_bit(offset, sis->frontswap_map);
- 		inc_frontswap_succ_stores();
- 		if (!dup)
- 			atomic_inc(&sis->frontswap_pages);
-@@ -248,18 +252,18 @@ int __frontswap_load(struct page *page)
- 	struct swap_info_struct *sis = swap_info[type];
- 	pgoff_t offset = swp_offset(entry);
- 
--	if (!frontswap_ops)
--		return ret;
--
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(sis == NULL);
--	if (frontswap_test(sis, offset))
-+	/*
-+	 * __frontswap_test() will check whether there is backend registered
-+	 */
-+	if (__frontswap_test(sis, offset))
- 		ret = frontswap_ops->load(type, offset, page);
- 	if (ret == 0) {
- 		inc_frontswap_loads();
- 		if (frontswap_tmem_exclusive_gets_enabled) {
- 			SetPageDirty(page);
--			frontswap_clear(sis, offset);
-+			__frontswap_clear(sis, offset);
- 		}
- 	}
- 	return ret;
-@@ -274,11 +278,11 @@ void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
+ static void _enable_swap_info(struct swap_info_struct *p, int prio,
+-				unsigned char *swap_map,
+-				unsigned long *frontswap_map)
++				unsigned char *swap_map)
  {
- 	struct swap_info_struct *sis = swap_info[type];
+ 	int i, prev;
  
--	if (!frontswap_ops)
--		return;
+@@ -1454,11 +1453,9 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
+ 	else
+ 		p->prio = --least_priority;
+ 	p->swap_map = swap_map;
+-	frontswap_map_set(p, frontswap_map);
+ 	p->flags |= SWP_WRITEOK;
+ 	nr_swap_pages += p->pages;
+ 	total_swap_pages += p->pages;
 -
- 	BUG_ON(sis == NULL);
--	if (frontswap_test(sis, offset)) {
-+	/*
-+	 * __frontswap_test() will check whether there is backend registered
-+	 */
-+	if (__frontswap_test(sis, offset)) {
- 		frontswap_ops->invalidate_page(type, offset);
- 		__frontswap_clear(sis, offset);
- 		inc_frontswap_invalidates();
-@@ -435,7 +439,6 @@ static int __init init_frontswap(void)
- 	debugfs_create_u64("invalidates", S_IRUGO,
- 				root, &frontswap_invalidates);
- #endif
--	frontswap_enabled = 1;
- 	return 0;
+ 	/* insert swap space into swap_list: */
+ 	prev = -1;
+ 	for (i = swap_list.head; i >= 0; i = swap_info[i]->next) {
+@@ -1477,16 +1474,16 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
+ 				unsigned char *swap_map,
+ 				unsigned long *frontswap_map)
+ {
++	frontswap_init(p->type, frontswap_map);
+ 	spin_lock(&swap_lock);
+-	_enable_swap_info(p, prio, swap_map, frontswap_map);
+-	frontswap_init(p->type);
++	_enable_swap_info(p, prio, swap_map);
+ 	spin_unlock(&swap_lock);
  }
+ 
+ static void reinsert_swap_info(struct swap_info_struct *p)
+ {
+ 	spin_lock(&swap_lock);
+-	_enable_swap_info(p, p->prio, p->swap_map, frontswap_map_get(p));
++	_enable_swap_info(p, p->prio, p->swap_map);
+ 	spin_unlock(&swap_lock);
+ }
+ 
+@@ -1494,6 +1491,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+ {
+ 	struct swap_info_struct *p = NULL;
+ 	unsigned char *swap_map;
++	unsigned long *frontswap_map;
+ 	struct file *swap_file, *victim;
+ 	struct address_space *mapping;
+ 	struct inode *inode;
+@@ -1588,11 +1586,13 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+ 	swap_map = p->swap_map;
+ 	p->swap_map = NULL;
+ 	p->flags = 0;
+-	frontswap_invalidate_area(type);
++	frontswap_map = frontswap_map_get(p);
++	frontswap_map_set(p, NULL);
+ 	spin_unlock(&swap_lock);
++	frontswap_invalidate_area(type);
+ 	mutex_unlock(&swapon_mutex);
+ 	vfree(swap_map);
+-	vfree(frontswap_map_get(p));
++	vfree(frontswap_map);
+ 	/* Destroy swap account informatin */
+ 	swap_cgroup_swapoff(type);
  
 -- 
 1.7.10.4
