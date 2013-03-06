@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id BA2A26B0005
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 17:20:13 -0500 (EST)
-Date: Wed, 6 Mar 2013 14:20:11 -0800
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 3EBF16B0005
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 17:22:48 -0500 (EST)
+Date: Wed, 6 Mar 2013 14:22:46 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH resend] rmap: recompute pgoff for unmapping huge page
-Message-Id: <20130306142011.c6260e416cef6a906660fa4d@linux-foundation.org>
+Message-Id: <20130306142246.b333f350f713dbbf3e931d93@linux-foundation.org>
 In-Reply-To: <CAJd=RBD0UWxpMv7W78fH0U_zBAOozP1owaMePGaUEVitotRfBg@mail.gmail.com>
 References: <CAJd=RBD0UWxpMv7W78fH0U_zBAOozP1owaMePGaUEVitotRfBg@mail.gmail.com>
 Mime-Version: 1.0
@@ -26,11 +26,8 @@ On Mon, 4 Mar 2013 20:47:31 +0800 Hillf Danton <dhillf@gmail.com> wrote:
 > by commit 36e4f20af833(hugetlb: do not use vma_hugecache_offset() for
 > vma_prio_tree_foreach)
 > 
-> Signed-off-by: Hillf Danton <dhillf@gmail.com>
-> ---
-> 
-> --- a/mm/rmap.c	Mon Mar  4 20:00:00 2013
-> +++ b/mm/rmap.c	Mon Mar  4 20:02:16 2013
+> ...
+>
 > @@ -1513,6 +1513,9 @@ static int try_to_unmap_file(struct page
 >  	unsigned long max_nl_size = 0;
 >  	unsigned int mapcount;
@@ -42,33 +39,15 @@ On Mon, 4 Mar 2013 20:47:31 +0800 Hillf Danton <dhillf@gmail.com> wrote:
 >  	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
 >  		unsigned long address = vma_address(page, vma);
 
-How are we getting here for hugepages?  Trying to migrate a hugetlbfs
-page?
+Also, what does this patch actually do?
 
-Can we just do this?
+I have a canned response nowadays:
 
---- a/mm/rmap.c~a
-+++ a/mm/rmap.c
-@@ -1505,7 +1505,7 @@ static int try_to_unmap_anon(struct page
- static int try_to_unmap_file(struct page *page, enum ttu_flags flags)
- {
- 	struct address_space *mapping = page->mapping;
--	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	pgoff_t pgoff;
- 	struct vm_area_struct *vma;
- 	int ret = SWAP_AGAIN;
- 	unsigned long cursor;
-@@ -1513,6 +1513,7 @@ static int try_to_unmap_file(struct page
- 	unsigned long max_nl_size = 0;
- 	unsigned int mapcount;
- 
-+	pgoff = page->index << compound_order(page);
- 	mutex_lock(&mapping->i_mmap_mutex);
- 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
- 		unsigned long address = vma_address(page, vma);
-_
-
-It's a lot less fuss.
+When writing a changelog, please describe the end-user-visible effects
+of that bug, so that others can more easily decide which kernel
+version(s) should be fixed, and so that downstream kernel maintainers
+can more easily work out whether this patch will fix a problem which
+they or their customers are observing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
