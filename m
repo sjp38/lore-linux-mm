@@ -1,106 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id AC9B46B0002
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 12:08:42 -0500 (EST)
-Received: by mail-ia0-f173.google.com with SMTP id h37so7569920iak.4
-        for <linux-mm@kvack.org>; Wed, 06 Mar 2013 09:08:42 -0800 (PST)
-Date: Tue, 5 Mar 2013 19:37:27 -0500
-From: Andrew Shewmaker <agshew@gmail.com>
-Subject: Re: [PATCH v4 001/002] mm: limit growth of 3% hardcoded other user
- reserve
-Message-ID: <20130306003727.GA2072@localhost.localdomain>
-References: <20130305233811.GA1948@localhost.localdomain>
- <513683D5.1080401@gmail.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 1926B6B0002
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 12:35:03 -0500 (EST)
+Date: Wed, 6 Mar 2013 17:21:41 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFC PATCH v1 01/33] mm: introduce common help functions to
+	deal with reserved/managed pages
+Message-ID: <20130306172140.GS17833@n2100.arm.linux.org.uk>
+References: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com> <1362495317-32682-2-git-send-email-jiang.liu@huawei.com> <20130305194722.GA12225@merkur.ravnborg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <513683D5.1080401@gmail.com>
+In-Reply-To: <20130305194722.GA12225@merkur.ravnborg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, ric.masonn@gmail.com
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Jiang Liu <liuj97@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, Anatolij Gustschin <agust@denx.de>, Aurelien Jacquiot <a-jacquiot@ti.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Chen Liqin <liqin.chen@sunplusct.com>, Chris Metcalf <cmetcalf@tilera.com>, Chris Zankel <chris@zankel.net>, David Howells <dhowells@redhat.com>, "David S. Miller" <davem@davemloft.net>, Eric Biederman <ebiederm@xmission.com>, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Haavard Skinnemoen <hskinnemoen@gmail.com>, Hans-Christian Egtvedt <egtvedt@samfundet.no>, Heiko Carstens <heiko.carstens@de.ibm.com>, Helge Deller <deller@gmx.de>, Hirokazu Takata <takata@linux-m32r.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Jonas Bonn <jonas@southpole.se>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Lennox Wu <lennox.wu@gmail.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Simek <monstr@monstr.eu>, Michel Lespinasse <walken@google.com>, Mikael Starvik <starvik@axis.com>, Mike Frysinger <vapier@gentoo.org>, Paul Mackerras <paulus@samba.org>, Paul Mundt <lethal@linux-sh.org>, Ralf Baechle <ralf@linux-mips.org>, Richard Henderson <rth@twiddle.net>, Rik van Riel <riel@redhat.com>, Rusty Russell <rusty@rustcorp.com.au>, Tang Chen <tangchen@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>, x86@kernel.org, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, virtualization@lists.linux-foundation.org
 
-On Wed, Mar 06, 2013 at 07:46:29AM +0800, Simon Jeons wrote:
-> On 03/06/2013 07:38 AM, Andrew Shewmaker wrote:
-> >Limit the growth of the memory reserved for other processes
-> >to the smaller of 3% or 8MB.
-> >
-> >This affects only OVERCOMMIT_NEVER.
-> >
-> >Signed-off-by: Andrew Shewmaker <agshew@gmail.com>
+On Tue, Mar 05, 2013 at 08:47:22PM +0100, Sam Ravnborg wrote:
+> On Tue, Mar 05, 2013 at 10:54:44PM +0800, Jiang Liu wrote:
+> > +static inline void free_initmem_default(int poison)
+> > +{
 > 
-> Please add changelog, otherwise it's for other guys to review.
-> 
+> Why request user to supply the poison argumet. If this is the default
+> implmentation then use the default poison value too (POISON_FREE_INITMEM)
 
-Sorry, I'll be sure to include one in the future. And it 
-looks like I do need a v5 ... I think this needs to 
-be tunable like the admin reserve. The default certainly 
-needs to be higher since this reserve is only for 
-OVERCOMMIT_NEVER mode and 8MB is too little to allow
-the user to recover. I was thinking of OVERCOMMIT_GUESS 
-mode when I chose it.
+That poison value is inappropriate on some architectures like ARM - it's
+executable.  The default poison value leads to:
 
-v4:
- * Rebased onto v3.8-mmotm-2013-03-01-15-50
- * No longer assumes 4kb pages
- * Code duplicated for nommu
+   0:	cccccccc 	stclgt	12, cr12, [ip], {204}	; 0xcc
 
-v3:
- * New patch summary because it wasn't unique
-   New is "mm: limit growth of 3% hardcoded other user reserve"
-   Old was "mm: tuning hardcoded reserve memory"
- * Limits growth to min(3% process size, some constant k)
-   as Alan Cox suggested. I chose k=2000 pages (8MB) to allow
-   recovery with sshd or login, bash, and top or kill
+or
 
-v2:
- * Rebased onto v3.8-mmotm-2013-02-19-17-20
+   4:	cccc      	ldmia	r4!, {r2, r3, r6, r7}
 
-v1:
- * Based on 3.8
- * Remove hardcoded 3% other user reserve in OVERCOMMIT_NEVER mode
+And we might as well forget using any kind of poison in that case.
 
-> >
-> >---
-> >
-> >Rebased onto v3.8-mmotm-2013-03-01-15-50
-> >
-> >No longer assumes 4kb pages.
-> >Code duplicated for nommu.
-> >
-> >diff --git a/mm/mmap.c b/mm/mmap.c
-> >index 49dc7d5..4eb2b1a 100644
-> >--- a/mm/mmap.c
-> >+++ b/mm/mmap.c
-> >@@ -184,9 +184,11 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
-> >  	allowed += total_swap_pages;
-> >  	/* Don't let a single process grow too big:
-> >-	   leave 3% of the size of this process for other processes */
-> >+	 * leave the smaller of 3% of the size of this process
-> >+         * or 8MB for other processes
-> >+         */
-> >  	if (mm)
-> >-		allowed -= mm->total_vm / 32;
-> >+		allowed -= min(mm->total_vm / 32, 1 << (23 - PAGE_SHIFT));
-> >  	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
-> >  		return 0;
-> >diff --git a/mm/nommu.c b/mm/nommu.c
-> >index f5d57a3..a93d214 100644
-> >--- a/mm/nommu.c
-> >+++ b/mm/nommu.c
-> >@@ -1945,9 +1945,11 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
-> >  	allowed += total_swap_pages;
-> >  	/* Don't let a single process grow too big:
-> >-	   leave 3% of the size of this process for other processes */
-> >+	 * leave the smaller of 3% of the size of this process
-> >+         * or 8MB for other processes
-> >+         */
-> >  	if (mm)
-> >-		allowed -= mm->total_vm / 32;
-> >+		allowed -= min(mm->total_vm / 32, 1 << (23 - PAGE_SHIFT));
-> >  	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
-> >  		return 0;
-> 
+The value which use is an undefined instruction on ARM and Thumb.
+
+Notice the calls to poison_init_mem() in arch/arm/mm/init.c, which are
+left by these patches, allowing us to continue using an appropriate
+architecture specific value which will help to ensure that people
+calling discarded init functions get appropriately bitten.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
