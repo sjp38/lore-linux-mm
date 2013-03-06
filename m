@@ -1,85 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id D67656B0006
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 21:37:42 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id uo15so5310138pbc.33
-        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 18:37:42 -0800 (PST)
-Message-ID: <5136ABEE.8000501@gmail.com>
-Date: Wed, 06 Mar 2013 10:37:34 +0800
-From: Ric Mason <ric.masonn@gmail.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 3F03E6B0005
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 21:41:50 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 6B6343EE0BC
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 11:41:48 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5376545DEB6
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 11:41:48 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3194D45DEB2
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 11:41:48 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B19E1DB803E
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 11:41:48 +0900 (JST)
+Received: from g01jpexchkw05.g01.fujitsu.local (g01jpexchkw05.g01.fujitsu.local [10.0.194.44])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C9C8E1DB803C
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 11:41:47 +0900 (JST)
+Message-ID: <5136ACCB.8080702@jp.fujitsu.com>
+Date: Wed, 6 Mar 2013 11:41:15 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/7] ksm: treat unstable nid like in stable tree
-References: <alpine.LNX.2.00.1302210013120.17843@eggly.anvils> <alpine.LNX.2.00.1302210019390.17843@eggly.anvils> <51271A7D.6020305@gmail.com> <alpine.LNX.2.00.1302221250440.6100@eggly.anvils> <51303CAB.3080406@gmail.com> <alpine.LNX.2.00.1303011139270.7398@eggly.anvils> <51315174.4020200@gmail.com> <alpine.LNX.2.00.1303011833490.23290@eggly.anvils>
-In-Reply-To: <alpine.LNX.2.00.1303011833490.23290@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC/PATCH 4/5] mm: get_user_pages: migrate out CMA pages when
+ FOLL_DURABLE flag is set
+References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com> <1362466679-17111-5-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <1362466679-17111-5-git-send-email-m.szyprowski@samsung.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-On 03/02/2013 10:57 AM, Hugh Dickins wrote:
-> On Sat, 2 Mar 2013, Ric Mason wrote:
->> On 03/02/2013 04:03 AM, Hugh Dickins wrote:
->>> On Fri, 1 Mar 2013, Ric Mason wrote:
->>>> I think the ksm implementation for num awareness  is buggy.
->>> Sorry, I just don't understand your comments below,
->>> but will try to answer or question them as best I can.
->>>
->>>> For page migratyion stuff, new page is allocated from node *which page is
->>>> migrated to*.
->>> Yes, by definition.
->>>
->>>> - when meeting a page from the wrong NUMA node in an unstable tree
->>>>       get_kpfn_nid(page_to_pfn(page)) *==* page_to_nid(tree_page)
->>> I thought you were writing of the wrong NUMA node case,
->>> but now you emphasize "*==*", which means the right NUMA node.
->> Yes, I mean the wrong NUMA node. During page migration, new page has already
->> been allocated in new node and old page maybe freed.  So tree_page is the
->> page in new node's unstable tree, page is also new node page, so
->> get_kpfn_nid(page_to_pfn(page)) *==* page_to_nid(tree_page).
-> I don't understand; but here you seem to be describing a case where two
-> pages from the same NUMA node get merged (after both have been migrated
-> from another NUMA node?), and there's nothing wrong with that,
-> so I won't worry about it further.
+2013/03/05 15:57, Marek Szyprowski wrote:
+> When __get_user_pages() is called with FOLL_DURABLE flag, ensure that no
+> page in CMA pageblocks gets locked. This workarounds the permanent
+> migration failures caused by locking the pages by get_user_pages() call for
+> a long period of time.
+> 
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> ---
+>   mm/internal.h |   12 ++++++++++++
+>   mm/memory.c   |   43 +++++++++++++++++++++++++++++++++++++++++++
+>   2 files changed, 55 insertions(+)
+> 
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 8562de0..a290d04 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -105,6 +105,18 @@ extern void prep_compound_page(struct page *page, unsigned long order);
+>   extern bool is_free_buddy_page(struct page *page);
+>   #endif
+>   
+> +#ifdef CONFIG_CMA
+> +static inline int is_cma_page(struct page *page)
+> +{
+> +	unsigned mt = get_pageblock_migratetype(page);
+> +	if (mt == MIGRATE_ISOLATE || mt == MIGRATE_CMA)
+> +		return true;
+> +	return false;
+> +}
+> +#else
+> +#define is_cma_page(page) 0
+> +#endif
+> +
+>   #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+>   
+>   /*
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 2b9c2dd..f81b273 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1650,6 +1650,45 @@ static inline int stack_guard_page(struct vm_area_struct *vma, unsigned long add
+>   }
+>   
+>   /**
+> + * replace_cma_page() - migrate page out of CMA page blocks
+> + * @page:	source page to be migrated
+> + *
+> + * Returns either the old page (if migration was not possible) or the pointer
+> + * to the newly allocated page (with additional reference taken).
+> + *
+> + * get_user_pages() might take a reference to a page for a long period of time,
+> + * what prevent such page from migration. This is fatal to the preffered usage
+> + * pattern of CMA pageblocks. This function replaces the given user page with
+> + * a new one allocated from NON-MOVABLE pageblock, so locking CMA page can be
+> + * avoided.
+> + */
+> +static inline struct page *migrate_replace_cma_page(struct page *page)
+> +{
+> +	struct page *newpage = alloc_page(GFP_HIGHUSER);
+> +
+> +	if (!newpage)
+> +		goto out;
+> +
+> +	/*
+> +	 * Take additional reference to the new page to ensure it won't get
+> +	 * freed after migration procedure end.
+> +	 */
+> +	get_page_foll(newpage);
+> +
+> +	if (migrate_replace_page(page, newpage) == 0)
+> +		return newpage;
+> +
+> +	put_page(newpage);
+> +	__free_page(newpage);
+> +out:
+> +	/*
+> +	 * Migration errors in case of get_user_pages() might not
+> +	 * be fatal to CMA itself, so better don't fail here.
+> +	 */
+> +	return page;
+> +}
+> +
+> +/**
+>    * __get_user_pages() - pin user pages in memory
+>    * @tsk:	task_struct of target task
+>    * @mm:		mm_struct of target mm
+> @@ -1884,6 +1923,10 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>   			}
+>   			if (IS_ERR(page))
+>   				return i ? i : PTR_ERR(page);
 
-For the case of a ksm page is migrated to a different NUMA node and 
-migrate its stable node to  the right tree and collide with an existing 
-stable node. get_kpfn_nid(stable_node->kpfn) != NUMA(stable_node->nid) 
-can capture nothing since stable_node is the node in the right stable 
-tree, nothing happen to it before this check. Did you intend to check 
-get_kpfn_nid(page_node->kpfn) != NUMA(page_node->nid) ?
+> +
+> +			if ((gup_flags & FOLL_DURABLE) && is_cma_page(page))
+> +				page = migrate_replace_cma_page(page);
+> +
 
->
->>>>      - meeting a page which is ksm page before migration
->>>>        get_kpfn_nid(stable_node->kpfn) != NUMA(stable_node->nid) can't
->>>> capture
->>>> them since stable_node is for tree page in current stable tree. They are
->>>> always equal.
->>> When we meet a ksm page in the stable tree before it's migrated to another
->>> NUMA node, yes, it will be on the right NUMA node (because we were careful
->>> only to merge pages from the right NUMA node there), and that test will not
->>> capture them.  It's for capturng a ksm page in the stable tree after it has
->>> been migrated to another NUMA node.
->> ksm page migrated to another NUMA node still not freed, why? Who take page
->> count of it?
-> The old page, the one which used to be a ksm page on the old NUMA node,
-> should be freed very soon: since it was isolated from lru, and its page
-> count checked, I cannot think of anything to hold a reference to it,
-> apart from migration itself - so it just needs to reach putback_lru_page(),
-> and then may rest awhile on __lru_cache_add()'s pagevec before being freed.
->
-> But I don't see where I said the old page was still not freed.
->
->> If not  freed, since new page is allocated in new node, it is
->> the copy of current ksm page, so current ksm doesn't change,
->> get_kpfn_nid(stable_node->kpfn) *==* NUMA(stable_node->nid).
-> But ksm_migrate_page() did
-> 		VM_BUG_ON(stable_node->kpfn != page_to_pfn(oldpage));
-> 		stable_node->kpfn = page_to_pfn(newpage);
-> without changing stable_node->nid.
->
-> Hugh
+I might be misreading. 
+If FOLL_DURABLE is set, this page is always allocated as non movable.
+Is it right? If so, when does this situation occur?
+
+Thanks,
+Yasuaki Ishimatsu
+
+>   			if (pages) {
+>   				pages[i] = page;
+>   
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
