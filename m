@@ -1,92 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 27F916B0005
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 19:05:21 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3218C3EE0C3
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 09:05:19 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1848645DEC0
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 09:05:19 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id D6E4B45DEBE
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 09:05:18 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C5CA81DB8041
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 09:05:18 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7ACB71DB803B
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 09:05:18 +0900 (JST)
-Message-ID: <51368824.7050601@jp.fujitsu.com>
-Date: Wed, 06 Mar 2013 09:04:52 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 814B16B0005
+	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 19:21:26 -0500 (EST)
+Received: by mail-oa0-f41.google.com with SMTP id i10so11987077oag.14
+        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 16:21:25 -0800 (PST)
+Message-ID: <51368C01.2090608@gmail.com>
+Date: Wed, 06 Mar 2013 08:21:21 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 1/5] memcg: make nocpu_base available for non hotplug
-References: <1362489058-3455-1-git-send-email-glommer@parallels.com> <1362489058-3455-2-git-send-email-glommer@parallels.com>
-In-Reply-To: <1362489058-3455-2-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: mm: introduce new field "managed_pages" to struct zone
+References: <512EF580.6000608@gmail.com> <51336FB4.9000202@gmail.com> <5133E356.6000502@gmail.com> <5134CDBB.60700@gmail.com> <5135E2C7.8050105@gmail.com> <51360A87.40008@gmail.com>
+In-Reply-To: <51360A87.40008@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, handai.szj@gmail.com, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, "linux-mm@kvack.org >> Linux Memory Management List" <linux-mm@kvack.org>
 
-(2013/03/05 22:10), Glauber Costa wrote:
-> We are using nocpu_base to accumulate charges on the main counters
-> during cpu hotplug. I have a similar need, which is transferring charges
-> to the root cgroup when lazily enabling memcg. Because system wide
-> information is not kept per-cpu, it is hard to distribute it. This field
-> works well for this. So we need to make it available for all usages, not
-> only hotplug cases.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Tejun Heo <tj@kernel.org>
+On 03/05/2013 11:08 PM, Jiang Liu wrote:
+> On 03/05/2013 08:19 PM, Simon Jeons wrote:
+>> On 03/05/2013 12:37 AM, Jiang Liu wrote:
+>>> On 03/04/2013 07:57 AM, Simon Jeons wrote:
+>>>> Hi Jiang,
+>>>> On 03/03/2013 11:43 PM, Jiang Liu wrote:
+>>>>> Hi Simon,
+>>>>>       Bootmem allocator is used to managed DMA and Normal memory only, and it does not manage highmem pages because kernel
+>>>>> can't directly access highmem pages.
+>>>> Why you say so? Could you point out where you figure out bootmem allocator doesn't handle highmem pages? In my understanding, it doesn't distinguish low memory or high memory.
+>>> Hi Simon,
+>> Hi Jiang,
+>>
+>> The comments of max_pfn_mapped is "highest direct mapped pfn over 4GB", so if both bootmem allocator and memblock just manage direct mapping pages?
+>> BTW, could you show me where you can figure out traditional bootmem allocator manages directly mapping pages?
+> Hi Simon,
+> 	Bootmem allocator only manages directly mapped pages, but memblock could manage all pages.
+> For traditional bootmem allocator, you could trace back callers of init_bootmem_node() and init_bootmem()
+> to get the idea.
 
-Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+Hi Jiang,
 
-Hmm..comments on nocpu_base definition will be updated in later patch ?
+I track the callset of init_bootmem() against openrisc 
+architecture(arch/openrisc/kernel/setup.c), it seems that it manages all 
+the memory instead of low memory you mentioned. BTW, I didn't read 
+x86_64 direct mapping codes before, if has enough big memory, what's the 
+range of direct mapping?
 
-> ---
->   mm/memcontrol.c | 8 ++++----
->   1 file changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 669d16a..b8b363f 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -921,11 +921,11 @@ static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
->   	get_online_cpus();
->   	for_each_online_cpu(cpu)
->   		val += per_cpu(memcg->stat->count[idx], cpu);
-> -#ifdef CONFIG_HOTPLUG_CPU
-> +
->   	spin_lock(&memcg->pcp_counter_lock);
->   	val += memcg->nocpu_base.count[idx];
->   	spin_unlock(&memcg->pcp_counter_lock);
-> -#endif
-> +
->   	put_online_cpus();
->   	return val;
->   }
-> @@ -945,11 +945,11 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
->   
->   	for_each_online_cpu(cpu)
->   		val += per_cpu(memcg->stat->events[idx], cpu);
-> -#ifdef CONFIG_HOTPLUG_CPU
-> +
->   	spin_lock(&memcg->pcp_counter_lock);
->   	val += memcg->nocpu_base.events[idx];
->   	spin_unlock(&memcg->pcp_counter_lock);
-> -#endif
-> +
->   	return val;
->   }
->   
-> 
-
+> 	Regards!
+> 	Gerry
+>
+>>>      According to my understanding, bootmem allocator does only manages lowmem pages.
+>>> For traditional bootmem allocator in mm/bootmem.c, it could only manages directly mapped lowmem pages.
+>>> For new bootmem allocator in mm/nobootmem.c, it depends on memblock to do the real work. Let's take
+>>> x86 as an example:
+>>> 1) following code set memblock.current_limit to max_low_pfn.
+>>> arch/x86/kernel/setup.c:    memblock.current_limit = get_max_mapped();
+>>> 2) the core of bootmem allocator in nobootmem.c is function __alloc_memory_core_early(),
+>>> which has following code to avoid allocate highmem pages:
+>>> static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
+>>>                                           u64 goal, u64 limit)
+>>> {
+>>>           void *ptr;
+>>>           u64 addr;
+>>>
+>>>           if (limit > memblock.current_limit)
+>>>                   limit = memblock.current_limit;
+>>>
+>>>           addr = memblock_find_in_range_node(goal, limit, size, align, nid);
+>>>           if (!addr)
+>>>                   return NULL;
+>>> }
+>>>
+>>> I guess it's the same for other architectures. On the other hand, some other architectures
+>>> may allocate highmem pages during boot by directly using memblock interfaces. For example,
+>>> ppc use memblock interfaces to allocate highmem pages for giagant hugetlb pages.
+>>>
+>>> I'm working a patch set to fix those cases.
+>>>
+>>> Regards!
+>>> Gerry
+>>>
+>>>
+>>>>>       Regards!
+>>>>>       Gerry
+>>>>>
+>>>>> On 02/28/2013 02:13 PM, Simon Jeons wrote:
+>>>>>> Hi Jiang,
+>>>>>>
+>>>>>> https://patchwork.kernel.org/patch/1781291/
+>>>>>>
+>>>>>> You said that the bootmem allocator doesn't touch *highmem pages*, so highmem zones' managed_pages is set to the accurate value "spanned_pages - absent_pages" in function free_area_init_core() and won't be updated anymore. Why it doesn't touch *highmem pages*? Could you point out where you figure out this?
+>>>>>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
