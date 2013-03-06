@@ -1,94 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 98EEB6B0006
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 06:00:16 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 484E43EE0B6
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 20:00:15 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 2D55145DE4F
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 20:00:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 130AD45DE4E
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 20:00:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 044E51DB803B
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 20:00:15 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AA9DE1DB803F
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 20:00:14 +0900 (JST)
-Message-ID: <513721A5.6080401@jp.fujitsu.com>
-Date: Wed, 06 Mar 2013 19:59:49 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+	by kanga.kvack.org (Postfix) with SMTP id 5E1246B0005
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 06:04:17 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id um15so5876697pbc.0
+        for <linux-mm@kvack.org>; Wed, 06 Mar 2013 03:04:16 -0800 (PST)
+Message-ID: <513722AA.2030001@gmail.com>
+Date: Wed, 06 Mar 2013 19:04:10 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/5] memcg: provide root figures from system totals
-References: <1362489058-3455-1-git-send-email-glommer@parallels.com> <1362489058-3455-3-git-send-email-glommer@parallels.com> <51368D80.20701@jp.fujitsu.com> <5136FEC2.2050004@parallels.com> <51371E4A.7090807@jp.fujitsu.com> <51371FEF.3020507@parallels.com>
-In-Reply-To: <51371FEF.3020507@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: Should a swapped out page be deleted from swap cache?
+References: <CAFNq8R4UYvygk8+X+NZgyGjgU5vBsEv1UM6MiUxah6iW8=0HrQ@mail.gmail.com> <alpine.LNX.2.00.1302180939200.2246@eggly.anvils> <512338A6.1030602@gmail.com> <alpine.LNX.2.00.1302191050330.2248@eggly.anvils> <51241B66.7080004@gmail.com> <CAFNq8R5ni4jKRsHJLyGiNPcj4epz8q5zva_0XEJrL1-uVZHb9w@mail.gmail.com>
+In-Reply-To: <CAFNq8R5ni4jKRsHJLyGiNPcj4epz8q5zva_0XEJrL1-uVZHb9w@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, handai.szj@gmail.com, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
+To: Li Haifeng <omycle@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(2013/03/06 19:52), Glauber Costa wrote:
-> On 03/06/2013 02:45 PM, Kamezawa Hiroyuki wrote:
->> (2013/03/06 17:30), Glauber Costa wrote:
->>> On 03/06/2013 04:27 AM, Kamezawa Hiroyuki wrote:
->>>> (2013/03/05 22:10), Glauber Costa wrote:
->>>>> +	case _MEMSWAP: {
->>>>> +		struct sysinfo i;
->>>>> +		si_swapinfo(&i);
->>>>> +
->>>>> +		return ((memcg_read_root_rss() +
->>>>> +		atomic_long_read(&vm_stat[NR_FILE_PAGES])) << PAGE_SHIFT) +
->>>>> +		i.totalswap - i.freeswap;
->>>>
->>>> How swapcache is handled ? ...and How kmem works with this calc ?
->>>>
->>> I am ignoring kmem, because we don't account kmem for the root cgroup
->>> anyway.
->>>
->>> Setting the limit is invalid, and we don't account until the limit is
->>> set. Then it will be 0, always.
->>>
->>> For swapcache, I am hoping that totalswap - freeswap will cover
->>> everything swap related. If you think I am wrong, please enlighten me.
->>>
+On 03/06/2013 01:34 PM, Li Haifeng wrote:
+> 2013/2/20 Ric Mason <ric.masonn@gmail.com>:
+>> Hi Hugh,
 >>
->> i.totalswap - i.freeswap = # of used swap entries.
 >>
->> SwapCache can be rss and used swap entry at the same time.
+>> On 02/20/2013 02:56 AM, Hugh Dickins wrote:
+>>> On Tue, 19 Feb 2013, Ric Mason wrote:
+>>>> There is a call of try_to_free_swap in function swap_writepage, if
+>>>> swap_writepage is call from shrink_page_list path, PageSwapCache(page) ==
+>>>> trure, PageWriteback(page) maybe false, page_swapcount(page) == 0, then
+>>>> will
+>>>> delete the page from swap cache and free swap slot, where I miss?
+>>> That's correct.  PageWriteback is sure to be false there.  page_swapcount
+>>> usually won't be 0 there, but sometimes it will be, and in that case we
+>>> do want to delete from swap cache and free the swap slot.
 >>
-> 
-> Well, yes, but the rss entries would be accounted for in get_mm_rss(),
-> won't they ?
-> 
-> What am I missing ?
+>> 1) If PageSwapCache(page)  == true, PageWriteback(page) == false,
+>> page_swapcount(page) == 0  in swap_writepage(shrink_page_list path), then
+>> will delete the page from swap cache and free swap slot, in function
+>> swap_writepage:
+>>
+>> if (try_to_free_swap(page)) {
+>>      unlock_page(page);
+>>      goto out;
+>> }
+>> writeback will not execute, that's wrong. Where I miss?
+> when the page is deleted from swap cache and corresponding swap slot
+> is free, the page is set dirty. The dirty page won't be reclaimed. It
+> is not wrong.
 
+I don't think so. For dirty pages, there are two steps: 1)writeback 
+2)reclaim. Since PageSwapCache(page) == true && PageWriteback(page) == 
+false && page_swapcount(page) == 0 in swap_writeback(), 
+try_to_free_swap() will return true and writeback will be skip. Then how 
+can step one be executed?
 
-I think the correct caluculation is
-
-  Sum of all RSS + All file caches + (i.total_swap - i.freeswap - # of mapped SwapCache)
-
-
-In the patch, mapped SwapCache is counted as both of rss and swap.
-
-BTW, how about
-
-  Sum of all LRU + (i.total_swap - i.freeswap - # of all SwapCache)
-?
-
-Thanks,
--Kame
-
-
-
-
-
-
-
-
+>
+> corresponding path lists as below.
+> when swap_writepage() is called by pageout() in shrink_page_list().
+> pageout() will return PAGE_SUCCESS. For PAGE_SUCCESS, when
+> PageDirty(page) is true, this reclaiming page will be keeped in the
+> inactive LRU list.
+> shrink_page_list()
+> {
+> ...
+>   904                         switch (pageout(page, mapping, sc)) {
+>   905                         case PAGE_KEEP:
+>   906                                 nr_congested++;
+>   907                                 goto keep_locked;
+>   908                         case PAGE_ACTIVATE:
+>   909                                 goto activate_locked;
+>   910                         case PAGE_SUCCESS:
+>   911                                 if (PageWriteback(page))
+>   912                                         goto keep_lumpy;
+>   913                                 if (PageDirty(page))
+>   914                                         goto keep;
+> ...}
+>
+>> 2) In the function pageout, page will be set PG_Reclaim flag, since this
+>> flag is set, end_swap_bio_write->end_page_writeback:
+>> if (TestClearPageReclaim(page))
+>>       rotate_reclaimable_page(page);
+>> it means that page will be add to the tail of lru list, page is clean
+>> anonymous page this time and will be reclaim to buddy system soon, correct?
+> correct
+>> If is correct, what is the meaning of rotate here?
+> Rotating here is to add the page to the tail of inactive LRU list. So
+> this page will be reclaimed ASAP while reclaiming.
+>
+>>> Hugh
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
