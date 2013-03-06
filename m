@@ -1,33 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 2EBF76B0008
-	for <linux-mm@kvack.org>; Tue,  5 Mar 2013 23:32:00 -0500 (EST)
-Received: by mail-ie0-f180.google.com with SMTP id bn7so8741497ieb.25
-        for <linux-mm@kvack.org>; Tue, 05 Mar 2013 20:31:59 -0800 (PST)
-Date: Tue, 5 Mar 2013 20:31:16 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/7] ksm: treat unstable nid like in stable tree
-In-Reply-To: <51369BB9.6030608@gmail.com>
-Message-ID: <alpine.LNX.2.00.1303052024570.29433@eggly.anvils>
-References: <alpine.LNX.2.00.1302210013120.17843@eggly.anvils> <alpine.LNX.2.00.1302210019390.17843@eggly.anvils> <51271A7D.6020305@gmail.com> <alpine.LNX.2.00.1302221250440.6100@eggly.anvils> <51303CAB.3080406@gmail.com> <alpine.LNX.2.00.1303011139270.7398@eggly.anvils>
- <51315174.4020200@gmail.com> <alpine.LNX.2.00.1303011833490.23290@eggly.anvils> <51369BB9.6030608@gmail.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 002856B0005
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 00:03:22 -0500 (EST)
+Received: from /spool/local
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 6 Mar 2013 10:31:09 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 83BE5E004A
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 10:34:31 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2653Eug25886746
+	for <linux-mm@kvack.org>; Wed, 6 Mar 2013 10:33:14 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2653Hcb023806
+	for <linux-mm@kvack.org>; Wed, 6 Mar 2013 16:03:17 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V1 06/24] powerpc: Reduce PTE table memory wastage
+In-Reply-To: <20130305021219.GC2888@iris.ozlabs.ibm.com>
+References: <1361865914-13911-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1361865914-13911-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130304045853.GB27523@drongo> <874ngr2zz1.fsf@linux.vnet.ibm.com> <20130305021219.GC2888@iris.ozlabs.ibm.com>
+Date: Wed, 06 Mar 2013 10:33:16 +0530
+Message-ID: <877gll86i3.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Huck <will.huckk@gmail.com>
-Cc: Ric Mason <ric.masonn@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Paul Mackerras <paulus@samba.org>
+Cc: benh@kernel.crashing.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On Wed, 6 Mar 2013, Will Huck wrote:
-> 
-> How ksm treat a ksm forked page? IIUC, it's not merged in ksm stable tree. It
-> will just be ignore?
+Paul Mackerras <paulus@samba.org> writes:
 
-No, it's there in the stable tree, as it was before it got forked.  And
-when ksmd comes around to find the new mm, it will allocate an rmap_item
-for that page in the new mm, and append it to the existing stable_node.
+> On Mon, Mar 04, 2013 at 04:28:42PM +0530, Aneesh Kumar K.V wrote:
+>> The last one that ends up doing atomic_xor_bits which cause the mapcount
+>> to go zero, will take the page off the list and free the page. 
+>
+> No, look at the example again.  page_table_free_rcu() won't take it
+> off the list because it uses the (mask & FRAG_MASK) == 0 test, which
+> fails (one fragment is still in use).  page_table_free() won't take it
+> off the list because it uses the mask == 0 test, which also fails (one
+> fragment is still waiting for the RCU grace period).  Finally,
+> __page_table_free_rcu() doesn't take it off the list, it just frees
+> the page.  Oops. :)
 
-Hugh
+
+How about the below
+
+--- a/arch/powerpc/mm/pgtable_64.c
++++ b/arch/powerpc/mm/pgtable_64.c
+@@ -425,7 +425,7 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
+        bit = 1 << ((__pa(table) & ~PAGE_MASK) / PTE_FRAG_SIZE);
+        spin_lock(&mm->page_table_lock);
+        mask = atomic_xor_bits(&page->_mapcount, bit);
+-       if (mask == 0)
++       if (!(mask & FRAG_MASK))
+                list_del(&page->lru);
+        else if (mask & FRAG_MASK) {
+                /*
+@@ -446,7 +446,7 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
+
+
+ie, we always remove the page from the list, when the lower half is
+zero or lower half is FRAG_MASK.  We free the page when _mapcount is 0.
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
