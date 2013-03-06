@@ -1,58 +1,68 @@
-Return-Path: <EleanorRease@facebookmail.com>
-Subject: Hi! This is Khadijah
-Date: Wed, 6 Mar 2013 02:59:56 +0330
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 40BAA6B0005
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 14:47:16 -0500 (EST)
+Date: Wed, 6 Mar 2013 14:47:03 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: Fixup the condition whether the page cache is free
+Message-ID: <20130306194703.GA1953@cmpxchg.org>
+References: <CAFNq8R7tq9kvD9LyhZJ-Cj0kexQfDsPhB4iQYyZ9s9+8Jo82QA@mail.gmail.com>
+ <20130304150937.GB23767@cmpxchg.org>
+ <51369637.6030705@gmail.com>
 MIME-Version: 1.0
-From: <FAY_Frederick@aol.com>
-Content-Type: multipart/alternative;
- boundary="--------MB_8CDFF0C70C999991_867_15A8_webmail-d117.sysops.aol.com"
-Message-Id: <8CDFF0C70CF05A8-867-4F0C@webmail-d117.sysops.aol.com>
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51369637.6030705@gmail.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Li Haifeng <omycle@gmail.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org
 
+On Wed, Mar 06, 2013 at 09:04:55AM +0800, Simon Jeons wrote:
+> Hi Johannes,
+> On 03/04/2013 11:09 PM, Johannes Weiner wrote:
+> >On Mon, Mar 04, 2013 at 09:54:26AM +0800, Li Haifeng wrote:
+> >>When a page cache is to reclaim, we should to decide whether the page
+> >>cache is free.
+> >>IMO, the condition whether a page cache is free should be 3 in page
+> >>frame reclaiming. The reason lists as below.
+> >>
+> >>When page is allocated, the page->_count is 1(code fragment is code-1 ).
+> >>And when the page is allocated for reading files from extern disk, the
+> >>page->_count will increment 1 by page_cache_get() in
+> >>add_to_page_cache_locked()(code fragment is code-2). When the page is to
+> >>reclaim, the isolated LRU list also increase the page->_count(code
+> >>fragment is code-3).
+> >The page count is initialized to 1, but that does not stay with the
+> >object.  It's a reference that is passed to the allocating task, which
+> >drops it again when it's done with the page.  I.e. the pattern is like
+> >this:
+> >
+> >instantiation:
+> >page = page_cache_alloc()	/* instantiator reference -> 1 */
+> >add_to_page_cache(page, mapping, offset)
+> >   get_page(page)		/* page cache reference -> 2 */
+> >lru_cache_add(page)
+> >   get_page(page)		/* pagevec reference -> 3 */
+> >/* ...initiate read, write, associate buffers, ... */
+> >page_cache_release(page)	/* drop instantiator reference -> 2 + private */
+> >
+> >reclaim:
+> >lru_add_drain()
+> >   page_cache_release(page)	/* drop pagevec reference -> 1 + private */
+> 
+> IIUC, when add page to lru will lead to add to pagevec firstly, and
+> pagevec will take one reference, so if lru will take over the
+> reference taken by pagevec when page transmit from pagevec to lru?
+> or just drop the reference and lru will not take reference for page?
 
-----------MB_8CDFF0C70C999991_867_15A8_webmail-d117.sysops.aol.com
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain; charset="iso-8859-2"
+The LRU does not hold a reference, it would not make sense.  The
+pagevec only needs one because it would be awkward to remove a
+concurrently freed page out of a pagevec, but unlinking a page from
+the LRU is easy.  See mm/swap.c::__page_cache_release() and friends.
 
-
-Finally I found your e-mail, I??=99m not sure whether you remember me, we=
-??=99ve got terribly drunk, I found your pictures on my camera  yesterday=
-, remember me?Party24.jpg  609kb
-
-
-Fingerprint: 72af3499-99b12727
-
-
-
-----------MB_8CDFF0C70C999991_867_15A8_webmail-d117.sysops.aol.com
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/html; charset=3D"iso-8859-2"
-
-<font color=3D'black' size=3D'2' face=3D'arial'><font color=3D"black" siz=
-e=3D"2" face=3D"arial">
-
-<div> <br>
-
-</div>
-
-
-
-<div> <font face=3D"Georgia, Times New Roman, Times, Serif">Finally I fou=
-nd your e-mail, I??=99m not sure whether you remember me, we??=99ve got t=
-erribly drunk, I found your pictures on my camera  yesterday, remember me=
-?
-<a href=3D"http://www.singleradio.info/local.htm?373PNA=3DYLO7PN8W7DHL&GM=
-AX45=3DRAC2309DKCXWWC8Q&SAT96V=3DVIP1CA7QRM8W6VYWLDP&HVU=3D5VZ0UCW2&CZC2S=
-S=3DUXEYFS9&8NT6663=3DFYPLEW75LDSPDM&FEENWJ=3DODSRL2BHRH3&S7P0=3D9U24CNE0=
-B89AJFS4B3WS5F&7E6V2K=3D5C1LCWYNK1ZYBGTQL&">Party24.jpg  609kb</a><br><br=
-><br>Fingerprint: 72af3499-99b12727</font><br>
-
-</div>
-
-
-
-<div style=3D"clear:both"></div>
-
-</font></font>
-
-----------MB_8CDFF0C70C999991_867_15A8_webmail-d117.sysops.aol.com--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
