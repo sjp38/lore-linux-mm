@@ -1,66 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 7C6C56B0005
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 05:46:01 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C341C3EE0BD
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 19:45:59 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A9BFB45DE54
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 19:45:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 928D245DE4F
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 19:45:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 823BE1DB8041
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 19:45:59 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 356A31DB8037
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 19:45:59 +0900 (JST)
-Message-ID: <51371E4A.7090807@jp.fujitsu.com>
-Date: Wed, 06 Mar 2013 19:45:30 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/5] memcg: provide root figures from system totals
-References: <1362489058-3455-1-git-send-email-glommer@parallels.com> <1362489058-3455-3-git-send-email-glommer@parallels.com> <51368D80.20701@jp.fujitsu.com> <5136FEC2.2050004@parallels.com>
-In-Reply-To: <5136FEC2.2050004@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 519316B0005
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 05:48:41 -0500 (EST)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MJ8002E5JBSSZ80@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 06 Mar 2013 10:48:39 +0000 (GMT)
+Received: from [127.0.0.1] ([106.116.147.30])
+ by eusync3.samsung.com (Oracle Communications Messaging Server 7u4-23.01
+ (7.0.4.23.0) 64bit (built Aug 10 2011))
+ with ESMTPA id <0MJ800CR4JD0ER50@eusync3.samsung.com> for linux-mm@kvack.org;
+ Wed, 06 Mar 2013 10:48:39 +0000 (GMT)
+Message-id: <51371F04.2050507@samsung.com>
+Date: Wed, 06 Mar 2013 11:48:36 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC/PATCH 0/5] Contiguous Memory Allocator and get_user_pages()
+References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com>
+ <CAEwNFnBQS+Lem9bNWWngTjOgC5OpF8U=rw8e9zfvZdF8a7iONA@mail.gmail.com>
+In-reply-to: 
+ <CAEwNFnBQS+Lem9bNWWngTjOgC5OpF8U=rw8e9zfvZdF8a7iONA@mail.gmail.com>
+Content-type: text/plain; charset=UTF-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, handai.szj@gmail.com, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-(2013/03/06 17:30), Glauber Costa wrote:
-> On 03/06/2013 04:27 AM, Kamezawa Hiroyuki wrote:
->> (2013/03/05 22:10), Glauber Costa wrote:
->>> +	case _MEMSWAP: {
->>> +		struct sysinfo i;
->>> +		si_swapinfo(&i);
->>> +
->>> +		return ((memcg_read_root_rss() +
->>> +		atomic_long_read(&vm_stat[NR_FILE_PAGES])) << PAGE_SHIFT) +
->>> +		i.totalswap - i.freeswap;
->>
->> How swapcache is handled ? ...and How kmem works with this calc ?
->>
-> I am ignoring kmem, because we don't account kmem for the root cgroup
-> anyway.
-> 
-> Setting the limit is invalid, and we don't account until the limit is
-> set. Then it will be 0, always.
-> 
-> For swapcache, I am hoping that totalswap - freeswap will cover
-> everything swap related. If you think I am wrong, please enlighten me.
-> 
+Hello,
 
-i.totalswap - i.freeswap = # of used swap entries.
+On 3/6/2013 9:47 AM, Minchan Kim wrote:
+> Hello,
+>
+> On Tue, Mar 5, 2013 at 3:57 PM, Marek Szyprowski
+> <m.szyprowski@samsung.com> wrote:
+> > Hello,
+> >
+> > Contiguous Memory Allocator is very sensitive about migration failures
+> > of the individual pages. A single page, which causes permanent migration
+> > failure can break large conitguous allocations and cause the failure of
+> > a multimedia device driver.
+> >
+> > One of the known issues with migration of CMA pages are the problems of
+> > migrating the anonymous user pages, for which the others called
+> > get_user_pages(). This takes a reference to the given user pages to let
+> > kernel to operate directly on the page content. This is usually used for
+> > preventing swaping out the page contents and doing direct DMA to/from
+> > userspace.
+> >
+> > To solving this issue requires preventing locking of the pages, which
+> > are placed in CMA regions, for a long time. Our idea is to migrate
+> > anonymous page content before locking the page in get_user_pages(). This
+> > cannot be done automatically, as get_user_pages() interface is used very
+> > often for various operations, which usually last for a short period of
+> > time (like for example exec syscall). We have added a new flag
+> > indicating that the given get_user_space() call will grab pages for a
+> > long time, thus it is suitable to use the migration workaround in such
+> > cases.
+> >
+> > The proposed extensions is used by V4L2/VideoBuf2
+> > (drivers/media/v4l2-core/videobuf2-dma-contig.c), but that is not the
+> > only place which might benefit from it, like any driver which use DMA to
+> > userspace with get_user_pages(). This one is provided to demonstrate the
+> > use case.
+> >
+> > I would like to hear some comments on the presented approach. What do
+> > you think about it? Is there a chance to get such workaround merged at
+> > some point to mainline?
+> >
+>
+> I discussed similar patch from memory-hotplug guys with Mel.
+> Look at http://marc.info/?l=linux-mm&m=136014458829566&w=2
+>
+> The conern is that we ends up forcing using FOLL_DURABLE/GUP_NM for
+> all drivers and subsystems for making sure CMA/memory-hotplug works
+> well.
+>
+> You mentioned driver grab a page for a long time should use
+> FOLL_DURABLE flag but "for a long time" is very ambiguous. For
+> example, there is a driver
+>
+> get_user_pages()
+> some operation.
+> put_pages
+>
+> You can make sure some operation is really fast always?
 
-SwapCache can be rss and used swap entry at the same time. 
+Well, in our case (judging from the logs) we observed 2 usage patterns
+for get_user_pages() calls. One group was lots of short time locks, whose
+call stacks originated in various kernel places, the second group was
+device drivers which used get_user_pages() to create a buffer for the
+DMA. Such buffers were used for the whole lifetime of the session to
+the given device, what was equivalent to infinity from the migration/CMA
+point of view. This was however based on the specific use case at out
+target system, that's why I wanted to start the discussion and find
+some generic approach.
 
 
-Thanks,
--Kame
+> For example, what if it depends on other event which is normally very
+> fast but quite slow once a week or try to do dynamic memory allocation
+> but memory pressure is severe?
+>
+> For 100% working well, at last we need to change all GUP user with
+> GUP_NM or your FOLL_DURABLE whatever but the concern Mel pointed out
+> is it could cause lowmem exhaustion problem.
+
+This way we sooner or later end up without any movable pages at all.
+I assume that keeping some temporary references on movable/cma pages
+must be allowed, because otherwise we limit the functionality too much.
+
+> At the moment, there is other problem against migratoin, which are not
+> related with your patch. ex, zcache, zram, zswap. Their pages couldn't
+> be migrated out so I think below Mel's suggestion or some generic
+> infrastructure can move pinned page is  more proper way to go.
+
+zcache/zram/zswap (vsmalloc based code) can be also extended to support
+migration. It requires some significant amount of work, but it is really
+doable.
+
+> "To guarantee CMA can migrate pages pinned by drivers I think you need
+> migrate-related callsbacks to unpin, barrier the driver until migration
+> completes and repin."
+
+Right, this might improve the migration reliability. Are there any works
+being done in this direction?
+
+Best regards
+-- 
+Marek Szyprowski
+Samsung Poland R&D Center
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
