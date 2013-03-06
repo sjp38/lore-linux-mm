@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 834AE6B0005
-	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 03:22:57 -0500 (EST)
-Message-ID: <5136FCCF.6090003@parallels.com>
-Date: Wed, 6 Mar 2013 12:22:39 +0400
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 328D76B0005
+	for <linux-mm@kvack.org>; Wed,  6 Mar 2013 03:31:12 -0500 (EST)
+Message-ID: <5136FEC2.2050004@parallels.com>
+Date: Wed, 6 Mar 2013 12:30:58 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/5] memcg: do not call page_cgroup_init at system_boot
-References: <1362489058-3455-1-git-send-email-glommer@parallels.com> <1362489058-3455-5-git-send-email-glommer@parallels.com> <513696C1.3090301@jp.fujitsu.com>
-In-Reply-To: <513696C1.3090301@jp.fujitsu.com>
+Subject: Re: [PATCH v2 2/5] memcg: provide root figures from system totals
+References: <1362489058-3455-1-git-send-email-glommer@parallels.com> <1362489058-3455-3-git-send-email-glommer@parallels.com> <51368D80.20701@jp.fujitsu.com>
+In-Reply-To: <51368D80.20701@jp.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -16,16 +16,18 @@ List-ID: <linux-mm.kvack.org>
 To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, handai.szj@gmail.com, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-On 03/06/2013 05:07 AM, Kamezawa Hiroyuki wrote:
+On 03/06/2013 04:27 AM, Kamezawa Hiroyuki wrote:
 > (2013/03/05 22:10), Glauber Costa wrote:
->> If we are not using memcg, there is no reason why we should allocate
->> this structure, that will be a memory waste at best. We can do better
->> at least in the sparsemem case, and allocate it when the first cgroup
->> is requested. It should now not panic on failure, and we have to handle
->> this right.
+>> For the root memcg, there is no need to rely on the res_counters if hierarchy
+>> is enabled The sum of all mem cgroups plus the tasks in root itself, is
+>> necessarily the amount of memory used for the whole system. Since those figures
+>> are already kept somewhere anyway, we can just return them here, without too
+>> much hassle.
 >>
->> flatmem case is a bit more complicated, so that one is left out for
->> the moment.
+>> Limit and soft limit can't be set for the root cgroup, so they are left at
+>> RESOURCE_MAX. Failcnt is left at 0, because its actual meaning is how many
+>> times we failed allocations due to the limit being hit. We will fail
+>> allocations in the root cgroup, but the limit will never the reason.
 >>
 >> Signed-off-by: Glauber Costa <glommer@parallels.com>
 >> CC: Michal Hocko <mhocko@suse.cz>
@@ -33,78 +35,89 @@ On 03/06/2013 05:07 AM, Kamezawa Hiroyuki wrote:
 >> CC: Johannes Weiner <hannes@cmpxchg.org>
 >> CC: Mel Gorman <mgorman@suse.de>
 >> CC: Andrew Morton <akpm@linux-foundation.org>
+> 
+> I think this patch's calculation is wrong.
+> 
+where exactly ?
+
 >> ---
->>   include/linux/page_cgroup.h |  28 +++++----
->>   init/main.c                 |   2 -
->>   mm/memcontrol.c             |   3 +-
->>   mm/page_cgroup.c            | 150 ++++++++++++++++++++++++--------------------
->>   4 files changed, 99 insertions(+), 84 deletions(-)
-> 
-> This patch seems a complicated mixture of clean-up and what-you-really-want.
-> 
-I swear it is all what-I-really-want, any cleanups are non-intentional!
-
->> -#if !defined(CONFIG_SPARSEMEM)
->> +static void *alloc_page_cgroup(size_t size, int nid)
->> +{
->> +	gfp_t flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN;
->> +	void *addr = NULL;
->> +
->> +	addr = alloc_pages_exact_nid(nid, size, flags);
->> +	if (addr) {
->> +		kmemleak_alloc(addr, size, 1, flags);
->> +		return addr;
->> +	}
-> 
-> As far as I remember, this function was written for SPARSEMEM.
-> 
-> How big this "size" will be with FLATMEM/DISCONTIGMEM ?
-> if 16GB, 16 * 1024 * 1024 * 1024 / 4096 * 16 = 64MB. 
-> 
-> What happens if order > MAX_ORDER is passed to alloc_pages()...no warning ?
-> 
-> How about using vmalloc always if not SPARSEMEM ?
-
-I don't oppose.
-
+>>   mm/memcontrol.c | 64 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>>   1 file changed, 64 insertions(+)
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index b8b363f..bfbf1c2 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -4996,6 +4996,56 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+>>   	return val << PAGE_SHIFT;
+>>   }
 >>   
->> -void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
->> +static void free_page_cgroup(void *addr)
+>> +static u64 memcg_read_root_rss(void)
 >> +{
->> +	if (is_vmalloc_addr(addr)) {
->> +		vfree(addr);
->> +	} else {
->> +		struct page *page = virt_to_page(addr);
->> +		int nid = page_to_nid(page);
->> +		BUG_ON(PageReserved(page));
-> 
-> This BUG_ON() can be removed.
-> 
-
-You are right, although it is still a bug =)
-
->> +		free_pages_exact(addr, page_cgroup_table_size(nid));
->> +	}
->> +}
+>> +	struct task_struct *p;
 >> +
->> +static void page_cgroup_msg(void)
->> +{
->> +	printk(KERN_INFO "allocated %ld bytes of page_cgroup\n", total_usage);
->> +	printk(KERN_INFO "please try 'cgroup_disable=memory' option if you "
->> +			 "don't want memory cgroups.\nAlternatively, consider "
->> +			 "deferring your memory cgroups creation.\n");
+>> +	u64 rss = 0;
+>> +	read_lock(&tasklist_lock);
+>> +	for_each_process(p) {
+>> +		if (!p->mm)
+>> +			continue;
+>> +		task_lock(p);
+>> +		rss += get_mm_rss(p->mm);
+>> +		task_unlock(p);
+>> +	}
+>> +	read_unlock(&tasklist_lock);
+>> +	return rss;
 >> +}
 > 
-> I think this warning can be removed because it's not boot option problem
-> after this patch. I guess the boot option can be obsolete....
+> I think you can use rcu_read_lock() instead of tasklist_lock.
+> Isn't it enough to use NR_ANON_LRU rather than this ?
+
+Is it really just ANON_LRU ? get_mm_rss also include filepages, which
+are not in this list.
+
+Maybe if we sum up *all* LRUs we would get the right result ?
+
+About the tasklist lock, if I get values from the LRUs, maybe. Otherwise
+it is still necessary, no ?
+
 > 
+>> +
+>> +static u64 mem_cgroup_read_root(enum res_type type, int name)
+>> +{
+>> +	if (name == RES_LIMIT)
+>> +		return RESOURCE_MAX;
+>> +	if (name == RES_SOFT_LIMIT)
+>> +		return RESOURCE_MAX;
+>> +	if (name == RES_FAILCNT)
+>> +		return 0;
+>> +	if (name == RES_MAX_USAGE)
+>> +		return 0;
+>> +
+>> +	if (WARN_ON_ONCE(name != RES_USAGE))
+>> +		return 0;
+>> +
+>> +	switch (type) {
+>> +	case _MEM:
+>> +		return (memcg_read_root_rss() +
+>> +		atomic_long_read(&vm_stat[NR_FILE_PAGES])) << PAGE_SHIFT;
+>> +	case _MEMSWAP: {
+>> +		struct sysinfo i;
+>> +		si_swapinfo(&i);
+>> +
+>> +		return ((memcg_read_root_rss() +
+>> +		atomic_long_read(&vm_stat[NR_FILE_PAGES])) << PAGE_SHIFT) +
+>> +		i.totalswap - i.freeswap;
+> 
+> How swapcache is handled ? ...and How kmem works with this calc ?
+> 
+I am ignoring kmem, because we don't account kmem for the root cgroup
+anyway.
 
-I think it is extremely useful, at least during the next couple of
-releases. A lot of distributions will create memcgs for no apparent
-reasons way before they are used (if used at all), as a placeholder only.
+Setting the limit is invalid, and we don't account until the limit is
+set. Then it will be 0, always.
 
-This can at least tell them that there is a way to stop paying a memory
-penalty (together with the actual memory footprint)
+For swapcache, I am hoping that totalswap - freeswap will cover
+everything swap related. If you think I am wrong, please enlighten me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
