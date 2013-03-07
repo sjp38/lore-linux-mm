@@ -1,74 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 0061F6B0006
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 18:11:31 -0500 (EST)
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 897D76B0006
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 18:26:38 -0500 (EST)
+Received: by mail-ob0-f173.google.com with SMTP id dn14so825252obc.4
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2013 15:26:37 -0800 (PST)
+Message-ID: <51392227.1020709@gmail.com>
+Date: Fri, 08 Mar 2013 07:26:31 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Message-ID: <cd5fb4ff-094c-430c-94fb-a7416de0d332@default>
-Date: Thu, 7 Mar 2013 15:11:06 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCHv7 4/8] zswap: add to mm/
-References: <1362585143-6482-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1362585143-6482-5-git-send-email-sjenning@linux.vnet.ibm.com>
- <5138E3C7.9080205@sr71.net> <513904F2.50607@linux.vnet.ibm.com>
-In-Reply-To: <513904F2.50607@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 2/7] ksm: treat unstable nid like in stable tree
+References: <alpine.LNX.2.00.1302210013120.17843@eggly.anvils> <alpine.LNX.2.00.1302210019390.17843@eggly.anvils> <51271A7D.6020305@gmail.com> <alpine.LNX.2.00.1302221250440.6100@eggly.anvils> <51303CAB.3080406@gmail.com> <alpine.LNX.2.00.1303011139270.7398@eggly.anvils> <51315174.4020200@gmail.com> <alpine.LNX.2.00.1303011833490.23290@eggly.anvils> <5136ABEE.8000501@gmail.com> <alpine.LNX.2.00.1303052031320.29433@eggly.anvils> <51371801.8090005@gmail.com>
+In-Reply-To: <51371801.8090005@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Dave Hansen <dave@sr71.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Izik Eidus <izik.eidus@ravellosystems.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> To: Dave Hansen
-> Subject: Re: [PATCHv7 4/8] zswap: add to mm/
->=20
-> On 03/07/2013 01:00 PM, Dave Hansen wrote:
-> > On 03/06/2013 07:52 AM, Seth Jennings wrote:
-> > ...
-> >> +**********************************/
-> >> +/* attempts to compress and store an single page */
-> >> +static int zswap_frontswap_store(unsigned type, pgoff_t offset,
-> >> +=09=09=09=09struct page *page)
-> >> +{
-> > ...
-> >> +=09/* store */
-> >> +=09handle =3D zs_malloc(tree->pool, dlen,
-> >> +=09=09__GFP_NORETRY | __GFP_HIGHMEM | __GFP_NOMEMALLOC |
-> >> +=09=09=09__GFP_NOWARN);
-> >> +=09if (!handle) {
-> >> +=09=09zswap_reject_zsmalloc_fail++;
-> >> +=09=09ret =3D -ENOMEM;
-> >> +=09=09goto putcpu;
-> >> +=09}
-> >> +
-> >
-> > I think there needs to at least be some strong comments in here about
-> > why you're doing this kind of allocation.  From some IRC discussion, it
-> > seems like you found some pathological case where zswap wasn't helping
-> > make reclaim progress and ended up draining the reserve pools and you
-> > did this to avoid draining the reserve pools.
->=20
-> I'm currently doing some tests with fewer zsmalloc class sizes and
-> removing __GFP_NOMEMALLOC to see the effect.
-
-Zswap/zcache/frontswap are greedy, at times almost violently so.
-Using emergency reserves seems like a sure way to OOM depending
-on the workload (and luck).
-
-I did some class size experiments too without seeing much advantage.
-But without a range of "representative" data streams, it's very
-hard to claim any experiment is successful.
-
-I've got some ideas on combining the best of zsmalloc and zbud
-but they are still a little raw.
-
-> > I think the lack of progress doing reclaim is really the root cause you
-> > should be going after here instead of just working around the symptom.
-
-Dave, agreed.  See http://marc.info/?l=3Dlinux-mm&m=3D136147977602561&w=3D2=
-=20
-and the PAGEFRAME EVACUATION subsection of
-http://marc.info/?l=3Dlinux-mm&m=3D136200745931284&w=3D2
+Ping Hugh, :-)
+On 03/06/2013 06:18 PM, Ric Mason wrote:
+> Hi Hugh,
+> On 03/06/2013 01:05 PM, Hugh Dickins wrote:
+>> On Wed, 6 Mar 2013, Ric Mason wrote:
+>> [ I've deleted the context because that was about the unstable tree,
+>>    and here you have moved to asking about a case in the stable tree. ]
+>
+> I think I can basically understand you, please correct me if something 
+> wrong.
+>
+> For ksm page:
+> If one ksm page(in old node) migrate to another(new) node(ksm page is 
+> treated as old page, one new page allocated in another node now), 
+> since we can't get right lock in this time, we can't move stable node 
+> to its new tree at this time, stable node still in old node and 
+> stable_node->nid still store old node value. If ksmd scan and compare 
+> another page in old node and search stable tree will figure out that 
+> stable node relevant ksm page is migrated to new node, stable node 
+> will be erased from old node's stable tree and link to migrate_nodes 
+> list. What's the life of new page in new node? new page will be scaned 
+> by ksmd, it will search stable tree in new node and if doesn't find 
+> matched stable node, the new node is deleted from migrate_node list 
+> and add to new node's table tree as a leaf, if find stable node in 
+> stable tree, they will be merged. But in special case, the stable node 
+> relevant  ksm page can also migrated, new stable node will replace the 
+> stable node which relevant page migrated this time.
+> For unstable tree page:
+> If search in unstable tree and find the tree page which has equal 
+> content is migrated, just stop search and return, nothing merged. The 
+> new page in new node for this migrated unstable tree page will be 
+> insert to unstable tree in new node.
+>
+>>> For the case of a ksm page is migrated to a different NUMA node and 
+>>> migrate
+>>> its stable node to  the right tree and collide with an existing 
+>>> stable node.
+>>> get_kpfn_nid(stable_node->kpfn) != NUMA(stable_node->nid) can 
+>>> capture nothing
+>> That's not so: as I've pointed out before, ksm_migrate_page() updates
+>> stable_node->kpfn for the new page on the new NUMA node; but it cannot
+>> (get the right locking to) move the stable_node to its new tree at 
+>> that time.
+>>
+>> It's moved out once ksmd notices that it's in the wrong NUMA node tree -
+>> perhaps when one its rmap_items reaches the head of 
+>> cmp_and_merge_page(),
+>> or perhaps here in stable_tree_search() when it matches another page
+>> coming in to cmp_and_merge_page().
+>>
+>> You may be concentrating on the case when that "another page" is a ksm
+>> page migrated from a different NUMA node; and overlooking the case of
+>> when the matching ksm page in this stable tree has itself been migrated.
+>>
+>>> since stable_node is the node in the right stable tree, nothing 
+>>> happen to it
+>>> before this check. Did you intend to check 
+>>> get_kpfn_nid(page_node->kpfn) !=
+>>> NUMA(page_node->nid) ?
+>> Certainly not: page_node is usually NULL.  But I could have checked
+>> get_kpfn_nid(stable_node->kpfn) != nid: I was duplicating the test
+>> from cmp_and_merge_page(), but here we do have local variable nid.
+>>
+>> Hugh
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
