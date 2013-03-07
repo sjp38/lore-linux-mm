@@ -1,39 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 5A6916B0035
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 03:21:27 -0500 (EST)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH] mm: page_alloc: remove branch operation in free_pages_prepare()
-Date: Thu,  7 Mar 2013 17:21:20 +0900
-Message-Id: <1362644480-18381-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id D938C6B0005
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 03:21:50 -0500 (EST)
+Message-ID: <51384E3F.6070609@parallels.com>
+Date: Thu, 7 Mar 2013 12:22:23 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH for 3.9] memcg: initialize kmem-cache destroying work
+ earlier
+References: <20130307074853.26272.83618.stgit@zurg>
+In-Reply-To: <20130307074853.26272.83618.stgit@zurg>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-When we found that the flag has a bit of PAGE_FLAGS_CHECK_AT_PREP,
-we reset the flag. If we always reset the flag, we can reduce one
-branch operation. So remove it.
-
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8fcced7..778f2a9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -614,8 +614,7 @@ static inline int free_pages_check(struct page *page)
- 		return 1;
- 	}
- 	page_nid_reset_last(page);
--	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
--		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-+	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
- 	return 0;
- }
- 
--- 
-1.7.9.5
+On 03/07/2013 11:48 AM, Konstantin Khlebnikov wrote:
+> This patch fixes warning from lockdep caused by calling cancel_work_sync()
+> for uninitialized struct work. This path has been triggered by destructon
+> kmem-cache hierarchy via destroying its root kmem-cache.
+> 
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Cc: Glauber Costa <glommer@parallels.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> 
+I see no reason not to do the work initialization earlier, so
+ACK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
