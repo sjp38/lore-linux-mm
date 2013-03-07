@@ -1,68 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 2D6686B0005
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 09:11:49 -0500 (EST)
-Date: Thu, 7 Mar 2013 15:11:46 +0100 (CET)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: Re: [PATCH] hugetlb: fix sparse warning for hugetlb_register_node
-In-Reply-To: <CAEnQRZAiiJqHcEHoS+=ZMAHdQwu9yYc28or1Di7h4R7PRn6iEg@mail.gmail.com>
-Message-ID: <alpine.LNX.2.00.1303071511090.28677@pobox.suse.cz>
-References: <1362393975-22533-1-git-send-email-claudiu.ghioc@gmail.com> <CAEnQRZAiiJqHcEHoS+=ZMAHdQwu9yYc28or1Di7h4R7PRn6iEg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 6E1FB6B0005
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 10:43:18 -0500 (EST)
+Date: Thu, 7 Mar 2013 16:43:12 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: mmap vs fs cache
+Message-ID: <20130307154312.GG6723@quack.suse.cz>
+References: <5136320E.8030109@symas.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5136320E.8030109@symas.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Baluta <daniel.baluta@gmail.com>
-Cc: Claudiu Ghioc <claudiughioc@gmail.com>, akpm@linux-foundation.org, mhocko@suse.cz, aneesh.kumar@linux.vnet.ibm.com, dhillf@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Claudiu Ghioc <claudiu.ghioc@gmail.com>
+To: Howard Chu <hyc@symas.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Thu, 7 Mar 2013, Daniel Baluta wrote:
+  Added mm list to CC.
 
-> > Removed the following sparse warnings:
-> > *  mm/hugetlb.c:1764:6: warning: symbol
-> >     'hugetlb_unregister_node' was not declared.
-> >     Should it be static?
-> > *   mm/hugetlb.c:1808:6: warning: symbol
-> >     'hugetlb_register_node' was not declared.
-> >     Should it be static?
-> >
-> > Signed-off-by: Claudiu Ghioc <claudiu.ghioc@gmail.com>
-> > ---
-> >  mm/hugetlb.c |    4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> >
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index 0a0be33..c65a8a5 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -1761,7 +1761,7 @@ static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
-> >   * Unregister hstate attributes from a single node device.
-> >   * No-op if no hstate attributes attached.
-> >   */
-> > -void hugetlb_unregister_node(struct node *node)
-> > +static void hugetlb_unregister_node(struct node *node)
-> >  {
-> >         struct hstate *h;
-> >         struct node_hstate *nhs = &node_hstates[node->dev.id];
-> > @@ -1805,7 +1805,7 @@ static void hugetlb_unregister_all_nodes(void)
-> >   * Register hstate attributes for a single node device.
-> >   * No-op if attributes already registered.
-> >   */
-> > -void hugetlb_register_node(struct node *node)
-> > +static void hugetlb_register_node(struct node *node)
-> >  {
-> >         struct hstate *h;
-> >         struct node_hstate *nhs = &node_hstates[node->dev.id];
+On Tue 05-03-13 09:57:34, Howard Chu wrote:
+> I'm testing our memory-mapped database code on a small VM. The
+> machine has 32GB of RAM and the size of the DB on disk is ~44GB. The
+> database library mmaps the entire file as a single region and starts
+> accessing it as a tree of B+trees. Running on an Ubuntu 3.5.0-23
+> kernel, XFS on a local disk.
 > 
-> Can you pick this up via trivial tree?
-
-Seems like sparse is correct here, as register_hugetlbfs_with_node is 
-passing pointers to those functions.
-
-Will take it.
-
+> If I start running read-only queries against the DB with a freshly
+> started server, I see that my process (OpenLDAP slapd) quickly grows
+> to an RSS of about 16GB in tandem with the FS cache. (I.e., "top"
+> shows 16GB cached, and slapd is 16GB.)
+> If I confine my queries to the first 20% of the data then it all
+> fits in RAM and queries are nice and fast.
+> 
+> if I extend the query range to cover more of the data, approaching
+> the size of physical RAM, I see something strange - the FS cache
+> keeps growing, but the slapd process size grows at a slower rate.
+> This is rather puzzling to me since the only thing triggering reads
+> is accesses through the mmap region. Eventually the FS cache grows
+> to basically all of the 32GB of RAM (+/- some text/data space...)
+> but the slapd process only reaches 25GB, at which point it actually
+> starts to shrink - apparently the FS cache is now stealing pages
+> from it. I find that a bit puzzling; if the pages are present in
+> memory, and the only reason they were paged in was to satisfy an
+> mmap reference, why aren't they simply assigned to the slapd
+> process?
+> 
+> The current behavior gets even more aggravating: I can run a test
+> that spans exactly 30GB of the data. One would expect that the slapd
+> process should simply grow to 30GB in size, and then remain static
+> for the remainder of the test. Instead, the server grows to 25GB,
+> the FS cache grows to 32GB, and starts stealing pages from the
+> server, shrinking it back down to 19GB or so.
+> 
+> If I do an "echo 1 > /proc/sys/vm/drop_caches" at the onset of this
+> condition, the FS cache shrinks back to 25GB, matching the slapd
+> process size.
+> This then frees up enough RAM for slapd to grow further. If I don't
+> do this, the test is constantly paging in data from disk. Even so,
+> the FS cache continues to grow faster than the slapd process size,
+> so the system may run out of free RAM again, and I have to drop
+> caches multiple times before slapd finally grows to the full 30GB.
+> Once it gets to that size the test runs entirely from RAM with zero
+> I/Os, but it doesn't get there without a lot of babysitting.
+> 
+> 2 questions:
+>   why is there data in the FS cache that isn't owned by (the mmap
+> of) the process that caused it to be paged in in the first place?
+>   is there a tunable knob to discourage the page cache from stealing
+> from the process?
+> 
+> -- 
+>   -- Howard Chu
+>   CTO, Symas Corp.           http://www.symas.com
+>   Director, Highland Sun     http://highlandsun.com/hyc/
+>   Chief Architect, OpenLDAP  http://www.openldap.org/project/
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 -- 
-Jiri Kosina
-SUSE Labs
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
