@@ -1,108 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 570516B0006
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 22:11:15 -0500 (EST)
-Message-ID: <513956C9.5020304@huawei.com>
-Date: Fri, 8 Mar 2013 11:11:05 +0800
-From: Jiang Liu <jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 900836B0006
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 22:16:56 -0500 (EST)
+Date: Thu, 7 Mar 2013 22:16:51 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: Fixup the condition whether the page cache is free
+Message-ID: <20130308031651.GJ24384@cmpxchg.org>
+References: <CAFNq8R7tq9kvD9LyhZJ-Cj0kexQfDsPhB4iQYyZ9s9+8Jo82QA@mail.gmail.com>
+ <20130304150937.GB23767@cmpxchg.org>
+ <51369637.6030705@gmail.com>
+ <20130306194703.GA1953@cmpxchg.org>
+ <5137E7F4.1060509@gmail.com>
+ <51394945.4070803@gmail.com>
+ <20130308023705.GI24384@cmpxchg.org>
+ <5139517F.60407@gmail.com>
 MIME-Version: 1.0
-Subject: Re: mm: introduce new field "managed_pages" to struct zone
-References: <512EF580.6000608@gmail.com> <51336FB4.9000202@gmail.com> <5133E356.6000502@gmail.com> <5134CDBB.60700@gmail.com> <5135E2C7.8050105@gmail.com> <51360A87.40008@gmail.com> <51368C01.2090608@gmail.com>
-In-Reply-To: <51368C01.2090608@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5139517F.60407@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Jiang Liu <liuj97@gmail.com>, "linux-mm@kvack.org >> Linux Memory
- Management List" <linux-mm@kvack.org>
+Cc: Li Haifeng <omycle@gmail.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org
 
-On 2013-3-6 8:21, Simon Jeons wrote:
-> On 03/05/2013 11:08 PM, Jiang Liu wrote:
->> On 03/05/2013 08:19 PM, Simon Jeons wrote:
->>> On 03/05/2013 12:37 AM, Jiang Liu wrote:
->>>> On 03/04/2013 07:57 AM, Simon Jeons wrote:
->>>>> Hi Jiang,
->>>>> On 03/03/2013 11:43 PM, Jiang Liu wrote:
->>>>>> Hi Simon,
->>>>>>       Bootmem allocator is used to managed DMA and Normal memory only, and it does not manage highmem pages because kernel
->>>>>> can't directly access highmem pages.
->>>>> Why you say so? Could you point out where you figure out bootmem allocator doesn't handle highmem pages? In my understanding, it doesn't distinguish low memory or high memory.
->>>> Hi Simon,
->>> Hi Jiang,
->>>
->>> The comments of max_pfn_mapped is "highest direct mapped pfn over 4GB", so if both bootmem allocator and memblock just manage direct mapping pages?
->>> BTW, could you show me where you can figure out traditional bootmem allocator manages directly mapping pages?
->> Hi Simon,
->>     Bootmem allocator only manages directly mapped pages, but memblock could manage all pages.
->> For traditional bootmem allocator, you could trace back callers of init_bootmem_node() and init_bootmem()
->> to get the idea.
+On Fri, Mar 08, 2013 at 10:48:31AM +0800, Simon Jeons wrote:
+> On 03/08/2013 10:37 AM, Johannes Weiner wrote:
+> >On Fri, Mar 08, 2013 at 10:13:25AM +0800, Simon Jeons wrote:
+> >>Ping, :-)
+> >>On 03/07/2013 09:05 AM, Simon Jeons wrote:
+> >>>Hi Johannes,
+> >>>On 03/07/2013 03:47 AM, Johannes Weiner wrote:
+> >>>>On Wed, Mar 06, 2013 at 09:04:55AM +0800, Simon Jeons wrote:
+> >>>>>Hi Johannes,
+> >>>>>On 03/04/2013 11:09 PM, Johannes Weiner wrote:
+> >>>>>>On Mon, Mar 04, 2013 at 09:54:26AM +0800, Li Haifeng wrote:
+> >>>>>>>When a page cache is to reclaim, we should to decide whether the page
+> >>>>>>>cache is free.
+> >>>>>>>IMO, the condition whether a page cache is free should be 3 in page
+> >>>>>>>frame reclaiming. The reason lists as below.
+> >>>>>>>
+> >>>>>>>When page is allocated, the page->_count is 1(code
+> >>>>>>>fragment is code-1 ).
+> >>>>>>>And when the page is allocated for reading files from
+> >>>>>>>extern disk, the
+> >>>>>>>page->_count will increment 1 by page_cache_get() in
+> >>>>>>>add_to_page_cache_locked()(code fragment is code-2). When
+> >>>>>>>the page is to
+> >>>>>>>reclaim, the isolated LRU list also increase the page->_count(code
+> >>>>>>>fragment is code-3).
+> >>>>>>The page count is initialized to 1, but that does not stay with the
+> >>>>>>object.  It's a reference that is passed to the allocating task, which
+> >>>>>>drops it again when it's done with the page.  I.e. the pattern is like
+> >>>>>>this:
+> >>>>>>
+> >>>>>>instantiation:
+> >>>>>>page = page_cache_alloc()    /* instantiator reference -> 1 */
+> >>>>>>add_to_page_cache(page, mapping, offset)
+> >>>>>>   get_page(page)        /* page cache reference -> 2 */
+> >>>>>>lru_cache_add(page)
+> >>>>>>   get_page(page)        /* pagevec reference -> 3 */
+> >>>>>>/* ...initiate read, write, associate buffers, ... */
+> >>>>>>page_cache_release(page)    /* drop instantiator reference
+> >>>>>>-> 2 + private */
+> >>>>>>
+> >>>>>>reclaim:
+> >>>>>>lru_add_drain()
+> >>>>>>   page_cache_release(page)    /* drop pagevec reference ->
+> >>>>>>1 + private */
+> >>>>>IIUC, when add page to lru will lead to add to pagevec firstly, and
+> >>>>>pagevec will take one reference, so if lru will take over the
+> >>>>>reference taken by pagevec when page transmit from pagevec to lru?
+> >>>>>or just drop the reference and lru will not take reference for page?
+> >>>>The LRU does not hold a reference, it would not make sense.  The
+> >>>>pagevec only needs one because it would be awkward to remove a
+> >>>>concurrently freed page out of a pagevec, but unlinking a page from
+> >>>>the LRU is easy.  See mm/swap.c::__page_cache_release() and friends.
+> >>>Since pagevec is per cpu, when can remove a concurrently freed
+> >>>page out of a pagevec happen?
+> >It doesn't because the pagevec holds a reference, as I wrote above.
 > 
-> Hi Jiang,
-> 
-> I track the callset of init_bootmem() against openrisc architecture(arch/openrisc/kernel/setup.c), it seems that it manages all the memory instead of low memory you mentioned. BTW, I didn't read x86_64 direct mapping codes before, if has enough big memory, what's the range of direct mapping?
-Hi Simon,
-	You need to find callset on 32 bit architectures because only 32bit architectures use highmem. 64-bits architectures
-have enough virtual space to directly map all physical memory, so they don't need highmem.
-Please take a look at
-arch/sparc/mm/init_32.c
-arch/m32r/kernel/setup.c
-arch/arm/mm/init.c
+> I mean since pagevec is per cpu, how can remove a concurrently freed
+> page out of a pagevec happen? If it doesn't happen pagevec don't
+> need to hold a reference. :-)
 
-Regards!
-Gerry
-
-> 
->>     Regards!
->>     Gerry
->>
->>>>      According to my understanding, bootmem allocator does only manages lowmem pages.
->>>> For traditional bootmem allocator in mm/bootmem.c, it could only manages directly mapped lowmem pages.
->>>> For new bootmem allocator in mm/nobootmem.c, it depends on memblock to do the real work. Let's take
->>>> x86 as an example:
->>>> 1) following code set memblock.current_limit to max_low_pfn.
->>>> arch/x86/kernel/setup.c:    memblock.current_limit = get_max_mapped();
->>>> 2) the core of bootmem allocator in nobootmem.c is function __alloc_memory_core_early(),
->>>> which has following code to avoid allocate highmem pages:
->>>> static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
->>>>                                           u64 goal, u64 limit)
->>>> {
->>>>           void *ptr;
->>>>           u64 addr;
->>>>
->>>>           if (limit > memblock.current_limit)
->>>>                   limit = memblock.current_limit;
->>>>
->>>>           addr = memblock_find_in_range_node(goal, limit, size, align, nid);
->>>>           if (!addr)
->>>>                   return NULL;
->>>> }
->>>>
->>>> I guess it's the same for other architectures. On the other hand, some other architectures
->>>> may allocate highmem pages during boot by directly using memblock interfaces. For example,
->>>> ppc use memblock interfaces to allocate highmem pages for giagant hugetlb pages.
->>>>
->>>> I'm working a patch set to fix those cases.
->>>>
->>>> Regards!
->>>> Gerry
->>>>
->>>>
->>>>>>       Regards!
->>>>>>       Gerry
->>>>>>
->>>>>> On 02/28/2013 02:13 PM, Simon Jeons wrote:
->>>>>>> Hi Jiang,
->>>>>>>
->>>>>>> https://patchwork.kernel.org/patch/1781291/
->>>>>>>
->>>>>>> You said that the bootmem allocator doesn't touch *highmem pages*, so highmem zones' managed_pages is set to the accurate value "spanned_pages - absent_pages" in function free_area_init_core() and won't be updated anymore. Why it doesn't touch *highmem pages*? Could you point out where you figure out this?
->>>>>>>
-> 
-> 
-> .
-> 
-
+It has nothing to do with the pagevec being per CPU.  The page may get
+truncated or reclaimed and have every other reference being dropped
+while it sits on the pagevec.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
