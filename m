@@ -1,91 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 900836B0006
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 22:16:56 -0500 (EST)
-Date: Thu, 7 Mar 2013 22:16:51 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm: Fixup the condition whether the page cache is free
-Message-ID: <20130308031651.GJ24384@cmpxchg.org>
-References: <CAFNq8R7tq9kvD9LyhZJ-Cj0kexQfDsPhB4iQYyZ9s9+8Jo82QA@mail.gmail.com>
- <20130304150937.GB23767@cmpxchg.org>
- <51369637.6030705@gmail.com>
- <20130306194703.GA1953@cmpxchg.org>
- <5137E7F4.1060509@gmail.com>
- <51394945.4070803@gmail.com>
- <20130308023705.GI24384@cmpxchg.org>
- <5139517F.60407@gmail.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 2314B6B0002
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 01:42:32 -0500 (EST)
+Received: by mail-ob0-f172.google.com with SMTP id tb18so1038648obb.17
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2013 22:42:31 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5139517F.60407@gmail.com>
+In-Reply-To: <5138EC6C.6030906@suse.cz>
+References: <5121C7AF.2090803@numascale-asia.com>
+	<CAJd=RBArPT8YowhLuE8YVGNfH7G-xXTOjSyDgdV2RsatL-9m+Q@mail.gmail.com>
+	<51254AD2.7000906@suse.cz>
+	<CAJd=RBCiYof5rRVK+62OFMw+5F=5rS=qxRYF+OHpuRz895bn4w@mail.gmail.com>
+	<512F8D8B.3070307@suse.cz>
+	<CAJd=RBD=eT=xdEy+v3GBZ47gd47eB+fpF-3VtfpLAU7aEkZGgA@mail.gmail.com>
+	<5138EC6C.6030906@suse.cz>
+Date: Fri, 8 Mar 2013 14:42:31 +0800
+Message-ID: <CAJd=RBC6JzXzPn9OV8UsbEjX152RcbKpuGGy+OBGM6E43gourQ@mail.gmail.com>
+Subject: Re: kswapd craziness round 2
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Li Haifeng <omycle@gmail.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: Daniel J Blueman <daniel@numascale-asia.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Steffen Persvold <sp@numascale.com>, mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Mar 08, 2013 at 10:48:31AM +0800, Simon Jeons wrote:
-> On 03/08/2013 10:37 AM, Johannes Weiner wrote:
-> >On Fri, Mar 08, 2013 at 10:13:25AM +0800, Simon Jeons wrote:
-> >>Ping, :-)
-> >>On 03/07/2013 09:05 AM, Simon Jeons wrote:
-> >>>Hi Johannes,
-> >>>On 03/07/2013 03:47 AM, Johannes Weiner wrote:
-> >>>>On Wed, Mar 06, 2013 at 09:04:55AM +0800, Simon Jeons wrote:
-> >>>>>Hi Johannes,
-> >>>>>On 03/04/2013 11:09 PM, Johannes Weiner wrote:
-> >>>>>>On Mon, Mar 04, 2013 at 09:54:26AM +0800, Li Haifeng wrote:
-> >>>>>>>When a page cache is to reclaim, we should to decide whether the page
-> >>>>>>>cache is free.
-> >>>>>>>IMO, the condition whether a page cache is free should be 3 in page
-> >>>>>>>frame reclaiming. The reason lists as below.
-> >>>>>>>
-> >>>>>>>When page is allocated, the page->_count is 1(code
-> >>>>>>>fragment is code-1 ).
-> >>>>>>>And when the page is allocated for reading files from
-> >>>>>>>extern disk, the
-> >>>>>>>page->_count will increment 1 by page_cache_get() in
-> >>>>>>>add_to_page_cache_locked()(code fragment is code-2). When
-> >>>>>>>the page is to
-> >>>>>>>reclaim, the isolated LRU list also increase the page->_count(code
-> >>>>>>>fragment is code-3).
-> >>>>>>The page count is initialized to 1, but that does not stay with the
-> >>>>>>object.  It's a reference that is passed to the allocating task, which
-> >>>>>>drops it again when it's done with the page.  I.e. the pattern is like
-> >>>>>>this:
-> >>>>>>
-> >>>>>>instantiation:
-> >>>>>>page = page_cache_alloc()    /* instantiator reference -> 1 */
-> >>>>>>add_to_page_cache(page, mapping, offset)
-> >>>>>>   get_page(page)        /* page cache reference -> 2 */
-> >>>>>>lru_cache_add(page)
-> >>>>>>   get_page(page)        /* pagevec reference -> 3 */
-> >>>>>>/* ...initiate read, write, associate buffers, ... */
-> >>>>>>page_cache_release(page)    /* drop instantiator reference
-> >>>>>>-> 2 + private */
-> >>>>>>
-> >>>>>>reclaim:
-> >>>>>>lru_add_drain()
-> >>>>>>   page_cache_release(page)    /* drop pagevec reference ->
-> >>>>>>1 + private */
-> >>>>>IIUC, when add page to lru will lead to add to pagevec firstly, and
-> >>>>>pagevec will take one reference, so if lru will take over the
-> >>>>>reference taken by pagevec when page transmit from pagevec to lru?
-> >>>>>or just drop the reference and lru will not take reference for page?
-> >>>>The LRU does not hold a reference, it would not make sense.  The
-> >>>>pagevec only needs one because it would be awkward to remove a
-> >>>>concurrently freed page out of a pagevec, but unlinking a page from
-> >>>>the LRU is easy.  See mm/swap.c::__page_cache_release() and friends.
-> >>>Since pagevec is per cpu, when can remove a concurrently freed
-> >>>page out of a pagevec happen?
-> >It doesn't because the pagevec holds a reference, as I wrote above.
-> 
-> I mean since pagevec is per cpu, how can remove a concurrently freed
-> page out of a pagevec happen? If it doesn't happen pagevec don't
-> need to hold a reference. :-)
+On Fri, Mar 8, 2013 at 3:37 AM, Jiri Slaby <jslaby@suse.cz> wrote:
+> On 03/01/2013 03:02 PM, Hillf Danton wrote:
+>> On Fri, Mar 1, 2013 at 1:02 AM, Jiri Slaby <jslaby@suse.cz> wrote:
+>>>
+>>> Ok, no difference, kswap is still crazy. I'm attaching the output of
+>>> "grep -vw '0' /proc/vmstat" if you see something there.
+>>>
+>> Thanks to you for test and data.
+>>
+>> Lets try to restore the deleted nap, then.
+>
+> Oh, it seems to be nice now:
+> root       579  0.0  0.0      0     0 ?        S    Mar04   0:13 [kswapd0]
+>
+Double thanks.
 
-It has nothing to do with the pagevec being per CPU.  The page may get
-truncated or reclaimed and have every other reference being dropped
-while it sits on the pagevec.
+But Mel does not like it, probably.
+Lets try nap in another way.
+
+Hillf
+
+--- a/mm/vmscan.c	Thu Feb 21 20:01:02 2013
++++ b/mm/vmscan.c	Fri Mar  8 14:36:10 2013
+@@ -2793,6 +2793,10 @@ loop_again:
+ 				 * speculatively avoid congestion waits
+ 				 */
+ 				zone_clear_flag(zone, ZONE_CONGESTED);
++
++			else if (sc.priority > 2 &&
++				 sc.priority < DEF_PRIORITY - 2)
++				wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
+ 		}
+
+ 		/*
+--
+
+>>
+>> --- a/mm/vmscan.c     Thu Feb 21 20:01:02 2013
+>> +++ b/mm/vmscan.c     Fri Mar  1 21:55:40 2013
+>> @@ -2817,6 +2817,10 @@ loop_again:
+>>                */
+>>               if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
+>>                       break;
+>> +
+>> +             if (sc.priority < DEF_PRIORITY - 2)
+>> +                     congestion_wait(BLK_RW_ASYNC, HZ/10);
+>> +
+>>       } while (--sc.priority >= 0);
+>>
+>>  out:
+>> --
+>>
+>
+>
+> --
+> js
+> suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
