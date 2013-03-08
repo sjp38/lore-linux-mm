@@ -1,121 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 96BD96B0006
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 21:14:28 -0500 (EST)
-Received: by mail-ie0-f174.google.com with SMTP id k10so1435305iea.5
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2013 18:14:27 -0800 (PST)
-Message-ID: <5139497F.8010505@gmail.com>
-Date: Fri, 08 Mar 2013 10:14:23 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 9B1936B0006
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 21:35:16 -0500 (EST)
+Date: Thu, 7 Mar 2013 21:35:11 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: Swap defragging
+Message-ID: <20130308023511.GD23767@cmpxchg.org>
+References: <CAGDaZ_rvfrBVCKMuEdPcSod684xwbUf9Aj4nbas4_vcG3V9yfg@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: mm: introduce new field "managed_pages" to struct zone
-References: <512EF580.6000608@gmail.com> <51336FB4.9000202@gmail.com> <5133E356.6000502@gmail.com> <5134CDBB.60700@gmail.com> <5135E2C7.8050105@gmail.com> <51360A87.40008@gmail.com> <51368C01.2090608@gmail.com>
-In-Reply-To: <51368C01.2090608@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGDaZ_rvfrBVCKMuEdPcSod684xwbUf9Aj4nbas4_vcG3V9yfg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, "linux-mm@kvack.org >> Linux Memory Management List" <linux-mm@kvack.org>
+To: Raymond Jennings <shentino@gmail.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 
-Ping, :-)
-On 03/06/2013 08:21 AM, Simon Jeons wrote:
-> On 03/05/2013 11:08 PM, Jiang Liu wrote:
->> On 03/05/2013 08:19 PM, Simon Jeons wrote:
->>> On 03/05/2013 12:37 AM, Jiang Liu wrote:
->>>> On 03/04/2013 07:57 AM, Simon Jeons wrote:
->>>>> Hi Jiang,
->>>>> On 03/03/2013 11:43 PM, Jiang Liu wrote:
->>>>>> Hi Simon,
->>>>>>       Bootmem allocator is used to managed DMA and Normal memory 
->>>>>> only, and it does not manage highmem pages because kernel
->>>>>> can't directly access highmem pages.
->>>>> Why you say so? Could you point out where you figure out bootmem 
->>>>> allocator doesn't handle highmem pages? In my understanding, it 
->>>>> doesn't distinguish low memory or high memory.
->>>> Hi Simon,
->>> Hi Jiang,
->>>
->>> The comments of max_pfn_mapped is "highest direct mapped pfn over 
->>> 4GB", so if both bootmem allocator and memblock just manage direct 
->>> mapping pages?
->>> BTW, could you show me where you can figure out traditional bootmem 
->>> allocator manages directly mapping pages?
->> Hi Simon,
->>     Bootmem allocator only manages directly mapped pages, but 
->> memblock could manage all pages.
->> For traditional bootmem allocator, you could trace back callers of 
->> init_bootmem_node() and init_bootmem()
->> to get the idea.
->
-> Hi Jiang,
->
-> I track the callset of init_bootmem() against openrisc 
-> architecture(arch/openrisc/kernel/setup.c), it seems that it manages 
-> all the memory instead of low memory you mentioned. BTW, I didn't read 
-> x86_64 direct mapping codes before, if has enough big memory, what's 
-> the range of direct mapping?
->
->>     Regards!
->>     Gerry
->>
->>>>      According to my understanding, bootmem allocator does only 
->>>> manages lowmem pages.
->>>> For traditional bootmem allocator in mm/bootmem.c, it could only 
->>>> manages directly mapped lowmem pages.
->>>> For new bootmem allocator in mm/nobootmem.c, it depends on memblock 
->>>> to do the real work. Let's take
->>>> x86 as an example:
->>>> 1) following code set memblock.current_limit to max_low_pfn.
->>>> arch/x86/kernel/setup.c:    memblock.current_limit = get_max_mapped();
->>>> 2) the core of bootmem allocator in nobootmem.c is function 
->>>> __alloc_memory_core_early(),
->>>> which has following code to avoid allocate highmem pages:
->>>> static void * __init __alloc_memory_core_early(int nid, u64 size, 
->>>> u64 align,
->>>>                                           u64 goal, u64 limit)
->>>> {
->>>>           void *ptr;
->>>>           u64 addr;
->>>>
->>>>           if (limit > memblock.current_limit)
->>>>                   limit = memblock.current_limit;
->>>>
->>>>           addr = memblock_find_in_range_node(goal, limit, size, 
->>>> align, nid);
->>>>           if (!addr)
->>>>                   return NULL;
->>>> }
->>>>
->>>> I guess it's the same for other architectures. On the other hand, 
->>>> some other architectures
->>>> may allocate highmem pages during boot by directly using memblock 
->>>> interfaces. For example,
->>>> ppc use memblock interfaces to allocate highmem pages for giagant 
->>>> hugetlb pages.
->>>>
->>>> I'm working a patch set to fix those cases.
->>>>
->>>> Regards!
->>>> Gerry
->>>>
->>>>
->>>>>>       Regards!
->>>>>>       Gerry
->>>>>>
->>>>>> On 02/28/2013 02:13 PM, Simon Jeons wrote:
->>>>>>> Hi Jiang,
->>>>>>>
->>>>>>> https://patchwork.kernel.org/patch/1781291/
->>>>>>>
->>>>>>> You said that the bootmem allocator doesn't touch *highmem 
->>>>>>> pages*, so highmem zones' managed_pages is set to the accurate 
->>>>>>> value "spanned_pages - absent_pages" in function 
->>>>>>> free_area_init_core() and won't be updated anymore. Why it 
->>>>>>> doesn't touch *highmem pages*? Could you point out where you 
->>>>>>> figure out this?
->>>>>>>
->
+On Thu, Mar 07, 2013 at 06:07:23PM -0800, Raymond Jennings wrote:
+> Just a two cent question, but is there any merit to having the kernel
+> defragment swap space?
+
+That is a good question.
+
+Swap does fragment quite a bit, and there are several reasons for
+that.
+
+We swap pages in our LRU list order, but this list is sorted by first
+access, not by access frequency (not quite that cookie cutter, but the
+ordering is certainly fairly coarse).  This means that the pages may
+already be in suboptimal order for swap in at the time of swap out.
+
+Once written to disk, the layout tends to stick.  One reason is that
+we actually try to not free swap slots unless there is a shortage of
+swap space to save future swap out IO (grep for vm_swap_full()).  The
+other reason is that if a page shared among multiple threads is
+swapped out, it can not be removed from swap until all threads have
+faulted the page back in because of page table entries still referring
+to the swap slot on disk.  In a multi-threaded application, this is
+rather unlikely.
+
+So even though the referencing order of the application might change,
+the disk layout won't.  But adjusting the disk layout speculatively
+increases disk IO, so it could be hard to prove that you came up with
+a net improvement.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
