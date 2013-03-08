@@ -1,55 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 9F1B66B0035
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 03:28:02 -0500 (EST)
-Message-ID: <5139A10C.3060507@parallels.com>
-Date: Fri, 08 Mar 2013 12:27:56 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 150EB6B0006
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 03:40:20 -0500 (EST)
+Date: Fri, 8 Mar 2013 10:42:46 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: mmap vs fs cache
+Message-ID: <20130308084246.GA4411@shutemov.name>
+References: <5136320E.8030109@symas.com>
+ <20130307154312.GG6723@quack.suse.cz>
+ <20130308020854.GC23767@cmpxchg.org>
+ <5139975F.9070509@symas.com>
 MIME-Version: 1.0
-Subject: Unexpected mremap + shared anon mapping behavior
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5139975F.9070509@symas.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
+To: Howard Chu <hyc@symas.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Hi!
+On Thu, Mar 07, 2013 at 11:46:39PM -0800, Howard Chu wrote:
+> You're misreading the information then. slapd is doing no caching of
+> its own, its RSS and SHR memory size are both the same. All it is
+> using is the mmap, nothing else. The RSS == SHR == FS cache, up to
+> 16GB. RSS is always == SHR, but above 16GB they grow more slowly
+> than the FS cache.
 
-I've recently noticed that the following user-space code
+It only means, that some pages got unmapped from your process. It can
+happned, for instance, due page migration. There's nothing worry about: it
+will be mapped back on next page fault to the page and it's only minor
+page fault since the page is in pagecache anyway.
 
-#define _GNU_SOURCE
-#include <stdio.h>
-#include <sys/mman.h>
-
-#define PAGE_SIZE	(4096)
-
-int main(void)
-{
-	char *mem = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, 0, 0);
-	mem = mremap(mem, PAGE_SIZE, 2 * PAGE_SIZE, MREMAP_MAYMOVE);
-	mem[0] = 'a';
-	mem[PAGE_SIZE] = 'b';
-	return 0;
-}
-
-generates SIGBUS on the 2nd page access. But if we change MAP_SHARED into MAP_PRIVATE
-in the mmap() call, it starts working OK.
-
-This happens because when doing a MAP_SHARED | MAP_ANON area, the kernel sets up a shmem
-file for the mapping, but the subsequent mremap() doesn't grow it. Thus a page-fault into
-the 2nd page happens to be beyond this file i_size, resulting in SIGBUS.
-
-So, the question is -- what should the mremap() behavior be for shared anonymous mappings?
-Should it truncate the file to match the grown-up vma length? If yes, should it also 
-truncate it if we mremap() the mapping to the smaller size?
-
-
-I also have to note, that before the /proc/PID/map_files/ directory appeared in Linux it
-was impossible to fix this behavior from the application side. Now app can (yes, it's a 
-hack) open the respective shmem file via this dir and manually truncate one. It does help.
-
-Thanks,
-Pavel
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
