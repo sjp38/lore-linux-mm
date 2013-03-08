@@ -1,87 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id B04D86B0006
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 21:09:08 -0500 (EST)
-Date: Thu, 7 Mar 2013 21:08:54 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: mmap vs fs cache
-Message-ID: <20130308020854.GC23767@cmpxchg.org>
-References: <5136320E.8030109@symas.com>
- <20130307154312.GG6723@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 728B86B0006
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 21:13:31 -0500 (EST)
+Received: by mail-ie0-f182.google.com with SMTP id k14so1459838iea.27
+        for <linux-mm@kvack.org>; Thu, 07 Mar 2013 18:13:30 -0800 (PST)
+Message-ID: <51394945.4070803@gmail.com>
+Date: Fri, 08 Mar 2013 10:13:25 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130307154312.GG6723@quack.suse.cz>
+Subject: Re: [PATCH] mm: Fixup the condition whether the page cache is free
+References: <CAFNq8R7tq9kvD9LyhZJ-Cj0kexQfDsPhB4iQYyZ9s9+8Jo82QA@mail.gmail.com> <20130304150937.GB23767@cmpxchg.org> <51369637.6030705@gmail.com> <20130306194703.GA1953@cmpxchg.org> <5137E7F4.1060509@gmail.com>
+In-Reply-To: <5137E7F4.1060509@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Howard Chu <hyc@symas.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Li Haifeng <omycle@gmail.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org
 
-On Thu, Mar 07, 2013 at 04:43:12PM +0100, Jan Kara wrote:
->   Added mm list to CC.
-> 
-> On Tue 05-03-13 09:57:34, Howard Chu wrote:
-> > I'm testing our memory-mapped database code on a small VM. The
-> > machine has 32GB of RAM and the size of the DB on disk is ~44GB. The
-> > database library mmaps the entire file as a single region and starts
-> > accessing it as a tree of B+trees. Running on an Ubuntu 3.5.0-23
-> > kernel, XFS on a local disk.
-> > 
-> > If I start running read-only queries against the DB with a freshly
-> > started server, I see that my process (OpenLDAP slapd) quickly grows
-> > to an RSS of about 16GB in tandem with the FS cache. (I.e., "top"
-> > shows 16GB cached, and slapd is 16GB.)
-> > If I confine my queries to the first 20% of the data then it all
-> > fits in RAM and queries are nice and fast.
-> > 
-> > if I extend the query range to cover more of the data, approaching
-> > the size of physical RAM, I see something strange - the FS cache
-> > keeps growing, but the slapd process size grows at a slower rate.
-> > This is rather puzzling to me since the only thing triggering reads
-> > is accesses through the mmap region. Eventually the FS cache grows
-> > to basically all of the 32GB of RAM (+/- some text/data space...)
-> > but the slapd process only reaches 25GB, at which point it actually
-> > starts to shrink - apparently the FS cache is now stealing pages
-> > from it. I find that a bit puzzling; if the pages are present in
-> > memory, and the only reason they were paged in was to satisfy an
-> > mmap reference, why aren't they simply assigned to the slapd
-> > process?
-> > 
-> > The current behavior gets even more aggravating: I can run a test
-> > that spans exactly 30GB of the data. One would expect that the slapd
-> > process should simply grow to 30GB in size, and then remain static
-> > for the remainder of the test. Instead, the server grows to 25GB,
-> > the FS cache grows to 32GB, and starts stealing pages from the
-> > server, shrinking it back down to 19GB or so.
-> > 
-> > If I do an "echo 1 > /proc/sys/vm/drop_caches" at the onset of this
-> > condition, the FS cache shrinks back to 25GB, matching the slapd
-> > process size.
-> > This then frees up enough RAM for slapd to grow further. If I don't
-> > do this, the test is constantly paging in data from disk. Even so,
-> > the FS cache continues to grow faster than the slapd process size,
-> > so the system may run out of free RAM again, and I have to drop
-> > caches multiple times before slapd finally grows to the full 30GB.
-> > Once it gets to that size the test runs entirely from RAM with zero
-> > I/Os, but it doesn't get there without a lot of babysitting.
-> > 
-> > 2 questions:
-> >   why is there data in the FS cache that isn't owned by (the mmap
-> > of) the process that caused it to be paged in in the first place?
-
-The filesystem cache is shared among processes because the filesystem
-is also shared among processes.  If another task were to access the
-same file, we still should only have one copy of that data in memory.
-
-It sounds to me like slapd is itself caching all the data it reads.
-If that is true, shouldn't it really be using direct IO to prevent
-this double buffering of filesystem data in memory?
-
-> >   is there a tunable knob to discourage the page cache from stealing
-> > from the process?
-
-Try reducing /proc/sys/vm/swappiness, which ranges from 0-100 and
-defaults to 60.
+Ping, :-)
+On 03/07/2013 09:05 AM, Simon Jeons wrote:
+> Hi Johannes,
+> On 03/07/2013 03:47 AM, Johannes Weiner wrote:
+>> On Wed, Mar 06, 2013 at 09:04:55AM +0800, Simon Jeons wrote:
+>>> Hi Johannes,
+>>> On 03/04/2013 11:09 PM, Johannes Weiner wrote:
+>>>> On Mon, Mar 04, 2013 at 09:54:26AM +0800, Li Haifeng wrote:
+>>>>> When a page cache is to reclaim, we should to decide whether the page
+>>>>> cache is free.
+>>>>> IMO, the condition whether a page cache is free should be 3 in page
+>>>>> frame reclaiming. The reason lists as below.
+>>>>>
+>>>>> When page is allocated, the page->_count is 1(code fragment is 
+>>>>> code-1 ).
+>>>>> And when the page is allocated for reading files from extern disk, 
+>>>>> the
+>>>>> page->_count will increment 1 by page_cache_get() in
+>>>>> add_to_page_cache_locked()(code fragment is code-2). When the page 
+>>>>> is to
+>>>>> reclaim, the isolated LRU list also increase the page->_count(code
+>>>>> fragment is code-3).
+>>>> The page count is initialized to 1, but that does not stay with the
+>>>> object.  It's a reference that is passed to the allocating task, which
+>>>> drops it again when it's done with the page.  I.e. the pattern is like
+>>>> this:
+>>>>
+>>>> instantiation:
+>>>> page = page_cache_alloc()    /* instantiator reference -> 1 */
+>>>> add_to_page_cache(page, mapping, offset)
+>>>>    get_page(page)        /* page cache reference -> 2 */
+>>>> lru_cache_add(page)
+>>>>    get_page(page)        /* pagevec reference -> 3 */
+>>>> /* ...initiate read, write, associate buffers, ... */
+>>>> page_cache_release(page)    /* drop instantiator reference -> 2 + 
+>>>> private */
+>>>>
+>>>> reclaim:
+>>>> lru_add_drain()
+>>>>    page_cache_release(page)    /* drop pagevec reference -> 1 + 
+>>>> private */
+>>> IIUC, when add page to lru will lead to add to pagevec firstly, and
+>>> pagevec will take one reference, so if lru will take over the
+>>> reference taken by pagevec when page transmit from pagevec to lru?
+>>> or just drop the reference and lru will not take reference for page?
+>> The LRU does not hold a reference, it would not make sense.  The
+>> pagevec only needs one because it would be awkward to remove a
+>> concurrently freed page out of a pagevec, but unlinking a page from
+>> the LRU is easy.  See mm/swap.c::__page_cache_release() and friends.
+>
+> Since pagevec is per cpu, when can remove a concurrently freed page 
+> out of a pagevec happen?
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
