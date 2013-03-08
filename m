@@ -1,42 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 36BBE6B0006
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 03:27:54 -0500 (EST)
-Received: by mail-ob0-f170.google.com with SMTP id wc20so1101629obb.29
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2013 00:27:53 -0800 (PST)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 9F1B66B0035
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 03:28:02 -0500 (EST)
+Message-ID: <5139A10C.3060507@parallels.com>
+Date: Fri, 08 Mar 2013 12:27:56 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <51399368.3040200@bitsync.net>
-References: <5121C7AF.2090803@numascale-asia.com>
-	<CAJd=RBArPT8YowhLuE8YVGNfH7G-xXTOjSyDgdV2RsatL-9m+Q@mail.gmail.com>
-	<51254AD2.7000906@suse.cz>
-	<CAJd=RBCiYof5rRVK+62OFMw+5F=5rS=qxRYF+OHpuRz895bn4w@mail.gmail.com>
-	<512F8D8B.3070307@suse.cz>
-	<CAJd=RBD=eT=xdEy+v3GBZ47gd47eB+fpF-3VtfpLAU7aEkZGgA@mail.gmail.com>
-	<5138EC6C.6030906@suse.cz>
-	<CAJd=RBC6JzXzPn9OV8UsbEjX152RcbKpuGGy+OBGM6E43gourQ@mail.gmail.com>
-	<51399368.3040200@bitsync.net>
-Date: Fri, 8 Mar 2013 16:27:53 +0800
-Message-ID: <CAJd=RBCLqLKB7SmOPHGS8UUa28whhk6HdchskS8R9yt55Du0Xg@mail.gmail.com>
-Subject: Re: kswapd craziness round 2
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Unexpected mremap + shared anon mapping behavior
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zcalusic@bitsync.net>
-Cc: Jiri Slaby <jslaby@suse.cz>, Daniel J Blueman <daniel@numascale-asia.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Steffen Persvold <sp@numascale.com>, mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Linux MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
 
-On Fri, Mar 8, 2013 at 3:29 PM, Zlatko Calusic <zcalusic@bitsync.net> wrote:
-> There's another bug in there, which I'm still chasing.
->
-I am busy in discovering an employer(a really hard work?) so
-I dunno the hours I have for that bug.
+Hi!
 
-Hmm, take a look at Mels thoughts?
-http://marc.info/?l=linux-mm&m=136189593423501&w=2
+I've recently noticed that the following user-space code
 
-BTW, he will be online next week.
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <sys/mman.h>
 
-Hillf
+#define PAGE_SIZE	(4096)
+
+int main(void)
+{
+	char *mem = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, 0, 0);
+	mem = mremap(mem, PAGE_SIZE, 2 * PAGE_SIZE, MREMAP_MAYMOVE);
+	mem[0] = 'a';
+	mem[PAGE_SIZE] = 'b';
+	return 0;
+}
+
+generates SIGBUS on the 2nd page access. But if we change MAP_SHARED into MAP_PRIVATE
+in the mmap() call, it starts working OK.
+
+This happens because when doing a MAP_SHARED | MAP_ANON area, the kernel sets up a shmem
+file for the mapping, but the subsequent mremap() doesn't grow it. Thus a page-fault into
+the 2nd page happens to be beyond this file i_size, resulting in SIGBUS.
+
+So, the question is -- what should the mremap() behavior be for shared anonymous mappings?
+Should it truncate the file to match the grown-up vma length? If yes, should it also 
+truncate it if we mremap() the mapping to the smaller size?
+
+
+I also have to note, that before the /proc/PID/map_files/ directory appeared in Linux it
+was impossible to fix this behavior from the application side. Now app can (yes, it's a 
+hack) open the respective shmem file via this dir and manually truncate one. It does help.
+
+Thanks,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
