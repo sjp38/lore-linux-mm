@@ -1,40 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 6A8426B0037
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 10:52:56 -0500 (EST)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH 2/2] mm: remove_memory: Fix end_pfn setting
-Date: Fri,  8 Mar 2013 08:41:41 -0700
-Message-Id: <1362757301-18550-2-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1362757301-18550-1-git-send-email-toshi.kani@hp.com>
-References: <1362757301-18550-1-git-send-email-toshi.kani@hp.com>
+	by kanga.kvack.org (Postfix) with SMTP id B303C6B0006
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 11:17:05 -0500 (EST)
+Date: Fri, 8 Mar 2013 11:16:43 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: mmap vs fs cache
+Message-ID: <20130308161643.GE23767@cmpxchg.org>
+References: <5136320E.8030109@symas.com>
+ <20130307154312.GG6723@quack.suse.cz>
+ <20130308020854.GC23767@cmpxchg.org>
+ <5139975F.9070509@symas.com>
+ <20130308084246.GA4411@shutemov.name>
+ <5139B214.3040303@symas.com>
+ <5139FA13.8090305@genband.com>
+ <5139FD27.1030208@symas.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5139FD27.1030208@symas.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, Toshi Kani <toshi.kani@hp.com>
+To: Howard Chu <hyc@symas.com>
+Cc: Chris Friesen <chris.friesen@genband.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-remove_memory() calls walk_memory_range() with [start_pfn, end_pfn),
-where end_pfn is exclusive in this range.  Therefore, end_pfn needs
-to be set to the next page of the end address.
+On Fri, Mar 08, 2013 at 07:00:55AM -0800, Howard Chu wrote:
+> Chris Friesen wrote:
+> >On 03/08/2013 03:40 AM, Howard Chu wrote:
+> >
+> >>There is no way that a process that is accessing only 30GB of a mmap
+> >>should be able to fill up 32GB of RAM. There's nothing else running on
+> >>the machine, I've killed or suspended everything else in userland
+> >>besides a couple shells running top and vmstat. When I manually
+> >>drop_caches repeatedly, then eventually slapd RSS/SHR grows to 30GB and
+> >>the physical I/O stops.
+> >
+> >Is it possible that the kernel is doing some sort of automatic
+> >readahead, but it ends up reading pages corresponding to data that isn't
+> >ever queried and so doesn't get mapped by the application?
+> 
+> Yes, that's what I was thinking. I added a
+> posix_madvise(..POSIX_MADV_RANDOM) but that had no effect on the
+> test.
+> 
+> First obvious conclusion - kswapd is being too aggressive. When free
+> memory hits the low watermark, the reclaim shrinks slapd down from
+> 25GB to 18-19GB, while the page cache still contains ~7GB of
+> unmapped pages. Ideally I'd like a tuning knob so I can say to keep
+> no more than 2GB of unmapped pages in the cache. (And the desired
+> effect of that would be to allow user processes to grow to 30GB
+> total, in this case.)
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- mm/memory_hotplug.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+We should find out where the unmapped page cache is coming from if you
+are only accessing mapped file cache and disabled readahead.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index ae7bcba..3e2ab7b 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1801,7 +1801,7 @@ int __ref remove_memory(int nid, u64 start, u64 size)
- 	int retry = 1;
- 
- 	start_pfn = PFN_DOWN(start);
--	end_pfn = start_pfn + PFN_DOWN(size);
-+	end_pfn = PFN_UP(start + size - 1);
- 
- 	/*
- 	 * When CONFIG_MEMCG is on, one memory block may be used by other
+How do you arrive at this number of unmapped page cache?
+
+What could happen is that previously used and activated pages do not
+get evicted anymore since there is a constant supply of younger
+reclaimable cache that is actually thrashing.  Whenever you drop the
+caches, you get rid of those stale active pages and allow the
+previously thrashing cache to get activated.  However, that would
+require that there is already a significant amount of active file
+pages before your workload starts (check the nr_active_file number in
+/proc/vmstat before launching slapd, try sync; echo 3 >drop_caches
+before launching to eliminate this option) OR that the set of pages
+accessed during your workload changes and the combined set of pages
+accessed by your workload is bigger than available memory -- which you
+claimed would not happen because you only access the 30GB file area on
+that system.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
