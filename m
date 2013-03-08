@@ -1,96 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 85F2E6B0006
-	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 21:02:07 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kp1so914767pab.17
-        for <linux-mm@kvack.org>; Thu, 07 Mar 2013 18:02:06 -0800 (PST)
-Date: Thu, 7 Mar 2013 18:01:26 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: page_alloc: remove branch operation in
- free_pages_prepare()
-In-Reply-To: <20130308004550.GA19010@lge.com>
-Message-ID: <alpine.LNX.2.00.1303071745001.7553@eggly.anvils>
-References: <1362644480-18381-1-git-send-email-iamjoonsoo.kim@lge.com> <alpine.LNX.2.00.1303071050080.6087@eggly.anvils> <20130308004550.GA19010@lge.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 98D466B0006
+	for <linux-mm@kvack.org>; Thu,  7 Mar 2013 21:05:21 -0500 (EST)
+Date: Thu, 7 Mar 2013 21:05:18 -0500 (EST)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <1613107327.11152810.1362708318813.JavaMail.root@redhat.com>
+In-Reply-To: <alpine.LNX.2.00.1303071042390.6087@eggly.anvils>
+Subject: Re: change of behavior for madvise in 3.9-rc1
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Shaohua Li <shli@kernel.org>
 
-On Fri, 8 Mar 2013, Joonsoo Kim wrote:
-> On Thu, Mar 07, 2013 at 10:54:15AM -0800, Hugh Dickins wrote:
-> > On Thu, 7 Mar 2013, Joonsoo Kim wrote:
-> > 
-> > > When we found that the flag has a bit of PAGE_FLAGS_CHECK_AT_PREP,
-> > > we reset the flag. If we always reset the flag, we can reduce one
-> > > branch operation. So remove it.
+
+
+----- Original Message -----
+> From: "Hugh Dickins" <hughd@google.com>
+> To: "Shaohua Li" <shli@kernel.org>
+> Cc: "CAI Qian" <caiqian@redhat.com>, "linux-mm" <linux-mm@kvack.org>, "linux-kernel" <linux-kernel@vger.kernel.org>,
+> "Rik van Riel" <riel@redhat.com>, "Sasha Levin" <sasha.levin@oracle.com>, "Andrew Morton"
+> <akpm@linux-foundation.org>, "Linus Torvalds" <torvalds@linux-foundation.org>
+> Sent: Friday, March 8, 2013 2:49:48 AM
+> Subject: Re: change of behavior for madvise in 3.9-rc1
+> 
+> On Thu, 7 Mar 2013, Shaohua Li wrote:
+> > On Wed, Mar 06, 2013 at 11:05:04PM -0500, CAI Qian wrote:
+> > > Bisecting indicated that this commit,
+> > > 1998cc048901109a29924380b8e91bc049b32951
+> > > mm: make madvise(MADV_WILLNEED) support swap file prefetch
 > > > 
-> > > Cc: Hugh Dickins <hughd@google.com>
-> > > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > I don't object to this patch.  But certainly I would have written it
-> > that way in order not to dirty a cacheline unnecessarily.  It may be
-> > obvious to you that the cacheline in question is almost always already
-> > dirty, and the branch almost always more expensive.  But I'll leave that
-> > to you, and to those who know more about these subtle costs than I do.
-> 
-> Yes. I already think about that. I thought that even if a cacheline is
-> not dirty at this time, we always touch the 'struct page' in
-> set_freepage_migratetype() a little later, so dirtying is not the problem.
-
-I expect that a very high proportion of user pages have
-PG_uptodate to be cleared here; and there's also the recently added
-page_nid_reset_last(), which will dirty the flags or a nearby field
-when CONFIG_NUMA_BALANCING.  Those argue in favour of your patch.
-
-> 
-> But, now, I re-think this and decide to drop this patch.
-> The reason is that 'struct page' of 'compound pages' may not be dirty
-> at this time and will not be dirty at later time.
-
-Actual compound pages would have PG_head or PG_tail or PG_compound
-to be cleared there, I believe (check if I'm right on that).  The
-questionable case is the ordinary order>0 case without __GFP_COMP
-(and page_nid_reset_last() is applied to each subpage of those).
-
-> So this patch is bad idea.
-
-I'm not so sure.  I doubt your patch will make a giant improvement
-in kernel performance!  But it might make a little - maybe you just
-need to give some numbers from perf to justify it (but I'm easily
-dazzled by numbers - don't expect me to judge the result).
-
-Hugh
-
-> 
-> Is there any comments?
-> 
-> Thanks.
-> 
-> > Hugh
-> > 
+> > > Caused an LTP test failure,
+> > > http://goo.gl/1FVPy
 > > > 
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index 8fcced7..778f2a9 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -614,8 +614,7 @@ static inline int free_pages_check(struct page *page)
-> > >  		return 1;
-> > >  	}
-> > >  	page_nid_reset_last(page);
-> > > -	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
-> > > -		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-> > > +	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
-> > >  	return 0;
-> > >  }
-> > >  
+> > > madvise02    1  TPASS  :  failed as expected:
+> > > TEST_ERRNO=EINVAL(22): Invalid argument
+> > > madvise02    2  TPASS  :  failed as expected:
+> > > TEST_ERRNO=EINVAL(22): Invalid argument
+> > > madvise02    3  TPASS  :  failed as expected:
+> > > TEST_ERRNO=EINVAL(22): Invalid argument
+> > > madvise02    4  TPASS  :  failed as expected:
+> > > TEST_ERRNO=ENOMEM(12): Cannot allocate memory
+> > > madvise02    5  TFAIL  :  madvise succeeded unexpectedly
+> > > 
+> > > While it passed without the above commit
+> > > madvise02    1  TPASS  :  failed as expected:
+> > > TEST_ERRNO=EINVAL(22): Invalid argument
+> > > madvise02    2  TPASS  :  failed as expected:
+> > > TEST_ERRNO=EINVAL(22): Invalid argument
+> > > madvise02    3  TPASS  :  failed as expected:
+> > > TEST_ERRNO=EINVAL(22): Invalid argument
+> > > madvise02    4  TPASS  :  failed as expected:
+> > > TEST_ERRNO=ENOMEM(12): Cannot allocate memory
+> > > madvise02    5  TPASS  :  failed as expected:
+> > > TEST_ERRNO=EBADF(9): Bad file descriptor
 > > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > I thought this is expected behavior. madvise(MADV_WILLNEED) to
+> > anonymous memory
+> > doesn't return -EBADF now, as now we support swap prefretch.
+> 
+> I agree with Shaohua: although the kernel strives for
+> back-compatibility
+> with userspace, I don't think that goes so far as to tell an
+> arbitrary LTP
+> test that it has failed, once the kernel has been enhanced to support
+> new
+> functionality.  We could never add or extend system calls if that
+> were so.
+Thanks for looking this. We will try to fix the LTP test instead.
+> 
+> Hugh
 > 
 
 --
