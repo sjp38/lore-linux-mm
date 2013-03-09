@@ -1,75 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 14E616B0005
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 22:28:43 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id dn14so1890325obc.18
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2013 19:28:42 -0800 (PST)
-Message-ID: <513AAC63.3050207@gmail.com>
-Date: Sat, 09 Mar 2013 11:28:35 +0800
-From: Ric Mason <ric.masonn@gmail.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id C5FA16B0005
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 22:54:30 -0500 (EST)
+Received: by mail-oa0-f45.google.com with SMTP id o6so2885218oag.32
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2013 19:54:29 -0800 (PST)
+Message-ID: <513AB270.1020503@gmail.com>
+Date: Sat, 09 Mar 2013 11:54:24 +0800
+From: Will Huck <will.huckk@gmail.com>
 MIME-Version: 1.0
-Subject: Re: mmap vs fs cache
-References: <5136320E.8030109@symas.com> <20130307154312.GG6723@quack.suse.cz> <20130308020854.GC23767@cmpxchg.org> <5139975F.9070509@symas.com> <20130308084246.GA4411@shutemov.name> <5139B214.3040303@symas.com> <5139FA13.8090305@genband.com> <5139FD27.1030208@symas.com> <20130308161643.GE23767@cmpxchg.org>
-In-Reply-To: <20130308161643.GE23767@cmpxchg.org>
+Subject: Re: [PATCH] mm: page_alloc: remove branch operation in free_pages_prepare()
+References: <1362644480-18381-1-git-send-email-iamjoonsoo.kim@lge.com> <alpine.LNX.2.00.1303071050080.6087@eggly.anvils> <20130308004550.GA19010@lge.com> <alpine.LNX.2.00.1303071745001.7553@eggly.anvils>
+In-Reply-To: <alpine.LNX.2.00.1303071745001.7553@eggly.anvils>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Howard Chu <hyc@symas.com>, Chris Friesen <chris.friesen@genband.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Johannes,
-On 03/09/2013 12:16 AM, Johannes Weiner wrote:
-> On Fri, Mar 08, 2013 at 07:00:55AM -0800, Howard Chu wrote:
->> Chris Friesen wrote:
->>> On 03/08/2013 03:40 AM, Howard Chu wrote:
+Hi Hugh,
+On 03/08/2013 10:01 AM, Hugh Dickins wrote:
+> On Fri, 8 Mar 2013, Joonsoo Kim wrote:
+>> On Thu, Mar 07, 2013 at 10:54:15AM -0800, Hugh Dickins wrote:
+>>> On Thu, 7 Mar 2013, Joonsoo Kim wrote:
 >>>
->>>> There is no way that a process that is accessing only 30GB of a mmap
->>>> should be able to fill up 32GB of RAM. There's nothing else running on
->>>> the machine, I've killed or suspended everything else in userland
->>>> besides a couple shells running top and vmstat. When I manually
->>>> drop_caches repeatedly, then eventually slapd RSS/SHR grows to 30GB and
->>>> the physical I/O stops.
->>> Is it possible that the kernel is doing some sort of automatic
->>> readahead, but it ends up reading pages corresponding to data that isn't
->>> ever queried and so doesn't get mapped by the application?
->> Yes, that's what I was thinking. I added a
->> posix_madvise(..POSIX_MADV_RANDOM) but that had no effect on the
->> test.
+>>>> When we found that the flag has a bit of PAGE_FLAGS_CHECK_AT_PREP,
+>>>> we reset the flag. If we always reset the flag, we can reduce one
+>>>> branch operation. So remove it.
+>>>>
+>>>> Cc: Hugh Dickins <hughd@google.com>
+>>>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>> I don't object to this patch.  But certainly I would have written it
+>>> that way in order not to dirty a cacheline unnecessarily.  It may be
+>>> obvious to you that the cacheline in question is almost always already
+>>> dirty, and the branch almost always more expensive.  But I'll leave that
+>>> to you, and to those who know more about these subtle costs than I do.
+>> Yes. I already think about that. I thought that even if a cacheline is
+>> not dirty at this time, we always touch the 'struct page' in
+>> set_freepage_migratetype() a little later, so dirtying is not the problem.
+> I expect that a very high proportion of user pages have
+> PG_uptodate to be cleared here; and there's also the recently added
+
+When PG_uptodate will be set?
+
+> page_nid_reset_last(), which will dirty the flags or a nearby field
+> when CONFIG_NUMA_BALANCING.  Those argue in favour of your patch.
+>
+>> But, now, I re-think this and decide to drop this patch.
+>> The reason is that 'struct page' of 'compound pages' may not be dirty
+>> at this time and will not be dirty at later time.
+> Actual compound pages would have PG_head or PG_tail or PG_compound
+> to be cleared there, I believe (check if I'm right on that).  The
+> questionable case is the ordinary order>0 case without __GFP_COMP
+> (and page_nid_reset_last() is applied to each subpage of those).
+>
+>> So this patch is bad idea.
+> I'm not so sure.  I doubt your patch will make a giant improvement
+> in kernel performance!  But it might make a little - maybe you just
+> need to give some numbers from perf to justify it (but I'm easily
+> dazzled by numbers - don't expect me to judge the result).
+>
+> Hugh
+>
+>> Is there any comments?
 >>
->> First obvious conclusion - kswapd is being too aggressive. When free
->> memory hits the low watermark, the reclaim shrinks slapd down from
->> 25GB to 18-19GB, while the page cache still contains ~7GB of
->> unmapped pages. Ideally I'd like a tuning knob so I can say to keep
->> no more than 2GB of unmapped pages in the cache. (And the desired
->> effect of that would be to allow user processes to grow to 30GB
->> total, in this case.)
-> We should find out where the unmapped page cache is coming from if you
-> are only accessing mapped file cache and disabled readahead.
->
-> How do you arrive at this number of unmapped page cache?
->
-> What could happen is that previously used and activated pages do not
-> get evicted anymore since there is a constant supply of younger
-
-If a user process exit, its file pages and anonymous pages will be freed 
-immediately or go through page reclaim?
-
-> reclaimable cache that is actually thrashing.  Whenever you drop the
-> caches, you get rid of those stale active pages and allow the
-> previously thrashing cache to get activated.  However, that would
-> require that there is already a significant amount of active file
-
-Why you emphasize a *significant* amount of active file pages?
-
-> pages before your workload starts (check the nr_active_file number in
-> /proc/vmstat before launching slapd, try sync; echo 3 >drop_caches
-> before launching to eliminate this option) OR that the set of pages
-> accessed during your workload changes and the combined set of pages
-> accessed by your workload is bigger than available memory -- which you
-> claimed would not happen because you only access the 30GB file area on
-> that system.
->
+>> Thanks.
+>>
+>>> Hugh
+>>>
+>>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>>> index 8fcced7..778f2a9 100644
+>>>> --- a/mm/page_alloc.c
+>>>> +++ b/mm/page_alloc.c
+>>>> @@ -614,8 +614,7 @@ static inline int free_pages_check(struct page *page)
+>>>>   		return 1;
+>>>>   	}
+>>>>   	page_nid_reset_last(page);
+>>>> -	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
+>>>> -		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+>>>> +	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+>>>>   	return 0;
+>>>>   }
+>>>>   
+>>> --
+>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>> see: http://www.linux-mm.org/ .
+>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
