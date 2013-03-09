@@ -1,64 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 3CB276B0005
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 21:14:23 -0500 (EST)
-Received: by mail-ia0-f169.google.com with SMTP id j5so2092383iaf.28
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2013 18:14:22 -0800 (PST)
-Message-ID: <513A9AF7.4020909@gmail.com>
-Date: Sat, 09 Mar 2013 10:14:15 +0800
-From: Will Huck <will.huckk@gmail.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 454DA6B0005
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 21:18:29 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id up1so1820690pbc.37
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2013 18:18:28 -0800 (PST)
+Message-ID: <513A9BD3.4010807@gmail.com>
+Date: Sat, 09 Mar 2013 10:17:55 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-Subject: Re: Inactive memory keep growing and how to release it?
-References: <CAAO_Xo7sEH5W_9xoOjax8ynyjLCx7GBpse+EU0mF=9mEBFhrgw@mail.gmail.com> <51347A6E.8010608@iskon.hr> <CAAO_Xo6bWo4QOvdowLG88NoQr2AEq4jxCWHQXeA8g-VBT4Yk9Q@mail.gmail.com>
-In-Reply-To: <CAAO_Xo6bWo4QOvdowLG88NoQr2AEq4jxCWHQXeA8g-VBT4Yk9Q@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFC PATCH v1 01/33] mm: introduce common help functions to deal
+ with reserved/managed pages
+References: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com> <1362495317-32682-2-git-send-email-jiang.liu@huawei.com> <20130305194722.GA12225@merkur.ravnborg.org>
+In-Reply-To: <20130305194722.GA12225@merkur.ravnborg.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lenky Gao <lenky.gao@gmail.com>
-Cc: Zlatko Calusic <zlatko.calusic@iskon.hr>, Greg KH <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, Anatolij Gustschin <agust@denx.de>, Aurelien Jacquiot <a-jacquiot@ti.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Chen Liqin <liqin.chen@sunplusct.com>, Chris Metcalf <cmetcalf@tilera.com>, Chris Zankel <chris@zankel.net>, David Howells <dhowells@redhat.com>, "David S. Miller" <davem@davemloft.net>, Eric Biederman <ebiederm@xmission.com>, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Haavard Skinnemoen <hskinnemoen@gmail.com>, Hans-Christian Egtvedt <egtvedt@samfundet.no>, Heiko Carstens <heiko.carstens@de.ibm.com>, Helge Deller <deller@gmx.de>, Hirokazu Takata <takata@linux-m32r.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Jonas Bonn <jonas@southpole.se>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Lennox Wu <lennox.wu@gmail.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Simek <monstr@monstr.eu>, Michel Lespinasse <walken@google.com>, Mikael Starvik <starvik@axis.com>, Mike Frysinger <vapier@gentoo.org>, Paul Mackerras <paulus@samba.org>, Paul Mundt <lethal@linux-sh.org>, Ralf Baechle <ralf@linux-mips.org>, Richard Henderson <rth@twiddle.net>, Rik van Riel <riel@redhat.com>, Russell King <linux@arm.linux.org.uk>, Rusty Russell <rusty@rustcorp.com.au>, Tang Chen <tangchen@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>, x86@kernel.org, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, virtualization@lists.linux-foundation.org
 
-Cc experts. Hugh, Johannes,
+Hi Sam,
+	Thanks for review!
 
-On 03/04/2013 08:21 PM, Lenky Gao wrote:
-> 2013/3/4 Zlatko Calusic <zlatko.calusic@iskon.hr>:
->> The drop_caches mechanism doesn't free dirty page cache pages. And your bash
->> script is creating a lot of dirty pages. Run it like this and see if it
->> helps your case:
+On 03/06/2013 03:47 AM, Sam Ravnborg wrote:
+> On Tue, Mar 05, 2013 at 10:54:44PM +0800, Jiang Liu wrote:
+>> Code to deal with reserved/managed pages are duplicated by many
+>> architectures, so introduce common help functions to reduce duplicated
+>> code. These common help functions will also be used to concentrate code
+>> to modify totalram_pages and zone->managed_pages, which makes the code
+>> much more clear.
 >>
->> sync; echo 3 > /proc/sys/vm/drop_caches
-> Thanks for your advice.
->
-> The inactive memory still cannot be reclaimed after i execute the sync command:
->
-> # cat /proc/meminfo | grep Inactive\(file\);
-> Inactive(file):   882824 kB
-> # sync;
-> # echo 3 > /proc/sys/vm/drop_caches
-> # cat /proc/meminfo | grep Inactive\(file\);
-> Inactive(file):   777664 kB
->
-> I find these page becomes orphaned in this function, but do not understand why:
->
-> /*
->   * If truncate cannot remove the fs-private metadata from the page, the page
->   * becomes orphaned.  It will be left on the LRU and may even be mapped into
->   * user pagetables if we're racing with filemap_fault().
->   *
->   * We need to bale out if page->mapping is no longer equal to the original
->   * mapping.  This happens a) when the VM reclaimed the page while we waited on
->   * its lock, b) when a concurrent invalidate_mapping_pages got there first and
->   * c) when tmpfs swizzles a page between a tmpfs inode and swapper_space.
->   */
-> static int
-> truncate_complete_page(struct address_space *mapping, struct page *page)
-> {
-> ...
->
-> My file system type is ext3, mounted with the opteion data=journal and
-> it is easy to reproduce.
->
->
+>> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+>> ---
+>>  include/linux/mm.h |   37 +++++++++++++++++++++++++++++++++++++
+>>  mm/page_alloc.c    |   20 ++++++++++++++++++++
+>>  2 files changed, 57 insertions(+)
+>>
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 7acc9dc..881461c 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -1295,6 +1295,43 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
+>>  		unsigned long zone_start_pfn, unsigned long *zholes_size);
+>>  extern void free_initmem(void);
+>>  
+>> +/* Help functions to deal with reserved/managed pages. */
+>> +extern unsigned long free_reserved_area(unsigned long start, unsigned long end,
+>> +					int poison, char *s);
+>> +
+>> +static inline void adjust_managed_page_count(struct page *page, long count)
+>> +{
+>> +	totalram_pages += count;
+>> +}
+> 
+> What is the purpose of the unused page argument?
+I will be used in a later patch.
+
+> 
+>> +
+>> +static inline void __free_reserved_page(struct page *page)
+>> +{
+>> +	ClearPageReserved(page);
+>> +	init_page_count(page);
+>> +	__free_page(page);
+>> +}
+> This method is useful for architectures which implment HIGHMEM,
+> like 32 bit x86 and 32 bit sparc.
+> This calls for a name without underscores.
+We will introduce another help function named free_highmem_page()
+to free highmem into the buddy system. In normal cases __free_reserved_page()
+won't be called directly, it's just used to handle several special cases.
+
+> 
+> 
+>> +
+>> +static inline void free_reserved_page(struct page *page)
+>> +{
+>> +	__free_reserved_page(page);
+>> +	adjust_managed_page_count(page, 1);
+>> +}
+>> +
+>> +static inline void mark_page_reserved(struct page *page)
+>> +{
+>> +	SetPageReserved(page);
+>> +	adjust_managed_page_count(page, -1);
+>> +}
+>> +
+>> +static inline void free_initmem_default(int poison)
+>> +{
+> 
+> Why request user to supply the poison argumet. If this is the default
+> implmentation then use the default poison value too (POISON_FREE_INITMEM)
+> 
+>> +	extern char __init_begin[], __init_end[];
+>> +
+>> +	free_reserved_area(PAGE_ALIGN((unsigned long)&__init_begin) ,
+>> +			   ((unsigned long)&__init_end) & PAGE_MASK,
+>> +			   poison, "unused kernel");
+>> +}
+> 
+> 
+> Maybe it is just me how is not used to this area of the kernel.
+> But a few comments that describe what the purpose is of each
+> function would have helped me.
+Good suggestion, will add comments for them.
+
+Regards!
+Gerry
+
+> 
+> 	Sam
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
