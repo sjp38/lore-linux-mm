@@ -1,116 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 454DA6B0005
-	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 21:18:29 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id up1so1820690pbc.37
-        for <linux-mm@kvack.org>; Fri, 08 Mar 2013 18:18:28 -0800 (PST)
-Message-ID: <513A9BD3.4010807@gmail.com>
-Date: Sat, 09 Mar 2013 10:17:55 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id AD2786B0005
+	for <linux-mm@kvack.org>; Fri,  8 Mar 2013 21:34:39 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so1825690pbc.10
+        for <linux-mm@kvack.org>; Fri, 08 Mar 2013 18:34:38 -0800 (PST)
+Message-ID: <513A9FB8.1050807@gmail.com>
+Date: Sat, 09 Mar 2013 10:34:32 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v1 01/33] mm: introduce common help functions to deal
- with reserved/managed pages
-References: <1362495317-32682-1-git-send-email-jiang.liu@huawei.com> <1362495317-32682-2-git-send-email-jiang.liu@huawei.com> <20130305194722.GA12225@merkur.ravnborg.org>
-In-Reply-To: <20130305194722.GA12225@merkur.ravnborg.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: mmap vs fs cache
+References: <5136320E.8030109@symas.com> <20130307154312.GG6723@quack.suse.cz> <20130308020854.GC23767@cmpxchg.org>
+In-Reply-To: <20130308020854.GC23767@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sam Ravnborg <sam@ravnborg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, Anatolij Gustschin <agust@denx.de>, Aurelien Jacquiot <a-jacquiot@ti.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Chen Liqin <liqin.chen@sunplusct.com>, Chris Metcalf <cmetcalf@tilera.com>, Chris Zankel <chris@zankel.net>, David Howells <dhowells@redhat.com>, "David S. Miller" <davem@davemloft.net>, Eric Biederman <ebiederm@xmission.com>, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Haavard Skinnemoen <hskinnemoen@gmail.com>, Hans-Christian Egtvedt <egtvedt@samfundet.no>, Heiko Carstens <heiko.carstens@de.ibm.com>, Helge Deller <deller@gmx.de>, Hirokazu Takata <takata@linux-m32r.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Jonas Bonn <jonas@southpole.se>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Lennox Wu <lennox.wu@gmail.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Simek <monstr@monstr.eu>, Michel Lespinasse <walken@google.com>, Mikael Starvik <starvik@axis.com>, Mike Frysinger <vapier@gentoo.org>, Paul Mackerras <paulus@samba.org>, Paul Mundt <lethal@linux-sh.org>, Ralf Baechle <ralf@linux-mips.org>, Richard Henderson <rth@twiddle.net>, Rik van Riel <riel@redhat.com>, Russell King <linux@arm.linux.org.uk>, Rusty Russell <rusty@rustcorp.com.au>, Tang Chen <tangchen@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>, x86@kernel.org, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, virtualization@lists.linux-foundation.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Jan Kara <jack@suse.cz>, Howard Chu <hyc@symas.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Hi Sam,
-	Thanks for review!
-
-On 03/06/2013 03:47 AM, Sam Ravnborg wrote:
-> On Tue, Mar 05, 2013 at 10:54:44PM +0800, Jiang Liu wrote:
->> Code to deal with reserved/managed pages are duplicated by many
->> architectures, so introduce common help functions to reduce duplicated
->> code. These common help functions will also be used to concentrate code
->> to modify totalram_pages and zone->managed_pages, which makes the code
->> much more clear.
+Hi Johannes,
+On 03/08/2013 10:08 AM, Johannes Weiner wrote:
+> On Thu, Mar 07, 2013 at 04:43:12PM +0100, Jan Kara wrote:
+>>    Added mm list to CC.
 >>
->> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->> ---
->>  include/linux/mm.h |   37 +++++++++++++++++++++++++++++++++++++
->>  mm/page_alloc.c    |   20 ++++++++++++++++++++
->>  2 files changed, 57 insertions(+)
->>
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 7acc9dc..881461c 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -1295,6 +1295,43 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
->>  		unsigned long zone_start_pfn, unsigned long *zholes_size);
->>  extern void free_initmem(void);
->>  
->> +/* Help functions to deal with reserved/managed pages. */
->> +extern unsigned long free_reserved_area(unsigned long start, unsigned long end,
->> +					int poison, char *s);
->> +
->> +static inline void adjust_managed_page_count(struct page *page, long count)
->> +{
->> +	totalram_pages += count;
->> +}
-> 
-> What is the purpose of the unused page argument?
-I will be used in a later patch.
+>> On Tue 05-03-13 09:57:34, Howard Chu wrote:
+>>> I'm testing our memory-mapped database code on a small VM. The
+>>> machine has 32GB of RAM and the size of the DB on disk is ~44GB. The
+>>> database library mmaps the entire file as a single region and starts
+>>> accessing it as a tree of B+trees. Running on an Ubuntu 3.5.0-23
+>>> kernel, XFS on a local disk.
+>>>
+>>> If I start running read-only queries against the DB with a freshly
+>>> started server, I see that my process (OpenLDAP slapd) quickly grows
+>>> to an RSS of about 16GB in tandem with the FS cache. (I.e., "top"
+>>> shows 16GB cached, and slapd is 16GB.)
+>>> If I confine my queries to the first 20% of the data then it all
+>>> fits in RAM and queries are nice and fast.
+>>>
+>>> if I extend the query range to cover more of the data, approaching
+>>> the size of physical RAM, I see something strange - the FS cache
+>>> keeps growing, but the slapd process size grows at a slower rate.
+>>> This is rather puzzling to me since the only thing triggering reads
+>>> is accesses through the mmap region. Eventually the FS cache grows
+>>> to basically all of the 32GB of RAM (+/- some text/data space...)
+>>> but the slapd process only reaches 25GB, at which point it actually
+>>> starts to shrink - apparently the FS cache is now stealing pages
+>>> from it. I find that a bit puzzling; if the pages are present in
+>>> memory, and the only reason they were paged in was to satisfy an
+>>> mmap reference, why aren't they simply assigned to the slapd
+>>> process?
+>>>
+>>> The current behavior gets even more aggravating: I can run a test
+>>> that spans exactly 30GB of the data. One would expect that the slapd
+>>> process should simply grow to 30GB in size, and then remain static
+>>> for the remainder of the test. Instead, the server grows to 25GB,
+>>> the FS cache grows to 32GB, and starts stealing pages from the
+>>> server, shrinking it back down to 19GB or so.
+>>>
+>>> If I do an "echo 1 > /proc/sys/vm/drop_caches" at the onset of this
+>>> condition, the FS cache shrinks back to 25GB, matching the slapd
+>>> process size.
+>>> This then frees up enough RAM for slapd to grow further. If I don't
+>>> do this, the test is constantly paging in data from disk. Even so,
+>>> the FS cache continues to grow faster than the slapd process size,
+>>> so the system may run out of free RAM again, and I have to drop
+>>> caches multiple times before slapd finally grows to the full 30GB.
+>>> Once it gets to that size the test runs entirely from RAM with zero
+>>> I/Os, but it doesn't get there without a lot of babysitting.
+>>>
+>>> 2 questions:
+>>>    why is there data in the FS cache that isn't owned by (the mmap
+>>> of) the process that caused it to be paged in in the first place?
+> The filesystem cache is shared among processes because the filesystem
+> is also shared among processes.  If another task were to access the
+> same file, we still should only have one copy of that data in memory.
+>
+> It sounds to me like slapd is itself caching all the data it reads.
+> If that is true, shouldn't it really be using direct IO to prevent
+> this double buffering of filesystem data in memory?
 
-> 
->> +
->> +static inline void __free_reserved_page(struct page *page)
->> +{
->> +	ClearPageReserved(page);
->> +	init_page_count(page);
->> +	__free_page(page);
->> +}
-> This method is useful for architectures which implment HIGHMEM,
-> like 32 bit x86 and 32 bit sparc.
-> This calls for a name without underscores.
-We will introduce another help function named free_highmem_page()
-to free highmem into the buddy system. In normal cases __free_reserved_page()
-won't be called directly, it's just used to handle several special cases.
+When use direct IO is better? When use page cache is better?
 
-> 
-> 
->> +
->> +static inline void free_reserved_page(struct page *page)
->> +{
->> +	__free_reserved_page(page);
->> +	adjust_managed_page_count(page, 1);
->> +}
->> +
->> +static inline void mark_page_reserved(struct page *page)
->> +{
->> +	SetPageReserved(page);
->> +	adjust_managed_page_count(page, -1);
->> +}
->> +
->> +static inline void free_initmem_default(int poison)
->> +{
-> 
-> Why request user to supply the poison argumet. If this is the default
-> implmentation then use the default poison value too (POISON_FREE_INITMEM)
-> 
->> +	extern char __init_begin[], __init_end[];
->> +
->> +	free_reserved_area(PAGE_ALIGN((unsigned long)&__init_begin) ,
->> +			   ((unsigned long)&__init_end) & PAGE_MASK,
->> +			   poison, "unused kernel");
->> +}
-> 
-> 
-> Maybe it is just me how is not used to this area of the kernel.
-> But a few comments that describe what the purpose is of each
-> function would have helped me.
-Good suggestion, will add comments for them.
+>
+>>>    is there a tunable knob to discourage the page cache from stealing
+>>> from the process?
+> Try reducing /proc/sys/vm/swappiness, which ranges from 0-100 and
+> defaults to 60.
 
-Regards!
-Gerry
+Why redunce? IIUC, swappiness is used to determine how aggressive 
+reclaim anonymous pages, if the value is high more anonymous pages will 
+be reclaimed.
 
-> 
-> 	Sam
-> 
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
