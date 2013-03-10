@@ -1,122 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id EEA0B6B0006
-	for <linux-mm@kvack.org>; Sun, 10 Mar 2013 01:29:49 -0500 (EST)
-Received: by mail-da0-f52.google.com with SMTP id f10so475729dak.25
-        for <linux-mm@kvack.org>; Sat, 09 Mar 2013 22:29:49 -0800 (PST)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 628136B0037
+	for <linux-mm@kvack.org>; Sun, 10 Mar 2013 01:30:01 -0500 (EST)
+Received: by mail-pb0-f44.google.com with SMTP id wz12so2643931pbc.3
+        for <linux-mm@kvack.org>; Sat, 09 Mar 2013 22:30:00 -0800 (PST)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v2, part1 01/29] mm: introduce common help functions to deal with reserved/managed pages
-Date: Sun, 10 Mar 2013 14:26:44 +0800
-Message-Id: <1362896833-21104-2-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH v2, part1 02/29] mm/alpha: use common help functions to free reserved pages
+Date: Sun, 10 Mar 2013 14:26:45 +0800
+Message-Id: <1362896833-21104-3-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1362896833-21104-1-git-send-email-jiang.liu@huawei.com>
 References: <1362896833-21104-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, Anatolij Gustschin <agust@denx.de>, Aurelien Jacquiot <a-jacquiot@ti.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Catalin Marinas <catalin.marinas@arm.com>, Chen Liqin <liqin.chen@sunplusct.com>, Chris Metcalf <cmetcalf@tilera.com>, Chris Zankel <chris@zankel.net>, David Howells <dhowells@redhat.com>, "David S. Miller" <davem@davemloft.net>, Eric Biederman <ebiederm@xmission.com>, Fenghua Yu <fenghua.yu@intel.com>, Geert Uytterhoeven <geert@linux-m68k.org>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Haavard Skinnemoen <hskinnemoen@gmail.com>, Hans-Christian Egtvedt <egtvedt@samfundet.no>, Heiko Carstens <heiko.carstens@de.ibm.com>, Helge Deller <deller@gmx.de>, James Hogan <james.hogan@imgtec.com>, Hirokazu Takata <takata@linux-m32r.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Jeff Dike <jdike@addtoit.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Jonas Bonn <jonas@southpole.se>, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Lennox Wu <lennox.wu@gmail.com>, Mark Salter <msalter@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Matt Turner <mattst88@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Simek <monstr@monstr.eu>, Michel Lespinasse <walken@google.com>, Mikael Starvik <starvik@axis.com>, Mike Frysinger <vapier@gentoo.org>, Paul Mackerras <paulus@samba.org>, Paul Mundt <lethal@linux-sh.org>, Ralf Baechle <ralf@linux-mips.org>, Richard Henderson <rth@twiddle.net>, Rik van Riel <riel@redhat.com>, Russell King <linux@arm.linux.org.uk>, Rusty Russell <rusty@rustcorp.com.au>, Sam Ravnborg <sam@ravnborg.org>, Tang Chen <tangchen@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Tony Luck <tony.luck@intel.com>, Will Deacon <will.deacon@arm.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Yoshinori Sato <ysato@users.sourceforge.jp>, x86@kernel.org, xen-devel@lists.xensource.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Vineet Gupta <vgupta@synopsys.com>, linux-snps-arc@vger.kernel.org, virtualization@lists.linux-foundation.org
+Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>
 
-Code to deal with reserved/managed pages are duplicated by many
-architectures, so introduce common help functions to reduce duplicated
-code. These common help functions will also be used to concentrate code
-to modify totalram_pages and zone->managed_pages, which makes the code
-much more clear.
+Use common help functions to free reserved pages.
+Also include <asm/sections.h> to avoid local declarations.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+Cc: Richard Henderson <rth@twiddle.net>
+Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
+Cc: Matt Turner <mattst88@gmail.com>
 ---
- include/linux/mm.h |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c    |   20 ++++++++++++++++++++
- 2 files changed, 68 insertions(+)
+ arch/alpha/kernel/sys_nautilus.c |    5 ++---
+ arch/alpha/mm/init.c             |   24 +++---------------------
+ arch/alpha/mm/numa.c             |    3 +--
+ 3 files changed, 6 insertions(+), 26 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 7acc9dc..d75c14b 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1295,6 +1295,54 @@ extern void free_area_init_node(int nid, unsigned long * zones_size,
- 		unsigned long zone_start_pfn, unsigned long *zholes_size);
- extern void free_initmem(void);
+diff --git a/arch/alpha/kernel/sys_nautilus.c b/arch/alpha/kernel/sys_nautilus.c
+index 4d4c046..a8b9d66 100644
+--- a/arch/alpha/kernel/sys_nautilus.c
++++ b/arch/alpha/kernel/sys_nautilus.c
+@@ -185,7 +185,6 @@ nautilus_machine_check(unsigned long vector, unsigned long la_ptr)
+ 	mb();
+ }
  
-+/*
-+ * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
-+ * into the buddy system. The freed pages will be poisoned with pattern
-+ * "poison" if it's non-zero.
-+ * Return pages freed into the buddy system.
-+ */
-+extern unsigned long free_reserved_area(unsigned long start, unsigned long end,
-+					int poison, char *s);
-+
-+static inline void adjust_managed_page_count(struct page *page, long count)
-+{
-+	totalram_pages += count;
-+}
-+
-+/* Free the reserved page into the buddy system, so it gets managed. */
-+static inline void __free_reserved_page(struct page *page)
-+{
-+	ClearPageReserved(page);
-+	init_page_count(page);
-+	__free_page(page);
-+}
-+
-+static inline void free_reserved_page(struct page *page)
-+{
-+	__free_reserved_page(page);
-+	adjust_managed_page_count(page, 1);
-+}
-+
-+static inline void mark_page_reserved(struct page *page)
-+{
-+	SetPageReserved(page);
-+	adjust_managed_page_count(page, -1);
-+}
-+
-+/*
-+ * Default method to free all the __init memory into the buddy system.
-+ * The freed pages will be poisoned with pattern "poison" if it is
-+ * non-zero. Return pages freed into the buddy system.
-+ */
-+static inline unsigned long free_initmem_default(int poison)
-+{
-+	extern char __init_begin[], __init_end[];
-+
-+	return free_reserved_area(PAGE_ALIGN((unsigned long)&__init_begin) ,
-+				  ((unsigned long)&__init_end) & PAGE_MASK,
-+				  poison, "unused kernel");
-+}
-+
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- /*
-  * With CONFIG_HAVE_MEMBLOCK_NODE_MAP set, an architecture may initialise its
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8fcced7..0fadb09 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5113,6 +5113,26 @@ early_param("movablecore", cmdline_parse_movablecore);
+-extern void free_reserved_mem(void *, void *);
+ extern void pcibios_claim_one_bus(struct pci_bus *);
  
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ static struct resource irongate_mem = {
+@@ -234,8 +233,8 @@ nautilus_init_pci(void)
+ 	if (pci_mem < memtop)
+ 		memtop = pci_mem;
+ 	if (memtop > alpha_mv.min_mem_address) {
+-		free_reserved_mem(__va(alpha_mv.min_mem_address),
+-				  __va(memtop));
++		free_reserved_area((unsigned long)__va(alpha_mv.min_mem_address),
++				   (unsigned long)__va(memtop), 0, NULL);
+ 		printk("nautilus_init_pci: %ldk freed\n",
+ 			(memtop - alpha_mv.min_mem_address) >> 10);
+ 	}
+diff --git a/arch/alpha/mm/init.c b/arch/alpha/mm/init.c
+index 1ad6ca7..0ba85ee 100644
+--- a/arch/alpha/mm/init.c
++++ b/arch/alpha/mm/init.c
+@@ -31,6 +31,7 @@
+ #include <asm/console.h>
+ #include <asm/tlb.h>
+ #include <asm/setup.h>
++#include <asm/sections.h>
  
-+unsigned long free_reserved_area(unsigned long start, unsigned long end,
-+				 int poison, char *s)
-+{
-+	unsigned long pages, pos;
-+
-+	pos = start = PAGE_ALIGN(start);
-+	end &= PAGE_MASK;
-+	for (pages = 0; pos < end; pos += PAGE_SIZE, pages++) {
-+		if (poison)
-+			memset((void *)pos, poison, PAGE_SIZE);
-+		free_reserved_page(virt_to_page(pos));
-+	}
-+
-+	if (pages && s)
-+		pr_info("Freeing %s memory: %ldK (%lx - %lx)\n",
-+			s, pages << (PAGE_SHIFT - 10), start, end);
-+
-+	return pages;
-+}
-+
- /**
-  * set_dma_reserve - set the specified number of pages reserved in the first zone
-  * @new_dma_reserve: The number of pages to mark reserved
+ extern void die_if_kernel(char *,struct pt_regs *,long);
+ 
+@@ -281,8 +282,6 @@ printk_memory_info(void)
+ {
+ 	unsigned long codesize, reservedpages, datasize, initsize, tmp;
+ 	extern int page_is_ram(unsigned long) __init;
+-	extern char _text, _etext, _data, _edata;
+-	extern char __init_begin, __init_end;
+ 
+ 	/* printk all informations */
+ 	reservedpages = 0;
+@@ -318,32 +317,15 @@ mem_init(void)
+ #endif /* CONFIG_DISCONTIGMEM */
+ 
+ void
+-free_reserved_mem(void *start, void *end)
+-{
+-	void *__start = start;
+-	for (; __start < end; __start += PAGE_SIZE) {
+-		ClearPageReserved(virt_to_page(__start));
+-		init_page_count(virt_to_page(__start));
+-		free_page((long)__start);
+-		totalram_pages++;
+-	}
+-}
+-
+-void
+ free_initmem(void)
+ {
+-	extern char __init_begin, __init_end;
+-
+-	free_reserved_mem(&__init_begin, &__init_end);
+-	printk ("Freeing unused kernel memory: %ldk freed\n",
+-		(&__init_end - &__init_begin) >> 10);
++	free_initmem_default(0);
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void
+ free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_mem((void *)start, (void *)end);
+-	printk ("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
++	free_reserved_area(start, end, 0, "initrd");
+ }
+ #endif
+diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
+index 3973ae3..3388504 100644
+--- a/arch/alpha/mm/numa.c
++++ b/arch/alpha/mm/numa.c
+@@ -17,6 +17,7 @@
+ 
+ #include <asm/hwrpb.h>
+ #include <asm/pgalloc.h>
++#include <asm/sections.h>
+ 
+ pg_data_t node_data[MAX_NUMNODES];
+ EXPORT_SYMBOL(node_data);
+@@ -325,8 +326,6 @@ void __init mem_init(void)
+ {
+ 	unsigned long codesize, reservedpages, datasize, initsize, pfn;
+ 	extern int page_is_ram(unsigned long) __init;
+-	extern char _text, _etext, _data, _edata;
+-	extern char __init_begin, __init_end;
+ 	unsigned long nid, i;
+ 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
+ 
 -- 
 1.7.9.5
 
