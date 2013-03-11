@@ -1,88 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 324256B0006
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 19:03:24 -0400 (EDT)
-Date: Mon, 11 Mar 2013 16:03:22 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/9] mm: use mm_populate() for blocking
- remap_file_pages()
-Message-Id: <20130311160322.830cc6b670fd24faa8366413@linux-foundation.org>
-In-Reply-To: <CA+ydwtqD67m9_JLCNwvdP72rko93aTkVgC-aK4TacyyM5DoCTA@mail.gmail.com>
-References: <1356050997-2688-1-git-send-email-walken@google.com>
-	<1356050997-2688-5-git-send-email-walken@google.com>
-	<CA+ydwtqD67m9_JLCNwvdP72rko93aTkVgC-aK4TacyyM5DoCTA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id D23AE6B0006
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 19:57:27 -0400 (EDT)
+Received: by mail-wg0-f41.google.com with SMTP id ds1so2698176wgb.2
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2013 16:57:26 -0700 (PDT)
+MIME-Version: 1.0
+Date: Mon, 11 Mar 2013 16:57:25 -0700
+Message-ID: <CAA25o9RchY2AD8U30bh4H+fz6kq8bs98SUrkJUkTpbTHSGjcGA@mail.gmail.com>
+Subject: security: restricting access to swap
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tommi Rantala <tt.rantala@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>, Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Jorn_Engel <joern@logfs.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: linux-mm@kvack.org
 
-On Sun, 10 Mar 2013 20:55:21 +0200 Tommi Rantala <tt.rantala@gmail.com> wrote:
+Greetings linux-mmers,
 
-> 2012/12/21 Michel Lespinasse <walken@google.com>:
-> > Signed-off-by: Michel Lespinasse <walken@google.com>
-> 
-> Hello, this patch introduced the following bug, seen while fuzzing with trinity:
-> 
-> [  396.825414] BUG: unable to handle kernel NULL pointer dereference
-> at 0000000000000050
->
-> ...
->
-> > +       vm_flags = vma->vm_flags;
-> 
-> When find_vma() fails, vma is NULL here.
+before we can fully deploy zram, we must ensure it conforms to the
+Chrome OS security requirements.  In particular, we do not want to
+allow user space to read/write the swap device---not even root-owned
+processes.
 
-Yup, thanks.
+A similar restriction is available for /dev/mem under CONFIG_STRICT_DEVMEM.
 
-This, methinks:
+There are a few possible approaches to this, but before we go ahead
+I'd like to ask if anything has happened or is planned in this
+direction.
 
+Otherwise, one idea I am playing with is to add a CONFIG_STRICT_SWAP
+option that would do this for any swap device (i.e. not specific to
+zram) and possibly also when swapping to a file.  We would add an
+"internal" open flag, O_KERN_SWAP, as well as clean up a little bit
+the FMODE_NONOTIFY confusion by adding the kernel flag O_KERN_NONOTIFY
+and formalizing the sets of external (O_*) and internal (O_KERN_*)
+open flags.
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm/fremap.c: fix oops on error path
+Swapon() and swapoff() would use O_KERN_SWAP internally, and a device
+opened with that flag would reject user-level opens.
 
-If find_vma() fails, sys_remap_file_pages() will dereference `vma', which
-contains NULL.  Fix it by checking the pointer.
-
-(We could alternatively check for err==0, but this seems more direct)
-
-(The vm_flags change is to squish a bogus used-uninitialised warning
-without adding extra code).
-
-Reported-by: Tommi Rantala <tt.rantala@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/fremap.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff -puN mm/fremap.c~mm-fremapc-fix-oops-on-error-path mm/fremap.c
---- a/mm/fremap.c~mm-fremapc-fix-oops-on-error-path
-+++ a/mm/fremap.c
-@@ -163,7 +163,8 @@ SYSCALL_DEFINE5(remap_file_pages, unsign
- 	 * and that the remapped range is valid and fully within
- 	 * the single existing vma.
- 	 */
--	if (!vma || !(vma->vm_flags & VM_SHARED))
-+	vm_flags = vma->vm_flags;
-+	if (!vma || !(vm_flags & VM_SHARED))
- 		goto out;
- 
- 	if (!vma->vm_ops || !vma->vm_ops->remap_pages)
-@@ -254,7 +255,8 @@ get_write_lock:
- 	 */
- 
- out:
--	vm_flags = vma->vm_flags;
-+	if (vma)
-+		vm_flags = vma->vm_flags;
- 	if (likely(!has_write_lock))
- 		up_read(&mm->mmap_sem);
- 	else
-_
+Thank you in advance for any input/suggestion!
+Luigi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
