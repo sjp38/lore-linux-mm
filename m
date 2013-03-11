@@ -1,61 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id B3AAC6B0005
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 09:16:04 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id x51so3448349wey.18
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2013 06:16:03 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 9845B6B0005
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 11:03:24 -0400 (EDT)
+Message-ID: <513DF239.2000806@ubuntu.com>
+Date: Mon, 11 Mar 2013 11:03:21 -0400
+From: Phillip Susi <psusi@ubuntu.com>
 MIME-Version: 1.0
-In-Reply-To: <CAOMqctTf9+sz7Ffm-mLLeGNqH27yvuM+vORrG65Yoh3JKDFLnQ@mail.gmail.com>
-References: <CAOMqctTf9+sz7Ffm-mLLeGNqH27yvuM+vORrG65Yoh3JKDFLnQ@mail.gmail.com>
-From: Michal Suchanek <hramrach@gmail.com>
-Date: Mon, 11 Mar 2013 14:15:43 +0100
-Message-ID: <CAOMqctRiLa-uVaD=omeOT5o-UdcOJo6WgOm8nBaN6S-x+Dh1KA@mail.gmail.com>
-Subject: Re: doing lots of disk writes causes oom killer to kill processes
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: mmap vs fs cache
+References: <5136320E.8030109@symas.com> <20130307154312.GG6723@quack.suse.cz> <20130308020854.GC23767@cmpxchg.org> <5139975F.9070509@symas.com> <20130308084246.GA4411@shutemov.name> <5139B214.3040303@symas.com> <5139FA13.8090305@genband.com> <5139FD27.1030208@symas.com> <513A8ECB.8000504@ubuntu.com> <20130311115220.GB29799@quack.suse.cz>
+In-Reply-To: <20130311115220.GB29799@quack.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, 699277@bugs.debian.org
+To: Jan Kara <jack@suse.cz>
+Cc: Howard Chu <hyc@symas.com>, Chris Friesen <chris.friesen@genband.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 8 February 2013 17:31, Michal Suchanek <hramrach@gmail.com> wrote:
-> Hello,
->
-> I am dealing with VM disk images and performing something like wiping
-> free space to prepare image for compressing and storing on server or
-> copying it to external USB disk causes
->
-> 1) system lockup in order of a few tens of seconds when all CPU cores
-> are 100% used by system and the machine is basicaly unusable
->
-> 2) oom killer killing processes
->
-> This all on system with 8G ram so there should be plenty space to work with.
->
-> This happens with kernels 3.6.4 or 3.7.1
->
-> With earlier kernel versions (some 3.0 or 3.2 kernels) this was not a
-> problem even with less ram.
->
-> I have  vm.swappiness = 0 set for a long  time already.
->
->
-I did some testing with 3.7.1 and with swappiness as much as 75 the
-kernel still causes all cores to loop somewhere in system when writing
-lots of data to disk.
+On 3/11/2013 7:52 AM, Jan Kara wrote:
+>> Yep, that's because it isn't implemented.
+>    Why do you think so? AFAICS it is implemented by setting VM_RAND_READ
+> flag in the VMA and do_async_mmap_readahead() and do_sync_mmap_readahead()
+> check for the flag and don't do anything if it is set...
 
-With swappiness as much as 90 processes still get killed on large disk writes.
+Oh, don't know how I missed that... I was just looking for it the other 
+day and couldn't find any references to VM_RandomReadHint so I assumed 
+it hadn't been implemented.
 
-Given that the max is 100 the interval in which mm works at all is
-going to be very narrow, less than 10% of the paramater range. This is
-a severe regression as is the cpu time consumed by the kernel.
-
-The io scheduler is the default cfq.
-
-If you have any idea what to try other than downgrading to an earlier
-unaffected kernel I would like to hear.
-
-Thanks
-
-Michal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
