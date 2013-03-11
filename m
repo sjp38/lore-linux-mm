@@ -1,42 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id F41BD6B0005
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 08:40:50 -0400 (EDT)
-Message-ID: <513DD0BD.8000400@symas.com>
-Date: Mon, 11 Mar 2013 05:40:29 -0700
-From: Howard Chu <hyc@symas.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id B3AAC6B0005
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 09:16:04 -0400 (EDT)
+Received: by mail-we0-f173.google.com with SMTP id x51so3448349wey.18
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2013 06:16:03 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: mmap vs fs cache
-References: <5136320E.8030109@symas.com> <20130307154312.GG6723@quack.suse.cz> <20130308020854.GC23767@cmpxchg.org> <5139975F.9070509@symas.com> <20130308084246.GA4411@shutemov.name> <5139B214.3040303@symas.com> <5139FA13.8090305@genband.com> <5139FD27.1030208@symas.com> <20130308161643.GE23767@cmpxchg.org> <513A445E.9070806@symas.com> <20130311120427.GC29799@quack.suse.cz>
-In-Reply-To: <20130311120427.GC29799@quack.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAOMqctTf9+sz7Ffm-mLLeGNqH27yvuM+vORrG65Yoh3JKDFLnQ@mail.gmail.com>
+References: <CAOMqctTf9+sz7Ffm-mLLeGNqH27yvuM+vORrG65Yoh3JKDFLnQ@mail.gmail.com>
+From: Michal Suchanek <hramrach@gmail.com>
+Date: Mon, 11 Mar 2013 14:15:43 +0100
+Message-ID: <CAOMqctRiLa-uVaD=omeOT5o-UdcOJo6WgOm8nBaN6S-x+Dh1KA@mail.gmail.com>
+Subject: Re: doing lots of disk writes causes oom killer to kill processes
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Friesen <chris.friesen@genband.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org, 699277@bugs.debian.org
 
-Jan Kara wrote:
-> On Fri 08-03-13 12:04:46, Howard Chu wrote:
->> The test clearly is accessing only 30GB of data. Once slapd reaches
->> this process size, the test can be stopped and restarted any number
->> of times, run for any number of hours continuously, and memory use
->> on the system is unchanged, and no pageins occur.
->    Interesting. It might be worth trying what happens if you do
-> madvise(..., MADV_DONTNEED) on the data file instead of dropping caches
-> with /proc/sys/vm/drop_caches. That way we can establish whether the extra
-> cached data is in the data file (things will look the same way as with
-> drop_caches) or somewhere else (there will be still unmapped page cache).
+On 8 February 2013 17:31, Michal Suchanek <hramrach@gmail.com> wrote:
+> Hello,
+>
+> I am dealing with VM disk images and performing something like wiping
+> free space to prepare image for compressing and storing on server or
+> copying it to external USB disk causes
+>
+> 1) system lockup in order of a few tens of seconds when all CPU cores
+> are 100% used by system and the machine is basicaly unusable
+>
+> 2) oom killer killing processes
+>
+> This all on system with 8G ram so there should be plenty space to work with.
+>
+> This happens with kernels 3.6.4 or 3.7.1
+>
+> With earlier kernel versions (some 3.0 or 3.2 kernels) this was not a
+> problem even with less ram.
+>
+> I have  vm.swappiness = 0 set for a long  time already.
+>
+>
+I did some testing with 3.7.1 and with swappiness as much as 75 the
+kernel still causes all cores to loop somewhere in system when writing
+lots of data to disk.
 
-I screwed up. My madvise(RANDOM) call used the wrong address/len so it didn't 
-cover the whole region. After fixing this, the test now runs as expected - the 
-slapd process size grows to 30GB without any problem. Sorry for the noise.
+With swappiness as much as 90 processes still get killed on large disk writes.
 
--- 
-   -- Howard Chu
-   CTO, Symas Corp.           http://www.symas.com
-   Director, Highland Sun     http://highlandsun.com/hyc/
-   Chief Architect, OpenLDAP  http://www.openldap.org/project/
+Given that the max is 100 the interval in which mm works at all is
+going to be very narrow, less than 10% of the paramater range. This is
+a severe regression as is the cpu time consumed by the kernel.
+
+The io scheduler is the default cfq.
+
+If you have any idea what to try other than downgrading to an earlier
+unaffected kernel I would like to hear.
+
+Thanks
+
+Michal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
