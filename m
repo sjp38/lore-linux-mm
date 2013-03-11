@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 891346B0005
-	for <linux-mm@kvack.org>; Sun, 10 Mar 2013 23:11:34 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id ro8so3202962pbb.18
-        for <linux-mm@kvack.org>; Sun, 10 Mar 2013 20:11:33 -0700 (PDT)
-Message-ID: <513D4B5E.6050601@gmail.com>
-Date: Mon, 11 Mar 2013 11:11:26 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id B40836B0005
+	for <linux-mm@kvack.org>; Sun, 10 Mar 2013 23:16:34 -0400 (EDT)
+Received: by mail-da0-f47.google.com with SMTP id s35so113407dak.6
+        for <linux-mm@kvack.org>; Sun, 10 Mar 2013 20:16:34 -0700 (PDT)
+Message-ID: <513D4C8D.6080106@gmail.com>
+Date: Mon, 11 Mar 2013 11:16:29 +0800
+From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
 Subject: Re: Swap defragging
 References: <CAGDaZ_rvfrBVCKMuEdPcSod684xwbUf9Aj4nbas4_vcG3V9yfg@mail.gmail.com> <20130308023511.GD23767@cmpxchg.org>
@@ -24,16 +24,6 @@ On 03/08/2013 10:35 AM, Johannes Weiner wrote:
 >> Just a two cent question, but is there any merit to having the kernel
 >> defragment swap space?
 > That is a good question.
-
-One question here:
-
-The comments of setup_swap_extents:
-An ordered list of swap extents is built at swapon time and is then used 
-at swap_writepage/swap_readpage tiem for locating where on disk a page 
-belongs.
-But I didn't see any handle of swap extents in 
-swap_writepage/swap_readpage, why?
-
 >
 > Swap does fragment quite a bit, and there are several reasons for
 > that.
@@ -46,6 +36,11 @@ swap_writepage/swap_readpage, why?
 > Once written to disk, the layout tends to stick.  One reason is that
 > we actually try to not free swap slots unless there is a shortage of
 > swap space to save future swap out IO (grep for vm_swap_full()).  The
+
+Since anonymous page will be swap out if it's dirty and the contents of 
+the page and data store in swap area is not equal now, why can avoid 
+future swap out IO?
+
 > other reason is that if a page shared among multiple threads is
 > swapped out, it can not be removed from swap until all threads have
 > faulted the page back in because of page table entries still referring
