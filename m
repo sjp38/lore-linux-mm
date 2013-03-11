@@ -1,104 +1,435 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 099A76B0005
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 08:04:30 -0400 (EDT)
-Date: Mon, 11 Mar 2013 13:04:27 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: mmap vs fs cache
-Message-ID: <20130311120427.GC29799@quack.suse.cz>
-References: <5136320E.8030109@symas.com>
- <20130307154312.GG6723@quack.suse.cz>
- <20130308020854.GC23767@cmpxchg.org>
- <5139975F.9070509@symas.com>
- <20130308084246.GA4411@shutemov.name>
- <5139B214.3040303@symas.com>
- <5139FA13.8090305@genband.com>
- <5139FD27.1030208@symas.com>
- <20130308161643.GE23767@cmpxchg.org>
- <513A445E.9070806@symas.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 6B0746B0005
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 08:32:43 -0400 (EDT)
+Date: Mon, 11 Mar 2013 07:32:41 -0500
+From: Cliff Wickman <cpw@sgi.com>
+Subject: Re: [PATCH] mm, x86: no zeroing of hugetlbfs pages at boot
+Message-ID: <20130311123241.GA15323@sgi.com>
+References: <E1UDME8-00041J-B4@eag09.americas.sgi.com> <CAJd=RBC=efJfbztqLLSr5EnTUFYAHnAp5qGFbSX3d21JdsjFDg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <513A445E.9070806@symas.com>
+In-Reply-To: <CAJd=RBC=efJfbztqLLSr5EnTUFYAHnAp5qGFbSX3d21JdsjFDg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Howard Chu <hyc@symas.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Chris Friesen <chris.friesen@genband.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jan Kara <jack@suse.cz>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Hillf Danton <dhillf@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, wli@holomorphy.com
 
-On Fri 08-03-13 12:04:46, Howard Chu wrote:
-> Johannes Weiner wrote:
-> >On Fri, Mar 08, 2013 at 07:00:55AM -0800, Howard Chu wrote:
-> >>Chris Friesen wrote:
-> >>>On 03/08/2013 03:40 AM, Howard Chu wrote:
-> >>>
-> >>>>There is no way that a process that is accessing only 30GB of a mmap
-> >>>>should be able to fill up 32GB of RAM. There's nothing else running on
-> >>>>the machine, I've killed or suspended everything else in userland
-> >>>>besides a couple shells running top and vmstat. When I manually
-> >>>>drop_caches repeatedly, then eventually slapd RSS/SHR grows to 30GB and
-> >>>>the physical I/O stops.
-> >>>
-> >>>Is it possible that the kernel is doing some sort of automatic
-> >>>readahead, but it ends up reading pages corresponding to data that isn't
-> >>>ever queried and so doesn't get mapped by the application?
-> >>
-> >>Yes, that's what I was thinking. I added a
-> >>posix_madvise(..POSIX_MADV_RANDOM) but that had no effect on the
-> >>test.
-> >>
-> >>First obvious conclusion - kswapd is being too aggressive. When free
-> >>memory hits the low watermark, the reclaim shrinks slapd down from
-> >>25GB to 18-19GB, while the page cache still contains ~7GB of
-> >>unmapped pages. Ideally I'd like a tuning knob so I can say to keep
-> >>no more than 2GB of unmapped pages in the cache. (And the desired
-> >>effect of that would be to allow user processes to grow to 30GB
-> >>total, in this case.)
+On Sun, Mar 10, 2013 at 01:55:10PM +0800, Hillf Danton wrote:
+> On Thu, Mar 7, 2013 at 5:50 AM, Cliff Wickman <cpw@sgi.com> wrote:
+> > From: Cliff Wickman <cpw@sgi.com>
 > >
-> >We should find out where the unmapped page cache is coming from if you
-> >are only accessing mapped file cache and disabled readahead.
+> > Allocating a large number of 1GB hugetlbfs pages at boot takes a
+> > very long time.
 > >
-> >How do you arrive at this number of unmapped page cache?
+> > Large system sites would at times like to allocate a very large amount of
+> > memory as 1GB pages.  They would put this on the kernel boot line:
+> >    default_hugepagesz=1G hugepagesz=1G hugepages=4096
+> > [Dynamic allocation of 1G pages is not an option, as zone pages only go
+> >  up to MAX_ORDER, and MAX_ORDER cannot exceed the section size.]
+> >
+> > Each page is zeroed as it is allocated, and all allocation is done by
+> > cpu 0, as this path is early in boot:
+> >       start_kernel
+> >         kernel_init
+> >           do_pre_smp_initcalls
+> >             hugetlb_init
+> >               hugetlb_init_hstates
+> >                 hugetlb_hstate_alloc_pages
+> >
+> > Zeroing remote (offnode) memory takes ~1GB/sec (and most memory is offnode
+> > on large numa systems).
+> > This estimate is approximate (it depends on core frequency & number of hops
+> > to remote memory) but should be within a factor of 2 on most systems.
+> > A benchmark attempting to reserve a TB for 1GB pages would thus require
+> > ~1000 seconds of boot time just for this allocating.  32TB would take 8 hours.
+> >
+> > I propose passing a flag to the early allocator to indicate that no zeroing
+> > of a page should be done.  The 'no zeroing' flag would have to be passed
+> > down this code path:
+> >
 > 
-> This number is pretty obvious. When slapd has grown to 25GB, the
-  This 25G is presumably from /proc/pid/statm, right?
+> FYI: huge pages are cleared just after allocated, for instance,
+> clear_huge_page() in hugetlb_no_page()
+> 
+> Hillf
 
-> page cache has grown to 32GB (less about 200MB, the minfree). So:
-  And this value is from where? /proc/meminfo - Cached line?
+Yes, I should have added that comment to the changelog.  And because
+this is true there is no need to clear a huge page at boot time.
 
-> 7GB unmapped in the cache.
-> 
-> >What could happen is that previously used and activated pages do not
-> >get evicted anymore since there is a constant supply of younger
-> >reclaimable cache that is actually thrashing.  Whenever you drop the
-> >caches, you get rid of those stale active pages and allow the
-> >previously thrashing cache to get activated.  However, that would
-> >require that there is already a significant amount of active file
-> >pages before your workload starts (check the nr_active_file number in
-> >/proc/vmstat before launching slapd, try sync; echo 3 >drop_caches
-> >before launching to eliminate this option) OR that the set of pages
-> >accessed during your workload changes and the combined set of pages
-> >accessed by your workload is bigger than available memory -- which you
-> >claimed would not happen because you only access the 30GB file area on
-> >that system.
-> 
-> There are no other active pages before the test begins. There's
-> nothing else running. caches have been dropped completely at the
-> beginning.
-> 
-> The test clearly is accessing only 30GB of data. Once slapd reaches
-> this process size, the test can be stopped and restarted any number
-> of times, run for any number of hours continuously, and memory use
-> on the system is unchanged, and no pageins occur.
-  Interesting. It might be worth trying what happens if you do
-madvise(..., MADV_DONTNEED) on the data file instead of dropping caches
-with /proc/sys/vm/drop_caches. That way we can establish whether the extra
-cached data is in the data file (things will look the same way as with
-drop_caches) or somewhere else (there will be still unmapped page cache).
+-Cliff
+> >   hugetlb_hstate_alloc_pages
+> >     alloc_bootmem_huge_page
+> >       __alloc_bootmem_node_nopanic NO_ZERO  (nobootmem.c)
+> >         __alloc_memory_core_early  NO_ZERO
+> >           if (!(flags & NO_ZERO))
+> >             memset(ptr, 0, size);
+> >
+> > Or this path if CONFIG_NO_BOOTMEM is not set:
+> >
+> >   hugetlb_hstate_alloc_pages
+> >     alloc_bootmem_huge_page
+> >       __alloc_bootmem_node_nopanic  NO_ZERO  (bootmem.c)
+> >         alloc_bootmem_core          NO_ZERO
+> >           if (!(flags & NO_ZERO))
+> >             memset(region, 0, size);
+> >         __alloc_bootmem_nopanic     NO_ZERO
+> >           ___alloc_bootmem_nopanic  NO_ZERO
+> >             alloc_bootmem_core      NO_ZERO
+> >               if (!(flags & NO_ZERO))
+> >                 memset(region, 0, size);
+> >
+> > Signed-off-by: Cliff Wickman <cpw@sgi.com>
+> >
+> > ---
+> >  arch/x86/kernel/setup_percpu.c |    4 ++--
+> >  include/linux/bootmem.h        |   23 ++++++++++++++++-------
+> >  mm/bootmem.c                   |   12 +++++++-----
+> >  mm/hugetlb.c                   |    3 ++-
+> >  mm/nobootmem.c                 |   41 +++++++++++++++++++++++------------------
+> >  mm/page_cgroup.c               |    2 +-
+> >  mm/sparse.c                    |    2 +-
+> >  7 files changed, 52 insertions(+), 35 deletions(-)
+> >
+> > Index: linux/include/linux/bootmem.h
+> > ===================================================================
+> > --- linux.orig/include/linux/bootmem.h
+> > +++ linux/include/linux/bootmem.h
+> > @@ -8,6 +8,11 @@
+> >  #include <asm/dma.h>
+> >
+> >  /*
+> > + * allocation flags
+> > + */
+> > +#define NO_ZERO                0x00000001
+> > +
+> > +/*
+> >   *  simple boot-time physical memory area allocator.
+> >   */
+> >
+> > @@ -79,7 +84,8 @@ extern void *__alloc_bootmem(unsigned lo
+> >                              unsigned long goal);
+> >  extern void *__alloc_bootmem_nopanic(unsigned long size,
+> >                                      unsigned long align,
+> > -                                    unsigned long goal);
+> > +                                    unsigned long goal,
+> > +                                    u32 flags);
+> >  extern void *__alloc_bootmem_node(pg_data_t *pgdat,
+> >                                   unsigned long size,
+> >                                   unsigned long align,
+> > @@ -91,12 +97,14 @@ void *__alloc_bootmem_node_high(pg_data_
+> >  extern void *__alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+> >                                   unsigned long size,
+> >                                   unsigned long align,
+> > -                                 unsigned long goal);
+> > +                                 unsigned long goal,
+> > +                                 u32 flags);
+> >  void *___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+> >                                   unsigned long size,
+> >                                   unsigned long align,
+> >                                   unsigned long goal,
+> > -                                 unsigned long limit);
+> > +                                 unsigned long limit,
+> > +                                 u32 flags);
+> >  extern void *__alloc_bootmem_low(unsigned long size,
+> >                                  unsigned long align,
+> >                                  unsigned long goal);
+> > @@ -120,19 +128,20 @@ extern void *__alloc_bootmem_low_node(pg
+> >  #define alloc_bootmem_align(x, align) \
+> >         __alloc_bootmem(x, align, BOOTMEM_LOW_LIMIT)
+> >  #define alloc_bootmem_nopanic(x) \
+> > -       __alloc_bootmem_nopanic(x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT)
+> > +       __alloc_bootmem_nopanic(x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT, 0)
+> >  #define alloc_bootmem_pages(x) \
+> >         __alloc_bootmem(x, PAGE_SIZE, BOOTMEM_LOW_LIMIT)
+> >  #define alloc_bootmem_pages_nopanic(x) \
+> > -       __alloc_bootmem_nopanic(x, PAGE_SIZE, BOOTMEM_LOW_LIMIT)
+> > +       __alloc_bootmem_nopanic(x, PAGE_SIZE, BOOTMEM_LOW_LIMIT, 0)
+> >  #define alloc_bootmem_node(pgdat, x) \
+> >         __alloc_bootmem_node(pgdat, x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT)
+> >  #define alloc_bootmem_node_nopanic(pgdat, x) \
+> > -       __alloc_bootmem_node_nopanic(pgdat, x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT)
+> > +       __alloc_bootmem_node_nopanic(pgdat, x, SMP_CACHE_BYTES, \
+> > +                                    BOOTMEM_LOW_LIMIT, 0)
+> >  #define alloc_bootmem_pages_node(pgdat, x) \
+> >         __alloc_bootmem_node(pgdat, x, PAGE_SIZE, BOOTMEM_LOW_LIMIT)
+> >  #define alloc_bootmem_pages_node_nopanic(pgdat, x) \
+> > -       __alloc_bootmem_node_nopanic(pgdat, x, PAGE_SIZE, BOOTMEM_LOW_LIMIT)
+> > +       __alloc_bootmem_node_nopanic(pgdat, x, PAGE_SIZE, BOOTMEM_LOW_LIMIT, 0)
+> >
+> >  #define alloc_bootmem_low(x) \
+> >         __alloc_bootmem_low(x, SMP_CACHE_BYTES, 0)
+> > Index: linux/arch/x86/kernel/setup_percpu.c
+> > ===================================================================
+> > --- linux.orig/arch/x86/kernel/setup_percpu.c
+> > +++ linux/arch/x86/kernel/setup_percpu.c
+> > @@ -104,14 +104,14 @@ static void * __init pcpu_alloc_bootmem(
+> >         void *ptr;
+> >
+> >         if (!node_online(node) || !NODE_DATA(node)) {
+> > -               ptr = __alloc_bootmem_nopanic(size, align, goal);
+> > +               ptr = __alloc_bootmem_nopanic(size, align, goal, 0);
+> >                 pr_info("cpu %d has no node %d or node-local memory\n",
+> >                         cpu, node);
+> >                 pr_debug("per cpu data for cpu%d %lu bytes at %016lx\n",
+> >                          cpu, size, __pa(ptr));
+> >         } else {
+> >                 ptr = __alloc_bootmem_node_nopanic(NODE_DATA(node),
+> > -                                                  size, align, goal);
+> > +                                                  size, align, goal, 0);
+> >                 pr_debug("per cpu data for cpu%d %lu bytes on node%d at %016lx\n",
+> >                          cpu, size, node, __pa(ptr));
+> >         }
+> > Index: linux/mm/nobootmem.c
+> > ===================================================================
+> > --- linux.orig/mm/nobootmem.c
+> > +++ linux/mm/nobootmem.c
+> > @@ -33,7 +33,7 @@ unsigned long min_low_pfn;
+> >  unsigned long max_pfn;
+> >
+> >  static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
+> > -                                       u64 goal, u64 limit)
+> > +                                       u64 goal, u64 limit, u32 flags)
+> >  {
+> >         void *ptr;
+> >         u64 addr;
+> > @@ -46,7 +46,8 @@ static void * __init __alloc_memory_core
+> >                 return NULL;
+> >
+> >         ptr = phys_to_virt(addr);
+> > -       memset(ptr, 0, size);
+> > +       if (!(flags & NO_ZERO))
+> > +               memset(ptr, 0, size);
+> >         memblock_reserve(addr, size);
+> >         /*
+> >          * The min_count is set to 0 so that bootmem allocated blocks
+> > @@ -208,7 +209,8 @@ void __init free_bootmem(unsigned long a
+> >  static void * __init ___alloc_bootmem_nopanic(unsigned long size,
+> >                                         unsigned long align,
+> >                                         unsigned long goal,
+> > -                                       unsigned long limit)
+> > +                                       unsigned long limit,
+> > +                                       u32 flags)
+> >  {
+> >         void *ptr;
+> >
+> > @@ -217,7 +219,8 @@ static void * __init ___alloc_bootmem_no
+> >
+> >  restart:
+> >
+> > -       ptr = __alloc_memory_core_early(MAX_NUMNODES, size, align, goal, limit);
+> > +       ptr = __alloc_memory_core_early(MAX_NUMNODES, size, align, goal,
+> > +                                       limit, 0);
+> >
+> >         if (ptr)
+> >                 return ptr;
+> > @@ -244,17 +247,17 @@ restart:
+> >   * Returns NULL on failure.
+> >   */
+> >  void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
+> > -                                       unsigned long goal)
+> > +                                       unsigned long goal, u32 flags)
+> >  {
+> >         unsigned long limit = -1UL;
+> >
+> > -       return ___alloc_bootmem_nopanic(size, align, goal, limit);
+> > +       return ___alloc_bootmem_nopanic(size, align, goal, limit, flags);
+> >  }
+> >
+> >  static void * __init ___alloc_bootmem(unsigned long size, unsigned long align,
+> > -                                       unsigned long goal, unsigned long limit)
+> > +                       unsigned long goal, unsigned long limit, u32 flags)
+> >  {
+> > -       void *mem = ___alloc_bootmem_nopanic(size, align, goal, limit);
+> > +       void *mem = ___alloc_bootmem_nopanic(size, align, goal, limit, flags);
+> >
+> >         if (mem)
+> >                 return mem;
+> > @@ -284,25 +287,26 @@ void * __init __alloc_bootmem(unsigned l
+> >  {
+> >         unsigned long limit = -1UL;
+> >
+> > -       return ___alloc_bootmem(size, align, goal, limit);
+> > +       return ___alloc_bootmem(size, align, goal, limit, 0);
+> >  }
+> >
+> >  void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+> >                                                    unsigned long size,
+> >                                                    unsigned long align,
+> >                                                    unsigned long goal,
+> > -                                                  unsigned long limit)
+> > +                                                  unsigned long limit,
+> > +                                                  u32 flags)
+> >  {
+> >         void *ptr;
+> >
+> >  again:
+> >         ptr = __alloc_memory_core_early(pgdat->node_id, size, align,
+> > -                                       goal, limit);
+> > +                                       goal, limit, flags);
+> >         if (ptr)
+> >                 return ptr;
+> >
+> >         ptr = __alloc_memory_core_early(MAX_NUMNODES, size, align,
+> > -                                       goal, limit);
+> > +                                       goal, limit, flags);
+> >         if (ptr)
+> >                 return ptr;
+> >
+> > @@ -315,12 +319,13 @@ again:
+> >  }
+> >
+> >  void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
+> > -                                  unsigned long align, unsigned long goal)
+> > +                       unsigned long align, unsigned long goal, u32 flags)
+> >  {
+> >         if (WARN_ON_ONCE(slab_is_available()))
+> >                 return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+> >
+> > -       return ___alloc_bootmem_node_nopanic(pgdat, size, align, goal, 0);
+> > +       return ___alloc_bootmem_node_nopanic(pgdat, size, align, goal,
+> > +                       0, flags);
+> >  }
+> >
+> >  void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+> > @@ -329,7 +334,7 @@ void * __init ___alloc_bootmem_node(pg_d
+> >  {
+> >         void *ptr;
+> >
+> > -       ptr = ___alloc_bootmem_node_nopanic(pgdat, size, align, goal, limit);
+> > +       ptr = ___alloc_bootmem_node_nopanic(pgdat, size, align, goal, limit, 0);
+> >         if (ptr)
+> >                 return ptr;
+> >
+> > @@ -354,7 +359,7 @@ void * __init ___alloc_bootmem_node(pg_d
+> >   * The function panics if the request can not be satisfied.
+> >   */
+> >  void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+> > -                                  unsigned long align, unsigned long goal)
+> > +                       unsigned long align, unsigned long goal)
+> >  {
+> >         if (WARN_ON_ONCE(slab_is_available()))
+> >                 return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+> > @@ -388,7 +393,7 @@ void * __init __alloc_bootmem_node_high(
+> >  void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+> >                                   unsigned long goal)
+> >  {
+> > -       return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
+> > +       return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT, 0);
+> >  }
+> >
+> >  void * __init __alloc_bootmem_low_nopanic(unsigned long size,
+> > @@ -396,7 +401,7 @@ void * __init __alloc_bootmem_low_nopani
+> >                                           unsigned long goal)
+> >  {
+> >         return ___alloc_bootmem_nopanic(size, align, goal,
+> > -                                       ARCH_LOW_ADDRESS_LIMIT);
+> > +                                       ARCH_LOW_ADDRESS_LIMIT, 0);
+> >  }
+> >
+> >  /**
+> > Index: linux/mm/sparse.c
+> > ===================================================================
+> > --- linux.orig/mm/sparse.c
+> > +++ linux/mm/sparse.c
+> > @@ -281,7 +281,7 @@ sparse_early_usemaps_alloc_pgdat_section
+> >         nid = early_pfn_to_nid(goal >> PAGE_SHIFT);
+> >  again:
+> >         p = ___alloc_bootmem_node_nopanic(NODE_DATA(nid), size,
+> > -                                         SMP_CACHE_BYTES, goal, limit);
+> > +                                         SMP_CACHE_BYTES, goal, limit, 0);
+> >         if (!p && limit) {
+> >                 limit = 0;
+> >                 goto again;
+> > Index: linux/mm/hugetlb.c
+> > ===================================================================
+> > --- linux.orig/mm/hugetlb.c
+> > +++ linux/mm/hugetlb.c
+> > @@ -1188,7 +1188,8 @@ int __weak alloc_bootmem_huge_page(struc
+> >                 addr = __alloc_bootmem_node_nopanic(
+> >                                 NODE_DATA(hstate_next_node_to_alloc(h,
+> >                                                 &node_states[N_MEMORY])),
+> > -                               huge_page_size(h), huge_page_size(h), 0);
+> > +                               huge_page_size(h), huge_page_size(h),
+> > +                               0, NO_ZERO);
+> >
+> >                 if (addr) {
+> >                         /*
+> > Index: linux/mm/bootmem.c
+> > ===================================================================
+> > --- linux.orig/mm/bootmem.c
+> > +++ linux/mm/bootmem.c
+> > @@ -660,7 +660,7 @@ restart:
+> >   * Returns NULL on failure.
+> >   */
+> >  void * __init __alloc_bootmem_nopanic(unsigned long size, unsigned long align,
+> > -                                       unsigned long goal)
+> > +                                       unsigned long goal, u32 flags)
+> >  {
+> >         unsigned long limit = 0;
+> >
+> > @@ -705,7 +705,8 @@ void * __init __alloc_bootmem(unsigned l
+> >
+> >  void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+> >                                 unsigned long size, unsigned long align,
+> > -                               unsigned long goal, unsigned long limit)
+> > +                               unsigned long goal, unsigned long limit,
+> > +                               u32 flags)
+> >  {
+> >         void *ptr;
+> >
+> > @@ -734,12 +735,13 @@ again:
+> >  }
+> >
+> >  void * __init __alloc_bootmem_node_nopanic(pg_data_t *pgdat, unsigned long size,
+> > -                                  unsigned long align, unsigned long goal)
+> > +                       unsigned long align, unsigned long goal, u32 flags)
+> >  {
+> >         if (WARN_ON_ONCE(slab_is_available()))
+> >                 return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+> >
+> > -       return ___alloc_bootmem_node_nopanic(pgdat, size, align, goal, 0);
+> > +       return ___alloc_bootmem_node_nopanic(pgdat, size, align, goal,
+> > +                                            0, flags);
+> >  }
+> >
+> >  void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+> > @@ -748,7 +750,7 @@ void * __init ___alloc_bootmem_node(pg_d
+> >  {
+> >         void *ptr;
+> >
+> > -       ptr = ___alloc_bootmem_node_nopanic(pgdat, size, align, goal, 0);
+> > +       ptr = ___alloc_bootmem_node_nopanic(pgdat, size, align, goal, 0, 0);
+> >         if (ptr)
+> >                 return ptr;
+> >
+> > Index: linux/mm/page_cgroup.c
+> > ===================================================================
+> > --- linux.orig/mm/page_cgroup.c
+> > +++ linux/mm/page_cgroup.c
+> > @@ -55,7 +55,7 @@ static int __init alloc_node_page_cgroup
+> >         table_size = sizeof(struct page_cgroup) * nr_pages;
+> >
+> >         base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
+> > -                       table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+> > +                       table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS), 0);
+> >         if (!base)
+> >                 return -ENOMEM;
+> >         NODE_DATA(nid)->node_page_cgroup = base;
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+> >
+> >
 
-								Honza
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Cliff Wickman
+SGI
+cpw@sgi.com
+(651) 683-3824
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
