@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 6645C6B004D
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id D999A6B005A
 	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 03:38:59 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC v7 07/11] keep mm_struct to vrange when system call context
-Date: Tue, 12 Mar 2013 16:38:31 +0900
-Message-Id: <1363073915-25000-8-git-send-email-minchan@kernel.org>
+Subject: [RFC v7 09/11] Get rid of depenceny that all pages is from a zone in shrink_page_list
+Date: Tue, 12 Mar 2013 16:38:33 +0900
+Message-Id: <1363073915-25000-10-git-send-email-minchan@kernel.org>
 In-Reply-To: <1363073915-25000-1-git-send-email-minchan@kernel.org>
 References: <1363073915-25000-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,88 +13,62 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, John Stultz <john.stultz@linaro.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
 
-We need mm_struct for discarding vrange pages in kswapd context.
-It's a preparatoin for it.
+Now shrink_page_list expect all pages come from a same zone
+but it's too limited to use it.
+
+This patch removes the dependency and add may_discard in scan_control
+so next patch can use shrink_page_list with pages from multiple zonnes.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/vrange.h |  1 +
- mm/vrange.c            | 20 +++++++++++---------
- 2 files changed, 12 insertions(+), 9 deletions(-)
+ mm/vmscan.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/vrange.h b/include/linux/vrange.h
-index 24ed4c1..5238a67 100644
---- a/include/linux/vrange.h
-+++ b/include/linux/vrange.h
-@@ -11,6 +11,7 @@ static DECLARE_RWSEM(vrange_fork_lock);
- struct vrange {
- 	struct interval_tree_node node;
- 	bool purged;
-+	struct mm_struct *mm;
- };
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 6ba4e8ea..e36ee51 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -77,6 +77,9 @@ struct scan_control {
+ 	/* Can pages be swapped as part of reclaim? */
+ 	int may_swap;
  
- #define vrange_entry(ptr) \
-diff --git a/mm/vrange.c b/mm/vrange.c
-index 89fcae4..f4c1d04 100644
---- a/mm/vrange.c
-+++ b/mm/vrange.c
-@@ -29,8 +29,9 @@ static inline void __set_vrange(struct vrange *range,
- }
++	/* Discard pages in vrange */
++	int may_discard;
++
+ 	int order;
  
- static void __add_range(struct vrange *range,
--				struct rb_root *root)
-+			struct rb_root *root, struct mm_struct *mm)
- {
-+	range->mm = mm;
- 	interval_tree_insert(&range->node, root);
- }
+ 	/* Scan (total_size >> priority) pages at once */
+@@ -714,7 +717,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			goto keep;
  
-@@ -52,11 +53,12 @@ static void free_vrange(struct vrange *range)
+ 		VM_BUG_ON(PageActive(page));
+-		VM_BUG_ON(page_zone(page) != zone);
++		if (zone)
++			VM_BUG_ON(page_zone(page) != zone);
  
- static inline void range_resize(struct rb_root *root,
- 		struct vrange *range,
--		unsigned long start, unsigned long end)
-+		unsigned long start, unsigned long end,
-+		struct mm_struct *mm)
- {
- 	__remove_range(range, root);
- 	__set_vrange(range, start, end);
--	__add_range(range, root);
-+	__add_range(range, root, mm);
- }
+ 		sc->nr_scanned++;
  
- int add_vrange(struct mm_struct *mm,
-@@ -95,8 +97,7 @@ int add_vrange(struct mm_struct *mm,
- 
- 	__set_vrange(new_range, start, end);
- 	new_range->purged = purged;
--
--	__add_range(new_range, root);
-+	__add_range(new_range, root, mm);
- out:
- 	vrange_unlock(mm);
- 	return 0;
-@@ -129,15 +130,16 @@ int remove_vrange(struct mm_struct *mm,
- 			__remove_range(range, root);
- 			free_vrange(range);
- 		} else if (node->start >= start) {
--			range_resize(root, range, end, node->last);
-+			range_resize(root, range, end, node->last, mm);
- 		} else if (node->last <= end) {
--			range_resize(root, range, node->start, start);
-+			range_resize(root, range, node->start, start, mm);
- 		} else {
- 			used_new = true;
- 			__set_vrange(new_range, end, node->last);
- 			new_range->purged = range->purged;
--			range_resize(root, range, node->start, start);
--			__add_range(new_range, root);
-+			new_range->mm = mm;
-+			range_resize(root, range, node->start, start, mm);
-+			__add_range(new_range, root, mm);
- 			break;
+@@ -785,6 +789,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			; /* try to reclaim the page below */
  		}
  
++		/* Fail to discard a page and returns a page to caller */
++		if (sc->may_discard)
++			goto keep_locked;
++				
+ 		/*
+ 		 * Anonymous process memory has backing store?
+ 		 * Try to allocate it some swap space here.
+@@ -963,7 +971,8 @@ keep:
+ 	 * back off and wait for congestion to clear because further reclaim
+ 	 * will encounter the same problem
+ 	 */
+-	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc))
++	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc) &&
++		zone)
+ 		zone_set_flag(zone, ZONE_CONGESTED);
+ 
+ 	free_hot_cold_page_list(&free_pages, 1);
 -- 
 1.8.1.1
 
