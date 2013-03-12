@@ -1,495 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 302776B005C
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 03:39:02 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC v7 10/11] Purging vrange pages without swap
-Date: Tue, 12 Mar 2013 16:38:34 +0900
-Message-Id: <1363073915-25000-11-git-send-email-minchan@kernel.org>
-In-Reply-To: <1363073915-25000-1-git-send-email-minchan@kernel.org>
-References: <1363073915-25000-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 5737F6B0006
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 04:32:43 -0400 (EDT)
+Received: by mail-oa0-f51.google.com with SMTP id h2so5415903oag.24
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2013 01:32:42 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <513ECCFE.3070201@huawei.com>
+References: <513ECCFE.3070201@huawei.com>
+Date: Tue, 12 Mar 2013 16:32:42 +0800
+Message-ID: <CAJd=RBB7GVp_Ry30SuZVa-FgOogEZ43UnXOGvVKesV=Qk96UDA@mail.gmail.com>
+Subject: Re: [BUG] potential deadlock led by cpu_hotplug lock (memcg involved)
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, John Stultz <john.stultz@linaro.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
+To: Li Zefan <lizefan@huawei.com>, Hillf Danton <dhillf@gmail.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 
-Now one of problem in vrange is VM reclaim anonymous pages if only
-there is a swap system. This patch adds new hook in kswapd where
-above scanning normal LRU pages.
+On Tue, Mar 12, 2013 at 2:36 PM, Li Zefan <lizefan@huawei.com> wrote:
+> Seems a new bug in 3.9 kernel?
+>
+Bogus info, perhaps.
 
-This patch discards all of pages of vmas in vrange without
-considering VRANGE_[FULL|PARTIAL]_MODE, which will be considered
-in future work.
+>
+> [  207.271924] ======================================================
+> [  207.271932] [ INFO: possible circular locking dependency detected ]
+> [  207.271942] 3.9.0-rc1-0.7-default+ #34 Not tainted
+> [  207.271948] -------------------------------------------------------
+> [  207.271957] bash/10493 is trying to acquire lock:
+> [  207.271963]  (subsys mutex){+.+.+.}, at: [<ffffffff8134af27>] bus_remove_device+0x37/0x1c0
+> [  207.271987]
+> [  207.271987] but task is already holding lock:
+> [  207.271995]  (cpu_hotplug.lock){+.+.+.}, at: [<ffffffff81046ccf>] cpu_hotplug_begin+0x2f/0x60
+> [  207.272012]
+> [  207.272012] which lock already depends on the new lock.
+> [  207.272012]
+> [  207.272023]
+> [  207.272023] the existing dependency chain (in reverse order) is:
+> [  207.272033]
+> [  207.272033] -> #4 (cpu_hotplug.lock){+.+.+.}:
+> [  207.272044]        [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.272056]        [<ffffffff814ad807>] mutex_lock_nested+0x37/0x360
+> [  207.272069]        [<ffffffff81046ba9>] get_online_cpus+0x29/0x40
+> [  207.272082]        [<ffffffff81185210>] drain_all_stock+0x30/0x150
+> [  207.272094]        [<ffffffff811853da>] mem_cgroup_reclaim+0xaa/0xe0
+> [  207.272104]        [<ffffffff8118775e>] __mem_cgroup_try_charge+0x51e/0xcf0
+> [  207.272114]        [<ffffffff81188486>] mem_cgroup_charge_common+0x36/0x60
+> [  207.272125]        [<ffffffff811884da>] mem_cgroup_newpage_charge+0x2a/0x30
+> [  207.272135]        [<ffffffff81150531>] do_wp_page+0x231/0x830
+> [  207.272147]        [<ffffffff8115151e>] handle_pte_fault+0x19e/0x8d0
+> [  207.272157]        [<ffffffff81151da8>] handle_mm_fault+0x158/0x1e0
+> [  207.272166]        [<ffffffff814b6153>] do_page_fault+0x2a3/0x4e0
+> [  207.272178]        [<ffffffff814b2578>] page_fault+0x28/0x30
+> [  207.272189]
+> [  207.272189] -> #3 (&mm->mmap_sem){++++++}:
+> [  207.272199]        [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.272208]        [<ffffffff8114c5ad>] might_fault+0x6d/0x90
+> [  207.272218]        [<ffffffff811a11e3>] filldir64+0xb3/0x120
+> [  207.272229]        [<ffffffffa013fc19>] call_filldir+0x89/0x130 [ext3]
+> [  207.272248]        [<ffffffffa0140377>] ext3_readdir+0x6b7/0x7e0 [ext3]
+> [  207.272263]        [<ffffffff811a1519>] vfs_readdir+0xa9/0xc0
+> [  207.272273]        [<ffffffff811a15cb>] sys_getdents64+0x9b/0x110
+> [  207.272284]        [<ffffffff814bb599>] system_call_fastpath+0x16/0x1b
+> [  207.272296]
+> [  207.272296] -> #2 (&type->i_mutex_dir_key#3){+.+.+.}:
+> [  207.272309]        [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.272319]        [<ffffffff814ad807>] mutex_lock_nested+0x37/0x360
+> [  207.272329]        [<ffffffff8119c254>] link_path_walk+0x6f4/0x9a0
+> [  207.272339]        [<ffffffff8119e7fa>] path_openat+0xba/0x470
+> [  207.272349]        [<ffffffff8119ecf8>] do_filp_open+0x48/0xa0
+> [  207.272358]        [<ffffffff8118d81c>] file_open_name+0xdc/0x110
+> [  207.272369]        [<ffffffff8118d885>] filp_open+0x35/0x40
+> [  207.272378]        [<ffffffff8135c76e>] _request_firmware+0x52e/0xb20
+> [  207.272389]        [<ffffffff8135cdd6>] request_firmware+0x16/0x20
+> [  207.272399]        [<ffffffffa03bdb91>] request_microcode_fw+0x61/0xd0 [microcode]
+> [  207.272416]        [<ffffffffa03bd554>] microcode_init_cpu+0x104/0x150 [microcode]
+> [  207.272431]        [<ffffffffa03bd61c>] mc_device_add+0x7c/0xb0 [microcode]
+> [  207.272444]        [<ffffffff8134a419>] subsys_interface_register+0xc9/0x100
+> [  207.272457]        [<ffffffffa04fc0f4>] 0xffffffffa04fc0f4
+> [  207.272472]        [<ffffffff81000202>] do_one_initcall+0x42/0x180
+> [  207.272485]        [<ffffffff810bbeff>] load_module+0x19df/0x1b70
+> [  207.272499]        [<ffffffff810bc376>] sys_init_module+0xe6/0x130
+> [  207.272511]        [<ffffffff814bb599>] system_call_fastpath+0x16/0x1b
+> [  207.272523]
+> [  207.272523] -> #1 (umhelper_sem){++++.+}:
+> [  207.272537]        [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.272548]        [<ffffffff814ae9c4>] down_read+0x34/0x50
+> [  207.272559]        [<ffffffff81062bff>] usermodehelper_read_trylock+0x4f/0x100
+> [  207.272575]        [<ffffffff8135c7dd>] _request_firmware+0x59d/0xb20
+> [  207.272587]        [<ffffffff8135cdd6>] request_firmware+0x16/0x20
+> [  207.272599]        [<ffffffffa03bdb91>] request_microcode_fw+0x61/0xd0 [microcode]
+> [  207.272613]        [<ffffffffa03bd554>] microcode_init_cpu+0x104/0x150 [microcode]
+> [  207.272627]        [<ffffffffa03bd61c>] mc_device_add+0x7c/0xb0 [microcode]
+> [  207.272641]        [<ffffffff8134a419>] subsys_interface_register+0xc9/0x100
+> [  207.272654]        [<ffffffffa04fc0f4>] 0xffffffffa04fc0f4
+> [  207.272666]        [<ffffffff81000202>] do_one_initcall+0x42/0x180
+> [  207.272678]        [<ffffffff810bbeff>] load_module+0x19df/0x1b70
+> [  207.272690]        [<ffffffff810bc376>] sys_init_module+0xe6/0x130
+> [  207.272702]        [<ffffffff814bb599>] system_call_fastpath+0x16/0x1b
+> [  207.272715]
+> [  207.272715] -> #0 (subsys mutex){+.+.+.}:
+> [  207.272729]        [<ffffffff810ae002>] __lock_acquire+0x13b2/0x15f0
+> [  207.272740]        [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.272751]        [<ffffffff814ad807>] mutex_lock_nested+0x37/0x360
+> [  207.272763]        [<ffffffff8134af27>] bus_remove_device+0x37/0x1c0
+> [  207.272775]        [<ffffffff81349114>] device_del+0x134/0x1f0
+> [  207.272786]        [<ffffffff813491f2>] device_unregister+0x22/0x60
+> [  207.272798]        [<ffffffff814a24ea>] mce_cpu_callback+0x15e/0x1ad
+> [  207.272812]        [<ffffffff814b6402>] notifier_call_chain+0x72/0x130
+> [  207.272824]        [<ffffffff81073d6e>] __raw_notifier_call_chain+0xe/0x10
+> [  207.272839]        [<ffffffff81498f76>] _cpu_down+0x1d6/0x350
+> [  207.272851]        [<ffffffff81499130>] cpu_down+0x40/0x60
+> [  207.272862]        [<ffffffff8149cc55>] store_online+0x75/0xe0
+> [  207.272874]        [<ffffffff813474a0>] dev_attr_store+0x20/0x30
+> [  207.272886]        [<ffffffff812090d9>] sysfs_write_file+0xd9/0x150
+> [  207.272900]        [<ffffffff8118e10b>] vfs_write+0xcb/0x130
+> [  207.272911]        [<ffffffff8118e924>] sys_write+0x64/0xa0
+> [  207.272923]        [<ffffffff814bb599>] system_call_fastpath+0x16/0x1b
+> [  207.272936]
+> [  207.272936] other info that might help us debug this:
+> [  207.272936]
+> [  207.272952] Chain exists of:
+> [  207.272952]   subsys mutex --> &mm->mmap_sem --> cpu_hotplug.lock
+> [  207.272952]
+> [  207.272973]  Possible unsafe locking scenario:
+> [  207.272973]
+> [  207.272984]        CPU0                    CPU1
+> [  207.272992]        ----                    ----
+> [  207.273000]   lock(cpu_hotplug.lock);
+> [  207.273009]                                lock(&mm->mmap_sem);
+> [  207.273020]                                lock(cpu_hotplug.lock);
+> [  207.273031]   lock(subsys mutex);
+> [  207.273040]
+> [  207.273040]  *** DEADLOCK ***
 
-I should confess that I didn't spend enough time to investigate
-where is good place for hook. Even, It might be better to add new
-kvranged thread because there are a few bugs these days in kswapd,
-which was very sensitive for a small change so adding new hooks
-may make subtle another problem.
+cpu_hotplug.lock could avoid deadlock by
+checking lock owner:
 
-It could be better to move vrange code into kswapd after settle down
-in kvrangd. Otherwise, we could leave at it is in kvranged.
+void get_online_cpus(void)
+{
+	might_sleep();
+	if (cpu_hotplug.active_writer == current)
+		return;
+	mutex_lock(&cpu_hotplug.lock);
+	cpu_hotplug.refcount++;
+	mutex_unlock(&cpu_hotplug.lock);
 
-Other issue is scanning cost of virtual address. We don't have any
-information of rss in each VMA so kswapd can scan all address without
-any gain. It can burn out CPU. I have a plan to account rss
-by per-VMA at least, anonymous vma.
+}
 
-Any comment are welcome!
-
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- include/linux/rmap.h   |   3 +
- include/linux/vrange.h |   4 +-
- mm/vmscan.c            |  45 +++++++++-
- mm/vrange.c            | 239 +++++++++++++++++++++++++++++++++++++++++++++++--
- 4 files changed, 279 insertions(+), 12 deletions(-)
-
-diff --git a/include/linux/rmap.h b/include/linux/rmap.h
-index 6432dfb..e822a30 100644
---- a/include/linux/rmap.h
-+++ b/include/linux/rmap.h
-@@ -83,6 +83,9 @@ enum ttu_flags {
- };
- 
- #ifdef CONFIG_MMU
-+unsigned long discard_vrange_page_list(struct zone *zone,
-+		struct list_head *page_list);
-+
- unsigned long vma_address(struct page *page, struct vm_area_struct *vma);
- 
- static inline void get_anon_vma(struct anon_vma *anon_vma)
-diff --git a/include/linux/vrange.h b/include/linux/vrange.h
-index 26db168..4bcec40 100644
---- a/include/linux/vrange.h
-+++ b/include/linux/vrange.h
-@@ -5,14 +5,12 @@
- #include <linux/interval_tree.h>
- #include <linux/mm.h>
- 
--/* To protect race with forker */
--static DECLARE_RWSEM(vrange_fork_lock);
--
- struct vrange {
- 	struct interval_tree_node node;
- 	bool purged;
- 	struct mm_struct *mm;
- 	struct list_head lru; /* protected by lru_lock */
-+	atomic_t refcount;
- };
- 
- #define vrange_entry(ptr) \
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e36ee51..2220ce7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -683,7 +683,7 @@ static enum page_references page_check_references(struct page *page,
- /*
-  * shrink_page_list() returns the number of reclaimed pages
-  */
--static unsigned long shrink_page_list(struct list_head *page_list,
-+unsigned long shrink_page_list(struct list_head *page_list,
- 				      struct zone *zone,
- 				      struct scan_control *sc,
- 				      enum ttu_flags ttu_flags,
-@@ -985,6 +985,35 @@ keep:
- 	return nr_reclaimed;
- }
- 
-+
-+unsigned long discard_vrange_page_list(struct zone *zone,
-+		struct list_head *page_list)
-+{
-+	unsigned long ret;
-+	struct scan_control sc = {
-+		.gfp_mask = GFP_KERNEL,
-+		.priority = DEF_PRIORITY,
-+		.may_unmap = 1,
-+		.may_swap = 1,
-+		.may_discard = 1
-+	};
-+
-+	unsigned long dummy1, dummy2;
-+	struct page *page;
-+
-+	list_for_each_entry(page, page_list, lru) {
-+		VM_BUG_ON(!PageAnon(page));
-+		ClearPageActive(page);
-+	}
-+
-+	/* page_list have pages from multiple zones */
-+	ret = shrink_page_list(page_list, NULL, &sc,
-+			TTU_UNMAP|TTU_IGNORE_ACCESS,
-+			&dummy1, &dummy2, false);
-+	__mod_zone_page_state(zone, NR_ISOLATED_ANON, -ret);
-+	return ret;
-+}
-+
- unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- 					    struct list_head *page_list)
- {
-@@ -2781,6 +2810,16 @@ loop_again:
- 			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
- 			    !zone_balanced(zone, testorder,
- 					   balance_gap, end_zone)) {
-+
-+				unsigned int nr_discard;
-+				if (testorder == 0) {
-+					nr_discard = discard_vrange_pages(zone,
-+							SWAP_CLUSTER_MAX);
-+					sc.nr_reclaimed += nr_discard;
-+					if (zone_balanced(zone, testorder, 0,
-+								end_zone))
-+						goto zone_balanced;
-+				}
- 				shrink_zone(zone, &sc);
- 
- 				reclaim_state->reclaimed_slab = 0;
-@@ -2805,7 +2844,8 @@ loop_again:
- 				continue;
- 			}
- 
--			if (zone_balanced(zone, testorder, 0, end_zone))
-+			if (zone_balanced(zone, testorder, 0, end_zone)) {
-+zone_balanced:
- 				/*
- 				 * If a zone reaches its high watermark,
- 				 * consider it to be no longer congested. It's
-@@ -2814,6 +2854,7 @@ loop_again:
- 				 * speculatively avoid congestion waits
- 				 */
- 				zone_clear_flag(zone, ZONE_CONGESTED);
-+			}
- 		}
- 
- 		/*
-diff --git a/mm/vrange.c b/mm/vrange.c
-index b9b1ffa..2f56d36 100644
---- a/mm/vrange.c
-+++ b/mm/vrange.c
-@@ -13,15 +13,29 @@
- #include <linux/swap.h>
- #include <linux/swapops.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/migrate.h>
-+
-+struct vrange_walker_private {
-+	struct zone *zone;
-+	struct vm_area_struct *vma;
-+	struct list_head *pagelist;
-+};
- 
- static LIST_HEAD(lru_vrange);
- static DEFINE_SPINLOCK(lru_lock);
- 
- static struct kmem_cache *vrange_cachep;
- 
-+static void vrange_ctor(void *data)
-+{
-+	struct vrange *vrange = data;
-+	INIT_LIST_HEAD(&vrange->lru);
-+}
-+
- void __init vrange_init(void)
- {
--	vrange_cachep = KMEM_CACHE(vrange, SLAB_PANIC);
-+	vrange_cachep = kmem_cache_create("vrange", sizeof(struct vrange),
-+				0, SLAB_PANIC, vrange_ctor);
- }
- 
- static inline void __set_vrange(struct vrange *range,
-@@ -78,6 +92,7 @@ static void __add_range(struct vrange *range,
- 	interval_tree_insert(&range->node, root);
- }
- 
-+/* remove range from interval tree */
- static void __remove_range(struct vrange *range,
- 				struct rb_root *root)
- {
-@@ -87,7 +102,8 @@ static void __remove_range(struct vrange *range,
- static struct vrange *alloc_vrange(void)
- {
- 	struct vrange *vrange = kmem_cache_alloc(vrange_cachep, GFP_KERNEL);
--	INIT_LIST_HEAD(&vrange->lru);
-+	if (vrange)
-+		atomic_set(&vrange->refcount, 1);
- 	return vrange;
- }
- 
-@@ -97,6 +113,13 @@ static void free_vrange(struct vrange *range)
- 	kmem_cache_free(vrange_cachep, range);
- }
- 
-+static void put_vrange(struct vrange *range)
-+{
-+	WARN_ON(atomic_read(&range->refcount) < 0);
-+	if (atomic_dec_and_test(&range->refcount))
-+		free_vrange(range);
-+}
-+
- static inline void range_resize(struct rb_root *root,
- 		struct vrange *range,
- 		unsigned long start, unsigned long end,
-@@ -127,7 +150,7 @@ int add_vrange(struct mm_struct *mm,
- 
- 		range = container_of(node, struct vrange, node);
- 		if (node->start < start && node->last > end) {
--			free_vrange(new_range);
-+			put_vrange(new_range);
- 			goto out;
- 		}
- 
-@@ -136,7 +159,7 @@ int add_vrange(struct mm_struct *mm,
- 
- 		purged |= range->purged;
- 		__remove_range(range, root);
--		free_vrange(range);
-+		put_vrange(range);
- 
- 		node = next;
- 	}
-@@ -174,7 +197,7 @@ int remove_vrange(struct mm_struct *mm,
- 
- 		if (start <= node->start && end >= node->last) {
- 			__remove_range(range, root);
--			free_vrange(range);
-+			put_vrange(range);
- 		} else if (node->start >= start) {
- 			range_resize(root, range, end, node->last, mm);
- 		} else if (node->last <= end) {
-@@ -194,7 +217,7 @@ int remove_vrange(struct mm_struct *mm,
- 
- 	vrange_unlock(mm);
- 	if (!used_new)
--		free_vrange(new_range);
-+		put_vrange(new_range);
- 
- 	return ret;
- }
-@@ -209,7 +232,7 @@ void exit_vrange(struct mm_struct *mm)
- 		range = vrange_entry(next);
- 		next = rb_next(next);
- 		__remove_range(range, &mm->v_rb);
--		free_vrange(range);
-+		put_vrange(range);
- 	}
- }
- 
-@@ -494,6 +517,7 @@ int discard_vpage(struct page *page)
- 
- 		if (page_freeze_refs(page, 1)) {
- 			unlock_page(page);
-+			dec_zone_page_state(page, NR_ISOLATED_ANON);
- 			return 1;
- 		}
- 	}
-@@ -518,3 +542,204 @@ bool is_purged_vrange(struct mm_struct *mm, unsigned long address)
- 	vrange_unlock(mm);
- 	return ret;
- }
-+
-+static void vrange_pte_entry(pte_t pteval, unsigned long address,
-+			unsigned ptent_size, struct mm_walk *walk)
-+{
-+	struct page *page;
-+	struct vrange_walker_private *vwp = walk->private;
-+	struct vm_area_struct *vma = vwp->vma;
-+	struct list_head *pagelist = vwp->pagelist;
-+	struct zone *zone = vwp->zone;
-+
-+	if (pte_none(pteval))
-+		return;
-+
-+	if (!pte_present(pteval))
-+		return;
-+
-+	page = vm_normal_page(vma, address, pteval);
-+	if (unlikely(!page))
-+		return;
-+
-+	if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
-+		return;
-+
-+	/* TODO : Support THP and HugeTLB */
-+	if (unlikely(PageCompound(page)))
-+		return;
-+
-+	if (zone_idx(page_zone(page)) > zone_idx(zone))
-+		return;
-+
-+	if (isolate_lru_page(page))
-+		return;
-+
-+	list_add(&page->lru, pagelist);
-+	inc_zone_page_state(page, NR_ISOLATED_ANON);
-+}
-+
-+static int vrange_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-+				struct mm_walk *walk)
-+{
-+	pte_t *pte;
-+	spinlock_t *ptl;
-+
-+	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
-+	for (; addr != end; pte++, addr += PAGE_SIZE)
-+		vrange_pte_entry(*pte, addr, PAGE_SIZE, walk);
-+	pte_unmap_unlock(pte - 1, ptl);
-+	cond_resched();
-+	return 0;
-+
-+}
-+
-+unsigned int discard_vma_pages(struct zone *zone, struct mm_struct *mm,
-+		struct vm_area_struct *vma, unsigned long start,
-+		unsigned long end, unsigned int nr_to_discard)
-+{
-+	LIST_HEAD(pagelist);
-+	int ret = 0;
-+	struct vrange_walker_private vwp;
-+	struct mm_walk vrange_walk = {
-+		.pmd_entry = vrange_pte_range,
-+		.mm = vma->vm_mm,
-+		.private = &vwp,
-+	};
-+
-+	vwp.pagelist = &pagelist;
-+	vwp.vma = vma;
-+	vwp.zone = zone;
-+
-+	walk_page_range(start, end, &vrange_walk);
-+
-+	if (!list_empty(&pagelist))
-+		ret = discard_vrange_page_list(zone, &pagelist);
-+
-+	putback_lru_pages(&pagelist);
-+	return ret;
-+}
-+
-+unsigned int discard_vrange(struct zone *zone, struct vrange *vrange,
-+				int nr_to_discard)
-+{
-+	struct mm_struct *mm = vrange->mm;
-+	unsigned long start = vrange->node.start;
-+	unsigned long end = vrange->node.last;
-+	struct vm_area_struct *vma;
-+	unsigned int nr_discarded = 0;
-+
-+	if (!down_read_trylock(&mm->mmap_sem))
-+		goto out;
-+
-+	vma = find_vma(mm, start);
-+	if (!vma || (vma->vm_start > end))
-+		goto out_unlock;
-+
-+	for (; vma; vma = vma->vm_next) {
-+		if (vma->vm_start > end)
-+			break;
-+
-+		if (vma->vm_file ||
-+			(vma->vm_flags & (VM_SPECIAL | VM_LOCKED)))
-+			continue;
-+
-+		cond_resched();
-+		nr_discarded +=
-+			discard_vma_pages(zone, mm, vma,
-+				max_t(unsigned long, start, vma->vm_start),
-+				min_t(unsigned long, end + 1, vma->vm_end),
-+				nr_to_discard);
-+	}
-+out_unlock:
-+	up_read(&mm->mmap_sem);
-+out:
-+	return nr_discarded;
-+}
-+
-+/*
-+ * Get next victim vrange from LRU and hold a vrange refcount
-+ * and vrange->mm's refcount.
-+ */
-+struct vrange *get_victim_vrange(void)
-+{
-+	struct mm_struct *mm;
-+	struct vrange *vrange = NULL;
-+	struct list_head *cur, *tmp;
-+
-+	spin_lock(&lru_lock);
-+	list_for_each_prev_safe(cur, tmp, &lru_vrange) {
-+		vrange = list_entry(cur, struct vrange, lru);
-+		mm = vrange->mm;
-+		/* the process is exiting so pass it */
-+		if (atomic_read(&mm->mm_users) == 0) {
-+			list_del_init(&vrange->lru);
-+			vrange = NULL;
-+			continue;
-+		}
-+
-+		/* vrange is freeing so continue to loop */
-+		if (!atomic_inc_not_zero(&vrange->refcount)) {
-+			list_del_init(&vrange->lru);
-+			vrange = NULL;
-+			continue;
-+		}
-+
-+		/*
-+		 * we need to access mmap_sem further routine so
-+		 * need to get a refcount of mm.
-+		 * NOTE: We guarantee mm_count isn't zero in here because
-+		 * if we found vrange from LRU list, it means we are
-+		 * before exit_vrange or remove_vrange.
-+		 */
-+		atomic_inc(&mm->mm_count);
-+
-+		/* Isolate vrange */
-+		list_del_init(&vrange->lru);
-+		break;
-+	}
-+
-+	spin_unlock(&lru_lock);
-+	return vrange;
-+}
-+
-+void put_victim_range(struct vrange *vrange)
-+{
-+	put_vrange(vrange);
-+	mmdrop(vrange->mm);
-+}
-+
-+unsigned int discard_vrange_pages(struct zone *zone, int nr_to_discard)
-+{
-+	struct vrange *vrange, *start_vrange;
-+	unsigned int nr_discarded = 0;
-+
-+	start_vrange = vrange = get_victim_vrange();
-+	if (start_vrange) {
-+		struct mm_struct *mm = start_vrange->mm;
-+		atomic_inc(&start_vrange->refcount);
-+		atomic_inc(&mm->mm_count);
-+	}
-+
-+	while (vrange) {
-+		nr_discarded += discard_vrange(zone, vrange, nr_to_discard);
-+		lru_add_vrange(vrange);
-+		put_victim_range(vrange);
-+
-+		if (nr_discarded >= nr_to_discard)
-+			break;
-+
-+		vrange = get_victim_vrange();
-+		/* break if we go round the loop */
-+		if (vrange == start_vrange) {
-+			lru_add_vrange(vrange);
-+			put_victim_range(vrange);
-+			break;
-+		}
-+	}
-+
-+	if (start_vrange)
-+		put_victim_range(start_vrange);
-+
-+	return nr_discarded;
-+}
--- 
-1.8.1.1
+> [  207.273040]
+> [  207.273055] 5 locks held by bash/10493:
+> [  207.273062]  #0:  (&buffer->mutex){+.+.+.}, at: [<ffffffff81209049>] sysfs_write_file+0x49/0x150
+> [  207.273080]  #1:  (s_active#150){.+.+.+}, at: [<ffffffff812090c2>] sysfs_write_file+0xc2/0x150
+> [  207.273099]  #2:  (x86_cpu_hotplug_driver_mutex){+.+.+.}, at: [<ffffffff81027557>] cpu_hotplug_driver_lock+0x17/0x20
+> [  207.273121]  #3:  (cpu_add_remove_lock){+.+.+.}, at: [<ffffffff8149911c>] cpu_down+0x2c/0x60
+> [  207.273140]  #4:  (cpu_hotplug.lock){+.+.+.}, at: [<ffffffff81046ccf>] cpu_hotplug_begin+0x2f/0x60
+> [  207.273158]
+> [  207.273158] stack backtrace:
+> [  207.273170] Pid: 10493, comm: bash Not tainted 3.9.0-rc1-0.7-default+ #34
+> [  207.273180] Call Trace:
+> [  207.273192]  [<ffffffff810ab373>] print_circular_bug+0x223/0x310
+> [  207.273204]  [<ffffffff810ae002>] __lock_acquire+0x13b2/0x15f0
+> [  207.273216]  [<ffffffff812086b0>] ? sysfs_hash_and_remove+0x60/0xc0
+> [  207.273227]  [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.273239]  [<ffffffff8134af27>] ? bus_remove_device+0x37/0x1c0
+> [  207.273251]  [<ffffffff814ad807>] mutex_lock_nested+0x37/0x360
+> [  207.273263]  [<ffffffff8134af27>] ? bus_remove_device+0x37/0x1c0
+> [  207.273274]  [<ffffffff812086b0>] ? sysfs_hash_and_remove+0x60/0xc0
+> [  207.273286]  [<ffffffff8134af27>] bus_remove_device+0x37/0x1c0
+> [  207.273298]  [<ffffffff81349114>] device_del+0x134/0x1f0
+> [  207.273309]  [<ffffffff813491f2>] device_unregister+0x22/0x60
+> [  207.273321]  [<ffffffff814a24ea>] mce_cpu_callback+0x15e/0x1ad
+> [  207.273332]  [<ffffffff814b6402>] notifier_call_chain+0x72/0x130
+> [  207.273344]  [<ffffffff81073d6e>] __raw_notifier_call_chain+0xe/0x10
+> [  207.273356]  [<ffffffff81498f76>] _cpu_down+0x1d6/0x350
+> [  207.273368]  [<ffffffff81027557>] ? cpu_hotplug_driver_lock+0x17/0x20
+> [  207.273380]  [<ffffffff81499130>] cpu_down+0x40/0x60
+> [  207.273391]  [<ffffffff8149cc55>] store_online+0x75/0xe0
+> [  207.273402]  [<ffffffff813474a0>] dev_attr_store+0x20/0x30
+> [  207.273413]  [<ffffffff812090d9>] sysfs_write_file+0xd9/0x150
+> [  207.273425]  [<ffffffff8118e10b>] vfs_write+0xcb/0x130
+> [  207.273436]  [<ffffffff8118e924>] sys_write+0x64/0xa0
+> [  207.273447]  [<ffffffff814bb599>] system_call_fastpath+0x16/0x1b
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
