@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 81D776B0036
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 06:11:28 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id uo15so4826279pbc.33
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2013 03:11:27 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id E02B26B0006
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 06:12:03 -0400 (EDT)
+Received: by mail-da0-f53.google.com with SMTP id n34so1061571dal.12
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2013 03:12:03 -0700 (PDT)
 From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH 5/6] memcg: Don't account root memcg PGFAULT/PGMAJFAULT events
-Date: Tue, 12 Mar 2013 18:11:08 +0800
-Message-Id: <1363083068-3867-1-git-send-email-handai.szj@taobao.com>
+Subject: [PATCH 6/6] memcg: disable memcg page stat accounting
+Date: Tue, 12 Mar 2013 18:11:43 +0800
+Message-Id: <1363083103-3907-1-git-send-email-handai.szj@taobao.com>
 In-Reply-To: <1363082773-3598-1-git-send-email-handai.szj@taobao.com>
 References: <1363082773-3598-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,112 +15,166 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org, linux-mm@kvack.org
 Cc: mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, glommer@parallels.com, akpm@linux-foundation.org, mgorman@suse.de, Sha Zhengju <handai.szj@taobao.com>
 
-Use the similar way to handle root memcg PGFAULT/PGMAJFAULT events.
-So
-	nr(MEM_CGROUP_EVENTS_PGFAULT/PGMAJFAULT) = global_event_states -
-		sum_of_all_memcg(MEM_CGROUP_EVENTS_PGFAULT/PGMAJFAULT);
+Use jump label to patch the memcg page stat accounting code
+in or out when not used. when the first non-root memcg comes to
+life the code is patching in otherwise it is out.
 
 Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
 ---
- mm/memcontrol.c |   50 +++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 47 insertions(+), 3 deletions(-)
+ include/linux/memcontrol.h |   23 +++++++++++++++++++++++
+ mm/memcontrol.c            |   34 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 56 insertions(+), 1 deletion(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b73758e..cea4b02 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -53,6 +53,7 @@
- #include <linux/page_cgroup.h>
- #include <linux/cpu.h>
- #include <linux/oom.h>
-+#include <linux/vmstat.h>
- #include "internal.h"
- #include <net/sock.h>
- #include <net/ip.h>
-@@ -1252,6 +1253,10 @@ void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index d6183f0..99dca91 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -42,6 +42,14 @@ struct mem_cgroup_reclaim_cookie {
+ };
  
- 	rcu_read_lock();
- 	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+ #ifdef CONFIG_MEMCG
 +
-+	if (mem_cgroup_is_root(memcg))
-+		goto out;
++extern struct static_key memcg_in_use_key;
 +
- 	if (unlikely(!memcg))
- 		goto out;
- 
-@@ -4983,6 +4988,18 @@ static unsigned long mem_cgroup_recursive_stat(struct mem_cgroup *memcg,
- 	return val;
- }
- 
-+static unsigned long mem_cgroup_recursive_events(struct mem_cgroup *memcg,
-+					       enum mem_cgroup_events_index idx)
++static inline bool mem_cgroup_in_use(void)
 +{
-+	struct mem_cgroup *iter;
-+	unsigned long val = 0;
-+
-+	for_each_mem_cgroup_tree(iter, memcg)
-+		val += mem_cgroup_read_events(iter, idx);
-+
-+	return val;
++	return static_key_false(&memcg_in_use_key);
 +}
 +
- static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+ /*
+  * All "charge" functions with gfp_mask should use GFP_KERNEL or
+  * (gfp_mask & GFP_RECLAIM_MASK). In current implementatin, memcg doesn't
+@@ -145,6 +153,10 @@ static inline void mem_cgroup_begin_update_page_stat(struct page *page,
  {
- 	u64 val;
-@@ -5455,6 +5472,7 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
- 	enum zone_stat_item global_stat[] = {NR_FILE_PAGES, NR_ANON_PAGES,
- 					NR_FILE_MAPPED};
- 	long root_stat[MEM_CGROUP_STAT_NSTATS] = {0};
-+	unsigned long root_events[MEM_CGROUP_EVENTS_NSTATS] = {0};
+ 	if (mem_cgroup_disabled())
+ 		return;
++
++	if (!mem_cgroup_in_use())
++		return;
++
+ 	rcu_read_lock();
+ 	*locked = false;
+ 	if (atomic_read(&memcg_moving))
+@@ -158,6 +170,10 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
+ {
+ 	if (mem_cgroup_disabled())
+ 		return;
++
++	if (!mem_cgroup_in_use())
++		return;
++
+ 	if (*locked)
+ 		__mem_cgroup_end_update_page_stat(page, flags);
+ 	rcu_read_unlock();
+@@ -189,6 +205,9 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+ {
+ 	if (mem_cgroup_disabled())
+ 		return;
++	if (!mem_cgroup_in_use())
++		return;
++
+ 	__mem_cgroup_count_vm_event(mm, idx);
+ }
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+@@ -201,6 +220,10 @@ void mem_cgroup_print_bad_page(struct page *page);
+ #endif
+ #else /* CONFIG_MEMCG */
+ struct mem_cgroup;
++static inline bool mem_cgroup_in_use(void)
++{
++	return false;
++}
  
- 	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
- 		long val = 0;
-@@ -5475,9 +5493,30 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
- 					val * PAGE_SIZE);
- 	}
+ static inline int mem_cgroup_newpage_charge(struct page *page,
+ 					struct mm_struct *mm, gfp_t gfp_mask)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index cea4b02..4e08347 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -562,6 +562,14 @@ enum res_type {
+  */
+ static DEFINE_MUTEX(memcg_create_mutex);
  
--	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
--		seq_printf(m, "%s %lu\n", mem_cgroup_events_names[i],
--			   mem_cgroup_read_events(memcg, i));
-+	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++) {
-+		unsigned long val = 0;
++/* static_key used for marking memcg in use or not. We use this jump label to
++ * patch memcg page stat accounting code in or out.
++ * The key will be increased when non-root memcg is created, and be decreased
++ * when memcg is destroyed.
++ */
++struct static_key memcg_in_use_key;
++EXPORT_SYMBOL(memcg_in_use_key);
 +
-+		if (mem_cgroup_is_root(memcg) &&
-+			((i == MEM_CGROUP_EVENTS_PGFAULT) ||
-+			  i == MEM_CGROUP_EVENTS_PGMAJFAULT)) {
-+			int cpu;
+ static void mem_cgroup_get(struct mem_cgroup *memcg);
+ static void mem_cgroup_put(struct mem_cgroup *memcg);
+ 
+@@ -707,10 +715,21 @@ static void disarm_kmem_keys(struct mem_cgroup *memcg)
+ }
+ #endif /* CONFIG_MEMCG_KMEM */
+ 
++static void disarm_inuse_keys(void)
++{
++	static_key_slow_dec(&memcg_in_use_key);
++}
 +
-+			get_online_cpus();
-+			for_each_online_cpu(cpu) {
-+				struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
-+				if (i == MEM_CGROUP_EVENTS_PGFAULT)
-+					val += this->event[PGFAULT];
-+				else
-+					val += this->event[PGMAJFAULT];
-+			}
-+			put_online_cpus();
++static void arm_inuse_keys(void)
++{
++	static_key_slow_inc(&memcg_in_use_key);
++}
 +
-+			val = val - mem_cgroup_recursive_events(memcg, i);
-+			root_events[i] = val = val < 0 ? 0 : val;
-+		} else
-+			val = mem_cgroup_read_events(memcg, i);
-+		seq_printf(m, "%s %lu\n", mem_cgroup_events_names[i], val);
+ static void disarm_static_keys(struct mem_cgroup *memcg)
+ {
+ 	disarm_sock_keys(memcg);
+ 	disarm_kmem_keys(memcg);
++	disarm_inuse_keys();
+ }
+ 
+ static void drain_all_stock_async(struct mem_cgroup *memcg);
+@@ -936,6 +955,9 @@ static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
+ {
+ 	int val = (charge) ? 1 : -1;
+ 
++	if (!mem_cgroup_in_use())
++		return;
++
+ 	if (!mem_cgroup_is_root(memcg))
+ 		this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAP], val);
+ }
+@@ -970,6 +992,11 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+ 	__this_cpu_add(memcg->stat->nr_page_events,
+ 					nr_pages < 0 ? -nr_pages : nr_pages);
+ 
++	if (!mem_cgroup_in_use()) {
++		preempt_enable();
++		return;
 +	}
- 
- 	for (i = 0; i < NR_LRU_LISTS; i++)
- 		seq_printf(m, "%s %lu\n", mem_cgroup_lru_names[i],
-@@ -5513,6 +5552,11 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
- 
- 		for_each_mem_cgroup_tree(mi, memcg)
- 			val += mem_cgroup_read_events(mi, i);
 +
-+		/* Adding local events of root memcg */
-+		if (mem_cgroup_is_root(memcg))
-+			val += root_events[i];
+ 	if (!mem_cgroup_is_root(memcg)) {
+ 		/*
+ 		 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
+@@ -2278,11 +2305,13 @@ void mem_cgroup_update_page_stat(struct page *page,
+ {
+ 	struct mem_cgroup *memcg;
+ 	struct page_cgroup *pc = lookup_page_cgroup(page);
+-	unsigned long uninitialized_var(flags);
+ 
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 
++	if (!mem_cgroup_in_use())
++		return;
 +
- 		seq_printf(m, "total_%s %llu\n",
- 			   mem_cgroup_events_names[i], val);
+ 	memcg = pc->mem_cgroup;
+ 
+ 	if (mem_cgroup_is_root(memcg))
+@@ -6414,6 +6443,9 @@ mem_cgroup_css_online(struct cgroup *cont)
  	}
+ 
+ 	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
++	if (!error)
++		arm_inuse_keys();
++
+ 	mutex_unlock(&memcg_create_mutex);
+ 	if (error) {
+ 		/*
 -- 
 1.7.9.5
 
