@@ -1,86 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id C1E516B0036
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 18:32:23 -0400 (EDT)
-Date: Tue, 12 Mar 2013 15:32:21 -0700
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id D672A6B0006
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 19:01:37 -0400 (EDT)
+Date: Tue, 12 Mar 2013 16:01:36 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] bounce:fix bug, avoid to flush dcache on slab page from
- jbd2.
-Message-Id: <20130312153221.0d26fe5599d4885e51bb0c7c@linux-foundation.org>
-In-Reply-To: <5139DB90.5090302@gmail.com>
-References: <5139DB90.5090302@gmail.com>
+Subject: Re: [PATCH v5 1/2] mm: limit growth of 3% hardcoded other user
+ reserve
+Message-Id: <20130312160136.b0f09ca7b1b4f2efe01f6617@linux-foundation.org>
+In-Reply-To: <20130306235201.GA1421@localhost.localdomain>
+References: <20130306235201.GA1421@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shuge <shugelinux@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Kevin <kevin@allwinneretch.com>, Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org, "Darrick J. Wong" <darrick.wong@oracle.com>
+To: Andrew Shewmaker <agshew@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, simon.jeons@gmail.com, ric.masonn@gmail.com
 
-On Fri, 08 Mar 2013 20:37:36 +0800 Shuge <shugelinux@gmail.com> wrote:
+On Wed, 6 Mar 2013 18:52:01 -0500 Andrew Shewmaker <agshew@gmail.com> wrote:
 
-> The bounce accept slab pages from jbd2, and flush dcache on them.
-> When enabling VM_DEBUG, it will tigger VM_BUG_ON in page_mapping().
-> So, check PageSlab to avoid it in __blk_queue_bounce().
+> Add user_reserve_pages knob.
 > 
-> Bug URL: http://lkml.org/lkml/2013/3/7/56
+> Limit the growth of the memory reserved for other user
+> processes to min(3% current process, user_reserve_pages).
 > 
-> ...
->
-> --- a/mm/bounce.c
-> +++ b/mm/bounce.c
-> @@ -214,7 +214,8 @@ static void __blk_queue_bounce(struct request_queue 
-> *q, struct bio **bio_orig,
->   		if (rw == WRITE) {
->   			char *vto, *vfrom;
->   -			flush_dcache_page(from->bv_page);
-> +			if (unlikely(!PageSlab(from->bv_page)))
-> +				flush_dcache_page(from->bv_page);
->   			vto = page_address(to->bv_page) + to->bv_offset;
->   			vfrom = kmap(from->bv_page) + from->bv_offset;
->   			memcpy(vto, vfrom, to->bv_len);
+> user_reserve_pages defaults to min(3% free pages, 128MB)
+> I arrived at 128MB by taking that max VSZ of sshd, login, 
+> bash, and top ... then adding the RSS of each.
+> 
+> This only affects OVERCOMMIT_NEVER mode.
 
-I guess this is triggered by Catalin's f1a0c4aa0937975b ("arm64: Cache
-maintenance routines"), which added a page_mapping() call to arm64's
-arch/arm64/mm/flush.c:flush_dcache_page().
+Can we have a more complete changelog, please?  One which describes, at
+great length, *why* we're doing this.  Describe the problems you
+observed, the possible means of addressing them, why this means is
+considered best, etc.
 
-What's happening is that jbd2 is using kmalloc() to allocate buffer_head
-data.  That gets submitted down the BIO layer and __blk_queue_bounce()
-calls flush_dcache_page() which in the arm64 case calls page_mapping()
-and page_mapping() does VM_BUG_ON(PageSlab) and splat.
+Also, there has been considerable discussion over this patchset and it
+is good to update the changelogs to reflect that discussion.  Partly
+because other people will be asking the same questions when they see
+the patches and partly so that reviewers can understand how earlier
+objections/suggestions were addressed.  Assume that your audience
+has not read this email thread!
 
-The unusual thing about all of this is that the payload for some disk
-IO is coming from kmalloc, rather than being a user page.  It's oddball
-but we've done this for ages and should continue to support it.
+>From a quick read of the code, it appears that the root-cant-log-in
+problem was addressed by simply leaving it up to the administrator,
+yes?  If the administrator sets user_reserve_pages or
+admin_reserve_pages to zero then they risk hitting the root-cant-log-in
+problem, yes?  If so then I guess this is an OK approach, but we should
+clearly describe the risks in the documentation.
 
-
-Now, the page from kmalloc() cannot be in highmem, so why did the
-bounce code decide to bounce it?
-
-__blk_queue_bounce() does
-
-		/*
-		 * is destination page below bounce pfn?
-		 */
-		if (page_to_pfn(page) <= queue_bounce_pfn(q) && !force)
-			continue;
-
-and `force' comes from must_snapshot_stable_pages().  But
-must_snapshot_stable_pages() must have returned false, because if it
-had returned true then it would have been must_snapshot_stable_pages()
-which went BUG, because must_snapshot_stable_pages() calls page_mapping().
-
-So my tentative diagosis is that arm64 is fishy.  A page which was
-allocated via jbd2_alloc(GFP_NOFS)->kmem_cache_alloc() ended up being
-above arm64's queue_bounce_pfn().  Can you please do a bit of
-investigation to work out if this is what is happening?  Find out why
-__blk_queue_bounce() decided to bounce a page which shouldn't have been
-bounced?
-
-This is all terribly fragile :( afaict if someone sets
-bdi_cap_stable_pages_required() against that jbd2 queue, we're going to
-hit that BUG_ON() again, via must_snapshot_stable_pages()'s
-page_mapping() call.  (Darrick, this means you ;))
+Finally, I am allergic to exported interfaces which deal in "pages". 
+Because PAGE_SIZE can vary by a factor of 16 depending upon config (ie:
+architecture).  The risk is that a setup script which works nicely on
+4k x86_64 will waste memory when executed on a 64k PAGE_SIZE powerpc
+box.  A smart programmer will recognize this and will adapt the setting
+using getpagesize(2), but if we define these things in "bytes" rather
+than "pages" then dumb programmers can use it too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
