@@ -1,73 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 3EC3E6B0006
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 15:48:11 -0400 (EDT)
-Received: from /spool/local
-	by e06smtp18.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Tue, 12 Mar 2013 19:45:30 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id B875B1B08061
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 19:48:07 +0000 (GMT)
-Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2CJlwHZ26345692
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 19:47:58 GMT
-Received: from d06av06.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2CJm6UN032631
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 13:48:07 -0600
-Date: Tue, 12 Mar 2013 20:48:03 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH 1/1] mm/hugetlb: add more arch-defined huge_pte_xxx
- functions
-Message-ID: <20130312204803.32234105@thinkpad>
-In-Reply-To: <513F7B55.60805@tilera.com>
-References: <1363114106-30251-1-git-send-email-gerald.schaefer@de.ibm.com>
-	<1363114106-30251-2-git-send-email-gerald.schaefer@de.ibm.com>
-	<513F7B55.60805@tilera.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id D10A86B0006
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 16:47:04 -0400 (EDT)
+Date: Tue, 12 Mar 2013 13:47:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/9] mm: use mm_populate() for blocking
+ remap_file_pages()
+Message-Id: <20130312134702.a972d9a141bf86f14768ad41@linux-foundation.org>
+In-Reply-To: <20130312002429.GA24360@google.com>
+References: <1356050997-2688-1-git-send-email-walken@google.com>
+	<1356050997-2688-5-git-send-email-walken@google.com>
+	<CA+ydwtqD67m9_JLCNwvdP72rko93aTkVgC-aK4TacyyM5DoCTA@mail.gmail.com>
+	<20130311160322.830cc6b670fd24faa8366413@linux-foundation.org>
+	<20130312002429.GA24360@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@tilera.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: Tommi Rantala <tt.rantala@gmail.com>, Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Jorn_Engel <joern@logfs.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On Tue, 12 Mar 2013 15:00:37 -0400
-Chris Metcalf <cmetcalf@tilera.com> wrote:
-
-> On 3/12/2013 2:48 PM, Gerald Schaefer wrote:
-> > Commit abf09bed3c "s390/mm: implement software dirty bits" introduced
-> > another difference in the pte layout vs. the pmd layout on s390,
-> > thoroughly breaking the s390 support for hugetlbfs. This requires
-> > replacing some more pte_xxx functions in mm/hugetlbfs.c with a
-> > huge_pte_xxx version.
-> >
-> > This patch introduces those huge_pte_xxx functions and their
-> > implementation on all architectures supporting hugetlbfs. This change
-> > will be a no-op for all architectures other than s390.
-> >
-> > [...]
-> >  
-> > +static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
-> > +{
-> > +	return mk_pte(page, pgprot);
-> > +}
+On Mon, 11 Mar 2013 17:24:29 -0700 Michel Lespinasse <walken@google.com> wrote:
+> > --- a/mm/fremap.c~mm-fremapc-fix-oops-on-error-path
+> > +++ a/mm/fremap.c
+> > @@ -163,7 +163,8 @@ SYSCALL_DEFINE5(remap_file_pages, unsign
+> >          * and that the remapped range is valid and fully within
+> >          * the single existing vma.
+> >          */
+> > -       if (!vma || !(vma->vm_flags & VM_SHARED))
+> > +       vm_flags = vma->vm_flags;
+> > +       if (!vma || !(vm_flags & VM_SHARED))
+> >                 goto out;
 > 
-> Does it make sense to merge this new per-arch function with the existing per-arch arch_make_huge_pte() function?  Certainly in the tile case, we could set up our "super" bit in the initial mk_huge_pte() call, and then set "young" and "huge" after that in the platform-independent caller (make_huge_pte).  This would allow your change to eliminate some code as well as just introducing code :-)
+> Your commit message indicates the vm_flags load here doesn't generate any code, but this seems very brittle and compiler dependent. If the compiler was to generate an actual load here, the issue with vma == NULL would reappear.
+
+I didn't try very hard.  I have a surprisingly strong dislike of adding
+"= 0" everywhere just to squish warnings.
+
+There are actually quite a lot of places where this function could use
+s/vma->vm_flags/vm_flags/ and might save a bit of code as a result. 
+But the function's pretty straggly and I stopped doing it.
+
 > 
-Yes, I guess there is also some potential of optimizing/eliminating
-existing code. Apart from the arch_make_huge_pte() that you mentioned,
-there is also a pte_mkhuge() left over, which looks like it should be
-merged into the new mk_huge_pte().
+> >         if (!vma->vm_ops || !vma->vm_ops->remap_pages)
+> > @@ -254,7 +255,8 @@ get_write_lock:
+> >          */
+> >
+> >  out:
+> > -       vm_flags = vma->vm_flags;
+> > +       if (vma)
+> > +               vm_flags = vma->vm_flags;
+> >         if (likely(!has_write_lock))
+> >                 up_read(&mm->mmap_sem);
+> >         else
+> 
+> 
+> 
+> Would the following work ? I think it's simpler, and with the compiler
+> I'm using here it doesn't emit warnings:
+> 
+> diff --git a/mm/fremap.c b/mm/fremap.c
+> index 0cd4c11488ed..329507e832fb 100644
+> --- a/mm/fremap.c
+> +++ b/mm/fremap.c
+> @@ -254,7 +254,8 @@ get_write_lock:
+>  	 */
+>  
+>  out:
+> -	vm_flags = vma->vm_flags;
+> +	if (!err)
+> +		vm_flags = vma->vm_flags;
+>  	if (likely(!has_write_lock))
+>  		up_read(&mm->mmap_sem);
+>  	else
 
-But that would probably require more modifications than I'd dare to
-bring up on rc3+. So the main focus of this patch is to fix the bug
-on s390 with sw dirty bits before that bug appears in 3.9, and therefore
-I'd like to keep it as simple as possible and w/o functional changes
-on any other architecture for now.
+Yes, this will work.
 
-Thanks,
-Gerald
+gcc-4.4.4 does generate the warning with this.
+
+Testing `err' was my v1, but it is not obvious that err==0 always
+correlates with vma!= NULL.  This is true (I checked), and it had
+better be true in the future, but it just feels safer and simpler to
+test `vma' directly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
