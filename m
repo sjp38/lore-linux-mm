@@ -1,182 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id E02B26B0006
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 06:12:03 -0400 (EDT)
-Received: by mail-da0-f53.google.com with SMTP id n34so1061571dal.12
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2013 03:12:03 -0700 (PDT)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH 6/6] memcg: disable memcg page stat accounting
-Date: Tue, 12 Mar 2013 18:11:43 +0800
-Message-Id: <1363083103-3907-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1363082773-3598-1-git-send-email-handai.szj@taobao.com>
-References: <1363082773-3598-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 6C1C26B0006
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 06:15:58 -0400 (EDT)
+Date: Tue, 12 Mar 2013 11:15:55 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [BUG] potential deadlock led by cpu_hotplug lock (memcg involved)
+Message-ID: <20130312101555.GB30758@dhcp22.suse.cz>
+References: <513ECCFE.3070201@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <513ECCFE.3070201@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, glommer@parallels.com, akpm@linux-foundation.org, mgorman@suse.de, Sha Zhengju <handai.szj@taobao.com>
+To: Li Zefan <lizefan@huawei.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>
 
-Use jump label to patch the memcg page stat accounting code
-in or out when not used. when the first non-root memcg comes to
-life the code is patching in otherwise it is out.
+On Tue 12-03-13 14:36:46, Li Zefan wrote:
+> Seems a new bug in 3.9 kernel?
+> 
+> 
+> [  207.271924] ======================================================
+> [  207.271932] [ INFO: possible circular locking dependency detected ]
+> [  207.271942] 3.9.0-rc1-0.7-default+ #34 Not tainted
+> [  207.271948] -------------------------------------------------------
 
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
----
- include/linux/memcontrol.h |   23 +++++++++++++++++++++++
- mm/memcontrol.c            |   34 +++++++++++++++++++++++++++++++++-
- 2 files changed, 56 insertions(+), 1 deletion(-)
+1) load_module -> subsys_interface_register -> mc_deveice_add (*) -> subsys->p->mutex -> link_path_walk -> lookup_slow -> i_mutex
+2) sys_write -> _cpu_down -> cpu_hotplug_begin -> cpu_hotplug.lock -> mce_cpu_callback -> mce_device_remove(**) -> device_unregister -> bus_remove_device -> subsys mutex
+3) vfs_readdir -> i_mutex -> filldir64 -> might_fault -> might_lock_read(mmap_sem) -> page_fault -> mmap_sem -> drain_all_stock -> cpu_hotplug.lock
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index d6183f0..99dca91 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -42,6 +42,14 @@ struct mem_cgroup_reclaim_cookie {
- };
- 
- #ifdef CONFIG_MEMCG
-+
-+extern struct static_key memcg_in_use_key;
-+
-+static inline bool mem_cgroup_in_use(void)
-+{
-+	return static_key_false(&memcg_in_use_key);
-+}
-+
- /*
-  * All "charge" functions with gfp_mask should use GFP_KERNEL or
-  * (gfp_mask & GFP_RECLAIM_MASK). In current implementatin, memcg doesn't
-@@ -145,6 +153,10 @@ static inline void mem_cgroup_begin_update_page_stat(struct page *page,
- {
- 	if (mem_cgroup_disabled())
- 		return;
-+
-+	if (!mem_cgroup_in_use())
-+		return;
-+
- 	rcu_read_lock();
- 	*locked = false;
- 	if (atomic_read(&memcg_moving))
-@@ -158,6 +170,10 @@ static inline void mem_cgroup_end_update_page_stat(struct page *page,
- {
- 	if (mem_cgroup_disabled())
- 		return;
-+
-+	if (!mem_cgroup_in_use())
-+		return;
-+
- 	if (*locked)
- 		__mem_cgroup_end_update_page_stat(page, flags);
- 	rcu_read_unlock();
-@@ -189,6 +205,9 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
- {
- 	if (mem_cgroup_disabled())
- 		return;
-+	if (!mem_cgroup_in_use())
-+		return;
-+
- 	__mem_cgroup_count_vm_event(mm, idx);
- }
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-@@ -201,6 +220,10 @@ void mem_cgroup_print_bad_page(struct page *page);
- #endif
- #else /* CONFIG_MEMCG */
- struct mem_cgroup;
-+static inline bool mem_cgroup_in_use(void)
-+{
-+	return false;
-+}
- 
- static inline int mem_cgroup_newpage_charge(struct page *page,
- 					struct mm_struct *mm, gfp_t gfp_mask)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cea4b02..4e08347 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -562,6 +562,14 @@ enum res_type {
-  */
- static DEFINE_MUTEX(memcg_create_mutex);
- 
-+/* static_key used for marking memcg in use or not. We use this jump label to
-+ * patch memcg page stat accounting code in or out.
-+ * The key will be increased when non-root memcg is created, and be decreased
-+ * when memcg is destroyed.
-+ */
-+struct static_key memcg_in_use_key;
-+EXPORT_SYMBOL(memcg_in_use_key);
-+
- static void mem_cgroup_get(struct mem_cgroup *memcg);
- static void mem_cgroup_put(struct mem_cgroup *memcg);
- 
-@@ -707,10 +715,21 @@ static void disarm_kmem_keys(struct mem_cgroup *memcg)
- }
- #endif /* CONFIG_MEMCG_KMEM */
- 
-+static void disarm_inuse_keys(void)
-+{
-+	static_key_slow_dec(&memcg_in_use_key);
-+}
-+
-+static void arm_inuse_keys(void)
-+{
-+	static_key_slow_inc(&memcg_in_use_key);
-+}
-+
- static void disarm_static_keys(struct mem_cgroup *memcg)
- {
- 	disarm_sock_keys(memcg);
- 	disarm_kmem_keys(memcg);
-+	disarm_inuse_keys();
- }
- 
- static void drain_all_stock_async(struct mem_cgroup *memcg);
-@@ -936,6 +955,9 @@ static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
- {
- 	int val = (charge) ? 1 : -1;
- 
-+	if (!mem_cgroup_in_use())
-+		return;
-+
- 	if (!mem_cgroup_is_root(memcg))
- 		this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAP], val);
- }
-@@ -970,6 +992,11 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
- 	__this_cpu_add(memcg->stat->nr_page_events,
- 					nr_pages < 0 ? -nr_pages : nr_pages);
- 
-+	if (!mem_cgroup_in_use()) {
-+		preempt_enable();
-+		return;
-+	}
-+
- 	if (!mem_cgroup_is_root(memcg)) {
- 		/*
- 		 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
-@@ -2278,11 +2305,13 @@ void mem_cgroup_update_page_stat(struct page *page,
- {
- 	struct mem_cgroup *memcg;
- 	struct page_cgroup *pc = lookup_page_cgroup(page);
--	unsigned long uninitialized_var(flags);
- 
- 	if (mem_cgroup_disabled())
- 		return;
- 
-+	if (!mem_cgroup_in_use())
-+		return;
-+
- 	memcg = pc->mem_cgroup;
- 
- 	if (mem_cgroup_is_root(memcg))
-@@ -6414,6 +6443,9 @@ mem_cgroup_css_online(struct cgroup *cont)
- 	}
- 
- 	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
-+	if (!error)
-+		arm_inuse_keys();
-+
- 	mutex_unlock(&memcg_create_mutex);
- 	if (error) {
- 		/*
+1) takes cpu_subsys subsys (*) but 2) takes mce_device subsys (**) so
+the deadlock is not possible AFAICS.
+
+I am not familiar with lockdep to propose anything useful though.
+
+> [  207.271957] bash/10493 is trying to acquire lock:
+> [  207.271963]  (subsys mutex){+.+.+.}, at: [<ffffffff8134af27>] bus_remove_device+0x37/0x1c0
+> [  207.271987]
+> [  207.271987] but task is already holding lock:
+> [  207.271995]  (cpu_hotplug.lock){+.+.+.}, at: [<ffffffff81046ccf>] cpu_hotplug_begin+0x2f/0x60
+> [  207.272012]
+> [  207.272012] which lock already depends on the new lock.
+> [  207.272012]
+> [  207.272023]
+> [  207.272023] the existing dependency chain (in reverse order) is:
+> [  207.272033]
+> [  207.272033] -> #4 (cpu_hotplug.lock){+.+.+.}:
+> [  207.272044]        [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.272056]        [<ffffffff814ad807>] mutex_lock_nested+0x37/0x360
+> [  207.272069]        [<ffffffff81046ba9>] get_online_cpus+0x29/0x40
+> [  207.272082]        [<ffffffff81185210>] drain_all_stock+0x30/0x150
+> [  207.272094]        [<ffffffff811853da>] mem_cgroup_reclaim+0xaa/0xe0
+> [  207.272104]        [<ffffffff8118775e>] __mem_cgroup_try_charge+0x51e/0xcf0
+> [  207.272114]        [<ffffffff81188486>] mem_cgroup_charge_common+0x36/0x60
+> [  207.272125]        [<ffffffff811884da>] mem_cgroup_newpage_charge+0x2a/0x30
+> [  207.272135]        [<ffffffff81150531>] do_wp_page+0x231/0x830
+> [  207.272147]        [<ffffffff8115151e>] handle_pte_fault+0x19e/0x8d0
+> [  207.272157]        [<ffffffff81151da8>] handle_mm_fault+0x158/0x1e0
+> [  207.272166]        [<ffffffff814b6153>] do_page_fault+0x2a3/0x4e0
+> [  207.272178]        [<ffffffff814b2578>] page_fault+0x28/0x30
+> [  207.272189]
+> [  207.272189] -> #3 (&mm->mmap_sem){++++++}:
+> [  207.272199]        [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.272208]        [<ffffffff8114c5ad>] might_fault+0x6d/0x90
+> [  207.272218]        [<ffffffff811a11e3>] filldir64+0xb3/0x120
+> [  207.272229]        [<ffffffffa013fc19>] call_filldir+0x89/0x130 [ext3]
+> [  207.272248]        [<ffffffffa0140377>] ext3_readdir+0x6b7/0x7e0 [ext3]
+> [  207.272263]        [<ffffffff811a1519>] vfs_readdir+0xa9/0xc0
+> [  207.272273]        [<ffffffff811a15cb>] sys_getdents64+0x9b/0x110
+> [  207.272284]        [<ffffffff814bb599>] system_call_fastpath+0x16/0x1b
+> [  207.272296]
+> [  207.272296] -> #2 (&type->i_mutex_dir_key#3){+.+.+.}:
+> [  207.272309]        [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.272319]        [<ffffffff814ad807>] mutex_lock_nested+0x37/0x360
+> [  207.272329]        [<ffffffff8119c254>] link_path_walk+0x6f4/0x9a0
+> [  207.272339]        [<ffffffff8119e7fa>] path_openat+0xba/0x470
+> [  207.272349]        [<ffffffff8119ecf8>] do_filp_open+0x48/0xa0
+> [  207.272358]        [<ffffffff8118d81c>] file_open_name+0xdc/0x110
+> [  207.272369]        [<ffffffff8118d885>] filp_open+0x35/0x40
+> [  207.272378]        [<ffffffff8135c76e>] _request_firmware+0x52e/0xb20
+> [  207.272389]        [<ffffffff8135cdd6>] request_firmware+0x16/0x20
+> [  207.272399]        [<ffffffffa03bdb91>] request_microcode_fw+0x61/0xd0 [microcode]
+> [  207.272416]        [<ffffffffa03bd554>] microcode_init_cpu+0x104/0x150 [microcode]
+> [  207.272431]        [<ffffffffa03bd61c>] mc_device_add+0x7c/0xb0 [microcode]
+> [  207.272444]        [<ffffffff8134a419>] subsys_interface_register+0xc9/0x100
+> [  207.272457]        [<ffffffffa04fc0f4>] 0xffffffffa04fc0f4
+> [  207.272472]        [<ffffffff81000202>] do_one_initcall+0x42/0x180
+> [  207.272485]        [<ffffffff810bbeff>] load_module+0x19df/0x1b70
+> [  207.272499]        [<ffffffff810bc376>] sys_init_module+0xe6/0x130
+> [  207.272511]        [<ffffffff814bb599>] system_call_fastpath+0x16/0x1b
+> [  207.272523]
+> [  207.272523] -> #1 (umhelper_sem){++++.+}:
+> [  207.272537]        [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.272548]        [<ffffffff814ae9c4>] down_read+0x34/0x50
+> [  207.272559]        [<ffffffff81062bff>] usermodehelper_read_trylock+0x4f/0x100
+> [  207.272575]        [<ffffffff8135c7dd>] _request_firmware+0x59d/0xb20
+> [  207.272587]        [<ffffffff8135cdd6>] request_firmware+0x16/0x20
+> [  207.272599]        [<ffffffffa03bdb91>] request_microcode_fw+0x61/0xd0 [microcode]
+> [  207.272613]        [<ffffffffa03bd554>] microcode_init_cpu+0x104/0x150 [microcode]
+> [  207.272627]        [<ffffffffa03bd61c>] mc_device_add+0x7c/0xb0 [microcode]
+> [  207.272641]        [<ffffffff8134a419>] subsys_interface_register+0xc9/0x100
+> [  207.272654]        [<ffffffffa04fc0f4>] 0xffffffffa04fc0f4
+> [  207.272666]        [<ffffffff81000202>] do_one_initcall+0x42/0x180
+> [  207.272678]        [<ffffffff810bbeff>] load_module+0x19df/0x1b70
+> [  207.272690]        [<ffffffff810bc376>] sys_init_module+0xe6/0x130
+> [  207.272702]        [<ffffffff814bb599>] system_call_fastpath+0x16/0x1b
+> [  207.272715]
+> [  207.272715] -> #0 (subsys mutex){+.+.+.}:
+> [  207.272729]        [<ffffffff810ae002>] __lock_acquire+0x13b2/0x15f0
+> [  207.272740]        [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.272751]        [<ffffffff814ad807>] mutex_lock_nested+0x37/0x360
+> [  207.272763]        [<ffffffff8134af27>] bus_remove_device+0x37/0x1c0
+> [  207.272775]        [<ffffffff81349114>] device_del+0x134/0x1f0
+> [  207.272786]        [<ffffffff813491f2>] device_unregister+0x22/0x60
+> [  207.272798]        [<ffffffff814a24ea>] mce_cpu_callback+0x15e/0x1ad
+> [  207.272812]        [<ffffffff814b6402>] notifier_call_chain+0x72/0x130
+> [  207.272824]        [<ffffffff81073d6e>] __raw_notifier_call_chain+0xe/0x10
+> [  207.272839]        [<ffffffff81498f76>] _cpu_down+0x1d6/0x350
+> [  207.272851]        [<ffffffff81499130>] cpu_down+0x40/0x60
+> [  207.272862]        [<ffffffff8149cc55>] store_online+0x75/0xe0
+> [  207.272874]        [<ffffffff813474a0>] dev_attr_store+0x20/0x30
+> [  207.272886]        [<ffffffff812090d9>] sysfs_write_file+0xd9/0x150
+> [  207.272900]        [<ffffffff8118e10b>] vfs_write+0xcb/0x130
+> [  207.272911]        [<ffffffff8118e924>] sys_write+0x64/0xa0
+> [  207.272923]        [<ffffffff814bb599>] system_call_fastpath+0x16/0x1b
+> [  207.272936]
+> [  207.272936] other info that might help us debug this:
+> [  207.272936]
+> [  207.272952] Chain exists of:
+> [  207.272952]   subsys mutex --> &mm->mmap_sem --> cpu_hotplug.lock
+> [  207.272952]
+> [  207.272973]  Possible unsafe locking scenario:
+> [  207.272973]
+> [  207.272984]        CPU0                    CPU1
+> [  207.272992]        ----                    ----
+> [  207.273000]   lock(cpu_hotplug.lock);
+> [  207.273009]                                lock(&mm->mmap_sem);
+> [  207.273020]                                lock(cpu_hotplug.lock);
+> [  207.273031]   lock(subsys mutex);
+> [  207.273040]
+> [  207.273040]  *** DEADLOCK ***
+> [  207.273040]
+> [  207.273055] 5 locks held by bash/10493:
+> [  207.273062]  #0:  (&buffer->mutex){+.+.+.}, at: [<ffffffff81209049>] sysfs_write_file+0x49/0x150
+> [  207.273080]  #1:  (s_active#150){.+.+.+}, at: [<ffffffff812090c2>] sysfs_write_file+0xc2/0x150
+> [  207.273099]  #2:  (x86_cpu_hotplug_driver_mutex){+.+.+.}, at: [<ffffffff81027557>] cpu_hotplug_driver_lock+0x17/0x20
+> [  207.273121]  #3:  (cpu_add_remove_lock){+.+.+.}, at: [<ffffffff8149911c>] cpu_down+0x2c/0x60
+> [  207.273140]  #4:  (cpu_hotplug.lock){+.+.+.}, at: [<ffffffff81046ccf>] cpu_hotplug_begin+0x2f/0x60
+> [  207.273158]
+> [  207.273158] stack backtrace:
+> [  207.273170] Pid: 10493, comm: bash Not tainted 3.9.0-rc1-0.7-default+ #34
+> [  207.273180] Call Trace:
+> [  207.273192]  [<ffffffff810ab373>] print_circular_bug+0x223/0x310
+> [  207.273204]  [<ffffffff810ae002>] __lock_acquire+0x13b2/0x15f0
+> [  207.273216]  [<ffffffff812086b0>] ? sysfs_hash_and_remove+0x60/0xc0
+> [  207.273227]  [<ffffffff810ae329>] lock_acquire+0xe9/0x120
+> [  207.273239]  [<ffffffff8134af27>] ? bus_remove_device+0x37/0x1c0
+> [  207.273251]  [<ffffffff814ad807>] mutex_lock_nested+0x37/0x360
+> [  207.273263]  [<ffffffff8134af27>] ? bus_remove_device+0x37/0x1c0
+> [  207.273274]  [<ffffffff812086b0>] ? sysfs_hash_and_remove+0x60/0xc0
+> [  207.273286]  [<ffffffff8134af27>] bus_remove_device+0x37/0x1c0
+> [  207.273298]  [<ffffffff81349114>] device_del+0x134/0x1f0
+> [  207.273309]  [<ffffffff813491f2>] device_unregister+0x22/0x60
+> [  207.273321]  [<ffffffff814a24ea>] mce_cpu_callback+0x15e/0x1ad
+> [  207.273332]  [<ffffffff814b6402>] notifier_call_chain+0x72/0x130
+> [  207.273344]  [<ffffffff81073d6e>] __raw_notifier_call_chain+0xe/0x10
+> [  207.273356]  [<ffffffff81498f76>] _cpu_down+0x1d6/0x350
+> [  207.273368]  [<ffffffff81027557>] ? cpu_hotplug_driver_lock+0x17/0x20
+> [  207.273380]  [<ffffffff81499130>] cpu_down+0x40/0x60
+> [  207.273391]  [<ffffffff8149cc55>] store_online+0x75/0xe0
+> [  207.273402]  [<ffffffff813474a0>] dev_attr_store+0x20/0x30
+> [  207.273413]  [<ffffffff812090d9>] sysfs_write_file+0xd9/0x150
+> [  207.273425]  [<ffffffff8118e10b>] vfs_write+0xcb/0x130
+> [  207.273436]  [<ffffffff8118e924>] sys_write+0x64/0xa0
+> [  207.273447]  [<ffffffff814bb599>] system_call_fastpath+0x16/0x1b
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
 -- 
-1.7.9.5
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
