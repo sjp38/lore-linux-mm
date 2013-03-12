@@ -1,453 +1,525 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id B20266B0006
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 11:13:08 -0400 (EDT)
-Date: Tue, 12 Mar 2013 12:12:46 -0300
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 7F3F46B0006
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 11:19:22 -0400 (EDT)
+Date: Tue, 12 Mar 2013 12:19:02 -0300
 From: Rafael Aquini <aquini@redhat.com>
 Subject: Re: [patch 1/4 v3]swap: change block allocation algorithm for SSD
-Message-ID: <20130312151244.GA1739@optiplex.redhat.com>
+Message-ID: <20130312151901.GB1739@optiplex.redhat.com>
 References: <20130221021710.GA32580@kernel.org>
+ <20130312151244.GA1739@optiplex.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="/9DWx/yDrRhgMJTb"
 Content-Disposition: inline
-In-Reply-To: <20130221021710.GA32580@kernel.org>
+In-Reply-To: <20130312151244.GA1739@optiplex.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Shaohua Li <shli@kernel.org>
 Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org
 
-On Thu, Feb 21, 2013 at 10:17:10AM +0800, Shaohua Li wrote:
-> I'm using a fast SSD to do swap. scan_swap_map() sometimes uses up to 20~30%
-> CPU time (when cluster is hard to find, the CPU time can be up to 80%), which
-> becomes a bottleneck.  scan_swap_map() scans a byte array to search a 256 page
-> cluster, which is very slow.
-> 
-> Here I introduced a simple algorithm to search cluster. Since we only care
-> about 256 pages cluster, we can just use a counter to track if a cluster is
-> free. Every 256 pages use one int to store the counter. If the counter of a
-> cluster is 0, the cluster is free. All free clusters will be added to a list,
-> so searching cluster is very efficient. With this, scap_swap_map() overhead
-> disappears.
->
 
-Nice work! I've been testing your series with the attached test-prog, as it was
-triggering a swapin_readahead() softlockup storm due to a race window 
-scan_swap_map() was opening when discarding clusters and swap device was
-saturated by the swap thrashing going on. Your patch 3 closes that window, and
-your series is still playing very well as I'm writing this message.
+--/9DWx/yDrRhgMJTb
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-/me just thinks you could use some numbers of yours to actually show the benefits
-instead of just claim them on the commit message.
+On Tue, Mar 12, 2013 at 12:12:46PM -0300, Rafael Aquini wrote:
+> Nice work! I've been testing your series with the attached test-prog, as it was
 
-Other than that, I have little to say about your work, and as long as Hugh is
-happy with it, you can surely stick my Acked-by on your series.
+Sorry, I forgot to attach the test-prog on my last message. here it is.
 
-Regards!
+It just takes running it for a couple of minutes to get to that softlockup storm
+I told you.
+
+If your box has, lets say 4GB of ram, trigger it as follows:
+./threaded_memtest -qpv -m4096m
+
 
 Rafael
- 
-> Since searching cluster with a list is easy, we can easily implement a per-cpu
-> cluster algorithm to do block allocation, which can make swapout more
-> efficient. This is in my TODO list.
-> 
-> This might help low end SD card swap too. Because if the cluster is aligned, SD
-> firmware can do flash erase more efficiently.
-> 
-> We only enable the algorithm for SSD. Hard disk swap isn't fast enough and has
-> downside with the algorithm which might introduce regression (see below).
-> 
-> The patch slightly changes which cluster is choosen. It always adds free
-> cluster to list tail. This can help wear leveling for low end SSD too. And if
-> no cluster found, the scan_swap_map() will do search from the end of last
-> cluster. So if no cluster found, the scan_swap_map() will do search from the
-> end of last free cluster, which is random. For SSD, this isn't a problem at
-> all.
-> 
-> Another downside is the cluster must be aligned to 256 pages, which will reduce
-> the chance to find a cluster. I would expect this isn't a big problem for SSD
-> because of the non-seek penality. (And this is the reason I only enable the
-> algorithm for SSD).
-> 
-> V2 -> V3:
-> rebase to latest linux-next
-> 
-> V1 -> V2:
-> 1. free cluster is added to a list, which makes searching cluster more efficient
-> 2. only enable the algorithm for SSD.
-> 
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
-> ---
->  include/linux/swap.h |    3 
->  mm/swapfile.c        |  181 +++++++++++++++++++++++++++++++++++++++++++++++----
->  2 files changed, 172 insertions(+), 12 deletions(-)
-> 
-> Index: linux/include/linux/swap.h
-> ===================================================================
-> --- linux.orig/include/linux/swap.h	2013-02-18 15:06:06.000000000 +0800
-> +++ linux/include/linux/swap.h	2013-02-18 15:21:09.285317914 +0800
-> @@ -185,6 +185,9 @@ struct swap_info_struct {
->  	signed char	next;		/* next type on the swap list */
->  	unsigned int	max;		/* extent of the swap_map */
->  	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
-> +	unsigned int *cluster_info;	/* cluster info. Only for SSD */
-> +	unsigned int free_cluster_head;
-> +	unsigned int free_cluster_tail;
->  	unsigned int lowest_bit;	/* index of first free in swap_map */
->  	unsigned int highest_bit;	/* index of last free in swap_map */
->  	unsigned int pages;		/* total of usable pages of swap */
-> Index: linux/mm/swapfile.c
-> ===================================================================
-> --- linux.orig/mm/swapfile.c	2013-02-18 15:06:06.000000000 +0800
-> +++ linux/mm/swapfile.c	2013-02-18 15:21:09.285317914 +0800
-> @@ -184,6 +184,85 @@ static int wait_for_discard(void *word)
->  #define SWAPFILE_CLUSTER	256
->  #define LATENCY_LIMIT		256
->  
-> +/*
-> + * cluster info is a unsigned int, the highest 8 bits stores flags, the low 24
-> + * bits stores next cluster if the cluster is free or cluster counter otherwise
-> + */
-> +#define CLUSTER_FLAG_FREE (1 << 0)
-> +#define CLUSTER_FLAG_NEXT_NULL (1 << 1)
-> +#define CLUSTER_NULL (CLUSTER_FLAG_NEXT_NULL << 24)
-> +#define cluster_flag(info) ((info) >> 24)
-> +#define cluster_set_flag(info, flag) \
-> +	do { info = ((info) & 0xffffff) | ((flag) << 24); } while (0)
-> +#define cluster_count(info) ((info) & 0xffffff)
-> +#define cluster_set_count(info, c) \
-> +	do { info = (cluster_flag(info) << 24) | (c); } while (0)
-> +#define cluster_next(info) ((info) & 0xffffff)
-> +#define cluster_set_next(info, n) \
-> +	do { info = (cluster_flag(info) << 24) | (n); } while (0)
-> +#define cluster_is_free(info) (cluster_flag(info) & CLUSTER_FLAG_FREE)
-> +
-> +static inline void inc_cluster_info_page(struct swap_info_struct *p,
-> +	unsigned int *cluster_info, unsigned long page_nr)
-> +{
-> +	unsigned long idx = page_nr / SWAPFILE_CLUSTER;
-> +
-> +	if (!cluster_info)
-> +		return;
-> +	if (cluster_is_free(cluster_info[idx])) {
-> +		VM_BUG_ON(p->free_cluster_head != idx);
-> +		p->free_cluster_head = cluster_next(cluster_info[idx]);
-> +		if (p->free_cluster_tail == idx) {
-> +			p->free_cluster_tail = CLUSTER_NULL;
-> +			p->free_cluster_head = CLUSTER_NULL;
-> +		}
-> +		cluster_set_flag(cluster_info[idx], 0);
-> +		cluster_set_count(cluster_info[idx], 0);
-> +	}
-> +
-> +	VM_BUG_ON(cluster_count(cluster_info[idx]) >= SWAPFILE_CLUSTER);
-> +	cluster_set_count(cluster_info[idx],
-> +		cluster_count(cluster_info[idx]) + 1);
-> +}
-> +
-> +static inline void dec_cluster_info_page(struct swap_info_struct *p,
-> +	unsigned int *cluster_info, unsigned long page_nr)
-> +{
-> +	unsigned long idx = page_nr / SWAPFILE_CLUSTER;
-> +
-> +	if (!cluster_info)
-> +		return;
-> +
-> +	VM_BUG_ON(cluster_count(cluster_info[idx]) == 0);
-> +	cluster_set_count(cluster_info[idx],
-> +		cluster_count(cluster_info[idx]) - 1);
-> +
-> +	if (cluster_count(cluster_info[idx]) == 0) {
-> +		cluster_set_flag(cluster_info[idx], CLUSTER_FLAG_FREE);
-> +		if (p->free_cluster_head == CLUSTER_NULL) {
-> +			p->free_cluster_head = idx;
-> +			p->free_cluster_tail = idx;
-> +		} else {
-> +			cluster_set_next(cluster_info[p->free_cluster_tail],
-> +				idx);
-> +			p->free_cluster_tail = idx;
-> +		}
-> +	}
-> +}
-> +
-> +/*
-> + * It's possible scan_swap_map() uses a free cluster in the middle of free
-> + * cluster list. Avoiding such abuse to avoid list corruption.
-> + */
-> +static inline bool scan_swap_map_recheck_cluster(struct swap_info_struct *si,
-> +	unsigned long offset)
-> +{
-> +	offset /= SWAPFILE_CLUSTER;
-> +	return si->free_cluster_head != CLUSTER_NULL &&
-> +		offset != si->free_cluster_head &&
-> +		cluster_is_free(si->cluster_info[offset]);
-> +}
-> +
->  static unsigned long scan_swap_map(struct swap_info_struct *si,
->  				   unsigned char usage)
->  {
-> @@ -225,6 +304,24 @@ static unsigned long scan_swap_map(struc
->  			si->lowest_alloc = si->max;
->  			si->highest_alloc = 0;
->  		}
-> +check_cluster:
-> +		if (si->free_cluster_head != CLUSTER_NULL) {
-> +			offset = si->free_cluster_head * SWAPFILE_CLUSTER;
-> +			last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
-> +			si->cluster_next = offset;
-> +			si->cluster_nr = SWAPFILE_CLUSTER - 1;
-> +			found_free_cluster = 1;
-> +			goto checks;
-> +		} else if (si->cluster_info) {
-> +			/*
-> +			 * Checking free cluster is fast enough, we can do the
-> +			 * check every time
-> +			 */
-> +			si->cluster_nr = 0;
-> +			si->lowest_alloc = 0;
-> +			goto checks;
-> +		}
-> +
->  		spin_unlock(&si->lock);
->  
->  		/*
-> @@ -285,6 +382,8 @@ static unsigned long scan_swap_map(struc
->  	}
->  
->  checks:
-> +	if (scan_swap_map_recheck_cluster(si, offset))
-> +		goto check_cluster;
->  	if (!(si->flags & SWP_WRITEOK))
->  		goto no_page;
->  	if (!si->highest_bit)
-> @@ -317,6 +416,7 @@ checks:
->  		si->highest_bit = 0;
->  	}
->  	si->swap_map[offset] = usage;
-> +	inc_cluster_info_page(si, si->cluster_info, offset);
->  	si->cluster_next = offset + 1;
->  	si->flags -= SWP_SCANNING;
->  
-> @@ -600,6 +700,7 @@ static unsigned char swap_entry_free(str
->  
->  	/* free if no reference */
->  	if (!usage) {
-> +		dec_cluster_info_page(p, p->cluster_info, offset);
->  		if (offset < p->lowest_bit)
->  			p->lowest_bit = offset;
->  		if (offset > p->highest_bit)
-> @@ -1497,6 +1598,7 @@ static int setup_swap_extents(struct swa
->  
->  static void _enable_swap_info(struct swap_info_struct *p, int prio,
->  				unsigned char *swap_map,
-> +				unsigned int *cluster_info,
->  				unsigned long *frontswap_map)
->  {
->  	int i, prev;
-> @@ -1506,6 +1608,7 @@ static void _enable_swap_info(struct swa
->  	else
->  		p->prio = --least_priority;
->  	p->swap_map = swap_map;
-> +	p->cluster_info = cluster_info;
->  	frontswap_map_set(p, frontswap_map);
->  	p->flags |= SWP_WRITEOK;
->  	atomic_long_add(p->pages, &nr_swap_pages);
-> @@ -1527,11 +1630,12 @@ static void _enable_swap_info(struct swa
->  
->  static void enable_swap_info(struct swap_info_struct *p, int prio,
->  				unsigned char *swap_map,
-> +				unsigned int *cluster_info,
->  				unsigned long *frontswap_map)
->  {
->  	spin_lock(&swap_lock);
->  	spin_lock(&p->lock);
-> -	_enable_swap_info(p, prio, swap_map, frontswap_map);
-> +	_enable_swap_info(p, prio, swap_map, cluster_info, frontswap_map);
->  	frontswap_init(p->type);
->  	spin_unlock(&p->lock);
->  	spin_unlock(&swap_lock);
-> @@ -1541,7 +1645,8 @@ static void reinsert_swap_info(struct sw
->  {
->  	spin_lock(&swap_lock);
->  	spin_lock(&p->lock);
-> -	_enable_swap_info(p, p->prio, p->swap_map, frontswap_map_get(p));
-> +	_enable_swap_info(p, p->prio, p->swap_map, p->cluster_info,
-> +					frontswap_map_get(p));
->  	spin_unlock(&p->lock);
->  	spin_unlock(&swap_lock);
->  }
-> @@ -1550,6 +1655,7 @@ SYSCALL_DEFINE1(swapoff, const char __us
->  {
->  	struct swap_info_struct *p = NULL;
->  	unsigned char *swap_map;
-> +	unsigned int *cluster_info;
->  	struct file *swap_file, *victim;
->  	struct address_space *mapping;
->  	struct inode *inode;
-> @@ -1648,12 +1754,15 @@ SYSCALL_DEFINE1(swapoff, const char __us
->  	p->max = 0;
->  	swap_map = p->swap_map;
->  	p->swap_map = NULL;
-> +	cluster_info = p->cluster_info;
-> +	p->cluster_info = NULL;
->  	p->flags = 0;
->  	frontswap_invalidate_area(type);
->  	spin_unlock(&p->lock);
->  	spin_unlock(&swap_lock);
->  	mutex_unlock(&swapon_mutex);
->  	vfree(swap_map);
-> +	vfree(cluster_info);
->  	vfree(frontswap_map_get(p));
->  	/* Destroy swap account informatin */
->  	swap_cgroup_swapoff(type);
-> @@ -1966,15 +2075,21 @@ static unsigned long read_swap_header(st
->  static int setup_swap_map_and_extents(struct swap_info_struct *p,
->  					union swap_header *swap_header,
->  					unsigned char *swap_map,
-> +					unsigned int *cluster_info,
->  					unsigned long maxpages,
->  					sector_t *span)
->  {
->  	int i;
->  	unsigned int nr_good_pages;
->  	int nr_extents;
-> +	unsigned long nr_clusters = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
-> +	unsigned long idx = p->cluster_next / SWAPFILE_CLUSTER;
->  
->  	nr_good_pages = maxpages - 1;	/* omit header page */
->  
-> +	p->free_cluster_head = CLUSTER_NULL;
-> +	p->free_cluster_tail = CLUSTER_NULL;
-> +
->  	for (i = 0; i < swap_header->info.nr_badpages; i++) {
->  		unsigned int page_nr = swap_header->info.badpages[i];
->  		if (page_nr == 0 || page_nr > swap_header->info.last_page)
-> @@ -1982,11 +2097,25 @@ static int setup_swap_map_and_extents(st
->  		if (page_nr < maxpages) {
->  			swap_map[page_nr] = SWAP_MAP_BAD;
->  			nr_good_pages--;
-> +			/*
-> +			 * Not mark the cluster free yet, no list
-> +			 * operation involved
-> +			 */
-> +			inc_cluster_info_page(p, cluster_info, page_nr);
->  		}
->  	}
->  
-> +	/* Not mark the cluster free yet, no list operation involved */
-> +	for (i = maxpages; i < round_up(maxpages, SWAPFILE_CLUSTER); i++)
-> +		inc_cluster_info_page(p, cluster_info, i);
-> +
->  	if (nr_good_pages) {
->  		swap_map[0] = SWAP_MAP_BAD;
-> +		/*
-> +		 * Not mark the cluster free yet, no list
-> +		 * operation involved
-> +		 */
-> +		inc_cluster_info_page(p, cluster_info, 0);
->  		p->max = maxpages;
->  		p->pages = nr_good_pages;
->  		nr_extents = setup_swap_extents(p, span);
-> @@ -1999,6 +2128,27 @@ static int setup_swap_map_and_extents(st
->  		return -EINVAL;
->  	}
->  
-> +	if (!cluster_info)
-> +		return nr_extents;
-> +
-> +	for (i = 0; i < nr_clusters; i++) {
-> +		if (!cluster_count(cluster_info[idx])) {
-> +			cluster_set_flag(cluster_info[idx], CLUSTER_FLAG_FREE);
-> +			if (p->free_cluster_head == CLUSTER_NULL) {
-> +				p->free_cluster_head = idx;
-> +				p->free_cluster_tail = idx;
-> +			} else {
-> +				cluster_set_next(
-> +					cluster_info[p->free_cluster_tail],
-> +					idx);
-> +				p->free_cluster_tail = idx;
-> +			}
-> +		}
-> +		idx++;
-> +		if (idx == nr_clusters)
-> +			idx = 0;
-> +	}
-> +
->  	return nr_extents;
->  }
->  
-> @@ -2016,6 +2166,7 @@ SYSCALL_DEFINE2(swapon, const char __use
->  	sector_t span;
->  	unsigned long maxpages;
->  	unsigned char *swap_map = NULL;
-> +	unsigned int *cluster_info = NULL;
->  	unsigned long *frontswap_map = NULL;
->  	struct page *page = NULL;
->  	struct inode *inode = NULL;
-> @@ -2089,13 +2240,24 @@ SYSCALL_DEFINE2(swapon, const char __use
->  		error = -ENOMEM;
->  		goto bad_swap;
->  	}
-> +	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
-> +		p->flags |= SWP_SOLIDSTATE;
-> +		p->cluster_next = 1 + (random32() % p->highest_bit);
-> +
-> +		cluster_info = vzalloc(DIV_ROUND_UP(maxpages,
-> +			SWAPFILE_CLUSTER) * sizeof(*cluster_info));
-> +		if (!cluster_info) {
-> +			error = -ENOMEM;
-> +			goto bad_swap;
-> +		}
-> +	}
->  
->  	error = swap_cgroup_swapon(p->type, maxpages);
->  	if (error)
->  		goto bad_swap;
->  
->  	nr_extents = setup_swap_map_and_extents(p, swap_header, swap_map,
-> -		maxpages, &span);
-> +		cluster_info, maxpages, &span);
->  	if (unlikely(nr_extents < 0)) {
->  		error = nr_extents;
->  		goto bad_swap;
-> @@ -2104,21 +2266,15 @@ SYSCALL_DEFINE2(swapon, const char __use
->  	if (frontswap_enabled)
->  		frontswap_map = vzalloc(maxpages / sizeof(long));
->  
-> -	if (p->bdev) {
-> -		if (blk_queue_nonrot(bdev_get_queue(p->bdev))) {
-> -			p->flags |= SWP_SOLIDSTATE;
-> -			p->cluster_next = 1 + (random32() % p->highest_bit);
-> -		}
-> -		if ((swap_flags & SWAP_FLAG_DISCARD) && discard_swap(p) == 0)
-> -			p->flags |= SWP_DISCARDABLE;
-> -	}
-> +	if (p->bdev && (swap_flags & SWAP_FLAG_DISCARD) && discard_swap(p) == 0)
-> +		p->flags |= SWP_DISCARDABLE;
->  
->  	mutex_lock(&swapon_mutex);
->  	prio = -1;
->  	if (swap_flags & SWAP_FLAG_PREFER)
->  		prio =
->  		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
-> -	enable_swap_info(p, prio, swap_map, frontswap_map);
-> +	enable_swap_info(p, prio, swap_map, cluster_info, frontswap_map);
->  
->  	printk(KERN_INFO "Adding %uk swap on %s.  "
->  			"Priority:%d extents:%d across:%lluk %s%s%s\n",
-> @@ -2148,6 +2304,7 @@ bad_swap:
->  	p->flags = 0;
->  	spin_unlock(&swap_lock);
->  	vfree(swap_map);
-> +	vfree(cluster_info);
->  	if (swap_file) {
->  		if (inode && S_ISREG(inode->i_mode)) {
->  			mutex_unlock(&inode->i_mutex);
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+--/9DWx/yDrRhgMJTb
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="threaded_memtest.c"
+
+/* $Id: threaded_memtest.c,v 1.7 2008/02/12 01:17:07 gnichols Exp $
+ *
+ * A scalable, threaded memory exerciser/tester.
+ * 
+ * Author: Will Woods <wwoods@redhat.com>
+ * Copyright (C) 2006 Red Hat, Inc. All Rights Reserved.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *
+ * Notes:
+ * This program uses sched_setaffinity(), which is Linux-specific. This could
+ * probably be ported to other systems with a fairly simple #ifdef / #define
+ * of setaffinity(), below. You might also have to find a replacement for
+ * sysconf(), which (while a POSIX function) is not available on some other
+ * systems (e.g. OSX).
+ */
+
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/sysinfo.h>
+#include <sys/mman.h>
+#include <sys/time.h>
+#include <signal.h>
+#define __USE_GNU 1
+#include <pthread.h>
+#include <sched.h>
+#ifdef OLD_SCHED_SETAFFINITY
+#define setaffinity(mask) sched_setaffinity(0,&mask)
+#else
+#define setaffinity(mask) sched_setaffinity(0,sizeof(mask),&mask)
+#endif
+
+#define VERSION "$Revision: 1.7 $" /* CVS version info */ 
+#define DEFAULT_THREADS 2 
+#define DEFAULT_RUNTIME 60*15
+#define DEFAULT_MEMPCT 0.95
+#define BARLEN 40
+
+/* configurable values used by the threads */
+int verbose = 0;
+int quiet = 0;
+int parallel = 0;
+unsigned num_threads, default_threads = DEFAULT_THREADS;
+unsigned runtime, default_runtime = DEFAULT_RUNTIME; 
+unsigned long memsize, default_memsize;
+/* system info */
+unsigned num_cpus;
+unsigned long total_ram;
+/* statistic gathering */
+struct timeval start={0,0}, finish={0,0}, duration={0,0};
+unsigned long *loop_counters = NULL;
+/* pointers for threads and their memory regions */
+pthread_t *threads;
+char **mmap_regions = NULL;
+/* Thread mutexes and conditions */
+unsigned created_threads = 0;
+pthread_mutex_t ct_mutex = PTHREAD_MUTEX_INITIALIZER;
+unsigned live_threads = 0;
+pthread_mutex_t lt_mutex = PTHREAD_MUTEX_INITIALIZER;
+unsigned mmap_done = 0;
+pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t init_cond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t mmap_cond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t test_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t test_start = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t finish_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t finish_cond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t running_threads_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t running_threads_cond = PTHREAD_COND_INITIALIZER;
+unsigned done = 0;
+long unsigned running_threads = 0;
+/* short name of the program */
+char *basename = NULL;
+
+#ifdef CPU_ALLOC
+/* RHEL6+ set the affinity for the current task to the given CPU */
+/* This now uses dynamic cpu_sets as the convention cpu_set_t
+   was limited to 1024p */
+int on_cpu(unsigned cpu){
+    cpu_set_t* mask;
+    size_t masksize;
+    mask = CPU_ALLOC(num_cpus);
+    masksize = CPU_ALLOC_SIZE(num_cpus);
+
+    CPU_ZERO_S(masksize, mask);
+    CPU_SET_S(cpu, masksize, mask);
+    if (sched_setaffinity(0, masksize, mask) < 0) {
+        perror("sched_setaffinity");
+        return -1;
+    }
+    return 0;
+}
+#else
+/* use old setup - RHEL5*/
+int on_cpu(unsigned cpu){
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+    CPU_SET(cpu,&mask);
+    if (setaffinity(mask) <  0){
+        perror("sched_setaffinity");
+        return -1;
+    }
+    return 0;
+}
+#endif
+
+
+/* Parse a memsize string like '34m' or '128k' into a long int */
+long unsigned parse_memsize(const char *str) {
+    long unsigned size;
+    char okchars[] = "GgMmKk%";
+    char unit;
+    size=atoi(str); /* ignores trailing non-digit chars */
+    unit=str[strlen(str)-1];
+    if (index(okchars,unit)) {
+       switch (unit) {
+           case 'G':
+           case 'g':size *= 1024;
+           case 'M':
+           case 'm':size *= 1024;
+           case 'K':
+           case 'k':size *= 1024; break;
+           case '%':size = (size/100.0)*total_ram; break;
+        }
+    }
+    return size;
+}    
+char memsize_str[22]; /* a 64-bit int is 20 digits long */
+/* print a nice human-readable string for a large number of bytes */
+char *human_memsize(long unsigned size) {
+    char unit=' ';
+    if (size > 10240) { unit='K'; size /= 1024; }
+    if (size > 10240) { unit='M'; size /= 1024; }
+    if (size > 10240) { unit='G'; size /= 1024; }
+    snprintf(memsize_str,22,"%ld%c",size,unit);
+    return memsize_str;
+}
+
+/* A cute little progress bar */
+void progressbar(char *label, unsigned cur, unsigned total) {
+    unsigned pos;
+    char bar[BARLEN+1],spinner[]="-\\|/";
+    pos=(BARLEN*cur)/total;
+    memset(bar,'.',BARLEN);
+    memset(bar,'#',pos);
+    bar[BARLEN]='\0';
+    if ((pos < BARLEN) && (total >= BARLEN*2))
+        bar[pos]=spinner[cur%4];
+    printf("\r%18s [%s] %u/%u",label,bar,cur,total);
+    fflush(stdout);
+}
+
+/* This is the function that the threads run */
+void *mem_twiddler(void *arg) {
+    unsigned long thread_id, pages, pagesize, i, p;
+    volatile long garbage;
+    long *lp;
+    int t,offset;
+    char *my_region;
+    unsigned long mapsize = *(unsigned long *)arg; 
+    
+    /* Make sure each thread gets a unique ID */
+    pthread_mutex_lock(&ct_mutex);
+    thread_id=created_threads++;
+    pthread_mutex_unlock(&ct_mutex);
+    if (parallel) {
+        /* let main() go as soon as the thread is created */
+        pthread_mutex_lock(&mmap_mutex);
+        mmap_done=1;
+        pthread_cond_signal(&mmap_cond); 
+        pthread_mutex_unlock(&mmap_mutex);
+    }
+    
+    on_cpu(thread_id % num_cpus);
+    pagesize=getpagesize();
+    pages=mapsize/pagesize;
+    
+    /* Map a chunk of memory */
+    if (verbose) printf("thread %ld: mapping %s RAM\n",
+                        thread_id,human_memsize(mapsize));
+    my_region=mmap(NULL,mapsize,PROT_READ|PROT_WRITE,
+                   MAP_ANONYMOUS|MAP_PRIVATE,-1,0);
+    if (my_region == MAP_FAILED) { perror("mmap"); exit(1); }
+    mmap_regions[thread_id] = my_region;
+    /* Dirty each page of the mem region to fault them into existence */
+    for (i=0;i<pages;i++) {
+        lp=(long *)&(my_region[i*pagesize]);
+        lp[0]=0xDEADBEEF; /* magic number */
+        lp[1]=thread_id;
+        lp[2]=i;
+    }
+    /* Okay, we have grabbed our memory */
+    if (verbose) printf("thread %ld: mapping complete\n",thread_id);
+    
+    /* let main() go now that the thread is finished initializing. */
+    if (!parallel) {
+        mmap_done=1;
+        pthread_cond_signal(&mmap_cond); 
+	pthread_mutex_unlock(&mmap_mutex);
+    }
+
+    /*
+     * Incrementing live_threads inside test_mutex avoids a timing
+     * sensitive race -- otherwise some threads could miss the
+     * pthread_cond_broadcast of test_start.
+     */
+    pthread_mutex_lock(&test_mutex);
+    live_threads++;
+    if (live_threads == num_threads) {
+        /* if this is the last thread to init, let main() know we're done */
+        /* NOTE: only the last thread sends this signal */
+        pthread_cond_signal(&init_cond);
+    }
+
+    /* Wait for the signal to begin testing */
+    while (start.tv_sec == 0) { 
+        pthread_cond_wait(&test_start,&test_mutex);
+    }
+    pthread_mutex_unlock(&test_mutex);
+
+    pthread_mutex_lock(&running_threads_mutex);
+    running_threads++;
+    if (verbose)
+        printf("thread %lu (%lu): test start\n",thread_id,running_threads);
+    pthread_mutex_unlock(&running_threads_mutex);
+
+    loop_counters[thread_id]=0;
+    while (!done) {
+        /* Choose a random thread and a random page */
+        t = rand() % num_threads;
+        p = rand() % pages; 
+        lp = (long *)&(mmap_regions[t][p*pagesize]);
+        /* Check the info we wrote there earlier */
+        if (lp[0] != 0xDEADBEEF || lp[1] != t || lp[2] != p) {
+            fprintf(stderr,"MEMORY CORRUPTION DETECTED\n");
+            fprintf(stderr,"thread %lu (CPU %lu) reading map %u, page %lu\n",
+                    thread_id,thread_id % num_cpus,t,p);
+            fprintf(stderr,"read: %#lx %lu %lu  should be: %#x %i %lu\n",
+                    lp[0],lp[1],lp[2],0xDEADBEEF,t,p);
+        }
+        /* choose a random word (other than the first 3 */
+        offset = (rand() % ((pagesize/sizeof(long))-3))+3;
+        if (rand() % 2) {
+            lp[offset] = rand();
+        } else {
+            garbage = lp[offset];
+        }
+        loop_counters[thread_id]++;
+    }
+    
+
+
+    /* make sure everyone's finished before we unmap */
+    pthread_mutex_lock(&finish_mutex);
+
+    running_threads--;
+    if (verbose)
+        printf("thread %lu (%lu): test start\n",thread_id,running_threads);
+    if (running_threads == 0)
+        pthread_cond_broadcast(&finish_cond);   /* This is the cleanup thread */
+    else {
+        while (running_threads > 0) {
+	    pthread_cond_wait(&finish_cond,&finish_mutex);
+	}
+    }
+    pthread_mutex_unlock(&finish_mutex);
+
+    /* Clean up and exit. */
+    if (verbose) printf("thread %lu unmapping and exiting\n",thread_id);
+    if (munmap(my_region,mapsize) != 0) {
+        perror("munmap"); exit(2);
+    }
+    return NULL;
+}
+
+/* Function to be called on interrupt */
+void int_handler(int signum) { done=1; }
+
+/* print usage info (with name of binary) */
+void usage(void) {
+    printf("usage: %s [-h] [-v] [-q] [-p] [-t sec] [-n threads] [-m size]\n",
+            basename);
+    printf("  -h: show this help\n");
+    printf("  -v: verbose\n");
+    printf("  -q: quiet (do not show progress meters)\n");
+    printf("  -p: parallel thread startup\n");
+    printf("  -t: test time, in seconds. default: %u\n",default_runtime);
+    printf("  -n: number of threads. default: %u (2*num_cpus)\n",default_threads);
+    printf("  -m: memory usage. default: %s (%.0f%% of free RAM)\n",
+            human_memsize(default_memsize),DEFAULT_MEMPCT*100.0);
+    printf("memory size may use k/m/g suffixes, or may be a percentage of total RAM.\n");
+}
+
+int main(int argc, char **argv) {
+    struct sysinfo info;
+    struct sigaction mysig;
+    int i,rv=0;
+    float duration_f, loops_per_sec;
+    unsigned long free_mem, mapsize;
+
+    basename=strrchr(argv[0],'/');
+    if (basename) basename++; else basename=argv[0];
+
+    /* Calculate default values */
+    /* Get processor count. */
+    num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+    /* Ensure we have at least two threads per CPU */
+    if (num_cpus*2 > default_threads)
+        default_threads = num_cpus*2;
+    /* Get memory info */
+    if (sysinfo(&info) != 0) { perror("sysinfo"); return -1; }
+    free_mem=(info.freeram+info.bufferram)*info.mem_unit;
+    total_ram=info.totalram*info.mem_unit;
+    /* default to using most of free_mem */
+    default_memsize = free_mem * DEFAULT_MEMPCT; 
+    
+    /* Set configurable values to reasonable defaults */
+    runtime = default_runtime;
+    num_threads = default_threads;
+    memsize = default_memsize;
+    
+    /* parse options */
+    while ((i = getopt(argc,argv,"hvqpt:n:m:")) != -1) {
+        switch (i) {
+            case 'h':
+                usage();
+                return 0;
+            case 'v':
+                verbose=1;
+                break;
+            case 'q':
+                quiet=1;
+                break;
+            case 'p':
+                parallel=1;
+                break;
+            case 't':
+                runtime=atoi(optarg);
+                if (!runtime) {
+                    printf("%s: error: bad runtime \"%s\"\n",basename,optarg);
+                    return 1;
+                }
+                break;
+            case 'n':
+                num_threads=atoi(optarg);
+                if (!num_threads) {
+                    printf("%s: error: bad thread count \"%s\"\n",basename,optarg);
+                    return 1;
+                }
+                break;
+            case 'm':
+                memsize=parse_memsize(optarg);
+                if (!memsize) {
+                    printf("%s: error: bad memory size \"%s\"\n",basename,optarg);
+                    return 1;
+                }
+                break;
+        }
+    }
+
+    /* calculate mapsize now that memsize/num_threads is set */
+    mapsize = memsize/num_threads;
+    /* sanity checks */
+    if (num_threads < num_cpus)
+        printf("Warning: num_threads < num_cpus. This isn't usually a good idea.\n");
+    if (memsize > free_mem)
+        printf("Warning: memsize > free_mem. You will probably hit swap.\n");
+    /* A little information */
+    if (verbose) {
+        printf("Detected %u processors.\n",num_cpus);
+        printf("RAM: %.1f%% free (%s/",
+                100.0*(double)free_mem/(double)total_ram,
+                human_memsize(free_mem));
+        printf("%s)\n",human_memsize(total_ram));
+    }
+
+    printf("Testing %s RAM for %u seconds using %u threads:\n",
+            human_memsize(memsize),runtime,num_threads);
+    
+    /* Allocate room for thread info */
+    threads=(pthread_t *)malloc(num_threads*sizeof(pthread_t));
+    mmap_regions=(char **)malloc(num_threads*sizeof(char *));
+    loop_counters=(unsigned long *)malloc(num_threads*sizeof(unsigned long *));
+
+    for (i = 0; i < num_threads; i++) {
+	mmap_regions[i] = NULL;
+	loop_counters[i] = 0;
+    }
+    /* Create all our threads! */
+    while (created_threads < num_threads) {
+        pthread_mutex_lock(&mmap_mutex);
+        mmap_done=0;
+        if (pthread_create(&threads[created_threads],NULL,
+                    mem_twiddler,(void*)&mapsize) != 0) {
+            perror("pthread_create"); exit(1);
+        }
+        /* Wait for it to finish initializing */
+        while (!mmap_done) { pthread_cond_wait(&mmap_cond,&mmap_mutex); }
+        pthread_mutex_unlock(&mmap_mutex);
+        if (!verbose && !quiet) 
+            progressbar("Starting threads",created_threads,num_threads);
+    }
+
+    if (parallel) {
+        /* Wait for the signal that everyone is finished initializing */        
+        pthread_mutex_lock(&init_mutex);
+        while (live_threads < num_threads) {
+	    pthread_cond_wait(&init_cond,&init_mutex);
+	}
+        pthread_mutex_unlock(&init_mutex);
+    }
+
+    /* Let the testing begin! */
+    if (!verbose && !quiet) printf("\n");
+    gettimeofday(&start,NULL);
+    pthread_cond_broadcast(&test_start);
+
+    /* catch ^C signal */
+    mysig.sa_handler=int_handler;
+    sigemptyset(&mysig.sa_mask);
+    mysig.sa_flags=0;
+    sigaction(SIGINT,&mysig,NULL);
+
+    /* Wait until all threads are actually running otherwise some threads
+       never get started before done is set on large UV systems */
+
+    while (running_threads < num_threads) {
+	if (!quiet) progressbar("Running Threads", running_threads, num_threads);
+	sleep((num_threads - running_threads) / 60 + 1);
+    }
+    /* Wait for the allotted time */
+    i=0;
+    while (!done && (i<runtime)) {
+        if (sleep(1) == 0) i++;
+        if (!quiet) progressbar("Testing RAM",i,runtime);
+    }
+    if (i != runtime)
+        rv=1;
+    
+    /* Signal completion and join all threads */
+    done=1;
+    while (live_threads) {
+        pthread_join(threads[live_threads-1],NULL);
+        live_threads--;
+	if (!quiet) progressbar("Joined Threads", (num_threads - live_threads), num_threads);
+    }
+    gettimeofday(&finish,NULL);
+    if (!quiet) printf("\n");
+    /* Test is officially complete. Calculate run speed. */
+    timersub(&finish,&start,&duration);
+    duration_f=(float)duration.tv_sec + (float)duration.tv_usec / 1000000.0;
+    loops_per_sec=0;
+    if (verbose) printf("Runtime was %.2fs\n",duration_f);
+    for (i=0;i<num_threads;i++) {
+        if (verbose) printf("thread %i: %lu loops\n",i,loop_counters[i]);
+        loops_per_sec += (float)loop_counters[i]/duration_f;
+    }
+    printf("Total loops per second: %.2f\n",loops_per_sec);
+    
+    /* All done. Return success. */
+    printf("Testing complete.\n");
+    return rv;
+}
+
+--/9DWx/yDrRhgMJTb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
