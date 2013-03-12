@@ -1,91 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 7FC7C6B0006
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 23:19:20 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id i10so5370702oag.14
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2013 20:19:19 -0700 (PDT)
-Message-ID: <513E9EB1.60204@gmail.com>
-Date: Tue, 12 Mar 2013 11:19:13 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id ED55E6B0036
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 00:23:27 -0400 (EDT)
+Received: by mail-ob0-f176.google.com with SMTP id v19so4007321obq.7
+        for <linux-mm@kvack.org>; Mon, 11 Mar 2013 21:23:27 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Fixup the condition whether the page cache is free
-References: <CAFNq8R7tq9kvD9LyhZJ-Cj0kexQfDsPhB4iQYyZ9s9+8Jo82QA@mail.gmail.com> <20130304150937.GB23767@cmpxchg.org> <51369637.6030705@gmail.com> <20130306194703.GA1953@cmpxchg.org> <5137E7F4.1060509@gmail.com> <51394945.4070803@gmail.com> <20130308023705.GI24384@cmpxchg.org> <5139517F.60407@gmail.com> <20130308031651.GJ24384@cmpxchg.org>
-In-Reply-To: <20130308031651.GJ24384@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20130312002429.GA24360@google.com>
+References: <1356050997-2688-1-git-send-email-walken@google.com>
+	<1356050997-2688-5-git-send-email-walken@google.com>
+	<CA+ydwtqD67m9_JLCNwvdP72rko93aTkVgC-aK4TacyyM5DoCTA@mail.gmail.com>
+	<20130311160322.830cc6b670fd24faa8366413@linux-foundation.org>
+	<20130312002429.GA24360@google.com>
+Date: Tue, 12 Mar 2013 12:23:26 +0800
+Message-ID: <CAJd=RBCihXorfLcjHxNUcJcm+CxpnDwMgB9kcC+VrN9bTK0Gkg@mail.gmail.com>
+Subject: Re: [PATCH 4/9] mm: use mm_populate() for blocking remap_file_pages()
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
-Cc: Li Haifeng <omycle@gmail.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>, open list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org
+To: Michel Lespinasse <walken@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tommi Rantala <tt.rantala@gmail.com>, Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Jorn_Engel <joern@logfs.org>, Rik van Riel <riel@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Hugh and Johannes,
-On 03/08/2013 11:16 AM, Johannes Weiner wrote:
-> On Fri, Mar 08, 2013 at 10:48:31AM +0800, Simon Jeons wrote:
->> On 03/08/2013 10:37 AM, Johannes Weiner wrote:
->>> On Fri, Mar 08, 2013 at 10:13:25AM +0800, Simon Jeons wrote:
->>>> Ping, :-)
->>>> On 03/07/2013 09:05 AM, Simon Jeons wrote:
->>>>> Hi Johannes,
->>>>> On 03/07/2013 03:47 AM, Johannes Weiner wrote:
->>>>>> On Wed, Mar 06, 2013 at 09:04:55AM +0800, Simon Jeons wrote:
->>>>>>> Hi Johannes,
->>>>>>> On 03/04/2013 11:09 PM, Johannes Weiner wrote:
->>>>>>>> On Mon, Mar 04, 2013 at 09:54:26AM +0800, Li Haifeng wrote:
->>>>>>>>> When a page cache is to reclaim, we should to decide whether the page
->>>>>>>>> cache is free.
->>>>>>>>> IMO, the condition whether a page cache is free should be 3 in page
->>>>>>>>> frame reclaiming. The reason lists as below.
->>>>>>>>>
->>>>>>>>> When page is allocated, the page->_count is 1(code
->>>>>>>>> fragment is code-1 ).
->>>>>>>>> And when the page is allocated for reading files from
->>>>>>>>> extern disk, the
->>>>>>>>> page->_count will increment 1 by page_cache_get() in
->>>>>>>>> add_to_page_cache_locked()(code fragment is code-2). When
->>>>>>>>> the page is to
->>>>>>>>> reclaim, the isolated LRU list also increase the page->_count(code
->>>>>>>>> fragment is code-3).
->>>>>>>> The page count is initialized to 1, but that does not stay with the
->>>>>>>> object.  It's a reference that is passed to the allocating task, which
->>>>>>>> drops it again when it's done with the page.  I.e. the pattern is like
->>>>>>>> this:
->>>>>>>>
->>>>>>>> instantiation:
->>>>>>>> page = page_cache_alloc()    /* instantiator reference -> 1 */
->>>>>>>> add_to_page_cache(page, mapping, offset)
->>>>>>>>    get_page(page)        /* page cache reference -> 2 */
->>>>>>>> lru_cache_add(page)
->>>>>>>>    get_page(page)        /* pagevec reference -> 3 */
->>>>>>>> /* ...initiate read, write, associate buffers, ... */
->>>>>>>> page_cache_release(page)    /* drop instantiator reference
->>>>>>>> -> 2 + private */
->>>>>>>>
->>>>>>>> reclaim:
->>>>>>>> lru_add_drain()
->>>>>>>>    page_cache_release(page)    /* drop pagevec reference ->
->>>>>>>> 1 + private */
->>>>>>> IIUC, when add page to lru will lead to add to pagevec firstly, and
->>>>>>> pagevec will take one reference, so if lru will take over the
->>>>>>> reference taken by pagevec when page transmit from pagevec to lru?
->>>>>>> or just drop the reference and lru will not take reference for page?
->>>>>> The LRU does not hold a reference, it would not make sense.  The
->>>>>> pagevec only needs one because it would be awkward to remove a
->>>>>> concurrently freed page out of a pagevec, but unlinking a page from
->>>>>> the LRU is easy.  See mm/swap.c::__page_cache_release() and friends.
->>>>> Since pagevec is per cpu, when can remove a concurrently freed
->>>>> page out of a pagevec happen?
->>> It doesn't because the pagevec holds a reference, as I wrote above.
->> I mean since pagevec is per cpu, how can remove a concurrently freed
->> page out of a pagevec happen? If it doesn't happen pagevec don't
->> need to hold a reference. :-)
-> It has nothing to do with the pagevec being per CPU.  The page may get
-> truncated or reclaimed and have every other reference being dropped
-> while it sits on the pagevec.
+On Tue, Mar 12, 2013 at 8:24 AM, Michel Lespinasse <walken@google.com> wrote:
+> (Sorry for the late reply)
+>
+> On Mon, Mar 11, 2013 at 4:03 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+>> On Sun, 10 Mar 2013 20:55:21 +0200 Tommi Rantala <tt.rantala@gmail.com> wrote:
+>>
+>>> 2012/12/21 Michel Lespinasse <walken@google.com>:
+>>> > Signed-off-by: Michel Lespinasse <walken@google.com>
+>>>
+>>> Hello, this patch introduced the following bug, seen while fuzzing with trinity:
+>>>
+>>> [  396.825414] BUG: unable to handle kernel NULL pointer dereference
+>>> at 0000000000000050
+>
+> Good catch...
+>
+>> From: Andrew Morton <akpm@linux-foundation.org>
+>> Subject: mm/fremap.c: fix oops on error path
+>>
+>> If find_vma() fails, sys_remap_file_pages() will dereference `vma', which
+>> contains NULL.  Fix it by checking the pointer.
+>>
+>> (We could alternatively check for err==0, but this seems more direct)
+>>
+>> (The vm_flags change is to squish a bogus used-uninitialised warning
+>> without adding extra code).
+>>
+>> Reported-by: Tommi Rantala <tt.rantala@gmail.com>
+>> Cc: Michel Lespinasse <walken@google.com>
+>> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>> ---
+>>
+>>  mm/fremap.c |    6 ++++--
+>>  1 file changed, 4 insertions(+), 2 deletions(-)
+>>
+>> diff -puN mm/fremap.c~mm-fremapc-fix-oops-on-error-path mm/fremap.c
+>> --- a/mm/fremap.c~mm-fremapc-fix-oops-on-error-path
+>> +++ a/mm/fremap.c
+>> @@ -163,7 +163,8 @@ SYSCALL_DEFINE5(remap_file_pages, unsign
+>>          * and that the remapped range is valid and fully within
+>>          * the single existing vma.
+>>          */
+>> -       if (!vma || !(vma->vm_flags & VM_SHARED))
+>> +       vm_flags = vma->vm_flags;
+>> +       if (!vma || !(vm_flags & VM_SHARED))
+>>                 goto out;
+>
+> Your commit message indicates the vm_flags load here doesn't generate any code, but this seems very brittle and compiler dependent. If the compiler was to generate an actual load here, the issue with vma == NULL would reappear.
+>
+>>         if (!vma->vm_ops || !vma->vm_ops->remap_pages)
+>> @@ -254,7 +255,8 @@ get_write_lock:
+>>          */
+>>
+>>  out:
+>> -       vm_flags = vma->vm_flags;
+>> +       if (vma)
+>> +               vm_flags = vma->vm_flags;
+>>         if (likely(!has_write_lock))
+>>                 up_read(&mm->mmap_sem);
+>>         else
+>
+>
+>
+> Would the following work ? I think it's simpler, and with the compiler
+> I'm using here it doesn't emit warnings:
+>
+> diff --git a/mm/fremap.c b/mm/fremap.c
+> index 0cd4c11488ed..329507e832fb 100644
+> --- a/mm/fremap.c
+> +++ b/mm/fremap.c
+> @@ -254,7 +254,8 @@ get_write_lock:
+>          */
+>
+>  out:
+> -       vm_flags = vma->vm_flags;
+> +       if (!err)
+> +               vm_flags = vma->vm_flags;
+>         if (likely(!has_write_lock))
+>                 up_read(&mm->mmap_sem);
+>         else
+>
+Is it still necessary to populate mm if bail out due
+to a linear mapping encountered?
 
-In function shmem_replace_page, there are twice call of 
-page_cache_release for oldpage, one is for pre_new_page, the other is 
-for page cache, but if page is still in pagevec,  pagevec has one 
-reference and oldpage can't be freed, is it a bug?
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
