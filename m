@@ -1,109 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 1DF5A6B0006
-	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 20:24:34 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id rr4so4323334pbb.27
-        for <linux-mm@kvack.org>; Mon, 11 Mar 2013 17:24:33 -0700 (PDT)
-Date: Mon, 11 Mar 2013 17:24:29 -0700
-From: Michel Lespinasse <walken@google.com>
-Subject: Re: [PATCH 4/9] mm: use mm_populate() for blocking remap_file_pages()
-Message-ID: <20130312002429.GA24360@google.com>
-References: <1356050997-2688-1-git-send-email-walken@google.com>
- <1356050997-2688-5-git-send-email-walken@google.com>
- <CA+ydwtqD67m9_JLCNwvdP72rko93aTkVgC-aK4TacyyM5DoCTA@mail.gmail.com>
- <20130311160322.830cc6b670fd24faa8366413@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 867FB6B0006
+	for <linux-mm@kvack.org>; Mon, 11 Mar 2013 21:46:14 -0400 (EDT)
+Date: Mon, 11 Mar 2013 22:45:56 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [patch 2/4 v3]swap: __swap_duplicate check bad swap entry
+Message-ID: <20130312014555.GA4417@optiplex.redhat.com>
+References: <20130221022219.GE32580@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130311160322.830cc6b670fd24faa8366413@linux-foundation.org>
+In-Reply-To: <20130221022219.GE32580@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tommi Rantala <tt.rantala@gmail.com>, Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Jorn_Engel <joern@logfs.org>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org
 
-(Sorry for the late reply)
+On Thu, Feb 21, 2013 at 10:22:19AM +0800, Shaohua Li wrote:
+> Sorry if you receive this one twice, last mail get mail address messed.
+> 
+> In swapin_readahead(), read_swap_cache_async() can read a bad swap entry,
+> because we don't check if readahead swap entry is bad. This doesn't break
+> anything but such swapin page is wasteful and can only be freed at page
+> reclaim. We avoid read such swap entry.
+> 
 
-On Mon, Mar 11, 2013 at 4:03 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Sun, 10 Mar 2013 20:55:21 +0200 Tommi Rantala <tt.rantala@gmail.com> wrote:
->
->> 2012/12/21 Michel Lespinasse <walken@google.com>:
->> > Signed-off-by: Michel Lespinasse <walken@google.com>
->>
->> Hello, this patch introduced the following bug, seen while fuzzing with trinity:
->>
->> [  396.825414] BUG: unable to handle kernel NULL pointer dereference
->> at 0000000000000050
+Acked-by: Rafael Aquini <aquini@redhat.com>
 
-Good catch...
 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm/fremap.c: fix oops on error path
->
-> If find_vma() fails, sys_remap_file_pages() will dereference `vma', which
-> contains NULL.  Fix it by checking the pointer.
->
-> (We could alternatively check for err==0, but this seems more direct)
->
-> (The vm_flags change is to squish a bogus used-uninitialised warning
-> without adding extra code).
->
-> Reported-by: Tommi Rantala <tt.rantala@gmail.com>
-> Cc: Michel Lespinasse <walken@google.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> And next patch will mark a swap entry bad temporarily for discard. Without this
+> patch, swap entry count will be messed.
+> 
+> Thanks Hugh to inspire swapin_readahead could use bad swap entry.
+> 
+> Signed-off-by: Shaohua Li <shli@fusionio.com>
 > ---
->
->  mm/fremap.c |    6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
->
-> diff -puN mm/fremap.c~mm-fremapc-fix-oops-on-error-path mm/fremap.c
-> --- a/mm/fremap.c~mm-fremapc-fix-oops-on-error-path
-> +++ a/mm/fremap.c
-> @@ -163,7 +163,8 @@ SYSCALL_DEFINE5(remap_file_pages, unsign
->          * and that the remapped range is valid and fully within
->          * the single existing vma.
->          */
-> -       if (!vma || !(vma->vm_flags & VM_SHARED))
-> +       vm_flags = vma->vm_flags;
-> +       if (!vma || !(vm_flags & VM_SHARED))
->                 goto out;
-
-Your commit message indicates the vm_flags load here doesn't generate any code, but this seems very brittle and compiler dependent. If the compiler was to generate an actual load here, the issue with vma == NULL would reappear.
-
->         if (!vma->vm_ops || !vma->vm_ops->remap_pages)
-> @@ -254,7 +255,8 @@ get_write_lock:
->          */
->
->  out:
-> -       vm_flags = vma->vm_flags;
-> +       if (vma)
-> +               vm_flags = vma->vm_flags;
->         if (likely(!has_write_lock))
->                 up_read(&mm->mmap_sem);
->         else
-
-
-
-Would the following work ? I think it's simpler, and with the compiler
-I'm using here it doesn't emit warnings:
-
-diff --git a/mm/fremap.c b/mm/fremap.c
-index 0cd4c11488ed..329507e832fb 100644
---- a/mm/fremap.c
-+++ b/mm/fremap.c
-@@ -254,7 +254,8 @@ get_write_lock:
- 	 */
- 
- out:
--	vm_flags = vma->vm_flags;
-+	if (!err)
-+		vm_flags = vma->vm_flags;
- 	if (likely(!has_write_lock))
- 		up_read(&mm->mmap_sem);
- 	else
-
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+>  mm/swapfile.c |    5 +++++
+>  1 file changed, 5 insertions(+)
+> 
+> Index: linux/mm/swapfile.c
+> ===================================================================
+> --- linux.orig/mm/swapfile.c	2013-02-18 15:21:09.285317914 +0800
+> +++ linux/mm/swapfile.c	2013-02-18 15:21:34.545004083 +0800
+> @@ -2374,6 +2374,11 @@ static int __swap_duplicate(swp_entry_t
+>  		goto unlock_out;
+>  
+>  	count = p->swap_map[offset];
+> +	if (unlikely(swap_count(count) == SWAP_MAP_BAD)) {
+> +		err = -ENOENT;
+> +		goto unlock_out;
+> +	}
+> +
+>  	has_cache = count & SWAP_HAS_CACHE;
+>  	count &= ~SWAP_HAS_CACHE;
+>  	err = 0;
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
