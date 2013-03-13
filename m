@@ -1,154 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 432216B0002
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 05:09:31 -0400 (EDT)
-Received: by mail-bk0-f49.google.com with SMTP id w11so320311bku.36
-        for <linux-mm@kvack.org>; Wed, 13 Mar 2013 02:09:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 8CE116B0037
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 05:16:25 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 61DB43EE0C3
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 18:16:23 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4300345DEBC
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 18:16:23 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CFC9245DEC0
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 18:16:22 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A31E4E0800F
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 18:16:22 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3CACDE08007
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 18:16:22 +0900 (JST)
+Message-ID: <514043B5.1090205@jp.fujitsu.com>
+Date: Wed, 13 Mar 2013 18:15:33 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <513FD297.3050100@jp.fujitsu.com>
-References: <1363082773-3598-1-git-send-email-handai.szj@taobao.com>
-	<1363082977-3753-1-git-send-email-handai.szj@taobao.com>
-	<513FD297.3050100@jp.fujitsu.com>
-Date: Wed, 13 Mar 2013 17:09:23 +0800
-Message-ID: <CAFj3OHVsLK0FH1K3d_XsW7swUhuz84r3UMusq_M37p60JfcvnA@mail.gmail.com>
-Subject: Re: [PATCH 2/6] memcg: Don't account root memcg CACHE/RSS stats
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v2 2/5] memcg: provide root figures from system totals
+References: <1362489058-3455-1-git-send-email-glommer@parallels.com> <1362489058-3455-3-git-send-email-glommer@parallels.com> <51368D80.20701@jp.fujitsu.com> <5136FEC2.2050004@parallels.com> <51371E4A.7090807@jp.fujitsu.com> <51371FEF.3020507@parallels.com> <513721A5.6080401@jp.fujitsu.com> <CAFj3OHWm_GjLFwNEE=D69DR-YSF25AZvKTLHpyHq7aYDi12b0g@mail.gmail.com>
+In-Reply-To: <CAFj3OHWm_GjLFwNEE=D69DR-YSF25AZvKTLHpyHq7aYDi12b0g@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, glommer@parallels.com, akpm@linux-foundation.org, mgorman@suse.de, Sha Zhengju <handai.szj@taobao.com>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-On Wed, Mar 13, 2013 at 9:12 AM, Kamezawa Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> (2013/03/12 19:09), Sha Zhengju wrote:
->> If memcg is enabled and no non-root memcg exists, all allocated pages
->> belong to root_mem_cgroup and go through root memcg statistics routines
->> which brings some overheads.
+(2013/03/13 15:58), Sha Zhengju wrote:
+> On Wed, Mar 6, 2013 at 6:59 PM, Kamezawa Hiroyuki
+> <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>> (2013/03/06 19:52), Glauber Costa wrote:
+>>> On 03/06/2013 02:45 PM, Kamezawa Hiroyuki wrote:
+>>>> (2013/03/06 17:30), Glauber Costa wrote:
+>>>>> On 03/06/2013 04:27 AM, Kamezawa Hiroyuki wrote:
+>>>>>> (2013/03/05 22:10), Glauber Costa wrote:
+>>>>>>> + case _MEMSWAP: {
+>>>>>>> +         struct sysinfo i;
+>>>>>>> +         si_swapinfo(&i);
+>>>>>>> +
+>>>>>>> +         return ((memcg_read_root_rss() +
+>>>>>>> +         atomic_long_read(&vm_stat[NR_FILE_PAGES])) << PAGE_SHIFT) +
+>>>>>>> +         i.totalswap - i.freeswap;
+>>>>>>
+>>>>>> How swapcache is handled ? ...and How kmem works with this calc ?
+>>>>>>
+>>>>> I am ignoring kmem, because we don't account kmem for the root cgroup
+>>>>> anyway.
+>>>>>
+>>>>> Setting the limit is invalid, and we don't account until the limit is
+>>>>> set. Then it will be 0, always.
+>>>>>
+>>>>> For swapcache, I am hoping that totalswap - freeswap will cover
+>>>>> everything swap related. If you think I am wrong, please enlighten me.
+>>>>>
+>>>>
+>>>> i.totalswap - i.freeswap = # of used swap entries.
+>>>>
+>>>> SwapCache can be rss and used swap entry at the same time.
+>>>>
+>>>
+>>> Well, yes, but the rss entries would be accounted for in get_mm_rss(),
+>>> won't they ?
+>>>
+>>> What am I missing ?
 >>
->> So for the sake of performance, we can give up accounting stats of root
->> memcg for MEM_CGROUP_STAT_CACHE/RSS and instead we pay special attention
->> to memcg_stat_show() while showing root memcg numbers:
->> as we don't account root memcg stats anymore, the root_mem_cgroup->stat
->> numbers are actually 0. So we fake these numbers by using stats of global
->> state and all other memcg. That is for root memcg:
 >>
->>       nr(MEM_CGROUP_STAT_CACHE) = global_page_state(NR_FILE_PAGES) -
->>                                sum_of_all_memcg(MEM_CGROUP_STAT_CACHE);
+>> I think the correct caluculation is
 >>
->> Rss pages accounting are in the similar way.
+>>    Sum of all RSS + All file caches + (i.total_swap - i.freeswap - # of mapped SwapCache)
 >>
->> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
->> ---
->>   mm/memcontrol.c |   50 ++++++++++++++++++++++++++++++++++----------------
->>   1 file changed, 34 insertions(+), 16 deletions(-)
 >>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 735cd41..e89204f 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -958,26 +958,27 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
->>   {
->>       preempt_disable();
+>> In the patch, mapped SwapCache is counted as both of rss and swap.
 >>
->> -     /*
->> -      * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
->> -      * counted as CACHE even if it's on ANON LRU.
->> -      */
->> -     if (anon)
->> -             __this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
->> -                             nr_pages);
->> -     else
->> -             __this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
->> -                             nr_pages);
->> -
->>       /* pagein of a big page is an event. So, ignore page size */
->>       if (nr_pages > 0)
->>               __this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGIN]);
->> -     else {
->> +     else
->>               __this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGOUT]);
->> -             nr_pages = -nr_pages; /* for event */
->> -     }
->>
->> -     __this_cpu_add(memcg->stat->nr_page_events, nr_pages);
->> +     __this_cpu_add(memcg->stat->nr_page_events,
->> +                                     nr_pages < 0 ? -nr_pages : nr_pages);
->> +
->> +     if (!mem_cgroup_is_root(memcg)) {
->> +             /*
->> +              * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
->> +              * counted as CACHE even if it's on ANON LRU.
->> +              */
->> +             if (anon)
->> +                     __this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
->> +                                     nr_pages);
->> +             else
->> +                     __this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
->> +                                     nr_pages);
->> +     }
 >
-> Hmm. I don't like to add this check to this fast path. IIUC, with Costa's patch, root memcg
-> will not make any charges at all and never call this function. I like his one rather than
+> After a quick look, swapcache is counted as file pages and meanwhile
+> use a swap entry at the same time(__add_to{delete_from}_swap_cache()).
+> Even though, I think we still do not need to exclude swapcache out,
+> because it indeed uses two copy of resource: one is swap entry, one is
+> cache, so the usage should count both of them in.
+>
+> What I think it matters is that swapcache may be counted as both file
+> pages and rss(if it's a process's anonymous page), which we need to
+> subtract # of swapcache to avoid double-counting. But it isn't always
+> so: a shmem/tmpfs page may use swapcache and be counted as file pages
+> but not a rss, then we can not subtract swapcache... Is there anything
+> I lost?
+>
 
-Yes. But I think that one still has some other problems such as
-PGPGIN/PGPGOUT and threshold events related things. I prefer to
-improve this as a start.
 
+Please don't think difficult. All pages for user/caches are counted in
+LRU. All swap-entry usage can be cauht by total_swap_pages - nr_swap_pages.
+We just need to subtract number of swap-cache which is double counted
+as swap-entry and a page in LRU.
+
+NR_ACTIVE_ANON + NR_INACTIVE_ANON + NR_ACTIVE_FILE + NR_INACTIVE_FILE
++ NR_UNEVICTABLE + total_swap_pages - nr_swap_pages - NR_SWAP_CACHE
+
+is the number we whant for memsw.usage_in_bytes.
 
 Thanks,
-Sha
+-Kame
 
-> this patching.
->
-> Thanks,
-> -Kame
->
->
->>
->>       preempt_enable();
->>   }
->> @@ -5445,12 +5446,24 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
->>       struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
->>       struct mem_cgroup *mi;
->>       unsigned int i;
->> +     enum zone_stat_item global_stat[] = {NR_FILE_PAGES, NR_ANON_PAGES};
->> +     long root_stat[MEM_CGROUP_STAT_NSTATS] = {0};
->>
->>       for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
->> +             long val = 0;
->> +
->>               if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
->>                       continue;
->> +
->> +             if (mem_cgroup_is_root(memcg) && (i == MEM_CGROUP_STAT_CACHE
->> +                                     || i == MEM_CGROUP_STAT_RSS)) {
->> +                     val = global_page_state(global_stat[i]) -
->> +                             mem_cgroup_recursive_stat(memcg, i);
->> +                     root_stat[i] = val = val < 0 ? 0 : val;
->> +             } else
->> +                     val = mem_cgroup_read_stat(memcg, i);
->>               seq_printf(m, "%s %ld\n", mem_cgroup_stat_names[i],
->> -                        mem_cgroup_read_stat(memcg, i) * PAGE_SIZE);
->> +                                     val * PAGE_SIZE);
->>       }
->>
->>       for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
->> @@ -5478,6 +5491,11 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
->>                       continue;
->>               for_each_mem_cgroup_tree(mi, memcg)
->>                       val += mem_cgroup_read_stat(mi, i) * PAGE_SIZE;
->> +
->> +             /* Adding local stats of root memcg */
->> +             if (mem_cgroup_is_root(memcg))
->> +                     val += root_stat[i] * PAGE_SIZE;
->> +
->>               seq_printf(m, "total_%s %lld\n", mem_cgroup_stat_names[i], val);
->>       }
->>
->>
->
->
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
