@@ -1,58 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 052A76B0002
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 23:47:22 -0400 (EDT)
-Received: by mail-da0-f53.google.com with SMTP id n34so219774dal.12
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2013 20:47:22 -0700 (PDT)
-Message-ID: <513FF6C4.1030708@gmail.com>
-Date: Wed, 13 Mar 2013 11:47:16 +0800
-From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
-MIME-Version: 1.0
-Subject: Re: Swap defragging
-References: <CAGDaZ_rvfrBVCKMuEdPcSod684xwbUf9Aj4nbas4_vcG3V9yfg@mail.gmail.com> <20130308023511.GD23767@cmpxchg.org> <513D4C8D.6080106@gmail.com> <20130312170847.GE1953@cmpxchg.org>
-In-Reply-To: <20130312170847.GE1953@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id A4CED6B0002
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 00:11:02 -0400 (EDT)
+Date: Tue, 12 Mar 2013 21:11:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] bounce:fix bug, avoid to flush dcache on slab page from
+ jbd2.
+Message-Id: <20130312211138.a2824b7e.akpm@linux-foundation.org>
+In-Reply-To: <513FF3F3.2000509@gmail.com>
+References: <5139DB90.5090302@gmail.com>
+	<20130312153221.0d26fe5599d4885e51bb0c7c@linux-foundation.org>
+	<20130313011020.GA5313@blackbox.djwong.org>
+	<513FF3F3.2000509@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Raymond Jennings <shentino@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: Shuge <shugelinux@gmail.com>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Kevin <kevin@allwinnertech.com>, Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
 
-Hi Johannes,
-On 03/13/2013 01:08 AM, Johannes Weiner wrote:
-> On Mon, Mar 11, 2013 at 11:16:29AM +0800, Jaegeuk Hanse wrote:
->> Hi Johannes,
->> On 03/08/2013 10:35 AM, Johannes Weiner wrote:
->>> On Thu, Mar 07, 2013 at 06:07:23PM -0800, Raymond Jennings wrote:
->>>> Just a two cent question, but is there any merit to having the kernel
->>>> defragment swap space?
->>> That is a good question.
->>>
->>> Swap does fragment quite a bit, and there are several reasons for
->>> that.
->>>
->>> We swap pages in our LRU list order, but this list is sorted by first
->>> access, not by access frequency (not quite that cookie cutter, but the
->>> ordering is certainly fairly coarse).  This means that the pages may
->>> already be in suboptimal order for swap in at the time of swap out.
->>>
->>> Once written to disk, the layout tends to stick.  One reason is that
->>> we actually try to not free swap slots unless there is a shortage of
->>> swap space to save future swap out IO (grep for vm_swap_full()).  The
->> Since anonymous page will be swap out if it's dirty and the contents
->> of the page and data store in swap area is not equal now, why can
->> avoid future swap out IO?
-> Modified pages get written out freshly, but in a multi-threaded
-> application, the original page stays put until all threads have
-> modified it or faulted it back in.
+On Wed, 13 Mar 2013 11:35:15 +0800 Shuge <shugelinux@gmail.com> wrote:
 
-Sorry, you didn't resolve my confuse! It seems that this is your second 
-reason for why disk layout tends to stick. However, what I confuse is 
-your first reason. You said that we actually try to not free swap slots 
-unless there is a shortage of swap space to save future swap out IO, 
-why? Anonymous pages are swapped out since they are dirty, how can don't 
-swap out and swap IO?
+> Hi all
+> >>> The bounce accept slab pages from jbd2, and flush dcache on them.
+> >>> When enabling VM_DEBUG, it will tigger VM_BUG_ON in page_mapping().
+> >>> So, check PageSlab to avoid it in __blk_queue_bounce().
+> >>>
+> >>> Bug URL: http://lkml.org/lkml/2013/3/7/56
+> >>>
+> >>> ...
+> >>>
+> >> ......
+> >>
+> > That sure is strange.  I didn't see any obvious reasons why we'd end up with a
+> >
+> ......
+> 
+>      Well, this problem not only appear in arm64, but also arm32. And my 
+> kernel version is 3.3.0, arch is arm32.
+> Following the newest kernel, the problem shoulde be exist.
+>      I agree with Darrick's modification. Hum, if 
+> CONFIG_NEED_BOUNCE_POOL is not set, it also flush dcahce on
+> the pages of b_frozen_data, some of them are allocated by kmem_cache_alloc.
+>      As we know, jbd2_alloc allocate a buffer from jbd2_xk slab pool, 
+> when the size is smaller than PAGE_SIZE.
+> The b_frozen_data  is not mapped to usrspace, not aliasing cache. It cat 
+> be lazy flush or other. Is it right?
 
+Please reread my email.  The page at b_frozen_data was allocated with
+GFP_NOFS.  Hence it should not need bounce treatment (if arm is
+anything like x86).
+
+And yet it *did* receive bounce treatment.  Why?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
