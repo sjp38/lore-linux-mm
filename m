@@ -1,154 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id AEE366B0006
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 21:13:37 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2CC393EE0C0
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 10:13:36 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 10FAC45DE53
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 10:13:36 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EC25845DE50
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 10:13:35 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D9E801DB803F
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 10:13:35 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 82FAA1DB802C
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 10:13:35 +0900 (JST)
-Message-ID: <513FD297.3050100@jp.fujitsu.com>
-Date: Wed, 13 Mar 2013 10:12:55 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 2F1DE6B0006
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 21:31:36 -0400 (EDT)
+Received: by mail-ob0-f170.google.com with SMTP id wc20so518714obb.29
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2013 18:31:35 -0700 (PDT)
+Message-ID: <513FD6F2.5060804@gmail.com>
+Date: Wed, 13 Mar 2013 09:31:30 +0800
+From: Will Huck <will.huckk@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] memcg: Don't account root memcg CACHE/RSS stats
-References: <1363082773-3598-1-git-send-email-handai.szj@taobao.com> <1363082977-3753-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1363082977-3753-1-git-send-email-handai.szj@taobao.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: Swap defragging
+References: <CAGDaZ_rvfrBVCKMuEdPcSod684xwbUf9Aj4nbas4_vcG3V9yfg@mail.gmail.com> <20130308023511.GD23767@cmpxchg.org> <513A97C5.7020008@gmail.com> <20130312165247.GB1953@cmpxchg.org>
+In-Reply-To: <20130312165247.GB1953@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, glommer@parallels.com, akpm@linux-foundation.org, mgorman@suse.de, Sha Zhengju <handai.szj@taobao.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Raymond Jennings <shentino@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>
 
-(2013/03/12 19:09), Sha Zhengju wrote:
-> If memcg is enabled and no non-root memcg exists, all allocated pages
-> belong to root_mem_cgroup and go through root memcg statistics routines
-> which brings some overheads.
-> 
-> So for the sake of performance, we can give up accounting stats of root
-> memcg for MEM_CGROUP_STAT_CACHE/RSS and instead we pay special attention
-> to memcg_stat_show() while showing root memcg numbers:
-> as we don't account root memcg stats anymore, the root_mem_cgroup->stat
-> numbers are actually 0. So we fake these numbers by using stats of global
-> state and all other memcg. That is for root memcg:
-> 
-> 	nr(MEM_CGROUP_STAT_CACHE) = global_page_state(NR_FILE_PAGES) -
->                                sum_of_all_memcg(MEM_CGROUP_STAT_CACHE);
-> 
-> Rss pages accounting are in the similar way.
-> 
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-> ---
->   mm/memcontrol.c |   50 ++++++++++++++++++++++++++++++++++----------------
->   1 file changed, 34 insertions(+), 16 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 735cd41..e89204f 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -958,26 +958,27 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
->   {
->   	preempt_disable();
->   
-> -	/*
-> -	 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
-> -	 * counted as CACHE even if it's on ANON LRU.
-> -	 */
-> -	if (anon)
-> -		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
-> -				nr_pages);
-> -	else
-> -		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
-> -				nr_pages);
-> -
->   	/* pagein of a big page is an event. So, ignore page size */
->   	if (nr_pages > 0)
->   		__this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGIN]);
-> -	else {
-> +	else
->   		__this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGOUT]);
-> -		nr_pages = -nr_pages; /* for event */
-> -	}
->   
-> -	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
-> +	__this_cpu_add(memcg->stat->nr_page_events,
-> +					nr_pages < 0 ? -nr_pages : nr_pages);
-> +
-> +	if (!mem_cgroup_is_root(memcg)) {
-> +		/*
-> +		 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
-> +		 * counted as CACHE even if it's on ANON LRU.
-> +		 */
-> +		if (anon)
-> +			__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS],
-> +					nr_pages);
-> +		else
-> +			__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
-> +					nr_pages);
-> +	}
+Hi Johannes,
+On 03/13/2013 12:52 AM, Johannes Weiner wrote:
+> On Sat, Mar 09, 2013 at 10:00:37AM +0800, Will Huck wrote:
+>> Hi Johannes,
+>> On 03/08/2013 10:35 AM, Johannes Weiner wrote:
+>>> On Thu, Mar 07, 2013 at 06:07:23PM -0800, Raymond Jennings wrote:
+>>>> Just a two cent question, but is there any merit to having the kernel
+>>>> defragment swap space?
+>>> That is a good question.
+>>>
+>>> Swap does fragment quite a bit, and there are several reasons for
+>>> that.
+>> Are there any tools to test and monitor swap subsystem and page
+>> reclaim subsystem?
 
-Hmm. I don't like to add this check to this fast path. IIUC, with Costa's patch, root memcg
-will not make any charges at all and never call this function. I like his one rather than
-this patching.
+pgscan_kswapd_dma 0
+pgscan_kswapd_dma32 0
+pgscan_kswapd_normal 0
+pgscan_kswapd_movable 0
+pgscan_direct_dma 0
+pgscan_direct_dma32 0
+pgscan_direct_normal 0
+pgscan_direct_movable 0
+pgscan_direct_throttle 0
+zone_reclaim_failed 0
+pginodesteal 0
+slabs_scanned 328704
 
-Thanks,
--Kame
+slab cache is scaned but file-backed/swap-backed pages are not scanned, why?
 
-
->   
->   	preempt_enable();
->   }
-> @@ -5445,12 +5446,24 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
->   	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
->   	struct mem_cgroup *mi;
->   	unsigned int i;
-> +	enum zone_stat_item global_stat[] = {NR_FILE_PAGES, NR_ANON_PAGES};
-> +	long root_stat[MEM_CGROUP_STAT_NSTATS] = {0};
->   
->   	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
-> +		long val = 0;
-> +
->   		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
->   			continue;
-> +
-> +		if (mem_cgroup_is_root(memcg) && (i == MEM_CGROUP_STAT_CACHE
-> +					|| i == MEM_CGROUP_STAT_RSS)) {
-> +			val = global_page_state(global_stat[i]) -
-> +				mem_cgroup_recursive_stat(memcg, i);
-> +			root_stat[i] = val = val < 0 ? 0 : val;
-> +		} else
-> +			val = mem_cgroup_read_stat(memcg, i);
->   		seq_printf(m, "%s %ld\n", mem_cgroup_stat_names[i],
-> -			   mem_cgroup_read_stat(memcg, i) * PAGE_SIZE);
-> +					val * PAGE_SIZE);
->   	}
->   
->   	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
-> @@ -5478,6 +5491,11 @@ static int memcg_stat_show(struct cgroup *cont, struct cftype *cft,
->   			continue;
->   		for_each_mem_cgroup_tree(mi, memcg)
->   			val += mem_cgroup_read_stat(mi, i) * PAGE_SIZE;
-> +
-> +		/* Adding local stats of root memcg */
-> +		if (mem_cgroup_is_root(memcg))
-> +			val += root_stat[i] * PAGE_SIZE;
-> +
->   		seq_printf(m, "total_%s %lld\n", mem_cgroup_stat_names[i], val);
->   	}
->   
-> 
-
+> seekwatcher is great to see the IO patterns.  Anything that uses
+> anonymous memory can test swap: a java job, multiplying matrixes,
+> kernel builds etc.  I mostly log /proc/vmstat by taking snapshots at a
+> regular interval during the workload, then plot and visually correlate
+> the swapin/swapout counters with the individual LRU sizes, page fault
+> rate, what have you, to get a feeling for what it's doing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
