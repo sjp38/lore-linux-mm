@@ -1,10 +1,10 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/hugetlb: fix total hugetlbfs pages count when memory
- overcommit accouting
-Date: Wed, 13 Mar 2013 16:32:47 +0800
-Message-ID: <47170.273846905$1363163620@news.gmane.org>
-References: <1363158511-21272-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <CAJd=RBBVU8uvHZ3AHkBqOWe-hEqFQ5-5Mf5dGXYuGczvM6EpUw@mail.gmail.com>
+Subject: Re: [PATCH 2/4] zcache: zero-filled pages awareness
+Date: Thu, 14 Mar 2013 07:35:37 +0800
+Message-ID: <15559.3328214765$1363217780@news.gmane.org>
+References: <1363158321-20790-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1363158321-20790-3-git-send-email-liwanp@linux.vnet.ibm.com>
+ <9a45f4be-a80c-434d-ae7f-f8faaea5e4d4@default>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,93 +12,103 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UFh7u-0002Gh-5E
-	for glkm-linux-mm-2@m.gmane.org; Wed, 13 Mar 2013 09:33:34 +0100
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 4E42A6B0002
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 04:33:07 -0400 (EDT)
+	id 1UFvDS-0001Qd-NT
+	for glkm-linux-mm-2@m.gmane.org; Thu, 14 Mar 2013 00:36:14 +0100
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id D09946B0006
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 19:35:49 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 13 Mar 2013 13:59:32 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id CE2D9394004F
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 14:02:50 +0530 (IST)
+	Thu, 14 Mar 2013 05:02:39 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 4303F1258023
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 05:06:43 +0530 (IST)
 Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2D8WkIr31654130
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 14:02:46 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2DNZaJ023265342
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 05:05:36 +0530
 Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2D8WoFF027332
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 19:32:50 +1100
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2DNZd3Z010677
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 10:35:39 +1100
 Content-Disposition: inline
-In-Reply-To: <CAJd=RBBVU8uvHZ3AHkBqOWe-hEqFQ5-5Mf5dGXYuGczvM6EpUw@mail.gmail.com>
+In-Reply-To: <9a45f4be-a80c-434d-ae7f-f8faaea5e4d4@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>, Andi Kleen <ak@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Mar 13, 2013 at 04:02:03PM +0800, Hillf Danton wrote:
->[cc Andi]
->On Wed, Mar 13, 2013 at 3:08 PM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
->> After commit 42d7395f ("mm: support more pagesizes for MAP_HUGETLB/SHM_HUGETLB")
->> be merged, kernel permit multiple huge page sizes, and when the system administrator
->> has configured the system to provide huge page pools of different sizes, application
->> can choose the page size used for their allocation. However, just default size of
->> huge page pool is statistical when memory overcommit accouting, the bad is that this
->> will result in innocent processes be killed by oom-killer later. Fix it by statistic
->> all huge page pools of different sizes provided by administrator.
->>
+On Wed, Mar 13, 2013 at 09:53:48AM -0700, Dan Magenheimer wrote:
+>> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
+>> Subject: [PATCH 2/4] zcache: zero-filled pages awareness
+>> 
+>> Compression of zero-filled pages can unneccessarily cause internal
+>> fragmentation, and thus waste memory. This special case can be
+>> optimized.
+>> 
+>> This patch captures zero-filled pages, and marks their corresponding
+>> zcache backing page entry as zero-filled. Whenever such zero-filled
+>> page is retrieved, we fill the page frame with zero.
+>> 
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> ---
+>>  drivers/staging/zcache/tmem.c        |    4 +-
+>>  drivers/staging/zcache/tmem.h        |    5 ++
+>>  drivers/staging/zcache/zcache-main.c |   87 ++++++++++++++++++++++++++++++----
+>>  3 files changed, 85 insertions(+), 11 deletions(-)
+>> 
+>> diff --git a/drivers/staging/zcache/tmem.c b/drivers/staging/zcache/tmem.c
+>> index a2b7e03..62468ea 100644
+>> --- a/drivers/staging/zcache/tmem.c
+>> +++ b/drivers/staging/zcache/tmem.c
+>> @@ -597,7 +597,9 @@ int tmem_put(struct tmem_pool *pool, struct tmem_oid *oidp, uint32_t index,
+>>  	if (unlikely(ret == -ENOMEM))
+>>  		/* may have partially built objnode tree ("stump") */
+>>  		goto delete_and_free;
+>> -	(*tmem_pamops.create_finish)(pampd, is_ephemeral(pool));
+>> +	if (pampd != (void *)ZERO_FILLED)
+>> +		(*tmem_pamops.create_finish)(pampd, is_ephemeral(pool));
+>> +
+>>  	goto out;
+>> 
+>>  delete_and_free:
+>> diff --git a/drivers/staging/zcache/tmem.h b/drivers/staging/zcache/tmem.h
+>> index adbe5a8..6719dbd 100644
+>> --- a/drivers/staging/zcache/tmem.h
+>> +++ b/drivers/staging/zcache/tmem.h
+>> @@ -204,6 +204,11 @@ struct tmem_handle {
+>>  	uint16_t client_id;
+>>  };
+>> 
+>> +/*
+>> + * mark pampd to special vaule in order that later
+>> + * retrieve will identify zero-filled pages
+>> + */
+>> +#define ZERO_FILLED 0x2
+>
+>You can avoid changing tmem.[ch] entirely by moving this
+>definition into zcache-main.c and by moving the check
+>comparing pampd against ZERO_FILLED into zcache_pampd_create_finish()
+>I think that would be cleaner...
 
-Hi Hillf,
+Great point!
 
->Can we enrich the output of hugetlb_report_meminfo() ?
+>
+>If you change this and make the pageframe counter fix for PATCH 4/4,
+>please add my ack for the next version:
 >
 
-Yes, I have already thought of this stuff, we can dump multiple huge page
-pools information in /proc/meminfo and /sys/devices/system/node/node*/meminfo.
-I can do it in another patch, what's your opinion, Andi?
+Thanks Dan. :-)
 
 Regards,
 Wanpeng Li 
 
->thanks
->Hillf
+>Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 >
->> Testcase:
->> boot: hugepagesz=1G hugepages=1
->> before patch:
->> egrep 'CommitLimit' /proc/meminfo
->> CommitLimit:     55434168 kB
->> after patch:
->> egrep 'CommitLimit' /proc/meminfo
->> CommitLimit:     54909880 kB
->>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  mm/hugetlb.c | 7 +++++--
->>  1 file changed, 5 insertions(+), 2 deletions(-)
->>
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index cdb64e4..9e25040 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -2124,8 +2124,11 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
->>  /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
->>  unsigned long hugetlb_total_pages(void)
->>  {
->> -       struct hstate *h = &default_hstate;
->> -       return h->nr_huge_pages * pages_per_huge_page(h);
->> +       struct hstate *h;
->> +       unsigned long nr_total_pages = 0;
->> +       for_each_hstate(h)
->> +               nr_total_pages += h->nr_huge_pages * pages_per_huge_page(h);
->> +       return nr_total_pages;
->>  }
->>
->>  static int hugetlb_acct_memory(struct hstate *h, long delta)
->> --
->> 1.7.11.7
->>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
