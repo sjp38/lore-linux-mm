@@ -1,109 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 4B23F6B0006
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 02:58:44 -0400 (EDT)
-Received: by mail-bk0-f48.google.com with SMTP id jf20so270186bkc.21
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2013 23:58:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <513721A5.6080401@jp.fujitsu.com>
-References: <1362489058-3455-1-git-send-email-glommer@parallels.com>
-	<1362489058-3455-3-git-send-email-glommer@parallels.com>
-	<51368D80.20701@jp.fujitsu.com>
-	<5136FEC2.2050004@parallels.com>
-	<51371E4A.7090807@jp.fujitsu.com>
-	<51371FEF.3020507@parallels.com>
-	<513721A5.6080401@jp.fujitsu.com>
-Date: Wed, 13 Mar 2013 14:58:41 +0800
-Message-ID: <CAFj3OHWm_GjLFwNEE=D69DR-YSF25AZvKTLHpyHq7aYDi12b0g@mail.gmail.com>
-Subject: Re: [PATCH v2 2/5] memcg: provide root figures from system totals
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 604846B0006
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 03:05:43 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 13 Mar 2013 17:01:23 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id EC5DA2BB0050
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 18:05:35 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2D6qgm17537078
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 17:52:42 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2D75YTu016171
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 18:05:35 +1100
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 1/4] zcache: introduce zero-filled pages handler
+Date: Wed, 13 Mar 2013 15:05:18 +0800
+Message-Id: <1363158321-20790-2-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1363158321-20790-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1363158321-20790-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Wed, Mar 6, 2013 at 6:59 PM, Kamezawa Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> (2013/03/06 19:52), Glauber Costa wrote:
->> On 03/06/2013 02:45 PM, Kamezawa Hiroyuki wrote:
->>> (2013/03/06 17:30), Glauber Costa wrote:
->>>> On 03/06/2013 04:27 AM, Kamezawa Hiroyuki wrote:
->>>>> (2013/03/05 22:10), Glauber Costa wrote:
->>>>>> + case _MEMSWAP: {
->>>>>> +         struct sysinfo i;
->>>>>> +         si_swapinfo(&i);
->>>>>> +
->>>>>> +         return ((memcg_read_root_rss() +
->>>>>> +         atomic_long_read(&vm_stat[NR_FILE_PAGES])) << PAGE_SHIFT) +
->>>>>> +         i.totalswap - i.freeswap;
->>>>>
->>>>> How swapcache is handled ? ...and How kmem works with this calc ?
->>>>>
->>>> I am ignoring kmem, because we don't account kmem for the root cgroup
->>>> anyway.
->>>>
->>>> Setting the limit is invalid, and we don't account until the limit is
->>>> set. Then it will be 0, always.
->>>>
->>>> For swapcache, I am hoping that totalswap - freeswap will cover
->>>> everything swap related. If you think I am wrong, please enlighten me.
->>>>
->>>
->>> i.totalswap - i.freeswap = # of used swap entries.
->>>
->>> SwapCache can be rss and used swap entry at the same time.
->>>
->>
->> Well, yes, but the rss entries would be accounted for in get_mm_rss(),
->> won't they ?
->>
->> What am I missing ?
->
->
-> I think the correct caluculation is
->
->   Sum of all RSS + All file caches + (i.total_swap - i.freeswap - # of mapped SwapCache)
->
->
-> In the patch, mapped SwapCache is counted as both of rss and swap.
->
+Introduce zero-filled pages handler to capture and handle zero pages.
 
-After a quick look, swapcache is counted as file pages and meanwhile
-use a swap entry at the same time(__add_to{delete_from}_swap_cache()).
-Even though, I think we still do not need to exclude swapcache out,
-because it indeed uses two copy of resource: one is swap entry, one is
-cache, so the usage should count both of them in.
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ drivers/staging/zcache/zcache-main.c |   26 ++++++++++++++++++++++++++
+ 1 files changed, 26 insertions(+), 0 deletions(-)
 
-What I think it matters is that swapcache may be counted as both file
-pages and rss(if it's a process's anonymous page), which we need to
-subtract # of swapcache to avoid double-counting. But it isn't always
-so: a shmem/tmpfs page may use swapcache and be counted as file pages
-but not a rss, then we can not subtract swapcache... Is there anything
-I lost?
-
-> BTW, how about
->
->   Sum of all LRU + (i.total_swap - i.freeswap - # of all SwapCache)
-> ?
->
-> Thanks,
-> -Kame
->
->
->
->
->
->
->
->
->
-
-
-
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index 328898e..b71e033 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -460,6 +460,32 @@ static void zcache_obj_free(struct tmem_obj *obj, struct tmem_pool *pool)
+ 	kmem_cache_free(zcache_obj_cache, obj);
+ }
+ 
++static bool page_zero_filled(void *ptr)
++{
++	unsigned int pos;
++	unsigned long *page;
++
++	page = (unsigned long *)ptr;
++
++	for (pos = 0; pos < PAGE_SIZE / sizeof(*page); pos++) {
++		if (page[pos])
++			return false;
++	}
++
++	return true;
++}
++
++static void handle_zero_page(void *page)
++{
++	void *user_mem;
++
++	user_mem = kmap_atomic(page);
++	memset(user_mem, 0, PAGE_SIZE);
++	kunmap_atomic(user_mem);
++
++	flush_dcache_page(page);
++}
++
+ static struct tmem_hostops zcache_hostops = {
+ 	.obj_alloc = zcache_obj_alloc,
+ 	.obj_free = zcache_obj_free,
 -- 
-Thanks,
-Sha
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
