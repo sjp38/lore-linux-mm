@@ -1,145 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 5A4D46B004D
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 02:33:14 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 0418F6B005C
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 02:33:17 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 6/8] mm, vmalloc: iterate vmap_area_list, instead of vmlist, in vmallocinfo()
-Date: Wed, 13 Mar 2013 15:32:58 +0900
-Message-Id: <1363156381-2881-7-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 7/8] mm, vmalloc: export vmap_area_list, instead of vmlist
+Date: Wed, 13 Mar 2013 15:32:59 +0900
+Message-Id: <1363156381-2881-8-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1363156381-2881-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1363156381-2881-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Anderson <anderson@redhat.com>, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Bob Liu <lliubbo@gmail.com>, Pekka Enberg <penberg@kernel.org>, kexec@lists.infradead.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Anderson <anderson@redhat.com>, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>, Bob Liu <lliubbo@gmail.com>, Pekka Enberg <penberg@kernel.org>, kexec@lists.infradead.org, Joonsoo Kim <js1304@gmail.com>, Eric Biederman <ebiederm@xmission.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 From: Joonsoo Kim <js1304@gmail.com>
 
-This patch is preparing step for removing vmlist entirely.
-For above purpose, we change iterating a vmap_list codes to iterating a
-vmap_area_list. It is somewhat trivial change, but just one thing
-should be noticed.
+Although our intention is to unexport internal structure entirely,
+but there is one exception for kexec. kexec dumps address of vmlist
+and makedumpfile uses this information.
 
-Using vmap_area_list in vmallocinfo() introduce ordering problem in SMP
-system. In s_show(), we retrieve some values from vm_struct. vm_struct's
-values is not fully setup when va->vm is assigned. Full setup is notified
-by removing VM_UNLIST flag without holding a lock. When we see that
-VM_UNLIST is removed, it is not ensured that vm_struct has proper values
-in view of other CPUs. So we need smp_[rw]mb for ensuring that proper
-values is assigned when we see that VM_UNLIST is removed.
+We are about to remove vmlist, then another way to retrieve information
+of vmalloc layer is needed for makedumpfile. For this purpose,
+we export vmap_area_list, instead of vmlist.
 
-Therefore, this patch not only change a iteration list, but also add a
-appropriate smp_[rw]mb to right places.
-
+Cc: Eric Biederman <ebiederm@xmission.com>
+Cc: Dave Anderson <anderson@redhat.com>
+Cc: Vivek Goyal <vgoyal@redhat.com>
+Cc: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
 Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 698b1e5..8a25f90 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -130,8 +130,7 @@ extern long vwrite(char *buf, char *addr, unsigned long count);
+ /*
+  *	Internals.  Dont't use..
+  */
+-extern rwlock_t vmlist_lock;
+-extern struct vm_struct *vmlist;
++extern struct list_head vmap_area_list;
+ extern __init void vm_area_add_early(struct vm_struct *vm);
+ extern __init void vm_area_register_early(struct vm_struct *vm, size_t align);
+ 
+diff --git a/kernel/kexec.c b/kernel/kexec.c
+index bddd3d7..d9bfc6c 100644
+--- a/kernel/kexec.c
++++ b/kernel/kexec.c
+@@ -1489,7 +1489,7 @@ static int __init crash_save_vmcoreinfo_init(void)
+ 	VMCOREINFO_SYMBOL(swapper_pg_dir);
+ #endif
+ 	VMCOREINFO_SYMBOL(_stext);
+-	VMCOREINFO_SYMBOL(vmlist);
++	VMCOREINFO_SYMBOL(vmap_area_list);
+ 
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
+ 	VMCOREINFO_SYMBOL(mem_map);
+diff --git a/mm/nommu.c b/mm/nommu.c
+index e193280..ed82358 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -228,8 +228,7 @@ int follow_pfn(struct vm_area_struct *vma, unsigned long address,
+ }
+ EXPORT_SYMBOL(follow_pfn);
+ 
+-DEFINE_RWLOCK(vmlist_lock);
+-struct vm_struct *vmlist;
++LIST_HEAD(vmap_area_list);
+ 
+ void vfree(const void *addr)
+ {
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index aee1f61..bda6cef 100644
+index bda6cef..7e63984 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -1304,7 +1304,14 @@ static void insert_vmalloc_vmlist(struct vm_struct *vm)
- {
- 	struct vm_struct *tmp, **p;
+@@ -261,7 +261,8 @@ struct vmap_area {
+ };
  
-+	/*
-+	 * Before removing VM_UNLIST,
-+	 * we should make sure that vm has proper values.
-+	 * Pair with smp_rmb() in show_numa_info().
-+	 */
-+	smp_wmb();
- 	vm->flags &= ~VM_UNLIST;
+ static DEFINE_SPINLOCK(vmap_area_lock);
+-static LIST_HEAD(vmap_area_list);
++/* Export for kexec only */
++LIST_HEAD(vmap_area_list);
+ static struct rb_root vmap_area_root = RB_ROOT;
+ 
+ /* The vmap cache globals are protected by vmap_area_lock */
+@@ -272,6 +273,10 @@ static unsigned long cached_align;
+ 
+ static unsigned long vmap_area_pcpu_hole;
+ 
++/*** Old vmalloc interfaces ***/
++static DEFINE_RWLOCK(vmlist_lock);
++static struct vm_struct *vmlist;
 +
- 	write_lock(&vmlist_lock);
- 	for (p = &vmlist; (tmp = *p) != NULL; p = &tmp->next) {
- 		if (tmp->addr >= vm->addr)
-@@ -2542,19 +2549,19 @@ void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
- 
- #ifdef CONFIG_PROC_FS
- static void *s_start(struct seq_file *m, loff_t *pos)
--	__acquires(&vmlist_lock)
-+	__acquires(&vmap_area_lock)
+ static struct vmap_area *__find_vmap_area(unsigned long addr)
  {
- 	loff_t n = *pos;
--	struct vm_struct *v;
-+	struct vmap_area *va;
- 
--	read_lock(&vmlist_lock);
--	v = vmlist;
--	while (n > 0 && v) {
-+	spin_lock(&vmap_area_lock);
-+	va = list_entry((&vmap_area_list)->next, typeof(*va), list);
-+	while (n > 0 && &va->list != &vmap_area_list) {
- 		n--;
--		v = v->next;
-+		va = list_entry(va->list.next, typeof(*va), list);
- 	}
--	if (!n)
--		return v;
-+	if (!n && &va->list != &vmap_area_list)
-+		return va;
- 
- 	return NULL;
- 
-@@ -2562,16 +2569,20 @@ static void *s_start(struct seq_file *m, loff_t *pos)
- 
- static void *s_next(struct seq_file *m, void *p, loff_t *pos)
- {
--	struct vm_struct *v = p;
-+	struct vmap_area *va = p, *next;
- 
- 	++*pos;
--	return v->next;
-+	next = list_entry(va->list.next, typeof(*va), list);
-+	if (&next->list != &vmap_area_list)
-+		return next;
-+
-+	return NULL;
+ 	struct rb_node *n = vmap_area_root.rb_node;
+@@ -1283,10 +1288,6 @@ int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
  }
+ EXPORT_SYMBOL_GPL(map_vm_area);
  
- static void s_stop(struct seq_file *m, void *p)
--	__releases(&vmlist_lock)
-+	__releases(&vmap_area_lock)
+-/*** Old vmalloc interfaces ***/
+-DEFINE_RWLOCK(vmlist_lock);
+-struct vm_struct *vmlist;
+-
+ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+ 			      unsigned long flags, const void *caller)
  {
--	read_unlock(&vmlist_lock);
-+	spin_unlock(&vmap_area_lock);
- }
- 
- static void show_numa_info(struct seq_file *m, struct vm_struct *v)
-@@ -2582,6 +2593,11 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
- 		if (!counters)
- 			return;
- 
-+		/* Pair with smp_wmb() in insert_vmalloc_vmlist() */
-+		smp_rmb();
-+		if (v->flags & VM_UNLIST)
-+			return;
-+
- 		memset(counters, 0, nr_node_ids * sizeof(unsigned int));
- 
- 		for (nr = 0; nr < v->nr_pages; nr++)
-@@ -2595,7 +2611,20 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
- 
- static int s_show(struct seq_file *m, void *p)
- {
--	struct vm_struct *v = p;
-+	struct vmap_area *va = p;
-+	struct vm_struct *v;
-+
-+	if (va->flags & (VM_LAZY_FREE | VM_LAZY_FREEING))
-+		return 0;
-+
-+	if (!(va->flags & VM_VM_AREA)) {
-+		seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
-+			(void *)va->va_start, (void *)va->va_end,
-+					va->va_end - va->va_start);
-+		return 0;
-+	}
-+
-+	v = va->vm;
- 
- 	seq_printf(m, "0x%pK-0x%pK %7ld",
- 		v->addr, v->addr + v->size, v->size);
 -- 
 1.7.9.5
 
