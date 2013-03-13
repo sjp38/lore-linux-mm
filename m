@@ -1,70 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 085186B0006
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 21:06:00 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DF57A3EE0AE
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 10:05:58 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BF9B445DE4E
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 10:05:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A6AE945DE55
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 10:05:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DA4EE0800A
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 10:05:55 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 353F91DB8037
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 10:05:55 +0900 (JST)
-Message-ID: <513FD0CB.4000407@jp.fujitsu.com>
-Date: Wed, 13 Mar 2013 10:05:15 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 2612B6B0006
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 21:10:40 -0400 (EDT)
+Date: Tue, 12 Mar 2013 18:10:20 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH] bounce:fix bug, avoid to flush dcache on slab page from
+ jbd2.
+Message-ID: <20130313011020.GA5313@blackbox.djwong.org>
+References: <5139DB90.5090302@gmail.com>
+ <20130312153221.0d26fe5599d4885e51bb0c7c@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/6] memcg: use global stat directly for root memcg usage
-References: <1363082773-3598-1-git-send-email-handai.szj@taobao.com> <1363082920-3711-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1363082920-3711-1-git-send-email-handai.szj@taobao.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130312153221.0d26fe5599d4885e51bb0c7c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, glommer@parallels.com, akpm@linux-foundation.org, mgorman@suse.de, Sha Zhengju <handai.szj@taobao.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shuge <shugelinux@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Kevin <kevin@allwinneretch.com>, Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
 
-(2013/03/12 19:08), Sha Zhengju wrote:
-> Since mem_cgroup_recursive_stat(root_mem_cgroup, INDEX) will sum up
-> all memcg stats without regard to root's use_hierarchy, we may use
-> global stats instead for simplicity.
+On Tue, Mar 12, 2013 at 03:32:21PM -0700, Andrew Morton wrote:
+> On Fri, 08 Mar 2013 20:37:36 +0800 Shuge <shugelinux@gmail.com> wrote:
 > 
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-> ---
->   mm/memcontrol.c |    6 +++---
->   1 file changed, 3 insertions(+), 3 deletions(-)
+> > The bounce accept slab pages from jbd2, and flush dcache on them.
+> > When enabling VM_DEBUG, it will tigger VM_BUG_ON in page_mapping().
+> > So, check PageSlab to avoid it in __blk_queue_bounce().
+> > 
+> > Bug URL: http://lkml.org/lkml/2013/3/7/56
+> > 
+> > ...
+> >
+> > --- a/mm/bounce.c
+> > +++ b/mm/bounce.c
+> > @@ -214,7 +214,8 @@ static void __blk_queue_bounce(struct request_queue 
+> > *q, struct bio **bio_orig,
+> >   		if (rw == WRITE) {
+> >   			char *vto, *vfrom;
+> >   -			flush_dcache_page(from->bv_page);
+> > +			if (unlikely(!PageSlab(from->bv_page)))
+> > +				flush_dcache_page(from->bv_page);
+> >   			vto = page_address(to->bv_page) + to->bv_offset;
+> >   			vfrom = kmap(from->bv_page) + from->bv_offset;
+> >   			memcpy(vto, vfrom, to->bv_len);
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 669d16a..735cd41 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4987,11 +4987,11 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
->   			return res_counter_read_u64(&memcg->memsw, RES_USAGE);
->   	}
->   
-> -	val = mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_CACHE);
-> -	val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_RSS);
-> +	val = global_page_state(NR_FILE_PAGES);
-> +	val += global_page_state(NR_ANON_PAGES);
->   
-you missed NR_ANON_TRANSPARENT_HUGEPAGES
+> I guess this is triggered by Catalin's f1a0c4aa0937975b ("arm64: Cache
+> maintenance routines"), which added a page_mapping() call to arm64's
+> arch/arm64/mm/flush.c:flush_dcache_page().
+> 
+> What's happening is that jbd2 is using kmalloc() to allocate buffer_head
+> data.  That gets submitted down the BIO layer and __blk_queue_bounce()
+> calls flush_dcache_page() which in the arm64 case calls page_mapping()
+> and page_mapping() does VM_BUG_ON(PageSlab) and splat.
+> 
+> The unusual thing about all of this is that the payload for some disk
+> IO is coming from kmalloc, rather than being a user page.  It's oddball
+> but we've done this for ages and should continue to support it.
+> 
+> 
+> Now, the page from kmalloc() cannot be in highmem, so why did the
+> bounce code decide to bounce it?
+> 
+> __blk_queue_bounce() does
+> 
+> 		/*
+> 		 * is destination page below bounce pfn?
+> 		 */
+> 		if (page_to_pfn(page) <= queue_bounce_pfn(q) && !force)
+> 			continue;
+> 
+> and `force' comes from must_snapshot_stable_pages().  But
+> must_snapshot_stable_pages() must have returned false, because if it
+> had returned true then it would have been must_snapshot_stable_pages()
+> which went BUG, because must_snapshot_stable_pages() calls page_mapping().
+> 
+> So my tentative diagosis is that arm64 is fishy.  A page which was
+> allocated via jbd2_alloc(GFP_NOFS)->kmem_cache_alloc() ended up being
+> above arm64's queue_bounce_pfn().  Can you please do a bit of
+> investigation to work out if this is what is happening?  Find out why
+> __blk_queue_bounce() decided to bounce a page which shouldn't have been
+> bounced?
 
->   	if (swap)
-> -		val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_SWAP);
-> +		val += total_swap_pages - atomic_long_read(&nr_swap_pages);
->   
-Double count mapped SwapCache ? Did you saw Costa's trial in a week ago ?
+That sure is strange.  I didn't see any obvious reasons why we'd end up with a
+kmalloc above queue_bounce_pfn().  But then I don't have any arm64s either.
 
-Thanks,
--Kame
+> This is all terribly fragile :( afaict if someone sets
+> bdi_cap_stable_pages_required() against that jbd2 queue, we're going to
+> hit that BUG_ON() again, via must_snapshot_stable_pages()'s
+> page_mapping() call.  (Darrick, this means you ;))
 
+Wheeee.  You're right, we shouldn't be calling page_mapping on slab pages.
+We can keep walking the bio segments to find a non-slab page that can tell us
+MS_SNAP_STABLE is set, since we probably won't need the bounce buffer anyway.
+
+How does something like this look?  (+ the patch above)
+
+--D
+
+Subject: [PATCH] mm: Don't blow up on slab pages being written to disk
+
+Don't assume that all pages attached to a bio are non-slab pages.  This happens
+if (for example) jbd2 allocates a buffer out of the slab to hold frozen data.
+If we encounter a slab page, just ignore the page and keep searching.
+Hopefully filesystems are smart enough to guarantee that slab pages won't
+be dirtied while they're also being written to disk.
+
+Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+---
+ mm/bounce.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/bounce.c b/mm/bounce.c
+index 5f89017..af34855 100644
+--- a/mm/bounce.c
++++ b/mm/bounce.c
+@@ -199,6 +199,8 @@ static int must_snapshot_stable_pages(struct request_queue *q, struct bio *bio)
+ 	 */
+ 	bio_for_each_segment(from, bio, i) {
+ 		page = from->bv_page;
++		if (PageSlab(page))
++			continue;
+ 		mapping = page_mapping(page);
+ 		if (!mapping)
+ 			continue;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
