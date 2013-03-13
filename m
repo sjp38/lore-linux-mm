@@ -1,59 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 2F1DE6B0006
-	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 21:31:36 -0400 (EDT)
-Received: by mail-ob0-f170.google.com with SMTP id wc20so518714obb.29
-        for <linux-mm@kvack.org>; Tue, 12 Mar 2013 18:31:35 -0700 (PDT)
-Message-ID: <513FD6F2.5060804@gmail.com>
-Date: Wed, 13 Mar 2013 09:31:30 +0800
-From: Will Huck <will.huckk@gmail.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id F243E6B0002
+	for <linux-mm@kvack.org>; Tue, 12 Mar 2013 23:36:14 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id rr4so547300pbb.13
+        for <linux-mm@kvack.org>; Tue, 12 Mar 2013 20:36:14 -0700 (PDT)
+Message-ID: <513FF3F3.2000509@gmail.com>
+Date: Wed, 13 Mar 2013 11:35:15 +0800
+From: Shuge <shugelinux@gmail.com>
 MIME-Version: 1.0
-Subject: Re: Swap defragging
-References: <CAGDaZ_rvfrBVCKMuEdPcSod684xwbUf9Aj4nbas4_vcG3V9yfg@mail.gmail.com> <20130308023511.GD23767@cmpxchg.org> <513A97C5.7020008@gmail.com> <20130312165247.GB1953@cmpxchg.org>
-In-Reply-To: <20130312165247.GB1953@cmpxchg.org>
+Subject: Re: [PATCH] bounce:fix bug, avoid to flush dcache on slab page from
+ jbd2.
+References: <5139DB90.5090302@gmail.com> <20130312153221.0d26fe5599d4885e51bb0c7c@linux-foundation.org> <20130313011020.GA5313@blackbox.djwong.org>
+In-Reply-To: <20130313011020.GA5313@blackbox.djwong.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Raymond Jennings <shentino@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Kevin <kevin@allwinnertech.com>, Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
 
-Hi Johannes,
-On 03/13/2013 12:52 AM, Johannes Weiner wrote:
-> On Sat, Mar 09, 2013 at 10:00:37AM +0800, Will Huck wrote:
->> Hi Johannes,
->> On 03/08/2013 10:35 AM, Johannes Weiner wrote:
->>> On Thu, Mar 07, 2013 at 06:07:23PM -0800, Raymond Jennings wrote:
->>>> Just a two cent question, but is there any merit to having the kernel
->>>> defragment swap space?
->>> That is a good question.
+Hi all
+>>> The bounce accept slab pages from jbd2, and flush dcache on them.
+>>> When enabling VM_DEBUG, it will tigger VM_BUG_ON in page_mapping().
+>>> So, check PageSlab to avoid it in __blk_queue_bounce().
 >>>
->>> Swap does fragment quite a bit, and there are several reasons for
->>> that.
->> Are there any tools to test and monitor swap subsystem and page
->> reclaim subsystem?
+>>> Bug URL: http://lkml.org/lkml/2013/3/7/56
+>>>
+>>> ...
+>>>
+>> ......
+>>
+> That sure is strange.  I didn't see any obvious reasons why we'd end up with a
+>
+......
 
-pgscan_kswapd_dma 0
-pgscan_kswapd_dma32 0
-pgscan_kswapd_normal 0
-pgscan_kswapd_movable 0
-pgscan_direct_dma 0
-pgscan_direct_dma32 0
-pgscan_direct_normal 0
-pgscan_direct_movable 0
-pgscan_direct_throttle 0
-zone_reclaim_failed 0
-pginodesteal 0
-slabs_scanned 328704
-
-slab cache is scaned but file-backed/swap-backed pages are not scanned, why?
-
-> seekwatcher is great to see the IO patterns.  Anything that uses
-> anonymous memory can test swap: a java job, multiplying matrixes,
-> kernel builds etc.  I mostly log /proc/vmstat by taking snapshots at a
-> regular interval during the workload, then plot and visually correlate
-> the swapin/swapout counters with the individual LRU sizes, page fault
-> rate, what have you, to get a feeling for what it's doing.
+     Well, this problem not only appear in arm64, but also arm32. And my 
+kernel version is 3.3.0, arch is arm32.
+Following the newest kernel, the problem shoulde be exist.
+     I agree with Darrick's modification. Hum, if 
+CONFIG_NEED_BOUNCE_POOL is not set, it also flush dcahce on
+the pages of b_frozen_data, some of them are allocated by kmem_cache_alloc.
+     As we know, jbd2_alloc allocate a buffer from jbd2_xk slab pool, 
+when the size is smaller than PAGE_SIZE.
+The b_frozen_data  is not mapped to usrspace, not aliasing cache. It cat 
+be lazy flush or other. Is it right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
