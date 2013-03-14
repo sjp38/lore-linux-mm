@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id AB94B6B0038
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:12 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 560266B004D
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:17 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RFC 02/30] mm: implement zero_huge_user_segment and friends
-Date: Thu, 14 Mar 2013 19:50:07 +0200
-Message-Id: <1363283435-7666-3-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2, RFC 14/30] thp, mm: naive support of thp in generic read/write routines
+Date: Thu, 14 Mar 2013 19:50:19 +0200
+Message-Id: <1363283435-7666-15-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,79 +15,106 @@ Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Let's add helpers to clear huge page segment(s). They provide the same
-functionallity as zero_user_segment{,s} and zero_user, but for huge
-pages.
+For now we still write/read at most PAGE_CACHE_SIZE bytes a time.
+
+This implementation doesn't cover address spaces with backing store.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/mm.h |   15 +++++++++++++++
- mm/memory.c        |   26 ++++++++++++++++++++++++++
- 2 files changed, 41 insertions(+)
+ mm/filemap.c |   35 ++++++++++++++++++++++++++++++-----
+ 1 file changed, 30 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5b7fd4e..df83ab9 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1731,6 +1731,21 @@ extern void dump_page(struct page *page);
- extern void clear_huge_page(struct page *page,
- 			    unsigned long addr,
- 			    unsigned int pages_per_huge_page);
-+extern void zero_huge_user_segment(struct page *page,
-+		unsigned start, unsigned end);
-+static inline void zero_huge_user_segments(struct page *page,
-+		unsigned start1, unsigned end1,
-+		unsigned start2, unsigned end2)
-+{
-+	zero_huge_user_segment(page, start1, end1);
-+	zero_huge_user_segment(page, start2, end2);
-+}
-+static inline void zero_huge_user(struct page *page,
-+		unsigned start, unsigned len)
-+{
-+	zero_huge_user_segment(page, start, start+len);
-+}
-+
- extern void copy_user_huge_page(struct page *dst, struct page *src,
- 				unsigned long addr, struct vm_area_struct *vma,
- 				unsigned int pages_per_huge_page);
-diff --git a/mm/memory.c b/mm/memory.c
-index 494526a..98c25dd 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4213,6 +4213,32 @@ void clear_huge_page(struct page *page,
- 	}
- }
+diff --git a/mm/filemap.c b/mm/filemap.c
+index bdedb1b..79ba9cd 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1165,12 +1165,23 @@ find_page:
+ 			if (unlikely(page == NULL))
+ 				goto no_cached_page;
+ 		}
++		if (PageTransTail(page)) {
++			page_cache_release(page);
++			page = find_get_page(mapping,
++					index & ~HPAGE_CACHE_INDEX_MASK);
++			if (!PageTransHuge(page)) {
++				page_cache_release(page);
++				goto find_page;
++			}
++		}
+ 		if (PageReadahead(page)) {
++			BUG_ON(PageTransHuge(page));
+ 			page_cache_async_readahead(mapping,
+ 					ra, filp, page,
+ 					index, last_index - index);
+ 		}
+ 		if (!PageUptodate(page)) {
++			BUG_ON(PageTransHuge(page));
+ 			if (inode->i_blkbits == PAGE_CACHE_SHIFT ||
+ 					!mapping->a_ops->is_partially_uptodate)
+ 				goto page_not_up_to_date;
+@@ -1212,18 +1223,25 @@ page_ok:
+ 		}
+ 		nr = nr - offset;
  
-+void zero_huge_user_segment(struct page *page, unsigned start, unsigned end)
-+{
-+	int i;
++		/* Recalculate offset in page if we've got a huge page */
++		if (PageTransHuge(page)) {
++			offset = (((loff_t)index << PAGE_CACHE_SHIFT) + offset);
++			offset &= ~HPAGE_PMD_MASK;
++		}
 +
-+	BUG_ON(end < start);
+ 		/* If users can be writing to this page using arbitrary
+ 		 * virtual addresses, take care about potential aliasing
+ 		 * before reading the page on the kernel side.
+ 		 */
+ 		if (mapping_writably_mapped(mapping))
+-			flush_dcache_page(page);
++			flush_dcache_page(page + (offset >> PAGE_CACHE_SHIFT));
+ 
+ 		/*
+ 		 * When a sequential read accesses a page several times,
+ 		 * only mark it as accessed the first time.
+ 		 */
+-		if (prev_index != index || offset != prev_offset)
++		if (prev_index != index ||
++				(offset & ~PAGE_CACHE_MASK) != prev_offset)
+ 			mark_page_accessed(page);
+ 		prev_index = index;
+ 
+@@ -1238,8 +1256,9 @@ page_ok:
+ 		 * "pos" here (the actor routine has to update the user buffer
+ 		 * pointers and the remaining count).
+ 		 */
+-		ret = file_read_actor(desc, page, offset, nr);
+-		offset += ret;
++		ret = file_read_actor(desc, page + (offset >> PAGE_CACHE_SHIFT),
++				offset & ~PAGE_CACHE_MASK, nr);
++		offset =  (offset & ~PAGE_CACHE_MASK) + ret;
+ 		index += offset >> PAGE_CACHE_SHIFT;
+ 		offset &= ~PAGE_CACHE_MASK;
+ 		prev_offset = offset;
+@@ -2440,8 +2459,13 @@ again:
+ 		if (mapping_writably_mapped(mapping))
+ 			flush_dcache_page(page);
+ 
++		if (PageTransHuge(page))
++			offset = pos & ~HPAGE_PMD_MASK;
 +
-+	might_sleep();
-+
-+	if (start == end)
-+		return;
-+
-+	/* start and end are on the same small page */
-+	if ((start & PAGE_MASK) == ((end - 1) & PAGE_MASK))
-+		return zero_user_segment(page + (start >> PAGE_SHIFT),
-+				start & ~PAGE_MASK,
-+				((end - 1) & ~PAGE_MASK) + 1);
-+
-+	zero_user_segment(page + (start >> PAGE_SHIFT),
-+			start & ~PAGE_MASK, PAGE_SIZE);
-+	for (i = (start >> PAGE_SHIFT) + 1; i < (end >> PAGE_SHIFT) - 1; i++) {
-+		cond_resched();
-+		clear_highpage(page + i);
-+	}
-+	zero_user_segment(page + i, 0, ((end - 1) & ~PAGE_MASK) + 1);
-+}
-+
- static void copy_user_gigantic_page(struct page *dst, struct page *src,
- 				    unsigned long addr,
- 				    struct vm_area_struct *vma,
+ 		pagefault_disable();
+-		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
++		copied = iov_iter_copy_from_user_atomic(
++				page + (offset >> PAGE_CACHE_SHIFT),
++				i, offset & ~PAGE_CACHE_MASK, bytes);
+ 		pagefault_enable();
+ 		flush_dcache_page(page);
+ 
+@@ -2464,6 +2488,7 @@ again:
+ 			 * because not all segments in the iov can be copied at
+ 			 * once without a pagefault.
+ 			 */
++			offset = pos & ~PAGE_CACHE_MASK;
+ 			bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
+ 						iov_iter_single_seg_count(i));
+ 			goto again;
 -- 
 1.7.10.4
 
