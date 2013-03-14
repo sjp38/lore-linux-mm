@@ -1,71 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id DAD8D6B0006
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 06:50:30 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 14 Mar 2013 20:43:45 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 07D402BB0023
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 21:50:26 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2EAoM8764422072
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 21:50:22 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2EAoP5j018977
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 21:50:25 +1100
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v2] mm/hugetlb: fix total hugetlbfs pages count when memory overcommit accouting
-Date: Thu, 14 Mar 2013 18:49:49 +0800
-Message-Id: <1363258189-24945-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id C4F106B0006
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 06:53:09 -0400 (EDT)
+Received: by mail-ie0-f170.google.com with SMTP id c11so2821033ieb.15
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2013 03:53:09 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20130314102142.GC11636@dhcp22.suse.cz>
+References: <CANkm-Fhz2A3vg_egsm15Siimi4X5AQrx0cYyFNAGNcEG5=3_JA@mail.gmail.com>
+ <20130314102142.GC11636@dhcp22.suse.cz>
+From: Alexander R <aleromex@gmail.com>
+Date: Thu, 14 Mar 2013 14:52:38 +0400
+Message-ID: <CANkm-Fif_PistVd-8JywKz3vBQk1OqMzkwGHwze9aM9cCHLeiw@mail.gmail.com>
+Subject: Re: kernel trace
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org
 
-Changelog:
- v1 -> v2:
-  * update patch description, spotted by Michal
+On Thu, Mar 14, 2013 at 2:21 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Thu 07-03-13 20:50:05, Alexander R wrote:
+>> Hi,
+>
+> Hi,
+>
+>> i use opensuse12.2 x86_64.
+>>
+>> May be it would helpfully for your development
+>>
+>> [   51.943819] ------------[ cut here ]------------
+>> [   51.943838] WARNING: at
+>> /home/abuild/rpmbuild/BUILD/kernel-default-3.4.28/linux-3.4/mm/memcontrol.c:5007
+>> mem_cgroup_create+0x3ac/0x510()
+>> [   51.943841] Hardware name: ProLiant DL560 Gen8
+>> [   51.943842] Creating hierarchies with use_hierarchy==0 (flat hierarchy)
+>> is considered deprecated. If you believe that your setup is correct, we
+>> kindly ask you to contact linux-mm@kvack.org and let us know
+> [...]
+>> [   51.943880] Pid: 7222, comm: libvirtd Tainted: G        W
+>>  3.4.28-2.20-default #1
+>> [   51.943882] Call Trace:
+>> [   51.943909]  [<ffffffff81004598>] dump_trace+0x78/0x2c0
+>> [   51.943920]  [<ffffffff81532e6a>] dump_stack+0x69/0x6f
+>> [   51.943926]  [<ffffffff8103ead9>] warn_slowpath_common+0x79/0xc0
+>> [   51.943931]  [<ffffffff8103ebd5>] warn_slowpath_fmt+0x45/0x50
+>> [   51.943934]  [<ffffffff8151c04c>] mem_cgroup_create+0x3ac/0x510
+>> [   51.943944]  [<ffffffff810a7983>] cgroup_mkdir+0x103/0x3a0
+>> [   51.943952]  [<ffffffff81160345>] vfs_mkdir+0xb5/0x170
+>> [   51.943958]  [<ffffffff81164444>] sys_mkdirat+0xe4/0xf0
+>> [   51.943968]  [<ffffffff81545c7d>] system_call_fastpath+0x1a/0x1f
+>> [   51.943974]  [<00007f12ed256f77>] 0x7f12ed256f76
+>> [   51.943975] ---[ end trace a6c54db610fd5bb5 ]---
+>
+> This is a known thing. Please have a look at
+> https://bugzilla.novell.com/show_bug.cgi?id=781134
 
-hugetlb_total_pages() does not account for all the supported hugepage
-sizes. This can lead to incorrect calculation of the total number of
-page frames used by hugetlb. This patch corrects the issue.
+Access Denied
+You are not authorized to access bug #781134.
 
-Testcase:
-boot: hugepagesz=1G hugepages=1
-before patch:
-egrep 'CommitLimit' /proc/meminfo
-CommitLimit:     55434168 kB
-after patch:
-egrep 'CommitLimit' /proc/meminfo
-CommitLimit:     54909880 kB
+i've no access.
 
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
----
- mm/hugetlb.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index cdb64e4..9e25040 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2124,8 +2124,11 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
- /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
- unsigned long hugetlb_total_pages(void)
- {
--	struct hstate *h = &default_hstate;
--	return h->nr_huge_pages * pages_per_huge_page(h);
-+	struct hstate *h;
-+	unsigned long nr_total_pages = 0;
-+	for_each_hstate(h)
-+		nr_total_pages += h->nr_huge_pages * pages_per_huge_page(h);
-+	return nr_total_pages;
- }
- 
- static int hugetlb_acct_memory(struct hstate *h, long delta)
--- 
-1.7.11.7
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
