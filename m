@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 6B75C6B0075
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 7F1A96B005A
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:25 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RFC 06/30] thp, mm: basic defines for transparent huge page cache
-Date: Thu, 14 Mar 2013 19:50:11 +0200
-Message-Id: <1363283435-7666-7-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2, RFC 24/30] thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
+Date: Thu, 14 Mar 2013 19:50:29 +0200
+Message-Id: <1363283435-7666-25-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,37 +15,65 @@ Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+It's confusing that mk_huge_pmd() has sematics different from mk_pte()
+or mk_pmd().
+
+Let's move maybe_pmd_mkwrite() out of mk_huge_pmd() and adjust
+prototype to match mk_pte().
+
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/huge_mm.h |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ mm/huge_memory.c |   14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index ee1c244..a54939c 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -64,6 +64,10 @@ extern pmd_t *page_check_address_pmd(struct page *page,
- #define HPAGE_PMD_MASK HPAGE_MASK
- #define HPAGE_PMD_SIZE HPAGE_SIZE
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 34e0385..be7b7e1 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -691,11 +691,10 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
+ 	return pmd;
+ }
  
-+#define HPAGE_CACHE_ORDER      (HPAGE_SHIFT - PAGE_CACHE_SHIFT)
-+#define HPAGE_CACHE_NR         (1L << HPAGE_CACHE_ORDER)
-+#define HPAGE_CACHE_INDEX_MASK (HPAGE_CACHE_NR - 1)
-+
- extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+-static inline pmd_t mk_huge_pmd(struct page *page, struct vm_area_struct *vma)
++static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
+ {
+ 	pmd_t entry;
+-	entry = mk_pmd(page, vma->vm_page_prot);
+-	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++	entry = mk_pmd(page, prot);
+ 	entry = pmd_mkhuge(entry);
+ 	return entry;
+ }
+@@ -723,7 +722,8 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 		pte_free(mm, pgtable);
+ 	} else {
+ 		pmd_t entry;
+-		entry = mk_huge_pmd(page, vma);
++		entry = mk_huge_pmd(page, vma->vm_page_prot);
++		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ 		/*
+ 		 * The spinlocking to take the lru_lock inside
+ 		 * page_add_new_anon_rmap() acts as a full memory
+@@ -1212,7 +1212,8 @@ alloc:
+ 		goto out_mn;
+ 	} else {
+ 		pmd_t entry;
+-		entry = mk_huge_pmd(new_page, vma);
++		entry = mk_huge_pmd(new_page, vma->vm_page_prot);
++		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+ 		pmdp_clear_flush(vma, haddr, pmd);
+ 		page_add_new_anon_rmap(new_page, vma, haddr);
+ 		set_pmd_at(mm, haddr, pmd, entry);
+@@ -2382,7 +2383,8 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	__SetPageUptodate(new_page);
+ 	pgtable = pmd_pgtable(_pmd);
  
- #define transparent_hugepage_enabled(__vma)				\
-@@ -181,6 +185,10 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
- #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
- #define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
+-	_pmd = mk_huge_pmd(new_page, vma);
++	_pmd = mk_huge_pmd(new_page, vma->vm_page_prot);
++	_pmd = maybe_pmd_mkwrite(pmd_mkdirty(_pmd), vma);
  
-+#define HPAGE_CACHE_ORDER      ({ BUILD_BUG(); 0; })
-+#define HPAGE_CACHE_NR         ({ BUILD_BUG(); 0; })
-+#define HPAGE_CACHE_INDEX_MASK ({ BUILD_BUG(); 0; })
-+
- #define hpage_nr_pages(x) 1
- 
- #define transparent_hugepage_enabled(__vma) 0
+ 	/*
+ 	 * spin_lock() below is not the equivalent of smp_wmb(), so
 -- 
 1.7.10.4
 
