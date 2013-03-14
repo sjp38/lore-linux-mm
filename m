@@ -1,93 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 8D15A6B0006
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 05:44:23 -0400 (EDT)
-Date: Thu, 14 Mar 2013 10:44:19 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm/hugetlb: fix total hugetlbfs pages count when memory
- overcommit accouting
-Message-ID: <20130314094419.GA11631@dhcp22.suse.cz>
-References: <1363158511-21272-1-git-send-email-liwanp@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1363158511-21272-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id E66FD6B0006
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 06:09:03 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 14 Mar 2013 20:07:02 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 3FB4C2BB0053
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 21:08:55 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2E9txHw61931568
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 20:56:00 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2EA8rqD025890
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 21:08:53 +1100
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v2 0/4] zcache: Support zero-filled pages more efficiently
+Date: Thu, 14 Mar 2013 18:08:13 +0800
+Message-Id: <1363255697-19674-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Wed 13-03-13 15:08:31, Wanpeng Li wrote:
-> After commit 42d7395f ("mm: support more pagesizes for MAP_HUGETLB/SHM_HUGETLB")
-> be merged, kernel permit multiple huge page sizes,
+Changelog:
+ v1 -> v2:
+  * avoid changing tmem.[ch] entirely, spotted by Dan.
+  * don't accumulate [eph|pers]pageframe and [eph|pers]zpages for 
+    zero-filled pages, spotted by Dan
+  * cleanup TODO list
+  * add Dan Acked-by.
 
-multiple huge page sizes were possible long before this commit. The
-above mentioned patch just made their usage via IPC much easier. You
-could do the same previously (since a137e1cc) by mounting hugetlbfs with
-a specific page size as a parameter and using mmap.
+Motivation:
 
-> and when the system administrator has configured the system to provide
-> huge page pools of different sizes, application can choose the page
-> size used for their allocation.
+- Seth Jennings points out compress zero-filled pages with LZO(a lossless 
+  data compression algorithm) will waste memory and result in fragmentation.
+  https://lkml.org/lkml/2012/8/14/347
+- Dan Magenheimer add "Support zero-filled pages more efficiently" feature 
+  in zcache TODO list https://lkml.org/lkml/2013/2/13/503
 
-> However, just default size of huge page pool is statistical when
-> memory overcommit accouting, the bad is that this will result in
-> innocent processes be killed by oom-killer later.
+Design:
 
-Why would an innnocent process be killed? The overcommit calculation
-is incorrect, that is true, but this just means that an unexpected
-ENOMEM/EFAULT or SIGSEGV would be returned, no? How an OOM could be a
-result?
+- For store page, capture zero-filled pages(evicted clean page cache pages and 
+  swap pages), but don't compress them, set pampd which store zpage address to
+  0x2(since 0x0 and 0x1 has already been ocuppied) to mark special zero-filled
+  case and take advantage of tmem infrastructure to transform handle-tuple(pool
+  id, object id, and an index) to a pampd. Twice compress zero-filled pages will
+  contribute to one zcache_[eph|pers]_pageframes count accumulated.
+- For load page, traverse tmem hierachical to transform handle-tuple to pampd 
+  and identify zero-filled case by pampd equal to 0x2 when filesystem reads
+  file pages or a page needs to be swapped in, then refill the page to zero
+  and return.
 
-> Fix it by statistic all huge page pools of different sizes provided by
-> administrator.
+Test:
 
-The patch makes sense but the description is misleading AFAICS.
+dd if=/dev/zero of=zerofile bs=1MB count=500
+vmtouch -t zerofile
+vmtouch -e zerofile
 
-> Testcase:
-> boot: hugepagesz=1G hugepages=1
-> before patch:
-> egrep 'CommitLimit' /proc/meminfo
-> CommitLimit:     55434168 kB
-> after patch:
-> egrep 'CommitLimit' /proc/meminfo
-> CommitLimit:     54909880 kB
-> 
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> ---
->  mm/hugetlb.c | 7 +++++--
->  1 file changed, 5 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index cdb64e4..9e25040 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2124,8 +2124,11 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
->  /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
->  unsigned long hugetlb_total_pages(void)
->  {
-> -	struct hstate *h = &default_hstate;
-> -	return h->nr_huge_pages * pages_per_huge_page(h);
-> +	struct hstate *h;
-> +	unsigned long nr_total_pages = 0;
-> +	for_each_hstate(h)
-> +		nr_total_pages += h->nr_huge_pages * pages_per_huge_page(h);
-> +	return nr_total_pages;
->  }
->  
->  static int hugetlb_acct_memory(struct hstate *h, long delta)
-> -- 
-> 1.7.11.7
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+formula:
+- fragmentation level = (zcache_[eph|pers]_pageframes * PAGE_SIZE - zcache_[eph|pers]_zbytes) 
+  * 100 / (zcache_[eph|pers]_pageframes * PAGE_SIZE)
+- memory zcache occupy = zcache_[eph|pers]_zbytes 
+
+Result:
+
+without zero-filled awareness:
+- fragmentation level: 98%
+- memory zcache occupy: 238MB
+with zero-filled awareness:
+- fragmentation level: 0%
+- memory zcache occupy: 0MB
+
+Wanpeng Li (4):
+  introduce zero-filled pages handler
+  zero-filled pages awareness
+  introduce zero-filled pages stat count
+  clean TODO list
+
+ drivers/staging/zcache/TODO          |    3 +-
+ drivers/staging/zcache/zcache-main.c |  119 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 114 insertions(+), 8 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
