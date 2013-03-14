@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 7F1A96B005A
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 439596B004D
 	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:25 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RFC 24/30] thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
-Date: Thu, 14 Mar 2013 19:50:29 +0200
-Message-Id: <1363283435-7666-25-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2, RFC 10/30] thp, mm: locking tail page is a bug
+Date: Thu, 14 Mar 2013 19:50:15 +0200
+Message-Id: <1363283435-7666-11-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,65 +15,31 @@ Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-It's confusing that mk_huge_pmd() has sematics different from mk_pte()
-or mk_pmd().
-
-Let's move maybe_pmd_mkwrite() out of mk_huge_pmd() and adjust
-prototype to match mk_pte().
-
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c |   14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ mm/filemap.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 34e0385..be7b7e1 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -691,11 +691,10 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
- 	return pmd;
- }
- 
--static inline pmd_t mk_huge_pmd(struct page *page, struct vm_area_struct *vma)
-+static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 0ff3403..38fdc92 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -669,6 +669,7 @@ void __lock_page(struct page *page)
  {
- 	pmd_t entry;
--	entry = mk_pmd(page, vma->vm_page_prot);
--	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-+	entry = mk_pmd(page, prot);
- 	entry = pmd_mkhuge(entry);
- 	return entry;
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+ 
++	VM_BUG_ON(PageTail(page));
+ 	__wait_on_bit_lock(page_waitqueue(page), &wait, sleep_on_page,
+ 							TASK_UNINTERRUPTIBLE);
  }
-@@ -723,7 +722,8 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 		pte_free(mm, pgtable);
- 	} else {
- 		pmd_t entry;
--		entry = mk_huge_pmd(page, vma);
-+		entry = mk_huge_pmd(page, vma->vm_page_prot);
-+		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
- 		/*
- 		 * The spinlocking to take the lru_lock inside
- 		 * page_add_new_anon_rmap() acts as a full memory
-@@ -1212,7 +1212,8 @@ alloc:
- 		goto out_mn;
- 	} else {
- 		pmd_t entry;
--		entry = mk_huge_pmd(new_page, vma);
-+		entry = mk_huge_pmd(new_page, vma->vm_page_prot);
-+		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
- 		pmdp_clear_flush(vma, haddr, pmd);
- 		page_add_new_anon_rmap(new_page, vma, haddr);
- 		set_pmd_at(mm, haddr, pmd, entry);
-@@ -2382,7 +2383,8 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	__SetPageUptodate(new_page);
- 	pgtable = pmd_pgtable(_pmd);
+@@ -678,6 +679,7 @@ int __lock_page_killable(struct page *page)
+ {
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
  
--	_pmd = mk_huge_pmd(new_page, vma);
-+	_pmd = mk_huge_pmd(new_page, vma->vm_page_prot);
-+	_pmd = maybe_pmd_mkwrite(pmd_mkdirty(_pmd), vma);
- 
- 	/*
- 	 * spin_lock() below is not the equivalent of smp_wmb(), so
++	VM_BUG_ON(PageTail(page));
+ 	return __wait_on_bit_lock(page_waitqueue(page), &wait,
+ 					sleep_on_page_killable, TASK_KILLABLE);
+ }
 -- 
 1.7.10.4
 
