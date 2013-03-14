@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 849516B0081
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:26 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 6B75C6B0075
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:23 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RFC 20/30] ramfs: enable transparent huge page cache
-Date: Thu, 14 Mar 2013 19:50:25 +0200
-Message-Id: <1363283435-7666-21-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2, RFC 06/30] thp, mm: basic defines for transparent huge page cache
+Date: Thu, 14 Mar 2013 19:50:11 +0200
+Message-Id: <1363283435-7666-7-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,34 +15,37 @@ Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-ramfs is the most simple fs from page cache point of view. Let's start
-transparent huge page cache enabling here.
-
-For now we allocate only non-movable huge page. It's not yet clear if
-movable page is safe here and what need to be done to make it safe.
-
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/ramfs/inode.c |    6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ include/linux/huge_mm.h |    8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
-index c24f1e1..da30b4f 100644
---- a/fs/ramfs/inode.c
-+++ b/fs/ramfs/inode.c
-@@ -61,7 +61,11 @@ struct inode *ramfs_get_inode(struct super_block *sb,
- 		inode_init_owner(inode, dir, mode);
- 		inode->i_mapping->a_ops = &ramfs_aops;
- 		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
--		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
-+		/*
-+		 * TODO: what should be done to make movable safe?
-+		 */
-+		mapping_set_gfp_mask(inode->i_mapping,
-+				GFP_TRANSHUGE & ~__GFP_MOVABLE);
- 		mapping_set_unevictable(inode->i_mapping);
- 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
- 		switch (mode & S_IFMT) {
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index ee1c244..a54939c 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -64,6 +64,10 @@ extern pmd_t *page_check_address_pmd(struct page *page,
+ #define HPAGE_PMD_MASK HPAGE_MASK
+ #define HPAGE_PMD_SIZE HPAGE_SIZE
+ 
++#define HPAGE_CACHE_ORDER      (HPAGE_SHIFT - PAGE_CACHE_SHIFT)
++#define HPAGE_CACHE_NR         (1L << HPAGE_CACHE_ORDER)
++#define HPAGE_CACHE_INDEX_MASK (HPAGE_CACHE_NR - 1)
++
+ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+ 
+ #define transparent_hugepage_enabled(__vma)				\
+@@ -181,6 +185,10 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
+ #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
+ #define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
+ 
++#define HPAGE_CACHE_ORDER      ({ BUILD_BUG(); 0; })
++#define HPAGE_CACHE_NR         ({ BUILD_BUG(); 0; })
++#define HPAGE_CACHE_INDEX_MASK ({ BUILD_BUG(); 0; })
++
+ #define hpage_nr_pages(x) 1
+ 
+ #define transparent_hugepage_enabled(__vma) 0
 -- 
 1.7.10.4
 
