@@ -1,71 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id DB0CA6B0037
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 15:53:06 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id hi18so2183887wib.15
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2013 12:53:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 090006B0027
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 16:23:44 -0400 (EDT)
+Message-ID: <51423196.6090907@web.de>
+Date: Thu, 14 Mar 2013 21:22:46 +0100
+From: Soeren Moch <smoch@web.de>
 MIME-Version: 1.0
-In-Reply-To: <51422008.3020208@gmx.de>
-References: <51422008.3020208@gmx.de>
-Date: Thu, 14 Mar 2013 20:53:05 +0100
-Message-ID: <CAFLxGvxeOyg=zXqK+q5BpTHcpnaymk0_cyTUkUyRxD_C3czZww@mail.gmail.com>
-Subject: Re: SLAB + UML : WARNING: at mm/page_alloc.c:2386
-From: richard -rw- weinberger <richard.weinberger@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH] USB: EHCI: fix for leaking isochronous data
+References: <Pine.LNX.4.44L0.1303101638330.3146-100000@netrider.rowland.org> <51421B89.6020308@web.de>
+In-Reply-To: <51421B89.6020308@web.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?ISO-8859-1?Q?Toralf_F=F6rster?= <toralf.foerster@gmx.de>
-Cc: linux-mm@kvack.org, user-mode-linux-user@lists.sourceforge.net, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Alan Stern <stern@rowland.harvard.edu>, USB list <linux-usb@vger.kernel.org>, Jason Cooper <jason@lakedaemon.net>, Andrew Lunn <andrew@lunn.ch>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-On Thu, Mar 14, 2013 at 8:07 PM, Toralf F=F6rster <toralf.foerster@gmx.de> =
-wrote:
-> The following WARNING: can be triggered sometimes with trinity [1] under =
-a user mode linux image
-> using the SLUB allocator (and not with SLAB)
+On 14.03.2013 19:48, Soeren Moch wrote:
+> On 10.03.2013 21:59, Alan Stern wrote:
+>> On Sun, 10 Mar 2013, Soeren Moch wrote:
+>>>> On Wed, 20 Feb 2013, Soeren Moch wrote:
+>>>>
+>>>>> Ok. I use 2 em2840-based usb sticks (em28xx driver) attached to a
+>>>>> Marvell Kirkwood-SoC with a orion-ehci usb controller. These usb
+>>>>> sticks
+>>>>> stream dvb data (digital TV) employing isochronous usb transfers (user
+>>>>> application is vdr).
+>>>>>
+>>>>> Starting from linux-3.6 I see
+>>>>>      ERROR: 1024 KiB atomic DMA coherent pool is too small!
+>>>>> in the syslog after several 10 minutes (sometimes hours) of streaming
+>>>>> and then streaming stops.
+>>>>>
+>>>>> In linux-3.6 the memory management for the arm architecture was
+>>>>> changed,
+>>>>> so that atomic coherent dma allocations are served from a special
+>>>>> pool.
+>>>>> This pool gets exhausted. The only user of this pool (in my test) is
+>>>>> orion-ehci. Although I have only 10 URBs in flight (5 for each stick,
+>>>>> resubmitted in the completion handler), I have 256 atomic coherent
+>>>>> allocations (memory from the pool is allocated in pages) from
+>>>>> orion-ehci
+>>>>> when I see this error. So I think there must be a memory leak (memory
+>>>>> allocated atomic somewhere below the usb_submit_urb call in
+>>>>> em28xx-core.c).
+>>>>>
+>>>>> With other dvb sticks using usb bulk transfers I never see this error.
+>>>>>
+>>>>> Since you already found a memory leak in the ehci driver for isoc
+>>>>> transfers, I hoped you can help to solve this problem. If there are
+>>>>> additional questions, please ask. If there is something I can test, I
+>>>>> would be glad to do so.
+>>>>
+>>>> I guess the first thing is to get a dmesg log showing the problem.  You
+>>>> should build a kernel with CONFIG_USB_DEBUG enabled and post the part
+>>>> of the dmesg output starting from when you plug in the troublesome DVB
+>>>> stick.
+>>>
+>>> Sorry for my late response. Now I built a kernel 3.8.0 with usb_debug
+>>> enabled. See below for the syslog of device plug-in.
+>>>
+>>>> It also might help to have a record of all the isochronous-related
+>>>> coherent allocations and deallocations done by the ehci-hcd driver.
+>>>> Are you comfortable making your own debugging changes?  The allocations
+>>>> are done by a call to dma_pool_alloc() in
+>>>> drivers/usb/host/ehci-sched.c:itd_urb_transaction() if the device runs
+>>>> at high speed and sitd_urb_transaction() if the device runs at full
+>>>> speed.  The deallocations are done by calls to dma_pool_free() in
+>>>> ehci-timer.c:end_free_itds().
+>>>>
+>>>
+>>> I added a debug message to
+>>> drivers/usb/host/ehci-sched.c:itd_urb_transaction() to log the
+>>> allocation flags, see log below.
+>>
+>> But it looks like you didn't add a message to end_free_itds(), so we
+>> don't know when the memory gets deallocated.  And you didn't print out
+>> the values of urb, num_itds, and i, or the value of itd (so we can
+>> match up allocations against deallocations).
 >
+> OK, I will implement this more detailed logging. But with several
+> allocations per second and runtime of several hours this will result in
+> a very long logfile.
 >
-> 2013-03-14T19:09:51.071+01:00 trinity kernel: ------------[ cut here ]---=
----------
-> 2013-03-14T19:09:51.071+01:00 trinity kernel: WARNING: at mm/page_alloc.c=
-:2386 __alloc_pages_nodemask+0x153/0x750()
-> 2013-03-14T19:09:51.071+01:00 trinity kernel: 3899fd14:  [<08342dd8>] dum=
-p_stack+0x22/0x24
-> 2013-03-14T19:09:51.071+01:00 trinity kernel: 3899fd2c:  [<0807d0da>] war=
-n_slowpath_common+0x5a/0x80
-> 2013-03-14T19:09:51.071+01:00 trinity kernel: 3899fd54:  [<0807d1a3>] war=
-n_slowpath_null+0x23/0x30
-> 2013-03-14T19:09:51.071+01:00 trinity kernel: 3899fd64:  [<080d3213>] __a=
-lloc_pages_nodemask+0x153/0x750
-> 2013-03-14T19:09:51.071+01:00 trinity kernel: 3899fdf0:  [<080d3838>] __g=
-et_free_pages+0x28/0x50
-> 2013-03-14T19:09:51.071+01:00 trinity kernel: 3899fe08:  [<080fc48f>] __k=
-malloc_track_caller+0x3f/0x180
-> 2013-03-14T19:09:51.071+01:00 trinity kernel: 3899fe30:  [<080dec76>] mem=
-dup_user+0x26/0x70
-> 2013-03-14T19:09:51.071+01:00 trinity kernel: 3899fe4c:  [<080dee7e>] str=
-ndup_user+0x3e/0x60
-> 2013-03-14T19:09:51.076+01:00 trinity kernel: 3899fe68:  [<0811b440>] cop=
-y_mount_string+0x30/0x50
-> 2013-03-14T19:09:51.076+01:00 trinity kernel: 3899fe7c:  [<0811be0a>] sys=
-_mount+0x1a/0xe0
-> 2013-03-14T19:09:51.076+01:00 trinity kernel: 3899feac:  [<08062a92>] han=
-dle_syscall+0x82/0xb0
-> 2013-03-14T19:09:51.076+01:00 trinity kernel: 3899fef4:  [<08074e7d>] use=
-rspace+0x46d/0x590
-> 2013-03-14T19:09:51.076+01:00 trinity kernel: 3899ffec:  [<0805f7cc>] for=
-k_handler+0x6c/0x70
-> 2013-03-14T19:09:51.076+01:00 trinity kernel: 3899fffc:  [<5a5a5a5a>] 0x5=
-a5a5a5a
-> 2013-03-14T19:09:51.076+01:00 trinity kernel:
-> 2013-03-14T19:09:51.076+01:00 trinity kernel: ---[ end trace fd6f346f805e=
-fdbe ]---
+>>> For me this looks like nothing is
+>>> allocated atomic here, so this function should not be the root cause of
+>>> the dma coherent pool exhaustion.
+>>
+>> I don't understand.  If non-atomic allocations can't exhaust the pool,
+>> why do we see these allocations fail?
+>
+> Good point. Unfortunately I'm not familiar with the memory management
+> details.
+>
+> Arnd, can memory allocated with dma_pool_alloc() and gfp_flags
+> 0x20000093 or 0x80000093 come from the atomic dma coherent pool?
 
-Looks like strndup_user() triggers the issue.
-In another trace also strndup_user() appeared.
---=20
-Thanks,
-//richard
+Sorry, I logged the wrong flags. All allocations are GFP_ATOMIC (0x20) 
+and therefore coming from the pool.
+
+   Soeren
+
+>>> Are there other allocation functions
+>>> which I could track?
+>>
+>> Yes, but they wouldn't be used for isochronous transfers.  See
+>> ehci_qtd_alloc(), ehci_qtd_free(), ehci_qh_alloc(), and qh_destroy() in
+>> ehci-mem.c, as well as some other one-time-only coherent allocations in
+>> that file.
+>>
+>> Alan Stern
+>>
+> Soeren Moch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
