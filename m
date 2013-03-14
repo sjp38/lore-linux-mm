@@ -1,106 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id EB4636B0075
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 14:49:37 -0400 (EDT)
-Message-ID: <51421B89.6020308@web.de>
-Date: Thu, 14 Mar 2013 19:48:41 +0100
-From: Soeren Moch <smoch@web.de>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id DD5496B0075
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 14:55:01 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] USB: EHCI: fix for leaking isochronous data
-References: <Pine.LNX.4.44L0.1303101638330.3146-100000@netrider.rowland.org>
-In-Reply-To: <Pine.LNX.4.44L0.1303101638330.3146-100000@netrider.rowland.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <006139fe-542e-46f0-8b6c-b05efeb232d6@default>
+Date: Thu, 14 Mar 2013 11:54:35 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: zsmalloc limitations and related topics
+References: <0efe9610-1aa5-4aa9-bde9-227acfa969ca@default>
+ <20130313151359.GA3130@linux.vnet.ibm.com>
+ <4ab899f6-208c-4d61-833c-d1e5e8b1e761@default>
+ <514104D5.9020700@linux.vnet.ibm.com> <5141BC5D.9050005@oracle.com>
+ <20130314132046.GA3172@linux.vnet.ibm.com>
+In-Reply-To: <20130314132046.GA3172@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alan Stern <stern@rowland.harvard.edu>, Arnd Bergmann <arnd@arndb.de>
-Cc: USB list <linux-usb@vger.kernel.org>, Jason Cooper <jason@lakedaemon.net>, Andrew Lunn <andrew@lunn.ch>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Robert Jennings <rcj@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, minchan@kernel.org, Nitin Gupta <nitingupta910@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bob Liu <lliubbo@gmail.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>
 
-On 10.03.2013 21:59, Alan Stern wrote:
-> On Sun, 10 Mar 2013, Soeren Moch wrote:
->>> On Wed, 20 Feb 2013, Soeren Moch wrote:
->>>
->>>> Ok. I use 2 em2840-based usb sticks (em28xx driver) attached to a
->>>> Marvell Kirkwood-SoC with a orion-ehci usb controller. These usb sticks
->>>> stream dvb data (digital TV) employing isochronous usb transfers (user
->>>> application is vdr).
->>>>
->>>> Starting from linux-3.6 I see
->>>>      ERROR: 1024 KiB atomic DMA coherent pool is too small!
->>>> in the syslog after several 10 minutes (sometimes hours) of streaming
->>>> and then streaming stops.
->>>>
->>>> In linux-3.6 the memory management for the arm architecture was changed,
->>>> so that atomic coherent dma allocations are served from a special pool.
->>>> This pool gets exhausted. The only user of this pool (in my test) is
->>>> orion-ehci. Although I have only 10 URBs in flight (5 for each stick,
->>>> resubmitted in the completion handler), I have 256 atomic coherent
->>>> allocations (memory from the pool is allocated in pages) from orion-ehci
->>>> when I see this error. So I think there must be a memory leak (memory
->>>> allocated atomic somewhere below the usb_submit_urb call in em28xx-core.c).
->>>>
->>>> With other dvb sticks using usb bulk transfers I never see this error.
->>>>
->>>> Since you already found a memory leak in the ehci driver for isoc
->>>> transfers, I hoped you can help to solve this problem. If there are
->>>> additional questions, please ask. If there is something I can test, I
->>>> would be glad to do so.
->>>
->>> I guess the first thing is to get a dmesg log showing the problem.  You
->>> should build a kernel with CONFIG_USB_DEBUG enabled and post the part
->>> of the dmesg output starting from when you plug in the troublesome DVB
->>> stick.
->>
->> Sorry for my late response. Now I built a kernel 3.8.0 with usb_debug
->> enabled. See below for the syslog of device plug-in.
->>
->>> It also might help to have a record of all the isochronous-related
->>> coherent allocations and deallocations done by the ehci-hcd driver.
->>> Are you comfortable making your own debugging changes?  The allocations
->>> are done by a call to dma_pool_alloc() in
->>> drivers/usb/host/ehci-sched.c:itd_urb_transaction() if the device runs
->>> at high speed and sitd_urb_transaction() if the device runs at full
->>> speed.  The deallocations are done by calls to dma_pool_free() in
->>> ehci-timer.c:end_free_itds().
->>>
->>
->> I added a debug message to
->> drivers/usb/host/ehci-sched.c:itd_urb_transaction() to log the
->> allocation flags, see log below.
->
-> But it looks like you didn't add a message to end_free_itds(), so we
-> don't know when the memory gets deallocated.  And you didn't print out
-> the values of urb, num_itds, and i, or the value of itd (so we can
-> match up allocations against deallocations).
+> From: Robert Jennings [mailto:rcj@linux.vnet.ibm.com]
+> Sent: Thursday, March 14, 2013 7:21 AM
+> To: Bob
+> Cc: Seth Jennings; Dan Magenheimer; minchan@kernel.org; Nitin Gupta; Konr=
+ad Wilk; linux-mm@kvack.org;
+> linux-kernel@vger.kernel.org; Bob Liu; Luigi Semenzato; Mel Gorman
+> Subject: Re: zsmalloc limitations and related topics
+>=20
+> * Bob (bob.liu@oracle.com) wrote:
+> > On 03/14/2013 06:59 AM, Seth Jennings wrote:
+> > >On 03/13/2013 03:02 PM, Dan Magenheimer wrote:
+> > >>>From: Robert Jennings [mailto:rcj@linux.vnet.ibm.com]
+> > >>>Subject: Re: zsmalloc limitations and related topics
+> > >>
+> <snip>
+> > >>Yes.  And add pageframe-reclaim to this list of things that
+> > >>zsmalloc should do but currently cannot do.
+> > >
+> > >The real question is why is pageframe-reclaim a requirement?  What
+> > >operation needs this feature?
+> > >
+> > >AFAICT, the pageframe-reclaim requirements is derived from the
+> > >assumption that some external control path should be able to tell
+> > >zswap/zcache to evacuate a page, like the shrinker interface.  But thi=
+s
+> > >introduces a new and complex problem in designing a policy that doesn'=
+t
+> > >shrink the zpage pool so aggressively that it is useless.
+> > >
+> > >Unless there is another reason for this functionality I'm missing.
+> > >
+> >
+> > Perhaps it's needed if the user want to enable/disable the memory
+> > compression feature dynamically.
+> > Eg, use it as a module instead of recompile the kernel or even
+> > reboot the system.
 
-OK, I will implement this more detailed logging. But with several 
-allocations per second and runtime of several hours this will result in 
-a very long logfile.
+It's worth thinking about: Under what circumstances would a user want
+to turn off compression?  While unloading a compression module should
+certainly be allowed if it makes a user comfortable, in my opinion,
+if a user wants to do that, we have done our job poorly (or there
+is a bug).
 
->> For me this looks like nothing is
->> allocated atomic here, so this function should not be the root cause of
->> the dma coherent pool exhaustion.
->
-> I don't understand.  If non-atomic allocations can't exhaust the pool,
-> why do we see these allocations fail?
+> To unload zswap all that is needed is to perform writeback on the pages
+> held in the cache, this can be done by extending the existing writeback
+> code.
 
-Good point. Unfortunately I'm not familiar with the memory management 
-details.
-
-Arnd, can memory allocated with dma_pool_alloc() and gfp_flags 
-0x20000093 or 0x80000093 come from the atomic dma coherent pool?
-
->> Are there other allocation functions
->> which I could track?
->
-> Yes, but they wouldn't be used for isochronous transfers.  See
-> ehci_qtd_alloc(), ehci_qtd_free(), ehci_qh_alloc(), and qh_destroy() in
-> ehci-mem.c, as well as some other one-time-only coherent allocations in
-> that file.
->
-> Alan Stern
->
-Soeren Moch
+Actually, frontswap supports this directly.  See frontswap_shrink.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
