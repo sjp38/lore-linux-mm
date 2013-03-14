@@ -1,56 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 26C816B0006
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 09:14:16 -0400 (EDT)
-Date: Thu, 14 Mar 2013 14:14:04 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/1] mm/hugetlb: add more arch-defined huge_pte_xxx
- functions
-Message-ID: <20130314131404.GH11631@dhcp22.suse.cz>
-References: <1363114106-30251-1-git-send-email-gerald.schaefer@de.ibm.com>
- <1363114106-30251-2-git-send-email-gerald.schaefer@de.ibm.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id DD8BA6B0006
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 09:20:59 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rcjenn@linux.vnet.ibm.com>;
+	Thu, 14 Mar 2013 23:18:56 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id AE9912CE804C
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 00:20:50 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2EDKkaW43909342
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 00:20:47 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2EDKm4t003726
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 00:20:49 +1100
+Date: Thu, 14 Mar 2013 08:20:46 -0500
+From: Robert Jennings <rcj@linux.vnet.ibm.com>
+Subject: Re: zsmalloc limitations and related topics
+Message-ID: <20130314132046.GA3172@linux.vnet.ibm.com>
+References: <0efe9610-1aa5-4aa9-bde9-227acfa969ca@default>
+ <20130313151359.GA3130@linux.vnet.ibm.com>
+ <4ab899f6-208c-4d61-833c-d1e5e8b1e761@default>
+ <514104D5.9020700@linux.vnet.ibm.com>
+ <5141BC5D.9050005@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1363114106-30251-2-git-send-email-gerald.schaefer@de.ibm.com>
+In-Reply-To: <5141BC5D.9050005@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Hillf Danton <dhillf@gmail.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Bob <bob.liu@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, minchan@kernel.org, Nitin Gupta <nitingupta910@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bob Liu <lliubbo@gmail.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>
 
-On Tue 12-03-13 19:48:26, Gerald Schaefer wrote:
-> Commit abf09bed3c "s390/mm: implement software dirty bits" introduced
-> another difference in the pte layout vs. the pmd layout on s390,
-> thoroughly breaking the s390 support for hugetlbfs. This requires
-> replacing some more pte_xxx functions in mm/hugetlbfs.c with a
-> huge_pte_xxx version.
+* Bob (bob.liu@oracle.com) wrote:
+> On 03/14/2013 06:59 AM, Seth Jennings wrote:
+> >On 03/13/2013 03:02 PM, Dan Magenheimer wrote:
+> >>>From: Robert Jennings [mailto:rcj@linux.vnet.ibm.com]
+> >>>Subject: Re: zsmalloc limitations and related topics
+> >>
+<snip>
+> >>Yes.  And add pageframe-reclaim to this list of things that
+> >>zsmalloc should do but currently cannot do.
+> >
+> >The real question is why is pageframe-reclaim a requirement?  What
+> >operation needs this feature?
+> >
+> >AFAICT, the pageframe-reclaim requirements is derived from the
+> >assumption that some external control path should be able to tell
+> >zswap/zcache to evacuate a page, like the shrinker interface.  But this
+> >introduces a new and complex problem in designing a policy that doesn't
+> >shrink the zpage pool so aggressively that it is useless.
+> >
+> >Unless there is another reason for this functionality I'm missing.
+> >
 > 
-> This patch introduces those huge_pte_xxx functions and their
-> implementation on all architectures supporting hugetlbfs. This change
-> will be a no-op for all architectures other than s390.
-> 
-> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> ---
->  arch/ia64/include/asm/hugetlb.h    | 36 ++++++++++++++++++++++++
->  arch/mips/include/asm/hugetlb.h    | 36 ++++++++++++++++++++++++
->  arch/powerpc/include/asm/hugetlb.h | 36 ++++++++++++++++++++++++
->  arch/s390/include/asm/hugetlb.h    | 56 +++++++++++++++++++++++++++++++++++++-
->  arch/s390/include/asm/pgtable.h    | 20 --------------
->  arch/s390/mm/hugetlbpage.c         |  2 +-
->  arch/sh/include/asm/hugetlb.h      | 36 ++++++++++++++++++++++++
->  arch/sparc/include/asm/hugetlb.h   | 36 ++++++++++++++++++++++++
->  arch/tile/include/asm/hugetlb.h    | 36 ++++++++++++++++++++++++
->  arch/x86/include/asm/hugetlb.h     | 36 ++++++++++++++++++++++++
->  mm/hugetlb.c                       | 23 ++++++++--------
->  11 files changed, 320 insertions(+), 33 deletions(-)
+> Perhaps it's needed if the user want to enable/disable the memory
+> compression feature dynamically.
+> Eg, use it as a module instead of recompile the kernel or even
+> reboot the system.
 
-Ouch, this adds a lot of code that is almost same for all archs except
-for some. Can we just make one common definition and define only those
-that differ, please?
-[...]
--- 
-Michal Hocko
-SUSE Labs
+To unload zswap all that is needed is to perform writeback on the pages
+held in the cache, this can be done by extending the existing writeback
+code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
