@@ -1,52 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 8385A6B0027
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 17:24:20 -0400 (EDT)
-Received: from mailout-de.gmx.net ([10.1.76.4]) by mrigmx.server.lan
- (mrigmx001) with ESMTP (Nemesis) id 0Lvegk-1UoU1P0QIu-017WHQ for
- <linux-mm@kvack.org>; Thu, 14 Mar 2013 22:24:19 +0100
-Message-ID: <51424000.1030309@gmx.de>
-Date: Thu, 14 Mar 2013 22:24:16 +0100
-From: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id AB2496B0027
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 17:33:09 -0400 (EDT)
+Date: Thu, 14 Mar 2013 17:33:07 -0400 (EDT)
+From: Alan Stern <stern@rowland.harvard.edu>
+Subject: Re: [PATCH] USB: EHCI: fix for leaking isochronous data
+In-Reply-To: <5142383F.6010001@web.de>
+Message-ID: <Pine.LNX.4.44L0.1303141719450.1194-100000@iolanthe.rowland.org>
 MIME-Version: 1.0
-Subject: Re: SLUB + UML : WARNING: at mm/page_alloc.c:2386
-References: <51422008.3020208@gmx.de> <CAFLxGvyzkSsUJQMefeB2PcVBykZNqCQe5k19k0MqyVr111848w@mail.gmail.com> <514239F7.3050704@gmx.de> <20130314212107.GA23056@redhat.com>
-In-Reply-To: <20130314212107.GA23056@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, richard -rw- weinberger <richard.weinberger@gmail.com>, linux-mm@kvack.org, user-mode-linux-user@lists.sourceforge.net, Linux Kernel <linux-kernel@vger.kernel.org>, Davi Arnaut <davi.arnaut@gmail.com>
+To: Soeren Moch <smoch@web.de>
+Cc: Arnd Bergmann <arnd@arndb.de>, USB list <linux-usb@vger.kernel.org>, Jason Cooper <jason@lakedaemon.net>, Andrew Lunn <andrew@lunn.ch>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, linux-mm@kvack.org, Kernel development list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org
 
-On 03/14/2013 10:21 PM, Dave Jones wrote:
-> hah, strndup_user taking a signed long instead of a size_t as it's length arg.
+On Thu, 14 Mar 2013, Soeren Moch wrote:
+
+> > If the memory really is being leaked here in some sort of systematic
+> > way, we may be able to see it in your debugging output after a few
+> > seconds.
+> >
 > 
-> either it needs to change, or it needs an explicit check for < 1
-> 
-> I wonder how many other paths make it possible to pass negative numbers here.
+> OK, here are the first seconds of the log. But the buffer exhaustion 
+> usually occurs after several hours of runtime...
 
-just for the statistics - currently -14 rules  :
+The log shows a 1-1 match between allocations and deallocations, except
+for three excess allocations about 45 lines before the end.  I have no
+idea what's up with those.  They may be an artifact arising from where
+you stopped copying the log data.
 
-2013-03-14T22:06:21.618+01:00 trinity kernel: memdup_user: -14
-2013-03-14T22:06:25.664+01:00 trinity kernel: memdup_user: 28
-2013-03-14T22:06:25.664+01:00 trinity kernel: memdup_user: -14
-2013-03-14T22:06:37.533+01:00 trinity kernel: memdup_user: 3
-2013-03-14T22:08:03.379+01:00 trinity kernel: memdup_user: -14
-2013-03-14T22:09:34.668+01:00 trinity kernel: memdup_user: -14
-2013-03-14T22:12:33.277+01:00 trinity kernel: memdup_user: -14
-2013-03-14T22:13:15.214+01:00 trinity kernel: memdup_user: 2
-2013-03-14T22:14:18.874+01:00 trinity kernel: trinity-watchdo[1169]: segfault at 244 ip 0804c956 sp bf836c9c error 4 in trinity[8048000+1d000]
-2013-03-14T22:15:10.287+01:00 trinity kernel: memdup_user: 2
-2013-03-14T22:15:10.287+01:00 trinity kernel: memdup_user: 2
-2013-03-14T22:17:50.351+01:00 trinity kernel: memdup_user: 2
-2013-03-14T22:17:59.411+01:00 trinity kernel: memdup_user: -14
+There are as many as 400 iTDs being allocated before any are freed.  
+That seems like a lot.  Are they all for the same isochronous endpoint?  
+What's the endpoint's period?  How often are URBs submitted?
 
-:-D
+In general, there shouldn't be more than a couple of millisecond's
+worth of iTDs allocated for any endpoint, depending on how many URBs 
+are in the pipeline at any time.
 
--- 
-MfG/Sincerely
-Toralf FA?rster
-pgp finger print: 7B1A 07F4 EC82 0F90 D4C2 8936 872A E508 7DB6 9DA3
+Maybe a better way to go about this is, instead of printing out every
+allocation and deallocation, to keep a running counter.  You could have
+the driver print out the value of this counter every minute or so.  Any 
+time the device isn't in use, the counter should be 0.
+
+Alan Stern
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
