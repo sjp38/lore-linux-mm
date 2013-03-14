@@ -1,111 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 557256B0036
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 11:07:05 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id hn17so3882435wib.10
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2013 08:07:02 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 1B3BB6B0027
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 12:11:24 -0400 (EDT)
 MIME-Version: 1.0
-In-Reply-To: <CAJd=RBAoNyniJpaeHafpWm0w7FfC9y+9+x_Gpdb74Jtzyk81HA@mail.gmail.com>
-References: <CAAO_Xo7sEH5W_9xoOjax8ynyjLCx7GBpse+EU0mF=9mEBFhrgw@mail.gmail.com>
-	<51347A6E.8010608@iskon.hr>
-	<CAAO_Xo6bWo4QOvdowLG88NoQr2AEq4jxCWHQXeA8g-VBT4Yk9Q@mail.gmail.com>
-	<513A9AF7.4020909@gmail.com>
-	<CAJd=RBAoNyniJpaeHafpWm0w7FfC9y+9+x_Gpdb74Jtzyk81HA@mail.gmail.com>
-Date: Thu, 14 Mar 2013 23:07:02 +0800
-Message-ID: <CAAO_Xo5aX4WzAQSHN9G5=6WOMD+2zPUJYGX3FgQL986-Fp2v7A@mail.gmail.com>
-Subject: Re: Inactive memory keep growing and how to release it?
-From: Lenky Gao <lenky.gao@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <d02b5afd-bcb0-47df-9960-8e2122a04ad8@default>
+Date: Thu, 14 Mar 2013 09:10:48 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 4/4] zcache: add pageframes count once compress
+ zero-filled pages twice
+References: <1363158321-20790-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1363158321-20790-5-git-send-email-liwanp@linux.vnet.ibm.com>
+ <634487ea-fbbd-4eb9-9a18-9206edc4e0d2@default>
+ <20130314002056.GA10062@hacker.(null)>
+In-Reply-To: <20130314002056.GA10062@hacker.(null)>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>
-Cc: Will Huck <will.huckk@gmail.com>, Zlatko Calusic <zlatko.calusic@iskon.hr>, Greg KH <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 14, 2013 at 6:14 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> One way would be to increase /proc/sys/vm/min_free_kbytes which will
-> enlarge watermaks so the reclaim starts sooner.
->
+> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
+> Sent: Wednesday, March 13, 2013 6:21 PM
+> To: Dan Magenheimer
+> Cc: Andrew Morton; Greg Kroah-Hartman; Dan Magenheimer; Seth Jennings; Ko=
+nrad Rzeszutek Wilk; Minchan
+> Kim; linux-mm@kvack.org; linux-kernel@vger.kernel.org
+> Subject: Re: [PATCH 4/4] zcache: add pageframes count once compress zero-=
+filled pages twice
+>=20
+> On Wed, Mar 13, 2013 at 09:42:16AM -0700, Dan Magenheimer wrote:
+> >> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
+> >> Sent: Wednesday, March 13, 2013 1:05 AM
+> >> To: Andrew Morton
+> >> Cc: Greg Kroah-Hartman; Dan Magenheimer; Seth Jennings; Konrad Rzeszut=
+ek Wilk; Minchan Kim; linux-
+> >> mm@kvack.org; linux-kernel@vger.kernel.org; Wanpeng Li
+> >> Subject: [PATCH 4/4] zcache: add pageframes count once compress zero-f=
+illed pages twice
+> >
+> >Hi Wanpeng --
+> >
+> >Thanks for taking on this task from the drivers/staging/zcache TODO list=
+!
+> >
+> >> Since zbudpage consist of two zpages, two zero-filled pages compressio=
+n
+> >> contribute to one [eph|pers]pageframe count accumulated.
+> >
+>=20
+> Hi Dan,
+>=20
+> >I'm not sure why this is necessary.  The [eph|pers]pageframe count
+> >is supposed to be counting actual pageframes used by zcache.  Since
+> >your patch eliminates the need to store zero pages, no pageframes
+> >are needed at all to store zero pages, so it's not necessary
+> >to increment zcache_[eph|pers]_pageframes when storing zero
+> >pages.
+> >
+>=20
+> Great point! It seems that we also don't need to caculate
+> zcache_[eph|pers]_zpages for zero-filled pages. I will fix
+> it in next version. :-)
 
-Good tip thanks. :)
+Hi Wanpeng --
 
-> This is really an old kernel and also a distribution one which might
-> contain a lot of patches on top of the core kernel. I would suggest to
-> contact Redhat or try to reproduce the issue with the vanilla and
-> up-to-date kernel and report here.
+I think we DO need to increment/decrement zcache_[eph|pers]_zpages
+for zero-filled pages.
 
-I have tested on other version vanilla kernel, such as 2.6.30 and 3.6.11, the
-issue also exist and it is easy to reproduce.
+The main point of the counters for zpages and pageframes
+is to be able to calculate density =3D=3D zpages/pageframes.
+A zero-filled page becomes a zpage that "compresses" to zero bytes
+and, as a result, requires zero pageframes for storage.
+So the zpages counter should be increased but the pageframes
+counter should not.
 
-Maybe i have found the answer for this question:
+If you are changing the patch anyway, I do like better the use
+of "zero_filled_page" rather than just "zero" or "zero page".
+So it might be good to change:
 
-On Thu, Mar 14, 2013 at 4:00 PM, Lenky Gao <lenky.gao@gmail.com> wrote:
-> Hi Everyone,
->
-> Maybe i have found the answer for this question. The author of the JBD
-> have explained in the comments:
->
-> /*
->  * When an ext3-ordered file is truncated, it is possible that many pages are
->  * not successfully freed, because they are attached to a committing
-> transaction.
->  * After the transaction commits, these pages are left on the LRU, with no
->  * ->mapping, and with attached buffers.  These pages are trivially reclaimable
->  * by the VM, but their apparent absence upsets the VM accounting, and it makes
->  * the numbers in /proc/meminfo look odd.
-> ...
->  */
-> static void release_buffer_page(struct buffer_head *bh)
-> {
->         struct page *page;
-> ...
+handle_zero_page -> handle_zero_filled_page
+pages_zero -> zero_filled_pages
+zcache_pages_zero -> zcache_zero_filled_pages
 
-But my new question is why not free those pages directly after the
-transaction commits?
+and maybe
 
-On Thu, Mar 14, 2013 at 8:39 PM, Hillf Danton <dhillf@gmail.com> wrote:
-> Perhaps we have to consider page count for orphan page if it
-> could be reproduced with mainline.
->
-> Hillf
-> ---
-> --- a/mm/vmscan.c       Sun Mar 10 13:36:26 2013
-> +++ b/mm/vmscan.c       Thu Mar 14 20:29:40 2013
-> @@ -315,14 +315,14 @@ out:
->         return ret;
->  }
->
-> -static inline int is_page_cache_freeable(struct page *page)
-> +static inline int is_page_cache_freeable(struct page *page, int has_mapping)
->  {
->         /*
->          * A freeable page cache page is referenced only by the caller
->          * that isolated the page, the page cache radix tree and
->          * optional buffer heads at page->private.
->          */
-> -       return page_count(page) - page_has_private(page) == 2;
-> +       return page_count(page) - page_has_private(page) == has_mapping + 1;
->  }
->
->  static int may_write_to_queue(struct backing_dev_info *bdi,
-> @@ -393,7 +393,7 @@ static pageout_t pageout(struct page *pa
->          * swap_backing_dev_info is bust: it doesn't reflect the
->          * congestion state of the swapdevs.  Easy to fix, if needed.
->          */
-> -       if (!is_page_cache_freeable(page))
-> +       if (!is_page_cache_freeable(page, mapping ? 1 : 0))
->                 return PAGE_KEEP;
->         if (!mapping) {
->                 /*
+page_zero_filled -> page_is_zero_filled
 
-Thanks, i'll test it.
-
-I am totally a newbie regarding VMM and EXT/JBD, thanks to everyone
-for your kind attention and help.
-
--- 
-Regards,
-
-Lenky
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
