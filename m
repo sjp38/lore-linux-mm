@@ -1,95 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 5BF816B0027
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 19:01:12 -0400 (EDT)
-Date: Thu, 14 Mar 2013 16:01:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] bounce:fix bug, avoid to flush dcache on slab page from
- jbd2.
-Message-Id: <20130314160110.a0fe092cb103bfe6720d3009@linux-foundation.org>
-In-Reply-To: <20130314224243.GI5313@blackbox.djwong.org>
-References: <5139DB90.5090302@gmail.com>
-	<20130312153221.0d26fe5599d4885e51bb0c7c@linux-foundation.org>
-	<20130313011020.GA5313@blackbox.djwong.org>
-	<20130313085021.GA29730@quack.suse.cz>
-	<20130313194429.GE5313@blackbox.djwong.org>
-	<20130313210216.GA7754@quack.suse.cz>
-	<20130314224243.GI5313@blackbox.djwong.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id F3BAB6B0027
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 19:10:41 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id hq4so127wib.0
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2013 16:10:40 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <51424000.1030309@gmx.de>
+References: <51422008.3020208@gmx.de>
+	<CAFLxGvyzkSsUJQMefeB2PcVBykZNqCQe5k19k0MqyVr111848w@mail.gmail.com>
+	<514239F7.3050704@gmx.de>
+	<20130314212107.GA23056@redhat.com>
+	<51424000.1030309@gmx.de>
+Date: Fri, 15 Mar 2013 00:10:40 +0100
+Message-ID: <CAFLxGvzcy_+2exNbbCGZ460Y417MjoChY39FPXvqaEOZTq8ofQ@mail.gmail.com>
+Subject: Re: SLUB + UML : WARNING: at mm/page_alloc.c:2386
+From: richard -rw- weinberger <richard.weinberger@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Jan Kara <jack@suse.cz>, Shuge <shugelinux@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Kevin <kevin@allwinneretch.com>, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
+To: =?ISO-8859-1?Q?Toralf_F=F6rster?= <toralf.foerster@gmx.de>
+Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, user-mode-linux-user@lists.sourceforge.net, Linux Kernel <linux-kernel@vger.kernel.org>, Davi Arnaut <davi.arnaut@gmail.com>
 
-On Thu, 14 Mar 2013 15:42:43 -0700 "Darrick J. Wong" <darrick.wong@oracle.com> wrote:
+On Thu, Mar 14, 2013 at 10:24 PM, Toralf F=F6rster <toralf.foerster@gmx.de>=
+ wrote:
+> On 03/14/2013 10:21 PM, Dave Jones wrote:
+>> hah, strndup_user taking a signed long instead of a size_t as it's lengt=
+h arg.
+>>
+>> either it needs to change, or it needs an explicit check for < 1
+>>
+>> I wonder how many other paths make it possible to pass negative numbers =
+here.
+>
+> just for the statistics - currently -14 rules  :
+>
+> 2013-03-14T22:06:21.618+01:00 trinity kernel: memdup_user: -14
+> 2013-03-14T22:06:25.664+01:00 trinity kernel: memdup_user: 28
+> 2013-03-14T22:06:25.664+01:00 trinity kernel: memdup_user: -14
+> 2013-03-14T22:06:37.533+01:00 trinity kernel: memdup_user: 3
+> 2013-03-14T22:08:03.379+01:00 trinity kernel: memdup_user: -14
+> 2013-03-14T22:09:34.668+01:00 trinity kernel: memdup_user: -14
+> 2013-03-14T22:12:33.277+01:00 trinity kernel: memdup_user: -14
+> 2013-03-14T22:13:15.214+01:00 trinity kernel: memdup_user: 2
+> 2013-03-14T22:14:18.874+01:00 trinity kernel: trinity-watchdo[1169]: segf=
+ault at 244 ip 0804c956 sp bf836c9c error 4 in trinity[8048000+1d000]
+> 2013-03-14T22:15:10.287+01:00 trinity kernel: memdup_user: 2
+> 2013-03-14T22:15:10.287+01:00 trinity kernel: memdup_user: 2
+> 2013-03-14T22:17:50.351+01:00 trinity kernel: memdup_user: 2
+> 2013-03-14T22:17:59.411+01:00 trinity kernel: memdup_user: -14
+>
 
-> Subject: [PATCH] mm: Make snapshotting pages for stable writes a per-bio operation
-> 
-> Walking a bio's page mappings has proved problematic, so create a new bio flag
-> to indicate that a bio's data needs to be snapshotted in order to guarantee
-> stable pages during writeback.  Next, for the one user (ext3/jbd) of
-> snapshotting, hook all the places where writes can be initiated without
-> PG_writeback set, and set BIO_SNAP_STABLE there.  Finally, the MS_SNAP_STABLE
-> mount flag (only used by ext3) is now superfluous, so get rid of it.
+-14 is -EFAULT.
+Time to look at UML's __get_user().
 
-whoa, that looks way better.
-
-Must do this though:
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-make-snapshotting-pages-for-stable-writes-a-per-bio-operation-fix
-
-rename _submit_bh()'s `flags' to `bio_flags', delobotomize the _submit_bh declaration
-
-Cc: Adrian Hunter <adrian.hunter@intel.com>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Artem Bityutskiy <dedekind1@gmail.com>
-Cc: Darrick J. Wong <darrick.wong@oracle.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Jens Axboe <axboe@kernel.dk>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- fs/buffer.c                 |    4 ++--
- include/linux/buffer_head.h |    2 +-
- 2 files changed, 3 insertions(+), 3 deletions(-)
-
-diff -puN fs/buffer.c~mm-make-snapshotting-pages-for-stable-writes-a-per-bio-operation-fix fs/buffer.c
---- a/fs/buffer.c~mm-make-snapshotting-pages-for-stable-writes-a-per-bio-operation-fix
-+++ a/fs/buffer.c
-@@ -2949,7 +2949,7 @@ static void guard_bh_eod(int rw, struct
- 	}
- }
- 
--int _submit_bh(int rw, struct buffer_head * bh, unsigned long flags)
-+int _submit_bh(int rw, struct buffer_head * bh, unsigned long bio_flags)
- {
- 	struct bio *bio;
- 	int ret = 0;
-@@ -2984,7 +2984,7 @@ int _submit_bh(int rw, struct buffer_hea
- 
- 	bio->bi_end_io = end_bio_bh_io_sync;
- 	bio->bi_private = bh;
--	bio->bi_flags |= flags;
-+	bio->bi_flags |= bio_flags;
- 
- 	/* Take care of bh's that straddle the end of the device */
- 	guard_bh_eod(rw, bio, bh);
-diff -puN include/linux/buffer_head.h~mm-make-snapshotting-pages-for-stable-writes-a-per-bio-operation-fix include/linux/buffer_head.h
---- a/include/linux/buffer_head.h~mm-make-snapshotting-pages-for-stable-writes-a-per-bio-operation-fix
-+++ a/include/linux/buffer_head.h
-@@ -181,7 +181,7 @@ void ll_rw_block(int, int, struct buffer
- int sync_dirty_buffer(struct buffer_head *bh);
- int __sync_dirty_buffer(struct buffer_head *bh, int rw);
- void write_dirty_buffer(struct buffer_head *bh, int rw);
--int _submit_bh(int, struct buffer_head *, unsigned long);
-+int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags);
- int submit_bh(int, struct buffer_head *);
- void write_boundary_block(struct block_device *bdev,
- 			sector_t bblock, unsigned blocksize);
-_
+--=20
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
