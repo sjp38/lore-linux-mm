@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 560266B004D
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:17 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 2D5C96B0037
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:14 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RFC 14/30] thp, mm: naive support of thp in generic read/write routines
-Date: Thu, 14 Mar 2013 19:50:19 +0200
-Message-Id: <1363283435-7666-15-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2, RFC 07/30] thp, mm: introduce mapping_can_have_hugepages() predicate
+Date: Thu, 14 Mar 2013 19:50:12 +0200
+Message-Id: <1363283435-7666-8-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,106 +15,35 @@ Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For now we still write/read at most PAGE_CACHE_SIZE bytes a time.
-
-This implementation doesn't cover address spaces with backing store.
+Returns true if mapping can have huge pages. Just check for __GFP_COMP
+in gfp mask of the mapping for now.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c |   35 ++++++++++++++++++++++++++++++-----
- 1 file changed, 30 insertions(+), 5 deletions(-)
+ include/linux/pagemap.h |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index bdedb1b..79ba9cd 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1165,12 +1165,23 @@ find_page:
- 			if (unlikely(page == NULL))
- 				goto no_cached_page;
- 		}
-+		if (PageTransTail(page)) {
-+			page_cache_release(page);
-+			page = find_get_page(mapping,
-+					index & ~HPAGE_CACHE_INDEX_MASK);
-+			if (!PageTransHuge(page)) {
-+				page_cache_release(page);
-+				goto find_page;
-+			}
-+		}
- 		if (PageReadahead(page)) {
-+			BUG_ON(PageTransHuge(page));
- 			page_cache_async_readahead(mapping,
- 					ra, filp, page,
- 					index, last_index - index);
- 		}
- 		if (!PageUptodate(page)) {
-+			BUG_ON(PageTransHuge(page));
- 			if (inode->i_blkbits == PAGE_CACHE_SHIFT ||
- 					!mapping->a_ops->is_partially_uptodate)
- 				goto page_not_up_to_date;
-@@ -1212,18 +1223,25 @@ page_ok:
- 		}
- 		nr = nr - offset;
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index e3dea75..3521b0d 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -84,6 +84,16 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
+ 				(__force unsigned long)mask;
+ }
  
-+		/* Recalculate offset in page if we've got a huge page */
-+		if (PageTransHuge(page)) {
-+			offset = (((loff_t)index << PAGE_CACHE_SHIFT) + offset);
-+			offset &= ~HPAGE_PMD_MASK;
-+		}
++static inline bool mapping_can_have_hugepages(struct address_space *m)
++{
++	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
++		gfp_t gfp_mask = mapping_gfp_mask(m);
++		return !!(gfp_mask & __GFP_COMP);
++	}
 +
- 		/* If users can be writing to this page using arbitrary
- 		 * virtual addresses, take care about potential aliasing
- 		 * before reading the page on the kernel side.
- 		 */
- 		if (mapping_writably_mapped(mapping))
--			flush_dcache_page(page);
-+			flush_dcache_page(page + (offset >> PAGE_CACHE_SHIFT));
- 
- 		/*
- 		 * When a sequential read accesses a page several times,
- 		 * only mark it as accessed the first time.
- 		 */
--		if (prev_index != index || offset != prev_offset)
-+		if (prev_index != index ||
-+				(offset & ~PAGE_CACHE_MASK) != prev_offset)
- 			mark_page_accessed(page);
- 		prev_index = index;
- 
-@@ -1238,8 +1256,9 @@ page_ok:
- 		 * "pos" here (the actor routine has to update the user buffer
- 		 * pointers and the remaining count).
- 		 */
--		ret = file_read_actor(desc, page, offset, nr);
--		offset += ret;
-+		ret = file_read_actor(desc, page + (offset >> PAGE_CACHE_SHIFT),
-+				offset & ~PAGE_CACHE_MASK, nr);
-+		offset =  (offset & ~PAGE_CACHE_MASK) + ret;
- 		index += offset >> PAGE_CACHE_SHIFT;
- 		offset &= ~PAGE_CACHE_MASK;
- 		prev_offset = offset;
-@@ -2440,8 +2459,13 @@ again:
- 		if (mapping_writably_mapped(mapping))
- 			flush_dcache_page(page);
- 
-+		if (PageTransHuge(page))
-+			offset = pos & ~HPAGE_PMD_MASK;
++	return false;
++}
 +
- 		pagefault_disable();
--		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
-+		copied = iov_iter_copy_from_user_atomic(
-+				page + (offset >> PAGE_CACHE_SHIFT),
-+				i, offset & ~PAGE_CACHE_MASK, bytes);
- 		pagefault_enable();
- 		flush_dcache_page(page);
- 
-@@ -2464,6 +2488,7 @@ again:
- 			 * because not all segments in the iov can be copied at
- 			 * once without a pagefault.
- 			 */
-+			offset = pos & ~PAGE_CACHE_MASK;
- 			bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
- 						iov_iter_single_seg_count(i));
- 			goto again;
+ /*
+  * The page cache can done in larger chunks than
+  * one page, because it allows for more efficient
 -- 
 1.7.10.4
 
