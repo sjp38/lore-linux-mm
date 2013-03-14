@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id D43B96B0036
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:09 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id AB94B6B0038
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:12 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RFC 04/30] radix-tree: implement preload for multiple contiguous elements
-Date: Thu, 14 Mar 2013 19:50:09 +0200
-Message-Id: <1363283435-7666-5-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2, RFC 02/30] mm: implement zero_huge_user_segment and friends
+Date: Thu, 14 Mar 2013 19:50:07 +0200
+Message-Id: <1363283435-7666-3-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,124 +15,79 @@ Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Currently radix_tree_preload() only guarantees enough nodes to insert
-one element. It's a hard limit. You cannot batch a number insert under
-one tree_lock.
+Let's add helpers to clear huge page segment(s). They provide the same
+functionallity as zero_user_segment{,s} and zero_user, but for huge
+pages.
 
-This patch introduces radix_tree_preload_count(). It allows to
-preallocate nodes enough to insert a number of *contiguous* elements.
-
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/radix-tree.h |    3 +++
- lib/radix-tree.c           |   32 +++++++++++++++++++++++++-------
- 2 files changed, 28 insertions(+), 7 deletions(-)
+ include/linux/mm.h |   15 +++++++++++++++
+ mm/memory.c        |   26 ++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)
 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index ffc444c..81318cb 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -83,6 +83,8 @@ do {									\
- 	(root)->rnode = NULL;						\
- } while (0)
- 
-+#define RADIX_TREE_PRELOAD_NR		512 /* For THP's benefit */
-+
- /**
-  * Radix-tree synchronization
-  *
-@@ -231,6 +233,7 @@ unsigned long radix_tree_next_hole(struct radix_tree_root *root,
- unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
- 				unsigned long index, unsigned long max_scan);
- int radix_tree_preload(gfp_t gfp_mask);
-+int radix_tree_preload_count(unsigned size, gfp_t gfp_mask);
- void radix_tree_init(void);
- void *radix_tree_tag_set(struct radix_tree_root *root,
- 			unsigned long index, unsigned int tag);
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index e796429..9bef0ac 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -81,16 +81,24 @@ static struct kmem_cache *radix_tree_node_cachep;
-  * The worst case is a zero height tree with just a single item at index 0,
-  * and then inserting an item at index ULONG_MAX. This requires 2 new branches
-  * of RADIX_TREE_MAX_PATH size to be created, with only the root node shared.
-+ *
-+ * Worst case for adding N contiguous items is adding entries at indexes
-+ * (ULONG_MAX - N) to ULONG_MAX. It requires nodes to insert single worst-case
-+ * item plus extra nodes if you cross the boundary from one node to the next.
-+ *
-  * Hence:
-  */
--#define RADIX_TREE_PRELOAD_SIZE (RADIX_TREE_MAX_PATH * 2 - 1)
-+#define RADIX_TREE_PRELOAD_MIN (RADIX_TREE_MAX_PATH * 2 - 1)
-+#define RADIX_TREE_PRELOAD_MAX \
-+	(RADIX_TREE_PRELOAD_MIN + \
-+	 DIV_ROUND_UP(RADIX_TREE_PRELOAD_NR - 1, RADIX_TREE_MAP_SIZE))
- 
- /*
-  * Per-cpu pool of preloaded nodes
-  */
- struct radix_tree_preload {
- 	int nr;
--	struct radix_tree_node *nodes[RADIX_TREE_PRELOAD_SIZE];
-+	struct radix_tree_node *nodes[RADIX_TREE_PRELOAD_MAX];
- };
- static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
- 
-@@ -257,29 +265,34 @@ radix_tree_node_free(struct radix_tree_node *node)
- 
- /*
-  * Load up this CPU's radix_tree_node buffer with sufficient objects to
-- * ensure that the addition of a single element in the tree cannot fail.  On
-- * success, return zero, with preemption disabled.  On error, return -ENOMEM
-+ * ensure that the addition of *contiguous* elements in the tree cannot fail.
-+ * On success, return zero, with preemption disabled.  On error, return -ENOMEM
-  * with preemption not disabled.
-  *
-  * To make use of this facility, the radix tree must be initialised without
-  * __GFP_WAIT being passed to INIT_RADIX_TREE().
-  */
--int radix_tree_preload(gfp_t gfp_mask)
-+int radix_tree_preload_count(unsigned size, gfp_t gfp_mask)
- {
- 	struct radix_tree_preload *rtp;
- 	struct radix_tree_node *node;
- 	int ret = -ENOMEM;
-+	int alloc = RADIX_TREE_PRELOAD_MIN +
-+		DIV_ROUND_UP(size - 1, RADIX_TREE_MAP_SIZE);
-+
-+	if (size > RADIX_TREE_PRELOAD_NR)
-+		return -ENOMEM;
- 
- 	preempt_disable();
- 	rtp = &__get_cpu_var(radix_tree_preloads);
--	while (rtp->nr < ARRAY_SIZE(rtp->nodes)) {
-+	while (rtp->nr < alloc) {
- 		preempt_enable();
- 		node = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
- 		if (node == NULL)
- 			goto out;
- 		preempt_disable();
- 		rtp = &__get_cpu_var(radix_tree_preloads);
--		if (rtp->nr < ARRAY_SIZE(rtp->nodes))
-+		if (rtp->nr < alloc)
- 			rtp->nodes[rtp->nr++] = node;
- 		else
- 			kmem_cache_free(radix_tree_node_cachep, node);
-@@ -288,6 +301,11 @@ int radix_tree_preload(gfp_t gfp_mask)
- out:
- 	return ret;
- }
-+
-+int radix_tree_preload(gfp_t gfp_mask)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5b7fd4e..df83ab9 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1731,6 +1731,21 @@ extern void dump_page(struct page *page);
+ extern void clear_huge_page(struct page *page,
+ 			    unsigned long addr,
+ 			    unsigned int pages_per_huge_page);
++extern void zero_huge_user_segment(struct page *page,
++		unsigned start, unsigned end);
++static inline void zero_huge_user_segments(struct page *page,
++		unsigned start1, unsigned end1,
++		unsigned start2, unsigned end2)
 +{
-+	return radix_tree_preload_count(1, gfp_mask);
++	zero_huge_user_segment(page, start1, end1);
++	zero_huge_user_segment(page, start2, end2);
 +}
- EXPORT_SYMBOL(radix_tree_preload);
++static inline void zero_huge_user(struct page *page,
++		unsigned start, unsigned len)
++{
++	zero_huge_user_segment(page, start, start+len);
++}
++
+ extern void copy_user_huge_page(struct page *dst, struct page *src,
+ 				unsigned long addr, struct vm_area_struct *vma,
+ 				unsigned int pages_per_huge_page);
+diff --git a/mm/memory.c b/mm/memory.c
+index 494526a..98c25dd 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4213,6 +4213,32 @@ void clear_huge_page(struct page *page,
+ 	}
+ }
  
- /*
++void zero_huge_user_segment(struct page *page, unsigned start, unsigned end)
++{
++	int i;
++
++	BUG_ON(end < start);
++
++	might_sleep();
++
++	if (start == end)
++		return;
++
++	/* start and end are on the same small page */
++	if ((start & PAGE_MASK) == ((end - 1) & PAGE_MASK))
++		return zero_user_segment(page + (start >> PAGE_SHIFT),
++				start & ~PAGE_MASK,
++				((end - 1) & ~PAGE_MASK) + 1);
++
++	zero_user_segment(page + (start >> PAGE_SHIFT),
++			start & ~PAGE_MASK, PAGE_SIZE);
++	for (i = (start >> PAGE_SHIFT) + 1; i < (end >> PAGE_SHIFT) - 1; i++) {
++		cond_resched();
++		clear_highpage(page + i);
++	}
++	zero_user_segment(page + i, 0, ((end - 1) & ~PAGE_MASK) + 1);
++}
++
+ static void copy_user_gigantic_page(struct page *dst, struct page *src,
+ 				    unsigned long addr,
+ 				    struct vm_area_struct *vma,
 -- 
 1.7.10.4
 
