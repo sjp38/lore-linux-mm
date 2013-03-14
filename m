@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 309186B0088
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:31 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id CF09A6B0083
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 13:49:26 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2, RFC 23/30] thp: prepare zap_huge_pmd() to uncharge file pages
-Date: Thu, 14 Mar 2013 19:50:28 +0200
-Message-Id: <1363283435-7666-24-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2, RFC 17/30] thp: wait_split_huge_page(): serialize over i_mmap_mutex too
+Date: Thu, 14 Mar 2013 19:50:22 +0200
+Message-Id: <1363283435-7666-18-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,31 +15,89 @@ Cc: Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Uncharge pages from correct counter.
+Since we're going to have huge pages backed by files,
+wait_split_huge_page() has to serialize not only over anon_vma_lock,
+but over i_mmap_mutex too.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ include/linux/huge_mm.h |   15 ++++++++++++---
+ mm/huge_memory.c        |    4 ++--
+ mm/memory.c             |    4 ++--
+ 3 files changed, 16 insertions(+), 7 deletions(-)
 
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index a54939c..b53e295 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -113,11 +113,20 @@ extern void __split_huge_page_pmd(struct vm_area_struct *vma,
+ 			__split_huge_page_pmd(__vma, __address,		\
+ 					____pmd);			\
+ 	}  while (0)
+-#define wait_split_huge_page(__anon_vma, __pmd)				\
++#define wait_split_huge_page(__vma, __pmd)				\
+ 	do {								\
+ 		pmd_t *____pmd = (__pmd);				\
+-		anon_vma_lock_write(__anon_vma);			\
+-		anon_vma_unlock_write(__anon_vma);			\
++		struct address_space *__mapping =			\
++					vma->vm_file->f_mapping;	\
++		struct anon_vma *__anon_vma = (__vma)->anon_vma;	\
++		if (__mapping)						\
++			mutex_lock(&__mapping->i_mmap_mutex);		\
++		if (__anon_vma) {					\
++			anon_vma_lock_write(__anon_vma);		\
++			anon_vma_unlock_write(__anon_vma);		\
++		}							\
++		if (__mapping)						\
++			mutex_unlock(&__mapping->i_mmap_mutex);		\
+ 		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
+ 		       pmd_trans_huge(*____pmd));			\
+ 	} while (0)
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index a23da8b..34e0385 100644
+index eb777d3..a23da8b 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1368,10 +1368,12 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 			spin_unlock(&tlb->mm->page_table_lock);
- 			put_huge_zero_page();
+@@ -907,7 +907,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		spin_unlock(&dst_mm->page_table_lock);
+ 		pte_free(dst_mm, pgtable);
+ 
+-		wait_split_huge_page(vma->anon_vma, src_pmd); /* src_vma */
++		wait_split_huge_page(vma, src_pmd); /* src_vma */
+ 		goto out;
+ 	}
+ 	src_page = pmd_page(pmd);
+@@ -1480,7 +1480,7 @@ int __pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma)
+ 	if (likely(pmd_trans_huge(*pmd))) {
+ 		if (unlikely(pmd_trans_splitting(*pmd))) {
+ 			spin_unlock(&vma->vm_mm->page_table_lock);
+-			wait_split_huge_page(vma->anon_vma, pmd);
++			wait_split_huge_page(vma, pmd);
+ 			return -1;
  		} else {
-+			int counter;
- 			page = pmd_page(orig_pmd);
- 			page_remove_rmap(page);
- 			VM_BUG_ON(page_mapcount(page) < 0);
--			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-+			counter = PageAnon(page) ? MM_ANONPAGES : MM_FILEPAGES;
-+			add_mm_counter(tlb->mm, counter, -HPAGE_PMD_NR);
- 			VM_BUG_ON(!PageHead(page));
- 			tlb->mm->nr_ptes--;
- 			spin_unlock(&tlb->mm->page_table_lock);
+ 			/* Thp mapped by 'pmd' is stable, so we can
+diff --git a/mm/memory.c b/mm/memory.c
+index 98c25dd..52bd6cf 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -619,7 +619,7 @@ int __pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (new)
+ 		pte_free(mm, new);
+ 	if (wait_split_huge_page)
+-		wait_split_huge_page(vma->anon_vma, pmd);
++		wait_split_huge_page(vma, pmd);
+ 	return 0;
+ }
+ 
+@@ -1529,7 +1529,7 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+ 		if (likely(pmd_trans_huge(*pmd))) {
+ 			if (unlikely(pmd_trans_splitting(*pmd))) {
+ 				spin_unlock(&mm->page_table_lock);
+-				wait_split_huge_page(vma->anon_vma, pmd);
++				wait_split_huge_page(vma, pmd);
+ 			} else {
+ 				page = follow_trans_huge_pmd(vma, address,
+ 							     pmd, flags);
 -- 
 1.7.10.4
 
