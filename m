@@ -1,124 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id C69B46B004D
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 06:16:07 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 14 Mar 2013 15:43:01 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 0B71DE004E
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 15:47:23 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2EAFwhT21233896
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 15:45:58 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2EAG08h011511
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 21:16:00 +1100
-Date: Thu, 14 Mar 2013 18:15:58 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/hugetlb: fix total hugetlbfs pages count when memory
- overcommit accouting
-Message-ID: <20130314101558.GA19776@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1363158511-21272-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130314094419.GA11631@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 9286E6B005C
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 06:21:44 -0400 (EDT)
+Date: Thu, 14 Mar 2013 11:21:42 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: kernel trace
+Message-ID: <20130314102142.GC11636@dhcp22.suse.cz>
+References: <CANkm-Fhz2A3vg_egsm15Siimi4X5AQrx0cYyFNAGNcEG5=3_JA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130314094419.GA11631@dhcp22.suse.cz>
+In-Reply-To: <CANkm-Fhz2A3vg_egsm15Siimi4X5AQrx0cYyFNAGNcEG5=3_JA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Alexander R <aleromex@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Thu, Mar 14, 2013 at 10:44:19AM +0100, Michal Hocko wrote:
->On Wed 13-03-13 15:08:31, Wanpeng Li wrote:
->> After commit 42d7395f ("mm: support more pagesizes for MAP_HUGETLB/SHM_HUGETLB")
->> be merged, kernel permit multiple huge page sizes,
->
+On Thu 07-03-13 20:50:05, Alexander R wrote:
+> Hi,
 
-Hi Michal,
+Hi,
 
->multiple huge page sizes were possible long before this commit. The
->above mentioned patch just made their usage via IPC much easier. You
->could do the same previously (since a137e1cc) by mounting hugetlbfs with
->a specific page size as a parameter and using mmap.
->
+> i use opensuse12.2 x86_64.
+> 
+> May be it would helpfully for your development
+> 
+> [   51.943819] ------------[ cut here ]------------
+> [   51.943838] WARNING: at
+> /home/abuild/rpmbuild/BUILD/kernel-default-3.4.28/linux-3.4/mm/memcontrol.c:5007
+> mem_cgroup_create+0x3ac/0x510()
+> [   51.943841] Hardware name: ProLiant DL560 Gen8
+> [   51.943842] Creating hierarchies with use_hierarchy==0 (flat hierarchy)
+> is considered deprecated. If you believe that your setup is correct, we
+> kindly ask you to contact linux-mm@kvack.org and let us know
+[...]
+> [   51.943880] Pid: 7222, comm: libvirtd Tainted: G        W
+>  3.4.28-2.20-default #1
+> [   51.943882] Call Trace:
+> [   51.943909]  [<ffffffff81004598>] dump_trace+0x78/0x2c0
+> [   51.943920]  [<ffffffff81532e6a>] dump_stack+0x69/0x6f
+> [   51.943926]  [<ffffffff8103ead9>] warn_slowpath_common+0x79/0xc0
+> [   51.943931]  [<ffffffff8103ebd5>] warn_slowpath_fmt+0x45/0x50
+> [   51.943934]  [<ffffffff8151c04c>] mem_cgroup_create+0x3ac/0x510
+> [   51.943944]  [<ffffffff810a7983>] cgroup_mkdir+0x103/0x3a0
+> [   51.943952]  [<ffffffff81160345>] vfs_mkdir+0xb5/0x170
+> [   51.943958]  [<ffffffff81164444>] sys_mkdirat+0xe4/0xf0
+> [   51.943968]  [<ffffffff81545c7d>] system_call_fastpath+0x1a/0x1f
+> [   51.943974]  [<00007f12ed256f77>] 0x7f12ed256f76
+> [   51.943975] ---[ end trace a6c54db610fd5bb5 ]---
 
-Agreed.
+This is a known thing. Please have a look at
+https://bugzilla.novell.com/show_bug.cgi?id=781134
 
->> and when the system administrator has configured the system to provide
->> huge page pools of different sizes, application can choose the page
->> size used for their allocation.
->
->> However, just default size of huge page pool is statistical when
->> memory overcommit accouting, the bad is that this will result in
->> innocent processes be killed by oom-killer later.
->
->Why would an innnocent process be killed? The overcommit calculation
->is incorrect, that is true, but this just means that an unexpected
->ENOMEM/EFAULT or SIGSEGV would be returned, no? How an OOM could be a
->result?
-
-Agreed.
-
->
->> Fix it by statistic all huge page pools of different sizes provided by
->> administrator.
->
->The patch makes sense but the description is misleading AFAICS.
->
-
-Thanks for your pointing out Michal, I will update the description. :-)
-
-Regards,
-Wanpeng Li 
-
->> Testcase:
->> boot: hugepagesz=1G hugepages=1
->> before patch:
->> egrep 'CommitLimit' /proc/meminfo
->> CommitLimit:     55434168 kB
->> after patch:
->> egrep 'CommitLimit' /proc/meminfo
->> CommitLimit:     54909880 kB
->> 
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  mm/hugetlb.c | 7 +++++--
->>  1 file changed, 5 insertions(+), 2 deletions(-)
->> 
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index cdb64e4..9e25040 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -2124,8 +2124,11 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
->>  /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
->>  unsigned long hugetlb_total_pages(void)
->>  {
->> -	struct hstate *h = &default_hstate;
->> -	return h->nr_huge_pages * pages_per_huge_page(h);
->> +	struct hstate *h;
->> +	unsigned long nr_total_pages = 0;
->> +	for_each_hstate(h)
->> +		nr_total_pages += h->nr_huge_pages * pages_per_huge_page(h);
->> +	return nr_total_pages;
->>  }
->>  
->>  static int hugetlb_acct_memory(struct hstate *h, long delta)
->> -- 
->> 1.7.11.7
->> 
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
->-- 
->Michal Hocko
->SUSE Labs
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
