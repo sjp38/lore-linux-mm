@@ -1,115 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id AA5D56B0027
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 19:27:21 -0400 (EDT)
-Date: Thu, 14 Mar 2013 16:27:03 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH] bounce:fix bug, avoid to flush dcache on slab page from
- jbd2.
-Message-ID: <20130314232703.GJ5313@blackbox.djwong.org>
-References: <5139DB90.5090302@gmail.com>
- <20130312153221.0d26fe5599d4885e51bb0c7c@linux-foundation.org>
- <20130313011020.GA5313@blackbox.djwong.org>
- <20130313085021.GA29730@quack.suse.cz>
- <20130313194429.GE5313@blackbox.djwong.org>
- <20130313210216.GA7754@quack.suse.cz>
- <20130314154651.b454fc7c6de6222c6c3a1a4a@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 5FE236B0027
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 19:42:03 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 15 Mar 2013 05:09:26 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id E0E6C3940055
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 05:11:55 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2ENfoL99437586
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 05:11:50 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2ENfrnB017833
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 10:41:54 +1100
+Date: Fri, 15 Mar 2013 07:41:52 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 4/4] zcache: add pageframes count once compress
+ zero-filled pages twice
+Message-ID: <20130314234152.GA1268@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1363158321-20790-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1363158321-20790-5-git-send-email-liwanp@linux.vnet.ibm.com>
+ <634487ea-fbbd-4eb9-9a18-9206edc4e0d2@default>
+ <20130314002056.GA10062@hacker.(null)>
+ <d02b5afd-bcb0-47df-9960-8e2122a04ad8@default>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130314154651.b454fc7c6de6222c6c3a1a4a@linux-foundation.org>
+In-Reply-To: <d02b5afd-bcb0-47df-9960-8e2122a04ad8@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Shuge <shugelinux@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Kevin <kevin@allwinneretch.com>, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 14, 2013 at 03:46:51PM -0700, Andrew Morton wrote:
-> On Wed, 13 Mar 2013 22:02:16 +0100 Jan Kara <jack@suse.cz> wrote:
-> 
-> > > > ... remembering why we need to get to sb and why ext3 needs this ... So
-> > > > maybe a better solution would be to have a bio flag meaning that pages need
-> > > > bouncing? And we would set it from filesystems that need it - in case of
-> > > > ext3 only writeback of data from kjournald actually needs to bounce the
-> > > > pages. Thoughts?
-> > > 
-> > > What about dirty pages that don't result in journal transactions?  I think
-> > > ext3_sync_file() eventually calls ext3_ordered_writepage, which then calls
-> > > __block_write_full_page, which in turn calls submit_bh().
-> >   So here we have two options:
-> > Either we let ext3 wait the same way as other filesystems when stable pages
-> > are required. Then only data IO from kjournald needs to be bounced (all
-> > other IO is properly protected by PageWriteback bit).
-> > 
-> > Or we won't let ext3 wait (as it is now), keep the superblock flag that fs
-> > needs bouncing, and set the bio flag in __block_write_full_page() and
-> > kjournald based on the sb flag.
-> > 
-> > I think the first option is slightly better but I don't feel strongly
-> > about that.
-> 
-> It seems Just Wrong that we're dicking around with filesystem
-> superblocks at this level.  It's the bounce code, for heavens sake!
-> 
-> 
-> What the heck's going on here and why wasn't I able to work that out
-> from reading the code :( The need to stabilise these pages is driven by
-> the characteristics of the underlying device and driver stack, isn't
-> it?  Things like checksumming?  What else drives this requirement? 
-> </rant>
-
-Right now, checksumming for weird DIF/DIX devices is the only requirement for
-this behavior.  In theory we can also hook checksumming iscsi and other things
-up to this, but for now they have their own solutions for keeping writeback
-page contents stable.
-
-> Because I *think* it should be sufficient to maintain this boolean in
-> the backing_dev.  My *guess* is that this is all here because we want
-> to enable stable-snapshotting on a per-fs basis rather than on a
-> per-device basis?  If so, why?  If not, what?
-
-Yes, we do want to enable stable-snapshotting on a per-fs basis.  Here's why:
-
-The first time I tried to solve this problem, I simply had everything use the
-bounce buffer.  That was shot down because bounce buffers add memory pressure,
-there might not be free pages available when we're doing writeback, etc.
-
-The second attempt was to simply make everything wait for writeback to finish
-before dirtying pages.  That's what everything (except ext3) does now.  jbd
-initiates writeback on pages without setting PG_writeback, which means that our
-convenient wait_on_stable_pages is broken in this case.  Hence ext3/jbd need to
-be able to stable-snapshot.  However, it's the /only/ filesystem in the kernel
-that needs this.  Everything else is either ok with waiting (ext4, xfs) or
-implements their own tricks (tux3, btrfs) to make stable pages work correctly.
-
-Fixing jbd to set PG_writeback has been discussed and rejected, because it's a
-lot of work and you'd end up with something rather jbd2-like.  However,
-bouncing the outgoing buffers is a fairly small change to jbd.  Jan (at least a
-few months ago) was ok with band-aiding ext3.
-
-I could rip out ext3 entirely, but people seem uncomfortable with that, and it
-hasn't (yet) been proven that ext4 can provide a perfect imitation of ext3.
-
-I could also just fix up Kconfig so that you can't use a BLK_DEV_INTEGRITY
-device with JBD, but that was also shot down as ridiculous.
-
-Given that a backing_dev covers a whole disk, which could contain several
-different filesystems and an ext3, I don't want to make /all/ of them use
-bounce buffering just because jbd is broken.  We've already established that
-bounce pages should be used only when necessary, and (as it turns out), ext3
-can initiate writeout of certain dirty user data pages without needing to go
-through jbd, which means that those pages don't need to be bounced either.
-
-Therefore, this really is a per-fs thing.
-
-> btw, local variable `bdi' in must_snapshot_stable_pages() doesn't do
-> anything.
+On Thu, Mar 14, 2013 at 09:10:48AM -0700, Dan Magenheimer wrote:
+>> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
+>> Sent: Wednesday, March 13, 2013 6:21 PM
+>> To: Dan Magenheimer
+>> Cc: Andrew Morton; Greg Kroah-Hartman; Dan Magenheimer; Seth Jennings; Konrad Rzeszutek Wilk; Minchan
+>> Kim; linux-mm@kvack.org; linux-kernel@vger.kernel.org
+>> Subject: Re: [PATCH 4/4] zcache: add pageframes count once compress zero-filled pages twice
+>> 
+>> On Wed, Mar 13, 2013 at 09:42:16AM -0700, Dan Magenheimer wrote:
+>> >> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
+>> >> Sent: Wednesday, March 13, 2013 1:05 AM
+>> >> To: Andrew Morton
+>> >> Cc: Greg Kroah-Hartman; Dan Magenheimer; Seth Jennings; Konrad Rzeszutek Wilk; Minchan Kim; linux-
+>> >> mm@kvack.org; linux-kernel@vger.kernel.org; Wanpeng Li
+>> >> Subject: [PATCH 4/4] zcache: add pageframes count once compress zero-filled pages twice
+>> >
+>> >Hi Wanpeng --
+>> >
+>> >Thanks for taking on this task from the drivers/staging/zcache TODO list!
+>> >
+>> >> Since zbudpage consist of two zpages, two zero-filled pages compression
+>> >> contribute to one [eph|pers]pageframe count accumulated.
+>> >
+>> 
+>> Hi Dan,
+>> 
+>> >I'm not sure why this is necessary.  The [eph|pers]pageframe count
+>> >is supposed to be counting actual pageframes used by zcache.  Since
+>> >your patch eliminates the need to store zero pages, no pageframes
+>> >are needed at all to store zero pages, so it's not necessary
+>> >to increment zcache_[eph|pers]_pageframes when storing zero
+>> >pages.
+>> >
+>> 
+>> Great point! It seems that we also don't need to caculate
+>> zcache_[eph|pers]_zpages for zero-filled pages. I will fix
+>> it in next version. :-)
 >
-> None of this will stop Shuge's kernel from going splat either.
+>Hi Wanpeng --
+>
 
-I'm not trying to fix that in this patch; his splat resulted from stuff going
-on in ext4/jbd2.
+Hi Dan,
 
---D
+>I think we DO need to increment/decrement zcache_[eph|pers]_zpages
+>for zero-filled pages.
+>
+>The main point of the counters for zpages and pageframes
+>is to be able to calculate density == zpages/pageframes.
+>A zero-filled page becomes a zpage that "compresses" to zero bytes
+>and, as a result, requires zero pageframes for storage.
+>So the zpages counter should be increased but the pageframes
+>counter should not.
+
+It is reasonable to me, I will increment/decrement zcache_[eph|pers]_zpages
+in next version.
+
+>
+>If you are changing the patch anyway, I do like better the use
+>of "zero_filled_page" rather than just "zero" or "zero page".
+>So it might be good to change:
+>
+>handle_zero_page -> handle_zero_filled_page
+>pages_zero -> zero_filled_pages
+>zcache_pages_zero -> zcache_zero_filled_pages
+>
+>and maybe
+>
+>page_zero_filled -> page_is_zero_filled
+
+Great rename! :-)
+
+Regards,
+Wanpeng Li 
+
+>
+>Thanks,
+>Dan
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
