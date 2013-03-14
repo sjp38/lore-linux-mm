@@ -1,10 +1,11 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/4] zcache: zero-filled pages awareness
-Date: Thu, 14 Mar 2013 07:35:37 +0800
-Message-ID: <15559.3328214765$1363217780@news.gmane.org>
+Subject: Re: [PATCH 4/4] zcache: add pageframes count once compress
+ zero-filled pages twice
+Date: Thu, 14 Mar 2013 08:20:56 +0800
+Message-ID: <5762.91914699158$1363220499@news.gmane.org>
 References: <1363158321-20790-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1363158321-20790-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <9a45f4be-a80c-434d-ae7f-f8faaea5e4d4@default>
+ <1363158321-20790-5-git-send-email-liwanp@linux.vnet.ibm.com>
+ <634487ea-fbbd-4eb9-9a18-9206edc4e0d2@default>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,103 +13,147 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UFvDS-0001Qd-NT
-	for glkm-linux-mm-2@m.gmane.org; Thu, 14 Mar 2013 00:36:14 +0100
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id D09946B0006
-	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 19:35:49 -0400 (EDT)
+	id 1UFvvL-0007uq-NW
+	for glkm-linux-mm-2@m.gmane.org; Thu, 14 Mar 2013 01:21:36 +0100
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 8CF2A6B0006
+	for <linux-mm@kvack.org>; Wed, 13 Mar 2013 20:21:10 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 14 Mar 2013 05:02:39 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 4303F1258023
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 05:06:43 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2DNZaJ023265342
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 05:05:36 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2DNZd3Z010677
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 10:35:39 +1100
+	Thu, 14 Mar 2013 05:48:02 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 0D81E394002D
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 05:51:00 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2E0Ktu729229080
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 05:50:55 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2E0Kvpw005408
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 11:20:58 +1100
 Content-Disposition: inline
-In-Reply-To: <9a45f4be-a80c-434d-ae7f-f8faaea5e4d4@default>
+In-Reply-To: <634487ea-fbbd-4eb9-9a18-9206edc4e0d2@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Mar 13, 2013 at 09:53:48AM -0700, Dan Magenheimer wrote:
+On Wed, Mar 13, 2013 at 09:42:16AM -0700, Dan Magenheimer wrote:
 >> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
->> Subject: [PATCH 2/4] zcache: zero-filled pages awareness
->> 
->> Compression of zero-filled pages can unneccessarily cause internal
->> fragmentation, and thus waste memory. This special case can be
->> optimized.
->> 
->> This patch captures zero-filled pages, and marks their corresponding
->> zcache backing page entry as zero-filled. Whenever such zero-filled
->> page is retrieved, we fill the page frame with zero.
->> 
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  drivers/staging/zcache/tmem.c        |    4 +-
->>  drivers/staging/zcache/tmem.h        |    5 ++
->>  drivers/staging/zcache/zcache-main.c |   87 ++++++++++++++++++++++++++++++----
->>  3 files changed, 85 insertions(+), 11 deletions(-)
->> 
->> diff --git a/drivers/staging/zcache/tmem.c b/drivers/staging/zcache/tmem.c
->> index a2b7e03..62468ea 100644
->> --- a/drivers/staging/zcache/tmem.c
->> +++ b/drivers/staging/zcache/tmem.c
->> @@ -597,7 +597,9 @@ int tmem_put(struct tmem_pool *pool, struct tmem_oid *oidp, uint32_t index,
->>  	if (unlikely(ret == -ENOMEM))
->>  		/* may have partially built objnode tree ("stump") */
->>  		goto delete_and_free;
->> -	(*tmem_pamops.create_finish)(pampd, is_ephemeral(pool));
->> +	if (pampd != (void *)ZERO_FILLED)
->> +		(*tmem_pamops.create_finish)(pampd, is_ephemeral(pool));
->> +
->>  	goto out;
->> 
->>  delete_and_free:
->> diff --git a/drivers/staging/zcache/tmem.h b/drivers/staging/zcache/tmem.h
->> index adbe5a8..6719dbd 100644
->> --- a/drivers/staging/zcache/tmem.h
->> +++ b/drivers/staging/zcache/tmem.h
->> @@ -204,6 +204,11 @@ struct tmem_handle {
->>  	uint16_t client_id;
->>  };
->> 
->> +/*
->> + * mark pampd to special vaule in order that later
->> + * retrieve will identify zero-filled pages
->> + */
->> +#define ZERO_FILLED 0x2
+>> Sent: Wednesday, March 13, 2013 1:05 AM
+>> To: Andrew Morton
+>> Cc: Greg Kroah-Hartman; Dan Magenheimer; Seth Jennings; Konrad Rzeszutek Wilk; Minchan Kim; linux-
+>> mm@kvack.org; linux-kernel@vger.kernel.org; Wanpeng Li
+>> Subject: [PATCH 4/4] zcache: add pageframes count once compress zero-filled pages twice
 >
->You can avoid changing tmem.[ch] entirely by moving this
->definition into zcache-main.c and by moving the check
->comparing pampd against ZERO_FILLED into zcache_pampd_create_finish()
->I think that would be cleaner...
-
-Great point!
-
+>Hi Wanpeng --
 >
->If you change this and make the pageframe counter fix for PATCH 4/4,
->please add my ack for the next version:
+>Thanks for taking on this task from the drivers/staging/zcache TODO list!
+>
+>> Since zbudpage consist of two zpages, two zero-filled pages compression
+>> contribute to one [eph|pers]pageframe count accumulated.
 >
 
-Thanks Dan. :-)
+Hi Dan,
+
+>I'm not sure why this is necessary.  The [eph|pers]pageframe count
+>is supposed to be counting actual pageframes used by zcache.  Since
+>your patch eliminates the need to store zero pages, no pageframes
+>are needed at all to store zero pages, so it's not necessary
+>to increment zcache_[eph|pers]_pageframes when storing zero
+>pages.
+>
+
+Great point! It seems that we also don't need to caculate 
+zcache_[eph|pers]_zpages for zero-filled pages. I will fix 
+it in next version. :-)
+
+>Or am I misunderstanding your intent?
+>
 
 Regards,
 Wanpeng Li 
 
->Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>Thanks,
+>Dan
+> 
+>> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> ---
+>>  drivers/staging/zcache/zcache-main.c |   25 +++++++++++++++++++++++--
+>>  1 files changed, 23 insertions(+), 2 deletions(-)
+>> 
+>> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+>> index dd52975..7860ff0 100644
+>> --- a/drivers/staging/zcache/zcache-main.c
+>> +++ b/drivers/staging/zcache/zcache-main.c
+>> @@ -544,6 +544,8 @@ static struct page *zcache_evict_eph_pageframe(void);
+>>  static void *zcache_pampd_eph_create(char *data, size_t size, bool raw,
+>>  					struct tmem_handle *th)
+>>  {
+>> +	static ssize_t second_eph_zero_page;
+>> +	static atomic_t second_eph_zero_page_atomic = ATOMIC_INIT(0);
+>>  	void *pampd = NULL, *cdata = data;
+>>  	unsigned clen = size;
+>>  	bool zero_filled = false;
+>> @@ -561,7 +563,14 @@ static void *zcache_pampd_eph_create(char *data, size_t size, bool raw,
+>>  		clen = 0;
+>>  		zero_filled = true;
+>>  		zcache_pages_zero++;
+>> -		goto got_pampd;
+>> +		second_eph_zero_page = atomic_inc_return(
+>> +				&second_eph_zero_page_atomic);
+>> +		if (second_eph_zero_page % 2 == 1)
+>> +			goto got_pampd;
+>> +		else {
+>> +			atomic_sub(2, &second_eph_zero_page_atomic);
+>> +			goto count_zero_page;
+>> +		}
+>>  	}
+>>  	kunmap_atomic(user_mem);
+>> 
+>> @@ -597,6 +606,7 @@ static void *zcache_pampd_eph_create(char *data, size_t size, bool raw,
+>>  create_in_new_page:
+>>  	pampd = (void *)zbud_create_prep(th, true, cdata, clen, newpage);
+>>  	BUG_ON(pampd == NULL);
+>> +count_zero_page:
+>>  	zcache_eph_pageframes =
+>>  		atomic_inc_return(&zcache_eph_pageframes_atomic);
+>>  	if (zcache_eph_pageframes > zcache_eph_pageframes_max)
+>> @@ -621,6 +631,8 @@ out:
+>>  static void *zcache_pampd_pers_create(char *data, size_t size, bool raw,
+>>  					struct tmem_handle *th)
+>>  {
+>> +	static ssize_t second_pers_zero_page;
+>> +	static atomic_t second_pers_zero_page_atomic = ATOMIC_INIT(0);
+>>  	void *pampd = NULL, *cdata = data;
+>>  	unsigned clen = size, zero_filled = 0;
+>>  	struct page *page = (struct page *)(data), *newpage;
+>> @@ -644,7 +656,15 @@ static void *zcache_pampd_pers_create(char *data, size_t size, bool raw,
+>>  		clen = 0;
+>>  		zero_filled = 1;
+>>  		zcache_pages_zero++;
+>> -		goto got_pampd;
+>> +		second_pers_zero_page = atomic_inc_return(
+>> +				&second_pers_zero_page_atomic);
+>> +		if (second_pers_zero_page % 2 == 1)
+>> +			goto got_pampd;
+>> +		else {
+>> +			atomic_sub(2, &second_pers_zero_page_atomic);
+>> +			goto count_zero_page;
+>> +		}
+>> +
+>>  	}
+>>  	kunmap_atomic(user_mem);
+>> 
+>> @@ -698,6 +718,7 @@ create_pampd:
+>>  create_in_new_page:
+>>  	pampd = (void *)zbud_create_prep(th, false, cdata, clen, newpage);
+>>  	BUG_ON(pampd == NULL);
+>> +count_zero_page:
+>>  	zcache_pers_pageframes =
+>>  		atomic_inc_return(&zcache_pers_pageframes_atomic);
+>>  	if (zcache_pers_pageframes > zcache_pers_pageframes_max)
+>> --
+>> 1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
