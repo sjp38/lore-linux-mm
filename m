@@ -1,10 +1,10 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/hugetlb: fix total hugetlbfs pages count when memory
- overcommit accouting
-Date: Thu, 14 Mar 2013 18:15:58 +0800
-Message-ID: <5163.06542926959$1363256197@news.gmane.org>
-References: <1363158511-21272-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130314094419.GA11631@dhcp22.suse.cz>
+Subject: Re: [PATCH v2] mm/hugetlb: fix total hugetlbfs pages count when
+ memory overcommit accouting
+Date: Thu, 14 Mar 2013 19:24:11 +0800
+Message-ID: <30897.5976695821$1363260288@news.gmane.org>
+References: <1363258189-24945-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130314110927.GC11631@dhcp22.suse.cz>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,73 +12,70 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UG5D6-00057j-JW
-	for glkm-linux-mm-2@m.gmane.org; Thu, 14 Mar 2013 11:16:32 +0100
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id C69B46B004D
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 06:16:07 -0400 (EDT)
+	id 1UG6H7-0005rs-KJ
+	for glkm-linux-mm-2@m.gmane.org; Thu, 14 Mar 2013 12:24:45 +0100
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 924C86B0006
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 07:24:20 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 14 Mar 2013 15:43:01 +0530
+	Thu, 14 Mar 2013 16:51:44 +0530
 Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 0B71DE004E
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 15:47:23 +0530 (IST)
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 2EAD71258023
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 16:55:18 +0530 (IST)
 Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2EAFwhT21233896
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 15:45:58 +0530
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2EBOBxP34996342
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 16:54:11 +0530
 Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2EAG08h011511
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 21:16:00 +1100
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2EBODa0016812
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 22:24:13 +1100
 Content-Disposition: inline
-In-Reply-To: <20130314094419.GA11631@dhcp22.suse.cz>
+In-Reply-To: <20130314110927.GC11631@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Hillf Danton <dhillf@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 14, 2013 at 10:44:19AM +0100, Michal Hocko wrote:
->On Wed 13-03-13 15:08:31, Wanpeng Li wrote:
->> After commit 42d7395f ("mm: support more pagesizes for MAP_HUGETLB/SHM_HUGETLB")
->> be merged, kernel permit multiple huge page sizes,
+On Thu, Mar 14, 2013 at 12:09:27PM +0100, Michal Hocko wrote:
+>On Thu 14-03-13 18:49:49, Wanpeng Li wrote:
+>> Changelog:
+>>  v1 -> v2:
+>>   * update patch description, spotted by Michal
+>> 
+>> hugetlb_total_pages() does not account for all the supported hugepage
+>> sizes.
+>
+>> This can lead to incorrect calculation of the total number of
+>> page frames used by hugetlb. This patch corrects the issue.
 >
 
 Hi Michal,
 
->multiple huge page sizes were possible long before this commit. The
->above mentioned patch just made their usage via IPC much easier. You
->could do the same previously (since a137e1cc) by mounting hugetlbfs with
->a specific page size as a parameter and using mmap.
+>Sorry to be so picky but this doesn't tell us much. Why do we need to
+>have the total number of hugetlb pages?
+>
+>What about the following:
+>"hugetlb_total_pages is used for overcommit calculations but the
+>current implementation considers only default hugetlb page size (which
+>is either the first defined hugepage size or the one specified by
+>default_hugepagesz kernel boot parameter).
+>
+>If the system is configured for more than one hugepage size (which is
+>possible since a137e1cc hugetlbfs: per mount huge page sizes) then
+>the overcommit estimation done by __vm_enough_memory (resp. shown by
+>meminfo_proc_show) is not precise - there is an impression of more
+>available/allowed memory. This can lead to an unexpected ENOMEM/EFAULT
+>resp. SIGSEGV when memory is accounted."
 >
 
-Agreed.
+Fair enough, thanks. :-)
 
->> and when the system administrator has configured the system to provide
->> huge page pools of different sizes, application can choose the page
->> size used for their allocation.
->
->> However, just default size of huge page pool is statistical when
->> memory overcommit accouting, the bad is that this will result in
->> innocent processes be killed by oom-killer later.
->
->Why would an innnocent process be killed? The overcommit calculation
->is incorrect, that is true, but this just means that an unexpected
->ENOMEM/EFAULT or SIGSEGV would be returned, no? How an OOM could be a
->result?
-
-Agreed.
-
->
->> Fix it by statistic all huge page pools of different sizes provided by
->> administrator.
->
->The patch makes sense but the description is misleading AFAICS.
+>I think this is also worth pushing to the stable tree (it goes back to
+>2.6.27)
 >
 
-Thanks for your pointing out Michal, I will update the description. :-)
-
-Regards,
-Wanpeng Li 
+Yup, I will Cc Greg in next version. 
 
 >> Testcase:
 >> boot: hugepagesz=1G hugepages=1
@@ -88,6 +85,16 @@ Wanpeng Li
 >> after patch:
 >> egrep 'CommitLimit' /proc/meminfo
 >> CommitLimit:     54909880 kB
+>
+>This gives some more confusion to a reader because there is only
+>something like 500M difference here without any explanation.
+>
+
+the default overcommit ratio is 50.
+
+Regards,
+Wanpeng Li 
+
 >> 
 >> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 >> ---
