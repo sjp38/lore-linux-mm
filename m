@@ -1,17 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id AAADF6B0027
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 22:25:06 -0400 (EDT)
-Received: by mail-oa0-f47.google.com with SMTP id o17so2911743oag.20
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2013 19:25:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 163C26B0036
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 22:34:49 -0400 (EDT)
+Received: by mail-oa0-f54.google.com with SMTP id n12so2965662oag.13
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2013 19:34:48 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1363283435-7666-10-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1363283435-7666-14-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1363283435-7666-10-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Fri, 15 Mar 2013 10:25:05 +0800
-Message-ID: <CAJd=RBDWGNUvjPBiOmYDOfwbf8ZvyoMDdZn8uhcN0xTNbgKYfA@mail.gmail.com>
-Subject: Re: [PATCHv2, RFC 09/30] thp, mm: rewrite delete_from_page_cache() to
- support huge pages
+	<1363283435-7666-14-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Fri, 15 Mar 2013 10:34:47 +0800
+Message-ID: <CAJd=RBCHLigJBWiBt==wjjm7HA3CYSSyS6odKy0BgoudVxN80g@mail.gmail.com>
+Subject: Re: [PATCHv2, RFC 13/30] thp, mm: implement grab_cache_huge_page_write_begin()
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -21,20 +20,20 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation
 
 On Fri, Mar 15, 2013 at 1:50 AM, Kirill A. Shutemov
 <kirill.shutemov@linux.intel.com> wrote:
-> +       if (PageTransHuge(page)) {
-> +               int i;
-> +
-> +               for (i = 0; i < HPAGE_CACHE_NR; i++)
-> +                       radix_tree_delete(&mapping->page_tree, page->index + i);
+> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +struct page *grab_cache_huge_page_write_begin(struct address_space *mapping,
+> +                       pgoff_t index, unsigned flags);
+> +#else
+> +static inline struct page *grab_cache_huge_page_write_begin(
+> +               struct address_space *mapping, pgoff_t index, unsigned flags)
+> +{
+build bug?
 
-Move the below page_cache_release for tail page here, please.
-
-> +               nr = HPAGE_CACHE_NR;
-[...]
-> +       if (PageTransHuge(page))
-> +               for (i = 1; i < HPAGE_CACHE_NR; i++)
-> +                       page_cache_release(page + i);
->         page_cache_release(page);
+> +       return NULL;
+> +}
+> +#endif
+>
+btw, how about grab_thp_write_begin?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
