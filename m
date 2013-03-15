@@ -1,514 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 794596B0037
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 12:02:47 -0400 (EDT)
-Date: Fri, 15 Mar 2013 17:02:41 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] mm/hugetlb: add more arch-defined huge_pte functions
-Message-ID: <20130315160241.GD28311@dhcp22.suse.cz>
-References: <1363283463-50880-1-git-send-email-gerald.schaefer@de.ibm.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 9C58E6B0037
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 12:14:40 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Fri, 15 Mar 2013 21:40:32 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 2948B1258023
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 21:45:37 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2FGETQh3473664
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 21:44:29 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2FGEVEA008074
+	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 03:14:31 +1100
+Message-ID: <514348DD.2070801@linux.vnet.ibm.com>
+Date: Fri, 15 Mar 2013 11:14:21 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1363283463-50880-1-git-send-email-gerald.schaefer@de.ibm.com>
+Subject: Re: zsmalloc limitations and related topics
+References: <0efe9610-1aa5-4aa9-bde9-227acfa969ca@default> <20130313151359.GA3130@linux.vnet.ibm.com> <4ab899f6-208c-4d61-833c-d1e5e8b1e761@default> <514104D5.9020700@linux.vnet.ibm.com> <5141BC5D.9050005@oracle.com> <20130314132046.GA3172@linux.vnet.ibm.com> <006139fe-542e-46f0-8b6c-b05efeb232d6@default>
+In-Reply-To: <006139fe-542e-46f0-8b6c-b05efeb232d6@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Hillf Danton <dhillf@gmail.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Ralf Baechle <ralf@linux-mips.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Robert Jennings <rcj@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>, minchan@kernel.org, Nitin Gupta <nitingupta910@gmail.com>, Konrad Wilk <konrad.wilk@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bob Liu <lliubbo@gmail.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>
 
-On Thu 14-03-13 18:51:03, Gerald Schaefer wrote:
-> Commit abf09bed3c "s390/mm: implement software dirty bits" introduced
-> another difference in the pte layout vs. the pmd layout on s390,
-> thoroughly breaking the s390 support for hugetlbfs. This requires
-> replacing some more pte_xxx functions in mm/hugetlbfs.c with a
-> huge_pte_xxx version.
+On 03/14/2013 01:54 PM, Dan Magenheimer wrote:
+>> From: Robert Jennings [mailto:rcj@linux.vnet.ibm.com]
+>> Sent: Thursday, March 14, 2013 7:21 AM
+>> To: Bob
+>> Cc: Seth Jennings; Dan Magenheimer; minchan@kernel.org; Nitin Gupta; Konrad Wilk; linux-mm@kvack.org;
+>> linux-kernel@vger.kernel.org; Bob Liu; Luigi Semenzato; Mel Gorman
+>> Subject: Re: zsmalloc limitations and related topics
+>>
+>> * Bob (bob.liu@oracle.com) wrote:
+>>> On 03/14/2013 06:59 AM, Seth Jennings wrote:
+>>>> On 03/13/2013 03:02 PM, Dan Magenheimer wrote:
+>>>>>> From: Robert Jennings [mailto:rcj@linux.vnet.ibm.com]
+>>>>>> Subject: Re: zsmalloc limitations and related topics
+>>>>>
+>> <snip>
+>>>>> Yes.  And add pageframe-reclaim to this list of things that
+>>>>> zsmalloc should do but currently cannot do.
+>>>>
+>>>> The real question is why is pageframe-reclaim a requirement?  What
+>>>> operation needs this feature?
+>>>>
+>>>> AFAICT, the pageframe-reclaim requirements is derived from the
+>>>> assumption that some external control path should be able to tell
+>>>> zswap/zcache to evacuate a page, like the shrinker interface.  But this
+>>>> introduces a new and complex problem in designing a policy that doesn't
+>>>> shrink the zpage pool so aggressively that it is useless.
+>>>>
+>>>> Unless there is another reason for this functionality I'm missing.
+>>>>.
+>>>
+>>> Perhaps it's needed if the user want to enable/disable the memory
+>>> compression feature dynamically.
+>>> Eg, use it as a module instead of recompile the kernel or even
+>>> reboot the system.
 > 
-> This patch introduces those huge_pte_xxx functions and their
-> generic implementation in asm-generic/hugetlb.h, which will now be
-> included on all architectures supporting hugetlbfs apart from s390.
-> This change will be a no-op for those architectures.
+> It's worth thinking about: Under what circumstances would a user want
+> to turn off compression?  While unloading a compression module should
+> certainly be allowed if it makes a user comfortable, in my opinion,
+> if a user wants to do that, we have done our job poorly (or there
+> is a bug).
 > 
-> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-
-yes this looks much better. I cannot talk about s390 part because I am
-not familiar with it but the rest looks good to me.
-
-Maybe one nit, though. pte_page and pte_same do not have their huge_Foo
-counterparts.
-
-Anyway
-Acked-by: Michal Hocko <mhocko@suse.cz> # for !s390 parts
-
-Thanks!
-
-> ---
->  arch/ia64/include/asm/hugetlb.h    |  1 +
->  arch/mips/include/asm/hugetlb.h    |  1 +
->  arch/powerpc/include/asm/hugetlb.h |  1 +
->  arch/s390/include/asm/hugetlb.h    | 56 +++++++++++++++++++++-
->  arch/s390/include/asm/pgtable.h    | 95 ++++++++++++++++----------------------
->  arch/s390/mm/hugetlbpage.c         |  2 +-
->  arch/sh/include/asm/hugetlb.h      |  1 +
->  arch/sparc/include/asm/hugetlb.h   |  1 +
->  arch/tile/include/asm/hugetlb.h    |  1 +
->  arch/x86/include/asm/hugetlb.h     |  1 +
->  include/asm-generic/hugetlb.h      | 40 ++++++++++++++++
->  mm/hugetlb.c                       | 23 ++++-----
->  12 files changed, 155 insertions(+), 68 deletions(-)
->  create mode 100644 include/asm-generic/hugetlb.h
+>> To unload zswap all that is needed is to perform writeback on the pages
+>> held in the cache, this can be done by extending the existing writeback
+>> code.
 > 
-> diff --git a/arch/ia64/include/asm/hugetlb.h b/arch/ia64/include/asm/hugetlb.h
-> index 94eaa5b..aa91005 100644
-> --- a/arch/ia64/include/asm/hugetlb.h
-> +++ b/arch/ia64/include/asm/hugetlb.h
-> @@ -2,6 +2,7 @@
->  #define _ASM_IA64_HUGETLB_H
->  
->  #include <asm/page.h>
-> +#include <asm-generic/hugetlb.h>
->  
->  
->  void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
-> diff --git a/arch/mips/include/asm/hugetlb.h b/arch/mips/include/asm/hugetlb.h
-> index ef99db9..fe0d15d 100644
-> --- a/arch/mips/include/asm/hugetlb.h
-> +++ b/arch/mips/include/asm/hugetlb.h
-> @@ -10,6 +10,7 @@
->  #define __ASM_HUGETLB_H
->  
->  #include <asm/page.h>
-> +#include <asm-generic/hugetlb.h>
->  
->  
->  static inline int is_hugepage_only_range(struct mm_struct *mm,
-> diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
-> index 62e11a3..4fcbd6b 100644
-> --- a/arch/powerpc/include/asm/hugetlb.h
-> +++ b/arch/powerpc/include/asm/hugetlb.h
-> @@ -3,6 +3,7 @@
->  
->  #ifdef CONFIG_HUGETLB_PAGE
->  #include <asm/page.h>
-> +#include <asm-generic/hugetlb.h>
->  
->  extern struct kmem_cache *hugepte_cache;
->  
-> diff --git a/arch/s390/include/asm/hugetlb.h b/arch/s390/include/asm/hugetlb.h
-> index 593753e..bd90359 100644
-> --- a/arch/s390/include/asm/hugetlb.h
-> +++ b/arch/s390/include/asm/hugetlb.h
-> @@ -114,7 +114,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
->  #define huge_ptep_set_wrprotect(__mm, __addr, __ptep)			\
->  ({									\
->  	pte_t __pte = huge_ptep_get(__ptep);				\
-> -	if (pte_write(__pte)) {						\
-> +	if (huge_pte_write(__pte)) {					\
->  		huge_ptep_invalidate(__mm, __addr, __ptep);		\
->  		set_huge_pte_at(__mm, __addr, __ptep,			\
->  				huge_pte_wrprotect(__pte));		\
-> @@ -127,4 +127,58 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
->  	huge_ptep_invalidate(vma->vm_mm, address, ptep);
->  }
->  
-> +static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
-> +{
-> +	pte_t pte;
-> +	pmd_t pmd;
-> +
-> +	pmd = mk_pmd_phys(page_to_phys(page), pgprot);
-> +	pte_val(pte) = pmd_val(pmd);
-> +	return pte;
-> +}
-> +
-> +static inline int huge_pte_write(pte_t pte)
-> +{
-> +	pmd_t pmd;
-> +
-> +	pmd_val(pmd) = pte_val(pte);
-> +	return pmd_write(pmd);
-> +}
-> +
-> +static inline int huge_pte_dirty(pte_t pte)
-> +{
-> +	/* No dirty bit in the segment table entry. */
-> +	return 0;
-> +}
-> +
-> +static inline pte_t huge_pte_mkwrite(pte_t pte)
-> +{
-> +	pmd_t pmd;
-> +
-> +	pmd_val(pmd) = pte_val(pte);
-> +	pte_val(pte) = pmd_val(pmd_mkwrite(pmd));
-> +	return pte;
-> +}
-> +
-> +static inline pte_t huge_pte_mkdirty(pte_t pte)
-> +{
-> +	/* No dirty bit in the segment table entry. */
-> +	return pte;
-> +}
-> +
-> +static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
-> +{
-> +	pmd_t pmd;
-> +
-> +	pmd_val(pmd) = pte_val(pte);
-> +	pte_val(pte) = pmd_val(pmd_modify(pmd, newprot));
-> +	return pte;
-> +}
-> +
-> +static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
-> +				  pte_t *ptep)
-> +{
-> +	pmd_clear((pmd_t *) ptep);
-> +}
-> +
->  #endif /* _ASM_S390_HUGETLB_H */
-> diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-> index 75b8750..7c9a145 100644
-> --- a/arch/s390/include/asm/pgtable.h
-> +++ b/arch/s390/include/asm/pgtable.h
-> @@ -419,6 +419,13 @@ extern unsigned long MODULES_END;
->  #define __S110	PAGE_RW
->  #define __S111	PAGE_RW
->  
-> +/*
-> + * Segment entry (large page) protection definitions.
-> + */
-> +#define SEGMENT_NONE	__pgprot(_HPAGE_TYPE_NONE)
-> +#define SEGMENT_RO	__pgprot(_HPAGE_TYPE_RO)
-> +#define SEGMENT_RW	__pgprot(_HPAGE_TYPE_RW)
-> +
->  static inline int mm_exclusive(struct mm_struct *mm)
->  {
->  	return likely(mm == current->active_mm &&
-> @@ -909,26 +916,6 @@ static inline pte_t pte_mkspecial(pte_t pte)
->  #ifdef CONFIG_HUGETLB_PAGE
->  static inline pte_t pte_mkhuge(pte_t pte)
->  {
-> -	/*
-> -	 * PROT_NONE needs to be remapped from the pte type to the ste type.
-> -	 * The HW invalid bit is also different for pte and ste. The pte
-> -	 * invalid bit happens to be the same as the ste _SEGMENT_ENTRY_LARGE
-> -	 * bit, so we don't have to clear it.
-> -	 */
-> -	if (pte_val(pte) & _PAGE_INVALID) {
-> -		if (pte_val(pte) & _PAGE_SWT)
-> -			pte_val(pte) |= _HPAGE_TYPE_NONE;
-> -		pte_val(pte) |= _SEGMENT_ENTRY_INV;
-> -	}
-> -	/*
-> -	 * Clear SW pte bits, there are no SW bits in a segment table entry.
-> -	 */
-> -	pte_val(pte) &= ~(_PAGE_SWT | _PAGE_SWX | _PAGE_SWC |
-> -			  _PAGE_SWR | _PAGE_SWW);
-> -	/*
-> -	 * Also set the change-override bit because we don't need dirty bit
-> -	 * tracking for hugetlbfs pages.
-> -	 */
->  	pte_val(pte) |= (_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_CO);
->  	return pte;
->  }
-> @@ -1273,31 +1260,7 @@ static inline void __pmd_idte(unsigned long address, pmd_t *pmdp)
->  	}
->  }
->  
-> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> -
-> -#define SEGMENT_NONE	__pgprot(_HPAGE_TYPE_NONE)
-> -#define SEGMENT_RO	__pgprot(_HPAGE_TYPE_RO)
-> -#define SEGMENT_RW	__pgprot(_HPAGE_TYPE_RW)
-> -
-> -#define __HAVE_ARCH_PGTABLE_DEPOSIT
-> -extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
-> -
-> -#define __HAVE_ARCH_PGTABLE_WITHDRAW
-> -extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm);
-> -
-> -static inline int pmd_trans_splitting(pmd_t pmd)
-> -{
-> -	return pmd_val(pmd) & _SEGMENT_ENTRY_SPLIT;
-> -}
-> -
-> -static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-> -			      pmd_t *pmdp, pmd_t entry)
-> -{
-> -	if (!(pmd_val(entry) & _SEGMENT_ENTRY_INV) && MACHINE_HAS_EDAT1)
-> -		pmd_val(entry) |= _SEGMENT_ENTRY_CO;
-> -	*pmdp = entry;
-> -}
-> -
-> +#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)
->  static inline unsigned long massage_pgprot_pmd(pgprot_t pgprot)
->  {
->  	/*
-> @@ -1318,10 +1281,11 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
->  	return pmd;
->  }
->  
-> -static inline pmd_t pmd_mkhuge(pmd_t pmd)
-> +static inline pmd_t mk_pmd_phys(unsigned long physpage, pgprot_t pgprot)
->  {
-> -	pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE;
-> -	return pmd;
-> +	pmd_t __pmd;
-> +	pmd_val(__pmd) = physpage + massage_pgprot_pmd(pgprot);
-> +	return __pmd;
->  }
->  
->  static inline pmd_t pmd_mkwrite(pmd_t pmd)
-> @@ -1331,6 +1295,34 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
->  		pmd_val(pmd) &= ~_SEGMENT_ENTRY_RO;
->  	return pmd;
->  }
-> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLB_PAGE */
-> +
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +
-> +#define __HAVE_ARCH_PGTABLE_DEPOSIT
-> +extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
-> +
-> +#define __HAVE_ARCH_PGTABLE_WITHDRAW
-> +extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm);
-> +
-> +static inline int pmd_trans_splitting(pmd_t pmd)
-> +{
-> +	return pmd_val(pmd) & _SEGMENT_ENTRY_SPLIT;
-> +}
-> +
-> +static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-> +			      pmd_t *pmdp, pmd_t entry)
-> +{
-> +	if (!(pmd_val(entry) & _SEGMENT_ENTRY_INV) && MACHINE_HAS_EDAT1)
-> +		pmd_val(entry) |= _SEGMENT_ENTRY_CO;
-> +	*pmdp = entry;
-> +}
-> +
-> +static inline pmd_t pmd_mkhuge(pmd_t pmd)
-> +{
-> +	pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE;
-> +	return pmd;
-> +}
->  
->  static inline pmd_t pmd_wrprotect(pmd_t pmd)
->  {
-> @@ -1427,13 +1419,6 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
->  	}
->  }
->  
-> -static inline pmd_t mk_pmd_phys(unsigned long physpage, pgprot_t pgprot)
-> -{
-> -	pmd_t __pmd;
-> -	pmd_val(__pmd) = physpage + massage_pgprot_pmd(pgprot);
-> -	return __pmd;
-> -}
-> -
->  #define pfn_pmd(pfn, pgprot)	mk_pmd_phys(__pa((pfn) << PAGE_SHIFT), (pgprot))
->  #define mk_pmd(page, pgprot)	pfn_pmd(page_to_pfn(page), (pgprot))
->  
-> diff --git a/arch/s390/mm/hugetlbpage.c b/arch/s390/mm/hugetlbpage.c
-> index 532525e..121089d 100644
-> --- a/arch/s390/mm/hugetlbpage.c
-> +++ b/arch/s390/mm/hugetlbpage.c
-> @@ -39,7 +39,7 @@ int arch_prepare_hugepage(struct page *page)
->  	if (!ptep)
->  		return -ENOMEM;
->  
-> -	pte = mk_pte(page, PAGE_RW);
-> +	pte_val(pte) = addr;
->  	for (i = 0; i < PTRS_PER_PTE; i++) {
->  		set_pte_at(&init_mm, addr + i * PAGE_SIZE, ptep + i, pte);
->  		pte_val(pte) += PAGE_SIZE;
-> diff --git a/arch/sh/include/asm/hugetlb.h b/arch/sh/include/asm/hugetlb.h
-> index b3808c7..699255d 100644
-> --- a/arch/sh/include/asm/hugetlb.h
-> +++ b/arch/sh/include/asm/hugetlb.h
-> @@ -3,6 +3,7 @@
->  
->  #include <asm/cacheflush.h>
->  #include <asm/page.h>
-> +#include <asm-generic/hugetlb.h>
->  
->  
->  static inline int is_hugepage_only_range(struct mm_struct *mm,
-> diff --git a/arch/sparc/include/asm/hugetlb.h b/arch/sparc/include/asm/hugetlb.h
-> index 7eb57d2..e4cab46 100644
-> --- a/arch/sparc/include/asm/hugetlb.h
-> +++ b/arch/sparc/include/asm/hugetlb.h
-> @@ -2,6 +2,7 @@
->  #define _ASM_SPARC64_HUGETLB_H
->  
->  #include <asm/page.h>
-> +#include <asm-generic/hugetlb.h>
->  
->  
->  void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-> diff --git a/arch/tile/include/asm/hugetlb.h b/arch/tile/include/asm/hugetlb.h
-> index 0f885af..3257733 100644
-> --- a/arch/tile/include/asm/hugetlb.h
-> +++ b/arch/tile/include/asm/hugetlb.h
-> @@ -16,6 +16,7 @@
->  #define _ASM_TILE_HUGETLB_H
->  
->  #include <asm/page.h>
-> +#include <asm-generic/hugetlb.h>
->  
->  
->  static inline int is_hugepage_only_range(struct mm_struct *mm,
-> diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
-> index bdd35db..a809121 100644
-> --- a/arch/x86/include/asm/hugetlb.h
-> +++ b/arch/x86/include/asm/hugetlb.h
-> @@ -2,6 +2,7 @@
->  #define _ASM_X86_HUGETLB_H
->  
->  #include <asm/page.h>
-> +#include <asm-generic/hugetlb.h>
->  
->  
->  static inline int is_hugepage_only_range(struct mm_struct *mm,
-> diff --git a/include/asm-generic/hugetlb.h b/include/asm-generic/hugetlb.h
-> new file mode 100644
-> index 0000000..d06079c
-> --- /dev/null
-> +++ b/include/asm-generic/hugetlb.h
-> @@ -0,0 +1,40 @@
-> +#ifndef _ASM_GENERIC_HUGETLB_H
-> +#define _ASM_GENERIC_HUGETLB_H
-> +
-> +static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
-> +{
-> +	return mk_pte(page, pgprot);
-> +}
-> +
-> +static inline int huge_pte_write(pte_t pte)
-> +{
-> +	return pte_write(pte);
-> +}
-> +
-> +static inline int huge_pte_dirty(pte_t pte)
-> +{
-> +	return pte_dirty(pte);
-> +}
-> +
-> +static inline pte_t huge_pte_mkwrite(pte_t pte)
-> +{
-> +	return pte_mkwrite(pte);
-> +}
-> +
-> +static inline pte_t huge_pte_mkdirty(pte_t pte)
-> +{
-> +	return pte_mkdirty(pte);
-> +}
-> +
-> +static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
-> +{
-> +	return pte_modify(pte, newprot);
-> +}
-> +
-> +static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
-> +				  pte_t *ptep)
-> +{
-> +	pte_clear(mm, addr, ptep);
-> +}
-> +
-> +#endif /* _ASM_GENERIC_HUGETLB_H */
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c65a8a5..43425ad 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2243,10 +2243,11 @@ static pte_t make_huge_pte(struct vm_area_struct *vma, struct page *page,
->  	pte_t entry;
->  
->  	if (writable) {
-> -		entry =
-> -		    pte_mkwrite(pte_mkdirty(mk_pte(page, vma->vm_page_prot)));
-> +		entry = huge_pte_mkwrite(huge_pte_mkdirty(mk_huge_pte(page,
-> +					 vma->vm_page_prot)));
->  	} else {
-> -		entry = huge_pte_wrprotect(mk_pte(page, vma->vm_page_prot));
-> +		entry = huge_pte_wrprotect(mk_huge_pte(page,
-> +					   vma->vm_page_prot));
->  	}
->  	entry = pte_mkyoung(entry);
->  	entry = pte_mkhuge(entry);
-> @@ -2260,7 +2261,7 @@ static void set_huge_ptep_writable(struct vm_area_struct *vma,
->  {
->  	pte_t entry;
->  
-> -	entry = pte_mkwrite(pte_mkdirty(huge_ptep_get(ptep)));
-> +	entry = huge_pte_mkwrite(huge_pte_mkdirty(huge_ptep_get(ptep)));
->  	if (huge_ptep_set_access_flags(vma, address, ptep, entry, 1))
->  		update_mmu_cache(vma, address, ptep);
->  }
-> @@ -2375,7 +2376,7 @@ again:
->  		 * HWPoisoned hugepage is already unmapped and dropped reference
->  		 */
->  		if (unlikely(is_hugetlb_entry_hwpoisoned(pte))) {
-> -			pte_clear(mm, address, ptep);
-> +			huge_pte_clear(mm, address, ptep);
->  			continue;
->  		}
->  
-> @@ -2399,7 +2400,7 @@ again:
->  
->  		pte = huge_ptep_get_and_clear(mm, address, ptep);
->  		tlb_remove_tlb_entry(tlb, ptep, address);
-> -		if (pte_dirty(pte))
-> +		if (huge_pte_dirty(pte))
->  			set_page_dirty(page);
->  
->  		page_remove_rmap(page);
-> @@ -2852,7 +2853,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 * page now as it is used to determine if a reservation has been
->  	 * consumed.
->  	 */
-> -	if ((flags & FAULT_FLAG_WRITE) && !pte_write(entry)) {
-> +	if ((flags & FAULT_FLAG_WRITE) && !huge_pte_write(entry)) {
->  		if (vma_needs_reservation(h, vma, address) < 0) {
->  			ret = VM_FAULT_OOM;
->  			goto out_mutex;
-> @@ -2882,12 +2883,12 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  
->  
->  	if (flags & FAULT_FLAG_WRITE) {
-> -		if (!pte_write(entry)) {
-> +		if (!huge_pte_write(entry)) {
->  			ret = hugetlb_cow(mm, vma, address, ptep, entry,
->  							pagecache_page);
->  			goto out_page_table_lock;
->  		}
-> -		entry = pte_mkdirty(entry);
-> +		entry = huge_pte_mkdirty(entry);
->  	}
->  	entry = pte_mkyoung(entry);
->  	if (huge_ptep_set_access_flags(vma, address, ptep, entry,
-> @@ -2958,7 +2959,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		}
->  
->  		if (absent ||
-> -		    ((flags & FOLL_WRITE) && !pte_write(huge_ptep_get(pte)))) {
-> +		    ((flags & FOLL_WRITE) && !huge_pte_write(huge_ptep_get(pte)))) {
->  			int ret;
->  
->  			spin_unlock(&mm->page_table_lock);
-> @@ -3028,7 +3029,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
->  		}
->  		if (!huge_pte_none(huge_ptep_get(ptep))) {
->  			pte = huge_ptep_get_and_clear(mm, address, ptep);
-> -			pte = pte_mkhuge(pte_modify(pte, newprot));
-> +			pte = pte_mkhuge(huge_pte_modify(pte, newprot));
->  			pte = arch_make_huge_pte(pte, vma, NULL, 0);
->  			set_huge_pte_at(mm, address, ptep, pte);
->  			pages++;
-> -- 
-> 1.7.12.4
-> 
+> Actually, frontswap supports this directly.  See frontswap_shrink.
 
--- 
-Michal Hocko
-SUSE Labs
+frontswap_shrink() is a best-effort attempt to fault in all the pages
+stored in the backend.  However, if there is not enough RAM to hold all
+the pages, then it can not completely evacuate the backend.
+
+Module exit functions must return void, so there is no way to fail a
+module unload.  If you implement an exit function for your module, you
+must insure that it can always complete successfully.  For this reason
+frontswap_shrink() is unsuitable for module unloading.  You'd need to
+use a mechanism like writeback that could surely evacuate the backend
+(baring I/O failures).
+
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
