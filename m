@@ -1,56 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id D45EB6B0027
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 05:04:26 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id wz12so3527751pbc.31
-        for <linux-mm@kvack.org>; Fri, 15 Mar 2013 02:04:25 -0700 (PDT)
-Message-ID: <5142E411.2040005@gmail.com>
-Date: Fri, 15 Mar 2013 17:04:17 +0800
-From: Ric Mason <ric.masonn@gmail.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 53E046B0027
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 05:39:47 -0400 (EDT)
+Received: by mail-yh0-f48.google.com with SMTP id q12so552488yhf.21
+        for <linux-mm@kvack.org>; Fri, 15 Mar 2013 02:39:46 -0700 (PDT)
+Message-ID: <5142EC5A.4010509@gmail.com>
+Date: Fri, 15 Mar 2013 17:39:38 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: security: restricting access to swap
-References: <CAA25o9RchY2AD8U30bh4H+fz6kq8bs98SUrkJUkTpbTHSGjcGA@mail.gmail.com>
-In-Reply-To: <CAA25o9RchY2AD8U30bh4H+fz6kq8bs98SUrkJUkTpbTHSGjcGA@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
+References: <20130122065341.GA1850@kernel.org>
+In-Reply-To: <20130122065341.GA1850@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Shaohua Li <shli@kernel.org>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On 03/12/2013 07:57 AM, Luigi Semenzato wrote:
-> Greetings linux-mmers,
+On 01/22/2013 02:53 PM, Shaohua Li wrote:
+> Hi,
 >
-> before we can fully deploy zram, we must ensure it conforms to the
-> Chrome OS security requirements.  In particular, we do not want to
-> allow user space to read/write the swap device---not even root-owned
-> processes.
+> Because of high density, low power and low price, flash storage (SSD) is a good
+> candidate to partially replace DRAM. A quick answer for this is using SSD as
+> swap. But Linux swap is designed for slow hard disk storage. There are a lot of
+> challenges to efficiently use SSD for swap:
+>
+> 1. Lock contentions (swap_lock, anon_vma mutex, swap address space lock)
+> 2. TLB flush overhead. To reclaim one page, we need at least 2 TLB flush. This
+> overhead is very high even in a normal 2-socket machine.
+> 3. Better swap IO pattern. Both direct and kswapd page reclaim can do swap,
+> which makes swap IO pattern is interleave. Block layer isn't always efficient
+> to do request merge. Such IO pattern also makes swap prefetch hard.
+> 4. Swap map scan overhead. Swap in-memory map scan scans an array, which is
+> very inefficient, especially if swap storage is fast.
+> 5. SSD related optimization, mainly discard support
+> 6. Better swap prefetch algorithm. Besides item 3, sequentially accessed pages
+> aren't always in LRU list adjacently, so page reclaim will not swap such pages
+> in adjacent storage sectors. This makes swap prefetch hard.
+> 7. Alternative page reclaim policy to bias reclaiming anonymous page.
+> Currently reclaim anonymous page is considering harder than reclaim file pages,
+> so we bias reclaiming file pages. If there are high speed swap storage, we are
+> considering doing swap more aggressively.
+> 8. Huge page swap. Huge page swap can solve a lot of problems above, but both
+> THP and hugetlbfs don't support swap.
 
-Interesting.
+Could you tell me in which workload hugetlb/thp pages can't swapout 
+influence your performance? Is it worth?
 
 >
-> A similar restriction is available for /dev/mem under CONFIG_STRICT_DEVMEM.
-
-Sorry, what's /dev/mem used for?  and why relevant your topic?
-
+> I had some progresses in these areas recently:
+> http://marc.info/?l=linux-mm&m=134665691021172&w=2
+> http://marc.info/?l=linux-mm&m=135336039115191&w=2
+> http://marc.info/?l=linux-mm&m=135882182225444&w=2
+> http://marc.info/?l=linux-mm&m=135754636926984&w=2
+> http://marc.info/?l=linux-mm&m=135754634526979&w=2
+> But a lot of problems remain. I'd like to discuss the issues at the meeting.
 >
-> There are a few possible approaches to this, but before we go ahead
-> I'd like to ask if anything has happened or is planned in this
-> direction.
->
-> Otherwise, one idea I am playing with is to add a CONFIG_STRICT_SWAP
-> option that would do this for any swap device (i.e. not specific to
-> zram) and possibly also when swapping to a file.  We would add an
-> "internal" open flag, O_KERN_SWAP, as well as clean up a little bit
-> the FMODE_NONOTIFY confusion by adding the kernel flag O_KERN_NONOTIFY
-> and formalizing the sets of external (O_*) and internal (O_KERN_*)
-> open flags.
->
-> Swapon() and swapoff() would use O_KERN_SWAP internally, and a device
-> opened with that flag would reject user-level opens.
->
-> Thank you in advance for any input/suggestion!
-> Luigi
+> Thanks,
+> Shaohua
 >
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
