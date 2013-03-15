@@ -1,17 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id EF5A06B0037
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 09:25:37 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 7CC686B0027
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 09:27:52 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <CAJd=RBA-CRVu2is9=9E1Y0=HFRHs1TXvFvm2wF7gT+=ujQ+8tg@mail.gmail.com>
+In-Reply-To: <CAJd=RBD2jWsMOjwXenbHu_Y3-jRm+=XR+h44Tw4KRKEb79ptqg@mail.gmail.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-15-git-send-email-kirill.shutemov@linux.intel.com>
- <CAJd=RBA-CRVu2is9=9E1Y0=HFRHs1TXvFvm2wF7gT+=ujQ+8tg@mail.gmail.com>
-Subject: Re: [PATCHv2, RFC 14/30] thp, mm: naive support of thp in generic
- read/write routines
+ <1363283435-7666-20-git-send-email-kirill.shutemov@linux.intel.com>
+ <CAJd=RBD2jWsMOjwXenbHu_Y3-jRm+=XR+h44Tw4KRKEb79ptqg@mail.gmail.com>
+Subject: Re: [PATCHv2, RFC 19/30] thp, mm: split huge page on mmap file page
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130315132716.AF225E0085@blue.fi.intel.com>
-Date: Fri, 15 Mar 2013 15:27:16 +0200 (EET)
+Message-Id: <20130315132911.63716E0085@blue.fi.intel.com>
+Date: Fri, 15 Mar 2013 15:29:11 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hillf Danton <dhillf@gmail.com>
@@ -20,19 +19,13 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aa
 Hillf Danton wrote:
 > On Fri, Mar 15, 2013 at 1:50 AM, Kirill A. Shutemov
 > <kirill.shutemov@linux.intel.com> wrote:
-> > +               if (PageTransTail(page)) {
-> > +                       page_cache_release(page);
-> > +                       page = find_get_page(mapping,
-> > +                                       index & ~HPAGE_CACHE_INDEX_MASK);
-> check page is valid, please.
+> >
+> > We are not ready to mmap file-backed tranparent huge pages.
+> >
+> It is not on todo list either.
 
-Good catch. Fixed.
-
-> > +                       if (!PageTransHuge(page)) {
-> > +                               page_cache_release(page);
-> > +                               goto find_page;
-> > +                       }
-> > +               }
+Actually, following patches implement mmap for file-backed thp and this
+split_huge_page() will catch only fallback cases.
 
 -- 
  Kirill A. Shutemov
