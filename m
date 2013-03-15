@@ -1,15 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id A737F6B0027
-	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 20:33:02 -0400 (EDT)
-Received: by mail-ob0-f179.google.com with SMTP id un3so2747224obb.10
-        for <linux-mm@kvack.org>; Thu, 14 Mar 2013 17:33:01 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 84AF06B0027
+	for <linux-mm@kvack.org>; Thu, 14 Mar 2013 21:30:36 -0400 (EDT)
+Received: by mail-oa0-f46.google.com with SMTP id k1so2912309oag.19
+        for <linux-mm@kvack.org>; Thu, 14 Mar 2013 18:30:35 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1363283435-7666-9-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Fri, 15 Mar 2013 08:33:01 +0800
-Message-ID: <CAJd=RBCU=aaH-Osq-3gXSHZsropU=7yPU-ay7zvWoKsdoBOn6g@mail.gmail.com>
-Subject: Re: [PATCHv2, RFC 00/30] Transparent huge page cache
+	<1363283435-7666-9-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Fri, 15 Mar 2013 09:30:35 +0800
+Message-ID: <CAJd=RBAH1+YaDvL9=ayx2j6b4jx0CzBZGrAL9LVwPMx4Y=s3Rg@mail.gmail.com>
+Subject: Re: [PATCHv2, RFC 08/30] thp, mm: rewrite add_to_page_cache_locked()
+ to support huge pages
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -19,15 +21,46 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation
 
 On Fri, Mar 15, 2013 at 1:50 AM, Kirill A. Shutemov
 <kirill.shutemov@linux.intel.com> wrote:
->
-> Here's the second version of the patchset.
->
-> The intend of the work is get code ready to enable transparent huge page
-> cache for the most simple fs -- ramfs.
->
-Where is your git tree including THP cache?
+> +       page_cache_get(page);
+> +       spin_lock_irq(&mapping->tree_lock);
+> +       page->mapping = mapping;
+> +       page->index = offset;
+> +       error = radix_tree_insert(&mapping->page_tree, offset, page);
+> +       if (unlikely(error))
+> +               goto err;
+> +       if (PageTransHuge(page)) {
+> +               int i;
+> +               for (i = 1; i < HPAGE_CACHE_NR; i++) {
+			struct page *tail = page + i; to easy reader
 
-Hillf
+> +                       page_cache_get(page + i);
+s/page_cache_get/get_page_foll/ ?
+
+> +                       page[i].index = offset + i;
+> +                       error = radix_tree_insert(&mapping->page_tree,
+> +                                       offset + i, page + i);
+> +                       if (error) {
+> +                               page_cache_release(page + i);
+> +                               break;
+> +                       }
+>                 }
+> -               radix_tree_preload_end();
+> -       } else
+> -               mem_cgroup_uncharge_cache_page(page);
+> -out:
+> +               if (error) {
+> +                       error = ENOSPC; /* no space for a huge page */
+s/E/-E/
+
+> +                       for (i--; i > 0; i--) {
+> +                               radix_tree_delete(&mapping->page_tree,
+> +                                               offset + i);
+> +                               page_cache_release(page + i);
+> +                       }
+> +                       radix_tree_delete(&mapping->page_tree, offset);
+> +                       goto err;
+> +               }
+> +       }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
