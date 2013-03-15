@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 9C58E6B0037
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 12:14:40 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id EE9266B0037
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 12:19:05 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Fri, 15 Mar 2013 21:40:32 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 2948B1258023
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 21:45:37 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2FGETQh3473664
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 21:44:29 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2FGEVEA008074
-	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 03:14:31 +1100
-Message-ID: <514348DD.2070801@linux.vnet.ibm.com>
-Date: Fri, 15 Mar 2013 11:14:21 -0500
+	Fri, 15 Mar 2013 21:44:40 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 3F557E0054
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 21:50:22 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2FGIuvo3670454
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 21:48:56 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2FGIwCJ008171
+	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 03:18:59 +1100
+Message-ID: <514349EA.9070404@linux.vnet.ibm.com>
+Date: Fri, 15 Mar 2013 11:18:50 -0500
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Subject: Re: zsmalloc limitations and related topics
