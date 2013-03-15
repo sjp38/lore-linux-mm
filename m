@@ -1,165 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id B28DA6B0027
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 07:17:49 -0400 (EDT)
-Date: Fri, 15 Mar 2013 20:04:11 +0900
-From: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
-Subject: Re: [PATCH v2 7/8] mm, vmalloc: export vmap_area_list, instead of
- vmlist
-Message-Id: <20130315200411.59edc3c7af0ffafdef2a9d4b@mxc.nes.nec.co.jp>
-In-Reply-To: <87k3pbsst7.fsf@xmission.com>
-References: <1363156381-2881-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1363156381-2881-8-git-send-email-iamjoonsoo.kim@lge.com>
-	<87k3pbsst7.fsf@xmission.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 849996B0027
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 07:39:26 -0400 (EDT)
+Received: from mail192-co1 (localhost [127.0.0.1])	by
+ mail192-co1-R.bigfish.com (Postfix) with ESMTP id 23570C607CF	for
+ <linux-mm@kvack.org>; Fri, 15 Mar 2013 11:39:25 +0000 (UTC)
+Received: from CO1EHSMHS004.bigfish.com (unknown [10.243.78.240])	by
+ mail192-co1.bigfish.com (Postfix) with ESMTP id 98B4BA400B3	for
+ <linux-mm@kvack.org>; Fri, 15 Mar 2013 11:39:23 +0000 (UTC)
+From: Gil Weber <gilw@cse-semaphore.com>
+Subject: mmap sync issue
+Date: Fri, 15 Mar 2013 11:39:20 +0000
+Message-ID: <DEACCBA4C6A9D145A6A68B5F5BE581B80FC057AB@HKXPRD0310MB353.apcprd03.prod.outlook.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: iamjoonsoo.kim@lge.com, ebiederm@xmission.com
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, anderson@redhat.com, vgoyal@redhat.com, lliubbo@gmail.com, penberg@kernel.org, kexec@lists.infradead.org, js1304@gmail.com
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
 Hello,
+I am experiencing an issue with my device driver. I am using mmap and ioctl=
+ to share information with my user space application.
+The thing is that the shared memory does not seems to be synced. Do check t=
+his, I have done a simple test:
 
-On Tue, 12 Mar 2013 23:43:48 -0700
-ebiederm@xmission.com (Eric W. Biederman) wrote:
+int fd =3D open("/dev/test", O_RDWR | O_SYNC);
+int * addr =3D mmap(0, 4, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+=09
+for (i=3D0 ; i<100 ; i++ )
+{
+	*addr =3D i;
+	ioctl(fd, 0, 0);
+}
 
-> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
-> 
-> > From: Joonsoo Kim <js1304@gmail.com>
-> >
-> > Although our intention is to unexport internal structure entirely,
-> > but there is one exception for kexec. kexec dumps address of vmlist
-> > and makedumpfile uses this information.
-> >
-> > We are about to remove vmlist, then another way to retrieve information
-> > of vmalloc layer is needed for makedumpfile. For this purpose,
-> > we export vmap_area_list, instead of vmlist.
-> 
-> That seems entirely reasonable to me.  Usage by kexec should not limit
-> the evoluion of the kernel especially usage by makedumpfile.
-> 
-> Atsushi Kumagai can you make makedumpfile work with this change?
 
-Sure! I'm going to work with this change in the next version.
-But, I noticed that necessary information is missed in this patch,
-and sorry for too late reply.
+In my device driver, the only thing I do in ioctl is to display the content=
+ of the shared memory, and here is the result:
 
-Both OFFSET(vmap_area.va_start) and OFFSET(vmap_area.list) are
-necessary to get vmalloc_start value from vmap_area_list, but
-they aren't exported in this patch.
-I understand that the policy of this patch series "to unexport
-internal structure entirely", although the information is necessary
-for makedumpfile.
+[ 5158.967000] Value : 0
+[ 5158.967000] Value : 1
+[ 5158.967000] Value : 1
+[ 5158.967000] Value : 1
+[ 5158.967000] Value : 1
+[ 5158.967000] Value : 1
+[ 5158.967000] Value : 1
+[ 5158.967000] Value : 1
+[ 5158.967000] Value : 1
+[ 5158.967000] Value : 1
+[ 5158.967000] Value : 1
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+[ 5158.968000] Value : 11
+...
 
-Additionally, OFFSET(vm_struct.addr) is no longer used, should be
-removed. It was added for the same purpose as vmlist in the commit
-below. 
 
-  commit acd99dbf54020f5c80b9aa2f2ea86f43cb285b02
-  Author: Ken'ichi Ohmichi <oomichi@mxs.nes.nec.co.jp>
-  Date:   Sat Oct 18 20:28:30 2008 -0700
+So, clearly, memory is not synced...
+Here is the code in my device driver:
 
-      kdump: add vmlist.addr to vmcoreinfo for x86 vmalloc translation.
+static int test_open(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
 
-To sum it up, I would like to push the patch below.
+static int test_release(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
 
-Thanks
-Atsushi Kumagai
+static int test_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	int ret;
+	unsigned long start =3D vma->vm_start;
+	unsigned long pfn;
 
---
-From: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
-Date: Fri, 15 Mar 2013 14:19:28 +0900
-Subject: [PATCH] kexec, vmalloc: Export additional information of
- vmalloc layer.
+	pfn =3D vmalloc_to_pfn(vmalloc_area);
+	if ((ret =3D remap_pfn_range(vma, start, pfn, PAGE_SIZE, PAGE_SHARED)) < 0=
+) {
+		return ret;
+	}
+=09
+	return 0;
+}
 
-Now, vmap_area_list is exported as VMCOREINFO for makedumpfile
-to get the start address of vmalloc region (vmalloc_start).
-The address which contains vmalloc_start value is represented as
-below:
+static long test_ioctl(struct file *file, unsigned int cmd, unsigned long a=
+rg)
+{
+	printk (KERN_INFO "Value : %d\n", vmalloc_area[0]);
+	return 0;
+}
 
-  vmap_area_list.next - OFFSET(vmap_area.list) + OFFSET(vmap_area.va_start)
+static struct file_operations test_fops =3D {
+	.open =3D test_open,
+	.release =3D test_release,
+	.mmap =3D test_mmap,
+	.unlocked_ioctl =3D test_ioctl,
+	.owner =3D THIS_MODULE,
+};
 
-However, both OFFSET(vmap_area.va_start) and OFFSET(vmap_area.list)
-aren't exported as VMCOREINFO.
+This is done on an arm architecture (AT91 SAM9X5) with a kernel 3.5.
+I have done the test, with the same code, on a powerpc target, with a kerne=
+l 2.6.27, and it seems to work (but maybe by chance?)
+Am I missing something?
+Maybe I need to implement the sync function in file operations, but in that=
+ case, how can I know that all mapped memory is synced?
 
-So, this patch exports them externally with small cleanup.
-
-Signed-off-by: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
----
- include/linux/vmalloc.h | 12 ++++++++++++
- kernel/kexec.c          |  3 ++-
- mm/vmalloc.c            | 11 -----------
- 3 files changed, 14 insertions(+), 12 deletions(-)
-
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 8a25f90..62e0354 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -4,6 +4,7 @@
- #include <linux/spinlock.h>
- #include <linux/init.h>
- #include <asm/page.h>		/* pgprot_t */
-+#include <linux/rbtree.h>
- 
- struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
- 
-@@ -35,6 +36,17 @@ struct vm_struct {
- 	const void		*caller;
- };
- 
-+struct vmap_area {
-+	unsigned long va_start;
-+	unsigned long va_end;
-+	unsigned long flags;
-+	struct rb_node rb_node;         /* address sorted rbtree */
-+	struct list_head list;          /* address sorted list */
-+	struct list_head purge_list;    /* "lazy purge" list */
-+	struct vm_struct *vm;
-+	struct rcu_head rcu_head;
-+};
-+
- /*
-  *	Highlevel APIs for driver use
-  */
-diff --git a/kernel/kexec.c b/kernel/kexec.c
-index d9bfc6c..5db0148 100644
---- a/kernel/kexec.c
-+++ b/kernel/kexec.c
-@@ -1527,7 +1527,8 @@ static int __init crash_save_vmcoreinfo_init(void)
- 	VMCOREINFO_OFFSET(free_area, free_list);
- 	VMCOREINFO_OFFSET(list_head, next);
- 	VMCOREINFO_OFFSET(list_head, prev);
--	VMCOREINFO_OFFSET(vm_struct, addr);
-+	VMCOREINFO_OFFSET(vmap_area, va_start);
-+	VMCOREINFO_OFFSET(vmap_area, list);
- 	VMCOREINFO_LENGTH(zone.free_area, MAX_ORDER);
- 	log_buf_kexec_setup();
- 	VMCOREINFO_LENGTH(free_area.free_list, MIGRATE_TYPES);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 151da8a..72043d6 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -249,17 +249,6 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
- #define VM_LAZY_FREEING	0x02
- #define VM_VM_AREA	0x04
- 
--struct vmap_area {
--	unsigned long va_start;
--	unsigned long va_end;
--	unsigned long flags;
--	struct rb_node rb_node;		/* address sorted rbtree */
--	struct list_head list;		/* address sorted list */
--	struct list_head purge_list;	/* "lazy purge" list */
--	struct vm_struct *vm;
--	struct rcu_head rcu_head;
--};
--
- static DEFINE_SPINLOCK(vmap_area_lock);
- /* Export for kexec only */
- LIST_HEAD(vmap_area_list);
--- 
-1.8.0.2
+Thanks in advance,
+Gil Weber
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
