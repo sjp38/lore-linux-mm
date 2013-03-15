@@ -1,43 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id C9E376B0027
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 09:43:49 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 429B26B0037
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 09:48:47 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <CAJd=RBAEOF7qx1=6vUAA7wYKq6i8efz=Mr9BvUHGxgEE4c6rvg@mail.gmail.com>
+In-Reply-To: <CAJd=RBAh7-qBYhCxtj56V5sez1HSek9TNVeu9V=+mW0qNpxEWA@mail.gmail.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-20-git-send-email-kirill.shutemov@linux.intel.com>
- <CAJd=RBD2jWsMOjwXenbHu_Y3-jRm+=XR+h44Tw4KRKEb79ptqg@mail.gmail.com>
- <20130315132911.63716E0085@blue.fi.intel.com>
- <CAJd=RBAEOF7qx1=6vUAA7wYKq6i8efz=Mr9BvUHGxgEE4c6rvg@mail.gmail.com>
-Subject: Re: [PATCHv2, RFC 19/30] thp, mm: split huge page on mmap file page
+ <1363283435-7666-9-git-send-email-kirill.shutemov@linux.intel.com>
+ <CAJd=RBAH1+YaDvL9=ayx2j6b4jx0CzBZGrAL9LVwPMx4Y=s3Rg@mail.gmail.com>
+ <20130315132333.B8205E0085@blue.fi.intel.com>
+ <CAJd=RBAh7-qBYhCxtj56V5sez1HSek9TNVeu9V=+mW0qNpxEWA@mail.gmail.com>
+Subject: Re: [PATCHv2, RFC 08/30] thp, mm: rewrite add_to_page_cache_locked()
+ to support huge pages
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130315134528.8BD83E0085@blue.fi.intel.com>
-Date: Fri, 15 Mar 2013 15:45:28 +0200 (EET)
+Message-Id: <20130315135026.32B58E0085@blue.fi.intel.com>
+Date: Fri, 15 Mar 2013 15:50:26 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hillf Danton <dhillf@gmail.com>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
 Hillf Danton wrote:
-> On Fri, Mar 15, 2013 at 9:29 PM, Kirill A. Shutemov
+> On Fri, Mar 15, 2013 at 9:23 PM, Kirill A. Shutemov
 > <kirill.shutemov@linux.intel.com> wrote:
 > > Hillf Danton wrote:
 > >> On Fri, Mar 15, 2013 at 1:50 AM, Kirill A. Shutemov
 > >> <kirill.shutemov@linux.intel.com> wrote:
-> >> >
-> >> > We are not ready to mmap file-backed tranparent huge pages.
-> >> >
-> >> It is not on todo list either.
+> >> > +       page_cache_get(page);
+> >> > +       spin_lock_irq(&mapping->tree_lock);
+> >> > +       page->mapping = mapping;
+> >> > +       page->index = offset;
+> >> > +       error = radix_tree_insert(&mapping->page_tree, offset, page);
+> >> > +       if (unlikely(error))
+> >> > +               goto err;
+> >> > +       if (PageTransHuge(page)) {
+> >> > +               int i;
+> >> > +               for (i = 1; i < HPAGE_CACHE_NR; i++) {
+> >>                       struct page *tail = page + i; to easy reader
+> >>
+> >> > +                       page_cache_get(page + i);
+> >> s/page_cache_get/get_page_foll/ ?
 > >
-> > Actually, following patches implement mmap for file-backed thp and this
-> > split_huge_page() will catch only fallback cases.
+> > Why?
 > >
-> I wonder if the effort we pay for THP cache is nuked by mmap.
+> see follow_trans_huge_pmd() please.
 
-I will not be nuked after patch 30/30.
-
-Actually, it will be splited only if process tries to map hugepage with
-unsuitable alignment.
+Sorry, I fail to see how follow_trans_huge_pmd() is relevant here.
+Could you elaborate?
 
 -- 
  Kirill A. Shutemov
