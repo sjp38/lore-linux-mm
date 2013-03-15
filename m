@@ -1,17 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id C17636B0037
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 09:23:01 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 489656B0027
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 09:25:18 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <CAJd=RBCHLigJBWiBt==wjjm7HA3CYSSyS6odKy0BgoudVxN80g@mail.gmail.com>
+In-Reply-To: <CAJd=RBCxNgjUUSbbTnVymC7+O51LKDuKTyTkEGYwuWYB9_oUmw@mail.gmail.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-14-git-send-email-kirill.shutemov@linux.intel.com>
- <CAJd=RBCHLigJBWiBt==wjjm7HA3CYSSyS6odKy0BgoudVxN80g@mail.gmail.com>
-Subject: Re: [PATCHv2, RFC 13/30] thp, mm: implement
- grab_cache_huge_page_write_begin()
+ <1363283435-7666-17-git-send-email-kirill.shutemov@linux.intel.com>
+ <CAJd=RBCxNgjUUSbbTnVymC7+O51LKDuKTyTkEGYwuWYB9_oUmw@mail.gmail.com>
+Subject: Re: [PATCHv2, RFC 16/30] thp: handle file pages in split_huge_page()
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130315132440.C4DF8E0085@blue.fi.intel.com>
-Date: Fri, 15 Mar 2013 15:24:40 +0200 (EET)
+Message-Id: <20130315132656.BC518E0085@blue.fi.intel.com>
+Date: Fri, 15 Mar 2013 15:26:56 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hillf Danton <dhillf@gmail.com>
@@ -20,24 +19,19 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aa
 Hillf Danton wrote:
 > On Fri, Mar 15, 2013 at 1:50 AM, Kirill A. Shutemov
 > <kirill.shutemov@linux.intel.com> wrote:
-> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> > +struct page *grab_cache_huge_page_write_begin(struct address_space *mapping,
-> > +                       pgoff_t index, unsigned flags);
-> > +#else
-> > +static inline struct page *grab_cache_huge_page_write_begin(
-> > +               struct address_space *mapping, pgoff_t index, unsigned flags)
-> > +{
-> build bug?
-
-Hm?. No. Why?
-
-> > +       return NULL;
-> > +}
-> > +#endif
+> > -int split_huge_page(struct page *page)
+> > +static int split_anon_huge_page(struct page *page)
+> >  {
+> >         struct anon_vma *anon_vma;
+> >         int ret = 1;
 > >
-> btw, how about grab_thp_write_begin?
+> > -       BUG_ON(is_huge_zero_pfn(page_to_pfn(page)));
+> > -       BUG_ON(!PageAnon(page));
+> > -
+> deleted, why?
 
-Sounds better, thanks.
+split_anon_huge_page() should only be called from split_huge_page().
+Probably I could bring it back, but it's kinda redundant.
 
 -- 
  Kirill A. Shutemov
