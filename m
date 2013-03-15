@@ -1,64 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id A56CE6B0037
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 13:27:25 -0400 (EDT)
-Received: by mail-we0-f170.google.com with SMTP id z53so3404369wey.15
-        for <linux-mm@kvack.org>; Fri, 15 Mar 2013 10:27:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 234C96B0037
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 13:32:29 -0400 (EDT)
+Date: Fri, 15 Mar 2013 17:32:20 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: Kernel oops on mmap ?
+Message-ID: <20130315173220.GP4977@n2100.arm.linux.org.uk>
+References: <51409575.9060304@mimc.co.uk> <CAJd=RBB=2XRwN-eCQDnBjwnm57-2C+OSairhyUrPdVMoLCfj1w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20130315165509.GA1108@cmpxchg.org>
-References: <CAA25o9RchY2AD8U30bh4H+fz6kq8bs98SUrkJUkTpbTHSGjcGA@mail.gmail.com>
-	<5142E411.2040005@gmail.com>
-	<CAA25o9RPhu++JsX_8AjhqJuodRkybiYVSEifjCXX=oPnOO5fEA@mail.gmail.com>
-	<20130315165509.GA1108@cmpxchg.org>
-Date: Fri, 15 Mar 2013 10:27:23 -0700
-Message-ID: <CAA25o9SsVppWQ+Hi4LQ5OkiENHF5BQeNVD_G+a7CUbnPgOm=YQ@mail.gmail.com>
-Subject: Re: security: restricting access to swap
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJd=RBB=2XRwN-eCQDnBjwnm57-2C+OSairhyUrPdVMoLCfj1w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Will Drewry <drewry@google.com>
-Cc: Ric Mason <ric.masonn@gmail.com>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Mark Jackson <mpfj-list@mimc.co.uk>, lkml <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Fri, Mar 15, 2013 at 9:55 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Fri, Mar 15, 2013 at 08:48:49AM -0700, Luigi Semenzato wrote:
->> On Fri, Mar 15, 2013 at 2:04 AM, Ric Mason <ric.masonn@gmail.com> wrote:
->> > On 03/12/2013 07:57 AM, Luigi Semenzato wrote:
->> >>
->> >> Greetings linux-mmers,
->> >>
->> >> before we can fully deploy zram, we must ensure it conforms to the
->> >> Chrome OS security requirements.  In particular, we do not want to
->> >> allow user space to read/write the swap device---not even root-owned
->> >> processes.
->> >
->> >
->> > Interesting.
->>
->> Thank you.
->>
->> >>
->> >> A similar restriction is available for /dev/mem under
->> >> CONFIG_STRICT_DEVMEM.
->> >
->> >
->> > Sorry, what's /dev/mem used for?  and why relevant your topic?
->>
->> I don't know what it's used for Chrome OS, but I don't think it
->> matters.  The point is that /dev/mem is compiled in the kernel, and
->> without CONFIG_STRICT_DEVMEM it offers a way for a root-owned process
->> to read/write all of physical memory.  The situation is not as dire
->> with a swap device, but currently a root-owned process can open a
->> block device used for swap and peek and poke its data, which means
->> that a root-owned process has now potential access to the data segment
->> of any other process, among other things.
->
-> How do you handle /proc/<pid>/mem?
+On Thu, Mar 14, 2013 at 09:38:02AM +0800, Hillf Danton wrote:
+> [cc Russell]
+> On Wed, Mar 13, 2013 at 11:04 PM, Mark Jackson <mpfj-list@mimc.co.uk> wrote:
+> > Can any help diagnose what my userspace task is doing to get the followings oops ?
+> >
+> > [   42.587772] Unable to handle kernel paging request at virtual address bfac6004
+> > [   42.595431] pgd = cf748000
+> > [   42.598291] [bfac6004] *pgd=00000000
+> 
+> None pgd, why is pgd_none_or_clear_bad() not triggered?
 
-Right.  We do not.  But... we might!  We could turn it off and see if
-it breaks anything important.
+I think you're misunderstanding what's happened here.
 
-In any case, we don't like expanding the attack surface.
+> > [   42.602079] Internal error: Oops: 5 [#1] ARM
+> > [   42.606592] CPU: 0    Not tainted  (3.8.0-next-20130225-00001-g2d0ce24-dirty #38)
+> > [   42.614509] PC is at unmap_single_vma+0x2d8/0x5bc
+> > [   42.619476] LR is at unmap_single_vma+0x29c/0x5bc
+> > [   42.624447] pc : [<c00aed0c>]    lr : [<c00aecd0>]    psr: 60000013
+> > [   42.624447] sp : cf685d88  ip : 8f9523cd  fp : cf680004
+> > [   42.636567] r10: 00000000  r9 : bfac6000  r8 : 00200000
+> > [   42.642079] r7 : cf685e00  r6 : cf5e93a8  r5 : cf5e93ac  r4 : 000ea000
+> > [   42.648969] r3 : 00000001  r2 : 00000000  r1 : 00000040  r0 : 00000000
+...
+> > [   42.935472] Code: 0affffa4 e59d000c e3500000 1a0000a2 (e5993004)
+
+That disassembles to this:
+   0:	0affffa4 	beq	0xfffffe98
+   4:	e59d000c 	ldr	r0, [sp, #12]
+   8:	e3500000 	cmp	r0, #0
+   c:	1a0000a2 	bne	0x29c
+  10:	e5993004 	ldr	r3, [r9, #4]
+
+and r9 = 0xbfac6000, which is _not_ the address of a page table.
+
+Unfortunately, the above doesn't tie up with the output from my
+compiler, so I've no idea what that corresponds with in
+unmap_single_vma().
+
+The other surprising thing about this oops dump is the lack of
+backtrace...
+
+I think I need to see the disassembly of this function before
+there can be any further diagnosis of what's going on here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
