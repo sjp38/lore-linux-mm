@@ -1,39 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id EACA36B0027
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 10:30:38 -0400 (EDT)
-Date: Fri, 15 Mar 2013 10:30:37 -0400 (EDT)
-From: Alan Stern <stern@rowland.harvard.edu>
-Subject: Re: [PATCH] USB: EHCI: fix for leaking isochronous data
-In-Reply-To: <51426484.3000609@web.de>
-Message-ID: <Pine.LNX.4.44L0.1303151028100.1414-100000@iolanthe.rowland.org>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id DC8B36B0027
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 11:00:31 -0400 (EDT)
+Date: Fri, 15 Mar 2013 11:00:22 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: Inactive memory keep growing and how to release it?
+Message-ID: <20130315150022.GD7403@thunk.org>
+References: <CAAO_Xo7sEH5W_9xoOjax8ynyjLCx7GBpse+EU0mF=9mEBFhrgw@mail.gmail.com>
+ <20130314101403.GB11636@dhcp22.suse.cz>
+ <5142DEC5.7010206@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5142DEC5.7010206@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Soeren Moch <smoch@web.de>
-Cc: Arnd Bergmann <arnd@arndb.de>, USB list <linux-usb@vger.kernel.org>, Jason Cooper <jason@lakedaemon.net>, Andrew Lunn <andrew@lunn.ch>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, linux-mm@kvack.org, Kernel development list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Lenky Gao <lenky.gao@gmail.com>, Greg KH <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, 15 Mar 2013, Soeren Moch wrote:
-
-> > The log shows a 1-1 match between allocations and deallocations, except
-> > for three excess allocations about 45 lines before the end.  I have no
-> > idea what's up with those.  They may be an artifact arising from where
-> > you stopped copying the log data.
-> >
-> > There are as many as 400 iTDs being allocated before any are freed.
-> > That seems like a lot.  Are they all for the same isochronous endpoint?
-> > What's the endpoint's period?  How often are URBs submitted?
+On Fri, Mar 15, 2013 at 04:41:41PM +0800, Simon Jeons wrote:
+> >This is really an old kernel and also a distribution one which might
+> >contain a lot of patches on top of the core kernel. I would suggest to
+> >contact Redhat or try to reproduce the issue with the vanilla and
 > 
-> I use 2 dvb sticks, capturing digital TV. For each stick 5 URBs on a 
-> single endpoint are used, I think. I'm not sure, which endpoint in which 
-> alternateSetting is active. I attached the output of 'lsusb -v' for the 
-> sticks.
-> How can I track down the other information you need?
+> What's the meaning of vanilla?
 
-Use usbmon (see Documentation/usb/usbmon.txt).
+Vanilla means an up-to-date (i.e., non-prehistoric) kernel from
+kernel.org, without any "Value Added" patches from a distribution.
 
-Alan Stern
+See: https://www.kernel.org/
+
+Regards,
+
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
