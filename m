@@ -1,68 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id BF95F6B0027
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 09:55:26 -0400 (EDT)
-Received: by mail-ob0-f174.google.com with SMTP id 16so3223505obc.19
-        for <linux-mm@kvack.org>; Fri, 15 Mar 2013 06:55:25 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id EACA36B0027
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 10:30:38 -0400 (EDT)
+Date: Fri, 15 Mar 2013 10:30:37 -0400 (EDT)
+From: Alan Stern <stern@rowland.harvard.edu>
+Subject: Re: [PATCH] USB: EHCI: fix for leaking isochronous data
+In-Reply-To: <51426484.3000609@web.de>
+Message-ID: <Pine.LNX.4.44L0.1303151028100.1414-100000@iolanthe.rowland.org>
 MIME-Version: 1.0
-In-Reply-To: <20130315135026.32B58E0085@blue.fi.intel.com>
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1363283435-7666-9-git-send-email-kirill.shutemov@linux.intel.com>
-	<CAJd=RBAH1+YaDvL9=ayx2j6b4jx0CzBZGrAL9LVwPMx4Y=s3Rg@mail.gmail.com>
-	<20130315132333.B8205E0085@blue.fi.intel.com>
-	<CAJd=RBAh7-qBYhCxtj56V5sez1HSek9TNVeu9V=+mW0qNpxEWA@mail.gmail.com>
-	<20130315135026.32B58E0085@blue.fi.intel.com>
-Date: Fri, 15 Mar 2013 21:55:25 +0800
-Message-ID: <CAJd=RBBL7VV50zHP2obJ7_CzOekgH9i-E3Fz3PO5YXk5f=B2Kw@mail.gmail.com>
-Subject: Re: [PATCHv2, RFC 08/30] thp, mm: rewrite add_to_page_cache_locked()
- to support huge pages
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Soeren Moch <smoch@web.de>
+Cc: Arnd Bergmann <arnd@arndb.de>, USB list <linux-usb@vger.kernel.org>, Jason Cooper <jason@lakedaemon.net>, Andrew Lunn <andrew@lunn.ch>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, linux-mm@kvack.org, Kernel development list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org
 
-On Fri, Mar 15, 2013 at 9:50 PM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> Hillf Danton wrote:
->> On Fri, Mar 15, 2013 at 9:23 PM, Kirill A. Shutemov
->> <kirill.shutemov@linux.intel.com> wrote:
->> > Hillf Danton wrote:
->> >> On Fri, Mar 15, 2013 at 1:50 AM, Kirill A. Shutemov
->> >> <kirill.shutemov@linux.intel.com> wrote:
->> >> > +       page_cache_get(page);
->> >> > +       spin_lock_irq(&mapping->tree_lock);
->> >> > +       page->mapping = mapping;
->> >> > +       page->index = offset;
->> >> > +       error = radix_tree_insert(&mapping->page_tree, offset, page);
->> >> > +       if (unlikely(error))
->> >> > +               goto err;
->> >> > +       if (PageTransHuge(page)) {
->> >> > +               int i;
->> >> > +               for (i = 1; i < HPAGE_CACHE_NR; i++) {
->> >>                       struct page *tail = page + i; to easy reader
->> >>
->> >> > +                       page_cache_get(page + i);
->> >> s/page_cache_get/get_page_foll/ ?
->> >
->> > Why?
->> >
->> see follow_trans_huge_pmd() please.
->
-> Sorry, I fail to see how follow_trans_huge_pmd() is relevant here.
-> Could you elaborate?
->
-Lets see the code
+On Fri, 15 Mar 2013, Soeren Moch wrote:
 
-	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
-//page is tail now
-	VM_BUG_ON(!PageCompound(page));
-	if (flags & FOLL_GET)
-		get_page_foll(page);
-//raise page count with the foll function
+> > The log shows a 1-1 match between allocations and deallocations, except
+> > for three excess allocations about 45 lines before the end.  I have no
+> > idea what's up with those.  They may be an artifact arising from where
+> > you stopped copying the log data.
+> >
+> > There are as many as 400 iTDs being allocated before any are freed.
+> > That seems like a lot.  Are they all for the same isochronous endpoint?
+> > What's the endpoint's period?  How often are URBs submitted?
+> 
+> I use 2 dvb sticks, capturing digital TV. For each stick 5 URBs on a 
+> single endpoint are used, I think. I'm not sure, which endpoint in which 
+> alternateSetting is active. I attached the output of 'lsusb -v' for the 
+> sticks.
+> How can I track down the other information you need?
 
-thus I raised question.
+Use usbmon (see Documentation/usb/usbmon.txt).
+
+Alan Stern
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
