@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 8D6B06B0037
-	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 09:28:41 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 8A33D6B0039
+	for <linux-mm@kvack.org>; Fri, 15 Mar 2013 09:29:10 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <CAJd=RBBhbEZghvLcm5zYw2ppNOGjfaAPyrgoGqeOYy3YmDEWGw@mail.gmail.com>
+In-Reply-To: <CAJd=RBBPdKfc7i5bkMAzOTtyfUX2FrbYgRAc2c45D04AhZv+eg@mail.gmail.com>
 References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-24-git-send-email-kirill.shutemov@linux.intel.com>
- <CAJd=RBBhbEZghvLcm5zYw2ppNOGjfaAPyrgoGqeOYy3YmDEWGw@mail.gmail.com>
-Subject: Re: [PATCHv2, RFC 23/30] thp: prepare zap_huge_pmd() to uncharge file
- pages
+ <1363283435-7666-26-git-send-email-kirill.shutemov@linux.intel.com>
+ <CAJd=RBBPdKfc7i5bkMAzOTtyfUX2FrbYgRAc2c45D04AhZv+eg@mail.gmail.com>
+Subject: Re: [PATCHv2, RFC 25/30] thp, mm: basic huge_fault implementation for
+ generic_file_vm_ops
 Content-Transfer-Encoding: 7bit
-Message-Id: <20130315133020.2722BE0085@blue.fi.intel.com>
-Date: Fri, 15 Mar 2013 15:30:20 +0200 (EET)
+Message-Id: <20130315133042.E6B31E0085@blue.fi.intel.com>
+Date: Fri, 15 Mar 2013 15:30:42 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hillf Danton <dhillf@gmail.com>
@@ -20,40 +20,34 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aa
 Hillf Danton wrote:
 > On Fri, Mar 15, 2013 at 1:50 AM, Kirill A. Shutemov
 > <kirill.shutemov@linux.intel.com> wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 > >
-> > Uncharge pages from correct counter.
-> >
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  mm/huge_memory.c |    4 +++-
-> >  1 file changed, 3 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index a23da8b..34e0385 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1368,10 +1368,12 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> >                         spin_unlock(&tlb->mm->page_table_lock);
-> >                         put_huge_zero_page();
-> >                 } else {
-> > +                       int counter;
-> s/counter/item/ ?
+> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> > +static int filemap_huge_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+> > +{
+> > +       struct file *file = vma->vm_file;
+> > +       struct address_space *mapping = file->f_mapping;
+> > +       struct inode *inode = mapping->host;
+> > +       pgoff_t size, offset = vmf->pgoff;
+> > +       unsigned long address = (unsigned long) vmf->virtual_address;
+> > +       struct page *page;
+> > +       int ret = 0;
+> > +
+> > +       BUG_ON(((address >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
+> > +                       (offset & HPAGE_CACHE_INDEX_MASK));
+> > +
+> > +retry:
+> > +       page = find_get_page(mapping, offset);
+> > +       if (!page) {
+> > +               gfp_t gfp_mask = mapping_gfp_mask(mapping) | __GFP_COLD;
+> > +               page = alloc_pages(gfp_mask, HPAGE_PMD_ORDER);
+> s/pages/pages_vma/ ?
 
-I saw 'member' in other place, so I'll rename it to 'member'.
+Fixed. Thanks.
 
-> >                         page = pmd_page(orig_pmd);
-> >                         page_remove_rmap(page);
-> >                         VM_BUG_ON(page_mapcount(page) < 0);
-> > -                       add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-> > +                       counter = PageAnon(page) ? MM_ANONPAGES : MM_FILEPAGES;
-> > +                       add_mm_counter(tlb->mm, counter, -HPAGE_PMD_NR);
-> >                         VM_BUG_ON(!PageHead(page));
-> >                         tlb->mm->nr_ptes--;
-> >                         spin_unlock(&tlb->mm->page_table_lock);
-> > --
-> > 1.7.10.4
-> >
+> > +               if (!page) {
+> > +                       count_vm_event(THP_FAULT_FALLBACK);
+> > +                       return VM_FAULT_OOM;
+> > +               }
 
 -- 
  Kirill A. Shutemov
