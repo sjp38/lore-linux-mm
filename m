@@ -1,71 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 5DC9E6B0037
-	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 09:11:11 -0400 (EDT)
-Received: by mail-vc0-f182.google.com with SMTP id ht11so1922250vcb.27
-        for <linux-mm@kvack.org>; Sat, 16 Mar 2013 06:11:10 -0700 (PDT)
-Date: Sat, 16 Mar 2013 09:11:06 -0400
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Subject: Re: [PATCH v3 3/5] handle zcache_[eph|pers]_zpages for zero-filled
- page
-Message-ID: <20130316131104.GE5987@konrad-lan.dumpdata.com>
-References: <1363314860-22731-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1363314860-22731-4-git-send-email-liwanp@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1363314860-22731-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 254DA6B0037
+	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 09:31:18 -0400 (EDT)
+Received: by mail-ve0-f173.google.com with SMTP id oz10so3300241veb.4
+        for <linux-mm@kvack.org>; Sat, 16 Mar 2013 06:31:17 -0700 (PDT)
+From: Konrad Rzeszutek Wilk <konrad@kernel.org>
+Subject: [PATCH] zcache/TODO: Update on two items.
+Date: Sat, 16 Mar 2013 09:31:10 -0400
+Message-Id: <1363440670-7262-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: konrad.wilk@oracle.com, gregkh@linuxfoundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, liwanp@linux.vnet.ibm.com, bob.liu@oracle.com
 
-On Fri, Mar 15, 2013 at 10:34:18AM +0800, Wanpeng Li wrote:
-> Increment/decrement zcache_[eph|pers]_zpages for zero-filled pages,
-> the main point of the counters for zpages and pageframes is to be 
-> able to calculate density == zpages/pageframes. A zero-filled page 
-> becomes a zpage that "compresses" to zero bytes and, as a result, 
-> requires zero pageframes for storage. So the zpages counter should 
-> be increased but the pageframes counter should not.
-> 
-> [Dan Magenheimer <dan.magenheimer@oracle.com>: patch description]
-> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Two of them (zcache DebugFS cleanup) and the module loading
+capability are now in linux-next for v3.10.
 
-Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> ---
->  drivers/staging/zcache/zcache-main.c |    7 ++++++-
->  1 files changed, 6 insertions(+), 1 deletions(-)
-> 
-> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-> index 6c35c7d..ef8c960 100644
-> --- a/drivers/staging/zcache/zcache-main.c
-> +++ b/drivers/staging/zcache/zcache-main.c
-> @@ -863,6 +863,8 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
->  	if (pampd == (void *)ZERO_FILLED) {
->  		handle_zero_filled_page(data);
->  		zero_filled = true;
-> +		zsize = 0;
-> +		zpages = 1;
->  		if (!raw)
->  			*sizep = PAGE_SIZE;
->  		goto zero_fill;
-> @@ -917,8 +919,11 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
->  
->  	BUG_ON(preemptible());
->  
-> -	if (pampd == (void *)ZERO_FILLED)
-> +	if (pampd == (void *)ZERO_FILLED) {
->  		zero_filled = true;
-> +		zsize = 0;
-> +		zpages = 1;
-> +	}
->  
->  	if (pampd_is_remote(pampd) && !zero_filled) {
->  
-> -- 
-> 1.7.7.6
-> 
+Also Bob Liu is full-time going to help on knocking these items
+off the list.
+
+CC: bob.liu@oracle.com
+Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+---
+ drivers/staging/zcache/TODO | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/drivers/staging/zcache/TODO b/drivers/staging/zcache/TODO
+index c1e26d4..ec9aa11 100644
+--- a/drivers/staging/zcache/TODO
++++ b/drivers/staging/zcache/TODO
+@@ -41,14 +41,10 @@ STATUS/OWNERSHIP
+     for 3.9, see https://lkml.org/lkml/2013/2/6/437;
+ 7. PROTOTYPED as part of "new" zcache; in staging/zcache for 3.9;
+     needs more review (plan to discuss at LSF/MM 2013)
+-8. IN PROGRESS; owned by Konrad Wilk; v2 recently posted
+-   http://lkml.org/lkml/2013/2/1/542
+ 9. IN PROGRESS; owned by Konrad Wilk; Mel Gorman provided
+    great feedback in August 2012 (unfortunately of "old"
+    zcache)
+-10. Konrad posted series of fixes (that now need rebasing)
+-    https://lkml.org/lkml/2013/2/1/566 
+-11. NOT DONE; owned by Konrad Wilk
++11. NOT DONE; owned by Konrad Wilk and Bob Liu
+ 12. TBD (depends on quantity of feedback)
+ 13. PROPOSED; one suggestion proposed by Dan; needs more ideas/feedback
+ 14. TBD (depends on feedback)
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
