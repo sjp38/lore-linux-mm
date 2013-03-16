@@ -1,236 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id DD9DB6B0037
-	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 10:12:43 -0400 (EDT)
-Message-ID: <51447DC9.5070701@oracle.com>
-Date: Sat, 16 Mar 2013 22:12:25 +0800
-From: Bob Liu <bob.liu@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 2/5] zero-filled pages awareness
-References: <1363314860-22731-1-git-send-email-liwanp@linux.vnet.ibm.com> <1363314860-22731-3-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1363314860-22731-3-git-send-email-liwanp@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 1E33D6B0037
+	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 13:03:46 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id ma3so5143840pbc.39
+        for <linux-mm@kvack.org>; Sat, 16 Mar 2013 10:03:45 -0700 (PDT)
+From: Jiang Liu <liuj97@gmail.com>
+Subject: [PATCH v2, part3 00/12] accurately calculate zone->managed_pages
+Date: Sun, 17 Mar 2013 01:03:21 +0800
+Message-Id: <1363453413-8139-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+The original goal of this patchset is to fix the bug reported by
+https://bugzilla.kernel.org/show_bug.cgi?id=53501
+Now it has also been expanded to reduce common code used by memory
+initializion.
 
-On 03/15/2013 10:34 AM, Wanpeng Li wrote:
-> Compression of zero-filled pages can unneccessarily cause internal
-> fragmentation, and thus waste memory. This special case can be
-> optimized.
-> 
-> This patch captures zero-filled pages, and marks their corresponding
-> zcache backing page entry as zero-filled. Whenever such zero-filled
-> page is retrieved, we fill the page frame with zero.
-> 
-> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> ---
->  drivers/staging/zcache/zcache-main.c |   81 +++++++++++++++++++++++++++++++---
->  1 files changed, 75 insertions(+), 6 deletions(-)
-> 
-> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-> index d73dd4b..6c35c7d 100644
-> --- a/drivers/staging/zcache/zcache-main.c
-> +++ b/drivers/staging/zcache/zcache-main.c
-> @@ -59,6 +59,12 @@ static inline void frontswap_tmem_exclusive_gets(bool b)
->  }
->  #endif
->  
-> +/*
-> + * mark pampd to special value in order that later
-> + * retrieve will identify zero-filled pages
-> + */
-> +#define ZERO_FILLED 0x2
-> +
->  /* enable (or fix code) when Seth's patches are accepted upstream */
->  #define zcache_writeback_enabled 0
->  
-> @@ -543,7 +549,23 @@ static void *zcache_pampd_eph_create(char *data, size_t size, bool raw,
->  {
->  	void *pampd = NULL, *cdata = data;
->  	unsigned clen = size;
-> +	bool zero_filled = false;
->  	struct page *page = (struct page *)(data), *newpage;
-> +	char *user_mem;
-> +
-> +	user_mem = kmap_atomic(page);
-> +
-> +	/*
-> +	 * Compressing zero-filled pages will waste memory and introduce
-> +	 * serious fragmentation, skip it to avoid overhead
-> +	 */
-> +	if (page_is_zero_filled(user_mem)) {
-> +		kunmap_atomic(user_mem);
-> +		clen = 0;
-> +		zero_filled = true;
-> +		goto got_pampd;
-> +	}
-> +	kunmap_atomic(user_mem);
->  
->  	if (!raw) {
->  		zcache_compress(page, &cdata, &clen);
-> @@ -592,6 +614,8 @@ got_pampd:
->  		zcache_eph_zpages_max = zcache_eph_zpages;
->  	if (ramster_enabled && raw)
->  		ramster_count_foreign_pages(true, 1);
-> +	if (zero_filled)
-> +		pampd = (void *)ZERO_FILLED;
->  out:
->  	return pampd;
->  }
-> @@ -601,14 +625,31 @@ static void *zcache_pampd_pers_create(char *data, size_t size, bool raw,
->  {
->  	void *pampd = NULL, *cdata = data;
->  	unsigned clen = size;
-> +	bool zero_filled = false;
->  	struct page *page = (struct page *)(data), *newpage;
->  	unsigned long zbud_mean_zsize;
->  	unsigned long curr_pers_zpages, total_zsize;
-> +	char *user_mem;
->  
->  	if (data == NULL) {
->  		BUG_ON(!ramster_enabled);
->  		goto create_pampd;
->  	}
-> +
-> +	user_mem = kmap_atomic(page);
-> +
-> +	/*
-> +	 * Compressing zero-filled pages will waste memory and introduce
-> +	 * serious fragmentation, skip it to avoid overhead
-> +	 */
-> +	if (page_is_zero_filled(page)) {
-> +		kunmap_atomic(user_mem);
-> +		clen = 0;
-> +		zero_filled = true;
-> +		goto got_pampd;
-> +	}
-> +	kunmap_atomic(user_mem);
-> +
+This is the third part, previous two patch sets could be accessed at:
+http://marc.info/?l=linux-mm&m=136289696323825&w=2
+http://marc.info/?l=linux-mm&m=136290291524901&w=2
 
-Maybe we can add a function for this code? It seems a bit duplicated.
+This patchset applies to
+https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.8
 
->  	curr_pers_zpages = zcache_pers_zpages;
->  /* FIXME CONFIG_RAMSTER... subtract atomic remote_pers_pages here? */
->  	if (!raw)
-> @@ -674,6 +715,8 @@ got_pampd:
->  		zcache_pers_zbytes_max = zcache_pers_zbytes;
->  	if (ramster_enabled && raw)
->  		ramster_count_foreign_pages(false, 1);
-> +	if (zero_filled)
-> +		pampd = (void *)ZERO_FILLED;
->  out:
->  	return pampd;
->  }
-> @@ -735,7 +778,8 @@ out:
->   */
->  void zcache_pampd_create_finish(void *pampd, bool eph)
->  {
-> -	zbud_create_finish((struct zbudref *)pampd, eph);
-> +	if (pampd != (void *)ZERO_FILLED)
-> +		zbud_create_finish((struct zbudref *)pampd, eph);
->  }
->  
->  /*
-> @@ -780,6 +824,14 @@ static int zcache_pampd_get_data(char *data, size_t *sizep, bool raw,
->  	BUG_ON(preemptible());
->  	BUG_ON(eph);	/* fix later if shared pools get implemented */
->  	BUG_ON(pampd_is_remote(pampd));
-> +
-> +	if (pampd == (void *)ZERO_FILLED) {
-> +		handle_zero_filled_page(data);
-> +		if (!raw)
-> +			*sizep = PAGE_SIZE;
-> +		return 0;
-> +	}
-> +
->  	if (raw)
->  		ret = zbud_copy_from_zbud(data, (struct zbudref *)pampd,
->  						sizep, eph);
-> @@ -801,12 +853,21 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
->  					struct tmem_oid *oid, uint32_t index)
->  {
->  	int ret;
-> -	bool eph = !is_persistent(pool);
-> +	bool eph = !is_persistent(pool), zero_filled = false;
->  	struct page *page = NULL;
->  	unsigned int zsize, zpages;
->  
->  	BUG_ON(preemptible());
->  	BUG_ON(pampd_is_remote(pampd));
-> +
-> +	if (pampd == (void *)ZERO_FILLED) {
-> +		handle_zero_filled_page(data);
-> +		zero_filled = true;
-> +		if (!raw)
-> +			*sizep = PAGE_SIZE;
-> +		goto zero_fill;
-> +	}
-> +
->  	if (raw)
->  		ret = zbud_copy_from_zbud(data, (struct zbudref *)pampd,
->  						sizep, eph);
-> @@ -818,6 +879,7 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
->  	}
->  	page = zbud_free_and_delist((struct zbudref *)pampd, eph,
->  					&zsize, &zpages);
-> +zero_fill:
->  	if (eph) {
->  		if (page)
->  			zcache_eph_pageframes =
-> @@ -837,7 +899,7 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
->  	}
->  	if (!is_local_client(pool->client))
->  		ramster_count_foreign_pages(eph, -1);
-> -	if (page)
-> +	if (page && !zero_filled)
->  		zcache_free_page(page);
->  	return ret;
->  }
-> @@ -851,16 +913,23 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
->  {
->  	struct page *page = NULL;
->  	unsigned int zsize, zpages;
-> +	bool zero_filled = false;
->  
->  	BUG_ON(preemptible());
-> -	if (pampd_is_remote(pampd)) {
-> +
-> +	if (pampd == (void *)ZERO_FILLED)
-> +		zero_filled = true;
-> +
-> +	if (pampd_is_remote(pampd) && !zero_filled) {
-> +
->  		BUG_ON(!ramster_enabled);
->  		pampd = ramster_pampd_free(pampd, pool, oid, index, acct);
->  		if (pampd == NULL)
->  			return;
->  	}
->  	if (is_ephemeral(pool)) {
-> -		page = zbud_free_and_delist((struct zbudref *)pampd,
-> +		if (!zero_filled)
-> +			page = zbud_free_and_delist((struct zbudref *)pampd,
->  						true, &zsize, &zpages);
->  		if (page)
->  			zcache_eph_pageframes =
-> @@ -883,7 +952,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
->  	}
->  	if (!is_local_client(pool->client))
->  		ramster_count_foreign_pages(is_ephemeral(pool), -1);
-> -	if (page)
-> +	if (page && !zero_filled)
->  		zcache_free_page(page);
->  }
->  
-> 
+Patch 1-6 are minor fixes and furthur work for preview patchset,
+which uses common helper functions to free reserved pages.
+
+Patch 7-11 enhance the way to calculate zone->managed_pages and report
+available pages as "MemTotal" for each NUMA node
+
+Patch 12 concentrates adjusting of totalram_pages, which reduces 37
+references to totalram_pages from arch/ subdirectories.
+
+We have only tested these patchset on x86 platforms, and have done basic
+compliation tests using cross-compilers from ftp.kernel.org. That means
+some code may not pass compilation on some architectures. So any help
+to test this patchset are welcomed!
+
+There is still another part still under development:
+Part4: introduce helper functions to simplify mem_init() and remove the
+	global variable num_physpages.
+
+Jiang Liu (12):
+  mm: enhance free_reserved_area() to support poisoning memory with
+    zero
+  mm/ARM64: kill poison_init_mem()
+  mm/x86: use common help functions to furthur simplify code
+  mm/tile: use common help functions to free reserved pages
+  mm/powertv: use common help functions to free reserved pages
+  mm/acornfb: use common help functions to free reserved pages
+  mm: accurately calculate zone->managed_pages for highmem zones
+  mm: use a dedicated lock to protect totalram_pages and
+    zone->managed_pages
+  mm: avoid using __free_pages_bootmem() at runtime
+  mm: correctly update zone->mamaged_pages
+  mm: report available pages as "MemTotal" for each NUMA node
+  mm: concentrate adjusting of totalram_pages
+
+ arch/alpha/kernel/sys_nautilus.c      |    2 +-
+ arch/alpha/mm/init.c                  |    6 ++--
+ arch/alpha/mm/numa.c                  |    2 +-
+ arch/arm/mm/init.c                    |   11 ++++----
+ arch/arm64/mm/init.c                  |   15 ++--------
+ arch/avr32/mm/init.c                  |    6 ++--
+ arch/blackfin/mm/init.c               |    6 ++--
+ arch/c6x/mm/init.c                    |    6 ++--
+ arch/cris/mm/init.c                   |    4 +--
+ arch/frv/mm/init.c                    |    6 ++--
+ arch/h8300/mm/init.c                  |    6 ++--
+ arch/hexagon/mm/init.c                |    3 +-
+ arch/ia64/mm/init.c                   |    4 +--
+ arch/m32r/mm/init.c                   |    6 ++--
+ arch/m68k/mm/init.c                   |    8 +++---
+ arch/microblaze/mm/init.c             |    6 ++--
+ arch/mips/mm/init.c                   |    2 +-
+ arch/mips/powertv/asic/asic_devices.c |   13 ++-------
+ arch/mips/sgi-ip27/ip27-memory.c      |    2 +-
+ arch/mn10300/mm/init.c                |    2 +-
+ arch/openrisc/mm/init.c               |    6 ++--
+ arch/parisc/mm/init.c                 |    8 +++---
+ arch/powerpc/kernel/kvm.c             |    2 +-
+ arch/powerpc/mm/mem.c                 |    7 ++---
+ arch/s390/mm/init.c                   |    4 +--
+ arch/score/mm/init.c                  |    2 +-
+ arch/sh/mm/init.c                     |    6 ++--
+ arch/sparc/mm/init_32.c               |    3 +-
+ arch/sparc/mm/init_64.c               |   10 +++----
+ arch/tile/mm/init.c                   |    9 ++----
+ arch/um/kernel/mem.c                  |    4 +--
+ arch/unicore32/mm/init.c              |    6 ++--
+ arch/x86/mm/highmem_32.c              |    5 ++++
+ arch/x86/mm/init.c                    |   14 ++--------
+ arch/x86/mm/init_32.c                 |    2 +-
+ arch/x86/mm/init_64.c                 |   24 ++++------------
+ arch/xtensa/mm/init.c                 |    6 ++--
+ drivers/video/acornfb.c               |   28 ++-----------------
+ drivers/virtio/virtio_balloon.c       |    8 ++++--
+ drivers/xen/balloon.c                 |   23 ++++------------
+ include/linux/bootmem.h               |    1 +
+ include/linux/mm.h                    |   17 ++++++------
+ include/linux/mmzone.h                |   14 +++++++---
+ mm/bootmem.c                          |   41 +++++++++++++++++----------
+ mm/hugetlb.c                          |    2 +-
+ mm/memory_hotplug.c                   |   31 ++++-----------------
+ mm/nobootmem.c                        |   35 +++++++++++++----------
+ mm/page_alloc.c                       |   49 ++++++++++++++++++++++-----------
+ 48 files changed, 210 insertions(+), 273 deletions(-)
 
 -- 
-Regards,
--Bob
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
