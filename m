@@ -1,114 +1,540 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 1E33D6B0037
-	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 13:03:46 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id ma3so5143840pbc.39
-        for <linux-mm@kvack.org>; Sat, 16 Mar 2013 10:03:45 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 5E0BE6B0038
+	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 13:03:50 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id un15so5150455pbc.10
+        for <linux-mm@kvack.org>; Sat, 16 Mar 2013 10:03:49 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v2, part3 00/12] accurately calculate zone->managed_pages
-Date: Sun, 17 Mar 2013 01:03:21 +0800
-Message-Id: <1363453413-8139-1-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH v2, part3 01/12] mm: enhance free_reserved_area() to support poisoning memory with zero
+Date: Sun, 17 Mar 2013 01:03:22 +0800
+Message-Id: <1363453413-8139-2-git-send-email-jiang.liu@huawei.com>
+In-Reply-To: <1363453413-8139-1-git-send-email-jiang.liu@huawei.com>
+References: <1363453413-8139-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>
 
-The original goal of this patchset is to fix the bug reported by
-https://bugzilla.kernel.org/show_bug.cgi?id=53501
-Now it has also been expanded to reduce common code used by memory
-initializion.
+Address comments from last round of code review.
+1) Enhance free_reserved_area() to support poisoning memory with zero.
+   This could be used to get rid of poison_init_mem() on ARM64.
+2) Other minor fixes.
 
-This is the third part, previous two patch sets could be accessed at:
-http://marc.info/?l=linux-mm&m=136289696323825&w=2
-http://marc.info/?l=linux-mm&m=136290291524901&w=2
+Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+---
+ arch/alpha/kernel/sys_nautilus.c |    2 +-
+ arch/alpha/mm/init.c             |    4 ++--
+ arch/arm/mm/init.c               |    8 ++++----
+ arch/arm64/mm/init.c             |    4 ++--
+ arch/avr32/mm/init.c             |    4 ++--
+ arch/blackfin/mm/init.c          |    4 ++--
+ arch/c6x/mm/init.c               |    4 ++--
+ arch/cris/mm/init.c              |    2 +-
+ arch/frv/mm/init.c               |    4 ++--
+ arch/h8300/mm/init.c             |    4 ++--
+ arch/ia64/mm/init.c              |    2 +-
+ arch/m32r/mm/init.c              |    4 ++--
+ arch/m68k/mm/init.c              |    4 ++--
+ arch/microblaze/mm/init.c        |    4 ++--
+ arch/openrisc/mm/init.c          |    4 ++--
+ arch/parisc/mm/init.c            |    4 ++--
+ arch/powerpc/kernel/kvm.c        |    2 +-
+ arch/powerpc/mm/mem.c            |    2 +-
+ arch/s390/mm/init.c              |    2 +-
+ arch/sh/mm/init.c                |    4 ++--
+ arch/um/kernel/mem.c             |    2 +-
+ arch/unicore32/mm/init.c         |    4 ++--
+ arch/xtensa/mm/init.c            |    4 ++--
+ include/linux/mm.h               |   11 ++++++-----
+ mm/page_alloc.c                  |    4 ++--
+ 25 files changed, 49 insertions(+), 48 deletions(-)
 
-This patchset applies to
-https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.8
-
-Patch 1-6 are minor fixes and furthur work for preview patchset,
-which uses common helper functions to free reserved pages.
-
-Patch 7-11 enhance the way to calculate zone->managed_pages and report
-available pages as "MemTotal" for each NUMA node
-
-Patch 12 concentrates adjusting of totalram_pages, which reduces 37
-references to totalram_pages from arch/ subdirectories.
-
-We have only tested these patchset on x86 platforms, and have done basic
-compliation tests using cross-compilers from ftp.kernel.org. That means
-some code may not pass compilation on some architectures. So any help
-to test this patchset are welcomed!
-
-There is still another part still under development:
-Part4: introduce helper functions to simplify mem_init() and remove the
-	global variable num_physpages.
-
-Jiang Liu (12):
-  mm: enhance free_reserved_area() to support poisoning memory with
-    zero
-  mm/ARM64: kill poison_init_mem()
-  mm/x86: use common help functions to furthur simplify code
-  mm/tile: use common help functions to free reserved pages
-  mm/powertv: use common help functions to free reserved pages
-  mm/acornfb: use common help functions to free reserved pages
-  mm: accurately calculate zone->managed_pages for highmem zones
-  mm: use a dedicated lock to protect totalram_pages and
-    zone->managed_pages
-  mm: avoid using __free_pages_bootmem() at runtime
-  mm: correctly update zone->mamaged_pages
-  mm: report available pages as "MemTotal" for each NUMA node
-  mm: concentrate adjusting of totalram_pages
-
- arch/alpha/kernel/sys_nautilus.c      |    2 +-
- arch/alpha/mm/init.c                  |    6 ++--
- arch/alpha/mm/numa.c                  |    2 +-
- arch/arm/mm/init.c                    |   11 ++++----
- arch/arm64/mm/init.c                  |   15 ++--------
- arch/avr32/mm/init.c                  |    6 ++--
- arch/blackfin/mm/init.c               |    6 ++--
- arch/c6x/mm/init.c                    |    6 ++--
- arch/cris/mm/init.c                   |    4 +--
- arch/frv/mm/init.c                    |    6 ++--
- arch/h8300/mm/init.c                  |    6 ++--
- arch/hexagon/mm/init.c                |    3 +-
- arch/ia64/mm/init.c                   |    4 +--
- arch/m32r/mm/init.c                   |    6 ++--
- arch/m68k/mm/init.c                   |    8 +++---
- arch/microblaze/mm/init.c             |    6 ++--
- arch/mips/mm/init.c                   |    2 +-
- arch/mips/powertv/asic/asic_devices.c |   13 ++-------
- arch/mips/sgi-ip27/ip27-memory.c      |    2 +-
- arch/mn10300/mm/init.c                |    2 +-
- arch/openrisc/mm/init.c               |    6 ++--
- arch/parisc/mm/init.c                 |    8 +++---
- arch/powerpc/kernel/kvm.c             |    2 +-
- arch/powerpc/mm/mem.c                 |    7 ++---
- arch/s390/mm/init.c                   |    4 +--
- arch/score/mm/init.c                  |    2 +-
- arch/sh/mm/init.c                     |    6 ++--
- arch/sparc/mm/init_32.c               |    3 +-
- arch/sparc/mm/init_64.c               |   10 +++----
- arch/tile/mm/init.c                   |    9 ++----
- arch/um/kernel/mem.c                  |    4 +--
- arch/unicore32/mm/init.c              |    6 ++--
- arch/x86/mm/highmem_32.c              |    5 ++++
- arch/x86/mm/init.c                    |   14 ++--------
- arch/x86/mm/init_32.c                 |    2 +-
- arch/x86/mm/init_64.c                 |   24 ++++------------
- arch/xtensa/mm/init.c                 |    6 ++--
- drivers/video/acornfb.c               |   28 ++-----------------
- drivers/virtio/virtio_balloon.c       |    8 ++++--
- drivers/xen/balloon.c                 |   23 ++++------------
- include/linux/bootmem.h               |    1 +
- include/linux/mm.h                    |   17 ++++++------
- include/linux/mmzone.h                |   14 +++++++---
- mm/bootmem.c                          |   41 +++++++++++++++++----------
- mm/hugetlb.c                          |    2 +-
- mm/memory_hotplug.c                   |   31 ++++-----------------
- mm/nobootmem.c                        |   35 +++++++++++++----------
- mm/page_alloc.c                       |   49 ++++++++++++++++++++++-----------
- 48 files changed, 210 insertions(+), 273 deletions(-)
-
+diff --git a/arch/alpha/kernel/sys_nautilus.c b/arch/alpha/kernel/sys_nautilus.c
+index a8b9d66..7f4e7bf 100644
+--- a/arch/alpha/kernel/sys_nautilus.c
++++ b/arch/alpha/kernel/sys_nautilus.c
+@@ -234,7 +234,7 @@ nautilus_init_pci(void)
+ 		memtop = pci_mem;
+ 	if (memtop > alpha_mv.min_mem_address) {
+ 		free_reserved_area((unsigned long)__va(alpha_mv.min_mem_address),
+-				   (unsigned long)__va(memtop), 0, NULL);
++				   (unsigned long)__va(memtop), -1, NULL);
+ 		printk("nautilus_init_pci: %ldk freed\n",
+ 			(memtop - alpha_mv.min_mem_address) >> 10);
+ 	}
+diff --git a/arch/alpha/mm/init.c b/arch/alpha/mm/init.c
+index 0ba85ee..9930837 100644
+--- a/arch/alpha/mm/init.c
++++ b/arch/alpha/mm/init.c
+@@ -319,13 +319,13 @@ mem_init(void)
+ void
+ free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void
+ free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index 9a5cdc0..e922456 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -600,7 +600,7 @@ void __init mem_init(void)
+ 
+ #ifdef CONFIG_SA1111
+ 	/* now that our DMA memory is actually so designated, we can free it */
+-	free_reserved_area(__va(PHYS_PFN_OFFSET), swapper_pg_dir, 0, NULL);
++	free_reserved_area(__va(PHYS_PFN_OFFSET), swapper_pg_dir, -1, NULL);
+ #endif
+ 
+ 	free_highpages();
+@@ -728,12 +728,12 @@ void free_initmem(void)
+ 	extern char __tcm_start, __tcm_end;
+ 
+ 	poison_init_mem(&__tcm_start, &__tcm_end - &__tcm_start);
+-	free_reserved_area(&__tcm_start, &__tcm_end, 0, "TCM link");
++	free_reserved_area(&__tcm_start, &__tcm_end, -1, "TCM link");
+ #endif
+ 
+ 	poison_init_mem(__init_begin, __init_end - __init_begin);
+ 	if (!machine_is_integrator() && !machine_is_cintegrator())
+-		free_initmem_default(0);
++		free_initmem_default(-1);
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+@@ -744,7 +744,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+ 	if (!keep_initrd) {
+ 		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
+-		free_reserved_area(start, end, 0, "initrd");
++		free_reserved_area(start, end, -1, "initrd");
+ 	}
+ }
+ 
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index f497ca7..e58dd7f 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -387,7 +387,7 @@ void __init mem_init(void)
+ void free_initmem(void)
+ {
+ 	poison_init_mem(__init_begin, __init_end - __init_begin);
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+@@ -398,7 +398,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+ 	if (!keep_initrd) {
+ 		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
+-		free_reserved_area(start, end, 0, "initrd");
++		free_reserved_area(start, end, -1, "initrd");
+ 	}
+ }
+ 
+diff --git a/arch/avr32/mm/init.c b/arch/avr32/mm/init.c
+index e66e840..871f98a 100644
+--- a/arch/avr32/mm/init.c
++++ b/arch/avr32/mm/init.c
+@@ -148,12 +148,12 @@ void __init mem_init(void)
+ 
+ void free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+diff --git a/arch/blackfin/mm/init.c b/arch/blackfin/mm/init.c
+index 82d01a7..e64286b 100644
+--- a/arch/blackfin/mm/init.c
++++ b/arch/blackfin/mm/init.c
+@@ -133,7 +133,7 @@ void __init mem_init(void)
+ void __init free_initrd_mem(unsigned long start, unsigned long end)
+ {
+ #ifndef CONFIG_MPU
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ #endif
+ }
+ #endif
+@@ -141,7 +141,7 @@ void __init free_initrd_mem(unsigned long start, unsigned long end)
+ void __init_refok free_initmem(void)
+ {
+ #if defined CONFIG_RAMKERNEL && !defined CONFIG_MPU
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ 	if (memory_start == (unsigned long)(&__init_end))
+ 		memory_start = (unsigned long)(&__init_begin);
+ #endif
+diff --git a/arch/c6x/mm/init.c b/arch/c6x/mm/init.c
+index a9fcd89..ce39b48 100644
+--- a/arch/c6x/mm/init.c
++++ b/arch/c6x/mm/init.c
+@@ -77,11 +77,11 @@ void __init mem_init(void)
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void __init free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+ 
+ void __init free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+diff --git a/arch/cris/mm/init.c b/arch/cris/mm/init.c
+index 9ac8094..8fec263 100644
+--- a/arch/cris/mm/init.c
++++ b/arch/cris/mm/init.c
+@@ -65,5 +65,5 @@ mem_init(void)
+ void 
+ free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+diff --git a/arch/frv/mm/init.c b/arch/frv/mm/init.c
+index dee354f..a421948 100644
+--- a/arch/frv/mm/init.c
++++ b/arch/frv/mm/init.c
+@@ -162,7 +162,7 @@ void __init mem_init(void)
+ void free_initmem(void)
+ {
+ #if defined(CONFIG_RAMKERNEL) && !defined(CONFIG_PROTECT_KERNEL)
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ #endif
+ } /* end free_initmem() */
+ 
+@@ -173,6 +173,6 @@ void free_initmem(void)
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void __init free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ } /* end free_initrd_mem() */
+ #endif
+diff --git a/arch/h8300/mm/init.c b/arch/h8300/mm/init.c
+index ff349d7..488e2a3 100644
+--- a/arch/h8300/mm/init.c
++++ b/arch/h8300/mm/init.c
+@@ -161,7 +161,7 @@ void __init mem_init(void)
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+ 
+@@ -169,7 +169,7 @@ void
+ free_initmem(void)
+ {
+ #ifdef CONFIG_RAMKERNEL
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ #endif
+ }
+ 
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index d1fe4b4..941568a 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -156,7 +156,7 @@ free_initmem (void)
+ {
+ 	free_reserved_area((unsigned long)ia64_imva(__init_begin),
+ 			   (unsigned long)ia64_imva(__init_end),
+-			   0, "unused kernel");
++			   -1, "unused kernel");
+ }
+ 
+ void __init
+diff --git a/arch/m32r/mm/init.c b/arch/m32r/mm/init.c
+index ab4cbce..58ea4d6 100644
+--- a/arch/m32r/mm/init.c
++++ b/arch/m32r/mm/init.c
+@@ -181,7 +181,7 @@ void __init mem_init(void)
+  *======================================================================*/
+ void free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+@@ -191,6 +191,6 @@ void free_initmem(void)
+  *======================================================================*/
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+diff --git a/arch/m68k/mm/init.c b/arch/m68k/mm/init.c
+index b5c1ab1..291ca0f 100644
+--- a/arch/m68k/mm/init.c
++++ b/arch/m68k/mm/init.c
+@@ -110,7 +110,7 @@ void __init paging_init(void)
+ void free_initmem(void)
+ {
+ #ifndef CONFIG_MMU_SUN3
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ #endif /* CONFIG_MMU_SUN3 */
+ }
+ 
+@@ -202,6 +202,6 @@ void __init mem_init(void)
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+index 170aacd..6b8711d 100644
+--- a/arch/microblaze/mm/init.c
++++ b/arch/microblaze/mm/init.c
+@@ -235,13 +235,13 @@ void __init setup_memory(void)
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+ 
+ void free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+ 
+ void __init mem_init(void)
+diff --git a/arch/openrisc/mm/init.c b/arch/openrisc/mm/init.c
+index b0139a7..3b9f017 100644
+--- a/arch/openrisc/mm/init.c
++++ b/arch/openrisc/mm/init.c
+@@ -250,11 +250,11 @@ void __init mem_init(void)
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+ 
+ void free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+diff --git a/arch/parisc/mm/init.c b/arch/parisc/mm/init.c
+index 157b931..27f3f88 100644
+--- a/arch/parisc/mm/init.c
++++ b/arch/parisc/mm/init.c
+@@ -532,7 +532,7 @@ void free_initmem(void)
+ 	 * pages are no-longer executable */
+ 	flush_icache_range(init_begin, init_end);
+ 	
+-	num_physpages += free_initmem_default(0);
++	num_physpages += free_initmem_default(-1);
+ 
+ 	/* set up a new led state on systems shipped LED State panel */
+ 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_BCOMPLETE);
+@@ -1099,6 +1099,6 @@ void flush_tlb_all(void)
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	num_physpages += free_reserved_area(start, end, 0, "initrd");
++	num_physpages += free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+diff --git a/arch/powerpc/kernel/kvm.c b/arch/powerpc/kernel/kvm.c
+index 6782221..4d3e37d 100644
+--- a/arch/powerpc/kernel/kvm.c
++++ b/arch/powerpc/kernel/kvm.c
+@@ -756,7 +756,7 @@ static __init void kvm_free_tmp(void)
+ 	end = (ulong)&kvm_tmp[ARRAY_SIZE(kvm_tmp)] & PAGE_MASK;
+ 
+ 	/* Free the tmp space we don't need */
+-	free_reserved_area(start, end, 0, NULL);
++	free_reserved_area(start, end, -1, NULL);
+ }
+ 
+ static int __init kvm_guest_init(void)
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 740c835..3974615 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -411,7 +411,7 @@ void free_initmem(void)
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void __init free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+ 
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index 70bda9e..554b3e1 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -156,7 +156,7 @@ void __init mem_init(void)
+ 
+ void free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(POISON_FREE_INITMEM);
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index 20f9ead..31294f1 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -499,13 +499,13 @@ void __init mem_init(void)
+ 
+ void free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+ 
+diff --git a/arch/um/kernel/mem.c b/arch/um/kernel/mem.c
+index 9df292b..1e84189 100644
+--- a/arch/um/kernel/mem.c
++++ b/arch/um/kernel/mem.c
+@@ -244,7 +244,7 @@ void free_initmem(void)
+ #ifdef CONFIG_BLK_DEV_INITRD
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	free_reserved_area(start, end, 0, "initrd");
++	free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+ 
+diff --git a/arch/unicore32/mm/init.c b/arch/unicore32/mm/init.c
+index 63df12d..5614b05 100644
+--- a/arch/unicore32/mm/init.c
++++ b/arch/unicore32/mm/init.c
+@@ -476,7 +476,7 @@ void __init mem_init(void)
+ 
+ void free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_INITRD
+@@ -486,7 +486,7 @@ static int keep_initrd;
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+ 	if (!keep_initrd)
+-		free_reserved_area(start, end, 0, "initrd");
++		free_reserved_area(start, end, -1, "initrd");
+ }
+ 
+ static int __init keepinitrd_setup(char *__unused)
+diff --git a/arch/xtensa/mm/init.c b/arch/xtensa/mm/init.c
+index bba125b..6f70647 100644
+--- a/arch/xtensa/mm/init.c
++++ b/arch/xtensa/mm/init.c
+@@ -214,11 +214,11 @@ extern int initrd_is_mapped;
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+ 	if (initrd_is_mapped)
+-		free_reserved_area(start, end, 0, "initrd");
++		free_reserved_area(start, end, -1, "initrd");
+ }
+ #endif
+ 
+ void free_initmem(void)
+ {
+-	free_initmem_default(0);
++	free_initmem_default(-1);
+ }
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index a1aeaec..add5f0a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1297,7 +1297,7 @@ extern void free_initmem(void);
+ /*
+  * Free reserved pages within range [PAGE_ALIGN(start), end & PAGE_MASK)
+  * into the buddy system. The freed pages will be poisoned with pattern
+- * "poison" if it's non-zero.
++ * "poison" if it's within range [0, UCHAR_MAX].
+  * Return pages freed into the buddy system.
+  */
+ extern unsigned long free_reserved_area(unsigned long start, unsigned long end,
+@@ -1337,15 +1337,16 @@ static inline void mark_page_reserved(struct page *page)
+ 
+ /*
+  * Default method to free all the __init memory into the buddy system.
+- * The freed pages will be poisoned with pattern "poison" if it is
+- * non-zero. Return pages freed into the buddy system.
++ * The freed pages will be poisoned with pattern "poison" if it's within
++ * range [0, UCHAR_MAX].
++ * Return pages freed into the buddy system.
+  */
+ static inline unsigned long free_initmem_default(int poison)
+ {
+ 	extern char __init_begin[], __init_end[];
+ 
+-	return free_reserved_area(PAGE_ALIGN((unsigned long)&__init_begin) ,
+-				  ((unsigned long)&__init_end) & PAGE_MASK,
++	return free_reserved_area((unsigned long)&__init_begin ,
++				  (unsigned long)&__init_end,
+ 				  poison, "unused kernel");
+ }
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index aea4b9b..8c7b366 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5130,13 +5130,13 @@ unsigned long free_reserved_area(unsigned long start, unsigned long end,
+ 	pos = start = PAGE_ALIGN(start);
+ 	end &= PAGE_MASK;
+ 	for (pages = 0; pos < end; pos += PAGE_SIZE, pages++) {
+-		if (poison)
++		if ((unsigned int)poison <= 0xFF)
+ 			memset((void *)pos, poison, PAGE_SIZE);
+ 		free_reserved_page(virt_to_page(pos));
+ 	}
+ 
+ 	if (pages && s)
+-		pr_info("Freeing %s memory: %ldK (%lx - %lx)\n",
++		pr_info("Freeing %s memory: %ldKiB (%lx - %lx)\n",
+ 			s, pages << (PAGE_SHIFT - 10), start, end);
+ 
+ 	return pages;
 -- 
 1.7.9.5
 
