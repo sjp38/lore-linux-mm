@@ -1,36 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 5726E6B0002
-	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 14:24:53 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <6041f181-67b1-4f71-bd5c-cfb48f1ddfb0@default>
-Date: Sat, 16 Mar 2013 11:24:20 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH v2 1/4] introduce zero filled pages handler
-References: <1363255697-19674-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1363255697-19674-2-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130316130302.GA5987@konrad-lan.dumpdata.com>
-In-Reply-To: <20130316130302.GA5987@konrad-lan.dumpdata.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 0A0356B0005
+	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 17:11:27 -0400 (EDT)
+From: "K. Y. Srinivasan" <kys@microsoft.com>
+Subject: [PATCH 0/2] Drivers: hv: balloon 
+Date: Sat, 16 Mar 2013 14:41:28 -0700
+Message-Id: <1363470088-24565-1-git-send-email-kys@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, andi@firstfloor.org, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyuki@gmail.com, mhocko@suse.cz, hannes@cmpxchg.org, yinghan@google.com
+Cc: "K. Y. Srinivasan" <kys@microsoft.com>
 
-> From: Konrad Rzeszutek Wilk [mailto:konrad@darnok.org]
-> Subject: Re: [PATCH v2 1/4] introduce zero filled pages handler
->=20
-> > +
-> > +=09for (pos =3D 0; pos < PAGE_SIZE / sizeof(*page); pos++) {
-> > +=09=09if (page[pos])
-> > +=09=09=09return false;
->=20
-> Perhaps allocate a static page filled with zeros and just do memcmp?
+Support 2M page allocations when memory is ballooned out of the
+guest. Hyper-V Dynamic Memory protocol is optimized around the ability
+to move memory in 2M chunks.
 
-That seems like a bad idea.  Why compare two different
-memory locations when comparing one memory location
-to a register will do?
+K. Y. Srinivasan (2):
+  mm: Export split_page()
+  Drivers: hv: balloon: Support 2M page allocations for ballooning
+
+ drivers/hv/hv_balloon.c |   18 ++++++++++++++++--
+ mm/page_alloc.c         |    1 +
+ 2 files changed, 17 insertions(+), 2 deletions(-)
+
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
