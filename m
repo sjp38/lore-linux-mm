@@ -1,110 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id B35BA6B0005
-	for <linux-mm@kvack.org>; Sun, 17 Mar 2013 08:58:55 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id ro8so5694154pbb.32
-        for <linux-mm@kvack.org>; Sun, 17 Mar 2013 05:58:54 -0700 (PDT)
-Message-ID: <5145BE06.8070309@gmail.com>
-Date: Sun, 17 Mar 2013 20:58:46 +0800
-From: Ric Mason <ric.masonn@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 3/4] introduce zero-filled page stat count
-References: <1363255697-19674-1-git-send-email-liwanp@linux.vnet.ibm.com> <1363255697-19674-4-git-send-email-liwanp@linux.vnet.ibm.com> <20130316130638.GB5987@konrad-lan.dumpdata.com>
-In-Reply-To: <20130316130638.GB5987@konrad-lan.dumpdata.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id CD5CE6B0027
+	for <linux-mm@kvack.org>; Sun, 17 Mar 2013 09:04:22 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd reclaims at each priority
+Date: Sun, 17 Mar 2013 13:04:07 +0000
+Message-Id: <1363525456-10448-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Hi Konrad,
-On 03/16/2013 09:06 PM, Konrad Rzeszutek Wilk wrote:
-> On Thu, Mar 14, 2013 at 06:08:16PM +0800, Wanpeng Li wrote:
->> Introduce zero-filled page statistics to monitor the number of
->> zero-filled pages.
-> Hm, you must be using an older version of the driver. Please
-> rebase it against Greg KH's staging tree. This is where most if not
-> all of the DebugFS counters got moved to a different file.
+The number of pages kswapd can reclaim is bound by the number of pages it
+scans which is related to the size of the zone and the scanning priority. In
+many cases the priority remains low because it's reset every SWAP_CLUSTER_MAX
+reclaimed pages but in the event kswapd scans a large number of pages it
+cannot reclaim, it will raise the priority and potentially discard a large
+percentage of the zone as sc->nr_to_reclaim is ULONG_MAX. The user-visible
+effect is a reclaim "spike" where a large percentage of memory is suddenly
+freed. It would be bad enough if this was just unused memory but because
+of how anon/file pages are balanced it is possible that applications get
+pushed to swap unnecessarily.
 
-It seems that zcache debugfs in Greg's staging-next is buggy, Could you 
-test it?
+This patch limits the number of pages kswapd will reclaim to the high
+watermark. Reclaim will will overshoot due to it not being a hard limit as
+shrink_lruvec() will ignore the sc.nr_to_reclaim at DEF_PRIORITY but it
+prevents kswapd reclaiming the world at higher priorities. The number of
+pages it reclaims is not adjusted for high-order allocations as kswapd will
+reclaim excessively if it is to balance zones for high-order allocations.
 
->
->> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>   drivers/staging/zcache/zcache-main.c |    7 +++++++
->>   1 files changed, 7 insertions(+), 0 deletions(-)
->>
->> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
->> index db200b4..2091a4d 100644
->> --- a/drivers/staging/zcache/zcache-main.c
->> +++ b/drivers/staging/zcache/zcache-main.c
->> @@ -196,6 +196,7 @@ static ssize_t zcache_eph_nonactive_puts_ignored;
->>   static ssize_t zcache_pers_nonactive_puts_ignored;
->>   static ssize_t zcache_writtenback_pages;
->>   static ssize_t zcache_outstanding_writeback_pages;
->> +static ssize_t zcache_pages_zero;
->>   
->>   #ifdef CONFIG_DEBUG_FS
->>   #include <linux/debugfs.h>
->> @@ -257,6 +258,7 @@ static int zcache_debugfs_init(void)
->>   	zdfs("outstanding_writeback_pages", S_IRUGO, root,
->>   				&zcache_outstanding_writeback_pages);
->>   	zdfs("writtenback_pages", S_IRUGO, root, &zcache_writtenback_pages);
->> +	zdfs("pages_zero", S_IRUGO, root, &zcache_pages_zero);
->>   	return 0;
->>   }
->>   #undef	zdebugfs
->> @@ -326,6 +328,7 @@ void zcache_dump(void)
->>   	pr_info("zcache: outstanding_writeback_pages=%zd\n",
->>   				zcache_outstanding_writeback_pages);
->>   	pr_info("zcache: writtenback_pages=%zd\n", zcache_writtenback_pages);
->> +	pr_info("zcache: pages_zero=%zd\n", zcache_pages_zero);
->>   }
->>   #endif
->>   
->> @@ -562,6 +565,7 @@ static void *zcache_pampd_eph_create(char *data, size_t size, bool raw,
->>   		kunmap_atomic(user_mem);
->>   		clen = 0;
->>   		zero_filled = true;
->> +		zcache_pages_zero++;
->>   		goto got_pampd;
->>   	}
->>   	kunmap_atomic(user_mem);
->> @@ -645,6 +649,7 @@ static void *zcache_pampd_pers_create(char *data, size_t size, bool raw,
->>   		kunmap_atomic(user_mem);
->>   		clen = 0;
->>   		zero_filled = true;
->> +		zcache_pages_zero++;
->>   		goto got_pampd;
->>   	}
->>   	kunmap_atomic(user_mem);
->> @@ -866,6 +871,7 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
->>   		zpages = 0;
->>   		if (!raw)
->>   			*sizep = PAGE_SIZE;
->> +		zcache_pages_zero--;
->>   		goto zero_fill;
->>   	}
->>   
->> @@ -922,6 +928,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
->>   		zero_filled = true;
->>   		zsize = 0;
->>   		zpages = 0;
->> +		zcache_pages_zero--;
->>   	}
->>   
->>   	if (pampd_is_remote(pampd) && !zero_filled) {
->> -- 
->> 1.7.7.6
->>
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/vmscan.c | 53 +++++++++++++++++++++++++++++------------------------
+ 1 file changed, 29 insertions(+), 24 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 88c5fed..4835a7a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2593,6 +2593,32 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+ }
+ 
+ /*
++ * kswapd shrinks the zone by the number of pages required to reach
++ * the high watermark.
++ */
++static void kswapd_shrink_zone(struct zone *zone,
++			       struct scan_control *sc,
++			       unsigned long lru_pages)
++{
++	unsigned long nr_slab;
++	struct reclaim_state *reclaim_state = current->reclaim_state;
++	struct shrink_control shrink = {
++		.gfp_mask = sc->gfp_mask,
++	};
++
++	/* Reclaim above the high watermark. */
++	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
++	shrink_zone(zone, sc);
++
++	reclaim_state->reclaimed_slab = 0;
++	nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
++	sc->nr_reclaimed += reclaim_state->reclaimed_slab;
++
++	if (nr_slab == 0 && !zone_reclaimable(zone))
++		zone->all_unreclaimable = 1;
++}
++
++/*
+  * For kswapd, balance_pgdat() will work across all this node's zones until
+  * they are all at high_wmark_pages(zone).
+  *
+@@ -2619,27 +2645,16 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 	bool pgdat_is_balanced = false;
+ 	int i;
+ 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+-	unsigned long total_scanned;
+-	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	unsigned long nr_soft_reclaimed;
+ 	unsigned long nr_soft_scanned;
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
+-		/*
+-		 * kswapd doesn't want to be bailed out while reclaim. because
+-		 * we want to put equal scanning pressure on each zone.
+-		 */
+-		.nr_to_reclaim = ULONG_MAX,
+ 		.order = order,
+ 		.target_mem_cgroup = NULL,
+ 	};
+-	struct shrink_control shrink = {
+-		.gfp_mask = sc.gfp_mask,
+-	};
+ loop_again:
+-	total_scanned = 0;
+ 	sc.priority = DEF_PRIORITY;
+ 	sc.nr_reclaimed = 0;
+ 	sc.may_writepage = !laptop_mode;
+@@ -2710,7 +2725,7 @@ loop_again:
+ 		 */
+ 		for (i = 0; i <= end_zone; i++) {
+ 			struct zone *zone = pgdat->node_zones + i;
+-			int nr_slab, testorder;
++			int testorder;
+ 			unsigned long balance_gap;
+ 
+ 			if (!populated_zone(zone))
+@@ -2730,7 +2745,6 @@ loop_again:
+ 							order, sc.gfp_mask,
+ 							&nr_soft_scanned);
+ 			sc.nr_reclaimed += nr_soft_reclaimed;
+-			total_scanned += nr_soft_scanned;
+ 
+ 			/*
+ 			 * We put equal pressure on every zone, unless
+@@ -2759,17 +2773,8 @@ loop_again:
+ 
+ 			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
+ 			    !zone_balanced(zone, testorder,
+-					   balance_gap, end_zone)) {
+-				shrink_zone(zone, &sc);
+-
+-				reclaim_state->reclaimed_slab = 0;
+-				nr_slab = shrink_slab(&shrink, sc.nr_scanned, lru_pages);
+-				sc.nr_reclaimed += reclaim_state->reclaimed_slab;
+-				total_scanned += sc.nr_scanned;
+-
+-				if (nr_slab == 0 && !zone_reclaimable(zone))
+-					zone->all_unreclaimable = 1;
+-			}
++					   balance_gap, end_zone))
++				kswapd_shrink_zone(zone, &sc, lru_pages);
+ 
+ 			/*
+ 			 * If we're getting trouble reclaiming, start doing
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
