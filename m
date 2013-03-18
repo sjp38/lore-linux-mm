@@ -1,62 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id A24D16B0027
-	for <linux-mm@kvack.org>; Sun, 17 Mar 2013 22:33:58 -0400 (EDT)
-Received: by mail-da0-f50.google.com with SMTP id t1so1030578dae.37
-        for <linux-mm@kvack.org>; Sun, 17 Mar 2013 19:33:57 -0700 (PDT)
-Date: Sun, 17 Mar 2013 19:33:25 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 1FF736B0005
+	for <linux-mm@kvack.org>; Sun, 17 Mar 2013 23:59:04 -0400 (EDT)
+Received: by mail-da0-f49.google.com with SMTP id t11so1059258daj.22
+        for <linux-mm@kvack.org>; Sun, 17 Mar 2013 20:59:02 -0700 (PDT)
+Date: Sun, 17 Mar 2013 20:58:30 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: mmap sync issue
-In-Reply-To: <CANN689HX9rhecNv3RsDn8QZO8iUrMsQQBgnhUDb5AdyfWgyFag@mail.gmail.com>
-Message-ID: <alpine.LNX.2.00.1303171906050.1676@eggly.anvils>
-References: <DEACCBA4C6A9D145A6A68B5F5BE581B80FC057AB@HKXPRD0310MB353.apcprd03.prod.outlook.com> <514502B6.2090804@gmail.com> <CANN689HX9rhecNv3RsDn8QZO8iUrMsQQBgnhUDb5AdyfWgyFag@mail.gmail.com>
+Subject: Re: security: restricting access to swap
+In-Reply-To: <CAA25o9RchY2AD8U30bh4H+fz6kq8bs98SUrkJUkTpbTHSGjcGA@mail.gmail.com>
+Message-ID: <alpine.LNX.2.00.1303172041460.1935@eggly.anvils>
+References: <CAA25o9RchY2AD8U30bh4H+fz6kq8bs98SUrkJUkTpbTHSGjcGA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gil Weber <gilw@cse-semaphore.com>
-Cc: Michel Lespinasse <walken@google.com>, Will Huck <will.huckk@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: Luigi Semenzato <semenzato@google.com>
+Cc: linux-mm@kvack.org
 
-On Sat, 16 Mar 2013, Michel Lespinasse wrote:
-> On Sat, Mar 16, 2013 at 4:39 PM, Will Huck <will.huckk@gmail.com> wrote:
-> > On 03/15/2013 07:39 PM, Gil Weber wrote:
-> >> I am experiencing an issue with my device driver. I am using mmap and
-> >> ioctl to share information with my user space application.
-> >> The thing is that the shared memory does not seems to be synced. Do check
-> >> this, I have done a simple test:
+On Mon, 11 Mar 2013, Luigi Semenzato wrote:
+> Greetings linux-mmers,
 > 
-> So if I got this right, the issue is that the vmalloc_area is
-> virtually aliased between the kernel and the user space mapping, so
-> that coherency is not guaranteed on architectures that use virtually
-> aliased caches.
+> before we can fully deploy zram, we must ensure it conforms to the
+> Chrome OS security requirements.  In particular, we do not want to
+> allow user space to read/write the swap device---not even root-owned
+> processes.
 > 
-> fs/aio.c does something similar to what you want with their ring
-> buffer. The kernel doesn't access the ring buffer through a vmalloc
-> area like you're trying to do; instead it uses kmap_atomic() ..
-> kunmap_atomic() whenever it wants to access it.
+> A similar restriction is available for /dev/mem under CONFIG_STRICT_DEVMEM.
 > 
-> I don't actually consider myself an expert in this area but I believe
-> the above should solve your problem :)
+> There are a few possible approaches to this, but before we go ahead
+> I'd like to ask if anything has happened or is planned in this
+> direction.
+> 
+> Otherwise, one idea I am playing with is to add a CONFIG_STRICT_SWAP
+> option that would do this for any swap device (i.e. not specific to
+> zram) and possibly also when swapping to a file.  We would add an
+> "internal" open flag, O_KERN_SWAP, as well as clean up a little bit
+> the FMODE_NONOTIFY confusion by adding the kernel flag O_KERN_NONOTIFY
+> and formalizing the sets of external (O_*) and internal (O_KERN_*)
+> open flags.
+> 
+> Swapon() and swapoff() would use O_KERN_SWAP internally, and a device
+> opened with that flag would reject user-level opens.
+> 
+> Thank you in advance for any input/suggestion!
+> Luigi
 
-I don't think so: kmap_atomic() provides a temporary kernel mapping for
-a page when not all memory is direct-mapped, but it's close to a no-op
-when there's no highmem.  This question isn't about highmem.
+Your O_KERN_SWAP does not make much sense to me.
 
-I can't point to what solves the problem for the aio ringbuffer:
-for all I know, that's not even used on such architectures.
+The open flag would only apply while the device or file is open, yet
+you would also want this security to apply after it has been closed.
 
-The usual solution is flush_dcache_page(): see Documentation/cachetlb.txt.
-Which mostly describes the common page cache case, but a driver like
-yours may also need it.
+And there's not much security if you rely upon zeroing the swap area
+at swapoff.  Maybe it crashes before swapoff.  Maybe you have /dev/sda1
+open O_KERN_SWAP, but someone is watching through /dev/sda.  Maybe you
+have swapfile open O_KERN_SWAP, but someone is watching through the
+block device of the filesystem holding swapfile.
 
-Each architecture has its own implementation, and often its own way of
-minimizing the overhead of flush_dcache_page(): if you're using it in
-a new context, you might need to be careful about such optimizations,
-and the page flags used to control them.
-
-But better to ask on the (moderated) linux-arm-kernel list if it's not
-clear to you how to use it: being a no-op on x86, those of us who know
-little beyond x86 are apt to give bad advice.
+I think you want to encrypt the pages going out to swap, and encrypt
+them in such a way that only swap has the key.  Whether that's already
+easily achieved with dm I have no idea.
 
 Hugh
 
