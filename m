@@ -1,443 +1,334 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 269F06B0005
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 01:16:18 -0400 (EDT)
-Received: by mail-vc0-f178.google.com with SMTP id hz11so2654915vcb.23
-        for <linux-mm@kvack.org>; Sun, 17 Mar 2013 22:16:17 -0700 (PDT)
-Message-ID: <5146A31A.5090705@gmail.com>
-Date: Mon, 18 Mar 2013 13:16:10 +0800
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 004DF6B0005
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 01:23:34 -0400 (EDT)
+Received: by mail-qe0-f46.google.com with SMTP id a11so3069951qen.5
+        for <linux-mm@kvack.org>; Sun, 17 Mar 2013 22:23:34 -0700 (PDT)
+Message-ID: <5146A4CC.3060306@gmail.com>
+Date: Mon, 18 Mar 2013 13:23:24 +0800
 From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [patch 1/4 v3]swap: change block allocation algorithm for SSD
-References: <20130221021710.GA32580@kernel.org> <20130318050918.GB7016@kernel.org>
-In-Reply-To: <20130318050918.GB7016@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCHv2, RFC 00/30] Transparent huge page cache
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <514691F5.2040204@gmail.com>
+In-Reply-To: <514691F5.2040204@gmail.com>
+Content-Type: multipart/alternative;
+ boundary="------------020901080709000908050707"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, akpm@linux-foundation.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 03/18/2013 01:09 PM, Shaohua Li wrote:
-> Ping! are there any comments for this series?
+This is a multi-part message in MIME format.
+--------------020901080709000908050707
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Could you show me your benchmark and testcase?
-
+On 03/18/2013 12:03 PM, Simon Jeons wrote:
+> Hi Kirill,
+> On 03/15/2013 01:50 AM, Kirill A. Shutemov wrote:
+>> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>>
+>> Here's the second version of the patchset.
+>>
+>> The intend of the work is get code ready to enable transparent huge page
+>> cache for the most simple fs -- ramfs.
+>>
+>> We have read()/write()/mmap() functionality now. Still plenty work 
+>> ahead.
 >
-> On Thu, Feb 21, 2013 at 10:17:10AM +0800, Shaohua Li wrote:
->> I'm using a fast SSD to do swap. scan_swap_map() sometimes uses up to 20~30%
->> CPU time (when cluster is hard to find, the CPU time can be up to 80%), which
->> becomes a bottleneck.  scan_swap_map() scans a byte array to search a 256 page
->> cluster, which is very slow.
+> One offline question.
+>
+> Why set PG_mlocked to page_tail which be splited in function 
+> __split_huge_page_refcount?
+>
+
+Also why can't find where _PAGE_SPLITTING and _PAGE_PSE flags are 
+cleared in split_huge_page path?
+
 >>
->> Here I introduced a simple algorithm to search cluster. Since we only care
->> about 256 pages cluster, we can just use a counter to track if a cluster is
->> free. Every 256 pages use one int to store the counter. If the counter of a
->> cluster is 0, the cluster is free. All free clusters will be added to a list,
->> so searching cluster is very efficient. With this, scap_swap_map() overhead
->> disappears.
+>> Any feedback is welcome.
 >>
->> Since searching cluster with a list is easy, we can easily implement a per-cpu
->> cluster algorithm to do block allocation, which can make swapout more
->> efficient. This is in my TODO list.
+>> Changes since v1:
+>>   - mmap();
+>>   - fix add_to_page_cache_locked() and delete_from_page_cache();
+>>   - introduce mapping_can_have_hugepages();
+>>   - call split_huge_page() only for head page in filemap_fault();
+>>   - wait_split_huge_page(): serialize over i_mmap_mutex too;
+>>   - lru_add_page_tail: avoid PageUnevictable on active/inactive lru 
+>> lists;
+>>   - fix off-by-one in zero_huge_user_segment();
+>>   - THP_WRITE_ALLOC/THP_WRITE_FAILED counters;
 >>
->> This might help low end SD card swap too. Because if the cluster is aligned, SD
->> firmware can do flash erase more efficiently.
+>> TODO:
+>>   - memcg accounting has not yet evaluated;
+>>   - collapse;
+>>   - migration (?);
+>>   - stats, knobs, etc.;
+>>   - tmpfs/shmem enabling;
 >>
->> We only enable the algorithm for SSD. Hard disk swap isn't fast enough and has
->> downside with the algorithm which might introduce regression (see below).
 >>
->> The patch slightly changes which cluster is choosen. It always adds free
->> cluster to list tail. This can help wear leveling for low end SSD too. And if
->> no cluster found, the scan_swap_map() will do search from the end of last
->> cluster. So if no cluster found, the scan_swap_map() will do search from the
->> end of last free cluster, which is random. For SSD, this isn't a problem at
->> all.
+>> Kirill A. Shutemov (30):
+>>    block: implement add_bdi_stat()
+>>    mm: implement zero_huge_user_segment and friends
+>>    mm: drop actor argument of do_generic_file_read()
+>>    radix-tree: implement preload for multiple contiguous elements
+>>    thp, mm: avoid PageUnevictable on active/inactive lru lists
+>>    thp, mm: basic defines for transparent huge page cache
+>>    thp, mm: introduce mapping_can_have_hugepages() predicate
+>>    thp, mm: rewrite add_to_page_cache_locked() to support huge pages
+>>    thp, mm: rewrite delete_from_page_cache() to support huge pages
+>>    thp, mm: locking tail page is a bug
+>>    thp, mm: handle tail pages in page_cache_get_speculative()
+>>    thp, mm: add event counters for huge page alloc on write to a file
+>>    thp, mm: implement grab_cache_huge_page_write_begin()
+>>    thp, mm: naive support of thp in generic read/write routines
+>>    thp, libfs: initial support of thp in
+>>      simple_read/write_begin/write_end
+>>    thp: handle file pages in split_huge_page()
+>>    thp: wait_split_huge_page(): serialize over i_mmap_mutex too
+>>    thp, mm: truncate support for transparent huge page cache
+>>    thp, mm: split huge page on mmap file page
+>>    ramfs: enable transparent huge page cache
+>>    x86-64, mm: proper alignment mappings with hugepages
+>>    mm: add huge_fault() callback to vm_operations_struct
+>>    thp: prepare zap_huge_pmd() to uncharge file pages
+>>    thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
+>>    thp, mm: basic huge_fault implementation for generic_file_vm_ops
+>>    thp: extract fallback path from do_huge_pmd_anonymous_page() to a
+>>      function
+>>    thp: initial implementation of do_huge_linear_fault()
+>>    thp: handle write-protect exception to file-backed huge pages
+>>    thp: call __vma_adjust_trans_huge() for file-backed VMA
+>>    thp: map file-backed huge pages on fault
 >>
->> Another downside is the cluster must be aligned to 256 pages, which will reduce
->> the chance to find a cluster. I would expect this isn't a big problem for SSD
->> because of the non-seek penality. (And this is the reason I only enable the
->> algorithm for SSD).
+>>   arch/x86/kernel/sys_x86_64.c  |   13 +-
+>>   fs/libfs.c                    |   50 ++++-
+>>   fs/ramfs/inode.c              |    6 +-
+>>   include/linux/backing-dev.h   |   10 +
+>>   include/linux/huge_mm.h       |   36 +++-
+>>   include/linux/mm.h            |   16 ++
+>>   include/linux/pagemap.h       |   24 ++-
+>>   include/linux/radix-tree.h    |    3 +
+>>   include/linux/vm_event_item.h |    2 +
+>>   lib/radix-tree.c              |   32 ++-
+>>   mm/filemap.c                  |  283 +++++++++++++++++++++----
+>>   mm/huge_memory.c              |  462 
+>> ++++++++++++++++++++++++++++++++++-------
+>>   mm/memory.c                   |   31 ++-
+>>   mm/swap.c                     |    3 +-
+>>   mm/truncate.c                 |   12 ++
+>>   mm/vmstat.c                   |    2 +
+>>   16 files changed, 842 insertions(+), 143 deletions(-)
 >>
->> V2 -> V3:
->> rebase to latest linux-next
->>
->> V1 -> V2:
->> 1. free cluster is added to a list, which makes searching cluster more efficient
->> 2. only enable the algorithm for SSD.
->>
->> Signed-off-by: Shaohua Li <shli@fusionio.com>
->> ---
->>   include/linux/swap.h |    3
->>   mm/swapfile.c        |  181 +++++++++++++++++++++++++++++++++++++++++++++++----
->>   2 files changed, 172 insertions(+), 12 deletions(-)
->>
->> Index: linux/include/linux/swap.h
->> ===================================================================
->> --- linux.orig/include/linux/swap.h	2013-02-18 15:06:06.000000000 +0800
->> +++ linux/include/linux/swap.h	2013-02-18 15:21:09.285317914 +0800
->> @@ -185,6 +185,9 @@ struct swap_info_struct {
->>   	signed char	next;		/* next type on the swap list */
->>   	unsigned int	max;		/* extent of the swap_map */
->>   	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
->> +	unsigned int *cluster_info;	/* cluster info. Only for SSD */
->> +	unsigned int free_cluster_head;
->> +	unsigned int free_cluster_tail;
->>   	unsigned int lowest_bit;	/* index of first free in swap_map */
->>   	unsigned int highest_bit;	/* index of last free in swap_map */
->>   	unsigned int pages;		/* total of usable pages of swap */
->> Index: linux/mm/swapfile.c
->> ===================================================================
->> --- linux.orig/mm/swapfile.c	2013-02-18 15:06:06.000000000 +0800
->> +++ linux/mm/swapfile.c	2013-02-18 15:21:09.285317914 +0800
->> @@ -184,6 +184,85 @@ static int wait_for_discard(void *word)
->>   #define SWAPFILE_CLUSTER	256
->>   #define LATENCY_LIMIT		256
->>   
->> +/*
->> + * cluster info is a unsigned int, the highest 8 bits stores flags, the low 24
->> + * bits stores next cluster if the cluster is free or cluster counter otherwise
->> + */
->> +#define CLUSTER_FLAG_FREE (1 << 0)
->> +#define CLUSTER_FLAG_NEXT_NULL (1 << 1)
->> +#define CLUSTER_NULL (CLUSTER_FLAG_NEXT_NULL << 24)
->> +#define cluster_flag(info) ((info) >> 24)
->> +#define cluster_set_flag(info, flag) \
->> +	do { info = ((info) & 0xffffff) | ((flag) << 24); } while (0)
->> +#define cluster_count(info) ((info) & 0xffffff)
->> +#define cluster_set_count(info, c) \
->> +	do { info = (cluster_flag(info) << 24) | (c); } while (0)
->> +#define cluster_next(info) ((info) & 0xffffff)
->> +#define cluster_set_next(info, n) \
->> +	do { info = (cluster_flag(info) << 24) | (n); } while (0)
->> +#define cluster_is_free(info) (cluster_flag(info) & CLUSTER_FLAG_FREE)
->> +
->> +static inline void inc_cluster_info_page(struct swap_info_struct *p,
->> +	unsigned int *cluster_info, unsigned long page_nr)
->> +{
->> +	unsigned long idx = page_nr / SWAPFILE_CLUSTER;
->> +
->> +	if (!cluster_info)
->> +		return;
->> +	if (cluster_is_free(cluster_info[idx])) {
->> +		VM_BUG_ON(p->free_cluster_head != idx);
->> +		p->free_cluster_head = cluster_next(cluster_info[idx]);
->> +		if (p->free_cluster_tail == idx) {
->> +			p->free_cluster_tail = CLUSTER_NULL;
->> +			p->free_cluster_head = CLUSTER_NULL;
->> +		}
->> +		cluster_set_flag(cluster_info[idx], 0);
->> +		cluster_set_count(cluster_info[idx], 0);
->> +	}
->> +
->> +	VM_BUG_ON(cluster_count(cluster_info[idx]) >= SWAPFILE_CLUSTER);
->> +	cluster_set_count(cluster_info[idx],
->> +		cluster_count(cluster_info[idx]) + 1);
->> +}
->> +
->> +static inline void dec_cluster_info_page(struct swap_info_struct *p,
->> +	unsigned int *cluster_info, unsigned long page_nr)
->> +{
->> +	unsigned long idx = page_nr / SWAPFILE_CLUSTER;
->> +
->> +	if (!cluster_info)
->> +		return;
->> +
->> +	VM_BUG_ON(cluster_count(cluster_info[idx]) == 0);
->> +	cluster_set_count(cluster_info[idx],
->> +		cluster_count(cluster_info[idx]) - 1);
->> +
->> +	if (cluster_count(cluster_info[idx]) == 0) {
->> +		cluster_set_flag(cluster_info[idx], CLUSTER_FLAG_FREE);
->> +		if (p->free_cluster_head == CLUSTER_NULL) {
->> +			p->free_cluster_head = idx;
->> +			p->free_cluster_tail = idx;
->> +		} else {
->> +			cluster_set_next(cluster_info[p->free_cluster_tail],
->> +				idx);
->> +			p->free_cluster_tail = idx;
->> +		}
->> +	}
->> +}
->> +
->> +/*
->> + * It's possible scan_swap_map() uses a free cluster in the middle of free
->> + * cluster list. Avoiding such abuse to avoid list corruption.
->> + */
->> +static inline bool scan_swap_map_recheck_cluster(struct swap_info_struct *si,
->> +	unsigned long offset)
->> +{
->> +	offset /= SWAPFILE_CLUSTER;
->> +	return si->free_cluster_head != CLUSTER_NULL &&
->> +		offset != si->free_cluster_head &&
->> +		cluster_is_free(si->cluster_info[offset]);
->> +}
->> +
->>   static unsigned long scan_swap_map(struct swap_info_struct *si,
->>   				   unsigned char usage)
->>   {
->> @@ -225,6 +304,24 @@ static unsigned long scan_swap_map(struc
->>   			si->lowest_alloc = si->max;
->>   			si->highest_alloc = 0;
->>   		}
->> +check_cluster:
->> +		if (si->free_cluster_head != CLUSTER_NULL) {
->> +			offset = si->free_cluster_head * SWAPFILE_CLUSTER;
->> +			last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
->> +			si->cluster_next = offset;
->> +			si->cluster_nr = SWAPFILE_CLUSTER - 1;
->> +			found_free_cluster = 1;
->> +			goto checks;
->> +		} else if (si->cluster_info) {
->> +			/*
->> +			 * Checking free cluster is fast enough, we can do the
->> +			 * check every time
->> +			 */
->> +			si->cluster_nr = 0;
->> +			si->lowest_alloc = 0;
->> +			goto checks;
->> +		}
->> +
->>   		spin_unlock(&si->lock);
->>   
->>   		/*
->> @@ -285,6 +382,8 @@ static unsigned long scan_swap_map(struc
->>   	}
->>   
->>   checks:
->> +	if (scan_swap_map_recheck_cluster(si, offset))
->> +		goto check_cluster;
->>   	if (!(si->flags & SWP_WRITEOK))
->>   		goto no_page;
->>   	if (!si->highest_bit)
->> @@ -317,6 +416,7 @@ checks:
->>   		si->highest_bit = 0;
->>   	}
->>   	si->swap_map[offset] = usage;
->> +	inc_cluster_info_page(si, si->cluster_info, offset);
->>   	si->cluster_next = offset + 1;
->>   	si->flags -= SWP_SCANNING;
->>   
->> @@ -600,6 +700,7 @@ static unsigned char swap_entry_free(str
->>   
->>   	/* free if no reference */
->>   	if (!usage) {
->> +		dec_cluster_info_page(p, p->cluster_info, offset);
->>   		if (offset < p->lowest_bit)
->>   			p->lowest_bit = offset;
->>   		if (offset > p->highest_bit)
->> @@ -1497,6 +1598,7 @@ static int setup_swap_extents(struct swa
->>   
->>   static void _enable_swap_info(struct swap_info_struct *p, int prio,
->>   				unsigned char *swap_map,
->> +				unsigned int *cluster_info,
->>   				unsigned long *frontswap_map)
->>   {
->>   	int i, prev;
->> @@ -1506,6 +1608,7 @@ static void _enable_swap_info(struct swa
->>   	else
->>   		p->prio = --least_priority;
->>   	p->swap_map = swap_map;
->> +	p->cluster_info = cluster_info;
->>   	frontswap_map_set(p, frontswap_map);
->>   	p->flags |= SWP_WRITEOK;
->>   	atomic_long_add(p->pages, &nr_swap_pages);
->> @@ -1527,11 +1630,12 @@ static void _enable_swap_info(struct swa
->>   
->>   static void enable_swap_info(struct swap_info_struct *p, int prio,
->>   				unsigned char *swap_map,
->> +				unsigned int *cluster_info,
->>   				unsigned long *frontswap_map)
->>   {
->>   	spin_lock(&swap_lock);
->>   	spin_lock(&p->lock);
->> -	_enable_swap_info(p, prio, swap_map, frontswap_map);
->> +	_enable_swap_info(p, prio, swap_map, cluster_info, frontswap_map);
->>   	frontswap_init(p->type);
->>   	spin_unlock(&p->lock);
->>   	spin_unlock(&swap_lock);
->> @@ -1541,7 +1645,8 @@ static void reinsert_swap_info(struct sw
->>   {
->>   	spin_lock(&swap_lock);
->>   	spin_lock(&p->lock);
->> -	_enable_swap_info(p, p->prio, p->swap_map, frontswap_map_get(p));
->> +	_enable_swap_info(p, p->prio, p->swap_map, p->cluster_info,
->> +					frontswap_map_get(p));
->>   	spin_unlock(&p->lock);
->>   	spin_unlock(&swap_lock);
->>   }
->> @@ -1550,6 +1655,7 @@ SYSCALL_DEFINE1(swapoff, const char __us
->>   {
->>   	struct swap_info_struct *p = NULL;
->>   	unsigned char *swap_map;
->> +	unsigned int *cluster_info;
->>   	struct file *swap_file, *victim;
->>   	struct address_space *mapping;
->>   	struct inode *inode;
->> @@ -1648,12 +1754,15 @@ SYSCALL_DEFINE1(swapoff, const char __us
->>   	p->max = 0;
->>   	swap_map = p->swap_map;
->>   	p->swap_map = NULL;
->> +	cluster_info = p->cluster_info;
->> +	p->cluster_info = NULL;
->>   	p->flags = 0;
->>   	frontswap_invalidate_area(type);
->>   	spin_unlock(&p->lock);
->>   	spin_unlock(&swap_lock);
->>   	mutex_unlock(&swapon_mutex);
->>   	vfree(swap_map);
->> +	vfree(cluster_info);
->>   	vfree(frontswap_map_get(p));
->>   	/* Destroy swap account informatin */
->>   	swap_cgroup_swapoff(type);
->> @@ -1966,15 +2075,21 @@ static unsigned long read_swap_header(st
->>   static int setup_swap_map_and_extents(struct swap_info_struct *p,
->>   					union swap_header *swap_header,
->>   					unsigned char *swap_map,
->> +					unsigned int *cluster_info,
->>   					unsigned long maxpages,
->>   					sector_t *span)
->>   {
->>   	int i;
->>   	unsigned int nr_good_pages;
->>   	int nr_extents;
->> +	unsigned long nr_clusters = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
->> +	unsigned long idx = p->cluster_next / SWAPFILE_CLUSTER;
->>   
->>   	nr_good_pages = maxpages - 1;	/* omit header page */
->>   
->> +	p->free_cluster_head = CLUSTER_NULL;
->> +	p->free_cluster_tail = CLUSTER_NULL;
->> +
->>   	for (i = 0; i < swap_header->info.nr_badpages; i++) {
->>   		unsigned int page_nr = swap_header->info.badpages[i];
->>   		if (page_nr == 0 || page_nr > swap_header->info.last_page)
->> @@ -1982,11 +2097,25 @@ static int setup_swap_map_and_extents(st
->>   		if (page_nr < maxpages) {
->>   			swap_map[page_nr] = SWAP_MAP_BAD;
->>   			nr_good_pages--;
->> +			/*
->> +			 * Not mark the cluster free yet, no list
->> +			 * operation involved
->> +			 */
->> +			inc_cluster_info_page(p, cluster_info, page_nr);
->>   		}
->>   	}
->>   
->> +	/* Not mark the cluster free yet, no list operation involved */
->> +	for (i = maxpages; i < round_up(maxpages, SWAPFILE_CLUSTER); i++)
->> +		inc_cluster_info_page(p, cluster_info, i);
->> +
->>   	if (nr_good_pages) {
->>   		swap_map[0] = SWAP_MAP_BAD;
->> +		/*
->> +		 * Not mark the cluster free yet, no list
->> +		 * operation involved
->> +		 */
->> +		inc_cluster_info_page(p, cluster_info, 0);
->>   		p->max = maxpages;
->>   		p->pages = nr_good_pages;
->>   		nr_extents = setup_swap_extents(p, span);
->> @@ -1999,6 +2128,27 @@ static int setup_swap_map_and_extents(st
->>   		return -EINVAL;
->>   	}
->>   
->> +	if (!cluster_info)
->> +		return nr_extents;
->> +
->> +	for (i = 0; i < nr_clusters; i++) {
->> +		if (!cluster_count(cluster_info[idx])) {
->> +			cluster_set_flag(cluster_info[idx], CLUSTER_FLAG_FREE);
->> +			if (p->free_cluster_head == CLUSTER_NULL) {
->> +				p->free_cluster_head = idx;
->> +				p->free_cluster_tail = idx;
->> +			} else {
->> +				cluster_set_next(
->> +					cluster_info[p->free_cluster_tail],
->> +					idx);
->> +				p->free_cluster_tail = idx;
->> +			}
->> +		}
->> +		idx++;
->> +		if (idx == nr_clusters)
->> +			idx = 0;
->> +	}
->> +
->>   	return nr_extents;
->>   }
->>   
->> @@ -2016,6 +2166,7 @@ SYSCALL_DEFINE2(swapon, const char __use
->>   	sector_t span;
->>   	unsigned long maxpages;
->>   	unsigned char *swap_map = NULL;
->> +	unsigned int *cluster_info = NULL;
->>   	unsigned long *frontswap_map = NULL;
->>   	struct page *page = NULL;
->>   	struct inode *inode = NULL;
->> @@ -2089,13 +2240,24 @@ SYSCALL_DEFINE2(swapon, const char __use
->>   		error = -ENOMEM;
->>   		goto bad_swap;
->>   	}
->> +	if (p->bdev && blk_queue_nonrot(bdev_get_queue(p->bdev))) {
->> +		p->flags |= SWP_SOLIDSTATE;
->> +		p->cluster_next = 1 + (random32() % p->highest_bit);
->> +
->> +		cluster_info = vzalloc(DIV_ROUND_UP(maxpages,
->> +			SWAPFILE_CLUSTER) * sizeof(*cluster_info));
->> +		if (!cluster_info) {
->> +			error = -ENOMEM;
->> +			goto bad_swap;
->> +		}
->> +	}
->>   
->>   	error = swap_cgroup_swapon(p->type, maxpages);
->>   	if (error)
->>   		goto bad_swap;
->>   
->>   	nr_extents = setup_swap_map_and_extents(p, swap_header, swap_map,
->> -		maxpages, &span);
->> +		cluster_info, maxpages, &span);
->>   	if (unlikely(nr_extents < 0)) {
->>   		error = nr_extents;
->>   		goto bad_swap;
->> @@ -2104,21 +2266,15 @@ SYSCALL_DEFINE2(swapon, const char __use
->>   	if (frontswap_enabled)
->>   		frontswap_map = vzalloc(maxpages / sizeof(long));
->>   
->> -	if (p->bdev) {
->> -		if (blk_queue_nonrot(bdev_get_queue(p->bdev))) {
->> -			p->flags |= SWP_SOLIDSTATE;
->> -			p->cluster_next = 1 + (random32() % p->highest_bit);
->> -		}
->> -		if ((swap_flags & SWAP_FLAG_DISCARD) && discard_swap(p) == 0)
->> -			p->flags |= SWP_DISCARDABLE;
->> -	}
->> +	if (p->bdev && (swap_flags & SWAP_FLAG_DISCARD) && discard_swap(p) == 0)
->> +		p->flags |= SWP_DISCARDABLE;
->>   
->>   	mutex_lock(&swapon_mutex);
->>   	prio = -1;
->>   	if (swap_flags & SWAP_FLAG_PREFER)
->>   		prio =
->>   		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
->> -	enable_swap_info(p, prio, swap_map, frontswap_map);
->> +	enable_swap_info(p, prio, swap_map, cluster_info, frontswap_map);
->>   
->>   	printk(KERN_INFO "Adding %uk swap on %s.  "
->>   			"Priority:%d extents:%d across:%lluk %s%s%s\n",
->> @@ -2148,6 +2304,7 @@ bad_swap:
->>   	p->flags = 0;
->>   	spin_unlock(&swap_lock);
->>   	vfree(swap_map);
->> +	vfree(cluster_info);
->>   	if (swap_file) {
->>   		if (inode && S_ISREG(inode->i_mode)) {
->>   			mutex_unlock(&inode->i_mutex);
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+
+
+--------------020901080709000908050707
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">On 03/18/2013 12:03 PM, Simon Jeons
+      wrote:<br>
+    </div>
+    <blockquote cite="mid:514691F5.2040204@gmail.com" type="cite">Hi
+      Kirill,
+      <br>
+      On 03/15/2013 01:50 AM, Kirill A. Shutemov wrote:
+      <br>
+      <blockquote type="cite">From: "Kirill A. Shutemov"
+        <a class="moz-txt-link-rfc2396E" href="mailto:kirill.shutemov@linux.intel.com">&lt;kirill.shutemov@linux.intel.com&gt;</a>
+        <br>
+        <br>
+        Here's the second version of the patchset.
+        <br>
+        <br>
+        The intend of the work is get code ready to enable transparent
+        huge page
+        <br>
+        cache for the most simple fs -- ramfs.
+        <br>
+        <br>
+        We have read()/write()/mmap() functionality now. Still plenty
+        work ahead.
+        <br>
+      </blockquote>
+      <br>
+      One offline question.
+      <br>
+      <br>
+      Why set PG_mlocked to page_tail which be splited in function
+      __split_huge_page_refcount?
+      <br>
+      <br>
+    </blockquote>
+    <br>
+    Also why can't find where _PAGE_SPLITTING and <big>_PAGE_PSE flags
+      are cleared in split_huge_page path?</big><br>
+    <br>
+    <blockquote cite="mid:514691F5.2040204@gmail.com" type="cite">
+      <blockquote type="cite">
+        <br>
+        Any feedback is welcome.
+        <br>
+        <br>
+        Changes since v1:
+        <br>
+        &nbsp; - mmap();
+        <br>
+        &nbsp; - fix add_to_page_cache_locked() and delete_from_page_cache();
+        <br>
+        &nbsp; - introduce mapping_can_have_hugepages();
+        <br>
+        &nbsp; - call split_huge_page() only for head page in
+        filemap_fault();
+        <br>
+        &nbsp; - wait_split_huge_page(): serialize over i_mmap_mutex too;
+        <br>
+        &nbsp; - lru_add_page_tail: avoid PageUnevictable on active/inactive
+        lru lists;
+        <br>
+        &nbsp; - fix off-by-one in zero_huge_user_segment();
+        <br>
+        &nbsp; - THP_WRITE_ALLOC/THP_WRITE_FAILED counters;
+        <br>
+        <br>
+        TODO:
+        <br>
+        &nbsp; - memcg accounting has not yet evaluated;
+        <br>
+        &nbsp; - collapse;
+        <br>
+        &nbsp; - migration (?);
+        <br>
+        &nbsp; - stats, knobs, etc.;
+        <br>
+        &nbsp; - tmpfs/shmem enabling;
+        <br>
+        <br>
+        <br>
+        Kirill A. Shutemov (30):
+        <br>
+        &nbsp;&nbsp; block: implement add_bdi_stat()
+        <br>
+        &nbsp;&nbsp; mm: implement zero_huge_user_segment and friends
+        <br>
+        &nbsp;&nbsp; mm: drop actor argument of do_generic_file_read()
+        <br>
+        &nbsp;&nbsp; radix-tree: implement preload for multiple contiguous
+        elements
+        <br>
+        &nbsp;&nbsp; thp, mm: avoid PageUnevictable on active/inactive lru lists
+        <br>
+        &nbsp;&nbsp; thp, mm: basic defines for transparent huge page cache
+        <br>
+        &nbsp;&nbsp; thp, mm: introduce mapping_can_have_hugepages() predicate
+        <br>
+        &nbsp;&nbsp; thp, mm: rewrite add_to_page_cache_locked() to support huge
+        pages
+        <br>
+        &nbsp;&nbsp; thp, mm: rewrite delete_from_page_cache() to support huge
+        pages
+        <br>
+        &nbsp;&nbsp; thp, mm: locking tail page is a bug
+        <br>
+        &nbsp;&nbsp; thp, mm: handle tail pages in page_cache_get_speculative()
+        <br>
+        &nbsp;&nbsp; thp, mm: add event counters for huge page alloc on write to a
+        file
+        <br>
+        &nbsp;&nbsp; thp, mm: implement grab_cache_huge_page_write_begin()
+        <br>
+        &nbsp;&nbsp; thp, mm: naive support of thp in generic read/write routines
+        <br>
+        &nbsp;&nbsp; thp, libfs: initial support of thp in
+        <br>
+        &nbsp;&nbsp;&nbsp;&nbsp; simple_read/write_begin/write_end
+        <br>
+        &nbsp;&nbsp; thp: handle file pages in split_huge_page()
+        <br>
+        &nbsp;&nbsp; thp: wait_split_huge_page(): serialize over i_mmap_mutex too
+        <br>
+        &nbsp;&nbsp; thp, mm: truncate support for transparent huge page cache
+        <br>
+        &nbsp;&nbsp; thp, mm: split huge page on mmap file page
+        <br>
+        &nbsp;&nbsp; ramfs: enable transparent huge page cache
+        <br>
+        &nbsp;&nbsp; x86-64, mm: proper alignment mappings with hugepages
+        <br>
+        &nbsp;&nbsp; mm: add huge_fault() callback to vm_operations_struct
+        <br>
+        &nbsp;&nbsp; thp: prepare zap_huge_pmd() to uncharge file pages
+        <br>
+        &nbsp;&nbsp; thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
+        <br>
+        &nbsp;&nbsp; thp, mm: basic huge_fault implementation for
+        generic_file_vm_ops
+        <br>
+        &nbsp;&nbsp; thp: extract fallback path from do_huge_pmd_anonymous_page()
+        to a
+        <br>
+        &nbsp;&nbsp;&nbsp;&nbsp; function
+        <br>
+        &nbsp;&nbsp; thp: initial implementation of do_huge_linear_fault()
+        <br>
+        &nbsp;&nbsp; thp: handle write-protect exception to file-backed huge pages
+        <br>
+        &nbsp;&nbsp; thp: call __vma_adjust_trans_huge() for file-backed VMA
+        <br>
+        &nbsp;&nbsp; thp: map file-backed huge pages on fault
+        <br>
+        <br>
+        &nbsp; arch/x86/kernel/sys_x86_64.c&nbsp; |&nbsp;&nbsp; 13 +-
+        <br>
+        &nbsp; fs/libfs.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 50 ++++-
+        <br>
+        &nbsp; fs/ramfs/inode.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; 6 +-
+        <br>
+        &nbsp; include/linux/backing-dev.h&nbsp;&nbsp; |&nbsp;&nbsp; 10 +
+        <br>
+        &nbsp; include/linux/huge_mm.h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 36 +++-
+        <br>
+        &nbsp; include/linux/mm.h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 16 ++
+        <br>
+        &nbsp; include/linux/pagemap.h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 24 ++-
+        <br>
+        &nbsp; include/linux/radix-tree.h&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; 3 +
+        <br>
+        &nbsp; include/linux/vm_event_item.h |&nbsp;&nbsp;&nbsp; 2 +
+        <br>
+        &nbsp; lib/radix-tree.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 32 ++-
+        <br>
+        &nbsp; mm/filemap.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; 283 +++++++++++++++++++++----
+        <br>
+        &nbsp; mm/huge_memory.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp; 462
+        ++++++++++++++++++++++++++++++++++-------
+        <br>
+        &nbsp; mm/memory.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 31 ++-
+        <br>
+        &nbsp; mm/swap.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; 3 +-
+        <br>
+        &nbsp; mm/truncate.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp; 12 ++
+        <br>
+        &nbsp; mm/vmstat.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |&nbsp;&nbsp;&nbsp; 2 +
+        <br>
+        &nbsp; 16 files changed, 842 insertions(+), 143 deletions(-)
+        <br>
+        <br>
+      </blockquote>
+      <br>
+    </blockquote>
+    <br>
+  </body>
+</html>
+
+--------------020901080709000908050707--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
