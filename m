@@ -1,188 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id D42586B0005
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 11:51:26 -0400 (EDT)
-Date: Mon, 18 Mar 2013 16:51:25 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 9/9] remove /proc/sys/vm/hugepages_treat_as_movable
-Message-ID: <20130318155125.GT10192@dhcp22.suse.cz>
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1361475708-25991-10-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 67A606B0005
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 11:56:22 -0400 (EDT)
+Date: Mon, 18 Mar 2013 10:56:19 -0500
+From: Russ Anderson <rja@sgi.com>
+Subject: [patch] mm: speedup in __early_pfn_to_nid
+Message-ID: <20130318155619.GA18828@sgi.com>
+Reply-To: Russ Anderson <rja@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1361475708-25991-10-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, Russ Anderson <rja@sgi.com>
 
-On Thu 21-02-13 14:41:48, Naoya Horiguchi wrote:
-> Now hugepages are definitely movable. So allocating hugepages from
-> ZONE_MOVABLE is natural and we have no reason to keep this parameter.
+When booting on a large memory system, the kernel spends
+considerable time in memmap_init_zone() setting up memory zones.
+Analysis shows significant time spent in __early_pfn_to_nid().
 
-The sysctl is a part of user interface so you shouldn't remove it right
-away. What we can do is to make it noop and only WARN() that the
-interface will be removed later so that userspace can prepare for that.
+The routine memmap_init_zone() checks each PFN to verify the
+nid is valid.  __early_pfn_to_nid() sequentially scans the list of
+pfn ranges to find the right range and returns the nid.  This does
+not scale well.  On a 4 TB (single rack) system there are 308
+memory ranges to scan.  The higher the PFN the more time spent
+sequentially spinning through memory ranges.
 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  Documentation/sysctl/vm.txt | 16 ----------------
->  include/linux/hugetlb.h     |  2 --
->  kernel/sysctl.c             |  7 -------
->  mm/hugetlb.c                | 23 +++++------------------
->  4 files changed, 5 insertions(+), 43 deletions(-)
-> 
-> diff --git v3.8.orig/Documentation/sysctl/vm.txt v3.8/Documentation/sysctl/vm.txt
-> index 078701f..997350a 100644
-> --- v3.8.orig/Documentation/sysctl/vm.txt
-> +++ v3.8/Documentation/sysctl/vm.txt
-> @@ -167,22 +167,6 @@ fragmentation index is <= extfrag_threshold. The default value is 500.
->  
->  ==============================================================
->  
-> -hugepages_treat_as_movable
-> -
-> -This parameter is only useful when kernelcore= is specified at boot time to
-> -create ZONE_MOVABLE for pages that may be reclaimed or migrated. Huge pages
-> -are not movable so are not normally allocated from ZONE_MOVABLE. A non-zero
-> -value written to hugepages_treat_as_movable allows huge pages to be allocated
-> -from ZONE_MOVABLE.
-> -
-> -Once enabled, the ZONE_MOVABLE is treated as an area of memory the huge
-> -pages pool can easily grow or shrink within. Assuming that applications are
-> -not running that mlock() a lot of memory, it is likely the huge pages pool
-> -can grow to the size of ZONE_MOVABLE by repeatedly entering the desired value
-> -into nr_hugepages and triggering page reclaim.
-> -
-> -==============================================================
-> -
->  hugetlb_shm_group
->  
->  hugetlb_shm_group contains group id that is allowed to create SysV
-> diff --git v3.8.orig/include/linux/hugetlb.h v3.8/include/linux/hugetlb.h
-> index e33f07f..c97e5c5 100644
-> --- v3.8.orig/include/linux/hugetlb.h
-> +++ v3.8/include/linux/hugetlb.h
-> @@ -35,7 +35,6 @@ int PageHuge(struct page *page);
->  void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
->  int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
->  int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
-> -int hugetlb_treat_movable_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
->  
->  #ifdef CONFIG_NUMA
->  int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int,
-> @@ -73,7 +72,6 @@ void migrate_hugepage_add(struct page *page, struct list_head *list);
->  int is_hugepage_movable(struct page *page);
->  void copy_huge_page(struct page *dst, struct page *src);
->  
-> -extern unsigned long hugepages_treat_as_movable;
->  extern const unsigned long hugetlb_zero, hugetlb_infinity;
->  extern int sysctl_hugetlb_shm_group;
->  extern struct list_head huge_boot_pages;
-> diff --git v3.8.orig/kernel/sysctl.c v3.8/kernel/sysctl.c
-> index c88878d..a98bcf2 100644
-> --- v3.8.orig/kernel/sysctl.c
-> +++ v3.8/kernel/sysctl.c
-> @@ -1189,13 +1189,6 @@ static struct ctl_table vm_table[] = {
->  		.mode		= 0644,
->  		.proc_handler	= proc_dointvec,
->  	 },
-> -	 {
-> -		.procname	= "hugepages_treat_as_movable",
-> -		.data		= &hugepages_treat_as_movable,
-> -		.maxlen		= sizeof(int),
-> -		.mode		= 0644,
-> -		.proc_handler	= hugetlb_treat_movable_handler,
-> -	},
->  	{
->  		.procname	= "nr_overcommit_hugepages",
->  		.data		= NULL,
-> diff --git v3.8.orig/mm/hugetlb.c v3.8/mm/hugetlb.c
-> index c28e6c9..c60d203 100644
-> --- v3.8.orig/mm/hugetlb.c
-> +++ v3.8/mm/hugetlb.c
-> @@ -33,7 +33,6 @@
->  #include "internal.h"
->  
->  const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
-> -static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
->  unsigned long hugepages_treat_as_movable;
->  
->  int hugetlb_max_hstate __read_mostly;
-> @@ -542,7 +541,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
->  retry_cpuset:
->  	cpuset_mems_cookie = get_mems_allowed();
->  	zonelist = huge_zonelist(vma, address,
-> -					htlb_alloc_mask, &mpol, &nodemask);
-> +					GFP_HIGHUSER_MOVABLE, &mpol, &nodemask);
->  	/*
->  	 * A child process with MAP_PRIVATE mappings created by their parent
->  	 * have no page reserves. This check ensures that reservations are
-> @@ -558,7 +557,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
->  
->  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
->  						MAX_NR_ZONES - 1, nodemask) {
-> -		if (cpuset_zone_allowed_softwall(zone, htlb_alloc_mask)) {
-> +		if (cpuset_zone_allowed_softwall(zone, GFP_HIGHUSER_MOVABLE)) {
->  			page = dequeue_huge_page_node(h, zone_to_nid(zone));
->  			if (page) {
->  				if (!avoid_reserve)
-> @@ -698,7 +697,7 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
->  		return NULL;
->  
->  	page = alloc_pages_exact_node(nid,
-> -		htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
-> +		GFP_HIGHUSER_MOVABLE|__GFP_COMP|__GFP_THISNODE|
->  						__GFP_REPEAT|__GFP_NOWARN,
->  		huge_page_order(h));
->  	if (page) {
-> @@ -909,12 +908,12 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
->  	spin_unlock(&hugetlb_lock);
->  
->  	if (nid == NUMA_NO_NODE)
-> -		page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
-> +		page = alloc_pages(GFP_HIGHUSER_MOVABLE|__GFP_COMP|
->  				   __GFP_REPEAT|__GFP_NOWARN,
->  				   huge_page_order(h));
->  	else
->  		page = alloc_pages_exact_node(nid,
-> -			htlb_alloc_mask|__GFP_COMP|__GFP_THISNODE|
-> +			GFP_HIGHUSER_MOVABLE|__GFP_COMP|__GFP_THISNODE|
->  			__GFP_REPEAT|__GFP_NOWARN, huge_page_order(h));
->  
->  	if (page && arch_prepare_hugepage(page)) {
-> @@ -2078,18 +2077,6 @@ int hugetlb_mempolicy_sysctl_handler(struct ctl_table *table, int write,
->  }
->  #endif /* CONFIG_NUMA */
->  
-> -int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
-> -			void __user *buffer,
-> -			size_t *length, loff_t *ppos)
-> -{
-> -	proc_dointvec(table, write, buffer, length, ppos);
-> -	if (hugepages_treat_as_movable)
-> -		htlb_alloc_mask = GFP_HIGHUSER_MOVABLE;
-> -	else
-> -		htlb_alloc_mask = GFP_HIGHUSER;
-> -	return 0;
-> -}
-> -
->  int hugetlb_overcommit_handler(struct ctl_table *table, int write,
->  			void __user *buffer,
->  			size_t *length, loff_t *ppos)
-> -- 
-> 1.7.11.7
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+Since memmap_init_zone() increments pfn, it will almost always be
+looking for the same range as the previous pfn, so check that
+range first.  If it is in the same range, return that nid.
+If not, scan the list as before.
 
+A 4 TB (single rack) UV1 system takes 512 seconds to get through
+the zone code.  This performance optimization reduces the time
+by 189 seconds, a 36% improvement.
+
+A 2 TB (single rack) UV2 system goes from 212.7 seconds to 99.8 seconds,
+a 112.9 second (53%) reduction.
+
+Signed-off-by: Russ Anderson <rja@sgi.com>
+---
+ mm/page_alloc.c |   11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+Index: linux/mm/page_alloc.c
+===================================================================
+--- linux.orig/mm/page_alloc.c	2013-03-18 10:52:11.510988843 -0500
++++ linux/mm/page_alloc.c	2013-03-18 10:52:14.214931348 -0500
+@@ -4161,10 +4161,19 @@ int __meminit __early_pfn_to_nid(unsigne
+ {
+ 	unsigned long start_pfn, end_pfn;
+ 	int i, nid;
++	static unsigned long last_start_pfn, last_end_pfn;
++	static int last_nid;
++
++	if (last_start_pfn <= pfn && pfn < last_end_pfn)
++		return last_nid;
+ 
+ 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
+-		if (start_pfn <= pfn && pfn < end_pfn)
++		if (start_pfn <= pfn && pfn < end_pfn) {
++			last_nid = nid;
++			last_start_pfn = start_pfn;
++			last_end_pfn = end_pfn;
+ 			return nid;
++		}
+ 	/* This is a memory hole */
+ 	return -1;
+ }
 -- 
-Michal Hocko
-SUSE Labs
+Russ Anderson, OS RAS/Partitioning Project Lead  
+SGI - Silicon Graphics Inc          rja@sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
