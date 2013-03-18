@@ -1,101 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 3F1EA6B0068
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 07:11:50 -0400 (EDT)
-Message-ID: <5146E521.1040708@cn.fujitsu.com>
-Date: Mon, 18 Mar 2013 17:57:53 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v1 part1 0/9] Introduce movablemem_map boot option.
-References: <1363430142-14563-1-git-send-email-tangchen@cn.fujitsu.com> <51450D93.1090303@gmail.com>
-In-Reply-To: <51450D93.1090303@gmail.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 3D5956B0027
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 07:17:59 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <5146A4CC.3060306@gmail.com>
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <514691F5.2040204@gmail.com>
+ <5146A4CC.3060306@gmail.com>
+Subject: Re: [PATCHv2, RFC 00/30] Transparent huge page cache
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Message-Id: <20130318111939.C8206E0085@blue.fi.intel.com>
+Date: Mon, 18 Mar 2013 13:19:39 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Huck <will.huckk@gmail.com>
-Cc: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, kosaki.motohiro@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Will,
+Simon Jeons wrote:
+> On 03/18/2013 12:03 PM, Simon Jeons wrote:
+> > Hi Kirill,
+> > On 03/15/2013 01:50 AM, Kirill A. Shutemov wrote:
+> >> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> >>
+> >> Here's the second version of the patchset.
+> >>
+> >> The intend of the work is get code ready to enable transparent huge page
+> >> cache for the most simple fs -- ramfs.
+> >>
+> >> We have read()/write()/mmap() functionality now. Still plenty work 
+> >> ahead.
+> >
+> > One offline question.
+> >
+> > Why set PG_mlocked to page_tail which be splited in function 
+> > __split_huge_page_refcount?
 
-On 03/17/2013 08:25 AM, Will Huck wrote:
->
-> http://marc.info/?l=linux-mm&m=136014458829566&w=2
->
-> It seems that Mel don't like this idea.
->
+Not set, but copied from head page. Head page represents up-to-date sate
+of compound page, we need to copy it to all tail pages on split.
+ 
+> Also why can't find where _PAGE_SPLITTING and _PAGE_PSE flags are
+> cleared in split_huge_page path?
+ 
+The pmd is invalidated and replaced with reference to page table at the end
+of __split_huge_page_map.
+ 
+> Another offline question:
+> Why don't clear tail page PG_tail flag in function
+> __split_huge_page_refcount?
 
-Thank you for reminding me this.
+We do:
 
-And yes, I have read that email. :)
+ page_tail->flags &= ~PAGE_FLAGS_CHECK_AT_PREP | __PG_HWPOISON;
 
-And about this boot option, we have had a long discussion before.
-Please refer to: https://lkml.org/lkml/2012/11/29/190
-
-The situation is:
-
-For now, Linux kernel cannot migrate kernel direct mapping memory. And
-there is no way to ensure that ZONE_NORMAL has no kernel memory. So we
-can only use ZONE_MOVABLE to ensure the memory device could be removed.
-
-For now, I have the following reasons that movablemem_map boot option is
-necessary. Some may be mentioned before, but here, I think I need to say
-them again:
-
-1) If we want to hot-remove a memory device, the device should only have
-    memory of two types:
-    - kernel memory whose life cycle is the same as the memory device.
-      such as pagetables, vmemmap
-    - user memory that could be migrated.
-
-    For type1: we can allocate it on local node, just like Yinghai's work,
-               and free it when hot-removing.
-    For type2: we can migrate it at run time. But it must be in ZONE_MOVABLE
-               because we cannot ensure ZONE_NORMAL has no kernel memory.
-
-    So we need a way to limit hotpluggable memory in ZONE_MOVABLE.
-
-2) We have the following ways to do it:
-    a) use SRAT, which I have already implemented
-    b) specify physical address ranges, which I have implemented too, but
-       obviously very few guys like it.
-    c) specify node id. But nid could be changed on some platform by 
-firmware.
-
-    Because of c), we chose to use physical address ranges. To satisfy all
-    users, I also implemented a).
-
-3) Even if we don't specify physical address in command line, we use SRAT,
-    we still need the logic in this patch-set to achieve the same goal.
-
-4) Since setting a whole node as movable will cause NUMA performance down,
-    no matter which way we use, we always need an interface to open or close
-    this functionality.
-    The boot option itself is an interface. If users don't specify it in
-    command line, the kernel will work as before.
-
-So I do want to try again to push this boot option.  :)
-
-With this boot option, memory hotplug will work now.
-
-
-It's true that if we reimplement the whole mm in Linux to make kernel
-memory migratable, but we need to handle a lot of problems. I agree with 
-Mel.
-But it is a long way to go in the future.
-
-And the work in the near future:
-1) Allocate pagetables and vmemmap on local node, as Yinghai said.
-2) Do the proper modification for hot-add and hot-remove.
-    - Reserve memory for pagetables and vmemmap when hot-add, maybe use
-      memblock.
-    - Free all pagetables and vmemmap before hot-remove.
-3) And about Mel's advice, modify memory management in Linux to migrate
-    kernel pages, it is a long way to go in the future. I think we can
-    discuss more.
-
-Thanks. :)
-
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
