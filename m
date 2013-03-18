@@ -1,86 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id EAF7A6B003B
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 05:36:09 -0400 (EDT)
-Received: by mail-qc0-f170.google.com with SMTP id d42so2690232qca.29
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2013 02:36:08 -0700 (PDT)
-Message-ID: <5146E000.1070306@gmail.com>
-Date: Mon, 18 Mar 2013 17:36:00 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 1DC226B003D
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 06:38:42 -0400 (EDT)
+Message-ID: <5146EEA5.4030003@oracle.com>
+Date: Mon, 18 Mar 2013 18:38:29 +0800
+From: Bob Liu <bob.liu@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH, RFC 00/16] Transparent huge page cache
-References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
+References: <20130122065341.GA1850@kernel.org> <5142EC5A.4010509@gmail.com>
+In-Reply-To: <5142EC5A.4010509@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Shaohua Li <shli@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-On 01/28/2013 05:24 PM, Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->
-> Here's first steps towards huge pages in page cache.
->
-> The intend of the work is get code ready to enable transparent huge page
-> cache for the most simple fs -- ramfs.
->
-> It's not yet near feature-complete. It only provides basic infrastructure.
-> At the moment we can read, write and truncate file on ramfs with huge pages in
-> page cache. The most interesting part, mmap(), is not yet there. For now
-> we split huge page on mmap() attempt.
->
-> I can't say that I see whole picture. I'm not sure if I understand locking
-> model around split_huge_page(). Probably, not.
-> Andrea, could you check if it looks correct?
 
-Another offline question:
-Why don't clear tail page PG_tail flag in function 
-__split_huge_page_refcount?
+On 03/15/2013 05:39 PM, Simon Jeons wrote:
+> On 01/22/2013 02:53 PM, Shaohua Li wrote:
+>> Hi,
+>>
+>> Because of high density, low power and low price, flash storage (SSD)
+>> is a good
+>> candidate to partially replace DRAM. A quick answer for this is using
+>> SSD as
+>> swap. But Linux swap is designed for slow hard disk storage. There are
+>> a lot of
+>> challenges to efficiently use SSD for swap:
+>>
+>> 1. Lock contentions (swap_lock, anon_vma mutex, swap address space lock)
+>> 2. TLB flush overhead. To reclaim one page, we need at least 2 TLB
+>> flush. This
+>> overhead is very high even in a normal 2-socket machine.
+>> 3. Better swap IO pattern. Both direct and kswapd page reclaim can do
+>> swap,
+>> which makes swap IO pattern is interleave. Block layer isn't always
+>> efficient
+>> to do request merge. Such IO pattern also makes swap prefetch hard.
+>> 4. Swap map scan overhead. Swap in-memory map scan scans an array,
+>> which is
+>> very inefficient, especially if swap storage is fast.
+>> 5. SSD related optimization, mainly discard support
+>> 6. Better swap prefetch algorithm. Besides item 3, sequentially
+>> accessed pages
+>> aren't always in LRU list adjacently, so page reclaim will not swap
+>> such pages
+>> in adjacent storage sectors. This makes swap prefetch hard.
+>> 7. Alternative page reclaim policy to bias reclaiming anonymous page.
+>> Currently reclaim anonymous page is considering harder than reclaim
+>> file pages,
+>> so we bias reclaiming file pages. If there are high speed swap
+>> storage, we are
+>> considering doing swap more aggressively.
+>> 8. Huge page swap. Huge page swap can solve a lot of problems above,
+>> but both
+>> THP and hugetlbfs don't support swap.
+> 
+> Could you tell me in which workload hugetlb/thp pages can't swapout
+> influence your performance? Is it worth?
+> 
 
->
-> Next steps (not necessary in this order):
->   - mmap();
->   - migration (?);
->   - collapse;
->   - stats, knobs, etc.;
->   - tmpfs/shmem enabling;
->   - ...
->
-> Kirill A. Shutemov (16):
->    block: implement add_bdi_stat()
->    mm: implement zero_huge_user_segment and friends
->    mm: drop actor argument of do_generic_file_read()
->    radix-tree: implement preload for multiple contiguous elements
->    thp, mm: basic defines for transparent huge page cache
->    thp, mm: rewrite add_to_page_cache_locked() to support huge pages
->    thp, mm: rewrite delete_from_page_cache() to support huge pages
->    thp, mm: locking tail page is a bug
->    thp, mm: handle tail pages in page_cache_get_speculative()
->    thp, mm: implement grab_cache_huge_page_write_begin()
->    thp, mm: naive support of thp in generic read/write routines
->    thp, libfs: initial support of thp in
->      simple_read/write_begin/write_end
->    thp: handle file pages in split_huge_page()
->    thp, mm: truncate support for transparent huge page cache
->    thp, mm: split huge page on mmap file page
->    ramfs: enable transparent huge page cache
->
->   fs/libfs.c                  |   54 +++++++++---
->   fs/ramfs/inode.c            |    6 +-
->   include/linux/backing-dev.h |   10 +++
->   include/linux/huge_mm.h     |    8 ++
->   include/linux/mm.h          |   15 ++++
->   include/linux/pagemap.h     |   14 ++-
->   include/linux/radix-tree.h  |    3 +
->   lib/radix-tree.c            |   32 +++++--
->   mm/filemap.c                |  204 +++++++++++++++++++++++++++++++++++--------
->   mm/huge_memory.c            |   62 +++++++++++--
->   mm/memory.c                 |   22 +++++
->   mm/truncate.c               |   12 +++
->   12 files changed, 375 insertions(+), 67 deletions(-)
->
+I'm also very interesting in this workload.
+I think hugetlb/thp pages can be a potential user of zprojects like
+zswap/zcache.
+We can try to compress those pages before breaking them to normal pages.
+
+-- 
+Regards,
+-Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
