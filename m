@@ -1,63 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 5C5B96B0006
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 10:52:03 -0400 (EDT)
-Date: Mon, 18 Mar 2013 15:51:59 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/9] migrate: add migrate_entry_wait_huge()
-Message-ID: <20130318145159.GP10192@dhcp22.suse.cz>
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1361475708-25991-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 2D1256B0037
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 11:11:06 -0400 (EDT)
+Received: from mail211-va3 (localhost [127.0.0.1])	by
+ mail211-va3-R.bigfish.com (Postfix) with ESMTP id CE9DC5201B1	for
+ <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Mon, 18 Mar 2013 15:08:49 +0000
+ (UTC)
+From: KY Srinivasan <kys@microsoft.com>
+Subject: RE: [PATCH 2/2] Drivers: hv: balloon: Support 2M page allocations
+ for ballooning
+Date: Mon, 18 Mar 2013 15:08:36 +0000
+Message-ID: <98cd176931934b59a0fcb1ec3448d86c@SN2PR03MB061.namprd03.prod.outlook.com>
+References: <1363470088-24565-1-git-send-email-kys@microsoft.com>
+ <1363470125-24606-1-git-send-email-kys@microsoft.com>
+ <1363470125-24606-2-git-send-email-kys@microsoft.com>
+ <20130318105257.GG10192@dhcp22.suse.cz>
+ <1701384b10204014b53acecb006521b0@SN2PR03MB061.namprd03.prod.outlook.com>
+ <20130318141302.GO10192@dhcp22.suse.cz>
+In-Reply-To: <20130318141302.GO10192@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1361475708-25991-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>
 
-On Thu 21-02-13 14:41:40, Naoya Horiguchi wrote:
-[...]
-> diff --git v3.8.orig/mm/migrate.c v3.8/mm/migrate.c
-> index 2fd8b4a..7d84f4c 100644
-> --- v3.8.orig/mm/migrate.c
-> +++ v3.8/mm/migrate.c
-> @@ -236,6 +236,30 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
->  	pte_unmap_unlock(ptep, ptl);
->  }
->  
-> +void migration_entry_wait_huge(struct mm_struct *mm, pmd_t *pmd,
-> +				unsigned long address)
-> +{
-> +	spinlock_t *ptl = pte_lockptr(mm, pmd);
-> +	pte_t pte;
-> +	swp_entry_t entry;
-> +	struct page *page;
-> +
-> +	spin_lock(ptl);
-> +	pte = huge_ptep_get((pte_t *)pmd);
-> +	if (!is_hugetlb_entry_migration(pte))
-> +		goto out;
-> +	entry = pte_to_swp_entry(pte);
-> +	page = migration_entry_to_page(entry);
-> +	if (!get_page_unless_zero(page))
-> +		goto out;
-> +	spin_unlock(ptl);
-> +	wait_on_page_locked(page);
-> +	put_page(page);
-> +	return;
-> +out:
-> +	spin_unlock(ptl);
-> +}
 
-This duplicates a lot of code from migration_entry_wait. Can we just
-teach the generic one to be HugePage aware instead?
-All it takes is just opencoding pte_offset_map_lock and calling
-huge_ptep_get ofr HugePage and pte_offset_map otherwise.
--- 
-Michal Hocko
-SUSE Labs
+
+> -----Original Message-----
+> From: Michal Hocko [mailto:mhocko@suse.cz]
+> Sent: Monday, March 18, 2013 10:13 AM
+> To: KY Srinivasan
+> Cc: gregkh@linuxfoundation.org; linux-kernel@vger.kernel.org;
+> devel@linuxdriverproject.org; olaf@aepfle.de; apw@canonical.com;
+> andi@firstfloor.org; akpm@linux-foundation.org; linux-mm@kvack.org;
+> kamezawa.hiroyuki@gmail.com; hannes@cmpxchg.org; yinghan@google.com
+> Subject: Re: [PATCH 2/2] Drivers: hv: balloon: Support 2M page allocation=
+s for
+> ballooning
+>=20
+> On Mon 18-03-13 13:44:05, KY Srinivasan wrote:
+> >
+> >
+> > > -----Original Message-----
+> > > From: Michal Hocko [mailto:mhocko@suse.cz]
+> > > Sent: Monday, March 18, 2013 6:53 AM
+> > > To: KY Srinivasan
+> > > Cc: gregkh@linuxfoundation.org; linux-kernel@vger.kernel.org;
+> > > devel@linuxdriverproject.org; olaf@aepfle.de; apw@canonical.com;
+> > > andi@firstfloor.org; akpm@linux-foundation.org; linux-mm@kvack.org;
+> > > kamezawa.hiroyuki@gmail.com; hannes@cmpxchg.org;
+> yinghan@google.com
+> > > Subject: Re: [PATCH 2/2] Drivers: hv: balloon: Support 2M page alloca=
+tions for
+> > > ballooning
+> > >
+> > > On Sat 16-03-13 14:42:05, K. Y. Srinivasan wrote:
+> > > > While ballooning memory out of the guest, attempt 2M allocations fi=
+rst.
+> > > > If 2M allocations fail, then go for 4K allocations. In cases where =
+we
+> > > > have performed 2M allocations, split this 2M page so that we can fr=
+ee this
+> > > > page at 4K granularity (when the host returns the memory).
+> > >
+> > > Maybe I am missing something but what is the advantage of 2M allocati=
+on
+> > > when you split it up immediately so you are not using it as a huge pa=
+ge?
+> >
+> > The Hyper-V ballooning protocol specifies the pages being ballooned as
+> > page ranges - start_pfn: number_of_pfns. So, when the guest balloon
+> > is inflating and I am able to allocate 2M pages, I will be able to
+> > represent 512 contiguous pages in one 64 bit entry and this makes the
+> > ballooning operation that much more efficient. The reason I split the
+> > page is that the host does not guarantee that when it returns the
+> > memory to the guest, it will return in any particular granularity and
+> > so I have to be able to free this memory in 4K granularity. This is
+> > the corner case that I will have to handle.
+>=20
+> Thanks for the clarification. I think this information would be valuable
+> in the changelog.
+
+Thanks Michal. I will resend the patches with the changes you have suggeste=
+d. What is your
+recommendation with regards which tree the mm patch needs to go through; th=
+e Hyper-V balloon
+driver patch will go through Greg's tree.
+
+Regards,
+
+K. Y=20
+> --
+> Michal Hocko
+> SUSE Labs
+>=20
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
