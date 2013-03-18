@@ -1,10 +1,10 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 3/4] introduce zero-filled page stat count
-Date: Sun, 17 Mar 2013 08:13:16 +0800
-Message-ID: <2781.87098815597$1363479234@news.gmane.org>
-References: <1363255697-19674-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1363255697-19674-4-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130316130638.GB5987@konrad-lan.dumpdata.com>
+Subject: Re: [PATCH 06/10] mm: vmscan: Have kswapd writeback pages based on
+ dirty pages encountered, not priority
+Date: Mon, 18 Mar 2013 19:08:50 +0800
+Message-ID: <30781.6345165067$1363604998@news.gmane.org>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+ <1363525456-10448-7-git-send-email-mgorman@suse.de>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,119 +12,175 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UH1EU-0008VL-SX
-	for glkm-linux-mm-2@m.gmane.org; Sun, 17 Mar 2013 01:13:51 +0100
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id BFDE06B0005
-	for <linux-mm@kvack.org>; Sat, 16 Mar 2013 20:13:24 -0400 (EDT)
+	id 1UHXwX-0003sf-EX
+	for glkm-linux-mm-2@m.gmane.org; Mon, 18 Mar 2013 12:09:29 +0100
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id E68676B003B
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 07:08:59 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 17 Mar 2013 05:40:09 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id D2881125805D
-	for <linux-mm@kvack.org>; Sun, 17 Mar 2013 05:44:24 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2H0DFeS9109812
-	for <linux-mm@kvack.org>; Sun, 17 Mar 2013 05:43:15 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2H0DH5e032575
-	for <linux-mm@kvack.org>; Sun, 17 Mar 2013 00:13:18 GMT
+	Mon, 18 Mar 2013 21:02:37 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id C62772CE8055
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 22:08:52 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2IAu1u849938648
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 21:56:02 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2IB8pgi016176
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 22:08:52 +1100
 Content-Disposition: inline
-In-Reply-To: <20130316130638.GB5987@konrad-lan.dumpdata.com>
+In-Reply-To: <1363525456-10448-7-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Mar 16, 2013 at 09:06:39AM -0400, Konrad Rzeszutek Wilk wrote:
->On Thu, Mar 14, 2013 at 06:08:16PM +0800, Wanpeng Li wrote:
->> Introduce zero-filled page statistics to monitor the number of
->> zero-filled pages.
+On Sun, Mar 17, 2013 at 01:04:12PM +0000, Mel Gorman wrote:
+>Currently kswapd queues dirty pages for writeback if scanning at an elevated
+>priority but the priority kswapd scans at is not related to the number
+>of unqueued dirty encountered.  Since commit "mm: vmscan: Flatten kswapd
+>priority loop", the priority is related to the size of the LRU and the
+>zone watermark which is no indication as to whether kswapd should write
+>pages or not.
 >
-
-Hi Konrad,
-
->Hm, you must be using an older version of the driver. Please
->rebase it against Greg KH's staging tree. This is where most if not
->all of the DebugFS counters got moved to a different file.
+>This patch tracks if an excessive number of unqueued dirty pages are being
+>encountered at the end of the LRU.  If so, it indicates that dirty pages
+>are being recycled before flusher threads can clean them and flags the
+>zone so that kswapd will start writing pages until the zone is balanced.
 >
+>Signed-off-by: Mel Gorman <mgorman@suse.de>
+>---
+> include/linux/mmzone.h |  8 ++++++++
+> mm/vmscan.c            | 29 +++++++++++++++++++++++------
+> 2 files changed, 31 insertions(+), 6 deletions(-)
+>
+>diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>index ede2749..edd6b98 100644
+>--- a/include/linux/mmzone.h
+>+++ b/include/linux/mmzone.h
+>@@ -495,6 +495,9 @@ typedef enum {
+> 	ZONE_CONGESTED,			/* zone has many dirty pages backed by
+> 					 * a congested BDI
+> 					 */
+>+	ZONE_DIRTY,			/* reclaim scanning has recently found
+>+					 * many dirty file pages
+>+					 */
+> } zone_flags_t;
+>
+> static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
+>@@ -517,6 +520,11 @@ static inline int zone_is_reclaim_congested(const struct zone *zone)
+> 	return test_bit(ZONE_CONGESTED, &zone->flags);
+> }
+>
+>+static inline int zone_is_reclaim_dirty(const struct zone *zone)
+>+{
+>+	return test_bit(ZONE_DIRTY, &zone->flags);
+>+}
+>+
+> static inline int zone_is_reclaim_locked(const struct zone *zone)
+> {
+> 	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
+>diff --git a/mm/vmscan.c b/mm/vmscan.c
+>index af3bb6f..493728b 100644
+>--- a/mm/vmscan.c
+>+++ b/mm/vmscan.c
+>@@ -675,13 +675,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> 				      struct zone *zone,
+> 				      struct scan_control *sc,
+> 				      enum ttu_flags ttu_flags,
+>-				      unsigned long *ret_nr_dirty,
+>+				      unsigned long *ret_nr_unqueued_dirty,
+> 				      unsigned long *ret_nr_writeback,
+> 				      bool force_reclaim)
+> {
+> 	LIST_HEAD(ret_pages);
+> 	LIST_HEAD(free_pages);
+> 	int pgactivate = 0;
+>+	unsigned long nr_unqueued_dirty = 0;
+> 	unsigned long nr_dirty = 0;
+> 	unsigned long nr_congested = 0;
+> 	unsigned long nr_reclaimed = 0;
+>@@ -807,14 +808,17 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> 		if (PageDirty(page)) {
+> 			nr_dirty++;
+>
+>+			if (!PageWriteback(page))
+>+				nr_unqueued_dirty++;
+>+
+> 			/*
+> 			 * Only kswapd can writeback filesystem pages to
+>-			 * avoid risk of stack overflow but do not writeback
+>-			 * unless under significant pressure.
+>+			 * avoid risk of stack overflow but only writeback
+>+			 * if many dirty pages have been encountered.
+> 			 */
+> 			if (page_is_file_cache(page) &&
+> 					(!current_is_kswapd() ||
+>-					 sc->priority >= DEF_PRIORITY - 2)) {
+>+					 !zone_is_reclaim_dirty(zone))) {
+> 				/*
+> 				 * Immediately reclaim when written back.
+> 				 * Similar in principal to deactivate_page()
+>@@ -959,7 +963,7 @@ keep:
+> 	list_splice(&ret_pages, page_list);
+> 	count_vm_events(PGACTIVATE, pgactivate);
+> 	mem_cgroup_uncharge_end();
+>-	*ret_nr_dirty += nr_dirty;
+>+	*ret_nr_unqueued_dirty += nr_unqueued_dirty;
+> 	*ret_nr_writeback += nr_writeback;
+> 	return nr_reclaimed;
+> }
+>@@ -1372,6 +1376,15 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+> 			(nr_taken >> (DEF_PRIORITY - sc->priority)))
+> 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
+>
+>+	/*
+>+	 * Similarly, if many dirty pages are encountered that are not
+>+	 * currently being written then flag that kswapd should start
+>+	 * writing back pages.
+>+	 */
+>+	if (global_reclaim(sc) && nr_dirty &&
+>+			nr_dirty >= (nr_taken >> (DEF_PRIORITY - sc->priority)))
+>+		zone_set_flag(zone, ZONE_DIRTY);
+>+
+> 	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
+> 		zone_idx(zone),
+> 		nr_scanned, nr_reclaimed,
+>@@ -2735,8 +2748,12 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+> 				end_zone = i;
+> 				break;
+> 			} else {
+>-				/* If balanced, clear the congested flag */
+>+				/*
+>+				 * If balanced, clear the dirty and congested
+>+				 * flags
+>+				 */
+> 				zone_clear_flag(zone, ZONE_CONGESTED);
+>+				zone_clear_flag(zone, ZONE_DIRTY);
 
-Sorry, I miss it. I will rebase it. :-)
+Hi Mel,
+
+There are two places in balance_pgdat clear ZONE_CONGESTED flag, one
+is during scan zone which have free_pages <= high_wmark_pages(zone), the 
+other one is zone get balanced after reclaim, it seems that you miss the 
+later one.
 
 Regards,
 Wanpeng Li 
 
->> 
->> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->> ---
->>  drivers/staging/zcache/zcache-main.c |    7 +++++++
->>  1 files changed, 7 insertions(+), 0 deletions(-)
->> 
->> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
->> index db200b4..2091a4d 100644
->> --- a/drivers/staging/zcache/zcache-main.c
->> +++ b/drivers/staging/zcache/zcache-main.c
->> @@ -196,6 +196,7 @@ static ssize_t zcache_eph_nonactive_puts_ignored;
->>  static ssize_t zcache_pers_nonactive_puts_ignored;
->>  static ssize_t zcache_writtenback_pages;
->>  static ssize_t zcache_outstanding_writeback_pages;
->> +static ssize_t zcache_pages_zero;
->>  
->>  #ifdef CONFIG_DEBUG_FS
->>  #include <linux/debugfs.h>
->> @@ -257,6 +258,7 @@ static int zcache_debugfs_init(void)
->>  	zdfs("outstanding_writeback_pages", S_IRUGO, root,
->>  				&zcache_outstanding_writeback_pages);
->>  	zdfs("writtenback_pages", S_IRUGO, root, &zcache_writtenback_pages);
->> +	zdfs("pages_zero", S_IRUGO, root, &zcache_pages_zero);
->>  	return 0;
->>  }
->>  #undef	zdebugfs
->> @@ -326,6 +328,7 @@ void zcache_dump(void)
->>  	pr_info("zcache: outstanding_writeback_pages=%zd\n",
->>  				zcache_outstanding_writeback_pages);
->>  	pr_info("zcache: writtenback_pages=%zd\n", zcache_writtenback_pages);
->> +	pr_info("zcache: pages_zero=%zd\n", zcache_pages_zero);
->>  }
->>  #endif
->>  
->> @@ -562,6 +565,7 @@ static void *zcache_pampd_eph_create(char *data, size_t size, bool raw,
->>  		kunmap_atomic(user_mem);
->>  		clen = 0;
->>  		zero_filled = true;
->> +		zcache_pages_zero++;
->>  		goto got_pampd;
->>  	}
->>  	kunmap_atomic(user_mem);
->> @@ -645,6 +649,7 @@ static void *zcache_pampd_pers_create(char *data, size_t size, bool raw,
->>  		kunmap_atomic(user_mem);
->>  		clen = 0;
->>  		zero_filled = true;
->> +		zcache_pages_zero++;
->>  		goto got_pampd;
->>  	}
->>  	kunmap_atomic(user_mem);
->> @@ -866,6 +871,7 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
->>  		zpages = 0;
->>  		if (!raw)
->>  			*sizep = PAGE_SIZE;
->> +		zcache_pages_zero--;
->>  		goto zero_fill;
->>  	}
->>  
->> @@ -922,6 +928,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
->>  		zero_filled = true;
->>  		zsize = 0;
->>  		zpages = 0;
->> +		zcache_pages_zero--;
->>  	}
->>  
->>  	if (pampd_is_remote(pampd) && !zero_filled) {
->> -- 
->> 1.7.7.6
->> 
+> 			}
+> 		}
+>
+>-- 
+>1.8.1.4
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
