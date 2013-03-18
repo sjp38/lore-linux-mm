@@ -1,65 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 126EF6B0005
-	for <linux-mm@kvack.org>; Sun, 17 Mar 2013 17:47:49 -0400 (EDT)
-Date: Sun, 17 Mar 2013 21:46:42 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v2, part3 02/12] mm/ARM64: kill poison_init_mem()
-Message-ID: <20130317214642.GA20875@mudshark.cambridge.arm.com>
-References: <1363453413-8139-1-git-send-email-jiang.liu@huawei.com>
- <1363453413-8139-3-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id A24D16B0027
+	for <linux-mm@kvack.org>; Sun, 17 Mar 2013 22:33:58 -0400 (EDT)
+Received: by mail-da0-f50.google.com with SMTP id t1so1030578dae.37
+        for <linux-mm@kvack.org>; Sun, 17 Mar 2013 19:33:57 -0700 (PDT)
+Date: Sun, 17 Mar 2013 19:33:25 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mmap sync issue
+In-Reply-To: <CANN689HX9rhecNv3RsDn8QZO8iUrMsQQBgnhUDb5AdyfWgyFag@mail.gmail.com>
+Message-ID: <alpine.LNX.2.00.1303171906050.1676@eggly.anvils>
+References: <DEACCBA4C6A9D145A6A68B5F5BE581B80FC057AB@HKXPRD0310MB353.apcprd03.prod.outlook.com> <514502B6.2090804@gmail.com> <CANN689HX9rhecNv3RsDn8QZO8iUrMsQQBgnhUDb5AdyfWgyFag@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1363453413-8139-3-git-send-email-jiang.liu@huawei.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Gil Weber <gilw@cse-semaphore.com>
+Cc: Michel Lespinasse <walken@google.com>, Will Huck <will.huckk@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
 
-On Sat, Mar 16, 2013 at 05:03:23PM +0000, Jiang Liu wrote:
-> Use free_reserved_area() to kill poison_init_mem() on ARM64.
+On Sat, 16 Mar 2013, Michel Lespinasse wrote:
+> On Sat, Mar 16, 2013 at 4:39 PM, Will Huck <will.huckk@gmail.com> wrote:
+> > On 03/15/2013 07:39 PM, Gil Weber wrote:
+> >> I am experiencing an issue with my device driver. I am using mmap and
+> >> ioctl to share information with my user space application.
+> >> The thing is that the shared memory does not seems to be synced. Do check
+> >> this, I have done a simple test:
 > 
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: linux-arm-kernel@lists.infradead.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
->  arch/arm64/mm/init.c |   17 +++--------------
->  1 file changed, 3 insertions(+), 14 deletions(-)
+> So if I got this right, the issue is that the vmalloc_area is
+> virtually aliased between the kernel and the user space mapping, so
+> that coherency is not guaranteed on architectures that use virtually
+> aliased caches.
 > 
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> index e58dd7f..b87bdb8 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -197,14 +197,6 @@ void __init bootmem_init(void)
->  	max_pfn = max_low_pfn = max;
->  }
->  
-> -/*
-> - * Poison init memory with an undefined instruction (0x0).
-> - */
-> -static inline void poison_init_mem(void *s, size_t count)
-> -{
-> -	memset(s, 0, count);
-> -}
-> -
->  #ifndef CONFIG_SPARSEMEM_VMEMMAP
->  static inline void free_memmap(unsigned long start_pfn, unsigned long end_pfn)
->  {
-> @@ -386,8 +378,7 @@ void __init mem_init(void)
->  
->  void free_initmem(void)
->  {
-> -	poison_init_mem(__init_begin, __init_end - __init_begin);
-> -	free_initmem_default(-1);
-> +	free_initmem_default(0);
+> fs/aio.c does something similar to what you want with their ring
+> buffer. The kernel doesn't access the ring buffer through a vmalloc
+> area like you're trying to do; instead it uses kmap_atomic() ..
+> kunmap_atomic() whenever it wants to access it.
+> 
+> I don't actually consider myself an expert in this area but I believe
+> the above should solve your problem :)
 
-This change looks unrelated to $subject. We should probably just poison with
-0 from the outset, when free_initmem_default is introduced.
+I don't think so: kmap_atomic() provides a temporary kernel mapping for
+a page when not all memory is direct-mapped, but it's close to a no-op
+when there's no highmem.  This question isn't about highmem.
 
-Will
+I can't point to what solves the problem for the aio ringbuffer:
+for all I know, that's not even used on such architectures.
+
+The usual solution is flush_dcache_page(): see Documentation/cachetlb.txt.
+Which mostly describes the common page cache case, but a driver like
+yours may also need it.
+
+Each architecture has its own implementation, and often its own way of
+minimizing the overhead of flush_dcache_page(): if you're using it in
+a new context, you might need to be careful about such optimizations,
+and the page flags used to control them.
+
+But better to ask on the (moderated) linux-arm-kernel list if it's not
+clear to you how to use it: being a no-op on x86, those of us who know
+little beyond x86 are apt to give bad advice.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
