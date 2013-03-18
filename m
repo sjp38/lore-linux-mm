@@ -1,76 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 67A606B0005
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 11:56:22 -0400 (EDT)
-Date: Mon, 18 Mar 2013 10:56:19 -0500
-From: Russ Anderson <rja@sgi.com>
-Subject: [patch] mm: speedup in __early_pfn_to_nid
-Message-ID: <20130318155619.GA18828@sgi.com>
-Reply-To: Russ Anderson <rja@sgi.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id A608E6B0005
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 12:05:37 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id l13so2853874wie.8
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2013 09:05:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1303172041460.1935@eggly.anvils>
+References: <CAA25o9RchY2AD8U30bh4H+fz6kq8bs98SUrkJUkTpbTHSGjcGA@mail.gmail.com>
+	<alpine.LNX.2.00.1303172041460.1935@eggly.anvils>
+Date: Mon, 18 Mar 2013 09:05:35 -0700
+Message-ID: <CAA25o9TohT6dADroSDzpc2q7oLTmb-eJ1QW53M4z51OkF2QU+g@mail.gmail.com>
+Subject: Re: security: restricting access to swap
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, Russ Anderson <rja@sgi.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, Sonny Rao <sonnyrao@google.com>
 
-When booting on a large memory system, the kernel spends
-considerable time in memmap_init_zone() setting up memory zones.
-Analysis shows significant time spent in __early_pfn_to_nid().
+On Sun, Mar 17, 2013 at 8:58 PM, Hugh Dickins <hughd@google.com> wrote:
+> On Mon, 11 Mar 2013, Luigi Semenzato wrote:
+>> Greetings linux-mmers,
+>>
+>> before we can fully deploy zram, we must ensure it conforms to the
+>> Chrome OS security requirements.  In particular, we do not want to
+>> allow user space to read/write the swap device---not even root-owned
+>> processes.
+>>
+>> A similar restriction is available for /dev/mem under CONFIG_STRICT_DEVMEM.
+>>
+>> There are a few possible approaches to this, but before we go ahead
+>> I'd like to ask if anything has happened or is planned in this
+>> direction.
+>>
+>> Otherwise, one idea I am playing with is to add a CONFIG_STRICT_SWAP
+>> option that would do this for any swap device (i.e. not specific to
+>> zram) and possibly also when swapping to a file.  We would add an
+>> "internal" open flag, O_KERN_SWAP, as well as clean up a little bit
+>> the FMODE_NONOTIFY confusion by adding the kernel flag O_KERN_NONOTIFY
+>> and formalizing the sets of external (O_*) and internal (O_KERN_*)
+>> open flags.
+>>
+>> Swapon() and swapoff() would use O_KERN_SWAP internally, and a device
+>> opened with that flag would reject user-level opens.
+>>
+>> Thank you in advance for any input/suggestion!
+>> Luigi
 
-The routine memmap_init_zone() checks each PFN to verify the
-nid is valid.  __early_pfn_to_nid() sequentially scans the list of
-pfn ranges to find the right range and returns the nid.  This does
-not scale well.  On a 4 TB (single rack) system there are 308
-memory ranges to scan.  The higher the PFN the more time spent
-sequentially spinning through memory ranges.
+Hugh, thanks for the reply.
 
-Since memmap_init_zone() increments pfn, it will almost always be
-looking for the same range as the previous pfn, so check that
-range first.  If it is in the same range, return that nid.
-If not, scan the list as before.
+> Your O_KERN_SWAP does not make much sense to me.
+>
+> The open flag would only apply while the device or file is open, yet
+> you would also want this security to apply after it has been closed.
+>
+> And there's not much security if you rely upon zeroing the swap area
+> at swapoff.  Maybe it crashes before swapoff.
 
-A 4 TB (single rack) UV1 system takes 512 seconds to get through
-the zone code.  This performance optimization reduces the time
-by 189 seconds, a 36% improvement.
+Yes, that would be a problem.  It's not in our case because the swap
+device is ZRAM.
 
-A 2 TB (single rack) UV2 system goes from 212.7 seconds to 99.8 seconds,
-a 112.9 second (53%) reduction.
+> Maybe you have /dev/sda1
+> open O_KERN_SWAP, but someone is watching through /dev/sda.  Maybe you
+> have swapfile open O_KERN_SWAP, but someone is watching through the
+> block device of the filesystem holding swapfile.
 
-Signed-off-by: Russ Anderson <rja@sgi.com>
----
- mm/page_alloc.c |   11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+Yes, I realize that this works only when using the entire device for swap.
 
-Index: linux/mm/page_alloc.c
-===================================================================
---- linux.orig/mm/page_alloc.c	2013-03-18 10:52:11.510988843 -0500
-+++ linux/mm/page_alloc.c	2013-03-18 10:52:14.214931348 -0500
-@@ -4161,10 +4161,19 @@ int __meminit __early_pfn_to_nid(unsigne
- {
- 	unsigned long start_pfn, end_pfn;
- 	int i, nid;
-+	static unsigned long last_start_pfn, last_end_pfn;
-+	static int last_nid;
-+
-+	if (last_start_pfn <= pfn && pfn < last_end_pfn)
-+		return last_nid;
- 
- 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
--		if (start_pfn <= pfn && pfn < end_pfn)
-+		if (start_pfn <= pfn && pfn < end_pfn) {
-+			last_nid = nid;
-+			last_start_pfn = start_pfn;
-+			last_end_pfn = end_pfn;
- 			return nid;
-+		}
- 	/* This is a memory hole */
- 	return -1;
- }
--- 
-Russ Anderson, OS RAS/Partitioning Project Lead  
-SGI - Silicon Graphics Inc          rja@sgi.com
+> I think you want to encrypt the pages going out to swap, and encrypt
+> them in such a way that only swap has the key.  Whether that's already
+> easily achieved with dm I have no idea.
+
+I think that for our application it may make sense to have a
+ZRAM-specific solution.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
