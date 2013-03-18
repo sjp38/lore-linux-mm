@@ -1,19 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 70ED46B0005
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 09:29:20 -0400 (EDT)
-Received: from mail70-db8 (localhost [127.0.0.1])	by mail70-db8-R.bigfish.com
- (Postfix) with ESMTP id C307FB000D6	for
- <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Mon, 18 Mar 2013 13:28:49 +0000
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id D73E56B0005
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 09:45:08 -0400 (EDT)
+Received: from mail115-co9 (localhost [127.0.0.1])	by
+ mail115-co9-R.bigfish.com (Postfix) with ESMTP id E46AD14015C	for
+ <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Mon, 18 Mar 2013 13:44:12 +0000
  (UTC)
 From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH 1/2] mm: Export split_page()
-Date: Mon, 18 Mar 2013 13:28:42 +0000
-Message-ID: <991ac805538f4d5f9698200d592bddb6@SN2PR03MB061.namprd03.prod.outlook.com>
+Subject: RE: [PATCH 2/2] Drivers: hv: balloon: Support 2M page allocations
+ for ballooning
+Date: Mon, 18 Mar 2013 13:44:05 +0000
+Message-ID: <1701384b10204014b53acecb006521b0@SN2PR03MB061.namprd03.prod.outlook.com>
 References: <1363470088-24565-1-git-send-email-kys@microsoft.com>
  <1363470125-24606-1-git-send-email-kys@microsoft.com>
- <20130318110334.GI10192@dhcp22.suse.cz>
-In-Reply-To: <20130318110334.GI10192@dhcp22.suse.cz>
+ <1363470125-24606-2-git-send-email-kys@microsoft.com>
+ <20130318105257.GG10192@dhcp22.suse.cz>
+In-Reply-To: <20130318105257.GG10192@dhcp22.suse.cz>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -27,68 +29,44 @@ Cc: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vge
 
 > -----Original Message-----
 > From: Michal Hocko [mailto:mhocko@suse.cz]
-> Sent: Monday, March 18, 2013 7:04 AM
+> Sent: Monday, March 18, 2013 6:53 AM
 > To: KY Srinivasan
 > Cc: gregkh@linuxfoundation.org; linux-kernel@vger.kernel.org;
 > devel@linuxdriverproject.org; olaf@aepfle.de; apw@canonical.com;
 > andi@firstfloor.org; akpm@linux-foundation.org; linux-mm@kvack.org;
 > kamezawa.hiroyuki@gmail.com; hannes@cmpxchg.org; yinghan@google.com
-> Subject: Re: [PATCH 1/2] mm: Export split_page()
+> Subject: Re: [PATCH 2/2] Drivers: hv: balloon: Support 2M page allocation=
+s for
+> ballooning
 >=20
-> On Sat 16-03-13 14:42:04, K. Y. Srinivasan wrote:
-> > The split_page() function will be very useful for balloon drivers. On H=
-yper-V,
-> > it will be very efficient to use 2M allocations in the guest as this (a=
-) makes
-> > the ballooning protocol with the host that much more efficient and (b) =
-moving
-> > memory in 2M chunks minimizes fragmentation in the host. Export the
-> split_page()
-> > function to let the guest allocations be in 2M chunks while the host is=
- free to
-> > return this memory at arbitrary granularity.
-> >
-> > Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
+> On Sat 16-03-13 14:42:05, K. Y. Srinivasan wrote:
+> > While ballooning memory out of the guest, attempt 2M allocations first.
+> > If 2M allocations fail, then go for 4K allocations. In cases where we
+> > have performed 2M allocations, split this 2M page so that we can free t=
+his
+> > page at 4K granularity (when the host returns the memory).
 >=20
-> I do not have any objections to exporting the symbol (at least we
-> prevent drivers code from inventing their own split_page) but the
-> Hyper-V specific description should go into Hyper-V patch IMO.
->=20
-> So for the export with a short note that the symbol will be used by
-> Hyper-V
+> Maybe I am missing something but what is the advantage of 2M allocation
+> when you split it up immediately so you are not using it as a huge page?
 
-Will do.
+The Hyper-V ballooning protocol specifies the pages being ballooned as page=
+ ranges -
+start_pfn: number_of_pfns. So, when the guest balloon is inflating and I am=
+ able to
+allocate 2M pages, I will be able to represent 512 contiguous pages in one =
+64 bit entry and this makes
+the ballooning operation that much more efficient. The reason I split the p=
+age is that the host does not
+guarantee that when it returns the memory to the guest, it will return in a=
+ny particular granularity and so
+I have to be able to free this memory in 4K granularity. This is the corner=
+ case that I will have to handle.
+
+Regards,
 
 K. Y
-> Acked-by: Michal Hocko <mhocko@suse.cz>
 >=20
-> > ---
-> >  mm/page_alloc.c |    1 +
-> >  1 files changed, 1 insertions(+), 0 deletions(-)
-> >
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 6cacfee..7e0ead6 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1404,6 +1404,7 @@ void split_page(struct page *page, unsigned int o=
-rder)
-> >  	for (i =3D 1; i < (1 << order); i++)
-> >  		set_page_refcounted(page + i);
-> >  }
-> > +EXPORT_SYMBOL_GPL(split_page);
-> >
-> >  static int __isolate_free_page(struct page *page, unsigned int order)
-> >  {
-> > --
-> > 1.7.4.1
-> >
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-kernel"=
- in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > Please read the FAQ at  http://www.tux.org/lkml/
->=20
+> [...]
 > --
 > Michal Hocko
 > SUSE Labs
