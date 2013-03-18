@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id E59CE6B003A
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id E4C386B0039
 	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 16:21:26 -0400 (EDT)
 From: "K. Y. Srinivasan" <kys@microsoft.com>
-Subject: [PATCH V2 2/3] Drivers: hv: balloon: Support 2M page allocations for ballooning
-Date: Mon, 18 Mar 2013 13:51:37 -0700
-Message-Id: <1363639898-1615-2-git-send-email-kys@microsoft.com>
+Subject: [PATCH V2 3/3] Drivers: hv: Notify the host of permanent hot-add failures
+Date: Mon, 18 Mar 2013 13:51:38 -0700
+Message-Id: <1363639898-1615-3-git-send-email-kys@microsoft.com>
 In-Reply-To: <1363639898-1615-1-git-send-email-kys@microsoft.com>
 References: <1363639873-1576-1-git-send-email-kys@microsoft.com>
  <1363639898-1615-1-git-send-email-kys@microsoft.com>
@@ -14,69 +14,73 @@ List-ID: <linux-mm.kvack.org>
 To: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, andi@firstfloor.org, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyuki@gmail.com, mhocko@suse.cz, hannes@cmpxchg.org, yinghan@google.com
 Cc: "K. Y. Srinivasan" <kys@microsoft.com>
 
-On Hyper-V it will be very efficient to use 2M allocations in the guest as this
-makes the ballooning protocol with the host that much more efficient. Hyper-V
-uses page ranges (start pfn : number of pages) to specify memory being moved
-around and with 2M pages this encoding can be very efficient. However, when
-memory is returned to the guest, the host does not guarantee any granularity.
-To deal with this issue, split the page soon after a successful 2M allocation
-so that this memory can potentially be freed as 4K pages.
+If memory hot-add fails with the error -EEXIST, then this is a permanent
+failure. Notify the host of this information, so the host will not attempt
+hot-add again. If the failure were a transient failure, host will attempt
+a hot-add after some delay.
 
-If 2M allocations fail, we revert to 4K allocations.
-
-In this version of the patch, based on the feedback from Michal Hocko
-<mhocko@suse.cz>, I have added some additional commentary to the patch
-description. 
+In this version of the patch, I have added some additional comments
+to clarify how the host treats different failure conditions.
 
 Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
 ---
- drivers/hv/hv_balloon.c |   18 ++++++++++++++++--
- 1 files changed, 16 insertions(+), 2 deletions(-)
+ drivers/hv/hv_balloon.c |   33 +++++++++++++++++++++++++++++++--
+ 1 files changed, 31 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
-index 2cf7d4e..71655b4 100644
+index 71655b4..4cc1d10 100644
 --- a/drivers/hv/hv_balloon.c
 +++ b/drivers/hv/hv_balloon.c
-@@ -997,6 +997,14 @@ static int  alloc_balloon_pages(struct hv_dynmem_device *dm, int num_pages,
+@@ -583,6 +583,16 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
  
- 		dm->num_pages_ballooned += alloc_unit;
+ 		if (ret) {
+ 			pr_info("hot_add memory failed error is %d\n", ret);
++			if (ret == -EEXIST) {
++				/*
++				 * This error indicates that the error
++				 * is not a transient failure. This is the
++				 * case where the guest's physical address map
++				 * precludes hot adding memory. Stop all further
++				 * memory hot-add.
++				 */
++				do_hot_add = false;
++			}
+ 			has->ha_end_pfn -= HA_CHUNK;
+ 			has->covered_end_pfn -=  processed_pfn;
+ 			break;
+@@ -842,11 +852,30 @@ static void hot_add_req(struct work_struct *dummy)
+ 		rg_sz = region_size;
+ 	}
  
-+		/*
-+		 * If we allocatted 2M pages; split them so we
-+		 * can free them in any order we get.
-+		 */
-+
-+		if (alloc_unit != 1)
-+			split_page(pg, get_order(alloc_unit << PAGE_SHIFT));
-+
- 		bl_resp->range_count++;
- 		bl_resp->range_array[i].finfo.start_page =
- 			page_to_pfn(pg);
-@@ -1023,9 +1031,10 @@ static void balloon_up(struct work_struct *dummy)
+-	resp.page_count = process_hot_add(pg_start, pfn_cnt,
+-					rg_start, rg_sz);
++	if (do_hot_add)
++		resp.page_count = process_hot_add(pg_start, pfn_cnt,
++						rg_start, rg_sz);
+ #endif
++	/*
++	 * The result field of the response structure has the
++	 * following semantics:
++	 *
++	 * 1. If all or some pages hot-added: Guest should return success.
++	 *
++	 * 2. If no pages could be hot-added:
++	 *
++	 * If the guest returns success, then the host
++	 * will not attempt any further hot-add operations. This
++	 * signifies a permanent failure.
++	 *
++	 * If the guest returns failure, then this failure will be
++	 * treated as a transient failure and the host may retry the
++	 * hot-add operation after some delay.
++	 */
+ 	if (resp.page_count > 0)
+ 		resp.result = 1;
++	else if (!do_hot_add)
++		resp.result = 1;
+ 	else
+ 		resp.result = 0;
  
- 
- 	/*
--	 * Currently, we only support 4k allocations.
-+	 * We will attempt 2M allocations. However, if we fail to
-+	 * allocate 2M chunks, we will go back to 4k allocations.
- 	 */
--	alloc_unit = 1;
-+	alloc_unit = 512;
- 
- 	while (!done) {
- 		bl_resp = (struct dm_balloon_response *)send_buffer;
-@@ -1041,6 +1050,11 @@ static void balloon_up(struct work_struct *dummy)
- 						bl_resp, alloc_unit,
- 						 &alloc_error);
- 
-+		if ((alloc_error) && (alloc_unit != 1)) {
-+			alloc_unit = 1;
-+			continue;
-+		}
-+
- 		if ((alloc_error) || (num_ballooned == num_pages)) {
- 			bl_resp->more_pages = 0;
- 			done = true;
 -- 
 1.7.4.1
 
