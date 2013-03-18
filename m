@@ -1,44 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 74FF96B0005
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 11:33:02 -0400 (EDT)
-Date: Mon, 18 Mar 2013 16:33:00 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/9] migrate: make core migration code aware of hugepage
-Message-ID: <20130318153300.GR10192@dhcp22.suse.cz>
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1361475708-25991-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130318152224.GQ10192@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id D40916B0005
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 11:37:11 -0400 (EDT)
+Date: Mon, 18 Mar 2013 10:37:05 -0500
+From: Russ Anderson <rja@sgi.com>
+Subject: [bugfix] mm: zone_end_pfn is too small
+Message-ID: <20130318153704.GA17359@sgi.com>
+Reply-To: Russ Anderson <rja@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130318152224.GQ10192@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Cody P Schafer <cody@linux.vnet.ibm.com>, David Hansen <dave@linux.vnet.ibm.com>, Catalin Marinas <catalin.marinas@arm.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, George Beshers <gbeshers@sgi.com>, Hedi Berriche <hedi@sgi.com>, Russ Anderson <rja@sgi.com>
 
-On Mon 18-03-13 16:22:24, Michal Hocko wrote:
-> On Thu 21-02-13 14:41:41, Naoya Horiguchi wrote:
-> [...]
-> > diff --git v3.8.orig/include/linux/mempolicy.h v3.8/include/linux/mempolicy.h
-> > index 0d7df39..2e475b5 100644
-> > --- v3.8.orig/include/linux/mempolicy.h
-> > +++ v3.8/include/linux/mempolicy.h
-> > @@ -173,7 +173,7 @@ extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
-> >  /* Check if a vma is migratable */
-> >  static inline int vma_migratable(struct vm_area_struct *vma)
-> >  {
-> > -	if (vma->vm_flags & (VM_IO | VM_HUGETLB | VM_PFNMAP))
-> > +	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
-> >  		return 0;
-> 
-> Is this safe? At least check_*_range don't seem to be hugetlb aware.
+Booting with 32 TBytes memory hits BUG at mm/page_alloc.c:552! (output below).
 
-Ohh, they become in 5/9. Should that one be reordered then?
+The key hint is "page 4294967296 outside zone".
+4294967296 = 0x100000000 (bit 32 is set).
+
+The problem is in include/linux/mmzone.h:
+
+530 static inline unsigned zone_end_pfn(const struct zone *zone)
+531 {
+532         return zone->zone_start_pfn + zone->spanned_pages;
+533 }
+
+zone_end_pfn is "unsigned" (32 bits).  Changing it to 
+"unsigned long" (64 bits) fixes the problem.
+
+zone_end_pfn() was added recently in commit 108bcc96ef7047c02cad4d229f04da38186a3f3f.
+http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/include/linux/mmzone.h?id=108bcc96ef7047c02cad4d229f04da38186a3f3f
+
+
+Output from the failure.
+
+  No AGP bridge found
+  page 4294967296 outside zone [ 4294967296 - 4327469056 ]
+  ------------[ cut here ]------------
+  kernel BUG at mm/page_alloc.c:552!
+  invalid opcode: 0000 [#1] SMP 
+  Modules linked in:
+  CPU 0 
+  Pid: 0, comm: swapper Not tainted 3.9.0-rc2.dtp+ #10  
+  RIP: 0010:[<ffffffff811477d2>]  [<ffffffff811477d2>] free_one_page+0x382/0x430
+  RSP: 0000:ffffffff81943d98  EFLAGS: 00010002
+  RAX: 0000000000000001 RBX: ffffea4000000000 RCX: 000000000000b3d9
+  RDX: 0000000000000000 RSI: 0000000000000086 RDI: 0000000000000046
+  RBP: ffffffff81943df8 R08: 0000000000000040 R09: 0000000000000023
+  R10: 00000000000034bf R11: 00000000000034bf R12: ffffea4000000000
+  R13: ffff981efefd9d80 R14: 0000000000000006 R15: 0000000000000006
+  FS:  0000000000000000(0000) GS:ffffc90000000000(0000) knlGS:0000000000000000
+  CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+  CR2: ffffc7defefff000 CR3: 000000000194e000 CR4: 00000000000406b0
+  DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+  DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+  Process swapper (pid: 0, threadinfo ffffffff81942000, task ffffffff81955420)
+  Stack:
+   00000000000000ff ffffc900000100a0 ffffc900000100d0 ffffffff00000040
+   0000000000000000 0000000081148809 0000000000000097 ffffea4000000000
+   0000000000000006 0000000000000002 0000000101e82bc0 ffffea4000001000
+  Call Trace:
+   [<ffffffff81149176>] __free_pages_ok+0x96/0xb0
+   [<ffffffff8114c585>] __free_pages+0x25/0x50
+   [<ffffffff8164c006>] __free_pages_bootmem+0x8a/0x8c
+   [<ffffffff81a9684f>] __free_memory_core+0xea/0x131
+   [<ffffffff81a968e0>] free_low_memory_core_early+0x4a/0x98
+   [<ffffffff81a96973>] free_all_bootmem+0x45/0x47
+   [<ffffffff81a87cff>] mem_init+0x7b/0x14c
+   [<ffffffff81a70051>] start_kernel+0x216/0x433
+   [<ffffffff81a6fc59>] ? repair_env_string+0x5b/0x5b
+   [<ffffffff81a6f5f7>] x86_64_start_reservations+0x2a/0x2c
+   [<ffffffff81a6f73d>] x86_64_start_kernel+0x144/0x153
+  Code: 89 f1 ba 01 00 00 00 31 f6 d3 e2 4c 89 ef e8 66 a4 01 00 e9 2c fe ff ff 0f 0b eb fe 0f 0b 66 66 2e 0f 1f 84 00 00 00 00 00 eb f3 <0f> 0b eb fe 0f 0b 0f 1f 84 00 00 00 00 00 eb f6 0f 0b eb fe 49 
+  RIP  [<ffffffff811477d2>] free_one_page+0x382/0x430
+   RSP <ffffffff81943d98>
+  ---[ end trace a7919e7f17c0a725 ]---
+  Kernel panic - not syncing: Attempted to kill the idle task!
+
+Signed-off-by: Russ Anderson <rja@sgi.com>
+Reported-by: George Beshers <gbeshers@sgi.com>
+Acked-by: Hedi Berriche <hedi@sgi.com>
+
+---
+ include/linux/mmzone.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+Index: linux/include/linux/mmzone.h
+===================================================================
+--- linux.orig/include/linux/mmzone.h	2013-03-18 10:06:59.744082190 -0500
++++ linux/include/linux/mmzone.h	2013-03-18 10:23:27.374031648 -0500
+@@ -527,7 +527,7 @@ static inline int zone_is_oom_locked(con
+ 	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
+ }
+ 
+-static inline unsigned zone_end_pfn(const struct zone *zone)
++static inline unsigned long zone_end_pfn(const struct zone *zone)
+ {
+ 	return zone->zone_start_pfn + zone->spanned_pages;
+ }
 -- 
-Michal Hocko
-SUSE Labs
+Russ Anderson, OS RAS/Partitioning Project Lead  
+SGI - Silicon Graphics Inc          rja@sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
