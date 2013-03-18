@@ -1,167 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 423B06B004D
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 07:11:41 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 18 Mar 2013 16:37:58 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 3C99E3940058
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 16:41:34 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2IBBVb866322652
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 16:41:31 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2IBBWwn023230
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 22:11:33 +1100
-Date: Mon, 18 Mar 2013 19:11:30 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 04/10] mm: vmscan: Decide whether to compact the pgdat
- based on reclaim progress
-Message-ID: <20130318111130.GA7245@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-5-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1363525456-10448-5-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 9E06D6B0062
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 07:11:44 -0400 (EDT)
+From: Lin Feng <linfeng@cn.fujitsu.com>
+Subject: [PATCH] x86: mm: add_pfn_range_mapped: use meaningful index to teach clean_sort_range()
+Date: Mon, 18 Mar 2013 18:21:33 +0800
+Message-Id: <1363602093-11965-1-git-send-email-linfeng@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, penberg@kernel.org, jacob.shin@amd.com, Lin Feng <linfeng@cn.fujitsu.com>
 
-On Sun, Mar 17, 2013 at 01:04:10PM +0000, Mel Gorman wrote:
->In the past, kswapd makes a decision on whether to compact memory after the
->pgdat was considered balanced. This more or less worked but it is late to
->make such a decision and does not fit well now that kswapd makes a decision
->whether to exit the zone scanning loop depending on reclaim progress.
->
->This patch will compact a pgdat if at least  the requested number of pages
->were reclaimed from unbalanced zones for a given priority. If any zone is
->currently balanced, kswapd will not call compaction as it is expected the
->necessary pages are already available.
->
->Signed-off-by: Mel Gorman <mgorman@suse.de>
->---
-> mm/vmscan.c | 52 +++++++++++++++++++++-------------------------------
-> 1 file changed, 21 insertions(+), 31 deletions(-)
->
->diff --git a/mm/vmscan.c b/mm/vmscan.c
->index 279d0c2..7513bd1 100644
->--- a/mm/vmscan.c
->+++ b/mm/vmscan.c
->@@ -2694,8 +2694,11 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->
-> 	do {
-> 		unsigned long lru_pages = 0;
->+		unsigned long nr_to_reclaim = 0;
-> 		unsigned long nr_reclaimed = sc.nr_reclaimed;
->+		unsigned long this_reclaimed;
-> 		bool raise_priority = true;
->+		bool pgdat_needs_compaction = true;
->
-> 		/*
-> 		 * Scan in the highmem->dma direction for the highest
->@@ -2743,7 +2746,17 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
-> 		for (i = 0; i <= end_zone; i++) {
-> 			struct zone *zone = pgdat->node_zones + i;
->
->+			if (!populated_zone(zone))
->+				continue;
->+
-> 			lru_pages += zone_reclaimable_pages(zone);
->+
->+			/* Check if the memory needs to be defragmented */
->+			if (order && pgdat_needs_compaction &&
->+					zone_watermark_ok(zone, order,
->+						low_wmark_pages(zone),
->+						*classzone_idx, 0))
->+				pgdat_needs_compaction = false;
-> 		}
->
-> 		/*
->@@ -2814,6 +2827,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
-> 				 */
-> 				if (kswapd_shrink_zone(zone, &sc, lru_pages))
-> 					raise_priority = false;
->+
->+				nr_to_reclaim += sc.nr_to_reclaim;
-> 			}
->
-> 			/*
->@@ -2864,46 +2879,21 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
-> 		if (try_to_freeze() || kthread_should_stop())
-> 			break;
->
->-		/* If no reclaim progress then increase scanning priority */
->-		if (sc.nr_reclaimed - nr_reclaimed == 0)
->-			raise_priority = true;
->+		/* Compact if necessary and kswapd is reclaiming efficiently */
->+		this_reclaimed = sc.nr_reclaimed - nr_reclaimed;
->+		if (order && pgdat_needs_compaction &&
->+				this_reclaimed > nr_to_reclaim)
->+			compact_pgdat(pgdat, order);
->
+Since add_range_with_merge() return the max none zero element of the array, it's
+suffice to use it to instruct clean_sort_range() to do the sort. Or the former
+assignment by add_range_with_merge() is nonsense because clean_sort_range() 
+will produce a accurate number of the sorted array and it never depends on
+nr_pfn_mapped.
 
-Hi Mel,
+Cc: Jacob Shin <jacob.shin@amd.com>
+Cc: Yinghai Lu <yinghai@kernel.org>
+Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
+---
+ arch/x86/mm/init.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-If you should check compaction_suitable here to confirm it's not because
-other reasons like large number of pages under writeback to avoid blind
-compaction. :-)
-
-Regards,
-Wanpeng Li
-
-> 		/*
-> 		 * Raise priority if scanning rate is too low or there was no
-> 		 * progress in reclaiming pages
-> 		 */
->-		if (raise_priority || sc.nr_reclaimed - nr_reclaimed == 0)
->+		if (raise_priority || !this_reclaimed)
-> 			sc.priority--;
-> 	} while (sc.priority >= 0 &&
-> 		 !pgdat_balanced(pgdat, order, *classzone_idx));
->
->-	/*
->-	 * If kswapd was reclaiming at a higher order, it has the option of
->-	 * sleeping without all zones being balanced. Before it does, it must
->-	 * ensure that the watermarks for order-0 on *all* zones are met and
->-	 * that the congestion flags are cleared. The congestion flag must
->-	 * be cleared as kswapd is the only mechanism that clears the flag
->-	 * and it is potentially going to sleep here.
->-	 */
->-	if (order) {
->-		int zones_need_compaction = 1;
->-
->-		for (i = 0; i <= end_zone; i++) {
->-			struct zone *zone = pgdat->node_zones + i;
->-
->-			if (!populated_zone(zone))
->-				continue;
->-
->-			/* Check if the memory needs to be defragmented. */
->-			if (zone_watermark_ok(zone, order,
->-				    low_wmark_pages(zone), *classzone_idx, 0))
->-				zones_need_compaction = 0;
->-		}
->-
->-		if (zones_need_compaction)
->-			compact_pgdat(pgdat, order);
->-	}
->-
-> out:
-> 	/*
-> 	 * Return the order we were reclaiming at so prepare_kswapd_sleep()
->-- 
->1.8.1.4
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+index 59b7fc4..55ae904 100644
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -310,7 +310,7 @@ static void add_pfn_range_mapped(unsigned long start_pfn, unsigned long end_pfn)
+ {
+ 	nr_pfn_mapped = add_range_with_merge(pfn_mapped, E820_X_MAX,
+ 					     nr_pfn_mapped, start_pfn, end_pfn);
+-	nr_pfn_mapped = clean_sort_range(pfn_mapped, E820_X_MAX);
++	nr_pfn_mapped = clean_sort_range(pfn_mapped, nr_pfn_mapped);
+ 
+ 	max_pfn_mapped = max(max_pfn_mapped, end_pfn);
+ 
+-- 
+1.8.0.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
