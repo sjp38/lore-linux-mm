@@ -1,108 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id D40916B0005
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 11:37:11 -0400 (EDT)
-Date: Mon, 18 Mar 2013 10:37:05 -0500
-From: Russ Anderson <rja@sgi.com>
-Subject: [bugfix] mm: zone_end_pfn is too small
-Message-ID: <20130318153704.GA17359@sgi.com>
-Reply-To: Russ Anderson <rja@sgi.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 9F77E6B0005
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 11:40:59 -0400 (EDT)
+Date: Mon, 18 Mar 2013 16:40:57 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 5/9] migrate: enable migrate_pages() to migrate hugepage
+Message-ID: <20130318154057.GS10192@dhcp22.suse.cz>
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1361475708-25991-6-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1361475708-25991-6-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Cody P Schafer <cody@linux.vnet.ibm.com>, David Hansen <dave@linux.vnet.ibm.com>, Catalin Marinas <catalin.marinas@arm.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, George Beshers <gbeshers@sgi.com>, Hedi Berriche <hedi@sgi.com>, Russ Anderson <rja@sgi.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
 
-Booting with 32 TBytes memory hits BUG at mm/page_alloc.c:552! (output below).
+On Thu 21-02-13 14:41:44, Naoya Horiguchi wrote:
+> This patch extends check_range() to handle vma with VM_HUGETLB set.
+> With this changes, we can migrate hugepage with migrate_pages(2).
+> Note that for larger hugepages (covered by pud entries, 1GB for
+> x86_64 for example), we simply skip it now.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  include/linux/hugetlb.h |  6 ++++--
+>  mm/hugetlb.c            | 10 ++++++++++
+>  mm/mempolicy.c          | 46 ++++++++++++++++++++++++++++++++++------------
+>  3 files changed, 48 insertions(+), 14 deletions(-)
+> 
+> diff --git v3.8.orig/include/linux/hugetlb.h v3.8/include/linux/hugetlb.h
+> index 8f87115..eb33df5 100644
+> --- v3.8.orig/include/linux/hugetlb.h
+> +++ v3.8/include/linux/hugetlb.h
+> @@ -69,6 +69,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
+>  int dequeue_hwpoisoned_huge_page(struct page *page);
+>  void putback_active_hugepage(struct page *page);
+>  void putback_active_hugepages(struct list_head *l);
+> +void migrate_hugepage_add(struct page *page, struct list_head *list);
+>  void copy_huge_page(struct page *dst, struct page *src);
+>  
+>  extern unsigned long hugepages_treat_as_movable;
+> @@ -88,8 +89,8 @@ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+>  				pmd_t *pmd, int write);
+>  struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
+>  				pud_t *pud, int write);
+> -int pmd_huge(pmd_t pmd);
+> -int pud_huge(pud_t pmd);
+> +extern int pmd_huge(pmd_t pmd);
+> +extern int pud_huge(pud_t pmd);
 
-The key hint is "page 4294967296 outside zone".
-4294967296 = 0x100000000 (bit 32 is set).
+extern is not needed here.
 
-The problem is in include/linux/mmzone.h:
+>  unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+>  		unsigned long address, unsigned long end, pgprot_t newprot);
+>  
+> @@ -134,6 +135,7 @@ static inline int dequeue_hwpoisoned_huge_page(struct page *page)
+>  
+>  #define putback_active_hugepage(p) 0
+>  #define putback_active_hugepages(l) 0
+> +#define migrate_hugepage_add(p, l) 0
+>  static inline void copy_huge_page(struct page *dst, struct page *src)
+>  {
+>  }
+> diff --git v3.8.orig/mm/hugetlb.c v3.8/mm/hugetlb.c
+> index cb9d43b8..86ffcb7 100644
+> --- v3.8.orig/mm/hugetlb.c
+> +++ v3.8/mm/hugetlb.c
+> @@ -3202,3 +3202,13 @@ void putback_active_hugepages(struct list_head *l)
+>  	list_for_each_entry_safe(page, page2, l, lru)
+>  		putback_active_hugepage(page);
+>  }
+> +
+> +void migrate_hugepage_add(struct page *page, struct list_head *list)
+> +{
+> +	VM_BUG_ON(!PageHuge(page));
+> +	get_page(page);
+> +	spin_lock(&hugetlb_lock);
 
-530 static inline unsigned zone_end_pfn(const struct zone *zone)
-531 {
-532         return zone->zone_start_pfn + zone->spanned_pages;
-533 }
+Why hugetlb_lock? Comment for this lock says that it protects
+hugepage_freelists, nr_huge_pages, and free_huge_pages.
 
-zone_end_pfn is "unsigned" (32 bits).  Changing it to 
-"unsigned long" (64 bits) fixes the problem.
+> +	list_move_tail(&page->lru, list);
+> +	spin_unlock(&hugetlb_lock);
+> +	return;
+> +}
+> diff --git v3.8.orig/mm/mempolicy.c v3.8/mm/mempolicy.c
+> index e2df1c1..8627135 100644
+> --- v3.8.orig/mm/mempolicy.c
+> +++ v3.8/mm/mempolicy.c
+> @@ -525,6 +525,27 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+>  	return addr != end;
+>  }
+>  
+> +static void check_hugetlb_pmd_range(struct vm_area_struct *vma, pmd_t *pmd,
+> +		const nodemask_t *nodes, unsigned long flags,
+> +				    void *private)
+> +{
+> +#ifdef CONFIG_HUGETLB_PAGE
+> +	int nid;
+> +	struct page *page;
+> +
+> +	spin_lock(&vma->vm_mm->page_table_lock);
+> +	page = pte_page(huge_ptep_get((pte_t *)pmd));
+> +	spin_unlock(&vma->vm_mm->page_table_lock);
 
-zone_end_pfn() was added recently in commit 108bcc96ef7047c02cad4d229f04da38186a3f3f.
-http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/include/linux/mmzone.h?id=108bcc96ef7047c02cad4d229f04da38186a3f3f
+I am a bit confused why page_table_lock is used here and why it doesn't
+cover the page usage.
 
+> +	nid = page_to_nid(page);
+> +	if (node_isset(nid, *nodes) != !!(flags & MPOL_MF_INVERT)
+> +	    && ((flags & MPOL_MF_MOVE && page_mapcount(page) == 1)
+> +		|| flags & MPOL_MF_MOVE_ALL))
+> +		migrate_hugepage_add(page, private);
+> +#else
+> +	BUG();
+> +#endif
+> +}
+> +
+>  static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+>  		unsigned long addr, unsigned long end,
+>  		const nodemask_t *nodes, unsigned long flags,
+> @@ -536,6 +557,11 @@ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+>  	pmd = pmd_offset(pud, addr);
+>  	do {
+>  		next = pmd_addr_end(addr, end);
+> +		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
 
-Output from the failure.
+Why an explicit check for is_vm_hugetlb_page here? Isn't pmd_huge()
+sufficient?
 
-  No AGP bridge found
-  page 4294967296 outside zone [ 4294967296 - 4327469056 ]
-  ------------[ cut here ]------------
-  kernel BUG at mm/page_alloc.c:552!
-  invalid opcode: 0000 [#1] SMP 
-  Modules linked in:
-  CPU 0 
-  Pid: 0, comm: swapper Not tainted 3.9.0-rc2.dtp+ #10  
-  RIP: 0010:[<ffffffff811477d2>]  [<ffffffff811477d2>] free_one_page+0x382/0x430
-  RSP: 0000:ffffffff81943d98  EFLAGS: 00010002
-  RAX: 0000000000000001 RBX: ffffea4000000000 RCX: 000000000000b3d9
-  RDX: 0000000000000000 RSI: 0000000000000086 RDI: 0000000000000046
-  RBP: ffffffff81943df8 R08: 0000000000000040 R09: 0000000000000023
-  R10: 00000000000034bf R11: 00000000000034bf R12: ffffea4000000000
-  R13: ffff981efefd9d80 R14: 0000000000000006 R15: 0000000000000006
-  FS:  0000000000000000(0000) GS:ffffc90000000000(0000) knlGS:0000000000000000
-  CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-  CR2: ffffc7defefff000 CR3: 000000000194e000 CR4: 00000000000406b0
-  DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-  DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-  Process swapper (pid: 0, threadinfo ffffffff81942000, task ffffffff81955420)
-  Stack:
-   00000000000000ff ffffc900000100a0 ffffc900000100d0 ffffffff00000040
-   0000000000000000 0000000081148809 0000000000000097 ffffea4000000000
-   0000000000000006 0000000000000002 0000000101e82bc0 ffffea4000001000
-  Call Trace:
-   [<ffffffff81149176>] __free_pages_ok+0x96/0xb0
-   [<ffffffff8114c585>] __free_pages+0x25/0x50
-   [<ffffffff8164c006>] __free_pages_bootmem+0x8a/0x8c
-   [<ffffffff81a9684f>] __free_memory_core+0xea/0x131
-   [<ffffffff81a968e0>] free_low_memory_core_early+0x4a/0x98
-   [<ffffffff81a96973>] free_all_bootmem+0x45/0x47
-   [<ffffffff81a87cff>] mem_init+0x7b/0x14c
-   [<ffffffff81a70051>] start_kernel+0x216/0x433
-   [<ffffffff81a6fc59>] ? repair_env_string+0x5b/0x5b
-   [<ffffffff81a6f5f7>] x86_64_start_reservations+0x2a/0x2c
-   [<ffffffff81a6f73d>] x86_64_start_kernel+0x144/0x153
-  Code: 89 f1 ba 01 00 00 00 31 f6 d3 e2 4c 89 ef e8 66 a4 01 00 e9 2c fe ff ff 0f 0b eb fe 0f 0b 66 66 2e 0f 1f 84 00 00 00 00 00 eb f3 <0f> 0b eb fe 0f 0b 0f 1f 84 00 00 00 00 00 eb f6 0f 0b eb fe 49 
-  RIP  [<ffffffff811477d2>] free_one_page+0x382/0x430
-   RSP <ffffffff81943d98>
-  ---[ end trace a7919e7f17c0a725 ]---
-  Kernel panic - not syncing: Attempted to kill the idle task!
-
-Signed-off-by: Russ Anderson <rja@sgi.com>
-Reported-by: George Beshers <gbeshers@sgi.com>
-Acked-by: Hedi Berriche <hedi@sgi.com>
-
----
- include/linux/mmzone.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-Index: linux/include/linux/mmzone.h
-===================================================================
---- linux.orig/include/linux/mmzone.h	2013-03-18 10:06:59.744082190 -0500
-+++ linux/include/linux/mmzone.h	2013-03-18 10:23:27.374031648 -0500
-@@ -527,7 +527,7 @@ static inline int zone_is_oom_locked(con
- 	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
- }
- 
--static inline unsigned zone_end_pfn(const struct zone *zone)
-+static inline unsigned long zone_end_pfn(const struct zone *zone)
- {
- 	return zone->zone_start_pfn + zone->spanned_pages;
- }
+> +			check_hugetlb_pmd_range(vma, pmd, nodes,
+> +						flags, private);
+> +			continue;
+> +		}
+>  		split_huge_page_pmd(vma, addr, pmd);
+>  		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+>  			continue;
+[...]
 -- 
-Russ Anderson, OS RAS/Partitioning Project Lead  
-SGI - Silicon Graphics Inc          rja@sgi.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
