@@ -1,58 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 7F8AB6B0039
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 03:02:11 -0400 (EDT)
-Received: by mail-oa0-f49.google.com with SMTP id j6so5167609oag.22
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2013 00:02:10 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id EAF7A6B003B
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 05:36:09 -0400 (EDT)
+Received: by mail-qc0-f170.google.com with SMTP id d42so2690232qca.29
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2013 02:36:08 -0700 (PDT)
+Message-ID: <5146E000.1070306@gmail.com>
+Date: Mon, 18 Mar 2013 17:36:00 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1363525456-10448-4-git-send-email-mgorman@suse.de>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
-	<1363525456-10448-4-git-send-email-mgorman@suse.de>
-Date: Mon, 18 Mar 2013 15:02:10 +0800
-Message-ID: <CAJd=RBAnEeC5D17AmQJHhbo-ST0fZ6+dmYSBzSnN8v4wtm6STQ@mail.gmail.com>
-Subject: Re: [PATCH 03/10] mm: vmscan: Flatten kswapd priority loop
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH, RFC 00/16] Transparent huge page cache
+References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Mi@jasper.es
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sun, Mar 17, 2013 at 9:04 PM, Mel Gorman <mgorman@suse.de> wrote:
+On 01/28/2013 05:24 PM, Kirill A. Shutemov wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 >
-> +               /* If no reclaim progress then increase scanning priority */
-> +               if (sc.nr_reclaimed - nr_reclaimed == 0)
-> +                       raise_priority = true;
+> Here's first steps towards huge pages in page cache.
 >
->                 /*
-> -                * Fragmentation may mean that the system cannot be
-> -                * rebalanced for high-order allocations in all zones.
-> -                * At this point, if nr_reclaimed < SWAP_CLUSTER_MAX,
-> -                * it means the zones have been fully scanned and are still
-> -                * not balanced. For high-order allocations, there is
-> -                * little point trying all over again as kswapd may
-> -                * infinite loop.
-> -                *
-> -                * Instead, recheck all watermarks at order-0 as they
-> -                * are the most important. If watermarks are ok, kswapd will go
-> -                * back to sleep. High-order users can still perform direct
-> -                * reclaim if they wish.
-> +                * Raise priority if scanning rate is too low or there was no
-> +                * progress in reclaiming pages
-2) this comment is already included also in the above one?
+> The intend of the work is get code ready to enable transparent huge page
+> cache for the most simple fs -- ramfs.
+>
+> It's not yet near feature-complete. It only provides basic infrastructure.
+> At the moment we can read, write and truncate file on ramfs with huge pages in
+> page cache. The most interesting part, mmap(), is not yet there. For now
+> we split huge page on mmap() attempt.
+>
+> I can't say that I see whole picture. I'm not sure if I understand locking
+> model around split_huge_page(). Probably, not.
+> Andrea, could you check if it looks correct?
 
->                  */
-> -               if (sc.nr_reclaimed < SWAP_CLUSTER_MAX)
-> -                       order = sc.order = 0;
-> -
-> -               goto loop_again;
-> -       }
-> +               if (raise_priority || sc.nr_reclaimed - nr_reclaimed == 0)
-1) duplicated reclaim check with the above one, merge error?
+Another offline question:
+Why don't clear tail page PG_tail flag in function 
+__split_huge_page_refcount?
 
-> +                       sc.priority--;
-> +       } while (sc.priority >= 0 &&
-> +                !pgdat_balanced(pgdat, order, *classzone_idx));
+>
+> Next steps (not necessary in this order):
+>   - mmap();
+>   - migration (?);
+>   - collapse;
+>   - stats, knobs, etc.;
+>   - tmpfs/shmem enabling;
+>   - ...
+>
+> Kirill A. Shutemov (16):
+>    block: implement add_bdi_stat()
+>    mm: implement zero_huge_user_segment and friends
+>    mm: drop actor argument of do_generic_file_read()
+>    radix-tree: implement preload for multiple contiguous elements
+>    thp, mm: basic defines for transparent huge page cache
+>    thp, mm: rewrite add_to_page_cache_locked() to support huge pages
+>    thp, mm: rewrite delete_from_page_cache() to support huge pages
+>    thp, mm: locking tail page is a bug
+>    thp, mm: handle tail pages in page_cache_get_speculative()
+>    thp, mm: implement grab_cache_huge_page_write_begin()
+>    thp, mm: naive support of thp in generic read/write routines
+>    thp, libfs: initial support of thp in
+>      simple_read/write_begin/write_end
+>    thp: handle file pages in split_huge_page()
+>    thp, mm: truncate support for transparent huge page cache
+>    thp, mm: split huge page on mmap file page
+>    ramfs: enable transparent huge page cache
+>
+>   fs/libfs.c                  |   54 +++++++++---
+>   fs/ramfs/inode.c            |    6 +-
+>   include/linux/backing-dev.h |   10 +++
+>   include/linux/huge_mm.h     |    8 ++
+>   include/linux/mm.h          |   15 ++++
+>   include/linux/pagemap.h     |   14 ++-
+>   include/linux/radix-tree.h  |    3 +
+>   lib/radix-tree.c            |   32 +++++--
+>   mm/filemap.c                |  204 +++++++++++++++++++++++++++++++++++--------
+>   mm/huge_memory.c            |   62 +++++++++++--
+>   mm/memory.c                 |   22 +++++
+>   mm/truncate.c               |   12 +++
+>   12 files changed, 375 insertions(+), 67 deletions(-)
 >
 
 --
