@@ -1,59 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 726B76B0005
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 13:52:38 -0400 (EDT)
-Received: by mail-ia0-f177.google.com with SMTP id y25so5331087iay.8
-        for <linux-mm@kvack.org>; Mon, 18 Mar 2013 10:52:37 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 973D56B0005
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 14:52:53 -0400 (EDT)
+Received: by mail-ia0-f172.google.com with SMTP id l29so5635989iag.3
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2013 11:52:52 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1363602109-12001-1-git-send-email-linfeng@cn.fujitsu.com>
-References: <1363602109-12001-1-git-send-email-linfeng@cn.fujitsu.com>
-Date: Mon, 18 Mar 2013 10:52:37 -0700
-Message-ID: <CAE9FiQUrt11A0YAOLgvv3uTAWtTvVg3Mho9eD53orbxW6Jd8Vg@mail.gmail.com>
-Subject: Re: [PATCH] kernel/range.c: subtract_range: return instead of
- continue to save some loops
+In-Reply-To: <1363602093-11965-1-git-send-email-linfeng@cn.fujitsu.com>
+References: <1363602093-11965-1-git-send-email-linfeng@cn.fujitsu.com>
+Date: Mon, 18 Mar 2013 11:52:52 -0700
+Message-ID: <CAE9FiQUHtM_Nuz4ak+HeNGV6a-HTtfMkxc+zBZuow47Vj70CKQ@mail.gmail.com>
+Subject: Re: [PATCH] x86: mm: add_pfn_range_mapped: use meaningful index to
+ teach clean_sort_range()
 From: Yinghai Lu <yinghai@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Lin Feng <linfeng@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, bhelgaas@google.com, linux-mm@kvack.org, x86@kernel.org, linux-pci@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, penberg@kernel.org, jacob.shin@amd.com
 
 On Mon, Mar 18, 2013 at 3:21 AM, Lin Feng <linfeng@cn.fujitsu.com> wrote:
-> If we fall into that branch it means that there is a range fully covering the
-> subtract range, so it's suffice to return there if there isn't any other
-> overlapping ranges.
+> Since add_range_with_merge() return the max none zero element of the array, it's
+> suffice to use it to instruct clean_sort_range() to do the sort. Or the former
+> assignment by add_range_with_merge() is nonsense because clean_sort_range()
+> will produce a accurate number of the sorted array and it never depends on
+> nr_pfn_mapped.
 >
-> Also fix the broken phrase issued by printk.
->
+> Cc: Jacob Shin <jacob.shin@amd.com>
 > Cc: Yinghai Lu <yinghai@kernel.org>
 > Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
 > ---
->  kernel/range.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
+>  arch/x86/mm/init.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 >
-> diff --git a/kernel/range.c b/kernel/range.c
-> index 9b8ae2d..223c6fe 100644
-> --- a/kernel/range.c
-> +++ b/kernel/range.c
-> @@ -97,10 +97,10 @@ void subtract_range(struct range *range, int az, u64 start, u64 end)
->                                 range[i].end = range[j].end;
->                                 range[i].start = end;
->                         } else {
-> -                               printk(KERN_ERR "run of slot in ranges\n");
-> +                               printk(KERN_ERR "run out of slot in ranges\n");
+> diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+> index 59b7fc4..55ae904 100644
+> --- a/arch/x86/mm/init.c
+> +++ b/arch/x86/mm/init.c
+> @@ -310,7 +310,7 @@ static void add_pfn_range_mapped(unsigned long start_pfn, unsigned long end_pfn)
+>  {
+>         nr_pfn_mapped = add_range_with_merge(pfn_mapped, E820_X_MAX,
+>                                              nr_pfn_mapped, start_pfn, end_pfn);
+> -       nr_pfn_mapped = clean_sort_range(pfn_mapped, E820_X_MAX);
+> +       nr_pfn_mapped = clean_sort_range(pfn_mapped, nr_pfn_mapped);
+>
+>         max_pfn_mapped = max(max_pfn_mapped, end_pfn);>
 
-maybe could change to pr_err at the same time.
-
->                         }
->                         range[j].end = start;
-> -                       continue;
-> +                       return;
-
-We don't say that ranges can not be overlapped in the array.
-
-Thanks
-
-Yinghai
+Acked-by: Yinghai Lu <yinghai@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
