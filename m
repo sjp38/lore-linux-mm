@@ -1,191 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 221006B0002
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 07:58:38 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 18 Mar 2013 21:56:34 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 339492CE804A
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 22:58:30 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2IBjUCm10420526
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 22:45:30 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2IBwTAL009499
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 22:58:30 +1100
-Date: Mon, 18 Mar 2013 19:58:27 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 07/10] mm: vmscan: Block kswapd if it is encountering
- pages under writeback
-Message-ID: <20130318115827.GB7245@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-8-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 70ED46B0005
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 09:29:20 -0400 (EDT)
+Received: from mail70-db8 (localhost [127.0.0.1])	by mail70-db8-R.bigfish.com
+ (Postfix) with ESMTP id C307FB000D6	for
+ <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Mon, 18 Mar 2013 13:28:49 +0000
+ (UTC)
+From: KY Srinivasan <kys@microsoft.com>
+Subject: RE: [PATCH 1/2] mm: Export split_page()
+Date: Mon, 18 Mar 2013 13:28:42 +0000
+Message-ID: <991ac805538f4d5f9698200d592bddb6@SN2PR03MB061.namprd03.prod.outlook.com>
+References: <1363470088-24565-1-git-send-email-kys@microsoft.com>
+ <1363470125-24606-1-git-send-email-kys@microsoft.com>
+ <20130318110334.GI10192@dhcp22.suse.cz>
+In-Reply-To: <20130318110334.GI10192@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1363525456-10448-8-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>
 
-On Sun, Mar 17, 2013 at 01:04:13PM +0000, Mel Gorman wrote:
->Historically, kswapd used to congestion_wait() at higher priorities if it
->was not making forward progress. This made no sense as the failure to make
->progress could be completely independent of IO. It was later replaced by
->wait_iff_congested() and removed entirely by commit 258401a6 (mm: don't
->wait on congested zones in balance_pgdat()) as it was duplicating logic
->in shrink_inactive_list().
->
->This is problematic. If kswapd encounters many pages under writeback and
->it continues to scan until it reaches the high watermark then it will
->quickly skip over the pages under writeback and reclaim clean young
->pages or push applications out to swap.
->
->The use of wait_iff_congested() is not suited to kswapd as it will only
->stall if the underlying BDI is really congested or a direct reclaimer was
->unable to write to the underlying BDI. kswapd bypasses the BDI congestion
->as it sets PF_SWAPWRITE but even if this was taken into account then it
->would cause direct reclaimers to stall on writeback which is not desirable.
->
->This patch sets a ZONE_WRITEBACK flag if direct reclaim or kswapd is
->encountering too many pages under writeback. If this flag is set and
->kswapd encounters a PageReclaim page under writeback then it'll assume
->that the LRU lists are being recycled too quickly before IO can complete
->and block waiting for some IO to complete.
->
->Signed-off-by: Mel Gorman <mgorman@suse.de>
->---
-> include/linux/mmzone.h |  8 ++++++++
-> mm/vmscan.c            | 29 ++++++++++++++++++++++++-----
-> 2 files changed, 32 insertions(+), 5 deletions(-)
->
->diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->index edd6b98..c758fb7 100644
->--- a/include/linux/mmzone.h
->+++ b/include/linux/mmzone.h
->@@ -498,6 +498,9 @@ typedef enum {
-> 	ZONE_DIRTY,			/* reclaim scanning has recently found
-> 					 * many dirty file pages
-> 					 */
->+	ZONE_WRITEBACK,			/* reclaim scanning has recently found
->+					 * many pages under writeback
->+					 */
-> } zone_flags_t;
->
-> static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
->@@ -525,6 +528,11 @@ static inline int zone_is_reclaim_dirty(const struct zone *zone)
-> 	return test_bit(ZONE_DIRTY, &zone->flags);
-> }
->
->+static inline int zone_is_reclaim_writeback(const struct zone *zone)
->+{
->+	return test_bit(ZONE_WRITEBACK, &zone->flags);
->+}
->+
-> static inline int zone_is_reclaim_locked(const struct zone *zone)
-> {
-> 	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
->diff --git a/mm/vmscan.c b/mm/vmscan.c
->index 493728b..7d5a932 100644
->--- a/mm/vmscan.c
->+++ b/mm/vmscan.c
->@@ -725,6 +725,19 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->
-> 		if (PageWriteback(page)) {
-> 			/*
->+			 * If reclaim is encountering an excessive number of
->+			 * pages under writeback and this page is both under
 
-Is the comment should changed to "encountered an excessive number of 
-pages under writeback or this page is both under writeback and PageReclaim"?
-See below:
 
->+			 * writeback and PageReclaim then it indicates that
->+			 * pages are being queued for IO but are being
->+			 * recycled through the LRU before the IO can complete.
->+			 * is useless CPU work so wait on the IO to complete.
->+			 */
->+			if (current_is_kswapd() &&
->+			    zone_is_reclaim_writeback(zone)) {
->+				wait_on_page_writeback(page);
->+				zone_clear_flag(zone, ZONE_WRITEBACK);
->+
+> -----Original Message-----
+> From: Michal Hocko [mailto:mhocko@suse.cz]
+> Sent: Monday, March 18, 2013 7:04 AM
+> To: KY Srinivasan
+> Cc: gregkh@linuxfoundation.org; linux-kernel@vger.kernel.org;
+> devel@linuxdriverproject.org; olaf@aepfle.de; apw@canonical.com;
+> andi@firstfloor.org; akpm@linux-foundation.org; linux-mm@kvack.org;
+> kamezawa.hiroyuki@gmail.com; hannes@cmpxchg.org; yinghan@google.com
+> Subject: Re: [PATCH 1/2] mm: Export split_page()
+>=20
+> On Sat 16-03-13 14:42:04, K. Y. Srinivasan wrote:
+> > The split_page() function will be very useful for balloon drivers. On H=
+yper-V,
+> > it will be very efficient to use 2M allocations in the guest as this (a=
+) makes
+> > the ballooning protocol with the host that much more efficient and (b) =
+moving
+> > memory in 2M chunks minimizes fragmentation in the host. Export the
+> split_page()
+> > function to let the guest allocations be in 2M chunks while the host is=
+ free to
+> > return this memory at arbitrary granularity.
+> >
+> > Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
+>=20
+> I do not have any objections to exporting the symbol (at least we
+> prevent drivers code from inventing their own split_page) but the
+> Hyper-V specific description should go into Hyper-V patch IMO.
+>=20
+> So for the export with a short note that the symbol will be used by
+> Hyper-V
 
-encountered an excessive number of pages under writeback.
+Will do.
 
->+			/*
-> 			 * memcg doesn't have any dirty pages throttling so we
-> 			 * could easily OOM just because too many pages are in
-> 			 * writeback and there is nothing else to reclaim.
->@@ -741,7 +754,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> 			 * grab_cache_page_write_begin(,,AOP_FLAG_NOFS), so
-> 			 * testing may_enter_fs here is liable to OOM on them.
-> 			 */
->-			if (global_reclaim(sc) ||
->+			} else if (global_reclaim(sc) ||
-> 			    !PageReclaim(page) || !(sc->gfp_mask & __GFP_IO)) {
-> 				/*
-> 				 * This is slightly racy - end_page_writeback()
->@@ -756,9 +769,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> 				 */
-> 				SetPageReclaim(page);
-> 				nr_writeback++;
->+
-> 				goto keep_locked;
->+			} else {
+K. Y
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+>=20
+> > ---
+> >  mm/page_alloc.c |    1 +
+> >  1 files changed, 1 insertions(+), 0 deletions(-)
+> >
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 6cacfee..7e0ead6 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1404,6 +1404,7 @@ void split_page(struct page *page, unsigned int o=
+rder)
+> >  	for (i =3D 1; i < (1 << order); i++)
+> >  		set_page_refcounted(page + i);
+> >  }
+> > +EXPORT_SYMBOL_GPL(split_page);
+> >
+> >  static int __isolate_free_page(struct page *page, unsigned int order)
+> >  {
+> > --
+> > 1.7.4.1
+> >
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel"=
+ in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+>=20
+> --
+> Michal Hocko
+> SUSE Labs
+>=20
 
-this page is both under writeback and PageReclaim.
-
->+				wait_on_page_writeback(page);
-> 			}
->-			wait_on_page_writeback(page);
-> 		}
->
-> 		if (!force_reclaim)
->@@ -1373,8 +1388,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
-> 	 *                     isolated page is PageWriteback
-> 	 */
-> 	if (nr_writeback && nr_writeback >=
->-			(nr_taken >> (DEF_PRIORITY - sc->priority)))
->+			(nr_taken >> (DEF_PRIORITY - sc->priority))) {
-> 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
->+		zone_set_flag(zone, ZONE_WRITEBACK);
->+	}
->
-> 	/*
-> 	 * Similarly, if many dirty pages are encountered that are not
->@@ -2639,8 +2656,8 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
->  * kswapd shrinks the zone by the number of pages required to reach
->  * the high watermark.
->  *
->- * Returns true if kswapd scanned at least the requested number of
->- * pages to reclaim.
->+ * Returns true if kswapd scanned at least the requested number of pages to
->+ * reclaim or if the lack of process was due to pages under writeback.
->  */
-> static bool kswapd_shrink_zone(struct zone *zone,
-> 			       struct scan_control *sc,
->@@ -2663,6 +2680,8 @@ static bool kswapd_shrink_zone(struct zone *zone,
-> 	if (nr_slab == 0 && !zone_reclaimable(zone))
-> 		zone->all_unreclaimable = 1;
->
->+	zone_clear_flag(zone, ZONE_WRITEBACK);
->+
-> 	return sc->nr_scanned >= sc->nr_to_reclaim;
-> }
->
->-- 
->1.8.1.4
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
