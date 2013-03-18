@@ -1,34 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 74C726B0002
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 02:49:27 -0400 (EDT)
-Received: by mail-qe0-f54.google.com with SMTP id i11so3127630qej.13
-        for <linux-mm@kvack.org>; Sun, 17 Mar 2013 23:49:26 -0700 (PDT)
-Message-ID: <5146B8F0.4090106@gmail.com>
-Date: Mon, 18 Mar 2013 14:49:20 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 7F8AB6B0039
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 03:02:11 -0400 (EDT)
+Received: by mail-oa0-f49.google.com with SMTP id j6so5167609oag.22
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2013 00:02:10 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [patch 1/4 v3]swap: change block allocation algorithm for SSD
-References: <20130221021710.GA32580@kernel.org> <20130318050918.GB7016@kernel.org> <5146A31A.5090705@gmail.com> <20130318064057.GA7903@kernel.org>
-In-Reply-To: <20130318064057.GA7903@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1363525456-10448-4-git-send-email-mgorman@suse.de>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+	<1363525456-10448-4-git-send-email-mgorman@suse.de>
+Date: Mon, 18 Mar 2013 15:02:10 +0800
+Message-ID: <CAJd=RBAnEeC5D17AmQJHhbo-ST0fZ6+dmYSBzSnN8v4wtm6STQ@mail.gmail.com>
+Subject: Re: [PATCH 03/10] mm: vmscan: Flatten kswapd priority loop
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, akpm@linux-foundation.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Mi@jasper.es
 
-On 03/18/2013 02:40 PM, Shaohua Li wrote:
-> On Mon, Mar 18, 2013 at 01:16:10PM +0800, Simon Jeons wrote:
->> On 03/18/2013 01:09 PM, Shaohua Li wrote:
->>> Ping! are there any comments for this series?
->> Could you show me your benchmark and testcase?
-> I use usemem from ext3-tools. It's a simple multi-thread/process mmap() test.
+On Sun, Mar 17, 2013 at 9:04 PM, Mel Gorman <mgorman@suse.de> wrote:
+>
+> +               /* If no reclaim progress then increase scanning priority */
+> +               if (sc.nr_reclaimed - nr_reclaimed == 0)
+> +                       raise_priority = true;
+>
+>                 /*
+> -                * Fragmentation may mean that the system cannot be
+> -                * rebalanced for high-order allocations in all zones.
+> -                * At this point, if nr_reclaimed < SWAP_CLUSTER_MAX,
+> -                * it means the zones have been fully scanned and are still
+> -                * not balanced. For high-order allocations, there is
+> -                * little point trying all over again as kswapd may
+> -                * infinite loop.
+> -                *
+> -                * Instead, recheck all watermarks at order-0 as they
+> -                * are the most important. If watermarks are ok, kswapd will go
+> -                * back to sleep. High-order users can still perform direct
+> -                * reclaim if they wish.
+> +                * Raise priority if scanning rate is too low or there was no
+> +                * progress in reclaiming pages
+2) this comment is already included also in the above one?
 
-Thanks, I know this tool. "scan_swap_map() sometimes uses up to 20~30% 
-CPU time(when cluster is hard to find, the CPU time can be up to 80%)", 
-how you monitor cpu utilization? how can predicate cpu utilization which 
-specific function use?
+>                  */
+> -               if (sc.nr_reclaimed < SWAP_CLUSTER_MAX)
+> -                       order = sc.order = 0;
+> -
+> -               goto loop_again;
+> -       }
+> +               if (raise_priority || sc.nr_reclaimed - nr_reclaimed == 0)
+1) duplicated reclaim check with the above one, merge error?
+
+> +                       sc.priority--;
+> +       } while (sc.priority >= 0 &&
+> +                !pgdat_balanced(pgdat, order, *classzone_idx));
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
