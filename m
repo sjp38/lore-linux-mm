@@ -1,168 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id C29586B0027
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 10:56:29 -0400 (EDT)
-Received: from mail5-co9 (localhost [127.0.0.1])	by mail5-co9-R.bigfish.com
- (Postfix) with ESMTP id 192F6600AE	for
- <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Tue, 19 Mar 2013 14:54:06 +0000
- (UTC)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH V2 2/3] Drivers: hv: balloon: Support 2M page
- allocations for ballooning
-Date: Tue, 19 Mar 2013 14:53:57 +0000
-Message-ID: <27dcec9842584d5f8e162e8e25d9e0a9@SN2PR03MB061.namprd03.prod.outlook.com>
-References: <1363639873-1576-1-git-send-email-kys@microsoft.com>
- <1363639898-1615-1-git-send-email-kys@microsoft.com>
- <1363639898-1615-2-git-send-email-kys@microsoft.com>
- <20130319144608.GJ7869@dhcp22.suse.cz>
-In-Reply-To: <20130319144608.GJ7869@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 3169F6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 12:09:19 -0400 (EDT)
+Date: Tue, 19 Mar 2013 17:09:14 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [bugfix] mm: zone_end_pfn is too small
+Message-ID: <20130319160914.GA9936@dhcp22.suse.cz>
+References: <20130318153704.GA17359@sgi.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130318153704.GA17359@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>
+To: Russ Anderson <rja@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cody P Schafer <cody@linux.vnet.ibm.com>, David Hansen <dave@linux.vnet.ibm.com>, Catalin Marinas <catalin.marinas@arm.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, George Beshers <gbeshers@sgi.com>, Hedi Berriche <hedi@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
 
+Adding Andrew
 
+On Mon 18-03-13 10:37:05, Russ Anderson wrote:
+> Booting with 32 TBytes memory hits BUG at mm/page_alloc.c:552! (output below).
+> 
+> The key hint is "page 4294967296 outside zone".
+> 4294967296 = 0x100000000 (bit 32 is set).
+> 
+> The problem is in include/linux/mmzone.h:
+> 
+> 530 static inline unsigned zone_end_pfn(const struct zone *zone)
+> 531 {
+> 532         return zone->zone_start_pfn + zone->spanned_pages;
+> 533 }
+> 
+> zone_end_pfn is "unsigned" (32 bits).  Changing it to 
+> "unsigned long" (64 bits) fixes the problem.
+> 
+> zone_end_pfn() was added recently in commit 108bcc96ef7047c02cad4d229f04da38186a3f3f.
+> http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/include/linux/mmzone.h?id=108bcc96ef7047c02cad4d229f04da38186a3f3f
+> 
+> 
+> Output from the failure.
+> 
+>   No AGP bridge found
+>   page 4294967296 outside zone [ 4294967296 - 4327469056 ]
+>   ------------[ cut here ]------------
+>   kernel BUG at mm/page_alloc.c:552!
+>   invalid opcode: 0000 [#1] SMP 
+>   Modules linked in:
+>   CPU 0 
+>   Pid: 0, comm: swapper Not tainted 3.9.0-rc2.dtp+ #10  
+>   RIP: 0010:[<ffffffff811477d2>]  [<ffffffff811477d2>] free_one_page+0x382/0x430
+>   RSP: 0000:ffffffff81943d98  EFLAGS: 00010002
+>   RAX: 0000000000000001 RBX: ffffea4000000000 RCX: 000000000000b3d9
+>   RDX: 0000000000000000 RSI: 0000000000000086 RDI: 0000000000000046
+>   RBP: ffffffff81943df8 R08: 0000000000000040 R09: 0000000000000023
+>   R10: 00000000000034bf R11: 00000000000034bf R12: ffffea4000000000
+>   R13: ffff981efefd9d80 R14: 0000000000000006 R15: 0000000000000006
+>   FS:  0000000000000000(0000) GS:ffffc90000000000(0000) knlGS:0000000000000000
+>   CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>   CR2: ffffc7defefff000 CR3: 000000000194e000 CR4: 00000000000406b0
+>   DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+>   DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+>   Process swapper (pid: 0, threadinfo ffffffff81942000, task ffffffff81955420)
+>   Stack:
+>    00000000000000ff ffffc900000100a0 ffffc900000100d0 ffffffff00000040
+>    0000000000000000 0000000081148809 0000000000000097 ffffea4000000000
+>    0000000000000006 0000000000000002 0000000101e82bc0 ffffea4000001000
+>   Call Trace:
+>    [<ffffffff81149176>] __free_pages_ok+0x96/0xb0
+>    [<ffffffff8114c585>] __free_pages+0x25/0x50
+>    [<ffffffff8164c006>] __free_pages_bootmem+0x8a/0x8c
+>    [<ffffffff81a9684f>] __free_memory_core+0xea/0x131
+>    [<ffffffff81a968e0>] free_low_memory_core_early+0x4a/0x98
+>    [<ffffffff81a96973>] free_all_bootmem+0x45/0x47
+>    [<ffffffff81a87cff>] mem_init+0x7b/0x14c
+>    [<ffffffff81a70051>] start_kernel+0x216/0x433
+>    [<ffffffff81a6fc59>] ? repair_env_string+0x5b/0x5b
+>    [<ffffffff81a6f5f7>] x86_64_start_reservations+0x2a/0x2c
+>    [<ffffffff81a6f73d>] x86_64_start_kernel+0x144/0x153
+>   Code: 89 f1 ba 01 00 00 00 31 f6 d3 e2 4c 89 ef e8 66 a4 01 00 e9 2c fe ff ff 0f 0b eb fe 0f 0b 66 66 2e 0f 1f 84 00 00 00 00 00 eb f3 <0f> 0b eb fe 0f 0b 0f 1f 84 00 00 00 00 00 eb f6 0f 0b eb fe 49 
+>   RIP  [<ffffffff811477d2>] free_one_page+0x382/0x430
+>    RSP <ffffffff81943d98>
+>   ---[ end trace a7919e7f17c0a725 ]---
+>   Kernel panic - not syncing: Attempted to kill the idle task!
+> 
+> Signed-off-by: Russ Anderson <rja@sgi.com>
+> Reported-by: George Beshers <gbeshers@sgi.com>
+> Acked-by: Hedi Berriche <hedi@sgi.com>
 
-> -----Original Message-----
-> From: Michal Hocko [mailto:mhocko@suse.cz]
-> Sent: Tuesday, March 19, 2013 10:46 AM
-> To: KY Srinivasan
-> Cc: gregkh@linuxfoundation.org; linux-kernel@vger.kernel.org;
-> devel@linuxdriverproject.org; olaf@aepfle.de; apw@canonical.com;
-> andi@firstfloor.org; akpm@linux-foundation.org; linux-mm@kvack.org;
-> kamezawa.hiroyuki@gmail.com; hannes@cmpxchg.org; yinghan@google.com
-> Subject: Re: [PATCH V2 2/3] Drivers: hv: balloon: Support 2M page allocat=
-ions for
-> ballooning
->=20
-> On Mon 18-03-13 13:51:37, K. Y. Srinivasan wrote:
-> > On Hyper-V it will be very efficient to use 2M allocations in the guest=
- as this
-> > makes the ballooning protocol with the host that much more efficient. H=
-yper-V
-> > uses page ranges (start pfn : number of pages) to specify memory being =
-moved
-> > around and with 2M pages this encoding can be very efficient. However, =
-when
-> > memory is returned to the guest, the host does not guarantee any granul=
-arity.
-> > To deal with this issue, split the page soon after a successful 2M allo=
-cation
-> > so that this memory can potentially be freed as 4K pages.
->=20
-> How many pages are requested usually?
+makes sense and all the users already are unsingle long AFAICS
 
-This depends entirely on how many pages the guest has, the pressure reporte=
-d by the guest and
-the overall memory demand as perceived by the host. On idling guests that h=
-ave been configured with
-several Giga bytes of memory, I have seen several Giga bytes being balloone=
-d out of the guest as soon
-as new VMs are started or pressure goes up in an existing VM. In these case=
-s, if 2M allocations succeed,
-the ballooning operation can be done very efficiently.
->=20
-> > If 2M allocations fail, we revert to 4K allocations.
-> >
-> > In this version of the patch, based on the feedback from Michal Hocko
-> > <mhocko@suse.cz>, I have added some additional commentary to the patch
-> > description.
-> >
-> > Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
->=20
-> I am not going to ack the patch because I am still not entirely
-> convinced that big allocations are worth it. But that is up to you and
-> hyper-V users.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-As I said, Hyper-V has chosen 2M unit as the unit that will be most efficie=
-nt in moving memory
-around. All I am doing is making Linux participate in this protocol just as=
- efficiently as Windows=20
-guests do.
-
-Regards,
-
-K. Y
->=20
-> > ---
-> >  drivers/hv/hv_balloon.c |   18 ++++++++++++++++--
-> >  1 files changed, 16 insertions(+), 2 deletions(-)
-> >
-> > diff --git a/drivers/hv/hv_balloon.c b/drivers/hv/hv_balloon.c
-> > index 2cf7d4e..71655b4 100644
-> > --- a/drivers/hv/hv_balloon.c
-> > +++ b/drivers/hv/hv_balloon.c
-> > @@ -997,6 +997,14 @@ static int  alloc_balloon_pages(struct
-> hv_dynmem_device *dm, int num_pages,
-> >
-> >  		dm->num_pages_ballooned +=3D alloc_unit;
-> >
-> > +		/*
-> > +		 * If we allocatted 2M pages; split them so we
-> > +		 * can free them in any order we get.
-> > +		 */
-> > +
-> > +		if (alloc_unit !=3D 1)
-> > +			split_page(pg, get_order(alloc_unit << PAGE_SHIFT));
-> > +
-> >  		bl_resp->range_count++;
-> >  		bl_resp->range_array[i].finfo.start_page =3D
-> >  			page_to_pfn(pg);
->=20
-> I would suggest also using __GFP_NO_KSWAPD (or basically use
-> GFP_TRANSHUGE for alloc_unit>0) for the allocation to be as least
-> disruptive as possible.
->=20
-> > @@ -1023,9 +1031,10 @@ static void balloon_up(struct work_struct *dummy=
-)
-> >
-> >
-> >  	/*
-> > -	 * Currently, we only support 4k allocations.
-> > +	 * We will attempt 2M allocations. However, if we fail to
-> > +	 * allocate 2M chunks, we will go back to 4k allocations.
-> >  	 */
-> > -	alloc_unit =3D 1;
-> > +	alloc_unit =3D 512;
-> >
-> >  	while (!done) {
-> >  		bl_resp =3D (struct dm_balloon_response *)send_buffer;
-> > @@ -1041,6 +1050,11 @@ static void balloon_up(struct work_struct *dummy=
-)
-> >  						bl_resp, alloc_unit,
-> >  						 &alloc_error);
-> >
->=20
-> You should handle alloc_balloon_pages returns 0 && !alloc_error which
-> happens when num_pages < alloc_unit.
->=20
-> > +		if ((alloc_error) && (alloc_unit !=3D 1)) {
-> > +			alloc_unit =3D 1;
-> > +			continue;
-> > +		}
-> > +
-> >  		if ((alloc_error) || (num_ballooned =3D=3D num_pages)) {
-> >  			bl_resp->more_pages =3D 0;
-> >  			done =3D true;
-> > --
-> > 1.7.4.1
-> >
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-kernel"=
- in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > Please read the FAQ at  http://www.tux.org/lkml/
->=20
+> 
+> ---
+>  include/linux/mmzone.h |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Index: linux/include/linux/mmzone.h
+> ===================================================================
+> --- linux.orig/include/linux/mmzone.h	2013-03-18 10:06:59.744082190 -0500
+> +++ linux/include/linux/mmzone.h	2013-03-18 10:23:27.374031648 -0500
+> @@ -527,7 +527,7 @@ static inline int zone_is_oom_locked(con
+>  	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
+>  }
+>  
+> -static inline unsigned zone_end_pfn(const struct zone *zone)
+> +static inline unsigned long zone_end_pfn(const struct zone *zone)
+>  {
+>  	return zone->zone_start_pfn + zone->spanned_pages;
+>  }
+> -- 
+> Russ Anderson, OS RAS/Partitioning Project Lead  
+> SGI - Silicon Graphics Inc          rja@sgi.com
 > --
-> Michal Hocko
-> SUSE Labs
->=20
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
