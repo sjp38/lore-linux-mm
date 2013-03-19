@@ -1,249 +1,251 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 681456B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 04:54:52 -0400 (EDT)
-Date: Tue, 19 Mar 2013 09:54:48 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3] mm: Make snapshotting pages for stable writes a
- per-bio operation
-Message-ID: <20130319085448.GA5222@quack.suse.cz>
-References: <20130312153221.0d26fe5599d4885e51bb0c7c@linux-foundation.org>
- <20130313011020.GA5313@blackbox.djwong.org>
- <20130313085021.GA29730@quack.suse.cz>
- <20130313194429.GE5313@blackbox.djwong.org>
- <20130313210216.GA7754@quack.suse.cz>
- <20130314224243.GI5313@blackbox.djwong.org>
- <20130315100105.GA4889@quack.suse.cz>
- <20130315232816.GN5313@blackbox.djwong.org>
- <20130318174134.GB7852@quack.suse.cz>
- <20130318230259.GP5313@blackbox.djwong.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130318230259.GP5313@blackbox.djwong.org>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 8576A6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 05:26:11 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 19 Mar 2013 14:52:55 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 40CA5125805C
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 14:57:11 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2J9PvXn7471476
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 14:55:58 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2J9Q10i002704
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 20:26:02 +1100
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v4 2/8] staging: zcache: zero-filled pages awareness
+Date: Tue, 19 Mar 2013 17:25:44 +0800
+Message-Id: <1363685150-18303-3-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1363685150-18303-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1363685150-18303-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Shuge <shugelinux@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Kevin <kevin@allwinnertech.com>, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Mon 18-03-13 16:02:59, Darrick J. Wong wrote:
-> Walking a bio's page mappings has proved problematic, so create a new bio flag
-> to indicate that a bio's data needs to be snapshotted in order to guarantee
-> stable pages during writeback.  Next, for the one user (ext3/jbd) of
-> snapshotting, hook all the places where writes can be initiated without
-> PG_writeback set, and set BIO_SNAP_STABLE there.  We must also flag journal
-> "metadata" bios for stable writeout, since file data can be written through the
-> journal.  Finally, the MS_SNAP_STABLE mount flag (only used by ext3) is now
-> superfluous, so get rid of it.
-> 
-> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> 
-> [darrick.wong@oracle.com: Fold in a couple of small cleanups from akpm]
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-  OK, now I'm happy with the patch :) You can add:
-Reviewed-by: Jan Kara <jack@suse.cz>
+Compression of zero-filled pages can unneccessarily cause internal
+fragmentation, and thus waste memory. This special case can be
+optimized.
 
-								Honza
+This patch captures zero-filled pages, and marks their corresponding
+zcache backing page entry as zero-filled. Whenever such zero-filled
+page is retrieved, we fill the page frame with zero.
 
-> ---
->  fs/buffer.c                 |    9 ++++++++-
->  fs/ext3/super.c             |    1 -
->  fs/jbd/commit.c             |   25 ++++++++++++++++++++++---
->  include/linux/blk_types.h   |    3 ++-
->  include/linux/buffer_head.h |    1 +
->  include/uapi/linux/fs.h     |    1 -
->  mm/bounce.c                 |   21 +--------------------
->  mm/page-writeback.c         |    4 ----
->  8 files changed, 34 insertions(+), 31 deletions(-)
-> 
-> diff --git a/fs/buffer.c b/fs/buffer.c
-> index b4dcb34..71578d6 100644
-> --- a/fs/buffer.c
-> +++ b/fs/buffer.c
-> @@ -2949,7 +2949,7 @@ static void guard_bh_eod(int rw, struct bio *bio, struct buffer_head *bh)
->  	}
->  }
->  
-> -int submit_bh(int rw, struct buffer_head * bh)
-> +int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
->  {
->  	struct bio *bio;
->  	int ret = 0;
-> @@ -2984,6 +2984,7 @@ int submit_bh(int rw, struct buffer_head * bh)
->  
->  	bio->bi_end_io = end_bio_bh_io_sync;
->  	bio->bi_private = bh;
-> +	bio->bi_flags |= bio_flags;
->  
->  	/* Take care of bh's that straddle the end of the device */
->  	guard_bh_eod(rw, bio, bh);
-> @@ -2997,6 +2998,12 @@ int submit_bh(int rw, struct buffer_head * bh)
->  	bio_put(bio);
->  	return ret;
->  }
-> +EXPORT_SYMBOL_GPL(_submit_bh);
-> +
-> +int submit_bh(int rw, struct buffer_head *bh)
-> +{
-> +	return _submit_bh(rw, bh, 0);
-> +}
->  EXPORT_SYMBOL(submit_bh);
->  
->  /**
-> diff --git a/fs/ext3/super.c b/fs/ext3/super.c
-> index fb5120a..3dc48cc 100644
-> --- a/fs/ext3/super.c
-> +++ b/fs/ext3/super.c
-> @@ -2067,7 +2067,6 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
->  		test_opt(sb,DATA_FLAGS) == EXT3_MOUNT_JOURNAL_DATA ? "journal":
->  		test_opt(sb,DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA ? "ordered":
->  		"writeback");
-> -	sb->s_flags |= MS_SNAP_STABLE;
->  
->  	return 0;
->  
-> diff --git a/fs/jbd/commit.c b/fs/jbd/commit.c
-> index 86b39b1..11bb11f 100644
-> --- a/fs/jbd/commit.c
-> +++ b/fs/jbd/commit.c
-> @@ -162,8 +162,17 @@ static void journal_do_submit_data(struct buffer_head **wbuf, int bufs,
->  
->  	for (i = 0; i < bufs; i++) {
->  		wbuf[i]->b_end_io = end_buffer_write_sync;
-> -		/* We use-up our safety reference in submit_bh() */
-> -		submit_bh(write_op, wbuf[i]);
-> +		/*
-> +		 * Here we write back pagecache data that may be mmaped. Since
-> +		 * we cannot afford to clean the page and set PageWriteback
-> +		 * here due to lock ordering (page lock ranks above transaction
-> +		 * start), the data can change while IO is in flight. Tell the
-> +		 * block layer it should bounce the bio pages if stable data
-> +		 * during write is required.
-> +		 *
-> +		 * We use up our safety reference in submit_bh().
-> +		 */
-> +		_submit_bh(write_op, wbuf[i], 1 << BIO_SNAP_STABLE);
->  	}
->  }
->  
-> @@ -667,7 +676,17 @@ start_journal_io:
->  				clear_buffer_dirty(bh);
->  				set_buffer_uptodate(bh);
->  				bh->b_end_io = journal_end_buffer_io_sync;
-> -				submit_bh(write_op, bh);
-> +				/*
-> +				 * In data=journal mode, here we can end up
-> +				 * writing pagecache data that might be
-> +				 * mmapped. Since we can't afford to clean the
-> +				 * page and set PageWriteback (see the comment
-> +				 * near the other use of _submit_bh()), the
-> +				 * data can change while the write is in
-> +				 * flight.  Tell the block layer to bounce the
-> +				 * bio pages if stable pages are required.
-> +				 */
-> +				_submit_bh(write_op, bh, 1 << BIO_SNAP_STABLE);
->  			}
->  			cond_resched();
->  
-> diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
-> index cdf1119..22990cf 100644
-> --- a/include/linux/blk_types.h
-> +++ b/include/linux/blk_types.h
-> @@ -111,12 +111,13 @@ struct bio {
->  #define BIO_FS_INTEGRITY 9	/* fs owns integrity data, not block layer */
->  #define BIO_QUIET	10	/* Make BIO Quiet */
->  #define BIO_MAPPED_INTEGRITY 11/* integrity metadata has been remapped */
-> +#define BIO_SNAP_STABLE	12	/* bio data must be snapshotted during write */
->  
->  /*
->   * Flags starting here get preserved by bio_reset() - this includes
->   * BIO_POOL_IDX()
->   */
-> -#define BIO_RESET_BITS	12
-> +#define BIO_RESET_BITS	13
->  
->  #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
->  
-> diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
-> index 5afc4f9..4c16c4a 100644
-> --- a/include/linux/buffer_head.h
-> +++ b/include/linux/buffer_head.h
-> @@ -181,6 +181,7 @@ void ll_rw_block(int, int, struct buffer_head * bh[]);
->  int sync_dirty_buffer(struct buffer_head *bh);
->  int __sync_dirty_buffer(struct buffer_head *bh, int rw);
->  void write_dirty_buffer(struct buffer_head *bh, int rw);
-> +int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags);
->  int submit_bh(int, struct buffer_head *);
->  void write_boundary_block(struct block_device *bdev,
->  			sector_t bblock, unsigned blocksize);
-> diff --git a/include/uapi/linux/fs.h b/include/uapi/linux/fs.h
-> index c7fc1e6..a4ed56c 100644
-> --- a/include/uapi/linux/fs.h
-> +++ b/include/uapi/linux/fs.h
-> @@ -88,7 +88,6 @@ struct inodes_stat_t {
->  #define MS_STRICTATIME	(1<<24) /* Always perform atime updates */
->  
->  /* These sb flags are internal to the kernel */
-> -#define MS_SNAP_STABLE	(1<<27) /* Snapshot pages during writeback, if needed */
->  #define MS_NOSEC	(1<<28)
->  #define MS_BORN		(1<<29)
->  #define MS_ACTIVE	(1<<30)
-> diff --git a/mm/bounce.c b/mm/bounce.c
-> index 5f89017..a5c2ec3 100644
-> --- a/mm/bounce.c
-> +++ b/mm/bounce.c
-> @@ -181,32 +181,13 @@ static void bounce_end_io_read_isa(struct bio *bio, int err)
->  #ifdef CONFIG_NEED_BOUNCE_POOL
->  static int must_snapshot_stable_pages(struct request_queue *q, struct bio *bio)
->  {
-> -	struct page *page;
-> -	struct backing_dev_info *bdi;
-> -	struct address_space *mapping;
-> -	struct bio_vec *from;
-> -	int i;
-> -
->  	if (bio_data_dir(bio) != WRITE)
->  		return 0;
->  
->  	if (!bdi_cap_stable_pages_required(&q->backing_dev_info))
->  		return 0;
->  
-> -	/*
-> -	 * Based on the first page that has a valid mapping, decide whether or
-> -	 * not we have to employ bounce buffering to guarantee stable pages.
-> -	 */
-> -	bio_for_each_segment(from, bio, i) {
-> -		page = from->bv_page;
-> -		mapping = page_mapping(page);
-> -		if (!mapping)
-> -			continue;
-> -		bdi = mapping->backing_dev_info;
-> -		return mapping->host->i_sb->s_flags & MS_SNAP_STABLE;
-> -	}
-> -
-> -	return 0;
-> +	return test_bit(BIO_SNAP_STABLE, &bio->bi_flags);
->  }
->  #else
->  static int must_snapshot_stable_pages(struct request_queue *q, struct bio *bio)
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index efe6814..4514ad7 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -2311,10 +2311,6 @@ void wait_for_stable_page(struct page *page)
->  
->  	if (!bdi_cap_stable_pages_required(bdi))
->  		return;
-> -#ifdef CONFIG_NEED_BOUNCE_POOL
-> -	if (mapping->host->i_sb->s_flags & MS_SNAP_STABLE)
-> -		return;
-> -#endif /* CONFIG_NEED_BOUNCE_POOL */
->  
->  	wait_on_page_writeback(page);
->  }
+Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Reviewed-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ drivers/staging/zcache/zcache-main.c |   80 ++++++++++++++++++++++++++++-----
+ 1 files changed, 68 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index 86ead8d..050a99f 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -61,6 +61,12 @@ static inline void frontswap_tmem_exclusive_gets(bool b)
+ }
+ #endif
+ 
++/*
++ * mark pampd to special value in order that later
++ * retrieve will identify zero-filled pages
++ */
++#define ZERO_FILLED 0x2
++
+ /* enable (or fix code) when Seth's patches are accepted upstream */
+ #define zcache_writeback_enabled 0
+ 
+@@ -277,17 +283,23 @@ static void zcache_obj_free(struct tmem_obj *obj, struct tmem_pool *pool)
+ 	kmem_cache_free(zcache_obj_cache, obj);
+ }
+ 
+-static bool page_is_zero_filled(void *ptr)
++/*
++ * Compressing zero-filled pages will waste memory and introduce
++ * serious fragmentation, skip it to avoid overhead.
++ */
++static bool page_is_zero_filled(struct page *p)
+ {
+ 	unsigned int pos;
+-	unsigned long *page;
+-
+-	page = (unsigned long *)ptr;
++	char *page;
+ 
++	page = kmap_atomic(p);
+ 	for (pos = 0; pos < PAGE_SIZE / sizeof(*page); pos++) {
+-		if (page[pos])
++		if (page[pos]) {
++			kunmap_atomic(page);
+ 			return false;
++		}
+ 	}
++	kunmap_atomic(page);
+ 
+ 	return true;
+ }
+@@ -355,8 +367,15 @@ static void *zcache_pampd_eph_create(char *data, size_t size, bool raw,
+ {
+ 	void *pampd = NULL, *cdata = data;
+ 	unsigned clen = size;
++	bool zero_filled = false;
+ 	struct page *page = (struct page *)(data), *newpage;
+ 
++	if (page_is_zero_filled(page)) {
++		clen = 0;
++		zero_filled = true;
++		goto got_pampd;
++	}
++
+ 	if (!raw) {
+ 		zcache_compress(page, &cdata, &clen);
+ 		if (clen > zbud_max_buddy_size()) {
+@@ -396,6 +415,8 @@ got_pampd:
+ 	inc_zcache_eph_zpages();
+ 	if (ramster_enabled && raw)
+ 		ramster_count_foreign_pages(true, 1);
++	if (zero_filled)
++		pampd = (void *)ZERO_FILLED;
+ out:
+ 	return pampd;
+ }
+@@ -405,6 +426,7 @@ static void *zcache_pampd_pers_create(char *data, size_t size, bool raw,
+ {
+ 	void *pampd = NULL, *cdata = data;
+ 	unsigned clen = size;
++	bool zero_filled = false;
+ 	struct page *page = (struct page *)(data), *newpage;
+ 	unsigned long zbud_mean_zsize;
+ 	unsigned long curr_pers_zpages, total_zsize;
+@@ -413,6 +435,13 @@ static void *zcache_pampd_pers_create(char *data, size_t size, bool raw,
+ 		BUG_ON(!ramster_enabled);
+ 		goto create_pampd;
+ 	}
++
++	if (page_is_zero_filled(page)) {
++		clen = 0;
++		zero_filled = true;
++		goto got_pampd;
++	}
++
+ 	curr_pers_zpages = zcache_pers_zpages;
+ /* FIXME CONFIG_RAMSTER... subtract atomic remote_pers_pages here? */
+ 	if (!raw)
+@@ -470,6 +499,8 @@ got_pampd:
+ 	inc_zcache_pers_zbytes(clen);
+ 	if (ramster_enabled && raw)
+ 		ramster_count_foreign_pages(false, 1);
++	if (zero_filled)
++		pampd = (void *)ZERO_FILLED;
+ out:
+ 	return pampd;
+ }
+@@ -531,7 +562,8 @@ out:
+  */
+ void zcache_pampd_create_finish(void *pampd, bool eph)
+ {
+-	zbud_create_finish((struct zbudref *)pampd, eph);
++	if (pampd != (void *)ZERO_FILLED)
++		zbud_create_finish((struct zbudref *)pampd, eph);
+ }
+ 
+ /*
+@@ -576,6 +608,14 @@ static int zcache_pampd_get_data(char *data, size_t *sizep, bool raw,
+ 	BUG_ON(preemptible());
+ 	BUG_ON(eph);	/* fix later if shared pools get implemented */
+ 	BUG_ON(pampd_is_remote(pampd));
++
++	if (pampd == (void *)ZERO_FILLED) {
++		handle_zero_filled_page(data);
++		if (!raw)
++			*sizep = PAGE_SIZE;
++		return 0;
++	}
++
+ 	if (raw)
+ 		ret = zbud_copy_from_zbud(data, (struct zbudref *)pampd,
+ 						sizep, eph);
+@@ -596,13 +636,22 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
+ 					void *pampd, struct tmem_pool *pool,
+ 					struct tmem_oid *oid, uint32_t index)
+ {
+-	int ret;
+-	bool eph = !is_persistent(pool);
++	int ret = 0;
++	bool eph = !is_persistent(pool), zero_filled = false;
+ 	struct page *page = NULL;
+ 	unsigned int zsize, zpages;
+ 
+ 	BUG_ON(preemptible());
+ 	BUG_ON(pampd_is_remote(pampd));
++
++	if (pampd == (void *)ZERO_FILLED) {
++		handle_zero_filled_page(data);
++		zero_filled = true;
++		if (!raw)
++			*sizep = PAGE_SIZE;
++		goto zero_fill;
++	}
++
+ 	if (raw)
+ 		ret = zbud_copy_from_zbud(data, (struct zbudref *)pampd,
+ 						sizep, eph);
+@@ -614,6 +663,7 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
+ 	}
+ 	page = zbud_free_and_delist((struct zbudref *)pampd, eph,
+ 					&zsize, &zpages);
++zero_fill:
+ 	if (eph) {
+ 		if (page)
+ 			dec_zcache_eph_pageframes();
+@@ -627,7 +677,7 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
+ 	}
+ 	if (!is_local_client(pool->client))
+ 		ramster_count_foreign_pages(eph, -1);
+-	if (page)
++	if (page && !zero_filled)
+ 		zcache_free_page(page);
+ 	return ret;
+ }
+@@ -641,16 +691,22 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
+ {
+ 	struct page *page = NULL;
+ 	unsigned int zsize, zpages;
++	bool zero_filled = false;
+ 
+ 	BUG_ON(preemptible());
+-	if (pampd_is_remote(pampd)) {
++
++	if (pampd == (void *)ZERO_FILLED)
++		zero_filled = true;
++
++	if (pampd_is_remote(pampd) && !zero_filled) {
+ 		BUG_ON(!ramster_enabled);
+ 		pampd = ramster_pampd_free(pampd, pool, oid, index, acct);
+ 		if (pampd == NULL)
+ 			return;
+ 	}
+ 	if (is_ephemeral(pool)) {
+-		page = zbud_free_and_delist((struct zbudref *)pampd,
++		if (!zero_filled)
++			page = zbud_free_and_delist((struct zbudref *)pampd,
+ 						true, &zsize, &zpages);
+ 		if (page)
+ 			dec_zcache_eph_pageframes();
+@@ -667,7 +723,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
+ 	}
+ 	if (!is_local_client(pool->client))
+ 		ramster_count_foreign_pages(is_ephemeral(pool), -1);
+-	if (page)
++	if (page && !zero_filled)
+ 		zcache_free_page(page);
+ }
+ 
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
