@@ -1,39 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 0F92A6B0037
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 20:07:40 -0400 (EDT)
-Date: Mon, 18 Mar 2013 20:07:32 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1363651652-dcf5qvg4-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130318155125.GT10192@dhcp22.suse.cz>
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1361475708-25991-10-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130318155125.GT10192@dhcp22.suse.cz>
-Subject: Re: [PATCH 9/9] remove /proc/sys/vm/hugepages_treat_as_movable
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 1C22E6B0005
+	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 20:22:44 -0400 (EDT)
+Received: by mail-da0-f52.google.com with SMTP id f10so1648198dak.25
+        for <linux-mm@kvack.org>; Mon, 18 Mar 2013 17:22:43 -0700 (PDT)
+Date: Mon, 18 Mar 2013 17:23:59 -0700
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH v3 0/5] zcache: Support zero-filled pages more efficiently
+Message-ID: <20130319002359.GA29441@kroah.com>
+References: <1363314860-22731-1-git-send-email-liwanp@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1363314860-22731-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Mar 18, 2013 at 04:51:25PM +0100, Michal Hocko wrote:
-> On Thu 21-02-13 14:41:48, Naoya Horiguchi wrote:
-> > Now hugepages are definitely movable. So allocating hugepages from
-> > ZONE_MOVABLE is natural and we have no reason to keep this parameter.
-> 
-> The sysctl is a part of user interface so you shouldn't remove it right
-> away. What we can do is to make it noop and only WARN() that the
-> interface will be removed later so that userspace can prepare for that.
-> 
+On Fri, Mar 15, 2013 at 10:34:15AM +0800, Wanpeng Li wrote:
+> Changelog:
+>  v2 -> v3:
+>   * increment/decrement zcache_[eph|pers]_zpages for zero-filled pages, spotted by Dan 
+>   * replace "zero" or "zero page" by "zero_filled_page", spotted by Dan
+>  v1 -> v2:
+>   * avoid changing tmem.[ch] entirely, spotted by Dan.
+>   * don't accumulate [eph|pers]pageframe and [eph|pers]zpages for 
+>     zero-filled pages, spotted by Dan
+>   * cleanup TODO list
+>   * add Dan Acked-by.
 
-Yes, you're right. I'll replace the handler with noop.
+In the future, please make the subject: lines have "staging: zcache:" in
+them, so I don't have to edit them by hand.
 
-Thanks,
-Naoya
+thanks,
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
