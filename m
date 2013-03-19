@@ -1,265 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id D0BE66B0006
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 19:09:28 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id um15so825486pbc.14
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2013 16:09:28 -0700 (PDT)
-Date: Tue, 19 Mar 2013 16:09:01 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [patch 4/4 v3]swap: make cluster allocation per-cpu
-In-Reply-To: <20130221021858.GD32580@kernel.org>
-Message-ID: <alpine.LNX.2.00.1303191540220.5966@eggly.anvils>
-References: <20130221021858.GD32580@kernel.org>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 540836B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 19:31:56 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y14so351541pdi.8
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2013 16:31:55 -0700 (PDT)
+Message-ID: <5148F565.7060809@gmail.com>
+Date: Wed, 20 Mar 2013 07:31:49 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v2 3/4] introduce zero-filled page stat count
+References: <1363255697-19674-1-git-send-email-liwanp@linux.vnet.ibm.com> <1363255697-19674-4-git-send-email-liwanp@linux.vnet.ibm.com> <20130316130638.GB5987@konrad-lan.dumpdata.com> <5145BE06.8070309@gmail.com> <CAPbh3rvzuScPorS8Nc0Er33gYrbYNc9cqfPbN2Ca7QkhVSN9hA@mail.gmail.com>
+In-Reply-To: <CAPbh3rvzuScPorS8Nc0Er33gYrbYNc9cqfPbN2Ca7QkhVSN9hA@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, linux-mm@kvack.org
+To: konrad@darnok.org
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 21 Feb 2013, Shaohua Li wrote:
-
-> swap cluster allocation is to get better request merge to improve performance.
-> But the cluster is shared globally, if multiple tasks are doing swap, this will
-> cause interleave disk access. While multiple tasks swap is quite common, for
-> example, each numa node has a kswapd thread doing swap or multiple
-> threads/processes do direct page reclaim.
-> 
-> We makes the cluster allocation per-cpu here. The interleave disk access issue
-> goes away. All tasks will do sequential swap.
-> 
-> If one CPU can't get its per-cpu cluster, it will fallback to scan swap_map.
-> The CPU can still continue swap. We don't need recycle free swap entries of
-> other CPUs.
-> 
-> In my test (swap to a 2-disk raid0 partition), this improves around 10%
-> swapout throughput, and request size is increased significantly.
-> 
-> How does this impact swap readahead is uncertain though. On one side, page
-> reclaim always isolates and swaps several adjancent pages, this will make page
-> reclaim write the pages sequentially and benefit readahead. On the other side,
-> several CPU write pages interleave means the pages don't live _sequentially_
-> but relatively _near_. In the per-cpu allocation case, if adjancent pages are
-> written by different cpus, they will live relatively _far_.  So how this
-> impacts swap readahead depends on how many pages page reclaim isolates and
-> swaps one time. If the number is big, this patch will benefit swap readahead.
-> Of course, this is about sequential access pattern. The patch has no impact for
-> random access pattern, because the new cluster allocation algorithm is just for
-> SSD.
-> 
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
-
-I'll say
-Acked-by: Hugh Dickins <hughd@google.com>
-because I don't want to get in the way of the series, which I'd be
-happy for Andrew to take into mmotm once the swapoff ENOMEM is fixed.
-
-But I'm not all that keen on this one.  Partly because I suspect that
-this per-cpu'ing won't in the end be the right approach: I have more
-faith in us separating (as per Rik) the allocation of tokens to go
-into page tables from the final allocation of disk location, which
-should be left until we're just about to write.  But you find this
-gives your SSDs a speedup, and in two years we have not found time
-to do that swap reorg (which may turn out to have its own problems:
-I wonder what swap readahead will look like), so let's go ahead with
-this change of yours for now. 
-
-The other reason I'm not so keen is, I get confused by how
-scan_swap_map() now looks: that large original block in between
-the goto-ing but asymmetrical scan_swap_map_try_cluster() and
-scan_swap_map_recheck_cluster() blocks.
-
-Maybe a comment above the original block, explaining that it's
-for non-SSD.  Maybe a slight renaming of scan_swap_map_try_cluster()
-and scan_swap_map_recheck_cluster(), to make clear they're for SSD.
-Maybe move percpu_cluster stuff inside scan_swap_map_recheck_cluster().
-Maybe test si->cluster_info before calling scan_swap_map_recheck_cluster(),
-functionally unnecessary but would help make it all clearer.  Or maybe
-some rearrangement to combine the ...cluster() blocks can reduce the
-gotos and make it all cleaner.  In other words, one way or another,
-I think you could make this look cleaner and clearer.
-
-> ---
->  include/linux/swap.h |    6 +++
->  mm/swapfile.c        |   93 ++++++++++++++++++++++++++++++++++++---------------
->  2 files changed, 73 insertions(+), 26 deletions(-)
-> 
-> Index: linux/include/linux/swap.h
-> ===================================================================
-> --- linux.orig/include/linux/swap.h	2013-02-19 14:44:08.873688932 +0800
-> +++ linux/include/linux/swap.h	2013-02-19 14:47:44.414979203 +0800
-> @@ -175,6 +175,11 @@ enum {
->  #define COUNT_CONTINUED	0x80	/* See swap_map continuation for full count */
->  #define SWAP_MAP_SHMEM	0xbf	/* Owned by shmem/tmpfs, in first swap_map */
->  
-> +struct percpu_cluster {
-> +	unsigned int index; /* Current cluster index */
-> +	unsigned int next; /* Likely next allocation offset */
-> +};
-> +
->  /*
->   * The in-memory structure used to track swap areas.
->   */
-> @@ -194,6 +199,7 @@ struct swap_info_struct {
->  	unsigned int inuse_pages;	/* number of those currently in use */
->  	unsigned int cluster_next;	/* likely index for next allocation */
->  	unsigned int cluster_nr;	/* countdown to next cluster search */
-> +	struct percpu_cluster __percpu *percpu_cluster;
->  	struct swap_extent *curr_swap_extent;
->  	struct swap_extent first_swap_extent;
->  	struct block_device *bdev;	/* swap device or bdev of swap file */
-> Index: linux/mm/swapfile.c
-> ===================================================================
-> --- linux.orig/mm/swapfile.c	2013-02-19 14:45:42.732507754 +0800
-> +++ linux/mm/swapfile.c	2013-02-19 14:50:21.925000381 +0800
-> @@ -325,6 +325,51 @@ static inline bool scan_swap_map_recheck
->  		cluster_is_free(si->cluster_info[offset]);
->  }
->  
-> +static void scan_swap_map_try_cluster(struct swap_info_struct *si,
-> +	unsigned long *offset)
-> +{
-> +	struct percpu_cluster *cluster;
-> +	bool found_free;
-> +	unsigned long tmp;
-> +
-> +new_cluster:
-> +	cluster = this_cpu_ptr(si->percpu_cluster);
-> +	if (cluster->index == CLUSTER_NULL) {
-> +		if (si->free_cluster_head != CLUSTER_NULL) {
-> +			cluster->index = si->free_cluster_head;
-> +			cluster->next = cluster->index * SWAPFILE_CLUSTER;
-> +		} else if (si->discard_cluster_head != CLUSTER_NULL) {
-> +			spin_unlock(&si->lock);
-> +			schedule_work(&si->discard_work);
-> +			flush_work(&si->discard_work);
-> +			spin_lock(&si->lock);
-> +			goto new_cluster;
-> +		} else
-> +			return;
-> +	}
-> +
-> +	found_free = false;
-> +
-> +	/*
-> +	 * Other CPUs can use our cluster if they can't find a free cluster,
-> +	 * check if there is still free entry in the cluster
-> +	 */
-> +	tmp = cluster->next;
-> +	while (tmp < si->max && tmp < (cluster->index + 1) * SWAPFILE_CLUSTER) {
-> +		if (!si->swap_map[tmp]) {
-> +			found_free = true;
-> +			break;
-> +		}
-> +		tmp++;
-> +	}
-> +	if (!found_free) {
-> +		cluster->index = CLUSTER_NULL;
-> +		goto new_cluster;
-> +	}
-> +	cluster->next = tmp + 1;
-> +	*offset = tmp;
-> +}
-> +
->  static unsigned long scan_swap_map(struct swap_info_struct *si,
->  				   unsigned char usage)
->  {
-> @@ -347,36 +392,18 @@ static unsigned long scan_swap_map(struc
->  	si->flags += SWP_SCANNING;
->  	scan_base = offset = si->cluster_next;
->  
-> +check_cluster:
-> +	if (si->cluster_info) {
-> +		scan_swap_map_try_cluster(si, &offset);
-> +		scan_base = offset;
-> +		goto checks;
-> +	}
-> +
->  	if (unlikely(!si->cluster_nr--)) {
->  		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER) {
->  			si->cluster_nr = SWAPFILE_CLUSTER - 1;
->  			goto checks;
->  		}
-> -check_cluster:
-> -		if (si->free_cluster_head != CLUSTER_NULL) {
-> -			offset = si->free_cluster_head * SWAPFILE_CLUSTER;
-> -			last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
-> -			si->cluster_next = offset;
-> -			si->cluster_nr = SWAPFILE_CLUSTER - 1;
-> -			goto checks;
-> -		} else if (si->cluster_info) {
-> -			if (si->discard_cluster_head != CLUSTER_NULL) {
-> -				spin_unlock(&si->lock);
-> -				schedule_work(&si->discard_work);
-> -				flush_work(&si->discard_work);
-> -
-> -				spin_lock(&si->lock);
-> -				goto check_cluster;
-> -			}
-> -
-> -			/*
-> -			 * Checking free cluster is fast enough, we can do the
-> -			 * check every time
-> -			 */
-> -			si->cluster_nr = 0;
-> -			goto checks;
-> -		}
-> -
->  		spin_unlock(&si->lock);
->  
->  		/*
-> @@ -434,8 +461,12 @@ check_cluster:
->  	}
->  
->  checks:
-> -	if (scan_swap_map_recheck_cluster(si, offset))
-> +	if (scan_swap_map_recheck_cluster(si, offset)) {
-> +		struct percpu_cluster *percpu_cluster;
-> +		percpu_cluster = this_cpu_ptr(si->percpu_cluster);
-> +		percpu_cluster->index = CLUSTER_NULL;
->  		goto check_cluster;
-> +	}
->  	if (!(si->flags & SWP_WRITEOK))
->  		goto no_page;
->  	if (!si->highest_bit)
-> @@ -1762,6 +1793,8 @@ SYSCALL_DEFINE1(swapoff, const char __us
->  	spin_unlock(&p->lock);
->  	spin_unlock(&swap_lock);
->  	mutex_unlock(&swapon_mutex);
-> +	free_percpu(p->percpu_cluster);
-> +	p->percpu_cluster = NULL;
->  	vfree(swap_map);
->  	vfree(cluster_info);
->  	vfree(frontswap_map_get(p));
-> @@ -2255,6 +2288,12 @@ SYSCALL_DEFINE2(swapon, const char __use
->  			error = -ENOMEM;
->  			goto bad_swap;
->  		}
-> +		/* It's fine to initialize percpu_cluster to 0 */
-> +		p->percpu_cluster = alloc_percpu(struct percpu_cluster);
-> +		if (!p->percpu_cluster) {
-> +			error = -ENOMEM;
-> +			goto bad_swap;
-> +		}
->  	}
->  
->  	error = swap_cgroup_swapon(p->type, maxpages);
-> @@ -2298,6 +2337,8 @@ SYSCALL_DEFINE2(swapon, const char __use
->  	error = 0;
->  	goto out;
->  bad_swap:
-> +	free_percpu(p->percpu_cluster);
-> +	p->percpu_cluster = NULL;
->  	if (inode && S_ISBLK(inode->i_mode) && p->bdev) {
->  		set_blocksize(p->bdev, p->old_block_size);
->  		blkdev_put(p->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+On 03/20/2013 12:41 AM, Konrad Rzeszutek Wilk wrote:
+> On Sun, Mar 17, 2013 at 8:58 AM, Ric Mason <ric.masonn@gmail.com> wrote:
+>> Hi Konrad,
+>>
+>> On 03/16/2013 09:06 PM, Konrad Rzeszutek Wilk wrote:
+>>> On Thu, Mar 14, 2013 at 06:08:16PM +0800, Wanpeng Li wrote:
+>>>> Introduce zero-filled page statistics to monitor the number of
+>>>> zero-filled pages.
+>>> Hm, you must be using an older version of the driver. Please
+>>> rebase it against Greg KH's staging tree. This is where most if not
+>>> all of the DebugFS counters got moved to a different file.
+>>
+>> It seems that zcache debugfs in Greg's staging-next is buggy, Could you test
+>> it?
+>>
+> Could you email me what the issue you are seeing?
+They have already fixed in Wanpeng's patchset v4.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
