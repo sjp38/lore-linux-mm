@@ -1,46 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id BD32F6B0006
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 06:35:17 -0400 (EDT)
-Date: Tue, 19 Mar 2013 10:35:12 +0000
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 1D5456B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 06:57:53 -0400 (EDT)
+Date: Tue, 19 Mar 2013 10:57:48 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 06/10] mm: vmscan: Have kswapd writeback pages based on
- dirty pages encountered, not priority
-Message-ID: <20130319103512.GG2055@suse.de>
+Subject: Re: [PATCH 07/10] mm: vmscan: Block kswapd if it is encountering
+ pages under writeback
+Message-ID: <20130319105748.GH2055@suse.de>
 References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-7-git-send-email-mgorman@suse.de>
- <20130318110850.GA7144@hacker.(null)>
+ <1363525456-10448-8-git-send-email-mgorman@suse.de>
+ <5146FC86.2080107@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130318110850.GA7144@hacker.(null)>
+In-Reply-To: <5146FC86.2080107@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Simon Jeons <simon.jeons@gmail.com>
 Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Mar 18, 2013 at 07:08:50PM +0800, Wanpeng Li wrote:
-> >@@ -2735,8 +2748,12 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
-> > 				end_zone = i;
-> > 				break;
-> > 			} else {
-> >-				/* If balanced, clear the congested flag */
-> >+				/*
-> >+				 * If balanced, clear the dirty and congested
-> >+				 * flags
-> >+				 */
-> > 				zone_clear_flag(zone, ZONE_CONGESTED);
-> >+				zone_clear_flag(zone, ZONE_DIRTY);
+On Mon, Mar 18, 2013 at 07:37:42PM +0800, Simon Jeons wrote:
+> On 03/17/2013 09:04 PM, Mel Gorman wrote:
+> >Historically, kswapd used to congestion_wait() at higher priorities if it
+> >was not making forward progress. This made no sense as the failure to make
+> >progress could be completely independent of IO. It was later replaced by
+> >wait_iff_congested() and removed entirely by commit 258401a6 (mm: don't
+> >wait on congested zones in balance_pgdat()) as it was duplicating logic
+> >in shrink_inactive_list().
+> >
+> >This is problematic. If kswapd encounters many pages under writeback and
+> >it continues to scan until it reaches the high watermark then it will
+> >quickly skip over the pages under writeback and reclaim clean young
+> >pages or push applications out to swap.
+> >
+> >The use of wait_iff_congested() is not suited to kswapd as it will only
+> >stall if the underlying BDI is really congested or a direct reclaimer was
+> >unable to write to the underlying BDI. kswapd bypasses the BDI congestion
+> >as it sets PF_SWAPWRITE but even if this was taken into account then it
 > 
-> Hi Mel,
-> 
-> There are two places in balance_pgdat clear ZONE_CONGESTED flag, one
-> is during scan zone which have free_pages <= high_wmark_pages(zone), the 
-> other one is zone get balanced after reclaim, it seems that you miss the 
-> later one.
+> Where will check this flag?
 > 
 
-I did and it's fixed now. Thanks.
+may_write_to_queue
 
 -- 
 Mel Gorman
