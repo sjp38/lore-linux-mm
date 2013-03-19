@@ -1,43 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 176B46B0006
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 05:55:20 -0400 (EDT)
-Date: Tue, 19 Mar 2013 09:55:15 +0000
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 4555C6B0062
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 06:01:16 -0400 (EDT)
+Date: Tue, 19 Mar 2013 10:01:11 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd
- reclaims at each priority
-Message-ID: <20130319095514.GA2055@suse.de>
+Subject: Re: [PATCH 03/10] mm: vmscan: Flatten kswapd priority loop
+Message-ID: <20130319100111.GB2055@suse.de>
 References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-2-git-send-email-mgorman@suse.de>
- <5147A8EC.5010908@gmail.com>
+ <1363525456-10448-4-git-send-email-mgorman@suse.de>
+ <CAJd=RBAnEeC5D17AmQJHhbo-ST0fZ6+dmYSBzSnN8v4wtm6STQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <5147A8EC.5010908@gmail.com>
+In-Reply-To: <CAJd=RBAnEeC5D17AmQJHhbo-ST0fZ6+dmYSBzSnN8v4wtm6STQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Mi@jasper.es
 
-On Tue, Mar 19, 2013 at 07:53:16AM +0800, Simon Jeons wrote:
-> Hi Mel,
-> On 03/17/2013 09:04 PM, Mel Gorman wrote:
-> >The number of pages kswapd can reclaim is bound by the number of pages it
-> >scans which is related to the size of the zone and the scanning priority. In
-> >many cases the priority remains low because it's reset every SWAP_CLUSTER_MAX
-> >reclaimed pages but in the event kswapd scans a large number of pages it
-> >cannot reclaim, it will raise the priority and potentially discard a large
-> >percentage of the zone as sc->nr_to_reclaim is ULONG_MAX. The user-visible
-> >effect is a reclaim "spike" where a large percentage of memory is suddenly
-> >freed. It would be bad enough if this was just unused memory but because
+On Mon, Mar 18, 2013 at 03:02:10PM +0800, Hillf Danton wrote:
+> On Sun, Mar 17, 2013 at 9:04 PM, Mel Gorman <mgorman@suse.de> wrote:
+> >
+> > +               /* If no reclaim progress then increase scanning priority */
+> > +               if (sc.nr_reclaimed - nr_reclaimed == 0)
+> > +                       raise_priority = true;
+> >
+> >                 /*
+> > -                * Fragmentation may mean that the system cannot be
+> > -                * rebalanced for high-order allocations in all zones.
+> > -                * At this point, if nr_reclaimed < SWAP_CLUSTER_MAX,
+> > -                * it means the zones have been fully scanned and are still
+> > -                * not balanced. For high-order allocations, there is
+> > -                * little point trying all over again as kswapd may
+> > -                * infinite loop.
+> > -                *
+> > -                * Instead, recheck all watermarks at order-0 as they
+> > -                * are the most important. If watermarks are ok, kswapd will go
+> > -                * back to sleep. High-order users can still perform direct
+> > -                * reclaim if they wish.
+> > +                * Raise priority if scanning rate is too low or there was no
+> > +                * progress in reclaiming pages
+> 2) this comment is already included also in the above one?
 > 
-> Since there is nr_reclaimed >= nr_to_reclaim check if priority is
-> large than DEF_PRIORITY in shrink_lruvec, how can a large percentage
-> of memory is suddenly freed happen?
+> >                  */
+> > -               if (sc.nr_reclaimed < SWAP_CLUSTER_MAX)
+> > -                       order = sc.order = 0;
+> > -
+> > -               goto loop_again;
+> > -       }
+> > +               if (raise_priority || sc.nr_reclaimed - nr_reclaimed == 0)
+> 1) duplicated reclaim check with the above one, merge error?
 > 
 
-Because of the priority checks made in get_scan_count(). Patch 5 has
-more detail on why this happens.
+Yes, thanks. Duplicated check removed now.
 
 -- 
 Mel Gorman
