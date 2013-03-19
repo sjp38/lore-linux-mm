@@ -1,107 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 10B7E6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 00:25:46 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 19 Mar 2013 14:23:43 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 139062CE8052
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 15:25:39 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2J4Cc8l262622
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 15:12:38 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2J4Pcvt004093
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 15:25:38 +1100
-Date: Tue, 19 Mar 2013 12:25:36 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
-Message-ID: <20130319042536.GA4700@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <20130122065341.GA1850@kernel.org>
- <5142EC5A.4010509@gmail.com>
- <5146EEA5.4030003@oracle.com>
- <20130319012725.GA28880@kernel.org>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 8F4BC6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 01:10:26 -0400 (EDT)
+Date: Tue, 19 Mar 2013 14:10:46 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 1/3] slub: correct to calculate num of acquired
+ objects in get_partial_node()
+Message-ID: <20130319051045.GB8858@lge.com>
+References: <1358755287-3899-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130319012725.GA28880@kernel.org>
+In-Reply-To: <1358755287-3899-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Bob Liu <bob.liu@oracle.com>, Simon Jeons <simon.jeons@gmail.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Mar 19, 2013 at 09:27:25AM +0800, Shaohua Li wrote:
->On Mon, Mar 18, 2013 at 06:38:29PM +0800, Bob Liu wrote:
->> 
->> On 03/15/2013 05:39 PM, Simon Jeons wrote:
->> > On 01/22/2013 02:53 PM, Shaohua Li wrote:
->> >> Hi,
->> >>
->> >> Because of high density, low power and low price, flash storage (SSD)
->> >> is a good
->> >> candidate to partially replace DRAM. A quick answer for this is using
->> >> SSD as
->> >> swap. But Linux swap is designed for slow hard disk storage. There are
->> >> a lot of
->> >> challenges to efficiently use SSD for swap:
->> >>
->> >> 1. Lock contentions (swap_lock, anon_vma mutex, swap address space lock)
->> >> 2. TLB flush overhead. To reclaim one page, we need at least 2 TLB
->> >> flush. This
->> >> overhead is very high even in a normal 2-socket machine.
->> >> 3. Better swap IO pattern. Both direct and kswapd page reclaim can do
->> >> swap,
->> >> which makes swap IO pattern is interleave. Block layer isn't always
->> >> efficient
->> >> to do request merge. Such IO pattern also makes swap prefetch hard.
->> >> 4. Swap map scan overhead. Swap in-memory map scan scans an array,
->> >> which is
->> >> very inefficient, especially if swap storage is fast.
->> >> 5. SSD related optimization, mainly discard support
->> >> 6. Better swap prefetch algorithm. Besides item 3, sequentially
->> >> accessed pages
->> >> aren't always in LRU list adjacently, so page reclaim will not swap
->> >> such pages
->> >> in adjacent storage sectors. This makes swap prefetch hard.
->> >> 7. Alternative page reclaim policy to bias reclaiming anonymous page.
->> >> Currently reclaim anonymous page is considering harder than reclaim
->> >> file pages,
->> >> so we bias reclaiming file pages. If there are high speed swap
->> >> storage, we are
->> >> considering doing swap more aggressively.
->> >> 8. Huge page swap. Huge page swap can solve a lot of problems above,
->> >> but both
->> >> THP and hugetlbfs don't support swap.
->> > 
->> > Could you tell me in which workload hugetlb/thp pages can't swapout
->> > influence your performance? Is it worth?
->> > 
->> 
->> I'm also very interesting in this workload.
->> I think hugetlb/thp pages can be a potential user of zprojects like
->> zswap/zcache.
->> We can try to compress those pages before breaking them to normal pages.
->
->I don't have particular workload and don't have data for obvious reason. What I
->expected is swapout hugetlb/thp is to reduce some overheads (eg, tlb flush) and
->improve IO pattern.
+Hello, Pekka.
 
-Hi Shaohua and Bob,
+Could you pick up 1/3, 3/3?
+These are already acked by Christoph.
+2/3 is same effect as Glauber's "slub: correctly bootstrap boot caches",
+so should skip it.
 
-I'm doing this work currently. :-)
+Thanks.
 
-Regards,
-Wanpeng Li 
-
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+On Mon, Jan 21, 2013 at 05:01:25PM +0900, Joonsoo Kim wrote:
+> There is a subtle bug when calculating a number of acquired objects.
+> 
+> Currently, we calculate "available = page->objects - page->inuse",
+> after acquire_slab() is called in get_partial_node().
+> 
+> In acquire_slab() with mode = 1, we always set new.inuse = page->objects.
+> So,
+> 
+> 	acquire_slab(s, n, page, object == NULL);
+> 
+> 	if (!object) {
+> 		c->page = page;
+> 		stat(s, ALLOC_FROM_PARTIAL);
+> 		object = t;
+> 		available = page->objects - page->inuse;
+> 
+> 		!!! availabe is always 0 !!!
+> 	...
+> 
+> Therfore, "available > s->cpu_partial / 2" is always false and
+> we always go to second iteration.
+> This patch correct this problem.
+> 
+> After that, we don't need return value of put_cpu_partial().
+> So remove it.
+> 
+> v2: calculate nr of objects using new.objects and new.inuse.
+> It is more accurate way than before.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index ba2ca53..7204c74 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1493,7 +1493,7 @@ static inline void remove_partial(struct kmem_cache_node *n,
+>   */
+>  static inline void *acquire_slab(struct kmem_cache *s,
+>  		struct kmem_cache_node *n, struct page *page,
+> -		int mode)
+> +		int mode, int *objects)
+>  {
+>  	void *freelist;
+>  	unsigned long counters;
+> @@ -1507,6 +1507,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
+>  	freelist = page->freelist;
+>  	counters = page->counters;
+>  	new.counters = counters;
+> +	*objects = new.objects - new.inuse;
+>  	if (mode) {
+>  		new.inuse = page->objects;
+>  		new.freelist = NULL;
+> @@ -1528,7 +1529,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
+>  	return freelist;
+>  }
+>  
+> -static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
+> +static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
+>  static inline bool pfmemalloc_match(struct page *page, gfp_t gfpflags);
+>  
+>  /*
+> @@ -1539,6 +1540,8 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+>  {
+>  	struct page *page, *page2;
+>  	void *object = NULL;
+> +	int available = 0;
+> +	int objects;
+>  
+>  	/*
+>  	 * Racy check. If we mistakenly see no partial slabs then we
+> @@ -1552,22 +1555,21 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+>  	spin_lock(&n->list_lock);
+>  	list_for_each_entry_safe(page, page2, &n->partial, lru) {
+>  		void *t;
+> -		int available;
+>  
+>  		if (!pfmemalloc_match(page, flags))
+>  			continue;
+>  
+> -		t = acquire_slab(s, n, page, object == NULL);
+> +		t = acquire_slab(s, n, page, object == NULL, &objects);
+>  		if (!t)
+>  			break;
+>  
+> +		available += objects;
+>  		if (!object) {
+>  			c->page = page;
+>  			stat(s, ALLOC_FROM_PARTIAL);
+>  			object = t;
+> -			available =  page->objects - page->inuse;
+>  		} else {
+> -			available = put_cpu_partial(s, page, 0);
+> +			put_cpu_partial(s, page, 0);
+>  			stat(s, CPU_PARTIAL_NODE);
+>  		}
+>  		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
+> @@ -1946,7 +1948,7 @@ static void unfreeze_partials(struct kmem_cache *s,
+>   * If we did not find a slot then simply move all the partials to the
+>   * per node partial list.
+>   */
+> -static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+> +static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>  {
+>  	struct page *oldpage;
+>  	int pages;
+> @@ -1984,7 +1986,6 @@ static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>  		page->next = oldpage;
+>  
+>  	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
+> -	return pobjects;
+>  }
+>  
+>  static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+> -- 
+> 1.7.9.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
