@@ -1,10 +1,11 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 2/5] zero-filled pages awareness
-Date: Tue, 19 Mar 2013 09:23:16 +0800
-Message-ID: <31459.1481154368$1363656237@news.gmane.org>
-References: <1363314860-22731-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1363314860-22731-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130319005023.GA19891@kroah.com>
+Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
+Date: Tue, 19 Mar 2013 12:25:36 +0800
+Message-ID: <44411.2792647958$1363667176@news.gmane.org>
+References: <20130122065341.GA1850@kernel.org>
+ <5142EC5A.4010509@gmail.com>
+ <5146EEA5.4030003@oracle.com>
+ <20130319012725.GA28880@kernel.org>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,57 +13,94 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UHlHK-0003F6-DY
-	for glkm-linux-mm-2@m.gmane.org; Tue, 19 Mar 2013 02:23:50 +0100
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 3D2786B0005
-	for <linux-mm@kvack.org>; Mon, 18 Mar 2013 21:23:25 -0400 (EDT)
+	id 1UHo7p-0008L9-Bh
+	for glkm-linux-mm-2@m.gmane.org; Tue, 19 Mar 2013 05:26:13 +0100
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 10B7E6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 00:25:46 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 19 Mar 2013 11:15:18 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id B73382CE8051
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 12:23:18 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2J1NEXg57278630
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 12:23:14 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2J1NIhd029688
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 12:23:18 +1100
+	Tue, 19 Mar 2013 14:23:43 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 139062CE8052
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 15:25:39 +1100 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2J4Cc8l262622
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 15:12:38 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2J4Pcvt004093
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 15:25:38 +1100
 Content-Disposition: inline
-In-Reply-To: <20130319005023.GA19891@kroah.com>
+In-Reply-To: <20130319012725.GA28880@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Shaohua Li <shli@kernel.org>
+Cc: Bob Liu <bob.liu@oracle.com>, Simon Jeons <simon.jeons@gmail.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, dan.magenheimer@oracle.com, sjenning@linux.vnet.ibm.com, rcj@linux.vnet.ibm.com
 
-On Mon, Mar 18, 2013 at 05:50:23PM -0700, Greg Kroah-Hartman wrote:
->On Fri, Mar 15, 2013 at 10:34:17AM +0800, Wanpeng Li wrote:
->> Compression of zero-filled pages can unneccessarily cause internal
->> fragmentation, and thus waste memory. This special case can be
->> optimized.
+On Tue, Mar 19, 2013 at 09:27:25AM +0800, Shaohua Li wrote:
+>On Mon, Mar 18, 2013 at 06:38:29PM +0800, Bob Liu wrote:
 >> 
->> This patch captures zero-filled pages, and marks their corresponding
->> zcache backing page entry as zero-filled. Whenever such zero-filled
->> page is retrieved, we fill the page frame with zero.
+>> On 03/15/2013 05:39 PM, Simon Jeons wrote:
+>> > On 01/22/2013 02:53 PM, Shaohua Li wrote:
+>> >> Hi,
+>> >>
+>> >> Because of high density, low power and low price, flash storage (SSD)
+>> >> is a good
+>> >> candidate to partially replace DRAM. A quick answer for this is using
+>> >> SSD as
+>> >> swap. But Linux swap is designed for slow hard disk storage. There are
+>> >> a lot of
+>> >> challenges to efficiently use SSD for swap:
+>> >>
+>> >> 1. Lock contentions (swap_lock, anon_vma mutex, swap address space lock)
+>> >> 2. TLB flush overhead. To reclaim one page, we need at least 2 TLB
+>> >> flush. This
+>> >> overhead is very high even in a normal 2-socket machine.
+>> >> 3. Better swap IO pattern. Both direct and kswapd page reclaim can do
+>> >> swap,
+>> >> which makes swap IO pattern is interleave. Block layer isn't always
+>> >> efficient
+>> >> to do request merge. Such IO pattern also makes swap prefetch hard.
+>> >> 4. Swap map scan overhead. Swap in-memory map scan scans an array,
+>> >> which is
+>> >> very inefficient, especially if swap storage is fast.
+>> >> 5. SSD related optimization, mainly discard support
+>> >> 6. Better swap prefetch algorithm. Besides item 3, sequentially
+>> >> accessed pages
+>> >> aren't always in LRU list adjacently, so page reclaim will not swap
+>> >> such pages
+>> >> in adjacent storage sectors. This makes swap prefetch hard.
+>> >> 7. Alternative page reclaim policy to bias reclaiming anonymous page.
+>> >> Currently reclaim anonymous page is considering harder than reclaim
+>> >> file pages,
+>> >> so we bias reclaiming file pages. If there are high speed swap
+>> >> storage, we are
+>> >> considering doing swap more aggressively.
+>> >> 8. Huge page swap. Huge page swap can solve a lot of problems above,
+>> >> but both
+>> >> THP and hugetlbfs don't support swap.
+>> > 
+>> > Could you tell me in which workload hugetlb/thp pages can't swapout
+>> > influence your performance? Is it worth?
+>> > 
 >> 
->> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> I'm also very interesting in this workload.
+>> I think hugetlb/thp pages can be a potential user of zprojects like
+>> zswap/zcache.
+>> We can try to compress those pages before breaking them to normal pages.
 >
->This patch applies with a bunch of fuzz, meaning it wasn't made against
->the latest tree, which worries me.  Care to redo it, and the rest of the
->series, and resend it?
+>I don't have particular workload and don't have data for obvious reason. What I
+>expected is swapout hugetlb/thp is to reduce some overheads (eg, tlb flush) and
+>improve IO pattern.
 
-Ok, sorry for the confusing, I will do it today, thanks Greg. :-)
+Hi Shaohua and Bob,
+
+I'm doing this work currently. :-)
 
 Regards,
 Wanpeng Li 
 
->
->thanks,
->
->greg k-h
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
