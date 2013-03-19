@@ -1,48 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id CD5166B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 08:55:10 -0400 (EDT)
-Date: Tue, 19 Mar 2013 13:55:09 +0100
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 8D52B6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 09:07:17 -0400 (EDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 2/5] memcg: provide root figures from system totals
-Message-ID: <20130319125509.GF7869@dhcp22.suse.cz>
-References: <1362489058-3455-1-git-send-email-glommer@parallels.com>
- <1362489058-3455-3-git-send-email-glommer@parallels.com>
- <20130319124650.GE7869@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130319124650.GE7869@dhcp22.suse.cz>
+Subject: [PATCH] memcg: do not check for do_swap_account in mem_cgroup_{read,write,reset}
+Date: Tue, 19 Mar 2013 14:06:55 +0100
+Message-Id: <1363698415-12737-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, handai.szj@gmail.com, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org
 
-On Tue 19-03-13 13:46:50, Michal Hocko wrote:
-> On Tue 05-03-13 17:10:55, Glauber Costa wrote:
-> > For the root memcg, there is no need to rely on the res_counters if hierarchy
-> > is enabled The sum of all mem cgroups plus the tasks in root itself, is
-> > necessarily the amount of memory used for the whole system. Since those figures
-> > are already kept somewhere anyway, we can just return them here, without too
-> > much hassle.
-> > 
-> > Limit and soft limit can't be set for the root cgroup, so they are left at
-> > RESOURCE_MAX. Failcnt is left at 0, because its actual meaning is how many
-> > times we failed allocations due to the limit being hit. We will fail
-> > allocations in the root cgroup, but the limit will never the reason.
-> 
-> I do not like this very much to be honest. It just adds more hackery...
-> Why cannot we simply not account if nr_cgroups == 1 and move relevant
-> global counters to the root at the moment when a first group is
-> created?
+since 2d11085e (memcg: do not create memsw files if swap accounting
+is disabled) memsw files are created only if memcg swap accounting is
+enabled so there doesn't make any sense to check for it explicitely in
+mem_cgroup_read, mem_cgroup_write and mem_cgroup_reset.
 
-OK, it seems that the very next patch does what I was looking for. So
-why all the churn in this patch?
-Why do you want to make root even more special?
-[...]
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/memcontrol.c |    9 ---------
+ 1 file changed, 9 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2e01167..f608546 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5091,9 +5091,6 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 	type = MEMFILE_TYPE(cft->private);
+ 	name = MEMFILE_ATTR(cft->private);
+ 
+-	if (!do_swap_account && type == _MEMSWAP)
+-		return -EOPNOTSUPP;
+-
+ 	switch (type) {
+ 	case _MEM:
+ 		if (name == RES_USAGE)
+@@ -5329,9 +5326,6 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+ 	type = MEMFILE_TYPE(cft->private);
+ 	name = MEMFILE_ATTR(cft->private);
+ 
+-	if (!do_swap_account && type == _MEMSWAP)
+-		return -EOPNOTSUPP;
+-
+ 	switch (name) {
+ 	case RES_LIMIT:
+ 		if (mem_cgroup_is_root(memcg)) { /* Can't set limit on root */
+@@ -5408,9 +5402,6 @@ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+ 	type = MEMFILE_TYPE(event);
+ 	name = MEMFILE_ATTR(event);
+ 
+-	if (!do_swap_account && type == _MEMSWAP)
+-		return -EOPNOTSUPP;
+-
+ 	switch (name) {
+ 	case RES_MAX_USAGE:
+ 		if (type == _MEM)
 -- 
-Michal Hocko
-SUSE Labs
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
