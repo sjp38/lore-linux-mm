@@ -1,45 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id AB69E6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 12:41:51 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id t11so597188wey.28
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2013 09:41:50 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 180A16B0005
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 12:44:24 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id dr12so548940wgb.35
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2013 09:44:22 -0700 (PDT)
 MIME-Version: 1.0
 Reply-To: konrad@darnok.org
-In-Reply-To: <5145BE06.8070309@gmail.com>
+In-Reply-To: <6041f181-67b1-4f71-bd5c-cfb48f1ddfb0@default>
 References: <1363255697-19674-1-git-send-email-liwanp@linux.vnet.ibm.com>
-	<1363255697-19674-4-git-send-email-liwanp@linux.vnet.ibm.com>
-	<20130316130638.GB5987@konrad-lan.dumpdata.com>
-	<5145BE06.8070309@gmail.com>
-Date: Tue, 19 Mar 2013 12:41:49 -0400
-Message-ID: <CAPbh3rvzuScPorS8Nc0Er33gYrbYNc9cqfPbN2Ca7QkhVSN9hA@mail.gmail.com>
-Subject: Re: [PATCH v2 3/4] introduce zero-filled page stat count
+	<1363255697-19674-2-git-send-email-liwanp@linux.vnet.ibm.com>
+	<20130316130302.GA5987@konrad-lan.dumpdata.com>
+	<6041f181-67b1-4f71-bd5c-cfb48f1ddfb0@default>
+Date: Tue, 19 Mar 2013 12:44:22 -0400
+Message-ID: <CAPbh3rvOW2hh0bMTY_FyYJPiyqS4a76pHgDYLGYvLKjEzfJoig@mail.gmail.com>
+Subject: Re: [PATCH v2 1/4] introduce zero filled pages handler
 From: Konrad Rzeszutek Wilk <konrad@darnok.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Mar 17, 2013 at 8:58 AM, Ric Mason <ric.masonn@gmail.com> wrote:
-> Hi Konrad,
->
-> On 03/16/2013 09:06 PM, Konrad Rzeszutek Wilk wrote:
+On Sat, Mar 16, 2013 at 2:24 PM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+>> From: Konrad Rzeszutek Wilk [mailto:konrad@darnok.org]
+>> Subject: Re: [PATCH v2 1/4] introduce zero filled pages handler
 >>
->> On Thu, Mar 14, 2013 at 06:08:16PM +0800, Wanpeng Li wrote:
->>>
->>> Introduce zero-filled page statistics to monitor the number of
->>> zero-filled pages.
+>> > +
+>> > +   for (pos = 0; pos < PAGE_SIZE / sizeof(*page); pos++) {
+>> > +           if (page[pos])
+>> > +                   return false;
 >>
->> Hm, you must be using an older version of the driver. Please
->> rebase it against Greg KH's staging tree. This is where most if not
->> all of the DebugFS counters got moved to a different file.
+>> Perhaps allocate a static page filled with zeros and just do memcmp?
 >
+> That seems like a bad idea.  Why compare two different
+> memory locations when comparing one memory location
+> to a register will do?
 >
-> It seems that zcache debugfs in Greg's staging-next is buggy, Could you test
-> it?
+
+Good point. I was hoping there was an fast memcmp that would
+do fancy SSE registers. But it is memory against memory instead of
+registers.
+
+Perhaps a cunning trick would be to check (as a shortcircuit)
+check against 'empty_zero_page' and if that check fails, then try
+to do the check for each byte in the code?
+
 >
-Could you email me what the issue you are seeing?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
