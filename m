@@ -1,52 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 180A16B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 12:44:24 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id dr12so548940wgb.35
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2013 09:44:22 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 268366B0037
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 12:59:46 -0400 (EDT)
+Message-ID: <51489979.2070403@draigBrady.com>
+Date: Tue, 19 Mar 2013 16:59:37 +0000
+From: =?UTF-8?B?UMOhZHJhaWcgQnJhZHk=?= <P@draigBrady.com>
 MIME-Version: 1.0
-Reply-To: konrad@darnok.org
-In-Reply-To: <6041f181-67b1-4f71-bd5c-cfb48f1ddfb0@default>
-References: <1363255697-19674-1-git-send-email-liwanp@linux.vnet.ibm.com>
-	<1363255697-19674-2-git-send-email-liwanp@linux.vnet.ibm.com>
-	<20130316130302.GA5987@konrad-lan.dumpdata.com>
-	<6041f181-67b1-4f71-bd5c-cfb48f1ddfb0@default>
-Date: Tue, 19 Mar 2013 12:44:22 -0400
-Message-ID: <CAPbh3rvOW2hh0bMTY_FyYJPiyqS4a76pHgDYLGYvLKjEzfJoig@mail.gmail.com>
-Subject: Re: [PATCH v2 1/4] introduce zero filled pages handler
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: kswapd craziness round 2
+References: <5121C7AF.2090803@numascale-asia.com> <CAJd=RBArPT8YowhLuE8YVGNfH7G-xXTOjSyDgdV2RsatL-9m+Q@mail.gmail.com> <51254AD2.7000906@suse.cz> <CAJd=RBCiYof5rRVK+62OFMw+5F=5rS=qxRYF+OHpuRz895bn4w@mail.gmail.com> <512F8D8B.3070307@suse.cz> <CAJd=RBD=eT=xdEy+v3GBZ47gd47eB+fpF-3VtfpLAU7aEkZGgA@mail.gmail.com> <5138EC6C.6030906@suse.cz> <CAJd=RBC6JzXzPn9OV8UsbEjX152RcbKpuGGy+OBGM6E43gourQ@mail.gmail.com> <513A7263.5090303@suse.cz>
+In-Reply-To: <513A7263.5090303@suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: Hillf Danton <dhillf@gmail.com>, Daniel J Blueman <daniel@numascale-asia.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Steffen Persvold <sp@numascale.com>, mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Sat, Mar 16, 2013 at 2:24 PM, Dan Magenheimer
-<dan.magenheimer@oracle.com> wrote:
->> From: Konrad Rzeszutek Wilk [mailto:konrad@darnok.org]
->> Subject: Re: [PATCH v2 1/4] introduce zero filled pages handler
->>
->> > +
->> > +   for (pos = 0; pos < PAGE_SIZE / sizeof(*page); pos++) {
->> > +           if (page[pos])
->> > +                   return false;
->>
->> Perhaps allocate a static page filled with zeros and just do memcmp?
->
-> That seems like a bad idea.  Why compare two different
-> memory locations when comparing one memory location
-> to a register will do?
->
+On 03/08/2013 11:21 PM, Jiri Slaby wrote:
+> On 03/08/2013 07:42 AM, Hillf Danton wrote:
+>> On Fri, Mar 8, 2013 at 3:37 AM, Jiri Slaby <jslaby@suse.cz> wrote:
+>>> On 03/01/2013 03:02 PM, Hillf Danton wrote:
+>>>> On Fri, Mar 1, 2013 at 1:02 AM, Jiri Slaby <jslaby@suse.cz> wrote:
+>>>>>
+>>>>> Ok, no difference, kswap is still crazy. I'm attaching the output of
+>>>>> "grep -vw '0' /proc/vmstat" if you see something there.
+>>>>>
+>>>> Thanks to you for test and data.
+>>>>
+>>>> Lets try to restore the deleted nap, then.
+>>>
+>>> Oh, it seems to be nice now:
+>>> root       579  0.0  0.0      0     0 ?        S    Mar04   0:13 [kswapd0]
+>>>
+>> Double thanks.
+> 
+> There is one downside. I'm not sure whether that patch was the culprit.
+> My Thunderbird is jerky when scrolling and lags while writing this
+> message. The letters sometimes appear later than typed and in groups. Like
+> I (kbd): My Thunder
+> TB: My Thunder
+> I (kbd): b-i-r-d
+> TB: is silent
+> I (kbd): still typing...
+> TB: bird is
+> 
+> Perhaps it's not only TB.
 
-Good point. I was hoping there was an fast memcmp that would
-do fancy SSE registers. But it is memory against memory instead of
-registers.
+I notice the same thunderbird issue on the much older 2.6.40.4-5.fc15.x86_64
+which I'd hoped would be fixed on upgrade :(
 
-Perhaps a cunning trick would be to check (as a shortcircuit)
-check against 'empty_zero_page' and if that check fails, then try
-to do the check for each byte in the code?
+My Thunderbird is using 1957m virt, 722m RSS on my 3G system.
+What are your corresponding mem values?
 
->
+For reference:
+http://marc.info/?t=130865025500001&r=1&w=2
+https://bugzilla.redhat.com/show_bug.cgi?id=712019
+
+thanks,
+PA!draig.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
