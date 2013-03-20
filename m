@@ -1,75 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id F0E046B0027
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 04:07:58 -0400 (EDT)
-Message-ID: <51496E71.5010707@parallels.com>
-Date: Wed, 20 Mar 2013 12:08:17 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 0BA376B0027
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 04:13:34 -0400 (EDT)
+Date: Wed, 20 Mar 2013 09:13:32 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 3/5] memcg: make it suck faster
+Message-ID: <20130320081332.GF20045@dhcp22.suse.cz>
+References: <1362489058-3455-1-git-send-email-glommer@parallels.com>
+ <1362489058-3455-4-git-send-email-glommer@parallels.com>
+ <20130319135821.GG7869@dhcp22.suse.cz>
+ <51495E73.8090409@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/5] memcg: provide root figures from system totals
-References: <1362489058-3455-1-git-send-email-glommer@parallels.com> <1362489058-3455-3-git-send-email-glommer@parallels.com> <20130319124650.GE7869@dhcp22.suse.cz> <20130319125509.GF7869@dhcp22.suse.cz> <51495F35.9040302@parallels.com> <20130320080347.GE20045@dhcp22.suse.cz>
-In-Reply-To: <20130320080347.GE20045@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51495E73.8090409@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, handai.szj@gmail.com, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>, Mel
- Gorman <mgorman@suse.de>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, handai.szj@gmail.com, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-On 03/20/2013 12:03 PM, Michal Hocko wrote:
-> On Wed 20-03-13 11:03:17, Glauber Costa wrote:
->> On 03/19/2013 04:55 PM, Michal Hocko wrote:
->>> On Tue 19-03-13 13:46:50, Michal Hocko wrote:
->>>> On Tue 05-03-13 17:10:55, Glauber Costa wrote:
->>>>> For the root memcg, there is no need to rely on the res_counters if hierarchy
->>>>> is enabled The sum of all mem cgroups plus the tasks in root itself, is
->>>>> necessarily the amount of memory used for the whole system. Since those figures
->>>>> are already kept somewhere anyway, we can just return them here, without too
->>>>> much hassle.
->>>>>
->>>>> Limit and soft limit can't be set for the root cgroup, so they are left at
->>>>> RESOURCE_MAX. Failcnt is left at 0, because its actual meaning is how many
->>>>> times we failed allocations due to the limit being hit. We will fail
->>>>> allocations in the root cgroup, but the limit will never the reason.
->>>>
->>>> I do not like this very much to be honest. It just adds more hackery...
->>>> Why cannot we simply not account if nr_cgroups == 1 and move relevant
->>>> global counters to the root at the moment when a first group is
->>>> created?
->>>
->>> OK, it seems that the very next patch does what I was looking for. So
->>> why all the churn in this patch?
->>> Why do you want to make root even more special?
->>
->> Because I am operating under the assumption that we want to handle that
->> transparently and keep things working. If you tell me: "Hey, reading
->> memory.usage_in_bytes from root should return 0!", then I can get rid of
->> that.
+On Wed 20-03-13 11:00:03, Glauber Costa wrote:
+> Sorry all for taking a lot of time to reply to this. I've been really busy.
 > 
-> If you simply switch to accounting for root then you do not have to care
-> about this, don't you?
+> On 03/19/2013 05:58 PM, Michal Hocko wrote:
+> > On Tue 05-03-13 17:10:56, Glauber Costa wrote:
+> >> It is an accepted fact that memcg sucks. But can it suck faster?  Or in
+> >> a more fair statement, can it at least stop draining everyone's
+> >> performance when it is not in use?
+> >>
+> >> This experimental and slightly crude patch demonstrates that we can do
+> >> that by using static branches to patch it out until the first memcg
+> >> comes to life. There are edges to be trimmed, and I appreciate comments
+> >> for direction. In particular, the events in the root are not fired, but
+> >> I believe this can be done without further problems by calling a
+> >> specialized event check from mem_cgroup_newpage_charge().
+> >>
+> >> My goal was to have enough numbers to demonstrate the performance gain
+> >> that can come from it. I tested it in a 24-way 2-socket Intel box, 24 Gb
+> >> mem. I used Mel Gorman's pft test, that he used to demonstrate this
+> >> problem back in the Kernel Summit. There are three kernels:
+> >>
+> >> nomemcg  : memcg compile disabled.
+> >> base     : memcg enabled, patch not applied.
+> >> bypassed : memcg enabled, with patch applied.
+> >>
+> >>                 base    bypassed
+> >> User          109.12      105.64
+> >> System       1646.84     1597.98
+> >> Elapsed       229.56      215.76
+> >>
+> >>              nomemcg    bypassed
+> >> User          104.35      105.64
+> >> System       1578.19     1597.98
+> >> Elapsed       212.33      215.76
+> > 
+> > Do you have profiles for where we spend the time?
+> > 
 > 
-Of course not, but the whole point here is *not* accounting root. So if
-we are entirely skipping root account, it, I personally believe we need
-to replace it with something else so we can keep things working as much
-as we can.
+> I don't *have* in the sense that I never saved them, but it is easy to
+> grab. I've just run Mel's pft test with perf top -a in parallel, and
+> that was mostly the charge and uncharge functions being run.
 
-It doesn't need to be perfect, though: There is no way we can have
-max_usage without something like a res_counter that locks memory
-charges. I believe we can live without that. But as for the basic
-statistics and numbers, I believe they should keep working.
+Would be nice to have this information to know which parts need
+optimization with a higher priority. I do not think we will make it ~0%
+cost in a single run.
 
->> The fact that I keep bypassing when hierarchy is present, it is
->> more of a reuse of the infrastructure since it's there anyway.
->>
->> Also, I would like the root memcg to be usable, albeit cheap, for
->> projects like memory pressure notifications.
->  
-> root memcg without any childre, right?
+> >>  #ifdef CONFIG_MEMCG
+> >> +extern struct static_key memcg_in_use_key;
+> >> +
+> >> +static inline bool mem_cgroup_subsys_disabled(void)
+> >> +{
+> >> +	return !!mem_cgroup_subsys.disabled;
+> >> +}
+> >> +
+> >> +static inline bool mem_cgroup_disabled(void)
+> >> +{
+> >> +	/*
+> >> +	 * Will always be false if subsys is disabled, because we have no one
+> >> +	 * to bump it up. So the test suffices and we don't have to test the
+> >> +	 * subsystem as well
+> >> +	 */
+> > 
+> > but static_key_false adds an atomic read here which is more costly so I
+> > am not sure you are optimizing much.
+> > 
 > 
-yes, of course.
+> No it doesn't. You're missing the point of static branches: The code is
+> *patched out* until it is not used.
 
+OK, I should have been more specific. It adds an atomic if static
+branches are disabled.
+
+> So it adds a predictable deterministic jump instruction to the false
+> statement, and that's it (hence their previous name 'jump label').
+> 
+> >> +
+> >> +extern int __mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+> >> +				     gfp_t gfp_mask);
+> >> +static inline int
+> >> +mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm, gfp_t gfp_mask)
+> >> +{
+> >> +	if (mem_cgroup_disabled())
+> >> +		return 0;
+> >> +
+> >> +	return __mem_cgroup_cache_charge(page, mm, gfp_mask);
+> >> +}
+> > 
+> > Are there any reasons to not get down to __mem_cgroup_try_charge? We
+> > will not be perfect, all right, because some wrappers already do some
+> > work but we should at least cover most of them.
+> > 
+> > I am also thinking whether this stab at charging path is not just an
+> > overkill. Wouldn't it suffice to do something like:
+> 
+> I don't know. I could test. I just see no reason for that. Being able to
+> patch out code in the caller level means we'll not incur even a function
+> call. That's a generally accepted good thing to do in hot paths.
+
+Agreed. I just think that the charging path is rather complicated and
+changing it incrementally is a lower risk. Maybe we just find out that
+the biggest overhead can be reduced by a simpler approach.
+
+> Specially given the fact that the memcg overhead seems not to be
+> concentrated in one single place, but as Christoph Lameter defined,
+> "death by a thousand cuts", I'd much rather not even pay the function
+> calls if I can avoid. If I introducing great complexity for that, fine,
+> I could trade off. But honestly, the patch gets bigger but that's it.
+
+And more code and all the charging paths are already quite complicated.
+I do not want to add more, if possible.
+ 
+> >>  struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
+> >>  struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
+> > [...]
+> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >> index bfbf1c2..45c1886 100644
+> >> --- a/mm/memcontrol.c
+> >> +++ b/mm/memcontrol.c
+> > [...]
+> >> @@ -1335,6 +1345,20 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct zone *zone)
+> >>  	memcg = pc->mem_cgroup;
+> > 
+> > I would expect that you want to prevent lookup as well if there are no
+> > other groups.
+> >
+> well, that function in specific seems to be mostly called during
+> reclaim, where I wasn't terribly concerned about optimizations, unlike
+> the steady state functions.
+
+Not only from reclaim. Also when a page is uncharged.
+Anyway we can get the optimization almost for free here ;)
+ 
+> >>  	/*
+> >> +	 * Because we lazily enable memcg only after first child group is
+> >> +	 * created, we can have memcg == 0. Because page cgroup is created with
+> >> +	 * GFP_ZERO, and after charging, all page cgroups will have a non-zero
+> >> +	 * cgroup attached (even if root), we can be sure that this is a
+> >> +	 * used-but-not-accounted page. (due to lazyness). We could get around
+> >> +	 * that by scanning all pages on cgroup init is too expensive. We can
+> >> +	 * ultimately pay, but prefer to just to defer the update until we get
+> >> +	 * here. We could take the opportunity to set PageCgroupUsed, but it
+> >> +	 * won't be that important for the root cgroup.
+> >> +	 */
+> >> +	if (!memcg && PageLRU(page))
+> >> +		pc->mem_cgroup = memcg = root_mem_cgroup;
+> > 
+> > Why not return page_cgroup_zoneinfo(root_mem_cgroup, page);
+> > This would require messing up with __mem_cgroup_uncharge_common but that
+> > doesn't sound incredibly crazy (to the local standard of course ;)).
+> > 
+> 
+> Could you clarify?
+
+You can save some cycles by returning lruvec from here directly and do
+not get through:
+	if (!PageLRU(page) && !PageCgroupUsed(pc) && memcg != root_mem_cgroup)
+		pc->mem_cgroup = memcg = root_mem_cgroup;
+
+	mz = page_cgroup_zoneinfo(memcg, page);
+	lruvec = &mz->lruvec; 
+
+again. Just a nano optimization in that path
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
