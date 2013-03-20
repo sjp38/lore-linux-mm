@@ -1,84 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id DA6C56B0005
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 06:44:29 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 20 Mar 2013 20:39:13 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id C0BE83578051
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 21:44:22 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2KAUnEs9961970
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 21:30:50 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2KAhpZp013810
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 21:43:51 +1100
-Date: Wed, 20 Mar 2013 18:43:49 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 2/8] staging: zcache: zero-filled pages awareness
-Message-ID: <20130320104349.GA21402@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1363685150-18303-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1363685150-18303-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <51498FCE.60603@oracle.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 084C06B0005
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 11:07:31 -0400 (EDT)
+Date: Wed, 20 Mar 2013 11:07:28 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: kernel BUG at mm/huge_memory.c:1802!
+Message-ID: <20130320150728.GB1746@redhat.com>
+References: <bug-923817-176318@bugzilla.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51498FCE.60603@oracle.com>
+In-Reply-To: <bug-923817-176318@bugzilla.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <bob.liu@oracle.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Fedora Kernel Team <kernel-team@fedoraproject.org>
 
-On Wed, Mar 20, 2013 at 06:30:38PM +0800, Bob Liu wrote:
->
->> @@ -641,16 +691,22 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
->>  {
->>  	struct page *page = NULL;
->>  	unsigned int zsize, zpages;
->> +	bool zero_filled = false;
->>  
->>  	BUG_ON(preemptible());
->> -	if (pampd_is_remote(pampd)) {
->> +
->> +	if (pampd == (void *)ZERO_FILLED)
->> +		zero_filled = true;
->> +
->> +	if (pampd_is_remote(pampd) && !zero_filled) {
->>  		BUG_ON(!ramster_enabled);
->>  		pampd = ramster_pampd_free(pampd, pool, oid, index, acct);
->>  		if (pampd == NULL)
->>  			return;
->>  	}
->>  	if (is_ephemeral(pool)) {
->> -		page = zbud_free_and_delist((struct zbudref *)pampd,
->> +		if (!zero_filled)
->> +			page = zbud_free_and_delist((struct zbudref *)pampd,
->>  						true, &zsize, &zpages);
->
->This check should also apply for !is_ephemeral(pool).
+More huge page fun reported by one of our users today..
 
-Good catch, fixed.
+ > https://bugzilla.redhat.com/show_bug.cgi?id=923817
+ > 
+ > kernel BUG at mm/huge_memory.c:1802!
+ > invalid opcode: 0000 [#1] SMP 
+ > Modules linked in: arc4 md4 nls_utf8 cifs dns_resolver fscache fuse tun lockd
+ > sunrpc ip6t_REJECT nf_conntrack_ipv6 nf_conntrack_ipv4 nf_defrag_ipv6
+ > nf_defrag_ipv4 xt_conntrack nf_conntrack ip6table_filter ip6_tables binfmt_misc
+ > snd_hda_codec_hdmi snd_hda_codec_realtek snd_hda_intel snd_hda_codec snd_hwdep
+ > iTCO_wdt iTCO_vendor_support snd_seq snd_seq_device snd_pcm snd_page_alloc
+ > snd_timer snd e1000e coretemp mei lpc_ich soundcore mfd_core kvm_intel dcdbas
+ > kvm serio_raw i2c_i801 microcode uinput dm_crypt crc32c_intel
+ > ghash_clmulni_intel i915 i2c_algo_bit drm_kms_helper drm video i2c_core
+ > CPU 0 
+ > Pid: 2125, comm: JS GC Helper Not tainted 3.8.3-203.fc18.x86_64 #1 Dell Inc.
+ > OptiPlex 790/0J3C2F
+ > RIP: 0010:[<ffffffff8118edd1>]  [<ffffffff8118edd1>]
+ > split_huge_page+0x751/0x7e0
+ > RSP: 0018:ffff8801f9f4db98  EFLAGS: 00010297
+ > RAX: 0000000000000001 RBX: ffffea0000b48000 RCX: 000000000000005b
+ > RDX: 0000000000000008 RSI: 0000000000000046 RDI: 0000000000000246
+ > RBP: ffff8801f9f4dc58 R08: 000000000000000a R09: 000000000000034a
+ > R10: 0000000000000000 R11: 0000000000000349 R12: 0000000000000000
+ > R13: 00007fb66765d000 R14: 00003ffffffff000 R15: ffffea0000b48000
+ > FS:  00007fb6b0f33700(0000) GS:ffff88022dc00000(0000) knlGS:0000000000000000
+ > CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+ > CR2: 00007fb69a7e8200 CR3: 00000001cfc04000 CR4: 00000000000407f0
+ > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+ > DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+ > Process JS GC Helper (pid: 2125, threadinfo ffff8801f9f4c000, task
+ > ffff880200bd9760)
+ > Stack:
+ >  ffff8801f9f4dbe8 0000000000000292 ffff8801f9f4dbc8 0000000000000004
+ >  ffffea0000bbd3c0 ffff8801f7a32d40 0000000000b48000 ffffffff8113a5f7
+ >  0000000000000003 ffffc90000000001 00000000f9f4dbf8 00000007fb667600
+ > Call Trace:
+ >  [<ffffffff8113a5f7>] ? free_pcppages_bulk+0x177/0x4f0
+ >  [<ffffffff81198271>] ? mem_cgroup_bad_page_check+0x21/0x30
+ >  [<ffffffff8113ab8d>] ? free_pages_prepare+0x8d/0x140
+ >  [<ffffffff811903d3>] __split_huge_page_pmd+0x133/0x370
+ >  [<ffffffff8115c4fa>] unmap_single_vma+0x7ea/0x880
+ >  [<ffffffff811709dd>] ? free_pages_and_swap_cache+0xad/0xd0
+ >  [<ffffffff8115ce7d>] zap_page_range+0x9d/0x100
+ >  [<ffffffff8109797f>] ? __dequeue_entity+0x2f/0x50
+ >  [<ffffffff81159863>] sys_madvise+0x263/0x740
+ >  [<ffffffff810df18c>] ? __audit_syscall_exit+0x20c/0x2c0
+ >  [<ffffffff81658699>] system_call_fastpath+0x16/0x1b
+ > Code: 0f 0b 0f 0b f3 90 49 8b 07 a9 00 00 00 01 75 f4 e9 d8 fa ff ff be 45 01
+ > 00 00 48 c7 c7 8d 09 9d 81 e8 a4 f8 ec ff e9 c2 fa ff ff <0f> 0b 41 8b 57 18 8b
+ > 75 94 48 c7 c7 d0 0b 9f 81 31 c0 83 c2 01 
+ > RIP  [<ffffffff8118edd1>] split_huge_page+0x751/0x7e0
+ >  RSP <ffff8801f9f4db98>
 
->
->>  		if (page)
->>  			dec_zcache_eph_pageframes();
->> @@ -667,7 +723,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
->>  	}
->>  	if (!is_local_client(pool->client))
->>  		ramster_count_foreign_pages(is_ephemeral(pool), -1);
->> -	if (page)
->> +	if (page && !zero_filled)
->>  		zcache_free_page(page);
->>  }
->>  
->> 
->
->-- 
->Regards,
->-Bob
+BUG_ON(mapcount != page_mapcount(page));
+
+	Dave
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
