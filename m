@@ -1,51 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 842256B0005
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 00:12:33 -0400 (EDT)
-Received: by mail-oa0-f48.google.com with SMTP id j1so1315038oag.21
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2013 21:12:32 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 2CDF16B0002
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 01:48:14 -0400 (EDT)
+Date: Wed, 20 Mar 2013 16:17:53 +1030
+From: Jonathan Woithe <jwoithe@atrad.com.au>
+Subject: Re: OOM triggered with plenty of memory free
+Message-ID: <20130320054753.GN12411@marvin.atrad.com.au>
+References: <CAJd=RBDHwgtm=to3WUj73d7q6cjJ7oG6capjUxvcpVk0wH-fbQ@mail.gmail.com>
+ <CAGDaZ_ryxdMBm44kotjKyCeFEFk3OURjHav3zVOcQNGwP_ZwAQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <51489979.2070403@draigBrady.com>
-References: <5121C7AF.2090803@numascale-asia.com>
-	<CAJd=RBArPT8YowhLuE8YVGNfH7G-xXTOjSyDgdV2RsatL-9m+Q@mail.gmail.com>
-	<51254AD2.7000906@suse.cz>
-	<CAJd=RBCiYof5rRVK+62OFMw+5F=5rS=qxRYF+OHpuRz895bn4w@mail.gmail.com>
-	<512F8D8B.3070307@suse.cz>
-	<CAJd=RBD=eT=xdEy+v3GBZ47gd47eB+fpF-3VtfpLAU7aEkZGgA@mail.gmail.com>
-	<5138EC6C.6030906@suse.cz>
-	<CAJd=RBC6JzXzPn9OV8UsbEjX152RcbKpuGGy+OBGM6E43gourQ@mail.gmail.com>
-	<513A7263.5090303@suse.cz>
-	<51489979.2070403@draigBrady.com>
-Date: Wed, 20 Mar 2013 12:12:32 +0800
-Message-ID: <CAJd=RBCfMj7SUOE64KWXv6fcdASQWZV_Taujrtf4mDo8fFKBhw@mail.gmail.com>
-Subject: Re: kswapd craziness round 2
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGDaZ_ryxdMBm44kotjKyCeFEFk3OURjHav3zVOcQNGwP_ZwAQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?P=C3=A1draig_Brady?= <P@draigbrady.com>
-Cc: Jiri Slaby <jslaby@suse.cz>, Daniel J Blueman <daniel@numascale-asia.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Steffen Persvold <sp@numascale.com>, mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>
+To: Raymond Jennings <shentino@gmail.com>
+Cc: Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jonathan Woithe <jwoithe@atrad.com.au>
 
-On Wed, Mar 20, 2013 at 12:59 AM, P=C3=A1draig Brady <P@draigbrady.com> wro=
-te:
->
-> I notice the same thunderbird issue on the much older 2.6.40.4-5.fc15.x86=
-_64
-> which I'd hoped would be fixed on upgrade :(
->
-> My Thunderbird is using 1957m virt, 722m RSS on my 3G system.
-> What are your corresponding mem values?
->
-> For reference:
-> http://marc.info/?t=3D130865025500001&r=3D1&w=3D2
-> https://bugzilla.redhat.com/show_bug.cgi?id=3D712019
->
-Hey, would you all please try Mels new work?
-http://marc.info/?l=3Dlinux-mm&m=3D136352546814642&w=3D4
+On Sat, Mar 16, 2013 at 02:33:23AM -0700, Raymond Jennings wrote:
+> On Sat, Mar 16, 2013 at 2:25 AM, Hillf Danton <dhillf@gmail.com> wrote:
+> >> Some system specifications:
+> >> - CPU: i7 860 at 2.8 GHz
+> >> - Mainboard: Advantech AIMB-780
+> >> - RAM: 4 GB
+> >> - Kernel: 2.6.35.11 SMP, 32 bit (kernel.org kernel, no patches applied)
+> 
+> > The highmem no longer holds memory with 64-bit kernel.
+> 
+> I don't really think that's a valid reason to dismiss problems with
+> 32-bit though, as I still use it myself.
+> 
+> Anyway, to the parent poster, could you tell us more, such as how much
+> ram you had left free?
 
-thanks
-Hillf
+Following up on my previous response, I have now done a git bisect and it
+seems the leak was introduced by commit
+cab9e9848b9a8283b0504a2d7c435a9f5ba026de.  This was applied in the leadup to
+2.6.35.11, so 2.6.35.10 and earlier were all free of the problem.  As far as
+I can tell, 2.6.36 and later are also unaffected.  I don't know whether this
+is because the offending code in mainline is different to that applied to
+2.6.35.x, or that due to other changes we're just not hitting the problem in
+later kernels.
+
+I should add that the above commit forms part of a series which appears to
+have been applied out of order; to get it to compile it was necessary to
+apply afa01a2cc021a5f03f02364bb867af3114395304 due to cab9...26de using a
+function which was only added in afa0...5304.  As a result, while I think
+the root cause is cab9...26de I may have misinterpreted things such that
+one of the other patches in the series is the trigger.
+
+I'll continue testing to try to identify which commit fixed the problem and
+to confirm that 2.6.36 was indeed free of the leak.
+
+Regards
+  jonathan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
