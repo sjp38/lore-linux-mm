@@ -1,36 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 0C5356B0005
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 16:58:59 -0400 (EDT)
-Date: Wed, 20 Mar 2013 13:58:58 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 1/4 v3]swap: change block allocation algorithm for SSD
-Message-Id: <20130320135858.179ceef83b43ce434373d55b@linux-foundation.org>
-In-Reply-To: <alpine.LNX.2.00.1303191329490.5966@eggly.anvils>
-References: <20130221021710.GA32580@kernel.org>
-	<alpine.LNX.2.00.1303191329490.5966@eggly.anvils>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 582126B0002
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 17:35:43 -0400 (EDT)
+Date: Wed, 20 Mar 2013 17:35:26 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1363815326-urchkyxr-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <5148F830.3070601@gmail.com>
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <5148F830.3070601@gmail.com>
+Subject: Re: [RFC][PATCH 0/9] extend hugepage migration
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, linux-mm@kvack.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
 
-On Tue, 19 Mar 2013 13:50:57 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
+On Wed, Mar 20, 2013 at 07:43:44AM +0800, Simon Jeons wrote:
+...
+> >Easy patch access:
+> >   git@github.com:Naoya-Horiguchi/linux.git
+> >   branch:extend_hugepage_migration
+> >
+> >Test code:
+> >   git@github.com:Naoya-Horiguchi/test_hugepage_migration_extension.git
+> 
+> git clone
+> git@github.com:Naoya-Horiguchi/test_hugepage_migration_extension.git
+> Cloning into test_hugepage_migration_extension...
+> Permission denied (publickey).
+> fatal: The remote end hung up unexpectedly
 
-> I find it a bit confusing that we now have these two different clustering
-> strategies in scan_swap_map(), one for SSD and one for the rest; and it's
-> not immediately obvious what's used for what.
+Sorry, wrong url.
+git://github.com/Naoya-Horiguchi/test_hugepage_migration_extension.git
+or
+https://github.com/Naoya-Horiguchi/test_hugepage_migration_extension.git
+should work.
 
-Yes, having two separation allocation paths is bad and we should work
-to avoid it, please.  Sooner rather than later (which sometimes never
-comes).
-
-We have a few theories about how the SSD code will worsen things for
-rotating disks.  But have those theories been tested?  Any performance
-results?  If regressions *are* observed, what is the feasibility of
-fixing them up?
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
