@@ -1,106 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id C79BE6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 20:18:14 -0400 (EDT)
-Received: by mail-da0-f44.google.com with SMTP id z20so623888dae.3
-        for <linux-mm@kvack.org>; Tue, 19 Mar 2013 17:18:13 -0700 (PDT)
-Date: Tue, 19 Mar 2013 17:18:12 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, hugetlb: include hugepages in meminfo
-Message-ID: <alpine.DEB.2.02.1303191714440.13526@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 526AA6B0037
+	for <linux-mm@kvack.org>; Tue, 19 Mar 2013 20:31:13 -0400 (EDT)
+Received: by mail-da0-f51.google.com with SMTP id g27so536137dan.10
+        for <linux-mm@kvack.org>; Tue, 19 Mar 2013 17:31:12 -0700 (PDT)
+Message-ID: <5149034A.5050907@gmail.com>
+Date: Wed, 20 Mar 2013 08:31:06 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 5/9] migrate: enable migrate_pages() to migrate hugepage
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1361475708-25991-6-git-send-email-n-horiguchi@ah.jp.nec.com> <20130318154057.GS10192@dhcp22.suse.cz> <1363651636-3lsf20se-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1363651636-3lsf20se-mutt-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
 
-Particularly in oom conditions, it's troublesome that hugetlb memory is 
-not displayed.  All other meminfo that is emitted will not add up to what 
-is expected, and there is no artifact left in the kernel log to show that 
-a potentially significant amount of memory is actually allocated as 
-hugepages which are not available to be reclaimed.
+Hi Naoya,
+On 03/19/2013 08:07 AM, Naoya Horiguchi wrote:
+> On Mon, Mar 18, 2013 at 04:40:57PM +0100, Michal Hocko wrote:
+>> On Thu 21-02-13 14:41:44, Naoya Horiguchi wrote:
+>>> This patch extends check_range() to handle vma with VM_HUGETLB set.
+>>> With this changes, we can migrate hugepage with migrate_pages(2).
+>>> Note that for larger hugepages (covered by pud entries, 1GB for
+>>> x86_64 for example), we simply skip it now.
+>>>
+>>> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>>> ---
+>>>  include/linux/hugetlb.h |  6 ++++--
+>>>  mm/hugetlb.c            | 10 ++++++++++
+>>>  mm/mempolicy.c          | 46 ++++++++++++++++++++++++++++++++++------------
+>>>  3 files changed, 48 insertions(+), 14 deletions(-)
+>>>
+>>> diff --git v3.8.orig/include/linux/hugetlb.h v3.8/include/linux/hugetlb.h
+>>> index 8f87115..eb33df5 100644
+>>> --- v3.8.orig/include/linux/hugetlb.h
+>>> +++ v3.8/include/linux/hugetlb.h
+>>> @@ -69,6 +69,7 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed);
+>>>  int dequeue_hwpoisoned_huge_page(struct page *page);
+>>>  void putback_active_hugepage(struct page *page);
+>>>  void putback_active_hugepages(struct list_head *l);
+>>> +void migrate_hugepage_add(struct page *page, struct list_head *list);
+>>>  void copy_huge_page(struct page *dst, struct page *src);
+>>>  
+>>>  extern unsigned long hugepages_treat_as_movable;
+>>> @@ -88,8 +89,8 @@ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+>>>  				pmd_t *pmd, int write);
+>>>  struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
+>>>  				pud_t *pud, int write);
+>>> -int pmd_huge(pmd_t pmd);
+>>> -int pud_huge(pud_t pmd);
+>>> +extern int pmd_huge(pmd_t pmd);
+>>> +extern int pud_huge(pud_t pmd);
+>> extern is not needed here.
+> OK.
+>
+>>>  unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+>>>  		unsigned long address, unsigned long end, pgprot_t newprot);
+>>>  
+>>> @@ -134,6 +135,7 @@ static inline int dequeue_hwpoisoned_huge_page(struct page *page)
+>>>  
+>>>  #define putback_active_hugepage(p) 0
+>>>  #define putback_active_hugepages(l) 0
+>>> +#define migrate_hugepage_add(p, l) 0
+>>>  static inline void copy_huge_page(struct page *dst, struct page *src)
+>>>  {
+>>>  }
+>>> diff --git v3.8.orig/mm/hugetlb.c v3.8/mm/hugetlb.c
+>>> index cb9d43b8..86ffcb7 100644
+>>> --- v3.8.orig/mm/hugetlb.c
+>>> +++ v3.8/mm/hugetlb.c
+>>> @@ -3202,3 +3202,13 @@ void putback_active_hugepages(struct list_head *l)
+>>>  	list_for_each_entry_safe(page, page2, l, lru)
+>>>  		putback_active_hugepage(page);
+>>>  }
+>>> +
+>>> +void migrate_hugepage_add(struct page *page, struct list_head *list)
+>>> +{
+>>> +	VM_BUG_ON(!PageHuge(page));
+>>> +	get_page(page);
+>>> +	spin_lock(&hugetlb_lock);
+>> Why hugetlb_lock? Comment for this lock says that it protects
+>> hugepage_freelists, nr_huge_pages, and free_huge_pages.
+> I think that this comment is out of date and hugepage_activelists,
+> which was introduced recently, should be protected because this
+> patchset adds is_hugepage_movable() which runs through the list.
+> So I'll update the comment in the next post.
+>
+>>> +	list_move_tail(&page->lru, list);
+>>> +	spin_unlock(&hugetlb_lock);
+>>> +	return;
+>>> +}
+>>> diff --git v3.8.orig/mm/mempolicy.c v3.8/mm/mempolicy.c
+>>> index e2df1c1..8627135 100644
+>>> --- v3.8.orig/mm/mempolicy.c
+>>> +++ v3.8/mm/mempolicy.c
+>>> @@ -525,6 +525,27 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+>>>  	return addr != end;
+>>>  }
+>>>  
+>>> +static void check_hugetlb_pmd_range(struct vm_area_struct *vma, pmd_t *pmd,
+>>> +		const nodemask_t *nodes, unsigned long flags,
+>>> +				    void *private)
+>>> +{
+>>> +#ifdef CONFIG_HUGETLB_PAGE
+>>> +	int nid;
+>>> +	struct page *page;
+>>> +
+>>> +	spin_lock(&vma->vm_mm->page_table_lock);
+>>> +	page = pte_page(huge_ptep_get((pte_t *)pmd));
+>>> +	spin_unlock(&vma->vm_mm->page_table_lock);
+>> I am a bit confused why page_table_lock is used here and why it doesn't
+>> cover the page usage.
+> I expected this function to do the same for pmd as check_pte_range() does
+> for pte, but the above code didn't do it. I should've put spin_unlock
+> below migrate_hugepage_add(). Sorry for the confusion.
 
-Booting with hugepages=8192 on the command line, this memory is now shown 
-in oom conditions.  For example, with echo m > /proc/sysrq-trigger:
+I still confuse! Could you explain more in details?
 
-Node 0 hugepages_total=2048 hugepages_free=2048 hugepages_surp=0 hugepages_size=2048kB
-Node 1 hugepages_total=2048 hugepages_free=2048 hugepages_surp=0 hugepages_size=2048kB
-Node 2 hugepages_total=2048 hugepages_free=2048 hugepages_surp=0 hugepages_size=2048kB
-Node 3 hugepages_total=2048 hugepages_free=2048 hugepages_surp=0 hugepages_size=2048kB
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/hugetlb.h |  4 ++++
- mm/hugetlb.c            | 14 ++++++++++++++
- mm/page_alloc.c         |  3 +++
- 3 files changed, 21 insertions(+)
-
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -58,6 +58,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
- int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
- void hugetlb_report_meminfo(struct seq_file *);
- int hugetlb_report_node_meminfo(int, char *);
-+void hugetlb_show_meminfo(void);
- unsigned long hugetlb_total_pages(void);
- int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, unsigned int flags);
-@@ -114,6 +115,9 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
- {
- }
- #define hugetlb_report_node_meminfo(n, buf)	0
-+static inline void hugetlb_show_meminfo(void)
-+{
-+}
- #define follow_huge_pmd(mm, addr, pmd, write)	NULL
- #define follow_huge_pud(mm, addr, pud, write)	NULL
- #define prepare_hugepage_range(file, addr, len)	(-EINVAL)
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2121,6 +2121,20 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
- 		nid, h->surplus_huge_pages_node[nid]);
- }
- 
-+void hugetlb_show_meminfo(void)
-+{
-+	struct hstate *h = &default_hstate;
-+	int nid;
-+
-+	for_each_node_state(nid, N_MEMORY)
-+		pr_info("Node %d hugepages_total=%u hugepages_free=%u hugepages_surp=%u hugepages_size=%lukB\n",
-+		        nid,
-+			h->nr_huge_pages_node[nid],
-+			h->free_huge_pages_node[nid],
-+			h->surplus_huge_pages_node[nid],
-+			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
-+}
-+
- /* Return the number pages of memory we physically have, in PAGE_SIZE units. */
- unsigned long hugetlb_total_pages(void)
- {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -58,6 +58,7 @@
- #include <linux/prefetch.h>
- #include <linux/migrate.h>
- #include <linux/page-debug-flags.h>
-+#include <linux/hugetlb.h>
- #include <linux/sched/rt.h>
- 
- #include <asm/tlbflush.h>
-@@ -3105,6 +3106,8 @@ void show_free_areas(unsigned int filter)
- 		printk("= %lukB\n", K(total));
- 	}
- 
-+	hugetlb_show_meminfo();
-+
- 	printk("%ld total pagecache pages\n", global_page_state(NR_FILE_PAGES));
- 
- 	show_swap_cache_info();
+>
+>>> +	nid = page_to_nid(page);
+>>> +	if (node_isset(nid, *nodes) != !!(flags & MPOL_MF_INVERT)
+>>> +	    && ((flags & MPOL_MF_MOVE && page_mapcount(page) == 1)
+>>> +		|| flags & MPOL_MF_MOVE_ALL))
+>>> +		migrate_hugepage_add(page, private);
+>>> +#else
+>>> +	BUG();
+>>> +#endif
+>>> +}
+>>> +
+>>>  static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+>>>  		unsigned long addr, unsigned long end,
+>>>  		const nodemask_t *nodes, unsigned long flags,
+>>> @@ -536,6 +557,11 @@ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+>>>  	pmd = pmd_offset(pud, addr);
+>>>  	do {
+>>>  		next = pmd_addr_end(addr, end);
+>>> +		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
+>> Why an explicit check for is_vm_hugetlb_page here? Isn't pmd_huge()
+>> sufficient?
+> I think we need both check here because if we use only pmd_huge(),
+> pmd for thp goes into this branch wrongly. 
+>
+> Thanks,
+> Naoya
+>
+>>> +			check_hugetlb_pmd_range(vma, pmd, nodes,
+>>> +						flags, private);
+>>> +			continue;
+>>> +		}
+>>>  		split_huge_page_pmd(vma, addr, pmd);
+>>>  		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+>>>  			continue;
+>> [...]
+>> -- 
+>> Michal Hocko
+>> SUSE Labs
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
