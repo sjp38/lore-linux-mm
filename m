@@ -1,42 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 70DE56B0002
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 17:53:35 -0400 (EDT)
-Date: Wed, 20 Mar 2013 17:53:19 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1363816399-c6e7mofc-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <5148FB6C.4070202@gmail.com>
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1361475708-25991-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <5148FB6C.4070202@gmail.com>
-Subject: Re: [PATCH 1/9] migrate: add migrate_entry_wait_huge()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 338956B0006
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 17:58:48 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id xb4so1695136pbc.15
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2013 14:58:47 -0700 (PDT)
+Date: Wed, 20 Mar 2013 14:58:17 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [patch 4/4 v3]swap: make cluster allocation per-cpu
+In-Reply-To: <20130320135618.a476f40e4683cf20509b904d@linux-foundation.org>
+Message-ID: <alpine.LNX.2.00.1303201437380.7431@eggly.anvils>
+References: <20130221021858.GD32580@kernel.org> <alpine.LNX.2.00.1303191540220.5966@eggly.anvils> <20130320135618.a476f40e4683cf20509b904d@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Shaohua Li <shli@kernel.org>, Rafael Aquini <aquini@redhat.com>, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, linux-mm@kvack.org
 
-On Wed, Mar 20, 2013 at 07:57:32AM +0800, Simon Jeons wrote:
-> Hi Naoya,
-> On 02/22/2013 03:41 AM, Naoya Horiguchi wrote:
-> >When we have a page fault for the address which is backed by a hugepage
-> >under migration, the kernel can't wait correctly until the migration
-> >finishes. This is because pte_offset_map_lock() can't get a correct
+On Wed, 20 Mar 2013, Andrew Morton wrote:
+> On Tue, 19 Mar 2013 16:09:01 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
 > 
-> It seems that current hugetlb_fault still wait hugetlb page under
-> migration, how can it work without lock 2MB memory?
+> > But I'm not all that keen on this one.  Partly because I suspect that
+> > this per-cpu'ing won't in the end be the right approach
+> 
+> That was my reaction.  The CPU isn't the logical thing upon which to
+> key the clustering.  It mostly-works, because of the way in which the
+> kernel operates but it's a bit of a flukey hack.  A more logical thing
+> around which to subdivide the clustering is the mm_struct.
 
-Hugetlb_fault() does call migration_entry_wait(), but returns immediately.
-So page fault happens over and over again until the migration completes.
-IOW, migration_entry_wait() is now broken for hugepage and doesn't work
-as expected.
+You do suggest that from time to time, and someone did once send a patch
+to organize it by vma.  That probably behaves very nicely under a simple
+load, when pages coming off the bottom of the lru are from increasing
+addresses of the same mm; but what we have already works well enough
+for such a simple case (or should do: bugs can creep in and upset it).
 
-Thanks,
-Naoya
+Under a heavier mixed load, it behaved much worse than what we do
+at present.  That was in swapping to hard disk, where the additional
+seeks to place pages from different vmas in separate locations were
+costly; SSDs don't have seek cost, but I'd expect their erase blocks
+to impose an equivalent (not necessarily equal) cost.
+
+One of the great attractions of SSD for swap is the absence of seek
+cost when faulting back in; and even with hard disk, we don't know
+whether or when pages will be faulted back in.  The better we can
+allocate contiguously when swapping out, the faster swap will be.
+I say we need to allocate disk location just in time before writing.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
