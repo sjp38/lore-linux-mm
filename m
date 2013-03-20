@@ -1,62 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id D6F996B0027
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 03:13:32 -0400 (EDT)
-Message-ID: <51496194.7020508@parallels.com>
-Date: Wed, 20 Mar 2013 11:13:24 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 68E076B0027
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 03:41:22 -0400 (EDT)
+Date: Wed, 20 Mar 2013 08:41:18 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 5/9] migrate: enable migrate_pages() to migrate hugepage
+Message-ID: <20130320074118.GB20045@dhcp22.suse.cz>
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1361475708-25991-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20130318154057.GS10192@dhcp22.suse.cz>
+ <1363651636-3lsf20se-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130319071113.GD5112@dhcp22.suse.cz>
+ <1363759974-38t0k25g-mutt-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 3/5] memcg: make it suck faster
-References: <1362489058-3455-1-git-send-email-glommer@parallels.com> <1362489058-3455-4-git-send-email-glommer@parallels.com> <CAFj3OHU6f3o5GmbFyUsqtSWqHruSS4Yyodx=s=Vh8mO7GfTE8w@mail.gmail.com>
-In-Reply-To: <CAFj3OHU6f3o5GmbFyUsqtSWqHruSS4Yyodx=s=Vh8mO7GfTE8w@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1363759974-38t0k25g-mutt-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
 
-On 03/13/2013 12:08 PM, Sha Zhengju wrote:
->> +static void memcg_update_root_statistics(void)
->> > +{
->> > +       int cpu;
->> > +       u64 pgin, pgout, faults, mjfaults;
->> > +
->> > +       pgin = pgout = faults = mjfaults = 0;
->> > +       for_each_online_cpu(cpu) {
->> > +               struct vm_event_state *ev = &per_cpu(vm_event_states, cpu);
->> > +               struct mem_cgroup_stat_cpu *memcg_stat;
->> > +
->> > +               memcg_stat = per_cpu_ptr(root_mem_cgroup->stat, cpu);
->> > +
->> > +               memcg_stat->events[MEM_CGROUP_EVENTS_PGPGIN] =
->> > +                                                       ev->event[PGPGIN];
->> > +               memcg_stat->events[MEM_CGROUP_EVENTS_PGPGOUT] =
->> > +                                                       ev->event[PGPGOUT];
-> ev->event[PGPGIN/PGPGOUT] is counted in block layer(submit_bio()) and
-> represents the exactly number of pagein/pageout, but memcg
-> PGPGIN/PGPGOUT events only count it as an event and ignore the page
-> size. So here we can't straightforward take the ev->events for use.
+On Wed 20-03-13 02:12:54, Naoya Horiguchi wrote:
+> On Tue, Mar 19, 2013 at 08:11:13AM +0100, Michal Hocko wrote:
+> > On Mon 18-03-13 20:07:16, Naoya Horiguchi wrote:
+> > > On Mon, Mar 18, 2013 at 04:40:57PM +0100, Michal Hocko wrote:
+> > > > On Thu 21-02-13 14:41:44, Naoya Horiguchi wrote:
+> ...
+> > > > > @@ -536,6 +557,11 @@ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+> > > > >  	pmd = pmd_offset(pud, addr);
+> > > > >  	do {
+> > > > >  		next = pmd_addr_end(addr, end);
+> > > > > +		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
+> > > > 
+> > > > Why an explicit check for is_vm_hugetlb_page here? Isn't pmd_huge()
+> > > > sufficient?
+> > > 
+> > > I think we need both check here because if we use only pmd_huge(),
+> > > pmd for thp goes into this branch wrongly. 
+> > 
+> > Bahh. You are right. I thought that pmd_huge is hugetlb thingy but it
+> > obviously checks only _PAGE_PSE same as pmd_large() which is really
+> > unfortunate and confusing. Can we make it hugetlb specific?
 > 
-You are right about that. Although I can't think of a straightforward
-way to handle this. Well, except for the obvious of adding another
-global statistic.
+> I agree that we had better fix this confusion.
+> 
+> What pmd_huge() (or pmd_large() in some architectures) does is just
+> checking whether a given pmd is pointing to huge/large page or not.
+> It does not say which type of hugepage it is.
+> So it shouldn't be used to decide whether the hugepage are hugetlbfs or not.
+> I think it would be better to introduce pmd_hugetlb() which has pmd and vma
+> as arguments and returns true only for hugetlbfs pmd.
+> Checking pmd_hugetlb() should come before checking pmd_trans_huge() because
+> pmd_trans_huge() implicitly assumes that the vma which covers the virtual
+> address of a given pmd is not hugetlbfs vma.
+> 
+> I'm interested in this cleanup, so will work on it after this patchset.
 
->> > +               memcg_stat->events[MEM_CGROUP_EVENTS_PGFAULT] =
->> > +                                                       ev->event[PGFAULT];
->> > +               memcg_stat->events[MEM_CGROUP_EVENTS_PGMAJFAULT] =
->> > +                                                       ev->event[PGMAJFAULT];
->> > +
->> > +               memcg_stat->nr_page_events = ev->event[PGPGIN] +
->> > +                                            ev->event[PGPGOUT];
-> There's no valid memcg->nr_page_events until now, so the threshold
-> notifier, but some people may use it even only root memcg exists.
-> Moreover, using PGPGIN + PGPGOUT(exactly number of pagein + pageout)
-> as nr_page_events is also inaccurate IMHO.
-> 
-Humm, I believe I can zero out this. Looking at the code again, this is
-not imported to userspace. It is just used to activate the thresholds
-and the delta of nr_page_events is a lot more important than nr_page_events.
+pnd_huge is used only at few places so it shouldn't be very big. On the
+other hand you do not have vma always available so it is getting tricky.
+
+Thanks
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
