@@ -1,55 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id AD8316B0005
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 03:08:06 -0400 (EDT)
-Date: Thu, 21 Mar 2013 17:37:50 +1030
-From: Jonathan Woithe <jwoithe@atrad.com.au>
-Subject: Re: OOM triggered with plenty of memory free
-Message-ID: <20130321070750.GV30145@marvin.atrad.com.au>
-References: <CAJd=RBDHwgtm=to3WUj73d7q6cjJ7oG6capjUxvcpVk0wH-fbQ@mail.gmail.com>
- <CAGDaZ_ryxdMBm44kotjKyCeFEFk3OURjHav3zVOcQNGwP_ZwAQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 3CF346B0005
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 04:00:53 -0400 (EDT)
+Received: by mail-ia0-f175.google.com with SMTP id y26so2196227iab.34
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2013 01:00:52 -0700 (PDT)
+Message-ID: <514ABE2C.1090901@gmail.com>
+Date: Thu, 21 Mar 2013 16:00:44 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGDaZ_ryxdMBm44kotjKyCeFEFk3OURjHav3zVOcQNGwP_ZwAQ@mail.gmail.com>
+Subject: Re: [PATCH, RFC 00/16] Transparent huge page cache
+References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raymond Jennings <shentino@gmail.com>
-Cc: Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jonathan Woithe <jwoithe@atrad.com.au>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sat, Mar 16, 2013 at 02:33:23AM -0700, Raymond Jennings wrote:
-> Anyway, to the parent poster, could you tell us more, such as how much
-> ram you had left free?
+On 01/28/2013 05:24 PM, Kirill A. Shutemov wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>
+> Here's first steps towards huge pages in page cache.
+>
+> The intend of the work is get code ready to enable transparent huge page
+> cache for the most simple fs -- ramfs.
+>
+> It's not yet near feature-complete. It only provides basic infrastructure.
+> At the moment we can read, write and truncate file on ramfs with huge pages in
+> page cache. The most interesting part, mmap(), is not yet there. For now
+> we split huge page on mmap() attempt.
+>
+> I can't say that I see whole picture. I'm not sure if I understand locking
+> model around split_huge_page(). Probably, not.
+> Andrea, could you check if it looks correct?
 
-Following on from my previous post, here is a summary of what I know about
-this memory leak following additional testing.
- * It was introduced in 2.6.35.11
- * It was not present in 2.6.35.12
- * Previous git bisects on the main git tree indicate that the leak was
-   not in 2.6.36 or any later mainline kernel version
+Is there any thp performance test benchmark? For anonymous pages or file 
+pages.
 
-Commit cab9e9848b9a8283b0504a2d7c435a9f5ba026de to the stable tree ("scm:
-Capture the full credentials of the scm sender") seems to have introduced
-the leak.
-
-Commit 48e6b121605512d87f8da1ccd014313489c19630 to the stable tree ("Fix
-cred leak in AF_NETLINK") seems to have fixed the leak in the stable branch. 
-The commit message concentrates on the closure of an information leak, but
-evidently there was a memory leak behind it as well.
-
-cab9..26de was upstreamed as 257b5358b32f17e0603b6ff57b13610b0e02348f, but
-48e6..9630 does not appear to have made it into mainline in its entirety.
-However, the call to scm_destroy() in the "out:" block added by 48e6..9630
-is in mainline; I presume that this is what closes the memory leak because
-the only other parts of the commit set the function return value (unless the
-different function returns cause the callers not to leak).
-
-I'm guessing that 48e6..9630 was not applied to mainline in its
-entirety due to the underlying problem being fixed in a slightly different
-way.
-
-Regards
-  jonathan
+>
+> Next steps (not necessary in this order):
+>   - mmap();
+>   - migration (?);
+>   - collapse;
+>   - stats, knobs, etc.;
+>   - tmpfs/shmem enabling;
+>   - ...
+>
+> Kirill A. Shutemov (16):
+>    block: implement add_bdi_stat()
+>    mm: implement zero_huge_user_segment and friends
+>    mm: drop actor argument of do_generic_file_read()
+>    radix-tree: implement preload for multiple contiguous elements
+>    thp, mm: basic defines for transparent huge page cache
+>    thp, mm: rewrite add_to_page_cache_locked() to support huge pages
+>    thp, mm: rewrite delete_from_page_cache() to support huge pages
+>    thp, mm: locking tail page is a bug
+>    thp, mm: handle tail pages in page_cache_get_speculative()
+>    thp, mm: implement grab_cache_huge_page_write_begin()
+>    thp, mm: naive support of thp in generic read/write routines
+>    thp, libfs: initial support of thp in
+>      simple_read/write_begin/write_end
+>    thp: handle file pages in split_huge_page()
+>    thp, mm: truncate support for transparent huge page cache
+>    thp, mm: split huge page on mmap file page
+>    ramfs: enable transparent huge page cache
+>
+>   fs/libfs.c                  |   54 +++++++++---
+>   fs/ramfs/inode.c            |    6 +-
+>   include/linux/backing-dev.h |   10 +++
+>   include/linux/huge_mm.h     |    8 ++
+>   include/linux/mm.h          |   15 ++++
+>   include/linux/pagemap.h     |   14 ++-
+>   include/linux/radix-tree.h  |    3 +
+>   lib/radix-tree.c            |   32 +++++--
+>   mm/filemap.c                |  204 +++++++++++++++++++++++++++++++++++--------
+>   mm/huge_memory.c            |   62 +++++++++++--
+>   mm/memory.c                 |   22 +++++
+>   mm/truncate.c               |   12 +++
+>   12 files changed, 375 insertions(+), 67 deletions(-)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
