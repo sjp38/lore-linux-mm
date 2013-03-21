@@ -1,42 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 4E3486B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 14:40:39 -0400 (EDT)
-Received: by mail-da0-f46.google.com with SMTP id y19so1795025dan.33
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2013 11:40:38 -0700 (PDT)
-Date: Thu, 21 Mar 2013 11:40:33 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
-In-Reply-To: <20130321105516.GC18484@gmail.com>
-Message-ID: <alpine.DEB.2.02.1303211139110.3775@chino.kir.corp.google.com>
-References: <20130318155619.GA18828@sgi.com> <20130321105516.GC18484@gmail.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 742616B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 14:43:44 -0400 (EDT)
+Message-ID: <514B5492.4030806@redhat.com>
+Date: Thu, 21 Mar 2013 14:42:26 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 07/10] mm: vmscan: Block kswapd if it is encountering
+ pages under writeback
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-8-git-send-email-mgorman@suse.de>
+In-Reply-To: <1363525456-10448-8-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Russ Anderson <rja@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 21 Mar 2013, Ingo Molnar wrote:
+On 03/17/2013 09:04 AM, Mel Gorman wrote:
+> Historically, kswapd used to congestion_wait() at higher priorities if it
+> was not making forward progress. This made no sense as the failure to make
+> progress could be completely independent of IO. It was later replaced by
+> wait_iff_congested() and removed entirely by commit 258401a6 (mm: don't
+> wait on congested zones in balance_pgdat()) as it was duplicating logic
+> in shrink_inactive_list().
+>
+> This is problematic. If kswapd encounters many pages under writeback and
+> it continues to scan until it reaches the high watermark then it will
+> quickly skip over the pages under writeback and reclaim clean young
+> pages or push applications out to swap.
+>
+> The use of wait_iff_congested() is not suited to kswapd as it will only
+> stall if the underlying BDI is really congested or a direct reclaimer was
+> unable to write to the underlying BDI. kswapd bypasses the BDI congestion
+> as it sets PF_SWAPWRITE but even if this was taken into account then it
+> would cause direct reclaimers to stall on writeback which is not desirable.
+>
+> This patch sets a ZONE_WRITEBACK flag if direct reclaim or kswapd is
+> encountering too many pages under writeback. If this flag is set and
+> kswapd encounters a PageReclaim page under writeback then it'll assume
+> that the LRU lists are being recycled too quickly before IO can complete
+> and block waiting for some IO to complete.
 
-> > Index: linux/mm/page_alloc.c
-> > ===================================================================
-> > --- linux.orig/mm/page_alloc.c	2013-03-18 10:52:11.510988843 -0500
-> > +++ linux/mm/page_alloc.c	2013-03-18 10:52:14.214931348 -0500
-> > @@ -4161,10 +4161,19 @@ int __meminit __early_pfn_to_nid(unsigne
-> >  {
-> >  	unsigned long start_pfn, end_pfn;
-> >  	int i, nid;
-> > +	static unsigned long last_start_pfn, last_end_pfn;
-> > +	static int last_nid;
-> 
-> Please move these globals out of function local scope, to make it more 
-> apparent that they are not on-stack. I only noticed it in the second pass.
-> 
+I really like the concept of this patch.
 
-The way they're currently defined places these in meminit.data as 
-appropriate; if they are moved out, please make sure to annotate their 
-definitions with __meminitdata.
+> @@ -756,9 +769,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>   				 */
+>   				SetPageReclaim(page);
+>   				nr_writeback++;
+> +
+>   				goto keep_locked;
+> +			} else {
+> +				wait_on_page_writeback(page);
+>   			}
+> -			wait_on_page_writeback(page);
+>   		}
+>
+>   		if (!force_reclaim)
+
+This looks like an area for future improvement.
+
+We do not need to wait for this specific page to finish writeback,
+we only have to wait for any (bunch of) page(s) to finish writeback,
+since we do not particularly care which of the pages from near the
+end of the LRU get reclaimed first.
+
+I wonder if this is one of the causes for the high latencies that
+are sometimes observed in direct reclaim...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
