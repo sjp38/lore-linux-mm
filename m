@@ -1,70 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 518E16B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 11:50:48 -0400 (EDT)
-Date: Thu, 21 Mar 2013 16:50:45 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 04/10] mm: vmscan: Decide whether to compact the pgdat
- based on reclaim progress
-Message-ID: <20130321155045.GS6094@dhcp22.suse.cz>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-5-git-send-email-mgorman@suse.de>
- <20130321153231.GP6094@dhcp22.suse.cz>
- <20130321154730.GK1878@suse.de>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 066136B0006
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 11:54:52 -0400 (EDT)
+Message-ID: <514B2D94.8040206@sr71.net>
+Date: Thu, 21 Mar 2013 08:56:04 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130321154730.GK1878@suse.de>
+Subject: Re: [PATCHv2, RFC 04/30] radix-tree: implement preload for multiple
+ contiguous elements
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <1363283435-7666-5-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1363283435-7666-5-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 21-03-13 15:47:31, Mel Gorman wrote:
-> On Thu, Mar 21, 2013 at 04:32:31PM +0100, Michal Hocko wrote:
-> > On Sun 17-03-13 13:04:10, Mel Gorman wrote:
-> > > In the past, kswapd makes a decision on whether to compact memory after the
-> > > pgdat was considered balanced. This more or less worked but it is late to
-> > > make such a decision and does not fit well now that kswapd makes a decision
-> > > whether to exit the zone scanning loop depending on reclaim progress.
-> > > 
-> > > This patch will compact a pgdat if at least  the requested number of pages
-> > > were reclaimed from unbalanced zones for a given priority. If any zone is
-> > > currently balanced, kswapd will not call compaction as it is expected the
-> > > necessary pages are already available.
-> > > 
-> > > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > > ---
-> > >  mm/vmscan.c | 52 +++++++++++++++++++++-------------------------------
-> > >  1 file changed, 21 insertions(+), 31 deletions(-)
-> > > 
-> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > index 279d0c2..7513bd1 100644
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -2694,8 +2694,11 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
-> > >  
-> > >  	do {
-> > >  		unsigned long lru_pages = 0;
-> > > +		unsigned long nr_to_reclaim = 0;
-> > >  		unsigned long nr_reclaimed = sc.nr_reclaimed;
-> > > +		unsigned long this_reclaimed;
-> > >  		bool raise_priority = true;
-> > > +		bool pgdat_needs_compaction = true;
-> > 
-> > I am confused. We don't want to compact for order == 0, do we?
-> > 
+On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 > 
-> No, but an order check is made later which I felt it was clearer.  You are
-> the second person to bring it up so I'll base the initialisation on order.
+> Currently radix_tree_preload() only guarantees enough nodes to insert
+> one element. It's a hard limit. You cannot batch a number insert under
+> one tree_lock.
+> 
+> This patch introduces radix_tree_preload_count(). It allows to
+> preallocate nodes enough to insert a number of *contiguous* elements.
 
-Dohh. Yes compact_pgdat is called only if order != 0. I was so focused
-on pgdat_needs_compaction that I've missed it. Both checks use (order &&
-pgdat_needs_compaction) so initialization based on order would be
-probably better for readability.
--- 
-Michal Hocko
-SUSE Labs
+You don't need to write a paper on how radix trees work, but it might be
+nice to include a wee bit of text in here about how the existing preload
+works, and how this new guarantee works.
+
+> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+> index ffc444c..81318cb 100644
+> --- a/include/linux/radix-tree.h
+> +++ b/include/linux/radix-tree.h
+> @@ -83,6 +83,8 @@ do {									\
+>  	(root)->rnode = NULL;						\
+>  } while (0)
+>  
+> +#define RADIX_TREE_PRELOAD_NR		512 /* For THP's benefit */
+
+This eventually boils down to making the radix_tree_preload array
+larger.  Do we really want to do this unconditionally if it's only for
+THP's benefit?
+
+>  /**
+>   * Radix-tree synchronization
+>   *
+> @@ -231,6 +233,7 @@ unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+>  unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
+>  				unsigned long index, unsigned long max_scan);
+>  int radix_tree_preload(gfp_t gfp_mask);
+> +int radix_tree_preload_count(unsigned size, gfp_t gfp_mask);
+>  void radix_tree_init(void);
+>  void *radix_tree_tag_set(struct radix_tree_root *root,
+>  			unsigned long index, unsigned int tag);
+> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> index e796429..9bef0ac 100644
+> --- a/lib/radix-tree.c
+> +++ b/lib/radix-tree.c
+> @@ -81,16 +81,24 @@ static struct kmem_cache *radix_tree_node_cachep;
+>   * The worst case is a zero height tree with just a single item at index 0,
+>   * and then inserting an item at index ULONG_MAX. This requires 2 new branches
+>   * of RADIX_TREE_MAX_PATH size to be created, with only the root node shared.
+> + *
+> + * Worst case for adding N contiguous items is adding entries at indexes
+> + * (ULONG_MAX - N) to ULONG_MAX. It requires nodes to insert single worst-case
+> + * item plus extra nodes if you cross the boundary from one node to the next.
+> + *
+>   * Hence:
+>   */
+> -#define RADIX_TREE_PRELOAD_SIZE (RADIX_TREE_MAX_PATH * 2 - 1)
+> +#define RADIX_TREE_PRELOAD_MIN (RADIX_TREE_MAX_PATH * 2 - 1)
+> +#define RADIX_TREE_PRELOAD_MAX \
+> +	(RADIX_TREE_PRELOAD_MIN + \
+> +	 DIV_ROUND_UP(RADIX_TREE_PRELOAD_NR - 1, RADIX_TREE_MAP_SIZE))
+>  
+>  /*
+>   * Per-cpu pool of preloaded nodes
+>   */
+>  struct radix_tree_preload {
+>  	int nr;
+> -	struct radix_tree_node *nodes[RADIX_TREE_PRELOAD_SIZE];
+> +	struct radix_tree_node *nodes[RADIX_TREE_PRELOAD_MAX];
+>  };
+
+For those of us too lazy to go compile a kernel and figure this out in
+practice, how much bigger does this make the nodes[] array?
+
+>  static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
+>  
+> @@ -257,29 +265,34 @@ radix_tree_node_free(struct radix_tree_node *node)
+>  
+>  /*
+>   * Load up this CPU's radix_tree_node buffer with sufficient objects to
+> - * ensure that the addition of a single element in the tree cannot fail.  On
+> - * success, return zero, with preemption disabled.  On error, return -ENOMEM
+> + * ensure that the addition of *contiguous* elements in the tree cannot fail.
+> + * On success, return zero, with preemption disabled.  On error, return -ENOMEM
+>   * with preemption not disabled.
+>   *
+>   * To make use of this facility, the radix tree must be initialised without
+>   * __GFP_WAIT being passed to INIT_RADIX_TREE().
+>   */
+> -int radix_tree_preload(gfp_t gfp_mask)
+> +int radix_tree_preload_count(unsigned size, gfp_t gfp_mask)
+>  {
+>  	struct radix_tree_preload *rtp;
+>  	struct radix_tree_node *node;
+>  	int ret = -ENOMEM;
+> +	int alloc = RADIX_TREE_PRELOAD_MIN +
+> +		DIV_ROUND_UP(size - 1, RADIX_TREE_MAP_SIZE);
+
+Any chance I could talk you in to giving 'alloc' a better name?  Maybe
+"preload_target" or "preload_fill_to".
+
+> +	if (size > RADIX_TREE_PRELOAD_NR)
+> +		return -ENOMEM;
+
+I always wonder if these deep, logical -ENOMEMs deserve a WARN_ONCE().
+We really don't expect to hit this unless something really funky is
+going on, right?
+
+>  	preempt_disable();
+>  	rtp = &__get_cpu_var(radix_tree_preloads);
+> -	while (rtp->nr < ARRAY_SIZE(rtp->nodes)) {
+> +	while (rtp->nr < alloc) {
+>  		preempt_enable();
+>  		node = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
+>  		if (node == NULL)
+>  			goto out;
+>  		preempt_disable();
+>  		rtp = &__get_cpu_var(radix_tree_preloads);
+> -		if (rtp->nr < ARRAY_SIZE(rtp->nodes))
+> +		if (rtp->nr < alloc)
+>  			rtp->nodes[rtp->nr++] = node;
+>  		else
+>  			kmem_cache_free(radix_tree_node_cachep, node);
+> @@ -288,6 +301,11 @@ int radix_tree_preload(gfp_t gfp_mask)
+>  out:
+>  	return ret;
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
