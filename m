@@ -1,66 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 92C4D6B0037
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 18:16:28 -0400 (EDT)
-Message-ID: <514B86A9.60401@web.de>
-Date: Thu, 21 Mar 2013 23:16:09 +0100
-From: Soeren Moch <smoch@web.de>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id ABFDF6B0039
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 19:46:39 -0400 (EDT)
+Received: by mail-ie0-f176.google.com with SMTP id x14so4117713ief.7
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2013 16:46:39 -0700 (PDT)
+Message-ID: <514B9BD8.9050207@gmail.com>
+Date: Fri, 22 Mar 2013 07:46:32 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] USB: EHCI: fix for leaking isochronous data
-References: <Pine.LNX.4.44L0.1303211659080.1899-100000@iolanthe.rowland.org> <Pine.LNX.4.44L0.1303211708470.1899-100000@iolanthe.rowland.org> <20130321212033.GQ21478@lunn.ch>
-In-Reply-To: <20130321212033.GQ21478@lunn.ch>
+Subject: Re: [RFC][PATCH 0/9] extend hugepage migration
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com> <5148F830.3070601@gmail.com> <1363815326-urchkyxr-mutt-n-horiguchi@ah.jp.nec.com> <514A4B1C.6020201@gmail.com> <20130321125628.GB6051@dhcp22.suse.cz>
+In-Reply-To: <20130321125628.GB6051@dhcp22.suse.cz>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alan Stern <stern@rowland.harvard.edu>
-Cc: Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, USB list <linux-usb@vger.kernel.org>, Jason Cooper <jason@lakedaemon.net>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, linux-mm@kvack.org, Kernel development list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, michael@amarulasolutions.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
 
-On 21.03.2013 22:20, Andrew Lunn wrote:
-> On Thu, Mar 21, 2013 at 05:12:01PM -0400, Alan Stern wrote:
->> On Thu, 21 Mar 2013, Alan Stern wrote:
+Hi Michal,
+On 03/21/2013 08:56 PM, Michal Hocko wrote:
+> On Thu 21-03-13 07:49:48, Simon Jeons wrote:
+> [...]
+>> When I hacking arch/x86/mm/hugetlbpage.c like this,
+>> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+>> index ae1aa71..87f34ee 100644
+>> --- a/arch/x86/mm/hugetlbpage.c
+>> +++ b/arch/x86/mm/hugetlbpage.c
+>> @@ -354,14 +354,13 @@ hugetlb_get_unmapped_area(struct file *file,
+>> unsigned long addr,
 >>
->>> On Thu, 21 Mar 2013, Soeren Moch wrote:
->>>
->>>> Now I found out what is going on here:
->>>>
->>>> In itd_urb_transaction() we allocate 9 iTDs for each URB with
->>>> number_of_packets == 64 in my case. The iTDs are added to
->>>> sched->td_list. For a frame-aligned scheduling we need 8 iTDs, the 9th
->>>> one is released back to the front of the streams free_list in
->>>> iso_sched_free(). This iTD was cleared after allocation and has a frame
->>>> number of 0 now. So for each allocation when now_frame == 0 we allocate
->>>> from the dma_pool, not from the free_list.
->>>
->>> Okay, that is a problem.  But it shouldn't be such a big problem,
->>> because now_frame should not be equal to 0 very often.
+>> #endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
 >>
->> Oh, wait, now I get it.  We never reach a steady state, because the
->> free list never shrinks, but occasionally it does increase when
->> now_frame is equal to 0.  Even though that doesn't happen very often,
->> the effects add up.
+>> -#ifdef CONFIG_X86_64
+>> static __init int setup_hugepagesz(char *opt)
+>> {
+>> unsigned long ps = memparse(opt, &opt);
+>> if (ps == PMD_SIZE) {
+>> hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
+>> - } else if (ps == PUD_SIZE && cpu_has_gbpages) {
+>> - hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+>> + } else if (ps == PUD_SIZE) {
+>> + hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT+4);
+>> } else {
+>> printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
+>> ps >> 20);
 >>
->> Very good; tomorrow I will send your patch in.
+>> I set boot=hugepagesz=1G hugepages=10, then I got 10 32MB huge pages.
+>> What's the difference between these pages which I hacking and normal
+>> huge pages?
+> How is this related to the patch set?
+> Please _stop_ distracting discussion to unrelated topics!
 >
-> Hi Alan, Soeren
->
-> Could you word the description a bit better. If Alan did not get it
-> without a bit of thought, few others are going to understand it
-> without a better explanation.
->
-> Thanks
-> 	Andrew
->
+> Nothing personal but this is just wasting our time.
 
-Alan,
+Sorry kindly Michal, my bad.
+Btw, could you explain this question for me? very sorry waste your time.
 
-can you come up with a better explanation, please? I think your 
-description how it is supposed to work from here
-    http://marc.info/?l=linux-usb&m=136345559432055&w=2
-is required to understand the problem and the fix.
-
-Thanks,
-   Soeren
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
