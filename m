@@ -1,55 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 6B1A26B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 07:48:38 -0400 (EDT)
-Date: Thu, 21 Mar 2013 11:48:33 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/8] Reduce system disruption due to kswapd
-Message-ID: <20130321114833.GH1878@suse.de>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <20130321104440.GA5053@brouette>
- <514AE6CB.2040803@bitsync.net>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 3F2F46B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 08:30:57 -0400 (EDT)
+Message-ID: <514AFD71.5080509@redhat.com>
+Date: Thu, 21 Mar 2013 08:30:41 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <514AE6CB.2040803@bitsync.net>
+Subject: Re: [PATCH 05/10] mm: vmscan: Do not allow kswapd to scan at maximum
+ priority
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-6-git-send-email-mgorman@suse.de> <514A604E.40303@redhat.com> <20130321101210.GF1878@suse.de>
+In-Reply-To: <20130321101210.GF1878@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zcalusic@bitsync.net>
-Cc: Linux-MM <linux-mm@kvack.org>, Damien Wyart <damien.wyart@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Mar 21, 2013 at 11:54:03AM +0100, Zlatko Calusic wrote:
-> On 21.03.2013 11:44, Damien Wyart wrote:
-> >Hi,
-> >
-> >>Kswapd and page reclaim behaviour has been screwy in one way or the
-> >>other for a long time. [...]
-> >
-> >>  include/linux/mmzone.h |  16 ++
-> >>  mm/vmscan.c            | 387 +++++++++++++++++++++++++++++--------------------
-> >>  2 files changed, 245 insertions(+), 158 deletions(-)
-> >
-> >Do you plan to respin the series with all the modifications coming from
-> >the various answers applied? I've not found a git repo hosting the
-> >series and I would prefer testing the most recent version.
-> >
-> 
-> Same thing here, Mel. Thanks for the great work! I've been quite
-> busy this week, but I promise to spend some time reviewing the
-> patches this coming weekend. I would also appreciate if you could
-> send the updated patches in the meantime. Or even better, point us
-> towards the git tree where this treasure resides.
-> 
+On 03/21/2013 06:12 AM, Mel Gorman wrote:
+> On Wed, Mar 20, 2013 at 09:20:14PM -0400, Rik van Riel wrote:
+>> On 03/17/2013 09:04 AM, Mel Gorman wrote:
+>>> Page reclaim at priority 0 will scan the entire LRU as priority 0 is
+>>> considered to be a near OOM condition. Kswapd can reach priority 0 quite
+>>> easily if it is encountering a large number of pages it cannot reclaim
+>>> such as pages under writeback. When this happens, kswapd reclaims very
+>>> aggressively even though there may be no real risk of allocation failure
+>>> or OOM.
+>>>
+>>> This patch prevents kswapd reaching priority 0 and trying to reclaim
+>>> the world. Direct reclaimers will still reach priority 0 in the event
+>>> of an OOM situation.
+>>>
+>>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+>>> ---
+>>>   mm/vmscan.c | 2 +-
+>>>   1 file changed, 1 insertion(+), 1 deletion(-)
+>>>
+>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>>> index 7513bd1..af3bb6f 100644
+>>> --- a/mm/vmscan.c
+>>> +++ b/mm/vmscan.c
+>>> @@ -2891,7 +2891,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>>>   		 */
+>>>   		if (raise_priority || !this_reclaimed)
+>>>   			sc.priority--;
+>>> -	} while (sc.priority >= 0 &&
+>>> +	} while (sc.priority >= 1 &&
+>>>   		 !pgdat_balanced(pgdat, order, *classzone_idx));
+>>>
+>>>   out:
+>>>
+>>
+>> If priority 0 is way way way way way too aggressive, what makes
+>> priority 1 safe?
+>>
+>
+> The fact that priority 1 selects a sensible number of pages to reclaim and
+> obeys swappiness makes it a lot safer. Priority 0 does this in get_scan_count
+   ^^^^^^^^^^^^^^^^
 
-Ok, I pushed the branches to a git tree at
-git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux.git now
+Ahhh, good point!  We stay away from all the "emergency" code, which
+kswapd should never run.
 
-The mm-vmscan-limit-reclaim-v1r8 branch is the the released RFC.
-The mm-vmscan-limit-reclaim-v2r1 is where things currently stand.
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
-Mel Gorman
-SUSE Labs
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
