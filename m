@@ -1,71 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 3F2F46B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 08:30:57 -0400 (EDT)
-Message-ID: <514AFD71.5080509@redhat.com>
-Date: Thu, 21 Mar 2013 08:30:41 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id AE9566B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 08:35:07 -0400 (EDT)
+Date: Thu, 21 Mar 2013 13:35:05 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
+Message-ID: <20130321123505.GA6051@dhcp22.suse.cz>
+References: <20130318155619.GA18828@sgi.com>
+ <20130321105516.GC18484@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/10] mm: vmscan: Do not allow kswapd to scan at maximum
- priority
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-6-git-send-email-mgorman@suse.de> <514A604E.40303@redhat.com> <20130321101210.GF1878@suse.de>
-In-Reply-To: <20130321101210.GF1878@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130321105516.GC18484@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Russ Anderson <rja@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
 
-On 03/21/2013 06:12 AM, Mel Gorman wrote:
-> On Wed, Mar 20, 2013 at 09:20:14PM -0400, Rik van Riel wrote:
->> On 03/17/2013 09:04 AM, Mel Gorman wrote:
->>> Page reclaim at priority 0 will scan the entire LRU as priority 0 is
->>> considered to be a near OOM condition. Kswapd can reach priority 0 quite
->>> easily if it is encountering a large number of pages it cannot reclaim
->>> such as pages under writeback. When this happens, kswapd reclaims very
->>> aggressively even though there may be no real risk of allocation failure
->>> or OOM.
->>>
->>> This patch prevents kswapd reaching priority 0 and trying to reclaim
->>> the world. Direct reclaimers will still reach priority 0 in the event
->>> of an OOM situation.
->>>
->>> Signed-off-by: Mel Gorman <mgorman@suse.de>
->>> ---
->>>   mm/vmscan.c | 2 +-
->>>   1 file changed, 1 insertion(+), 1 deletion(-)
->>>
->>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>> index 7513bd1..af3bb6f 100644
->>> --- a/mm/vmscan.c
->>> +++ b/mm/vmscan.c
->>> @@ -2891,7 +2891,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->>>   		 */
->>>   		if (raise_priority || !this_reclaimed)
->>>   			sc.priority--;
->>> -	} while (sc.priority >= 0 &&
->>> +	} while (sc.priority >= 1 &&
->>>   		 !pgdat_balanced(pgdat, order, *classzone_idx));
->>>
->>>   out:
->>>
->>
->> If priority 0 is way way way way way too aggressive, what makes
->> priority 1 safe?
->>
->
-> The fact that priority 1 selects a sensible number of pages to reclaim and
-> obeys swappiness makes it a lot safer. Priority 0 does this in get_scan_count
-   ^^^^^^^^^^^^^^^^
+On Thu 21-03-13 11:55:16, Ingo Molnar wrote:
+> 
+> * Russ Anderson <rja@sgi.com> wrote:
+> 
+> > When booting on a large memory system, the kernel spends
+> > considerable time in memmap_init_zone() setting up memory zones.
+> > Analysis shows significant time spent in __early_pfn_to_nid().
+> > 
+> > The routine memmap_init_zone() checks each PFN to verify the
+> > nid is valid.  __early_pfn_to_nid() sequentially scans the list of
+> > pfn ranges to find the right range and returns the nid.  This does
+> > not scale well.  On a 4 TB (single rack) system there are 308
+> > memory ranges to scan.  The higher the PFN the more time spent
+> > sequentially spinning through memory ranges.
+> > 
+> > Since memmap_init_zone() increments pfn, it will almost always be
+> > looking for the same range as the previous pfn, so check that
+> > range first.  If it is in the same range, return that nid.
+> > If not, scan the list as before.
+> > 
+> > A 4 TB (single rack) UV1 system takes 512 seconds to get through
+> > the zone code.  This performance optimization reduces the time
+> > by 189 seconds, a 36% improvement.
+> > 
+> > A 2 TB (single rack) UV2 system goes from 212.7 seconds to 99.8 seconds,
+> > a 112.9 second (53%) reduction.
+> 
+> Nice speedup!
+> 
+> A minor nit, in addition to Andrew's suggestion about wrapping 
+> __early_pfn_to_nid():
+> 
+> > Index: linux/mm/page_alloc.c
+> > ===================================================================
+> > --- linux.orig/mm/page_alloc.c	2013-03-18 10:52:11.510988843 -0500
+> > +++ linux/mm/page_alloc.c	2013-03-18 10:52:14.214931348 -0500
+> > @@ -4161,10 +4161,19 @@ int __meminit __early_pfn_to_nid(unsigne
+> >  {
+> >  	unsigned long start_pfn, end_pfn;
+> >  	int i, nid;
+> > +	static unsigned long last_start_pfn, last_end_pfn;
+> > +	static int last_nid;
+> 
+> Please move these globals out of function local scope, to make it more 
+> apparent that they are not on-stack. I only noticed it in the second pass.
 
-Ahhh, good point!  We stay away from all the "emergency" code, which
-kswapd should never run.
+Wouldn't this just add more confision with other _pfn variables? (e.g.
+{min,max}_low_pfn and others)
 
-Acked-by: Rik van Riel <riel@redhat.com>
-
+IMO the local scope is more obvious as this is and should only be used
+for caching purposes.
 -- 
-All rights reversed
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
