@@ -1,63 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id E7A7D6B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 11:47:34 -0400 (EDT)
-Date: Thu, 21 Mar 2013 15:47:31 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 04/10] mm: vmscan: Decide whether to compact the pgdat
- based on reclaim progress
-Message-ID: <20130321154730.GK1878@suse.de>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 33DC86B0006
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 11:48:12 -0400 (EDT)
+Date: Thu, 21 Mar 2013 16:48:10 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 05/10] mm: vmscan: Do not allow kswapd to scan at maximum
+ priority
+Message-ID: <20130321154810.GR6094@dhcp22.suse.cz>
 References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-5-git-send-email-mgorman@suse.de>
- <20130321153231.GP6094@dhcp22.suse.cz>
+ <1363525456-10448-6-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130321153231.GP6094@dhcp22.suse.cz>
+In-Reply-To: <1363525456-10448-6-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: Mel Gorman <mgorman@suse.de>
 Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Mar 21, 2013 at 04:32:31PM +0100, Michal Hocko wrote:
-> On Sun 17-03-13 13:04:10, Mel Gorman wrote:
-> > In the past, kswapd makes a decision on whether to compact memory after the
-> > pgdat was considered balanced. This more or less worked but it is late to
-> > make such a decision and does not fit well now that kswapd makes a decision
-> > whether to exit the zone scanning loop depending on reclaim progress.
-> > 
-> > This patch will compact a pgdat if at least  the requested number of pages
-> > were reclaimed from unbalanced zones for a given priority. If any zone is
-> > currently balanced, kswapd will not call compaction as it is expected the
-> > necessary pages are already available.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > ---
-> >  mm/vmscan.c | 52 +++++++++++++++++++++-------------------------------
-> >  1 file changed, 21 insertions(+), 31 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 279d0c2..7513bd1 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2694,8 +2694,11 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
-> >  
-> >  	do {
-> >  		unsigned long lru_pages = 0;
-> > +		unsigned long nr_to_reclaim = 0;
-> >  		unsigned long nr_reclaimed = sc.nr_reclaimed;
-> > +		unsigned long this_reclaimed;
-> >  		bool raise_priority = true;
-> > +		bool pgdat_needs_compaction = true;
+On Sun 17-03-13 13:04:11, Mel Gorman wrote:
+> Page reclaim at priority 0 will scan the entire LRU as priority 0 is
+> considered to be a near OOM condition. Kswapd can reach priority 0 quite
+> easily if it is encountering a large number of pages it cannot reclaim
+> such as pages under writeback. When this happens, kswapd reclaims very
+> aggressively even though there may be no real risk of allocation failure
+> or OOM.
 > 
-> I am confused. We don't want to compact for order == 0, do we?
-> 
+> This patch prevents kswapd reaching priority 0 and trying to reclaim
+> the world. Direct reclaimers will still reach priority 0 in the event
+> of an OOM situation.
 
-No, but an order check is made later which I felt it was clearer.  You are
-the second person to bring it up so I'll base the initialisation on order.
+OK, it should work. raise_priority should prevent from pointless
+lowerinng the priority and if there is really nothing to reclaim then
+relying on the direct reclaim is probably a better idea.
+
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/vmscan.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7513bd1..af3bb6f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2891,7 +2891,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  		 */
+>  		if (raise_priority || !this_reclaimed)
+>  			sc.priority--;
+> -	} while (sc.priority >= 0 &&
+> +	} while (sc.priority >= 1 &&
+>  		 !pgdat_balanced(pgdat, order, *classzone_idx));
+>  
+>  out:
+> -- 
+> 1.8.1.4
+> 
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
