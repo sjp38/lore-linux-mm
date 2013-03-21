@@ -1,122 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 6EBFD6B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 14:02:44 -0400 (EDT)
-Date: Thu, 21 Mar 2013 18:02:38 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 02/10] mm: vmscan: Obey proportional scanning
- requirements for kswapd
-Message-ID: <20130321180238.GM1878@suse.de>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-3-git-send-email-mgorman@suse.de>
- <20130321162518.GB27848@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id A9C216B0006
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 14:03:26 -0400 (EDT)
+Received: by mail-ee0-f47.google.com with SMTP id e52so1852640eek.6
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2013 11:03:25 -0700 (PDT)
+Date: Thu, 21 Mar 2013 19:03:21 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
+Message-ID: <20130321180321.GB4185@gmail.com>
+References: <20130318155619.GA18828@sgi.com>
+ <20130321105516.GC18484@gmail.com>
+ <20130321123505.GA6051@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130321162518.GB27848@cmpxchg.org>
+In-Reply-To: <20130321123505.GA6051@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Russ Anderson <rja@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
 
-On Thu, Mar 21, 2013 at 12:25:18PM -0400, Johannes Weiner wrote:
-> On Sun, Mar 17, 2013 at 01:04:08PM +0000, Mel Gorman wrote:
-> > Simplistically, the anon and file LRU lists are scanned proportionally
-> > depending on the value of vm.swappiness although there are other factors
-> > taken into account by get_scan_count().  The patch "mm: vmscan: Limit
-> > the number of pages kswapd reclaims" limits the number of pages kswapd
-> > reclaims but it breaks this proportional scanning and may evenly shrink
-> > anon/file LRUs regardless of vm.swappiness.
+
+* Michal Hocko <mhocko@suse.cz> wrote:
+
+> On Thu 21-03-13 11:55:16, Ingo Molnar wrote:
 > > 
-> > This patch preserves the proportional scanning and reclaim. It does mean
-> > that kswapd will reclaim more than requested but the number of pages will
-> > be related to the high watermark.
+> > * Russ Anderson <rja@sgi.com> wrote:
+> > 
+> > > When booting on a large memory system, the kernel spends
+> > > considerable time in memmap_init_zone() setting up memory zones.
+> > > Analysis shows significant time spent in __early_pfn_to_nid().
+> > > 
+> > > The routine memmap_init_zone() checks each PFN to verify the
+> > > nid is valid.  __early_pfn_to_nid() sequentially scans the list of
+> > > pfn ranges to find the right range and returns the nid.  This does
+> > > not scale well.  On a 4 TB (single rack) system there are 308
+> > > memory ranges to scan.  The higher the PFN the more time spent
+> > > sequentially spinning through memory ranges.
+> > > 
+> > > Since memmap_init_zone() increments pfn, it will almost always be
+> > > looking for the same range as the previous pfn, so check that
+> > > range first.  If it is in the same range, return that nid.
+> > > If not, scan the list as before.
+> > > 
+> > > A 4 TB (single rack) UV1 system takes 512 seconds to get through
+> > > the zone code.  This performance optimization reduces the time
+> > > by 189 seconds, a 36% improvement.
+> > > 
+> > > A 2 TB (single rack) UV2 system goes from 212.7 seconds to 99.8 seconds,
+> > > a 112.9 second (53%) reduction.
+> > 
+> > Nice speedup!
+> > 
+> > A minor nit, in addition to Andrew's suggestion about wrapping 
+> > __early_pfn_to_nid():
+> > 
+> > > Index: linux/mm/page_alloc.c
+> > > ===================================================================
+> > > --- linux.orig/mm/page_alloc.c	2013-03-18 10:52:11.510988843 -0500
+> > > +++ linux/mm/page_alloc.c	2013-03-18 10:52:14.214931348 -0500
+> > > @@ -4161,10 +4161,19 @@ int __meminit __early_pfn_to_nid(unsigne
+> > >  {
+> > >  	unsigned long start_pfn, end_pfn;
+> > >  	int i, nid;
+> > > +	static unsigned long last_start_pfn, last_end_pfn;
+> > > +	static int last_nid;
+> > 
+> > Please move these globals out of function local scope, to make it more 
+> > apparent that they are not on-stack. I only noticed it in the second pass.
 > 
-> Swappiness is about page types, but this implementation compares all
-> LRUs against each other, and I'm not convinced that this makes sense
-> as there is no guaranteed balance between the inactive and active
-> lists.  For example, the active file LRU could get knocked out when
-> it's almost empty while the inactive file LRU has more easy cache than
-> the anon lists combined.
-> 
+> Wouldn't this just add more confision with other _pfn variables? (e.g. 
+> {min,max}_low_pfn and others)
 
-Ok, I see your point. I think Michal was making the same point but I
-failed to understand it the first time around.
+I don't think so.
 
-> Would it be better to compare the sum of file pages with the sum of
-> anon pages and then knock out the smaller pair?
+> IMO the local scope is more obvious as this is and should only be used 
+> for caching purposes.
 
-Yes, it makes more sense but the issue then becomes how can we do that
-sensibly, The following is straight-forward and roughly in line with your
-suggestion but it does not preseve the scanning ratio between active and
-inactive of the remaining LRU lists.
+It's a pattern we actively avoid in kernel code.
 
-                /*
-                 * For kswapd and memcg, reclaim at least the number of pages
-                 * requested. Ensure that the anon and file LRUs shrink
-                 * proportionally what was requested by get_scan_count(). We
-                 * stop reclaiming one LRU and reduce the amount scanning
-                 * required on the other.
-                 */
-                nr_file = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE];
-                nr_anon = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON];
+Thanks,
 
-                if (nr_file > nr_anon) {
-                        nr[LRU_INACTIVE_FILE] -= min(nr_anon, nr[LRU_INACTIVE_FILE]);
-                        nr[LRU_ACTIVE_FILE]   -= min(nr_anon, nr[LRU_ACTIVE_FILE]);
-                        nr[LRU_INACTIVE_ANON] = nr[LRU_ACTIVE_ANON] = 0;
-                } else {
-                        nr[LRU_INACTIVE_ANON] -= min(nr_file, nr[LRU_INACTIVE_ANON]);
-                        nr[LRU_ACTIVE_ANON]   -= min(nr_file, nr[LRU_ACTIVE_ANON]);
-                        nr[LRU_INACTIVE_FILE] = nr[LRU_ACTIVE_FILE] = 0;
-                }
-                scan_adjusted = true;
-
-Preserving the ratio gets complicated and to avoid excessive branching,
-it ends up looking like the following untested code.
-
-		/*
-		 * For kswapd and memcg, reclaim at least the number of pages
-		 * requested. Ensure that the anon and file LRUs shrink
-		 * proportionally what was requested by get_scan_count(). We
-		 * stop reclaiming one LRU and reduce the amount scanning
-		 * required on the other preserving the ratio between the
-		 * active/inactive lists.
-		 *
-		 * Start by preparing to shrink the larger of the LRUs by
-		 * the size of the smaller list.
-		 */
-		nr_file = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE];
-		nr_anon = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON];
-		nr_shrink = (nr_file > nr_anon) ? nr_anon : nr_file;
-		lru = (nr_file > nr_anon) ? LRU_FILE : 0;
-
-		/* Work out the ratio of the inactive/active list */
-		top = min(nr[LRU_ACTIVE + lru], nr[lru]);
-		bottom = max(nr[LRU_ACTIVE + lru], nr[lru]);
-		percentage = top * 100 / bottom;
-		nr_fraction = nr_shrink * percentage / 100;
-		nr_remaining = nr_anon - nr_fraction;
-
-		/* Reduce the remaining pages to scan proportionally */
-		if (nr[LRU_ACTIVE + lru] > nr[lru]) {
-			nr[LRU_ACTIVE + lru] -= min(nr_remaining, nr[LRU_ACTIVE + lru]);
-			nr[lru] -= min(nr_fraction,  nr[lru]);
-		} else {
-			nr[LRU_ACTIVE + lru] -= min(nr_fraction, nr[LRU_ACTIVE + lru]);
-			nr[lru] -= min(nr_remaining,  nr[lru]);
-		}
-
-		/* Stop scanning the smaller LRU */
-		lru = (lru == LRU_FILE) ? LRU_BASE : LRU_FILE;
-		nr[LRU_ACTIVE + lru] = 0;
-		nr[lru] = 0;
-
-Is this what you had in mind or had you something simplier in mind?
-
--- 
-Mel Gorman
-SUSE Labs
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
