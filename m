@@ -1,73 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id AE9566B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 08:35:07 -0400 (EDT)
-Date: Thu, 21 Mar 2013 13:35:05 +0100
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 35E2B6B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 08:56:33 -0400 (EDT)
+Date: Thu, 21 Mar 2013 13:56:28 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
-Message-ID: <20130321123505.GA6051@dhcp22.suse.cz>
-References: <20130318155619.GA18828@sgi.com>
- <20130321105516.GC18484@gmail.com>
+Subject: Re: [RFC][PATCH 0/9] extend hugepage migration
+Message-ID: <20130321125628.GB6051@dhcp22.suse.cz>
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <5148F830.3070601@gmail.com>
+ <1363815326-urchkyxr-mutt-n-horiguchi@ah.jp.nec.com>
+ <514A4B1C.6020201@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130321105516.GC18484@gmail.com>
+In-Reply-To: <514A4B1C.6020201@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Russ Anderson <rja@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
 
-On Thu 21-03-13 11:55:16, Ingo Molnar wrote:
+On Thu 21-03-13 07:49:48, Simon Jeons wrote:
+[...]
+> When I hacking arch/x86/mm/hugetlbpage.c like this,
+> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+> index ae1aa71..87f34ee 100644
+> --- a/arch/x86/mm/hugetlbpage.c
+> +++ b/arch/x86/mm/hugetlbpage.c
+> @@ -354,14 +354,13 @@ hugetlb_get_unmapped_area(struct file *file,
+> unsigned long addr,
 > 
-> * Russ Anderson <rja@sgi.com> wrote:
+> #endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
 > 
-> > When booting on a large memory system, the kernel spends
-> > considerable time in memmap_init_zone() setting up memory zones.
-> > Analysis shows significant time spent in __early_pfn_to_nid().
-> > 
-> > The routine memmap_init_zone() checks each PFN to verify the
-> > nid is valid.  __early_pfn_to_nid() sequentially scans the list of
-> > pfn ranges to find the right range and returns the nid.  This does
-> > not scale well.  On a 4 TB (single rack) system there are 308
-> > memory ranges to scan.  The higher the PFN the more time spent
-> > sequentially spinning through memory ranges.
-> > 
-> > Since memmap_init_zone() increments pfn, it will almost always be
-> > looking for the same range as the previous pfn, so check that
-> > range first.  If it is in the same range, return that nid.
-> > If not, scan the list as before.
-> > 
-> > A 4 TB (single rack) UV1 system takes 512 seconds to get through
-> > the zone code.  This performance optimization reduces the time
-> > by 189 seconds, a 36% improvement.
-> > 
-> > A 2 TB (single rack) UV2 system goes from 212.7 seconds to 99.8 seconds,
-> > a 112.9 second (53%) reduction.
+> -#ifdef CONFIG_X86_64
+> static __init int setup_hugepagesz(char *opt)
+> {
+> unsigned long ps = memparse(opt, &opt);
+> if (ps == PMD_SIZE) {
+> hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
+> - } else if (ps == PUD_SIZE && cpu_has_gbpages) {
+> - hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+> + } else if (ps == PUD_SIZE) {
+> + hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT+4);
+> } else {
+> printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
+> ps >> 20);
 > 
-> Nice speedup!
-> 
-> A minor nit, in addition to Andrew's suggestion about wrapping 
-> __early_pfn_to_nid():
-> 
-> > Index: linux/mm/page_alloc.c
-> > ===================================================================
-> > --- linux.orig/mm/page_alloc.c	2013-03-18 10:52:11.510988843 -0500
-> > +++ linux/mm/page_alloc.c	2013-03-18 10:52:14.214931348 -0500
-> > @@ -4161,10 +4161,19 @@ int __meminit __early_pfn_to_nid(unsigne
-> >  {
-> >  	unsigned long start_pfn, end_pfn;
-> >  	int i, nid;
-> > +	static unsigned long last_start_pfn, last_end_pfn;
-> > +	static int last_nid;
-> 
-> Please move these globals out of function local scope, to make it more 
-> apparent that they are not on-stack. I only noticed it in the second pass.
+> I set boot=hugepagesz=1G hugepages=10, then I got 10 32MB huge pages.
+> What's the difference between these pages which I hacking and normal
+> huge pages?
 
-Wouldn't this just add more confision with other _pfn variables? (e.g.
-{min,max}_low_pfn and others)
+How is this related to the patch set?
+Please _stop_ distracting discussion to unrelated topics!
 
-IMO the local scope is more obvious as this is and should only be used
-for caching purposes.
+Nothing personal but this is just wasting our time.
 -- 
 Michal Hocko
 SUSE Labs
