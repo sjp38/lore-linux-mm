@@ -1,72 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 742616B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 14:43:44 -0400 (EDT)
-Message-ID: <514B5492.4030806@redhat.com>
-Date: Thu, 21 Mar 2013 14:42:26 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 46FC96B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 15:11:22 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH] USB: EHCI: fix for leaking isochronous data
+Date: Thu, 21 Mar 2013 19:10:31 +0000
+References: <Pine.LNX.4.44L0.1303171320560.26486-100000@netrider.rowland.org> <514B3DBB.3060302@web.de> <20130321173324.GY13280@titan.lakedaemon.net>
+In-Reply-To: <20130321173324.GY13280@titan.lakedaemon.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/10] mm: vmscan: Block kswapd if it is encountering
- pages under writeback
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-8-git-send-email-mgorman@suse.de>
-In-Reply-To: <1363525456-10448-8-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <201303211910.31473.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Jason Cooper <jason@lakedaemon.net>
+Cc: Soeren Moch <smoch@web.de>, Alan Stern <stern@rowland.harvard.edu>, USB list <linux-usb@vger.kernel.org>, Andrew Lunn <andrew@lunn.ch>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, linux-mm@kvack.org, Kernel development list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, michael@amarulasolutions.com
 
-On 03/17/2013 09:04 AM, Mel Gorman wrote:
-> Historically, kswapd used to congestion_wait() at higher priorities if it
-> was not making forward progress. This made no sense as the failure to make
-> progress could be completely independent of IO. It was later replaced by
-> wait_iff_congested() and removed entirely by commit 258401a6 (mm: don't
-> wait on congested zones in balance_pgdat()) as it was duplicating logic
-> in shrink_inactive_list().
->
-> This is problematic. If kswapd encounters many pages under writeback and
-> it continues to scan until it reaches the high watermark then it will
-> quickly skip over the pages under writeback and reclaim clean young
-> pages or push applications out to swap.
->
-> The use of wait_iff_congested() is not suited to kswapd as it will only
-> stall if the underlying BDI is really congested or a direct reclaimer was
-> unable to write to the underlying BDI. kswapd bypasses the BDI congestion
-> as it sets PF_SWAPWRITE but even if this was taken into account then it
-> would cause direct reclaimers to stall on writeback which is not desirable.
->
-> This patch sets a ZONE_WRITEBACK flag if direct reclaim or kswapd is
-> encountering too many pages under writeback. If this flag is set and
-> kswapd encounters a PageReclaim page under writeback then it'll assume
-> that the LRU lists are being recycled too quickly before IO can complete
-> and block waiting for some IO to complete.
+On Thursday 21 March 2013, Jason Cooper wrote:
+> On Thu, Mar 21, 2013 at 06:04:59PM +0100, Soeren Moch wrote:
 
-I really like the concept of this patch.
+> > 
+> > Now I found out what is going on here:
+> > 
+> > In itd_urb_transaction() we allocate 9 iTDs for each URB with
+> > number_of_packets == 64 in my case. The iTDs are added to
+> > sched->td_list. For a frame-aligned scheduling we need 8 iTDs, the
+> > 9th one is released back to the front of the streams free_list in
+> > iso_sched_free(). This iTD was cleared after allocation and has a
+> > frame number of 0 now. So for each allocation when now_frame == 0 we
+> > allocate from the dma_pool, not from the free_list. The attached
+> > patch invalidates the frame number in each iTD before it is sent to
+> > the scheduler. This fixes the problem without the need to iterate
+> > over a iTD list.
+> > 
+> > Signed-off-by: Soeren Moch <smoch@web.de>
+> 
+> Wow!  Great work Soeren!  Talk about a long road to a small fix.  Thanks
+> for keeping after it.
 
-> @@ -756,9 +769,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->   				 */
->   				SetPageReclaim(page);
->   				nr_writeback++;
-> +
->   				goto keep_locked;
-> +			} else {
-> +				wait_on_page_writeback(page);
->   			}
-> -			wait_on_page_writeback(page);
->   		}
->
->   		if (!force_reclaim)
++1
 
-This looks like an area for future improvement.
+I hardly understand half of the description above, but that much sounds
+plausible. Is this a bug fix that should get backported to stable kernels?
 
-We do not need to wait for this specific page to finish writeback,
-we only have to wait for any (bunch of) page(s) to finish writeback,
-since we do not particularly care which of the pages from near the
-end of the LRU get reclaimed first.
-
-I wonder if this is one of the causes for the high latencies that
-are sometimes observed in direct reclaim...
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
