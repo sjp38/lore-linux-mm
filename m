@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 0167B6B0037
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 05:18:24 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id CF1E46B003B
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 05:18:26 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [RESEND PATCH part1 1/9] x86: get pg_data_t's memory from other node
-Date: Thu, 21 Mar 2013 17:20:47 +0800
-Message-Id: <1363857655-30658-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [RESEND PATCH part1 2/9] acpi: Print hotplug info in SRAT.
+Date: Thu, 21 Mar 2013 17:20:48 +0800
+Message-Id: <1363857655-30658-3-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1363857655-30658-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1363857655-30658-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,39 +13,50 @@ List-ID: <linux-mm.kvack.org>
 To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, kosaki.motohiro@jp.fujitsu.com, guz.fnst@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+The Hot Pluggable field in SRAT points out if the memory could be
+hotplugged while the system is running. It is useful to print out
+this info when parsing SRAT.
 
-If system can create movable node which all memory of the
-node is allocated as ZONE_MOVABLE, setup_node_data() cannot
-allocate memory for the node's pg_data_t.
-So, use memblock_alloc_try_nid() instead of memblock_alloc_nid()
-to retry when the first allocation fails.
-
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
 ---
- arch/x86/mm/numa.c |    5 ++---
- 1 files changed, 2 insertions(+), 3 deletions(-)
+ arch/x86/mm/srat.c |    9 ++++++---
+ 1 files changed, 6 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 11acdf6..4f754e6 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -214,10 +214,9 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 	 * Allocate node data.  Try node-local memory and then any node.
- 	 * Never allocate in DMA zone.
- 	 */
--	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
-+	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
- 	if (!nd_pa) {
--		pr_err("Cannot find %zu bytes in node %d\n",
--		       nd_size, nid);
-+		pr_err("Cannot find %zu bytes in any node\n", nd_size);
- 		return;
- 	}
- 	nd = __va(nd_pa);
+diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
+index 443f9ef..5055fa7 100644
+--- a/arch/x86/mm/srat.c
++++ b/arch/x86/mm/srat.c
+@@ -146,6 +146,7 @@ int __init
+ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ {
+ 	u64 start, end;
++	u32 hotpluggable;
+ 	int node, pxm;
+ 
+ 	if (srat_disabled())
+@@ -154,7 +155,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ 		goto out_err_bad_srat;
+ 	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
+ 		goto out_err;
+-	if ((ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) && !save_add_info())
++	hotpluggable = ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
++	if (hotpluggable && !save_add_info())
+ 		goto out_err;
+ 
+ 	start = ma->base_address;
+@@ -174,9 +176,10 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ 
+ 	node_set(node, numa_nodes_parsed);
+ 
+-	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
++	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
+ 	       node, pxm,
+-	       (unsigned long long) start, (unsigned long long) end - 1);
++	       (unsigned long long) start, (unsigned long long) end - 1,
++	       hotpluggable ? "Hot Pluggable" : "");
+ 
+ 	return 0;
+ out_err_bad_srat:
 -- 
 1.7.1
 
