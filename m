@@ -1,49 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id ECB456B0005
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 19:55:34 -0400 (EDT)
-Received: by mail-da0-f46.google.com with SMTP id y19so1269330dan.5
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2013 16:55:34 -0700 (PDT)
-Message-ID: <514A4C70.2020303@gmail.com>
-Date: Thu, 21 Mar 2013 07:55:28 +0800
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 2DE166B0006
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 20:06:13 -0400 (EDT)
+Received: by mail-ie0-f181.google.com with SMTP id 17so2870528iea.12
+        for <linux-mm@kvack.org>; Wed, 20 Mar 2013 17:06:12 -0700 (PDT)
+Message-ID: <514A4EEE.1080405@gmail.com>
+Date: Thu, 21 Mar 2013 08:06:06 +0800
 From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 8/9] memory-hotplug: enable memory hotplug to handle hugepage
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1361475708-25991-9-git-send-email-n-horiguchi@ah.jp.nec.com> <51490AD8.9050308@gmail.com> <1363817148-rlt5mp5n-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1363817148-rlt5mp5n-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 5/9] migrate: enable migrate_pages() to migrate hugepage
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1361475708-25991-6-git-send-email-n-horiguchi@ah.jp.nec.com> <20130318154057.GS10192@dhcp22.suse.cz> <1363651636-3lsf20se-mutt-n-horiguchi@ah.jp.nec.com> <5149034A.5050907@gmail.com> <1363816793-7eq6pu0l-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1363816793-7eq6pu0l-mutt-n-horiguchi@ah.jp.nec.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
 
 Hi Naoya,
-On 03/21/2013 06:05 AM, Naoya Horiguchi wrote:
-> On Wed, Mar 20, 2013 at 09:03:20AM +0800, Simon Jeons wrote:
->> Hi Naoya,
->> On 02/22/2013 03:41 AM, Naoya Horiguchi wrote:
->>> Currently we can't offline memory blocks which contain hugepages because
->>> a hugepage is considered as an unmovable page. But now with this patch
->>> series, a hugepage has become movable, so by using hugepage migration we
->>> can offline such memory blocks.
->>>
->>> What's different from other users of hugepage migration is that we need
->>> to decompose all the hugepages inside the target memory block into free
->> For other hugepage migration users, hugepage should be freed to
->> hugepage_freelists after migration, but why I don't see any codes do
->> this?
-> The source hugepages which are migrated by NUMA related system calls
-> (migrate_pages(2), move_pages(2), and mbind(2)) are still useable,
-> so we simply free them into free hugepage pool.
+On 03/21/2013 05:59 AM, Naoya Horiguchi wrote:
+> On Wed, Mar 20, 2013 at 08:31:06AM +0800, Simon Jeons wrote:
+> ...
+>>>>> diff --git v3.8.orig/mm/mempolicy.c v3.8/mm/mempolicy.c
+>>>>> index e2df1c1..8627135 100644
+>>>>> --- v3.8.orig/mm/mempolicy.c
+>>>>> +++ v3.8/mm/mempolicy.c
+>>>>> @@ -525,6 +525,27 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+>>>>>  	return addr != end;
+>>>>>  }
+>>>>>  
+>>>>> +static void check_hugetlb_pmd_range(struct vm_area_struct *vma, pmd_t *pmd,
+>>>>> +		const nodemask_t *nodes, unsigned long flags,
+>>>>> +				    void *private)
+>>>>> +{
+>>>>> +#ifdef CONFIG_HUGETLB_PAGE
+>>>>> +	int nid;
+>>>>> +	struct page *page;
+>>>>> +
+>>>>> +	spin_lock(&vma->vm_mm->page_table_lock);
+>>>>> +	page = pte_page(huge_ptep_get((pte_t *)pmd));
+>>>>> +	spin_unlock(&vma->vm_mm->page_table_lock);
+>>>> I am a bit confused why page_table_lock is used here and why it doesn't
+>>>> cover the page usage.
+>>> I expected this function to do the same for pmd as check_pte_range() does
+>>> for pte, but the above code didn't do it. I should've put spin_unlock
+>>> below migrate_hugepage_add(). Sorry for the confusion.
+>> I still confuse! Could you explain more in details?
+> With the above code, check_hugetlb_pmd_range() checks page_mapcount
+> outside the page table lock, but mapcount can be decremented by
+> __unmap_hugepage_range(), so there's a race.
+> __unmap_hugepage_range() calls page_remove_rmap() inside page table lock,
+> so we can avoid this race by doing whole check_hugetlb_pmd_range()'s work
+> inside the page table lock.
 
-It seems that you misunderstand why I confuse. I can't find where free
-huge pages to hugepage pool, could you point out to me?
+Why you use page_table_lock instead of split ptlock to protect 2MB?
 
-> OTOH, the source hugepages migrated by memory hotremove should not be
-> reusable, because users of memory hotremove want to remove the memory
-> from the system. So we need to free such hugepages forcibly into the
-> buddy pages, otherwise memory offining doesn't work.
 >
 > Thanks,
 > Naoya
