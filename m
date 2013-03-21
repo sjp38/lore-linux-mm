@@ -1,33 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 390D46B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 14:15:02 -0400 (EDT)
-Message-ID: <514B4E6F.6050806@sr71.net>
-Date: Thu, 21 Mar 2013 11:16:15 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 810B86B0006
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 14:15:36 -0400 (EDT)
+Date: Thu, 21 Mar 2013 18:15:32 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 06/10] mm: vmscan: Have kswapd writeback pages based on
+ dirty pages encountered, not priority
+Message-ID: <20130321181532.GP1878@suse.de>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+ <1363525456-10448-7-git-send-email-mgorman@suse.de>
+ <m2620qjdeo.fsf@firstfloor.org>
+ <20130317151155.GC2026@suse.de>
+ <514B4925.2010909@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2, RFC 13/30] thp, mm: implement grab_cache_huge_page_write_begin()
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <1363283435-7666-14-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1363283435-7666-14-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <514B4925.2010909@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
-> +found:
-> +	wait_on_page_writeback(page);
-> +	return page;
-> +}
-> +#endif
+On Thu, Mar 21, 2013 at 01:53:41PM -0400, Rik van Riel wrote:
+> On 03/17/2013 11:11 AM, Mel Gorman wrote:
+> >On Sun, Mar 17, 2013 at 07:42:39AM -0700, Andi Kleen wrote:
+> >>Mel Gorman <mgorman@suse.de> writes:
+> >>
+> >>>@@ -495,6 +495,9 @@ typedef enum {
+> >>>  	ZONE_CONGESTED,			/* zone has many dirty pages backed by
+> >>>  					 * a congested BDI
+> >>>  					 */
+> >>>+	ZONE_DIRTY,			/* reclaim scanning has recently found
+> >>>+					 * many dirty file pages
+> >>>+					 */
+> >>
+> >>Needs a better name. ZONE_DIRTY_CONGESTED ?
+> >>
+> >
+> >That might be confusing. The underlying BDI is not necessarily
+> >congested. I accept your point though and will try thinking of a better
+> >name.
+> 
+> ZONE_LOTS_DIRTY ?
+> 
 
-In grab_cache_page_write_begin(), this "wait" is:
+I had changed it to
 
-        wait_for_stable_page(page);
+        ZONE_TAIL_LRU_DIRTY,            /* reclaim scanning has recently found
+                                         * many dirty file pages at the tail
+                                         * of the LRU.
+                                         */
 
-Why is it different here?
+Is that reasonable?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
