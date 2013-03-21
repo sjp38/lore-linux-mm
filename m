@@ -1,202 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 89ADA6B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 11:07:58 -0400 (EDT)
-Date: Thu, 21 Mar 2013 16:07:55 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 02/10] mm: vmscan: Obey proportional scanning
- requirements for kswapd
-Message-ID: <20130321150755.GN6094@dhcp22.suse.cz>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-3-git-send-email-mgorman@suse.de>
- <20130321140154.GL6094@dhcp22.suse.cz>
- <20130321143114.GM2055@suse.de>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id BCCB56B0027
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 11:22:22 -0400 (EDT)
+Message-ID: <514B25F5.7020207@sr71.net>
+Date: Thu, 21 Mar 2013 08:23:33 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130321143114.GM2055@suse.de>
+Subject: Re: [PATCHv2, RFC 02/30] mm: implement zero_huge_user_segment and
+ friends
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <1363283435-7666-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1363283435-7666-3-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 21-03-13 14:31:15, Mel Gorman wrote:
-> On Thu, Mar 21, 2013 at 03:01:54PM +0100, Michal Hocko wrote:
-> > On Sun 17-03-13 13:04:08, Mel Gorman wrote:
-> > > Simplistically, the anon and file LRU lists are scanned proportionally
-> > > depending on the value of vm.swappiness although there are other factors
-> > > taken into account by get_scan_count().  The patch "mm: vmscan: Limit
-> > > the number of pages kswapd reclaims" limits the number of pages kswapd
-> > > reclaims but it breaks this proportional scanning and may evenly shrink
-> > > anon/file LRUs regardless of vm.swappiness.
-> > > 
-> > > This patch preserves the proportional scanning and reclaim. It does mean
-> > > that kswapd will reclaim more than requested but the number of pages will
-> > > be related to the high watermark.
-> > > 
-> > > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > > ---
-> > >  mm/vmscan.c | 52 +++++++++++++++++++++++++++++++++++++++++-----------
-> > >  1 file changed, 41 insertions(+), 11 deletions(-)
-> > > 
-> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > index 4835a7a..182ff15 100644
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -1815,6 +1815,45 @@ out:
-> > >  	}
-> > >  }
-> > >  
-> > > +static void recalculate_scan_count(unsigned long nr_reclaimed,
-> > > +		unsigned long nr_to_reclaim,
-> > > +		unsigned long nr[NR_LRU_LISTS])
-> > > +{
-> > > +	enum lru_list l;
-> > > +
-> > > +	/*
-> > > +	 * For direct reclaim, reclaim the number of pages requested. Less
-> > > +	 * care is taken to ensure that scanning for each LRU is properly
-> > > +	 * proportional. This is unfortunate and is improper aging but
-> > > +	 * minimises the amount of time a process is stalled.
-> > > +	 */
-> > > +	if (!current_is_kswapd()) {
-> > > +		if (nr_reclaimed >= nr_to_reclaim) {
-> > > +			for_each_evictable_lru(l)
-> > > +				nr[l] = 0;
-> > > +		}
-> > > +		return;
-> > 
-> > Heh, this is nicely cryptically said what could be done in shrink_lruvec
-> > as
-> > 	if (!current_is_kswapd()) {
-> > 		if (nr_reclaimed >= nr_to_reclaim)
-> > 			break;
-> > 	}
-> > 
-> 
-> Pretty much. At one point during development, this function was more
-> complex and it evolved into this without me rechecking if splitting it
-> out still made sense.
-> 
-> > Besides that this is not memcg aware which I think it would break
-> > targeted reclaim which is kind of direct reclaim but it still would be
-> > good to stay proportional because it starts with DEF_PRIORITY.
-> > 
-> 
-> This does break memcg because it's a special sort of direct reclaim.
-> 
-> > I would suggest moving this back to shrink_lruvec and update the test as
-> > follows:
-> 
-> I also noticed that we check whether the scan counts need to be
-> normalised more than once
+On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
+> Let's add helpers to clear huge page segment(s). They provide the same
+> functionallity as zero_user_segment{,s} and zero_user, but for huge
+> pages
+...
+> +static inline void zero_huge_user_segments(struct page *page,
+> +		unsigned start1, unsigned end1,
+> +		unsigned start2, unsigned end2)
+> +{
+> +	zero_huge_user_segment(page, start1, end1);
+> +	zero_huge_user_segment(page, start2, end2);
+> +}
 
-I didn't mind this because it "disqualified" at least one LRU every
-round which sounds reasonable to me because all LRUs would be scanned
-proportionally. E.g. if swappiness is 0 then nr[anon] would be 0 and
-then the active/inactive aging would break? Or am I missing something?
+I'm not sure that this helper saves very much code.  The one call later
+in these patches:
 
-> and this reshuffling checks nr_reclaimed twice. How about this?
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 182ff15..320a2f4 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1815,45 +1815,6 @@ out:
->  	}
->  }
->  
-> -static void recalculate_scan_count(unsigned long nr_reclaimed,
-> -		unsigned long nr_to_reclaim,
-> -		unsigned long nr[NR_LRU_LISTS])
-> -{
-> -	enum lru_list l;
-> -
-> -	/*
-> -	 * For direct reclaim, reclaim the number of pages requested. Less
-> -	 * care is taken to ensure that scanning for each LRU is properly
-> -	 * proportional. This is unfortunate and is improper aging but
-> -	 * minimises the amount of time a process is stalled.
-> -	 */
-> -	if (!current_is_kswapd()) {
-> -		if (nr_reclaimed >= nr_to_reclaim) {
-> -			for_each_evictable_lru(l)
-> -				nr[l] = 0;
-> -		}
-> -		return;
-> -	}
-> -
-> -	/*
-> -	 * For kswapd, reclaim at least the number of pages requested.
-> -	 * However, ensure that LRUs shrink by the proportion requested
-> -	 * by get_scan_count() so vm.swappiness is obeyed.
-> -	 */
-> -	if (nr_reclaimed >= nr_to_reclaim) {
-> -		unsigned long min = ULONG_MAX;
-> -
-> -		/* Find the LRU with the fewest pages to reclaim */
-> -		for_each_evictable_lru(l)
-> -			if (nr[l] < min)
-> -				min = nr[l];
-> -
-> -		/* Normalise the scan counts so kswapd scans proportionally */
-> -		for_each_evictable_lru(l)
-> -			nr[l] -= min;
-> -	}
-> -}
-> -
->  /*
->   * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
->   */
-> @@ -1864,7 +1825,9 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
->  	enum lru_list lru;
->  	unsigned long nr_reclaimed = 0;
->  	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
-> +	unsigned long min;
->  	struct blk_plug plug;
-> +	bool scan_adjusted = false;
->  
->  	get_scan_count(lruvec, sc, nr);
->  
-> @@ -1881,7 +1844,33 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
->  			}
->  		}
->  
-> -		recalculate_scan_count(nr_reclaimed, nr_to_reclaim, nr);
-> +		if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
-> +			continue;
++                       zero_huge_user_segments(page, 0, from,
++                                       from + len, HPAGE_PMD_SIZE);
+
+really only saves one line over this:
+
+			zero_huge_user_segment(page, 0, from);
+			zero_huge_user_segment(page, from + len,
+					       HPAGE_PMD_SIZE);
+
+and I think the second one is much more clear to read.
+
+I do see that there's a small-page variant of this, but I think that one
+was done to save doing two kmap_atomic() operations when you wanted to
+zero two separate operations.  This variant doesn't have that kind of
+optimization, so it makes much less sense.
+
+> +void zero_huge_user_segment(struct page *page, unsigned start, unsigned end)
+> +{
+> +	int i;
+> +	
+> +	BUG_ON(end < start);
 > +
-> +		/*
-> +		 * For global direct reclaim, reclaim only the number of pages
-> +		 * requested. Less care is taken to scan proportionally as it
-> +		 * is more important to minimise direct reclaim stall latency
-> +		 * than it is to properly age the LRU lists.
-> +		 */
-> +		if (global_reclaim(sc) && !current_is_kswapd())
-> +			break;
+> +	might_sleep();
 > +
-> +		/*
-> +		 * For kswapd and memcg, reclaim at least the number of pages
-> +		 * requested. However, ensure that LRUs shrink by the
-> +		 * proportion requested by get_scan_count() so vm.swappiness
-> +		 * is obeyed. Find the smallest LRU list and normalise the
-> +		 * scan counts so the fewest number of pages are reclaimed
-> +		 * while still maintaining proportionality.
-> +		 */
-> +		min = ULONG_MAX;
-> +		for_each_evictable_lru(lru)
-> +			if (nr[lru] < min)
-> +				min = nr[lru];
-> +		for_each_evictable_lru(lru)
-> +			nr[lru] -= min;
-> +		scan_adjusted = true;
->  	}
->  	blk_finish_plug(&plug);
->  	sc->nr_reclaimed += nr_reclaimed;
+> +	if (start == end)
+> +		return;
 
--- 
-Michal Hocko
-SUSE Labs
+I've really got to wonder how much of an optimization this is in
+practice.  Was there a specific reason this was added?
+
+> +	/* start and end are on the same small page */
+> +	if ((start & PAGE_MASK) == ((end - 1) & PAGE_MASK))
+> +		return zero_user_segment(page + (start >> PAGE_SHIFT),
+> +				start & ~PAGE_MASK,
+> +				((end - 1) & ~PAGE_MASK) + 1);
+
+It wasn't immediately obvious to me why we need to optimize the "on the
+same page" case.  I _think_ it's because using zero_user_segments()
+saves us a kmap_atomic() over the code below.  Is that right?  It might
+be worth a comment.
+
+> +	zero_user_segment(page + (start >> PAGE_SHIFT),
+> +			start & ~PAGE_MASK, PAGE_SIZE);
+> +	for (i = (start >> PAGE_SHIFT) + 1; i < (end >> PAGE_SHIFT) - 1; i++) {
+> +		cond_resched();
+> +		clear_highpage(page + i);
+
+zero_user_segments() does a flush_dcache_page(), which wouldn't get done
+on these middle pages.  Is that a problem?
+
+> +	}
+> +	zero_user_segment(page + i, 0, ((end - 1) & ~PAGE_MASK) + 1);
+> +}
+
+This code is dying for some local variables.  It could really use a
+'start_pfn_offset' and 'end_pfn_offset' or something similar.  All of
+the shifting and masking is a bit hard to read and it would be nice to
+think of some real names for what it is doing.
+
+It also desperately needs some comments about how it works.  Some
+one-liners like:
+
+	/* zero the first (possibly partial) page */
+	for()..
+		/* zero the full pages in the middle */
+	/* zero the last (possibly partial) page */
+
+would be pretty sweet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
