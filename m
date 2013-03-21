@@ -1,87 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 5EFE16B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 02:01:49 -0400 (EDT)
-Date: Thu, 21 Mar 2013 08:04:32 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: kernel BUG at mm/huge_memory.c:1802!
-Message-ID: <20130321060432.GA17001@shutemov.name>
-References: <bug-923817-176318@bugzilla.redhat.com>
- <20130320150728.GB1746@redhat.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 971FD6B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 02:10:00 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 91B0F3EE0C1
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 15:09:58 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 760B045DE5E
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 15:09:58 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 423AC45DE55
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 15:09:58 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 3075FE08003
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 15:09:58 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C60371DB8042
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 15:09:57 +0900 (JST)
+Message-ID: <514AA3F3.7090608@jp.fujitsu.com>
+Date: Thu, 21 Mar 2013 15:08:51 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130320150728.GB1746@redhat.com>
+Subject: Re: [PATCH v2 2/5] memcg: provide root figures from system totals
+References: <1362489058-3455-1-git-send-email-glommer@parallels.com> <1362489058-3455-3-git-send-email-glommer@parallels.com> <20130319124650.GE7869@dhcp22.suse.cz> <20130319125509.GF7869@dhcp22.suse.cz> <51495F35.9040302@parallels.com> <20130320080347.GE20045@dhcp22.suse.cz> <51496E71.5010707@parallels.com> <20130320081851.GG20045@dhcp22.suse.cz> <51497479.30701@parallels.com> <20130320085817.GH20045@dhcp22.suse.cz> <514981C3.8070304@parallels.com>
+In-Reply-To: <514981C3.8070304@parallels.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Michel Lespinasse <walken@google.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Fedora Kernel Team <kernel-team@fedoraproject.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, handai.szj@gmail.com, anton.vorontsov@linaro.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-On Wed, Mar 20, 2013 at 11:07:28AM -0400, Dave Jones wrote:
-> More huge page fun reported by one of our users today..
-> 
->  > https://bugzilla.redhat.com/show_bug.cgi?id=923817
->  > 
->  > kernel BUG at mm/huge_memory.c:1802!
->  > invalid opcode: 0000 [#1] SMP 
->  > Modules linked in: arc4 md4 nls_utf8 cifs dns_resolver fscache fuse tun lockd
->  > sunrpc ip6t_REJECT nf_conntrack_ipv6 nf_conntrack_ipv4 nf_defrag_ipv6
->  > nf_defrag_ipv4 xt_conntrack nf_conntrack ip6table_filter ip6_tables binfmt_misc
->  > snd_hda_codec_hdmi snd_hda_codec_realtek snd_hda_intel snd_hda_codec snd_hwdep
->  > iTCO_wdt iTCO_vendor_support snd_seq snd_seq_device snd_pcm snd_page_alloc
->  > snd_timer snd e1000e coretemp mei lpc_ich soundcore mfd_core kvm_intel dcdbas
->  > kvm serio_raw i2c_i801 microcode uinput dm_crypt crc32c_intel
->  > ghash_clmulni_intel i915 i2c_algo_bit drm_kms_helper drm video i2c_core
->  > CPU 0 
->  > Pid: 2125, comm: JS GC Helper Not tainted 3.8.3-203.fc18.x86_64 #1 Dell Inc.
->  > OptiPlex 790/0J3C2F
->  > RIP: 0010:[<ffffffff8118edd1>]  [<ffffffff8118edd1>]
->  > split_huge_page+0x751/0x7e0
->  > RSP: 0018:ffff8801f9f4db98  EFLAGS: 00010297
->  > RAX: 0000000000000001 RBX: ffffea0000b48000 RCX: 000000000000005b
->  > RDX: 0000000000000008 RSI: 0000000000000046 RDI: 0000000000000246
->  > RBP: ffff8801f9f4dc58 R08: 000000000000000a R09: 000000000000034a
->  > R10: 0000000000000000 R11: 0000000000000349 R12: 0000000000000000
->  > R13: 00007fb66765d000 R14: 00003ffffffff000 R15: ffffea0000b48000
->  > FS:  00007fb6b0f33700(0000) GS:ffff88022dc00000(0000) knlGS:0000000000000000
->  > CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->  > CR2: 00007fb69a7e8200 CR3: 00000001cfc04000 CR4: 00000000000407f0
->  > DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
->  > DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
->  > Process JS GC Helper (pid: 2125, threadinfo ffff8801f9f4c000, task
->  > ffff880200bd9760)
->  > Stack:
->  >  ffff8801f9f4dbe8 0000000000000292 ffff8801f9f4dbc8 0000000000000004
->  >  ffffea0000bbd3c0 ffff8801f7a32d40 0000000000b48000 ffffffff8113a5f7
->  >  0000000000000003 ffffc90000000001 00000000f9f4dbf8 00000007fb667600
->  > Call Trace:
->  >  [<ffffffff8113a5f7>] ? free_pcppages_bulk+0x177/0x4f0
->  >  [<ffffffff81198271>] ? mem_cgroup_bad_page_check+0x21/0x30
->  >  [<ffffffff8113ab8d>] ? free_pages_prepare+0x8d/0x140
->  >  [<ffffffff811903d3>] __split_huge_page_pmd+0x133/0x370
->  >  [<ffffffff8115c4fa>] unmap_single_vma+0x7ea/0x880
->  >  [<ffffffff811709dd>] ? free_pages_and_swap_cache+0xad/0xd0
->  >  [<ffffffff8115ce7d>] zap_page_range+0x9d/0x100
->  >  [<ffffffff8109797f>] ? __dequeue_entity+0x2f/0x50
->  >  [<ffffffff81159863>] sys_madvise+0x263/0x740
->  >  [<ffffffff810df18c>] ? __audit_syscall_exit+0x20c/0x2c0
->  >  [<ffffffff81658699>] system_call_fastpath+0x16/0x1b
->  > Code: 0f 0b 0f 0b f3 90 49 8b 07 a9 00 00 00 01 75 f4 e9 d8 fa ff ff be 45 01
->  > 00 00 48 c7 c7 8d 09 9d 81 e8 a4 f8 ec ff e9 c2 fa ff ff <0f> 0b 41 8b 57 18 8b
->  > 75 94 48 c7 c7 d0 0b 9f 81 31 c0 83 c2 01 
->  > RIP  [<ffffffff8118edd1>] split_huge_page+0x751/0x7e0
->  >  RSP <ffff8801f9f4db98>
-> 
-> BUG_ON(mapcount != page_mapcount(page));
+(2013/03/20 18:30), Glauber Costa wrote:
+> On 03/20/2013 12:58 PM, Michal Hocko wrote:
+>> On Wed 20-03-13 12:34:01, Glauber Costa wrote:
+>>> On 03/20/2013 12:18 PM, Michal Hocko wrote:
+>>>> On Wed 20-03-13 12:08:17, Glauber Costa wrote:
+>>>>> On 03/20/2013 12:03 PM, Michal Hocko wrote:
+>>>>>> On Wed 20-03-13 11:03:17, Glauber Costa wrote:
+>>>>>>> On 03/19/2013 04:55 PM, Michal Hocko wrote:
+>>>>>>>> On Tue 19-03-13 13:46:50, Michal Hocko wrote:
+>>>>>>>>> On Tue 05-03-13 17:10:55, Glauber Costa wrote:
+>>>>>>>>>> For the root memcg, there is no need to rely on the res_counters if hierarchy
+>>>>>>>>>> is enabled The sum of all mem cgroups plus the tasks in root itself, is
+>>>>>>>>>> necessarily the amount of memory used for the whole system. Since those figures
+>>>>>>>>>> are already kept somewhere anyway, we can just return them here, without too
+>>>>>>>>>> much hassle.
+>>>>>>>>>>
+>>>>>>>>>> Limit and soft limit can't be set for the root cgroup, so they are left at
+>>>>>>>>>> RESOURCE_MAX. Failcnt is left at 0, because its actual meaning is how many
+>>>>>>>>>> times we failed allocations due to the limit being hit. We will fail
+>>>>>>>>>> allocations in the root cgroup, but the limit will never the reason.
+>>>>>>>>>
+>>>>>>>>> I do not like this very much to be honest. It just adds more hackery...
+>>>>>>>>> Why cannot we simply not account if nr_cgroups == 1 and move relevant
+>>>>>>>>> global counters to the root at the moment when a first group is
+>>>>>>>>> created?
+>>>>>>>>
+>>>>>>>> OK, it seems that the very next patch does what I was looking for. So
+>>>>>>>> why all the churn in this patch?
+>>>>>>>> Why do you want to make root even more special?
+>>>>>>>
+>>>>>>> Because I am operating under the assumption that we want to handle that
+>>>>>>> transparently and keep things working. If you tell me: "Hey, reading
+>>>>>>> memory.usage_in_bytes from root should return 0!", then I can get rid of
+>>>>>>> that.
+>>>>>>
+>>>>>> If you simply switch to accounting for root then you do not have to care
+>>>>>> about this, don't you?
+>>>>>>
+>>>>> Of course not, but the whole point here is *not* accounting root.
+>>>>
+>>>> I thought the objective was to not account root if there are no
+>>>> children.
+>>>
+>>> It is the goal, yes. As I said: I want the root-only case to keep
+>>> providing userspace with meaningful statistics,
+>>
+>> Sure, statistics need to stay at the place. I am not objecting on that.
+>>
+>>> therefore the bypass.
+>>
+>> I am just arguing about bypassing root even when there are children and
+>> use_hierarchy == 1 because it adds more code to maintain.
+>>
+>>> But since the machinery is in place, it is trivial to keep bypassing for
+>>> use_hierarchy = 1 at the root level. If you believe it would be simpler,
+>>> I could refrain from doing it.
+>>
+>> I am all for "the simple the better" and add more optimizations on top.
+>> We have a real issue now and we should eliminate it. My original plan
+>> was to look at the bottlenecks and eliminate them one after another in
+>> smaller steps. But all the work I have on the plate is preempting me
+>> from looking into that...
+>>
+> Been there, done that =)
+>
+> I have no objections removing the special case for use_hierarchy == 1.
+>
+I agree.
 
-Hmm.. I wounder if it can be caused by replacing same_anon_vma linked list
-with an interval tree[1]. __split_huge_page() is sensible to anon_vma
-implementation.
-
-[1] bf181b9 mm anon rmap: replace same_anon_vma linked list with an interval tree.
-
--- 
- Kirill A. Shutemov
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
