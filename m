@@ -1,67 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 61A0B6B0005
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 06:55:21 -0400 (EDT)
-Received: by mail-ea0-f173.google.com with SMTP id h14so790559eak.18
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2013 03:55:19 -0700 (PDT)
-Date: Thu, 21 Mar 2013 11:55:16 +0100
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 1412B6B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 07:00:18 -0400 (EDT)
+Received: by mail-ea0-f178.google.com with SMTP id g14so832242eak.9
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2013 04:00:17 -0700 (PDT)
+Date: Thu, 21 Mar 2013 12:00:14 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
-Message-ID: <20130321105516.GC18484@gmail.com>
-References: <20130318155619.GA18828@sgi.com>
+Subject: Re: [bugfix] mm: zone_end_pfn is too small
+Message-ID: <20130321110014.GD18484@gmail.com>
+References: <20130318153704.GA17359@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130318155619.GA18828@sgi.com>
+In-Reply-To: <20130318153704.GA17359@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Russ Anderson <rja@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cody P Schafer <cody@linux.vnet.ibm.com>, David Hansen <dave@linux.vnet.ibm.com>, Catalin Marinas <catalin.marinas@arm.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, George Beshers <gbeshers@sgi.com>, Hedi Berriche <hedi@sgi.com>
 
 
 * Russ Anderson <rja@sgi.com> wrote:
 
-> When booting on a large memory system, the kernel spends
-> considerable time in memmap_init_zone() setting up memory zones.
-> Analysis shows significant time spent in __early_pfn_to_nid().
+> Booting with 32 TBytes memory hits BUG at mm/page_alloc.c:552! (output below).
 > 
-> The routine memmap_init_zone() checks each PFN to verify the
-> nid is valid.  __early_pfn_to_nid() sequentially scans the list of
-> pfn ranges to find the right range and returns the nid.  This does
-> not scale well.  On a 4 TB (single rack) system there are 308
-> memory ranges to scan.  The higher the PFN the more time spent
-> sequentially spinning through memory ranges.
+> The key hint is "page 4294967296 outside zone".
+> 4294967296 = 0x100000000 (bit 32 is set).
 > 
-> Since memmap_init_zone() increments pfn, it will almost always be
-> looking for the same range as the previous pfn, so check that
-> range first.  If it is in the same range, return that nid.
-> If not, scan the list as before.
+> The problem is in include/linux/mmzone.h:
 > 
-> A 4 TB (single rack) UV1 system takes 512 seconds to get through
-> the zone code.  This performance optimization reduces the time
-> by 189 seconds, a 36% improvement.
+> 530 static inline unsigned zone_end_pfn(const struct zone *zone)
+> 531 {
+> 532         return zone->zone_start_pfn + zone->spanned_pages;
+> 533 }
 > 
-> A 2 TB (single rack) UV2 system goes from 212.7 seconds to 99.8 seconds,
-> a 112.9 second (53%) reduction.
-
-Nice speedup!
-
-A minor nit, in addition to Andrew's suggestion about wrapping 
-__early_pfn_to_nid():
-
-> Index: linux/mm/page_alloc.c
+> zone_end_pfn is "unsigned" (32 bits).  Changing it to 
+> "unsigned long" (64 bits) fixes the problem.
+> 
+> zone_end_pfn() was added recently in commit 108bcc96ef7047c02cad4d229f04da38186a3f3f.
+> http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/include/linux/mmzone.h?id=108bcc96ef7047c02cad4d229f04da38186a3f3f
+> 
+> 
+> Output from the failure.
+> 
+>   No AGP bridge found
+>   page 4294967296 outside zone [ 4294967296 - 4327469056 ]
+>   ------------[ cut here ]------------
+>   kernel BUG at mm/page_alloc.c:552!
+>   invalid opcode: 0000 [#1] SMP 
+>   Modules linked in:
+>   CPU 0 
+>   Pid: 0, comm: swapper Not tainted 3.9.0-rc2.dtp+ #10  
+>   RIP: 0010:[<ffffffff811477d2>]  [<ffffffff811477d2>] free_one_page+0x382/0x430
+>   RSP: 0000:ffffffff81943d98  EFLAGS: 00010002
+>   RAX: 0000000000000001 RBX: ffffea4000000000 RCX: 000000000000b3d9
+>   RDX: 0000000000000000 RSI: 0000000000000086 RDI: 0000000000000046
+>   RBP: ffffffff81943df8 R08: 0000000000000040 R09: 0000000000000023
+>   R10: 00000000000034bf R11: 00000000000034bf R12: ffffea4000000000
+>   R13: ffff981efefd9d80 R14: 0000000000000006 R15: 0000000000000006
+>   FS:  0000000000000000(0000) GS:ffffc90000000000(0000) knlGS:0000000000000000
+>   CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>   CR2: ffffc7defefff000 CR3: 000000000194e000 CR4: 00000000000406b0
+>   DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+>   DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+>   Process swapper (pid: 0, threadinfo ffffffff81942000, task ffffffff81955420)
+>   Stack:
+>    00000000000000ff ffffc900000100a0 ffffc900000100d0 ffffffff00000040
+>    0000000000000000 0000000081148809 0000000000000097 ffffea4000000000
+>    0000000000000006 0000000000000002 0000000101e82bc0 ffffea4000001000
+>   Call Trace:
+>    [<ffffffff81149176>] __free_pages_ok+0x96/0xb0
+>    [<ffffffff8114c585>] __free_pages+0x25/0x50
+>    [<ffffffff8164c006>] __free_pages_bootmem+0x8a/0x8c
+>    [<ffffffff81a9684f>] __free_memory_core+0xea/0x131
+>    [<ffffffff81a968e0>] free_low_memory_core_early+0x4a/0x98
+>    [<ffffffff81a96973>] free_all_bootmem+0x45/0x47
+>    [<ffffffff81a87cff>] mem_init+0x7b/0x14c
+>    [<ffffffff81a70051>] start_kernel+0x216/0x433
+>    [<ffffffff81a6fc59>] ? repair_env_string+0x5b/0x5b
+>    [<ffffffff81a6f5f7>] x86_64_start_reservations+0x2a/0x2c
+>    [<ffffffff81a6f73d>] x86_64_start_kernel+0x144/0x153
+>   Code: 89 f1 ba 01 00 00 00 31 f6 d3 e2 4c 89 ef e8 66 a4 01 00 e9 2c fe ff ff 0f 0b eb fe 0f 0b 66 66 2e 0f 1f 84 00 00 00 00 00 eb f3 <0f> 0b eb fe 0f 0b 0f 1f 84 00 00 00 00 00 eb f6 0f 0b eb fe 49 
+>   RIP  [<ffffffff811477d2>] free_one_page+0x382/0x430
+>    RSP <ffffffff81943d98>
+>   ---[ end trace a7919e7f17c0a725 ]---
+>   Kernel panic - not syncing: Attempted to kill the idle task!
+> 
+> Signed-off-by: Russ Anderson <rja@sgi.com>
+> Reported-by: George Beshers <gbeshers@sgi.com>
+> Acked-by: Hedi Berriche <hedi@sgi.com>
+> 
+> ---
+>  include/linux/mmzone.h |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Index: linux/include/linux/mmzone.h
 > ===================================================================
-> --- linux.orig/mm/page_alloc.c	2013-03-18 10:52:11.510988843 -0500
-> +++ linux/mm/page_alloc.c	2013-03-18 10:52:14.214931348 -0500
-> @@ -4161,10 +4161,19 @@ int __meminit __early_pfn_to_nid(unsigne
+> --- linux.orig/include/linux/mmzone.h	2013-03-18 10:06:59.744082190 -0500
+> +++ linux/include/linux/mmzone.h	2013-03-18 10:23:27.374031648 -0500
+> @@ -527,7 +527,7 @@ static inline int zone_is_oom_locked(con
+>  	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
+>  }
+>  
+> -static inline unsigned zone_end_pfn(const struct zone *zone)
+> +static inline unsigned long zone_end_pfn(const struct zone *zone)
 >  {
->  	unsigned long start_pfn, end_pfn;
->  	int i, nid;
-> +	static unsigned long last_start_pfn, last_end_pfn;
-> +	static int last_nid;
+>  	return zone->zone_start_pfn + zone->spanned_pages;
+>  }
 
-Please move these globals out of function local scope, to make it more 
-apparent that they are not on-stack. I only noticed it in the second pass.
+Ouch...
+
+Any way to get the compiler to complain about the harmful integer 
+truncation here that happens on 64-bit platforms?
 
 Thanks,
 
