@@ -1,79 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id CBAFB6B005A
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 12:58:39 -0400 (EDT)
-Date: Thu, 21 Mar 2013 17:58:37 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 09/10] mm: vmscan: Check if kswapd should writepage once
- per priority
-Message-ID: <20130321165600.GV6094@dhcp22.suse.cz>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-10-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 0A74C6B0036
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 13:05:38 -0400 (EDT)
+Message-ID: <514B3DBB.3060302@web.de>
+Date: Thu, 21 Mar 2013 18:04:59 +0100
+From: Soeren Moch <smoch@web.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1363525456-10448-10-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH] USB: EHCI: fix for leaking isochronous data
+References: <Pine.LNX.4.44L0.1303171320560.26486-100000@netrider.rowland.org>
+In-Reply-To: <Pine.LNX.4.44L0.1303171320560.26486-100000@netrider.rowland.org>
+Content-Type: multipart/mixed;
+ boundary="------------000000010805030108080409"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
+To: Alan Stern <stern@rowland.harvard.edu>
+Cc: Arnd Bergmann <arnd@arndb.de>, USB list <linux-usb@vger.kernel.org>, Jason Cooper <jason@lakedaemon.net>, Andrew Lunn <andrew@lunn.ch>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, linux-mm@kvack.org, Kernel development list <linux-kernel@vger.kernel.org>, linux-arm-kernel@lists.infradead.org, michael@amarulasolutions.com
 
-On Sun 17-03-13 13:04:15, Mel Gorman wrote:
-> Currently kswapd checks if it should start writepage as it shrinks
-> each zone without taking into consideration if the zone is balanced or
-> not. This is not wrong as such but it does not make much sense either.
-> This patch checks once per priority if kswapd should be writing pages.
+This is a multi-part message in MIME format.
+--------------000000010805030108080409
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Except it is not once per priority strictly speaking...  It doesn't make
-any difference though.
+On 03/17/13 18:36, Alan Stern wrote:
+> On Sun, 17 Mar 2013, Soeren Moch wrote:
+>
+>> For each device only one isochronous endpoint is used (EP IN4, 1x 940
+>> Bytes, Interval 1).
+>> When the ENOMEM error occurs, a huge number of iTDs is in the free_list
+>> of one stream. This number is much higher than the 2*M entries, which
+>> should be there according to your description.
+>
+> Okay, but how did they get there?  With each URB requiring 9 iTDs, and
+> about 5 URBs active at any time, there should be about 5*9 = 45 iTDs in
+> use and 2*9 = 18 iTDs on the free list.  By the time each URB
+> completes, it should have released all 9 iTDs back to the free list,
+> and each time an URB is submitted, it should be able to acquire all 9
+> of the iTDs that it needs from the free list -- it shouldn't have to
+> allocate any from the DMA pool.
+>
+> Looks like you'll have to investigate what's going on inside
+> itd_urb_transaction().  Print out some useful information whenever the
+> size of stream->free_list is above 50, such as the value of num_itds,
+> how many of the loop iterations could get an iTD from the free list,
+> and the value of itd->frame in the case where the "goto alloc_itd"
+> statement is followed.
+>
+> It might be a good idea also to print out the size of the free list in
+> itd_complete(), where it calls ehci_urb_done(), and include the value
+> of ehci->now_frame.
+>
 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Now I found out what is going on here:
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+In itd_urb_transaction() we allocate 9 iTDs for each URB with 
+number_of_packets == 64 in my case. The iTDs are added to 
+sched->td_list. For a frame-aligned scheduling we need 8 iTDs, the 9th 
+one is released back to the front of the streams free_list in 
+iso_sched_free(). This iTD was cleared after allocation and has a frame 
+number of 0 now. So for each allocation when now_frame == 0 we allocate 
+from the dma_pool, not from the free_list. The attached patch 
+invalidates the frame number in each iTD before it is sent to the 
+scheduler. This fixes the problem without the need to iterate over a iTD 
+list.
 
-> ---
->  mm/vmscan.c | 14 +++++++-------
->  1 file changed, 7 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 84375b2..8c66e5a 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2804,6 +2804,13 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  		}
->  
->  		/*
-> +		 * If we're getting trouble reclaiming, start doing writepage
-> +		 * even in laptop mode.
-> +		 */
-> +		if (sc.priority < DEF_PRIORITY - 2)
-> +			sc.may_writepage = 1;
-> +
-> +		/*
->  		 * Now scan the zone in the dma->highmem direction, stopping
->  		 * at the last zone which needs scanning.
->  		 *
-> @@ -2876,13 +2883,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  				nr_to_reclaim += sc.nr_to_reclaim;
->  			}
->  
-> -			/*
-> -			 * If we're getting trouble reclaiming, start doing
-> -			 * writepage even in laptop mode.
-> -			 */
-> -			if (sc.priority < DEF_PRIORITY - 2)
-> -				sc.may_writepage = 1;
-> -
->  			if (zone->all_unreclaimable) {
->  				if (end_zone && end_zone == i)
->  					end_zone--;
-> -- 
-> 1.8.1.4
-> 
+Signed-off-by: Soeren Moch <smoch@web.de>
 
--- 
-Michal Hocko
-SUSE Labs
+
+
+
+--------------000000010805030108080409
+Content-Type: text/x-patch;
+ name="ehci.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="ehci.diff"
+
+--- linux-3.9.0-rc3-guru/drivers/usb/host/ehci-sched.c.orig	2013-03-21 17:36:21.000000000 +0100
++++ linux-3.9.0-rc3-guru/drivers/usb/host/ehci-sched.c	2013-03-21 17:38:56.000000000 +0100
+@@ -1214,6 +1214,7 @@ itd_urb_transaction (
+ 
+ 		memset (itd, 0, sizeof *itd);
+ 		itd->itd_dma = itd_dma;
++		itd->frame = -1;
+ 		list_add (&itd->itd_list, &sched->td_list);
+ 	}
+ 	spin_unlock_irqrestore (&ehci->lock, flags);
+@@ -1915,6 +1916,7 @@ sitd_urb_transaction (
+ 
+ 		memset (sitd, 0, sizeof *sitd);
+ 		sitd->sitd_dma = sitd_dma;
++		sitd->frame = -1;
+ 		list_add (&sitd->sitd_list, &iso_sched->td_list);
+ 	}
+ 
+
+--------------000000010805030108080409--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
