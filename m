@@ -1,75 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 0CCF06B003C
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 05:18:44 -0400 (EDT)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH part2 3/4] x86, mm, numa, acpi: Consider hotplug info when cleanup numa_meminfo.
-Date: Thu, 21 Mar 2013 17:21:15 +0800
-Message-Id: <1363857676-30694-4-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1363857676-30694-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1363857676-30694-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 700866B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 05:47:18 -0400 (EDT)
+Date: Thu, 21 Mar 2013 09:47:13 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd
+ reclaims at each priority
+Message-ID: <20130321094713.GD1878@suse.de>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+ <1363525456-10448-2-git-send-email-mgorman@suse.de>
+ <20130320161847.GD27375@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130320161847.GD27375@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, kosaki.motohiro@jp.fujitsu.com, guz.fnst@cn.fujitsu.com
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
 
-Since we have introduced hotplug info into struct numa_meminfo, we need
-to consider it when cleanup numa_meminfo.
+On Wed, Mar 20, 2013 at 05:18:47PM +0100, Michal Hocko wrote:
+> On Sun 17-03-13 13:04:07, Mel Gorman wrote:
+> [...]
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 88c5fed..4835a7a 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2593,6 +2593,32 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+> >  }
+> >  
+> >  /*
+> > + * kswapd shrinks the zone by the number of pages required to reach
+> > + * the high watermark.
+> > + */
+> > +static void kswapd_shrink_zone(struct zone *zone,
+> > +			       struct scan_control *sc,
+> > +			       unsigned long lru_pages)
+> > +{
+> > +	unsigned long nr_slab;
+> > +	struct reclaim_state *reclaim_state = current->reclaim_state;
+> > +	struct shrink_control shrink = {
+> > +		.gfp_mask = sc->gfp_mask,
+> > +	};
+> > +
+> > +	/* Reclaim above the high watermark. */
+> > +	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
+> 
+> OK, so the cap is at high watermark which sounds OK to me, although I
+> would expect balance_gap being considered here. Is it not used
+> intentionally or you just wanted to have a reasonable upper bound?
+> 
 
-The original logic in numa_cleanup_meminfo() is:
-Merge blocks on the same node, holes between which don't overlap with
-memory on other nodes.
+It's intentional. The balance_gap is taken into account before the
+decision to shrink but not afterwards. As the watermark check after
+shrinking is based on just the high watermark, I decided to have
+shrink_zone reclaim on that basis.
 
-This patch modifies numa_cleanup_meminfo() logic like this:
-Merge blocks with the same hotpluggable type on the same node, holes
-between which don't overlap with memory on other nodes.
-
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
----
- arch/x86/mm/numa.c |   13 +++++++++----
- 1 files changed, 9 insertions(+), 4 deletions(-)
-
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 5f98bb5..0c3a278 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -304,18 +304,22 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
- 			}
- 
- 			/*
--			 * Join together blocks on the same node, holes
--			 * between which don't overlap with memory on other
--			 * nodes.
-+			 * Join together blocks on the same node, with the same
-+			 * hotpluggable flags, holes between which don't overlap
-+			 * with memory on other nodes.
- 			 */
- 			if (bi->nid != bj->nid)
- 				continue;
-+			if (bi->hotpluggable != bj->hotpluggable)
-+				continue;
-+
- 			start = min(bi->start, bj->start);
- 			end = max(bi->end, bj->end);
- 			for (k = 0; k < mi->nr_blks; k++) {
- 				struct numa_memblk *bk = &mi->blk[k];
- 
--				if (bi->nid == bk->nid)
-+				if (bi->nid == bk->nid &&
-+				    bi->hotpluggable == bk->hotpluggable)
- 					continue;
- 				if (start < bk->end && end > bk->start)
- 					break;
-@@ -335,6 +339,7 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
- 	for (i = mi->nr_blks; i < ARRAY_SIZE(mi->blk); i++) {
- 		mi->blk[i].start = mi->blk[i].end = 0;
- 		mi->blk[i].nid = NUMA_NO_NODE;
-+		mi->blk[i].hotpluggable = false;
- 	}
- 
- 	return 0;
 -- 
-1.7.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
