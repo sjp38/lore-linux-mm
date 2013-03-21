@@ -1,119 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id F15286B0037
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 12:47:38 -0400 (EDT)
-Date: Thu, 21 Mar 2013 17:47:36 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 08/10] mm: vmscan: Have kswapd shrink slab only once per
- priority
-Message-ID: <20130321164736.GU6094@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 1E8096B005A
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 12:47:41 -0400 (EDT)
+Date: Thu, 21 Mar 2013 16:47:37 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd
+ reclaims at each priority
+Message-ID: <20130321164737.GL1878@suse.de>
 References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-9-git-send-email-mgorman@suse.de>
+ <1363525456-10448-2-git-send-email-mgorman@suse.de>
+ <20130321155705.GA27848@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1363525456-10448-9-git-send-email-mgorman@suse.de>
+In-Reply-To: <20130321155705.GA27848@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Sun 17-03-13 13:04:14, Mel Gorman wrote:
-> If kswaps fails to make progress but continues to shrink slab then it'll
-> either discard all of slab or consume CPU uselessly scanning shrinkers.
-> This patch causes kswapd to only call the shrinkers once per priority.
+On Thu, Mar 21, 2013 at 11:57:05AM -0400, Johannes Weiner wrote:
+> On Sun, Mar 17, 2013 at 01:04:07PM +0000, Mel Gorman wrote:
+> > The number of pages kswapd can reclaim is bound by the number of pages it
+> > scans which is related to the size of the zone and the scanning priority. In
+> > many cases the priority remains low because it's reset every SWAP_CLUSTER_MAX
+> > reclaimed pages but in the event kswapd scans a large number of pages it
+> > cannot reclaim, it will raise the priority and potentially discard a large
+> > percentage of the zone as sc->nr_to_reclaim is ULONG_MAX. The user-visible
+> > effect is a reclaim "spike" where a large percentage of memory is suddenly
+> > freed. It would be bad enough if this was just unused memory but because
+> > of how anon/file pages are balanced it is possible that applications get
+> > pushed to swap unnecessarily.
+> > 
+> > This patch limits the number of pages kswapd will reclaim to the high
+> > watermark. Reclaim will will overshoot due to it not being a hard limit as
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> will -> still?
+> 
+> > shrink_lruvec() will ignore the sc.nr_to_reclaim at DEF_PRIORITY but it
+> > prevents kswapd reclaiming the world at higher priorities. The number of
+> > pages it reclaims is not adjusted for high-order allocations as kswapd will
+> > reclaim excessively if it is to balance zones for high-order allocations.
+> 
+> I don't really understand this last sentence.  Is the excessive
+> reclaim a result of the patch, a description of what's happening
+> now...?
+> 
 
-OK, looks good.
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+It's a very basic description of what happens now and with the patch
+applied. Until patch 5 is applied, kswapd can still reclaim the world if
+it reaches priority 0.
 
-> ---
->  mm/vmscan.c | 28 +++++++++++++++++++++-------
->  1 file changed, 21 insertions(+), 7 deletions(-)
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 7d5a932..84375b2 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2661,9 +2661,10 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
->   */
->  static bool kswapd_shrink_zone(struct zone *zone,
->  			       struct scan_control *sc,
-> -			       unsigned long lru_pages)
-> +			       unsigned long lru_pages,
-> +			       bool shrinking_slab)
->  {
-> -	unsigned long nr_slab;
-> +	unsigned long nr_slab = 0;
->  	struct reclaim_state *reclaim_state = current->reclaim_state;
->  	struct shrink_control shrink = {
->  		.gfp_mask = sc->gfp_mask,
-> @@ -2673,9 +2674,15 @@ static bool kswapd_shrink_zone(struct zone *zone,
->  	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
->  	shrink_zone(zone, sc);
->  
-> -	reclaim_state->reclaimed_slab = 0;
-> -	nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
-> -	sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-> +	/*
-> +	 * Slabs are shrunk for each zone once per priority or if the zone
-> +	 * being balanced is otherwise unreclaimable
-> +	 */
-> +	if (shrinking_slab || !zone_reclaimable(zone)) {
-> +		reclaim_state->reclaimed_slab = 0;
-> +		nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
-> +		sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-> +	}
->  
->  	if (nr_slab == 0 && !zone_reclaimable(zone))
->  		zone->all_unreclaimable = 1;
-> @@ -2713,6 +2720,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
->  	unsigned long nr_soft_reclaimed;
->  	unsigned long nr_soft_scanned;
-> +	bool shrinking_slab = true;
->  	struct scan_control sc = {
->  		.gfp_mask = GFP_KERNEL,
->  		.priority = DEF_PRIORITY,
-> @@ -2861,7 +2869,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  				 * already being scanned that that high
->  				 * watermark would be met at 100% efficiency.
->  				 */
-> -				if (kswapd_shrink_zone(zone, &sc, lru_pages))
-> +				if (kswapd_shrink_zone(zone, &sc,
-> +						lru_pages, shrinking_slab))
->  					raise_priority = false;
->  
->  				nr_to_reclaim += sc.nr_to_reclaim;
-> @@ -2900,6 +2909,9 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  				pfmemalloc_watermark_ok(pgdat))
->  			wake_up(&pgdat->pfmemalloc_wait);
->  
-> +		/* Only shrink slab once per priority */
-> +		shrinking_slab = false;
-> +
->  		/*
->  		 * Fragmentation may mean that the system cannot be rebalanced
->  		 * for high-order allocations in all zones. If twice the
-> @@ -2925,8 +2937,10 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  		 * Raise priority if scanning rate is too low or there was no
->  		 * progress in reclaiming pages
->  		 */
-> -		if (raise_priority || !this_reclaimed)
-> +		if (raise_priority || !this_reclaimed) {
->  			sc.priority--;
-> +			shrinking_slab = true;
-> +		}
->  	} while (sc.priority >= 1 &&
->  		 !pgdat_balanced(pgdat, order, *classzone_idx));
->  
-> -- 
-> 1.8.1.4
+> Nice, thank you.  Using the high watermark for larger zones is more
+> reasonable than my hack that just always went with SWAP_CLUSTER_MAX,
+> what with inter-zone LRU cycle time balancing and all.
 > 
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Thanks.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
