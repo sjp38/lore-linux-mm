@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 2F69D6B0044
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 05:18:29 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 566DA6B0036
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 05:18:27 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [RESEND PATCH part1 6/9] x86, mm, numa, acpi: Support getting hotplug info from SRAT.
-Date: Thu, 21 Mar 2013 17:20:52 +0800
-Message-Id: <1363857655-30658-7-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [RESEND PATCH part1 3/9] x86, mm, numa, acpi: Add movable_memmap boot option.
+Date: Thu, 21 Mar 2013 17:20:49 +0800
+Message-Id: <1363857655-30658-4-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1363857655-30658-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1363857655-30658-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,237 +13,226 @@ List-ID: <linux-mm.kvack.org>
 To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, kosaki.motohiro@jp.fujitsu.com, guz.fnst@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-We now provide an option for users who don't want to specify physical
-memory address in kernel commandline.
+Add functions to parse movablemem_map boot option. Since the option
+could be specified more then once, all the maps will be stored in the
+global array movablemem_map.map[].
 
-        /*
-         * For movablemem_map=acpi:
-         *
-         * SRAT:                |_____| |_____| |_________| |_________| ......
-         * node id:                0       1         1           2
-         * hotpluggable:           n       y         y           n
-         * movablemem_map:              |_____| |_________|
-         *
-         * Using movablemem_map, we can prevent memblock from allocating memory
-         * on ZONE_MOVABLE at boot time.
-         */
-
-So user just specify movablemem_map=acpi, and the kernel will use hotpluggable
-info in SRAT to determine which memory ranges should be set as ZONE_MOVABLE.
-
-NOTE: Using this way will cause NUMA performance down because the whole node
-      will be set as ZONE_MOVABLE, and kernel cannot use memory on it.
-      If users don't want to lose NUMA performance, just don't use it.
+And also, we keep the array in monotonic increasing order by start_pfn.
+And merge all overlapped ranges.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
+Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
 ---
- Documentation/kernel-parameters.txt |   15 +++++++
- arch/x86/mm/srat.c                  |   74 +++++++++++++++++++++++++++++++++--
- include/linux/mm.h                  |    2 +
- mm/page_alloc.c                     |   22 ++++++++++-
- 4 files changed, 108 insertions(+), 5 deletions(-)
+ Documentation/kernel-parameters.txt |   21 ++++++
+ include/linux/mm.h                  |   11 +++
+ mm/page_alloc.c                     |  131 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 163 insertions(+), 0 deletions(-)
 
 diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index dd3a36a..40387a2 100644
+index 4609e81..dd3a36a 100644
 --- a/Documentation/kernel-parameters.txt
 +++ b/Documentation/kernel-parameters.txt
-@@ -1649,6 +1649,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+@@ -1649,6 +1649,27 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
  			that the amount of memory usable for all allocations
  			is not too small.
  
-+	movablemem_map=acpi
++	movablemem_map=nn[KMG]@ss[KMG]
 +			[KNL,X86,IA-64,PPC] This parameter is similar to
 +			memmap except it specifies the memory map of
 +			ZONE_MOVABLE.
-+			This option inform the kernel to use Hot Pluggable bit
-+			in flags from SRAT from ACPI BIOS to determine which
-+			memory devices could be hotplugged. The corresponding
-+			memory ranges will be set as ZONE_MOVABLE.
-+			NOTE: Whatever node the kernel resides in will always
-+			      be un-hotpluggable.
++			If user specifies memory ranges, the info in SRAT will
++			be ingored. And it works like the following:
++			- If more ranges are all within one node, then from
++			  lowest ss to the end of the node will be ZONE_MOVABLE.
++			- If a range is within a node, then from ss to the end
++			  of the node will be ZONE_MOVABLE.
++			- If a range covers two or more nodes, then from ss to
++			  the end of the 1st node will be ZONE_MOVABLE, and all
++			  the rest nodes will only have ZONE_MOVABLE.
++			If memmap is specified at the same time, the
++			movablemem_map will be limited within the memmap
++			areas. If kernelcore or movablecore is also specified,
++			movablemem_map will have higher priority to be
++			satisfied. So the administrator should be careful that
++			the amount of movablemem_map areas are not too large.
++			Otherwise kernel won't have enough memory to start.
 +
- 	movablemem_map=nn[KMG]@ss[KMG]
- 			[KNL,X86,IA-64,PPC] This parameter is similar to
- 			memmap except it specifies the memory map of
-@@ -1669,6 +1680,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			satisfied. So the administrator should be careful that
- 			the amount of movablemem_map areas are not too large.
- 			Otherwise kernel won't have enough memory to start.
-+			NOTE: We don't stop users specifying the node the
-+			      kernel resides in as hotpluggable so that this
-+			      option can be used as a workaround of firmware
-+			      bugs.
- 
  	MTD_Partition=	[MTD]
  			Format: <name>,<region-number>,<size>,<offset>
-diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-index 44a9b9b..4f443de 100644
---- a/arch/x86/mm/srat.c
-+++ b/arch/x86/mm/srat.c
-@@ -142,15 +142,78 @@ static inline int save_add_info(void) {return 0;}
- #endif
+ 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 1c79b10..9c068d5 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1332,6 +1332,17 @@ extern void free_bootmem_with_active_regions(int nid,
+ 						unsigned long max_low_pfn);
+ extern void sparse_memory_present_with_active_regions(int nid);
+ 
++#define MOVABLEMEM_MAP_MAX MAX_NUMNODES
++struct movablemem_entry {
++	unsigned long start_pfn;    /* start pfn of memory segment */
++	unsigned long end_pfn;      /* end pfn of memory segment (exclusive) */
++};
++
++struct movablemem_map {
++	int nr_map;
++	struct movablemem_entry map[MOVABLEMEM_MAP_MAX];
++};
++
+ #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ 
+ #if !defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP) && \
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f368db4..27fcd29 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -202,6 +202,9 @@ static unsigned long __meminitdata nr_all_pages;
+ static unsigned long __meminitdata dma_reserve;
  
  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
--static void __init sanitize_movablemem_map(int nid, u64 start, u64 end)
-+static void __init sanitize_movablemem_map(int nid, u64 start, u64 end,
-+					   bool hotpluggable)
- {
--	int overlap;
-+	int overlap, i;
- 	unsigned long start_pfn, end_pfn;
++/* Movable memory ranges, will also be used by memblock subsystem. */
++struct movablemem_map movablemem_map;
++
+ static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
+ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
+ static unsigned long __initdata required_kernelcore;
+@@ -5061,6 +5064,134 @@ static int __init cmdline_parse_movablecore(char *p)
+ early_param("kernelcore", cmdline_parse_kernelcore);
+ early_param("movablecore", cmdline_parse_movablecore);
  
- 	start_pfn = PFN_DOWN(start);
- 	end_pfn = PFN_UP(end);
- 
- 	/*
-+	 * For movablemem_map=acpi:
-+	 *
-+	 * SRAT:                |_____| |_____| |_________| |_________| ......
-+	 * node id:                0       1         1           2
-+	 * hotpluggable:           n       y         y           n
-+	 * movablemem_map:              |_____| |_________|
-+	 *
-+	 * Using movablemem_map, we can prevent memblock from allocating memory
-+	 * on ZONE_MOVABLE at boot time.
-+	 *
-+	 * Before parsing SRAT, memblock has already reserve some memory ranges
-+	 * for other purposes, such as for kernel image. We cannot prevent
-+	 * kernel from using these memory, so we need to exclude these memory
-+	 * even if it is hotpluggable.
-+	 * Furthermore, to ensure the kernel has enough memory to boot, we make
-+	 * all the memory on the node which the kernel resides in should be
-+	 * un-hotpluggable.
++/**
++ * insert_movablemem_map - Insert a memory range in to movablemem_map.map.
++ * @start_pfn:	start pfn of the range
++ * @end_pfn:	end pfn of the range
++ *
++ * This function will also merge the overlapped ranges, and sort the array
++ * by start_pfn in monotonic increasing order.
++ */
++static void __init insert_movablemem_map(unsigned long start_pfn,
++					  unsigned long end_pfn)
++{
++	int pos, overlap;
++
++	/*
++	 * pos will be at the 1st overlapped range, or the position
++	 * where the element should be inserted.
 +	 */
-+	if (hotpluggable && movablemem_map.acpi) {
-+		/* Exclude ranges reserved by memblock. */
-+		struct memblock_type *rgn = &memblock.reserved;
++	for (pos = 0; pos < movablemem_map.nr_map; pos++)
++		if (start_pfn <= movablemem_map.map[pos].end_pfn)
++			break;
 +
-+		for (i = 0; i < rgn->cnt; i++) {
-+			if (end <= rgn->regions[i].base ||
-+			    start >= rgn->regions[i].base +
-+			    rgn->regions[i].size)
-+				continue;
-+
-+			/*
-+			 * If the memory range overlaps the memory reserved by
-+			 * memblock, then the kernel resides in this node.
-+			 */
-+			node_set(nid, movablemem_map.numa_nodes_kernel);
-+			zone_movable_limit[nid] = 0;
-+
-+			return;
-+		}
-+
++	/* If there is no overlapped range, just insert the element. */
++	if (pos == movablemem_map.nr_map ||
++	    end_pfn < movablemem_map.map[pos].start_pfn) {
 +		/*
-+		 * If the kernel resides in this node, then the whole node
-+		 * should not be hotpluggable.
++		 * If pos is not the end of array, we need to move all
++		 * the rest elements backward.
 +		 */
-+		if (node_isset(nid, movablemem_map.numa_nodes_kernel)) {
-+			zone_movable_limit[nid] = 0;
-+			return;
-+		}
-+
-+		/*
-+		 * Otherwise, if the range is hotpluggable, and the kernel is
-+		 * not on this node, insert it into movablemem_map.
-+		 */
-+		insert_movablemem_map(start_pfn, end_pfn);
-+		if (zone_movable_limit[nid])
-+			zone_movable_limit[nid] = min(zone_movable_limit[nid],
-+						      start_pfn);
-+		else
-+			zone_movable_limit[nid] = start_pfn;
-+
++		if (pos < movablemem_map.nr_map)
++			memmove(&movablemem_map.map[pos+1],
++				&movablemem_map.map[pos],
++				sizeof(struct movablemem_entry) *
++				(movablemem_map.nr_map - pos));
++		movablemem_map.map[pos].start_pfn = start_pfn;
++		movablemem_map.map[pos].end_pfn = end_pfn;
++		movablemem_map.nr_map++;
 +		return;
 +	}
 +
-+	/*
- 	 * For movablemem_map=nn[KMG]@ss[KMG]:
- 	 *
- 	 * SRAT:                |_____| |_____| |_________| |_________| ......
-@@ -160,6 +223,8 @@ static void __init sanitize_movablemem_map(int nid, u64 start, u64 end)
- 	 *
- 	 * Using movablemem_map, we can prevent memblock from allocating memory
- 	 * on ZONE_MOVABLE at boot time.
-+	 *
-+	 * NOTE: In this case, SRAT info will be ingored.
- 	 */
- 	overlap = movablemem_map_overlap(start_pfn, end_pfn);
- 	if (overlap >= 0) {
-@@ -189,7 +254,8 @@ static void __init sanitize_movablemem_map(int nid, u64 start, u64 end)
- 	}
- }
- #else		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
--static inline void sanitize_movablemem_map(int nid, u64 start, u64 end)
-+static inline void sanitize_movablemem_map(int nid, u64 start, u64 end,
-+					   bool hotpluggable)
- {
- }
- #endif		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-@@ -234,7 +300,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- 	       (unsigned long long) start, (unsigned long long) end - 1,
- 	       hotpluggable ? "Hot Pluggable" : "");
- 
--	sanitize_movablemem_map(node, start, end);
-+	sanitize_movablemem_map(node, start, end, hotpluggable);
- 
- 	return 0;
- out_err_bad_srat:
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index d2c5fec..37cf1d7 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1339,8 +1339,10 @@ struct movablemem_entry {
- };
- 
- struct movablemem_map {
-+	bool acpi;	/* True if using SRAT info. */
- 	int nr_map;
- 	struct movablemem_entry map[MOVABLEMEM_MAP_MAX];
-+	nodemask_t numa_nodes_kernel;   /* on which nodes kernel resides in */
- };
- 
- extern struct movablemem_map movablemem_map;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f451ded..31d27af 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -203,7 +203,10 @@ static unsigned long __meminitdata dma_reserve;
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- /* Movable memory ranges, will also be used by memblock subsystem. */
--struct movablemem_map movablemem_map;
-+struct movablemem_map movablemem_map = {
-+	.acpi = false,
-+	.nr_map = 0,
-+};
- 
- static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
- static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
-@@ -5204,6 +5207,23 @@ static int __init cmdline_parse_movablemem_map(char *p)
- 	if (!p)
- 		goto err;
- 
-+	if (!strcmp(p, "acpi"))
-+		movablemem_map.acpi = true;
++	/* overlap will be at the last overlapped range */
++	for (overlap = pos + 1; overlap < movablemem_map.nr_map; overlap++)
++		if (end_pfn < movablemem_map.map[overlap].start_pfn)
++			break;
 +
 +	/*
-+	 * If user decide to use info from BIOS, all the other user specified
-+	 * ranges will be ingored.
++	 * If there are more ranges overlapped, we need to merge them,
++	 * and move the rest elements forward.
 +	 */
-+	if (movablemem_map.acpi) {
-+		if (movablemem_map.nr_map) {
-+			memset(movablemem_map.map, 0,
-+			       sizeof(struct movablemem_entry) *
-+			       movablemem_map.nr_map);
-+			movablemem_map.nr_map = 0;
-+		}
-+		return 0;
++	overlap--;
++	movablemem_map.map[pos].start_pfn = min(start_pfn,
++					movablemem_map.map[pos].start_pfn);
++	movablemem_map.map[pos].end_pfn = max(end_pfn,
++					movablemem_map.map[overlap].end_pfn);
++
++	if (pos != overlap && overlap + 1 != movablemem_map.nr_map)
++		memmove(&movablemem_map.map[pos+1],
++			&movablemem_map.map[overlap+1],
++			sizeof(struct movablemem_entry) *
++			(movablemem_map.nr_map - overlap - 1));
++
++	movablemem_map.nr_map -= overlap - pos;
++}
++
++/**
++ * movablemem_map_add_region - Add a memory range into movablemem_map.
++ * @start:	physical start address of range
++ * @end:	physical end address of range
++ *
++ * This function transform the physical address into pfn, and then add the
++ * range into movablemem_map by calling insert_movablemem_map().
++ */
++static void __init movablemem_map_add_region(u64 start, u64 size)
++{
++	unsigned long start_pfn, end_pfn;
++
++	/* In case size == 0 or start + size overflows */
++	if (start + size <= start)
++		return;
++
++	if (movablemem_map.nr_map >= ARRAY_SIZE(movablemem_map.map)) {
++		pr_err("movablemem_map: too many entries; "
++		       "ignoring [mem %#010llx-%#010llx]\n",
++		       (unsigned long long) start,
++		       (unsigned long long) (start + size - 1));
++		return;
 +	}
 +
- 	oldp = p;
- 	mem_size = memparse(p, &p);
- 	if (p == oldp)
++	start_pfn = PFN_DOWN(start);
++	end_pfn = PFN_UP(start + size);
++	insert_movablemem_map(start_pfn, end_pfn);
++}
++
++/*
++ * cmdline_parse_movablemem_map - Parse boot option movablemem_map.
++ * @p:	The boot option of the following format:
++ *	movablemem_map=nn[KMG]@ss[KMG]
++ *
++ * This option sets the memory range [ss, ss+nn) to be used as movable memory.
++ *
++ * Return: 0 on success or -EINVAL on failure.
++ */
++static int __init cmdline_parse_movablemem_map(char *p)
++{
++	char *oldp;
++	u64 start_at, mem_size;
++
++	if (!p)
++		goto err;
++
++	oldp = p;
++	mem_size = memparse(p, &p);
++	if (p == oldp)
++		goto err;
++
++	if (*p == '@') {
++		oldp = ++p;
++		start_at = memparse(p, &p);
++		if (p == oldp || *p != '\0')
++			goto err;
++
++		movablemem_map_add_region(start_at, mem_size);
++		return 0;
++	}
++err:
++	return -EINVAL;
++}
++early_param("movablemem_map", cmdline_parse_movablemem_map);
++
+ #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ 
+ /**
 -- 
 1.7.1
 
