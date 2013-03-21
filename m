@@ -1,62 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id C69006B0005
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 20:52:40 -0400 (EDT)
-Message-ID: <514A59CD.3040108@redhat.com>
-Date: Wed, 20 Mar 2013 20:52:29 -0400
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 522AF6B0002
+	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 21:10:44 -0400 (EDT)
+Message-ID: <514A5E07.3080501@redhat.com>
+Date: Wed, 20 Mar 2013 21:10:31 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd reclaims
- at each priority
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-2-git-send-email-mgorman@suse.de> <20130320161847.GD27375@dhcp22.suse.cz>
-In-Reply-To: <20130320161847.GD27375@dhcp22.suse.cz>
+Subject: Re: [PATCH 02/10] mm: vmscan: Obey proportional scanning requirements
+ for kswapd
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1363525456-10448-3-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On 03/20/2013 12:18 PM, Michal Hocko wrote:
-> On Sun 17-03-13 13:04:07, Mel Gorman wrote:
-> [...]
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 88c5fed..4835a7a 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -2593,6 +2593,32 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
->>   }
->>
->>   /*
->> + * kswapd shrinks the zone by the number of pages required to reach
->> + * the high watermark.
->> + */
->> +static void kswapd_shrink_zone(struct zone *zone,
->> +			       struct scan_control *sc,
->> +			       unsigned long lru_pages)
->> +{
->> +	unsigned long nr_slab;
->> +	struct reclaim_state *reclaim_state = current->reclaim_state;
->> +	struct shrink_control shrink = {
->> +		.gfp_mask = sc->gfp_mask,
->> +	};
->> +
->> +	/* Reclaim above the high watermark. */
->> +	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
+On 03/17/2013 09:04 AM, Mel Gorman wrote:
+> Simplistically, the anon and file LRU lists are scanned proportionally
+> depending on the value of vm.swappiness although there are other factors
+> taken into account by get_scan_count().  The patch "mm: vmscan: Limit
+> the number of pages kswapd reclaims" limits the number of pages kswapd
+> reclaims but it breaks this proportional scanning and may evenly shrink
+> anon/file LRUs regardless of vm.swappiness.
 >
-> OK, so the cap is at high watermark which sounds OK to me, although I
-> would expect balance_gap being considered here. Is it not used
-> intentionally or you just wanted to have a reasonable upper bound?
+> This patch preserves the proportional scanning and reclaim. It does mean
+> that kswapd will reclaim more than requested but the number of pages will
+> be related to the high watermark.
 >
-> I am not objecting to that it just hit my eyes.
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>   mm/vmscan.c | 52 +++++++++++++++++++++++++++++++++++++++++-----------
+>   1 file changed, 41 insertions(+), 11 deletions(-)
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 4835a7a..182ff15 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1815,6 +1815,45 @@ out:
+>   	}
+>   }
+>
+> +static void recalculate_scan_count(unsigned long nr_reclaimed,
+> +		unsigned long nr_to_reclaim,
+> +		unsigned long nr[NR_LRU_LISTS])
+> +{
+> +	enum lru_list l;
+> +
+> +	/*
+> +	 * For direct reclaim, reclaim the number of pages requested. Less
+> +	 * care is taken to ensure that scanning for each LRU is properly
+> +	 * proportional. This is unfortunate and is improper aging but
+> +	 * minimises the amount of time a process is stalled.
+> +	 */
+> +	if (!current_is_kswapd()) {
+> +		if (nr_reclaimed >= nr_to_reclaim) {
+> +			for_each_evictable_lru(l)
+> +				nr[l] = 0;
+> +		}
+> +		return;
+> +	}
 
-This is the maximum number of pages to reclaim, not the point
-at which to stop reclaiming.
+This part is obvious.
 
-I assume Mel chose this value because it guarantees that enough
-pages will have been freed, while also making sure that the value
-is scaled according to zone size (keeping pressure between zones
-roughly equal).
+> +	/*
+> +	 * For kswapd, reclaim at least the number of pages requested.
+> +	 * However, ensure that LRUs shrink by the proportion requested
+> +	 * by get_scan_count() so vm.swappiness is obeyed.
+> +	 */
+> +	if (nr_reclaimed >= nr_to_reclaim) {
+> +		unsigned long min = ULONG_MAX;
+> +
+> +		/* Find the LRU with the fewest pages to reclaim */
+> +		for_each_evictable_lru(l)
+> +			if (nr[l] < min)
+> +				min = nr[l];
+> +
+> +		/* Normalise the scan counts so kswapd scans proportionally */
+> +		for_each_evictable_lru(l)
+> +			nr[l] -= min;
+> +	}
+> +}
+
+This part took me a bit longer to get.
+
+Before getting to this point, we scanned the LRUs evenly.
+By subtracting min from all of the LRUs, we end up stopping
+the scanning of the LRU where we have the fewest pages left
+to scan.
+
+This results in the scanning being concentrated where it
+should be - on the LRUs where we have not done nearly
+enough scanning yet.
+
+However, I am not sure how to document it better than
+your comment already has...
+
+Acked-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed
