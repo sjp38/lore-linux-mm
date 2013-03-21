@@ -1,56 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 143516B0006
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 11:57:15 -0400 (EDT)
-Date: Thu, 21 Mar 2013 11:57:05 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd
- reclaims at each priority
-Message-ID: <20130321155705.GA27848@cmpxchg.org>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-2-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id B60BF6B0027
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 12:13:56 -0400 (EDT)
+Message-ID: <514B320C.4030507@sr71.net>
+Date: Thu, 21 Mar 2013 09:15:08 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1363525456-10448-2-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCHv2, RFC 05/30] thp, mm: avoid PageUnevictable on active/inactive
+ lru lists
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <1363283435-7666-6-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1363283435-7666-6-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sun, Mar 17, 2013 at 01:04:07PM +0000, Mel Gorman wrote:
-> The number of pages kswapd can reclaim is bound by the number of pages it
-> scans which is related to the size of the zone and the scanning priority. In
-> many cases the priority remains low because it's reset every SWAP_CLUSTER_MAX
-> reclaimed pages but in the event kswapd scans a large number of pages it
-> cannot reclaim, it will raise the priority and potentially discard a large
-> percentage of the zone as sc->nr_to_reclaim is ULONG_MAX. The user-visible
-> effect is a reclaim "spike" where a large percentage of memory is suddenly
-> freed. It would be bad enough if this was just unused memory but because
-> of how anon/file pages are balanced it is possible that applications get
-> pushed to swap unnecessarily.
-> 
-> This patch limits the number of pages kswapd will reclaim to the high
-> watermark. Reclaim will will overshoot due to it not being a hard limit as
+On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
+> active/inactive lru lists can contain unevicable pages (i.e. ramfs pages
+> that have been placed on the LRU lists when first allocated), but these
+> pages must not have PageUnevictable set - otherwise shrink_active_list
+> goes crazy:
+...
+> For lru_add_page_tail(), it means we should not set PageUnevictable()
+> for tail pages unless we're sure that it will go to LRU_UNEVICTABLE.
+> The tail page will go LRU_UNEVICTABLE if head page is not on LRU or if
+> it's marked PageUnevictable() too.
 
-will -> still?
+This is only an issue once you're using lru_add_page_tail() for
+non-anonymous pages, right?
 
-> shrink_lruvec() will ignore the sc.nr_to_reclaim at DEF_PRIORITY but it
-> prevents kswapd reclaiming the world at higher priorities. The number of
-> pages it reclaims is not adjusted for high-order allocations as kswapd will
-> reclaim excessively if it is to balance zones for high-order allocations.
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 92a9be5..31584d0 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -762,7 +762,8 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+>  			lru = LRU_INACTIVE_ANON;
+>  		}
+>  	} else {
+> -		SetPageUnevictable(page_tail);
+> +		if (!PageLRU(page) || PageUnevictable(page))
+> +			SetPageUnevictable(page_tail);
+>  		lru = LRU_UNEVICTABLE;
+>  	}
 
-I don't really understand this last sentence.  Is the excessive
-reclaim a result of the patch, a description of what's happening
-now...?
-
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-
-Nice, thank you.  Using the high watermark for larger zones is more
-reasonable than my hack that just always went with SWAP_CLUSTER_MAX,
-what with inter-zone LRU cycle time balancing and all.
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+You were saying above that ramfs pages can get on the normal
+active/inactive lists.  But, this will end up getting them on the
+unevictable list, right?  So, we have normal ramfs pages on the
+active/inactive lists, but ramfs pages after a huge-page-split on the
+unevictable list.  That seems a bit inconsistent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
