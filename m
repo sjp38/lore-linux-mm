@@ -1,104 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 5462A6B0002
-	for <linux-mm@kvack.org>; Wed, 20 Mar 2013 22:33:14 -0400 (EDT)
-Received: by mail-da0-f51.google.com with SMTP id g27so1257988dan.10
-        for <linux-mm@kvack.org>; Wed, 20 Mar 2013 19:33:13 -0700 (PDT)
-Message-ID: <514A7163.5070700@gmail.com>
-Date: Thu, 21 Mar 2013 10:33:07 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 0C2626B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 00:16:42 -0400 (EDT)
+Message-ID: <514A898A.7010300@huawei.com>
+Date: Thu, 21 Mar 2013 12:16:10 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: page_alloc: Avoid marking zones full prematurely
- after zone_reclaim()
-References: <20130320181957.GA1878@suse.de>
-In-Reply-To: <20130320181957.GA1878@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: [PATCH] mm/migrate: fix comment typo syncronous->synchronous
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Hedi Berriche <hedi@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, qiuxishi <qiuxishi@huawei.com>
 
-Hi Mel,
-On 03/21/2013 02:19 AM, Mel Gorman wrote:
-> The following problem was reported against a distribution kernel when
-> zone_reclaim was enabled but the same problem applies to the mainline
-> kernel. The reproduction case was as follows
->
-> 1. Run numactl -m +0 dd if=largefile of=/dev/null
->     This allocates a large number of clean pages in node 0
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+---
+ mm/migrate.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-I confuse why this need allocate a large number of clean pages?
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 3bbaf5d..c87ef92 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -736,7 +736,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 
+ 	if (PageWriteback(page)) {
+ 		/*
+-		 * Only in the case of a full syncronous migration is it
++		 * Only in the case of a full synchronous migration is it
+ 		 * necessary to wait for PageWriteback. In the async case,
+ 		 * the retry loop is too short and in the sync-light case,
+ 		 * the overhead of stalling is too much
+-- 
+1.7.1
 
->
-> 2. numactl -N +0 memhog 0.5*Mg
->     This start a memory-using application in node 0.
->
-> The expected behaviour is that the clean pages get reclaimed and the
-> application uses node 0 for its memory. The observed behaviour was that
-> the memory for the memhog application was allocated off-node since commits
-> cd38b11 (mm: page allocator: initialise ZLC for first zone eligible for
-> zone_reclaim) and commit 76d3fbf (mm: page allocator: reconsider zones
-> for allocation after direct reclaim).
->
-> The assumption of those patches was that it was always preferable to
-> allocate quickly than stall for long periods of time and they were
-> meant to take care that the zone was only marked full when necessary but
-> an important case was missed.
->
-> In the allocator fast path, only the low watermarks are checked. If the
-> zones free pages are between the low and min watermark then allocations
-> from the allocators slow path will succeed. However, zone_reclaim
-> will only reclaim SWAP_CLUSTER_MAX or 1<<order pages. There is no
-> guarantee that this will meet the low watermark causing the zone to be
-> marked full prematurely.
->
-> This patch will only mark the zone full after zone_reclaim if it the min
-> watermarks are checked or if page reclaim failed to make sufficient
-> progress.
->
-> Reported-and-tested-by: Hedi Berriche <hedi@sgi.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->   mm/page_alloc.c | 17 ++++++++++++++++-
->   1 file changed, 16 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8fcced7..adce823 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1940,9 +1940,24 @@ zonelist_scan:
->   				continue;
->   			default:
->   				/* did we reclaim enough */
-> -				if (!zone_watermark_ok(zone, order, mark,
-> +				if (zone_watermark_ok(zone, order, mark,
->   						classzone_idx, alloc_flags))
-> +					goto try_this_zone;
-> +
-> +				/*
-> +				 * Failed to reclaim enough to meet watermark.
-> +				 * Only mark the zone full if checking the min
-> +				 * watermark or if we failed to reclaim just
-> +				 * 1<<order pages or else the page allocator
-> +				 * fastpath will prematurely mark zones full
-> +				 * when the watermark is between the low and
-> +				 * min watermarks.
-> +				 */
-> +				if ((alloc_flags & ALLOC_WMARK_MIN) ||
-> +				    ret == ZONE_RECLAIM_SOME)
->   					goto this_zone_full;
-> +
-> +				continue;
->   			}
->   		}
->   
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
