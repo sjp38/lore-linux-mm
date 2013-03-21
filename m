@@ -1,58 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 35E2B6B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 08:56:33 -0400 (EDT)
-Date: Thu, 21 Mar 2013 13:56:28 +0100
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id CECC66B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 08:59:41 -0400 (EDT)
+Date: Thu, 21 Mar 2013 13:59:39 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 0/9] extend hugepage migration
-Message-ID: <20130321125628.GB6051@dhcp22.suse.cz>
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <5148F830.3070601@gmail.com>
- <1363815326-urchkyxr-mutt-n-horiguchi@ah.jp.nec.com>
- <514A4B1C.6020201@gmail.com>
+Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd
+ reclaims at each priority
+Message-ID: <20130321125939.GK6094@dhcp22.suse.cz>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+ <1363525456-10448-2-git-send-email-mgorman@suse.de>
+ <20130320161847.GD27375@dhcp22.suse.cz>
+ <20130321094713.GD1878@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <514A4B1C.6020201@gmail.com>
+In-Reply-To: <20130321094713.GD1878@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 21-03-13 07:49:48, Simon Jeons wrote:
-[...]
-> When I hacking arch/x86/mm/hugetlbpage.c like this,
-> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> index ae1aa71..87f34ee 100644
-> --- a/arch/x86/mm/hugetlbpage.c
-> +++ b/arch/x86/mm/hugetlbpage.c
-> @@ -354,14 +354,13 @@ hugetlb_get_unmapped_area(struct file *file,
-> unsigned long addr,
+On Thu 21-03-13 09:47:13, Mel Gorman wrote:
+> On Wed, Mar 20, 2013 at 05:18:47PM +0100, Michal Hocko wrote:
+> > On Sun 17-03-13 13:04:07, Mel Gorman wrote:
+> > [...]
+> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > index 88c5fed..4835a7a 100644
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -2593,6 +2593,32 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+> > >  }
+> > >  
+> > >  /*
+> > > + * kswapd shrinks the zone by the number of pages required to reach
+> > > + * the high watermark.
+> > > + */
+> > > +static void kswapd_shrink_zone(struct zone *zone,
+> > > +			       struct scan_control *sc,
+> > > +			       unsigned long lru_pages)
+> > > +{
+> > > +	unsigned long nr_slab;
+> > > +	struct reclaim_state *reclaim_state = current->reclaim_state;
+> > > +	struct shrink_control shrink = {
+> > > +		.gfp_mask = sc->gfp_mask,
+> > > +	};
+> > > +
+> > > +	/* Reclaim above the high watermark. */
+> > > +	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
+> > 
+> > OK, so the cap is at high watermark which sounds OK to me, although I
+> > would expect balance_gap being considered here. Is it not used
+> > intentionally or you just wanted to have a reasonable upper bound?
+> > 
 > 
-> #endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
-> 
-> -#ifdef CONFIG_X86_64
-> static __init int setup_hugepagesz(char *opt)
-> {
-> unsigned long ps = memparse(opt, &opt);
-> if (ps == PMD_SIZE) {
-> hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
-> - } else if (ps == PUD_SIZE && cpu_has_gbpages) {
-> - hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
-> + } else if (ps == PUD_SIZE) {
-> + hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT+4);
-> } else {
-> printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
-> ps >> 20);
-> 
-> I set boot=hugepagesz=1G hugepages=10, then I got 10 32MB huge pages.
-> What's the difference between these pages which I hacking and normal
-> huge pages?
+> It's intentional. The balance_gap is taken into account before the
+> decision to shrink but not afterwards. As the watermark check after
+> shrinking is based on just the high watermark, I decided to have
+> shrink_zone reclaim on that basis.
 
-How is this related to the patch set?
-Please _stop_ distracting discussion to unrelated topics!
+OK, it makes sense. Thanks both you and Rik for clarification.
 
-Nothing personal but this is just wasting our time.
 -- 
 Michal Hocko
 SUSE Labs
