@@ -1,72 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 1C4A36B0006
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 20:09:03 -0400 (EDT)
-Received: by mail-ie0-f170.google.com with SMTP id c11so4253068ieb.15
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2013 17:09:02 -0700 (PDT)
-Message-ID: <514BA118.5000305@gmail.com>
-Date: Fri, 22 Mar 2013 08:08:56 +0800
-From: Will Huck <will.huckk@gmail.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 957546B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 21:22:27 -0400 (EDT)
+Message-ID: <514BB23E.70908@huawei.com>
+Date: Fri, 22 Mar 2013 09:22:06 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd reclaims
- at each priority
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-2-git-send-email-mgorman@suse.de> <20130320161847.GD27375@dhcp22.suse.cz> <514A59CD.3040108@redhat.com>
-In-Reply-To: <514A59CD.3040108@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
+References: <514A60CD.60208@huawei.com> <20130321090849.GF6094@dhcp22.suse.cz> <20130321102257.GH6094@dhcp22.suse.cz>
+In-Reply-To: <20130321102257.GH6094@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@parallels.com>
 
-Hi Rik,
-On 03/21/2013 08:52 AM, Rik van Riel wrote:
-> On 03/20/2013 12:18 PM, Michal Hocko wrote:
->> On Sun 17-03-13 13:04:07, Mel Gorman wrote:
->> [...]
->>> diff --git a/mm/vmscan.c b/mm/vmscan.c
->>> index 88c5fed..4835a7a 100644
->>> --- a/mm/vmscan.c
->>> +++ b/mm/vmscan.c
->>> @@ -2593,6 +2593,32 @@ static bool prepare_kswapd_sleep(pg_data_t 
->>> *pgdat, int order, long remaining,
->>>   }
+On 2013/3/21 18:22, Michal Hocko wrote:
+> On Thu 21-03-13 10:08:49, Michal Hocko wrote:
+>> On Thu 21-03-13 09:22:21, Li Zefan wrote:
+>>> As cgroup supports rename, it's unsafe to dereference dentry->d_name
+>>> without proper vfs locks. Fix this by using cgroup_name().
 >>>
->>>   /*
->>> + * kswapd shrinks the zone by the number of pages required to reach
->>> + * the high watermark.
->>> + */
->>> +static void kswapd_shrink_zone(struct zone *zone,
->>> +                   struct scan_control *sc,
->>> +                   unsigned long lru_pages)
->>> +{
->>> +    unsigned long nr_slab;
->>> +    struct reclaim_state *reclaim_state = current->reclaim_state;
->>> +    struct shrink_control shrink = {
->>> +        .gfp_mask = sc->gfp_mask,
->>> +    };
+>>> Signed-off-by: Li Zefan <lizefan@huawei.com>
+>>> ---
+>>>
+>>> This patch depends on "cgroup: fix cgroup_path() vs rename() race",
+>>> which has been queued for 3.10.
+>>>
+>>> ---
+>>>  mm/memcontrol.c | 15 +++++++--------
+>>>  1 file changed, 7 insertions(+), 8 deletions(-)
+>>>
+>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>>> index 53b8201..72be5c9 100644
+>>> --- a/mm/memcontrol.c
+>>> +++ b/mm/memcontrol.c
+>>> @@ -3217,17 +3217,16 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
+>>>  static char *memcg_cache_name(struct mem_cgroup *memcg, struct kmem_cache *s)
+>>>  {
+>>>  	char *name;
+>>> -	struct dentry *dentry;
 >>> +
->>> +    /* Reclaim above the high watermark. */
->>> +    sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
+>>> +	name = (char *)__get_free_page(GFP_TEMPORARY);
 >>
->> OK, so the cap is at high watermark which sounds OK to me, although I
->> would expect balance_gap being considered here. Is it not used
->> intentionally or you just wanted to have a reasonable upper bound?
+>> Ouch. Can we use a static temporary buffer instead?
+> 
+>> This is called from workqueue context so we do not have to be afraid
+>> of the deep call chain.
+> 
+> Bahh, I was thinking about two things at the same time and that is how
+> it ends... I meant a temporary buffer on the stack. But a separate
+> allocation sounds even easier.
+> 
+
+Actually I don't care much about which way to take. Use on-stack buffer (if stack
+usage is not a concern) or local static buffer (caller already held memcg_cache_mutex)
+is simplest.
+
+But why it's bad to allocate a page for temp use?
+
+>> It is also not a hot path AFAICS.
 >>
->> I am not objecting to that it just hit my eyes.
->
-> This is the maximum number of pages to reclaim, not the point
-> at which to stop reclaiming.
+>> Even GFP_ATOMIC for kasprintf would be an improvement IMO.
+> 
+> What about the following (not even compile tested because I do not have
+> cgroup_name in my tree yet):
 
-What's the difference between the maximum number of pages to reclaim and 
-the point at which to stop reclaiming?
+No, it won't compile. ;)
 
->
-> I assume Mel chose this value because it guarantees that enough
-> pages will have been freed, while also making sure that the value
-> is scaled according to zone size (keeping pressure between zones
-> roughly equal).
->
+> ---
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index f608546..ede0382 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3370,13 +3370,18 @@ static char *memcg_cache_name(struct mem_cgroup *memcg, struct kmem_cache *s)
+>  	struct dentry *dentry;
+>  
+>  	rcu_read_lock();
+> -	dentry = rcu_dereference(memcg->css.cgroup->dentry);
+> +	name = kasprintf(GFP_ATOMIC, "%s(%d:%s)", s->name,
+> +			 memcg_cache_id(memcg), cgroup_name(memcg->css.cgroup));
+>  	rcu_read_unlock();
+>  
+> -	BUG_ON(dentry == NULL);
+> -
+> -	name = kasprintf(GFP_KERNEL, "%s(%d:%s)", s->name,
+> -			 memcg_cache_id(memcg), dentry->d_name.name);
+> +	if (!name) {
+> +		name = kmalloc(PAGE_SIZE, GFP_KERNEL);
+> +		rcu_read_lock();
+> +		name = snprintf(name, PAGE_SIZE, "%s(%d:%s)", s->name,
+> +				memcg_cache_id(memcg),
+> +				cgroup_name(memcg->css.cgroup));
+> +		rcu_read_unlock();
+> +	}
+>  
+>  	return name;
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
