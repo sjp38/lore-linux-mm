@@ -1,53 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 7D13A6B0002
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 23:52:35 -0400 (EDT)
-Message-ID: <514BD56F.6050709@redhat.com>
-Date: Thu, 21 Mar 2013 23:52:15 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 7F2DC6B0002
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 23:56:28 -0400 (EDT)
+Message-ID: <514BD656.2060307@huawei.com>
+Date: Fri, 22 Mar 2013 11:56:06 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd reclaims
- at each priority
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-2-git-send-email-mgorman@suse.de> <20130321155705.GA27848@cmpxchg.org> <514BA04D.2090002@gmail.com>
-In-Reply-To: <514BA04D.2090002@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: [PATCH] mm/hotplug: use -EPERM instead of -1 for return value in
+ online_pages()
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Huck <will.huckk@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, linux-mm@kvack.org, qiuxishi <qiuxishi@huawei.com>
 
-On 03/21/2013 08:05 PM, Will Huck wrote:
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>
+Cc: linux-mm@kvack.org (open list:MEMORY MANAGEMENT)
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+---
+ mm/memory_hotplug.c |   10 +++++-----
+ 1 files changed, 5 insertions(+), 5 deletions(-)
 
-> One offline question, how to understand this in function balance_pgdat:
-> /*
->   * Do some background aging of the anon list, to give
->   * pages a chance to be referenced before reclaiming.
->   */
-> age_acitve_anon(zone, &sc);
-
-The anon lrus use a two-handed clock algorithm. New anonymous pages
-start off on the active anon list. Older anonymous pages get moved
-to the inactive anon list.
-
-If they get referenced before they reach the end of the inactive anon
-list, they get moved back to the active list.
-
-If we need to swap something out and find a non-referenced page at the
-end of the inactive anon list, we will swap it out.
-
-In order to make good pageout decisions, pages need to stay on the
-inactive anon list for a longer time, so they have plenty of time to
-get referenced, before the reclaim code looks at them.
-
-To achieve that, we will move some active anon pages to the inactive
-anon list even when we do not want to swap anything out - as long as
-the inactive anon list is below its target size.
-
-Does that make sense?
-
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b81a367b..07b6263 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -332,7 +332,7 @@ static int __meminit move_pfn_range_left(struct zone *z1, struct zone *z2,
+ 	return 0;
+ out_fail:
+ 	pgdat_resize_unlock(z1->zone_pgdat, &flags);
+-	return -1;
++	return -EPERM;
+ }
+ 
+ static int __meminit move_pfn_range_right(struct zone *z1, struct zone *z2,
+@@ -374,7 +374,7 @@ static int __meminit move_pfn_range_right(struct zone *z1, struct zone *z2,
+ 	return 0;
+ out_fail:
+ 	pgdat_resize_unlock(z1->zone_pgdat, &flags);
+-	return -1;
++	return -EPERM;
+ }
+ 
+ static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
+@@ -924,19 +924,19 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	if ((zone_idx(zone) > ZONE_NORMAL || online_type == ONLINE_MOVABLE) &&
+ 	    !can_online_high_movable(zone)) {
+ 		unlock_memory_hotplug();
+-		return -1;
++		return -EPERM;
+ 	}
+ 
+ 	if (online_type == ONLINE_KERNEL && zone_idx(zone) == ZONE_MOVABLE) {
+ 		if (move_pfn_range_left(zone - 1, zone, pfn, pfn + nr_pages)) {
+ 			unlock_memory_hotplug();
+-			return -1;
++			return -EPERM;
+ 		}
+ 	}
+ 	if (online_type == ONLINE_MOVABLE && zone_idx(zone) == ZONE_MOVABLE - 1) {
+ 		if (move_pfn_range_right(zone, zone + 1, pfn, pfn + nr_pages)) {
+ 			unlock_memory_hotplug();
+-			return -1;
++			return -EPERM;
+ 		}
+ 	}
+ 
 -- 
-All rights reversed
+1.7.6.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
