@@ -1,62 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id ABFDF6B0039
-	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 19:46:39 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id x14so4117713ief.7
-        for <linux-mm@kvack.org>; Thu, 21 Mar 2013 16:46:39 -0700 (PDT)
-Message-ID: <514B9BD8.9050207@gmail.com>
-Date: Fri, 22 Mar 2013 07:46:32 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id BDF566B0006
+	for <linux-mm@kvack.org>; Thu, 21 Mar 2013 20:05:40 -0400 (EDT)
+Received: by mail-ie0-f181.google.com with SMTP id 17so4123451iea.40
+        for <linux-mm@kvack.org>; Thu, 21 Mar 2013 17:05:40 -0700 (PDT)
+Message-ID: <514BA04D.2090002@gmail.com>
+Date: Fri, 22 Mar 2013 08:05:33 +0800
+From: Will Huck <will.huckk@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/9] extend hugepage migration
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com> <5148F830.3070601@gmail.com> <1363815326-urchkyxr-mutt-n-horiguchi@ah.jp.nec.com> <514A4B1C.6020201@gmail.com> <20130321125628.GB6051@dhcp22.suse.cz>
-In-Reply-To: <20130321125628.GB6051@dhcp22.suse.cz>
+Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd reclaims
+ at each priority
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-2-git-send-email-mgorman@suse.de> <20130321155705.GA27848@cmpxchg.org>
+In-Reply-To: <20130321155705.GA27848@cmpxchg.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Michal,
-On 03/21/2013 08:56 PM, Michal Hocko wrote:
-> On Thu 21-03-13 07:49:48, Simon Jeons wrote:
-> [...]
->> When I hacking arch/x86/mm/hugetlbpage.c like this,
->> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
->> index ae1aa71..87f34ee 100644
->> --- a/arch/x86/mm/hugetlbpage.c
->> +++ b/arch/x86/mm/hugetlbpage.c
->> @@ -354,14 +354,13 @@ hugetlb_get_unmapped_area(struct file *file,
->> unsigned long addr,
+Hi Johannes,
+On 03/21/2013 11:57 PM, Johannes Weiner wrote:
+> On Sun, Mar 17, 2013 at 01:04:07PM +0000, Mel Gorman wrote:
+>> The number of pages kswapd can reclaim is bound by the number of pages it
+>> scans which is related to the size of the zone and the scanning priority. In
+>> many cases the priority remains low because it's reset every SWAP_CLUSTER_MAX
+>> reclaimed pages but in the event kswapd scans a large number of pages it
+>> cannot reclaim, it will raise the priority and potentially discard a large
+>> percentage of the zone as sc->nr_to_reclaim is ULONG_MAX. The user-visible
+>> effect is a reclaim "spike" where a large percentage of memory is suddenly
+>> freed. It would be bad enough if this was just unused memory but because
+>> of how anon/file pages are balanced it is possible that applications get
+>> pushed to swap unnecessarily.
 >>
->> #endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
->>
->> -#ifdef CONFIG_X86_64
->> static __init int setup_hugepagesz(char *opt)
->> {
->> unsigned long ps = memparse(opt, &opt);
->> if (ps == PMD_SIZE) {
->> hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
->> - } else if (ps == PUD_SIZE && cpu_has_gbpages) {
->> - hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
->> + } else if (ps == PUD_SIZE) {
->> + hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT+4);
->> } else {
->> printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
->> ps >> 20);
->>
->> I set boot=hugepagesz=1G hugepages=10, then I got 10 32MB huge pages.
->> What's the difference between these pages which I hacking and normal
->> huge pages?
-> How is this related to the patch set?
-> Please _stop_ distracting discussion to unrelated topics!
+>> This patch limits the number of pages kswapd will reclaim to the high
+>> watermark. Reclaim will will overshoot due to it not being a hard limit as
+> will -> still?
 >
-> Nothing personal but this is just wasting our time.
+>> shrink_lruvec() will ignore the sc.nr_to_reclaim at DEF_PRIORITY but it
+>> prevents kswapd reclaiming the world at higher priorities. The number of
+>> pages it reclaims is not adjusted for high-order allocations as kswapd will
+>> reclaim excessively if it is to balance zones for high-order allocations.
+> I don't really understand this last sentence.  Is the excessive
+> reclaim a result of the patch, a description of what's happening
+> now...?
+>
+>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Nice, thank you.  Using the high watermark for larger zones is more
+> reasonable than my hack that just always went with SWAP_CLUSTER_MAX,
+> what with inter-zone LRU cycle time balancing and all.
+>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Sorry kindly Michal, my bad.
-Btw, could you explain this question for me? very sorry waste your time.
-
+One offline question, how to understand this in function balance_pgdat:
+/*
+  * Do some background aging of the anon list, to give
+  * pages a chance to be referenced before reclaiming.
+  */
+age_acitve_anon(zone, &sc);
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
