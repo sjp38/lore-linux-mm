@@ -1,200 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id B1ACE6B009A
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 06:33:04 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <514B3F24.3070006@sr71.net>
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-9-git-send-email-kirill.shutemov@linux.intel.com>
- <514B3F24.3070006@sr71.net>
-Subject: Re: [PATCHv2, RFC 08/30] thp, mm: rewrite add_to_page_cache_locked()
- to support huge pages
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130322103438.46C5FE0085@blue.fi.intel.com>
-Date: Fri, 22 Mar 2013 12:34:38 +0200 (EET)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 511356B009A
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 06:47:40 -0400 (EDT)
+Date: Fri, 22 Mar 2013 11:47:37 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 02/10] mm: vmscan: Obey proportional scanning
+ requirements for kswapd
+Message-ID: <20130322104737.GJ31457@dhcp22.suse.cz>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+ <1363525456-10448-3-git-send-email-mgorman@suse.de>
+ <20130321140154.GL6094@dhcp22.suse.cz>
+ <20130321143114.GM2055@suse.de>
+ <20130321150755.GN6094@dhcp22.suse.cz>
+ <20130321153442.GJ1878@suse.de>
+ <20130322075413.GA31457@dhcp22.suse.cz>
+ <20130322083704.GS1878@suse.de>
+ <20130322100449.GH31457@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130322100449.GH31457@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
 
-Dave Hansen wrote:
-> On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+On Fri 22-03-13 11:04:49, Michal Hocko wrote:
+> On Fri 22-03-13 08:37:04, Mel Gorman wrote:
+> > On Fri, Mar 22, 2013 at 08:54:27AM +0100, Michal Hocko wrote:
+> > > On Thu 21-03-13 15:34:42, Mel Gorman wrote:
+> > > > On Thu, Mar 21, 2013 at 04:07:55PM +0100, Michal Hocko wrote:
+> > > > > > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > > > > > index 4835a7a..182ff15 100644
+> > > > > > > > --- a/mm/vmscan.c
+> > > > > > > > +++ b/mm/vmscan.c
+> > > > > > > > @@ -1815,6 +1815,45 @@ out:
+> > > > > > > >  	}
+> > > > > > > >  }
+> > > > > > > >  
+> > > > > > > > +static void recalculate_scan_count(unsigned long nr_reclaimed,
+> > > > > > > > +		unsigned long nr_to_reclaim,
+> > > > > > > > +		unsigned long nr[NR_LRU_LISTS])
+> > > > > > > > +{
+> > > > > > > > +	enum lru_list l;
+> > > > > > > > +
+> > > > > > > > +	/*
+> > > > > > > > +	 * For direct reclaim, reclaim the number of pages requested. Less
+> > > > > > > > +	 * care is taken to ensure that scanning for each LRU is properly
+> > > > > > > > +	 * proportional. This is unfortunate and is improper aging but
+> > > > > > > > +	 * minimises the amount of time a process is stalled.
+> > > > > > > > +	 */
+> > > > > > > > +	if (!current_is_kswapd()) {
+> > > > > > > > +		if (nr_reclaimed >= nr_to_reclaim) {
+> > > > > > > > +			for_each_evictable_lru(l)
+> > > > > > > > +				nr[l] = 0;
+> > > > > > > > +		}
+> > > > > > > > +		return;
+> > > > > > > 
+> > > > > > > Heh, this is nicely cryptically said what could be done in shrink_lruvec
+> > > > > > > as
+> > > > > > > 	if (!current_is_kswapd()) {
+> > > > > > > 		if (nr_reclaimed >= nr_to_reclaim)
+> > > > > > > 			break;
+> > > > > > > 	}
+> > > > > > > 
+> > > > > > 
+> > > > > > Pretty much. At one point during development, this function was more
+> > > > > > complex and it evolved into this without me rechecking if splitting it
+> > > > > > out still made sense.
+> > > > > > 
+> > > > > > > Besides that this is not memcg aware which I think it would break
+> > > > > > > targeted reclaim which is kind of direct reclaim but it still would be
+> > > > > > > good to stay proportional because it starts with DEF_PRIORITY.
+> > > > > > > 
+> > > > > > 
+> > > > > > This does break memcg because it's a special sort of direct reclaim.
+> > > > > > 
+> > > > > > > I would suggest moving this back to shrink_lruvec and update the test as
+> > > > > > > follows:
+> > > > > > 
+> > > > > > I also noticed that we check whether the scan counts need to be
+> > > > > > normalised more than once
+> > > > > 
+> > > > > I didn't mind this because it "disqualified" at least one LRU every
+> > > > > round which sounds reasonable to me because all LRUs would be scanned
+> > > > > proportionally.
+> > > > 
+> > > > Once the scan count for one LRU is 0 then min will always be 0 and no
+> > > > further adjustment is made. It's just redundant to check again.
+> > > 
+> > > Hmm, I was almost sure I wrote that min should be adjusted only if it is >0
+> > > in the first loop but it is not there...
+> > > 
+> > > So for real this time.
+> > > 			for_each_evictable_lru(l)
+> > > 				if (nr[l] && nr[l] < min)
+> > > 					min = nr[l];
+> > > 
+> > > This should work, no? Everytime you shrink all LRUs you and you have
+> > > reclaimed enough already you get the smallest LRU out of game. This
+> > > should keep proportions evenly.
 > > 
-> > For huge page we add to radix tree HPAGE_CACHE_NR pages at once: head
-> > page for the specified index and HPAGE_CACHE_NR-1 tail pages for
-> > following indexes.
+> > Lets say we started like this
 > > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  mm/filemap.c |   76 ++++++++++++++++++++++++++++++++++++++++------------------
-> >  1 file changed, 53 insertions(+), 23 deletions(-)
+> > LRU_INACTIVE_ANON	  60
+> > LRU_ACTIVE_FILE		1000
+> > LRU_INACTIVE_FILE	3000
 > > 
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index 2d99191..6bac9e2 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -447,6 +447,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
-> >  		pgoff_t offset, gfp_t gfp_mask)
-> >  {
-> >  	int error;
-> > +	int nr = 1;
-> >  
-> >  	VM_BUG_ON(!PageLocked(page));
-> >  	VM_BUG_ON(PageSwapBacked(page));
-> > @@ -454,32 +455,61 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
-> >  	error = mem_cgroup_cache_charge(page, current->mm,
-> >  					gfp_mask & GFP_RECLAIM_MASK);
-> >  	if (error)
-> > -		goto out;
-> > +		return error;
-> >  
-> > -	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
-> > -	if (error == 0) {
-> > -		page_cache_get(page);
-> > -		page->mapping = mapping;
-> > -		page->index = offset;
-> > +	if (PageTransHuge(page)) {
-> > +		BUILD_BUG_ON(HPAGE_CACHE_NR > RADIX_TREE_PRELOAD_NR);
-> > +		nr = HPAGE_CACHE_NR;
-> > +	}
+> > and we've reclaimed nr_to_reclaim pages then we recalculate the number
+> > of pages to scan from each list as;
+> > 
+> > LRU_INACTIVE_ANON	  0
+> > LRU_ACTIVE_FILE		940
+> > LRU_INACTIVE_FILE      2940
+> > 
+> > We then shrink SWAP_CLUSTER_MAX from each LRU giving us this.
+> > 
+> > LRU_INACTIVE_ANON	  0
+> > LRU_ACTIVE_FILE		908
+> > LRU_INACTIVE_FILE      2908
+> > 
+> > Then under your suggestion this would be recalculated as
+> > 
+> > LRU_INACTIVE_ANON	  0
+> > LRU_ACTIVE_FILE		  0
+> > LRU_INACTIVE_FILE      2000
+> > 
+> > another SWAP_CLUSTER_MAX reclaims and then it stops we stop reclaiming. I
+> > might still be missing the point of your suggestion but I do not think it
+> > would preserve the proportion of pages we reclaim from the anon or file LRUs.
 > 
-> That seems like a slightly odd place to put a BUILD_BUG_ON().  I guess
-> it doesn't matter to some degree, but does putting it inside the if()
-> imply anything?
+> It wouldn't preserve proportion precisely because each reclaim round is
+> in SWAP_CLUSTER_MAX units but it would reclaim bigger lists more than
+> smaller ones which I thought was the whole point. So yes using word
+> "proportionally" is unfortunate but I didn't find out better one.
 
-It actually matters.
+OK, I have obviosly missed that you are not breaking out of the loop if
+scan_adjusted. Now that I am looking at the updated patch again you just
+do
+		if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
+			continue;
 
-HPAGE_CACHE_NR is BUILD_BUG() if !CONFIG_TRANSPARENT_HUGEPAGE, so we need
-to hide it inside 'if (PageTransHuge(page))'. PageTransHuge(page) is 0 in
-compile time if !CONFIG_TRANSPARENT_HUGEPAGE, so compiler can be smart and
-optimize out the check.
+So I thouught you would just do one round of reclaim after
+nr_reclaimed >= nr_to_reclaim which din't feel right to me.
 
-> > +	error = radix_tree_preload_count(nr, gfp_mask & ~__GFP_HIGHMEM);
-> > +	if (error) {
-> > +		mem_cgroup_uncharge_cache_page(page);
-> > +		return error;
-> > +	}
-> >  
-> > -		spin_lock_irq(&mapping->tree_lock);
-> > -		error = radix_tree_insert(&mapping->page_tree, offset, page);
-> > -		if (likely(!error)) {
-> > -			mapping->nrpages++;
-> > -			__inc_zone_page_state(page, NR_FILE_PAGES);
-> > -			spin_unlock_irq(&mapping->tree_lock);
-> > -			trace_mm_filemap_add_to_page_cache(page);
-> > -		} else {
-> > -			page->mapping = NULL;
-> > -			/* Leave page->index set: truncation relies upon it */
-> > -			spin_unlock_irq(&mapping->tree_lock);
-> > -			mem_cgroup_uncharge_cache_page(page);
-> > -			page_cache_release(page);
-> 
-> I do really like how this rewrite de-indents this code. :)
-
-:)
-
-> > +	page_cache_get(page);
-> > +	spin_lock_irq(&mapping->tree_lock);
-> > +	page->mapping = mapping;
-> > +	page->index = offset;
-> > +	error = radix_tree_insert(&mapping->page_tree, offset, page);
-> > +	if (unlikely(error))
-> > +		goto err;
-> > +	if (PageTransHuge(page)) {
-> > +		int i;
-> > +		for (i = 1; i < HPAGE_CACHE_NR; i++) {
-> > +			page_cache_get(page + i);
-> > +			page[i].index = offset + i;
-> 
-> Is it OK to leave page->mapping unset for these?
-
-Good catch, thanks.
-Seems nobody really use it, since I haven't got any oops, but we need to
-set it anyway.
-
-> > +			error = radix_tree_insert(&mapping->page_tree,
-> > +					offset + i, page + i);
-> > +			if (error) {
-> > +				page_cache_release(page + i);
-> > +				break;
-> > +			}
-> >  		}
-> 
-> Throughout all this new code, I'd really challenge you to try as much as
-> possible to minimize the code stuck under "if (PageTransHuge(page))".
-
-I put thp-related code under the 'if' intentionally to be able to optimize
-it out if !CONFIG_TRANSPARENT_HUGEPAGE. The config option is disabled by
-default.
-
-> For instance, could you change the for() loop a bit and have it shared
-> between both cases, like:
-> 
-> > +	for (i = 0; i < nr; i++) {
-> > +		page_cache_get(page + i);
-> > +		page[i].index = offset + i;
-> > +		error = radix_tree_insert(&mapping->page_tree,
-> > +				offset + i, page + i);
-> > +		if (error) {
-> > +			page_cache_release(page + i);
-> > +			break;
-> > +		}
-> >  	}
-> 
-> > -		radix_tree_preload_end();
-> > -	} else
-> > -		mem_cgroup_uncharge_cache_page(page);
-> > -out:
-> > +		if (error) {
-> > +			error = ENOSPC; /* no space for a huge page */
-> > +			for (i--; i > 0; i--) {
-> > +				radix_tree_delete(&mapping->page_tree,
-> > +						offset + i);
-> > +				page_cache_release(page + i);
-> > +			}
-> > +			radix_tree_delete(&mapping->page_tree, offset);
-> 
-> I wonder if this would look any nicer if you just did all the
-> page_cache_get()s for the entire huge page along with the head page, and
-> then released them all in one place.  I think it might shrink the error
-> handling paths here.
-> 
-> > +			goto err;
-> > +		}
-> > +	}
-> > +	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, nr);
-> > +	mapping->nrpages += nr;
-> > +	spin_unlock_irq(&mapping->tree_lock);
-> > +	trace_mm_filemap_add_to_page_cache(page);
-> 
-> Do we need to change the tracing to make sure it notes that these were
-> or weren't huge pages?
-
-Hm.. I guess we just need to add page order to the trace.
-
-> > +	radix_tree_preload_end();
-> > +	return 0;
-> > +err:
-> > +	page->mapping = NULL;
-> > +	/* Leave page->index set: truncation relies upon it */
-> > +	spin_unlock_irq(&mapping->tree_lock);
-> > +	radix_tree_preload_end();
-> > +	mem_cgroup_uncharge_cache_page(page);
-> > +	page_cache_release(page);
-> >  	return error;
-> >  }
-> >  EXPORT_SYMBOL(add_to_page_cache_locked);
-> 
-> Does the cgroup code know how to handle these large pages internally
-> somehow?  It looks like the charge/uncharge is only being done for the
-> head page.
-
-It can. We only need to remove PageCompound() check there. Patch is in
-git.
-
+Sorry about the confusion!
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
