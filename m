@@ -1,87 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 2FC5A6B008A
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 06:06:11 -0400 (EDT)
-Date: Fri, 22 Mar 2013 11:06:09 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
-Message-ID: <20130322100609.GI31457@dhcp22.suse.cz>
-References: <20130321090849.GF6094@dhcp22.suse.cz>
- <20130321102257.GH6094@dhcp22.suse.cz>
- <514BB23E.70908@huawei.com>
- <20130322080749.GB31457@dhcp22.suse.cz>
- <514C1388.6090909@huawei.com>
- <514C14BF.3050009@parallels.com>
- <20130322093141.GE31457@dhcp22.suse.cz>
- <514C2754.4080701@parallels.com>
- <20130322094832.GG31457@dhcp22.suse.cz>
- <514C2C72.5090402@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <514C2C72.5090402@parallels.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 8D60F6B0093
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 06:09:18 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <514B320C.4030507@sr71.net>
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1363283435-7666-6-git-send-email-kirill.shutemov@linux.intel.com>
+ <514B320C.4030507@sr71.net>
+Subject: Re: [PATCHv2, RFC 05/30] thp, mm: avoid PageUnevictable on
+ active/inactive lru lists
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130322101102.10C40E0085@blue.fi.intel.com>
+Date: Fri, 22 Mar 2013 12:11:02 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri 22-03-13 14:03:30, Glauber Costa wrote:
-> On 03/22/2013 01:48 PM, Michal Hocko wrote:
-> > On Fri 22-03-13 13:41:40, Glauber Costa wrote:
-> >> On 03/22/2013 01:31 PM, Michal Hocko wrote:
-> >>> On Fri 22-03-13 12:22:23, Glauber Costa wrote:
-> >>>> On 03/22/2013 12:17 PM, Li Zefan wrote:
-> >>>>>> GFP_TEMPORARY groups short lived allocations but the mem cache is not
-> >>>>>>> an ideal candidate of this type of allocations..
-> >>>>>>>
-> >>>>> I'm not sure I'm following you...
-> >>>>>
-> >>>>> char *memcg_cache_name()
-> >>>>> {
-> >>>>> 	char *name = alloc();
-> >>>>> 	return name;
-> >>>>> }
-> >>>>>
-> >>>>> kmem_cache_dup()
-> >>>>> {
-> >>>>> 	name = memcg_cache_name();
-> >>>>> 	kmem_cache_create_memcg(name);
-> >>>>> 	free(name);
-> >>>>> }
-> >>>>>
-> >>>>> Isn't this a short lived allocation?
-> >>>>>
-> >>>>
-> >>>> Hi,
-> >>>>
-> >>>> Thanks for identifying and fixing this.
-> >>>>
-> >>>> Li is right. The cache name will live long, but this is because the
-> >>>> slab/slub caches will strdup it internally. So the actual memcg
-> >>>> allocation is short lived.
-> >>>
-> >>> OK, I have totally missed that. Sorry about the confusion. Then all the
-> >>> churn around the allocation is pointless, no?
-> >>> What about:
-> >>
-> >> If we're really not concerned about stack, then yes. Even if always
-> >> running from workqueues, a PAGE_SIZEd stack variable seems risky to me.
-> > 
-> > This is not on stack. It is static
-> > 
-> Ah, right, I totally missed that. And then you're taking the mutex.
+Dave Hansen wrote:
+> On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
+> > active/inactive lru lists can contain unevicable pages (i.e. ramfs pages
+> > that have been placed on the LRU lists when first allocated), but these
+> > pages must not have PageUnevictable set - otherwise shrink_active_list
+> > goes crazy:
+> ...
+> > For lru_add_page_tail(), it means we should not set PageUnevictable()
+> > for tail pages unless we're sure that it will go to LRU_UNEVICTABLE.
+> > The tail page will go LRU_UNEVICTABLE if head page is not on LRU or if
+> > it's marked PageUnevictable() too.
 > 
-> But actually, you don't need to take the mutex. All calls to
-> kmem_cache_dup are protected by the memcg_cache_mutex.
+> This is only an issue once you're using lru_add_page_tail() for
+> non-anonymous pages, right?
 
-Yes and I am not taking that mutex. I've just added lockdep assert to
-make sure that this still holds true.
+I'm not sure about that. Documentation/vm/unevictable-lru.txt:
 
-> So you should be able to just use the buffer without further problems.
+Some examples of these unevictable pages on the LRU lists are:
+
+ (1) ramfs pages that have been placed on the LRU lists when first allocated.
+
+ (2) SHM_LOCK'd shared memory pages.  shmctl(SHM_LOCK) does not attempt to
+     allocate or fault in the pages in the shared memory region.  This happens
+     when an application accesses the page the first time after SHM_LOCK'ing
+     the segment.
+
+ (3) mlocked pages that could not be isolated from the LRU and moved to the
+     unevictable list in mlock_vma_page().
+
+ (4) Pages mapped into multiple VM_LOCKED VMAs, but try_to_munlock() couldn't
+     acquire the VMA's mmap semaphore to test the flags and set PageMlocked.
+     munlock_vma_page() was forced to let the page back on to the normal LRU
+     list for vmscan to handle.
+
+> > diff --git a/mm/swap.c b/mm/swap.c
+> > index 92a9be5..31584d0 100644
+> > --- a/mm/swap.c
+> > +++ b/mm/swap.c
+> > @@ -762,7 +762,8 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+> >  			lru = LRU_INACTIVE_ANON;
+> >  		}
+> >  	} else {
+> > -		SetPageUnevictable(page_tail);
+> > +		if (!PageLRU(page) || PageUnevictable(page))
+> > +			SetPageUnevictable(page_tail);
+> >  		lru = LRU_UNEVICTABLE;
+> >  	}
+> 
+> You were saying above that ramfs pages can get on the normal
+> active/inactive lists.  But, this will end up getting them on the
+> unevictable list, right?  So, we have normal ramfs pages on the
+> active/inactive lists, but ramfs pages after a huge-page-split on the
+> unevictable list.  That seems a bit inconsistent.
+
+Yeah, it's confusing.
+
+I was able to trigger another bug on this code:
+if page_evictable(page_tail) is false and PageLRU(page) is true, page_tail
+will go to the same lru as page, but nobody cares to sync page_tail
+active/inactive state with page. So we can end up with inactive page on
+active lru...
+
+I've updated the patch for the next interation. You can check it in git.
+It should be cleaner. Description need to be updated.
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
