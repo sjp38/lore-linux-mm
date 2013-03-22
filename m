@@ -1,62 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 4B6596B0083
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 06:00:06 -0400 (EDT)
-Message-ID: <514C2C36.3060709@cn.fujitsu.com>
-Date: Fri, 22 Mar 2013 18:02:30 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 4AD746B0087
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 06:02:52 -0400 (EDT)
+Message-ID: <514C2C72.5090402@parallels.com>
+Date: Fri, 22 Mar 2013 14:03:30 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/hotplug: only free wait_table if it's allocated by
- vmalloc
-References: <514C2A43.3020008@huawei.com>
-In-Reply-To: <514C2A43.3020008@huawei.com>
+Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
+References: <514A60CD.60208@huawei.com> <20130321090849.GF6094@dhcp22.suse.cz> <20130321102257.GH6094@dhcp22.suse.cz> <514BB23E.70908@huawei.com> <20130322080749.GB31457@dhcp22.suse.cz> <514C1388.6090909@huawei.com> <514C14BF.3050009@parallels.com> <20130322093141.GE31457@dhcp22.suse.cz> <514C2754.4080701@parallels.com> <20130322094832.GG31457@dhcp22.suse.cz>
+In-Reply-To: <20130322094832.GG31457@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, qiuxishi <qiuxishi@huawei.com>, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 03/22/2013 05:54 PM, Jianguo Wu wrote:
-> zone->wait_table may be allocated from bootmem, it can not be freed.
->
-> Cc: Andrew Morton<akpm@linux-foundation.org>
-> Cc: Wen Congyang<wency@cn.fujitsu.com>
-> Cc: Tang Chen<tangchen@cn.fujitsu.com>
-> Cc: Jiang Liu<jiang.liu@huawei.com>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Jianguo Wu<wujianguo@huawei.com>
-> ---
->   mm/memory_hotplug.c |    6 +++++-
->   1 files changed, 5 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 07b6263..91ed7cd 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1779,7 +1779,11 @@ void try_offline_node(int nid)
->   	for (i = 0; i<  MAX_NR_ZONES; i++) {
->   		struct zone *zone = pgdat->node_zones + i;
->
-> -		if (zone->wait_table)
-> +		/*
-> +		 * wait_table may be allocated from boot memory,
-> +		 * here only free if it's allocated by vmalloc.
-> +		 */
-> +		if (is_vmalloc_addr(zone->wait_table))
->   			vfree(zone->wait_table);
+On 03/22/2013 01:48 PM, Michal Hocko wrote:
+> On Fri 22-03-13 13:41:40, Glauber Costa wrote:
+>> On 03/22/2013 01:31 PM, Michal Hocko wrote:
+>>> On Fri 22-03-13 12:22:23, Glauber Costa wrote:
+>>>> On 03/22/2013 12:17 PM, Li Zefan wrote:
+>>>>>> GFP_TEMPORARY groups short lived allocations but the mem cache is not
+>>>>>>> an ideal candidate of this type of allocations..
+>>>>>>>
+>>>>> I'm not sure I'm following you...
+>>>>>
+>>>>> char *memcg_cache_name()
+>>>>> {
+>>>>> 	char *name = alloc();
+>>>>> 	return name;
+>>>>> }
+>>>>>
+>>>>> kmem_cache_dup()
+>>>>> {
+>>>>> 	name = memcg_cache_name();
+>>>>> 	kmem_cache_create_memcg(name);
+>>>>> 	free(name);
+>>>>> }
+>>>>>
+>>>>> Isn't this a short lived allocation?
+>>>>>
+>>>>
+>>>> Hi,
+>>>>
+>>>> Thanks for identifying and fixing this.
+>>>>
+>>>> Li is right. The cache name will live long, but this is because the
+>>>> slab/slub caches will strdup it internally. So the actual memcg
+>>>> allocation is short lived.
+>>>
+>>> OK, I have totally missed that. Sorry about the confusion. Then all the
+>>> churn around the allocation is pointless, no?
+>>> What about:
+>>
+>> If we're really not concerned about stack, then yes. Even if always
+>> running from workqueues, a PAGE_SIZEd stack variable seems risky to me.
+> 
+> This is not on stack. It is static
+> 
+Ah, right, I totally missed that. And then you're taking the mutex.
 
-Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
-
-FYI, I'm trying add a flag member into memblock to mark memory whose
-life cycle is the same as a node. I think maybe this flag could be used
-to free this kind of memory from bootmem.
-
-Thanks. :)
-
-
->   	}
->
+But actually, you don't need to take the mutex. All calls to
+kmem_cache_dup are protected by the memcg_cache_mutex. So you should be
+able to just use the buffer without further problems.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
