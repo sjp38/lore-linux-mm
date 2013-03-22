@@ -1,81 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 32FF66B0099
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 06:24:47 -0400 (EDT)
-Message-ID: <514C3193.9010609@parallels.com>
-Date: Fri, 22 Mar 2013 14:25:23 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
-References: <20130321090849.GF6094@dhcp22.suse.cz> <20130321102257.GH6094@dhcp22.suse.cz> <514BB23E.70908@huawei.com> <20130322080749.GB31457@dhcp22.suse.cz> <514C1388.6090909@huawei.com> <514C14BF.3050009@parallels.com> <20130322093141.GE31457@dhcp22.suse.cz> <514C2754.4080701@parallels.com> <20130322094832.GG31457@dhcp22.suse.cz> <514C2C72.5090402@parallels.com> <20130322100609.GI31457@dhcp22.suse.cz>
-In-Reply-To: <20130322100609.GI31457@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id B1ACE6B009A
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 06:33:04 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <514B3F24.3070006@sr71.net>
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1363283435-7666-9-git-send-email-kirill.shutemov@linux.intel.com>
+ <514B3F24.3070006@sr71.net>
+Subject: Re: [PATCHv2, RFC 08/30] thp, mm: rewrite add_to_page_cache_locked()
+ to support huge pages
 Content-Transfer-Encoding: 7bit
+Message-Id: <20130322103438.46C5FE0085@blue.fi.intel.com>
+Date: Fri, 22 Mar 2013 12:34:38 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 03/22/2013 02:06 PM, Michal Hocko wrote:
-> On Fri 22-03-13 14:03:30, Glauber Costa wrote:
->> On 03/22/2013 01:48 PM, Michal Hocko wrote:
->>> On Fri 22-03-13 13:41:40, Glauber Costa wrote:
->>>> On 03/22/2013 01:31 PM, Michal Hocko wrote:
->>>>> On Fri 22-03-13 12:22:23, Glauber Costa wrote:
->>>>>> On 03/22/2013 12:17 PM, Li Zefan wrote:
->>>>>>>> GFP_TEMPORARY groups short lived allocations but the mem cache is not
->>>>>>>>> an ideal candidate of this type of allocations..
->>>>>>>>>
->>>>>>> I'm not sure I'm following you...
->>>>>>>
->>>>>>> char *memcg_cache_name()
->>>>>>> {
->>>>>>> 	char *name = alloc();
->>>>>>> 	return name;
->>>>>>> }
->>>>>>>
->>>>>>> kmem_cache_dup()
->>>>>>> {
->>>>>>> 	name = memcg_cache_name();
->>>>>>> 	kmem_cache_create_memcg(name);
->>>>>>> 	free(name);
->>>>>>> }
->>>>>>>
->>>>>>> Isn't this a short lived allocation?
->>>>>>>
->>>>>>
->>>>>> Hi,
->>>>>>
->>>>>> Thanks for identifying and fixing this.
->>>>>>
->>>>>> Li is right. The cache name will live long, but this is because the
->>>>>> slab/slub caches will strdup it internally. So the actual memcg
->>>>>> allocation is short lived.
->>>>>
->>>>> OK, I have totally missed that. Sorry about the confusion. Then all the
->>>>> churn around the allocation is pointless, no?
->>>>> What about:
->>>>
->>>> If we're really not concerned about stack, then yes. Even if always
->>>> running from workqueues, a PAGE_SIZEd stack variable seems risky to me.
->>>
->>> This is not on stack. It is static
->>>
->> Ah, right, I totally missed that. And then you're taking the mutex.
->>
->> But actually, you don't need to take the mutex. All calls to
->> kmem_cache_dup are protected by the memcg_cache_mutex.
+Dave Hansen wrote:
+> On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > 
+> > For huge page we add to radix tree HPAGE_CACHE_NR pages at once: head
+> > page for the specified index and HPAGE_CACHE_NR-1 tail pages for
+> > following indexes.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  mm/filemap.c |   76 ++++++++++++++++++++++++++++++++++++++++------------------
+> >  1 file changed, 53 insertions(+), 23 deletions(-)
+> > 
+> > diff --git a/mm/filemap.c b/mm/filemap.c
+> > index 2d99191..6bac9e2 100644
+> > --- a/mm/filemap.c
+> > +++ b/mm/filemap.c
+> > @@ -447,6 +447,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+> >  		pgoff_t offset, gfp_t gfp_mask)
+> >  {
+> >  	int error;
+> > +	int nr = 1;
+> >  
+> >  	VM_BUG_ON(!PageLocked(page));
+> >  	VM_BUG_ON(PageSwapBacked(page));
+> > @@ -454,32 +455,61 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+> >  	error = mem_cgroup_cache_charge(page, current->mm,
+> >  					gfp_mask & GFP_RECLAIM_MASK);
+> >  	if (error)
+> > -		goto out;
+> > +		return error;
+> >  
+> > -	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+> > -	if (error == 0) {
+> > -		page_cache_get(page);
+> > -		page->mapping = mapping;
+> > -		page->index = offset;
+> > +	if (PageTransHuge(page)) {
+> > +		BUILD_BUG_ON(HPAGE_CACHE_NR > RADIX_TREE_PRELOAD_NR);
+> > +		nr = HPAGE_CACHE_NR;
+> > +	}
 > 
-> Yes and I am not taking that mutex. I've just added lockdep assert to
-> make sure that this still holds true.
+> That seems like a slightly odd place to put a BUILD_BUG_ON().  I guess
+> it doesn't matter to some degree, but does putting it inside the if()
+> imply anything?
+
+It actually matters.
+
+HPAGE_CACHE_NR is BUILD_BUG() if !CONFIG_TRANSPARENT_HUGEPAGE, so we need
+to hide it inside 'if (PageTransHuge(page))'. PageTransHuge(page) is 0 in
+compile time if !CONFIG_TRANSPARENT_HUGEPAGE, so compiler can be smart and
+optimize out the check.
+
+> > +	error = radix_tree_preload_count(nr, gfp_mask & ~__GFP_HIGHMEM);
+> > +	if (error) {
+> > +		mem_cgroup_uncharge_cache_page(page);
+> > +		return error;
+> > +	}
+> >  
+> > -		spin_lock_irq(&mapping->tree_lock);
+> > -		error = radix_tree_insert(&mapping->page_tree, offset, page);
+> > -		if (likely(!error)) {
+> > -			mapping->nrpages++;
+> > -			__inc_zone_page_state(page, NR_FILE_PAGES);
+> > -			spin_unlock_irq(&mapping->tree_lock);
+> > -			trace_mm_filemap_add_to_page_cache(page);
+> > -		} else {
+> > -			page->mapping = NULL;
+> > -			/* Leave page->index set: truncation relies upon it */
+> > -			spin_unlock_irq(&mapping->tree_lock);
+> > -			mem_cgroup_uncharge_cache_page(page);
+> > -			page_cache_release(page);
 > 
-It is impressive what a busy week does to our brains...
+> I do really like how this rewrite de-indents this code. :)
 
-I read the code as lockdep_assert(memcg_cache_mutex), and then later on
-mutex_lock(&memcg_mutex). But reading again, that was a just an
-rcu_read_lock(). Good thing it is Friday
+:)
 
-You guys can add my Acked-by, and thanks again
+> > +	page_cache_get(page);
+> > +	spin_lock_irq(&mapping->tree_lock);
+> > +	page->mapping = mapping;
+> > +	page->index = offset;
+> > +	error = radix_tree_insert(&mapping->page_tree, offset, page);
+> > +	if (unlikely(error))
+> > +		goto err;
+> > +	if (PageTransHuge(page)) {
+> > +		int i;
+> > +		for (i = 1; i < HPAGE_CACHE_NR; i++) {
+> > +			page_cache_get(page + i);
+> > +			page[i].index = offset + i;
+> 
+> Is it OK to leave page->mapping unset for these?
+
+Good catch, thanks.
+Seems nobody really use it, since I haven't got any oops, but we need to
+set it anyway.
+
+> > +			error = radix_tree_insert(&mapping->page_tree,
+> > +					offset + i, page + i);
+> > +			if (error) {
+> > +				page_cache_release(page + i);
+> > +				break;
+> > +			}
+> >  		}
+> 
+> Throughout all this new code, I'd really challenge you to try as much as
+> possible to minimize the code stuck under "if (PageTransHuge(page))".
+
+I put thp-related code under the 'if' intentionally to be able to optimize
+it out if !CONFIG_TRANSPARENT_HUGEPAGE. The config option is disabled by
+default.
+
+> For instance, could you change the for() loop a bit and have it shared
+> between both cases, like:
+> 
+> > +	for (i = 0; i < nr; i++) {
+> > +		page_cache_get(page + i);
+> > +		page[i].index = offset + i;
+> > +		error = radix_tree_insert(&mapping->page_tree,
+> > +				offset + i, page + i);
+> > +		if (error) {
+> > +			page_cache_release(page + i);
+> > +			break;
+> > +		}
+> >  	}
+> 
+> > -		radix_tree_preload_end();
+> > -	} else
+> > -		mem_cgroup_uncharge_cache_page(page);
+> > -out:
+> > +		if (error) {
+> > +			error = ENOSPC; /* no space for a huge page */
+> > +			for (i--; i > 0; i--) {
+> > +				radix_tree_delete(&mapping->page_tree,
+> > +						offset + i);
+> > +				page_cache_release(page + i);
+> > +			}
+> > +			radix_tree_delete(&mapping->page_tree, offset);
+> 
+> I wonder if this would look any nicer if you just did all the
+> page_cache_get()s for the entire huge page along with the head page, and
+> then released them all in one place.  I think it might shrink the error
+> handling paths here.
+> 
+> > +			goto err;
+> > +		}
+> > +	}
+> > +	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, nr);
+> > +	mapping->nrpages += nr;
+> > +	spin_unlock_irq(&mapping->tree_lock);
+> > +	trace_mm_filemap_add_to_page_cache(page);
+> 
+> Do we need to change the tracing to make sure it notes that these were
+> or weren't huge pages?
+
+Hm.. I guess we just need to add page order to the trace.
+
+> > +	radix_tree_preload_end();
+> > +	return 0;
+> > +err:
+> > +	page->mapping = NULL;
+> > +	/* Leave page->index set: truncation relies upon it */
+> > +	spin_unlock_irq(&mapping->tree_lock);
+> > +	radix_tree_preload_end();
+> > +	mem_cgroup_uncharge_cache_page(page);
+> > +	page_cache_release(page);
+> >  	return error;
+> >  }
+> >  EXPORT_SYMBOL(add_to_page_cache_locked);
+> 
+> Does the cgroup code know how to handle these large pages internally
+> somehow?  It looks like the charge/uncharge is only being done for the
+> head page.
+
+It can. We only need to remove PageCompound() check there. Patch is in
+git.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
