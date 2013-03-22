@@ -1,131 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 89FAA6B006C
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 05:20:07 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <514B25F5.7020207@sr71.net>
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-3-git-send-email-kirill.shutemov@linux.intel.com>
- <514B25F5.7020207@sr71.net>
-Subject: Re: [PATCHv2, RFC 02/30] mm: implement zero_huge_user_segment and
- friends
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130322092150.5DD29E0085@blue.fi.intel.com>
-Date: Fri, 22 Mar 2013 11:21:50 +0200 (EET)
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 0671D6B0006
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 05:31:46 -0400 (EDT)
+Date: Fri, 22 Mar 2013 10:31:41 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
+Message-ID: <20130322093141.GE31457@dhcp22.suse.cz>
+References: <514A60CD.60208@huawei.com>
+ <20130321090849.GF6094@dhcp22.suse.cz>
+ <20130321102257.GH6094@dhcp22.suse.cz>
+ <514BB23E.70908@huawei.com>
+ <20130322080749.GB31457@dhcp22.suse.cz>
+ <514C1388.6090909@huawei.com>
+ <514C14BF.3050009@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <514C14BF.3050009@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Dave Hansen wrote:
-> On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
-> > Let's add helpers to clear huge page segment(s). They provide the same
-> > functionallity as zero_user_segment{,s} and zero_user, but for huge
-> > pages
-> ...
-> > +static inline void zero_huge_user_segments(struct page *page,
-> > +		unsigned start1, unsigned end1,
-> > +		unsigned start2, unsigned end2)
-> > +{
-> > +	zero_huge_user_segment(page, start1, end1);
-> > +	zero_huge_user_segment(page, start2, end2);
-> > +}
+On Fri 22-03-13 12:22:23, Glauber Costa wrote:
+> On 03/22/2013 12:17 PM, Li Zefan wrote:
+> >> GFP_TEMPORARY groups short lived allocations but the mem cache is not
+> >> > an ideal candidate of this type of allocations..
+> >> > 
+> > I'm not sure I'm following you...
+> > 
+> > char *memcg_cache_name()
+> > {
+> > 	char *name = alloc();
+> > 	return name;
+> > }
+> > 
+> > kmem_cache_dup()
+> > {
+> > 	name = memcg_cache_name();
+> > 	kmem_cache_create_memcg(name);
+> > 	free(name);
+> > }
+> > 
+> > Isn't this a short lived allocation?
+> > 
 > 
-> I'm not sure that this helper saves very much code.  The one call later
-> in these patches:
+> Hi,
 > 
-> +                       zero_huge_user_segments(page, 0, from,
-> +                                       from + len, HPAGE_PMD_SIZE);
+> Thanks for identifying and fixing this.
 > 
-> really only saves one line over this:
-> 
-> 			zero_huge_user_segment(page, 0, from);
-> 			zero_huge_user_segment(page, from + len,
-> 					       HPAGE_PMD_SIZE);
-> 
-> and I think the second one is much more clear to read.
+> Li is right. The cache name will live long, but this is because the
+> slab/slub caches will strdup it internally. So the actual memcg
+> allocation is short lived.
 
-I've tried to mimic non-huge zero_user*, but, yeah, this is silly.
-Will drop.
-
-> I do see that there's a small-page variant of this, but I think that one
-> was done to save doing two kmap_atomic() operations when you wanted to
-> zero two separate operations.  This variant doesn't have that kind of
-> optimization, so it makes much less sense.
-> 
-> > +void zero_huge_user_segment(struct page *page, unsigned start, unsigned end)
-> > +{
-> > +	int i;
-> > +	
-> > +	BUG_ON(end < start);
-> > +
-> > +	might_sleep();
-> > +
-> > +	if (start == end)
-> > +		return;
-> 
-> I've really got to wonder how much of an optimization this is in
-> practice.  Was there a specific reason this was added?
-
-It's likely for simple_write_begin() to call zero[_huge]_user_segments()
-with one of two segments start == end.
-
-But, honestly, it was just easier to cut the corner case first and don't
-bother about it in following code. ;)
-
-> > +	/* start and end are on the same small page */
-> > +	if ((start & PAGE_MASK) == ((end - 1) & PAGE_MASK))
-> > +		return zero_user_segment(page + (start >> PAGE_SHIFT),
-> > +				start & ~PAGE_MASK,
-> > +				((end - 1) & ~PAGE_MASK) + 1);
-> 
-> It wasn't immediately obvious to me why we need to optimize the "on the
-> same page" case.  I _think_ it's because using zero_user_segments()
-> saves us a kmap_atomic() over the code below.  Is that right?  It might
-> be worth a comment.
-
-The code below will call zero_user_segment() twice for the same small
-page, but here we can use just one.
-
-I'll document it.
-
-> > +	zero_user_segment(page + (start >> PAGE_SHIFT),
-> > +			start & ~PAGE_MASK, PAGE_SIZE);
-> > +	for (i = (start >> PAGE_SHIFT) + 1; i < (end >> PAGE_SHIFT) - 1; i++) {
-> > +		cond_resched();
-> > +		clear_highpage(page + i);
-> 
-> zero_user_segments() does a flush_dcache_page(), which wouldn't get done
-> on these middle pages.  Is that a problem?
-
-I think, it is. Will fix.
-
-> > +	}
-> > +	zero_user_segment(page + i, 0, ((end - 1) & ~PAGE_MASK) + 1);
-> > +}
-> 
-> This code is dying for some local variables.  It could really use a
-> 'start_pfn_offset' and 'end_pfn_offset' or something similar.  All of
-> the shifting and masking is a bit hard to read and it would be nice to
-> think of some real names for what it is doing.
-> 
-> It also desperately needs some comments about how it works.  Some
-> one-liners like:
-> 
-> 	/* zero the first (possibly partial) page */
-> 	for()..
-> 		/* zero the full pages in the middle */
-> 	/* zero the last (possibly partial) page */
-> 
-> would be pretty sweet.
-
-Okay, will rework it.
-
--- 
- Kirill A. Shutemov
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+OK, I have totally missed that. Sorry about the confusion. Then all the
+churn around the allocation is pointless, no?
+What about:
+---
