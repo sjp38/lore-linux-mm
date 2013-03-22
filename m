@@ -1,178 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id B1FD06B0002
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 11:21:15 -0400 (EDT)
-Message-ID: <514C773A.6070000@sr71.net>
-Date: Fri, 22 Mar 2013 08:22:34 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 1A4B56B0002
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 12:54:06 -0400 (EDT)
+Date: Fri, 22 Mar 2013 12:53:49 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 02/10] mm: vmscan: Obey proportional scanning
+ requirements for kswapd
+Message-ID: <20130322165349.GI1953@cmpxchg.org>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+ <1363525456-10448-3-git-send-email-mgorman@suse.de>
+ <20130321162518.GB27848@cmpxchg.org>
+ <20130321180238.GM1878@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCHv2, RFC 14/30] thp, mm: naive support of thp in generic
- read/write routines
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <1363283435-7666-15-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1363283435-7666-15-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130321180238.GM1878@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+On Thu, Mar 21, 2013 at 06:02:38PM +0000, Mel Gorman wrote:
+> On Thu, Mar 21, 2013 at 12:25:18PM -0400, Johannes Weiner wrote:
+> > On Sun, Mar 17, 2013 at 01:04:08PM +0000, Mel Gorman wrote:
+> > > Simplistically, the anon and file LRU lists are scanned proportionally
+> > > depending on the value of vm.swappiness although there are other factors
+> > > taken into account by get_scan_count().  The patch "mm: vmscan: Limit
+> > > the number of pages kswapd reclaims" limits the number of pages kswapd
+> > > reclaims but it breaks this proportional scanning and may evenly shrink
+> > > anon/file LRUs regardless of vm.swappiness.
+> > > 
+> > > This patch preserves the proportional scanning and reclaim. It does mean
+> > > that kswapd will reclaim more than requested but the number of pages will
+> > > be related to the high watermark.
+> > 
+> > Swappiness is about page types, but this implementation compares all
+> > LRUs against each other, and I'm not convinced that this makes sense
+> > as there is no guaranteed balance between the inactive and active
+> > lists.  For example, the active file LRU could get knocked out when
+> > it's almost empty while the inactive file LRU has more easy cache than
+> > the anon lists combined.
+> > 
 > 
-> For now we still write/read at most PAGE_CACHE_SIZE bytes a time.
+> Ok, I see your point. I think Michal was making the same point but I
+> failed to understand it the first time around.
 > 
-> This implementation doesn't cover address spaces with backing store.
-...
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1165,12 +1165,23 @@ find_page:
->  			if (unlikely(page == NULL))
->  				goto no_cached_page;
->  		}
-> +		if (PageTransTail(page)) {
-> +			page_cache_release(page);
-> +			page = find_get_page(mapping,
-> +					index & ~HPAGE_CACHE_INDEX_MASK);
-> +			if (!PageTransHuge(page)) {
-> +				page_cache_release(page);
-> +				goto find_page;
-> +			}
-> +		}
-
-So, we're going to do a read of a file, and we pulled a tail page out of
-the page cache.  Why can't we just deal with the tail page directly?
-What prevents this?
-
-Is there something special about THP pages that keeps the head page in
-the page cache after the tail has been released?  I'd normally be
-worried that the find_get_page() here might fail.
-
-It's probably also worth a quick comment like:
-
-	/* can't deal with tail pages directly, move to head page */
-
-otherwise the reassignment of "page" starts to seem a bit odd.
-
->  		if (PageReadahead(page)) {
-> +			BUG_ON(PageTransHuge(page));
->  			page_cache_async_readahead(mapping,
->  					ra, filp, page,
->  					index, last_index - index);
->  		}
-
-Is this because we only do readahead for fs's with backing stores?
-Could we have a comment to this effect?
-
->  		if (!PageUptodate(page)) {
-> +			BUG_ON(PageTransHuge(page));
->  			if (inode->i_blkbits == PAGE_CACHE_SHIFT ||
->  					!mapping->a_ops->is_partially_uptodate)
->  				goto page_not_up_to_date;
-
-Same question. :)
-
-Since your two-line description covers two topics, it's not immediately
-obvious which one this BUG_ON() applies to.
-
-> @@ -1212,18 +1223,25 @@ page_ok:
->  		}
->  		nr = nr - offset;
->  
-> +		/* Recalculate offset in page if we've got a huge page */
-> +		if (PageTransHuge(page)) {
-> +			offset = (((loff_t)index << PAGE_CACHE_SHIFT) + offset);
-> +			offset &= ~HPAGE_PMD_MASK;
-> +		}
-
-Does this need to be done in cases other than the path that goes through
-"if(PageTransTail(page))" above?  If not, I'd probably stick this code
-up with the other part.
-
->  		/* If users can be writing to this page using arbitrary
->  		 * virtual addresses, take care about potential aliasing
->  		 * before reading the page on the kernel side.
->  		 */
->  		if (mapping_writably_mapped(mapping))
-> -			flush_dcache_page(page);
-> +			flush_dcache_page(page + (offset >> PAGE_CACHE_SHIFT));
-
-This is another case where I think adding another local variable would
-essentially help the code self-document.  The way it stands, it's fairly
-subtle how (offset>>PAGE_CACHE_SHIFT) works and that it's conditional on
-THP being enabled.
-
-		int tail_page_index = (offset >> PAGE_CACHE_SHIFT)
-...
-> +			flush_dcache_page(page + tail_page_index);
-
-This makes it obvious that we're indexing off something, *and* that it's
-only going to be relevant when dealing with tail pages.
-
->  		/*
->  		 * When a sequential read accesses a page several times,
->  		 * only mark it as accessed the first time.
->  		 */
-> -		if (prev_index != index || offset != prev_offset)
-> +		if (prev_index != index ||
-> +				(offset & ~PAGE_CACHE_MASK) != prev_offset)
->  			mark_page_accessed(page);
->  		prev_index = index;
->  
-> @@ -1238,8 +1256,9 @@ page_ok:
->  		 * "pos" here (the actor routine has to update the user buffer
->  		 * pointers and the remaining count).
->  		 */
-> -		ret = file_read_actor(desc, page, offset, nr);
-> -		offset += ret;
-> +		ret = file_read_actor(desc, page + (offset >> PAGE_CACHE_SHIFT),
-> +				offset & ~PAGE_CACHE_MASK, nr);
-> +		offset =  (offset & ~PAGE_CACHE_MASK) + ret;
-
-^^ There's an extra space in that last line.
-
->  		index += offset >> PAGE_CACHE_SHIFT;
->  		offset &= ~PAGE_CACHE_MASK;
->  		prev_offset = offset;
-> @@ -2440,8 +2459,13 @@ again:
->  		if (mapping_writably_mapped(mapping))
->  			flush_dcache_page(page);
->  
-> +		if (PageTransHuge(page))
-> +			offset = pos & ~HPAGE_PMD_MASK;
-> +
->  		pagefault_disable();
-> -		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
-> +		copied = iov_iter_copy_from_user_atomic(
-> +				page + (offset >> PAGE_CACHE_SHIFT),
-> +				i, offset & ~PAGE_CACHE_MASK, bytes);
->  		pagefault_enable();
->  		flush_dcache_page(page);
->  
-> @@ -2464,6 +2488,7 @@ again:
->  			 * because not all segments in the iov can be copied at
->  			 * once without a pagefault.
->  			 */
-> +			offset = pos & ~PAGE_CACHE_MASK;
->  			bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
->  						iov_iter_single_seg_count(i));
->  			goto again;
+> > Would it be better to compare the sum of file pages with the sum of
+> > anon pages and then knock out the smaller pair?
 > 
+> Yes, it makes more sense but the issue then becomes how can we do that
+> sensibly, The following is straight-forward and roughly in line with your
+> suggestion but it does not preseve the scanning ratio between active and
+> inactive of the remaining LRU lists.
 
-I think the difficulty in this function is that you're now dealing with
-two 'struct page's, two offsets, and two indexes.  It isn't blindingly
-obvious which one should be used in a given situation.
+After thinking more about it, I wonder if subtracting absolute values
+of one LRU goal from the other is right to begin with, because the
+anon/file balance percentage is applied to individual LRU sizes, and
+these sizes are not necessarily comparable.
 
-The way you've done it here might just be the best way.  I'd *really*
-encourage you to make sure that this is tested exhaustively, and make
-sure you hit all the different paths in that function.  I'd suspect
-there is still a bug or two in there outside the diff context.
+Consider an unbalanced case of 64 file and 32768 anon pages targetted.
+If the balance is 70% file and 30% anon, we will scan 70% of those 64
+file pages and 30% of the 32768 anon pages.
 
-Would it be sane to have a set of variables like:
+Say we decide to bail after one iteration of 32 file pages reclaimed.
+We would have scanned only 50% of the targetted file pages, but
+subtracting those remaining 32 leaves us with 99% of the targetted
+anon pages.
 
-    struct page *thp_tail_page = page + (offset >> PAGE_CACHE_SHIFT);
+So would it make sense to determine the percentage scanned of the type
+that we stop scanning, then scale the original goal of the remaining
+LRUs to that percentage, and scan the remainder?
 
-instead of just open-coding the masks and shifts every time?
+In the above example, we'd determine we scanned 50% of the targetted
+file pages, so we reduce the anon inactive and active goals to 50% of
+their original values, then scan the difference between those reduced
+goals and the pages already scanned.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
