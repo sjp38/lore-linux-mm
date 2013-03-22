@@ -1,59 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 9DC396B0037
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 03:25:37 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id c41so2143455eek.13
-        for <linux-mm@kvack.org>; Fri, 22 Mar 2013 00:25:35 -0700 (PDT)
-Date: Fri, 22 Mar 2013 08:25:32 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
-Message-ID: <20130322072532.GC10608@gmail.com>
-References: <20130318155619.GA18828@sgi.com>
- <20130321105516.GC18484@gmail.com>
- <alpine.DEB.2.02.1303211139110.3775@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 5C1856B0039
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 03:54:30 -0400 (EDT)
+Date: Fri, 22 Mar 2013 08:54:27 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 02/10] mm: vmscan: Obey proportional scanning
+ requirements for kswapd
+Message-ID: <20130322075413.GA31457@dhcp22.suse.cz>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+ <1363525456-10448-3-git-send-email-mgorman@suse.de>
+ <20130321140154.GL6094@dhcp22.suse.cz>
+ <20130321143114.GM2055@suse.de>
+ <20130321150755.GN6094@dhcp22.suse.cz>
+ <20130321153442.GJ1878@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1303211139110.3775@chino.kir.corp.google.com>
+In-Reply-To: <20130321153442.GJ1878@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Russ Anderson <rja@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
 
-
-* David Rientjes <rientjes@google.com> wrote:
-
-> On Thu, 21 Mar 2013, Ingo Molnar wrote:
-> 
-> > > Index: linux/mm/page_alloc.c
-> > > ===================================================================
-> > > --- linux.orig/mm/page_alloc.c	2013-03-18 10:52:11.510988843 -0500
-> > > +++ linux/mm/page_alloc.c	2013-03-18 10:52:14.214931348 -0500
-> > > @@ -4161,10 +4161,19 @@ int __meminit __early_pfn_to_nid(unsigne
-> > >  {
-> > >  	unsigned long start_pfn, end_pfn;
-> > >  	int i, nid;
-> > > +	static unsigned long last_start_pfn, last_end_pfn;
-> > > +	static int last_nid;
+On Thu 21-03-13 15:34:42, Mel Gorman wrote:
+> On Thu, Mar 21, 2013 at 04:07:55PM +0100, Michal Hocko wrote:
+> > > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > > index 4835a7a..182ff15 100644
+> > > > > --- a/mm/vmscan.c
+> > > > > +++ b/mm/vmscan.c
+> > > > > @@ -1815,6 +1815,45 @@ out:
+> > > > >  	}
+> > > > >  }
+> > > > >  
+> > > > > +static void recalculate_scan_count(unsigned long nr_reclaimed,
+> > > > > +		unsigned long nr_to_reclaim,
+> > > > > +		unsigned long nr[NR_LRU_LISTS])
+> > > > > +{
+> > > > > +	enum lru_list l;
+> > > > > +
+> > > > > +	/*
+> > > > > +	 * For direct reclaim, reclaim the number of pages requested. Less
+> > > > > +	 * care is taken to ensure that scanning for each LRU is properly
+> > > > > +	 * proportional. This is unfortunate and is improper aging but
+> > > > > +	 * minimises the amount of time a process is stalled.
+> > > > > +	 */
+> > > > > +	if (!current_is_kswapd()) {
+> > > > > +		if (nr_reclaimed >= nr_to_reclaim) {
+> > > > > +			for_each_evictable_lru(l)
+> > > > > +				nr[l] = 0;
+> > > > > +		}
+> > > > > +		return;
+> > > > 
+> > > > Heh, this is nicely cryptically said what could be done in shrink_lruvec
+> > > > as
+> > > > 	if (!current_is_kswapd()) {
+> > > > 		if (nr_reclaimed >= nr_to_reclaim)
+> > > > 			break;
+> > > > 	}
+> > > > 
+> > > 
+> > > Pretty much. At one point during development, this function was more
+> > > complex and it evolved into this without me rechecking if splitting it
+> > > out still made sense.
+> > > 
+> > > > Besides that this is not memcg aware which I think it would break
+> > > > targeted reclaim which is kind of direct reclaim but it still would be
+> > > > good to stay proportional because it starts with DEF_PRIORITY.
+> > > > 
+> > > 
+> > > This does break memcg because it's a special sort of direct reclaim.
+> > > 
+> > > > I would suggest moving this back to shrink_lruvec and update the test as
+> > > > follows:
+> > > 
+> > > I also noticed that we check whether the scan counts need to be
+> > > normalised more than once
 > > 
-> > Please move these globals out of function local scope, to make it more 
-> > apparent that they are not on-stack. I only noticed it in the second pass.
+> > I didn't mind this because it "disqualified" at least one LRU every
+> > round which sounds reasonable to me because all LRUs would be scanned
+> > proportionally.
 > 
-> The way they're currently defined places these in meminit.data as 
-> appropriate; if they are moved out, please make sure to annotate their 
-> definitions with __meminitdata.
+> Once the scan count for one LRU is 0 then min will always be 0 and no
+> further adjustment is made. It's just redundant to check again.
 
-I'm fine with having them within the function as well in this special 
-case, as long as a heavy /* NOTE: ... */ warning is put before them - 
-which explains why these SMP-unsafe globals are safe.
+Hmm, I was almost sure I wrote that min should be adjusted only if it is >0
+in the first loop but it is not there...
 
-( That warning will also act as a visual delimiter that breaks the 
-  normally confusing and misleading 'globals mixed amongst stack 
-  variables' pattern. )
+So for real this time.
+			for_each_evictable_lru(l)
+				if (nr[l] && nr[l] < min)
+					min = nr[l];
 
-Thanks,
-
-	Ingo
+This should work, no? Everytime you shrink all LRUs you and you have
+reclaimed enough already you get the smallest LRU out of game. This
+should keep proportions evenly.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
