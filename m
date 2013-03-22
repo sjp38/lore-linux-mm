@@ -1,143 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id ACB376B005C
-	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 15:46:13 -0400 (EDT)
-Date: Fri, 22 Mar 2013 19:46:09 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 02/10] mm: vmscan: Obey proportional scanning
- requirements for kswapd
-Message-ID: <20130322194609.GC32241@suse.de>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-3-git-send-email-mgorman@suse.de>
- <20130321162518.GB27848@cmpxchg.org>
- <20130321180238.GM1878@suse.de>
- <20130322165349.GI1953@cmpxchg.org>
- <20130322182556.GB32241@suse.de>
- <20130322190902.GA4611@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130322190902.GA4611@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id C375F6B0069
+	for <linux-mm@kvack.org>; Fri, 22 Mar 2013 16:24:32 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 03/10] soft-offline: use migrate_pages() instead of migrate_huge_page()
+Date: Fri, 22 Mar 2013 16:23:48 -0400
+Message-Id: <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org
 
-On Fri, Mar 22, 2013 at 03:09:02PM -0400, Johannes Weiner wrote:
-> > To preserve existing behaviour, that makes sense. I'm not convinced that
-> > it's necessarily the best idea but altering it would be beyond the scope
-> > of this series and bite off more than I'm willing to chew. This actually
-> > simplifies things a bit and shrink_lruvec turns into the (untested) code
-> > below. It does not do exact proportional scanning but I do not think it's
-> > necessary to either and is a useful enough approximation. It still could
-> > end up reclaiming much more than sc->nr_to_reclaim unfortunately but fixing
-> > it requires reworking how kswapd scans at different priorities.
-> 
-> In which way does it not do exact proportional scanning?  I commented
-> on one issue below, but maybe you were referring to something else.
-> 
+Currently migrate_huge_page() takes a pointer to a hugepage to be
+migrated as an argument, instead of taking a pointer to the list of
+hugepages to be migrated. This behavior was introduced in commit
+189ebff28 ("hugetlb: simplify migrate_huge_page()"), and was OK
+because until now hugepage migration is enabled only for soft-offlining
+which takes only one hugepage in a single call.
 
-You guessed what I was referring to correctly.
+But the situation will change in the later patches in this series
+which enable other users of page migration to support hugepage migration.
+They can kick migration for both of normal pages and hugepages
+in a single call, so we need to go back to original implementation
+of using linked lists to collect the hugepages to be migrated.
 
-> Yes, it's a little unfortunate that we escalate to a gigantic scan
-> window first, and then have to contort ourselves in the process of
-> backing off gracefully after we reclaimed a few pages...
-> 
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/memory-failure.c | 15 ++++++++++++---
+ mm/migrate.c        |  2 ++
+ 2 files changed, 14 insertions(+), 3 deletions(-)
 
-The next patch "mm: vmscan: Flatten kswapd priority loop" mitigates the
-problem slightly by improving how kswapd controls when priority gets raised.
-It's not perfect though, lots of pages under writeback at the tail of
-the LRU will still raise the priority quickly.
-
-> > Is this closer to what you had in mind?
-> > 
-> > static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
-> > {
-> > 	unsigned long nr[NR_LRU_LISTS];
-> > 	unsigned long nr_to_scan;
-> > 	enum lru_list lru;
-> > 	unsigned long nr_reclaimed = 0;
-> > 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
-> > 	unsigned long nr_anon_scantarget, nr_file_scantarget;
-> > 	struct blk_plug plug;
-> > 	bool scan_adjusted = false;
-> > 
-> > 	get_scan_count(lruvec, sc, nr);
-> > 
-> > 	/* Record the original scan target for proportional adjustments later */
-> > 	nr_file_scantarget = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE] + 1;
-> > 	nr_anon_scantarget = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON] + 1;
-> > 
-> > 	blk_start_plug(&plug);
-> > 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
-> > 					nr[LRU_INACTIVE_FILE]) {
-> > 		unsigned long nr_anon, nr_file, percentage;
-> > 
-> > 		for_each_evictable_lru(lru) {
-> > 			if (nr[lru]) {
-> > 				nr_to_scan = min(nr[lru], SWAP_CLUSTER_MAX);
-> > 				nr[lru] -= nr_to_scan;
-> > 
-> > 				nr_reclaimed += shrink_list(lru, nr_to_scan,
-> > 							    lruvec, sc);
-> > 			}
-> > 		}
-> > 
-> > 		if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
-> > 			continue;
-> > 
-> > 		/*
-> > 		 * For global direct reclaim, reclaim only the number of pages
-> > 		 * requested. Less care is taken to scan proportionally as it
-> > 		 * is more important to minimise direct reclaim stall latency
-> > 		 * than it is to properly age the LRU lists.
-> > 		 */
-> > 		if (global_reclaim(sc) && !current_is_kswapd())
-> > 			break;
-> > 
-> > 		/*
-> > 		 * For kswapd and memcg, reclaim at least the number of pages
-> > 		 * requested. Ensure that the anon and file LRUs shrink
-> > 		 * proportionally what was requested by get_scan_count(). We
-> > 		 * stop reclaiming one LRU and reduce the amount scanning
-> > 		 * proportional to the original scan target.
-> > 		 */
-> > 		nr_file = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE];
-> > 		nr_anon = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON];
-> > 
-> > 		if (nr_file > nr_anon) {
-> > 			lru = LRU_BASE;
-> > 			percentage = nr_anon * 100 / nr_anon_scantarget;
-> > 		} else {
-> > 			lru = LRU_FILE;
-> > 			percentage = nr_file * 100 / nr_file_scantarget;
-> > 		}
-> > 
-> > 		/* Stop scanning the smaller of the LRU */
-> > 		nr[lru] = 0;
-> > 		nr[lru + LRU_ACTIVE] = 0;
-> > 
-> > 		/* Reduce scanning of the other LRU proportionally */
-> > 		lru = (lru == LRU_FILE) ? LRU_BASE : LRU_FILE;
-> > 		nr[lru] = nr[lru] * percentage / 100;;
-> > 		nr[lru + LRU_ACTIVE] = nr[lru + LRU_ACTIVE] * percentage / 100;
-> 
-> The percentage is taken from the original goal but then applied to the
-> remainder of scan goal for the LRUs we continue scanning.  The more
-> pages that have already been scanned, the more inaccurate this gets.
-> Is that what you had in mind with useful enough approximation?
-
-Yes. I could record the original scan rates, recalculate as a percentage
-and then do something like
-
-nr[lru] = min(nr[lru], origin_nr[lru] * percentage / 100)
-
-but it was not obvious that the result would be any better.
-
-
+diff --git v3.9-rc3.orig/mm/memory-failure.c v3.9-rc3/mm/memory-failure.c
+index df0694c..4e01082 100644
+--- v3.9-rc3.orig/mm/memory-failure.c
++++ v3.9-rc3/mm/memory-failure.c
+@@ -1467,6 +1467,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 	int ret;
+ 	unsigned long pfn = page_to_pfn(page);
+ 	struct page *hpage = compound_head(page);
++	LIST_HEAD(pagelist);
+ 
+ 	/*
+ 	 * This double-check of PageHWPoison is to avoid the race with
+@@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 	unlock_page(hpage);
+ 
+ 	/* Keep page count to indicate a given hugepage is isolated. */
+-	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
+-				MIGRATE_SYNC);
+-	put_page(hpage);
++	list_move(&hpage->lru, &pagelist);
++	ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
++				MIGRATE_SYNC, MR_MEMORY_FAILURE);
+ 	if (ret) {
+ 		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+ 			pfn, ret, page->flags);
++		/*
++		 * We know that soft_offline_huge_page() tries to migrate
++		 * only one hugepage pointed to by hpage, so we need not
++		 * run through the pagelist here.
++		 */
++		putback_active_hugepage(hpage);
++		if (ret > 0)
++			ret = -EIO;
+ 	} else {
+ 		set_page_hwpoison_huge_page(hpage);
+ 		dequeue_hwpoisoned_huge_page(hpage);
+diff --git v3.9-rc3.orig/mm/migrate.c v3.9-rc3/mm/migrate.c
+index f69f354..66030b6 100644
+--- v3.9-rc3.orig/mm/migrate.c
++++ v3.9-rc3/mm/migrate.c
+@@ -981,6 +981,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 
+ 	unlock_page(hpage);
+ out:
++	if (rc != -EAGAIN)
++		putback_active_hugepage(hpage);
+ 	put_page(new_hpage);
+ 	if (result) {
+ 		if (rc)
 -- 
-Mel Gorman
-SUSE Labs
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
