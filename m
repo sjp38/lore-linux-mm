@@ -1,37 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 0E0716B0002
-	for <linux-mm@kvack.org>; Sat, 23 Mar 2013 11:55:39 -0400 (EDT)
-Message-ID: <514DD065.3000106@redhat.com>
-Date: Sat, 23 Mar 2013 11:55:17 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 0FED66B0002
+	for <linux-mm@kvack.org>; Sat, 23 Mar 2013 15:31:11 -0400 (EDT)
+Received: by mail-ie0-f177.google.com with SMTP id tp5so1646928ieb.8
+        for <linux-mm@kvack.org>; Sat, 23 Mar 2013 12:31:11 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] migrate: add migrate_entry_wait_huge()
-References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1363983835-20184-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1363983835-20184-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1363685150-18303-2-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1363685150-18303-1-git-send-email-liwanp@linux.vnet.ibm.com>
+	<1363685150-18303-2-git-send-email-liwanp@linux.vnet.ibm.com>
+Date: Sat, 23 Mar 2013 20:31:11 +0100
+Message-ID: <CAMuHMdUTsHs0-5=kYLMHYGTxBiCAGB33KZH0wvz51vgtExjK8Q@mail.gmail.com>
+Subject: Re: [PATCH v4 1/8] staging: zcache: introduce zero-filled pages handler
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux-Next <linux-next@vger.kernel.org>
 
-On 03/22/2013 04:23 PM, Naoya Horiguchi wrote:
-> When we have a page fault for the address which is backed by a hugepage
-> under migration, the kernel can't wait correctly until the migration
-> finishes. This is because pte_offset_map_lock() can't get a correct
-> migration entry for hugepage. This patch adds migration_entry_wait_huge()
-> to separate code path between normal pages and hugepages.
+On Tue, Mar 19, 2013 at 10:25 AM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+> Introduce zero-filled pages handler to capture and handle zero pages.
 >
-> ChangeLog v2:
->   - remove dup in migrate_entry_wait_huge()
+> Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+>  drivers/staging/zcache/zcache-main.c |   26 ++++++++++++++++++++++++++
+>  1 files changed, 26 insertions(+), 0 deletions(-)
 >
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+> index 328898e..d73dd4b 100644
+> --- a/drivers/staging/zcache/zcache-main.c
+> +++ b/drivers/staging/zcache/zcache-main.c
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+> +static void handle_zero_filled_page(void *page)
+> +{
+> +       void *user_mem;
+> +
+> +       user_mem = kmap_atomic(page);
 
--- 
-All rights reversed
+kmap_atomic() takes a "struct page *", not a "void *".
+
+> +       memset(user_mem, 0, PAGE_SIZE);
+> +       kunmap_atomic(user_mem);
+> +
+> +       flush_dcache_page(page);
+
+While flush_dcache_page() is a no-op on many architectures, it also
+takes a "struct page *", not a "void *":
+
+m68k/allmodconfig:
+
+drivers/staging/zcache/zcache-main.c:309:2: error: request for member
+'virtual' in something not a structure or union
+
+Cfr. http://kisskb.ellerman.id.au/kisskb/buildresult/8433711/
+
+> +}
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
