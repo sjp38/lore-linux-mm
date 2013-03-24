@@ -1,72 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id D04606B0006
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:27:09 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id rr4so997920pbb.38
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:27:09 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 1DA126B0027
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:27:16 -0400 (EDT)
+Received: by mail-da0-f47.google.com with SMTP id s35so2797005dak.20
+        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:27:15 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFC PATCH v2, part4 01/39] vmlinux.lds: add comments for global variables and clean up useless declarations
-Date: Sun, 24 Mar 2013 15:24:27 +0800
-Message-Id: <1364109934-7851-2-git-send-email-jiang.liu@huawei.com>
+Subject: [RFC PATCH v2, part4 02/39] avr32: normalize global variables exported by vmlinux.lds
+Date: Sun, 24 Mar 2013 15:24:28 +0800
+Message-Id: <1364109934-7851-3-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
 References: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org
+Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Haavard Skinnemoen <hskinnemoen@gmail.com>, Hans-Christian Egtvedt <egtvedt@samfundet.no>
 
-This patch documents global variables exported from vmlinux.lds.
-1) Add comments about usage guidelines for global variables exported
-   from vmlinux.lds.S.
-2) Remove unused __initdata_begin[] and __initdata_end[].
+Normalize global variables exported by vmlinux.lds to conform usage
+guidelines from include/asm-generic/sections.h.
+
+Use _text to mark the start of the kernel image including the head text,
+and _stext to mark the start of the .text section.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-arch@vger.kernel.org
+Cc: Haavard Skinnemoen <hskinnemoen@gmail.com>
+Cc: Hans-Christian Egtvedt <egtvedt@samfundet.no>
 Cc: linux-kernel@vger.kernel.org
 ---
- include/asm-generic/sections.h |   21 ++++++++++++++++++++-
- 1 file changed, 20 insertions(+), 1 deletion(-)
+ arch/avr32/kernel/setup.c       |    2 +-
+ arch/avr32/kernel/vmlinux.lds.S |    4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/include/asm-generic/sections.h b/include/asm-generic/sections.h
-index c1a1216..f1a24b5 100644
---- a/include/asm-generic/sections.h
-+++ b/include/asm-generic/sections.h
-@@ -3,6 +3,26 @@
+diff --git a/arch/avr32/kernel/setup.c b/arch/avr32/kernel/setup.c
+index b4247f4..209ae5a 100644
+--- a/arch/avr32/kernel/setup.c
++++ b/arch/avr32/kernel/setup.c
+@@ -555,7 +555,7 @@ void __init setup_arch (char **cmdline_p)
+ {
+ 	struct clk *cpu_clk;
  
- /* References to section boundaries */
+-	init_mm.start_code = (unsigned long)_text;
++	init_mm.start_code = (unsigned long)_stext;
+ 	init_mm.end_code = (unsigned long)_etext;
+ 	init_mm.end_data = (unsigned long)_edata;
+ 	init_mm.brk = (unsigned long)_end;
+diff --git a/arch/avr32/kernel/vmlinux.lds.S b/arch/avr32/kernel/vmlinux.lds.S
+index 9cd2bd9..a458917 100644
+--- a/arch/avr32/kernel/vmlinux.lds.S
++++ b/arch/avr32/kernel/vmlinux.lds.S
+@@ -23,7 +23,7 @@ SECTIONS
+ {
+ 	. = CONFIG_ENTRY_ADDRESS;
+ 	.init		: AT(ADDR(.init) - LOAD_OFFSET) {
+-		_stext = .;
++		_text = .;
+ 		__init_begin = .;
+ 			_sinittext = .;
+ 			*(.text.reset)
+@@ -46,7 +46,7 @@ SECTIONS
  
-+/*
-+ * Usage guidelines:
-+ * _text, _data: architecture specific, don't use them in arch-independent code
-+ * [_stext, _etext]: contains .text.* sections, may also contain .rodata.*
-+ *                   and/or .init.* sections
-+ * [_sdata, _edata]: contains .data.* sections, may also contain .rodata.*
-+ *                   and/or .init.* sections.
-+ * [__start_rodata, __end_rodata]: contains .rodata.* sections
-+ * [__init_begin, __init_end]: contains .init.* sections, but .init.text.*
-+ *                   may be out of this range on some architectures.
-+ * [_sinittext, _einittext]: contains .init.text.* sections
-+ * [__bss_start, __bss_stop]: contains BSS sections
-+ *
-+ * Following global variables are optional and may be unavailable on some
-+ * architectures and/or kernel configurations.
-+ *	_text, _data
-+ *	__kprobes_text_start, __kprobes_text_end
-+ *	__entry_text_start, __entry_text_end
-+ *	__ctors_start, __ctors_end
-+ */
- extern char _text[], _stext[], _etext[];
- extern char _data[], _sdata[], _edata[];
- extern char __bss_start[], __bss_stop[];
-@@ -12,7 +32,6 @@ extern char _end[];
- extern char __per_cpu_load[], __per_cpu_start[], __per_cpu_end[];
- extern char __kprobes_text_start[], __kprobes_text_end[];
- extern char __entry_text_start[], __entry_text_end[];
--extern char __initdata_begin[], __initdata_end[];
- extern char __start_rodata[], __end_rodata[];
- 
- /* Start and end of .ctors section - used for constructor calls. */
+ 	.text		: AT(ADDR(.text) - LOAD_OFFSET) {
+ 		_evba = .;
+-		_text = .;
++		_stext = .;
+ 		*(.ex.text)
+ 		*(.irq.text)
+ 		KPROBES_TEXT
 -- 
 1.7.9.5
 
