@@ -1,107 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id E83246B00D6
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:35:10 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id uo15so3646984pbc.5
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:35:10 -0700 (PDT)
-From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFC PATCH v2, part4 35/39] mm/unicore32: prepare for removing num_physpages and simplify mem_init()
-Date: Sun, 24 Mar 2013 15:25:27 +0800
-Message-Id: <1364109934-7851-62-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
-References: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id CDA1A6B00D8
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:35:19 -0400 (EDT)
+Message-ID: <514EAC9B.1010706@huawei.com>
+Date: Sun, 24 Mar 2013 15:34:51 +0800
+From: Li Zefan <lizefan@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
+References: <514BB23E.70908@huawei.com> <20130322080749.GB31457@dhcp22.suse.cz> <514C1388.6090909@huawei.com> <514C14BF.3050009@parallels.com> <20130322093141.GE31457@dhcp22.suse.cz> <514C2754.4080701@parallels.com> <20130322094832.GG31457@dhcp22.suse.cz> <514C2C72.5090402@parallels.com> <20130322100609.GI31457@dhcp22.suse.cz> <514C3193.9010609@parallels.com> <20130322105616.GK31457@dhcp22.suse.cz>
+In-Reply-To: <20130322105616.GK31457@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Guan Xuetao <gxt@mprc.pku.edu.cn>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Prepare for removing num_physpages and simplify mem_init().
+>> I read the code as lockdep_assert(memcg_cache_mutex), and then later on
+>> mutex_lock(&memcg_mutex). But reading again, that was a just an
+>> rcu_read_lock(). Good thing it is Friday
+>>
+>> You guys can add my Acked-by, and thanks again
+> 
+> Li, are you ok to take the page via your tree?
+> 
 
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org
----
- arch/unicore32/mm/init.c |   49 ++--------------------------------------------
- 1 file changed, 2 insertions(+), 47 deletions(-)
-
-diff --git a/arch/unicore32/mm/init.c b/arch/unicore32/mm/init.c
-index 119b9e8..39a967a 100644
---- a/arch/unicore32/mm/init.c
-+++ b/arch/unicore32/mm/init.c
-@@ -383,10 +383,6 @@ static void __init free_unused_memmap(struct meminfo *mi)
-  */
- void __init mem_init(void)
- {
--	unsigned long reserved_pages, free_pages;
--	struct memblock_region *reg;
--	int i;
--
- 	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
- 
- 	free_unused_memmap(&meminfo);
-@@ -394,48 +390,7 @@ void __init mem_init(void)
- 	/* this will put all unused low memory onto the freelists */
- 	free_all_bootmem();
- 
--	reserved_pages = free_pages = 0;
--
--	for_each_bank(i, &meminfo) {
--		struct membank *bank = &meminfo.bank[i];
--		unsigned int pfn1, pfn2;
--		struct page *page, *end;
--
--		pfn1 = bank_pfn_start(bank);
--		pfn2 = bank_pfn_end(bank);
--
--		page = pfn_to_page(pfn1);
--		end  = pfn_to_page(pfn2 - 1) + 1;
--
--		do {
--			if (PageReserved(page))
--				reserved_pages++;
--			else if (!page_count(page))
--				free_pages++;
--			page++;
--		} while (page < end);
--	}
--
--	/*
--	 * Since our memory may not be contiguous, calculate the
--	 * real number of pages we have in this system
--	 */
--	printk(KERN_INFO "Memory:");
--	num_physpages = 0;
--	for_each_memblock(memory, reg) {
--		unsigned long pages = memblock_region_memory_end_pfn(reg) -
--			memblock_region_memory_base_pfn(reg);
--		num_physpages += pages;
--		printk(" %ldMB", pages >> (20 - PAGE_SHIFT));
--	}
--	printk(" = %luMB total\n", num_physpages >> (20 - PAGE_SHIFT));
--
--	printk(KERN_NOTICE "Memory: %luk/%luk available, %luk reserved, %luK highmem\n",
--		nr_free_pages() << (PAGE_SHIFT-10),
--		free_pages << (PAGE_SHIFT-10),
--		reserved_pages << (PAGE_SHIFT-10),
--		totalhigh_pages << (PAGE_SHIFT-10));
--
-+	mem_init_print_info(NULL);
- 	printk(KERN_NOTICE "Virtual kernel memory layout:\n"
- 		"    vector  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
- 		"    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-@@ -464,7 +419,7 @@ void __init mem_init(void)
- 	BUILD_BUG_ON(TASK_SIZE				> MODULES_VADDR);
- 	BUG_ON(TASK_SIZE				> MODULES_VADDR);
- 
--	if (PAGE_SIZE >= 16384 && num_physpages <= 128) {
-+	if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
- 		/*
- 		 * On a machine this small we won't get
- 		 * anywhere without overcommit, so turn
--- 
-1.7.9.5
+I don't have a git tree in kernel.org. It's Tejun that picks up
+cgroup patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
