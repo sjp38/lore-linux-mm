@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 7DF326B00BA
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:33:15 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id 4so2126096pdd.29
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:33:14 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id DC2E06B00BD
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:33:23 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id bh4so316930pad.40
+        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:33:23 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFC PATCH v2, part4 28/39] mm/s390: prepare for removing num_physpages and simplify mem_init()
-Date: Sun, 24 Mar 2013 15:25:14 +0800
-Message-Id: <1364109934-7851-49-git-send-email-jiang.liu@huawei.com>
+Subject: [RFC PATCH v2, part4 29/39] mm/s390: prepare for removing num_physpages and simplify mem_init()
+Date: Sun, 24 Mar 2013 15:25:15 +0800
+Message-Id: <1364109934-7851-50-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
 References: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
