@@ -1,87 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id EA0866B00C4
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:33:53 -0400 (EDT)
-Received: by mail-da0-f50.google.com with SMTP id t1so1264754dae.23
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:33:53 -0700 (PDT)
-From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFC PATCH v2, part4 31/39] mm/SH: prepare for removing num_physpages and simplify mem_init()
-Date: Sun, 24 Mar 2013 15:25:19 +0800
-Message-Id: <1364109934-7851-54-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
-References: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 9712F6B00C6
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:33:54 -0400 (EDT)
+Message-ID: <514EAC41.5050700@huawei.com>
+Date: Sun, 24 Mar 2013 15:33:21 +0800
+From: Li Zefan <lizefan@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
+References: <514A60CD.60208@huawei.com> <20130321090849.GF6094@dhcp22.suse.cz> <20130321102257.GH6094@dhcp22.suse.cz> <514BB23E.70908@huawei.com> <20130322080749.GB31457@dhcp22.suse.cz> <514C1388.6090909@huawei.com> <514C14BF.3050009@parallels.com> <20130322093141.GE31457@dhcp22.suse.cz>
+In-Reply-To: <20130322093141.GE31457@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Paul Mundt <lethal@linux-sh.org>, Tang Chen <tangchen@cn.fujitsu.com>, linux-sh@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Prepare for removing num_physpages and simplify mem_init().
+>> Thanks for identifying and fixing this.
+>>
+>> Li is right. The cache name will live long, but this is because the
+>> slab/slub caches will strdup it internally. So the actual memcg
+>> allocation is short lived.
+> 
+> OK, I have totally missed that. Sorry about the confusion. Then all the
+> churn around the allocation is pointless, no?
+> What about:
+> ---
+>>From 7ed7f53bb597e8cb40d9ac91ce16142fb60f1e93 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Fri, 22 Mar 2013 10:22:54 +0100
+> Subject: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
+> 
+> As cgroup supports rename, it's unsafe to dereference dentry->d_name
+> without proper vfs locks. Fix this by using cgroup_name() rather than
+> dentry directly.
+> 
+> Also open code memcg_cache_name because it is called only from
+> kmem_cache_dup which frees the returned name right after
+> kmem_cache_create_memcg makes a copy of it. Such a short-lived
+> allocation doesn't make too much sense. So replace it by a static
+> buffer as kmem_cache_dup is called with memcg_cache_mutex.
+> 
 
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Paul Mundt <lethal@linux-sh.org>
-Cc: Wen Congyang <wency@cn.fujitsu.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: linux-sh@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
----
- arch/sh/mm/init.c |   25 ++++---------------------
- 1 file changed, 4 insertions(+), 21 deletions(-)
+I doubt it's a win to add 4K to kernel text size instead of adding
+a few extra lines of code... but it's up to you.
 
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index aecd913..3826596 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -407,24 +407,18 @@ unsigned int mem_init_done = 0;
- 
- void __init mem_init(void)
- {
--	int codesize, datasize, initsize;
--	int nid;
-+	pg_data_t *pgdat;
- 
- 	iommu_init();
- 
--	num_physpages = 0;
- 	high_memory = NULL;
- 
--	for_each_online_node(nid) {
--		pg_data_t *pgdat = NODE_DATA(nid);
-+	for_each_online_pgdat(pgdat) {
- 		void *node_high_memory;
- 
--		num_physpages += pgdat->node_present_pages;
--
- 		if (pgdat->node_spanned_pages)
- 			free_all_bootmem_node(pgdat);
- 
--
- 		node_high_memory = (void *)__va((pgdat->node_start_pfn +
- 						 pgdat->node_spanned_pages) <<
- 						 PAGE_SHIFT);
-@@ -441,19 +435,8 @@ void __init mem_init(void)
- 
- 	vsyscall_init();
- 
--	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
--	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
--	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
--
--	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, "
--	       "%dk data, %dk init)\n",
--		nr_free_pages() << (PAGE_SHIFT-10),
--		num_physpages << (PAGE_SHIFT-10),
--		codesize >> 10,
--		datasize >> 10,
--		initsize >> 10);
--
--	printk(KERN_INFO "virtual kernel memory layout:\n"
-+	mem_init_print_info(NULL);
-+	pr_info("virtual kernel memory layout:\n"
- 		"    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
- #ifdef CONFIG_HIGHMEM
- 		"    pkmap   : 0x%08lx - 0x%08lx   (%4ld kB)\n"
--- 
-1.7.9.5
+> Signed-off-by: Li Zefan <lizefan@huawei.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  mm/memcontrol.c |   33 +++++++++++----------------------
+>  1 file changed, 11 insertions(+), 22 deletions(-)
+...
+>  static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
+>  					 struct kmem_cache *s)
+>  {
+>  	char *name;
+>  	struct kmem_cache *new;
+> +	static char tmp_name[PAGE_SIZE];
+>  
+> -	name = memcg_cache_name(memcg, s);
+> -	if (!name)
+> -		return NULL;
+> +	lockdep_assert_held(&memcg_cache_mutex);
+> +
+> +	rcu_read_lock();
+> +	tmp_name = snprintf(tmp_name, sizeof(tmp_name), "%s(%d:%s)", s->name,
+> +			 memcg_cache_id(memcg), cgroup_name(memcg->css.cgroup));
+
+I guess you didn't turn on CONFIG_MEMCG_KMEM?
+
+snprintf() returns a int value.
+
+> +	rcu_read_unlock();
+>  
+> -	new = kmem_cache_create_memcg(memcg, name, s->object_size, s->align,
+> +	new = kmem_cache_create_memcg(memcg, tmp_name, s->object_size, s->align,
+>  				      (s->flags & ~SLAB_PANIC), s->ctor, s);
+>  
+>  	if (new)
+>  		new->allocflags |= __GFP_KMEMCG;
+>  
+> -	kfree(name);
+>  	return new;
+>  }
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
