@@ -1,78 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id F3A6F6B00DE
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:35:56 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id wp1so545642pac.19
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:35:56 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id D11FE6B00E0
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:36:15 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id hz10so541871pad.21
+        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:36:15 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFC PATCH v2, part4 36/39] mm/xtensa: prepare for removing num_physpages and simplify mem_init()
-Date: Sun, 24 Mar 2013 15:25:30 +0800
-Message-Id: <1364109934-7851-65-git-send-email-jiang.liu@huawei.com>
+Subject: [RFC PATCH v2, part4 37/39] mm: use totalram_pages instead of num_physpages at runtime
+Date: Sun, 24 Mar 2013 15:25:31 +0800
+Message-Id: <1364109934-7851-66-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
 References: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chris Zankel <chris@zankel.net>, Max Filippov <jcmvbkbc@gmail.com>, Geert Uytterhoeven <geert@linux-m68k.org>, linux-xtensa@linux-xtensa.org
+Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Miklos Szeredi <miklos@szeredi.hu>, "David S. Miller" <davem@davemloft.net>, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>, James Morris <jmorris@namei.org>, Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>, Patrick McHardy <kaber@trash.net>, fuse-devel@lists.sourceforge.net, netdev@vger.kernel.org
 
-Prepare for removing num_physpages and simplify mem_init().
+The global variable num_physpages is scheduled to be removed, so use
+totalram_pages instead of num_physpages at runtime.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Chris Zankel <chris@zankel.net>
-Cc: Max Filippov <jcmvbkbc@gmail.com>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: linux-xtensa@linux-xtensa.org
+Cc: Miklos Szeredi <miklos@szeredi.hu>
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
+Cc: James Morris <jmorris@namei.org>
+Cc: Hideaki YOSHIFUJI <yoshfuji@linux-ipv6.org>
+Cc: Patrick McHardy <kaber@trash.net>
+Cc: fuse-devel@lists.sourceforge.net
 Cc: linux-kernel@vger.kernel.org
+Cc: netdev@vger.kernel.org
 ---
- arch/xtensa/mm/init.c |   27 ++-------------------------
- 1 file changed, 2 insertions(+), 25 deletions(-)
+ fs/fuse/inode.c          |    2 +-
+ kernel/power/snapshot.c  |    4 ++--
+ net/ipv4/inet_fragment.c |    2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/arch/xtensa/mm/init.c b/arch/xtensa/mm/init.c
-index dc6e009..267428e 100644
---- a/arch/xtensa/mm/init.c
-+++ b/arch/xtensa/mm/init.c
-@@ -173,12 +173,8 @@ void __init zones_init(void)
- 
- void __init mem_init(void)
+diff --git a/fs/fuse/inode.c b/fs/fuse/inode.c
+index b730fda..4c2a420 100644
+--- a/fs/fuse/inode.c
++++ b/fs/fuse/inode.c
+@@ -781,7 +781,7 @@ static const struct super_operations fuse_super_operations = {
+ static void sanitize_global_limit(unsigned *limit)
  {
--	unsigned long codesize, reservedpages, datasize, initsize;
--	unsigned long highmemsize, tmp, ram;
--
--	max_mapnr = num_physpages = max_low_pfn - ARCH_PFN_OFFSET;
-+	max_mapnr = max_low_pfn - ARCH_PFN_OFFSET;
- 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
--	highmemsize = 0;
+ 	if (*limit == 0)
+-		*limit = ((num_physpages << PAGE_SHIFT) >> 13) /
++		*limit = ((totalram_pages << PAGE_SHIFT) >> 13) /
+ 			 sizeof(struct fuse_req);
  
- #ifdef CONFIG_HIGHMEM
- #error HIGHGMEM not implemented in init.c
-@@ -186,26 +182,7 @@ void __init mem_init(void)
+ 	if (*limit >= 1 << 16)
+diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
+index 0de2857..8b5d1cd 100644
+--- a/kernel/power/snapshot.c
++++ b/kernel/power/snapshot.c
+@@ -1651,7 +1651,7 @@ unsigned long snapshot_get_image_size(void)
+ static int init_header(struct swsusp_info *info)
+ {
+ 	memset(info, 0, sizeof(struct swsusp_info));
+-	info->num_physpages = num_physpages;
++	info->num_physpages = get_num_physpages();
+ 	info->image_pages = nr_copy_pages;
+ 	info->pages = snapshot_get_image_size();
+ 	info->size = info->pages;
+@@ -1795,7 +1795,7 @@ static int check_header(struct swsusp_info *info)
+ 	char *reason;
  
- 	free_all_bootmem();
+ 	reason = check_image_kernel(info);
+-	if (!reason && info->num_physpages != num_physpages)
++	if (!reason && info->num_physpages != get_num_physpages())
+ 		reason = "memory size";
+ 	if (reason) {
+ 		printk(KERN_ERR "PM: Image mismatch: %s\n", reason);
+diff --git a/net/ipv4/inet_fragment.c b/net/ipv4/inet_fragment.c
+index 4750d2b..94a99a1 100644
+--- a/net/ipv4/inet_fragment.c
++++ b/net/ipv4/inet_fragment.c
+@@ -60,7 +60,7 @@ void inet_frags_init(struct inet_frags *f)
  
--	reservedpages = ram = 0;
--	for (tmp = 0; tmp < max_mapnr; tmp++) {
--		ram++;
--		if (PageReserved(mem_map+tmp))
--			reservedpages++;
--	}
--
--	codesize =  (unsigned long) _etext - (unsigned long) _stext;
--	datasize =  (unsigned long) _edata - (unsigned long) _sdata;
--	initsize =  (unsigned long) __init_end - (unsigned long) __init_begin;
--
--	printk("Memory: %luk/%luk available (%ldk kernel code, %ldk reserved, "
--	       "%ldk data, %ldk init %ldk highmem)\n",
--	       nr_free_pages() << (PAGE_SHIFT-10),
--	       ram << (PAGE_SHIFT-10),
--	       codesize >> 10,
--	       reservedpages << (PAGE_SHIFT-10),
--	       datasize >> 10,
--	       initsize >> 10,
--	       highmemsize >> 10);
-+	mem_init_print_info(NULL);
- }
+ 	rwlock_init(&f->lock);
  
- #ifdef CONFIG_BLK_DEV_INITRD
+-	f->rnd = (u32) ((num_physpages ^ (num_physpages>>7)) ^
++	f->rnd = (u32) ((totalram_pages ^ (totalram_pages>>7)) ^
+ 				   (jiffies ^ (jiffies >> 6)));
+ 
+ 	setup_timer(&f->secret_timer, inet_frag_secret_rebuild,
 -- 
 1.7.9.5
 
