@@ -1,145 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id B9A596B0027
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:28:04 -0400 (EDT)
-Received: by mail-da0-f42.google.com with SMTP id n15so2793150dad.15
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:28:04 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 9C7766B0036
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:28:13 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id bi5so540912pad.17
+        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:28:12 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFC PATCH v2, part4 08/39] mm: introduce helper function mem_init_print_info() to simplify mem_init()
-Date: Sun, 24 Mar 2013 15:24:34 +0800
-Message-Id: <1364109934-7851-9-git-send-email-jiang.liu@huawei.com>
+Subject: [RFC PATCH v2, part4 09/39] mm/alpha: prepare for removing num_physpages and simplify mem_init()
+Date: Sun, 24 Mar 2013 15:24:35 +0800
+Message-Id: <1364109934-7851-10-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
 References: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Richard Henderson <rth@twiddle.net>, Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matt Turner <mattst88@gmail.com>, David Howells <dhowells@redhat.com>, linux-alpha@vger.kernel.org
 
-Introduce helper function mem_init_print_info() to simplify mem_init()
-across different architectures, which also unifies the format and
-information printed.
-
-Function mem_init_print_info() calculates memory statistics information
-without walking each page, so it should be a little faster on some
-architectures.
-
-Also introduce another helper get_num_physpages() to kill the global
-variable num_physpages.
+Prepare for removing num_physpages and simplify mem_init().
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-mm@kvack.org
+Cc: Richard Henderson <rth@twiddle.net>
+Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
+Cc: Matt Turner <mattst88@gmail.com>
+Cc: David Howells <dhowells@redhat.com>
+Cc: linux-alpha@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
 ---
- include/linux/mm.h |   12 ++++++++++++
- mm/page_alloc.c    |   52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 64 insertions(+)
+ arch/alpha/mm/init.c |   32 ++------------------------------
+ arch/alpha/mm/numa.c |   34 +++++-----------------------------
+ 2 files changed, 7 insertions(+), 59 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index c03d029..c225a4f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1312,6 +1312,7 @@ extern void free_highmem_page(struct page *page);
+diff --git a/arch/alpha/mm/init.c b/arch/alpha/mm/init.c
+index ca07a97..04c933c 100644
+--- a/arch/alpha/mm/init.c
++++ b/arch/alpha/mm/init.c
+@@ -277,42 +277,14 @@ srm_paging_stop (void)
  #endif
  
- extern void adjust_managed_page_count(struct page *page, long count);
-+extern void mem_init_print_info(const char *str);
+ #ifndef CONFIG_DISCONTIGMEM
+-static void __init
+-printk_memory_info(void)
+-{
+-	unsigned long codesize, reservedpages, datasize, initsize, tmp;
+-	extern int page_is_ram(unsigned long) __init;
+-
+-	/* printk all informations */
+-	reservedpages = 0;
+-	for (tmp = 0; tmp < max_low_pfn; tmp++)
+-		/*
+-		 * Only count reserved RAM pages
+-		 */
+-		if (page_is_ram(tmp) && PageReserved(mem_map+tmp))
+-			reservedpages++;
+-
+-	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
+-	datasize =  (unsigned long) &_edata - (unsigned long) &_data;
+-	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
+-
+-	printk("Memory: %luk/%luk available (%luk kernel code, %luk reserved, %luk data, %luk init)\n",
+-	       nr_free_pages() << (PAGE_SHIFT-10),
+-	       max_mapnr << (PAGE_SHIFT-10),
+-	       codesize >> 10,
+-	       reservedpages << (PAGE_SHIFT-10),
+-	       datasize >> 10,
+-	       initsize >> 10);
+-}
+-
+ void __init
+ mem_init(void)
+ {
+-	max_mapnr = num_physpages = max_low_pfn;
++	max_mapnr = max_low_pfn;
+ 	free_all_bootmem();
+ 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
  
- /* Free the reserved page into the buddy system, so it gets managed. */
- static inline void __free_reserved_page(struct page *page)
-@@ -1348,6 +1349,17 @@ static inline unsigned long free_initmem_default(int poison)
- 				  poison, "unused kernel");
+-	printk_memory_info();
++	mem_init_print_info(NULL);
  }
+ #endif /* CONFIG_DISCONTIGMEM */
  
-+static inline unsigned long get_num_physpages(void)
-+{
-+	int nid;
-+	unsigned long phys_pages = 0;
+diff --git a/arch/alpha/mm/numa.c b/arch/alpha/mm/numa.c
+index 857452c..e5086fc 100644
+--- a/arch/alpha/mm/numa.c
++++ b/arch/alpha/mm/numa.c
+@@ -129,8 +129,6 @@ setup_memory_node(int nid, void *kernel_end)
+ 	if (node_max_pfn > max_low_pfn)
+ 		max_pfn = max_low_pfn = node_max_pfn;
+ 
+-	num_physpages += node_max_pfn - node_min_pfn;
+-
+ #if 0 /* we'll try this one again in a little while */
+ 	/* Cute trick to make sure our local node data is on local memory */
+ 	node_data[nid] = (pg_data_t *)(__va(node_min_pfn << PAGE_SHIFT));
+@@ -324,37 +322,15 @@ void __init paging_init(void)
+ 
+ void __init mem_init(void)
+ {
+-	unsigned long codesize, reservedpages, datasize, initsize, pfn;
+-	extern int page_is_ram(unsigned long) __init;
+-	unsigned long nid, i;
++	unsigned long nid;
 +
+ 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
+ 
+-	reservedpages = 0;
+-	for_each_online_node(nid) {
+-		/*
+-		 * This will free up the bootmem, ie, slot 0 memory
+-		 */
++	/* This will free up the bootmem, ie, slot 0 memory */
 +	for_each_online_node(nid)
-+		phys_pages += node_present_pages(nid);
-+
-+	return phys_pages;
-+}
-+
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- /*
-  * With CONFIG_HAVE_MEMBLOCK_NODE_MAP set, an architecture may initialise its
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ebfb042..577acec 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -59,6 +59,7 @@
- #include <linux/migrate.h>
- #include <linux/page-debug-flags.h>
+ 		free_all_bootmem_node(NODE_DATA(nid));
  
-+#include <asm/sections.h>
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
- #include "internal.h"
-@@ -5168,6 +5169,57 @@ void free_highmem_page(struct page *page)
- }
+-		pfn = NODE_DATA(nid)->node_start_pfn;
+-		for (i = 0; i < node_spanned_pages(nid); i++, pfn++)
+-			if (page_is_ram(pfn) &&
+-			    PageReserved(nid_page_nr(nid, i)))
+-				reservedpages++;
+-	}
+-
+-	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
+-	datasize =  (unsigned long) &_edata - (unsigned long) &_data;
+-	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
+-
+-	printk("Memory: %luk/%luk available (%luk kernel code, %luk reserved, "
+-	       "%luk data, %luk init)\n",
+-	       nr_free_pages() << (PAGE_SHIFT-10),
+-	       num_physpages << (PAGE_SHIFT-10),
+-	       codesize >> 10,
+-	       reservedpages << (PAGE_SHIFT-10),
+-	       datasize >> 10,
+-	       initsize >> 10);
++	mem_init_print_info(NULL);
+ #if 0
+ 	mem_stress();
  #endif
- 
-+
-+void __init mem_init_print_info(const char *str)
-+{
-+	unsigned long physpages, codesize, datasize, rosize;
-+	unsigned long init_code_size, init_data_size;
-+
-+	physpages = get_num_physpages();
-+	codesize = _etext - _stext;
-+	datasize = _edata - _sdata;
-+	rosize = __end_rodata - __start_rodata;
-+	init_data_size = __init_end - __init_begin;
-+	init_code_size = _einittext - _sinittext;
-+
-+	/*
-+	 * Detect special cases and adjust section sizes accordingly:
-+	 * 1) .init.* may be embedded into .data sections
-+	 * 2) .init.text.* may be out of [__init_begin, __init_end],
-+	 *    please refer to arch/tile/kernel/vmlinux.lds.S.
-+	 * 3) .rodata.* may be embedded into .text or .data sections.
-+	 */
-+#define adj_init_size(start, end, size, pos, adj) \
-+	if (start <= pos && pos < end && size > adj) \
-+		size -= adj;
-+
-+	adj_init_size(__init_begin, __init_end, init_data_size,
-+		     _sinittext, init_code_size);
-+	adj_init_size(_stext, _etext, codesize, _sinittext, init_code_size);
-+	adj_init_size(_sdata, _edata, datasize, __init_begin, init_data_size);
-+	adj_init_size(_stext, _etext, codesize, __start_rodata, rosize);
-+	adj_init_size(_sdata, _edata, datasize, __start_rodata, rosize);
-+
-+#undef	adj_init_size
-+
-+	printk("Memory: %luK/%luK available "
-+	       "(%luK kernel code, %luK data, %luK rodata, "
-+	       "%luK init, %luK bss, %luK reserved"
-+#ifdef	CONFIG_HIGHMEM
-+	       ", %luK highmem"
-+#endif
-+	       "%s%s)\n",
-+	       nr_free_pages() << (PAGE_SHIFT-10), physpages << (PAGE_SHIFT-10),
-+	       codesize >> 10, datasize >> 10, rosize >> 10,
-+	       (init_data_size + init_code_size) >> 10,
-+	       (__bss_stop - __bss_start) >> 10,
-+	       (physpages - totalram_pages) << (PAGE_SHIFT-10),
-+#ifdef	CONFIG_HIGHMEM
-+	       totalhigh_pages << (PAGE_SHIFT-10),
-+#endif
-+	       str ? ", " : "", str ? str : "");
-+}
-+
- /**
-  * set_dma_reserve - set the specified number of pages reserved in the first zone
-  * @new_dma_reserve: The number of pages to mark reserved
 -- 
 1.7.9.5
 
