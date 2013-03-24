@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 0D7F16B0002
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 08:27:59 -0400 (EDT)
-Received: by mail-la0-f50.google.com with SMTP id ec20so9607390lab.23
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 05:27:58 -0700 (PDT)
-Message-ID: <514EF10E.6070506@cogentembedded.com>
-Date: Sun, 24 Mar 2013 16:26:54 +0400
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 887E26B0002
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 08:28:57 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id ec20so9608039lab.23
+        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 05:28:55 -0700 (PDT)
+Message-ID: <514EF148.7060106@cogentembedded.com>
+Date: Sun, 24 Mar 2013 16:27:52 +0400
 From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v2, part4 09/39] mm: use totalram_pages instead of
+Subject: Re: [RFC PATCH v2, part4 37/39] mm: use totalram_pages instead of
  num_physpages at runtime
-References: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com> <1364109934-7851-11-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1364109934-7851-11-git-send-email-jiang.liu@huawei.com>
+References: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com> <1364109934-7851-66-git-send-email-jiang.liu@huawei.com>
+In-Reply-To: <1364109934-7851-66-git-send-email-jiang.liu@huawei.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -21,7 +21,7 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.c
 
 Hello.
 
-On 24-03-2013 11:24, Jiang Liu wrote:
+On 24-03-2013 11:25, Jiang Liu wrote:
 
 > The global variable num_physpages is scheduled to be removed, so use
 > totalram_pages instead of num_physpages at runtime.
@@ -36,8 +36,47 @@ On 24-03-2013 11:24, Jiang Liu wrote:
 > Cc: fuse-devel@lists.sourceforge.net
 > Cc: linux-kernel@vger.kernel.org
 > Cc: netdev@vger.kernel.org
-[...]
+> ---
+>   fs/fuse/inode.c          |    2 +-
+>   kernel/power/snapshot.c  |    4 ++--
+>   net/ipv4/inet_fragment.c |    2 +-
+>   3 files changed, 4 insertions(+), 4 deletions(-)
 
+> diff --git a/fs/fuse/inode.c b/fs/fuse/inode.c
+> index b730fda..4c2a420 100644
+> --- a/fs/fuse/inode.c
+> +++ b/fs/fuse/inode.c
+> @@ -781,7 +781,7 @@ static const struct super_operations fuse_super_operations = {
+>   static void sanitize_global_limit(unsigned *limit)
+>   {
+>   	if (*limit == 0)
+> -		*limit = ((num_physpages << PAGE_SHIFT) >> 13) /
+> +		*limit = ((totalram_pages << PAGE_SHIFT) >> 13) /
+>   			 sizeof(struct fuse_req);
+>
+>   	if (*limit >= 1 << 16)
+> diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
+> index 0de2857..8b5d1cd 100644
+> --- a/kernel/power/snapshot.c
+> +++ b/kernel/power/snapshot.c
+> @@ -1651,7 +1651,7 @@ unsigned long snapshot_get_image_size(void)
+>   static int init_header(struct swsusp_info *info)
+>   {
+>   	memset(info, 0, sizeof(struct swsusp_info));
+> -	info->num_physpages = num_physpages;
+> +	info->num_physpages = get_num_physpages();
+>   	info->image_pages = nr_copy_pages;
+>   	info->pages = snapshot_get_image_size();
+>   	info->size = info->pages;
+> @@ -1795,7 +1795,7 @@ static int check_header(struct swsusp_info *info)
+>   	char *reason;
+>
+>   	reason = check_image_kernel(info);
+> -	if (!reason && info->num_physpages != num_physpages)
+> +	if (!reason && info->num_physpages != get_num_physpages())
+>   		reason = "memory size";
+>   	if (reason) {
+>   		printk(KERN_ERR "PM: Image mismatch: %s\n", reason);
 > diff --git a/net/ipv4/inet_fragment.c b/net/ipv4/inet_fragment.c
 > index 4750d2b..94a99a1 100644
 > --- a/net/ipv4/inet_fragment.c
@@ -48,12 +87,11 @@ On 24-03-2013 11:24, Jiang Liu wrote:
 >
 > -	f->rnd = (u32) ((num_physpages ^ (num_physpages>>7)) ^
 > +	f->rnd = (u32) ((totalram_pages ^ (totalram_pages>>7)) ^
-
-    Wouldn't hurt to add spaces around >> for consistency's sake.
-
 >   				   (jiffies ^ (jiffies >> 6)));
 >
 >   	setup_timer(&f->secret_timer, inet_frag_secret_rebuild,
+
+    Isn't patch 37 the same as patch 9?
 
 WBR, Sergei
 
