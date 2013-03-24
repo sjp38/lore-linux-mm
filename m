@@ -1,93 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 6FBF66B00F2
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:43:12 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id kp14so297820pab.36
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:43:11 -0700 (PDT)
-From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFC PATCH v2, part4 39/39] mm: kill global variable num_physpages
-Date: Sun, 24 Mar 2013 15:40:39 +0800
-Message-Id: <1364110839-8172-6-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1364110839-8172-1-git-send-email-jiang.liu@huawei.com>
-References: <1364110839-8172-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 7FCB66B00F4
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 03:43:36 -0400 (EDT)
+Received: by mail-ea0-f175.google.com with SMTP id o10so1879901eaj.6
+        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 00:43:34 -0700 (PDT)
+Date: Sun, 24 Mar 2013 08:43:31 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
+Message-ID: <20130324074331.GA12939@gmail.com>
+References: <20130318155619.GA18828@sgi.com>
+ <20130321105516.GC18484@gmail.com>
+ <alpine.DEB.2.02.1303211139110.3775@chino.kir.corp.google.com>
+ <20130322072532.GC10608@gmail.com>
+ <20130323152948.GA3036@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130323152948.GA3036@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Russ Anderson <rja@sgi.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
 
-Now all references to num_physpages have been removed, so kill it.
 
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- include/linux/mm.h |    1 -
- mm/memory.c        |    2 --
- mm/nommu.c         |    2 --
- 3 files changed, 5 deletions(-)
+* Russ Anderson <rja@sgi.com> wrote:
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index c225a4f..a49afbf 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -29,7 +29,6 @@ struct writeback_control;
- extern unsigned long max_mapnr;
- #endif
- 
--extern unsigned long num_physpages;
- extern unsigned long totalram_pages;
- extern void * high_memory;
- extern int page_cluster;
-diff --git a/mm/memory.c b/mm/memory.c
-index 705473a..ecc771d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -82,7 +82,6 @@ EXPORT_SYMBOL(max_mapnr);
- EXPORT_SYMBOL(mem_map);
- #endif
- 
--unsigned long num_physpages;
- /*
-  * A number of key systems in x86 including ioremap() rely on the assumption
-  * that high_memory defines the upper bound on direct map memory, then end
-@@ -92,7 +91,6 @@ unsigned long num_physpages;
-  */
- void * high_memory;
- 
--EXPORT_SYMBOL(num_physpages);
- EXPORT_SYMBOL(high_memory);
- 
- /*
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 4eb25a8..ac23388 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -55,7 +55,6 @@
- void *high_memory;
- struct page *mem_map;
- unsigned long max_mapnr;
--unsigned long num_physpages;
- unsigned long highest_memmap_pfn;
- struct percpu_counter vm_committed_as;
- int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
-@@ -82,7 +81,6 @@ unsigned long vm_memory_committed(void)
- EXPORT_SYMBOL_GPL(vm_memory_committed);
- 
- EXPORT_SYMBOL(mem_map);
--EXPORT_SYMBOL(num_physpages);
- 
- /* list of mapped, potentially shareable regions */
- static struct kmem_cache *vm_region_jar;
--- 
-1.7.9.5
+> --- linux.orig/mm/page_alloc.c	2013-03-19 16:09:03.736450861 -0500
+> +++ linux/mm/page_alloc.c	2013-03-22 17:07:43.895405617 -0500
+> @@ -4161,10 +4161,23 @@ int __meminit __early_pfn_to_nid(unsigne
+>  {
+>  	unsigned long start_pfn, end_pfn;
+>  	int i, nid;
+> +	/*
+> +	   NOTE: The following SMP-unsafe globals are only used early
+> +	   in boot when the kernel is running single-threaded.
+> +	 */
+> +	static unsigned long last_start_pfn, last_end_pfn;
+> +	static int last_nid;
+
+I guess I'm the nitpicker of the week:
+
+please use the customary (multi-line) comment style:
+
+  /*
+   * Comment .....
+   * ...... goes here.
+   */
+
+specified in Documentation/CodingStyle.
+
+Thanks,
+
+        Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
