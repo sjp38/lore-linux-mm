@@ -1,88 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 55C3A6B006C
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 05:06:35 -0400 (EDT)
-Date: Mon, 25 Mar 2013 10:06:29 +0100
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 6DAC26B0070
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 05:08:02 -0400 (EDT)
+Date: Mon, 25 Mar 2013 10:07:58 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
-Message-ID: <20130325090629.GN2154@dhcp22.suse.cz>
-References: <514A60CD.60208@huawei.com>
- <20130321090849.GF6094@dhcp22.suse.cz>
- <20130321102257.GH6094@dhcp22.suse.cz>
- <514BB23E.70908@huawei.com>
- <20130322080749.GB31457@dhcp22.suse.cz>
- <514C1388.6090909@huawei.com>
- <514C14BF.3050009@parallels.com>
- <20130322093141.GE31457@dhcp22.suse.cz>
- <514EAC41.5050700@huawei.com>
+Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd
+ reclaims at each priority
+Message-ID: <20130325090758.GO2154@dhcp22.suse.cz>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+ <1363525456-10448-2-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <514EAC41.5050700@huawei.com>
+In-Reply-To: <1363525456-10448-2-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Sun 24-03-13 15:33:21, Li Zefan wrote:
-> >> Thanks for identifying and fixing this.
-> >>
-> >> Li is right. The cache name will live long, but this is because the
-> >> slab/slub caches will strdup it internally. So the actual memcg
-> >> allocation is short lived.
-> > 
-> > OK, I have totally missed that. Sorry about the confusion. Then all the
-> > churn around the allocation is pointless, no?
-> > What about:
-> > ---
-> >>From 7ed7f53bb597e8cb40d9ac91ce16142fb60f1e93 Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Date: Fri, 22 Mar 2013 10:22:54 +0100
-> > Subject: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
-> > 
-> > As cgroup supports rename, it's unsafe to dereference dentry->d_name
-> > without proper vfs locks. Fix this by using cgroup_name() rather than
-> > dentry directly.
-> > 
-> > Also open code memcg_cache_name because it is called only from
-> > kmem_cache_dup which frees the returned name right after
-> > kmem_cache_create_memcg makes a copy of it. Such a short-lived
-> > allocation doesn't make too much sense. So replace it by a static
-> > buffer as kmem_cache_dup is called with memcg_cache_mutex.
-> > 
+On Sun 17-03-13 13:04:07, Mel Gorman wrote:
+> The number of pages kswapd can reclaim is bound by the number of pages it
+> scans which is related to the size of the zone and the scanning priority. In
+> many cases the priority remains low because it's reset every SWAP_CLUSTER_MAX
+> reclaimed pages but in the event kswapd scans a large number of pages it
+> cannot reclaim, it will raise the priority and potentially discard a large
+> percentage of the zone as sc->nr_to_reclaim is ULONG_MAX. The user-visible
+> effect is a reclaim "spike" where a large percentage of memory is suddenly
+> freed. It would be bad enough if this was just unused memory but because
+> of how anon/file pages are balanced it is possible that applications get
+> pushed to swap unnecessarily.
 > 
-> I doubt it's a win to add 4K to kernel text size instead of adding
-> a few extra lines of code... but it's up to you.
-
-I will leave the decision to Glauber. The updated version which uses
-kmalloc for the static buffer is bellow.
-
-> > Signed-off-by: Li Zefan <lizefan@huawei.com>
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > ---
-> >  mm/memcontrol.c |   33 +++++++++++----------------------
-> >  1 file changed, 11 insertions(+), 22 deletions(-)
-> ...
-> >  static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
-> >  					 struct kmem_cache *s)
-> >  {
-> >  	char *name;
-> >  	struct kmem_cache *new;
-> > +	static char tmp_name[PAGE_SIZE];
-> >  
-> > -	name = memcg_cache_name(memcg, s);
-> > -	if (!name)
-> > -		return NULL;
-> > +	lockdep_assert_held(&memcg_cache_mutex);
-> > +
-> > +	rcu_read_lock();
-> > +	tmp_name = snprintf(tmp_name, sizeof(tmp_name), "%s(%d:%s)", s->name,
-> > +			 memcg_cache_id(memcg), cgroup_name(memcg->css.cgroup));
+> This patch limits the number of pages kswapd will reclaim to the high
+> watermark. Reclaim will will overshoot due to it not being a hard limit as
+> shrink_lruvec() will ignore the sc.nr_to_reclaim at DEF_PRIORITY but it
+> prevents kswapd reclaiming the world at higher priorities. The number of
+> pages it reclaims is not adjusted for high-order allocations as kswapd will
+> reclaim excessively if it is to balance zones for high-order allocations.
 > 
-> I guess you didn't turn on CONFIG_MEMCG_KMEM?
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-dohh. Friday effect...
+It seems I forgot to add
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-> snprintf() returns a int value.
-[...]
----
+> ---
+>  mm/vmscan.c | 53 +++++++++++++++++++++++++++++------------------------
+>  1 file changed, 29 insertions(+), 24 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 88c5fed..4835a7a 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2593,6 +2593,32 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+>  }
+>  
+>  /*
+> + * kswapd shrinks the zone by the number of pages required to reach
+> + * the high watermark.
+> + */
+> +static void kswapd_shrink_zone(struct zone *zone,
+> +			       struct scan_control *sc,
+> +			       unsigned long lru_pages)
+> +{
+> +	unsigned long nr_slab;
+> +	struct reclaim_state *reclaim_state = current->reclaim_state;
+> +	struct shrink_control shrink = {
+> +		.gfp_mask = sc->gfp_mask,
+> +	};
+> +
+> +	/* Reclaim above the high watermark. */
+> +	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
+> +	shrink_zone(zone, sc);
+> +
+> +	reclaim_state->reclaimed_slab = 0;
+> +	nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
+> +	sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+> +
+> +	if (nr_slab == 0 && !zone_reclaimable(zone))
+> +		zone->all_unreclaimable = 1;
+> +}
+> +
+> +/*
+>   * For kswapd, balance_pgdat() will work across all this node's zones until
+>   * they are all at high_wmark_pages(zone).
+>   *
+> @@ -2619,27 +2645,16 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  	bool pgdat_is_balanced = false;
+>  	int i;
+>  	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+> -	unsigned long total_scanned;
+> -	struct reclaim_state *reclaim_state = current->reclaim_state;
+>  	unsigned long nr_soft_reclaimed;
+>  	unsigned long nr_soft_scanned;
+>  	struct scan_control sc = {
+>  		.gfp_mask = GFP_KERNEL,
+>  		.may_unmap = 1,
+>  		.may_swap = 1,
+> -		/*
+> -		 * kswapd doesn't want to be bailed out while reclaim. because
+> -		 * we want to put equal scanning pressure on each zone.
+> -		 */
+> -		.nr_to_reclaim = ULONG_MAX,
+>  		.order = order,
+>  		.target_mem_cgroup = NULL,
+>  	};
+> -	struct shrink_control shrink = {
+> -		.gfp_mask = sc.gfp_mask,
+> -	};
+>  loop_again:
+> -	total_scanned = 0;
+>  	sc.priority = DEF_PRIORITY;
+>  	sc.nr_reclaimed = 0;
+>  	sc.may_writepage = !laptop_mode;
+> @@ -2710,7 +2725,7 @@ loop_again:
+>  		 */
+>  		for (i = 0; i <= end_zone; i++) {
+>  			struct zone *zone = pgdat->node_zones + i;
+> -			int nr_slab, testorder;
+> +			int testorder;
+>  			unsigned long balance_gap;
+>  
+>  			if (!populated_zone(zone))
+> @@ -2730,7 +2745,6 @@ loop_again:
+>  							order, sc.gfp_mask,
+>  							&nr_soft_scanned);
+>  			sc.nr_reclaimed += nr_soft_reclaimed;
+> -			total_scanned += nr_soft_scanned;
+>  
+>  			/*
+>  			 * We put equal pressure on every zone, unless
+> @@ -2759,17 +2773,8 @@ loop_again:
+>  
+>  			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
+>  			    !zone_balanced(zone, testorder,
+> -					   balance_gap, end_zone)) {
+> -				shrink_zone(zone, &sc);
+> -
+> -				reclaim_state->reclaimed_slab = 0;
+> -				nr_slab = shrink_slab(&shrink, sc.nr_scanned, lru_pages);
+> -				sc.nr_reclaimed += reclaim_state->reclaimed_slab;
+> -				total_scanned += sc.nr_scanned;
+> -
+> -				if (nr_slab == 0 && !zone_reclaimable(zone))
+> -					zone->all_unreclaimable = 1;
+> -			}
+> +					   balance_gap, end_zone))
+> +				kswapd_shrink_zone(zone, &sc, lru_pages);
+>  
+>  			/*
+>  			 * If we're getting trouble reclaiming, start doing
+> -- 
+> 1.8.1.4
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
