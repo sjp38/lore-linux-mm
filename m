@@ -1,77 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 035566B0027
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 21:28:27 -0400 (EDT)
-Message-ID: <514FA7D4.8090906@huawei.com>
-Date: Mon, 25 Mar 2013 09:26:44 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 76A2E6B0002
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 22:24:59 -0400 (EDT)
+Date: Mon, 25 Mar 2013 12:54:45 +1030
+From: Jonathan Woithe <jwoithe@atrad.com.au>
+Subject: Re: OOM triggered with plenty of memory free
+Message-ID: <20130325022445.GH29157@marvin.atrad.com.au>
+References: <CAJd=RBDHwgtm=to3WUj73d7q6cjJ7oG6capjUxvcpVk0wH-fbQ@mail.gmail.com>
+ <CAGDaZ_ryxdMBm44kotjKyCeFEFk3OURjHav3zVOcQNGwP_ZwAQ@mail.gmail.com>
+ <20130321070750.GV30145@marvin.atrad.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/hotplug: only free wait_table if it's allocated by
- vmalloc
-References: <514C2A43.3020008@huawei.com> <514C2C36.3060709@cn.fujitsu.com>
-In-Reply-To: <514C2C36.3060709@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130321070750.GV30145@marvin.atrad.com.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, qiuxishi <qiuxishi@huawei.com>, linux-mm@kvack.org
+To: Raymond Jennings <shentino@gmail.com>
+Cc: Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jonathan Woithe <jwoithe@atrad.com.au>
 
-On 2013/3/22 18:02, Tang Chen wrote:
+This post ties up a few loose ends in this thread which remained after my
+21 March 2013 post.
 
-> On 03/22/2013 05:54 PM, Jianguo Wu wrote:
->> zone->wait_table may be allocated from bootmem, it can not be freed.
->>
->> Cc: Andrew Morton<akpm@linux-foundation.org>
->> Cc: Wen Congyang<wency@cn.fujitsu.com>
->> Cc: Tang Chen<tangchen@cn.fujitsu.com>
->> Cc: Jiang Liu<jiang.liu@huawei.com>
->> Cc: linux-mm@kvack.org
->> Signed-off-by: Jianguo Wu<wujianguo@huawei.com>
->> ---
->>   mm/memory_hotplug.c |    6 +++++-
->>   1 files changed, 5 insertions(+), 1 deletions(-)
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index 07b6263..91ed7cd 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1779,7 +1779,11 @@ void try_offline_node(int nid)
->>       for (i = 0; i<  MAX_NR_ZONES; i++) {
->>           struct zone *zone = pgdat->node_zones + i;
->>
->> -        if (zone->wait_table)
->> +        /*
->> +         * wait_table may be allocated from boot memory,
->> +         * here only free if it's allocated by vmalloc.
->> +         */
->> +        if (is_vmalloc_addr(zone->wait_table))
->>               vfree(zone->wait_table);
-> 
-> Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
-> 
-> FYI, I'm trying add a flag member into memblock to mark memory whose
-> life cycle is the same as a node. I think maybe this flag could be used
-> to free this kind of memory from bootmem.
+ * The memory leak was not present in 2.6.36.
 
-And only the bootmem is aligned to PAGE_SIZE, I think.
+ * The patch to 2.6.35.11 at the end of this email (based on
+   48e6b121605512d87f8da1ccd014313489c19630 from linux-stable) resolves the
+   memory leak in 2.6.35.11.
 
-> 
-> Thanks. :)
-> 
-> 
->>       }
->>
-> 
-> -- 
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
+This gives us a workable solution while we await fixes to current mainline
+in the r8169 driver.  Once that's done we can revalidate our systems against
+a more recent kernel and start shipping that.
 
+Thanks to those who assisted with this issue.
 
+Regards
+  jonathan
+
+--- a/net/netlink/af_netlink.c	2013-03-25 10:32:15.365781434 +1100
++++ b/net/netlink/af_netlink.c	2013-03-25 10:32:15.373782107 +1100
+@@ -1387,6 +1387,8 @@ static int netlink_sendmsg(struct kiocb
+ 	err = netlink_unicast(sk, skb, dst_pid, msg->msg_flags&MSG_DONTWAIT);
+ 
+ out:
++	scm_destroy(siocb->scm);
++	siocb->scm = NULL;
+ 	return err;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
