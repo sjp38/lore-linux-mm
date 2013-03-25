@@ -1,93 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id E7A036B0087
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 08:31:31 -0400 (EDT)
-Date: Mon, 25 Mar 2013 13:31:28 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 03/10] soft-offline: use migrate_pages() instead of
- migrate_huge_page()
-Message-ID: <20130325123128.GU2154@dhcp22.suse.cz>
-References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id E31D26B0087
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 09:01:59 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <514C6CE3.5080201@sr71.net>
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1363283435-7666-5-git-send-email-kirill.shutemov@linux.intel.com>
+ <514B2D94.8040206@sr71.net>
+ <20130322094745.E20D9E0085@blue.fi.intel.com>
+ <514C6CE3.5080201@sr71.net>
+Subject: Re: [PATCHv2, RFC 04/30] radix-tree: implement preload for multiple
+ contiguous elements
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130325130345.15B3AE0085@blue.fi.intel.com>
+Date: Mon, 25 Mar 2013 15:03:45 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri 22-03-13 16:23:48, Naoya Horiguchi wrote:
-> Currently migrate_huge_page() takes a pointer to a hugepage to be
-> migrated as an argument, instead of taking a pointer to the list of
-> hugepages to be migrated. This behavior was introduced in commit
-> 189ebff28 ("hugetlb: simplify migrate_huge_page()"), and was OK
-> because until now hugepage migration is enabled only for soft-offlining
-> which takes only one hugepage in a single call.
+Dave Hansen wrote:
+> On 03/22/2013 02:47 AM, Kirill A. Shutemov wrote:
+> > Dave Hansen wrote:
+> >> On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
+> >>> +#define RADIX_TREE_PRELOAD_NR		512 /* For THP's benefit */
+> >>
+> >> This eventually boils down to making the radix_tree_preload array
+> >> larger.  Do we really want to do this unconditionally if it's only for
+> >> THP's benefit?
+> > 
+> > It will be useful not only for THP. Batching can be useful to solve
+> > scalability issues.
 > 
-> But the situation will change in the later patches in this series
-> which enable other users of page migration to support hugepage migration.
-> They can kick migration for both of normal pages and hugepages
-> in a single call, so we need to go back to original implementation
-> of using linked lists to collect the hugepages to be migrated.
+> Still, it seems like something that little machines with no THP support
+> probably don't want to pay the cost for.  Perhaps you could enable it
+> for THP||NR_CPUS>$FOO.
 
-If the purpose of this patch is to reduce code duplication then you
-should remove migrate_huge_page as it doesn't have any caller anymore.
+Okay, I'll disable it for !THP. We always can change it if we'll find good
+candidate for batching.
 
-[...]
-> @@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
->  	unlock_page(hpage);
->  
->  	/* Keep page count to indicate a given hugepage is isolated. */
-> -	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
-> -				MIGRATE_SYNC);
-> -	put_page(hpage);
-> +	list_move(&hpage->lru, &pagelist);
-> +	ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
-> +				MIGRATE_SYNC, MR_MEMORY_FAILURE);
->  	if (ret) {
->  		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
->  			pfn, ret, page->flags);
-> +		/*
-> +		 * We know that soft_offline_huge_page() tries to migrate
-> +		 * only one hugepage pointed to by hpage, so we need not
-> +		 * run through the pagelist here.
-> +		 */
-> +		putback_active_hugepage(hpage);
-
-Maybe I am missing something but why we didn't need to call this before
-when using migrate_huge_page?
-
-> +		if (ret > 0)
-> +			ret = -EIO;
->  	} else {
->  		set_page_hwpoison_huge_page(hpage);
->  		dequeue_hwpoisoned_huge_page(hpage);
-> diff --git v3.9-rc3.orig/mm/migrate.c v3.9-rc3/mm/migrate.c
-> index f69f354..66030b6 100644
-> --- v3.9-rc3.orig/mm/migrate.c
-> +++ v3.9-rc3/mm/migrate.c
-> @@ -981,6 +981,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->  
->  	unlock_page(hpage);
->  out:
-> +	if (rc != -EAGAIN)
-> +		putback_active_hugepage(hpage);
-
-And why do you put it here? If it is called from migrate_pages then the
-caller already does the clean-up (putback_lru_pages).
-
->  	put_page(new_hpage);
->  	if (result) {
->  		if (rc)
-> -- 
-> 1.7.11.7
+> >> For those of us too lazy to go compile a kernel and figure this out in
+> >> practice, how much bigger does this make the nodes[] array?
+> > 
+> > We have three possible RADIX_TREE_MAP_SHIFT:
+> > 
+> > #ifdef __KERNEL__
+> > #define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
+> > #else
+> > #define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
+> > #endif
+> > 
+> > On 64-bit system:
+> > For RADIX_TREE_MAP_SHIFT=3, old array size is 43, new is 107.
+> > For RADIX_TREE_MAP_SHIFT=4, old array size is 31, new is 63.
+> > For RADIX_TREE_MAP_SHIFT=6, old array size is 21, new is 30.
+> > 
+> > On 32-bit system:
+> > For RADIX_TREE_MAP_SHIFT=3, old array size is 21, new is 84.
+> > For RADIX_TREE_MAP_SHIFT=4, old array size is 15, new is 46.
+> > For RADIX_TREE_MAP_SHIFT=6, old array size is 11, new is 19.
+> > 
+> > On most machines we will have RADIX_TREE_MAP_SHIFT=6.
 > 
+> Could you stick that in your patch description?
+
+Will do.
+
+> The total cost is "array size" * sizeof(void*) * NR_CPUS, right?
+
+Correct.
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
