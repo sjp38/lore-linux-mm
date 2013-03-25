@@ -1,201 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id EC0166B0093
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 09:23:38 -0400 (EDT)
-Date: Mon, 25 Mar 2013 14:24:26 +0100
-From: Cyril Hrubis <chrubis@suse.cz>
-Subject: [PATCH] mm/mmap: Check for RLIMIT_AS before unmapping
-Message-ID: <20130325132426.GA3142@rei.suse.cz>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 801BE6B0096
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 09:36:48 -0400 (EDT)
+Date: Mon, 25 Mar 2013 14:36:44 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 06/10] migrate: add hugepage migration code to
+ move_pages()
+Message-ID: <20130325133644.GY2154@dhcp22.suse.cz>
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1363983835-20184-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="AhhlLboLdkugWU4S"
-Content-Disposition: inline
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-
-
---AhhlLboLdkugWU4S
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1363983835-20184-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-This patch fixes corner case for MAP_FIXED when requested mapping length
-is larger than rlimit for virtual memory. In such case any overlapping
-mappings are unmapped before we check for the limit and return ENOMEM.
+On Fri 22-03-13 16:23:51, Naoya Horiguchi wrote:
+> This patch extends move_pages() to handle vma with VM_HUGETLB set.
+> We will be able to migrate hugepage with move_pages(2) after
+> applying the enablement patch which comes later in this series.
+> 
+> We avoid getting refcount on tail pages of hugepage, because unlike thp,
+> hugepage is not split and we need not care about races with splitting.
+> 
+> And migration of larger (1GB for x86_64) hugepage are not enabled.
+> 
+> ChangeLog v2:
+>  - updated description and renamed patch title
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  mm/memory.c  |  6 ++++--
+>  mm/migrate.c | 26 +++++++++++++++++++-------
+>  2 files changed, 23 insertions(+), 9 deletions(-)
+> 
+> diff --git v3.9-rc3.orig/mm/memory.c v3.9-rc3/mm/memory.c
+> index 494526a..3b6ad3d 100644
+> --- v3.9-rc3.orig/mm/memory.c
+> +++ v3.9-rc3/mm/memory.c
+> @@ -1503,7 +1503,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+>  	if (pud_none(*pud))
+>  		goto no_page_table;
+>  	if (pud_huge(*pud) && vma->vm_flags & VM_HUGETLB) {
+> -		BUG_ON(flags & FOLL_GET);
+> +		if (flags & FOLL_GET)
+> +			goto out;
 
-The check is moved before the loop that unmaps overlapping parts of
-existing mappings. When we are about to hit the limit (currently mapped
-pages + len > limit) we scan for overlapping pages and check again
-accounting for them.
 
-This fixes situation when userspace program expects that the previous
-mappings are preserved after the mmap() syscall has returned with error.
-(POSIX clearly states that successfull mapping shall replace any
-previous mappings.)
+>  		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
+>  		goto out;
+>  	}
+> @@ -1514,8 +1515,9 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+>  	if (pmd_none(*pmd))
+>  		goto no_page_table;
+>  	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB) {
+> -		BUG_ON(flags & FOLL_GET);
+>  		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
+> +		if (flags & FOLL_GET && PageHead(page))
+> +			get_page_foll(page);
 
-This corner case was found and can be tested with LTP testcase:
+Hmm, so the caller gets a non-null page without elevated ref counted
+even when he asked for it. This means that all callers have to check
+PageTail && hugetlb and put_page according to that. That is _really_
+fragile.
+I think that returning NULL would make more sense in this case.
 
-testcases/open_posix_testsuite/conformance/interfaces/mmap/24-2.c
+>  		goto out;
+>  	}
+>  	if ((flags & FOLL_NUMA) && pmd_numa(*pmd))
+> @@ -1164,6 +1175,12 @@ static int do_move_page_to_node_array(struct mm_struct *mm,
+[...]
+>  				!migrate_all)
+>  			goto put_and_set;
+>  
+> +		if (PageHuge(page)) {
+> +			get_page(page);
+> +			list_move_tail(&page->lru, &pagelist);
+> +			goto put_and_set;
+> +		}
 
-In this case the mmap, which is clearly over current limit, unmaps
-dynamic libraries and the testcase segfaults right after returning into
-userspace.
+Why do you take an additional reference here? You have one from
+follow_page already.
 
-I've also looked at the second instance of the unmapping loop in the
-do_brk(). The do_brk() is called from brk() syscall and from vm_brk().
-The brk() syscall checks for overlapping mappings and bails out when
-there are any (so it can't be triggered from the brk syscall). The
-vm_brk() is called only from binmft handlers so it shouldn't be
-triggered unless binmft handler created overlapping mappings.
-
-Signed-off-by: Cyril Hrubis <chrubis@suse.cz>
----
- mm/mmap.c | 50 ++++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 46 insertions(+), 4 deletions(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 2664a47..e755080 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -33,6 +33,7 @@
- #include <linux/uprobes.h>
- #include <linux/rbtree_augmented.h>
- #include <linux/sched/sysctl.h>
-+#include <linux/kernel.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -543,6 +544,34 @@ static int find_vma_links(struct mm_struct *mm, unsigned long addr,
- 	return 0;
- }
- 
-+static unsigned long count_vma_pages_range(struct mm_struct *mm,
-+		unsigned long addr, unsigned long end)
-+{
-+	unsigned long nr_pages = 0;
-+	struct vm_area_struct *vma;
-+
-+	/* Find first overlaping mapping */
-+	vma = find_vma_intersection(mm, addr, end);
-+	if (!vma)
-+		return 0;
-+
-+	nr_pages = (min(end, vma->vm_end) -
-+		max(addr, vma->vm_start)) >> PAGE_SHIFT;
-+
-+	/* Iterate over the rest of the overlaps */
-+	for (vma = vma->vm_next; vma; vma = vma->vm_next) {
-+		unsigned long overlap_len;
-+
-+		if (vma->vm_start > end)
-+			break;
-+
-+		overlap_len = min(end, vma->vm_end) - vma->vm_start;
-+		nr_pages += overlap_len >> PAGE_SHIFT;
-+	}
-+
-+	return nr_pages;
-+}
-+
- void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
- 		struct rb_node **rb_link, struct rb_node *rb_parent)
- {
-@@ -1433,6 +1462,23 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 	unsigned long charged = 0;
- 	struct inode *inode =  file ? file_inode(file) : NULL;
- 
-+	/* Check against address space limit. */
-+	if (!may_expand_vm(mm, len >> PAGE_SHIFT)) {
-+		unsigned long nr_pages;
-+
-+		/*
-+		 * MAP_FIXED may remove pages of mappings that intersects with
-+		 * requested mapping. Account for the pages it would unmap.
-+		 */
-+		if (!(vm_flags & MAP_FIXED))
-+			return -ENOMEM;
-+
-+		nr_pages = count_vma_pages_range(mm, addr, addr + len);
-+
-+		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
-+			return -ENOMEM;
-+	}
-+
- 	/* Clear old maps */
- 	error = -ENOMEM;
- munmap_back:
-@@ -1442,10 +1488,6 @@ munmap_back:
- 		goto munmap_back;
- 	}
- 
--	/* Check against address space limit. */
--	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
--		return -ENOMEM;
--
- 	/*
- 	 * Private writable mapping: check memory availability
- 	 */
+> +
+>  		err = isolate_lru_page(page);
+>  		if (!err) {
+>  			list_add_tail(&page->lru, &pagelist);
+[...]
 -- 
-1.8.1.5
-
-See also a testsuite that exercies the newly added codepaths which is
-attached as a tarball (All testcases minus the second that tests
-that this patch works succeeds both before and after this patch).
-
--- 
-Cyril Hrubis
-chrubis@suse.cz
-
---AhhlLboLdkugWU4S
-Content-Type: application/x-bzip2
-Content-Disposition: attachment; filename="mm.tar.bz2"
-Content-Transfer-Encoding: base64
-
-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
-jCcIBP/F3JFOFCQPRFOdgA==
-
---AhhlLboLdkugWU4S--
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
