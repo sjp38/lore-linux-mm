@@ -1,77 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id E31D26B0087
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 09:01:59 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <514C6CE3.5080201@sr71.net>
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-5-git-send-email-kirill.shutemov@linux.intel.com>
- <514B2D94.8040206@sr71.net>
- <20130322094745.E20D9E0085@blue.fi.intel.com>
- <514C6CE3.5080201@sr71.net>
-Subject: Re: [PATCHv2, RFC 04/30] radix-tree: implement preload for multiple
- contiguous elements
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130325130345.15B3AE0085@blue.fi.intel.com>
-Date: Mon, 25 Mar 2013 15:03:45 +0200 (EET)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 54C386B0089
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 09:04:19 -0400 (EDT)
+Date: Mon, 25 Mar 2013 14:04:16 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 05/10] migrate: add hugepage migration code to
+ migrate_pages()
+Message-ID: <20130325130416.GV2154@dhcp22.suse.cz>
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1363983835-20184-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1363983835-20184-6-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-Dave Hansen wrote:
-> On 03/22/2013 02:47 AM, Kirill A. Shutemov wrote:
-> > Dave Hansen wrote:
-> >> On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
-> >>> +#define RADIX_TREE_PRELOAD_NR		512 /* For THP's benefit */
-> >>
-> >> This eventually boils down to making the radix_tree_preload array
-> >> larger.  Do we really want to do this unconditionally if it's only for
-> >> THP's benefit?
-> > 
-> > It will be useful not only for THP. Batching can be useful to solve
-> > scalability issues.
+On Fri 22-03-13 16:23:50, Naoya Horiguchi wrote:
+[...]
+> @@ -523,6 +544,11 @@ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+>  	pmd = pmd_offset(pud, addr);
+>  	do {
+>  		next = pmd_addr_end(addr, end);
+> +		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
+> +			check_hugetlb_pmd_range(vma, pmd, nodes,
+> +						flags, private);
+
+I am afraid this has the same issue with other huge page sizes I have
+mentioned earlier.
+
+> +			continue;
+> +		}
+>  		split_huge_page_pmd(vma, addr, pmd);
+>  		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+>  			continue;
+[...]
+> @@ -1012,14 +1040,8 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+>  	check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
+>  			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+>  
+> -	if (!list_empty(&pagelist)) {
+> -		err = migrate_pages(&pagelist, new_node_page, dest,
+> +	return migrate_movable_pages(&pagelist, new_node_page, dest,
+>  					MIGRATE_SYNC, MR_SYSCALL);
+> -		if (err)
+> -			putback_lru_pages(&pagelist);
+> -	}
+> -
+> -	return err;
+
+This is really confusing. Why migrate_pages doesn't do putback cleanup
+on its own but migrate_movable_pages does?
+Please also move migrate_movable_pages definition to this patch.
+
+>  }
+>  
+>  /*
+> -- 
+> 1.7.11.7
 > 
-> Still, it seems like something that little machines with no THP support
-> probably don't want to pay the cost for.  Perhaps you could enable it
-> for THP||NR_CPUS>$FOO.
-
-Okay, I'll disable it for !THP. We always can change it if we'll find good
-candidate for batching.
-
-> >> For those of us too lazy to go compile a kernel and figure this out in
-> >> practice, how much bigger does this make the nodes[] array?
-> > 
-> > We have three possible RADIX_TREE_MAP_SHIFT:
-> > 
-> > #ifdef __KERNEL__
-> > #define RADIX_TREE_MAP_SHIFT	(CONFIG_BASE_SMALL ? 4 : 6)
-> > #else
-> > #define RADIX_TREE_MAP_SHIFT	3	/* For more stressful testing */
-> > #endif
-> > 
-> > On 64-bit system:
-> > For RADIX_TREE_MAP_SHIFT=3, old array size is 43, new is 107.
-> > For RADIX_TREE_MAP_SHIFT=4, old array size is 31, new is 63.
-> > For RADIX_TREE_MAP_SHIFT=6, old array size is 21, new is 30.
-> > 
-> > On 32-bit system:
-> > For RADIX_TREE_MAP_SHIFT=3, old array size is 21, new is 84.
-> > For RADIX_TREE_MAP_SHIFT=4, old array size is 15, new is 46.
-> > For RADIX_TREE_MAP_SHIFT=6, old array size is 11, new is 19.
-> > 
-> > On most machines we will have RADIX_TREE_MAP_SHIFT=6.
-> 
-> Could you stick that in your patch description?
-
-Will do.
-
-> The total cost is "array size" * sizeof(void*) * NR_CPUS, right?
-
-Correct.
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
