@@ -1,57 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 158BC6B0002
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 15:00:13 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id c50so2978388eek.2
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 12:00:11 -0700 (PDT)
-Message-ID: <514F4D37.5030304@suse.cz>
-Date: Sun, 24 Mar 2013 20:00:07 +0100
-From: Jiri Slaby <jslaby@suse.cz>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id D95EA6B0002
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 20:28:15 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id bg2so731986pad.37
+        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 17:28:15 -0700 (PDT)
+Date: Sun, 24 Mar 2013 17:28:12 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
+In-Reply-To: <CAHGf_=qgsga4Juj8uNnfbmOZYtYhcQbqngbFDWg9=B-1nc1HSw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.02.1303241727420.23613@chino.kir.corp.google.com>
+References: <20130318155619.GA18828@sgi.com> <20130321105516.GC18484@gmail.com> <alpine.DEB.2.02.1303211139110.3775@chino.kir.corp.google.com> <20130322072532.GC10608@gmail.com> <20130323152948.GA3036@sgi.com>
+ <CAHGf_=qgsga4Juj8uNnfbmOZYtYhcQbqngbFDWg9=B-1nc1HSw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/8] Reduce system disruption due to kswapd
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
-In-Reply-To: <1363525456-10448-1-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>
-Cc: Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Russ Anderson <rja@sgi.com>, Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On 03/17/2013 02:04 PM, Mel Gorman wrote:
-> Kswapd and page reclaim behaviour has been screwy in one way or the other
-> for a long time. Very broadly speaking it worked in the far past because
-> machines were limited in memory so it did not have that many pages to scan
-> and it stalled congestion_wait() frequently to prevent it going completely
-> nuts. In recent times it has behaved very unsatisfactorily with some of
-> the problems compounded by the removal of stall logic and the introduction
-> of transparent hugepage support with high-order reclaims.
+On Sat, 23 Mar 2013, KOSAKI Motohiro wrote:
+
+> > --- linux.orig/mm/page_alloc.c  2013-03-19 16:09:03.736450861 -0500
+> > +++ linux/mm/page_alloc.c       2013-03-22 17:07:43.895405617 -0500
+> > @@ -4161,10 +4161,23 @@ int __meminit __early_pfn_to_nid(unsigne
+> >  {
+> >         unsigned long start_pfn, end_pfn;
+> >         int i, nid;
+> > +       /*
+> > +          NOTE: The following SMP-unsafe globals are only used early
+> > +          in boot when the kernel is running single-threaded.
+> > +        */
+> > +       static unsigned long last_start_pfn, last_end_pfn;
+> > +       static int last_nid;
 > 
-> There are many variations of bugs that are rooted in this area. One example
-> is reports of a large copy operations or backup causing the machine to
-> grind to a halt or applications pushed to swap. Sometimes in low memory
-> situations a large percentage of memory suddenly gets reclaimed. In other
-> cases an application starts and kswapd hits 100% CPU usage for prolonged
-> periods of time and so on. There is now talk of introducing features like
-> an extra free kbytes tunable to work around aspects of the problem instead
-> of trying to deal with it. It's compounded by the problem that it can be
-> very workload and machine specific.
+> Why don't you mark them __meminitdata? They seems freeable.
 > 
-> This RFC is aimed at investigating if kswapd can be address these various
-> problems in a relatively straight-forward fashion without a fundamental
-> rewrite.
-> 
-> Patches 1-2 limits the number of pages kswapd reclaims while still obeying
-> 	the anon/file proportion of the LRUs it should be scanning.
 
-Hi,
-
-patch 1 does not apply (on the top of -next), so I can't test this :(.
-
-thanks,
--- 
-js
-suse labs
+Um, defining them in a __meminit function places them in .meminit.data 
+already.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
