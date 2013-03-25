@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 89E496B0037
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 02:22:03 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 706626B0039
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 02:22:05 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 2/4] mm: make shrink_page_list with pages from multiple zones
-Date: Mon, 25 Mar 2013 15:21:32 +0900
-Message-Id: <1364192494-22185-2-git-send-email-minchan@kernel.org>
+Subject: [RFC 3/4] mm: Remove shrink_page
+Date: Mon, 25 Mar 2013 15:21:33 +0900
+Message-Id: <1364192494-22185-3-git-send-email-minchan@kernel.org>
 In-Reply-To: <1364192494-22185-1-git-send-email-minchan@kernel.org>
 References: <1364192494-22185-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,40 +13,92 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sangseok Lee <sangseok.lee@lge.com>, Minchan Kim <minchan@kernel.org>
 
-Now shrink_page_list expects all pages come from a same zone
-but it's too limited to use it.
-
-This patch removes the dependency so next patch can use
-shrink_page_list with pages from multiple zones.
+By previous patch, shrink_page_list can handle pages from
+multiple zone so let's remove shrink_page.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/vmscan.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ mm/vmscan.c | 47 ++++++++++++++---------------------------------
+ 1 file changed, 14 insertions(+), 33 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d3dc95f..9434ba2 100644
+index 9434ba2..367d0f4 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -705,7 +705,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			goto keep;
+@@ -923,6 +923,13 @@ free_it:
+ 		 * appear not as the counts should be low
+ 		 */
+ 		list_add(&page->lru, &free_pages);
++		/*
++		 * If pagelist are from multiple zones, we should decrease
++		 * NR_ISOLATED_ANON + x on freed pages in here.
++		 */
++		if (!zone)
++			dec_zone_page_state(page, NR_ISOLATED_ANON +
++					page_is_file_cache(page));
+ 		continue;
  
- 		VM_BUG_ON(PageActive(page));
--		VM_BUG_ON(page_zone(page) != zone);
-+		if (zone)
-+			VM_BUG_ON(page_zone(page) != zone);
+ cull_mlocked:
+@@ -993,28 +1000,6 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ }
  
- 		sc->nr_scanned++;
+ #ifdef CONFIG_PROCESS_RECLAIM
+-static unsigned long shrink_page(struct page *page,
+-					struct zone *zone,
+-					struct scan_control *sc,
+-					enum ttu_flags ttu_flags,
+-					unsigned long *ret_nr_dirty,
+-					unsigned long *ret_nr_writeback,
+-					bool force_reclaim,
+-					struct list_head *ret_pages)
+-{
+-	int reclaimed;
+-	LIST_HEAD(page_list);
+-	list_add(&page->lru, &page_list);
+-
+-	reclaimed = shrink_page_list(&page_list, zone, sc, ttu_flags,
+-				ret_nr_dirty, ret_nr_writeback,
+-				force_reclaim);
+-	if (!reclaimed)
+-		list_splice(&page_list, ret_pages);
+-
+-	return reclaimed;
+-}
+-
+ unsigned long reclaim_pages_from_list(struct list_head *page_list)
+ {
+ 	struct scan_control sc = {
+@@ -1024,23 +1009,19 @@ unsigned long reclaim_pages_from_list(struct list_head *page_list)
+ 		.may_swap = 1,
+ 	};
  
-@@ -951,7 +952,7 @@ keep:
- 	 * back off and wait for congestion to clear because further reclaim
- 	 * will encounter the same problem
- 	 */
--	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc))
-+	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc) && zone)
- 		zone_set_flag(zone, ZONE_CONGESTED);
+-	LIST_HEAD(ret_pages);
++	unsigned long nr_reclaimed;
+ 	struct page *page;
+ 	unsigned long dummy1, dummy2;
+-	unsigned long nr_reclaimed = 0;
+-
+-	while (!list_empty(page_list)) {
+-		page = lru_to_page(page_list);
+-		list_del(&page->lru);
  
- 	free_hot_cold_page_list(&free_pages, 1);
++	list_for_each_entry(page, page_list, lru)
+ 		ClearPageActive(page);
+-		nr_reclaimed += shrink_page(page, page_zone(page), &sc,
++
++	nr_reclaimed = shrink_page_list(page_list, NULL, &sc,
+ 				TTU_UNMAP|TTU_IGNORE_ACCESS,
+-				&dummy1, &dummy2, true, &ret_pages);
+-	}
++				&dummy1, &dummy2, true);
+ 
+-	while (!list_empty(&ret_pages)) {
+-		page = lru_to_page(&ret_pages);
++	while (!list_empty(page_list)) {
++		page = lru_to_page(page_list);
+ 		list_del(&page->lru);
+ 		dec_zone_page_state(page, NR_ISOLATED_ANON +
+ 				page_is_file_cache(page));
 -- 
 1.8.2
 
