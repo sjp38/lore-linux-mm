@@ -1,10 +1,10 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 933E66B0002
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 21:16:01 -0400 (EDT)
-Message-ID: <514FA535.4050503@huawei.com>
-Date: Mon, 25 Mar 2013 09:15:33 +0800
-From: Jiang Liu <jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 035566B0027
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 21:28:27 -0400 (EDT)
+Message-ID: <514FA7D4.8090906@huawei.com>
+Date: Mon, 25 Mar 2013 09:26:44 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mm/hotplug: only free wait_table if it's allocated by
  vmalloc
@@ -15,12 +15,10 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Jianguo Wu <wujianguo@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, qiuxishi <qiuxishi@huawei.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, qiuxishi <qiuxishi@huawei.com>, linux-mm@kvack.org
 
-I have done a work to associate a tag with each memblock,
-may be that could be reused.
+On 2013/3/22 18:02, Tang Chen wrote:
 
-On 2013-3-22 18:02, Tang Chen wrote:
 > On 03/22/2013 05:54 PM, Jianguo Wu wrote:
 >> zone->wait_table may be allocated from bootmem, it can not be freed.
 >>
@@ -49,20 +47,30 @@ On 2013-3-22 18:02, Tang Chen wrote:
 >> +         */
 >> +        if (is_vmalloc_addr(zone->wait_table))
 >>               vfree(zone->wait_table);
->
+> 
 > Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
->
+> 
 > FYI, I'm trying add a flag member into memblock to mark memory whose
 > life cycle is the same as a node. I think maybe this flag could be used
 > to free this kind of memory from bootmem.
->
+
+And only the bootmem is aligned to PAGE_SIZE, I think.
+
+> 
 > Thanks. :)
->
->
+> 
+> 
 >>       }
 >>
->
->
+> 
+> -- 
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
+
 
 
 --
