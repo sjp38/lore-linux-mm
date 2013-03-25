@@ -1,122 +1,343 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 74FCB6B0002
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 01:37:52 -0400 (EDT)
-Date: Mon, 25 Mar 2013 01:37:50 -0400 (EDT)
-From: CAI Qian <caiqian@redhat.com>
-Message-ID: <364499626.5604667.1364189870552.JavaMail.root@redhat.com>
-In-Reply-To: <alpine.DEB.2.02.1303220231280.12597@chino.kir.corp.google.com>
-Subject: Re: BUG at kmem_cache_alloc
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 386846B0027
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 02:22:00 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [RFC 1/4] mm: Per process reclaim
+Date: Mon, 25 Mar 2013 15:21:31 +0900
+Message-Id: <1364192494-22185-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sangseok Lee <sangseok.lee@lge.com>, Minchan Kim <minchan@kernel.org>
 
+These day, there are many platforms avaiable in the embedded market
+and they are smarter than kernel which has very limited information
+about working set so they want to involve memory management more heavily
+like android's lowmemory killer and ashmem or recent many lowmemory
+notifier(there was several trial for various company NOKIA, SAMSUNG,
+Linaro, Google ChromeOS, Redhat).
 
+One of the simple imagine scenario about userspace's intelligence is that
+platform can manage tasks as forground and backgroud so it would be
+better to reclaim background's task pages for end-user's *responsibility*
+although it has frequent referenced pages.
 
------ Original Message -----
-> From: "David Rientjes" <rientjes@google.com>
-> To: "CAI Qian" <caiqian@redhat.com>
-> Cc: "linux-mm" kvack.org>, linux-kernel@vger.kernel.org, "Oleg Nesterov" <oleg@redhat.com>
-> Sent: Friday, March 22, 2013 5:35:34 PM
-> Subject: Re: BUG at kmem_cache_alloc
-> 
-> On Fri, 22 Mar 2013, CAI Qian wrote:
-> 
-> > Starting to see those on 3.8.4 (never saw in 3.8.2) stable kernel
-> > on a few systems
-> > during LTP run,
-> > 
-> > [11297.597242] BUG: unable to handle kernel paging request at
-> > 00000000fffffffe
-> > [11297.598022] IP: [] kmem_cache_alloc+0x68/0x1e0
-> 
-> Is this repeatable?  Do you have CONFIG_SLAB or CONFIG_SLUB enabled?
-Saw it on 2 systems so far - one HP server and one KVM guest. Still
-trying to reproduce. Used CONFIG_SLUB=y.
-CAI Qian
-> 
-> > [11297.598022] PGD 7b9eb067 PUD 0
-> > [11297.598022] Oops: 0000 [#2] SMP
-> > [11297.598022] Modules linked in: cmtp kernelcapi bnep
-> > scsi_transport_iscsi rfcomm l2tp_ppp l2tp_netlink l2tp_core hidp
-> > ipt_ULOG af_key nfc rds pppoe pppox ppp_generic slhc af_802154 atm
-> > ip6table_filter ip6_tables iptable_filter ip_tables btrfs
-> > zlib_deflate vfat fat nfs_layout_nfsv41_files nfsv4 auth_rpcgss
-> > nfsv3 nfs_acl nfsv2 nfs lockd sunrpc fscache nfnetlink_log
-> > nfnetlink bluetooth rfkill arc4 md4 nls_utf8 cifs dns_resolver
-> > nf_tproxy_core nls_koi8_u nls_cp932 ts_kmp sctp sg kvm_amd kvm
-> > virtio_balloon i2c_piix4 pcspkr xfs libcrc32c ata_generic
-> > pata_acpi cirrus drm_kms_helper ttm ata_piix virtio_net drm libata
-> > virtio_blk i2c_core floppy dm_mirror dm_region_hash dm_log dm_mod
-> > [last unloaded: ipt_REJECT]
-> > [11297.598022] CPU 1
-> > [11297.598022] Pid: 14134, comm: ltp-pan Tainted: G      D
-> >      3.8.4+ #1 Bochs Bochs
-> > [11297.598022] RIP: 0010:[]  [] kmem_cache_alloc+0x68/0x1e0
-> > [11297.598022] RSP: 0018:ffff8800447dbdd0  EFLAGS: 00010246
-> > [11297.598022] RAX: 0000000000000000 RBX: ffff88007c169970 RCX:
-> > 00000000018acdcd
-> > [11297.598022] RDX: 000000000006c104 RSI: 00000000000080d0 RDI:
-> > ffff88007d04ac00
-> > [11297.598022] RBP: ffff8800447dbe10 R08: 0000000000017620 R09:
-> > ffffffff810fe2e2
-> > [11297.598022] R10: 0000000000000000 R11: 0000000000000000 R12:
-> > 00000000fffffffe
-> > [11297.598022] R13: 00000000000080d0 R14: ffff88007d04ac00 R15:
-> > ffff88007d04ac00
-> > [11297.598022] FS:  00007f09c29b4740(0000)
-> > GS:ffff88007fd00000(0000) knlGS:00000000f74d86c0
-> > [11297.598022] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> > [11297.598022] CR2: 00000000fffffffe CR3: 0000000037213000 CR4:
-> > 00000000000006e0
-> > [11297.598022] DR0: 0000000000000000 DR1: 0000000000000000 DR2:
-> > 0000000000000000
-> > [11297.598022] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7:
-> > 0000000000000400
-> > [11297.598022] Process ltp-pan (pid: 14134, threadinfo
-> > ffff8800447da000, task ffff8800551ab2e0)
-> > [11297.598022] Stack:
-> > [11297.598022]  ffffffff810fe2e2 ffffffff8108cf0f 0000000001200011
-> > ffff88007c169970
-> > [11297.598022]  0000000000000000 00007f09c29b4a10 0000000000000000
-> > ffff88007c169970
-> > [11297.598022]  ffff8800447dbe30 ffffffff810fe2e2 0000000000000000
-> > 0000000001200011
-> > [11297.598022] Call Trace:
-> > [11297.598022]  [] ? __delayacct_tsk_init+0x22/0x40
-> > [11297.598022]  [] ? prepare_creds+0xdf/0x190
-> > [11297.598022]  [] __delayacct_tsk_init+0x22/0x40
-> > [11297.598022]  [] copy_process.part.25+0x31f/0x13f0
-> > [11297.598022]  [] do_fork+0xa9/0x350
-> > [11297.598022]  [] sys_clone+0x16/0x20
-> > [11297.598022]  [] stub_clone+0x69/0x90
-> > [11297.598022]  [] ? system_call_fastpath+0x16/0x1b
-> > [11297.598022] Code: 90 4d 89 fe 4d 8b 06 65 4c 03 04 25 c8 db 00
-> > 00 49 8b 50 08 4d 8b 20 4d 85 e4 0f 84 2b 01 00 00 49 63 46 20 4d
-> > 8b 06 41 f6 c0 0f <49> 8b 1c 04 0f 85 55 01 00 00 48 8d 4a 01 4c
-> > 89 e0 65 49 0f c7
-> > [11297.598022] RIP  [] kmem_cache_alloc+0x68/0x1e0
-> > [11297.598022]  RSP
-> > [11297.598022] CR2: 00000000fffffffe
-> > [11297.727799] ---[ end trace 037bde72f23b34d2 ]---
-> > 
-> > Never saw this in mainline but only something like this wondering
-> > could be related
-> > (that kmem_cache_alloc also in the trace).
-> > 
-> 
-> These are unrelated.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: href=mailto:"dont@kvack.org"> email@kvack.org 
-> 
+This patch adds new knob "reclaim under proc/<pid>/" so task manager
+can reclaim any target process anytime, anywhere. It could give another
+method to platform for using memory efficiently.
+
+It can avoid process killing for getting free memory, which was really
+terrible experience because I lost my best score of game I had ever
+after I switch the phone call while I enjoyed the game.
+
+Writing 1 to /proc/pid/reclaim reclaims only file pages.
+Writing 2 to /proc/pid/reclaim reclaims only anonymous pages.
+Writing 3 to /proc/pid/reclaim reclaims all pages from target process.
+
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ fs/proc/base.c       |   3 ++
+ fs/proc/internal.h   |   1 +
+ fs/proc/task_mmu.c   | 115 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/rmap.h |   4 ++
+ mm/Kconfig           |  13 ++++++
+ mm/internal.h        |   7 +---
+ mm/vmscan.c          |  59 ++++++++++++++++++++++++++
+ 7 files changed, 196 insertions(+), 6 deletions(-)
+
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 9b43ff77..ed83e85 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -2532,6 +2532,9 @@ static const struct pid_entry tgid_base_stuff[] = {
+ 	REG("mounts",     S_IRUGO, proc_mounts_operations),
+ 	REG("mountinfo",  S_IRUGO, proc_mountinfo_operations),
+ 	REG("mountstats", S_IRUSR, proc_mountstats_operations),
++#ifdef CONFIG_PROCESS_RECLAIM
++	REG("reclaim", S_IWUSR, proc_reclaim_operations),
++#endif
+ #ifdef CONFIG_PROC_PAGE_MONITOR
+ 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
+ 	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
+diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+index 3f711d6..48ccb52 100644
+--- a/fs/proc/internal.h
++++ b/fs/proc/internal.h
+@@ -51,6 +51,7 @@ extern const struct file_operations proc_pagemap_operations;
+ extern const struct file_operations proc_net_operations;
+ extern const struct inode_operations proc_net_inode_operations;
+ extern const struct inode_operations proc_pid_link_inode_operations;
++extern const struct file_operations proc_reclaim_operations;
+ 
+ struct proc_maps_private {
+ 	struct pid *pid;
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index ca5ce7f..c3713a4 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -11,6 +11,7 @@
+ #include <linux/rmap.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
++#include <linux/mm_inline.h>
+ 
+ #include <asm/elf.h>
+ #include <asm/uaccess.h>
+@@ -1116,6 +1117,120 @@ const struct file_operations proc_pagemap_operations = {
+ };
+ #endif /* CONFIG_PROC_PAGE_MONITOR */
+ 
++#ifdef CONFIG_PROCESS_RECLAIM
++static int reclaim_pte_range(pmd_t *pmd, unsigned long addr,
++				unsigned long end, struct mm_walk *walk)
++{
++	struct vm_area_struct *vma = walk->private;
++	pte_t *pte, ptent;
++	spinlock_t *ptl;
++	struct page *page;
++	LIST_HEAD(page_list);
++	int isolated;
++
++	split_huge_page_pmd(vma, addr, pmd);
++	if (pmd_trans_unstable(pmd))
++		return 0;
++cont:
++	isolated = 0;
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
++	for (; addr != end; pte++, addr += PAGE_SIZE) {
++		ptent = *pte;
++		if (!pte_present(ptent))
++			continue;
++
++		page = vm_normal_page(vma, addr, ptent);
++		if (!page)
++			continue;
++
++		if (isolate_lru_page(page))
++			continue;
++
++		list_add(&page->lru, &page_list);
++		inc_zone_page_state(page, NR_ISOLATED_ANON +
++				page_is_file_cache(page));
++		isolated++;
++		if (isolated >= SWAP_CLUSTER_MAX)
++			break;
++	}
++	pte_unmap_unlock(pte - 1, ptl);
++	reclaim_pages_from_list(&page_list);
++	if (addr != end)
++		goto cont;
++
++	cond_resched();
++	return 0;
++}
++
++#define RECLAIM_FILE (1 << 0)
++#define RECLAIM_ANON (1 << 1)
++#define RECLAIM_ALL (RECLAIM_FILE | RECLAIM_ANON)
++
++static ssize_t reclaim_write(struct file *file, const char __user *buf,
++				size_t count, loff_t *ppos)
++{
++	struct task_struct *task;
++	char buffer[PROC_NUMBUF];
++	struct mm_struct *mm;
++	struct vm_area_struct *vma;
++	int type;
++	int rv;
++
++	memset(buffer, 0, sizeof(buffer));
++	if (count > sizeof(buffer) - 1)
++		count = sizeof(buffer) - 1;
++	if (copy_from_user(buffer, buf, count))
++		return -EFAULT;
++	rv = kstrtoint(strstrip(buffer), 10, &type);
++	if (rv < 0)
++		return rv;
++	if (type < RECLAIM_ALL || type > RECLAIM_FILE)
++		return -EINVAL;
++	task = get_proc_task(file->f_path.dentry->d_inode);
++	if (!task)
++		return -ESRCH;
++	mm = get_task_mm(task);
++	if (mm) {
++		struct mm_walk reclaim_walk = {
++			.pmd_entry = reclaim_pte_range,
++			.mm = mm,
++		};
++		down_read(&mm->mmap_sem);
++		for (vma = mm->mmap; vma; vma = vma->vm_next) {
++			reclaim_walk.private = vma;
++			if (is_vm_hugetlb_page(vma))
++				continue;
++			/*
++			 * Writing 1 to /proc/pid/reclaim only affects file
++			 * mapped pages.
++			 *
++			 * Writing 2 to /proc/pid/reclaim enly affects
++			 * anonymous pages.
++			 *
++			 * Writing 3 to /proc/pid/reclaim affects all pages.
++			 */
++			if (type == RECLAIM_ANON && vma->vm_file)
++				continue;
++			if (type == RECLAIM_FILE && !vma->vm_file)
++				continue;
++			walk_page_range(vma->vm_start, vma->vm_end,
++					&reclaim_walk);
++		}
++		flush_tlb_mm(mm);
++		up_read(&mm->mmap_sem);
++		mmput(mm);
++	}
++	put_task_struct(task);
++
++	return count;
++}
++
++const struct file_operations proc_reclaim_operations = {
++	.write		= reclaim_write,
++	.llseek		= noop_llseek,
++};
++#endif
++
+ #ifdef CONFIG_NUMA
+ 
+ struct numa_maps {
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index 6dacb93..a24e34e 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -10,6 +10,10 @@
+ #include <linux/rwsem.h>
+ #include <linux/memcontrol.h>
+ 
++extern int isolate_lru_page(struct page *page);
++extern void putback_lru_page(struct page *page);
++extern unsigned long reclaim_pages_from_list(struct list_head *page_list);
++
+ /*
+  * The anon_vma heads a list of private "related" vmas, to scan if
+  * an anonymous page pointing to this anon_vma needs to be unmapped:
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 5881e8c..a947f4b 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -467,3 +467,16 @@ config FRONTSWAP
+ 	  and swap data is stored as normal on the matching swap device.
+ 
+ 	  If unsure, say Y to enable frontswap.
++
++config PROCESS_RECLAIM
++	bool "Enable per process reclaim"
++	depends on PROC_FS
++	default n
++	help
++	 It allows to reclaim pages of the process by /proc/pid/reclaim.
++
++	 (echo 1 > /proc/PID/reclaim) reclaims file-backed pages only.
++	 (echo 2 > /proc/PID/reclaim) reclaims anonymous pages only.
++	 (echo 3 > /proc/PID/reclaim) reclaims all pages.
++
++	 Any other vaule is ignored.
+diff --git a/mm/internal.h b/mm/internal.h
+index 8562de0..589a29b 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -86,12 +86,6 @@ static inline void get_page_foll(struct page *page)
+ extern unsigned long highest_memmap_pfn;
+ 
+ /*
+- * in mm/vmscan.c:
+- */
+-extern int isolate_lru_page(struct page *page);
+-extern void putback_lru_page(struct page *page);
+-
+-/*
+  * in mm/rmap.c:
+  */
+ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
+@@ -360,6 +354,7 @@ extern unsigned long vm_mmap_pgoff(struct file *, unsigned long,
+ extern void set_pageblock_order(void);
+ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ 					    struct list_head *page_list);
++
+ /* The ALLOC_WMARK bits are used as an index to zone->watermark */
+ #define ALLOC_WMARK_MIN		WMARK_MIN
+ #define ALLOC_WMARK_LOW		WMARK_LOW
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index df78d17..d3dc95f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -991,6 +991,65 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ 	return ret;
+ }
+ 
++#ifdef CONFIG_PROCESS_RECLAIM
++static unsigned long shrink_page(struct page *page,
++					struct zone *zone,
++					struct scan_control *sc,
++					enum ttu_flags ttu_flags,
++					unsigned long *ret_nr_dirty,
++					unsigned long *ret_nr_writeback,
++					bool force_reclaim,
++					struct list_head *ret_pages)
++{
++	int reclaimed;
++	LIST_HEAD(page_list);
++	list_add(&page->lru, &page_list);
++
++	reclaimed = shrink_page_list(&page_list, zone, sc, ttu_flags,
++				ret_nr_dirty, ret_nr_writeback,
++				force_reclaim);
++	if (!reclaimed)
++		list_splice(&page_list, ret_pages);
++
++	return reclaimed;
++}
++
++unsigned long reclaim_pages_from_list(struct list_head *page_list)
++{
++	struct scan_control sc = {
++		.gfp_mask = GFP_KERNEL,
++		.priority = DEF_PRIORITY,
++		.may_unmap = 1,
++		.may_swap = 1,
++	};
++
++	LIST_HEAD(ret_pages);
++	struct page *page;
++	unsigned long dummy1, dummy2;
++	unsigned long nr_reclaimed = 0;
++
++	while (!list_empty(page_list)) {
++		page = lru_to_page(page_list);
++		list_del(&page->lru);
++
++		ClearPageActive(page);
++		nr_reclaimed += shrink_page(page, page_zone(page), &sc,
++				TTU_UNMAP|TTU_IGNORE_ACCESS,
++				&dummy1, &dummy2, true, &ret_pages);
++	}
++
++	while (!list_empty(&ret_pages)) {
++		page = lru_to_page(&ret_pages);
++		list_del(&page->lru);
++		dec_zone_page_state(page, NR_ISOLATED_ANON +
++				page_is_file_cache(page));
++		putback_lru_page(page);
++	}
++
++	return nr_reclaimed;
++}
++#endif
++
+ /*
+  * Attempt to remove the specified page from its LRU.  Only take this page
+  * if it is of the appropriate PageActive status.  Pages which are being
+-- 
+1.8.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
