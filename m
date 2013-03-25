@@ -1,58 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 8C6506B0072
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 05:10:57 -0400 (EDT)
-Message-ID: <5150151E.7070206@cn.fujitsu.com>
-Date: Mon, 25 Mar 2013 17:13:02 +0800
-From: Lin Feng <linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 2D1846B0074
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 05:13:48 -0400 (EDT)
+Received: by mail-ea0-f173.google.com with SMTP id h14so2175433eak.18
+        for <linux-mm@kvack.org>; Mon, 25 Mar 2013 02:13:46 -0700 (PDT)
+Message-ID: <51501545.50908@suse.cz>
+Date: Mon, 25 Mar 2013 10:13:41 +0100
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86: mm: add_pfn_range_mapped: use meaningful index to
- teach clean_sort_range()
-References: <1363602093-11965-1-git-send-email-linfeng@cn.fujitsu.com> <CAE9FiQUHtM_Nuz4ak+HeNGV6a-HTtfMkxc+zBZuow47Vj70CKQ@mail.gmail.com>
-In-Reply-To: <CAE9FiQUHtM_Nuz4ak+HeNGV6a-HTtfMkxc+zBZuow47Vj70CKQ@mail.gmail.com>
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd reclaims
+ at each priority
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-2-git-send-email-mgorman@suse.de> <20130325090758.GO2154@dhcp22.suse.cz>
+In-Reply-To: <20130325090758.GO2154@dhcp22.suse.cz>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, penberg@kernel.org, jacob.shin@amd.com
+To: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Andrew,
-
-On 03/19/2013 02:52 AM, Yinghai Lu wrote:
-> On Mon, Mar 18, 2013 at 3:21 AM, Lin Feng <linfeng@cn.fujitsu.com> wrote:
->> Since add_range_with_merge() return the max none zero element of the array, it's
->> suffice to use it to instruct clean_sort_range() to do the sort. Or the former
->> assignment by add_range_with_merge() is nonsense because clean_sort_range()
->> will produce a accurate number of the sorted array and it never depends on
->> nr_pfn_mapped.
+On 03/25/2013 10:07 AM, Michal Hocko wrote:
+> On Sun 17-03-13 13:04:07, Mel Gorman wrote:
+>> The number of pages kswapd can reclaim is bound by the number of pages it
+>> scans which is related to the size of the zone and the scanning priority. In
+>> many cases the priority remains low because it's reset every SWAP_CLUSTER_MAX
+>> reclaimed pages but in the event kswapd scans a large number of pages it
+>> cannot reclaim, it will raise the priority and potentially discard a large
+>> percentage of the zone as sc->nr_to_reclaim is ULONG_MAX. The user-visible
+>> effect is a reclaim "spike" where a large percentage of memory is suddenly
+>> freed. It would be bad enough if this was just unused memory but because
+>> of how anon/file pages are balanced it is possible that applications get
+>> pushed to swap unnecessarily.
 >>
->> Cc: Jacob Shin <jacob.shin@amd.com>
->> Cc: Yinghai Lu <yinghai@kernel.org>
->> Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
->> ---
->>  arch/x86/mm/init.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
+>> This patch limits the number of pages kswapd will reclaim to the high
+>> watermark. Reclaim will will overshoot due to it not being a hard limit as
+>> shrink_lruvec() will ignore the sc.nr_to_reclaim at DEF_PRIORITY but it
+>> prevents kswapd reclaiming the world at higher priorities. The number of
+>> pages it reclaims is not adjusted for high-order allocations as kswapd will
+>> reclaim excessively if it is to balance zones for high-order allocations.
 >>
->> diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
->> index 59b7fc4..55ae904 100644
->> --- a/arch/x86/mm/init.c
->> +++ b/arch/x86/mm/init.c
->> @@ -310,7 +310,7 @@ static void add_pfn_range_mapped(unsigned long start_pfn, unsigned long end_pfn)
->>  {
->>         nr_pfn_mapped = add_range_with_merge(pfn_mapped, E820_X_MAX,
->>                                              nr_pfn_mapped, start_pfn, end_pfn);
->> -       nr_pfn_mapped = clean_sort_range(pfn_mapped, E820_X_MAX);
->> +       nr_pfn_mapped = clean_sort_range(pfn_mapped, nr_pfn_mapped);
->>
->>         max_pfn_mapped = max(max_pfn_mapped, end_pfn);>
+>> Signed-off-by: Mel Gorman <mgorman@suse.de>
 > 
-> Acked-by: Yinghai Lu <yinghai@kernel.org>
+> It seems I forgot to add
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-Do we need to pick up this patch?
+Thanks, now I applied all ten.
 
-thanks,
-linfeng
+BTW I very pray this will fix also the issue I have when I run ltp tests
+(highly I/O intensive, esp. `growfiles') in a VM while playing a movie
+on the host resulting in a stuttered playback ;).
+
+-- 
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
