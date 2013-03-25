@@ -1,35 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na6sys010bmx057.postini.com [74.125.246.157])
-	by kanga.kvack.org (Postfix) with SMTP id 7EDB26B00A3
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 17:26:32 -0400 (EDT)
-Date: Mon, 25 Mar 2013 14:26:30 -0700
+Received: from psmtp.com (na6sys010bmx106.postini.com [74.125.246.206])
+	by kanga.kvack.org (Postfix) with SMTP id EB7D66B00A6
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 17:34:01 -0400 (EDT)
+Date: Mon, 25 Mar 2013 14:34:00 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
-Message-Id: <20130325142630.faf41b11416c2e4ac3d61550@linux-foundation.org>
-In-Reply-To: <20130321180321.GB4185@gmail.com>
+Message-Id: <20130325143400.d226b1f7b64a209b86dd4151@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.02.1303241727420.23613@chino.kir.corp.google.com>
 References: <20130318155619.GA18828@sgi.com>
 	<20130321105516.GC18484@gmail.com>
-	<20130321123505.GA6051@dhcp22.suse.cz>
-	<20130321180321.GB4185@gmail.com>
+	<alpine.DEB.2.02.1303211139110.3775@chino.kir.corp.google.com>
+	<20130322072532.GC10608@gmail.com>
+	<20130323152948.GA3036@sgi.com>
+	<CAHGf_=qgsga4Juj8uNnfbmOZYtYhcQbqngbFDWg9=B-1nc1HSw@mail.gmail.com>
+	<alpine.DEB.2.02.1303241727420.23613@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Russ Anderson <rja@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
+To: David Rientjes <rientjes@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Russ Anderson <rja@sgi.com>, Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Thu, 21 Mar 2013 19:03:21 +0100 Ingo Molnar <mingo@kernel.org> wrote:
+On Sun, 24 Mar 2013 17:28:12 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
-> > IMO the local scope is more obvious as this is and should only be used 
-> > for caching purposes.
+> On Sat, 23 Mar 2013, KOSAKI Motohiro wrote:
 > 
-> It's a pattern we actively avoid in kernel code.
+> > > --- linux.orig/mm/page_alloc.c  2013-03-19 16:09:03.736450861 -0500
+> > > +++ linux/mm/page_alloc.c       2013-03-22 17:07:43.895405617 -0500
+> > > @@ -4161,10 +4161,23 @@ int __meminit __early_pfn_to_nid(unsigne
+> > >  {
+> > >         unsigned long start_pfn, end_pfn;
+> > >         int i, nid;
+> > > +       /*
+> > > +          NOTE: The following SMP-unsafe globals are only used early
+> > > +          in boot when the kernel is running single-threaded.
+> > > +        */
+> > > +       static unsigned long last_start_pfn, last_end_pfn;
+> > > +       static int last_nid;
+> > 
+> > Why don't you mark them __meminitdata? They seems freeable.
+> > 
+> 
+> Um, defining them in a __meminit function places them in .meminit.data 
+> already.
 
-On the contrary, I always encourage people to move the static
-definitions into function scope if possible.  So the reader can see the
-identifier's scope without having to search the whole file. 
-Unnecessarily giving the identifier file-scope seems weird.
+I wish it did, but it doesn't.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
