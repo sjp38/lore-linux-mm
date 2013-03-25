@@ -1,51 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 76A2E6B0002
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 22:24:59 -0400 (EDT)
-Date: Mon, 25 Mar 2013 12:54:45 +1030
-From: Jonathan Woithe <jwoithe@atrad.com.au>
-Subject: Re: OOM triggered with plenty of memory free
-Message-ID: <20130325022445.GH29157@marvin.atrad.com.au>
-References: <CAJd=RBDHwgtm=to3WUj73d7q6cjJ7oG6capjUxvcpVk0wH-fbQ@mail.gmail.com>
- <CAGDaZ_ryxdMBm44kotjKyCeFEFk3OURjHav3zVOcQNGwP_ZwAQ@mail.gmail.com>
- <20130321070750.GV30145@marvin.atrad.com.au>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id D6F546B0002
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 22:28:05 -0400 (EDT)
+Message-ID: <514FB24F.8080104@cn.fujitsu.com>
+Date: Mon, 25 Mar 2013 10:11:27 +0800
+From: Lin Feng <linfeng@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130321070750.GV30145@marvin.atrad.com.au>
+Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
+References: <20130318155619.GA18828@sgi.com> <20130321105516.GC18484@gmail.com> <alpine.DEB.2.02.1303211139110.3775@chino.kir.corp.google.com> <20130322072532.GC10608@gmail.com> <20130323152948.GA3036@sgi.com> <CAE9FiQUjVRUs02-ymmtO+5+SgqTWK8Ae6jJwD08uRbgR=eLJgw@mail.gmail.com>
+In-Reply-To: <CAE9FiQUjVRUs02-ymmtO+5+SgqTWK8Ae6jJwD08uRbgR=eLJgw@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raymond Jennings <shentino@gmail.com>
-Cc: Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jonathan Woithe <jwoithe@atrad.com.au>
+To: Yinghai Lu <yinghai@kernel.org>, Russ Anderson <rja@sgi.com>
+Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
 
-This post ties up a few loose ends in this thread which remained after my
-21 March 2013 post.
 
- * The memory leak was not present in 2.6.36.
 
- * The patch to 2.6.35.11 at the end of this email (based on
-   48e6b121605512d87f8da1ccd014313489c19630 from linux-stable) resolves the
-   memory leak in 2.6.35.11.
+On 03/24/2013 04:37 AM, Yinghai Lu wrote:
+> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> +int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
+> +			 unsigned long *start_pfn, unsigned long *end_pfn)
+> +{
+> +	struct memblock_type *type = &memblock.memory;
+> +	int mid = memblock_search(type, (phys_addr_t)pfn << PAGE_SHIFT);
 
-This gives us a workable solution while we await fixes to current mainline
-in the r8169 driver.  Once that's done we can revalidate our systems against
-a more recent kernel and start shipping that.
+I'm really eager to see how much time can we save using binary search compared to
+linear search in this case :)
 
-Thanks to those who assisted with this issue.
+(quote)
+> A 4 TB (single rack) UV1 system takes 512 seconds to get through
+> the zone code.  This performance optimization reduces the time
+> by 189 seconds, a 36% improvement.
+>
+> A 2 TB (single rack) UV2 system goes from 212.7 seconds to 99.8 seconds,
+> a 112.9 second (53%) reduction.
+(quote)
 
-Regards
-  jonathan
-
---- a/net/netlink/af_netlink.c	2013-03-25 10:32:15.365781434 +1100
-+++ b/net/netlink/af_netlink.c	2013-03-25 10:32:15.373782107 +1100
-@@ -1387,6 +1387,8 @@ static int netlink_sendmsg(struct kiocb
- 	err = netlink_unicast(sk, skb, dst_pid, msg->msg_flags&MSG_DONTWAIT);
- 
- out:
-+	scm_destroy(siocb->scm);
-+	siocb->scm = NULL;
- 	return err;
- }
+thanks,
+linfeng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
