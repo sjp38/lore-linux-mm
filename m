@@ -1,43 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id D95EA6B0002
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 20:28:15 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id bg2so731986pad.37
-        for <linux-mm@kvack.org>; Sun, 24 Mar 2013 17:28:15 -0700 (PDT)
-Date: Sun, 24 Mar 2013 17:28:12 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
-In-Reply-To: <CAHGf_=qgsga4Juj8uNnfbmOZYtYhcQbqngbFDWg9=B-1nc1HSw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.02.1303241727420.23613@chino.kir.corp.google.com>
-References: <20130318155619.GA18828@sgi.com> <20130321105516.GC18484@gmail.com> <alpine.DEB.2.02.1303211139110.3775@chino.kir.corp.google.com> <20130322072532.GC10608@gmail.com> <20130323152948.GA3036@sgi.com>
- <CAHGf_=qgsga4Juj8uNnfbmOZYtYhcQbqngbFDWg9=B-1nc1HSw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 933E66B0002
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 21:16:01 -0400 (EDT)
+Message-ID: <514FA535.4050503@huawei.com>
+Date: Mon, 25 Mar 2013 09:15:33 +0800
+From: Jiang Liu <jiang.liu@huawei.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm/hotplug: only free wait_table if it's allocated by
+ vmalloc
+References: <514C2A43.3020008@huawei.com> <514C2C36.3060709@cn.fujitsu.com>
+In-Reply-To: <514C2C36.3060709@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Russ Anderson <rja@sgi.com>, Ingo Molnar <mingo@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Jianguo Wu <wujianguo@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, qiuxishi <qiuxishi@huawei.com>, linux-mm@kvack.org
 
-On Sat, 23 Mar 2013, KOSAKI Motohiro wrote:
+I have done a work to associate a tag with each memblock,
+may be that could be reused.
 
-> > --- linux.orig/mm/page_alloc.c  2013-03-19 16:09:03.736450861 -0500
-> > +++ linux/mm/page_alloc.c       2013-03-22 17:07:43.895405617 -0500
-> > @@ -4161,10 +4161,23 @@ int __meminit __early_pfn_to_nid(unsigne
-> >  {
-> >         unsigned long start_pfn, end_pfn;
-> >         int i, nid;
-> > +       /*
-> > +          NOTE: The following SMP-unsafe globals are only used early
-> > +          in boot when the kernel is running single-threaded.
-> > +        */
-> > +       static unsigned long last_start_pfn, last_end_pfn;
-> > +       static int last_nid;
-> 
-> Why don't you mark them __meminitdata? They seems freeable.
-> 
+On 2013-3-22 18:02, Tang Chen wrote:
+> On 03/22/2013 05:54 PM, Jianguo Wu wrote:
+>> zone->wait_table may be allocated from bootmem, it can not be freed.
+>>
+>> Cc: Andrew Morton<akpm@linux-foundation.org>
+>> Cc: Wen Congyang<wency@cn.fujitsu.com>
+>> Cc: Tang Chen<tangchen@cn.fujitsu.com>
+>> Cc: Jiang Liu<jiang.liu@huawei.com>
+>> Cc: linux-mm@kvack.org
+>> Signed-off-by: Jianguo Wu<wujianguo@huawei.com>
+>> ---
+>>   mm/memory_hotplug.c |    6 +++++-
+>>   1 files changed, 5 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 07b6263..91ed7cd 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1779,7 +1779,11 @@ void try_offline_node(int nid)
+>>       for (i = 0; i<  MAX_NR_ZONES; i++) {
+>>           struct zone *zone = pgdat->node_zones + i;
+>>
+>> -        if (zone->wait_table)
+>> +        /*
+>> +         * wait_table may be allocated from boot memory,
+>> +         * here only free if it's allocated by vmalloc.
+>> +         */
+>> +        if (is_vmalloc_addr(zone->wait_table))
+>>               vfree(zone->wait_table);
+>
+> Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
+>
+> FYI, I'm trying add a flag member into memblock to mark memory whose
+> life cycle is the same as a node. I think maybe this flag could be used
+> to free this kind of memory from bootmem.
+>
+> Thanks. :)
+>
+>
+>>       }
+>>
+>
+>
 
-Um, defining them in a __meminit function places them in .meminit.data 
-already.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
