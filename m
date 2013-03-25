@@ -1,45 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id D6F546B0002
-	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 22:28:05 -0400 (EDT)
-Message-ID: <514FB24F.8080104@cn.fujitsu.com>
-Date: Mon, 25 Mar 2013 10:11:27 +0800
-From: Lin Feng <linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id A30B36B0002
+	for <linux-mm@kvack.org>; Sun, 24 Mar 2013 23:17:46 -0400 (EDT)
+Message-ID: <514FC279.5050403@cn.fujitsu.com>
+Date: Mon, 25 Mar 2013 11:20:25 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch] mm: speedup in __early_pfn_to_nid
-References: <20130318155619.GA18828@sgi.com> <20130321105516.GC18484@gmail.com> <alpine.DEB.2.02.1303211139110.3775@chino.kir.corp.google.com> <20130322072532.GC10608@gmail.com> <20130323152948.GA3036@sgi.com> <CAE9FiQUjVRUs02-ymmtO+5+SgqTWK8Ae6jJwD08uRbgR=eLJgw@mail.gmail.com>
-In-Reply-To: <CAE9FiQUjVRUs02-ymmtO+5+SgqTWK8Ae6jJwD08uRbgR=eLJgw@mail.gmail.com>
+Subject: Re: [PATCH] mm/hotplug: only free wait_table if it's allocated by
+ vmalloc
+References: <514C2A43.3020008@huawei.com> <514C2C36.3060709@cn.fujitsu.com> <514FA535.4050503@huawei.com>
+In-Reply-To: <514FA535.4050503@huawei.com>
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>, Russ Anderson <rja@sgi.com>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com
+To: Jiang Liu <jiang.liu@huawei.com>
+Cc: Jianguo Wu <wujianguo@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, qiuxishi <qiuxishi@huawei.com>, linux-mm@kvack.org
 
+On 03/25/2013 09:15 AM, Jiang Liu wrote:
+> I have done a work to associate a tag with each memblock,
+> may be that could be reused.
 
+Hi Liu,
 
-On 03/24/2013 04:37 AM, Yinghai Lu wrote:
-> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> +int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
-> +			 unsigned long *start_pfn, unsigned long *end_pfn)
-> +{
-> +	struct memblock_type *type = &memblock.memory;
-> +	int mid = memblock_search(type, (phys_addr_t)pfn << PAGE_SHIFT);
+Yes, the CONFIG_HAVE_MEMBLOCK_TAG patch, I saw that before. :)
 
-I'm really eager to see how much time can we save using binary search compared to
-linear search in this case :)
+And it may have the following difference,
+1) It is a flag, not a tag, which means a range may have several
+    different attributes.
+2) Mark node-lify-cycle data, and put it on local node, and free
+    it when hot-removing.
+3) Mark and reserve movable memory, as you did. :)
 
-(quote)
-> A 4 TB (single rack) UV1 system takes 512 seconds to get through
-> the zone code.  This performance optimization reduces the time
-> by 189 seconds, a 36% improvement.
+I'll try to find as much code that can be reused as I can. :)
+
+Thanks for reminding me this. :)
+
+Thanks. :)
+
 >
-> A 2 TB (single rack) UV2 system goes from 212.7 seconds to 99.8 seconds,
-> a 112.9 second (53%) reduction.
-(quote)
-
-thanks,
-linfeng
+> On 2013-3-22 18:02, Tang Chen wrote:
+>> On 03/22/2013 05:54 PM, Jianguo Wu wrote:
+>>> zone->wait_table may be allocated from bootmem, it can not be freed.
+>>>
+>>> Cc: Andrew Morton<akpm@linux-foundation.org>
+>>> Cc: Wen Congyang<wency@cn.fujitsu.com>
+>>> Cc: Tang Chen<tangchen@cn.fujitsu.com>
+>>> Cc: Jiang Liu<jiang.liu@huawei.com>
+>>> Cc: linux-mm@kvack.org
+>>> Signed-off-by: Jianguo Wu<wujianguo@huawei.com>
+>>> ---
+>>>    mm/memory_hotplug.c |    6 +++++-
+>>>    1 files changed, 5 insertions(+), 1 deletions(-)
+>>>
+>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>> index 07b6263..91ed7cd 100644
+>>> --- a/mm/memory_hotplug.c
+>>> +++ b/mm/memory_hotplug.c
+>>> @@ -1779,7 +1779,11 @@ void try_offline_node(int nid)
+>>>        for (i = 0; i<   MAX_NR_ZONES; i++) {
+>>>            struct zone *zone = pgdat->node_zones + i;
+>>>
+>>> -        if (zone->wait_table)
+>>> +        /*
+>>> +         * wait_table may be allocated from boot memory,
+>>> +         * here only free if it's allocated by vmalloc.
+>>> +         */
+>>> +        if (is_vmalloc_addr(zone->wait_table))
+>>>                vfree(zone->wait_table);
+>>
+>> Reviewed-by: Tang Chen<tangchen@cn.fujitsu.com>
+>>
+>> FYI, I'm trying add a flag member into memblock to mark memory whose
+>> life cycle is the same as a node. I think maybe this flag could be used
+>> to free this kind of memory from bootmem.
+>>
+>> Thanks. :)
+>>
+>>
+>>>        }
+>>>
+>>
+>>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
