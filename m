@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 8867D6B00B8
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 00:34:50 -0400 (EDT)
-Date: Tue, 26 Mar 2013 00:34:40 -0400
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 3E12A6B00BB
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 01:13:24 -0400 (EDT)
+Date: Tue, 26 Mar 2013 01:13:10 -0400
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1364272480-bmzkqzs6-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130325123128.GU2154@dhcp22.suse.cz>
+Message-ID: <1364274790-z44rtlpy-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130325130416.GV2154@dhcp22.suse.cz>
 References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130325123128.GU2154@dhcp22.suse.cz>
-Subject: Re: [PATCH 03/10] soft-offline: use migrate_pages() instead of
- migrate_huge_page()
+ <1363983835-20184-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20130325130416.GV2154@dhcp22.suse.cz>
+Subject: Re: [PATCH 05/10] migrate: add hugepage migration code to
+ migrate_pages()
 Mime-Version: 1.0
 Content-Type: text/plain;
  charset=iso-2022-jp
@@ -21,92 +21,61 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Mon, Mar 25, 2013 at 01:31:28PM +0100, Michal Hocko wrote:
-> On Fri 22-03-13 16:23:48, Naoya Horiguchi wrote:
-> > Currently migrate_huge_page() takes a pointer to a hugepage to be
-> > migrated as an argument, instead of taking a pointer to the list of
-> > hugepages to be migrated. This behavior was introduced in commit
-> > 189ebff28 ("hugetlb: simplify migrate_huge_page()"), and was OK
-> > because until now hugepage migration is enabled only for soft-offlining
-> > which takes only one hugepage in a single call.
-> > 
-> > But the situation will change in the later patches in this series
-> > which enable other users of page migration to support hugepage migration.
-> > They can kick migration for both of normal pages and hugepages
-> > in a single call, so we need to go back to original implementation
-> > of using linked lists to collect the hugepages to be migrated.
-> 
-> If the purpose of this patch is to reduce code duplication then you
-> should remove migrate_huge_page as it doesn't have any caller anymore.
-
-Yes, that makes sense. I'll do this.
-
+On Mon, Mar 25, 2013 at 02:04:16PM +0100, Michal Hocko wrote:
+> On Fri 22-03-13 16:23:50, Naoya Horiguchi wrote:
 > [...]
-> > @@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
-> >  	unlock_page(hpage);
-> >  
-> >  	/* Keep page count to indicate a given hugepage is isolated. */
-> > -	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
-> > -				MIGRATE_SYNC);
-> > -	put_page(hpage);
-> > +	list_move(&hpage->lru, &pagelist);
-> > +	ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
-> > +				MIGRATE_SYNC, MR_MEMORY_FAILURE);
-> >  	if (ret) {
-> >  		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
-> >  			pfn, ret, page->flags);
-> > +		/*
-> > +		 * We know that soft_offline_huge_page() tries to migrate
-> > +		 * only one hugepage pointed to by hpage, so we need not
-> > +		 * run through the pagelist here.
-> > +		 */
-> > +		putback_active_hugepage(hpage);
+> > @@ -523,6 +544,11 @@ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+> >  	pmd = pmd_offset(pud, addr);
+> >  	do {
+> >  		next = pmd_addr_end(addr, end);
+> > +		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
+> > +			check_hugetlb_pmd_range(vma, pmd, nodes,
+> > +						flags, private);
 > 
-> Maybe I am missing something but why we didn't need to call this before
-> when using migrate_huge_page?
+> I am afraid this has the same issue with other huge page sizes I have
+> mentioned earlier.
 
-migrate_huge_page() does not need list handling before/after the call,
-because it's defined to migrate only one hugepage, and it has a page as
-an argument, not list_head.
+So we need arch-dependent helper functions. I'll try that, but it
+might be better to start with enabling only x86_64 if it takes time
+to implement this.
 
-> > +		if (ret > 0)
-> > +			ret = -EIO;
-> >  	} else {
-> >  		set_page_hwpoison_huge_page(hpage);
-> >  		dequeue_hwpoisoned_huge_page(hpage);
-> > diff --git v3.9-rc3.orig/mm/migrate.c v3.9-rc3/mm/migrate.c
-> > index f69f354..66030b6 100644
-> > --- v3.9-rc3.orig/mm/migrate.c
-> > +++ v3.9-rc3/mm/migrate.c
-> > @@ -981,6 +981,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+> > +			continue;
+> > +		}
+> >  		split_huge_page_pmd(vma, addr, pmd);
+> >  		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+> >  			continue;
+> [...]
+> > @@ -1012,14 +1040,8 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+> >  	check_range(mm, mm->mmap->vm_start, mm->task_size, &nmask,
+> >  			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
 > >  
-> >  	unlock_page(hpage);
-> >  out:
-> > +	if (rc != -EAGAIN)
-> > +		putback_active_hugepage(hpage);
+> > -	if (!list_empty(&pagelist)) {
+> > -		err = migrate_pages(&pagelist, new_node_page, dest,
+> > +	return migrate_movable_pages(&pagelist, new_node_page, dest,
+> >  					MIGRATE_SYNC, MR_SYSCALL);
+> > -		if (err)
+> > -			putback_lru_pages(&pagelist);
+> > -	}
+> > -
+> > -	return err;
 > 
-> And why do you put it here? If it is called from migrate_pages then the
-> caller already does the clean-up (putback_lru_pages).
+> This is really confusing. Why migrate_pages doesn't do putback cleanup
+> on its own but migrate_movable_pages does?
 
-What the caller of migrate_pages() cleans up is the (huge)pages which failed
-to be migrated. And what the above code cleans up is the source hugepage
-after the migration succeeds.
+I consider migrate_movable_pages() as a wrapper of migrate_pages(),
+not the variant of migrate_pages().
+We can find the same pattern in the callers like
 
-The latter clean-up code originally existed, but removed in 189ebff28
-("hugetlb: simplify migrate_huge_page()").
-This commit cleans up the code based on that there was only one user
-of hugepage migration, but that's not true any more.
-So the above hunk is a part of revert of the commit.
-But it's not a simple revert, because there's one difference between
-now and before 189ebff28 that we link hugepages in-use to hugepage_activelist.
-Then we finally come to the above change.
+  if (!list_empty(&pagelist)) {
+        err = migrate_pages(...);
+        if (err)
+                putback_lru_pages(&pagelist);
+  }
+
+, so it can be simplified by migrate_movable_pages().
 
 Thanks,
 Naoya
-
-> >  	put_page(new_hpage);
-> >  	if (result) {
-> >  		if (rc)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
