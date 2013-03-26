@@ -1,25 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 9EBF76B0124
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 12:02:29 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id rr4so2114580pbb.24
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2013 09:02:28 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id C37356B0126
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 12:02:40 -0400 (EDT)
+Received: by mail-da0-f44.google.com with SMTP id z20so3728612dae.31
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2013 09:02:39 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v3, part4 30/39] mm/score: prepare for removing num_physpages and simplify mem_init()
-Date: Tue, 26 Mar 2013 23:54:49 +0800
-Message-Id: <1364313298-17336-31-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH v3, part4 31/39] mm/SH: prepare for removing num_physpages and simplify mem_init()
+Date: Tue, 26 Mar 2013 23:54:50 +0800
+Message-Id: <1364313298-17336-32-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1364313298-17336-1-git-send-email-jiang.liu@huawei.com>
 References: <1364313298-17336-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Chen Liqin <liqin.chen@sunplusct.com>, Lennox Wu <lennox.wu@gmail.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Paul Mundt <lethal@linux-sh.org>, Tang Chen <tangchen@cn.fujitsu.com>, linux-sh@vger.kernel.org
 
 Prepare for removing num_physpages and simplify mem_init().
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Chen Liqin <liqin.chen@sunplusct.com>
-Cc: Lennox Wu <lennox.wu@gmail.com>
+Cc: Paul Mundt <lethal@linux-sh.org>
+Cc: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: linux-sh@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
 ---
 Hi all,
@@ -31,49 +33,62 @@ So I regenerate a third version and also set up a git tree at:
 	Regards!
 	Gerry
 ---
- arch/score/mm/init.c |   26 ++------------------------
- 1 file changed, 2 insertions(+), 24 deletions(-)
+ arch/sh/mm/init.c |   25 ++++---------------------
+ 1 file changed, 4 insertions(+), 21 deletions(-)
 
-diff --git a/arch/score/mm/init.c b/arch/score/mm/init.c
-index 579fc4e..2a223d8 100644
---- a/arch/score/mm/init.c
-+++ b/arch/score/mm/init.c
-@@ -77,33 +77,11 @@ void __init paging_init(void)
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index aecd913..3826596 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -407,24 +407,18 @@ unsigned int mem_init_done = 0;
  
  void __init mem_init(void)
  {
--	unsigned long codesize, reservedpages, datasize, initsize;
--	unsigned long tmp, ram = 0;
--
- 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
- 	free_all_bootmem();
- 	setup_zero_page();	/* Setup zeroed pages. */
--	reservedpages = 0;
--
--	for (tmp = 0; tmp < max_low_pfn; tmp++)
--		if (page_is_ram(tmp)) {
--			ram++;
--			if (PageReserved(pfn_to_page(tmp)))
--				reservedpages++;
--		}
--
--	num_physpages = ram;
--	codesize = (unsigned long) &_etext - (unsigned long) &_text;
--	datasize = (unsigned long) &_edata - (unsigned long) &_etext;
--	initsize = (unsigned long) &__init_end - (unsigned long) &__init_begin;
--
--	printk(KERN_INFO "Memory: %luk/%luk available (%ldk kernel code, "
--			"%ldk reserved, %ldk data, %ldk init, %ldk highmem)\n",
--			(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
--			ram << (PAGE_SHIFT-10), codesize >> 10,
--			reservedpages << (PAGE_SHIFT-10), datasize >> 10,
--			initsize >> 10,
--			totalhigh_pages << (PAGE_SHIFT-10));
-+
-+	mem_init_print_info(NULL);
- }
- #endif /* !CONFIG_NEED_MULTIPLE_NODES */
+-	int codesize, datasize, initsize;
+-	int nid;
++	pg_data_t *pgdat;
  
+ 	iommu_init();
+ 
+-	num_physpages = 0;
+ 	high_memory = NULL;
+ 
+-	for_each_online_node(nid) {
+-		pg_data_t *pgdat = NODE_DATA(nid);
++	for_each_online_pgdat(pgdat) {
+ 		void *node_high_memory;
+ 
+-		num_physpages += pgdat->node_present_pages;
+-
+ 		if (pgdat->node_spanned_pages)
+ 			free_all_bootmem_node(pgdat);
+ 
+-
+ 		node_high_memory = (void *)__va((pgdat->node_start_pfn +
+ 						 pgdat->node_spanned_pages) <<
+ 						 PAGE_SHIFT);
+@@ -441,19 +435,8 @@ void __init mem_init(void)
+ 
+ 	vsyscall_init();
+ 
+-	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
+-	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
+-	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
+-
+-	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, "
+-	       "%dk data, %dk init)\n",
+-		nr_free_pages() << (PAGE_SHIFT-10),
+-		num_physpages << (PAGE_SHIFT-10),
+-		codesize >> 10,
+-		datasize >> 10,
+-		initsize >> 10);
+-
+-	printk(KERN_INFO "virtual kernel memory layout:\n"
++	mem_init_print_info(NULL);
++	pr_info("virtual kernel memory layout:\n"
+ 		"    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+ #ifdef CONFIG_HIGHMEM
+ 		"    pkmap   : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 -- 
 1.7.9.5
 
