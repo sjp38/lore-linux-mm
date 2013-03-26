@@ -1,102 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 8623B6B0138
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 12:04:32 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id ma3so4830922pbc.39
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2013 09:04:31 -0700 (PDT)
-From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v3, part4 39/39] mm: kill global variable num_physpages
-Date: Tue, 26 Mar 2013 23:54:58 +0800
-Message-Id: <1364313298-17336-40-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1364313298-17336-1-git-send-email-jiang.liu@huawei.com>
-References: <1364313298-17336-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 3DF946B010E
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 12:45:02 -0400 (EDT)
+Received: from mailout-de.gmx.net ([10.1.76.31]) by mrigmx.server.lan
+ (mrigmx002) with ESMTP (Nemesis) id 0M1Cg2-1Ue8F23Ykq-00tAbh for
+ <linux-mm@kvack.org>; Tue, 26 Mar 2013 17:45:00 +0100
+Message-ID: <5151D08A.2060400@gmx.de>
+Date: Tue, 26 Mar 2013 17:44:58 +0100
+From: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
+MIME-Version: 1.0
+Subject: Re: linux-v3.9-rc3: BUG: Bad page map in process trinity-child6 pte:002f9045
+ pmd:29e421e1
+References: <514C94C4.4050008@gmx.de> <20130325155347.75290358a6985e17fb10ad14@linux-foundation.org>
+In-Reply-To: <20130325155347.75290358a6985e17fb10ad14@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: user-mode-linux-user@lists.sourceforge.net, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Now all references to num_physpages have been removed, so kill it.
+On 03/25/2013 11:53 PM, Andrew Morton wrote:
+> On Fri, 22 Mar 2013 18:28:36 +0100 Toralf F__rster <toralf.foerster@gmx.de> wrote:
+> 
+>> > Using trinity I often trigger under a user mode linux image with host kernel 3.8.4
+>> > and guest kernel linux-v3.9-rc3-244-g9217cbb the following :
+>> > (The UML guest is a 32bit stable Gentoo Linux)
+> I assume 3.8 is OK?
+> 
+With UML kernel 3.7.10 (host kernel still 3.8.4) I can trigger this
+issue too.
+Just to clarify it - here the bug appears in the UML kernel - the host
+kernel is ok (I can of course crash a host kernel too by trinity'ing an
+UML guest, but that's another thread - see [1])
 
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
-Hi all,
-	Sorry for my mistake that my previous patch series has been screwed up.
-So I regenerate a third version and also set up a git tree at:
-	git://github.com/jiangliu/linux.git mem_init
-	Any help to review and test are welcomed!
 
-	Regards!
-	Gerry
----
- include/linux/mm.h |    1 -
- mm/memory.c        |    2 --
- mm/nommu.c         |    2 --
- 3 files changed, 5 deletions(-)
+FWIW he trinity command is just a test of 1 syscall:
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index c225a4f..a49afbf 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -29,7 +29,6 @@ struct writeback_control;
- extern unsigned long max_mapnr;
- #endif
- 
--extern unsigned long num_physpages;
- extern unsigned long totalram_pages;
- extern void * high_memory;
- extern int page_cluster;
-diff --git a/mm/memory.c b/mm/memory.c
-index 705473a..ecc771d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -82,7 +82,6 @@ EXPORT_SYMBOL(max_mapnr);
- EXPORT_SYMBOL(mem_map);
- #endif
- 
--unsigned long num_physpages;
- /*
-  * A number of key systems in x86 including ioremap() rely on the assumption
-  * that high_memory defines the upper bound on direct map memory, then end
-@@ -92,7 +91,6 @@ unsigned long num_physpages;
-  */
- void * high_memory;
- 
--EXPORT_SYMBOL(num_physpages);
- EXPORT_SYMBOL(high_memory);
- 
- /*
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 4eb25a8..ac23388 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -55,7 +55,6 @@
- void *high_memory;
- struct page *mem_map;
- unsigned long max_mapnr;
--unsigned long num_physpages;
- unsigned long highest_memmap_pfn;
- struct percpu_counter vm_committed_as;
- int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
-@@ -82,7 +81,6 @@ unsigned long vm_memory_committed(void)
- EXPORT_SYMBOL_GPL(vm_memory_committed);
- 
- EXPORT_SYMBOL(mem_map);
--EXPORT_SYMBOL(num_physpages);
- 
- /* list of mapped, potentially shareable regions */
- static struct kmem_cache *vm_region_jar;
+$> trinity --children 1 --victims /mnt/nfs/n22/victims -c mremap
+
+
+
+[1] https://lkml.org/lkml/2013/3/24/174
+
 -- 
-1.7.9.5
+MfG/Sincerely
+Toralf FA?rster
+pgp finger print: 7B1A 07F4 EC82 0F90 D4C2 8936 872A E508 7DB6 9DA3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
