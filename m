@@ -1,402 +1,629 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id A87E46B014F
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 16:46:58 -0400 (EDT)
-Date: Tue, 26 Mar 2013 13:46:56 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] memcg: Add memory.pressure_level events
-Message-Id: <20130326134656.4e0e0aefcf881bffae769b1e@linux-foundation.org>
-In-Reply-To: <20130322071351.GA3971@lizard.gateway.2wire.net>
-References: <20130322071351.GA3971@lizard.gateway.2wire.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id BC9816B0006
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 18:10:40 -0400 (EDT)
+Received: by mail-gh0-f202.google.com with SMTP id z10so427566ghb.1
+        for <linux-mm@kvack.org>; Tue, 26 Mar 2013 15:10:39 -0700 (PDT)
+Subject: mmotm 2013-03-26-15-09 uploaded
+From: akpm@linux-foundation.org
+Date: Tue, 26 Mar 2013 15:10:38 -0700
+Message-Id: <20130326221038.D275431C102@corp2gmr1-1.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Luiz Capitulino <lcapitulino@redhat.com>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Fri, 22 Mar 2013 00:13:51 -0700 Anton Vorontsov <anton.vorontsov@linaro.org> wrote:
+The mm-of-the-moment snapshot 2013-03-26-15-09 has been uploaded to
 
-> With this patch userland applications that want to maintain the
-> interactivity/memory allocation cost can use the pressure level
-> notifications. The levels are defined like this:
-> 
-> The "low" level means that the system is reclaiming memory for new
-> allocations. Monitoring this reclaiming activity might be useful for
-> maintaining cache level. Upon notification, the program (typically
-> "Activity Manager") might analyze vmstat and act in advance (i.e.
-> prematurely shutdown unimportant services).
-> 
-> The "medium" level means that the system is experiencing medium memory
-> pressure, the system might be making swap, paging out active file caches,
-> etc. Upon this event applications may decide to further analyze
-> vmstat/zoneinfo/memcg or internal memory usage statistics and free any
-> resources that can be easily reconstructed or re-read from a disk.
-> 
-> The "critical" level means that the system is actively thrashing, it is
-> about to out of memory (OOM) or even the in-kernel OOM killer is on its
-> way to trigger. Applications should do whatever they can to help the
-> system. It might be too late to consult with vmstat or any other
-> statistics, so it's advisable to take an immediate action.
-> 
-> The events are propagated upward until the event is handled, i.e. the
-> events are not pass-through. Here is what this means: for example you have
-> three cgroups: A->B->C. Now you set up an event listener on cgroups A, B
-> and C, and suppose group C experiences some pressure. In this situation,
-> only group C will receive the notification, i.e. groups A and B will not
-> receive it. This is done to avoid excessive "broadcasting" of messages,
-> which disturbs the system and which is especially bad if we are low on
-> memory or thrashing. So, organize the cgroups wisely, or propagate the
-> events manually (or, ask us to implement the pass-through events,
-> explaining why would you need them.)
-> 
-> Performance wise, the memory pressure notifications feature itself is
-> lightweight and does not require much of bookkeeping, in contrast to the
-> rest of memcg features. Unfortunately, as of current memcg implementation,
-> pages accounting is an inseparable part and cannot be turned off. The good
-> news is that there are some efforts[1] to improve the situation; plus,
-> implementing the same, fully API-compatible[2] interface for
-> CONFIG_MEMCG=n case (e.g. embedded) is also a viable option, so it will
-> not require any changes on the userland side.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-Nicely presented patch, thanks.
+mmotm-readme.txt says
 
-The interface still seems a bit of a toy, but is a conservative
-approach: anything less toy-like would expose (and hence be dependent
-upon) more VM internals.
+README for mm-of-the-moment:
 
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -40,6 +40,7 @@ Features:
->   - soft limit
->   - moving (recharging) account at moving a task is selectable.
->   - usage threshold notifier
-> + - memory pressure notifier
->   - oom-killer disable knob and oom-notifier
->   - Root cgroup has no limit controls.
->  
-> @@ -65,6 +66,7 @@ Brief summary of control files.
->   memory.stat			 # show various statistics
->   memory.use_hierarchy		 # set/show hierarchical account enabled
->   memory.force_empty		 # trigger forced move charge to parent
-> + memory.pressure_level		 # set memory pressure notifications
->   memory.swappiness		 # set/show swappiness parameter of vmscan
->  				 (See sysctl's vm.swappiness)
->   memory.move_charge_at_immigrate # set/show controls of moving charges
-> @@ -778,7 +780,64 @@ At reading, current status of OOM is shown.
->  	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
->  				 be stopped.)
->  
-> -11. TODO
-> +11. Memory Pressure
-> +
-> +The pressure level notifications can be used to monitor the memory
-> +allocation cost; based on the pressure, applications can implement
-> +different strategies of managing their memory resources. The pressure
-> +levels are defined as following:
-> +
-> +The "low" level means that the system is reclaiming memory for new
-> +allocations. Monitoring this reclaiming activity might be useful for
-> +maintaining cache level. Upon notification, the program (typically
-> +"Activity Manager") might analyze vmstat and act in advance (i.e.
-> +prematurely shutdown unimportant services).
-> +
-> +The "medium" level means that the system is experiencing medium memory
-> +pressure, the system might be making swap, paging out active file caches,
-> +etc. Upon this event applications may decide to further analyze
-> +vmstat/zoneinfo/memcg or internal memory usage statistics and free any
-> +resources that can be easily reconstructed or re-read from a disk.
-> +
-> +The "critical" level means that the system is actively thrashing, it is
-> +about to out of memory (OOM) or even the in-kernel OOM killer is on its
-> +way to trigger. Applications should do whatever they can to help the
-> +system. It might be too late to consult with vmstat or any other
-> +statistics, so it's advisable to take an immediate action.
-> +
-> +The events are propagated upward until the event is handled, i.e. the
-> +events are not pass-through. Here is what this means: for example you have
-> +three cgroups: A->B->C. Now you set up an event listener on cgroups A, B
-> +and C, and suppose group C experiences some pressure. In this situation,
-> +only group C will receive the notification, i.e. groups A and B will not
-> +receive it. This is done to avoid excessive "broadcasting" of messages,
-> +which disturbs the system and which is especially bad if we are low on
-> +memory or thrashing. So, organize the cgroups wisely, or propagate the
-> +events manually (or, ask us to implement the pass-through events,
-> +explaining why would you need them.)
-> +
-> +The file memory.pressure_level is only used to setup an eventfd,
-> +read/write operations are no implemented.
-> +
-> +Test:
-> +
-> +   Here is a small script example that makes a new cgroup, sets up a
-> +   memory limit, sets up a notification in the cgroup and then makes child
-> +   cgroup experience a critical pressure:
-> +
-> +   # cd /sys/fs/cgroup/memory/
-> +   # mkdir foo
-> +   # cd foo
-> +   # cgroup_event_listener memory.pressure_level low &
-> +   # echo 8000000 > memory.limit_in_bytes
-> +   # echo 8000000 > memory.memsw.limit_in_bytes
-> +   # echo $$ > tasks
-> +   # dd if=/dev/zero | read x
-> +
-> +   (Expect a bunch of notifications, and eventually, the oom-killer will
-> +   trigger.)
-> +
-> +12. TODO
+http://www.ozlabs.org/~akpm/mmotm/
 
-Did we tell people how to use the eventfd interface anywhere?
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
->  1. Add support for accounting huge pages (as a separate controller)
->  2. Make per-cgroup scanner reclaim not-shared pages first
-> diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
-> --- /dev/null
-> +++ b/include/linux/vmpressure.h
-> @@ -0,0 +1,47 @@
-> +#ifndef __LINUX_VMPRESSURE_H
-> +#define __LINUX_VMPRESSURE_H
-> +
-> +#include <linux/mutex.h>
-> +#include <linux/list.h>
-> +#include <linux/workqueue.h>
-> +#include <linux/gfp.h>
-> +#include <linux/types.h>
-> +#include <linux/cgroup.h>
-> +
-> +struct vmpressure {
-> +	unsigned int scanned;
-> +	unsigned int reclaimed;
-> +	/* The lock is used to keep the scanned/reclaimed above in sync. */
-> +	struct mutex sr_lock;
-> +
-> +	struct list_head events;
+You will need quilt to apply these patches to the latest Linus release (3.x
+or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-A comment describing what goes at `events' would be nice.  Reference
-"struct vmpressure_event".
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-> +	/* Have to grab the lock on events traversal or modifications. */
-> +	struct mutex events_lock;
-> +
-> +	struct work_struct work;
-> +};
->
-> ...
->
-> +/*
-> + * The window size is the number of scanned pages before we try to analyze
-> + * the scanned/reclaimed ratio (or difference).
-> + *
-> + * It is used as a rate-limit tunable for the "low" level notification,
-> + * and for averaging medium/critical levels. Using small window sizes can
-> + * cause lot of false positives, but too big window size will delay the
-> + * notifications.
-> + *
-> + * TODO: Make the window size depend on machine size, as we do for vmstat
-> + * thresholds.
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
 
-Here "the window size" refers to vmpressure_win, yes?
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
-> + */
-> +static const unsigned int vmpressure_win = SWAP_CLUSTER_MAX * 16;
-> +static const unsigned int vmpressure_level_med = 60;
-> +static const unsigned int vmpressure_level_critical = 95;
-> +static const unsigned int vmpressure_level_critical_prio = 3;
 
-vmpressure_level_critical_prio is a bit mysterious and undocumented. 
-Please document it here and/or at vmpressure_prio().
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-> +
-> +enum vmpressure_levels {
-> +	VMPRESSURE_LOW = 0,
-> +	VMPRESSURE_MEDIUM,
-> +	VMPRESSURE_CRITICAL,
-> +	VMPRESSURE_NUM_LEVELS,
-> +};
->
-> ...
->
-> +static enum vmpressure_levels vmpressure_calc_level(unsigned int scanned,
-> +						    unsigned int reclaimed)
-> +{
-> +	unsigned long scale = scanned + reclaimed;
-> +	unsigned long pressure;
-> +
-> +	if (!scanned)
-> +		return VMPRESSURE_LOW;
-> +
-> +	/*
-> +	 * We calculate the ratio (in percents) of how many pages were
-> +	 * scanned vs. reclaimed in a given time frame (window). Note that
-> +	 * time is in VM reclaimer's "ticks", i.e. number of pages
-> +	 * scanned. This makes it possible to set desired reaction time
-> +	 * and serves as a ratelimit.
-> +	 */
-> +	pressure = scale - (reclaimed * scale / scanned);
-> +	pressure = pressure * 100 / scale;
-> +
-> +	pr_debug("%s: %3lu  (s: %6u  r: %6u)\n", __func__, pressure,
-> +		 scanned, reclaimed);
-> +
-> +	return vmpressure_level(pressure);
-> +}
+http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
 
-The types worry me.  The patch switches the vm's unsigned longs into
-unsigneds.  We have a long and sorry history of overflowing 32-bit
-counters in VM corner cases.  I suggest that this patch should
-carefully use `unsigned longs' in all the appropriate places and do
-away with its present truncation and overflow risks.
+To develop on top of mmotm git:
 
-> +void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
-> +		unsigned long scanned, unsigned long reclaimed)
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
 
-Exported function and a primary inteface.  Needs nice documentation, please ;)
+To rebase a branch with older patches to a new mmotm release:
 
-> +{
-> +	struct vmpressure *vmpr = memcg_to_vmpr(memcg);
-> +
-> +	/*
-> +	 * So far we are only interested application memory, or, in case
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
 
-"interested in"
 
-> +	 * of low pressure, in FS/IO memory reclaim. We are also
-> +	 * interested indirect reclaim (kswapd sets sc->gfp_mask to
-> +	 * GFP_KERNEL).
 
-This is all pretty obvious from reading the code.  Good comments
-explain "why", not "what".  *why* did we make these decisions?
 
-> +	 */
-> +	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
 
-I'm surprised at __GFP_HIGHMEM's inclusion.  On some machines the great
-majority of user memory is in highmem.  What's up?
+A git copy of this tree is available at
 
-> +		return;
-> +
-> +	if (!scanned)
-> +		return;
-> +
-> +	mutex_lock(&vmpr->sr_lock);
-> +	vmpr->scanned += scanned;
-> +	vmpr->reclaimed += reclaimed;
+	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
 
-See, here we're accumulating into a 32-bit variable quantities which used
-to be held in 64-bit variables.    The overflow risk gets higher...
+and use of this tree is similar to
+http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
 
-> +	mutex_unlock(&vmpr->sr_lock);
-> +
-> +	if (scanned < vmpressure_win || work_pending(&vmpr->work))
-> +		return;
-> +	schedule_work(&vmpr->work);
-> +}
-> +
-> +void vmpressure_prio(gfp_t gfp, struct mem_cgroup *memcg, int prio)
 
-Documentation please.
+This mmotm tree contains the following patches against 3.9-rc4:
+(patches marked "*" will be included in linux-next)
 
-> +{
-> +	if (prio > vmpressure_level_critical_prio)
-> +		return;
-> +
-> +	/*
-> +	 * OK, the prio is below the threshold, updating vmpressure
-
-But you never told me what that threshold is for!  And I have no means
-of working out why you chose "3", nor the effects of altering it, etc.
-
-> +	 * information before diving into long shrinking of long range
-> +	 * vmscan.
-> +	 */
-> +	vmpressure(gfp, memcg, vmpressure_win, 0);
-> +}
-> +
-> +static struct vmpressure *wk_to_vmpr(struct work_struct *wk)
-> +{
-> +	return container_of(wk, struct vmpressure, work);
-> +}
-> +
-> +static struct vmpressure *cg_to_vmpr(struct cgroup *cg)
-> +{
-> +	return css_to_vmpr(cgroup_subsys_state(cg, mem_cgroup_subsys_id));
-> +}
-> +
-> +struct vmpressure_event {
-> +	struct eventfd_ctx *efd;
-> +	enum vmpressure_levels level;
-> +	struct list_head node;
-> +};
-> +
-> +static bool vmpressure_event(struct vmpressure *vmpr,
-> +			     unsigned long scanned, unsigned long reclaimed)
-> +{
-> +	struct vmpressure_event *ev;
-> +	int level = vmpressure_calc_level(scanned, reclaimed);
-
-Here's where we go from 64-bit to 32-bit.
-
-> +	bool signalled = false;
-> +
-> +	mutex_lock(&vmpr->events_lock);
-> +
-> +	list_for_each_entry(ev, &vmpr->events, node) {
-> +		if (level >= ev->level) {
-> +			eventfd_signal(ev->efd, 1);
-> +			signalled = true;
-> +		}
-> +	}
-> +
-> +	mutex_unlock(&vmpr->events_lock);
-> +
-> +	return signalled;
-> +}
->
-> ...
->
-> +int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
-> +			      struct eventfd_ctx *eventfd, const char *args)
-
-Document the interface, please.
-
-> +{
-> +	struct vmpressure *vmpr = cg_to_vmpr(cg);
-> +	struct vmpressure_event *ev;
-> +	int lvl;
-
-These abbreviations are rather unlinuxy.  wk->work, vmpr->vmpressure,
-lvl->level, etc.
-
-> +	for (lvl = 0; lvl < VMPRESSURE_NUM_LEVELS; lvl++) {
-> +		if (!strcmp(vmpressure_str_levels[lvl], args))
-> +			break;
-> +	}
-> +
-> +	if (lvl >= VMPRESSURE_NUM_LEVELS)
-> +		return -EINVAL;
-> +
-> +	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-> +	if (!ev)
-> +		return -ENOMEM;
-> +
-> +	ev->efd = eventfd;
-> +	ev->level = lvl;
-> +
-> +	mutex_lock(&vmpr->events_lock);
-> +	list_add(&ev->node, &vmpr->events);
-
-What's the upper bound on the length of this list?
-
-> +	mutex_unlock(&vmpr->events_lock);
-> +
-> +	return 0;
-> +}
-> +
->
-> ...
->
+  origin.patch
+  linux-next.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+  i-need-old-gcc.patch
+* mm-export-split_page.patch
+* revert-ipc-dont-allocate-a-copy-larger-than-max.patch
+* thinkpad-acpi-kill-hotkey_thread_mutex.patch
+* mips-define-kvm_user_mem_slots.patch
+* drivers-staging-zcache-zcache-mainc-fix-build.patch
+* drivers-char-randomc-fix-priming-of-last_data.patch
+* kthread-introduce-to_live_kthread.patch
+* kthread-kill-task_get_live_kthread.patch
+* arch-x86-mm-init_64c-fix-build-warning-when-config_memory_hotremove=n.patch
+* sound-convert-snd_info_register-to-use-proc_create_data.patch
+* x86-make-mem=-option-to-work-for-efi-platform.patch
+* mm-remove-free_area_cache-use-in-powerpc-architecture.patch
+* mm-use-vm_unmapped_area-on-powerpc-architecture.patch
+* drm-fb-helper-dont-sleep-for-screen-unblank-when-an-oopps-is-in-progress.patch
+* matroxfb-convert-struct-i2c_msg-initialization-to-c99-format.patch
+* drivers-video-console-fbcon_cwc-fix-compiler-warning-in-cw_update_attr.patch
+* drivers-video-add-hyper-v-synthetic-video-frame-buffer-driver.patch
+* drivers-video-add-hyper-v-synthetic-video-frame-buffer-driver-fix.patch
+* drivers-video-exynos-exynos_mipi_dsic-convert-to-devm_ioremap_resource.patch
+* video-ep93xx-fbc-fix-section-mismatch-and-use-module_platform_driver.patch
+* drivers-video-mmp-remove-legacy-hw-definitions.patch
+* cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
+* timer_list-split-timer_list_show_tickdevices.patch
+* timer_list-split-timer_list_show_tickdevices-v4.patch
+* timer_list-convert-timer-list-to-be-a-proper-seq_file.patch
+* timer_list-convert-timer-list-to-be-a-proper-seq_file-v3.patch
+* timer_list-convert-timer-list-to-be-a-proper-seq_file-v3-fix.patch
+* posix_cpu_timer-consolidate-expiry-time-type.patch
+* posix_cpu_timers-consolidate-timer-list-cleanups.patch
+* posix_cpu_timers-consolidate-expired-timers-check.patch
+* selftests-add-basic-posix-timers-selftests.patch
+* ktime_add_ns-may-overflow-on-32bit-architectures.patch
+* mkcapflagspl-convert-to-mkcapflagssh.patch
+* headers_installpl-convert-to-headers_installsh.patch
+* scripts-decodecode-make-faulting-insn-ptr-more-robust.patch
+* ipvs-change-type-of-netns_ipvs-sysctl_sync_qlen_max.patch
+* ocfs2-delay-inode-update-transactions-after-verifying-the-input-flags.patch
+* debug_locksh-make-warning-more-verbose.patch
+* lockdep-introduce-lock_acquire_exclusive-shared-helper-macros.patch
+* lglock-update-lockdep-annotations-to-report-recursive-local-locks.patch
+* drivers-block-mg_diskc-add-config_pm_sleep-to-suspend-resume-functions.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* fs-block_devc-need-not-to-check-inode-i_bdev-in-bd_forget.patch
+* fs-return-eagain-when-o_nonblock-write-should-block-on-frozen-fs.patch
+* fs-fix-hang-with-bsd-accounting-on-frozen-filesystem.patch
+* ocfs2-add-freeze-protection-to-ocfs2_file_splice_write.patch
+* watchdog-trigger-all-cpu-backtrace-when-locked-up-and-going-to-panic.patch
+  mm.patch
+* hwpoison-check-dirty-flag-to-match-against-clean-page.patch
+* mm-trace-filemap-add-and-del.patch
+* mm-trace-filemap-add-and-del-v2.patch
+* mm-show_mem-suppress-page-counts-in-non-blockable-contexts.patch
+* mm-shmemc-remove-an-ifdef.patch
+* vm-adjust-ifdef-for-tiny_rcu.patch
+* mm-frontswap-lazy-initialization-to-allow-tmem-backends-to-build-run-as-modules.patch
+* frontswap-make-frontswap_init-use-a-pointer-for-the-ops.patch
+* mm-frontswap-cleanup-code.patch
+* frontswap-get-rid-of-swap_lock-dependency.patch
+* mm-cleancache-lazy-initialization-to-allow-tmem-backends-to-build-run-as-modules.patch
+* cleancache-make-cleancache_init-use-a-pointer-for-the-ops.patch
+* mm-cleancache-clean-up-cleancache_enabled.patch
+* xen-tmem-enable-xen-tmem-shim-to-be-built-loaded-as-a-module.patch
+* xen-tmem-enable-xen-tmem-shim-to-be-built-loaded-as-a-module-fix.patch
+* zcache-tmem-better-error-checking-on-frontswap_register_ops-return-value.patch
+* staging-zcache-enable-ramster-to-be-built-loaded-as-a-module.patch
+* staging-zcache-enable-zcache-to-be-built-loaded-as-a-module.patch
+* rmap-recompute-pgoff-for-unmapping-huge-page.patch
+* memblock-add-assertion-for-zero-allocation-alignment.patch
+* mm-walk_memory_range-fix-typo-in-comment.patch
+* direct-io-fix-boundary-block-handling.patch
+* vmscan-minor-cleanup-for-kswapd.patch
+* mm-introduce-common-help-functions-to-deal-with-reserved-managed-pages.patch
+* mm-alpha-use-common-help-functions-to-free-reserved-pages.patch
+* mm-arm-use-common-help-functions-to-free-reserved-pages.patch
+* mm-avr32-use-common-help-functions-to-free-reserved-pages.patch
+* mm-blackfin-use-common-help-functions-to-free-reserved-pages.patch
+* mm-c6x-use-common-help-functions-to-free-reserved-pages.patch
+* mm-cris-use-common-help-functions-to-free-reserved-pages.patch
+* mm-frv-use-common-help-functions-to-free-reserved-pages.patch
+* mm-h8300-use-common-help-functions-to-free-reserved-pages.patch
+* mm-ia64-use-common-help-functions-to-free-reserved-pages.patch
+* mm-m32r-use-common-help-functions-to-free-reserved-pages.patch
+* mm-m68k-use-common-help-functions-to-free-reserved-pages.patch
+* mm-microblaze-use-common-help-functions-to-free-reserved-pages.patch
+* mm-mips-use-common-help-functions-to-free-reserved-pages.patch
+* mm-mn10300-use-common-help-functions-to-free-reserved-pages.patch
+* mm-openrisc-use-common-help-functions-to-free-reserved-pages.patch
+* mm-parisc-use-common-help-functions-to-free-reserved-pages.patch
+* mm-ppc-use-common-help-functions-to-free-reserved-pages.patch
+* mm-s390-use-common-help-functions-to-free-reserved-pages.patch
+* mm-score-use-common-help-functions-to-free-reserved-pages.patch
+* mm-sh-use-common-help-functions-to-free-reserved-pages.patch
+* mm-sparc-use-common-help-functions-to-free-reserved-pages.patch
+* mm-um-use-common-help-functions-to-free-reserved-pages.patch
+* mm-unicore32-use-common-help-functions-to-free-reserved-pages.patch
+* mm-x86-use-common-help-functions-to-free-reserved-pages.patch
+* mm-xtensa-use-common-help-functions-to-free-reserved-pages.patch
+* mm-arc-use-common-help-functions-to-free-reserved-pages.patch
+* mm-metag-use-common-help-functions-to-free-reserved-pages.patch
+* mmkexec-use-common-help-functions-to-free-reserved-pages.patch
+* mm-introduce-free_highmem_page-helper-to-free-highmem-pages-into-buddy-system.patch
+* mm-arm-use-free_highmem_page-to-free-highmem-pages-into-buddy-system.patch
+* mm-frv-use-free_highmem_page-to-free-highmem-pages-into-buddy-system.patch
+* mm-metag-use-free_highmem_page-to-free-highmem-pages-into-buddy-system.patch
+* mm-microblaze-use-free_highmem_page-to-free-highmem-pages-into-buddy-system.patch
+* mm-mips-use-free_highmem_page-to-free-highmem-pages-into-buddy-system.patch
+* mm-ppc-use-free_highmem_page-to-free-highmem-pages-into-buddy-system.patch
+* mm-sparc-use-free_highmem_page-to-free-highmem-pages-into-buddy-system.patch
+* mm-um-use-free_highmem_page-to-free-highmem-pages-into-buddy-system.patch
+* mm-x86-use-free_highmem_page-to-free-highmem-pages-into-buddy-system.patch
+* memcg-keep-prevs-css-alive-for-the-whole-mem_cgroup_iter.patch
+* memcg-rework-mem_cgroup_iter-to-use-cgroup-iterators.patch
+* memcg-relax-memcg-iter-caching.patch
+* memcg-relax-memcg-iter-caching-checkpatch-fixes.patch
+* memcg-simplify-mem_cgroup_iter.patch
+* memcg-further-simplify-mem_cgroup_iter.patch
+* cgroup-remove-css_get_next.patch
+* fs-dont-compile-in-drop_cachesc-when-config_sysctl=n.patch
+* mm-hugetlb-add-more-arch-defined-huge_pte-functions.patch
+* mm-make-snapshotting-pages-for-stable-writes-a-per-bio-operation.patch
+* mm-make-snapshotting-pages-for-stable-writes-a-per-bio-operation-fix.patch
+* mm-make-snapshotting-pages-for-stable-writes-a-per-bio-operation-fix-fix.patch
+* mm-vmalloc-change-iterating-a-vmlist-to-find_vm_area.patch
+* mm-vmalloc-move-get_vmalloc_info-to-vmallocc.patch
+* mm-vmalloc-protect-va-vm-by-vmap_area_lock.patch
+* mm-vmalloc-iterate-vmap_area_list-instead-of-vmlist-in-vread-vwrite.patch
+* mm-vmalloc-iterate-vmap_area_list-in-get_vmalloc_info.patch
+* mm-vmalloc-iterate-vmap_area_list-instead-of-vmlist-in-vmallocinfo.patch
+* mm-vmalloc-export-vmap_area_list-instead-of-vmlist.patch
+* mm-vmalloc-remove-list-management-of-vmlist-after-initializing-vmalloc.patch
+* kexec-vmalloc-export-additional-vmalloc-layer-information.patch
+* kexec-vmalloc-export-additional-vmalloc-layer-information-fix.patch
+* mmap-find_vma-remove-the-warn_on_oncemm-check.patch
+* memcg-do-not-check-for-do_swap_account-in-mem_cgroup_readwritereset.patch
+* mm-allow-arch-code-to-control-the-user-page-table-ceiling.patch
+* arm-set-the-page-table-freeing-ceiling-to-task_size.patch
+* mm-merging-memory-blocks-resets-mempolicy.patch
+* mm-hugetlb-include-hugepages-in-meminfo.patch
+* mm-hugetlb-include-hugepages-in-meminfo-checkpatch-fixes.patch
+* mm-try-harder-to-allocate-vmemmap-blocks.patch
+* sparse-vmemmap-specify-vmemmap-population-range-in-bytes.patch
+* sparse-vmemmap-specify-vmemmap-population-range-in-bytes-fix.patch
+* x86-64-remove-dead-debugging-code-for-pse-setups.patch
+* x86-64-use-vmemmap_populate_basepages-for-pse-setups.patch
+* x86-64-use-vmemmap_populate_basepages-for-pse-setups-fix.patch
+* x86-64-fall-back-to-regular-page-vmemmap-on-allocation-failure.patch
+* mm-page_alloc-avoid-marking-zones-full-prematurely-after-zone_reclaim.patch
+* mm-migrate-fix-comment-typo-syncronous-synchronous.patch
+* mm-speedup-in-__early_pfn_to_nid.patch
+* mm-speedup-in-__early_pfn_to_nid-fix.patch
+* page_alloc-make-setup_nr_node_ids-usable-for-arch-init-code.patch
+* x86-mm-numa-use-setup_nr_node_ids-instead-of-opencoding.patch
+* powerpc-mm-numa-use-setup_nr_node_ids-instead-of-opencoding.patch
+* mm-remove-free_area_cache.patch
+* include-linux-mmzoneh-cleanups.patch
+* include-linux-mmzoneh-cleanups-fix.patch
+* mm-memmap_init_zone-performance-improvement.patch
+* drop_caches-add-some-documentation-and-info-messsge.patch
+* drivers-usb-gadget-amd5536udcc-avoid-calling-dma_pool_create-with-null-dev.patch
+* mm-dmapoolc-fix-null-dev-in-dma_pool_create.patch
+* memcg-debugging-facility-to-access-dangling-memcgs.patch
+* memcg-debugging-facility-to-access-dangling-memcgs-fix.patch
+* mm-add-vm-event-counters-for-balloon-pages-compaction.patch
+* rpmsg-fix-error-return-code-in-rpmsg_probe.patch
+* kernel-watchdogc-add-comments-to-explain-watchdog_disabled-variable.patch
+* kernel-rangec-subtract_range-fix-the-broken-phrase-issued-by-printk.patch
+* smp-give-warning-when-calling-smp_call_function_many-single-in-serving-irq.patch
+* include-linux-fsh-disable-preempt-when-acquire-i_size_seqcount-write-lock.patch
+* kernel-smpc-cleanups.patch
+* printk-tracing-rework-console-tracing.patch
+* early_printk-consolidate-random-copies-of-identical-code.patch
+* early_printk-consolidate-random-copies-of-identical-code-v3.patch
+* early_printk-consolidate-random-copies-of-identical-code-v3-fix.patch
+* include-linux-printkh-include-stdargh.patch
+* get_maintainer-use-filename-only-regex-match-for-tegra.patch
+* get_maintainer-use-filename-only-regex-match-for-tegra-fix.patch
+* maintainers-i8k-driver-is-orphan.patch
+* drivers-video-backlight-ams369fg06c-convert-ams369fg06-to-dev_pm_ops.patch
+* drivers-video-backlight-ams369fg06c-convert-ams369fg06-to-dev_pm_ops-fix.patch
+* backlight-platform_lcd-remove-unnecessary-ifdefs.patch
+* backlight-ep93xx_bl-remove-incorrect-__init-annotation.patch
+* drivers-video-backlight-atmel-pwm-blc-use-module_platform_driver_probe.patch
+* drivers-video-backlight-atmel-pwm-blc-add-__init-annotation.patch
+* drivers-video-backlight-lp855x_blc-fix-compiler-warning-in-lp855x_probe.patch
+* drivers-video-backlight-jornada720_c-use-dev_err-dev_info-instead-of-pr_err-pr_info.patch
+* drivers-video-backlight-omap1_blc-use-dev_info-instead-of-pr_info.patch
+* drivers-video-backlight-generic_blc-use-dev_info-instead-of-pr_info.patch
+* backlight-adp8870-add-missing-braces.patch
+* drivers-video-backlight-l4f00242t03c-check-return-value-of-regulator_enable.patch
+* drivers-video-backlight-l4f00242t03c-check-return-value-of-regulator_enable-fix.patch
+* backlight-ld9040-convert-ld9040-to-dev_pm_ops.patch
+* backlight-lms501kf03-convert-lms501kf03-to-dev_pm_ops.patch
+* backlight-s6e63m0-convert-s6e63m0-to-dev_pm_ops.patch
+* backlight-adp5520-convert-adp5520_bl-to-dev_pm_ops.patch
+* backlight-adp8860-convert-adp8860-to-dev_pm_ops.patch
+* backlight-adp8870-convert-adp8870-to-dev_pm_ops.patch
+* backlight-corgi_lcd-convert-corgi_lcd-to-dev_pm_ops.patch
+* backlight-ep93xx-convert-ep93xx-to-dev_pm_ops.patch
+* backlight-hp680_bl-convert-hp680bl-to-dev_pm_ops.patch
+* backlight-kb3886_bl-convert-kb3886bl-to-dev_pm_ops.patch
+* backlight-lm3533_bl-convert-lm3533_bl-to-dev_pm_ops.patch
+* backlight-locomolcd-convert-locomolcd-to-dev_pm_ops.patch
+* backlight-ltv350qv-convert-ltv350qv-to-dev_pm_ops.patch
+* backlight-tdo24m-convert-tdo24m-to-dev_pm_ops.patch
+* drivers-video-backlight-kconfig-fix-typo-mach_sam9ek-three-times.patch
+* drivers-video-backlight-adp5520_blc-fix-compiler-warning-in-adp5520_show.patch
+* video-backlight-add-ili922x-lcd-driver.patch
+* backlight-da903x_bl-use-bl_core_suspendresume-option.patch
+* backlight-lp855x-use-page_size-for-the-sysfs-read-operation.patch
+* drivers-video-backlight-adp8860_blc-fix-error-return-code-in-adp8860_led_probe.patch
+* drivers-video-backlight-adp8870_blc-fix-error-return-code-in-adp8870_led_probe.patch
+* drivers-video-backlight-as3711_blc-add-of-support.patch
+* drivers-leds-leds-ot200c-fix-error-caused-by-shifted-mask.patch
+* lib-int_sqrtc-optimize-square-root-algorithm.patch
+* argv_split-teach-it-to-handle-mutable-strings.patch
+* argv_split-teach-it-to-handle-mutable-strings-fix.patch
+* argv_split-teach-it-to-handle-mutable-strings-fix-2.patch
+* checkpatch-add-check-for-reuse-of-krealloc-arg.patch
+* checkpatch-prefer-seq_puts-to-seq_printf.patch
+* checkpatch-complain-about-executable-files.patch
+* epoll-trim-epitem-by-one-cache-line-on-x86_64.patch
+* epoll-trim-epitem-by-one-cache-line-on-x86_64-fix.patch
+* epoll-trim-epitem-by-one-cache-line-on-x86_64-fix-fix.patch
+* epoll-support-for-disabling-items-and-a-self-test-app.patch
+* epoll-support-for-disabling-items-and-a-self-test-app-fix.patch
+* epoll-use-rcu-to-protect-wakeup_source-in-epitem.patch
+* epoll-use-rcu-to-protect-wakeup_source-in-epitem-fix.patch
+* epoll-lock-ep-mtx-in-ep_free-to-silence-lockdep.patch
+* epoll-cleanup-hoist-out-f_op-poll-calls.patch
+* fs-make-binfmt-support-for-scripts-modular-and-removable.patch
+* binfmt_elfc-use-get_random_int-to-fix-entropy-depleting.patch
+* init-scream-bloody-murder-if-interrupts-are-enabled-too-early.patch
+* init-raise-log-level.patch
+* init-mainc-convert-to-pr_foo.patch
+* dmi_scan-refactor-dmi_scan_machine-smbiosdmi_present.patch
+* dmi_scan-refactor-dmi_scan_machine-smbiosdmi_present-fix.patch
+* i2o-check-copy_from_user-size-parameter.patch
+* rtc-rtc-mv-add-__init-annotation.patch
+* rtc-rtc-davinci-add-__exit-annotation.patch
+* rtc-rtc-ds1302-add-__exit-annotation.patch
+* rtc-rtc-imxdi-add-__init-__exit-annotation.patch
+* rtc-rtc-nuc900-add-__init-__exit-annotation.patch
+* rtc-rtc-pcap-add-__init-__exit-annotation.patch
+* rtc-rtc-tegra-add-__init-__exit-annotation.patch
+* rtc-add-devm_rtc_device_registerunregister.patch
+* rtc-max77686-use-module_platform_driver.patch
+* rtc-max77686-add-missing-module-author-name.patch
+* rtc-max77686-use-devm_kzalloc.patch
+* rtc-max77686-fix-indentation-of-bit-definitions.patch
+* rtc-max77686-use-dev_info-dev_emerg-instead-of-pr_info-pr_emerg.patch
+* rtc-rtc-v3020-use-gpio_request_array.patch
+* rtc-use-struct-device-as-the-first-argument-for-devm_rtc_device_register.patch
+* rtc-rtc-ab3100-use-module_platform_driver_probe.patch
+* rtc-rtc-at32ap700x-use-module_platform_driver_probe.patch
+* rtc-rtc-at91rm9200-use-module_platform_driver_probe.patch
+* rtc-rtc-au1xxx-use-module_platform_driver_probe.patch
+* rtc-rtc-coh901331-use-module_platform_driver_probe.patch
+* rtc-rtc-davinci-use-module_platform_driver_probe.patch
+* rtc-rtc-ds1302-use-module_platform_driver_probe.patch
+* rtc-rtc-efi-use-module_platform_driver_probe.patch
+* rtc-rtc-generic-use-module_platform_driver_probe.patch
+* rtc-rtc-imxdi-use-module_platform_driver_probe.patch
+* rtc-rtc-mc13xxx-use-module_platform_driver_probe.patch
+* rtc-rtc-msm6242-use-module_platform_driver_probe.patch
+* rtc-rtc-mv-use-module_platform_driver_probe.patch
+* rtc-rtc-nuc900-use-module_platform_driver_probe.patch
+* rtc-rtc-omap-use-module_platform_driver_probe.patch
+* rtc-rtc-pcap-use-module_platform_driver_probe.patch
+* rtc-rtc-ps3-use-module_platform_driver_probe.patch
+* rtc-rtc-pxa-use-module_platform_driver_probe.patch
+* rtc-rtc-rp5c01-use-module_platform_driver_probe.patch
+* rtc-rtc-sh-use-module_platform_driver_probe.patch
+* rtc-rtc-starfire-use-module_platform_driver_probe.patch
+* rtc-rtc-sun4v-use-module_platform_driver_probe.patch
+* rtc-rtc-tegra-use-module_platform_driver_probe.patch
+* rtc-rtc-tx4939-use-module_platform_driver_probe.patch
+* rtc-rtc-88pm80x-use-devm_rtc_device_register.patch
+* rtc-rtc-coh90133-use-devm_rtc_device_register.patch
+* rtc-rtc-da9052-use-devm_rtc_device_register.patch
+* rtc-rtc-da9055-use-devm_rtc_device_register.patch
+* rtc-rtc-davinci-use-devm_rtc_device_register.patch
+* rtc-rtc-ds1511-use-devm_rtc_device_register.patch
+* rtc-rtc-ds1553-use-devm_rtc_device_register.patch
+* rtc-rtc-ds1742-use-devm_rtc_device_register.patch
+* rtc-rtc-ep93xx-use-devm_rtc_device_register.patch
+* rtc-rtc-imxdi-use-devm_rtc_device_register.patch
+* rtc-rtc-lp8788-use-devm_rtc_device_register.patch
+* rtc-rtc-lpc32xx-use-devm_rtc_device_register.patch
+* rtc-rtc-max77686-use-devm_rtc_device_register.patch
+* rtc-rtc-max8907-use-devm_rtc_device_register.patch
+* rtc-rtc-max8997-use-devm_rtc_device_register.patch
+* rtc-rtc-mv-use-devm_rtc_device_register.patch
+* rtc-rtc-mxc-use-devm_rtc_device_register.patch
+* rtc-rtc-palmas-use-devm_rtc_device_register.patch
+* rtc-rtc-pcf8523-use-devm_rtc_device_register.patch
+* rtc-rtc-s3c-use-devm_rtc_device_register.patch
+* rtc-rtc-snvs-use-devm_rtc_device_register.patch
+* rtc-rtc-spear-use-devm_rtc_device_register.patch
+* rtc-rtc-stk17ta8-use-devm_rtc_device_register.patch
+* rtc-rtc-tps6586x-use-devm_rtc_device_register.patch
+* rtc-rtc-tps65910-use-devm_rtc_device_register.patch
+* rtc-rtc-tps80031-use-devm_rtc_device_register.patch
+* rtc-rtc-tx4939-use-devm_rtc_device_register.patch
+* rtc-rtc-vt8500-use-devm_rtc_device_register.patch
+* rtc-rtc-wm831x-use-devm_rtc_device_register.patch
+* rtc-ds1286-fix-compiler-warning-while-doing-make-w=1.patch
+* drivers-rtc-rtc-pxac-fix-set-time-sync-time-issue.patch
+* drivers-rtc-rtc-pxac-fix-set-time-sync-time-issue-fix.patch
+* rtc-tegra-protect-suspend-resume-callbacks-with-config_pm_sleep.patch
+* rtc-tegra-use-struct-dev_pm_ops-for-power-management.patch
+* rtc-tegra-set-irq-name-as-device-name.patch
+* rtc-tegra-use-managed-rtc_device_register.patch
+* rtc-tegra-use-managed-rtc_device_register-fix.patch
+* rtc-ds1307-long-block-operations-bugfix.patch
+* rtc-rtc-palmas-use-devm_request_threaded_irq.patch
+* rtc-rtc-s3c-convert-s3c_rtc-to-dev_pm_ops.patch
+* rtc-rtc-ds1307-use-dev_dbg-instead-of-pr_debug.patch
+* rtc-rtc-fm3130-use-dev_dbg-instead-of-pr_debug.patch
+* rtc-rtc-ab3100-use-devm_rtc_device_register.patch
+* rtc-rtc-au1xxx-use-devm_rtc_device_register.patch
+* rtc-rtc-bq32k-use-devm_rtc_device_register.patch
+* rtc-rtc-dm355evm-use-devm_rtc_device_register.patch
+* rtc-rtc-ds1302-use-devm_rtc_device_register.patch
+* rtc-rtc-ds1672-use-devm_rtc_device_register.patch
+* rtc-rtc-ds3234-use-devm_rtc_device_register.patch
+* rtc-rtc-efi-use-devm_rtc_device_register.patch
+* rtc-rtc-em3027-use-devm_rtc_device_register.patch
+* rtc-rtc-generic-use-devm_rtc_device_register.patch
+* rtc-hid-sensor-time-use-devm_rtc_device_register.patch
+* rtc-rtc-ls1x-use-devm_rtc_device_register.patch
+* rtc-rtc-m41t93-use-devm_rtc_device_register.patch
+* rtc-rtc-m41t94-use-devm_rtc_device_register.patch
+* rtc-rtc-m48t86-use-devm_rtc_device_register.patch
+* rtc-rtc-max6900-use-devm_rtc_device_register.patch
+* rtc-rtc-max6902-use-devm_rtc_device_register.patch
+* rtc-rtc-ps3-use-devm_rtc_device_register.patch
+* rtc-rtc-r9701-use-devm_rtc_device_register.patch
+* rtc-rtc-rc5t583-use-devm_rtc_device_register.patch
+* rtc-rtc-rs5c313-use-devm_rtc_device_register.patch
+* rtc-rtc-rv3029c2-use-devm_rtc_device_register.patch
+* rtc-rtc-rx4581-use-devm_rtc_device_register.patch
+* rtc-rtc-rx8581-use-devm_rtc_device_register.patch
+* rtc-rtc-starfire-use-devm_rtc_device_register.patch
+* rtc-rtc-sun4v-use-devm_rtc_device_register.patch
+* rtc-rtc-test-use-devm_rtc_device_register.patch
+* rtc-rtc-tile-use-devm_rtc_device_register.patch
+* rtc-rtc-wm8350-use-devm_rtc_device_register.patch
+* rtc-rtc-x1205-use-devm_rtc_device_register.patch
+* rtc-rtc-at91rm9200-switch-to-using-simple_dev_pm_ops.patch
+* rtc-rtc-mxc-switch-to-using-simple_dev_pm_ops.patch
+* rtc-rtc-pxa-switch-to-using-simple_dev_pm_ops.patch
+* rtc-rtc-rc5t583-switch-to-using-simple_dev_pm_ops.patch
+* rtc-rtc-sa1100-switch-to-using-simple_dev_pm_ops.patch
+* rtc-rtc-sh-switch-to-using-simple_dev_pm_ops.patch
+* rtc-rtc-wm8350-switch-to-using-simple_dev_pm_ops.patch
+* rtc-rtc-tps6586x-switch-to-using-simple_dev_pm_ops.patch
+* rtc-rtc-tps65910-switch-to-using-simple_dev_pm_ops.patch
+* rtc-rtc-tps80031-switch-to-using-simple_dev_pm_ops.patch
+* rtc-omap-update-to-devm_-api.patch
+* drivers-rtc-rtc-palmasc-add-dt-support.patch
+* drivers-rtc-rtc-ds1374c-add-config_pm_sleep-to-suspend-resume-functions.patch
+* drivers-rtc-rtc-88pm80xc-add-config_pm_sleep-to-suspend-resume-functions.patch
+* drivers-rtc-rtc-tps6586xc-remove-incorrect-use-of-rtc_device_unregister.patch
+* drivers-rtc-rtc-tps65910c-fix-incorrect-return-value-on-error.patch
+* drivers-rtc-rtc-max8997c-fix-incorrect-return-value-on-error.patch
+* drivers-rtc-rtc-max77686c-fix-incorrect-return-value-on-error.patch
+* drivers-rtc-rtc-max8907c-remove-redundant-code.patch
+* hfsplus-fix-warnings-in-fs-hfsplus-bfindc-in-function-hfs_find_1st_rec_by_cnid.patch
+* hfsplus-fix-warnings-in-fs-hfsplus-bfindc-in-function-hfs_find_1st_rec_by_cnid-fix.patch
+* fat-introduce-2-new-values-for-the-o-nfs-mount-option.patch
+* fat-move-fat_i_pos_read-to-fath.patch
+* fat-introduce-a-helper-fat_get_blknr_offset.patch
+* fat-restructure-export_operations.patch
+* fat-exportfs-rebuild-inode-if-ilookup-fails.patch
+* fat-exportfs-rebuild-directory-inode-if-fat_dget.patch
+* documentation-update-nfs-option-in-filesystem-vfattxt.patch
+* ptrace-add-ability-to-retrieve-signals-without-removing-from-a-queue-v4.patch
+* selftest-add-a-test-case-for-ptrace_peeksiginfo.patch
+* usermodehelper-export-_exec-and-_setup-functions.patch
+* usermodehelper-export-_exec-and-_setup-functions-fix.patch
+* kmod-split-call-to-call_usermodehelper_fns.patch
+* keys-split-call-to-call_usermodehelper_fns.patch
+* coredump-remove-trailling-whitespaces.patch
+* split-remaining-calls-to-call_usermodehelper_fns.patch
+* kmod-remove-call_usermodehelper_fns.patch
+* coredump-only-sigkill-should-interrupt-the-coredumping-task.patch
+* coredump-ensure-that-sigkill-always-kills-the-dumping-thread.patch
+* coredump-sanitize-the-setting-of-signal-group_exit_code.patch
+* coredump-introduce-dump_interrupted.patch
+* coredump-factor-out-the-setting-of-pf_dumpcore.patch
+* coredump-change-wait_for_dump_helpers-to-use-wait_event_interruptible.patch
+* procfs-improve-scaling-in-proc.patch
+* procfs-improve-scaling-in-proc-v5.patch
+* set_task_comm-kill-the-pointless-memset-wmb.patch
+* exec-do-not-abuse-cred_guard_mutex-in-threadgroup_lock.patch
+* kexec-fix-wrong-types-of-some-local-variables.patch
+* kexec-use-min_t-to-simplify-logic.patch
+* kexec-use-min_t-to-simplify-logic-fix.patch
+* ipc-clamp-with-min.patch
+* ipc-separate-msg-allocation-from-userspace-copy.patch
+* ipc-tighten-msg-copy-loops.patch
+* ipc-set-efault-as-default-error-in-load_msg.patch
+* ipc-remove-msg-handling-from-queue-scan.patch
+* ipc-implement-msg_copy-as-a-new-receive-mode.patch
+* ipc-simplify-msg-list-search.patch
+* ipc-refactor-msg-list-search-into-separate-function.patch
+* ipc-refactor-msg-list-search-into-separate-function-fix.patch
+* ipc-msgutilc-use-linux-uaccessh.patch
+* ipc-remove-bogus-lock-comment-for-ipc_checkid.patch
+* ipc-introduce-obtaining-a-lockless-ipc-object.patch
+* ipc-introduce-obtaining-a-lockless-ipc-object-fix.patch
+* ipc-introduce-lockless-pre_down-ipcctl.patch
+* ipcsem-do-not-hold-ipc-lock-more-than-necessary.patch
+* ipcsem-open-code-and-rename-sem_lock.patch
+* ipcsem-open-code-and-rename-sem_lock-fix.patch
+* ipcsem-have-only-one-list-in-struct-sem_queue.patch
+* ipcsem-fine-grained-locking-for-semtimedop.patch
+* ipcsem-fine-grained-locking-for-semtimedop-fix.patch
+* ipcsem-fine-grained-locking-for-semtimedop-fix-fix.patch
+* ipc-semc-alternatives-to-preempt_disable.patch
+* kernel-pidc-improve-flow-of-a-loop-inside-alloc_pidmap.patch
+* kernel-pidc-improve-flow-of-a-loop-inside-alloc_pidmap-fix.patch
+* pid_namespacec-h-simplify-defines.patch
+* pid_namespacec-h-simplify-defines-fix.patch
+* aoe-replace-kmalloc-and-then-memcpy-with-kmemdup.patch
+* raid6test-use-prandom_bytes.patch
+* uuid-use-prandom_bytes.patch
+* x86-pageattr-test-remove-srandom32-call.patch
+* x86-rename-random32-to-prandom_u32.patch
+* lib-rename-random32-to-prandom_u32.patch
+* mm-rename-random32-to-prandom_u32.patch
+* kernel-rename-random32-to-prandom_u32.patch
+* drbd-rename-random32-to-prandom_u32.patch
+* infiniband-rename-random32-to-prandom_u32.patch
+* mmc-rename-random32-to-prandom_u32.patch
+* video-uvesafb-rename-random32-to-prandom_u32.patch
+* uwb-rename-random32-to-prandom_u32.patch
+* lguest-rename-random32-to-prandom_u32.patch
+* scsi-rename-random32-to-prandom_u32.patch
+* scsi-rename-random32-to-prandom_u32-fix.patch
+* drivers-net-rename-random32-to-prandom_u32.patch
+* drivers-net-rename-random32-to-prandom_u32-fix.patch
+* net-sunrpc-rename-random32-to-prandom_u32.patch
+* net-sched-rename-random32-to-prandom_u32.patch
+* net-netfilter-rename-random32-to-prandom_u32.patch
+* net-core-rename-random32-to-prandom_u32.patch
+* net-core-remove-duplicate-statements-by-do-while-loop.patch
+* net-rename-random32-to-prandom.patch
+* remove-unused-random32-and-srandom32.patch
+* parport-use-kmemdup-instead-of-kmalloc-memcpy.patch
+* semaphore-give-an-unlikely-for-downs-timeout.patch
+* semaphore-boolize-semaphore_waiters-up.patch
+* memstick-r592-make-r592_pm_ops-static.patch
+* relay-remove-unused-function-argument-actor.patch
+* relay-move-fix_size-macro-into-relayc.patch
+* relay-use-macro-page_align-instead-of-fix_size.patch
+* mm-remove-old-aio-use_mm-comment.patch
+* aio-remove-dead-code-from-aioh.patch
+* gadget-remove-only-user-of-aio-retry.patch
+* gadget-remove-only-user-of-aio-retry-checkpatch-fixes.patch
+* aio-remove-retry-based-aio.patch
+* aio-remove-retry-based-aio-checkpatch-fixes.patch
+* char-add-aio_readwrite-to-dev-nullzero.patch
+* aio-kill-return-value-of-aio_complete.patch
+* aio-add-kiocb_cancel.patch
+* aio-move-private-stuff-out-of-aioh.patch
+* aio-dprintk-pr_debug.patch
+* aio-do-fget-after-aio_get_req.patch
+* aio-make-aio_put_req-lockless.patch
+* aio-make-aio_put_req-lockless-checkpatch-fixes.patch
+* aio-refcounting-cleanup.patch
+* aio-refcounting-cleanup-checkpatch-fixes.patch
+* wait-add-wait_event_hrtimeout.patch
+* aio-make-aio_read_evt-more-efficient-convert-to-hrtimers.patch
+* aio-make-aio_read_evt-more-efficient-convert-to-hrtimers-checkpatch-fixes.patch
+* aio-use-flush_dcache_page.patch
+* aio-use-cancellation-list-lazily.patch
+* aio-change-reqs_active-to-include-unreaped-completions.patch
+* aio-kill-batch-allocation.patch
+* aio-kill-struct-aio_ring_info.patch
+* aio-give-shared-kioctx-fields-their-own-cachelines.patch
+* aio-reqs_active-reqs_available.patch
+* aio-percpu-reqs_available.patch
+* generic-dynamic-per-cpu-refcounting.patch
+* generic-dynamic-per-cpu-refcounting-checkpatch-fixes.patch
+* aio-percpu-ioctx-refcount.patch
+* aio-use-xchg-instead-of-completion_lock.patch
+* aio-dont-include-aioh-in-schedh.patch
+* aio-dont-include-aioh-in-schedh-fix.patch
+* aio-kill-ki_key.patch
+* aio-kill-ki_retry.patch
+* aio-kill-ki_retry-checkpatch-fixes.patch
+* block-prep-work-for-batch-completion.patch
+* block-prep-work-for-batch-completion-checkpatch-fixes.patch
+* block-prep-work-for-batch-completion-fix.patch
+* block-prep-work-for-batch-completion-fix-2.patch
+* block-prep-work-for-batch-completion-fix-3.patch
+* block-aio-batch-completion-for-bios-kiocbs.patch
+* block-aio-batch-completion-for-bios-kiocbs-checkpatch-fixes.patch
+* block-aio-batch-completion-for-bios-kiocbs-fix.patch
+* virtio-blk-convert-to-batch-completion.patch
+* mtip32xx-convert-to-batch-completion.patch
+* aio-fix-kioctx-not-being-freed-after-cancellation-at-exit-time.patch
+* kconfig-consolidate-config_debug_strict_user_copy_checks.patch
+* kconfig-consolidate-config_debug_strict_user_copy_checks-fix.patch
+* kconfig-menu-move-virtualization-drivers-near-other-virtualization-options.patch
+* init-kconfig-make-expert-as-config-instead-of-menuconfig.patch
+* uapi-remove-empty-kbuild-files.patch
+* kernel-sysc-make-prctlpr_set_mm-generally-available.patch
+* decompressor-add-lz4-decompressor-module.patch
+* lib-add-support-for-lz4-compressed-kernel.patch
+* arm-add-support-for-lz4-compressed-kernel.patch
+* x86-add-support-for-lz4-compressed-kernel.patch
+* lib-add-lz4-compressor-module.patch
+* lib-add-lz4-compressor-module-fix.patch
+* crypto-add-lz4-cryptographic-api.patch
+* crypto-add-lz4-cryptographic-api-fix.patch
+  debugging-keep-track-of-page-owners.patch
+  debugging-keep-track-of-page-owners-fix.patch
+  debugging-keep-track-of-page-owners-fix-2.patch
+  debugging-keep-track-of-page-owners-fix-2-fix.patch
+  debugging-keep-track-of-page-owners-fix-2-fix-fix.patch
+  debugging-keep-track-of-page-owners-fix-2-fix-fix-fix.patch
+  debugging-keep-track-of-page-owner-now-depends-on-stacktrace_support.patch
+  make-sure-nobodys-leaking-resources.patch
+  journal_add_journal_head-debug.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  put_bh-debug.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
+  single_open-seq_release-leak-diagnostics.patch
+  add-a-refcount-check-in-dput.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
