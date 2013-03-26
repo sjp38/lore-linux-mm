@@ -1,93 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id EBA726B00E4
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 11:23:29 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id fb10so96065pad.11
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2013 08:23:29 -0700 (PDT)
-Message-ID: <5151BD61.7020401@gmail.com>
-Date: Tue, 26 Mar 2013 23:23:13 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id D4F186B00E6
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 11:40:26 -0400 (EDT)
+Message-ID: <5151C167.2020206@sr71.net>
+Date: Tue, 26 Mar 2013 08:40:23 -0700
+From: Dave <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v2, part4 03/39] c6x: normalize global variables exported
- by vmlinux.lds
-References: <1364109934-7851-1-git-send-email-jiang.liu@huawei.com>  <1364109934-7851-4-git-send-email-jiang.liu@huawei.com> <1364234218.2334.2.camel@t520.redhat.com>
-In-Reply-To: <1364234218.2334.2.camel@t520.redhat.com>
+Subject: Re: [PATCHv2, RFC 13/30] thp, mm: implement grab_cache_huge_page_write_begin()
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <1363283435-7666-14-git-send-email-kirill.shutemov@linux.intel.com> <514B4E2B.2010506@sr71.net> <20130326104810.C7F3AE0085@blue.fi.intel.com>
+In-Reply-To: <20130326104810.C7F3AE0085@blue.fi.intel.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Salter <msalter@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Aurelien Jacquiot <a-jacquiot@ti.com>, linux-c6x-dev@linux-c6x.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 03/26/2013 01:56 AM, Mark Salter wrote:
-> On Sun, 2013-03-24 at 15:24 +0800, Jiang Liu wrote:
->> Normalize global variables exported by vmlinux.lds to conform usage
->> guidelines from include/asm-generic/sections.h.
+On 03/26/2013 03:48 AM, Kirill A. Shutemov wrote:
+> Dave Hansen wrote:
+>>> +repeat:
+>>> +	page = find_lock_page(mapping, index);
+>>> +	if (page) {
+>>> +		if (!PageTransHuge(page)) {
+>>> +			unlock_page(page);
+>>> +			page_cache_release(page);
+>>> +			return NULL;
+>>> +		}
+>>> +		goto found;
+>>> +	}
+>>> +
+>>> +	page = alloc_pages(gfp_mask & ~gfp_notmask, HPAGE_PMD_ORDER);
 >>
->> Use _text to mark the start of the kernel image including the head text,
->> and _stext to mark the start of the .text section.
->>
->> This patch also fixes possible bugs due to current address layout that
->> [__init_begin, __init_end] is a sub-range of [_stext, _etext] and pages
->> within range [__init_begin, __init_end] will be freed by free_initmem().
+>> I alluded to this a second ago, but what's wrong with alloc_hugepage()?
 > 
-> I won't have time to look at this in detail until later this week, but
-> the reason for that layout is because c6x commonly stores text in flash.
-> Not all of the xip support is in-tree yet, but when it is, we don't want
-> to free init text.
-Hi Mark,
-	Thanks for reminder. It's possible to support the usage case you
-have described, please take a look at arch/tile/kernel/vmlinux.lds.S.
-By that way, we could only free init.data sections without freeing init.text
-sections.
-	Regards!
-	Gerry
+> It's defined only for !CONFIG_NUMA and only inside mm/huge_memory.c.
 
-> 
-> --Mark
-> 
+It's a short function, but you could easily pull it out from under the
+#ifdef and export it.  I kinda like the idea of these things being
+allocated in as few code paths possible.  But, it's not a big deal.
+
+>>> +found:
+>>> +	wait_on_page_writeback(page);
+>>> +	return page;
+>>> +}
+>>> +#endif
 >>
->> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->> Cc: Mark Salter <msalter@redhat.com>
->> Cc: Aurelien Jacquiot <a-jacquiot@ti.com>
->> Cc: linux-c6x-dev@linux-c6x.org
->> Cc: linux-kernel@vger.kernel.org
->> ---
->>  arch/c6x/kernel/vmlinux.lds.S |    4 ++--
->>  1 file changed, 2 insertions(+), 2 deletions(-)
+>> So, I diffed :
 >>
->> diff --git a/arch/c6x/kernel/vmlinux.lds.S b/arch/c6x/kernel/vmlinux.lds.S
->> index 1d81c4c..279d807 100644
->> --- a/arch/c6x/kernel/vmlinux.lds.S
->> +++ b/arch/c6x/kernel/vmlinux.lds.S
->> @@ -54,16 +54,15 @@ SECTIONS
->>  	}
->>  
->>  	. = ALIGN(PAGE_SIZE);
->> +	__init_begin = .;
->>  	.init :
->>  	{
->> -		_stext = .;
->>  		_sinittext = .;
->>  		HEAD_TEXT
->>  		INIT_TEXT
->>  		_einittext = .;
->>  	}
->>  
->> -	__init_begin = _stext;
->>  	INIT_DATA_SECTION(16)
->>  
->>  	PERCPU_SECTION(128)
->> @@ -74,6 +73,7 @@ SECTIONS
->>  	.text :
->>  	{
->>  		_text = .;
->> +		_stext = .;
->>  		TEXT_TEXT
->>  		SCHED_TEXT
->>  		LOCK_TEXT
+>> -struct page *grab_cache_page_write_begin(struct address_space
+>> vs.
+>> +struct page *grab_cache_huge_page_write_begin(struct address_space
+>>
+>> They're just to similar to ignore.  Please consolidate them somehow.
 > 
+> Will do.
 > 
+>>> +found:
+>>> +	wait_on_page_writeback(page);
+>>> +	return page;
+>>> +}
+>>> +#endif
+>>
+>> In grab_cache_page_write_begin(), this "wait" is:
+>>
+>>         wait_for_stable_page(page);
+>>
+>> Why is it different here?
+> 
+> It was wait_on_page_writeback() in grab_cache_page_write_begin() when I forked
+> it :(
+> 
+> See 1d1d1a7 mm: only enforce stable page writes if the backing device requires it
+> 
+> Consolidation will fix this.
+
+Excellent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
