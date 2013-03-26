@@ -1,53 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id DFA956B00B1
-	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 21:44:43 -0400 (EDT)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1UKIwi-0007OC-Db
-	for linux-mm@kvack.org; Tue, 26 Mar 2013 02:45:04 +0100
-Received: from 173-164-30-65-Nashville.hfc.comcastbusiness.net ([173.164.30.65])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2013 02:45:04 +0100
-Received: from wad by 173-164-30-65-Nashville.hfc.comcastbusiness.net with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2013 02:45:04 +0100
-From: Will Drewry <wad@chromium.org>
-Subject: Re: security: restricting access to swap
-Date: Tue, 19 Mar 2013 17:39:44 +0000 (UTC)
-Message-ID: <loom.20130319T153437-176@post.gmane.org>
-References: <CAA25o9RchY2AD8U30bh4H+fz6kq8bs98SUrkJUkTpbTHSGjcGA@mail.gmail.com> <5147A68B.9030207@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id E2C916B00B3
+	for <linux-mm@kvack.org>; Mon, 25 Mar 2013 22:55:04 -0400 (EDT)
+Message-ID: <51510E1E.70508@redhat.com>
+Date: Tue, 26 Mar 2013 10:55:26 +0800
+From: Weiping Pan <wpan@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] typo: replace kernelcore with Movable
+References: <5aed74b1520f495521fe97b99b714cfe7572faa1.1357359930.git.wpan@redhat.com> <20130107135959.GE3885@suse.de>
+In-Reply-To: <20130107135959.GE3885@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org
 
-KOSAKI Motohiro <kosaki.motohiro <at> gmail.com> writes:
+On 01/07/2013 09:59 PM, Mel Gorman wrote:
+> On Sat, Jan 05, 2013 at 12:29:17PM +0800, Weiping Pan wrote:
+>> Han Pingtian found a typo in Documentation/kernel-parameters.txt
+>> about "kernelcore=", that "kernelcore" should be replaced with "Movable" here.
+>>
+>> Signed-off-by: Weiping Pan<wpan@redhat.com>
+> Acked-by: Mel Gorman<mgorman@suse.de>
+>
+Hi,
 
-> 
-> (3/11/13 7:57 PM), Luigi Semenzato wrote:
-> > Greetings linux-mmers,
-> > 
-> > before we can fully deploy zram, we must ensure it conforms to the
-> > Chrome OS security requirements.  In particular, we do not want to
-> > allow user space to read/write the swap device---not even root-owned
-> > processes.
-> 
-> Could you explain Chrome OS security requirement at first? We don't want
-> to guess your requirement.
+I see that this tiny patch has not been merged yet,
+maybe the maintainer omitted it.
 
-I'll try to add a little more flavor. We're continuing to reduce the
-exposure from root-equivalent users wherever possible.  Enabling swap
-support to a block device means an alternative means to access/modify
-swapped out user-context  memory with a single discretionary access
-control check, bypassing any per-process checks in /proc/<pid>/mem
-(like mm_open(..., PTRACE_MODE_ATTACH)), and so on.
+Should I resend it ?
 
-hth!
-will
+thanks
+Weiping Pan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
