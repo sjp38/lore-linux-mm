@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 4ABA26B00B7
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 00:33:46 -0400 (EDT)
-Date: Tue, 26 Mar 2013 00:33:35 -0400
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 8867D6B00B8
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 00:34:50 -0400 (EDT)
+Date: Tue, 26 Mar 2013 00:34:40 -0400
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1364272415-zvaphow7-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130325105701.GS2154@dhcp22.suse.cz>
+Message-ID: <1364272480-bmzkqzs6-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130325123128.GU2154@dhcp22.suse.cz>
 References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1363983835-20184-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130325105701.GS2154@dhcp22.suse.cz>
-Subject: Re: [PATCH 02/10] migrate: make core migration code aware of hugepage
+ <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20130325123128.GU2154@dhcp22.suse.cz>
+Subject: Re: [PATCH 03/10] soft-offline: use migrate_pages() instead of
+ migrate_huge_page()
 Mime-Version: 1.0
 Content-Type: text/plain;
  charset=iso-2022-jp
@@ -20,77 +21,92 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Mon, Mar 25, 2013 at 11:57:01AM +0100, Michal Hocko wrote:
-> On Fri 22-03-13 16:23:47, Naoya Horiguchi wrote:
-...
-> > diff --git v3.9-rc3.orig/mm/hugetlb.c v3.9-rc3/mm/hugetlb.c
-> > index 98a478e..a787c44 100644
-> > --- v3.9-rc3.orig/mm/hugetlb.c
-> > +++ v3.9-rc3/mm/hugetlb.c
-> > @@ -48,7 +48,8 @@ static unsigned long __initdata default_hstate_max_huge_pages;
-> >  static unsigned long __initdata default_hstate_size;
-> >
-> >  /*
-> > - * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
-> > + * Protects updates to hugepage_freelists, hugepage_activelist, nr_huge_pages,
-> > + * free_huge_pages, and surplus_huge_pages.
-> >   */
->
-> Could you get this out into a separate patch and add lockdep assertions
-> to functions which do not lock it directly but they rely on it so that
-> the locking is more clear?
-> e.g. dequeue_huge_page_node, update_and_free_page, try_to_free_low, ...
+On Mon, Mar 25, 2013 at 01:31:28PM +0100, Michal Hocko wrote:
+> On Fri 22-03-13 16:23:48, Naoya Horiguchi wrote:
+> > Currently migrate_huge_page() takes a pointer to a hugepage to be
+> > migrated as an argument, instead of taking a pointer to the list of
+> > hugepages to be migrated. This behavior was introduced in commit
+> > 189ebff28 ("hugetlb: simplify migrate_huge_page()"), and was OK
+> > because until now hugepage migration is enabled only for soft-offlining
+> > which takes only one hugepage in a single call.
+> > 
+> > But the situation will change in the later patches in this series
+> > which enable other users of page migration to support hugepage migration.
+> > They can kick migration for both of normal pages and hugepages
+> > in a single call, so we need to go back to original implementation
+> > of using linked lists to collect the hugepages to be migrated.
+> 
+> If the purpose of this patch is to reduce code duplication then you
+> should remove migrate_huge_page as it doesn't have any caller anymore.
 
-OK, I'll try it.
+Yes, that makes sense. I'll do this.
 
-> It would a nice cleanup and a lead for future when somebody tries to
-> make the locking a bit saner.
->
-...
-> > @@ -1056,6 +1064,20 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
-> >  	return rc;
-> >  }
-> >
-> > +int migrate_movable_pages(struct list_head *from, new_page_t get_new_page,
-> > +			unsigned long private,
-> > +			enum migrate_mode mode, int reason)
-> > +{
-> > +	int err = 0;
-> > +
-> > +	if (!list_empty(from)) {
-> > +		err = migrate_pages(from, get_new_page, private, mode, reason);
-> > +		if (err)
-> > +			putback_movable_pages(from);
-> > +	}
-> > +	return err;
-> > +}
-> > +
->
-> There doesn't seem to be any caller for this function. Please move it to
-> the patch which uses it.
+> [...]
+> > @@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
+> >  	unlock_page(hpage);
+> >  
+> >  	/* Keep page count to indicate a given hugepage is isolated. */
+> > -	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
+> > -				MIGRATE_SYNC);
+> > -	put_page(hpage);
+> > +	list_move(&hpage->lru, &pagelist);
+> > +	ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
+> > +				MIGRATE_SYNC, MR_MEMORY_FAILURE);
+> >  	if (ret) {
+> >  		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+> >  			pfn, ret, page->flags);
+> > +		/*
+> > +		 * We know that soft_offline_huge_page() tries to migrate
+> > +		 * only one hugepage pointed to by hpage, so we need not
+> > +		 * run through the pagelist here.
+> > +		 */
+> > +		putback_active_hugepage(hpage);
+> 
+> Maybe I am missing something but why we didn't need to call this before
+> when using migrate_huge_page?
 
-I would do like that if there's only one user of this function, but I thought
-that it's better to separate this part as changes of common code
-because this function is commonly used by multiple users which are added by
-multiple patches later in this series.
+migrate_huge_page() does not need list handling before/after the call,
+because it's defined to migrate only one hugepage, and it has a page as
+an argument, not list_head.
 
-I mean doing like
+> > +		if (ret > 0)
+> > +			ret = -EIO;
+> >  	} else {
+> >  		set_page_hwpoison_huge_page(hpage);
+> >  		dequeue_hwpoisoned_huge_page(hpage);
+> > diff --git v3.9-rc3.orig/mm/migrate.c v3.9-rc3/mm/migrate.c
+> > index f69f354..66030b6 100644
+> > --- v3.9-rc3.orig/mm/migrate.c
+> > +++ v3.9-rc3/mm/migrate.c
+> > @@ -981,6 +981,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+> >  
+> >  	unlock_page(hpage);
+> >  out:
+> > +	if (rc != -EAGAIN)
+> > +		putback_active_hugepage(hpage);
+> 
+> And why do you put it here? If it is called from migrate_pages then the
+> caller already does the clean-up (putback_lru_pages).
 
-  Patch 1: core change
-  Patch 2: user A (depend on patch 1)
-  Patch 3: user B (depend on patch 1)
-  Patch 4: user C (depend on patch 1)
+What the caller of migrate_pages() cleans up is the (huge)pages which failed
+to be migrated. And what the above code cleans up is the source hugepage
+after the migration succeeds.
 
-is a bit cleaner and easier in bisecting than doing like
-
-  Patch 1: core change + user A
-  Patch 2: user B (depend on patch 1)
-  Patch 3: user C (depend on patch 1)
-
-. I'm not sure which is standard or well-accepted way.
+The latter clean-up code originally existed, but removed in 189ebff28
+("hugetlb: simplify migrate_huge_page()").
+This commit cleans up the code based on that there was only one user
+of hugepage migration, but that's not true any more.
+So the above hunk is a part of revert of the commit.
+But it's not a simple revert, because there's one difference between
+now and before 189ebff28 that we link hugepages in-use to hugepage_activelist.
+Then we finally come to the above change.
 
 Thanks,
 Naoya
+
+> >  	put_page(new_hpage);
+> >  	if (result) {
+> >  		if (rc)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
