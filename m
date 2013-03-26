@@ -1,77 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 359EB6B00DF
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 06:46:25 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <514B4E2B.2010506@sr71.net>
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-14-git-send-email-kirill.shutemov@linux.intel.com>
- <514B4E2B.2010506@sr71.net>
-Subject: Re: [PATCHv2, RFC 13/30] thp, mm: implement
- grab_cache_huge_page_write_begin()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130326104810.C7F3AE0085@blue.fi.intel.com>
-Date: Tue, 26 Mar 2013 12:48:10 +0200 (EET)
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id EC2B06B00E3
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 07:29:53 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 26 Mar 2013 16:55:52 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id EC9D63940023
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 16:59:46 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2QBTgPt10944968
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 16:59:43 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2QBTffF028541
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 22:29:44 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 03/10] soft-offline: use migrate_pages() instead of migrate_huge_page()
+In-Reply-To: <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Tue, 26 Mar 2013 16:59:40 +0530
+Message-ID: <87boa69z6j.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org
 
-Dave Hansen wrote:
-> > +repeat:
-> > +	page = find_lock_page(mapping, index);
-> > +	if (page) {
-> > +		if (!PageTransHuge(page)) {
-> > +			unlock_page(page);
-> > +			page_cache_release(page);
-> > +			return NULL;
-> > +		}
-> > +		goto found;
-> > +	}
-> > +
-> > +	page = alloc_pages(gfp_mask & ~gfp_notmask, HPAGE_PMD_ORDER);
-> 
-> I alluded to this a second ago, but what's wrong with alloc_hugepage()?
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
 
-It's defined only for !CONFIG_NUMA and only inside mm/huge_memory.c.
+> Currently migrate_huge_page() takes a pointer to a hugepage to be
+> migrated as an argument, instead of taking a pointer to the list of
+> hugepages to be migrated. This behavior was introduced in commit
+> 189ebff28 ("hugetlb: simplify migrate_huge_page()"), and was OK
+> because until now hugepage migration is enabled only for soft-offlining
+> which takes only one hugepage in a single call.
+>
+> But the situation will change in the later patches in this series
+> which enable other users of page migration to support hugepage migration.
+> They can kick migration for both of normal pages and hugepages
+> in a single call, so we need to go back to original implementation
+> of using linked lists to collect the hugepages to be migrated.
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  mm/memory-failure.c | 15 ++++++++++++---
+>  mm/migrate.c        |  2 ++
+>  2 files changed, 14 insertions(+), 3 deletions(-)
+>
+> diff --git v3.9-rc3.orig/mm/memory-failure.c v3.9-rc3/mm/memory-failure.c
+> index df0694c..4e01082 100644
+> --- v3.9-rc3.orig/mm/memory-failure.c
+> +++ v3.9-rc3/mm/memory-failure.c
+> @@ -1467,6 +1467,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>  	int ret;
+>  	unsigned long pfn = page_to_pfn(page);
+>  	struct page *hpage = compound_head(page);
+> +	LIST_HEAD(pagelist);
+>
+>  	/*
+>  	 * This double-check of PageHWPoison is to avoid the race with
+> @@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>  	unlock_page(hpage);
+>
+>  	/* Keep page count to indicate a given hugepage is isolated. */
+> -	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
+> -				MIGRATE_SYNC);
+> -	put_page(hpage);
+> +	list_move(&hpage->lru, &pagelist);
 
-> > +found:
-> > +	wait_on_page_writeback(page);
-> > +	return page;
-> > +}
-> > +#endif
-> 
-> So, I diffed :
-> 
-> -struct page *grab_cache_page_write_begin(struct address_space
-> vs.
-> +struct page *grab_cache_huge_page_write_begin(struct address_space
-> 
-> They're just to similar to ignore.  Please consolidate them somehow.
+we use hpage->lru to add the hpage to h->hugepage_activelist. This will
+break a hugetlb cgroup removal isn't it ?
 
-Will do.
 
-> > +found:
-> > +	wait_on_page_writeback(page);
-> > +	return page;
-> > +}
-> > +#endif
-> 
-> In grab_cache_page_write_begin(), this "wait" is:
-> 
->         wait_for_stable_page(page);
-> 
-> Why is it different here?
+> +	ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
+> +				MIGRATE_SYNC, MR_MEMORY_FAILURE);
+>  	if (ret) {
+>  		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+>  			pfn, ret, page->flags);
+> +		/*
+> +		 * We know that soft_offline_huge_page() tries to migrate
+> +		 * only one hugepage pointed to by hpage, so we need not
+> +		 * run through the pagelist here.
+> +		 */
+> +		putback_active_hugepage(hpage);
+> +		if (ret > 0)
+> +			ret = -EIO;
+>  	} else {
+>  		set_page_hwpoison_huge_page(hpage);
+>  		dequeue_hwpoisoned_huge_page(hpage);
+> diff --git v3.9-rc3.orig/mm/migrate.c v3.9-rc3/mm/migrate.c
+> index f69f354..66030b6 100644
+> --- v3.9-rc3.orig/mm/migrate.c
+> +++ v3.9-rc3/mm/migrate.c
+> @@ -981,6 +981,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+>
+>  	unlock_page(hpage);
+>  out:
+> +	if (rc != -EAGAIN)
+> +		putback_active_hugepage(hpage);
+>  	put_page(new_hpage);
+>  	if (result) {
+>  		if (rc)
+> -- 
 
-It was wait_on_page_writeback() in grab_cache_page_write_begin() when I forked
-it :(
-
-See 1d1d1a7 mm: only enforce stable page writes if the backing device requires it
-
-Consolidation will fix this.
-
--- 
- Kirill A. Shutemov
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
