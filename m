@@ -1,93 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 11EF26B00D0
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 04:43:51 -0400 (EDT)
-Date: Tue, 26 Mar 2013 09:43:48 +0100
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 00F636B00D3
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 04:49:55 -0400 (EDT)
+Date: Tue, 26 Mar 2013 09:49:52 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
-Message-ID: <20130326084348.GJ2295@dhcp22.suse.cz>
-References: <20130321090849.GF6094@dhcp22.suse.cz>
- <20130321102257.GH6094@dhcp22.suse.cz>
- <514BB23E.70908@huawei.com>
- <20130322080749.GB31457@dhcp22.suse.cz>
- <514C1388.6090909@huawei.com>
- <514C14BF.3050009@parallels.com>
- <20130322093141.GE31457@dhcp22.suse.cz>
- <514EAC41.5050700@huawei.com>
- <20130325090629.GN2154@dhcp22.suse.cz>
- <51515DEE.70105@parallels.com>
+Subject: Re: [PATCH 02/10] migrate: make core migration code aware of hugepage
+Message-ID: <20130326084952.GK2295@dhcp22.suse.cz>
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1363983835-20184-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20130325105701.GS2154@dhcp22.suse.cz>
+ <1364272415-zvaphow7-mutt-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51515DEE.70105@parallels.com>
+In-Reply-To: <1364272415-zvaphow7-mutt-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Li Zefan <lizefan@huawei.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Tue 26-03-13 12:35:58, Glauber Costa wrote:
-> >>
-> >> I doubt it's a win to add 4K to kernel text size instead of adding
-> >> a few extra lines of code... but it's up to you.
-> > 
-> > I will leave the decision to Glauber. The updated version which uses
-> > kmalloc for the static buffer is bellow.
-> > 
-> I prefer to allocate dynamically here. But although I understand why we
-> need to call cgroup_name, I don't understand what is wrong with
-> kasprintf if we're going to allocate anyway. It will allocate a string
-> just big enough. A PAGE_SIZE'd allocation is a lot more likely to fail.
-> 
-> Now, if we really want to be smart here, we can do something like what
-> I've done for the slub attribute buffers, that can actually have very
-> long values.
-> 
-> allocate a small buffer that will hold 80 % > of the allocations (256
-> bytes should be enough for most cache names), and if the string is
-> bigger than this, we allocate. Once we allocate, we save it in a static
-> pointer and leave it there. The hope here is that we may be able to
-> live without ever allocating in many systems.
-> 
-> > +
-> > +	/*
-> > +	 * kmem_cache_create_memcg duplicates the given name and
-> > +	 * cgroup_name for this name requires RCU context.
-> > +	 * This static temporary buffer is used to prevent from
-> > +	 * pointless shortliving allocation.
-> > +	 */
-> The comment is also no longer true if you don't resort to a static buffer.
-
-The buffer _is_ static (read global variable hidden with the function
-scope).
-
-> The following (untested) patch implements the idea I outlined above.
-> 
-> What do you guys think ?
-
-I really do not care which way to fix this.
-
+On Tue 26-03-13 00:33:35, Naoya Horiguchi wrote:
+> On Mon, Mar 25, 2013 at 11:57:01AM +0100, Michal Hocko wrote:
+> > On Fri 22-03-13 16:23:47, Naoya Horiguchi wrote:
 [...]
-> +static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
-> +					 struct kmem_cache *s)
->  {
-> -	char *name;
-> -	struct dentry *dentry;
-> +	const char *cgname; /* actual cache name */
-> +	char *name = NULL; /* actual cache name */
-> +	char buf[256]; /* stack buffer for small allocations */
-> +	int buf_len;
-> +	static char *buf_name; /* pointer to a page, if we ever need */
-> +	struct kmem_cache *new;
-> +
-> +	lockdep_assert_held(&memcg_cache_mutex);
->  
->  	rcu_read_lock();
-> -	dentry = rcu_dereference(memcg->css.cgroup->dentry);
-> +	cgname = cgroup_name(memcg->css.cgroup);
->  	rcu_read_unlock();
+> > > +int migrate_movable_pages(struct list_head *from, new_page_t get_new_page,
+> > > +			unsigned long private,
+> > > +			enum migrate_mode mode, int reason)
+> > > +{
+> > > +	int err = 0;
+> > > +
+> > > +	if (!list_empty(from)) {
+> > > +		err = migrate_pages(from, get_new_page, private, mode, reason);
+> > > +		if (err)
+> > > +			putback_movable_pages(from);
+> > > +	}
+> > > +	return err;
+> > > +}
+> > > +
+> >
+> > There doesn't seem to be any caller for this function. Please move it to
+> > the patch which uses it.
+> 
+> I would do like that if there's only one user of this function, but I thought
+> that it's better to separate this part as changes of common code
+> because this function is commonly used by multiple users which are added by
+> multiple patches later in this series.
 
-cgname is valid only within RCU read lock AFAIU.
+Sure there is no hard rule for this. I just find it much easier to
+review if there is a caller of introduced functionality. In this
+particular case I found out only later that many migrate_pages callers
+were changed to use mograte_movable_pages and made the
+putback_movable_pages cleanup inconsistent between the two.
 
+It would help to mention what is the planned future usage of the
+introduced function if you prefer to introduce it without users.
+
+> I mean doing like
+> 
+>   Patch 1: core change
+>   Patch 2: user A (depend on patch 1)
+>   Patch 3: user B (depend on patch 1)
+>   Patch 4: user C (depend on patch 1)
+> 
+> is a bit cleaner and easier in bisecting than doing like
+> 
+>   Patch 1: core change + user A
+>   Patch 2: user B (depend on patch 1)
+>   Patch 3: user C (depend on patch 1)
+> 
+> . I'm not sure which is standard or well-accepted way.
+
+Whatever makes the review easy ;)
 -- 
 Michal Hocko
 SUSE Labs
