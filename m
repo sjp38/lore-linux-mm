@@ -1,33 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id B23A46B0002
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 15:32:42 -0400 (EDT)
-Message-ID: <51534942.5020009@zytor.com>
-Date: Wed, 27 Mar 2013 12:32:18 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 0D8DA6B0002
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 15:55:54 -0400 (EDT)
+Received: by mail-wg0-f46.google.com with SMTP id l18so872179wgh.25
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2013 12:55:53 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] x86/mm/numa: use setup_nr_node_ids() instead of opencoding.
-References: <1364319962-30967-1-git-send-email-cody@linux.vnet.ibm.com> <1364319962-30967-3-git-send-email-cody@linux.vnet.ibm.com> <CAE9FiQVSPdCqaLKapG4DJ1CXtPKb8F29=s_-e9OLpXP7yG1XTA@mail.gmail.com>
-In-Reply-To: <CAE9FiQVSPdCqaLKapG4DJ1CXtPKb8F29=s_-e9OLpXP7yG1XTA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <alpine.LNX.2.00.1303261454080.2572@eggly.anvils>
+References: <514C94C4.4050008@gmx.de>
+	<20130325155347.75290358a6985e17fb10ad14@linux-foundation.org>
+	<5151D08A.2060400@gmx.de>
+	<alpine.LNX.2.00.1303261454080.2572@eggly.anvils>
+Date: Wed, 27 Mar 2013 20:55:53 +0100
+Message-ID: <CAFLxGvxWs2jNA6z0TrHUuc5=GWN2kv--+JScJW7v=ei62=aEgw@mail.gmail.com>
+Subject: Re: linux-v3.9-rc3: BUG: Bad page map in process trinity-child6
+ pte:002f9045 pmd:29e421e1
+From: richard -rw- weinberger <richard.weinberger@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Cody P Schafer <cody@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Toralf Foerster <toralf.foerster@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, user-mode-linux-user@lists.sourceforge.net, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 03/26/2013 10:56 AM, Yinghai Lu wrote:
-> 
-> For 1 and 2,
-> 
-> Acked-by: Yinghai Lu <yinghai@kernel.org>
-> 
+On Wed, Mar 27, 2013 at 12:03 AM, Hugh Dickins <hughd@google.com> wrote:
+> On Tue, 26 Mar 2013, Toralf Foerster wrote:
+>> On 03/25/2013 11:53 PM, Andrew Morton wrote:
+>> > On Fri, 22 Mar 2013 18:28:36 +0100 Toralf Foerster <toralf.foerster@gmx.de> wrote:
+>> >
+>> >> > Using trinity I often trigger under a user mode linux image with host kernel 3.8.4
+>> >> > and guest kernel linux-v3.9-rc3-244-g9217cbb the following :
+>> >> > (The UML guest is a 32bit stable Gentoo Linux)
+>> > I assume 3.8 is OK?
+>> >
+>> With UML kernel 3.7.10 (host kernel still 3.8.4) I can trigger this
+>> issue too.
+>> Just to clarify it - here the bug appears in the UML kernel - the host
+>> kernel is ok (I can of course crash a host kernel too by trinity'ing an
+>> UML guest, but that's another thread - see [1])
+>>
+>>
+>> FWIW he trinity command is just a test of 1 syscall:
+>>
+>> $> trinity --children 1 --victims /mnt/nfs/n22/victims -c mremap
+>>
+>>
+>>
+>> [1] https://lkml.org/lkml/2013/3/24/174
+>
+> I should think it's been like this for five years, or even more: maybe
+> you are the first person to try unmapping user address 0x100000 on UML;
+> though it's odd that you find it using mremap than the more common munmap.
 
-Similarly:
+Sounds sane.
+I fear trinity will find more "you are the first person to try"-bugs in UML.
+I'll look at it.
 
-Acked-by: H. Peter Anvin <hpa@linux.intel.com>
+> uml_setup_stubs() sets up the special vma with install_special_mapping(),
+> but instead of then faulting in the two pages concerned, it has preset
+> the ptes with init_stub_pte(), which did not increment page mapcount.
+>
+> munmap() that area (or set up another mapping in that place), and
+> zap_pte_range() will decrement page mapcount negative, hence the
+> "Bad page" errors.  Whereas UML uses an arch_exit_mmap() hook to
+> clear the ptes at exit time, to avoid encountering such errors.
+>
+> I think that adding VM_PFNMAP to those install_special_mapping() flags
+> would be enough to fix it (and avoid the need for the arch_exit_mmap(),
+> and let vm_insert_pfn() do the work of init_stub_pte()); but I'm not
+> certain that would be the approved way, and I may have missed problems
+> doing it like this (which would disallow get_user_pages(), e.g. ptrace,
+> on that area: which might or might not be a good thing, I don't know).
+>
+> I'm saying this just by examination, I've not tried any of it at all.
+> Over to Richard.
 
-	-hpa
+:-)
+
+-- 
+Thanks,
+//richard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
