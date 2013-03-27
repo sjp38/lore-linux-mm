@@ -1,59 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 964AB6B0036
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 20:26:32 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id 4so3289714pdd.1
-        for <linux-mm@kvack.org>; Tue, 26 Mar 2013 17:26:31 -0700 (PDT)
-Date: Tue, 26 Mar 2013 17:26:06 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Revert VM_POPULATE?
-Message-ID: <alpine.LNX.2.00.1303261646070.23041@eggly.anvils>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 61C4B6B0039
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 20:43:16 -0400 (EDT)
+Received: from localhost (localhost [127.0.0.1])
+	by mail.8bytes.org (Postfix) with SMTP id 094DE12AF92
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 01:43:14 +0100 (CET)
+Date: Wed, 27 Mar 2013 01:43:14 +0100
+From: Joerg Roedel <joro@8bytes.org>
+Subject: Re: [PATCH] staging: zsmalloc: Fix link error on ARM
+Message-ID: <20130327004314.GH30540@8bytes.org>
+References: <1364337232-3513-1-git-send-email-joro@8bytes.org>
+ <20130327000552.GA13283@blaptop>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130327000552.GA13283@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan.kim@lge.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Michel, I propose that we revert 3.9-rc1's VM_POPULATE flag - 186930500985
-"mm: introduce VM_POPULATE flag to better deal with racy userspace programs".
+On Wed, Mar 27, 2013 at 09:05:52AM +0900, Minchan Kim wrote:
+> And please Cc stable.
 
-Konstantin's 3.7 cleanup of VM_flags has left several bits below 32
-free, but sooner or later someone will want to come through again and
-free some more, and I think VM_POPULATE will be among the first to go.
+Okay, here it is. The result is compile-tested.
 
-It just doesn't add much value, and flags a transient condition which
-then sticks around indefinitely.  Better we remove it now than later.
+Changes since v1:
 
-You said yourself in the 0/8 or 1/8:
-    - Patch 8 is optional to this entire series. It only helps to deal more
-      nicely with racy userspace programs that might modify their mappings
-      while we're trying to populate them. It adds a new VM_POPULATE flag
-      on the mappings we do want to populate, so that if userspace replaces
-      them with mappings it doesn't want populated, mm_populate() won't
-      populate those replacement mappings.
-when you were just testing the waters with 8/8 to see if it was wanted.
+* Remove the module-export for unmap_kernel_range and make zsmalloc
+  built-in instead
 
-I don't see any serious problem with it.  We can probably contrive
-a case in which someone mlocks-then-munlocks scattered segments of a
-large vma, and the VM_POPULATE flag left behind prevents the segments
-from being merged back into a single vma; but that can happen in other
-ways, so it doesn't count for much.
-
-(I presume VM_POPULATE is left uncleared, because there could always be
-races when it's cleared too soon - if userspace is racing with itself.)
-
-I just don't see VM_POPLULATE solving any real problem: the kernel code
-appears to be safe enough without it, and if userspace wishes to play
-racing mmap games, oh, just let it.
-
-The original patch appears to revert cleanly, except in mm/mmap.c
-where "*populate = true;" has since become "*populate = len;".
-
-Hugh
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Here is the patch:
