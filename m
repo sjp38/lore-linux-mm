@@ -1,72 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id C38E96B0002
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 13:20:35 -0400 (EDT)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 27 Mar 2013 11:20:34 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 5853E1FF004C
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 11:14:34 -0600 (MDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2RHJNBe096234
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 11:19:24 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2RHJDxr000522
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 11:19:13 -0600
-Message-ID: <51532A0F.3010402@linux.vnet.ibm.com>
-Date: Wed, 27 Mar 2013 12:19:11 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 4680F6B0002
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 13:28:02 -0400 (EDT)
+Received: by mail-ob0-f173.google.com with SMTP id dn14so8499311obc.32
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2013 10:28:01 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC] mm: remove swapcache page early
-References: <1364350932-12853-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1364350932-12853-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1363665251-14377-1-git-send-email-linfeng@cn.fujitsu.com>
+References: <CAE9FiQUrt11A0YAOLgvv3uTAWtTvVg3Mho9eD53orbxW6Jd8Vg@mail.gmail.com>
+ <1363665251-14377-1-git-send-email-linfeng@cn.fujitsu.com>
+From: Bjorn Helgaas <bhelgaas@google.com>
+Date: Wed, 27 Mar 2013 11:27:41 -0600
+Message-ID: <CAErSpo6DWfHii8d8rGPJ1dLj5TVzsgU7QGDoAvBM5Fb_N5=mtw@mail.gmail.com>
+Subject: Re: [PATCH] kernel/range.c: subtract_range: fix the broken phrase
+ issued by printk
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>
+To: Lin Feng <linfeng@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "x86@kernel.org" <x86@kernel.org>, "linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Yinghai Lu <yinghai@kernel.org>
 
-On 03/26/2013 09:22 PM, Minchan Kim wrote:
-> Swap subsystem does lazy swap slot free with expecting the page
-> would be swapped out again so we can't avoid unnecessary write.
-> 
-> But the problem in in-memory swap is that it consumes memory space
-> until vm_swap_full(ie, used half of all of swap device) condition
-> meet. It could be bad if we use multiple swap device, small in-memory swap
-> and big storage swap or in-memory swap alone.
-> 
-> This patch changes vm_swap_full logic slightly so it could free
-> swap slot early if the backed device is really fast.
+On Mon, Mar 18, 2013 at 9:54 PM, Lin Feng <linfeng@cn.fujitsu.com> wrote:
+> Also replace deprecated printk(KERN_ERR...) with pr_err() as suggested
+> by Yinghai, attaching the function name to provide plenty info.
+>
+> Cc: Yinghai Lu <yinghai@kernel.org>
+> Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
+> ---
+>  kernel/range.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+>
+> diff --git a/kernel/range.c b/kernel/range.c
+> index 9b8ae2d..071b0ab 100644
+> --- a/kernel/range.c
+> +++ b/kernel/range.c
+> @@ -97,7 +97,8 @@ void subtract_range(struct range *range, int az, u64 start, u64 end)
+>                                 range[i].end = range[j].end;
+>                                 range[i].start = end;
+>                         } else {
+> -                               printk(KERN_ERR "run of slot in ranges\n");
+> +                               pr_err("%s: run out of slot in ranges\n",
+> +                                       __func__);
+>                         }
+>                         range[j].end = start;
+>                         continue;
 
-Great idea!
+So now the user might see:
 
-> For it, I used SWP_SOLIDSTATE but It might be controversial.
+    subtract_range: run out of slot in ranges
 
-The comment for SWP_SOLIDSTATE is that "blkdev seeks are cheap". Just
-because seeks are cheap doesn't mean the read itself is also cheap.
-For example, QUEUE_FLAG_NONROT is set for mmc devices, but some of
-them can be pretty slow.
+What is the user supposed to do when he sees that?  If he happens to
+mention it on LKML, what are we going to do about it?  If he attaches
+the complete dmesg log, is there enough information to do something?
 
-> So let's add Ccing Shaohua and Hugh.
-> If it's a problem for SSD, I'd like to create new type SWP_INMEMORY
-> or something for z* family.
-
-Afaict, setting SWP_SOLIDSTATE depends on characteristics of the
-underlying block device (i.e. blk_queue_nonrot()).  zram is a block
-device but zcache and zswap are not.
-
-Any idea by what criteria SWP_INMEMORY would be set?
-
-Also, frontswap backends (zcache and zswap) are a caching layer on top
-of the real swap device, which might actually be rotating media.  So
-you have the issue of to different characteristics, in-memory caching
-on top of rotation media, present in a single swap device.
-
-Thanks,
-Seth
+IMHO, that message is still totally useless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
