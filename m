@@ -1,42 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 52DBB6B0002
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 12:27:09 -0400 (EDT)
-Date: Wed, 27 Mar 2013 17:27:07 +0100
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 1F63E6B0002
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 12:55:58 -0400 (EDT)
+Date: Wed, 27 Mar 2013 17:55:56 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
-Message-ID: <20130327162707.GO16579@dhcp22.suse.cz>
-References: <1364373399-17397-1-git-send-email-mhocko@suse.cz>
- <20130327161527.GA7395@htj.dyndns.org>
- <20130327161905.GN16579@dhcp22.suse.cz>
- <CAOS58YPsrZNU9qDeMgJG3-Hkn0cBaigz16eTS5M57G95E8fxUQ@mail.gmail.com>
+Subject: Re: mm: page_alloc: avoid marking zones full prematurely after
+ zone_reclaim()
+Message-ID: <20130327165556.GA22966@dhcp22.suse.cz>
+References: <20130327060141.GA23703@longonot.mountain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOS58YPsrZNU9qDeMgJG3-Hkn0cBaigz16eTS5M57G95E8fxUQ@mail.gmail.com>
+In-Reply-To: <20130327060141.GA23703@longonot.mountain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: mgorman@suse.de, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 27-03-13 09:21:02, Tejun Heo wrote:
-> On Wed, Mar 27, 2013 at 9:19 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> >> Maybe the name could signify it's part of memcg?
-> >
-> > kmem_ prefix is used for all CONFIG_MEMCG_KMEM functions. I understand
-> > it clashes with sl?b naming but this is out of scope of this patch IMO.
+[Adding Andrew into CC]
+
+Hi Dan,
+
+On Wed 27-03-13 09:01:42, Dan Carpenter wrote:
+> Hello Mel Gorman,
 > 
-> Oh, it's not using kmemcg? I see. Maybe we can rename later.
+> The patch 290d1a3ce0ec: "mm: page_alloc: avoid marking zones full 
+> prematurely after zone_reclaim()" from Mar 23, 2013, leads to the 
+> following warning:
+> "mm/page_alloc.c:1957 get_page_from_freelist()
+> 	 warn: bitwise AND condition is false here"
 
-Some parts use memcg_kmem_* other kmem_. A cleanup would be nice.
-Glauber?
+Dohh, I have totally missed this during review and I managed to burn
+myself on the similar issue in the past (gfp & GFP_NOWAIT).
+The follow up fix is bellow
 
--- 
-Michal Hocko
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> mm/page_alloc.c
+>   1948                                  /*
+>   1949                                   * Failed to reclaim enough to meet watermark.
+>   1950                                   * Only mark the zone full if checking the min
+>   1951                                   * watermark or if we failed to reclaim just
+>   1952                                   * 1<<order pages or else the page allocator
+>   1953                                   * fastpath will prematurely mark zones full
+>   1954                                   * when the watermark is between the low and
+>   1955                                   * min watermarks.
+>   1956                                   */
+>   1957                                  if ((alloc_flags & ALLOC_WMARK_MIN) ||
+>                                                            ^^^^^^^^^^^^^^^
+> This is zero.
+> 
+>   1958                                      ret == ZONE_RECLAIM_SOME)
+>   1959                                          goto this_zone_full;
+> 
+> [snip]
+> 
+>   2333  static inline int
+>   2334  gfp_to_alloc_flags(gfp_t gfp_mask)
+>   2335  {
+>   2336          int alloc_flags = ALLOC_WMARK_MIN | ALLOC_CPUSET;
+>                                   ^^^^^^^^^^^^^^^
+>   2337          const gfp_t wait = gfp_mask & __GFP_WAIT;
+---
