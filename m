@@ -1,155 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 4F15B6B0005
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 17:29:33 -0400 (EDT)
-Date: Wed, 27 Mar 2013 17:29:19 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1364419759-a5hijyn0-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130327141921.GJ16579@dhcp22.suse.cz>
-References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1363983835-20184-10-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130325150952.GA2154@dhcp22.suse.cz>
- <1364322204-ah777uqs-mutt-n-horiguchi@ah.jp.nec.com>
- <20130327141921.GJ16579@dhcp22.suse.cz>
-Subject: Re: [PATCH 09/10] memory-hotplug: enable memory hotplug to handle
- hugepage
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 738496B0006
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 17:41:29 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz11so1186345pad.16
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2013 14:41:28 -0700 (PDT)
+Date: Wed, 27 Mar 2013 14:41:07 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [RFC] mm: remove swapcache page early
+In-Reply-To: <1364350932-12853-1-git-send-email-minchan@kernel.org>
+Message-ID: <alpine.LNX.2.00.1303271230210.29687@eggly.anvils>
+References: <1364350932-12853-1-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, Mar 27, 2013 at 03:19:21PM +0100, Michal Hocko wrote:
-> On Tue 26-03-13 14:23:24, Naoya Horiguchi wrote:
-> > On Mon, Mar 25, 2013 at 04:09:52PM +0100, Michal Hocko wrote:
-> > > On Fri 22-03-13 16:23:54, Naoya Horiguchi wrote:
-> > ...
-> > > > index d9d3dd7..ef79871 100644
-> > > > --- v3.9-rc3.orig/mm/hugetlb.c
-> > > > +++ v3.9-rc3/mm/hugetlb.c
-> > > > @@ -844,6 +844,36 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
-> > > >  	return ret;
-> > > >  }
-> > > >  
-> > > > +/* Dissolve a given free hugepage into free pages. */
-> > > > +static void dissolve_free_huge_page(struct page *page)
-> > > > +{
-> > > > +	spin_lock(&hugetlb_lock);
-> > > > +	if (PageHuge(page) && !page_count(page)) {
-> > > > +		struct hstate *h = page_hstate(page);
-> > > > +		int nid = page_to_nid(page);
-> > > > +		list_del(&page->lru);
-> > > > +		h->free_huge_pages--;
-> > > > +		h->free_huge_pages_node[nid]--;
-> > > > +		update_and_free_page(h, page);
-> > > > +	}
-> > > 
-> > > What about surplus pages?
-> > 
-> > This function is only for free hugepage, not for surplus hugepages
-> > (which are considered as in-use hugepages.)
-> 
-> How do you want to get rid of those then? You cannot offline the node if
-> there are any pages...
+On Wed, 27 Mar 2013, Minchan Kim wrote:
 
-My intention is that offlining should fail if there remains some active
-hugepages in the memblock you try to offline.
+> Swap subsystem does lazy swap slot free with expecting the page
+> would be swapped out again so we can't avoid unnecessary write.
+                             so we can avoid unnecessary write.
+> 
+> But the problem in in-memory swap is that it consumes memory space
+> until vm_swap_full(ie, used half of all of swap device) condition
+> meet. It could be bad if we use multiple swap device, small in-memory swap
+> and big storage swap or in-memory swap alone.
 
-> > dissolve_free_huge_pages() can be called only when all source hugepages
-> > are free (all in-use hugepages are successfully migrated.)
-> > 
-...
-> > > > +/* Returns true for head pages of in-use hugepages, otherwise returns false. */
-> > > > +bool is_hugepage_movable(struct page *hpage)
-> > > > +{
-> > > > +	struct page *page;
-> > > > +	struct hstate *h;
-> > > > +	bool ret = false;
-> > > > +
-> > > > +	VM_BUG_ON(!PageHuge(hpage));
-> > > > +	/*
-> > > > +	 * This function can be called for a tail page because memory hotplug
-> > > > +	 * scans movability of pages by pfn range of a memory block.
-> > > > +	 * Larger hugepages (1GB for x86_64) are larger than memory block, so
-> > > > +	 * the scan can start at the tail page of larger hugepages.
-> > > > +	 * 1GB hugepage is not movable now, so we return with false for now.
-> > > > +	 */
-> > > > +	if (PageTail(hpage))
-> > > > +		return false;
-> > > > +	h = page_hstate(hpage);
-> > > > +	spin_lock(&hugetlb_lock);
-> > > > +	list_for_each_entry(page, &h->hugepage_activelist, lru)
-> > > > +		if (page == hpage) {
-> > > > +			ret = true;
-> > > > +			break;
-> > > > +		}
-> > > 
-> > > Why are you checking that the page is active?
-> > 
-> > This is the counterpart to doing PageLRU check for normal pages.
-> > 
-> > > It doesn't make much sense
-> > > to me because nothing prevents it from being freed/allocated right after
-> > > you release hugetlb_lock.
-> > 
-> > Such a race can also happen for normal pages because scan_movable_pages()
-> > just check PageLRU flags without holding any lock.
-> > But the caller, __offline_pages(), repeats to call scan_movable_pages()
-> > until no page in the memblock are judged as movable, and in the repeat loop
-> > do_migrate_range() does nothing for free (unmovable) pages.
-> > So there is no behavioral problem even if the movable page is freed just
-> > after the if(PageLRU) check in scan_movable_page().
+That is a very good realization: it's surprising that none of us
+thought of it before - no disrespect to you, well done, thank you.
+
+And I guess swap readahead is utterly unhelpful in this case too.
+
 > 
-> yes
+> This patch changes vm_swap_full logic slightly so it could free
+> swap slot early if the backed device is really fast.
+> For it, I used SWP_SOLIDSTATE but It might be controversial.
+
+But I strongly disagree with almost everything in your patch :)
+I disagree with addressing it in vm_swap_full(), I disagree that
+it can be addressed by device, I disagree that it has anything to
+do with SWP_SOLIDSTATE.
+
+This is not a problem with swapping to /dev/ram0 or to /dev/zram0,
+is it?  In those cases, a fixed amount of memory has been set aside
+for swap, and it works out just like with disk block devices.  The
+memory set aside may be wasted, but that is accepted upfront.
+
+Similarly, this is not a problem with swapping to SSD.  There might
+or might not be other reasons for adjusting the vm_swap_full() logic
+for SSD or generally, but those have nothing to do with this issue.
+
+The problem here is peculiar to frontswap, and the variably sized
+memory behind it, isn't it?  We are accustomed to using swap to free
+up memory by transferring its data to some other, cheaper but slower
+resource.
+
+But in the case of frontswap and zmem (I'll say that to avoid thinking
+through which backends are actually involved), it is not a cheaper and
+slower resource, but the very same memory we are trying to save: swap
+is stolen from the memory under reclaim, so any duplication becomes
+counter-productive (if we ignore cpu compression/decompression costs:
+I have no idea how fair it is to do so, but anyone who chooses zmem
+is prepared to pay some cpu price for that).
+
+And because it's a frontswap thing, we cannot decide this by device:
+frontswap may or may not stand in front of each device.  There is no
+problem with swapcache duplicated on disk (until that area approaches
+being full or fragmented), but at the higher level we cannot see what
+is in zmem and what is on disk: we only want to free up the zmem dup.
+
+I believe the answer is for frontswap/zmem to invalidate the frontswap
+copy of the page (to free up the compressed memory when possible) and
+SetPageDirty on the PageUptodate PageSwapCache page when swapping in
+(setting page dirty so nothing will later go to read it from the
+unfreed location on backing swap disk, which was never written).
+
+We cannot rely on freeing the swap itself, because in general there
+may be multiple references to the swap, and we only satisfy the one
+which has faulted.  It may or may not be a good idea to use rmap to
+locate the other places to insert pte in place of swap entry, to
+resolve them all at once; but we have chosen not to do so in the
+past, and there's no need for that, if the zmem gets invalidated
+and the swapcache page set dirty.
+
+Hugh
+
+> So let's add Ccing Shaohua and Hugh.
+> If it's a problem for SSD, I'd like to create new type SWP_INMEMORY
+> or something for z* family.
 > 
-> > Note that in this loop, allocating pages in the memblock is forbidden
-> > because we already do set_migratetype_isolate() for them, so we don't have
-> > to worry about being allocated just after scan_movable_pages().
+> Other problem is zram is block device so that it can set SWP_INMEMORY
+> or SWP_SOLIDSTATE easily(ie, actually, zram is already done) but
+> I have no idea to use it for frontswap.
 > 
-> yes
+> Any idea?
 > 
-> > I want the same thing to be the case for hugepage. As you pointed out,
-> > is_hugepage_movable() is not safe from such a race, but in "being freed
-> > just after is_hugepage_movable() returns true" case we have no problem
-> > for the same reason described above.
+> Other optimize point is we remove it unconditionally when we
+> found it's exclusive when swap in happen.
+> It could help frontswap family, too.
+> What do you think about it?
+> 
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
+> Cc: Shaohua Li <shli@kernel.org>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  include/linux/swap.h | 11 ++++++++---
+>  mm/memory.c          |  3 ++-
+>  mm/swapfile.c        | 11 +++++++----
+>  mm/vmscan.c          |  2 +-
+>  4 files changed, 18 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 2818a12..1f4df66 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -359,9 +359,14 @@ extern struct page *swapin_readahead(swp_entry_t, gfp_t,
+>  extern atomic_long_t nr_swap_pages;
+>  extern long total_swap_pages;
 >  
-> yes, this was my point, sorry for not being clear about that. I meant
-> the costly test is pointless because it doesn't prevent any races and
-> doesn't tell us much.
-
-Yes, running over hugepage_activelist is not preferable when this list
-become longer.
-
-> If we made sure that all page on the hugepage_freelists have reference
-> 0 (which is now not the case and it is yet another source of confusion)
-> then the whole loop could be replaced by page_count check.
-
-I think that free hugepages have refcount 0, but hwpoisoned hugepages
-have also refcount 0. But hwpoison can happen only on limited hardware
-and we consider them as exceptional, so replacing page_count check and
-checking PG_hwpoisoned flag looks more reasonable to me.
-
-> > However, in "being allocated just after is_hugepage_movable() returns false"
-> > case, it seems to be possible to hot-remove an active hugepage.
-> 
-> check_pages_isolated should catch this but it is still racy.
-
-Right.
-
-> > I think we can avoid this by adding migratetype check in
-> > alloc_huge_page().
-> 
-> I think dequeue_huge_page_vma should be sufficient, because we are going
-> through page allocator otherwise and that one is aware of migrate types.
-
-OK.
-
-Thanks,
-Naoya
+> -/* Swap 50% full? Release swapcache more aggressively.. */
+> -static inline bool vm_swap_full(void)
+> +/*
+> + * Swap 50% full or fast backed device?
+> + * Release swapcache more aggressively.
+> + */
+> +static inline bool vm_swap_full(struct swap_info_struct *si)
+>  {
+> +	if (si->flags & SWP_SOLIDSTATE)
+> +		return true;
+>  	return atomic_long_read(&nr_swap_pages) * 2 < total_swap_pages;
+>  }
+>  
+> @@ -405,7 +410,7 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
+>  #define get_nr_swap_pages()			0L
+>  #define total_swap_pages			0L
+>  #define total_swapcache_pages()			0UL
+> -#define vm_swap_full()				0
+> +#define vm_swap_full(si)			0
+>  
+>  #define si_swapinfo(val) \
+>  	do { (val)->freeswap = (val)->totalswap = 0; } while (0)
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 705473a..1ca21a9 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3084,7 +3084,8 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	mem_cgroup_commit_charge_swapin(page, ptr);
+>  
+>  	swap_free(entry);
+> -	if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+> +	if (likely(PageSwapCache(page)) && (vm_swap_full(page_swap_info(page))
+> +			|| (vma->vm_flags & VM_LOCKED) || PageMlocked(page)))
+>  		try_to_free_swap(page);
+>  	unlock_page(page);
+>  	if (page != swapcache) {
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 1bee6fa..f9cc701 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -293,7 +293,7 @@ checks:
+>  		scan_base = offset = si->lowest_bit;
+>  
+>  	/* reuse swap entry of cache-only swap if not busy. */
+> -	if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
+> +	if (vm_swap_full(si) && si->swap_map[offset] == SWAP_HAS_CACHE) {
+>  		int swap_was_freed;
+>  		spin_unlock(&si->lock);
+>  		swap_was_freed = __try_to_reclaim_swap(si, offset);
+> @@ -382,7 +382,8 @@ scan:
+>  			spin_lock(&si->lock);
+>  			goto checks;
+>  		}
+> -		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
+> +		if (vm_swap_full(si) &&
+> +			si->swap_map[offset] == SWAP_HAS_CACHE) {
+>  			spin_lock(&si->lock);
+>  			goto checks;
+>  		}
+> @@ -397,7 +398,8 @@ scan:
+>  			spin_lock(&si->lock);
+>  			goto checks;
+>  		}
+> -		if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
+> +		if (vm_swap_full(si) &&
+> +			si->swap_map[offset] == SWAP_HAS_CACHE) {
+>  			spin_lock(&si->lock);
+>  			goto checks;
+>  		}
+> @@ -763,7 +765,8 @@ int free_swap_and_cache(swp_entry_t entry)
+>  		 * Also recheck PageSwapCache now page is locked (above).
+>  		 */
+>  		if (PageSwapCache(page) && !PageWriteback(page) &&
+> -				(!page_mapped(page) || vm_swap_full())) {
+> +				(!page_mapped(page) ||
+> +				  vm_swap_full(page_swap_info(page)))) {
+>  			delete_from_swap_cache(page);
+>  			SetPageDirty(page);
+>  		}
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index df78d17..145c59c 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -933,7 +933,7 @@ cull_mlocked:
+>  
+>  activate_locked:
+>  		/* Not a candidate for swapping, so reclaim swap space. */
+> -		if (PageSwapCache(page) && vm_swap_full())
+> +		if (PageSwapCache(page) && vm_swap_full(page_swap_info(page)))
+>  			try_to_free_swap(page);
+>  		VM_BUG_ON(PageActive(page));
+>  		SetPageActive(page);
+> -- 
+> 1.8.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
