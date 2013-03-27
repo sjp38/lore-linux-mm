@@ -1,57 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 80F846B003D
-	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 21:09:49 -0400 (EDT)
-Date: Wed, 27 Mar 2013 10:09:47 +0900
-From: Minchan Kim <minchan.kim@lge.com>
-Subject: Re: [PATCH] staging: zsmalloc: Fix link error on ARM
-Message-ID: <20130327010947.GA2710@blaptop>
-References: <1364337232-3513-1-git-send-email-joro@8bytes.org>
- <20130327000552.GA13283@blaptop>
- <20130327004314.GH30540@8bytes.org>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 3047F6B004D
+	for <linux-mm@kvack.org>; Tue, 26 Mar 2013 21:16:26 -0400 (EDT)
+Message-ID: <51524849.6090603@huawei.com>
+Date: Wed, 27 Mar 2013 09:15:53 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130327004314.GH30540@8bytes.org>
+Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
+References: <20130321090849.GF6094@dhcp22.suse.cz> <20130321102257.GH6094@dhcp22.suse.cz> <514BB23E.70908@huawei.com> <20130322080749.GB31457@dhcp22.suse.cz> <514C1388.6090909@huawei.com> <514C14BF.3050009@parallels.com> <20130322093141.GE31457@dhcp22.suse.cz> <514EAC41.5050700@huawei.com> <20130325090629.GN2154@dhcp22.suse.cz> <51515DEE.70105@parallels.com> <20130326084348.GJ2295@dhcp22.suse.cz> <51516410.2000007@parallels.com>
+In-Reply-To: <51516410.2000007@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Mar 27, 2013 at 01:43:14AM +0100, Joerg Roedel wrote:
-> On Wed, Mar 27, 2013 at 09:05:52AM +0900, Minchan Kim wrote:
-> > And please Cc stable.
+> Although correct, it is a bit misleading. It is static in the sense it
+> is held by a static variable. But it is acquired by kmalloc...
 > 
-> Okay, here it is. The result is compile-tested.
+> In any way, this is a tiny detail.
 > 
-> Changes since v1:
+> FWIW, I am fine with the patch you provided:
 > 
-> * Remove the module-export for unmap_kernel_range and make zsmalloc
->   built-in instead
+> Acked-by: Glauber Costa <glommer@parallels.com>
 > 
-> Here is the patch:
-> 
-> >From 2b70502720b36909f9f39bdf27be21321a219c31 Mon Sep 17 00:00:00 2001
-> From: Joerg Roedel <joro@8bytes.org>
-> Date: Tue, 26 Mar 2013 23:24:22 +0100
-> Subject: [PATCH v2] staging: zsmalloc: Fix link error on ARM
-> 
-> Testing the arm chromebook config against the upstream
-> kernel produces a linker error for the zsmalloc module from
-> staging. The symbol flush_tlb_kernel_range is not available
-> there. Fix this by removing the reimplementation of
-> unmap_kernel_range in the zsmalloc module and using the
-> function directly. The unmap_kernel_range function is not
-> usable by modules, so also disallow building the driver as a
-> module for now.
-> 
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Joerg Roedel <joro@8bytes.org>
-Acked-by: Minchan Kim <minchan@kernel.org>
 
--- 
-Kind regards,
-Minchan Kim
+Michal, could you resend your final patch to Tejun in a new mail thread?
+There are quite a few different patches inlined in this thread.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
