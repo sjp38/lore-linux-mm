@@ -1,56 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id F14DD6B0002
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 14:25:38 -0400 (EDT)
-Received: by mail-bk0-f49.google.com with SMTP id w12so848878bku.36
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2013 11:25:37 -0700 (PDT)
-MIME-Version: 1.0
-Date: Wed, 27 Mar 2013 14:25:36 -0400
-Message-ID: <CAKb7UviwOk9asT=WxYgDUzfm3J+tGXobroUycpoTvzOX5kkofQ@mail.gmail.com>
-Subject: system death under oom - 3.7.9
-From: Ilia Mirkin <imirkin@alum.mit.edu>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 4164D6B0002
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 15:19:40 -0400 (EDT)
+Date: Wed, 27 Mar 2013 15:19:24 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1364411964-iukb7m94-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130327135250.GI16579@dhcp22.suse.cz>
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <87boa69z6j.fsf@linux.vnet.ibm.com>
+ <20130327135250.GI16579@dhcp22.suse.cz>
+Subject: Re: [PATCH 03/10] soft-offline: use migrate_pages() instead of
+ migrate_huge_page()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: nouveau@lists.freedesktop.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-Hello,
+On Wed, Mar 27, 2013 at 02:52:50PM +0100, Michal Hocko wrote:
+> On Tue 26-03-13 16:59:40, Aneesh Kumar K.V wrote:
+> > Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+> [...]
+> > > diff --git v3.9-rc3.orig/mm/memory-failure.c v3.9-rc3/mm/memory-failure.c
+> > > index df0694c..4e01082 100644
+> > > --- v3.9-rc3.orig/mm/memory-failure.c
+> > > +++ v3.9-rc3/mm/memory-failure.c
+> > > @@ -1467,6 +1467,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+> > >  	int ret;
+> > >  	unsigned long pfn = page_to_pfn(page);
+> > >  	struct page *hpage = compound_head(page);
+> > > +	LIST_HEAD(pagelist);
+> > >
+> > >  	/*
+> > >  	 * This double-check of PageHWPoison is to avoid the race with
+> > > @@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
+> > >  	unlock_page(hpage);
+> > >
+> > >  	/* Keep page count to indicate a given hugepage is isolated. */
+> > > -	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
+> > > -				MIGRATE_SYNC);
+> > > -	put_page(hpage);
+> > > +	list_move(&hpage->lru, &pagelist);
+> > 
+> > we use hpage->lru to add the hpage to h->hugepage_activelist. This will
+> > break a hugetlb cgroup removal isn't it ?
+> 
+> This particular part will not break removal because
+> hugetlb_cgroup_css_offline loops until hugetlb_cgroup_have_usage is 0.
 
-My system died last night apparently due to OOM conditions. Note that
-I don't have any swap set up, but my understanding is that this is not
-required. The full log is at: http://pastebin.com/YCYUXWvV. It was in
-my messages, so I guess the system took a bit to die completely.
+Right.
 
-nouveau is somewhat implicated, as it is the first thing that hits an
-allocation failure in nouveau_vm_create, and has a subsequent warn in
-nouveau_mm_fini, but then there's a GPF in
-__alloc_skb/__kmalloc_track_caller (and I'm using SLUB). Here is a
-partial disassembly for __kmalloc_track_caller:
+> Little bit offtopic:
+> Btw. hugetlb migration breaks to charging even before this patchset
+> AFAICS. The above put_page should remove the last reference and then it
+> will uncharge it but I do not see anything that would charge a new page.
+> This is all because regula LRU pages are uncharged when they are
+> unmapped. But this a different story not related to this series.
 
-   0xffffffff811325b1 <+138>:   e8 a0 60 56 00  callq
-0xffffffff81698656 <__slab_alloc.constprop.68>
-   0xffffffff811325b6 <+143>:   49 89 c4        mov    %rax,%r12
-   0xffffffff811325b9 <+146>:   eb 27   jmp    0xffffffff811325e2
-<__kmalloc_track_caller+187>
-   0xffffffff811325bb <+148>:   49 63 45 20     movslq 0x20(%r13),%rax
-   0xffffffff811325bf <+152>:   48 8d 4a 01     lea    0x1(%rdx),%rcx
-   0xffffffff811325c3 <+156>:   49 8b 7d 00     mov    0x0(%r13),%rdi
-   0xffffffff811325c7 <+160>:   49 8b 1c 04     mov    (%r12,%rax,1),%rbx
-   0xffffffff811325cb <+164>:   4c 89 e0        mov    %r12,%rax
-   0xffffffff811325ce <+167>:   48 8d 37        lea    (%rdi),%rsi
-   0xffffffff811325d1 <+170>:   e8 3a 38 1b 00  callq
-0xffffffff812e5e10 <this_cpu_cmpxchg16b_emu>
+It seems to me that alloc_huge_page_node() needs to call
+hugetlb_cgroup_charge_cgroup() before dequeuing a new hugepage.
 
-The GPF happens at +160, which is in the argument setup for the
-cmpxchg in slab_alloc_node. I think it's the call to
-get_freepointer(). There was a similar bug report a while back,
-https://lkml.org/lkml/2011/5/23/199, and the recommendation was to run
-with slub debugging. Is that still the case, or is there a simpler
-explanation? I can't reproduce this at will, not sure how many times
-this has happened but definitely not many.
-
-  -ilia
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
