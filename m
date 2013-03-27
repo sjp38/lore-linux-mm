@@ -1,137 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id A60E26B0002
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 10:19:24 -0400 (EDT)
-Date: Wed, 27 Mar 2013 15:19:21 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 09/10] memory-hotplug: enable memory hotplug to handle
- hugepage
-Message-ID: <20130327141921.GJ16579@dhcp22.suse.cz>
-References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1363983835-20184-10-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130325150952.GA2154@dhcp22.suse.cz>
- <1364322204-ah777uqs-mutt-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 0B1C76B0002
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 10:59:36 -0400 (EDT)
+Date: Wed, 27 Mar 2013 10:58:25 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
+Message-ID: <20130327145727.GD29052@cmpxchg.org>
+References: <1364373399-17397-1-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1364322204-ah777uqs-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1364373399-17397-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue 26-03-13 14:23:24, Naoya Horiguchi wrote:
-> On Mon, Mar 25, 2013 at 04:09:52PM +0100, Michal Hocko wrote:
-> > On Fri 22-03-13 16:23:54, Naoya Horiguchi wrote:
-> ...
-> > > index d9d3dd7..ef79871 100644
-> > > --- v3.9-rc3.orig/mm/hugetlb.c
-> > > +++ v3.9-rc3/mm/hugetlb.c
-> > > @@ -844,6 +844,36 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
-> > >  	return ret;
-> > >  }
-> > >  
-> > > +/* Dissolve a given free hugepage into free pages. */
-> > > +static void dissolve_free_huge_page(struct page *page)
-> > > +{
-> > > +	spin_lock(&hugetlb_lock);
-> > > +	if (PageHuge(page) && !page_count(page)) {
-> > > +		struct hstate *h = page_hstate(page);
-> > > +		int nid = page_to_nid(page);
-> > > +		list_del(&page->lru);
-> > > +		h->free_huge_pages--;
-> > > +		h->free_huge_pages_node[nid]--;
-> > > +		update_and_free_page(h, page);
-> > > +	}
-> > 
-> > What about surplus pages?
+On Wed, Mar 27, 2013 at 09:36:39AM +0100, Michal Hocko wrote:
+> As cgroup supports rename, it's unsafe to dereference dentry->d_name
+> without proper vfs locks. Fix this by using cgroup_name() rather than
+> dentry directly.
 > 
-> This function is only for free hugepage, not for surplus hugepages
-> (which are considered as in-use hugepages.)
-
-How do you want to get rid of those then? You cannot offline the node if
-there are any pages...
-
-> dissolve_free_huge_pages() can be called only when all source hugepages
-> are free (all in-use hugepages are successfully migrated.)
+> Also open code memcg_cache_name because it is called only from
+> kmem_cache_dup which frees the returned name right after
+> kmem_cache_create_memcg makes a copy of it. Such a short-lived
+> allocation doesn't make too much sense. So replace it by a static
+> buffer as kmem_cache_dup is called with memcg_cache_mutex.
 > 
-[...]
-> > > +/* Returns true for head pages of in-use hugepages, otherwise returns false. */
-> > > +bool is_hugepage_movable(struct page *hpage)
-> > > +{
-> > > +	struct page *page;
-> > > +	struct hstate *h;
-> > > +	bool ret = false;
-> > > +
-> > > +	VM_BUG_ON(!PageHuge(hpage));
-> > > +	/*
-> > > +	 * This function can be called for a tail page because memory hotplug
-> > > +	 * scans movability of pages by pfn range of a memory block.
-> > > +	 * Larger hugepages (1GB for x86_64) are larger than memory block, so
-> > > +	 * the scan can start at the tail page of larger hugepages.
-> > > +	 * 1GB hugepage is not movable now, so we return with false for now.
-> > > +	 */
-> > > +	if (PageTail(hpage))
-> > > +		return false;
-> > > +	h = page_hstate(hpage);
-> > > +	spin_lock(&hugetlb_lock);
-> > > +	list_for_each_entry(page, &h->hugepage_activelist, lru)
-> > > +		if (page == hpage) {
-> > > +			ret = true;
-> > > +			break;
-> > > +		}
-> > 
-> > Why are you checking that the page is active?
+> Signed-off-by: Li Zefan <lizefan@huawei.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: Glauber Costa <glommer@parallels.com>
+> ---
+>  mm/memcontrol.c |   64 ++++++++++++++++++++++++++++---------------------------
+>  1 file changed, 33 insertions(+), 31 deletions(-)
 > 
-> This is the counterpart to doing PageLRU check for normal pages.
-> 
-> > It doesn't make much sense
-> > to me because nothing prevents it from being freed/allocated right after
-> > you release hugetlb_lock.
-> 
-> Such a race can also happen for normal pages because scan_movable_pages()
-> just check PageLRU flags without holding any lock.
-> But the caller, __offline_pages(), repeats to call scan_movable_pages()
-> until no page in the memblock are judged as movable, and in the repeat loop
-> do_migrate_range() does nothing for free (unmovable) pages.
-> So there is no behavioral problem even if the movable page is freed just
-> after the if(PageLRU) check in scan_movable_page().
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index f608546..b30547b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3364,52 +3364,54 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
+>  	schedule_work(&cachep->memcg_params->destroy);
+>  }
+>  
+> -static char *memcg_cache_name(struct mem_cgroup *memcg, struct kmem_cache *s)
+> -{
+> -	char *name;
+> -	struct dentry *dentry;
+> -
+> -	rcu_read_lock();
+> -	dentry = rcu_dereference(memcg->css.cgroup->dentry);
+> -	rcu_read_unlock();
+> -
+> -	BUG_ON(dentry == NULL);
+> -
+> -	name = kasprintf(GFP_KERNEL, "%s(%d:%s)", s->name,
+> -			 memcg_cache_id(memcg), dentry->d_name.name);
+> -
+> -	return name;
+> -}
+> +/*
+> + * This lock protects updaters, not readers. We want readers to be as fast as
+> + * they can, and they will either see NULL or a valid cache value. Our model
+> + * allow them to see NULL, in which case the root memcg will be selected.
+> + *
+> + * We need this lock because multiple allocations to the same cache from a non
+> + * will span more than one worker. Only one of them can create the cache.
+> + */
+> +static DEFINE_MUTEX(memcg_cache_mutex);
+>  
+> +/*
+> + * Called with memcg_cache_mutex held
+> + */
+>  static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
+>  					 struct kmem_cache *s)
+>  {
+> -	char *name;
+>  	struct kmem_cache *new;
+> +	static char *tmp_name = NULL;
+>  
+> -	name = memcg_cache_name(memcg, s);
+> -	if (!name)
+> -		return NULL;
+> +	lockdep_assert_held(&memcg_cache_mutex);
+> +
+> +	/*
+> +	 * kmem_cache_create_memcg duplicates the given name and
+> +	 * cgroup_name for this name requires RCU context.
+> +	 * This static temporary buffer is used to prevent from
+> +	 * pointless shortliving allocation.
+> +	 */
+> +	if (!tmp_name) {
+> +		tmp_name = kmalloc(PAGE_SIZE, GFP_KERNEL);
+> +		WARN_ON_ONCE(!tmp_name);
 
-yes
+Just use the page allocator directly and get a free allocation failure
+warning.  Then again, order-0 pages are considered cheap enough that
+they never even fail in our current implementation.
 
-> Note that in this loop, allocating pages in the memblock is forbidden
-> because we already do set_migratetype_isolate() for them, so we don't have
-> to worry about being allocated just after scan_movable_pages().
-
-yes
-
-> I want the same thing to be the case for hugepage. As you pointed out,
-> is_hugepage_movable() is not safe from such a race, but in "being freed
-> just after is_hugepage_movable() returns true" case we have no problem
-> for the same reason described above.
- 
-yes, this was my point, sorry for not being clear about that. I meant
-the costly test is pointless because it doesn't prevent any races and
-doesn't tell us much.
-If we made sure that all page on the hugepage_freelists have reference
-0 (which is now not the case and it is yet another source of confusion)
-then the whole loop could be replaced by page_count check.
-
-> However, in "being allocated just after is_hugepage_movable() returns false"
-> case, it seems to be possible to hot-remove an active hugepage.
-
-check_pages_isolated should catch this but it is still racy.
-
-> I think we can avoid this by adding migratetype check in
-> alloc_huge_page().
-
-I think dequeue_huge_page_vma should be sufficient, because we are going
-through page allocator otherwise and that one is aware of migrate types.
-
-[...]
--- 
-Michal Hocko
-SUSE Labs
+Which brings me to my other point: why not just a simple single-page
+allocation?  This just seems a little overelaborate.  I think this
+path would be taken predominantly after cgroup creation and fork where
+we do a bunch of allocations anyway.  And it happens asynchroneously
+from userspace, so it's not even really performance critical.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
