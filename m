@@ -1,36 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 58AE96B0002
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 12:15:33 -0400 (EDT)
-Received: by mail-vc0-f173.google.com with SMTP id gd11so6606279vcb.4
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2013 09:15:32 -0700 (PDT)
-Date: Wed, 27 Mar 2013 09:15:27 -0700
-From: Tejun Heo <tj@kernel.org>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 284576B0006
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 12:19:08 -0400 (EDT)
+Date: Wed, 27 Mar 2013 17:19:05 +0100
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
-Message-ID: <20130327161527.GA7395@htj.dyndns.org>
+Message-ID: <20130327161905.GN16579@dhcp22.suse.cz>
 References: <1364373399-17397-1-git-send-email-mhocko@suse.cz>
+ <20130327161527.GA7395@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1364373399-17397-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <20130327161527.GA7395@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: Tejun Heo <tj@kernel.org>
 Cc: Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Mar 27, 2013 at 09:36:39AM +0100, Michal Hocko wrote:
-> +/*
-> + * Called with memcg_cache_mutex held
-> + */
->  static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
->  					 struct kmem_cache *s)
+On Wed 27-03-13 09:15:27, Tejun Heo wrote:
+> On Wed, Mar 27, 2013 at 09:36:39AM +0100, Michal Hocko wrote:
+> > +/*
+> > + * Called with memcg_cache_mutex held
+> > + */
+> >  static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
+> >  					 struct kmem_cache *s)
+> 
+> Maybe the name could signify it's part of memcg?
 
-Maybe the name could signify it's part of memcg?
-
-Thanks.
+kmem_ prefix is used for all CONFIG_MEMCG_KMEM functions. I understand
+it clashes with sl?b naming but this is out of scope of this patch IMO.
 
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
