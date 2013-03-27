@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id F17726B0006
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 17:28:45 -0400 (EDT)
-Received: by mail-qa0-f73.google.com with SMTP id hg5so196549qab.2
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2013 14:28:45 -0700 (PDT)
-Subject: + mm-limit-growth-of-3%-hardcoded-other-user-reserve.patch added to -mm tree
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id E68036B0036
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 17:28:48 -0400 (EDT)
+Received: by mail-qc0-f201.google.com with SMTP id o22so877103qcr.4
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2013 14:28:47 -0700 (PDT)
+Subject: + mm-replace-hardcoded-3%-with-admin_reserve_pages-knob.patch added to -mm tree
 From: akpm@linux-foundation.org
-Date: Wed, 27 Mar 2013 14:28:44 -0700
-Message-Id: <20130327212844.6438931C166@corp2gmr1-1.hot.corp.google.com>
+Date: Wed, 27 Mar 2013 14:28:47 -0700
+Message-Id: <20130327212847.5ED6531C166@corp2gmr1-1.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mm-commits@vger.kernel.org
@@ -15,9 +15,9 @@ Cc: agshew@gmail.com, linux-mm@kvack.org
 
 
 The patch titled
-     Subject: mm: limit growth of 3% hardcoded other user reserve
+     Subject: mm: replace hardcoded 3% with admin_reserve_pages knob
 has been added to the -mm tree.  Its filename is
-     mm-limit-growth-of-3%-hardcoded-other-user-reserve.patch
+     mm-replace-hardcoded-3%-with-admin_reserve_pages-knob.patch
 
 Before you just go and hit "reply", please:
    a) Consider who else should be cc'ed
@@ -32,36 +32,34 @@ there every 3-4 working days
 
 ------------------------------------------------------
 From: Andrew Shewmaker <agshew@gmail.com>
-Subject: mm: limit growth of 3% hardcoded other user reserve
+Subject: mm: replace hardcoded 3% with admin_reserve_pages knob
 
-Add user_reserve_kbytes knob.
+Add an admin_reserve_kbytes knob to allow admins to change the hardcoded
+memory reserve to something other than 3%, which may be multiple gigabytes
+on large memory systems.  Only about 8MB is necessary to enable recovery
+in the default mode, and only a few hundred MB are required even when
+overcommit is disabled.
 
-Limit the growth of the memory reserved for other user processes to min(3%
-current process size, user_reserve_pages).
+This affects OVERCOMMIT_GUESS and OVERCOMMIT_NEVER.
 
-user_reserve_pages defaults to min(3% free pages, 128MB)
-
-I arrived at 128MB by taking the max VSZ of sshd, login,
-bash, and top ... then adding the RSS of each.
-
-This only affects OVERCOMMIT_NEVER mode.
+admin_reserve_kbytes is initialized to min(3% free pages, 8MB)
 
 Background
 
 1. user reserve
 
-__vm_enough_memory reserves a hardcoded 3% of the current process size for
-other applications when overcommit is disabled.  This was done so that a
-user could recover if they launched a memory hogging process.  Without the
-reserve, a user would easily run into a message such as:
+__vm_enough_memory reserves a hardcoded 3% of the current process size
+for other applications when overcommit is disabled. This was done so
+that a user could recover if they launched a memory hogging process.
+Without the reserve, a user would easily run into a message such as:
 
 bash: fork: Cannot allocate memory
 
 2. admin reserve
 
-Additionally, a hardcoded 3% of free memory is reserved for root in both
-overcommit 'guess' and 'never' modes.  This was intended to prevent a
-scenario where root-cant-log-in and perform recovery operations.
+Additionally, a hardcoded 3% of free memory is reserved for root in
+both overcommit 'guess' and 'never' modes. This was intended to prevent
+a scenario where root-cant-log-in and perform recovery operations.
 
 Note that this reserve shrinks, and doesn't guarantee a useful reserve.
 
@@ -313,247 +311,208 @@ Cc: <linux-mm@kvack.org>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- Documentation/sysctl/vm.txt            |   20 +++++++++++++
- Documentation/vm/overcommit-accounting |    8 ++++-
- kernel/sysctl.c                        |    8 +++++
- mm/mmap.c                              |   35 +++++++++++++++++++----
- mm/nommu.c                             |   35 +++++++++++++++++++----
- 5 files changed, 95 insertions(+), 11 deletions(-)
+ Documentation/sysctl/vm.txt |   30 ++++++++++++++++++++++++++++++
+ kernel/sysctl.c             |    8 ++++++++
+ mm/mmap.c                   |   30 ++++++++++++++++++++++++++----
+ mm/nommu.c                  |   30 ++++++++++++++++++++++++++----
+ 4 files changed, 90 insertions(+), 8 deletions(-)
 
-diff -puN Documentation/sysctl/vm.txt~mm-limit-growth-of-3%-hardcoded-other-user-reserve Documentation/sysctl/vm.txt
---- a/Documentation/sysctl/vm.txt~mm-limit-growth-of-3%-hardcoded-other-user-reserve
+diff -puN Documentation/sysctl/vm.txt~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob Documentation/sysctl/vm.txt
+--- a/Documentation/sysctl/vm.txt~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob
 +++ a/Documentation/sysctl/vm.txt
-@@ -53,6 +53,7 @@ Currently, these files are in /proc/sys/
- - percpu_pagelist_fraction
- - stat_interval
- - swappiness
-+- user_reserve_kbytes
- - vfs_cache_pressure
- - zone_reclaim_mode
+@@ -18,6 +18,7 @@ files can be found in mm/swap.c.
  
-@@ -542,6 +543,7 @@ memory until it actually runs out.
+ Currently, these files are in /proc/sys/vm:
  
- When this flag is 2, the kernel uses a "never overcommit"
- policy that attempts to prevent any overcommit of memory.
-+Note that user_reserve_kbytes affects this policy.
- 
- This feature can be very useful because there are a lot of
- programs that malloc() huge amounts of memory "just-in-case"
-@@ -645,6 +647,24 @@ The default value is 60.
++- admin_reserve_kbytes
+ - block_dump
+ - compact_memory
+ - dirty_background_bytes
+@@ -59,6 +60,35 @@ Currently, these files are in /proc/sys/
  
  ==============================================================
  
-+- user_reserve_kbytes
++admin_reserve_kbytes
 +
-+When overcommit_memory is set to 2, "never overommit" mode, reserve
-+min(3% of current process size, user_reserve_kbytes) of free memory.
-+This is intended to prevent a user from starting a single memory hogging
-+process, such that they cannot recover (kill the hog).
++The amount of free memory in the system that should be reserved for users
++with the capability cap_sys_admin.
 +
-+user_reserve_kbytes defaults to min(3% of the current process size, 128MB).
++admin_reserve_kbytes defaults to min(3% of free pages, 8MB)
 +
-+If this is reduced to zero, then the user will be allowed to allocate
-+all free memory with a single process, minus admin_reserve_kbytes.
-+Any subsequent attempts to execute a command will result in
-+"fork: Cannot allocate memory".
++That should provide enough for the admin to log in and kill a process,
++if necessary, under the default overcommit 'guess' mode.
++
++Systems running under overcommit 'never' should increase this to account
++for the full Virtual Memory Size of programs used to recover. Otherwise,
++root may not be able to log in to recover the system.
++
++How do you calculate a minimum useful reserve?
++
++sshd or login + bash (or some other shell) + top (or ps, kill, etc.)
++
++For overcommit 'guess', we can sum resident set sizes (RSS).
++On x86_64 this is about 8MB.
++
++For overcommit 'never', we can take the max of their virtual sizes (VSZ)
++and add the sum of their RSS.
++On x86_64 this is about 128MB.
 +
 +Changing this takes effect whenever an application requests memory.
 +
 +==============================================================
 +
- vfs_cache_pressure
- ------------------
+ block_dump
  
-diff -puN Documentation/vm/overcommit-accounting~mm-limit-growth-of-3%-hardcoded-other-user-reserve Documentation/vm/overcommit-accounting
---- a/Documentation/vm/overcommit-accounting~mm-limit-growth-of-3%-hardcoded-other-user-reserve
-+++ a/Documentation/vm/overcommit-accounting
-@@ -8,7 +8,9 @@ The Linux kernel supports the following
- 		default.
- 
- 1	-	Always overcommit. Appropriate for some scientific
--		applications.
-+		applications. Classic example is code using sparse arrays
-+		and just relying on the virtual memory consisting almost
-+		entirely of zero pages.
- 
- 2	-	Don't overcommit. The total address space commit
- 		for the system is not permitted to exceed swap + a
-@@ -18,6 +20,10 @@ The Linux kernel supports the following
- 		pages but will receive errors on memory allocation as
- 		appropriate.
- 
-+		Useful for applications that want to guarantee their
-+		memory allocations will be available in the future
-+		without having to initialize every page.
-+
- The overcommit policy is set via the sysctl `vm.overcommit_memory'.
- 
- The overcommit percentage is set via `vm.overcommit_ratio'.
-diff -puN kernel/sysctl.c~mm-limit-growth-of-3%-hardcoded-other-user-reserve kernel/sysctl.c
---- a/kernel/sysctl.c~mm-limit-growth-of-3%-hardcoded-other-user-reserve
+ block_dump enables block I/O debugging when set to a nonzero value. More
+diff -puN kernel/sysctl.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob kernel/sysctl.c
+--- a/kernel/sysctl.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob
 +++ a/kernel/sysctl.c
-@@ -97,6 +97,7 @@
- /* External variables not in a header file. */
+@@ -98,6 +98,7 @@
  extern int sysctl_overcommit_memory;
  extern int sysctl_overcommit_ratio;
-+extern unsigned long sysctl_user_reserve_kbytes;
+ extern unsigned long sysctl_user_reserve_kbytes;
++extern unsigned long sysctl_admin_reserve_kbytes;
  extern int max_threads;
  extern int suid_dumpable;
  #ifdef CONFIG_COREDUMP
-@@ -1429,6 +1430,13 @@ static struct ctl_table vm_table[] = {
- 		.extra2		= &one,
+@@ -1437,6 +1438,13 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= proc_doulongvec_minmax,
  	},
- #endif
 +	{
-+		.procname	= "user_reserve_kbytes",
-+		.data		= &sysctl_user_reserve_kbytes,
-+		.maxlen		= sizeof(sysctl_user_reserve_kbytes),
++		.procname	= "admin_reserve_kbytes",
++		.data		= &sysctl_admin_reserve_kbytes,
++		.maxlen		= sizeof(sysctl_admin_reserve_kbytes),
 +		.mode		= 0644,
 +		.proc_handler	= proc_doulongvec_minmax,
 +	},
  	{ }
  };
  
-diff -puN mm/mmap.c~mm-limit-growth-of-3%-hardcoded-other-user-reserve mm/mmap.c
---- a/mm/mmap.c~mm-limit-growth-of-3%-hardcoded-other-user-reserve
+diff -puN mm/mmap.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob mm/mmap.c
+--- a/mm/mmap.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob
 +++ a/mm/mmap.c
-@@ -33,6 +33,7 @@
- #include <linux/uprobes.h>
- #include <linux/rbtree_augmented.h>
- #include <linux/sched/sysctl.h>
-+#include <linux/sysctl.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -84,6 +85,7 @@ EXPORT_SYMBOL(vm_get_page_prot);
- int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;  /* heuristic overcommit */
+@@ -86,6 +86,7 @@ int sysctl_overcommit_memory __read_most
  int sysctl_overcommit_ratio __read_mostly = 50;	/* default is 50% */
  int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
-+unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
+ unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
++unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
  /*
   * Make sure vm_committed_as in one cacheline and not cacheline shared with
   * other variables. It can be updated by several CPUs frequently.
-@@ -122,7 +124,7 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
-  */
- int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- {
--	unsigned long free, allowed;
-+	unsigned long free, allowed, reserve;
+@@ -165,10 +166,10 @@ int __vm_enough_memory(struct mm_struct
+ 			free -= totalreserve_pages;
  
- 	vm_acct_memory(pages);
+ 		/*
+-		 * Leave the last 3% for root
++		 * Reserve some for root
+ 		 */
+ 		if (!cap_sys_admin)
+-			free -= free / 32;
++			free -= sysctl_admin_reserve_kbytes  >> (PAGE_SHIFT - 10);
  
-@@ -183,10 +185,13 @@ int __vm_enough_memory(struct mm_struct
- 		allowed -= allowed / 32;
+ 		if (free > pages)
+ 			return 0;
+@@ -179,10 +180,10 @@ int __vm_enough_memory(struct mm_struct
+ 	allowed = (totalram_pages - hugetlb_total_pages())
+ 	       	* sysctl_overcommit_ratio / 100;
+ 	/*
+-	 * Leave the last 3% for root
++	 * Reserve some for root
+ 	 */
+ 	if (!cap_sys_admin)
+-		allowed -= allowed / 32;
++		allowed -= sysctl_admin_reserve_kbytes >> (PAGE_SHIFT - 10);
  	allowed += total_swap_pages;
  
--	/* Don't let a single process grow too big:
--	   leave 3% of the size of this process for other processes */
--	if (mm)
--		allowed -= mm->total_vm / 32;
-+	/*
-+ 	 * Don't let a single process grow so big a user can't recover
-+         */
-+	if (mm) {
-+		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
-+		allowed -= min(mm->total_vm / 32, reserve);
-+	}
- 
- 	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
- 		return 0;
-@@ -3094,3 +3099,23 @@ void __init mmap_init(void)
- 	ret = percpu_counter_init(&vm_committed_as, 0);
- 	VM_BUG_ON(ret);
+ 	/*
+@@ -3119,3 +3120,24 @@ int __meminit init_user_reserve(void)
+ 	return 0;
  }
+ module_init(init_user_reserve)
 +
 +/*
-+ * Initialise sysctl_user_reserve_kbytes.
++ * Initialise sysctl_admin_reserve_kbytes.
 + *
-+ * This is intended to prevent a user from starting a single memory hogging
-+ * process, such that they cannot recover (kill the hog) in OVERCOMMIT_NEVER mode.
++ * The purpose of sysctl_admin_reserve_kbytes is to allow the sys admin
++ * to log in and kill a memory hogging process.
 + *
-+ * The default value is min(3% of free memory, 128MB)
-+ * 128MB is enough to recover with sshd/login, bash, and top/kill.
++ * Systems with more than 256MB will reserve 8MB, enough to recover
++ * with sshd, bash, and top in OVERCOMMIT_GUESS. Smaller systems will
++ * only reserve 3% of free pages by default.
 + */
-+int __meminit init_user_reserve(void)
++int __meminit init_admin_reserve(void)
 +{
 +	unsigned long free_kbytes;
 +
 +	free_kbytes = global_page_state(NR_FREE_PAGES) << (PAGE_SHIFT - 10);
 +
-+	sysctl_user_reserve_kbytes = min(free_kbytes / 32, 1UL << 17);
++	sysctl_admin_reserve_kbytes = min(free_kbytes / 32, 1UL << 13);
 +	return 0;
 +}
-+module_init(init_user_reserve)
-diff -puN mm/nommu.c~mm-limit-growth-of-3%-hardcoded-other-user-reserve mm/nommu.c
---- a/mm/nommu.c~mm-limit-growth-of-3%-hardcoded-other-user-reserve
++module_init(init_admin_reserve)
+diff -puN mm/nommu.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob mm/nommu.c
+--- a/mm/nommu.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob
 +++ a/mm/nommu.c
-@@ -30,6 +30,7 @@
- #include <linux/syscalls.h>
- #include <linux/audit.h>
- #include <linux/sched/sysctl.h>
-+#include <linux/sysctl.h>
- 
- #include <asm/uaccess.h>
- #include <asm/tlb.h>
-@@ -63,6 +64,7 @@ int sysctl_overcommit_memory = OVERCOMMI
- int sysctl_overcommit_ratio = 50; /* default is 50% */
+@@ -65,6 +65,7 @@ int sysctl_overcommit_ratio = 50; /* def
  int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
  int sysctl_nr_trim_pages = CONFIG_NOMMU_INITIAL_TRIM_EXCESS;
-+unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
+ unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
++unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
  int heap_stack_gap = 0;
  
  atomic_long_t mmap_pages_allocated;
-@@ -1886,7 +1888,7 @@ EXPORT_SYMBOL(unmap_mapping_range);
-  */
- int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
- {
--	unsigned long free, allowed;
-+	unsigned long free, allowed, reserve;
+@@ -1929,10 +1930,10 @@ int __vm_enough_memory(struct mm_struct
+ 			free -= totalreserve_pages;
  
- 	vm_acct_memory(pages);
+ 		/*
+-		 * Leave the last 3% for root
++		 * Reserve some for root
+ 		 */
+ 		if (!cap_sys_admin)
+-			free -= free / 32;
++			free -= sysctl_admin_reserve_kbytes  >> (PAGE_SHIFT - 10);
  
-@@ -1946,10 +1948,13 @@ int __vm_enough_memory(struct mm_struct
- 		allowed -= allowed / 32;
+ 		if (free > pages)
+ 			return 0;
+@@ -1942,10 +1943,10 @@ int __vm_enough_memory(struct mm_struct
+ 
+ 	allowed = totalram_pages * sysctl_overcommit_ratio / 100;
+ 	/*
+-	 * Leave the last 3% for root
++	 * Reserve some 3% for root
+ 	 */
+ 	if (!cap_sys_admin)
+-		allowed -= allowed / 32;
++		allowed -= sysctl_admin_reserve_kbytes >> (PAGE_SHIFT - 10);
  	allowed += total_swap_pages;
  
--	/* Don't let a single process grow too big:
--	   leave 3% of the size of this process for other processes */
--	if (mm)
--		allowed -= mm->total_vm / 32;
-+	/*
-+	 * Don't let a single process grow so big a user can't recover
-+         */
-+	if (mm) {
-+		reserve = sysctl_user_reserve_kbytes >> (PAGE_SHIFT - 10);
-+		allowed -= min(mm->total_vm / 32, reserve);
-+	}
- 
- 	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
- 		return 0;
-@@ -2111,3 +2116,23 @@ int nommu_shrink_inode_mappings(struct i
- 	up_write(&nommu_region_sem);
+ 	/*
+@@ -2136,3 +2137,24 @@ int __meminit init_user_reserve(void)
  	return 0;
  }
+ module_init(init_user_reserve)
 +
 +/*
-+ * Initialise sysctl_user_reserve_kbytes.
++ * Initialise sysctl_admin_reserve_kbytes.
 + *
-+ * This is intended to prevent a user from starting a single memory hogging
-+ * process, such that they cannot recover (kill the hog) in OVERCOMMIT_NEVER mode.
++ * The purpose of sysctl_admin_reserve_kbytes is to allow the sys admin
++ * to log in and kill a memory hogging process.
 + *
-+ * The default value is min(3% of free memory, 128MB)
-+ * 128MB is enough to recover with sshd/login, bash, and top/kill.
++ * Systems with more than 256MB will reserve 8MB, enough to recover
++ * with sshd, bash, and top in OVERCOMMIT_GUESS. Smaller systems will
++ * only reserve 3% of free pages by default.
 + */
-+int __meminit init_user_reserve(void)
++int __meminit init_admin_reserve(void)
 +{
 +	unsigned long free_kbytes;
 +
 +	free_kbytes = global_page_state(NR_FREE_PAGES) << (PAGE_SHIFT - 10);
 +
-+	sysctl_user_reserve_kbytes = min(free_kbytes / 32, 1UL << 17);
++	sysctl_admin_reserve_kbytes = min(free_kbytes / 32, 1UL << 13);
 +	return 0;
 +}
-+module_init(init_user_reserve)
++module_init(init_admin_reserve)
 _
 
 Patches currently in -mm which might be from agshew@gmail.com are
