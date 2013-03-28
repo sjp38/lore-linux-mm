@@ -1,135 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 7FA5C6B0006
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 10:27:29 -0400 (EDT)
-Date: Thu, 28 Mar 2013 10:27:23 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: BUG at kmem_cache_alloc
-Message-ID: <20130328142723.GA1829@redhat.com>
-References: <20130326195344.GA1578@redhat.com>
- <2093011648.7646491.1364456977704.JavaMail.root@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2093011648.7646491.1364456977704.JavaMail.root@redhat.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id C36456B0005
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 10:27:48 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <514C9C84.2010806@sr71.net>
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1363283435-7666-16-git-send-email-kirill.shutemov@linux.intel.com>
+ <514C9C84.2010806@sr71.net>
+Subject: Re: [PATCHv2, RFC 15/30] thp, libfs: initial support of thp in
+ simple_read/write_begin/write_end
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130328142936.18CA8E0085@blue.fi.intel.com>
+Date: Thu, 28 Mar 2013 16:29:36 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: CAI Qian <caiqian@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>
+To: Dave <dave@sr71.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 28, 2013 at 03:49:37AM -0400, CAI Qian wrote:
- 
- > While reproducing this, it triggered something else with SLUB_DEBUG_ON.
- > CAI Qian
- > 
- > [87295.499233] general protection fault: 0000 [#1] SMP 
- > [87295.500228] Modules linked in: binfmt_misc fuse tun cmtp kernelcapi rfcomm bnep hidp scsi_transport_iscsi nfnetlink ipt_ULOG nfc bluetooth rfkill af_key atm lockd sunrpc nf_conntrack_netbios_ns nf_conntrack_broadcast ipt_MASQUERADE ip6table_mangle ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 iptable_nat nf_nat_ipv4 nf_nat iptable_mangle ipt_REJECT nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_filter ebtables ip6table_filter ip6_tables iptable_filter ip_tables sg kvm_amd kvm microcode amd64_edac_mod edac_mce_amd pcspkr serio_raw edac_core k10temp bnx2x netxen_nic mdio i2c_piix4 i2c_core hpilo shpchp ipmi_si ipmi_msghandler hpwdt xfs libcrc32c sd_mod crc_t10dif sata_svw libata dm_mirror dm_region_hash dm_log dm_mod
- > [87295.515752] CPU 1 
- > [87295.516184] Pid: 23211, comm: trinity-main Tainted: G        W    3.8.4 #4 HP ProLiant BL495c G5  
- > [87295.517810] RIP: 0010:[<ffffffff812e0b43>]  [<ffffffff812e0b43>] rb_next+0x23/0x50
- > [87295.519254] RSP: 0018:ffff880127f5de58  EFLAGS: 00010202
- > [87295.520398] RAX: 6b6b6b6b6b6b6b6b RBX: 0000000000000000 RCX: ffff88014181d9c8
- > [87295.521996] RDX: 6b6b6b6b6b6b6b6b RSI: ffff88014181a6e0 RDI: ffff88014181d9e0
- > [87295.523606] RBP: ffff880127f5de58 R08: 0000000000003d7b R09: 0000000000000008
- > [87295.525201] R10: ffffffff81197360 R11: 0000000000000246 R12: ffff8801314f3180
- > [87295.526793] R13: 0000000000000000 R14: 000000000000000f R15: ffff88014181d9c8
- > [87295.528465] FS:  00007f94bbc0f740(0000) GS:ffff88014fc80000(0000) knlGS:0000000000000000
- > [87295.530271] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
- > [87295.531578] CR2: 0000000001f53008 CR3: 00000001129f5000 CR4: 00000000000007e0
- > [87295.533210] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
- > [87295.534797] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
- > [87295.536402] Process trinity-main (pid: 23211, threadinfo ffff880127f5c000, task ffff8801418e98a0)
- > [87295.538368] Stack:
- > [87295.538793]  ffff880127f5ded8 ffffffff811f8220 0000000000000008 0000000000003d7b
- > [87295.540579]  ffff880127f50001 ffff8801314f3190 0000000000020000 ffffffff81197360
- > [87295.542313]  ffff880127f5df40 ffff88014181a6e0 ffff880127f5ded8 ffff8801314f3180
- > [87295.543959] Call Trace:
- > [87295.544513]  [<ffffffff811f8220>] sysfs_readdir+0x150/0x280
- > [87295.545774]  [<ffffffff81197360>] ? fillonedir+0x100/0x100
- > [87295.547004]  [<ffffffff81197360>] ? fillonedir+0x100/0x100
- > [87295.548268]  [<ffffffff81197238>] vfs_readdir+0xb8/0xe0
- > [87295.549446]  [<ffffffff811a159b>] ? set_close_on_exec+0x3b/0x70
- > [87295.550832]  [<ffffffff8119758f>] sys_getdents+0x8f/0x110
- > [87295.552068]  [<ffffffff815e6419>] system_call_fastpath+0x16/0x1b
- > [87295.553433] Code: 48 89 70 10 eb a9 66 90 55 48 8b 17 48 89 e5 48 39 d7 74 3b 48 8b 47 08 48 85 c0 75 0e eb 1f 66 0f 1f 84 00 00 00 00 00 48 89 d0 <48> 8b 50 10 48 85 d2 75 f4 5d c3 66 90 48 8b 10 48 89 c7 48 89 
- > [87295.557829] RIP  [<ffffffff812e0b43>] rb_next+0x23/0x50
- > [87295.558960]  RSP <ffff880127f5de58>
- > [87295.560213] ---[ end trace d5f25cc963b1f1d9 ]---
- > [watchdog] Triggering periodic reseed.
+Dave wrote:
+> On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
+> > @@ -383,7 +383,10 @@ EXPORT_SYMBOL(simple_setattr);
+> >  
+> >  int simple_readpage(struct file *file, struct page *page)
+> >  {
+> > -	clear_highpage(page);
+> > +	if (PageTransHuge(page))
+> > +		zero_huge_user(page, 0, HPAGE_PMD_SIZE);
+> > +	else
+> > +		clear_highpage(page);
+> 
+> This makes me really wonder on which level we want to be hooking in this
+> code.  The fact that we're doing it in simple_readpage() seems to mean
+> that we'll have to go explicitly and widely modify every fs that wants
+> to support this.
+> 
+> It seems to me that we either want to hide this behind clear_highpage()
+> itself, _or_ make a clear_pagecache_page() function that does it.
 
-That's fixed by the patch below from Ming Lei.
+clear_pagecache_page() is a good idea.
 
+> BTW, didn't you have a HUGE_PAGE_CACHE_SIZE macro somewhere?  Shouldn't
+> that get used here?
 
-diff --git a/fs/sysfs/dir.c b/fs/sysfs/dir.c
-index 2fbdff6..014ed97 100644
---- a/fs/sysfs/dir.c
-+++ b/fs/sysfs/dir.c
-@@ -280,6 +280,11 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
- 	 * sd->s_parent won't change beneath us.
- 	 */
- 	parent_sd = sd->s_parent;
-+	if(!(sd->s_flags & SYSFS_FLAG_REMOVED)) {
-+		printk("%s-%d sysfs_dirent use after free: %s-%s\n",
-+			__func__, __LINE__, parent_sd->s_name, sd->s_name);
-+		dump_stack();
-+	}
- 
- 	if (sysfs_type(sd) == SYSFS_KOBJ_LINK)
- 		sysfs_put(sd->s_symlink.target_sd);
-@@ -962,6 +967,12 @@ static struct sysfs_dirent *sysfs_dir_pos(const void *ns,
- 		int valid = !(pos->s_flags & SYSFS_FLAG_REMOVED) &&
- 			pos->s_parent == parent_sd &&
- 			hash == pos->s_hash;
-+
-+		if ((atomic_read(&pos->s_count) == 1)) {
-+			printk("%s-%d sysfs_dirent use after free: %s(%s)-%s, %lld-%u\n",
-+				__func__, __LINE__, parent_sd->s_name, pos->s_parent->s_name,
-+				pos->s_name, hash, pos->s_hash);
-+		}
- 		sysfs_put(pos);
- 		if (!valid)
- 			pos = NULL;
-@@ -1020,6 +1031,8 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
- 		ino = parent_sd->s_ino;
- 		if (filldir(dirent, ".", 1, filp->f_pos, ino, DT_DIR) == 0)
- 			filp->f_pos++;
-+		else
-+			return 0;
- 	}
- 	if (filp->f_pos == 1) {
- 		if (parent_sd->s_parent)
-@@ -1028,6 +1041,8 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
- 			ino = parent_sd->s_ino;
- 		if (filldir(dirent, "..", 2, filp->f_pos, ino, DT_DIR) == 0)
- 			filp->f_pos++;
-+		else
-+			return 0;
- 	}
- 	mutex_lock(&sysfs_mutex);
- 	for (pos = sysfs_dir_pos(ns, parent_sd, filp->f_pos, pos);
-@@ -1058,10 +1073,21 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
- 	return 0;
- }
- 
-+static loff_t sysfs_dir_llseek(struct file *file, loff_t offset, int whence)
-+{
-+	struct inode *inode = file_inode(file);
-+	loff_t ret;
-+
-+	mutex_lock(&inode->i_mutex);
-+	ret = generic_file_llseek(file, offset, whence);
-+	mutex_unlock(&inode->i_mutex);
-+
-+	return ret;
-+}
- 
- const struct file_operations sysfs_dir_operations = {
- 	.read		= generic_read_dir,
- 	.readdir	= sysfs_readdir,
- 	.release	= sysfs_dir_release,
--	.llseek		= generic_file_llseek,
-+	.llseek		= sysfs_dir_llseek,
- };
+No. If we have a huge page in page cache it's always HPAGE_PMD_SIZE.
+
+All these PAGE_CACHE_* are really annoying. page cache page size is always
+equal to small page size and the macros only confuses, especially on
+border between fs/pagecache and rest mm.
+
+I want to get rid of them eventually.
+
+> 
+> >  	flush_dcache_page(page);
+> >  	SetPageUptodate(page);
+> >  	unlock_page(page);
+> > @@ -394,21 +397,41 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
+> >  			loff_t pos, unsigned len, unsigned flags,
+> >  			struct page **pagep, void **fsdata)
+> >  {
+> > -	struct page *page;
+> > +	struct page *page = NULL;
+> >  	pgoff_t index;
+> >  
+> >  	index = pos >> PAGE_CACHE_SHIFT;
+> >  
+> > -	page = grab_cache_page_write_begin(mapping, index, flags);
+> > +	/* XXX: too weak condition. Good enough for initial testing */
+> > +	if (mapping_can_have_hugepages(mapping)) {
+> > +		page = grab_cache_huge_page_write_begin(mapping,
+> > +				index & ~HPAGE_CACHE_INDEX_MASK, flags);
+> > +		/* fallback to small page */
+> > +		if (!page || !PageTransHuge(page)) {
+> > +			unsigned long offset;
+> > +			offset = pos & ~PAGE_CACHE_MASK;
+> > +			len = min_t(unsigned long,
+> > +					len, PAGE_CACHE_SIZE - offset);
+> > +		}
+> > +	}
+> > +	if (!page)
+> > +		page = grab_cache_page_write_begin(mapping, index, flags);
+> 
+> Same thing goes here.  Can/should we hide the
+> grab_cache_huge_page_write_begin() call inside
+> grab_cache_page_write_begin()?
+
+No. I want to keep it open coded. fs, not page cache, should decide
+whether it wants huge page or not.
+
+> >  	if (!page)
+> >  		return -ENOMEM;
+> > -
+> >  	*pagep = page;
+> >  
+> > -	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
+> > -		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+> > -
+> > -		zero_user_segments(page, 0, from, from + len, PAGE_CACHE_SIZE);
+> > +	if (!PageUptodate(page)) {
+> > +		unsigned from;
+> > +
+> > +		if (PageTransHuge(page) && len != HPAGE_PMD_SIZE) {
+> > +			from = pos & ~HPAGE_PMD_MASK;
+> > +			zero_huge_user_segments(page, 0, from,
+> > +					from + len, HPAGE_PMD_SIZE);
+> > +		} else if (len != PAGE_CACHE_SIZE) {
+> > +			from = pos & ~PAGE_CACHE_MASK;
+> > +			zero_user_segments(page, 0, from,
+> > +					from + len, PAGE_CACHE_SIZE);
+> > +		}
+> >  	}
+> 
+> Let's say you introduced two new functions:  page_cache_size(page) and
+> page_cache_mask(page), and hid the zero_huge_user_segments() inside
+> zero_user_segments().  This code would end up looking like this:
+> 
+> 	if (len != page_cache_size(page)) {
+> 		from = pos & ~page_cache_mask(page)
+> 		zero_user_segments(page, 0, from,
+> 				from + len, page_cache_size(page));
+> 	}
+> 
+> It would also compile down to exactly what was there before without
+> having to _explicitly_ put a case in for THP.
+
+I would keep it as is for now. There are not that many places where we
+have to check for THP. It can change when (if) we implement it for other
+fs'es. We can generalize it later if needed.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
