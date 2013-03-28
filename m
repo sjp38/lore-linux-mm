@@ -1,98 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 383EE6B0006
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 03:49:39 -0400 (EDT)
-Date: Thu, 28 Mar 2013 03:49:37 -0400 (EDT)
-From: CAI Qian <caiqian@redhat.com>
-Message-ID: <2093011648.7646491.1364456977704.JavaMail.root@redhat.com>
-In-Reply-To: <20130326195344.GA1578@redhat.com>
-Subject: Re: BUG at kmem_cache_alloc
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 224296B0006
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 04:53:25 -0400 (EDT)
+Date: Thu, 28 Mar 2013 09:53:20 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 03/10] soft-offline: use migrate_pages() instead of
+ migrate_huge_page()
+Message-ID: <20130328085320.GC3018@dhcp22.suse.cz>
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <87boa69z6j.fsf@linux.vnet.ibm.com>
+ <20130327135250.GI16579@dhcp22.suse.cz>
+ <1364411964-iukb7m94-mutt-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1364411964-iukb7m94-mutt-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
+On Wed 27-03-13 15:19:24, Naoya Horiguchi wrote:
+> On Wed, Mar 27, 2013 at 02:52:50PM +0100, Michal Hocko wrote:
+> > On Tue 26-03-13 16:59:40, Aneesh Kumar K.V wrote:
+> > > Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+> > [...]
+> > > > diff --git v3.9-rc3.orig/mm/memory-failure.c v3.9-rc3/mm/memory-failure.c
+> > > > index df0694c..4e01082 100644
+> > > > --- v3.9-rc3.orig/mm/memory-failure.c
+> > > > +++ v3.9-rc3/mm/memory-failure.c
+> > > > @@ -1467,6 +1467,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+> > > >  	int ret;
+> > > >  	unsigned long pfn = page_to_pfn(page);
+> > > >  	struct page *hpage = compound_head(page);
+> > > > +	LIST_HEAD(pagelist);
+> > > >
+> > > >  	/*
+> > > >  	 * This double-check of PageHWPoison is to avoid the race with
+> > > > @@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
+> > > >  	unlock_page(hpage);
+> > > >
+> > > >  	/* Keep page count to indicate a given hugepage is isolated. */
+> > > > -	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
+> > > > -				MIGRATE_SYNC);
+> > > > -	put_page(hpage);
+> > > > +	list_move(&hpage->lru, &pagelist);
+> > > 
+> > > we use hpage->lru to add the hpage to h->hugepage_activelist. This will
+> > > break a hugetlb cgroup removal isn't it ?
+> > 
+> > This particular part will not break removal because
+> > hugetlb_cgroup_css_offline loops until hugetlb_cgroup_have_usage is 0.
+> 
+> Right.
+> 
+> > Little bit offtopic:
+> > Btw. hugetlb migration breaks to charging even before this patchset
+> > AFAICS. The above put_page should remove the last reference and then it
+> > will uncharge it but I do not see anything that would charge a new page.
+> > This is all because regula LRU pages are uncharged when they are
+> > unmapped. But this a different story not related to this series.
+> 
+> It seems to me that alloc_huge_page_node() needs to call
+> hugetlb_cgroup_charge_cgroup() before dequeuing a new hugepage.
 
-
------ Original Message -----
-> From: "Dave Jones" <davej@redhat.com>
-> To: "CAI Qian" <caiqian@redhat.com>
-> Cc: "Christoph Lameter" <cl@linux.com>, "David Rientjes" <rientjes@google.com>, "linux-mm" <linux-mm@kvack.org>,
-> linux-kernel@vger.kernel.org, "Oleg Nesterov" <oleg@redhat.com>
-> Sent: Wednesday, March 27, 2013 3:53:44 AM
-> Subject: Re: BUG at kmem_cache_alloc
-> 
-> On Tue, Mar 26, 2013 at 05:32:27AM -0400, CAI Qian wrote:
-> 
->  > Still running and will update ASAP. One thing I noticed was that
->  > trinity
->  > threw out this error before the kernel crash.
->  > 
->  > BUG!:
->  > CHILD (pid:28825) GOT REPARENTED! parent pid:19380. Watchdog
->  > pid:19379
->  >       
->  > BUG!:
->  > Last syscalls:
->  > [0]  pid:28515 call:settimeofday callno:10356
->  > [1]  pid:28822 call:setgid callno:322
->  > [2]  pid:28581 call:init_module callno:3622
->  > [3]  pid:28825 call:readlinkat callno:403
->  > child 28581 exiting
->  > child 28515 exiting
->  >  ...killed.
-> 
-> When this happens, it usually means that the parent segfaulted.
-> I've been trying to reproduce a few reports of this for a while
-> without success.  If you get time, running trinity inside gdb should
-> be enough to get a useful backtrace.
-> 
-> (Or run with -D, and collect coredumps [there will a lot], and match
-> the
->  core to the pid of the process we're interested in)
-> 
-> 	Dave
-> 
-While reproducing this, it triggered something else with SLUB_DEBUG_ON.
-CAI Qian
-
-[87295.499233] general protection fault: 0000 [#1] SMP 
-[87295.500228] Modules linked in: binfmt_misc fuse tun cmtp kernelcapi rfcomm bnep hidp scsi_transport_iscsi nfnetlink ipt_ULOG nfc bluetooth rfkill af_key atm lockd sunrpc nf_conntrack_netbios_ns nf_conntrack_broadcast ipt_MASQUERADE ip6table_mangle ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 iptable_nat nf_nat_ipv4 nf_nat iptable_mangle ipt_REJECT nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_filter ebtables ip6table_filter ip6_tables iptable_filter ip_tables sg kvm_amd kvm microcode amd64_edac_mod edac_mce_amd pcspkr serio_raw edac_core k10temp bnx2x netxen_nic mdio i2c_piix4 i2c_core hpilo shpchp ipmi_si ipmi_msghandler hpwdt xfs libcrc32c sd_mod crc_t10dif sata_svw libata dm_mirror dm_region_hash dm_log dm_mod
-[87295.515752] CPU 1 
-[87295.516184] Pid: 23211, comm: trinity-main Tainted: G        W    3.8.4 #4 HP ProLiant BL495c G5  
-[87295.517810] RIP: 0010:[<ffffffff812e0b43>]  [<ffffffff812e0b43>] rb_next+0x23/0x50
-[87295.519254] RSP: 0018:ffff880127f5de58  EFLAGS: 00010202
-[87295.520398] RAX: 6b6b6b6b6b6b6b6b RBX: 0000000000000000 RCX: ffff88014181d9c8
-[87295.521996] RDX: 6b6b6b6b6b6b6b6b RSI: ffff88014181a6e0 RDI: ffff88014181d9e0
-[87295.523606] RBP: ffff880127f5de58 R08: 0000000000003d7b R09: 0000000000000008
-[87295.525201] R10: ffffffff81197360 R11: 0000000000000246 R12: ffff8801314f3180
-[87295.526793] R13: 0000000000000000 R14: 000000000000000f R15: ffff88014181d9c8
-[87295.528465] FS:  00007f94bbc0f740(0000) GS:ffff88014fc80000(0000) knlGS:0000000000000000
-[87295.530271] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[87295.531578] CR2: 0000000001f53008 CR3: 00000001129f5000 CR4: 00000000000007e0
-[87295.533210] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[87295.534797] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[87295.536402] Process trinity-main (pid: 23211, threadinfo ffff880127f5c000, task ffff8801418e98a0)
-[87295.538368] Stack:
-[87295.538793]  ffff880127f5ded8 ffffffff811f8220 0000000000000008 0000000000003d7b
-[87295.540579]  ffff880127f50001 ffff8801314f3190 0000000000020000 ffffffff81197360
-[87295.542313]  ffff880127f5df40 ffff88014181a6e0 ffff880127f5ded8 ffff8801314f3180
-[87295.543959] Call Trace:
-[87295.544513]  [<ffffffff811f8220>] sysfs_readdir+0x150/0x280
-[87295.545774]  [<ffffffff81197360>] ? fillonedir+0x100/0x100
-[87295.547004]  [<ffffffff81197360>] ? fillonedir+0x100/0x100
-[87295.548268]  [<ffffffff81197238>] vfs_readdir+0xb8/0xe0
-[87295.549446]  [<ffffffff811a159b>] ? set_close_on_exec+0x3b/0x70
-[87295.550832]  [<ffffffff8119758f>] sys_getdents+0x8f/0x110
-[87295.552068]  [<ffffffff815e6419>] system_call_fastpath+0x16/0x1b
-[87295.553433] Code: 48 89 70 10 eb a9 66 90 55 48 8b 17 48 89 e5 48 39 d7 74 3b 48 8b 47 08 48 85 c0 75 0e eb 1f 66 0f 1f 84 00 00 00 00 00 48 89 d0 <48> 8b 50 10 48 85 d2 75 f4 5d c3 66 90 48 8b 10 48 89 c7 48 89 
-[87295.557829] RIP  [<ffffffff812e0b43>] rb_next+0x23/0x50
-[87295.558960]  RSP <ffff880127f5de58>
-[87295.560213] ---[ end trace d5f25cc963b1f1d9 ]---
-[watchdog] Triggering periodic reseed.
+This is not that easy because the new page has to be charged to the same
+group as the original one but the migration process might be running in
+the context of a different group.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
