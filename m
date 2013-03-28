@@ -1,74 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 3A0E76B0027
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 22:16:04 -0400 (EDT)
-Received: by mail-vc0-f194.google.com with SMTP id gf12so2328356vcb.1
-        for <linux-mm@kvack.org>; Wed, 27 Mar 2013 19:16:03 -0700 (PDT)
-Message-ID: <5153A7D8.2040501@gmail.com>
-Date: Thu, 28 Mar 2013 10:15:52 +0800
-From: wenchaolinux <wenchaolinux@gmail.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 4F1E26B0027
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 22:24:33 -0400 (EDT)
+From: Yijing Wang <wangyijing@huawei.com>
+Subject: [PATCH 1/2] mm: remove CONFIG_HOTPLUG ifdefs
+Date: Thu, 28 Mar 2013 10:23:38 +0800
+Message-ID: <1364437418-9144-1-git-send-email-wangyijing@huawei.com>
 MIME-Version: 1.0
-Subject: [RFC] provide an API to userspace doing memory snapshot
-References: <5152B34B.6090406@gmail.com>
-In-Reply-To: <5152B34B.6090406@gmail.com>
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, jiang.liu@huawei.com, Yijing Wang <wangyijing@huawei.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Bill Pemberton <wfp5p@virginia.edu>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-Hi,
-  I'd like to add/export an system call which allow userspace program
-to take snapshot for a region of memory. Since it is not implemented yet
-I will describe it as C APIs, it is quite simple now and if it is worthy
-I'll improve the interface later:
+CONFIG_HOTPLUG is going away as an option, cleanup CONFIG_HOTPLUG
+ifdefs in mm files.
 
-Simple prototype:
-C API in userspace:
-/*
- *   This function will mark a section of memory as COW, and return
- * a new virtual address of it. User space program can dump out the
- * content as a snapshot while other thread continue modify the content
- * in the region.
- *   @addr: the virtual address to be snapshotted.
- *   @length: the length of it.
- *   This function returns a new virtual address which can be used as
- * snapshot. Return NULL on fail.
- */
-void *memory_snapshot_create(void *addr, uint64_t length);
+Signed-off-by: Yijing Wang <wangyijing@huawei.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Bill Pemberton <wfp5p@virginia.edu>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+---
+ include/linux/vmstat.h |    7 +------
+ mm/vmstat.c            |    2 --
+ 2 files changed, 1 insertions(+), 8 deletions(-)
 
-/*
- *   This function will free the memory snapshot.
- *   @addr: the virtual snapshot addr to be freed, it should be the
- * returned one in memory_snapshot_create().
- */
-void memory_snapshot_delete(void *addr);
-
-In kernel space:
-  The pages in those virtual address will be marked as COW. Take a
-page with physical addr P0 as example, it will have two virtual addr:
-old A0 and new A1. When modified, kernel should create a new page P1
-with same contents, and mapping A1 to P1. When NUMA is used, P1 can
-be a slower page.
-  It is quite like fork(), but only COW part of pages.
-
-Background:
-  To provide a good snapshot for KVM, disk and RAM both need to be
-snapshotted. A good way to do it is tagging the contents as COW,
-which erase unnecessary I/O. Block device have this support, but
-RAM is missing, so I'd like to add it. It can be done by fork(),
-but it brings many unnecessary troubles and can't benefit when
-NUMA is used, the core I need is COW the pages. Although the
-requirement comes from virtualization but it do not use virtualization
-tech and serve more than virtualization, any APP have some
-un-interceptable changing pages, can use it, so I wonder whether can
-add it as common memory API.
-
-  That's my plan, hope to get your opinion for it.
-
-Best Regards
-Wenchao Xia
-
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index 5fd71a7..c586679 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -48,13 +48,8 @@ static inline void count_vm_events(enum vm_event_item item, long delta)
+ }
+ 
+ extern void all_vm_events(unsigned long *);
+-#ifdef CONFIG_HOTPLUG
++
+ extern void vm_events_fold_cpu(int cpu);
+-#else
+-static inline void vm_events_fold_cpu(int cpu)
+-{
+-}
+-#endif
+ 
+ #else
+ 
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index e1d8ed1..c823776 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -52,7 +52,6 @@ void all_vm_events(unsigned long *ret)
+ }
+ EXPORT_SYMBOL_GPL(all_vm_events);
+ 
+-#ifdef CONFIG_HOTPLUG
+ /*
+  * Fold the foreign cpu events into our own.
+  *
+@@ -69,7 +68,6 @@ void vm_events_fold_cpu(int cpu)
+ 		fold_state->event[i] = 0;
+ 	}
+ }
+-#endif /* CONFIG_HOTPLUG */
+ 
+ #endif /* CONFIG_VM_EVENT_COUNTERS */
+ 
+-- 
+1.7.1
 
 
 --
