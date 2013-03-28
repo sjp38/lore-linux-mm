@@ -1,37 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 451CC6B0005
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 14:23:08 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id rq13so1873576pbb.41
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2013 11:23:07 -0700 (PDT)
-Date: Thu, 28 Mar 2013 11:23:05 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 1/2] mm: remove CONFIG_HOTPLUG ifdefs
-Message-ID: <20130328182305.GA12903@kroah.com>
-References: <1364437418-9144-1-git-send-email-wangyijing@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id C6D256B0005
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 14:29:25 -0400 (EDT)
+Date: Thu, 28 Mar 2013 14:29:18 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1364495358-2gnie765-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <515477D4.1060206@openvz.org>
+References: <1364485358-8745-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1364485358-8745-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <515477D4.1060206@openvz.org>
+Subject: Re: [PATCH 1/2] hugetlbfs: stop setting VM_DONTDUMP in initializing
+ vma(VM_HUGETLB)
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1364437418-9144-1-git-send-email-wangyijing@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yijing Wang <wangyijing@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, jiang.liu@huawei.com, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Bill Pemberton <wfp5p@virginia.edu>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 28, 2013 at 10:23:38AM +0800, Yijing Wang wrote:
-> CONFIG_HOTPLUG is going away as an option, cleanup CONFIG_HOTPLUG
-> ifdefs in mm files.
+On Thu, Mar 28, 2013 at 09:03:16PM +0400, Konstantin Khlebnikov wrote:
+> Naoya Horiguchi wrote:
+> >Currently we fail to include any data on hugepages into coredump,
+> >because VM_DONTDUMP is set on hugetlbfs's vma. This behavior was recently
+> >introduced by commit 314e51b98 "mm: kill vma flag VM_RESERVED and
+> >mm->reserved_vm counter". This looks to me a serious regression,
+> >so let's fix it.
 > 
-> Signed-off-by: Yijing Wang <wangyijing@huawei.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Bill Pemberton <wfp5p@virginia.edu>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> That was introduced in my patch? Really?
+> Here was VM_RESERVED and it had the same effect as VM_DONTDUMP. At least I thought so.
 
-Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+vma_dump_size() does like this (the diff is the one in 314e51b98):
+
+   static unsigned long vma_dump_size(struct vm_area_struct *vma,
+   				   unsigned long mm_flags)
+   {
+   #define FILTER(type)	(mm_flags & (1UL << MMF_DUMP_##type))
+   
+   	/* always dump the vdso and vsyscall sections */
+   	if (always_dump_vma(vma))
+   		goto whole;
+  
+  	if (vma->vm_flags & VM_DONTDUMP)
+   		return 0;
+   
+   	/* Hugetlb memory check */
+   	if (vma->vm_flags & VM_HUGETLB) {
+   		if ((vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_SHARED))
+   			goto whole;
+   		if (!(vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_PRIVATE))
+   			goto whole;
+   	}
+   
+   	/* Do not dump I/O mapped devices or special mappings */
+  -	if (vma->vm_flags & (VM_IO | VM_RESERVED))
+  +	if (vma->vm_flags & VM_IO)
+   		return 0;
+
+We have hugetlb memory check after VM_DONTDUMP check, so the following
+changed the behavior.
+
+  --- a/fs/hugetlbfs/inode.c
+  +++ b/fs/hugetlbfs/inode.c
+  @@ -110,7 +110,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+           * way when do_mmap_pgoff unwinds (may be important on powerpc
+           * and ia64).
+           */
+  -       vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
+  +       vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND | VM_DONTDUMP;
+          vma->vm_ops = &hugetlb_vm_ops;
+   
+          if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
+
+I think we don't have to set VM_DONTDUMP on hugetlbfs's vma.
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
