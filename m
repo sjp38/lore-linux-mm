@@ -1,90 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 0CDF06B0005
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 14:19:40 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 451CC6B0005
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 14:23:08 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id rq13so1873576pbb.41
+        for <linux-mm@kvack.org>; Thu, 28 Mar 2013 11:23:07 -0700 (PDT)
+Date: Thu, 28 Mar 2013 11:23:05 -0700
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 1/2] mm: remove CONFIG_HOTPLUG ifdefs
+Message-ID: <20130328182305.GA12903@kroah.com>
+References: <1364437418-9144-1-git-send-email-wangyijing@huawei.com>
 MIME-Version: 1.0
-Message-ID: <5f1504e7-8b07-4109-8271-b214b496ca61@default>
-Date: Thu, 28 Mar 2013 11:19:12 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [RFC] mm: remove swapcache page early
-References: <1364350932-12853-1-git-send-email-minchan@kernel.org>
- <alpine.LNX.2.00.1303271230210.29687@eggly.anvils>
- <433aaa17-7547-4e39-b472-7060ee15e85f@default>
- <20130328010706.GB22908@blaptop>
-In-Reply-To: <20130328010706.GB22908@blaptop>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <1364437418-9144-1-git-send-email-wangyijing@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <bob.liu@oracle.com>
+To: Yijing Wang <wangyijing@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, jiang.liu@huawei.com, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Bill Pemberton <wfp5p@virginia.edu>
 
-> From: Minchan Kim [mailto:minchan@kernel.org]
-> Subject: Re: [RFC] mm: remove swapcache page early
->=20
-> Hi Dan,
->=20
-> On Wed, Mar 27, 2013 at 03:24:00PM -0700, Dan Magenheimer wrote:
-> > > From: Hugh Dickins [mailto:hughd@google.com]
-> > > Subject: Re: [RFC] mm: remove swapcache page early
-> > >
-> > > I believe the answer is for frontswap/zmem to invalidate the frontswa=
-p
-> > > copy of the page (to free up the compressed memory when possible) and
-> > > SetPageDirty on the PageUptodate PageSwapCache page when swapping in
-> > > (setting page dirty so nothing will later go to read it from the
-> > > unfreed location on backing swap disk, which was never written).
-> >
-> > There are two duplication issues:  (1) When can the page be removed
-> > from the swap cache after a call to frontswap_store; and (2) When
-> > can the page be removed from the frontswap storage after it
-> > has been brought back into memory via frontswap_load.
-> >
-> > This patch from Minchan addresses (1).  The issue you are raising
->=20
-> No. I am addressing (2).
->=20
-> > here is (2).  You may not know that (2) has recently been solved
-> > in frontswap, at least for zcache.  See frontswap_exclusive_gets_enable=
-d.
-> > If this is enabled (and it is for zcache but not yet for zswap),
-> > what you suggest (SetPageDirty) is what happens.
->=20
-> I am blind on zcache so I didn't see it. Anyway, I'd like to address it
-> on zram and zswap.
+On Thu, Mar 28, 2013 at 10:23:38AM +0800, Yijing Wang wrote:
+> CONFIG_HOTPLUG is going away as an option, cleanup CONFIG_HOTPLUG
+> ifdefs in mm files.
+> 
+> Signed-off-by: Yijing Wang <wangyijing@huawei.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Bill Pemberton <wfp5p@virginia.edu>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-Zswap can enable it trivially by adding a function call in init_zswap.
-(Note that it is not enabled by default for all frontswap backends
-because it is another complicated tradeoff of cpu time vs memory space
-that needs more study on a broad set of workloads.)
-
-I wonder if something like this would have a similar result for zram?
-(Completely untested... snippet stolen from swap_entry_free with
-SetPageDirty added... doesn't compile yet, but should give you the idea.)
-
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 56276fe..2d10988 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -81,7 +81,17 @@ void end_swap_bio_read(struct bio *bio, int err)
- =09=09=09=09iminor(bio->bi_bdev->bd_inode),
- =09=09=09=09(unsigned long long)bio->bi_sector);
- =09} else {
-+=09=09struct swap_info_struct *sis;
-+
- =09=09SetPageUptodate(page);
-+=09=09sis =3D page_swap_info(page);
-+=09=09if (sis->flags & SWP_BLKDEV) {
-+=09=09=09struct gendisk *disk =3D sis->bdev->bd_disk;
-+=09=09=09if (disk->fops->swap_slot_free_notify) {
-+=09=09=09=09SetPageDirty(page);
-+=09=09=09=09disk->fops->swap_slot_free_notify(sis->bdev,
-+=09=09=09=09=09=09=09=09  offset);
-+=09=09=09}
-+=09=09}
- =09}
- =09unlock_page(page);
- =09bio_put(bio);
+Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
