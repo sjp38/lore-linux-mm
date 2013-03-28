@@ -1,51 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 2C5FB6B0002
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 15:47:48 -0400 (EDT)
-Date: Thu, 28 Mar 2013 15:47:38 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1364500058-epefjxd9-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130328193901.GQ9079@decadent.org.uk>
-References: <1364485358-8745-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1364485358-8745-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130328155109.GA13075@kroah.com>
- <1364486669-10tbmvlb-mutt-n-horiguchi@ah.jp.nec.com>
- <20130328193901.GQ9079@decadent.org.uk>
-Subject: Re: [PATCH 1/2] hugetlbfs: stop setting VM_DONTDUMP in initializing
- vma(VM_HUGETLB)
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 3BA056B0002
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 16:28:21 -0400 (EDT)
+Received: from mail64-va3 (localhost [127.0.0.1])	by mail64-va3-R.bigfish.com
+ (Postfix) with ESMTP id 5CDE9460185	for
+ <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Thu, 28 Mar 2013 20:25:27 +0000
+ (UTC)
+From: KY Srinivasan <kys@microsoft.com>
+Subject: RE: [PATCH V2 1/3]  mm: Export split_page()
+Date: Thu, 28 Mar 2013 20:25:20 +0000
+Message-ID: <2035005597ff4e27ad2eb82bedca6dcc@SN2PR03MB061.namprd03.prod.outlook.com>
+References: <1363639873-1576-1-git-send-email-kys@microsoft.com>
+ <1363639898-1615-1-git-send-email-kys@microsoft.com>
+ <20130319141317.GI7869@dhcp22.suse.cz>
+ <3c47db9f28b944f985e8050d41334193@SN2PR03MB061.namprd03.prod.outlook.com>
+ <d81345b0dd4b4f509ef7206f58876afc@SN2PR03MB061.namprd03.prod.outlook.com>
+In-Reply-To: <d81345b0dd4b4f509ef7206f58876afc@SN2PR03MB061.namprd03.prod.outlook.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ben Hutchings <ben@decadent.org.uk>
-Cc: Greg KH <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "olaf@aepfle.de" <olaf@aepfle.de>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "yinghan@google.com" <yinghan@google.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "apw@canonical.com" <apw@canonical.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>
 
-On Thu, Mar 28, 2013 at 07:39:01PM +0000, Ben Hutchings wrote:
-> On Thu, Mar 28, 2013 at 12:04:29PM -0400, Naoya Horiguchi wrote:
-> [...]
-> > I guess you mean this patch violates one/both of these rules:
-> > 
-> >  - It must fix a problem that causes a build error (but not for things
-> >    marked CONFIG_BROKEN), an oops, a hang, data corruption, a real
-> >    security issue, or some "oh, that's not good" issue.  In short, something
-> >    critical.
-> >  - It or an equivalent fix must already exist in Linus' tree (upstream).
-> > 
-> > I'm not sure if the problem "we can't get any hugepage in coredump"
-> > is considered as 'some "oh, that's not good" issue'.
-> > But yes, it's not a critical one.
-> > If you mean I violated the second rule, sorry, I'll get it into upstream first.
->  
-> The second rule is the clear one.  If you are submitting a patch to
-> a subsystem maintainer and you want it to go into stable branches as
-> well, you must put 'Cc: stable@vger.kernel.org' in the commit message,
-> not just the mail header.
 
-Got it. Thank you.
-Naoya
+
+> -----Original Message-----
+> From: KY Srinivasan
+> Sent: Monday, March 25, 2013 9:18 AM
+> To: KY Srinivasan; Michal Hocko
+> Cc: olaf@aepfle.de; gregkh@linuxfoundation.org; linux-kernel@vger.kernel.=
+org;
+> linux-mm@kvack.org; andi@firstfloor.org; yinghan@google.com;
+> hannes@cmpxchg.org; apw@canonical.com; devel@linuxdriverproject.org;
+> akpm@linux-foundation.org; kamezawa.hiroyuki@gmail.com
+> Subject: RE: [PATCH V2 1/3] mm: Export split_page()
+>=20
+>=20
+>=20
+> > -----Original Message-----
+> > From: devel [mailto:devel-bounces@linuxdriverproject.org] On Behalf Of =
+KY
+> > Srinivasan
+> > Sent: Tuesday, March 19, 2013 5:40 PM
+> > To: Michal Hocko
+> > Cc: olaf@aepfle.de; gregkh@linuxfoundation.org; linux-
+> kernel@vger.kernel.org;
+> > linux-mm@kvack.org; andi@firstfloor.org; yinghan@google.com;
+> > hannes@cmpxchg.org; apw@canonical.com; devel@linuxdriverproject.org;
+> > akpm@linux-foundation.org; kamezawa.hiroyuki@gmail.com
+> > Subject: RE: [PATCH V2 1/3] mm: Export split_page()
+> >
+> >
+> >
+> > > -----Original Message-----
+> > > From: Michal Hocko [mailto:mhocko@suse.cz]
+> > > Sent: Tuesday, March 19, 2013 10:13 AM
+> > > To: KY Srinivasan
+> > > Cc: gregkh@linuxfoundation.org; linux-kernel@vger.kernel.org;
+> > > devel@linuxdriverproject.org; olaf@aepfle.de; apw@canonical.com;
+> > > andi@firstfloor.org; akpm@linux-foundation.org; linux-mm@kvack.org;
+> > > kamezawa.hiroyuki@gmail.com; hannes@cmpxchg.org;
+> yinghan@google.com
+> > > Subject: Re: [PATCH V2 1/3] mm: Export split_page()
+> > >
+> > > On Mon 18-03-13 13:51:36, K. Y. Srinivasan wrote:
+> > > > This symbol would be used in the Hyper-V balloon driver to support =
+2M
+> > > > allocations.
+> > > >
+> > > > In this version of the patch, based on feedback from Michal Hocko
+> > > > <mhocko@suse.cz>, I have updated the patch description.
+> > >
+> > > I guess this part is not necessary ;)
+> > >
+> > > >
+> > > > Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
+> > >
+> > > Anyway
+> > > Acked-by: Michal Hocko <mhocko@suse.cz>
+> >
+> > Greg,
+> >
+> > Would you be taking this patch through your tree?
+> >
+> > Regards,
+>=20
+> Andrew,
+>=20
+> Could you take this patch through your tree.
+>=20
+> Regards,
+>=20
+> K. Y
+
+Greg,
+
+Now that Andrew has checked in this patch, do you want me to resend the rem=
+aining two patches here.
+
+Regards,
+
+K. Y
+> >
+> > K. Y
+> > >
+> > > > ---
+> > > >  mm/page_alloc.c |    1 +
+> > > >  1 files changed, 1 insertions(+), 0 deletions(-)
+> > > >
+> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > > index 6cacfee..7e0ead6 100644
+> > > > --- a/mm/page_alloc.c
+> > > > +++ b/mm/page_alloc.c
+> > > > @@ -1404,6 +1404,7 @@ void split_page(struct page *page, unsigned i=
+nt
+> > order)
+> > > >  	for (i =3D 1; i < (1 << order); i++)
+> > > >  		set_page_refcounted(page + i);
+> > > >  }
+> > > > +EXPORT_SYMBOL_GPL(split_page);
+> > > >
+> > > >  static int __isolate_free_page(struct page *page, unsigned int ord=
+er)
+> > > >  {
+> > > > --
+> > > > 1.7.4.1
+> > > >
+> > > > --
+> > > > To unsubscribe from this list: send the line "unsubscribe linux-ker=
+nel" in
+> > > > the body of a message to majordomo@vger.kernel.org
+> > > > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > > > Please read the FAQ at  http://www.tux.org/lkml/
+> > >
+> > > --
+> > > Michal Hocko
+> > > SUSE Labs
+> > >
+> >
+> >
+> > _______________________________________________
+> > devel mailing list
+> > devel@linuxdriverproject.org
+> > http://driverdev.linuxdriverproject.org/mailman/listinfo/devel
+> >
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
