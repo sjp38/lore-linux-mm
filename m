@@ -1,61 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id DA7CE6B0036
-	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 22:09:37 -0400 (EDT)
-Message-ID: <5153A652.4080600@oracle.com>
-Date: Thu, 28 Mar 2013 10:09:22 +0800
-From: Bob Liu <bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 3A0E76B0027
+	for <linux-mm@kvack.org>; Wed, 27 Mar 2013 22:16:04 -0400 (EDT)
+Received: by mail-vc0-f194.google.com with SMTP id gf12so2328356vcb.1
+        for <linux-mm@kvack.org>; Wed, 27 Mar 2013 19:16:03 -0700 (PDT)
+Message-ID: <5153A7D8.2040501@gmail.com>
+Date: Thu, 28 Mar 2013 10:15:52 +0800
+From: wenchaolinux <wenchaolinux@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 01/11] mm: frontswap: lazy initialization to allow
- tmem backends to build/run as modules
-References: <1362559890-16710-1-git-send-email-lliubbo@gmail.com> <20130327140911.b86641fb57070985cba4e457@linux-foundation.org>
-In-Reply-To: <20130327140911.b86641fb57070985cba4e457@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [RFC] provide an API to userspace doing memory snapshot
+References: <5152B34B.6090406@gmail.com>
+In-Reply-To: <5152B34B.6090406@gmail.com>
+Content-Type: text/plain; charset=GB2312
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, dan.magenheimer@oracle.com, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, gregkh@linuxfoundation.org, rcj@linux.vnet.ibm.com, ngupta@vflare.org, minchan@kernel.org, ric.masonn@gmail.com, Stefan Hengelein <ilendir@googlemail.com>, Florian Schmaus <fschmaus@gmail.com>, Andor Daam <andor.daam@googlemail.com>
+To: linux-mm@kvack.org
+
+Hi,
+  I'd like to add/export an system call which allow userspace program
+to take snapshot for a region of memory. Since it is not implemented yet
+I will describe it as C APIs, it is quite simple now and if it is worthy
+I'll improve the interface later:
+
+Simple prototype:
+C API in userspace:
+/*
+ *   This function will mark a section of memory as COW, and return
+ * a new virtual address of it. User space program can dump out the
+ * content as a snapshot while other thread continue modify the content
+ * in the region.
+ *   @addr: the virtual address to be snapshotted.
+ *   @length: the length of it.
+ *   This function returns a new virtual address which can be used as
+ * snapshot. Return NULL on fail.
+ */
+void *memory_snapshot_create(void *addr, uint64_t length);
+
+/*
+ *   This function will free the memory snapshot.
+ *   @addr: the virtual snapshot addr to be freed, it should be the
+ * returned one in memory_snapshot_create().
+ */
+void memory_snapshot_delete(void *addr);
+
+In kernel space:
+  The pages in those virtual address will be marked as COW. Take a
+page with physical addr P0 as example, it will have two virtual addr:
+old A0 and new A1. When modified, kernel should create a new page P1
+with same contents, and mapping A1 to P1. When NUMA is used, P1 can
+be a slower page.
+  It is quite like fork(), but only COW part of pages.
+
+Background:
+  To provide a good snapshot for KVM, disk and RAM both need to be
+snapshotted. A good way to do it is tagging the contents as COW,
+which erase unnecessary I/O. Block device have this support, but
+RAM is missing, so I'd like to add it. It can be done by fork(),
+but it brings many unnecessary troubles and can't benefit when
+NUMA is used, the core I need is COW the pages. Although the
+requirement comes from virtualization but it do not use virtualization
+tech and serve more than virtualization, any APP have some
+un-interceptable changing pages, can use it, so I wonder whether can
+add it as common memory API.
+
+  That's my plan, hope to get your opinion for it.
+
+Best Regards
+Wenchao Xia
 
 
-On 03/28/2013 05:09 AM, Andrew Morton wrote:
-> On Wed,  6 Mar 2013 16:51:20 +0800 Bob Liu <lliubbo@gmail.com> wrote:
-> 
->> With the goal of allowing tmem backends (zcache, ramster, Xen tmem) to be
->> built/loaded as modules rather than built-in and enabled by a boot parameter,
->> this patch provides "lazy initialization", allowing backends to register to
->> frontswap even after swapon was run. Before a backend registers all calls
->> to init are recorded and the creation of tmem_pools delayed until a backend
->> registers or until a frontswap store is attempted.
-> 
-> Your version of this patch series differed from Konrad's "[PATCH v3]
-> Make frontswap+cleancache and its friend be modularized." significantly.
-> 
-> In particular, Konrad had four additional patches:
-> 
-> Subject: frontswap: remove the check for frontswap_enabled
-> Subject: frontswap: Use static_key instead of frontswap_enabled and frontswap_ops
-> Subject: cleancache: Remove the check for cleancache_enabled.
-> Subject: cleancache: Use static_key instead of cleancache_ops and cleancache_enabled.
-> 
-> How come?
-> 
-
-These four patches will cause compile error when
-CONFIG_FRONTSWAP/CLEANCACHE not defined.
-
-So i replaced them with:
-[PATCH V2 03/11] mm: frontswap: cleanup code
-[PATCH V2 07/11] mm: cleancache: clean up cleancache_enabled
-to fix the compile error and cleanup the code.
-
-That's all the changes V1-->V2.
-Sorry for not send out [patch v2 0/11] to describe the change log before
-you merge them.
-
--- 
-Regards,
--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
