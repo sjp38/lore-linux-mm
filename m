@@ -1,37 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id BACB26B0006
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 12:17:33 -0400 (EDT)
-Date: Fri, 29 Mar 2013 17:17:31 +0100
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: [PATCH v3, part4 32/39] mm/SPARC: prepare for removing
-	num_physpages and simplify mem_init()
-Message-ID: <20130329161731.GB6201@merkur.ravnborg.org>
-References: <1364313298-17336-1-git-send-email-jiang.liu@huawei.com> <1364313298-17336-33-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 038B96B0002
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 12:23:55 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id d17so279721eek.39
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2013 09:23:54 -0700 (PDT)
+Date: Fri, 29 Mar 2013 17:23:51 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 03/10] soft-offline: use migrate_pages() instead of
+ migrate_huge_page() (fwd)
+Message-ID: <20130329162337.GA30407@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1364313298-17336-33-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, sparclinux@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Tue, Mar 26, 2013 at 11:54:51PM +0800, Jiang Liu wrote:
-> Prepare for removing num_physpages and simplify mem_init().
+Forwarding off-list email
+
+On Fri 29-03-13 18:24:01, Aneesh Kumar K.V wrote:
+> Michal Hocko <mhocko@suse.cz> writes:
 > 
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: Sam Ravnborg <sam@ravnborg.org>
-> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Cc: Tang Chen <tangchen@cn.fujitsu.com>
-> Cc: sparclinux@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
+> > On Fri 29-03-13 10:56:00, Aneesh Kumar K.V wrote:
+> >> Michal Hocko <mhocko@suse.cz> writes:
+> > [...]
+> >> > Little bit offtopic:
+> >> > Btw. hugetlb migration breaks to charging even before this patchset
+> >> > AFAICS. The above put_page should remove the last reference and then it
+> >> > will uncharge it but I do not see anything that would charge a new page.
+> >> > This is all because regula LRU pages are uncharged when they are
+> >> > unmapped. But this a different story not related to this series.
+> >> 
+> >> 
+> >> But when we call that put_page, we would have alreayd move the cgroup
+> >> information to the new page. We have
+> >> 
+> >> 	h_cg = hugetlb_cgroup_from_page(oldhpage);
+> >> 	set_hugetlb_cgroup(oldhpage, NULL);
+> >> 
+> >> 	/* move the h_cg details to new cgroup */
+> >> 	set_hugetlb_cgroup(newhpage, h_cg);
+> >> 
+> >> 
+> >> in hugetlb_cgroup_migrate
+> >
+> > Yes but the res counter charge would be missing for the newpage after
+> > put_page
+> >
+> 
+> Moving this to private as i didn't get what you meant here. 
+> 
+> We unchage hugepage via 
+> 
+> __put_compound_page -> free_huge_page -> hugetlb_cgroup_uncharge_page
+> 
+> That does
+> 
+> 	h_cg = hugetlb_cgroup_from_page(page);
+> 	if (unlikely(!h_cg))
+> 		return;
+> 
+> During migrate we do 
+> 	set_hugetlb_cgroup(oldhpage, NULL);
+> 
+> 	/* move the h_cg details to new cgroup */
+> 	set_hugetlb_cgroup(newhpage, h_cg);
+> 
+> So when we do a put_page(oldhpage), we won't be finding any cgroup
+> attached to it and hence won't be updating the cgroup res counter value.
+> 
+> So not sure what you mean by res counter change would be missing for the
+> newpage after put_page. I may be missing something here. Can you explain
+> ?
 
-Looks good!
-Acked-by: Sam Ravnborg <sam@ravnborg.org>
+Dang! You are right of course. I have missed the !h_cg check in
+hugetlb_cgroup_uncharge_page. 
 
-	Sam
+Sorry about the confusion. I am so distracted by many issues these
+days...
+
+Thanks!
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
