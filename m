@@ -1,172 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 0B96B6B0005
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 19:26:52 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id un1so23851pbc.26
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2013 16:26:52 -0700 (PDT)
-Date: Thu, 28 Mar 2013 16:26:23 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] Revert "mm: introduce VM_POPULATE flag to better deal with
- racy userspace programs"
-In-Reply-To: <20130327014000.GA9876@google.com>
-Message-ID: <alpine.LNX.2.00.1303281618030.664@eggly.anvils>
-References: <alpine.LNX.2.00.1303261646070.23041@eggly.anvils> <CANN689HuK7773-B3NOxLN9xRRXY=5i1j5Sv_CT8WKChMRw5_Aw@mail.gmail.com> <20130327014000.GA9876@google.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 578E96B0005
+	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 21:18:03 -0400 (EDT)
+Date: Fri, 29 Mar 2013 10:18:01 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC] mm: remove swapcache page early
+Message-ID: <20130329011801.GA32245@blaptop>
+References: <1364350932-12853-1-git-send-email-minchan@kernel.org>
+ <alpine.LNX.2.00.1303271230210.29687@eggly.anvils>
+ <433aaa17-7547-4e39-b472-7060ee15e85f@default>
+ <20130328010706.GB22908@blaptop>
+ <5f1504e7-8b07-4109-8271-b214b496ca61@default>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5f1504e7-8b07-4109-8271-b214b496ca61@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andy Lutomirski <luto@amacapital.net>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Bob Liu <bob.liu@oracle.com>
 
-From: Michel Lespinasse <walken@google.com>
+On Thu, Mar 28, 2013 at 11:19:12AM -0700, Dan Magenheimer wrote:
+> > From: Minchan Kim [mailto:minchan@kernel.org]
+> > Subject: Re: [RFC] mm: remove swapcache page early
+> > 
+> > Hi Dan,
+> > 
+> > On Wed, Mar 27, 2013 at 03:24:00PM -0700, Dan Magenheimer wrote:
+> > > > From: Hugh Dickins [mailto:hughd@google.com]
+> > > > Subject: Re: [RFC] mm: remove swapcache page early
+> > > >
+> > > > I believe the answer is for frontswap/zmem to invalidate the frontswap
+> > > > copy of the page (to free up the compressed memory when possible) and
+> > > > SetPageDirty on the PageUptodate PageSwapCache page when swapping in
+> > > > (setting page dirty so nothing will later go to read it from the
+> > > > unfreed location on backing swap disk, which was never written).
+> > >
+> > > There are two duplication issues:  (1) When can the page be removed
+> > > from the swap cache after a call to frontswap_store; and (2) When
+> > > can the page be removed from the frontswap storage after it
+> > > has been brought back into memory via frontswap_load.
+> > >
+> > > This patch from Minchan addresses (1).  The issue you are raising
+> > 
+> > No. I am addressing (2).
+> > 
+> > > here is (2).  You may not know that (2) has recently been solved
+> > > in frontswap, at least for zcache.  See frontswap_exclusive_gets_enabled.
+> > > If this is enabled (and it is for zcache but not yet for zswap),
+> > > what you suggest (SetPageDirty) is what happens.
+> > 
+> > I am blind on zcache so I didn't see it. Anyway, I'd like to address it
+> > on zram and zswap.
+> 
+> Zswap can enable it trivially by adding a function call in init_zswap.
+> (Note that it is not enabled by default for all frontswap backends
+> because it is another complicated tradeoff of cpu time vs memory space
+> that needs more study on a broad set of workloads.)
+> 
+> I wonder if something like this would have a similar result for zram?
+> (Completely untested... snippet stolen from swap_entry_free with
+> SetPageDirty added... doesn't compile yet, but should give you the idea.)
 
-This reverts commit 1869305009857cdeaabe6283bcdc2359c5784543 ("mm:
-introduce VM_POPULATE flag to better deal with racy userspace programs").
+Nice idea!
 
-VM_POPULATE only has any effect when userspace plays racy games with
-vmas by trying to unmap and remap memory regions that mmap or mlock
-are operating on.
+After I see your patch, I realized it was Hugh's suggestion and
+you implemented it in proper place.
 
-Also, the only effect of VM_POPULATE when userspace plays such games
-is that it avoids populating new memory regions that get remapped into
-the address range that was being operated on by the original mmap or
-mlock calls.
+Will resend it after testing. Maybe nextweek.
+Thanks!
 
-Let's remove VM_POPULATE as there isn't any strong argument to mandate
-a new vm_flag.
+> 
+> diff --git a/mm/page_io.c b/mm/page_io.c
+> index 56276fe..2d10988 100644
+> --- a/mm/page_io.c
+> +++ b/mm/page_io.c
+> @@ -81,7 +81,17 @@ void end_swap_bio_read(struct bio *bio, int err)
+>  				iminor(bio->bi_bdev->bd_inode),
+>  				(unsigned long long)bio->bi_sector);
+>  	} else {
+> +		struct swap_info_struct *sis;
+> +
+>  		SetPageUptodate(page);
+> +		sis = page_swap_info(page);
+> +		if (sis->flags & SWP_BLKDEV) {
+> +			struct gendisk *disk = sis->bdev->bd_disk;
+> +			if (disk->fops->swap_slot_free_notify) {
+> +				SetPageDirty(page);
+> +				disk->fops->swap_slot_free_notify(sis->bdev,
+> +								  offset);
+> +			}
+> +		}
+>  	}
+>  	unlock_page(page);
+>  	bio_put(bio);
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Signed-off-by: Michel Lespinasse <walken@google.com>
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-Andrew has taken this patch into his tree, but remarked that he is
-away from keyboard until the end of next week: though not a serious
-matter, I think we had better include this revert in -rc5 than later.
-
- include/linux/mm.h   |  1 -
- include/linux/mman.h |  4 +---
- mm/fremap.c          | 12 ++----------
- mm/mlock.c           | 11 +++++------
- mm/mmap.c            |  4 +++-
- 5 files changed, 11 insertions(+), 21 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 7acc9dc73c9f..e19ff30ad0a2 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -87,7 +87,6 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
- #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
- 
--#define VM_POPULATE     0x00001000
- #define VM_LOCKED	0x00002000
- #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
- 
-diff --git a/include/linux/mman.h b/include/linux/mman.h
-index 61c7a87e5d2b..9aa863da287f 100644
---- a/include/linux/mman.h
-+++ b/include/linux/mman.h
-@@ -79,8 +79,6 @@ calc_vm_flag_bits(unsigned long flags)
- {
- 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
- 	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
--	       ((flags & MAP_LOCKED) ? (VM_LOCKED | VM_POPULATE) : 0) |
--	       (((flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE) ?
--							VM_POPULATE : 0);
-+	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
- }
- #endif /* _LINUX_MMAN_H */
-diff --git a/mm/fremap.c b/mm/fremap.c
-index 4723ac8d2fc2..87da3590c61e 100644
---- a/mm/fremap.c
-+++ b/mm/fremap.c
-@@ -204,10 +204,8 @@ get_write_lock:
- 			unsigned long addr;
- 			struct file *file = get_file(vma->vm_file);
- 
--			vm_flags = vma->vm_flags;
--			if (!(flags & MAP_NONBLOCK))
--				vm_flags |= VM_POPULATE;
--			addr = mmap_region(file, start, size, vm_flags, pgoff);
-+			addr = mmap_region(file, start, size,
-+					vma->vm_flags, pgoff);
- 			fput(file);
- 			if (IS_ERR_VALUE(addr)) {
- 				err = addr;
-@@ -226,12 +224,6 @@ get_write_lock:
- 		mutex_unlock(&mapping->i_mmap_mutex);
- 	}
- 
--	if (!(flags & MAP_NONBLOCK) && !(vma->vm_flags & VM_POPULATE)) {
--		if (!has_write_lock)
--			goto get_write_lock;
--		vma->vm_flags |= VM_POPULATE;
--	}
--
- 	if (vma->vm_flags & VM_LOCKED) {
- 		/*
- 		 * drop PG_Mlocked flag for over-mapped range
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 1c5e33fce639..79b7cf7d1bca 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -358,7 +358,7 @@ static int do_mlock(unsigned long start, size_t len, int on)
- 
- 		newflags = vma->vm_flags & ~VM_LOCKED;
- 		if (on)
--			newflags |= VM_LOCKED | VM_POPULATE;
-+			newflags |= VM_LOCKED;
- 
- 		tmp = vma->vm_end;
- 		if (tmp > end)
-@@ -418,8 +418,7 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
- 		 * range with the first VMA. Also, skip undesirable VMA types.
- 		 */
- 		nend = min(end, vma->vm_end);
--		if ((vma->vm_flags & (VM_IO | VM_PFNMAP | VM_POPULATE)) !=
--		    VM_POPULATE)
-+		if (vma->vm_flags & (VM_IO | VM_PFNMAP))
- 			continue;
- 		if (nstart < vma->vm_start)
- 			nstart = vma->vm_start;
-@@ -492,9 +491,9 @@ static int do_mlockall(int flags)
- 	struct vm_area_struct * vma, * prev = NULL;
- 
- 	if (flags & MCL_FUTURE)
--		current->mm->def_flags |= VM_LOCKED | VM_POPULATE;
-+		current->mm->def_flags |= VM_LOCKED;
- 	else
--		current->mm->def_flags &= ~(VM_LOCKED | VM_POPULATE);
-+		current->mm->def_flags &= ~VM_LOCKED;
- 	if (flags == MCL_FUTURE)
- 		goto out;
- 
-@@ -503,7 +502,7 @@ static int do_mlockall(int flags)
- 
- 		newflags = vma->vm_flags & ~VM_LOCKED;
- 		if (flags & MCL_CURRENT)
--			newflags |= VM_LOCKED | VM_POPULATE;
-+			newflags |= VM_LOCKED;
- 
- 		/* Ignore errors */
- 		mlock_fixup(vma, &prev, vma->vm_start, vma->vm_end, newflags);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 2664a47cec93..6466699b16cb 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1306,7 +1306,9 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 	}
- 
- 	addr = mmap_region(file, addr, len, vm_flags, pgoff);
--	if (!IS_ERR_VALUE(addr) && (vm_flags & VM_POPULATE))
-+	if (!IS_ERR_VALUE(addr) &&
-+	    ((vm_flags & VM_LOCKED) ||
-+	     (flags & (MAP_POPULATE | MAP_NONBLOCK)) == MAP_POPULATE))
- 		*populate = len;
- 	return addr;
- }
 -- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
