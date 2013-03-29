@@ -1,104 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 2C9666B0002
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 08:09:41 -0400 (EDT)
-Received: by mail-la0-f45.google.com with SMTP id er20so492379lab.18
-        for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:09:39 -0700 (PDT)
-Message-ID: <51558480.7050900@openvz.org>
-Date: Fri, 29 Mar 2013 16:09:36 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id BF8CF6B0002
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 09:04:25 -0400 (EDT)
+Message-ID: <51559150.3040407@oracle.com>
+Date: Fri, 29 Mar 2013 09:04:16 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] hugetlbfs: stop setting VM_DONTDUMP in initializing
- vma(VM_HUGETLB)
-References: <1364485358-8745-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1364485358-8745-2-git-send-email-n-horiguchi@ah.jp.nec.com> <515477D4.1060206@openvz.org> <1364495358-2gnie765-mutt-n-horiguchi@ah.jp.nec.com> <515526EA.3090807@openvz.org>
-In-Reply-To: <515526EA.3090807@openvz.org>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: mm: BUG in do_huge_pmd_wp_page
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Mel Gorman <mgorman@suse.de>, Dave Jones <davej@redhat.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Konstantin Khlebnikov wrote:
-> Naoya Horiguchi wrote:
->> On Thu, Mar 28, 2013 at 09:03:16PM +0400, Konstantin Khlebnikov wrote:
->>> Naoya Horiguchi wrote:
->>>> Currently we fail to include any data on hugepages into coredump,
->>>> because VM_DONTDUMP is set on hugetlbfs's vma. This behavior was recently
->>>> introduced by commit 314e51b98 "mm: kill vma flag VM_RESERVED and
->>>> mm->reserved_vm counter". This looks to me a serious regression,
->>>> so let's fix it.
->>>
->>> That was introduced in my patch? Really?
->>> Here was VM_RESERVED and it had the same effect as VM_DONTDUMP. At least I thought so.
->>
->> vma_dump_size() does like this (the diff is the one in 314e51b98):
->>
->>      static unsigned long vma_dump_size(struct vm_area_struct *vma,
->>      				   unsigned long mm_flags)
->>      {
->>      #define FILTER(type)	(mm_flags&   (1UL<<   MMF_DUMP_##type))
->>
->>      	/* always dump the vdso and vsyscall sections */
->>      	if (always_dump_vma(vma))
->>      		goto whole;
->>
->>     	if (vma->vm_flags&   VM_DONTDUMP)
->>      		return 0;
->>
->>      	/* Hugetlb memory check */
->>      	if (vma->vm_flags&   VM_HUGETLB) {
->>      		if ((vma->vm_flags&   VM_SHARED)&&   FILTER(HUGETLB_SHARED))
->>      			goto whole;
->>      		if (!(vma->vm_flags&   VM_SHARED)&&   FILTER(HUGETLB_PRIVATE))
->>      			goto whole;
->>      	}
->>
->>      	/* Do not dump I/O mapped devices or special mappings */
->>     -	if (vma->vm_flags&   (VM_IO | VM_RESERVED))
->>     +	if (vma->vm_flags&   VM_IO)
->>      		return 0;
->>
->> We have hugetlb memory check after VM_DONTDUMP check, so the following
->> changed the behavior.
-> 
-> Ok, I missed this in my patch.
-> 
->>
->>     --- a/fs/hugetlbfs/inode.c
->>     +++ b/fs/hugetlbfs/inode.c
->>     @@ -110,7 +110,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
->>              * way when do_mmap_pgoff unwinds (may be important on powerpc
->>              * and ia64).
->>              */
->>     -       vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
->>     +       vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND | VM_DONTDUMP;
->>             vma->vm_ops =&hugetlb_vm_ops;
->>
->>             if (vma->vm_pgoff&   (~huge_page_mask(h)>>   PAGE_SHIFT))
->>
->> I think we don't have to set VM_DONTDUMP on hugetlbfs's vma.
-> 
-> Acked-by: Konstantin Khlebnikov<khlebnikov@openvz.org>
+Hi all,
 
-hugetlb coredump filter also should be fixed in this way:
+While fuzzing with trinity inside a KVM tools guest running latest -next kernel,
+I've stumbled on the following.
 
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -1154,6 +1154,7 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
-                        goto whole;
-                if (!(vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_PRIVATE))
-                        goto whole;
-+               return 0;
-        }
+It seems that the code in do_huge_pmd_wp_page() was recently modified in
+"thp: do_huge_pmd_wp_page(): handle huge zero page".
 
-        /* Do not dump I/O mapped devices or special mappings */
+Here's the trace:
 
-> 
->>
->> Thanks,
->> Naoya
-> 
+[  246.244708] BUG: unable to handle kernel paging request at ffff88009c422000
+[  246.245743] IP: [<ffffffff81a0a795>] copy_page_rep+0x5/0x10
+[  246.250569] PGD 7232067 PUD 7235067 PMD bfefe067 PTE 800000009c422060
+[  246.251529] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[  246.252325] Dumping ftrace buffer:
+[  246.252791]    (ftrace buffer empty)
+[  246.252869] Modules linked in:
+[  246.252869] CPU 3
+[  246.252869] Pid: 11985, comm: trinity-child12 Tainted: G        W    3.9.0-rc4-next-20130328-sasha-00014-g91a3267 #319
+[  246.252869] RIP: 0010:[<ffffffff81a0a795>]  [<ffffffff81a0a795>] copy_page_rep+0x5/0x10
+[  246.252869] RSP: 0018:ffff88000015bc40  EFLAGS: 00010286
+[  246.252869] RAX: ffff88000015bfd8 RBX: 0000000002710880 RCX: 0000000000000200
+[  246.252869] RDX: 0000000000000000 RSI: ffff88009c422000 RDI: ffff88009a422000
+[  246.252869] RBP: ffff88000015bc98 R08: 0000000002718000 R09: 0000000000000001
+[  246.252869] R10: 0000000000000001 R11: 0000000000000000 R12: ffff880000000000
+[  246.252869] R13: ffff88000015bfd8 R14: ffff88000015bfd8 R15: fffffffffff80000
+[  246.252869] FS:  00007f53db93f700(0000) GS:ffff8800bba00000(0000) knlGS:0000000000000000
+[  246.252869] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  246.252869] CR2: ffff88009c422000 CR3: 0000000000159000 CR4: 00000000000406e0
+[  246.252869] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[  246.252869] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[  246.252869] Process trinity-child12 (pid: 11985, threadinfo ffff88000015a000, task ffff88009c60b000)
+[  246.252869] Stack:
+[  246.252869]  ffffffff81234aae ffff88000015bc88 ffffffff81273639 0000000000a00000
+[  246.252869]  0000000002718000 ffff8800ab36d050 ffff880000153800 ffffea0002690000
+[  246.252869]  0000000000a00000 ffff8800ab36d000 ffffea0002710000 ffff88000015bd48
+[  246.252869] Call Trace:
+[  246.252869]  [<ffffffff81234aae>] ? copy_user_huge_page+0x1de/0x240
+[  246.252869]  [<ffffffff81273639>] ? mem_cgroup_charge_common+0xa9/0xc0
+[  246.252869]  [<ffffffff8126b4d7>] do_huge_pmd_wp_page+0x9f7/0xc60
+[  246.252869]  [<ffffffff81a0acd9>] ? __const_udelay+0x29/0x30
+[  246.252869]  [<ffffffff8123364e>] handle_mm_fault+0x26e/0x650
+[  246.252869]  [<ffffffff8117dc1a>] ? __lock_is_held+0x5a/0x80
+[  246.252869]  [<ffffffff83db3814>] ? __do_page_fault+0x514/0x5e0
+[  246.252869]  [<ffffffff83db3870>] __do_page_fault+0x570/0x5e0
+[  246.252869]  [<ffffffff811c6500>] ? rcu_eqs_exit_common+0x60/0x260
+[  246.252869]  [<ffffffff811c740e>] ? rcu_eqs_enter_common+0x33e/0x3b0
+[  246.252869]  [<ffffffff811c679c>] ? rcu_eqs_exit+0x9c/0xb0
+[  246.252869]  [<ffffffff83db3912>] do_page_fault+0x32/0x50
+[  246.252869]  [<ffffffff83db2ef0>] do_async_page_fault+0x30/0xc0
+[  246.252869]  [<ffffffff83db01e8>] async_page_fault+0x28/0x30
+[  246.252869] Code: 90 90 90 90 90 90 9c fa 65 48 3b 06 75 14 65 48 3b 56 08 75 0d 65 48 89 1e 65 48 89 4e 08 9d b0 01 c3 9d 30
+c0 c3 b9 00 02 00 00 <f3> 48 a5 c3 0f 1f 80 00 00 00 00 eb ee 66 66 66 90 66 66 66 90
+[  246.252869] RIP  [<ffffffff81a0a795>] copy_page_rep+0x5/0x10
+[  246.252869]  RSP <ffff88000015bc40>
+[  246.252869] CR2: ffff88009c422000
+[  246.252869] ---[ end trace 09fbe37b108d5766 ]---
+
+And this is the code:
+
+        if (is_huge_zero_pmd(orig_pmd))
+                clear_huge_page(new_page, haddr, HPAGE_PMD_NR);
+        else
+                copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR); <--- this
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
