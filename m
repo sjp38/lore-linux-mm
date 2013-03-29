@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id B445C6B0087
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:15:10 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 558166B005C
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:15:17 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 23/28] lru: add an element to a memcg list
-Date: Fri, 29 Mar 2013 13:14:05 +0400
-Message-Id: <1364548450-28254-24-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 26/28] memcg: per-memcg kmem shrinking
+Date: Fri, 29 Mar 2013 13:14:08 +0400
+Message-Id: <1364548450-28254-27-git-send-email-glommer@parallels.com>
 In-Reply-To: <1364548450-28254-1-git-send-email-glommer@parallels.com>
 References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,38 +13,23 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Glauber Costa <glommer@parallels.com>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-With the infrastructure we now have, we can add an element to a memcg
-LRU list instead of the global list. The memcg lists are still
-per-node.
+If the kernel limit is smaller than the user limit, we will have
+situations in which our allocations fail but freeing user pages will buy
+us nothing.  In those, we would like to call a specialized memcg
+reclaimer that only frees kernel memory and leave the user memory alone.
+Those are also expected to fail when we account memcg->kmem, instead of
+when we account memcg->res. Based on that, this patch implements a
+memcg-specific reclaimer, that only shrinks kernel objects, withouth
+touching user pages.
 
-Technically, we will never trigger per-node shrinking in the memcg is
-short of memory. Therefore an alternative to this would be to add the
-element to *both* a single-node memcg array and a per-node global array.
+There might be situations in which there are plenty of objects to
+shrink, but we can't do it because the __GFP_FS flag is not set.
+Although they can happen with user pages, they are a lot more common
+with fs-metadata: this is the case with almost all inode allocation.
 
-There are two main reasons for this design choice:
-
-1) adding an extra list_head to each of the objects would waste 16-bytes
-per object, always remembering that we are talking about 1 dentry + 1
-inode in the common case. This means a close to 10 % increase in the
-dentry size, and a lower yet significant increase in the inode size. In
-terms of total memory, this design pays 32-byte per-superblock-per-node
-(size of struct list_lru_node), which means that in any scenario where
-we have more than 10 dentries + inodes, we would already be paying more
-memory in the two-list-heads approach than we will here with 1 node x 10
-superblocks. The turning point of course depends on the workload, but I
-hope the figures above would convince you that the memory footprint is
-in my side in any workload that matters.
-
-2) The main drawback of this, namely, that we loose global LRU order, is
-not really seen by me as a disadvantage: if we are using memcg to
-isolate the workloads, global pressure should try to balance the amount
-reclaimed from all memcgs the same way the shrinkers will already
-naturally balance the amount reclaimed from each superblock. (This
-patchset needs some love in this regard, btw).
-
-To help us easily tracking down which nodes have and which nodes doesn't
-have elements in the list, we will count on an auxiliary node bitmap in
-the global level.
+Those allocations are, however, capable of waiting.  So we can just span
+a worker, let it finish its job and proceed with the allocation. As slow
+as it is, at this point we are already past any hopes anyway.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 Cc: Dave Chinner <dchinner@redhat.com>
@@ -56,258 +41,338 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/list_lru.h   | 10 +++++++
- include/linux/memcontrol.h | 10 +++++++
- lib/list_lru.c             | 68 +++++++++++++++++++++++++++++++++++++++-------
- mm/memcontrol.c            | 38 +++++++++++++++++++++++++-
- 4 files changed, 115 insertions(+), 11 deletions(-)
+ include/linux/swap.h |   2 +
+ mm/memcontrol.c      | 182 ++++++++++++++++++++++++++++++++++++++++-----------
+ mm/vmscan.c          |  37 ++++++++++-
+ 3 files changed, 183 insertions(+), 38 deletions(-)
 
-diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-index d6cf126..0856899 100644
---- a/include/linux/list_lru.h
-+++ b/include/linux/list_lru.h
-@@ -26,6 +26,7 @@ struct list_lru_array {
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 2818a12..80f6635 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -268,6 +268,8 @@ extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
+ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
+ 						  gfp_t gfp_mask, bool noswap);
++extern unsigned long try_to_free_mem_cgroup_kmem(struct mem_cgroup *mem,
++						 gfp_t gfp_mask);
+ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 						gfp_t gfp_mask, bool noswap,
+ 						struct zone *zone,
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 89b7ffb..a5a0f39 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -353,6 +353,8 @@ struct mem_cgroup {
+ 	atomic_t	numainfo_events;
+ 	atomic_t	numainfo_updating;
+ #endif
++	/* when kmem shrinkers can sleep but can't proceed due to context */
++	struct work_struct kmemcg_shrink_work;
+ 	/*
+ 	 * Per cgroup active and inactive list, similar to the
+ 	 * per zone LRU lists.
+@@ -369,11 +371,14 @@ static size_t memcg_size(void)
+ 		nr_node_ids * sizeof(struct mem_cgroup_per_node);
+ }
  
- struct list_lru {
- 	struct list_lru_node	node[MAX_NUMNODES];
-+	atomic_long_t		node_totals[MAX_NUMNODES];
- 	nodemask_t		active_nodes;
- #ifdef CONFIG_MEMCG_KMEM
- 	struct list_head	lrus;
-@@ -40,10 +41,19 @@ int memcg_update_all_lrus(unsigned long num);
- void list_lru_destroy(struct list_lru *lru);
- void list_lru_destroy_memcg(struct mem_cgroup *memcg);
- int __memcg_init_lru(struct list_lru *lru);
-+struct list_lru_node *
-+lru_node_of_index(struct list_lru *lru, int index, int nid);
- #else
- static inline void list_lru_destroy(struct list_lru *lru)
- {
++static DEFINE_MUTEX(set_limit_mutex);
++
+ /* internal only representation about the status of kmem accounting. */
+ enum {
+ 	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
+ 	KMEM_ACCOUNTED_ACTIVATED, /* static key enabled. */
+ 	KMEM_ACCOUNTED_DEAD, /* dead memcg with pending kmem charges */
++	KMEM_MAY_SHRINK, /* kmem limit < mem limit, shrink kmem only */
+ };
+ 
+ /* We account when limit is on, but only after call sites are patched */
+@@ -412,6 +417,31 @@ static bool memcg_kmem_test_and_clear_dead(struct mem_cgroup *memcg)
+ 	return test_and_clear_bit(KMEM_ACCOUNTED_DEAD,
+ 				  &memcg->kmem_account_flags);
  }
 +
-+static inline struct list_lru_node *
-+lru_node_of_index(struct list_lru *lru, int index, int nid)
++/*
++ * If the kernel limit is smaller than the user limit, we will have situations
++ * in which our allocations fail but freeing user pages will buy us nothing.
++ * In those, we would like to call a specialized memcg reclaimer that only
++ * frees kernel memory and leave the user memory alone.
++ *
++ * This test exists so we can differentiate between those. Everytime one of the
++ * limits is updated, we need to run it. The set_limit_mutex must be held, so
++ * they don't change again.
++ */
++static void memcg_update_shrink_status(struct mem_cgroup *memcg)
 +{
-+	BUG_ON(index < 0); /* index != -1 with !MEMCG_KMEM. Impossible */
-+	return &lru->node[nid];
++	mutex_lock(&set_limit_mutex);
++	if (res_counter_read_u64(&memcg->kmem, RES_LIMIT) <
++		res_counter_read_u64(&memcg->res, RES_LIMIT))
++		set_bit(KMEM_MAY_SHRINK, &memcg->kmem_account_flags);
++	else
++		clear_bit(KMEM_MAY_SHRINK, &memcg->kmem_account_flags);
++	mutex_unlock(&set_limit_mutex);
++}
++#else
++static void memcg_update_shrink_status(struct mem_cgroup *memcg)
++{
 +}
  #endif
  
- int __list_lru_init(struct list_lru *lru, bool memcg_enabled);
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index ee3199d..f55f875 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -24,6 +24,7 @@
- #include <linux/hardirq.h>
- #include <linux/jump_label.h>
- #include <linux/list_lru.h>
-+#include <linux/mm.h>
- 
- struct mem_cgroup;
- struct page_cgroup;
-@@ -473,6 +474,9 @@ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
- int memcg_new_lru(struct list_lru *lru);
- int memcg_init_lru(struct list_lru *lru);
- 
-+struct list_lru_node *
-+memcg_kmem_lru_of_page(struct list_lru *lru, struct page *page);
-+
- int memcg_kmem_update_lru_size(struct list_lru *lru, int num_groups,
- 			       bool new_lru);
- 
-@@ -644,6 +648,12 @@ static inline int memcg_init_lru(struct list_lru *lru)
- {
- 	return 0;
+ /* Stuffs for move charges at task migration. */
+@@ -2838,8 +2868,6 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+ 	memcg_check_events(memcg, page);
  }
-+
-+static inline struct list_lru_node *
-+memcg_kmem_lru_of_page(struct list_lru *lru, struct page *page)
+ 
+-static DEFINE_MUTEX(set_limit_mutex);
+-
+ #ifdef CONFIG_MEMCG_KMEM
+ static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
+ {
+@@ -2881,16 +2909,92 @@ static int mem_cgroup_slabinfo_read(struct cgroup *cont, struct cftype *cft,
+ }
+ #endif
+ 
++/*
++ * During the creation a new cache, we need to disable our accounting mechanism
++ * altogether. This is true even if we are not creating, but rather just
++ * enqueing new caches to be created.
++ *
++ * This is because that process will trigger allocations; some visible, like
++ * explicit kmallocs to auxiliary data structures, name strings and internal
++ * cache structures; some well concealed, like INIT_WORK() that can allocate
++ * objects during debug.
++ *
++ * If any allocation happens during memcg_kmem_get_cache, we will recurse back
++ * to it. This may not be a bounded recursion: since the first cache creation
++ * failed to complete (waiting on the allocation), we'll just try to create the
++ * cache again, failing at the same point.
++ *
++ * memcg_kmem_get_cache is prepared to abort after seeing a positive count of
++ * memcg_kmem_skip_account. So we enclose anything that might allocate memory
++ * inside the following two functions.
++ */
++static inline void memcg_stop_kmem_account(void)
 +{
-+	return &lru->node[page_to_nid(page)];
++	VM_BUG_ON(!current->mm);
++	current->memcg_kmem_skip_account++;
 +}
- #endif /* CONFIG_MEMCG_KMEM */
- #endif /* _LINUX_MEMCONTROL_H */
- 
-diff --git a/lib/list_lru.c b/lib/list_lru.c
-index a9616a0..734ff91 100644
---- a/lib/list_lru.c
-+++ b/lib/list_lru.c
-@@ -15,14 +15,22 @@ list_lru_add(
- 	struct list_lru	*lru,
- 	struct list_head *item)
- {
--	int nid = page_to_nid(virt_to_page(item));
--	struct list_lru_node *nlru = &lru->node[nid];
-+	struct page *page = virt_to_page(item);
-+	struct list_lru_node *nlru;
-+	int nid = page_to_nid(page);
 +
-+	nlru = memcg_kmem_lru_of_page(lru, page);
- 
- 	spin_lock(&nlru->lock);
- 	BUG_ON(nlru->nr_items < 0);
- 	if (list_empty(item)) {
- 		list_add_tail(item, &nlru->list);
--		if (nlru->nr_items++ == 0)
-+		nlru->nr_items++;
++static inline void memcg_resume_kmem_account(void)
++{
++	VM_BUG_ON(!current->mm);
++	current->memcg_kmem_skip_account--;
++}
++
++static int memcg_try_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
++{
++	int retries = MEM_CGROUP_RECLAIM_RETRIES;
++	struct res_counter *fail_res;
++	int ret;
++
++	do {
++		ret = res_counter_charge(&memcg->kmem, size, &fail_res);
++		if (!ret)
++			return ret;
++
++		if (!(gfp & __GFP_WAIT))
++			return ret;
++
 +		/*
-+		 * We only consider a node active or inactive based on the
-+		 * total figure for all involved children.
++		 * We will try to shrink kernel memory present in caches. We
++		 * are sure that we can wait, so we will. The duration of our
++		 * wait is determined by congestion, the same way as vmscan.c
++		 *
++		 * If we are in FS context, though, then although we can wait,
++		 * we cannot call the shrinkers. Most fs shrinkers (which
++		 * comprises most of our kmem data) will not run without
++		 * __GFP_FS since they can deadlock. The solution is to
++		 * synchronously run that in a different context.
 +		 */
-+		if (atomic_long_add_return(1, &lru->node_totals[nid]) == 1)
- 			node_set(nid, lru->active_nodes);
- 		spin_unlock(&nlru->lock);
- 		return 1;
-@@ -37,14 +45,20 @@ list_lru_del(
- 	struct list_lru	*lru,
- 	struct list_head *item)
++		if (!(gfp & __GFP_FS)) {
++			/*
++			 * we are already short on memory, every queue
++			 * allocation is likely to fail
++			 */
++			memcg_stop_kmem_account();
++			schedule_work(&memcg->kmemcg_shrink_work);
++			flush_work(&memcg->kmemcg_shrink_work);
++			memcg_resume_kmem_account();
++		} else if (!try_to_free_mem_cgroup_kmem(memcg, gfp))
++			congestion_wait(BLK_RW_ASYNC, HZ/10);
++
++	} while (retries--);
++
++	return ret;
++}
++
+ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
  {
--	int nid = page_to_nid(virt_to_page(item));
--	struct list_lru_node *nlru = &lru->node[nid];
-+	struct page *page = virt_to_page(item);
-+	struct list_lru_node *nlru;
-+	int nid = page_to_nid(page);
-+
-+	nlru = memcg_kmem_lru_of_page(lru, page);
+ 	struct res_counter *fail_res;
+ 	struct mem_cgroup *_memcg;
+ 	int ret = 0;
+ 	bool may_oom;
++	bool kmem_first = test_bit(KMEM_MAY_SHRINK, &memcg->kmem_account_flags);
  
- 	spin_lock(&nlru->lock);
- 	if (!list_empty(item)) {
- 		list_del_init(item);
--		if (--nlru->nr_items == 0)
-+		nlru->nr_items--;
+-	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
+-	if (ret)
+-		return ret;
++	if (kmem_first) {
++		ret = memcg_try_charge_kmem(memcg, gfp, size);
++		if (ret)
++			return ret;
++	}
+ 
+ 	/*
+ 	 * Conditions under which we can wait for the oom_killer. Those are
+@@ -2923,12 +3027,43 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
+ 			res_counter_charge_nofail(&memcg->memsw, size,
+ 						  &fail_res);
+ 		ret = 0;
+-	} else if (ret)
++		if (!kmem_first)
++			res_counter_charge_nofail(&memcg->kmem, size, &fail_res);
++	} else if (ret && kmem_first)
+ 		res_counter_uncharge(&memcg->kmem, size);
+ 
++	if (!kmem_first) {
++		ret = memcg_try_charge_kmem(memcg, gfp, size);
++		if (!ret)
++			return ret;
 +
-+		if (atomic_long_dec_and_test(&lru->node_totals[nid]))
- 			node_clear(nid, lru->active_nodes);
++		res_counter_uncharge(&memcg->res, size);
++		if (do_swap_account)
++			res_counter_uncharge(&memcg->memsw, size);
++	}
 +
- 		BUG_ON(nlru->nr_items < 0);
- 		spin_unlock(&nlru->lock);
- 		return 1;
-@@ -97,7 +111,9 @@ restart:
- 		ret = isolate(item, &nlru->lock, cb_arg);
- 		switch (ret) {
- 		case 0:	/* item removed from list */
--			if (--nlru->nr_items == 0)
-+			nlru->nr_items--;
-+
-+			if (atomic_long_dec_and_test(&lru->node_totals[nid]))
- 				node_clear(nid, lru->active_nodes);
- 			BUG_ON(nlru->nr_items < 0);
- 			isolated++;
-@@ -245,11 +261,41 @@ out:
  	return ret;
  }
  
--void list_lru_destroy(struct list_lru *lru)
-+struct list_lru_node *
-+lru_node_of_index(struct list_lru *lru, int index, int nid)
- {
-+	struct list_lru_node *nlru;
-+
-+	if (index < 0)
-+		return &lru->node[nid];
-+
- 	if (!lru->memcg_lrus)
--		return;
-+		return NULL;
-+
-+	/*
-+	 * because we will only ever free the memcg_lrus after synchronize_rcu,
-+	 * we are safe with the rcu lock here: even if we are operating in the
-+	 * stale version of the array, the data is still valid and we are not
-+	 * risking anything.
-+	 *
-+	 * The read barrier is needed to make sure that we see the pointer
-+	 * assigment for the specific memcg
-+	 */
-+	rcu_read_lock();
-+	rmb();
-+	/* The array exist, but the particular memcg does not */
-+	if (!lru->memcg_lrus[index]) {
-+		nlru = NULL;
-+		goto out;
-+	}
-+	nlru = &lru->memcg_lrus[index]->node[nid];
-+out:
-+	rcu_read_unlock();
-+	return nlru;
-+}
- 
-+void list_lru_destroy(struct list_lru *lru)
++/*
++ * There might be situations in which there are plenty of objects to shrink,
++ * but we can't do it because the __GFP_FS flag is not set.  This is the case
++ * with almost all inode allocation. They do are, however, capable of waiting.
++ * So we can just span a worker, let it finish its job and proceed with the
++ * allocation. As slow as it is, at this point we are already past any hopes
++ * anyway.
++ */
++static void kmemcg_shrink_work_fn(struct work_struct *w)
 +{
- 	mutex_lock(&all_memcg_lrus_mutex);
- 	list_del(&lru->lrus);
- 	mutex_unlock(&all_memcg_lrus_mutex);
-@@ -274,8 +320,10 @@ int __list_lru_init(struct list_lru *lru, bool memcg_enabled)
- 	int i;
++	struct mem_cgroup *memcg;
++
++	memcg = container_of(w, struct mem_cgroup, kmemcg_shrink_work);
++
++	if (!try_to_free_mem_cgroup_kmem(memcg, GFP_KERNEL))
++		congestion_wait(BLK_RW_ASYNC, HZ/10);
++}
++
++
+ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
+ {
+ 	res_counter_uncharge(&memcg->res, size);
+@@ -3005,6 +3140,7 @@ int memcg_update_cache_sizes(struct mem_cgroup *memcg)
+ 	memcg_update_array_size(num + 1);
  
- 	nodes_clear(lru->active_nodes);
--	for (i = 0; i < MAX_NUMNODES; i++)
-+	for (i = 0; i < MAX_NUMNODES; i++) {
- 		list_lru_init_one(&lru->node[i]);
-+		atomic_long_set(&lru->node_totals[i], 0);
-+	}
+ 	INIT_LIST_HEAD(&memcg->memcg_slab_caches);
++	INIT_WORK(&memcg->kmemcg_shrink_work, kmemcg_shrink_work_fn);
+ 	mutex_init(&memcg->slab_caches_mutex);
  
- 	if (memcg_enabled)
- 		return memcg_init_lru(lru);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c6c90d8..89b7ffb 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3160,9 +3160,15 @@ int memcg_kmem_update_lru_size(struct list_lru *lru, int num_groups,
- 		 * either follow the new array or the old one and they contain
- 		 * exactly the same information. The new space in the end is
- 		 * always empty anyway.
-+		 *
-+		 * We do have to make sure that no more users of the old
-+		 * memcg_lrus array exist before we free, and this is achieved
-+		 * by the synchronize_lru below.
- 		 */
--		if (lru->memcg_lrus)
-+		if (lru->memcg_lrus) {
-+			synchronize_rcu();
- 			kfree(old_array);
-+		}
- 	}
- 
- 	if (lru->memcg_lrus) {
-@@ -3306,6 +3312,36 @@ static inline void memcg_resume_kmem_account(void)
- 	current->memcg_kmem_skip_account--;
+ 	return 0;
+@@ -3281,37 +3417,6 @@ out:
+ 	kfree(s->memcg_params);
  }
  
-+static struct mem_cgroup *mem_cgroup_from_kmem_page(struct page *page)
-+{
-+	struct page_cgroup *pc;
-+	struct mem_cgroup *memcg = NULL;
-+
-+	pc = lookup_page_cgroup(page);
-+	if (!PageCgroupUsed(pc))
-+		return NULL;
-+
-+	lock_page_cgroup(pc);
-+	if (PageCgroupUsed(pc))
-+		memcg = pc->mem_cgroup;
-+	unlock_page_cgroup(pc);
-+	return memcg;
-+}
-+
-+struct list_lru_node *
-+memcg_kmem_lru_of_page(struct list_lru *lru, struct page *page)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_kmem_page(page);
-+	int nid = page_to_nid(page);
-+	int memcg_id;
-+
-+	if (!memcg_kmem_enabled())
-+		return &lru->node[nid];
-+
-+	memcg_id = memcg_cache_id(memcg);
-+	return lru_node_of_index(lru, memcg_id, nid);
-+}
-+
- static void kmem_cache_destroy_work_func(struct work_struct *w)
+-/*
+- * During the creation a new cache, we need to disable our accounting mechanism
+- * altogether. This is true even if we are not creating, but rather just
+- * enqueing new caches to be created.
+- *
+- * This is because that process will trigger allocations; some visible, like
+- * explicit kmallocs to auxiliary data structures, name strings and internal
+- * cache structures; some well concealed, like INIT_WORK() that can allocate
+- * objects during debug.
+- *
+- * If any allocation happens during memcg_kmem_get_cache, we will recurse back
+- * to it. This may not be a bounded recursion: since the first cache creation
+- * failed to complete (waiting on the allocation), we'll just try to create the
+- * cache again, failing at the same point.
+- *
+- * memcg_kmem_get_cache is prepared to abort after seeing a positive count of
+- * memcg_kmem_skip_account. So we enclose anything that might allocate memory
+- * inside the following two functions.
+- */
+-static inline void memcg_stop_kmem_account(void)
+-{
+-	VM_BUG_ON(!current->mm);
+-	current->memcg_kmem_skip_account++;
+-}
+-
+-static inline void memcg_resume_kmem_account(void)
+-{
+-	VM_BUG_ON(!current->mm);
+-	current->memcg_kmem_skip_account--;
+-}
+-
+ static struct mem_cgroup *mem_cgroup_from_kmem_page(struct page *page)
  {
- 	struct kmem_cache *cachep;
+ 	struct page_cgroup *pc;
+@@ -5292,6 +5397,9 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+ 			ret = memcg_update_kmem_limit(cont, val);
+ 		else
+ 			return -EINVAL;
++
++		if (!ret)
++			memcg_update_shrink_status(memcg);
+ 		break;
+ 	case RES_SOFT_LIMIT:
+ 		ret = res_counter_memparse_write_strategy(buffer, &val);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 43928fd..dd235e6 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2504,7 +2504,42 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 
+ 	return nr_reclaimed;
+ }
+-#endif
++
++#ifdef CONFIG_MEMCG_KMEM
++/*
++ * This function is called when we are under kmem-specific pressure.  It will
++ * only trigger in environments with kmem.limit_in_bytes < limit_in_bytes, IOW,
++ * with a lower kmem allowance than the memory allowance.
++ *
++ * In this situation, freeing user pages from the cgroup won't do us any good.
++ * What we really need is to call the memcg-aware shrinkers, in the hope of
++ * freeing pages holding kmem objects. It may also be that we won't be able to
++ * free any pages, but will get rid of old objects opening up space for new
++ * ones.
++ */
++unsigned long try_to_free_mem_cgroup_kmem(struct mem_cgroup *memcg,
++					  gfp_t gfp_mask)
++{
++	struct shrink_control shrink = {
++		.gfp_mask = gfp_mask,
++		.target_mem_cgroup = memcg,
++	};
++
++	if (!(gfp_mask & __GFP_WAIT))
++		return 0;
++
++	nodes_setall(shrink.nodes_to_scan);
++
++	/*
++	 * We haven't scanned any user LRU, so we basically come up with
++	 * crafted values of nr_scanned and LRU page (1 and 0 respectively).
++	 * This should be enough to tell shrink_slab that the freeing
++	 * responsibility is all on himself.
++	 */
++	return shrink_slab(&shrink, 1, 0);
++}
++#endif /* CONFIG_MEMCG_KMEM */
++#endif /* CONFIG_MEMCG */
+ 
+ static void age_active_anon(struct zone *zone, struct scan_control *sc)
+ {
 -- 
 1.8.1.4
 
