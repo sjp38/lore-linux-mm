@@ -1,299 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 780BE6B003D
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:14:42 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id AFEE36B0073
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:14:45 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 14/28] xfs: convert buftarg LRU to generic code
-Date: Fri, 29 Mar 2013 13:13:56 +0400
-Message-Id: <1364548450-28254-15-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 18/28] shrinker: convert remaining shrinkers to count/scan API
+Date: Fri, 29 Mar 2013 13:14:00 +0400
+Message-Id: <1364548450-28254-19-git-send-email-glommer@parallels.com>
 In-Reply-To: <1364548450-28254-1-git-send-email-glommer@parallels.com>
 References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Glauber Costa <glommer@parallels.com>, Dave Chinner <dchinner@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Dave Chinner <dchinner@redhat.com>
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Convert the buftarg LRU to use the new generic LRU list and take
-advantage of the functionality it supplies to make the buffer cache
-shrinker node aware.
+Convert the remaining couple of random shrinkers in the tree to the
+new API.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
-
-Conflicts with 3b19034d4f:
-	fs/xfs/xfs_buf.c
 ---
- fs/xfs/xfs_buf.c | 167 +++++++++++++++++++++++++------------------------------
- fs/xfs/xfs_buf.h |   5 +-
- 2 files changed, 79 insertions(+), 93 deletions(-)
+ arch/x86/kvm/mmu.c | 35 +++++++++++++++++++++++++----------
+ net/sunrpc/auth.c  | 45 +++++++++++++++++++++++++++++++--------------
+ 2 files changed, 56 insertions(+), 24 deletions(-)
 
-diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-index 8459b5d..4cc6632 100644
---- a/fs/xfs/xfs_buf.c
-+++ b/fs/xfs/xfs_buf.c
-@@ -85,20 +85,14 @@ xfs_buf_vmap_len(
-  * The LRU takes a new reference to the buffer so that it will only be freed
-  * once the shrinker takes the buffer off the LRU.
-  */
--STATIC void
-+static void
- xfs_buf_lru_add(
- 	struct xfs_buf	*bp)
- {
--	struct xfs_buftarg *btp = bp->b_target;
--
--	spin_lock(&btp->bt_lru_lock);
--	if (list_empty(&bp->b_lru)) {
--		atomic_inc(&bp->b_hold);
--		list_add_tail(&bp->b_lru, &btp->bt_lru);
--		btp->bt_lru_nr++;
-+	if (list_lru_add(&bp->b_target->bt_lru, &bp->b_lru)) {
- 		bp->b_lru_flags &= ~_XBF_LRU_DISPOSE;
-+		atomic_inc(&bp->b_hold);
- 	}
--	spin_unlock(&btp->bt_lru_lock);
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 956ca35..bebb8b6 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -4185,26 +4185,28 @@ restart:
+ 	spin_unlock(&kvm->mmu_lock);
  }
  
- /*
-@@ -107,24 +101,13 @@ xfs_buf_lru_add(
-  * The unlocked check is safe here because it only occurs when there are not
-  * b_lru_ref counts left on the inode under the pag->pag_buf_lock. it is there
-  * to optimise the shrinker removing the buffer from the LRU and calling
-- * xfs_buf_free(). i.e. it removes an unnecessary round trip on the
-- * bt_lru_lock.
-+ * xfs_buf_free().
-  */
--STATIC void
-+static void
- xfs_buf_lru_del(
- 	struct xfs_buf	*bp)
+-static void kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm,
++static long kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm,
+ 						struct list_head *invalid_list)
  {
--	struct xfs_buftarg *btp = bp->b_target;
--
--	if (list_empty(&bp->b_lru))
+ 	struct kvm_mmu_page *page;
+ 
+ 	if (list_empty(&kvm->arch.active_mmu_pages))
 -		return;
--
--	spin_lock(&btp->bt_lru_lock);
--	if (!list_empty(&bp->b_lru)) {
--		list_del_init(&bp->b_lru);
--		btp->bt_lru_nr--;
--	}
--	spin_unlock(&btp->bt_lru_lock);
-+	list_lru_del(&bp->b_target->bt_lru, &bp->b_lru);
++		return 0;
+ 
+ 	page = container_of(kvm->arch.active_mmu_pages.prev,
+ 			    struct kvm_mmu_page, link);
+-	kvm_mmu_prepare_zap_page(kvm, page, invalid_list);
++	return kvm_mmu_prepare_zap_page(kvm, page, invalid_list);
  }
  
- /*
-@@ -151,18 +134,10 @@ xfs_buf_stale(
- 	bp->b_flags &= ~_XBF_DELWRI_Q;
- 
- 	atomic_set(&(bp)->b_lru_ref, 0);
--	if (!list_empty(&bp->b_lru)) {
--		struct xfs_buftarg *btp = bp->b_target;
--
--		spin_lock(&btp->bt_lru_lock);
--		if (!list_empty(&bp->b_lru) &&
--		    !(bp->b_lru_flags & _XBF_LRU_DISPOSE)) {
--			list_del_init(&bp->b_lru);
--			btp->bt_lru_nr--;
--			atomic_dec(&bp->b_hold);
--		}
--		spin_unlock(&btp->bt_lru_lock);
--	}
-+	if (!(bp->b_lru_flags & _XBF_LRU_DISPOSE) &&
-+	    (list_lru_del(&bp->b_target->bt_lru, &bp->b_lru)))
-+		atomic_dec(&bp->b_hold);
+-static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
 +
- 	ASSERT(atomic_read(&bp->b_hold) >= 1);
- }
- 
-@@ -1498,83 +1473,95 @@ xfs_buf_iomove(
-  * returned. These buffers will have an elevated hold count, so wait on those
-  * while freeing all the buffers only held by the LRU.
-  */
--void
--xfs_wait_buftarg(
--	struct xfs_buftarg	*btp)
-+static int
-+xfs_buftarg_wait_rele(
-+	struct list_head	*item,
-+	spinlock_t		*lru_lock,
-+	void			*arg)
-+
++static long
++mmu_shrink_scan(
++	struct shrinker		*shrink,
++	struct shrink_control	*sc)
  {
--	struct xfs_buf		*bp;
-+	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
+ 	struct kvm *kvm;
+ 	int nr_to_scan = sc->nr_to_scan;
+-
+-	if (nr_to_scan == 0)
+-		goto out;
++	long freed = 0;
  
--restart:
--	spin_lock(&btp->bt_lru_lock);
--	while (!list_empty(&btp->bt_lru)) {
--		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
--		if (atomic_read(&bp->b_hold) > 1) {
--			trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
--			list_move_tail(&bp->b_lru, &btp->bt_lru);
--			spin_unlock(&btp->bt_lru_lock);
--			delay(100);
--			goto restart;
--		}
-+	if (atomic_read(&bp->b_hold) > 1) {
-+		/* need to wait */
-+		trace_xfs_buf_wait_buftarg(bp, _RET_IP_);
-+		spin_unlock(lru_lock);
-+		delay(100);
-+	} else {
- 		/*
- 		 * clear the LRU reference count so the buffer doesn't get
- 		 * ignored in xfs_buf_rele().
- 		 */
- 		atomic_set(&bp->b_lru_ref, 0);
--		spin_unlock(&btp->bt_lru_lock);
-+		spin_unlock(lru_lock);
- 		xfs_buf_rele(bp);
--		spin_lock(&btp->bt_lru_lock);
+ 	raw_spin_lock(&kvm_lock);
+ 
+@@ -4232,24 +4234,37 @@ static int mmu_shrink(struct shrinker *shrink, struct shrink_control *sc)
+ 		idx = srcu_read_lock(&kvm->srcu);
+ 		spin_lock(&kvm->mmu_lock);
+ 
+-		kvm_mmu_remove_some_alloc_mmu_pages(kvm, &invalid_list);
++		freed += kvm_mmu_remove_some_alloc_mmu_pages(kvm, &invalid_list);
+ 		kvm_mmu_commit_zap_page(kvm, &invalid_list);
+ 
+ 		spin_unlock(&kvm->mmu_lock);
+ 		srcu_read_unlock(&kvm->srcu, idx);
+ 
++		/*
++		 * unfair on small ones
++		 * per-vm shrinkers cry out
++		 * sadness comes quickly
++		 */
+ 		list_move_tail(&kvm->vm_list, &vm_list);
+ 		break;
  	}
--	spin_unlock(&btp->bt_lru_lock);
-+	return 3;
- }
  
--int
--xfs_buftarg_shrink(
-+void
-+xfs_wait_buftarg(
-+	struct xfs_buftarg	*btp)
-+{
-+	while (list_lru_count(&btp->bt_lru))
-+		list_lru_walk(&btp->bt_lru, xfs_buftarg_wait_rele,
-+			      NULL, LONG_MAX);
-+}
-+
-+static int
-+xfs_buftarg_isolate(
-+	struct list_head	*item,
-+	spinlock_t		*lru_lock,
-+	void			*arg)
-+{
-+	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
-+	struct list_head	*dispose = arg;
-+
-+	/*
-+	 * Decrement the b_lru_ref count unless the value is already
-+	 * zero. If the value is already zero, we need to reclaim the
-+	 * buffer, otherwise it gets another trip through the LRU.
-+	 */
-+	if (!atomic_add_unless(&bp->b_lru_ref, -1, 0))
-+		return 1;
-+
-+	bp->b_lru_flags |= _XBF_LRU_DISPOSE;
-+	list_move(item, dispose);
-+	return 0;
+ 	raw_spin_unlock(&kvm_lock);
++	return freed;
+ 
+-out:
 +}
 +
 +static long
-+xfs_buftarg_shrink_scan(
- 	struct shrinker		*shrink,
- 	struct shrink_control	*sc)
++mmu_shrink_count(
++	struct shrinker		*shrink,
++	struct shrink_control	*sc)
++{
+ 	return percpu_counter_read_positive(&kvm_total_used_mmu_pages);
+ }
+ 
+ static struct shrinker mmu_shrinker = {
+-	.shrink = mmu_shrink,
++	.count_objects = mmu_shrink_count,
++	.scan_objects = mmu_shrink_scan,
+ 	.seeks = DEFAULT_SEEKS * 10,
+ };
+ 
+diff --git a/net/sunrpc/auth.c b/net/sunrpc/auth.c
+index f529404..f340090 100644
+--- a/net/sunrpc/auth.c
++++ b/net/sunrpc/auth.c
+@@ -340,12 +340,13 @@ EXPORT_SYMBOL_GPL(rpcauth_destroy_credcache);
+ /*
+  * Remove stale credentials. Avoid sleeping inside the loop.
+  */
+-static int
++static long
+ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
  {
- 	struct xfs_buftarg	*btp = container_of(shrink,
- 					struct xfs_buftarg, bt_shrinker);
--	struct xfs_buf		*bp;
--	int nr_to_scan = sc->nr_to_scan;
- 	LIST_HEAD(dispose);
-+	long			freed;
+ 	spinlock_t *cache_lock;
+ 	struct rpc_cred *cred, *next;
+ 	unsigned long expired = jiffies - RPC_AUTH_EXPIRY_MORATORIUM;
++	long freed = 0;
  
--	if (!nr_to_scan)
--		return btp->bt_lru_nr;
--
--	spin_lock(&btp->bt_lru_lock);
--	while (!list_empty(&btp->bt_lru)) {
--		if (nr_to_scan-- <= 0)
--			break;
--
--		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
--
--		/*
--		 * Decrement the b_lru_ref count unless the value is already
--		 * zero. If the value is already zero, we need to reclaim the
--		 * buffer, otherwise it gets another trip through the LRU.
--		 */
--		if (!atomic_add_unless(&bp->b_lru_ref, -1, 0)) {
--			list_move_tail(&bp->b_lru, &btp->bt_lru);
--			continue;
--		}
--
--		/*
--		 * remove the buffer from the LRU now to avoid needing another
--		 * lock round trip inside xfs_buf_rele().
--		 */
--		list_move(&bp->b_lru, &dispose);
--		btp->bt_lru_nr--;
--		bp->b_lru_flags |= _XBF_LRU_DISPOSE;
--	}
--	spin_unlock(&btp->bt_lru_lock);
-+	freed = list_lru_walk_nodemask(&btp->bt_lru, xfs_buftarg_isolate,
-+				       &dispose, sc->nr_to_scan,
-+				       &sc->nodes_to_scan);
+ 	list_for_each_entry_safe(cred, next, &cred_unused, cr_lru) {
  
- 	while (!list_empty(&dispose)) {
-+		struct xfs_buf *bp;
- 		bp = list_first_entry(&dispose, struct xfs_buf, b_lru);
- 		list_del_init(&bp->b_lru);
- 		xfs_buf_rele(bp);
+@@ -357,10 +358,11 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
+ 		 */
+ 		if (time_in_range(cred->cr_expire, expired, jiffies) &&
+ 		    test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0)
+-			return 0;
++			break;
+ 
+ 		list_del_init(&cred->cr_lru);
+ 		number_cred_unused--;
++		freed++;
+ 		if (atomic_read(&cred->cr_count) != 0)
+ 			continue;
+ 
+@@ -373,29 +375,43 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
+ 		}
+ 		spin_unlock(cache_lock);
  	}
+-	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
++	return freed;
+ }
  
--	return btp->bt_lru_nr;
+ /*
+  * Run memory cache shrinker.
+  */
+-static int
+-rpcauth_cache_shrinker(struct shrinker *shrink, struct shrink_control *sc)
++static long
++rpcauth_cache_shrink_scan(
++	struct shrinker		*shrink,
++	struct shrink_control	*sc)
++
+ {
+ 	LIST_HEAD(free);
+-	int res;
+-	int nr_to_scan = sc->nr_to_scan;
+-	gfp_t gfp_mask = sc->gfp_mask;
++	long freed;
++
++	if ((sc->gfp_mask & GFP_KERNEL) != GFP_KERNEL)
++		return -1;
+ 
+-	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
+-		return (nr_to_scan == 0) ? 0 : -1;
++	/* nothing left, don't come back */
+ 	if (list_empty(&cred_unused))
+-		return 0;
++		return -1;
++
+ 	spin_lock(&rpc_credcache_lock);
+-	res = rpcauth_prune_expired(&free, nr_to_scan);
++	freed = rpcauth_prune_expired(&free, sc->nr_to_scan);
+ 	spin_unlock(&rpc_credcache_lock);
+ 	rpcauth_destroy_credlist(&free);
+-	return res;
++
 +	return freed;
 +}
 +
 +static long
-+xfs_buftarg_shrink_count(
++rpcauth_cache_shrink_count(
 +	struct shrinker		*shrink,
 +	struct shrink_control	*sc)
++
 +{
-+	struct xfs_buftarg	*btp = container_of(shrink,
-+					struct xfs_buftarg, bt_shrinker);
-+	return list_lru_count_nodemask(&btp->bt_lru, &sc->nodes_to_scan);
++	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
  }
  
- void
-@@ -1656,11 +1643,11 @@ xfs_alloc_buftarg(
- 	if (!btp->bt_bdi)
- 		goto error;
- 
--	INIT_LIST_HEAD(&btp->bt_lru);
--	spin_lock_init(&btp->bt_lru_lock);
-+	list_lru_init(&btp->bt_lru);
- 	if (xfs_setsize_buftarg_early(btp, bdev))
- 		goto error;
--	btp->bt_shrinker.shrink = xfs_buftarg_shrink;
-+	btp->bt_shrinker.count_objects = xfs_buftarg_shrink_count;
-+	btp->bt_shrinker.scan_objects = xfs_buftarg_shrink_scan;
- 	btp->bt_shrinker.seeks = DEFAULT_SEEKS;
- 	register_shrinker(&btp->bt_shrinker);
- 	return btp;
-diff --git a/fs/xfs/xfs_buf.h b/fs/xfs/xfs_buf.h
-index 433a12e..5ec7d35 100644
---- a/fs/xfs/xfs_buf.h
-+++ b/fs/xfs/xfs_buf.h
-@@ -25,6 +25,7 @@
- #include <linux/fs.h>
- #include <linux/buffer_head.h>
- #include <linux/uio.h>
-+#include <linux/list_lru.h>
- 
  /*
-  *	Base types
-@@ -92,9 +93,7 @@ typedef struct xfs_buftarg {
+@@ -711,7 +727,8 @@ rpcauth_uptodatecred(struct rpc_task *task)
+ }
  
- 	/* LRU control structures */
- 	struct shrinker		bt_shrinker;
--	struct list_head	bt_lru;
--	spinlock_t		bt_lru_lock;
--	unsigned int		bt_lru_nr;
-+	struct list_lru		bt_lru;
- } xfs_buftarg_t;
+ static struct shrinker rpc_cred_shrinker = {
+-	.shrink = rpcauth_cache_shrinker,
++	.count_objects = rpcauth_cache_shrink_count,
++	.scan_objects = rpcauth_cache_shrink_scan,
+ 	.seeks = DEFAULT_SEEKS,
+ };
  
- struct xfs_buf;
 -- 
 1.8.1.4
 
