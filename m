@@ -1,80 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 847A36B0002
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 10:45:40 -0400 (EDT)
-Date: Fri, 29 Mar 2013 15:45:37 +0100
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 22D036B0002
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 10:59:06 -0400 (EDT)
+Date: Fri, 29 Mar 2013 15:59:00 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, memcg: give exiting processes access to memory
- reserves
-Message-ID: <20130329144537.GG21227@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
+Subject: Re: [PATCH] memcg: take reference before releasing rcu_read_lock
+Message-ID: <20130329145900.GI21227@dhcp22.suse.cz>
+References: <51556CE9.9060000@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
+In-Reply-To: <51556CE9.9060000@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 27-03-13 18:22:10, David Rientjes wrote:
-> A memcg may livelock when oom if the process that grabs the hierarchy's
-> oom lock is never the first process with PF_EXITING set in the memcg's
-> task iteration.
+On Fri 29-03-13 18:28:57, Li Zefan wrote:
+> The memcg is not referenced, so it can be destroyed at anytime right
+> after we exit rcu read section, so it's not safe to access it.
 > 
-> The oom killer, both global and memcg, will defer if it finds an eligible
-> process that is in the process of exiting and it is not being ptraced.
-> The idea is to allow it to exit without using memory reserves before
-> needlessly killing another process.
+> To fix this, we call css_tryget() to get a reference while we're still
+> in rcu read section.
 > 
-> This normally works fine except in the memcg case with a large number of
-> threads attached to the oom memcg.  In this case, the memcg oom killer
-> only gets called for the process that grabs the hierarchy's oom lock; all
-> others end up blocked on the memcg's oom waitqueue.  Thus, if the process
-> that grabs the hierarchy's oom lock is never the first PF_EXITING process
-> in the memcg's task iteration, the oom killer is constantly deferred
-> without anything making progress.
+> This also removes a bogus comment above __memcg_create_cache_enqueue().
 > 
-> The fix is to give PF_EXITING processes access to memory reserves so that
-> we've marked them as oom killed without any iteration.  This allows
-> __mem_cgroup_try_charge() to succeed so that the process may exit.  This
-> makes the memcg oom killer exemption for TIF_MEMDIE tasks, now
-> immediately granted for processes with pending SIGKILLs and those in the
-> exit path, to be equivalent to what is done for the global oom killer.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Li Zefan <lizefan@huawei.com>
 
+Looks good to me.
 Acked-by: Michal Hocko <mhocko@suse.cz>
 
-AFAIU this has been introduced by 9ff4868e (mm, oom: allow exiting
-threads to have access to memory reserves) so maybe we want to mark it
-for stable (3.8).
-
-Thanks
-
 > ---
->  mm/memcontrol.c | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
+>  mm/memcontrol.c | 63 ++++++++++++++++++++++++++++++---------------------------
+>  1 file changed, 33 insertions(+), 30 deletions(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index bbe0742..01fe340 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -1686,11 +1686,11 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  	struct task_struct *chosen = NULL;
+> @@ -3456,7 +3456,6 @@ static void memcg_create_cache_work_func(struct work_struct *w)
 >  
->  	/*
-> -	 * If current has a pending SIGKILL, then automatically select it.  The
-> -	 * goal is to allow it to allocate so that it may quickly exit and free
-> -	 * its memory.
-> +	 * If current has a pending SIGKILL or is exiting, then automatically
-> +	 * select it.  The goal is to allow it to allocate so that it may
-> +	 * quickly exit and free its memory.
->  	 */
-> -	if (fatal_signal_pending(current)) {
-> +	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
->  		set_thread_flag(TIF_MEMDIE);
+>  /*
+>   * Enqueue the creation of a per-memcg kmem_cache.
+> - * Called with rcu_read_lock.
+>   */
+>  static void __memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+>  					 struct kmem_cache *cachep)
+> @@ -3464,12 +3463,8 @@ static void __memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+>  	struct create_work *cw;
+>  
+>  	cw = kmalloc(sizeof(struct create_work), GFP_NOWAIT);
+> -	if (cw == NULL)
+> -		return;
+> -
+> -	/* The corresponding put will be done in the workqueue. */
+> -	if (!css_tryget(&memcg->css)) {
+> -		kfree(cw);
+> +	if (cw == NULL) {
+> +		css_put(&memcg->css);
 >  		return;
 >  	}
+>  
+> @@ -3525,10 +3520,9 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+>  
+>  	rcu_read_lock();
+>  	memcg = mem_cgroup_from_task(rcu_dereference(current->mm->owner));
+> -	rcu_read_unlock();
+>  
+>  	if (!memcg_can_account_kmem(memcg))
+> -		return cachep;
+> +		goto out;
+>  
+>  	idx = memcg_cache_id(memcg);
+>  
+> @@ -3537,29 +3531,38 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+>  	 * code updating memcg_caches will issue a write barrier to match this.
+>  	 */
+>  	read_barrier_depends();
+> -	if (unlikely(cachep->memcg_params->memcg_caches[idx] == NULL)) {
+> -		/*
+> -		 * If we are in a safe context (can wait, and not in interrupt
+> -		 * context), we could be be predictable and return right away.
+> -		 * This would guarantee that the allocation being performed
+> -		 * already belongs in the new cache.
+> -		 *
+> -		 * However, there are some clashes that can arrive from locking.
+> -		 * For instance, because we acquire the slab_mutex while doing
+> -		 * kmem_cache_dup, this means no further allocation could happen
+> -		 * with the slab_mutex held.
+> -		 *
+> -		 * Also, because cache creation issue get_online_cpus(), this
+> -		 * creates a lock chain: memcg_slab_mutex -> cpu_hotplug_mutex,
+> -		 * that ends up reversed during cpu hotplug. (cpuset allocates
+> -		 * a bunch of GFP_KERNEL memory during cpuup). Due to all that,
+> -		 * better to defer everything.
+> -		 */
+> -		memcg_create_cache_enqueue(memcg, cachep);
+> -		return cachep;
+> +	if (likely(cachep->memcg_params->memcg_caches[idx])) {
+> +		cachep = cachep->memcg_params->memcg_caches[idx];
+> +		goto out;
+>  	}
+>  
+> -	return cachep->memcg_params->memcg_caches[idx];
+> +	/* The corresponding put will be done in the workqueue. */
+> +	if (!css_tryget(&memcg->css))
+> +		goto out;
+> +	rcu_read_unlock();
+> +
+> +	/*
+> +	 * If we are in a safe context (can wait, and not in interrupt
+> +	 * context), we could be be predictable and return right away.
+> +	 * This would guarantee that the allocation being performed
+> +	 * already belongs in the new cache.
+> +	 *
+> +	 * However, there are some clashes that can arrive from locking.
+> +	 * For instance, because we acquire the slab_mutex while doing
+> +	 * kmem_cache_dup, this means no further allocation could happen
+> +	 * with the slab_mutex held.
+> +	 *
+> +	 * Also, because cache creation issue get_online_cpus(), this
+> +	 * creates a lock chain: memcg_slab_mutex -> cpu_hotplug_mutex,
+> +	 * that ends up reversed during cpu hotplug. (cpuset allocates
+> +	 * a bunch of GFP_KERNEL memory during cpuup). Due to all that,
+> +	 * better to defer everything.
+> +	 */
+> +	memcg_create_cache_enqueue(memcg, cachep);
+> +	return cachep;
+> +out:
+> +	rcu_read_unlock();
+> +	return cachep;
+>  }
+>  EXPORT_SYMBOL(__memcg_kmem_get_cache);
+>  
+> -- 
+> 1.8.0.2
 
 -- 
 Michal Hocko
