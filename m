@@ -1,92 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id D80D46B0002
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 11:22:11 -0400 (EDT)
-Date: Fri, 29 Mar 2013 16:22:09 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: system death under oom - 3.7.9
-Message-ID: <20130329152209.GC21879@dhcp22.suse.cz>
-References: <CAKb7UviwOk9asT=WxYgDUzfm3J+tGXobroUycpoTvzOX5kkofQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id ACBE46B0002
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 11:37:09 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id r11so298430pdi.21
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2013 08:37:08 -0700 (PDT)
+Message-ID: <5155B517.3040501@gmail.com>
+Date: Fri, 29 Mar 2013 23:36:55 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKb7UviwOk9asT=WxYgDUzfm3J+tGXobroUycpoTvzOX5kkofQ@mail.gmail.com>
+Subject: Re: [PATCH v3, part4 38/39] mm/hotplug: prepare for removing num_physpages
+References: <1364313298-17336-1-git-send-email-jiang.liu@huawei.com> <1364313298-17336-39-git-send-email-jiang.liu@huawei.com> <20130329111856.GA3824@merkur.ravnborg.org>
+In-Reply-To: <20130329111856.GA3824@merkur.ravnborg.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ilia Mirkin <imirkin@alum.mit.edu>
-Cc: linux-kernel@vger.kernel.org, nouveau@lists.freedesktop.org, linux-mm@kvack.org
+To: Sam Ravnborg <sam@ravnborg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-On Wed 27-03-13 14:25:36, Ilia Mirkin wrote:
-> Hello,
+On 03/29/2013 07:18 PM, Sam Ravnborg wrote:
+> On Tue, Mar 26, 2013 at 11:54:57PM +0800, Jiang Liu wrote:
+>> Prepare for removing num_physpages.
+>>
+>> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+>> Cc: Wen Congyang <wency@cn.fujitsu.com>
+>> Cc: Tang Chen <tangchen@cn.fujitsu.com>
+>> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>> Cc: linux-mm@kvack.org
+>> Cc: linux-kernel@vger.kernel.org
+>> ---
+>> Hi all,
+>> 	Sorry for my mistake that my previous patch series has been screwed up.
+>> So I regenerate a third version and also set up a git tree at:
+>> 	git://github.com/jiangliu/linux.git mem_init
+>> 	Any help to review and test are welcomed!
+>>
+>> 	Regards!
+>> 	Gerry
+>> ---
+>>  mm/memory_hotplug.c |    4 ----
+>>  1 file changed, 4 deletions(-)
+>>
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 97454b3..9b1b494 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -751,10 +751,6 @@ EXPORT_SYMBOL_GPL(restore_online_page_callback);
+>>  
+>>  void __online_page_set_limits(struct page *page)
+>>  {
+>> -	unsigned long pfn = page_to_pfn(page);
+>> -
+>> -	if (pfn >= num_physpages)
+>> -		num_physpages = pfn + 1;
+>>  }
+>>  EXPORT_SYMBOL_GPL(__online_page_set_limits);
 > 
-> My system died last night apparently due to OOM conditions. Note that
-> I don't have any swap set up, but my understanding is that this is not
-> required. The full log is at: http://pastebin.com/YCYUXWvV. It was in
-> my messages, so I guess the system took a bit to die completely.
-
-This doesn't seem like OOM:
-[615185.810509] DMA32 free:130456kB min:36364kB low:45452kB high:54544kB active_anon:764604kB inactive_anon:13180kB active_file:1282040kB inactive_file:910648kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:3325056kB mlocked:0kB dirty:4472kB writeback:0kB mapped:42836kB shmem:14388kB slab_reclaimable:155160kB slab_unreclaimable:13620kB kernel_stack:576kB pagetables:8712kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-[615185.810511] lowmem_reserve[]: 0 0 2772 2772
-[615185.810517] Normal free:44288kB min:31044kB low:38804kB high:46564kB active_anon:2099560kB inactive_anon:14416kB active_file:271972kB inactive_file:69684kB unevictable:4kB isolated(anon):0kB isolated(file):0kB present:2838528kB mlocked:4kB dirty:12kB writeback:0kB mapped:107868kB shmem:17440kB slab_reclaimable:87304kB slab_unreclaimable:45452kB kernel_stack:3648kB pagetables:42840kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:196 all_unreclaimable? no
-
-You are above above high watermark in the DMA32 zone and slightly bellow
-high watermak in the Normal zone.
-Your driver requested
-[615185.810279] xlock: page allocation failure: order:4, mode:0xc0d0
-
-which is GFP_KERNEL |__GFP_COMP|__GFP_ZERO which doesn't look so unusual but
-
-[615185.810521] DMA: 0*4kB 0*8kB 1*16kB 0*32kB 2*64kB 1*128kB 1*256kB 0*512kB 1*1024kB 1*2048kB 3*4096kB = 15888kB
-[615185.810527] DMA32: 5673*4kB 7213*8kB 2142*16kB 461*32kB 30*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 131340kB
-[615185.810532] Normal: 3382*4kB 3121*8kB 355*16kB 11*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 44528kB
-
-but you ran out of high order pages on DMA32 zone (and zone Normal looks
-even worse). There are only 30 order-4 pages and I suppose that the
-allocation failed on the watermark check for that order.
-
-> nouveau is somewhat implicated, as it is the first thing that hits an
-> allocation failure in nouveau_vm_create, and has a subsequent warn in
-> nouveau_mm_fini, but then there's a GPF in
-> __alloc_skb/__kmalloc_track_caller (and I'm using SLUB). Here is a
-> partial disassembly for __kmalloc_track_caller:
-
-I would start by checking whether the driver handles the allocation
-failure properly and it doesn't clobber slab data from other allocations
-(just a wild guess as I am not familiar with nouveau code at all).
+> How can this be correct?
+> With this change __online_page_set_limits() is now a nop.
+Hi Sam,
+	We will eventually remove the global variable num_physpages in the last patch.
+I kept the nop __online_page_set_limits() because I have a plan to use it to fix other
+bugs in memory hotplug, otherwise it may be killed too.
+	Regards!
+	Gerry
 
 > 
->    0xffffffff811325b1 <+138>:   e8 a0 60 56 00  callq
-> 0xffffffff81698656 <__slab_alloc.constprop.68>
->    0xffffffff811325b6 <+143>:   49 89 c4        mov    %rax,%r12
->    0xffffffff811325b9 <+146>:   eb 27   jmp    0xffffffff811325e2
-> <__kmalloc_track_caller+187>
->    0xffffffff811325bb <+148>:   49 63 45 20     movslq 0x20(%r13),%rax
->    0xffffffff811325bf <+152>:   48 8d 4a 01     lea    0x1(%rdx),%rcx
->    0xffffffff811325c3 <+156>:   49 8b 7d 00     mov    0x0(%r13),%rdi
->    0xffffffff811325c7 <+160>:   49 8b 1c 04     mov    (%r12,%rax,1),%rbx
->    0xffffffff811325cb <+164>:   4c 89 e0        mov    %r12,%rax
->    0xffffffff811325ce <+167>:   48 8d 37        lea    (%rdi),%rsi
->    0xffffffff811325d1 <+170>:   e8 3a 38 1b 00  callq
-> 0xffffffff812e5e10 <this_cpu_cmpxchg16b_emu>
+> 	Sam
 > 
-> The GPF happens at +160, which is in the argument setup for the
-> cmpxchg in slab_alloc_node. I think it's the call to
-> get_freepointer(). There was a similar bug report a while back,
-> https://lkml.org/lkml/2011/5/23/199, and the recommendation was to run
-> with slub debugging. Is that still the case, or is there a simpler
-> explanation? I can't reproduce this at will, not sure how many times
-> this has happened but definitely not many.
-> 
->   -ilia
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
