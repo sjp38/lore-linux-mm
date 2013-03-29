@@ -1,70 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id AC64C6B0078
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:14:49 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id B48D96B0089
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:15:10 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 19/28] hugepage: convert huge zero page shrinker to new shrinker API
-Date: Fri, 29 Mar 2013 13:14:01 +0400
-Message-Id: <1364548450-28254-20-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 24/28] list_lru: also include memcg lists in counts and scans
+Date: Fri, 29 Mar 2013 13:14:06 +0400
+Message-Id: <1364548450-28254-25-git-send-email-glommer@parallels.com>
 In-Reply-To: <1364548450-28254-1-git-send-email-glommer@parallels.com>
 References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Glauber Costa <glommer@parallels.com>, Dave Chinner <dchinner@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Glauber Costa <glommer@parallels.com>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-It consists of:
+As elements are added to per-memcg lists, they will be invisible to
+global reclaimers. This patch mainly modifies list_lru walk and count
+functions to take that into account.
 
-* returning long instead of int
-* separating count from scan
-* returning the number of freed entities in scan
+Counting is very simple: since we already have total figures for the
+node, which we use to figure out when to set or clear the node in the
+bitmap, we can just use that.
+
+For walking, we need to walk the memcg lists as well as the global list.
+To achieve that, this patch introduces the helper macro
+for_each_memcg_lru_index. Locking semantics are simple, since
+introducing a new LRU in the list does not influence the memcg walkers.
+
+The only operation we race against is memcg creation and teardown.  For
+those, barriers should be enough to guarantee that we are seeing
+up-to-date information and not accessing invalid pointers.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Dave Chinner <dchinner@redhat.com>
+Cc: Dave Chinner <dchinner@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/huge_memory.c | 18 ++++++++++++------
- 1 file changed, 12 insertions(+), 6 deletions(-)
+ include/linux/memcontrol.h |  2 ++
+ lib/list_lru.c             | 90 ++++++++++++++++++++++++++++++++++------------
+ 2 files changed, 69 insertions(+), 23 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e2f7f5aa..8bf43d3 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -212,24 +212,30 @@ static void put_huge_zero_page(void)
- 	BUG_ON(atomic_dec_and_test(&huge_zero_refcount));
- }
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index f55f875..99b36fe 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -593,6 +593,8 @@ static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+ #define for_each_memcg_cache_index(_idx)	\
+ 	for (; NULL; )
  
--static int shrink_huge_zero_page(struct shrinker *shrink,
--		struct shrink_control *sc)
++#define memcg_limited_groups_array_size 0
 +
-+static long shrink_huge_zero_page_count(struct shrinker *shrink,
-+					struct shrink_control *sc)
+ static inline bool memcg_kmem_enabled(void)
  {
--	if (!sc->nr_to_scan)
--		/* we can free zero page only if last reference remains */
--		return atomic_read(&huge_zero_refcount) == 1 ? HPAGE_PMD_NR : 0;
-+	/* we can free zero page only if last reference remains */
-+	return atomic_read(&huge_zero_refcount) == 1 ? HPAGE_PMD_NR : 0;
-+}
+ 	return false;
+diff --git a/lib/list_lru.c b/lib/list_lru.c
+index 734ff91..e8d04a1 100644
+--- a/lib/list_lru.c
++++ b/lib/list_lru.c
+@@ -10,6 +10,23 @@
+ #include <linux/list_lru.h>
+ #include <linux/memcontrol.h>
  
-+static long shrink_huge_zero_page_scan(struct shrinker *shrink,
-+				       struct shrink_control *sc)
-+{
- 	if (atomic_cmpxchg(&huge_zero_refcount, 1, 0) == 1) {
- 		unsigned long zero_pfn = xchg(&huge_zero_pfn, 0);
- 		BUG_ON(zero_pfn == 0);
- 		__free_page(__pfn_to_page(zero_pfn));
-+		return HPAGE_PMD_NR;
++/*
++ * This helper will loop through all node-data in the LRU, either global or
++ * per-memcg.  If memcg is either not present or not used,
++ * memcg_limited_groups_array_size will be 0. _idx starts at -1, and it will
++ * still be allowed to execute once.
++ *
++ * We convention that for _idx = -1, the global node info should be used.
++ * After that, we will go through each of the memcgs, starting at 0.
++ *
++ * We don't need any kind of locking for the loop because
++ * memcg_limited_groups_array_size can only grow, gaining new fields at the
++ * end. The old ones are just copied, and any interesting manipulation happen
++ * in the node list itself, and we already lock the list.
++ */
++#define for_each_memcg_lru_index(_idx)	\
++	for ((_idx) = -1; ((_idx) < memcg_limited_groups_array_size); (_idx)++)
++
+ int
+ list_lru_add(
+ 	struct list_lru	*lru,
+@@ -77,12 +94,12 @@ list_lru_count_nodemask(
+ 	int nid;
+ 
+ 	for_each_node_mask(nid, *nodes_to_count) {
+-		struct list_lru_node *nlru = &lru->node[nid];
+-
+-		spin_lock(&nlru->lock);
+-		BUG_ON(nlru->nr_items < 0);
+-		count += nlru->nr_items;
+-		spin_unlock(&nlru->lock);
++		/*
++		 * We don't need to loop through all memcgs here, because we
++		 * have the node_totals information for the node. If we hadn't,
++		 * this would still be achieavable by a loop-over-all-groups
++		 */
++		count += atomic_long_read(&lru->node_totals[nid]);
  	}
  
- 	return 0;
- }
+ 	return count;
+@@ -92,12 +109,12 @@ EXPORT_SYMBOL_GPL(list_lru_count_nodemask);
+ static long
+ list_lru_walk_node(
+ 	struct list_lru		*lru,
++	struct list_lru_node	*nlru,
+ 	int			nid,
+ 	list_lru_walk_cb	isolate,
+ 	void			*cb_arg,
+ 	long			*nr_to_walk)
+ {
+-	struct list_lru_node	*nlru = &lru->node[nid];
+ 	struct list_head *item, *n;
+ 	long isolated = 0;
+ restart:
+@@ -143,12 +160,28 @@ list_lru_walk_nodemask(
+ {
+ 	long isolated = 0;
+ 	int nid;
++	nodemask_t nodes;
++	int idx;
++	struct list_lru_node *nlru;
  
- static struct shrinker huge_zero_page_shrinker = {
--	.shrink = shrink_huge_zero_page,
-+	.scan_objects = shrink_huge_zero_page_scan,
-+	.count_objects = shrink_huge_zero_page_count,
- 	.seeks = DEFAULT_SEEKS,
- };
+-	for_each_node_mask(nid, *nodes_to_walk) {
+-		isolated += list_lru_walk_node(lru, nid, isolate,
+-					       cb_arg, &nr_to_walk);
+-		if (nr_to_walk <= 0)
+-			break;
++	/*
++	 * Conservative code can call this setting nodes with node_setall.
++	 * This will generate an out of bound access for memcg.
++	 */
++	nodes_and(nodes, *nodes_to_walk, node_online_map);
++
++	for_each_node_mask(nid, nodes) {
++		for_each_memcg_lru_index(idx) {
++
++			nlru = lru_node_of_index(lru, idx, nid);
++			if (!nlru)
++				continue;
++
++			isolated += list_lru_walk_node(lru, nlru, nid, isolate,
++						       cb_arg, &nr_to_walk);
++			if (nr_to_walk <= 0)
++				break;
++		}
+ 	}
+ 	return isolated;
+ }
+@@ -160,23 +193,34 @@ list_lru_dispose_all_node(
+ 	int			nid,
+ 	list_lru_dispose_cb	dispose)
+ {
+-	struct list_lru_node	*nlru = &lru->node[nid];
++	struct list_lru_node *nlru;
+ 	LIST_HEAD(dispose_list);
+ 	long disposed = 0;
++	int idx;
+ 
+-	spin_lock(&nlru->lock);
+-	while (!list_empty(&nlru->list)) {
+-		list_splice_init(&nlru->list, &dispose_list);
+-		disposed += nlru->nr_items;
+-		nlru->nr_items = 0;
+-		node_clear(nid, lru->active_nodes);
+-		spin_unlock(&nlru->lock);
+-
+-		dispose(&dispose_list);
++	for_each_memcg_lru_index(idx) {
++		nlru = lru_node_of_index(lru, idx, nid);
++		if (!nlru)
++			continue;
+ 
+ 		spin_lock(&nlru->lock);
++		while (!list_empty(&nlru->list)) {
++			list_splice_init(&nlru->list, &dispose_list);
++
++			if (atomic_long_sub_and_test(nlru->nr_items,
++							&lru->node_totals[nid]))
++				node_clear(nid, lru->active_nodes);
++			disposed += nlru->nr_items;
++			nlru->nr_items = 0;
++			spin_unlock(&nlru->lock);
++
++			dispose(&dispose_list);
++
++			spin_lock(&nlru->lock);
++		}
++		spin_unlock(&nlru->lock);
+ 	}
+-	spin_unlock(&nlru->lock);
++
+ 	return disposed;
+ }
  
 -- 
 1.8.1.4
