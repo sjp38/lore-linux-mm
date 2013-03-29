@@ -1,256 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 1F1966B0006
-	for <linux-mm@kvack.org>; Thu, 28 Mar 2013 23:14:57 -0400 (EDT)
-Date: Fri, 29 Mar 2013 00:14:46 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [patch 4/4 v4]swap: make cluster allocation per-cpu
-Message-ID: <20130329031445.GD19721@optiplex.redhat.com>
-References: <20130326053843.GD19646@kernel.org>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 41F436B0002
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 01:27:13 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 29 Mar 2013 15:16:25 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 770B7357804A
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 16:27:07 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r2T5D2JV57802990
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 16:13:03 +1100
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r2T5QEp4000649
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 16:26:15 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 03/10] soft-offline: use migrate_pages() instead of migrate_huge_page()
+In-Reply-To: <20130327135250.GI16579@dhcp22.suse.cz>
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com> <87boa69z6j.fsf@linux.vnet.ibm.com> <20130327135250.GI16579@dhcp22.suse.cz>
+Date: Fri, 29 Mar 2013 10:56:00 +0530
+Message-ID: <87li967p5j.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130326053843.GD19646@kernel.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, riel@redhat.com, minchan@kernel.org, kmpark@infradead.org, hughd@google.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Tue, Mar 26, 2013 at 01:38:43PM +0800, Shaohua Li wrote:
-> swap cluster allocation is to get better request merge to improve performance.
-> But the cluster is shared globally, if multiple tasks are doing swap, this will
-> cause interleave disk access. While multiple tasks swap is quite common, for
-> example, each numa node has a kswapd thread doing swap or multiple
-> threads/processes do direct page reclaim.
-> 
-> We makes the cluster allocation per-cpu here. The interleave disk access issue
-> goes away. All tasks will do sequential swap.
-> 
-> If one CPU can't get its per-cpu cluster, it will fallback to scan swap_map.
-> The CPU can still continue swap. We don't need recycle free swap entries of
-> other CPUs.
-> 
-> In my test (swap to a 2-disk raid0 partition), this improves around 10%
-> swapout throughput, and request size is increased significantly.
-> 
-> How does this impact swap readahead is uncertain though. On one side, page
-> reclaim always isolates and swaps several adjancent pages, this will make page
-> reclaim write the pages sequentially and benefit readahead. On the other side,
-> several CPU write pages interleave means the pages don't live _sequentially_
-> but relatively _near_. In the per-cpu allocation case, if adjancent pages are
-> written by different cpus, they will live relatively _far_.  So how this
-> impacts swap readahead depends on how many pages page reclaim isolates and
-> swaps one time. If the number is big, this patch will benefit swap readahead.
-> Of course, this is about sequential access pattern. The patch has no impact for
-> random access pattern, because the new cluster allocation algorithm is just for
-> SSD.
-> 
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
-> ---
+Michal Hocko <mhocko@suse.cz> writes:
 
-Acked-by: Rafael Aquini <aquini@redhat.com>
+> On Tue 26-03-13 16:59:40, Aneesh Kumar K.V wrote:
+>> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+> [...]
+>> > diff --git v3.9-rc3.orig/mm/memory-failure.c v3.9-rc3/mm/memory-failure.c
+>> > index df0694c..4e01082 100644
+>> > --- v3.9-rc3.orig/mm/memory-failure.c
+>> > +++ v3.9-rc3/mm/memory-failure.c
+>> > @@ -1467,6 +1467,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>> >  	int ret;
+>> >  	unsigned long pfn = page_to_pfn(page);
+>> >  	struct page *hpage = compound_head(page);
+>> > +	LIST_HEAD(pagelist);
+>> >
+>> >  	/*
+>> >  	 * This double-check of PageHWPoison is to avoid the race with
+>> > @@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>> >  	unlock_page(hpage);
+>> >
+>> >  	/* Keep page count to indicate a given hugepage is isolated. */
+>> > -	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
+>> > -				MIGRATE_SYNC);
+>> > -	put_page(hpage);
+>> > +	list_move(&hpage->lru, &pagelist);
+>> 
+>> we use hpage->lru to add the hpage to h->hugepage_activelist. This will
+>> break a hugetlb cgroup removal isn't it ?
+>
+> This particular part will not break removal because
+> hugetlb_cgroup_css_offline loops until hugetlb_cgroup_have_usage is 0.
+>
+> Little bit offtopic:
+> Btw. hugetlb migration breaks to charging even before this patchset
+> AFAICS. The above put_page should remove the last reference and then it
+> will uncharge it but I do not see anything that would charge a new page.
+> This is all because regula LRU pages are uncharged when they are
+> unmapped. But this a different story not related to this series.
 
 
->  include/linux/swap.h |    6 ++
->  mm/swapfile.c        |  110 +++++++++++++++++++++++++++++++++++++--------------
->  2 files changed, 87 insertions(+), 29 deletions(-)
-> 
-> Index: linux/include/linux/swap.h
-> ===================================================================
-> --- linux.orig/include/linux/swap.h	2013-03-22 17:23:56.000000000 +0800
-> +++ linux/include/linux/swap.h	2013-03-22 17:44:16.877775720 +0800
-> @@ -175,6 +175,11 @@ enum {
->  #define COUNT_CONTINUED	0x80	/* See swap_map continuation for full count */
->  #define SWAP_MAP_SHMEM	0xbf	/* Owned by shmem/tmpfs, in first swap_map */
->  
-> +struct percpu_cluster {
-> +	unsigned int index; /* Current cluster index */
-> +	unsigned int next; /* Likely next allocation offset */
-> +};
-> +
->  /*
->   * The in-memory structure used to track swap areas.
->   */
-> @@ -194,6 +199,7 @@ struct swap_info_struct {
->  	unsigned int inuse_pages;	/* number of those currently in use */
->  	unsigned int cluster_next;	/* likely index for next allocation */
->  	unsigned int cluster_nr;	/* countdown to next cluster search */
-> +	struct percpu_cluster __percpu *percpu_cluster;
->  	struct swap_extent *curr_swap_extent;
->  	struct swap_extent first_swap_extent;
->  	struct block_device *bdev;	/* swap device or bdev of swap file */
-> Index: linux/mm/swapfile.c
-> ===================================================================
-> --- linux.orig/mm/swapfile.c	2013-03-22 17:40:51.000000000 +0800
-> +++ linux/mm/swapfile.c	2013-03-26 11:03:09.225915386 +0800
-> @@ -353,13 +353,71 @@ static inline void dec_cluster_info_page
->   * It's possible scan_swap_map() uses a free cluster in the middle of free
->   * cluster list. Avoiding such abuse to avoid list corruption.
->   */
-> -static inline bool scan_swap_map_recheck_cluster(struct swap_info_struct *si,
-> +static bool
-> +scan_swap_map_ssd_cluster_conflict(struct swap_info_struct *si,
->  	unsigned long offset)
->  {
-> +	struct percpu_cluster *percpu_cluster;
-> +	bool conflict;
-> +
->  	offset /= SWAPFILE_CLUSTER;
-> -	return si->free_cluster_head != CLUSTER_NULL &&
-> +	conflict = si->free_cluster_head != CLUSTER_NULL &&
->  		offset != si->free_cluster_head &&
->  		cluster_is_free(si->cluster_info[offset]);
-> +
-> +	if (!conflict)
-> +		return false;
-> +
-> +	percpu_cluster = this_cpu_ptr(si->percpu_cluster);
-> +	percpu_cluster->index = CLUSTER_NULL;
-> +	return true;
-> +}
-> +
-> +static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
-> +	unsigned long *offset, unsigned long *scan_base)
-> +{
-> +	struct percpu_cluster *cluster;
-> +	bool found_free;
-> +	unsigned long tmp;
-> +
-> +new_cluster:
-> +	cluster = this_cpu_ptr(si->percpu_cluster);
-> +	if (cluster->index == CLUSTER_NULL) {
-> +		if (si->free_cluster_head != CLUSTER_NULL) {
-> +			cluster->index = si->free_cluster_head;
-> +			cluster->next = cluster->index * SWAPFILE_CLUSTER;
-> +		} else if (si->discard_cluster_head != CLUSTER_NULL) {
-> +			/*
-> +			 * we don't have free cluster but have some clusters in
-> +			 * discarding, do discard now and reclaim them
-> +			 */
-> +			swap_do_scheduled_discard(si);
-> +			goto new_cluster;
-> +		} else
-> +			return;
-> +	}
-> +
-> +	found_free = false;
-> +
-> +	/*
-> +	 * Other CPUs can use our cluster if they can't find a free cluster,
-> +	 * check if there is still free entry in the cluster
-> +	 */
-> +	tmp = cluster->next;
-> +	while (tmp < si->max && tmp < (cluster->index + 1) * SWAPFILE_CLUSTER) {
-> +		if (!si->swap_map[tmp]) {
-> +			found_free = true;
-> +			break;
-> +		}
-> +		tmp++;
-> +	}
-> +	if (!found_free) {
-> +		cluster->index = CLUSTER_NULL;
-> +		goto new_cluster;
-> +	}
-> +	cluster->next = tmp + 1;
-> +	*offset = tmp;
-> +	*scan_base = tmp;
->  }
->  
->  static unsigned long scan_swap_map(struct swap_info_struct *si,
-> @@ -384,36 +442,17 @@ static unsigned long scan_swap_map(struc
->  	si->flags += SWP_SCANNING;
->  	scan_base = offset = si->cluster_next;
->  
-> +	/* SSD algorithm */
-> +	if (si->cluster_info) {
-> +		scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
-> +		goto checks;
-> +	}
-> +
->  	if (unlikely(!si->cluster_nr--)) {
->  		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER) {
->  			si->cluster_nr = SWAPFILE_CLUSTER - 1;
->  			goto checks;
->  		}
-> -check_cluster:
-> -		if (si->free_cluster_head != CLUSTER_NULL) {
-> -			offset = si->free_cluster_head * SWAPFILE_CLUSTER;
-> -			last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
-> -			si->cluster_next = offset;
-> -			si->cluster_nr = SWAPFILE_CLUSTER - 1;
-> -			goto checks;
-> -		} else if (si->cluster_info) {
-> -			/*
-> -			 * we don't have free cluster but have some clusters in
-> -			 * discarding, do discard now and reclaim them
-> -			 */
-> -			if (si->discard_cluster_head != CLUSTER_NULL) {
-> -				swap_do_scheduled_discard(si);
-> -				goto check_cluster;
-> -			}
-> -
-> -			/*
-> -			 * Checking free cluster is fast enough, we can do the
-> -			 * check every time
-> -			 */
-> -			si->cluster_nr = 0;
-> -			goto checks;
-> -		}
-> -
->  		spin_unlock(&si->lock);
->  
->  		/*
-> @@ -471,8 +510,11 @@ check_cluster:
->  	}
->  
->  checks:
-> -	if (scan_swap_map_recheck_cluster(si, offset))
-> -		goto check_cluster;
-> +	if (si->cluster_info) {
-> +		while (scan_swap_map_ssd_cluster_conflict(si, offset)) {
-> +			scan_swap_map_try_ssd_cluster(si, &offset, &scan_base);
-> +		}
-> +	}
->  	if (!(si->flags & SWP_WRITEOK))
->  		goto no_page;
->  	if (!si->highest_bit)
-> @@ -1813,6 +1855,8 @@ SYSCALL_DEFINE1(swapoff, const char __us
->  	spin_unlock(&p->lock);
->  	spin_unlock(&swap_lock);
->  	mutex_unlock(&swapon_mutex);
-> +	free_percpu(p->percpu_cluster);
-> +	p->percpu_cluster = NULL;
->  	vfree(swap_map);
->  	vfree(cluster_info);
->  	vfree(frontswap_map_get(p));
-> @@ -2310,6 +2354,12 @@ SYSCALL_DEFINE2(swapon, const char __use
->  			error = -ENOMEM;
->  			goto bad_swap;
->  		}
-> +		/* It's fine to initialize percpu_cluster to 0 */
-> +		p->percpu_cluster = alloc_percpu(struct percpu_cluster);
-> +		if (!p->percpu_cluster) {
-> +			error = -ENOMEM;
-> +			goto bad_swap;
-> +		}
->  	}
->  
->  	error = swap_cgroup_swapon(p->type, maxpages);
-> @@ -2353,6 +2403,8 @@ SYSCALL_DEFINE2(swapon, const char __use
->  	error = 0;
->  	goto out;
->  bad_swap:
-> +	free_percpu(p->percpu_cluster);
-> +	p->percpu_cluster = NULL;
->  	if (inode && S_ISBLK(inode->i_mode) && p->bdev) {
->  		set_blocksize(p->bdev, p->old_block_size);
->  		blkdev_put(p->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+But when we call that put_page, we would have alreayd move the cgroup
+information to the new page. We have
+
+	h_cg = hugetlb_cgroup_from_page(oldhpage);
+	set_hugetlb_cgroup(oldhpage, NULL);
+
+	/* move the h_cg details to new cgroup */
+	set_hugetlb_cgroup(newhpage, h_cg);
+
+
+in hugetlb_cgroup_migrate
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
