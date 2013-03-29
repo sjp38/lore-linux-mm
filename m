@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 00D656B0083
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:15:01 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 364986B0075
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:15:24 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 22/28] memcg,list_lru: duplicate LRUs upon kmemcg creation
-Date: Fri, 29 Mar 2013 13:14:04 +0400
-Message-Id: <1364548450-28254-23-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 28/28] super: targeted memcg reclaim
+Date: Fri, 29 Mar 2013 13:14:10 +0400
+Message-Id: <1364548450-28254-29-git-send-email-glommer@parallels.com>
 In-Reply-To: <1364548450-28254-1-git-send-email-glommer@parallels.com>
 References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,13 +13,18 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Glauber Costa <glommer@parallels.com>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-When a new memcg is created, we need to open up room for its descriptors
-in all of the list_lrus that are marked per-memcg. The process is quite
-similar to the one we are using for the kmem caches: we initialize the
-new structures in an array indexed by kmemcg_id, and grow the array if
-needed. Key data like the size of the array will be shared between the
-kmem cache code and the list_lru code (they basically describe the same
-thing)
+We now have all our dentries and inodes placed in memcg-specific LRU
+lists. All we have to do is restrict the reclaim to the said lists in
+case of memcg pressure.
+
+That can't be done so easily for the fs_objects part of the equation,
+since this is heavily fs-specific. What we do is pass on the context,
+and let the filesystems decide if they ever chose or want to. At this
+time, we just don't shrink them in memcg pressure (none is supported),
+leaving that for global pressure only.
+
+Marking the superblock shrinker and its LRUs as memcg-aware will
+guarantee that the shrinkers will get invoked during targetted reclaim.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 Cc: Dave Chinner <dchinner@redhat.com>
@@ -31,419 +36,191 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/list_lru.h   |  37 ++++++++++-
- include/linux/memcontrol.h |  12 ++++
- lib/list_lru.c             | 101 +++++++++++++++++++++++++++---
- mm/memcontrol.c            | 151 +++++++++++++++++++++++++++++++++++++++++++--
- mm/slab_common.c           |   1 -
- 5 files changed, 285 insertions(+), 17 deletions(-)
+ fs/dcache.c   |  6 +++---
+ fs/inode.c    |  6 +++---
+ fs/internal.h |  5 +++--
+ fs/super.c    | 39 +++++++++++++++++++++++++++------------
+ 4 files changed, 36 insertions(+), 20 deletions(-)
 
-diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-index 02796da..d6cf126 100644
---- a/include/linux/list_lru.h
-+++ b/include/linux/list_lru.h
-@@ -16,12 +16,47 @@ struct list_lru_node {
- 	long			nr_items;
- } ____cacheline_aligned_in_smp;
+diff --git a/fs/dcache.c b/fs/dcache.c
+index 79f6820..e56291a 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -882,13 +882,13 @@ static int dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock,
+  * use.
+  */
+ long prune_dcache_sb(struct super_block *sb, long nr_to_scan,
+-		     nodemask_t *nodes_to_walk)
++		     nodemask_t *nodes_to_walk, struct mem_cgroup *memcg)
+ {
+ 	LIST_HEAD(dispose);
+ 	long freed;
  
-+/*
-+ * This is supposed to be M x N matrix, where M is kmem-limited memcg,
-+ * and N is the number of nodes.
-+ */
-+struct list_lru_array {
-+	struct list_lru_node node[1];
-+};
-+
- struct list_lru {
- 	struct list_lru_node	node[MAX_NUMNODES];
- 	nodemask_t		active_nodes;
-+#ifdef CONFIG_MEMCG_KMEM
-+	struct list_head	lrus;
-+	struct list_lru_array	**memcg_lrus;
-+#endif
- };
+-	freed = list_lru_walk_nodemask(&sb->s_dentry_lru, dentry_lru_isolate,
+-				       &dispose, nr_to_scan, nodes_to_walk);
++	freed = list_lru_walk_nodemask_memcg(&sb->s_dentry_lru,
++		dentry_lru_isolate, &dispose, nr_to_scan, nodes_to_walk, memcg);
+ 	shrink_dentry_list(&dispose);
+ 	return freed;
+ }
+diff --git a/fs/inode.c b/fs/inode.c
+index 1332eef..291423c 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -746,13 +746,13 @@ static int inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock,
+  * then are freed outside inode_lock by dispose_list().
+  */
+ long prune_icache_sb(struct super_block *sb, long nr_to_scan,
+-		     nodemask_t *nodes_to_walk)
++			nodemask_t *nodes_to_walk, struct mem_cgroup *memcg)
+ {
+ 	LIST_HEAD(freeable);
+ 	long freed;
  
--int list_lru_init(struct list_lru *lru);
+-	freed = list_lru_walk_nodemask(&sb->s_inode_lru, inode_lru_isolate,
+-				       &freeable, nr_to_scan, nodes_to_walk);
++	freed = list_lru_walk_nodemask_memcg(&sb->s_inode_lru,
++		inode_lru_isolate, &freeable, nr_to_scan, nodes_to_walk, memcg);
+ 	dispose_list(&freeable);
+ 	return freed;
+ }
+diff --git a/fs/internal.h b/fs/internal.h
+index ed6944e..88b292e 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -16,6 +16,7 @@ struct file_system_type;
+ struct linux_binprm;
+ struct path;
+ struct mount;
 +struct mem_cgroup;
-+#ifdef CONFIG_MEMCG_KMEM
-+struct list_lru_array *lru_alloc_array(void);
-+int memcg_update_all_lrus(unsigned long num);
-+void list_lru_destroy(struct list_lru *lru);
-+void list_lru_destroy_memcg(struct mem_cgroup *memcg);
-+int __memcg_init_lru(struct list_lru *lru);
-+#else
-+static inline void list_lru_destroy(struct list_lru *lru)
-+{
-+}
-+#endif
-+
-+int __list_lru_init(struct list_lru *lru, bool memcg_enabled);
-+static inline int list_lru_init(struct list_lru *lru)
-+{
-+	return __list_lru_init(lru, false);
-+}
-+
-+static inline int list_lru_init_memcg(struct list_lru *lru)
-+{
-+	return __list_lru_init(lru, true);
-+}
-+
- int list_lru_add(struct list_lru *lru, struct list_head *item);
- int list_lru_del(struct list_lru *lru, struct list_head *item);
- long list_lru_count_nodemask(struct list_lru *lru, nodemask_t *nodes_to_count);
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 4c24249..ee3199d 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -23,6 +23,7 @@
- #include <linux/vm_event_item.h>
- #include <linux/hardirq.h>
- #include <linux/jump_label.h>
-+#include <linux/list_lru.h>
  
- struct mem_cgroup;
- struct page_cgroup;
-@@ -469,6 +470,12 @@ void memcg_update_array_size(int num_groups);
- struct kmem_cache *
- __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
+ /*
+  * block_dev.c
+@@ -111,7 +112,7 @@ extern int open_check_o_direct(struct file *f);
+  */
+ extern spinlock_t inode_sb_list_lock;
+ extern long prune_icache_sb(struct super_block *sb, long nr_to_scan,
+-			    nodemask_t *nodes_to_scan);
++		    nodemask_t *nodes_to_scan, struct mem_cgroup *memcg);
+ extern void inode_add_lru(struct inode *inode);
  
-+int memcg_new_lru(struct list_lru *lru);
-+int memcg_init_lru(struct list_lru *lru);
-+
-+int memcg_kmem_update_lru_size(struct list_lru *lru, int num_groups,
-+			       bool new_lru);
-+
- void mem_cgroup_destroy_cache(struct kmem_cache *cachep);
- void kmem_cache_destroy_memcg_children(struct kmem_cache *s);
- 
-@@ -632,6 +639,11 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
- static inline void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
- {
- }
-+
-+static inline int memcg_init_lru(struct list_lru *lru)
-+{
-+	return 0;
-+}
- #endif /* CONFIG_MEMCG_KMEM */
- #endif /* _LINUX_MEMCONTROL_H */
- 
-diff --git a/lib/list_lru.c b/lib/list_lru.c
-index 0f08ed6..a9616a0 100644
---- a/lib/list_lru.c
-+++ b/lib/list_lru.c
-@@ -8,6 +8,7 @@
- #include <linux/module.h>
- #include <linux/mm.h>
- #include <linux/list_lru.h>
+ /*
+@@ -128,4 +129,4 @@ extern int invalidate_inodes(struct super_block *, bool);
+  */
+ extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
+ extern long prune_dcache_sb(struct super_block *sb, long nr_to_scan,
+-			    nodemask_t *nodes_to_scan);
++		    nodemask_t *nodes_to_scan, struct mem_cgroup *memcg);
+diff --git a/fs/super.c b/fs/super.c
+index 5c7b879..e92ebcb 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -34,6 +34,7 @@
+ #include <linux/cleancache.h>
+ #include <linux/fsnotify.h>
+ #include <linux/lockdep.h>
 +#include <linux/memcontrol.h>
+ #include "internal.h"
  
- int
- list_lru_add(
-@@ -184,18 +185,100 @@ list_lru_dispose_all(
- 	return total;
- }
  
--int
--list_lru_init(
--	struct list_lru	*lru)
-+/*
-+ * This protects the list of all LRU in the system. One only needs
-+ * to take when registering an LRU, or when duplicating the list of lrus.
-+ * Transversing an LRU can and should be done outside the lock
-+ */
-+static DEFINE_MUTEX(all_memcg_lrus_mutex);
-+static LIST_HEAD(all_memcg_lrus);
-+
-+static void list_lru_init_one(struct list_lru_node *lru)
+@@ -56,6 +57,7 @@ static char *sb_writers_name[SB_FREEZE_LEVELS] = {
+ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
  {
-+	spin_lock_init(&lru->lock);
-+	INIT_LIST_HEAD(&lru->list);
-+	lru->nr_items = 0;
-+}
-+
-+struct list_lru_array *lru_alloc_array(void)
-+{
-+	struct list_lru_array *lru_array;
- 	int i;
+ 	struct super_block *sb;
++	struct mem_cgroup *memcg = sc->target_mem_cgroup;
+ 	long	fs_objects = 0;
+ 	long	total_objects;
+ 	long	freed = 0;
+@@ -74,11 +76,13 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ 	if (!grab_super_passive(sb))
+ 		return -1;
  
--	nodes_clear(lru->active_nodes);
--	for (i = 0; i < MAX_NUMNODES; i++) {
--		spin_lock_init(&lru->node[i].lock);
--		INIT_LIST_HEAD(&lru->node[i].list);
--		lru->node[i].nr_items = 0;
-+	lru_array = kzalloc(nr_node_ids * sizeof(struct list_lru_node),
-+				GFP_KERNEL);
-+	if (!lru_array)
-+		return NULL;
-+
-+	for (i = 0; i < nr_node_ids ; i++)
-+		list_lru_init_one(&lru_array->node[i]);
-+
-+	return lru_array;
-+}
-+
-+#ifdef CONFIG_MEMCG_KMEM
-+int __memcg_init_lru(struct list_lru *lru)
-+{
-+	int ret;
-+
-+	INIT_LIST_HEAD(&lru->lrus);
-+	mutex_lock(&all_memcg_lrus_mutex);
-+	list_add(&lru->lrus, &all_memcg_lrus);
-+	ret = memcg_new_lru(lru);
-+	mutex_unlock(&all_memcg_lrus_mutex);
-+	return ret;
-+}
-+
-+int memcg_update_all_lrus(unsigned long num)
-+{
-+	int ret = 0;
-+	struct list_lru *lru;
-+
-+	mutex_lock(&all_memcg_lrus_mutex);
-+	list_for_each_entry(lru, &all_memcg_lrus, lrus) {
-+		ret = memcg_kmem_update_lru_size(lru, num, false);
-+		if (ret)
-+			goto out;
-+	}
-+out:
-+	mutex_unlock(&all_memcg_lrus_mutex);
-+	return ret;
-+}
-+
-+void list_lru_destroy(struct list_lru *lru)
-+{
-+	if (!lru->memcg_lrus)
-+		return;
-+
-+	mutex_lock(&all_memcg_lrus_mutex);
-+	list_del(&lru->lrus);
-+	mutex_unlock(&all_memcg_lrus_mutex);
-+}
-+
-+void list_lru_destroy_memcg(struct mem_cgroup *memcg)
-+{
-+	struct list_lru *lru;
-+	mutex_lock(&all_memcg_lrus_mutex);
-+	list_for_each_entry(lru, &all_memcg_lrus, lrus) {
-+		kfree(lru->memcg_lrus[memcg_cache_id(memcg)]);
-+		lru->memcg_lrus[memcg_cache_id(memcg)] = NULL;
-+		/* everybody must beaware that this memcg is no longer valid */
-+		wmb();
- 	}
-+	mutex_unlock(&all_memcg_lrus_mutex);
-+}
-+#endif
-+
-+int __list_lru_init(struct list_lru *lru, bool memcg_enabled)
-+{
-+	int i;
-+
-+	nodes_clear(lru->active_nodes);
-+	for (i = 0; i < MAX_NUMNODES; i++)
-+		list_lru_init_one(&lru->node[i]);
-+
-+	if (memcg_enabled)
-+		return memcg_init_lru(lru);
- 	return 0;
- }
--EXPORT_SYMBOL_GPL(list_lru_init);
-+EXPORT_SYMBOL_GPL(__list_lru_init);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ecdae39..c6c90d8 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2988,16 +2988,30 @@ int memcg_update_cache_sizes(struct mem_cgroup *memcg)
- 	memcg_kmem_set_activated(memcg);
+-	if (sb->s_op && sb->s_op->nr_cached_objects)
++	if (sb->s_op && sb->s_op->nr_cached_objects && !memcg)
+ 		fs_objects = sb->s_op->nr_cached_objects(sb, &sc->nodes_to_scan);
  
- 	ret = memcg_update_all_caches(num+1);
--	if (ret) {
--		ida_simple_remove(&kmem_limited_groups, num);
--		memcg_kmem_clear_activated(memcg);
--		return ret;
--	}
-+	if (ret)
-+		goto out;
-+
-+	/*
-+	 * We should make sure that the array size is not updated until we are
-+	 * done; otherwise we have no easy way to know whether or not we should
-+	 * grow the array.
-+	 */
-+	ret = memcg_update_all_lrus(num + 1);
-+	if (ret)
-+		goto out;
+-	inodes = list_lru_count_nodemask(&sb->s_inode_lru, &sc->nodes_to_scan);
+-	dentries = list_lru_count_nodemask(&sb->s_dentry_lru, &sc->nodes_to_scan);
++	inodes = list_lru_count_nodemask_memcg(&sb->s_inode_lru,
++					 &sc->nodes_to_scan, memcg);
++	dentries = list_lru_count_nodemask_memcg(&sb->s_dentry_lru,
++					   &sc->nodes_to_scan, memcg);
+ 	total_objects = dentries + inodes + fs_objects + 1;
  
- 	memcg->kmemcg_id = num;
-+
-+	memcg_update_array_size(num + 1);
-+
- 	INIT_LIST_HEAD(&memcg->memcg_slab_caches);
- 	mutex_init(&memcg->slab_caches_mutex);
-+
- 	return 0;
-+out:
-+	ida_simple_remove(&kmem_limited_groups, num);
-+	memcg_kmem_clear_activated(memcg);
-+	return ret;
- }
- 
- static size_t memcg_caches_array_size(int num_groups)
-@@ -3081,6 +3095,129 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
- 	return 0;
- }
- 
-+/*
-+ * memcg_kmem_update_lru_size - fill in kmemcg info into a list_lru
-+ *
-+ * @lru: the lru we are operating with
-+ * @num_groups: how many kmem-limited cgroups we have
-+ * @new_lru: true if this is a new_lru being created, false if this
-+ * was triggered from the memcg side
-+ *
-+ * Returns 0 on success, and an error code otherwise.
-+ *
-+ * This function can be called either when a new kmem-limited memcg appears,
-+ * or when a new list_lru is created. The work is roughly the same in two cases,
-+ * but in the later we never have to expand the array size.
-+ *
-+ * This is always protected by the all_lrus_mutex from the list_lru side.  But
-+ * a race can still exists if a new memcg becomes kmem limited at the same time
-+ * that we are registering a new memcg. Creation is protected by the
-+ * memcg_mutex, so the creation of a new lru have to be protected by that as
-+ * well.
-+ *
-+ * The lock ordering is that the memcg_mutex needs to be acquired before the
-+ * lru-side mutex.
-+ */
-+int memcg_kmem_update_lru_size(struct list_lru *lru, int num_groups,
-+			       bool new_lru)
-+{
-+	struct list_lru_array **new_lru_array;
-+	struct list_lru_array *lru_array;
-+
-+	lru_array = lru_alloc_array();
-+	if (!lru_array)
-+		return -ENOMEM;
-+
-+	/*
-+	 * When a new LRU is created, we still need to update all data for that
-+	 * LRU. The procedure for late LRUs and new memcgs are quite similar, we
-+	 * only need to make sure we get into the loop even if num_groups <
-+	 * memcg_limited_groups_array_size.
-+	 */
-+	if ((num_groups > memcg_limited_groups_array_size) || new_lru) {
-+		int i;
-+		struct list_lru_array **old_array;
-+		size_t size = memcg_caches_array_size(num_groups);
-+		int num_memcgs = memcg_limited_groups_array_size;
-+
-+		new_lru_array = kzalloc(size * sizeof(void *), GFP_KERNEL);
-+		if (!new_lru_array) {
-+			kfree(lru_array);
-+			return -ENOMEM;
-+		}
-+
-+		for (i = 0; lru->memcg_lrus && (i < num_memcgs); i++) {
-+			if (lru->memcg_lrus && lru->memcg_lrus[i])
-+				continue;
-+			new_lru_array[i] =  lru->memcg_lrus[i];
-+		}
-+
-+		old_array = lru->memcg_lrus;
-+		lru->memcg_lrus = new_lru_array;
-+		/*
-+		 * We don't need a barrier here because we are just copying
-+		 * information over. Anybody operating in memcg_lrus will
-+		 * either follow the new array or the old one and they contain
-+		 * exactly the same information. The new space in the end is
-+		 * always empty anyway.
-+		 */
-+		if (lru->memcg_lrus)
-+			kfree(old_array);
-+	}
-+
-+	if (lru->memcg_lrus) {
-+		lru->memcg_lrus[num_groups - 1] = lru_array;
-+		/*
-+		 * Here we do need the barrier, because of the state transition
-+		 * implied by the assignment of the array. All users should be
-+		 * able to see it
-+		 */
-+		wmb();
-+	}
-+	return 0;
-+}
-+
-+/*
-+ * This is called with the LRU-mutex being held.
-+ */
-+int memcg_new_lru(struct list_lru *lru)
-+{
-+	struct mem_cgroup *iter;
-+
-+	if (!memcg_kmem_enabled())
-+		return 0;
-+
-+	for_each_mem_cgroup(iter) {
-+		int ret;
-+		int memcg_id = memcg_cache_id(iter);
-+		if (memcg_id < 0)
-+			continue;
-+
-+		ret = memcg_kmem_update_lru_size(lru, memcg_id + 1, true);
-+		if (ret) {
-+			mem_cgroup_iter_break(root_mem_cgroup, iter);
-+			return ret;
-+		}
-+	}
-+	return 0;
-+}
-+
-+/*
-+ * We need to call back and forth from memcg to LRU because of the lock
-+ * ordering.  This complicates the flow a little bit, but since the memcg mutex
-+ * is held through the whole duration of memcg creation, we need to hold it
-+ * before we hold the LRU-side mutex in the case of a new list creation as
-+ * well.
-+ */
-+int memcg_init_lru(struct list_lru *lru)
-+{
-+	int ret;
-+	mutex_lock(&memcg_create_mutex);
-+	ret = __memcg_init_lru(lru);
-+	mutex_unlock(&memcg_create_mutex);
-+	return ret;
-+}
-+
- int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s,
- 			 struct kmem_cache *root_cache)
- {
-@@ -5775,8 +5912,10 @@ static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
- 	 * possible that the charges went down to 0 between mark_dead and the
- 	 * res_counter read, so in that case, we don't need the put
+ 	/* proportion the scan between the caches */
+@@ -89,8 +93,8 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ 	 * prune the dcache first as the icache is pinned by it, then
+ 	 * prune the icache, followed by the filesystem specific caches
  	 */
--	if (memcg_kmem_test_and_clear_dead(memcg))
-+	if (memcg_kmem_test_and_clear_dead(memcg)) {
-+		list_lru_destroy_memcg(memcg);
- 		mem_cgroup_put(memcg);
-+	}
- }
- #else
- static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 3f3cd97..2470d11 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -102,7 +102,6 @@ int memcg_update_all_caches(int num_memcgs)
- 			goto out;
- 	}
+-	freed = prune_dcache_sb(sb, dentries, &sc->nodes_to_scan);
+-	freed += prune_icache_sb(sb, inodes, &sc->nodes_to_scan);
++	freed = prune_dcache_sb(sb, dentries, &sc->nodes_to_scan, memcg);
++	freed += prune_icache_sb(sb, inodes, &sc->nodes_to_scan, memcg);
  
--	memcg_update_array_size(num_memcgs);
+ 	if (fs_objects) {
+ 		fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
+@@ -107,20 +111,26 @@ static long super_cache_count(struct shrinker *shrink, struct shrink_control *sc
+ {
+ 	struct super_block *sb;
+ 	long	total_objects = 0;
++	struct mem_cgroup *memcg = sc->target_mem_cgroup;
+ 
+ 	sb = container_of(shrink, struct super_block, s_shrink);
+ 
+ 	if (!grab_super_passive(sb))
+ 		return -1;
+ 
+-	if (sb->s_op && sb->s_op->nr_cached_objects)
++	/*
++	 * Ideally we would pass memcg to nr_cached_objects, and
++	 * let the underlying filesystem decide. Most likely the
++	 * path will be if (!memcg) return;, but even then.
++	 */
++	if (sb->s_op && sb->s_op->nr_cached_objects && !memcg)
+ 		total_objects = sb->s_op->nr_cached_objects(sb,
+ 						 &sc->nodes_to_scan);
+ 
+-	total_objects += list_lru_count_nodemask(&sb->s_dentry_lru,
+-						 &sc->nodes_to_scan);
+-	total_objects += list_lru_count_nodemask(&sb->s_inode_lru,
+-						 &sc->nodes_to_scan);
++	total_objects += list_lru_count_nodemask_memcg(&sb->s_dentry_lru,
++					 &sc->nodes_to_scan, memcg);
++	total_objects += list_lru_count_nodemask_memcg(&sb->s_inode_lru,
++					 &sc->nodes_to_scan, memcg);
+ 
+ 	total_objects = vfs_pressure_ratio(total_objects);
+ 	drop_super(sb);
+@@ -199,8 +209,10 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+ 		INIT_HLIST_NODE(&s->s_instances);
+ 		INIT_HLIST_BL_HEAD(&s->s_anon);
+ 		INIT_LIST_HEAD(&s->s_inodes);
+-		list_lru_init(&s->s_dentry_lru);
+-		list_lru_init(&s->s_inode_lru);
++
++		list_lru_init_memcg(&s->s_dentry_lru);
++		list_lru_init_memcg(&s->s_inode_lru);
++
+ 		INIT_LIST_HEAD(&s->s_mounts);
+ 		init_rwsem(&s->s_umount);
+ 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
+@@ -236,6 +248,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+ 		s->s_shrink.scan_objects = super_cache_scan;
+ 		s->s_shrink.count_objects = super_cache_count;
+ 		s->s_shrink.batch = 1024;
++		s->s_shrink.memcg_shrinker = true;
+ 	}
  out:
- 	mutex_unlock(&slab_mutex);
- 	return ret;
+ 	return s;
+@@ -318,6 +331,8 @@ void deactivate_locked_super(struct super_block *s)
+ 
+ 		/* caches are now gone, we can safely kill the shrinker now */
+ 		unregister_shrinker(&s->s_shrink);
++		list_lru_destroy(&s->s_dentry_lru);
++		list_lru_destroy(&s->s_inode_lru);
+ 		put_filesystem(fs);
+ 		put_super(s);
+ 	} else {
 -- 
 1.8.1.4
 
