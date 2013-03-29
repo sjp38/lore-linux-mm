@@ -1,88 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id DCFFE6B0002
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 01:30:23 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id r10so68992lbi.36
-        for <linux-mm@kvack.org>; Thu, 28 Mar 2013 22:30:21 -0700 (PDT)
-Message-ID: <515526EA.3090807@openvz.org>
-Date: Fri, 29 Mar 2013 09:30:18 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 5298F6B0002
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 04:23:00 -0400 (EDT)
+Date: Fri, 29 Mar 2013 09:22:57 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd
+ reclaims at each priority
+Message-ID: <20130329082257.GB21227@dhcp22.suse.cz>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+ <1363525456-10448-2-git-send-email-mgorman@suse.de>
+ <20130325090758.GO2154@dhcp22.suse.cz>
+ <51501545.50908@suse.cz>
+ <5154C4B6.102@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] hugetlbfs: stop setting VM_DONTDUMP in initializing
- vma(VM_HUGETLB)
-References: <1364485358-8745-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1364485358-8745-2-git-send-email-n-horiguchi@ah.jp.nec.com> <515477D4.1060206@openvz.org> <1364495358-2gnie765-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1364495358-2gnie765-mutt-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5154C4B6.102@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
 
-Naoya Horiguchi wrote:
-> On Thu, Mar 28, 2013 at 09:03:16PM +0400, Konstantin Khlebnikov wrote:
->> Naoya Horiguchi wrote:
->>> Currently we fail to include any data on hugepages into coredump,
->>> because VM_DONTDUMP is set on hugetlbfs's vma. This behavior was recently
->>> introduced by commit 314e51b98 "mm: kill vma flag VM_RESERVED and
->>> mm->reserved_vm counter". This looks to me a serious regression,
->>> so let's fix it.
->>
->> That was introduced in my patch? Really?
->> Here was VM_RESERVED and it had the same effect as VM_DONTDUMP. At least I thought so.
+On Thu 28-03-13 23:31:18, Jiri Slaby wrote:
+> On 03/25/2013 10:13 AM, Jiri Slaby wrote:
+> > BTW I very pray this will fix also the issue I have when I run ltp tests
+> > (highly I/O intensive, esp. `growfiles') in a VM while playing a movie
+> > on the host resulting in a stuttered playback ;).
 > 
-> vma_dump_size() does like this (the diff is the one in 314e51b98):
-> 
->     static unsigned long vma_dump_size(struct vm_area_struct *vma,
->     				   unsigned long mm_flags)
->     {
->     #define FILTER(type)	(mm_flags&  (1UL<<  MMF_DUMP_##type))
-> 
->     	/* always dump the vdso and vsyscall sections */
->     	if (always_dump_vma(vma))
->     		goto whole;
-> 
->    	if (vma->vm_flags&  VM_DONTDUMP)
->     		return 0;
-> 
->     	/* Hugetlb memory check */
->     	if (vma->vm_flags&  VM_HUGETLB) {
->     		if ((vma->vm_flags&  VM_SHARED)&&  FILTER(HUGETLB_SHARED))
->     			goto whole;
->     		if (!(vma->vm_flags&  VM_SHARED)&&  FILTER(HUGETLB_PRIVATE))
->     			goto whole;
->     	}
-> 
->     	/* Do not dump I/O mapped devices or special mappings */
->    -	if (vma->vm_flags&  (VM_IO | VM_RESERVED))
->    +	if (vma->vm_flags&  VM_IO)
->     		return 0;
-> 
-> We have hugetlb memory check after VM_DONTDUMP check, so the following
-> changed the behavior.
+> No, this is still terrible. I was now updating a kernel in a VM and had
+> problems to even move with cursor.
 
-Ok, I missed this in my patch.
+:/
 
-> 
->    --- a/fs/hugetlbfs/inode.c
->    +++ b/fs/hugetlbfs/inode.c
->    @@ -110,7 +110,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
->             * way when do_mmap_pgoff unwinds (may be important on powerpc
->             * and ia64).
->             */
->    -       vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
->    +       vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND | VM_DONTDUMP;
->            vma->vm_ops =&hugetlb_vm_ops;
-> 
->            if (vma->vm_pgoff&  (~huge_page_mask(h)>>  PAGE_SHIFT))
-> 
-> I think we don't have to set VM_DONTDUMP on hugetlbfs's vma.
+> There was still 1.2G used by I/O cache.
 
-Acked-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-
-> 
-> Thanks,
-> Naoya
+Could you collect /proc/zoneinfo and /proc/vmstat (say in 1 or 2s
+intervals)?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
