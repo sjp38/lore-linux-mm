@@ -1,35 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 8DE236B0002
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 09:57:32 -0400 (EDT)
-Date: Fri, 29 Mar 2013 14:57:30 +0100
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 847A36B0002
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 10:45:40 -0400 (EDT)
+Date: Fri, 29 Mar 2013 15:45:37 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] hugetlbfs: add swap entry check in
- follow_hugetlb_page()
-Message-ID: <20130329135730.GB21879@dhcp22.suse.cz>
-References: <1364485358-8745-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1364485358-8745-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [patch] mm, memcg: give exiting processes access to memory
+ reserves
+Message-ID: <20130329144537.GG21227@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1364485358-8745-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 28-03-13 11:42:38, Naoya Horiguchi wrote:
-[...]
-> @@ -2968,7 +2968,8 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		 * first, for the page indexing below to work.
->  		 */
->  		pte = huge_pte_offset(mm, vaddr & huge_page_mask(h));
-> -		absent = !pte || huge_pte_none(huge_ptep_get(pte));
-> +		absent = !pte || huge_pte_none(huge_ptep_get(pte)) ||
-> +			is_swap_pte(huge_ptep_get(pte));
+On Wed 27-03-13 18:22:10, David Rientjes wrote:
+> A memcg may livelock when oom if the process that grabs the hierarchy's
+> oom lock is never the first process with PF_EXITING set in the memcg's
+> task iteration.
+> 
+> The oom killer, both global and memcg, will defer if it finds an eligible
+> process that is in the process of exiting and it is not being ptraced.
+> The idea is to allow it to exit without using memory reserves before
+> needlessly killing another process.
+> 
+> This normally works fine except in the memcg case with a large number of
+> threads attached to the oom memcg.  In this case, the memcg oom killer
+> only gets called for the process that grabs the hierarchy's oom lock; all
+> others end up blocked on the memcg's oom waitqueue.  Thus, if the process
+> that grabs the hierarchy's oom lock is never the first PF_EXITING process
+> in the memcg's task iteration, the oom killer is constantly deferred
+> without anything making progress.
+> 
+> The fix is to give PF_EXITING processes access to memory reserves so that
+> we've marked them as oom killed without any iteration.  This allows
+> __mem_cgroup_try_charge() to succeed so that the process may exit.  This
+> makes the memcg oom killer exemption for TIF_MEMDIE tasks, now
+> immediately granted for processes with pending SIGKILLs and those in the
+> exit path, to be equivalent to what is done for the global oom killer.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-is_swap_pte doesn't seem right. Shouldn't you use is_hugetlb_entry_hwpoisoned
-instead?
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+AFAIU this has been introduced by 9ff4868e (mm, oom: allow exiting
+threads to have access to memory reserves) so maybe we want to mark it
+for stable (3.8).
+
+Thanks
+
+> ---
+>  mm/memcontrol.c | 8 ++++----
+>  1 file changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1686,11 +1686,11 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  	struct task_struct *chosen = NULL;
+>  
+>  	/*
+> -	 * If current has a pending SIGKILL, then automatically select it.  The
+> -	 * goal is to allow it to allocate so that it may quickly exit and free
+> -	 * its memory.
+> +	 * If current has a pending SIGKILL or is exiting, then automatically
+> +	 * select it.  The goal is to allow it to allocate so that it may
+> +	 * quickly exit and free its memory.
+>  	 */
+> -	if (fatal_signal_pending(current)) {
+> +	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+>  		set_thread_flag(TIF_MEMDIE);
+>  		return;
+>  	}
 
 -- 
 Michal Hocko
