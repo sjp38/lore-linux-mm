@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id B48D96B0089
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:15:10 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 1F9EA6B0039
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 05:14:56 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 24/28] list_lru: also include memcg lists in counts and scans
-Date: Fri, 29 Mar 2013 13:14:06 +0400
-Message-Id: <1364548450-28254-25-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 21/28] vmscan: also shrink slab in memcg pressure
+Date: Fri, 29 Mar 2013 13:14:03 +0400
+Message-Id: <1364548450-28254-22-git-send-email-glommer@parallels.com>
 In-Reply-To: <1364548450-28254-1-git-send-email-glommer@parallels.com>
 References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,22 +13,13 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Glauber Costa <glommer@parallels.com>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-As elements are added to per-memcg lists, they will be invisible to
-global reclaimers. This patch mainly modifies list_lru walk and count
-functions to take that into account.
+Without the surrounding infrastructure, this patch is a bit of a hammer:
+it will basically shrink objects from all memcgs under memcg pressure.
+At least, however, we will keep the scan limited to the shrinkers marked
+as per-memcg.
 
-Counting is very simple: since we already have total figures for the
-node, which we use to figure out when to set or clear the node in the
-bitmap, we can just use that.
-
-For walking, we need to walk the memcg lists as well as the global list.
-To achieve that, this patch introduces the helper macro
-for_each_memcg_lru_index. Locking semantics are simple, since
-introducing a new LRU in the list does not influence the memcg walkers.
-
-The only operation we race against is memcg creation and teardown.  For
-those, barriers should be enough to guarantee that we are seeing
-up-to-date information and not accessing invalid pointers.
+Future patches will implement the in-shrinker logic to filter objects
+based on its memcg association.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 Cc: Dave Chinner <dchinner@redhat.com>
@@ -40,164 +31,208 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/memcontrol.h |  2 ++
- lib/list_lru.c             | 90 ++++++++++++++++++++++++++++++++++------------
- 2 files changed, 69 insertions(+), 23 deletions(-)
+ include/linux/memcontrol.h | 17 +++++++++++++++++
+ include/linux/shrinker.h   |  4 ++++
+ mm/memcontrol.c            | 16 +++++++++++++++-
+ mm/vmscan.c                | 46 +++++++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 79 insertions(+), 4 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index f55f875..99b36fe 100644
+index d6183f0..4c24249 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -593,6 +593,8 @@ static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+@@ -199,6 +199,9 @@ void mem_cgroup_split_huge_fixup(struct page *head);
+ bool mem_cgroup_bad_page_check(struct page *page);
+ void mem_cgroup_print_bad_page(struct page *page);
+ #endif
++
++unsigned long
++memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone);
+ #else /* CONFIG_MEMCG */
+ struct mem_cgroup;
+ 
+@@ -377,6 +380,12 @@ static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
+ 				struct page *newpage)
+ {
+ }
++
++static inline unsigned long
++memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
++{
++	return 0;
++}
+ #endif /* CONFIG_MEMCG */
+ 
+ #if !defined(CONFIG_MEMCG) || !defined(CONFIG_DEBUG_VM)
+@@ -429,6 +438,8 @@ static inline bool memcg_kmem_enabled(void)
+ 	return static_key_false(&memcg_kmem_enabled_key);
+ }
+ 
++bool memcg_kmem_is_active(struct mem_cgroup *memcg);
++
+ /*
+  * In general, we'll do everything in our power to not incur in any overhead
+  * for non-memcg users for the kmem functions. Not even a function call, if we
+@@ -562,6 +573,12 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ 	return __memcg_kmem_get_cache(cachep, gfp);
+ }
+ #else
++
++static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
++{
++	return false;
++}
++
  #define for_each_memcg_cache_index(_idx)	\
  	for (; NULL; )
  
-+#define memcg_limited_groups_array_size 0
-+
- static inline bool memcg_kmem_enabled(void)
- {
- 	return false;
-diff --git a/lib/list_lru.c b/lib/list_lru.c
-index 734ff91..e8d04a1 100644
---- a/lib/list_lru.c
-+++ b/lib/list_lru.c
-@@ -10,6 +10,23 @@
- #include <linux/list_lru.h>
- #include <linux/memcontrol.h>
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index d4636a0..4e9e53b 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -20,6 +20,9 @@ struct shrink_control {
  
+ 	/* shrink from these nodes */
+ 	nodemask_t nodes_to_scan;
++
++	/* reclaim from this memcg only (if not NULL) */
++	struct mem_cgroup *target_mem_cgroup;
+ };
+ 
+ /*
+@@ -45,6 +48,7 @@ struct shrinker {
+ 
+ 	int seeks;	/* seeks to recreate an obj */
+ 	long batch;	/* reclaim batch size, 0 = default */
++	bool memcg_shrinker; /* memcg-aware shrinker */
+ 
+ 	/* These are for internal use */
+ 	struct list_head list;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2b55222..ecdae39 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -386,7 +386,7 @@ static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
+ 	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+ }
+ 
+-static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
++bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+ {
+ 	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+ }
+@@ -942,6 +942,20 @@ mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
+ 	return ret;
+ }
+ 
++unsigned long
++memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
++{
++	int nid = zone_to_nid(zone);
++	int zid = zone_idx(zone);
++	unsigned long val;
++
++	val = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid, LRU_ALL_FILE);
++	if (do_swap_account)
++		val += mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
++						    LRU_ALL_ANON);
++	return val;
++}
++
+ static unsigned long
+ mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+ 			int nid, unsigned int lru_mask)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 232dfcb..43928fd 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -138,11 +138,42 @@ static bool global_reclaim(struct scan_control *sc)
+ {
+ 	return !sc->target_mem_cgroup;
+ }
++
 +/*
-+ * This helper will loop through all node-data in the LRU, either global or
-+ * per-memcg.  If memcg is either not present or not used,
-+ * memcg_limited_groups_array_size will be 0. _idx starts at -1, and it will
-+ * still be allowed to execute once.
-+ *
-+ * We convention that for _idx = -1, the global node info should be used.
-+ * After that, we will go through each of the memcgs, starting at 0.
-+ *
-+ * We don't need any kind of locking for the loop because
-+ * memcg_limited_groups_array_size can only grow, gaining new fields at the
-+ * end. The old ones are just copied, and any interesting manipulation happen
-+ * in the node list itself, and we already lock the list.
++ * kmem reclaim should usually not be triggered when we are doing targetted
++ * reclaim. It is only valid when global reclaim is triggered, or when the
++ * underlying memcg has kmem objects.
 + */
-+#define for_each_memcg_lru_index(_idx)	\
-+	for ((_idx) = -1; ((_idx) < memcg_limited_groups_array_size); (_idx)++)
++static bool has_kmem_reclaim(struct scan_control *sc)
++{
++	return !sc->target_mem_cgroup ||
++		memcg_kmem_is_active(sc->target_mem_cgroup);
++}
 +
- int
- list_lru_add(
- 	struct list_lru	*lru,
-@@ -77,12 +94,12 @@ list_lru_count_nodemask(
- 	int nid;
++static unsigned long
++zone_nr_reclaimable_pages(struct scan_control *sc, struct zone *zone)
++{
++	if (global_reclaim(sc))
++		return zone_reclaimable_pages(zone);
++	return memcg_zone_reclaimable_pages(sc->target_mem_cgroup, zone);
++}
++
+ #else
+ static bool global_reclaim(struct scan_control *sc)
+ {
+ 	return true;
+ }
++
++static bool has_kmem_reclaim(struct scan_control *sc)
++{
++	return true;
++}
++
++static unsigned long
++zone_nr_reclaimable_pages(struct scan_control *sc, struct zone *zone)
++{
++	return zone_reclaimable_pages(zone);
++}
+ #endif
  
- 	for_each_node_mask(nid, *nodes_to_count) {
--		struct list_lru_node *nlru = &lru->node[nid];
--
--		spin_lock(&nlru->lock);
--		BUG_ON(nlru->nr_items < 0);
--		count += nlru->nr_items;
--		spin_unlock(&nlru->lock);
+ static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+@@ -221,6 +252,14 @@ unsigned long shrink_slab(struct shrink_control *sc,
+ 		long batch_size = shrinker->batch ? shrinker->batch
+ 						  : SHRINK_BATCH;
+ 
 +		/*
-+		 * We don't need to loop through all memcgs here, because we
-+		 * have the node_totals information for the node. If we hadn't,
-+		 * this would still be achieavable by a loop-over-all-groups
++		 * If we don't have a target mem cgroup, we scan them all.
++		 * Otherwise we will limit our scan to shrinkers marked as
++		 * memcg aware
 +		 */
-+		count += atomic_long_read(&lru->node_totals[nid]);
- 	}
- 
- 	return count;
-@@ -92,12 +109,12 @@ EXPORT_SYMBOL_GPL(list_lru_count_nodemask);
- static long
- list_lru_walk_node(
- 	struct list_lru		*lru,
-+	struct list_lru_node	*nlru,
- 	int			nid,
- 	list_lru_walk_cb	isolate,
- 	void			*cb_arg,
- 	long			*nr_to_walk)
- {
--	struct list_lru_node	*nlru = &lru->node[nid];
- 	struct list_head *item, *n;
- 	long isolated = 0;
- restart:
-@@ -143,12 +160,28 @@ list_lru_walk_nodemask(
- {
- 	long isolated = 0;
- 	int nid;
-+	nodemask_t nodes;
-+	int idx;
-+	struct list_lru_node *nlru;
- 
--	for_each_node_mask(nid, *nodes_to_walk) {
--		isolated += list_lru_walk_node(lru, nid, isolate,
--					       cb_arg, &nr_to_walk);
--		if (nr_to_walk <= 0)
--			break;
-+	/*
-+	 * Conservative code can call this setting nodes with node_setall.
-+	 * This will generate an out of bound access for memcg.
-+	 */
-+	nodes_and(nodes, *nodes_to_walk, node_online_map);
-+
-+	for_each_node_mask(nid, nodes) {
-+		for_each_memcg_lru_index(idx) {
-+
-+			nlru = lru_node_of_index(lru, idx, nid);
-+			if (!nlru)
-+				continue;
-+
-+			isolated += list_lru_walk_node(lru, nlru, nid, isolate,
-+						       cb_arg, &nr_to_walk);
-+			if (nr_to_walk <= 0)
-+				break;
-+		}
- 	}
- 	return isolated;
- }
-@@ -160,23 +193,34 @@ list_lru_dispose_all_node(
- 	int			nid,
- 	list_lru_dispose_cb	dispose)
- {
--	struct list_lru_node	*nlru = &lru->node[nid];
-+	struct list_lru_node *nlru;
- 	LIST_HEAD(dispose_list);
- 	long disposed = 0;
-+	int idx;
- 
--	spin_lock(&nlru->lock);
--	while (!list_empty(&nlru->list)) {
--		list_splice_init(&nlru->list, &dispose_list);
--		disposed += nlru->nr_items;
--		nlru->nr_items = 0;
--		node_clear(nid, lru->active_nodes);
--		spin_unlock(&nlru->lock);
--
--		dispose(&dispose_list);
-+	for_each_memcg_lru_index(idx) {
-+		nlru = lru_node_of_index(lru, idx, nid);
-+		if (!nlru)
++		if (sc->target_mem_cgroup && !shrinker->memcg_shrinker)
 +			continue;
++
+ 		max_pass = shrinker->count_objects(shrinker, sc);
+ 		WARN_ON(max_pass < 0);
+ 		if (max_pass <= 0)
+@@ -2163,9 +2202,9 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
  
- 		spin_lock(&nlru->lock);
-+		while (!list_empty(&nlru->list)) {
-+			list_splice_init(&nlru->list, &dispose_list);
-+
-+			if (atomic_long_sub_and_test(nlru->nr_items,
-+							&lru->node_totals[nid]))
-+				node_clear(nid, lru->active_nodes);
-+			disposed += nlru->nr_items;
-+			nlru->nr_items = 0;
-+			spin_unlock(&nlru->lock);
-+
-+			dispose(&dispose_list);
-+
-+			spin_lock(&nlru->lock);
-+		}
-+		spin_unlock(&nlru->lock);
- 	}
--	spin_unlock(&nlru->lock);
-+
- 	return disposed;
- }
+ 		/*
+ 		 * Don't shrink slabs when reclaiming memory from
+-		 * over limit cgroups
++		 * over limit cgroups, unless we know they have kmem objects
+ 		 */
+-		if (global_reclaim(sc)) {
++		if (has_kmem_reclaim(sc)) {
+ 			unsigned long lru_pages = 0;
  
+ 			nodes_clear(shrink->nodes_to_scan);
+@@ -2174,7 +2213,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 				if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 					continue;
+ 
+-				lru_pages += zone_reclaimable_pages(zone);
++				lru_pages += zone_nr_reclaimable_pages(sc, zone);
+ 				node_set(zone_to_nid(zone),
+ 					 shrink->nodes_to_scan);
+ 			}
+@@ -2443,6 +2482,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 	};
+ 	struct shrink_control shrink = {
+ 		.gfp_mask = sc.gfp_mask,
++		.target_mem_cgroup = memcg,
+ 	};
+ 
+ 	/*
 -- 
 1.8.1.4
 
