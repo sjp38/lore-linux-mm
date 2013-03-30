@@ -1,85 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id EDD256B0002
-	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 18:20:01 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id C98A46B0002
+	for <linux-mm@kvack.org>; Fri, 29 Mar 2013 20:05:22 -0400 (EDT)
+Received: by mail-da0-f52.google.com with SMTP id f10so378915dak.39
+        for <linux-mm@kvack.org>; Fri, 29 Mar 2013 17:05:21 -0700 (PDT)
+Message-ID: <51562C3D.3060809@linaro.org>
+Date: Fri, 29 Mar 2013 17:05:17 -0700
+From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
-Message-ID: <72696b1d-3a45-4eb5-8072-6406db98c60c@default>
-Date: Fri, 29 Mar 2013 15:19:43 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: zsmalloc/lzo compressibility vs entropy
-References: <026ccf11-82db-4ddf-9882-294ee578775f@default>
-In-Reply-To: <026ccf11-82db-4ddf-9882-294ee578775f@default>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC v7 00/11] Support vrange for anonymous page
+References: <1363073915-25000-1-git-send-email-minchan@kernel.org> <514A6282.8020406@linaro.org> <20130322060113.GA4802@blaptop> <514C8FB0.4060105@linaro.org> <20130325084217.GC2348@blaptop> <51523C9C.1010806@linaro.org> <20130327080328.GE13897@blaptop>
+In-Reply-To: <20130327080328.GE13897@blaptop>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Bob Liu <bob.liu@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Minchan Kim <minchan.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-> From: Dan Magenheimer
-> Sent: Wednesday, March 27, 2013 3:42 PM
-> To: Seth Jennings; Konrad Wilk; Minchan Kim; Bob Liu; Robert Jennings; Ni=
-tin Gupta; Wanpeng Li; Andrew
-> Morton; Mel Gorman
-> Cc: linux-mm@kvack.org; linux-kernel@vger.kernel.org
-> Subject: zsmalloc/lzo compressibility vs entropy
->=20
-> This might be obvious to those of you who are better
-> mathematicians than I, but I ran some experiments
-> to confirm the relationship between entropy and compressibility
-> and thought I should report the results to the list.
+On 03/27/2013 01:03 AM, Minchan Kim wrote:
+> On Tue, Mar 26, 2013 at 05:26:04PM -0700, John Stultz wrote:
+>> Sorting out how to handle vrange() calls that cross both anonymous
+>> and file vmas will be interesting, and may have some of the
+>> drawbacks of the vma based approach, but I think it will still be
+> Do you have any specific drawback examples?
+> I'd like to solve it if it is critical and I believe we shouldn't
+> do that for simpler implementation.
 
-A few new observations worth mentioning:
+My current thought is that we manage volatile memory on both a per-mm 
+(for anonymous memory) and per-address_space (for file memory) basis.
 
-Since Seth long ago mentioned that the text of Moby Dick
-resulted in poor (but not horribly poor) compression I thought
-I'd look at some ASCII data.
+The down side, if we manage both file and anonymous volatile ranges with 
+the same interface, we may have similar problems to the per-vma approach 
+you were trying before. Specifically, if a single range covers both 
+anonymous and file memory, we'll have to do a similar iterating over the 
+different types of ranges, as we did with your earlier vma approach.
 
-I used the first sentence of the Gettysburg Address (91 characters)
-and repeated it to fill a page.  Interestingly, LZO apparently
-discovered the repetition... the page compressed to 118 bytes
-even though the result had 15618 one-bits (fairly high entropy).
+This adds some complexity since with the single interval tree method in 
+your current patch, we know we only have to allocate one additional 
+range per insert/remove. So we can do that right off the bat, and return 
+any enomem errors without having made any state changes. This is a nice 
+quality to have.
 
-I used the full Gettysburg Address (1459 characters), again
-repeated to fill a page.  LZO compressed this to 1070 bytes.
-(14568 one-bits.)
+Where as if we're iterating over different types of ranges, with 
+possibly multiple trees (ie: different mmapped files), we don't know how 
+many new ranges we may have to allocate, so we could fail half way which 
+causes ambiguous results on the marking ranges non-volatile (since 
+returning the error leaves the range possibly half-unmarked).
 
-To fill a page with text, I added part of the Declaration of
-Independence.  No repeating text now.  This only compressed
-to 2754 bytes (which, I assume, is close to Seth's observations
-on Moby Dick).  14819 one-bits.
 
-Last (for swap), to see if random ascii would compress better
-than binary, I masked off the MSB in each byte of a random
-page.  The mean zsize was 4116 bytes (larger than a page)
-with a stddev of 51.  The one-bit mean was 14336 (7/16 of a page).
+I'm still thinking it through, but that's my concern.
 
-On a completely different track, I thought it would be relevant
-to look at the difference between frontswap (anonymous) page
-zsize distribution and cleancache (file) page zsize distribution.
+Some ways we can avoid this:
+1) Require that any vrange() call not cross different types of memory.
+2) Provide a different vrange call (fvrange?)to be used with file backed 
+memory.
 
-Running kernbench, zsize mean was 1974 (stddev 895).
+Any other thoughts?
 
-For a different benchmark, I did:
 
-# find / | grep3
+>> Anyway, that's my current thinkig. You can preview my current attempt here:
+>> http://git.linaro.org/gitweb?p=people/jstultz/android-dev.git;a=shortlog;h=refs/heads/dev/vrange-minchan
+>>
+> I saw it roughly and it seems good to me.
+> I will review it in detail if you send formal patch. :)
+Ok. I'm still working on some changes (been slow this week), but hope to 
+have more to send your way next week.
 
-where grep3 is a simple bash script that does three separate
-greps on the first argument.  Since this fills the page cache
-and causes reclaiming, and reclaims are captured by cleancache
-and fed to zcache, this data page stream approximates random
-pages on the disk.
+> As you know well, there are several trial to handle memory management
+> in userspace. One of example is lowmemory notifier. Kernel just send
+> signal and user can free pages. Frankly speaking, I don't like that idea.
+> Because there are several factors to limit userspace daemon's bounded
+> reaction and could have false-positive alarm if system has streaming data,
+> mlocked pages or many dirty pages and so on.
 
-This "benchmark" generated a zsize mean of 2265 with stddev 1008.
-Also of note: Only a fraction of a percent of cleancache pages
-are zero-filled, so Wanpeng's zcache patch to handle zero-filled
-pages more efficiently is very good for frontswap pages but may
-have little benefit for cleancache pages.
+True. However, I think that there are valid use cases lowmemory 
+notification (Android's low-memory killer is one, where we're not just 
+freeing pages, but killing processes), and I think both approaches have 
+valid use.
 
-Bottom line conclusions:  (1) Entropy is probably less a factor
-for LZO-compressibility than data repetition. (2) Cleancache
-data pages may have a very different zsize distribution than
-frontswap data pages, anecdotally skewed to much higher zsize.
+> Anyway, my point is that I'd like to control page reclaiming in only
+> kernel itself. For it, userspace can register their volatile or
+> reclaimable memory ranges to kernel and define to the threshold.
+> If kernel find memory is below threshold user defined, kernel can
+> reclaim every pages in registered range freely.
+>
+> It means kernel has a ownership of page freeing. It makes system more
+> deterministic and not out-of-control.
+>
+> So vrange system call's semantic is following as.
+>
+> 1. vrange for anonymous page -> Discard wthout swapout
+> 2. vrange for file-backed page except shmem/tmpfs -> Discard without sync
+> 3. vrange for shmem/tmpfs -> hole punching
+I think on non-shmem file backed pages (case #2) hole punching will be 
+required as well. Though I'm not totally convinced volatile ranges on 
+non-tmpfs files actually makes sense (I still have yet to understand a 
+use case).
+
+
+Thanks again for your thoughts here.
+
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
