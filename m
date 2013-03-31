@@ -1,56 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 9B88A6B0002
-	for <linux-mm@kvack.org>; Sat, 30 Mar 2013 18:07:08 -0400 (EDT)
-Received: by mail-ea0-f179.google.com with SMTP id f15so607708eak.24
-        for <linux-mm@kvack.org>; Sat, 30 Mar 2013 15:07:06 -0700 (PDT)
-Message-ID: <51576207.4090607@suse.cz>
-Date: Sat, 30 Mar 2013 23:07:03 +0100
-From: Jiri Slaby <jslaby@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd reclaims
- at each priority
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-2-git-send-email-mgorman@suse.de> <20130325090758.GO2154@dhcp22.suse.cz> <51501545.50908@suse.cz> <5154C4B6.102@suse.cz> <20130329082257.GB21227@dhcp22.suse.cz>
-In-Reply-To: <20130329082257.GB21227@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 19A8E6B0002
+	for <linux-mm@kvack.org>; Sun, 31 Mar 2013 19:46:46 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] THP: Use explicit memory barrier
+Date: Mon,  1 Apr 2013 08:45:35 +0900
+Message-Id: <1364773535-26264-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On 03/29/2013 09:22 AM, Michal Hocko wrote:
-> On Thu 28-03-13 23:31:18, Jiri Slaby wrote:
->> On 03/25/2013 10:13 AM, Jiri Slaby wrote:
->>> BTW I very pray this will fix also the issue I have when I run ltp tests
->>> (highly I/O intensive, esp. `growfiles') in a VM while playing a movie
->>> on the host resulting in a stuttered playback ;).
->>
->> No, this is still terrible. I was now updating a kernel in a VM and had
->> problems to even move with cursor.
-> 
-> :/
-> 
->> There was still 1.2G used by I/O cache.
-> 
-> Could you collect /proc/zoneinfo and /proc/vmstat (say in 1 or 2s
-> intervals)?
+__do_huge_pmd_anonymous_page depends on page_add_new_anon_rmap's
+spinlock for making sure that clear_huge_page write become visible
+after set set_pmd_at() write.
 
-Sure:
-http://www.fi.muni.cz/~xslaby/sklad/zoneinfos.tar.xz
+But lru_cache_add_lru uses pagevec so it could miss spinlock
+easily so above rule was broken so user may see inconsistent data.
 
-I ran the update like 10 s after I started taking snapshots. Mplayer
-immediately started complaining:
+This patch fixes it with using explict barrier rather than depending
+on lru spinlock.
 
-           ************************************************
-           **** Your system is too SLOW to play this!  ****
-           ************************************************
-etc.
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/huge_memory.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-thanks,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index bfa142e..fad800e 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -725,11 +725,10 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 		pmd_t entry;
+ 		entry = mk_huge_pmd(page, vma);
+ 		/*
+-		 * The spinlocking to take the lru_lock inside
+-		 * page_add_new_anon_rmap() acts as a full memory
+-		 * barrier to be sure clear_huge_page writes become
+-		 * visible after the set_pmd_at() write.
++		 * clear_huge_page write become visible after the
++		 * set_pmd_at() write.
+ 		 */
++		smp_wmb();
+ 		page_add_new_anon_rmap(page, vma, haddr);
+ 		set_pmd_at(mm, haddr, pmd, entry);
+ 		pgtable_trans_huge_deposit(mm, pgtable);
 -- 
-js
-suse labs
+1.8.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
