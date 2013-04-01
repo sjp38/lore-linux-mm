@@ -1,62 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 30F066B0002
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 00:45:16 -0400 (EDT)
-Date: Mon, 1 Apr 2013 13:45:14 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] THP: Use explicit memory barrier
-Message-ID: <20130401044514.GC26497@blaptop>
-References: <1364773535-26264-1-git-send-email-minchan@kernel.org>
- <5158DC7D.2040607@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id AACD76B0002
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 01:03:50 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CF35D3EE0C1
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:03:48 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B5A5D45DE5C
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:03:48 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9E43945DE5A
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:03:48 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8BF121DB8047
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:03:48 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 434C11DB8042
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:03:48 +0900 (JST)
+Message-ID: <5159151E.9070204@jp.fujitsu.com>
+Date: Mon, 01 Apr 2013 14:03:26 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5158DC7D.2040607@jp.fujitsu.com>
+Subject: Re: [PATCH] memcg: take reference before releasing rcu_read_lock
+References: <51556CE9.9060000@huawei.com>
+In-Reply-To: <51556CE9.9060000@huawei.com>
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-Hey Kame,
-
-On Mon, Apr 01, 2013 at 10:01:49AM +0900, Kamezawa Hiroyuki wrote:
-> (2013/04/01 8:45), Minchan Kim wrote:
-> > __do_huge_pmd_anonymous_page depends on page_add_new_anon_rmap's
-> > spinlock for making sure that clear_huge_page write become visible
-> > after set set_pmd_at() write.
-> > 
-> > But lru_cache_add_lru uses pagevec so it could miss spinlock
-> > easily so above rule was broken so user may see inconsistent data.
-> > This patch fixes it with using explict barrier rather than depending
-> > on lru spinlock.
-> > 
+(2013/03/29 19:28), Li Zefan wrote:
+> The memcg is not referenced, so it can be destroyed at anytime right
+> after we exit rcu read section, so it's not safe to access it.
 > 
-> Hmm...how about do_anonymous_page() ? there are no comments/locks/barriers.
-> Users can see non-zero value after page fault in theory ?
-
-Maybe, but as you know well, we didn't see any report about that until now
-so I'm not sure. Ccing people in this thread could have clear answer rather
-than me.
-
-In THP, I just found inconsistency between Andrea's comment and code.
-That's why I sent a patch.
-
-If your concern turns out truth, Ya, you might find ancient bug. :)
-Thanks.
-
+> To fix this, we call css_tryget() to get a reference while we're still
+> in rcu read section.
 > 
-> Thanks,
-> -Kame
+> This also removes a bogus comment above __memcg_create_cache_enqueue().
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Signed-off-by: Li Zefan <lizefan@huawei.com>
 
--- 
-Kind regards,
-Minchan Kim
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
