@@ -1,101 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 182596B0002
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 05:13:26 -0400 (EDT)
-Message-ID: <51594FD8.5050002@parallels.com>
-Date: Mon, 1 Apr 2013 13:14:00 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 52D676B0006
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 05:28:03 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E44083EE0C1
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:28:01 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B2A4A45DEBE
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:28:01 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9928345DEB7
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:28:01 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8C4E2E08004
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:28:01 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4114B1DB8038
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:28:01 +0900 (JST)
+Message-ID: <51595311.7070509@jp.fujitsu.com>
+Date: Mon, 01 Apr 2013 18:27:45 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 26/28] memcg: per-memcg kmem shrinking
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-27-git-send-email-glommer@parallels.com> <515945E3.9090809@jp.fujitsu.com> <515949EB.7020400@parallels.com> <51594CED.4050401@jp.fujitsu.com>
-In-Reply-To: <51594CED.4050401@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [PATCH] memcg: implement boost mode
+References: <1364801670-10241-1-git-send-email-glommer@parallels.com>
+In-Reply-To: <1364801670-10241-1-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>
 
-On 04/01/2013 01:01 PM, Kamezawa Hiroyuki wrote:
-> (2013/04/01 17:48), Glauber Costa wrote:
->>>> +static int memcg_try_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
->>>> +{
->>>> +	int retries = MEM_CGROUP_RECLAIM_RETRIES;
->>>
->>> I'm not sure this retry numbers, for anon/file LRUs is suitable for kmem.
->>>
->> Suggestions ?
->>
+(2013/04/01 16:34), Glauber Costa wrote:
+> There are scenarios in which we would like our programs to run faster.
+> It is a hassle, when they are contained in memcg, that some of its
+> allocations will fail and start triggering reclaim. This is not good
+> for the program, that will now be slower.
 > 
-> I think you did tests.
+> This patch implements boost mode for memcg. It exposes a u64 file
+> "memcg boost". Every time you write anything to it, it will reduce the
+> counters by ~20 %. Note that we don't want to actually reclaim pages,
+> which would defeat the very goal of boost mode. We just make the
+> res_counters able to accomodate more.
 > 
-Indeed. And in my tests, 2 or 3 retries are already enough to seal the
-fate of this.
-
-I though it was safer to go with the same number, though, exactly not to
-be too biased by my specific test environments.
-
-I am fine with >= 3.
-
-Michal, you have input here?
-
->>>> +	struct res_counter *fail_res;
->>>> +	int ret;
->>>> +
->>>> +	do {
->>>> +		ret = res_counter_charge(&memcg->kmem, size, &fail_res);
->>>> +		if (!ret)
->>>> +			return ret;
->>>> +
->>>> +		if (!(gfp & __GFP_WAIT))
->>>> +			return ret;
->>>> +
->>>> +		/*
->>>> +		 * We will try to shrink kernel memory present in caches. We
->>>> +		 * are sure that we can wait, so we will. The duration of our
->>>> +		 * wait is determined by congestion, the same way as vmscan.c
->>>> +		 *
->>>> +		 * If we are in FS context, though, then although we can wait,
->>>> +		 * we cannot call the shrinkers. Most fs shrinkers (which
->>>> +		 * comprises most of our kmem data) will not run without
->>>> +		 * __GFP_FS since they can deadlock. The solution is to
->>>> +		 * synchronously run that in a different context.
->>>> +		 */
->>>> +		if (!(gfp & __GFP_FS)) {
->>>> +			/*
->>>> +			 * we are already short on memory, every queue
->>>> +			 * allocation is likely to fail
->>>> +			 */
->>>> +			memcg_stop_kmem_account();
->>>> +			schedule_work(&memcg->kmemcg_shrink_work);
->>>> +			flush_work(&memcg->kmemcg_shrink_work);
->>>> +			memcg_resume_kmem_account();
->>>> +		} else if (!try_to_free_mem_cgroup_kmem(memcg, gfp))
->>>> +			congestion_wait(BLK_RW_ASYNC, HZ/10);
->>>
->>> Why congestion_wait() ? I think calling congestion_wait() in vmscan.c is
->>> a part of memory-reclaim logic but I don't think the caller should do
->>> this kind of voluteer wait without good reason..
->>>
->>>
->>
->> Although it is not the case with dentries (or inodes, since only
->> non-dirty inodes goes to the lru list), some objects we are freeing may
->> need time to be written back to disk. This is the case for instance with
->> the buffer heads and bio's. They will not be actively shrunk in
->> shrinkers, but it is my understanding that they will be released. Inodes
->> as well, may have time to be written back and become non-dirty.
->>
->> In practice, in my tests, this would almost-always fail after a retry if
->> we don't wait, and almost always succeed in a retry if we do wait.
->>
->> Am I missing something in this interpretation ?
->>
+> This file is also available in the root cgroup. But with a slightly
+> different effect. Writing to it will make more memory physically
+> available so our programs can profit.
 > 
-> Ah, sorry. Can't we put this wait into try_to_free_mem_cgroup_kmem().
+> Please ack and apply.
 > 
+Nack.
 
-That I believe we can easily do.
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+
+Please update limit temporary. If you need call-shrink-explicitly-by-user, 
+I think you can add it.
+
+Thanks,
+-Kame
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
