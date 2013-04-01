@@ -1,69 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id F362A6B0027
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 01:13:31 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 1 Apr 2013 15:07:58 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id B72D22BB0023
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:13:20 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r315DFkl15532244
-	for <linux-mm@kvack.org>; Mon, 1 Apr 2013 16:13:15 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r315DIRL018462
-	for <linux-mm@kvack.org>; Mon, 1 Apr 2013 16:13:19 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 03/10] soft-offline: use migrate_pages() instead of migrate_huge_page()
-In-Reply-To: <20130327135250.GI16579@dhcp22.suse.cz>
-References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com> <87boa69z6j.fsf@linux.vnet.ibm.com> <20130327135250.GI16579@dhcp22.suse.cz>
-Date: Mon, 01 Apr 2013 10:43:14 +0530
-Message-ID: <874nfqesut.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 9E7EC6B0002
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 01:37:55 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AF7853EE0AE
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:37:53 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 94D1845DE5D
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:37:53 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AF1C45DE5A
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:37:53 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B8FD1DB8053
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:37:53 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 20A2F1DB8047
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:37:53 +0900 (JST)
+Message-ID: <51591D21.8090401@jp.fujitsu.com>
+Date: Mon, 01 Apr 2013 14:37:37 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [patch] mm, memcg: give exiting processes access to memory reserves
+References: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Michal Hocko <mhocko@suse.cz> writes:
-
-> On Tue 26-03-13 16:59:40, Aneesh Kumar K.V wrote:
->> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
-> [...]
->> > diff --git v3.9-rc3.orig/mm/memory-failure.c v3.9-rc3/mm/memory-failure.c
->> > index df0694c..4e01082 100644
->> > --- v3.9-rc3.orig/mm/memory-failure.c
->> > +++ v3.9-rc3/mm/memory-failure.c
->> > @@ -1467,6 +1467,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
->> >  	int ret;
->> >  	unsigned long pfn = page_to_pfn(page);
->> >  	struct page *hpage = compound_head(page);
->> > +	LIST_HEAD(pagelist);
->> >
->> >  	/*
->> >  	 * This double-check of PageHWPoison is to avoid the race with
->> > @@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
->> >  	unlock_page(hpage);
->> >
->> >  	/* Keep page count to indicate a given hugepage is isolated. */
->> > -	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
->> > -				MIGRATE_SYNC);
->> > -	put_page(hpage);
->> > +	list_move(&hpage->lru, &pagelist);
->> 
->> we use hpage->lru to add the hpage to h->hugepage_activelist. This will
->> break a hugetlb cgroup removal isn't it ?
+(2013/03/28 10:22), David Rientjes wrote:
+> A memcg may livelock when oom if the process that grabs the hierarchy's
+> oom lock is never the first process with PF_EXITING set in the memcg's
+> task iteration.
 >
-> This particular part will not break removal because
-> hugetlb_cgroup_css_offline loops until hugetlb_cgroup_have_usage is 0.
+> The oom killer, both global and memcg, will defer if it finds an eligible
+> process that is in the process of exiting and it is not being ptraced.
+> The idea is to allow it to exit without using memory reserves before
+> needlessly killing another process.
+>
+> This normally works fine except in the memcg case with a large number of
+> threads attached to the oom memcg.  In this case, the memcg oom killer
+> only gets called for the process that grabs the hierarchy's oom lock; all
+> others end up blocked on the memcg's oom waitqueue.  Thus, if the process
+> that grabs the hierarchy's oom lock is never the first PF_EXITING process
+> in the memcg's task iteration, the oom killer is constantly deferred
+> without anything making progress.
+>
+> The fix is to give PF_EXITING processes access to memory reserves so that
+> we've marked them as oom killed without any iteration.  This allows
+> __mem_cgroup_try_charge() to succeed so that the process may exit.  This
+> makes the memcg oom killer exemption for TIF_MEMDIE tasks, now
+> immediately granted for processes with pending SIGKILLs and those in the
+> exit path, to be equivalent to what is done for the global oom killer.
+>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+
+
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+> ---
+>   mm/memcontrol.c | 8 ++++----
+>   1 file changed, 4 insertions(+), 4 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1686,11 +1686,11 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>   	struct task_struct *chosen = NULL;
+>
+>   	/*
+> -	 * If current has a pending SIGKILL, then automatically select it.  The
+> -	 * goal is to allow it to allocate so that it may quickly exit and free
+> -	 * its memory.
+> +	 * If current has a pending SIGKILL or is exiting, then automatically
+> +	 * select it.  The goal is to allow it to allocate so that it may
+> +	 * quickly exit and free its memory.
+>   	 */
+> -	if (fatal_signal_pending(current)) {
+> +	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+>   		set_thread_flag(TIF_MEMDIE);
+>   		return;
+>   	}
 >
 
-But we still need to hold hugetlb_lock around that right ?
-
--aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
