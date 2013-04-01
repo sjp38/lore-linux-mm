@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id E464C6B0002
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 10:12:24 -0400 (EDT)
-Date: Mon, 1 Apr 2013 09:12:17 -0500
-From: Serge Hallyn <serge.hallyn@ubuntu.com>
-Subject: Re: [PATCH v2 00/28] memcg-aware slab shrinking
-Message-ID: <20130401141217.GA9336@sergelap>
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
- <20130401123843.GC5217@sergelap>
- <51598168.4050404@parallels.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 5415A6B0006
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 10:24:20 -0400 (EDT)
+Message-ID: <5159988E.60104@redhat.com>
+Date: Mon, 01 Apr 2013 10:24:14 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51598168.4050404@parallels.com>
+Subject: Re: [patch]THP: add split tail pages to shrink page list in page
+ reclaim
+References: <20130401132605.GA2996@kernel.org>
+In-Reply-To: <20130401132605.GA2996@kernel.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, hughd@google.com, containers@lists.linux-foundation.org, Dave Shrinnker <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, minchan@kernel.org
 
-Quoting Glauber Costa (glommer@parallels.com):
-> On 04/01/2013 04:38 PM, Serge Hallyn wrote:
-> > Quoting Glauber Costa (glommer@parallels.com):
-> >> Hi,
-> >>
-> >> Notes:
-> >> ======
-> >>
-> >> This is v2 of memcg-aware LRU shrinking. I've been testing it extensively
-> >> and it behaves well, at least from the isolation point of view. However,
-> >> I feel some more testing is needed before we commit to it. Still, this is
-> >> doing the job fairly well. Comments welcome.
-> > 
-> > Do you have any performance tests (preferably with enough runs with and
-> > without this patchset to show 95% confidence interval) to show the
-> > impact this has?  Certainly the feature sounds worthwhile, but I'm
-> > curious about the cost of maintaining this extra state.
-> > 
-> > -serge
-> > 
-> Not yet. I intend to include them in my next run. I haven't yet decided
-> on a set of tests to run (maybe just a memcg-contained kernel compile?)
-> 
-> So if you have suggestions of what I could run to show this, feel free
-> to lay them down here.
+On 04/01/2013 09:26 AM, Shaohua Li wrote:
+> In page reclaim, huge page is split. split_huge_page() adds tail pages to LRU
+> list. Since we are reclaiming a huge page, it's better we reclaim all subpages
+> of the huge page instead of just the head page. This patch adds split tail
+> pages to shrink page list so the tail pages can be reclaimed soon.
+>
+> Before this patch, run a swap workload:
+> thp_fault_alloc 3492
+> thp_fault_fallback 608
+> thp_collapse_alloc 6
+> thp_collapse_alloc_failed 0
+> thp_split 916
+>
+> With this patch:
+> thp_fault_alloc 4085
+> thp_fault_fallback 16
+> thp_collapse_alloc 90
+> thp_collapse_alloc_failed 0
+> thp_split 1272
+>
+> fallback allocation is reduced a lot.
+>
+> Signed-off-by: Shaohua Li <shli@fusionio.com>
 
-Perhaps mount a 4G tmpfs, copy kernel tree there, and build kernel on
-that tmpfs?
+I'm not entirely happy that lru_add_page_tail can now add a page to
+list that is not an LRU list, but the patch does do the right thing
+policy wise, and I am not sure how to do it better...
 
--serge
+Acked-by: Rik van Riel <riel@redhat.com>
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
