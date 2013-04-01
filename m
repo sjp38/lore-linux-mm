@@ -1,90 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 9E7EC6B0002
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 01:37:55 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AF7853EE0AE
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:37:53 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 94D1845DE5D
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:37:53 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7AF1C45DE5A
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:37:53 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6B8FD1DB8053
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:37:53 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 20A2F1DB8047
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 14:37:53 +0900 (JST)
-Message-ID: <51591D21.8090401@jp.fujitsu.com>
-Date: Mon, 01 Apr 2013 14:37:37 +0900
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 22C136B0002
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 03:17:32 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 62B783EE0C1
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:17:30 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4B41E45DEB7
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:17:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 31B7B45DEB2
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:17:30 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 234721DB803E
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:17:30 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id CF2301DB8038
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:17:29 +0900 (JST)
+Message-ID: <5159346B.1000000@jp.fujitsu.com>
+Date: Mon, 01 Apr 2013 16:16:59 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch] mm, memcg: give exiting processes access to memory reserves
-References: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH v2 01/28] super: fix calculation of shrinkable objects
+ for small numbers
+References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-2-git-send-email-glommer@parallels.com>
+In-Reply-To: <1364548450-28254-2-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-(2013/03/28 10:22), David Rientjes wrote:
-> A memcg may livelock when oom if the process that grabs the hierarchy's
-> oom lock is never the first process with PF_EXITING set in the memcg's
-> task iteration.
->
-> The oom killer, both global and memcg, will defer if it finds an eligible
-> process that is in the process of exiting and it is not being ptraced.
-> The idea is to allow it to exit without using memory reserves before
-> needlessly killing another process.
->
-> This normally works fine except in the memcg case with a large number of
-> threads attached to the oom memcg.  In this case, the memcg oom killer
-> only gets called for the process that grabs the hierarchy's oom lock; all
-> others end up blocked on the memcg's oom waitqueue.  Thus, if the process
-> that grabs the hierarchy's oom lock is never the first PF_EXITING process
-> in the memcg's task iteration, the oom killer is constantly deferred
-> without anything making progress.
->
-> The fix is to give PF_EXITING processes access to memory reserves so that
-> we've marked them as oom killed without any iteration.  This allows
-> __mem_cgroup_try_charge() to succeed so that the process may exit.  This
-> makes the memcg oom killer exemption for TIF_MEMDIE tasks, now
-> immediately granted for processes with pending SIGKILLs and those in the
-> exit path, to be equivalent to what is done for the global oom killer.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
+(2013/03/29 18:13), Glauber Costa wrote:
+> The sysctl knob sysctl_vfs_cache_pressure is used to determine which
+> percentage of the shrinkable objects in our cache we should actively try
+> to shrink.
+> 
+> It works great in situations in which we have many objects (at least
+> more than 100), because the aproximation errors will be negligible. But
+> if this is not the case, specially when total_objects < 100, we may end
+> up concluding that we have no objects at all (total / 100 = 0,  if total
+> < 100).
+> 
+> This is certainly not the biggest killer in the world, but may matter in
+> very low kernel memory situations.
+> 
+> [ v2: fix it for all occurrences of sysctl_vfs_cache_pressure ]
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
+> CC: Dave Chinner <david@fromorbit.com>
+> CC: "Theodore Ts'o" <tytso@mit.edu>
+> CC: Al Viro <viro@zeniv.linux.org.uk>
 
+I think reasonable.
 
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-> ---
->   mm/memcontrol.c | 8 ++++----
->   1 file changed, 4 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1686,11 +1686,11 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->   	struct task_struct *chosen = NULL;
->
->   	/*
-> -	 * If current has a pending SIGKILL, then automatically select it.  The
-> -	 * goal is to allow it to allocate so that it may quickly exit and free
-> -	 * its memory.
-> +	 * If current has a pending SIGKILL or is exiting, then automatically
-> +	 * select it.  The goal is to allow it to allocate so that it may
-> +	 * quickly exit and free its memory.
->   	 */
-> -	if (fatal_signal_pending(current)) {
-> +	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
->   		set_thread_flag(TIF_MEMDIE);
->   		return;
->   	}
->
 
 
 --
