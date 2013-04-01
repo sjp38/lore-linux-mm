@@ -1,58 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 8AF226B0002
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 05:36:17 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CC7AB3EE0C7
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:36:15 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A7BC945DE53
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:36:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 32D2B45DE4F
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:36:15 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D03F1DB8045
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:36:15 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C91AC1DB803F
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:36:14 +0900 (JST)
-Message-ID: <515954F3.3030703@jp.fujitsu.com>
-Date: Mon, 01 Apr 2013 18:35:47 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id C6A586B0002
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 05:37:46 -0400 (EDT)
+Received: by mail-ee0-f44.google.com with SMTP id l10so990457eei.31
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2013 02:37:45 -0700 (PDT)
+Date: Mon, 1 Apr 2013 11:37:40 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: implement boost mode
+Message-ID: <20130401093740.GA30749@dhcp22.suse.cz>
+References: <1364801670-10241-1-git-send-email-glommer@parallels.com>
+ <51595311.7070509@jp.fujitsu.com>
+ <515953AE.3000403@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 26/28] memcg: per-memcg kmem shrinking
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-27-git-send-email-glommer@parallels.com> <515945E3.9090809@jp.fujitsu.com> <515949EB.7020400@parallels.com> <51594CED.4050401@jp.fujitsu.com>
-In-Reply-To: <51594CED.4050401@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <515953AE.3000403@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>
 
-(2013/04/01 18:01), Kamezawa Hiroyuki wrote:
-> (2013/04/01 17:48), Glauber Costa wrote:
->>>> +static int memcg_try_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
->>>> +{
->>>> +	int retries = MEM_CGROUP_RECLAIM_RETRIES;
->>>
->>> I'm not sure this retry numbers, for anon/file LRUs is suitable for kmem.
->>>
->> Suggestions ?
->>
+On Mon 01-04-13 13:30:22, Glauber Costa wrote:
+> On 04/01/2013 01:27 PM, Kamezawa Hiroyuki wrote:
+> > (2013/04/01 16:34), Glauber Costa wrote:
+> >> There are scenarios in which we would like our programs to run faster.
+> >> It is a hassle, when they are contained in memcg, that some of its
+> >> allocations will fail and start triggering reclaim. This is not good
+> >> for the program, that will now be slower.
+> >>
+> >> This patch implements boost mode for memcg. It exposes a u64 file
+> >> "memcg boost". Every time you write anything to it, it will reduce the
+> >> counters by ~20 %. Note that we don't want to actually reclaim pages,
+> >> which would defeat the very goal of boost mode. We just make the
+> >> res_counters able to accomodate more.
+> >>
+> >> This file is also available in the root cgroup. But with a slightly
+> >> different effect. Writing to it will make more memory physically
+> >> available so our programs can profit.
+> >>
+> >> Please ack and apply.
+> >>
+> > Nack.
+> > 
+> >> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> > 
+> > Please update limit temporary. If you need call-shrink-explicitly-by-user, 
+> > I think you can add it.
+> > 
 > 
-> I think you did tests.
+> I don't want to shrink memory because that will make applications
+> slower. I want them to be faster, so they need to have more memory.
+> There is solid research backing up my approach:
+> http://www.dilbert.com/fast/2008-05-08/
 
-sorry..
+:)
 
-I think you did tests and know what number is good by tests.
-If it's the same number to MEM_CGROUP_RECLAIM_RETRIES, I have no objections.
-I think no reason is bad.
-
-Thanks,
--Kame
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
