@@ -1,101 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id AF1D96B0002
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 03:27:19 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 16ECE3EE0C2
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:27:18 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 0009845DE52
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:27:17 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id D852C45DE50
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:27:17 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C8E371DB802C
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:27:17 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7BB761DB8038
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 16:27:17 +0900 (JST)
-Message-ID: <515936B5.8070501@jp.fujitsu.com>
-Date: Mon, 01 Apr 2013 16:26:45 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-3-git-send-email-glommer@parallels.com>
-In-Reply-To: <1364548450-28254-3-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 7F8586B0002
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 03:34:09 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH] memcg: implement boost mode
+Date: Mon,  1 Apr 2013 11:34:30 +0400
+Message-Id: <1364801670-10241-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>
 
-(2013/03/29 18:13), Glauber Costa wrote:
-> In very low free kernel memory situations, it may be the case that we
-> have less objects to free than our initial batch size. If this is the
-> case, it is better to shrink those, and open space for the new workload
-> then to keep them and fail the new allocations.
-> 
-> More specifically, this happens because we encode this in a loop with
-> the condition: "while (total_scan >= batch_size)". So if we are in such
-> a case, we'll not even enter the loop.
-> 
-> This patch modifies turns it into a do () while {} loop, that will
-> guarantee that we scan it at least once, while keeping the behaviour
-> exactly the same for the cases in which total_scan > batch_size.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Reviewed-by: Dave Chinner <david@fromorbit.com>
-> Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
-> CC: "Theodore Ts'o" <tytso@mit.edu>
-> CC: Al Viro <viro@zeniv.linux.org.uk>
-> ---
->   mm/vmscan.c | 4 ++--
->   1 file changed, 2 insertions(+), 2 deletions(-)
-> 
+There are scenarios in which we would like our programs to run faster.
+It is a hassle, when they are contained in memcg, that some of its
+allocations will fail and start triggering reclaim. This is not good
+for the program, that will now be slower.
 
-Doesn't this break
+This patch implements boost mode for memcg. It exposes a u64 file
+"memcg boost". Every time you write anything to it, it will reduce the
+counters by ~20 %. Note that we don't want to actually reclaim pages,
+which would defeat the very goal of boost mode. We just make the
+res_counters able to accomodate more.
 
-==
-                /*
-                 * copy the current shrinker scan count into a local variable
-                 * and zero it so that other concurrent shrinker invocations
-                 * don't also do this scanning work.
-                 */
-                nr = atomic_long_xchg(&shrinker->nr_in_batch, 0);
-==
+This file is also available in the root cgroup. But with a slightly
+different effect. Writing to it will make more memory physically
+available so our programs can profit.
 
-This xchg magic ?
+Please ack and apply.
 
-Thnks,
--Kame
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+---
+ kernel/res_counter.c |  2 +-
+ mm/memcontrol.c      | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)
 
-
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 88c5fed..fc6d45a 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -280,7 +280,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
->   					nr_pages_scanned, lru_pages,
->   					max_pass, delta, total_scan);
->   
-> -		while (total_scan >= batch_size) {
-> +		do {
->   			int nr_before;
->   
->   			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
-> @@ -294,7 +294,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
->   			total_scan -= batch_size;
->   
->   			cond_resched();
-> -		}
-> +		} while (total_scan >= batch_size);
->   
->   		/*
->   		 * move the unused scan count back into the shrinker in a
-> 
-
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index ff55247..98f4ae9 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -88,7 +88,7 @@ int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
+ 
+ u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
+ {
+-	if (WARN_ON(counter->usage < val))
++	if (counter->usage < val)
+ 		val = counter->usage;
+ 
+ 	counter->usage -= val;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 1498f04..13b6934 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5255,6 +5255,32 @@ out:
+ 	return retval;
+ }
+ 
++static int mem_cgroup_write_boost(struct cgroup *cont, struct cftype *cft,
++					u64 val)
++{
++	int retval = 0;
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
++	u64 val;
++
++	/* for atomic read + uncharge */
++	mutex_lock(&memcg_create_mutex);
++
++	/*
++	 * In boost mode, we will uncharge around 20 % of the current memory
++	 * There is no need to be extremely precise. Note that the pages will
++	 * still belong to the memcg so we won't really go through the LRU and
++	 * uncharge them.  Only the res_counter is updated.
++ 	 */
++	val = res_counter_read_u64(&memcg->res, RES_USAGE);
++	val = (200 * val) >> 10;
++	res_counter_uncharge(&memcg->res);
++
++	mutex_unlock(&memcg_create_mutex);
++
++	return retval;
++}
++
++
+ 
+ static unsigned long mem_cgroup_recursive_stat(struct mem_cgroup *memcg,
+ 					       enum mem_cgroup_stat_index idx)
+@@ -6353,6 +6379,10 @@ static struct cftype mem_cgroup_files[] = {
+ 		.read = mem_cgroup_read,
+ 	},
+ 	{
++		.name = "memcg_boost",
++		.write_u64 = mem_cgroup_write_boost,
++	},
++	{
+ 		.name = "soft_limit_in_bytes",
+ 		.private = MEMFILE_PRIVATE(_MEM, RES_SOFT_LIMIT),
+ 		.write_string = mem_cgroup_write,
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
