@@ -1,95 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 879186B0002
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 18:23:36 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id kx1so1538944pab.28
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2013 15:23:35 -0700 (PDT)
-Date: Mon, 1 Apr 2013 15:23:33 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id CAC2F6B0002
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 19:35:41 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id um15so1415717pbc.22
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2013 16:35:41 -0700 (PDT)
+Date: Mon, 1 Apr 2013 16:35:38 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: THP: AnonHugePages in /proc/[pid]/smaps is correct or not?
-In-Reply-To: <383590596.664138.1364803227470.JavaMail.root@redhat.com>
-Message-ID: <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com>
-References: <383590596.664138.1364803227470.JavaMail.root@redhat.com>
+Subject: Re: [PATCH] THP: Use explicit memory barrier
+In-Reply-To: <1364773535-26264-1-git-send-email-minchan@kernel.org>
+Message-ID: <alpine.DEB.2.02.1304011634530.21603@chino.kir.corp.google.com>
+References: <1364773535-26264-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouping Liu <zliu@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Amos Kong <akong@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On Mon, 1 Apr 2013, Zhouping Liu wrote:
+On Mon, 1 Apr 2013, Minchan Kim wrote:
 
-> Hi all,
+> __do_huge_pmd_anonymous_page depends on page_add_new_anon_rmap's
+> spinlock for making sure that clear_huge_page write become visible
+> after set set_pmd_at() write.
 > 
-> I found THP can't correctly distinguish one anonymous hugepage map.
+> But lru_cache_add_lru uses pagevec so it could miss spinlock
+> easily so above rule was broken so user may see inconsistent data.
 > 
-> 1. when /sys/kernel/mm/transparent_hugepage/enabled is 'always', the
->    amount of THP always is one less.
+> This patch fixes it with using explict barrier rather than depending
+> on lru spinlock.
 > 
 
-It's not a problem with identifying an anonymous mapping as a hugepage, 
-setting thp enabled to "always" does not guarantee that they will always 
-be allocatable or that your mmap() will be 2MB aligned.  Your sample code 
-is using mmap() instead of posix_memalign() so you'll probably only get 
-100% hugepages only 1/512th of the time.
-
-> 2. when /sys/kernel/mm/transparent_hugepage/enabled is 'madvise', THP can't
->    distinguish any one anonymous hugepage size:
-> 
->    Testing code:
-> -------- snip --------
-> unsigned long hugepagesize = (1UL << 21);
-> 
-> int main()
-> {
-> 	void *addr;
-> 	int i;
-> 
-> 	printf("pid is %d\n", getpid());
-> 
-> 	for (i = 0; i < 5; i++) {
-> 		addr = mmap(NULL, hugepagesize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-> 
-> 		if (addr == MAP_FAILED) {
-> 			perror("mmap");
-> 			return -1;
-> 		}
-> 
-> 		if (madvise(addr, hugepagesize, MADV_HUGEPAGE) == -1) {
-> 			perror("madvise");
-> 			return -1;
-> 		}
-> 
-> 		memset(addr, i, hugepagesize);
-> 	}
-> 
-> 	sleep(50);
-> 
-> 	return 0;
-> }
-> --------- snip ----------
-> 
-> The result is that it can't find any AnonHugePages from /proc/[pid]/smaps :
-> -------------- snip -------
-> 7f0b38cd0000-7f0b396d0000 rw-p 00000000 00:00 0
-> Size:              10240 kB
-> Rss:               10240 kB
-> Pss:               10240 kB
-> Shared_Clean:          0 kB
-> Shared_Dirty:          0 kB
-> Private_Clean:         0 kB
-> Private_Dirty:     10240 kB
-> Referenced:        10240 kB
-> Anonymous:         10240 kB
-> AnonHugePages:         0 kB
-> Swap:                  0 kB
-> KernelPageSize:        4 kB
-> MMUPageSize:           4 kB
-> Locked:                0 kB
-> VmFlags: rd wr mr mw me ac
-
-"hg" would be shown in VmFlags if your MADV_HUGEPAGE was successful, are 
-you sure this is the right vma?
+Is this the same issue that Andrea responded to in the "thp and memory 
+barrier assumptions" thread at http://marc.info/?t=134333512700004 ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
