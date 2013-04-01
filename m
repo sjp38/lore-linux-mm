@@ -1,62 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 4C4656B0006
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 05:39:31 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id c4so953544eek.10
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2013 02:39:29 -0700 (PDT)
-Date: Mon, 1 Apr 2013 11:39:27 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: avoid accessing memcg after releasing reference
-Message-ID: <20130401093927.GB30749@dhcp22.suse.cz>
-References: <5158F344.9020509@huawei.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 16AAE6B0002
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 06:02:57 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 715403EE0AE
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 19:02:55 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 568A245DE52
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 19:02:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F6D545DE4F
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 19:02:55 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 339EA1DB8042
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 19:02:55 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D88401DB803E
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 19:02:54 +0900 (JST)
+Message-ID: <51595B3C.5090900@jp.fujitsu.com>
+Date: Mon, 01 Apr 2013 19:02:36 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5158F344.9020509@huawei.com>
+Subject: Re: [PATCH] memcg: implement boost mode
+References: <1364801670-10241-1-git-send-email-glommer@parallels.com> <51595311.7070509@jp.fujitsu.com> <515953AE.3000403@parallels.com> <20130401093740.GA30749@dhcp22.suse.cz>
+In-Reply-To: <20130401093740.GA30749@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>
 
-On Mon 01-04-13 10:39:00, Li Zefan wrote:
-> This might cause use-after-free bug.
-> 
-> Signed-off-by: Li Zefan <lizefan@huawei.com>
+(2013/04/01 18:37), Michal Hocko wrote:
+> On Mon 01-04-13 13:30:22, Glauber Costa wrote:
+>> On 04/01/2013 01:27 PM, Kamezawa Hiroyuki wrote:
+>>> (2013/04/01 16:34), Glauber Costa wrote:
+>>>> There are scenarios in which we would like our programs to run faster.
+>>>> It is a hassle, when they are contained in memcg, that some of its
+>>>> allocations will fail and start triggering reclaim. This is not good
+>>>> for the program, that will now be slower.
+>>>>
+>>>> This patch implements boost mode for memcg. It exposes a u64 file
+>>>> "memcg boost". Every time you write anything to it, it will reduce the
+>>>> counters by ~20 %. Note that we don't want to actually reclaim pages,
+>>>> which would defeat the very goal of boost mode. We just make the
+>>>> res_counters able to accomodate more.
+>>>>
+>>>> This file is also available in the root cgroup. But with a slightly
+>>>> different effect. Writing to it will make more memory physically
+>>>> available so our programs can profit.
+>>>>
+>>>> Please ack and apply.
+>>>>
+>>> Nack.
+>>>
+>>>> Signed-off-by: Glauber Costa <glommer@parallels.com>
+>>>
+>>> Please update limit temporary. If you need call-shrink-explicitly-by-user,
+>>> I think you can add it.
+>>>
+>>
+>> I don't want to shrink memory because that will make applications
+>> slower. I want them to be faster, so they need to have more memory.
+>> There is solid research backing up my approach:
+>> http://www.dilbert.com/fast/2008-05-08/
+>
+> :)
+>
+;)
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+-Kame
 
-> ---
-> 
-> found when reading the code.
-> 
-> ---
->  mm/memcontrol.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 8ec501c..6391046 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3186,12 +3186,12 @@ void memcg_release_cache(struct kmem_cache *s)
->  
->  	root = s->memcg_params->root_cache;
->  	root->memcg_params->memcg_caches[id] = NULL;
-> -	mem_cgroup_put(memcg);
->  
->  	mutex_lock(&memcg->slab_caches_mutex);
->  	list_del(&s->memcg_params->list);
->  	mutex_unlock(&memcg->slab_caches_mutex);
->  
-> +	mem_cgroup_put(memcg);
->  out:
->  	kfree(s->memcg_params);
->  }
-> -- 
-> 1.8.0.2
 
--- 
-Michal Hocko
-SUSE Labs
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
