@@ -1,67 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id DABBA6B0036
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 11:14:52 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id y10so3249227wgg.4
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 08:14:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 7BABF6B0037
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 11:16:02 -0400 (EDT)
+Date: Tue, 2 Apr 2013 16:15:58 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Excessive stall times on ext4 in 3.9-rc2
+Message-ID: <20130402151558.GI32241@suse.de>
+References: <20130402142717.GH32241@suse.de>
+ <515AF348.7060209@gmail.com>
 MIME-Version: 1.0
-Reply-To: konrad@darnok.org
-In-Reply-To: <1364870780-16296-6-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1364870780-16296-1-git-send-email-liwanp@linux.vnet.ibm.com> <1364870780-16296-6-git-send-email-liwanp@linux.vnet.ibm.com>
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Date: Tue, 2 Apr 2013 11:14:31 -0400
-Message-ID: <CAPbh3rvRAJaQ0wfxKYkOOuKtoD+U+7WaA2shKvhTyfLB=5k2aw@mail.gmail.com>
-Subject: Re: [PATCH v5 5/8] staging: zcache: fix zcache writeback in debugfs
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <515AF348.7060209@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Fengguang Wu <fengguang.wu@intel.com>
+To: Zheng Liu <gnehzuil.liu@gmail.com>
+Cc: linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
 
-On Mon, Apr 1, 2013 at 10:46 PM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
-> commit 9c0ad59ef ("zcache/debug: Use an array to initialize/use debugfs attributes")
-> use an array to initialize/use debugfs attributes, .name = #x, .val = &zcache_##x.
-> For zcache writeback, this commit set .name = zcache_outstanding_writeback_pages and
-> .name = zcache_writtenback_pages seperately, however, corresponding .val =
-> &zcache_zcache_outstanding_writeback_pages and .val = &zcache_zcache_writtenback_pages,
-> which are not correct.
->
+On Tue, Apr 02, 2013 at 11:03:36PM +0800, Zheng Liu wrote:
+> Hi Mel,
+> 
+> Thanks for reporting it.
+> 
+> On 04/02/2013 10:27 PM, Mel Gorman wrote:
+> > I'm testing a page-reclaim-related series on my laptop that is partially
+> > aimed at fixing long stalls when doing metadata-intensive operations on
+> > low memory such as a git checkout. I've been running 3.9-rc2 with the
+> > series applied but found that the interactive performance was awful even
+> > when there was plenty of free memory.
+> > 
+> > I activated a monitor from mmtests that logs when a process is stuck for
+> > a long time in D state and found that there are a lot of stalls in ext4.
+> > The report first states that processes have been stalled for a total of
+> > 6498 seconds on IO which seems like a lot. Here is a breakdown of the
+> > recorded events.
+> 
+> In this merge window, we add a status tree as a extent cache.  Meanwhile
+> a es_cache shrinker is registered to try to reclaim from this cache when
+> we are under a high memory pressure. 
 
-Weird. I recall spotting that when I did the patches, but I wonder how
-I missed this.
-Ah, now I remember - I  did a silly patch by adding in #define
-CONFIG_ZCACHE_WRITEBACK
-in the zcache-main.c code, but forgot to try it out here.
+Ok.
 
-<sigh>
+> So I suspect that the root cause
+> is this shrinker.  Could you please tell me how to reproduce this
+> problem?  If I understand correctly, I can run mmtest to reproduce this
+> problem, right?
+> 
 
-Thank you for spotting and fixing it.
+This is normal desktop usage with some development thrown in, nothing
+spectacular but nothing obviously reproducible either unfortuantely. I
+just noticed that some git operations were taking abnormally long, mutt
+was very slow opening mail, applications like mozilla were very slow to
+launch etc. and dug a little further. I haven't checked if regression
+tests under mmtests captured something similar yet.
 
-Reviewed-by: Konrad Rzeszutek Wilk <konrad@kernel.org>
-
-> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-> ---
->  drivers/staging/zcache/debug.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/drivers/staging/zcache/debug.c b/drivers/staging/zcache/debug.c
-> index 254dada..d2d1fdf 100644
-> --- a/drivers/staging/zcache/debug.c
-> +++ b/drivers/staging/zcache/debug.c
-> @@ -31,8 +31,8 @@ static struct debug_entry {
->         ATTR(eph_nonactive_puts_ignored),
->         ATTR(pers_nonactive_puts_ignored),
->  #ifdef CONFIG_ZCACHE_WRITEBACK
-> -       ATTR(zcache_outstanding_writeback_pages),
-> -       ATTR(zcache_writtenback_pages),
-> +       ATTR(outstanding_writeback_pages),
-> +       ATTR(writtenback_pages),
->  #endif
->  };
->  #undef ATTR
-> --
-> 1.7.7.6
->
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
