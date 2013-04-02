@@ -1,97 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 6B27E6B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:29:04 -0400 (EDT)
-From: Frantisek Hrbata <fhrbata@redhat.com>
-Subject: [PATCH] x86: add phys addr validity check for /dev/mem mmap
-Date: Tue,  2 Apr 2013 14:28:53 +0200
-Message-Id: <1364905733-23937-1-git-send-email-fhrbata@redhat.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 54DDB6B0006
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:30:02 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 2 Apr 2013 17:55:44 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 863DF1258023
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 18:01:11 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r32CTkcI62586892
+	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 17:59:46 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r32CToZm007814
+	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 23:29:50 +1100
+Date: Tue, 2 Apr 2013 20:29:48 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/mmap: Check for RLIMIT_AS before unmapping
+Message-ID: <20130402122948.GB17704@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <20130402095402.GA6568@rei>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130402095402.GA6568@rei>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com
+To: Cyril Hrubis <chrubis@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When CR4.PAE is set, the 64b PTE's are used(ARCH_PHYS_ADDR_T_64BIT is set for
-X86_64 || X86_PAE). According to [1] Chapter 4 Paging, some higher bits in 64b
-PTE are reserved and have to be set to zero. For example, for IA-32e and 4KB
-page [1] 4.5 IA-32e Paging: Table 4-19, bits 51-M(MAXPHYADDR) are reserved. So
-for a CPU with e.g. 48bit phys addr width, bits 51-48 have to be zero. If one of
-the reserved bits is set, [1] 4.7 Page-Fault Exceptions, the #PF is generated
-with RSVD error code.
+On Tue, Apr 02, 2013 at 11:54:03AM +0200, Cyril Hrubis wrote:
+>This patch fixes corner case for MAP_FIXED when requested mapping length
+>is larger than rlimit for virtual memory. In such case any overlapping
+>mappings are unmapped before we check for the limit and return ENOMEM.
+>
+>The check is moved before the loop that unmaps overlapping parts of
+>existing mappings. When we are about to hit the limit (currently mapped
+>pages + len > limit) we scan for overlapping pages and check again
+>accounting for them.
+>
+>This fixes situation when userspace program expects that the previous
+>mappings are preserved after the mmap() syscall has returned with error.
+>(POSIX clearly states that successfull mapping shall replace any
+>previous mappings.)
+>
+>This corner case was found and can be tested with LTP testcase:
+>
+>testcases/open_posix_testsuite/conformance/interfaces/mmap/24-2.c
+>
+>In this case the mmap, which is clearly over current limit, unmaps
+>dynamic libraries and the testcase segfaults right after returning into
+>userspace.
+>
+>I've also looked at the second instance of the unmapping loop in the
+>do_brk(). The do_brk() is called from brk() syscall and from vm_brk().
+>The brk() syscall checks for overlapping mappings and bails out when
+>there are any (so it can't be triggered from the brk syscall). The
+>vm_brk() is called only from binmft handlers so it shouldn't be
+>triggered unless binmft handler created overlapping mappings.
+>
 
-<quote>
-RSVD flag (bit 3).
-This flag is 1 if there is no valid translation for the linear address because a
-reserved bit was set in one of the paging-structure entries used to translate
-that address. (Because reserved bits are not checked in a paging-structure entry
-whose P flag is 0, bit 3 of the error code can be set only if bit 0 is also
-set.)
-</quote>
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-In mmap_mem() the first check is valid_mmap_phys_addr_range(), but it always
-returns 1 on x86. So it's possible to use any pgoff we want and to set the PTE's
-reserved bits in remap_pfn_range(). Meaning there is a possibility to use mmap
-on /dev/mem and cause system panic. It's probably not that serious, because
-access to /dev/mem is limited and the system has to have panic_on_oops set, but
-still I think we should check this and return error.
+>Signed-off-by: Cyril Hrubis <chrubis@suse.cz>
+>---
+> mm/mmap.c | 50 ++++++++++++++++++++++++++++++++++++++++++++++----
+> 1 file changed, 46 insertions(+), 4 deletions(-)
+>
+>diff --git a/mm/mmap.c b/mm/mmap.c
+>index 2664a47..e755080 100644
+>--- a/mm/mmap.c
+>+++ b/mm/mmap.c
+>@@ -33,6 +33,7 @@
+> #include <linux/uprobes.h>
+> #include <linux/rbtree_augmented.h>
+> #include <linux/sched/sysctl.h>
+>+#include <linux/kernel.h>
+>
+> #include <asm/uaccess.h>
+> #include <asm/cacheflush.h>
+>@@ -543,6 +544,34 @@ static int find_vma_links(struct mm_struct *mm, unsigned long addr,
+> 	return 0;
+> }
+>
+>+static unsigned long count_vma_pages_range(struct mm_struct *mm,
+>+		unsigned long addr, unsigned long end)
+>+{
+>+	unsigned long nr_pages = 0;
+>+	struct vm_area_struct *vma;
+>+
+>+	/* Find first overlaping mapping */
+>+	vma = find_vma_intersection(mm, addr, end);
+>+	if (!vma)
+>+		return 0;
+>+
+>+	nr_pages = (min(end, vma->vm_end) -
+>+		max(addr, vma->vm_start)) >> PAGE_SHIFT;
+>+
+>+	/* Iterate over the rest of the overlaps */
+>+	for (vma = vma->vm_next; vma; vma = vma->vm_next) {
+>+		unsigned long overlap_len;
+>+
+>+		if (vma->vm_start > end)
+>+			break;
+>+
+>+		overlap_len = min(end, vma->vm_end) - vma->vm_start;
+>+		nr_pages += overlap_len >> PAGE_SHIFT;
+>+	}
+>+
+>+	return nr_pages;
+>+}
+>+
+> void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
+> 		struct rb_node **rb_link, struct rb_node *rb_parent)
+> {
+>@@ -1433,6 +1462,23 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+> 	unsigned long charged = 0;
+> 	struct inode *inode =  file ? file_inode(file) : NULL;
+>
+>+	/* Check against address space limit. */
+>+	if (!may_expand_vm(mm, len >> PAGE_SHIFT)) {
+>+		unsigned long nr_pages;
+>+
+>+		/*
+>+		 * MAP_FIXED may remove pages of mappings that intersects with
+>+		 * requested mapping. Account for the pages it would unmap.
+>+		 */
+>+		if (!(vm_flags & MAP_FIXED))
+>+			return -ENOMEM;
+>+
+>+		nr_pages = count_vma_pages_range(mm, addr, addr + len);
+>+
+>+		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
+>+			return -ENOMEM;
+>+	}
+>+
+> 	/* Clear old maps */
+> 	error = -ENOMEM;
+> munmap_back:
+>@@ -1442,10 +1488,6 @@ munmap_back:
+> 		goto munmap_back;
+> 	}
+>
+>-	/* Check against address space limit. */
+>-	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
+>-		return -ENOMEM;
+>-
+> 	/*
+> 	 * Private writable mapping: check memory availability
+> 	 */
+>-- 
+>1.8.1.5
+>
+>See also a testsuite that exercies the newly added codepaths which is
+>attached as a tarball (All testcases minus the second that tests
+>that this patch works succeeds both before and after this patch).
+>
+>-- 
+>Cyril Hrubis
+>chrubis@suse.cz
 
-This patch adds check for x86 when ARCH_PHYS_ADDR_T_64BIT is set, the same way
-as it is already done in e.g. ioremap. With this fix mmap returns -EINVAL if the
-requested phys addr is bigger then the supported phys addr width.
-
-[1] Intel 64 and IA-32 Architectures Software Developer's Manual, Volume 3A
-
-Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
----
- arch/x86/include/asm/io.h |  4 ++++
- arch/x86/mm/mmap.c        | 13 +++++++++++++
- 2 files changed, 17 insertions(+)
-
-diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
-index d8e8eef..39607c6 100644
---- a/arch/x86/include/asm/io.h
-+++ b/arch/x86/include/asm/io.h
-@@ -242,6 +242,10 @@ static inline void flush_write_buffers(void)
- #endif
- }
- 
-+#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
-+extern int valid_phys_addr_range(phys_addr_t addr, size_t count);
-+extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t count);
-+
- #endif /* __KERNEL__ */
- 
- extern void native_io_delay(void);
-diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-index 845df68..92ec31c 100644
---- a/arch/x86/mm/mmap.c
-+++ b/arch/x86/mm/mmap.c
-@@ -31,6 +31,8 @@
- #include <linux/sched.h>
- #include <asm/elf.h>
- 
-+#include "physaddr.h"
-+
- struct __read_mostly va_alignment va_align = {
- 	.flags = -1,
- };
-@@ -122,3 +124,14 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
- 		mm->unmap_area = arch_unmap_area_topdown;
- 	}
- }
-+
-+int valid_phys_addr_range(phys_addr_t addr, size_t count)
-+{
-+	return addr + count <= __pa(high_memory);
-+}
-+
-+int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
-+{
-+	resource_size_t addr = (pfn << PAGE_SHIFT) + count;
-+	return phys_addr_valid(addr);
-+}
--- 
-1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
