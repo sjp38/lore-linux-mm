@@ -1,35 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 998436B0006
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 11:06:53 -0400 (EDT)
-Date: Tue, 2 Apr 2013 11:06:51 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-Message-ID: <20130402150651.GB31577@thunk.org>
-References: <20130402142717.GH32241@suse.de>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id D29576B0027
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 11:10:55 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id z12so558920wgg.23
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 08:10:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130402142717.GH32241@suse.de>
+Reply-To: konrad@darnok.org
+In-Reply-To: <1364870780-16296-5-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1364870780-16296-1-git-send-email-liwanp@linux.vnet.ibm.com> <1364870780-16296-5-git-send-email-liwanp@linux.vnet.ibm.com>
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Date: Tue, 2 Apr 2013 11:10:31 -0400
+Message-ID: <CAPbh3rv08RV4Nc+tznmfb5fE-EpUaMb8Rrrrg_8pg_GiUyZPgA@mail.gmail.com>
+Subject: Re: [PATCH v5 4/8] staging: zcache: fix pers_pageframes|_max aren't
+ exported in debugfs
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-On Tue, Apr 02, 2013 at 03:27:17PM +0100, Mel Gorman wrote:
-> I'm testing a page-reclaim-related series on my laptop that is partially
-> aimed at fixing long stalls when doing metadata-intensive operations on
-> low memory such as a git checkout. I've been running 3.9-rc2 with the
-> series applied but found that the interactive performance was awful even
-> when there was plenty of free memory.
+On Mon, Apr 1, 2013 at 10:46 PM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+> Before commit 9c0ad59ef ("zcache/debug: Use an array to initialize/use debugfs attributes"),
+> pers_pageframes|_max are exported in debugfs, but this commit forgot use array export
+> pers_pageframes|_max. This patch add pers_pageframes|_max back.
 
-Can you try 3.9-rc4 or later and see if the problem still persists?
-There were a number of ext4 issues especially around low memory
-performance which weren't resolved until -rc4.
+Duh! Thanks for spotting.
 
-Thanks,
-
-						- Ted
+Reviewed-by: Konrad Rzeszutek Wilk <konrad@kernel.org>
+>
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+>  drivers/staging/zcache/debug.c |    1 +
+>  1 files changed, 1 insertions(+), 0 deletions(-)
+>
+> diff --git a/drivers/staging/zcache/debug.c b/drivers/staging/zcache/debug.c
+> index e951c64..254dada 100644
+> --- a/drivers/staging/zcache/debug.c
+> +++ b/drivers/staging/zcache/debug.c
+> @@ -21,6 +21,7 @@ static struct debug_entry {
+>         ATTR(pers_ate_eph), ATTR(pers_ate_eph_failed),
+>         ATTR(evicted_eph_zpages), ATTR(evicted_eph_pageframes),
+>         ATTR(eph_pageframes), ATTR(eph_pageframes_max),
+> +       ATTR(pers_pageframes), ATTR(pers_pageframes_max),
+>         ATTR(eph_zpages), ATTR(eph_zpages_max),
+>         ATTR(pers_zpages), ATTR(pers_zpages_max),
+>         ATTR(last_active_file_pageframes),
+> --
+> 1.7.7.6
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
