@@ -1,67 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id E798D6B0006
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 05:24:44 -0400 (EDT)
-Date: Tue, 2 Apr 2013 11:24:41 +0200
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 06E446B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 05:45:27 -0400 (EDT)
+Date: Tue, 2 Apr 2013 11:45:24 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] hugetlbfs: add swap entry check in
- follow_hugetlb_page()
-Message-ID: <20130402092441.GE24345@dhcp22.suse.cz>
-References: <1364485358-8745-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1364485358-8745-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130329135730.GB21879@dhcp22.suse.cz>
- <1364577818-615ipxeo-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 03/10] soft-offline: use migrate_pages() instead of
+ migrate_huge_page()
+Message-ID: <20130402094524.GF24345@dhcp22.suse.cz>
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1363983835-20184-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <87boa69z6j.fsf@linux.vnet.ibm.com>
+ <20130327135250.GI16579@dhcp22.suse.cz>
+ <874nfqesut.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1364577818-615ipxeo-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <874nfqesut.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-On Fri 29-03-13 13:23:38, Naoya Horiguchi wrote:
-> Hi,
+On Mon 01-04-13 10:43:14, Aneesh Kumar K.V wrote:
+> Michal Hocko <mhocko@suse.cz> writes:
 > 
-> On Fri, Mar 29, 2013 at 02:57:30PM +0100, Michal Hocko wrote:
-> > On Thu 28-03-13 11:42:38, Naoya Horiguchi wrote:
+> > On Tue 26-03-13 16:59:40, Aneesh Kumar K.V wrote:
+> >> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
 > > [...]
-> > > @@ -2968,7 +2968,8 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  		 * first, for the page indexing below to work.
-> > >  		 */
-> > >  		pte = huge_pte_offset(mm, vaddr & huge_page_mask(h));
-> > > -		absent = !pte || huge_pte_none(huge_ptep_get(pte));
-> > > +		absent = !pte || huge_pte_none(huge_ptep_get(pte)) ||
-> > > +			is_swap_pte(huge_ptep_get(pte));
-> > 
-> > is_swap_pte doesn't seem right. Shouldn't you use is_hugetlb_entry_hwpoisoned
-> > instead?
+> >> > diff --git v3.9-rc3.orig/mm/memory-failure.c v3.9-rc3/mm/memory-failure.c
+> >> > index df0694c..4e01082 100644
+> >> > --- v3.9-rc3.orig/mm/memory-failure.c
+> >> > +++ v3.9-rc3/mm/memory-failure.c
+> >> > @@ -1467,6 +1467,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+> >> >  	int ret;
+> >> >  	unsigned long pfn = page_to_pfn(page);
+> >> >  	struct page *hpage = compound_head(page);
+> >> > +	LIST_HEAD(pagelist);
+> >> >
+> >> >  	/*
+> >> >  	 * This double-check of PageHWPoison is to avoid the race with
+> >> > @@ -1482,12 +1483,20 @@ static int soft_offline_huge_page(struct page *page, int flags)
+> >> >  	unlock_page(hpage);
+> >> >
+> >> >  	/* Keep page count to indicate a given hugepage is isolated. */
+> >> > -	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL,
+> >> > -				MIGRATE_SYNC);
+> >> > -	put_page(hpage);
+> >> > +	list_move(&hpage->lru, &pagelist);
+> >> 
+> >> we use hpage->lru to add the hpage to h->hugepage_activelist. This will
+> >> break a hugetlb cgroup removal isn't it ?
+> >
+> > This particular part will not break removal because
+> > hugetlb_cgroup_css_offline loops until hugetlb_cgroup_have_usage is 0.
+> >
 > 
-> I tested only hwpoisoned hugepage, but the same can happen for hugepages
-> under migration. So I intended to filter out all types of swap entries.
-> The local variable 'absent' seems to mean whether data on the address
-> is immediately available, so swap type entry isn't included in it.
+> But we still need to hold hugetlb_lock around that right ?
 
-OK, I didn't consider huge pages under migration and I was merely worried
-that is_hugetlb_entry_hwpoisoned sounds more appropriate than
-is_swap_pte.
-
-Could you add a comment which would clarify that is_swap_pte covers both
-migration and hwpoison pages, please? Something like:
-
-		/*
-		 * is_swap_pte test covers both is_hugetlb_entry_hwpoisoned
-		 * and hugepages under migration in which case
-		 * hugetlb_fault waits for the migration and bails out
-		 * properly for HWPosined pages.
-		 */
-		 absent = !pte || huge_pte_none(huge_ptep_get(pte)) ||
-		 	 is_swap_pte(huge_ptep_get(pte));
-
-Other than that feel free to add
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-Thanks.
+Right. Racing hugetlb_cgroup_move_parent and hugetlb_cgroup_migrate could
+lead to newpage pointing to NULL cgroup. That could be fixed by checking
+old page cgroup for NULL inside hugetlb_lock and using
+list_for_each_safe in hugetlb_cgroup_css_offline no?
 -- 
 Michal Hocko
 SUSE Labs
