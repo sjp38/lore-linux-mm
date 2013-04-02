@@ -1,104 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 412B06B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 07:32:34 -0400 (EDT)
-Received: by mail-vc0-f181.google.com with SMTP id hv10so289206vcb.12
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 04:32:33 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 1AEAC6B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 07:41:39 -0400 (EDT)
+Message-ID: <515AC3EE.1030803@profihost.ag>
+Date: Tue, 02 Apr 2013 13:41:34 +0200
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 MIME-Version: 1.0
-In-Reply-To: <1364836882-9713-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1364836882-9713-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1364836882-9713-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Date: Tue, 2 Apr 2013 20:32:33 +0900
-Message-ID: <CABOkKT0uceznvR0bKx79GB5HSEbWA2vp0G5dAjg6V23O3anS7w@mail.gmail.com>
-Subject: Re: [PATCH v2 1/2] hugetlbfs: stop setting VM_DONTDUMP in
- initializing vma(VM_HUGETLB)
-From: HATAYAMA Daisuke <d.hatayama@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7b6dc9a8eaba7404d95f172e
+Subject: Re: NUMA Autobalancing Kernel 3.8
+References: <515A87C3.1000309@profihost.ag> <20130402104844.GE32241@suse.de>
+In-Reply-To: <20130402104844.GE32241@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, srikar@linux.vnet.ibm.com, aarcange@redhat.com, mingo@kernel.org, riel@redhat.com
 
---047d7b6dc9a8eaba7404d95f172e
-Content-Type: text/plain; charset=ISO-8859-1
+Am 02.04.2013 12:48, schrieb Mel Gorman:
+> On Tue, Apr 02, 2013 at 09:24:51AM +0200, Stefan Priebe - Profihost AG wrote:
+>> Hello list,
+>>
+>> i was trying to play with the new NUMA autobalancing feature of Kernel 3.8.
+>>
+>> But if i enable:
+>> CONFIG_ARCH_USES_NUMA_PROT_NONE=y
+>> CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
+>> CONFIG_NUMA_BALANCING=y
+>>
+>> i see random process crashes mostly in libc using vanilla 3.8.4.
+>>
+> 
+> Any more details than that? What sort of crashes? Anything in the kernel
+> log? Any particular pattern to the crashes? Any means of reliably
+> reproducing it? 3.8 vanilla, 3.8-stable or 3.8 with any other patches
+> applied?
 
-2013/4/2 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Sorry for missing information.
 
-> Currently we fail to include any data on hugepages into coredump,
-> because VM_DONTDUMP is set on hugetlbfs's vma. This behavior was recently
-> introduced by commit 314e51b98 "mm: kill vma flag VM_RESERVED and
-> mm->reserved_vm counter". This looks to me a serious regression,
-> so let's fix it.
->
-> ChangeLog v2:
->  - add 'return 0' in hugepage memory check
->
-<cut>
+> Any more details than that?
+Sadly not i just see a crash line in the kernel log - see below.
 
-> @@ -1137,6 +1137,7 @@ static unsigned long vma_dump_size(struct
-> vm_area_struct *vma,
->                         goto whole;
->                 if (!(vma->vm_flags & VM_SHARED) &&
-> FILTER(HUGETLB_PRIVATE))
->                         goto whole;
-> +               return 0;
->         }
->
+> What sort of crashes?
+Mostly the processes just die but i've also seen processes consuming
+100% CPU all the time or even just doing nothing anymore.
 
-You should split this part into another patch. This fix is orthogonal to
-the bug this patch tries to fix.
+> Anything in the kernel log?
+Three examples:
+pigz[10194]: segfault at 0 ip           (null) sp 00007f6197ffed50 error
+14 in pigz[400000+e000]
 
-The bug you're trying to fix implicitly here is the filtering behaviour
-that doesn't follow
-the description in Documentation/filesystems/proc.txt that:
+rbd[2811]: segfault at b8 ip 00007f73c2d51b9e sp 00007f73bcae3b40 error
+4 in librados.so.2.0.0[7f73c2afe000+3b9000]
 
-  Note bit 0-4 doesn't effect any hugetlb memory. hugetlb memory are only
-  effected by bit 5-6.
+rbd[1805]: segfault at 0 ip 00007f60c28dceb4 sp 00007f60b7ffd1f8 error 4
+in ld-2.11.3.so[7f60c28cc000+1e000]
 
-Right?
+> Any particular pattern to the crashes? Any means of reliably
+> reproducing it?
+No i just need to run some task and after some time they die or hang
+forever. I have this on 10 different E5-2640 and also on E56XX. I can
+"fix" this by:
+  1.) putting all memory to just ONE CPU
+  2.) Disable NUMA Balancing
 
-Thanks.
-HATAYAMA, Daisuke
+> 3.8 vanilla, 3.8-stable or 3.8 with any other patches
+> applied?
+3.8.4 without any patches.
 
---047d7b6dc9a8eaba7404d95f172e
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<br><br><div class=3D"gmail_quote">2013/4/2 Naoya Horiguchi <span dir=3D"lt=
-r">&lt;<a href=3D"mailto:n-horiguchi@ah.jp.nec.com" target=3D"_blank">n-hor=
-iguchi@ah.jp.nec.com</a>&gt;</span><br><blockquote class=3D"gmail_quote" st=
-yle=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
-Currently we fail to include any data on hugepages into coredump,<br>
-because VM_DONTDUMP is set on hugetlbfs&#39;s vma. This behavior was recent=
-ly<br>
-introduced by commit 314e51b98 &quot;mm: kill vma flag VM_RESERVED and<br>
-mm-&gt;reserved_vm counter&quot;. This looks to me a serious regression,<br=
->
-so let&#39;s fix it.<br>
-<br>
-ChangeLog v2:<br>
-=A0- add &#39;return 0&#39; in hugepage memory check<br></blockquote><div>&=
-lt;cut&gt; <br></div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 =
-0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
-@@ -1137,6 +1137,7 @@ static unsigned long vma_dump_size(struct vm_area_str=
-uct *vma,<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto whole;<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!(vma-&gt;vm_flags &amp; VM_SHARED) &am=
-p;&amp; FILTER(HUGETLB_PRIVATE))<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto whole;<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;<br>
-=A0 =A0 =A0 =A0 }<br></blockquote><div><br>You should split this part into =
-another patch. This fix is orthogonal to the bug this patch tries to fix.<b=
-r><br>The bug you&#39;re trying to fix implicitly here is the filtering beh=
-aviour that doesn&#39;t follow<br>
-the description in Documentation/filesystems/proc.txt that:<br><br>=A0 Note=
- bit 0-4 doesn&#39;t effect any hugetlb memory. hugetlb memory are only<br>=
-=A0 effected by bit 5-6.<br><br>Right?<br><br>Thanks.<br>HATAYAMA, Daisuke<=
-br>
-<br></div></div><div style id=3D"__af745f8f43-e961-4b88-8424-80b67790c964__=
-"></div>
-
---047d7b6dc9a8eaba7404d95f172e--
+Greets,
+Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
