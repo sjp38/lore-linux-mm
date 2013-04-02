@@ -1,32 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 80DCE6B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 14:04:50 -0400 (EDT)
-Date: Tue, 2 Apr 2013 20:02:19 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] x86: add phys addr validity check for /dev/mem mmap
-Message-ID: <20130402180219.GA26833@redhat.com>
-References: <1364905733-23937-1-git-send-email-fhrbata@redhat.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id DF20B6B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 14:09:03 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id kq13so435251pab.15
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 11:09:03 -0700 (PDT)
+Date: Tue, 2 Apr 2013 11:09:01 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: THP: AnonHugePages in /proc/[pid]/smaps is correct or not?
+In-Reply-To: <515ACDC9.2090506@gmail.com>
+Message-ID: <alpine.DEB.2.02.1304021106190.17138@chino.kir.corp.google.com>
+References: <383590596.664138.1364803227470.JavaMail.root@redhat.com> <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com> <515ACDC9.2090506@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1364905733-23937-1-git-send-email-fhrbata@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frantisek Hrbata <fhrbata@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, kamaleshb@in.ibm.com, hechjie@cn.ibm.com
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Zhouping Liu <zliu@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Amos Kong <akong@redhat.com>
 
-On 04/02, Frantisek Hrbata wrote:
->
-> Meaning there is a possibility to use mmap
-> on /dev/mem and cause system panic. It's probably not that serious, because
-> access to /dev/mem is limited and the system has to have panic_on_oops set, but
-> still I think we should check this and return error.
+On Tue, 2 Apr 2013, Simon Jeons wrote:
 
-Personally I agree. Even if panic_on_oops == F, do_page_fault(PF_RSVD) leading
-to pgtable_bad() doesn't look good.
+> Both thp and hugetlb pages should be 2MB aligned, correct?
+> 
 
-Oleg.
+To answer this question and your followup reply at the same time: they 
+come from one level higher in the page table so they will naturally need 
+to be 2MB aligned.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
