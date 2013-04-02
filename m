@@ -1,105 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 0CD3D6B0027
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:26:54 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id hu16so188243qab.7
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 05:26:54 -0700 (PDT)
-Message-ID: <515ACE87.8070005@gmail.com>
-Date: Tue, 02 Apr 2013 20:26:47 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
-MIME-Version: 1.0
-Subject: Re: THP: AnonHugePages in /proc/[pid]/smaps is correct or not?
-References: <383590596.664138.1364803227470.JavaMail.root@redhat.com> <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 6B27E6B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:29:04 -0400 (EDT)
+From: Frantisek Hrbata <fhrbata@redhat.com>
+Subject: [PATCH] x86: add phys addr validity check for /dev/mem mmap
+Date: Tue,  2 Apr 2013 14:28:53 +0200
+Message-Id: <1364905733-23937-1-git-send-email-fhrbata@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Zhouping Liu <zliu@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Amos Kong <akong@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com
 
-On 04/02/2013 06:23 AM, David Rientjes wrote:
-> On Mon, 1 Apr 2013, Zhouping Liu wrote:
->
->> Hi all,
->>
->> I found THP can't correctly distinguish one anonymous hugepage map.
->>
->> 1. when /sys/kernel/mm/transparent_hugepage/enabled is 'always', the
->>     amount of THP always is one less.
->>
-> It's not a problem with identifying an anonymous mapping as a hugepage,
-> setting thp enabled to "always" does not guarantee that they will always
-> be allocatable or that your mmap() will be 2MB aligned.  Your sample code
+When CR4.PAE is set, the 64b PTE's are used(ARCH_PHYS_ADDR_T_64BIT is set for
+X86_64 || X86_PAE). According to [1] Chapter 4 Paging, some higher bits in 64b
+PTE are reserved and have to be set to zero. For example, for IA-32e and 4KB
+page [1] 4.5 IA-32e Paging: Table 4-19, bits 51-M(MAXPHYADDR) are reserved. So
+for a CPU with e.g. 48bit phys addr width, bits 51-48 have to be zero. If one of
+the reserved bits is set, [1] 4.7 Page-Fault Exceptions, the #PF is generated
+with RSVD error code.
 
-Btw, why need 2MB aligned? Does it has relationship with tlb?
+<quote>
+RSVD flag (bit 3).
+This flag is 1 if there is no valid translation for the linear address because a
+reserved bit was set in one of the paging-structure entries used to translate
+that address. (Because reserved bits are not checked in a paging-structure entry
+whose P flag is 0, bit 3 of the error code can be set only if bit 0 is also
+set.)
+</quote>
 
->   
-> is using mmap() instead of posix_memalign() so you'll probably only get
-> 100% hugepages only 1/512th of the time.
->
->> 2. when /sys/kernel/mm/transparent_hugepage/enabled is 'madvise', THP can't
->>     distinguish any one anonymous hugepage size:
->>
->>     Testing code:
->> -------- snip --------
->> unsigned long hugepagesize = (1UL << 21);
->>
->> int main()
->> {
->> 	void *addr;
->> 	int i;
->>
->> 	printf("pid is %d\n", getpid());
->>
->> 	for (i = 0; i < 5; i++) {
->> 		addr = mmap(NULL, hugepagesize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
->>
->> 		if (addr == MAP_FAILED) {
->> 			perror("mmap");
->> 			return -1;
->> 		}
->>
->> 		if (madvise(addr, hugepagesize, MADV_HUGEPAGE) == -1) {
->> 			perror("madvise");
->> 			return -1;
->> 		}
->>
->> 		memset(addr, i, hugepagesize);
->> 	}
->>
->> 	sleep(50);
->>
->> 	return 0;
->> }
->> --------- snip ----------
->>
->> The result is that it can't find any AnonHugePages from /proc/[pid]/smaps :
->> -------------- snip -------
->> 7f0b38cd0000-7f0b396d0000 rw-p 00000000 00:00 0
->> Size:              10240 kB
->> Rss:               10240 kB
->> Pss:               10240 kB
->> Shared_Clean:          0 kB
->> Shared_Dirty:          0 kB
->> Private_Clean:         0 kB
->> Private_Dirty:     10240 kB
->> Referenced:        10240 kB
->> Anonymous:         10240 kB
->> AnonHugePages:         0 kB
->> Swap:                  0 kB
->> KernelPageSize:        4 kB
->> MMUPageSize:           4 kB
->> Locked:                0 kB
->> VmFlags: rd wr mr mw me ac
-> "hg" would be shown in VmFlags if your MADV_HUGEPAGE was successful, are
-> you sure this is the right vma?
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+In mmap_mem() the first check is valid_mmap_phys_addr_range(), but it always
+returns 1 on x86. So it's possible to use any pgoff we want and to set the PTE's
+reserved bits in remap_pfn_range(). Meaning there is a possibility to use mmap
+on /dev/mem and cause system panic. It's probably not that serious, because
+access to /dev/mem is limited and the system has to have panic_on_oops set, but
+still I think we should check this and return error.
+
+This patch adds check for x86 when ARCH_PHYS_ADDR_T_64BIT is set, the same way
+as it is already done in e.g. ioremap. With this fix mmap returns -EINVAL if the
+requested phys addr is bigger then the supported phys addr width.
+
+[1] Intel 64 and IA-32 Architectures Software Developer's Manual, Volume 3A
+
+Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
+---
+ arch/x86/include/asm/io.h |  4 ++++
+ arch/x86/mm/mmap.c        | 13 +++++++++++++
+ 2 files changed, 17 insertions(+)
+
+diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
+index d8e8eef..39607c6 100644
+--- a/arch/x86/include/asm/io.h
++++ b/arch/x86/include/asm/io.h
+@@ -242,6 +242,10 @@ static inline void flush_write_buffers(void)
+ #endif
+ }
+ 
++#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
++extern int valid_phys_addr_range(phys_addr_t addr, size_t count);
++extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t count);
++
+ #endif /* __KERNEL__ */
+ 
+ extern void native_io_delay(void);
+diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+index 845df68..92ec31c 100644
+--- a/arch/x86/mm/mmap.c
++++ b/arch/x86/mm/mmap.c
+@@ -31,6 +31,8 @@
+ #include <linux/sched.h>
+ #include <asm/elf.h>
+ 
++#include "physaddr.h"
++
+ struct __read_mostly va_alignment va_align = {
+ 	.flags = -1,
+ };
+@@ -122,3 +124,14 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
+ 		mm->unmap_area = arch_unmap_area_topdown;
+ 	}
+ }
++
++int valid_phys_addr_range(phys_addr_t addr, size_t count)
++{
++	return addr + count <= __pa(high_memory);
++}
++
++int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
++{
++	resource_size_t addr = (pfn << PAGE_SHIFT) + count;
++	return phys_addr_valid(addr);
++}
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
