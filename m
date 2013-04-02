@@ -1,45 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id C86576B003C
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 19:16:15 -0400 (EDT)
-Date: Tue, 2 Apr 2013 19:16:13 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-Message-ID: <20130402231613.GA4946@thunk.org>
-References: <20130402142717.GH32241@suse.de>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 969CF6B0044
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 19:55:48 -0400 (EDT)
+Received: by mail-da0-f50.google.com with SMTP id t1so402501dae.37
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 16:55:47 -0700 (PDT)
+Date: Tue, 2 Apr 2013 16:55:45 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
+In-Reply-To: <alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
+Message-ID: <alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
+References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com> <alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com> <alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130402142717.GH32241@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: Hugh Dickins <hughd@google.com>
+Cc: Jan Stancek <jstancek@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ian Lance Taylor <iant@google.com>, linux-mm@kvack.org
 
-I've tried doing some quick timing, and if it is a performance
-regression, it's not a recent one --- or I haven't been able to
-reproduce what Mel is seeing.  I tried the following commands while
-booted into 3.2, 3.8, and 3.9-rc3 kernels:
+On Tue, 2 Apr 2013, Hugh Dickins wrote:
 
-time git clone ...
-rm .git/index ; time git reset
+> > > find_vma() can be called by multiple threads with read lock
+> > > held on mm->mmap_sem and any of them can update mm->mmap_cache.
+> > > Prevent compiler from re-fetching mm->mmap_cache, because other
+> > > readers could update it in the meantime:
+> > 
+> > FWIW, ACCESS_ONCE() does not guarantee that the compiler will not refetch 
+> > mm->mmap_cache whatsoever; there is nothing that prevents this either in 
+> > the C standard.  You'll be relying solely on gcc's implementation of how 
+> > it dereferences volatile-qualified pointers.
+> 
+> Jan is using ACCESS_ONCE() as it should be used, for its intended
+> purpose.  If the kernel's implementation of ACCESS_ONCE() is deficient,
+> then we should fix that, not discourage its use.
+> 
 
-I did this a number of git repo's; including one that was freshly
-cloned, and one that had around 3 dozen patches applied via git am (so
-there were a bunch of loose objects).  And I tried doing this on an
-SSD and a 5400rpm HDD, and I did it with all of the in-memory cache
-flushed via "git 3 > /proc/sys/vm/drop_caches".  The worst case was
-doing a "time git reset" after deleting the .git/index file after
-applying all of Kent Overstreet's recent AIO patches that had been
-sent out for review.  It took around 55 seconds, on 3.2, 3.8 and
-3.9-rc3.  That is pretty horrible, but for me that's the reason why I
-use SSD's.
+My comment is about the changelog, quoted above, saying "prevent compiler 
+from re-fetching mm->mmap_cache..."  ACCESS_ONCE(), as implemented, does 
+not prevent the compiler from re-fetching anything.  It is entirely 
+plausible that in gcc's current implementation that this guarantee is 
+made, but it is not prevented by the language standard and I think the 
+changelog should be reworded for anybody who reads it in the future.  
+There is a dependency here on gcc's implementation, it's a meaningful 
+distinction.
 
-Mel, how bad is various git commands that you are trying?  Have you
-tried using time to get estimates of how long a git clone or other git
-operation is taking?
-
-						- Ted
+I never discouraged its use since for gcc's current implementation it 
+appears to work as desired and without gcc extensions there is no way to 
+make such a guarantee by the standard.  In fact, I acked a patch from Eric 
+Dumazet that fixes a NULL pointer dereference by using ACCESS_ONCE() with 
+gcc in slub.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
