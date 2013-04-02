@@ -1,74 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 4E4886B0006
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:35:57 -0400 (EDT)
-Date: Tue, 02 Apr 2013 10:35:50 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1364913350-hwvx480l-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130402092441.GE24345@dhcp22.suse.cz>
-References: <1364485358-8745-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1364485358-8745-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20130329135730.GB21879@dhcp22.suse.cz>
- <1364577818-615ipxeo-mutt-n-horiguchi@ah.jp.nec.com>
- <20130402092441.GE24345@dhcp22.suse.cz>
-Subject: Re: [PATCH 2/2] hugetlbfs: add swap entry check in
- follow_hugetlb_page()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id C9A5B6B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:39:02 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id fb10so329703pad.39
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 07:39:02 -0700 (PDT)
+Message-ID: <515AED78.7000909@gmail.com>
+Date: Tue, 02 Apr 2013 22:38:48 +0800
+From: Jiang Liu <liuj97@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3, part4 26/39] mm/openrisc: prepare for removing num_physpages
+ and simplify mem_init()
+References: <1364313298-17336-1-git-send-email-jiang.liu@huawei.com> <1364313298-17336-27-git-send-email-jiang.liu@huawei.com> <515A6D40.90702@southpole.se>
+In-Reply-To: <515A6D40.90702@southpole.se>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jonas Bonn <jonas@southpole.se>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, linux@lists.openrisc.net
 
-On Tue, Apr 02, 2013 at 11:24:41AM +0200, Michal Hocko wrote:
-> On Fri 29-03-13 13:23:38, Naoya Horiguchi wrote:
-> > Hi,
-> > 
-> > On Fri, Mar 29, 2013 at 02:57:30PM +0100, Michal Hocko wrote:
-> > > On Thu 28-03-13 11:42:38, Naoya Horiguchi wrote:
-> > > [...]
-> > > > @@ -2968,7 +2968,8 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> > > >  		 * first, for the page indexing below to work.
-> > > >  		 */
-> > > >  		pte = huge_pte_offset(mm, vaddr & huge_page_mask(h));
-> > > > -		absent = !pte || huge_pte_none(huge_ptep_get(pte));
-> > > > +		absent = !pte || huge_pte_none(huge_ptep_get(pte)) ||
-> > > > +			is_swap_pte(huge_ptep_get(pte));
-> > > 
-> > > is_swap_pte doesn't seem right. Shouldn't you use is_hugetlb_entry_hwpoisoned
-> > > instead?
-> > 
-> > I tested only hwpoisoned hugepage, but the same can happen for hugepages
-> > under migration. So I intended to filter out all types of swap entries.
-> > The local variable 'absent' seems to mean whether data on the address
-> > is immediately available, so swap type entry isn't included in it.
+Hi Jonas,
+	Thanks for testing.
+	Regards!
+	Gerry
+On 04/02/2013 01:31 PM, Jonas Bonn wrote:
+> On 03/26/2013 04:54 PM, Jiang Liu wrote:
+>> Prepare for removing num_physpages and simplify mem_init().
+>>
+>> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+>> Cc: Jonas Bonn <jonas@southpole.se>
+>> Cc: David Howells <dhowells@redhat.com>
+>> Cc: Arnd Bergmann <arnd@arndb.de>
+>> Cc: linux@lists.openrisc.net
+>> Cc: linux-kernel@vger.kernel.org
 > 
-> OK, I didn't consider huge pages under migration and I was merely worried
-> that is_hugetlb_entry_hwpoisoned sounds more appropriate than
-> is_swap_pte.
+> Tested and works fine on OpenRISC.
 > 
-> Could you add a comment which would clarify that is_swap_pte covers both
-> migration and hwpoison pages, please? Something like:
+> Acked-by: Jonas Bonn <jonas@southpole.se>
 > 
-> 		/*
-> 		 * is_swap_pte test covers both is_hugetlb_entry_hwpoisoned
-> 		 * and hugepages under migration in which case
-> 		 * hugetlb_fault waits for the migration and bails out
-> 		 * properly for HWPosined pages.
-> 		 */
-> 		 absent = !pte || huge_pte_none(huge_ptep_get(pte)) ||
-> 		 	 is_swap_pte(huge_ptep_get(pte));
-
-OK, I'll add this.
-
-> Other than that feel free to add
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-Thank you!
-Naoya
+> /Jonas
+> 
+>> ---
+>> Hi all,
+>>     Sorry for my mistake that my previous patch series has been screwed up.
+>> So I regenerate a third version and also set up a git tree at:
+>>     git://github.com/jiangliu/linux.git mem_init
+>>     Any help to review and test are welcomed!
+>>
+>>     Regards!
+>>     Gerry
+>> ---
+>>   arch/openrisc/mm/init.c |   44 ++++----------------------------------------
+>>   1 file changed, 4 insertions(+), 40 deletions(-)
+>>
+>> diff --git a/arch/openrisc/mm/init.c b/arch/openrisc/mm/init.c
+>> index 71d6b40..f3c8f47 100644
+>> --- a/arch/openrisc/mm/init.c
+>> +++ b/arch/openrisc/mm/init.c
+>> @@ -191,56 +191,20 @@ void __init paging_init(void)
+>>     /* References to section boundaries */
+>>   -static int __init free_pages_init(void)
+>> -{
+>> -    int reservedpages, pfn;
+>> -
+>> -    /* this will put all low memory onto the freelists */
+>> -    free_all_bootmem();
+>> -
+>> -    reservedpages = 0;
+>> -    for (pfn = 0; pfn < max_low_pfn; pfn++) {
+>> -        /*
+>> -         * Only count reserved RAM pages
+>> -         */
+>> -        if (PageReserved(mem_map + pfn))
+>> -            reservedpages++;
+>> -    }
+>> -
+>> -    return reservedpages;
+>> -}
+>> -
+>> -static void __init set_max_mapnr_init(void)
+>> -{
+>> -    max_mapnr = num_physpages = max_low_pfn;
+>> -}
+>> -
+>>   void __init mem_init(void)
+>>   {
+>> -    int codesize, reservedpages, datasize, initsize;
+>> -
+>>       BUG_ON(!mem_map);
+>>   -    set_max_mapnr_init();
+>> -
+>> +    max_mapnr = max_low_pfn;
+>>       high_memory = (void *)__va(max_low_pfn * PAGE_SIZE);
+>>         /* clear the zero-page */
+>>       memset((void *)empty_zero_page, 0, PAGE_SIZE);
+>>   -    reservedpages = free_pages_init();
+>> -
+>> -    codesize = (unsigned long)&_etext - (unsigned long)&_stext;
+>> -    datasize = (unsigned long)&_edata - (unsigned long)&_etext;
+>> -    initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
+>> +    /* this will put all low memory onto the freelists */
+>> +    free_all_bootmem();
+>>   -    printk(KERN_INFO
+>> -           "Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init, %ldk highmem)\n",
+>> -           (unsigned long)nr_free_pages() << (PAGE_SHIFT - 10),
+>> -           max_mapnr << (PAGE_SHIFT - 10), codesize >> 10,
+>> -           reservedpages << (PAGE_SHIFT - 10), datasize >> 10,
+>> -           initsize >> 10, (unsigned long)(0 << (PAGE_SHIFT - 10))
+>> -        );
+>> +    mem_init_print_info(NULL);
+>>         printk("mem_init_done ...........................................\n");
+>>       mem_init_done = 1;
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
