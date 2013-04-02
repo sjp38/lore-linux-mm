@@ -1,90 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 75D7F6B0002
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 22:22:29 -0400 (EDT)
-Date: Tue, 2 Apr 2013 11:22:27 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch]THP: add split tail pages to shrink page list in page
- reclaim
-Message-ID: <20130402022227.GE30444@blaptop>
-References: <20130401132605.GA2996@kernel.org>
- <20130402012422.GB30444@blaptop>
- <20130402020357.GA832@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130402020357.GA832@kernel.org>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 6E3436B0027
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 22:46:34 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Tue, 2 Apr 2013 08:11:48 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id D0AB51258052
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:17:45 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r322kND02818384
+	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 08:16:24 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r322kPeM003886
+	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 13:46:26 +1100
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v5 0/8] staging: zcache: Support zero-filled pages more efficiently
+Date: Tue,  2 Apr 2013 10:46:12 +0800
+Message-Id: <1364870780-16296-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Fengguang Wu <fengguang.wu@intel.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Tue, Apr 02, 2013 at 10:03:57AM +0800, Shaohua Li wrote:
-> On Tue, Apr 02, 2013 at 10:24:22AM +0900, Minchan Kim wrote:
-> > Hi Shaohua,
-> > 
-> > On Mon, Apr 01, 2013 at 09:26:05PM +0800, Shaohua Li wrote:
-> > > In page reclaim, huge page is split. split_huge_page() adds tail pages to LRU
-> > > list. Since we are reclaiming a huge page, it's better we reclaim all subpages
-> > > of the huge page instead of just the head page. This patch adds split tail
-> > > pages to shrink page list so the tail pages can be reclaimed soon.
-> > > 
-> > > Before this patch, run a swap workload:
-> > > thp_fault_alloc 3492
-> > > thp_fault_fallback 608
-> > > thp_collapse_alloc 6
-> > > thp_collapse_alloc_failed 0
-> > > thp_split 916
-> > > 
-> > > With this patch:
-> > > thp_fault_alloc 4085
-> > > thp_fault_fallback 16
-> > > thp_collapse_alloc 90
-> > > thp_collapse_alloc_failed 0
-> > > thp_split 1272
-> > > 
-> > > fallback allocation is reduced a lot.
-> > 
-> > What I have a concern is that there is about spatial locality about 2M all pages
-> > expecially, THP-always case. But yes, THP already have done it via
-> > lru_add_page_tail and yours makes more sense if we really intended it.
-> > 
-> > But I didn't like passing page_list to split_huge_page, either.
-> > Couldn't we do it in isolate_lru_pages in shrink_inactive_list?
-> > Maybe, we can add new isolate_mode, ISOLATE_SPLIT_HUGEPAGE.
-> > One problem I can see is deadlock of zone->lru_lock so maybe we have to
-> > release the lock the work and re-hold it.
-> 
-> I'd prefer split huge page after page_check_references like what we do now.
-> It's possible we don't want to reclaim (so split) the page at all.
+Changelog:
+ v4 -> v5: 
+  * fix compile error, reported by Fengguang, Geert 
+  * add check for !is_ephemeral(pool), spotted by Bob 
+ v3 -> v4:
+  * handle duplication in page_is_zero_filled, spotted by Bob
+  * fix zcache writeback in dubugfs 
+  * fix pers_pageframes|_max isn't exported in debugfs
+  * fix static variable defined in debug.h but used in multiple C files 
+  * rebase on Greg's staging-next
+ v2 -> v3:
+  * increment/decrement zcache_[eph|pers]_zpages for zero-filled pages, spotted by Dan 
+  * replace "zero" or "zero page" by "zero_filled_page", spotted by Dan
+ v1 -> v2:
+  * avoid changing tmem.[ch] entirely, spotted by Dan.
+  * don't accumulate [eph|pers]pageframe and [eph|pers]zpages for 
+    zero-filled pages, spotted by Dan
+  * cleanup TODO list
+  * add Dan Acked-by.
 
-Absolutely right you are!
+Motivation:
 
-We can check refereced bit in split_huge_page easily instead of
-page_check_reference but for it, we have to introudce another
-argument like split_huge_page(struct page, bool force) and moreover,
-it needs additional argument for handling memcg aware.  
+- Seth Jennings points out compress zero-filled pages with LZO(a lossless 
+  data compression algorithm) will waste memory and result in fragmentation.
+  https://lkml.org/lkml/2012/8/14/347
+- Dan Magenheimer add "Support zero-filled pages more efficiently" feature 
+  in zcache TODO list https://lkml.org/lkml/2013/2/13/503
 
-        splut_huge_page(struct page, struct mem_cgroup *memcg, bool force);
+Design:
 
-It's very ugly so I don't have any objection.
-Sorry for the noise.
+- For store page, capture zero-filled pages(evicted clean page cache pages and 
+  swap pages), but don't compress them, set pampd which store zpage address to
+  0x2(since 0x0 and 0x1 has already been ocuppied) to mark special zero-filled
+  case and take advantage of tmem infrastructure to transform handle-tuple(pool
+  id, object id, and an index) to a pampd. Twice compress zero-filled pages will
+  contribute to one zcache_[eph|pers]_pageframes count accumulated.
+- For load page, traverse tmem hierachical to transform handle-tuple to pampd 
+  and identify zero-filled case by pampd equal to 0x2 when filesystem reads
+  file pages or a page needs to be swapped in, then refill the page to zero
+  and return.
 
-Acked-by: Minchan Kim <minchan@kernel.org>
+Test:
 
+dd if=/dev/zero of=zerofile bs=1MB count=500
+vmtouch -t zerofile
+vmtouch -e zerofile
 
-> Thanks,
-> Shaohua
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+formula:
+- fragmentation level = (zcache_[eph|pers]_pageframes * PAGE_SIZE - zcache_[eph|pers]_zbytes) 
+  * 100 / (zcache_[eph|pers]_pageframes * PAGE_SIZE)
+- memory zcache occupy = zcache_[eph|pers]_zbytes 
+
+Result:
+
+without zero-filled awareness:
+- fragmentation level: 98%
+- memory zcache occupy: 238MB
+with zero-filled awareness:
+- fragmentation level: 0%
+- memory zcache occupy: 0MB
+
+Wanpeng Li (8):
+  staging: zcache: Support zero-filled pages more efficiently
+  staging: zcache: zero-filled pages awareness
+  staging: zcache: handle zcache_[eph|pers]_zpages for zero-filled page
+  staging: zcache: fix pers_pageframes|_max aren't exported in debugfs
+  staging: zcache: fix zcache writeback in debugfs
+  staging: zcache: fix static variables defined in debug.h but used in
+    mutiple C files
+  staging: zcache: introduce zero-filled page stat count
+  staging: zcache: clean TODO list
+
+ drivers/staging/zcache/TODO          |    3 +-
+ drivers/staging/zcache/debug.c       |    5 +-
+ drivers/staging/zcache/debug.h       |   77 +++++++++++--------
+ drivers/staging/zcache/zcache-main.c |  141 ++++++++++++++++++++++++++++++++--
+ 4 files changed, 183 insertions(+), 43 deletions(-)
 
 -- 
-Kind regards,
-Minchan Kim
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
