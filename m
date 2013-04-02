@@ -1,71 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 6D2EE6B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 07:20:52 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 2 Apr 2013 16:47:59 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id EC6A91258023
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 16:52:03 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r32BKfOa262634
-	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 16:50:42 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r32BKhA3009806
-	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 22:20:43 +1100
-Date: Tue, 2 Apr 2013 19:20:41 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/vmscan: fix error return in kswapd_run()
-Message-ID: <20130402112041.GA17704@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <515ABC79.5060900@huawei.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 412B06B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 07:32:34 -0400 (EDT)
+Received: by mail-vc0-f181.google.com with SMTP id hv10so289206vcb.12
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 04:32:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <515ABC79.5060900@huawei.com>
+In-Reply-To: <1364836882-9713-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1364836882-9713-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1364836882-9713-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Date: Tue, 2 Apr 2013 20:32:33 +0900
+Message-ID: <CABOkKT0uceznvR0bKx79GB5HSEbWA2vp0G5dAjg6V23O3anS7w@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] hugetlbfs: stop setting VM_DONTDUMP in
+ initializing vma(VM_HUGETLB)
+From: HATAYAMA Daisuke <d.hatayama@gmail.com>
+Content-Type: multipart/alternative; boundary=047d7b6dc9a8eaba7404d95f172e
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, hughd@google.com, riel@redhat.com, khlebnikov@openvz.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hanjun Guo <guohanjun@huawei.com>, Zhangdianfang <zhangdianfang@huawei.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On Tue, Apr 02, 2013 at 07:09:45PM +0800, Xishi Qiu wrote:
->Fix the error return value in kswapd_run(). The bug was
->introduced by commit d5dc0ad928fb9e972001e552597fd0b794863f34
->"mm/vmscan: fix error number for failed kthread".
+--047d7b6dc9a8eaba7404d95f172e
+Content-Type: text/plain; charset=ISO-8859-1
+
+2013/4/2 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+> Currently we fail to include any data on hugepages into coredump,
+> because VM_DONTDUMP is set on hugetlbfs's vma. This behavior was recently
+> introduced by commit 314e51b98 "mm: kill vma flag VM_RESERVED and
+> mm->reserved_vm counter". This looks to me a serious regression,
+> so let's fix it.
+>
+> ChangeLog v2:
+>  - add 'return 0' in hugepage memory check
+>
+<cut>
+
+> @@ -1137,6 +1137,7 @@ static unsigned long vma_dump_size(struct
+> vm_area_struct *vma,
+>                         goto whole;
+>                 if (!(vma->vm_flags & VM_SHARED) &&
+> FILTER(HUGETLB_PRIVATE))
+>                         goto whole;
+> +               return 0;
+>         }
 >
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+You should split this part into another patch. This fix is orthogonal to
+the bug this patch tries to fix.
 
->Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->---
-> mm/vmscan.c |    2 +-
-> 1 files changed, 1 insertions(+), 1 deletions(-)
+The bug you're trying to fix implicitly here is the filtering behaviour
+that doesn't follow
+the description in Documentation/filesystems/proc.txt that:
+
+  Note bit 0-4 doesn't effect any hugetlb memory. hugetlb memory are only
+  effected by bit 5-6.
+
+Right?
+
+Thanks.
+HATAYAMA, Daisuke
+
+--047d7b6dc9a8eaba7404d95f172e
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<br><br><div class=3D"gmail_quote">2013/4/2 Naoya Horiguchi <span dir=3D"lt=
+r">&lt;<a href=3D"mailto:n-horiguchi@ah.jp.nec.com" target=3D"_blank">n-hor=
+iguchi@ah.jp.nec.com</a>&gt;</span><br><blockquote class=3D"gmail_quote" st=
+yle=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Currently we fail to include any data on hugepages into coredump,<br>
+because VM_DONTDUMP is set on hugetlbfs&#39;s vma. This behavior was recent=
+ly<br>
+introduced by commit 314e51b98 &quot;mm: kill vma flag VM_RESERVED and<br>
+mm-&gt;reserved_vm counter&quot;. This looks to me a serious regression,<br=
 >
->diff --git a/mm/vmscan.c b/mm/vmscan.c
->index 88c5fed..950636e 100644
->--- a/mm/vmscan.c
->+++ b/mm/vmscan.c
->@@ -3188,9 +3188,9 @@ int kswapd_run(int nid)
-> 	if (IS_ERR(pgdat->kswapd)) {
-> 		/* failure at boot is fatal */
-> 		BUG_ON(system_state == SYSTEM_BOOTING);
->-		pgdat->kswapd = NULL;
-> 		pr_err("Failed to start kswapd on node %d\n", nid);
-> 		ret = PTR_ERR(pgdat->kswapd);
->+		pgdat->kswapd = NULL;
-> 	}
-> 	return ret;
-> }
->-- 
->1.7.6.1
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+so let&#39;s fix it.<br>
+<br>
+ChangeLog v2:<br>
+=A0- add &#39;return 0&#39; in hugepage memory check<br></blockquote><div>&=
+lt;cut&gt; <br></div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 =
+0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+@@ -1137,6 +1137,7 @@ static unsigned long vma_dump_size(struct vm_area_str=
+uct *vma,<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto whole;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!(vma-&gt;vm_flags &amp; VM_SHARED) &am=
+p;&amp; FILTER(HUGETLB_PRIVATE))<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto whole;<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;<br>
+=A0 =A0 =A0 =A0 }<br></blockquote><div><br>You should split this part into =
+another patch. This fix is orthogonal to the bug this patch tries to fix.<b=
+r><br>The bug you&#39;re trying to fix implicitly here is the filtering beh=
+aviour that doesn&#39;t follow<br>
+the description in Documentation/filesystems/proc.txt that:<br><br>=A0 Note=
+ bit 0-4 doesn&#39;t effect any hugetlb memory. hugetlb memory are only<br>=
+=A0 effected by bit 5-6.<br><br>Right?<br><br>Thanks.<br>HATAYAMA, Daisuke<=
+br>
+<br></div></div><div style id=3D"__af745f8f43-e961-4b88-8424-80b67790c964__=
+"></div>
+
+--047d7b6dc9a8eaba7404d95f172e--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
