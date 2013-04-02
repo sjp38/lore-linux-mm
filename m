@@ -1,35 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 244026B0027
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 11:14:40 -0400 (EDT)
-Date: Tue, 2 Apr 2013 11:14:36 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-Message-ID: <20130402151436.GC31577@thunk.org>
-References: <20130402142717.GH32241@suse.de>
- <20130402150651.GB31577@thunk.org>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id DABBA6B0036
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 11:14:52 -0400 (EDT)
+Received: by mail-wg0-f41.google.com with SMTP id y10so3249227wgg.4
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 08:14:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130402150651.GB31577@thunk.org>
+Reply-To: konrad@darnok.org
+In-Reply-To: <1364870780-16296-6-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1364870780-16296-1-git-send-email-liwanp@linux.vnet.ibm.com> <1364870780-16296-6-git-send-email-liwanp@linux.vnet.ibm.com>
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Date: Tue, 2 Apr 2013 11:14:31 -0400
+Message-ID: <CAPbh3rvRAJaQ0wfxKYkOOuKtoD+U+7WaA2shKvhTyfLB=5k2aw@mail.gmail.com>
+Subject: Re: [PATCH v5 5/8] staging: zcache: fix zcache writeback in debugfs
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Geert Uytterhoeven <geert@linux-m68k.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-On Tue, Apr 02, 2013 at 11:06:51AM -0400, Theodore Ts'o wrote:
-> 
-> Can you try 3.9-rc4 or later and see if the problem still persists?
-> There were a number of ext4 issues especially around low memory
-> performance which weren't resolved until -rc4.
+On Mon, Apr 1, 2013 at 10:46 PM, Wanpeng Li <liwanp@linux.vnet.ibm.com> wrote:
+> commit 9c0ad59ef ("zcache/debug: Use an array to initialize/use debugfs attributes")
+> use an array to initialize/use debugfs attributes, .name = #x, .val = &zcache_##x.
+> For zcache writeback, this commit set .name = zcache_outstanding_writeback_pages and
+> .name = zcache_writtenback_pages seperately, however, corresponding .val =
+> &zcache_zcache_outstanding_writeback_pages and .val = &zcache_zcache_writtenback_pages,
+> which are not correct.
+>
 
-Actually, sorry, I took a closer look and I'm not as sure going to
--rc4 is going to help (although we did have some ext4 patches to fix a
-number of bugs that flowed in as late as -rc4).
+Weird. I recall spotting that when I did the patches, but I wonder how
+I missed this.
+Ah, now I remember - I  did a silly patch by adding in #define
+CONFIG_ZCACHE_WRITEBACK
+in the zcache-main.c code, but forgot to try it out here.
 
-Can you send us the patch that you used to get record these long stall
-times?  And I assume you're using a laptop drive?  5400RPM or 7200RPM?
+<sigh>
 
-	      	     	    	    	   - Ted
+Thank you for spotting and fixing it.
+
+Reviewed-by: Konrad Rzeszutek Wilk <konrad@kernel.org>
+
+> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> ---
+>  drivers/staging/zcache/debug.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/drivers/staging/zcache/debug.c b/drivers/staging/zcache/debug.c
+> index 254dada..d2d1fdf 100644
+> --- a/drivers/staging/zcache/debug.c
+> +++ b/drivers/staging/zcache/debug.c
+> @@ -31,8 +31,8 @@ static struct debug_entry {
+>         ATTR(eph_nonactive_puts_ignored),
+>         ATTR(pers_nonactive_puts_ignored),
+>  #ifdef CONFIG_ZCACHE_WRITEBACK
+> -       ATTR(zcache_outstanding_writeback_pages),
+> -       ATTR(zcache_writtenback_pages),
+> +       ATTR(outstanding_writeback_pages),
+> +       ATTR(writtenback_pages),
+>  #endif
+>  };
+>  #undef ATTR
+> --
+> 1.7.7.6
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
