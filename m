@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 969CF6B0044
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 19:55:48 -0400 (EDT)
-Received: by mail-da0-f50.google.com with SMTP id t1so402501dae.37
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 16:55:47 -0700 (PDT)
-Date: Tue, 2 Apr 2013 16:55:45 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
-In-Reply-To: <alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
-Message-ID: <alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
-References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com> <alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com> <alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 9EEEA6B003D
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 19:58:32 -0400 (EDT)
+Received: by mail-qa0-f42.google.com with SMTP id bv4so1778918qab.15
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 16:58:31 -0700 (PDT)
+Message-ID: <515B70A1.3040200@gmail.com>
+Date: Wed, 03 Apr 2013 07:58:25 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: THP: AnonHugePages in /proc/[pid]/smaps is correct or not?
+References: <383590596.664138.1364803227470.JavaMail.root@redhat.com> <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com> <515ACDC9.2090506@gmail.com> <alpine.DEB.2.02.1304021106190.17138@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1304021106190.17138@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Jan Stancek <jstancek@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ian Lance Taylor <iant@google.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Zhouping Liu <zliu@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Amos Kong <akong@redhat.com>
 
-On Tue, 2 Apr 2013, Hugh Dickins wrote:
+Hi David,
+On 04/03/2013 02:09 AM, David Rientjes wrote:
+> On Tue, 2 Apr 2013, Simon Jeons wrote:
+>
+>> Both thp and hugetlb pages should be 2MB aligned, correct?
+>>
+> To answer this question and your followup reply at the same time: they
+> come from one level higher in the page table so they will naturally need
+> to be 2MB aligned.
 
-> > > find_vma() can be called by multiple threads with read lock
-> > > held on mm->mmap_sem and any of them can update mm->mmap_cache.
-> > > Prevent compiler from re-fetching mm->mmap_cache, because other
-> > > readers could update it in the meantime:
-> > 
-> > FWIW, ACCESS_ONCE() does not guarantee that the compiler will not refetch 
-> > mm->mmap_cache whatsoever; there is nothing that prevents this either in 
-> > the C standard.  You'll be relying solely on gcc's implementation of how 
-> > it dereferences volatile-qualified pointers.
-> 
-> Jan is using ACCESS_ONCE() as it should be used, for its intended
-> purpose.  If the kernel's implementation of ACCESS_ONCE() is deficient,
-> then we should fix that, not discourage its use.
-> 
+When I hacking arch/x86/mm/hugetlbpage.c like this,
+diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+index ae1aa71..87f34ee 100644
+--- a/arch/x86/mm/hugetlbpage.c
++++ b/arch/x86/mm/hugetlbpage.c
+@@ -354,14 +354,13 @@ hugetlb_get_unmapped_area(struct file *file,
+unsigned long addr,
 
-My comment is about the changelog, quoted above, saying "prevent compiler 
-from re-fetching mm->mmap_cache..."  ACCESS_ONCE(), as implemented, does 
-not prevent the compiler from re-fetching anything.  It is entirely 
-plausible that in gcc's current implementation that this guarantee is 
-made, but it is not prevented by the language standard and I think the 
-changelog should be reworded for anybody who reads it in the future.  
-There is a dependency here on gcc's implementation, it's a meaningful 
-distinction.
+#endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
 
-I never discouraged its use since for gcc's current implementation it 
-appears to work as desired and without gcc extensions there is no way to 
-make such a guarantee by the standard.  In fact, I acked a patch from Eric 
-Dumazet that fixes a NULL pointer dereference by using ACCESS_ONCE() with 
-gcc in slub.
+-#ifdef CONFIG_X86_64
+static __init int setup_hugepagesz(char *opt)
+{
+unsigned long ps = memparse(opt, &opt);
+if (ps == PMD_SIZE) {
+hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
+- } else if (ps == PUD_SIZE && cpu_has_gbpages) {
+- hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
++ } else if (ps == PUD_SIZE) {
++ hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT+4);
+} else {
+printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
+ps >> 20);
+
+I set boot=hugepagesz=1G hugepages=10, then I got 10 32MB huge pages.
+What's the difference between these pages which I hacking and normal
+huge pages?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
