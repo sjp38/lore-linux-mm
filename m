@@ -1,118 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id C9A5B6B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:39:02 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id fb10so329703pad.39
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 07:39:02 -0700 (PDT)
-Message-ID: <515AED78.7000909@gmail.com>
-Date: Tue, 02 Apr 2013 22:38:48 +0800
-From: Jiang Liu <liuj97@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3, part4 26/39] mm/openrisc: prepare for removing num_physpages
- and simplify mem_init()
-References: <1364313298-17336-1-git-send-email-jiang.liu@huawei.com> <1364313298-17336-27-git-send-email-jiang.liu@huawei.com> <515A6D40.90702@southpole.se>
-In-Reply-To: <515A6D40.90702@southpole.se>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id DBCA96B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:44:57 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <514C6E68.4050203@sr71.net>
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1363283435-7666-8-git-send-email-kirill.shutemov@linux.intel.com>
+ <514B336C.6070404@sr71.net>
+ <20130322101211.34A5EE0085@blue.fi.intel.com>
+ <514C6E68.4050203@sr71.net>
+Subject: Re: [PATCHv2, RFC 07/30] thp, mm: introduce
+ mapping_can_have_hugepages() predicate
 Content-Transfer-Encoding: 7bit
+Message-Id: <20130402144648.47240E0085@blue.fi.intel.com>
+Date: Tue,  2 Apr 2013 17:46:48 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonas Bonn <jonas@southpole.se>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, linux@lists.openrisc.net
+To: Dave Hansen <dave@sr71.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Jonas,
-	Thanks for testing.
-	Regards!
-	Gerry
-On 04/02/2013 01:31 PM, Jonas Bonn wrote:
-> On 03/26/2013 04:54 PM, Jiang Liu wrote:
->> Prepare for removing num_physpages and simplify mem_init().
->>
->> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->> Cc: Jonas Bonn <jonas@southpole.se>
->> Cc: David Howells <dhowells@redhat.com>
->> Cc: Arnd Bergmann <arnd@arndb.de>
->> Cc: linux@lists.openrisc.net
->> Cc: linux-kernel@vger.kernel.org
+Dave Hansen wrote:
+> On 03/22/2013 03:12 AM, Kirill A. Shutemov wrote:
+> > Dave Hansen wrote:
+> >> On 03/14/2013 10:50 AM, Kirill A. Shutemov wrote:
+> >>> +static inline bool mapping_can_have_hugepages(struct address_space *m)
+> >>> +{
+> >>> +	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
+> >>> +		gfp_t gfp_mask = mapping_gfp_mask(m);
+> >>> +		return !!(gfp_mask & __GFP_COMP);
+> >>> +	}
+> >>> +
+> >>> +	return false;
+> >>> +}
+> >>
+> >> I did a quick search in all your patches and don't see __GFP_COMP
+> >> getting _set_ anywhere.  Am I missing something?
+> > 
+> > __GFP_COMP is part of GFP_TRANSHUGE. We set it for ramfs in patch 20/30.
 > 
-> Tested and works fine on OpenRISC.
-> 
-> Acked-by: Jonas Bonn <jonas@southpole.se>
-> 
-> /Jonas
-> 
->> ---
->> Hi all,
->>     Sorry for my mistake that my previous patch series has been screwed up.
->> So I regenerate a third version and also set up a git tree at:
->>     git://github.com/jiangliu/linux.git mem_init
->>     Any help to review and test are welcomed!
->>
->>     Regards!
->>     Gerry
->> ---
->>   arch/openrisc/mm/init.c |   44 ++++----------------------------------------
->>   1 file changed, 4 insertions(+), 40 deletions(-)
->>
->> diff --git a/arch/openrisc/mm/init.c b/arch/openrisc/mm/init.c
->> index 71d6b40..f3c8f47 100644
->> --- a/arch/openrisc/mm/init.c
->> +++ b/arch/openrisc/mm/init.c
->> @@ -191,56 +191,20 @@ void __init paging_init(void)
->>     /* References to section boundaries */
->>   -static int __init free_pages_init(void)
->> -{
->> -    int reservedpages, pfn;
->> -
->> -    /* this will put all low memory onto the freelists */
->> -    free_all_bootmem();
->> -
->> -    reservedpages = 0;
->> -    for (pfn = 0; pfn < max_low_pfn; pfn++) {
->> -        /*
->> -         * Only count reserved RAM pages
->> -         */
->> -        if (PageReserved(mem_map + pfn))
->> -            reservedpages++;
->> -    }
->> -
->> -    return reservedpages;
->> -}
->> -
->> -static void __init set_max_mapnr_init(void)
->> -{
->> -    max_mapnr = num_physpages = max_low_pfn;
->> -}
->> -
->>   void __init mem_init(void)
->>   {
->> -    int codesize, reservedpages, datasize, initsize;
->> -
->>       BUG_ON(!mem_map);
->>   -    set_max_mapnr_init();
->> -
->> +    max_mapnr = max_low_pfn;
->>       high_memory = (void *)__va(max_low_pfn * PAGE_SIZE);
->>         /* clear the zero-page */
->>       memset((void *)empty_zero_page, 0, PAGE_SIZE);
->>   -    reservedpages = free_pages_init();
->> -
->> -    codesize = (unsigned long)&_etext - (unsigned long)&_stext;
->> -    datasize = (unsigned long)&_edata - (unsigned long)&_etext;
->> -    initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
->> +    /* this will put all low memory onto the freelists */
->> +    free_all_bootmem();
->>   -    printk(KERN_INFO
->> -           "Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init, %ldk highmem)\n",
->> -           (unsigned long)nr_free_pages() << (PAGE_SHIFT - 10),
->> -           max_mapnr << (PAGE_SHIFT - 10), codesize >> 10,
->> -           reservedpages << (PAGE_SHIFT - 10), datasize >> 10,
->> -           initsize >> 10, (unsigned long)(0 << (PAGE_SHIFT - 10))
->> -        );
->> +    mem_init_print_info(NULL);
->>         printk("mem_init_done ...........................................\n");
->>       mem_init_done = 1;
-> 
-> 
+> That's a bit non-obvious.  For a casual observer, it _seems_ like you
+> should just be setting and checking GFP_TRANSHUGE directly.  It looks
+> like you were having some problems with __GFP_MOVABLE and masked it out
+> of GFP_TRANSHUGE and that has cascaded over to _this_ check.
+
+Checking GFP_TRANSHUGE directly is not right way. File systems can clear
+GFP bits or set additional for its own reason. We should not limit file
+systems here.
+
+So the only way robust way is to check __GFP_COMP. I'll add comment.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
