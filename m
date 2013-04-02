@@ -1,38 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 7A7716B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 06:48:49 -0400 (EDT)
-Date: Tue, 2 Apr 2013 11:48:44 +0100
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id A70EB6B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 06:56:28 -0400 (EDT)
+Date: Tue, 2 Apr 2013 11:56:25 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: NUMA Autobalancing Kernel 3.8
-Message-ID: <20130402104844.GE32241@suse.de>
-References: <515A87C3.1000309@profihost.ag>
+Subject: Re: [PATCH] mm/mmap: Check for RLIMIT_AS before unmapping
+Message-ID: <20130402105625.GA12855@suse.de>
+References: <20130402095402.GA6568@rei>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <515A87C3.1000309@profihost.ag>
+In-Reply-To: <20130402095402.GA6568@rei>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, srikar@linux.vnet.ibm.com, aarcange@redhat.com, mingo@kernel.org, riel@redhat.com
+To: Cyril Hrubis <chrubis@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Apr 02, 2013 at 09:24:51AM +0200, Stefan Priebe - Profihost AG wrote:
-> Hello list,
+On Tue, Apr 02, 2013 at 11:54:03AM +0200, Cyril Hrubis wrote:
+> This patch fixes corner case for MAP_FIXED when requested mapping length
+> is larger than rlimit for virtual memory. In such case any overlapping
+> mappings are unmapped before we check for the limit and return ENOMEM.
 > 
-> i was trying to play with the new NUMA autobalancing feature of Kernel 3.8.
+> The check is moved before the loop that unmaps overlapping parts of
+> existing mappings. When we are about to hit the limit (currently mapped
+> pages + len > limit) we scan for overlapping pages and check again
+> accounting for them.
 > 
-> But if i enable:
-> CONFIG_ARCH_USES_NUMA_PROT_NONE=y
-> CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
-> CONFIG_NUMA_BALANCING=y
+> This fixes situation when userspace program expects that the previous
+> mappings are preserved after the mmap() syscall has returned with error.
+> (POSIX clearly states that successfull mapping shall replace any
+> previous mappings.)
 > 
-> i see random process crashes mostly in libc using vanilla 3.8.4.
+> This corner case was found and can be tested with LTP testcase:
 > 
+> testcases/open_posix_testsuite/conformance/interfaces/mmap/24-2.c
+> 
+> In this case the mmap, which is clearly over current limit, unmaps
+> dynamic libraries and the testcase segfaults right after returning into
+> userspace.
+> 
+> I've also looked at the second instance of the unmapping loop in the
+> do_brk(). The do_brk() is called from brk() syscall and from vm_brk().
+> The brk() syscall checks for overlapping mappings and bails out when
+> there are any (so it can't be triggered from the brk syscall). The
+> vm_brk() is called only from binmft handlers so it shouldn't be
+> triggered unless binmft handler created overlapping mappings.
+> 
+> Signed-off-by: Cyril Hrubis <chrubis@suse.cz>
 
-Any more details than that? What sort of crashes? Anything in the kernel
-log? Any particular pattern to the crashes? Any means of reliably
-reproducing it? 3.8 vanilla, 3.8-stable or 3.8 with any other patches
-applied?
+Reviewed-by: Mel Gorman <mgorman@suse.de>
 
 -- 
 Mel Gorman
