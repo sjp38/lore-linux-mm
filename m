@@ -1,96 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id A9EC06B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:34:28 -0400 (EDT)
-Message-ID: <515AEC71.9020704@profihost.ag>
-Date: Tue, 02 Apr 2013 16:34:25 +0200
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-MIME-Version: 1.0
-Subject: Re: NUMA Autobalancing Kernel 3.8
-References: <515A87C3.1000309@profihost.ag> <20130402104844.GE32241@suse.de> <515AC3EE.1030803@profihost.ag> <20130402125408.GG32241@suse.de>
-In-Reply-To: <20130402125408.GG32241@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 4E4886B0006
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:35:57 -0400 (EDT)
+Date: Tue, 02 Apr 2013 10:35:50 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1364913350-hwvx480l-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130402092441.GE24345@dhcp22.suse.cz>
+References: <1364485358-8745-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1364485358-8745-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20130329135730.GB21879@dhcp22.suse.cz>
+ <1364577818-615ipxeo-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130402092441.GE24345@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/2] hugetlbfs: add swap entry check in
+ follow_hugetlb_page()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, srikar@linux.vnet.ibm.com, aarcange@redhat.com, mingo@kernel.org, riel@redhat.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Am 02.04.2013 14:54, schrieb Mel Gorman:
-> On Tue, Apr 02, 2013 at 01:41:34PM +0200, Stefan Priebe - Profihost AG wrote:
->> Am 02.04.2013 12:48, schrieb Mel Gorman:
->>> On Tue, Apr 02, 2013 at 09:24:51AM +0200, Stefan Priebe - Profihost AG wrote:
->>>> Hello list,
->>>>
->>>> i was trying to play with the new NUMA autobalancing feature of Kernel 3.8.
->>>>
->>>> But if i enable:
->>>> CONFIG_ARCH_USES_NUMA_PROT_NONE=y
->>>> CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
->>>> CONFIG_NUMA_BALANCING=y
->>>>
->>>> i see random process crashes mostly in libc using vanilla 3.8.4.
->>>>
->>>
->>> Any more details than that? What sort of crashes? Anything in the kernel
->>> log? Any particular pattern to the crashes? Any means of reliably
->>> reproducing it? 3.8 vanilla, 3.8-stable or 3.8 with any other patches
->>> applied?
->>
->> Sorry for missing information.
->>
->>> Any more details than that?
->> Sadly not i just see a crash line in the kernel log - see below.
->>
->>> What sort of crashes?
->> Mostly the processes just die but i've also seen processes consuming
->> 100% CPU all the time or even just doing nothing anymore.
->>
+On Tue, Apr 02, 2013 at 11:24:41AM +0200, Michal Hocko wrote:
+> On Fri 29-03-13 13:23:38, Naoya Horiguchi wrote:
+> > Hi,
+> > 
+> > On Fri, Mar 29, 2013 at 02:57:30PM +0100, Michal Hocko wrote:
+> > > On Thu 28-03-13 11:42:38, Naoya Horiguchi wrote:
+> > > [...]
+> > > > @@ -2968,7 +2968,8 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> > > >  		 * first, for the page indexing below to work.
+> > > >  		 */
+> > > >  		pte = huge_pte_offset(mm, vaddr & huge_page_mask(h));
+> > > > -		absent = !pte || huge_pte_none(huge_ptep_get(pte));
+> > > > +		absent = !pte || huge_pte_none(huge_ptep_get(pte)) ||
+> > > > +			is_swap_pte(huge_ptep_get(pte));
+> > > 
+> > > is_swap_pte doesn't seem right. Shouldn't you use is_hugetlb_entry_hwpoisoned
+> > > instead?
+> > 
+> > I tested only hwpoisoned hugepage, but the same can happen for hugepages
+> > under migration. So I intended to filter out all types of swap entries.
+> > The local variable 'absent' seems to mean whether data on the address
+> > is immediately available, so swap type entry isn't included in it.
 > 
-> When you see the 100% CPU usage can you cat /proc/PID/stack a couple of
-> times and post it here? That might give a hint as to where it's going wrong.
-
-Sadly i'm not able to reproduce a 100% load process tried now for some
-hours. Mostly they segfault.
-
->>> Anything in the kernel log?
->> Three examples:
->> pigz[10194]: segfault at 0 ip           (null) sp 00007f6197ffed50 error
->> 14 in pigz[400000+e000]
->>
->> rbd[2811]: segfault at b8 ip 00007f73c2d51b9e sp 00007f73bcae3b40 error
->> 4 in librados.so.2.0.0[7f73c2afe000+3b9000]
->>
->> rbd[1805]: segfault at 0 ip 00007f60c28dceb4 sp 00007f60b7ffd1f8 error 4
->> in ld-2.11.3.so[7f60c28cc000+1e000]
->>
->>> Any particular pattern to the crashes? Any means of reliably
->>> reproducing it?
->> No i just need to run some task and after some time they die or hang
->> forever. I have this on 10 different E5-2640 and also on E56XX. I can
->> "fix" this by:
->>   1.) putting all memory to just ONE CPU
->>   2.) Disable NUMA Balancing
->>
-> That does point the finger at the automatic balancing.
+> OK, I didn't consider huge pages under migration and I was merely worried
+> that is_hugetlb_entry_hwpoisoned sounds more appropriate than
+> is_swap_pte.
 > 
->>> 3.8 vanilla, 3.8-stable or 3.8 with any other patches
->>> applied?
->> 3.8.4 without any patches.
->>
-> Did it happen in 3.8?
+> Could you add a comment which would clarify that is_swap_pte covers both
+> migration and hwpoison pages, please? Something like:
+> 
+> 		/*
+> 		 * is_swap_pte test covers both is_hugetlb_entry_hwpoisoned
+> 		 * and hugepages under migration in which case
+> 		 * hugetlb_fault waits for the migration and bails out
+> 		 * properly for HWPosined pages.
+> 		 */
+> 		 absent = !pte || huge_pte_none(huge_ptep_get(pte)) ||
+> 		 	 is_swap_pte(huge_ptep_get(pte));
 
-I've now tested 3.9-rc5 this gaves me a slightly different kernel log:
-[  197.236518] pigz[2908]: segfault at 0 ip           (null) sp
-00007f347bffed00 error 14
-[  197.237632] traps: pigz[2915] general protection ip:7f3482dbce2d
-sp:7f3473ffec10 error:0 in libz.so.1.2.3.4[7f3482db7000+17000]
-[  197.330615]  in pigz[400000+10000]
+OK, I'll add this.
 
-With 3.8 it is the same as with 3.8.4 or 3.8.5.
+> Other than that feel free to add
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-Greets,
-Stefan
+Thank you!
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
