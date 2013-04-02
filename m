@@ -1,32 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id CD5F56B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:57:50 -0400 (EDT)
-Message-ID: <515AF1E7.9020806@redhat.com>
-Date: Tue, 02 Apr 2013 10:57:43 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 8FD666B0006
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:59:24 -0400 (EDT)
+Received: by mail-ee0-f42.google.com with SMTP id b47so271629eek.15
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 07:59:22 -0700 (PDT)
+Message-ID: <515AF27C.2060206@suse.cz>
+Date: Tue, 02 Apr 2013 17:00:12 +0200
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/vmscan: fix error return in kswapd_run()
-References: <515ABC79.5060900@huawei.com>
-In-Reply-To: <515ABC79.5060900@huawei.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: Excessive stall times on ext4 in 3.9-rc2
+References: <20130402142717.GH32241@suse.de>
+In-Reply-To: <20130402142717.GH32241@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, hughd@google.com, khlebnikov@openvz.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hanjun Guo <guohanjun@huawei.com>, Zhangdianfang <zhangdianfang@huawei.com>
+To: Mel Gorman <mgorman@suse.de>, linux-ext4@vger.kernel.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 04/02/2013 07:09 AM, Xishi Qiu wrote:
-> Fix the error return value in kswapd_run(). The bug was
-> introduced by commit d5dc0ad928fb9e972001e552597fd0b794863f34
-> "mm/vmscan: fix error number for failed kthread".
->
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+On 04/02/2013 04:27 PM, Mel Gorman wrote:
+> I'm testing a page-reclaim-related series on my laptop that is partially
+> aimed at fixing long stalls when doing metadata-intensive operations on
+> low memory such as a git checkout. I've been running 3.9-rc2 with the
+> series applied but found that the interactive performance was awful even
+> when there was plenty of free memory.
+> 
+> I activated a monitor from mmtests that logs when a process is stuck for
+> a long time in D state and found that there are a lot of stalls in ext4.
+> The report first states that processes have been stalled for a total of
+> 6498 seconds on IO which seems like a lot. Here is a breakdown of the
+> recorded events.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Just a note that I am indeed using ext4 on the affected machine for all
+filesystems I have except for an efi partition...
 
 -- 
-All rights reversed
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
