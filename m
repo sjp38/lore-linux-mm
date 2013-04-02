@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id D82DE6B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 16:28:21 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 39E986B0006
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 16:28:37 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <ccbed25b-f02b-4491-9287-8b4764945462@default>
-Date: Tue, 2 Apr 2013 13:27:58 -0700 (PDT)
+Message-ID: <18fd40ab-eb9a-4a90-bea5-9b3d2603d7fa@default>
+Date: Tue, 2 Apr 2013 13:28:16 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 1/2] mm: break up swap_writepage() for frontswap backends
-References: <<1364874600-878-1-git-send-email-bob.liu@oracle.com>>
-In-Reply-To: <<1364874600-878-1-git-send-email-bob.liu@oracle.com>>
+Subject: RE: [PATCH 2/2] mm: allow for outstanding swap writeback accounting
+References: <<1364874612-925-1-git-send-email-bob.liu@oracle.com>>
+In-Reply-To: <<1364874612-925-1-git-send-email-bob.liu@oracle.com>>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
@@ -23,22 +23,24 @@ Cc: linux-mm@kvack.org, minchan@kernel.org, sjenning@linux.vnet.ibm.com, rcj@lin
 rcj@linux.vnet.ibm.com;
 > ngupta@vflare.org; konrad.wilk@oracle.com; dan.magenheimer@oracle.com; Bo=
 b Liu
-> Subject: [PATCH 1/2] mm: break up swap_writepage() for frontswap backends
+> Subject: [PATCH 2/2] mm: allow for outstanding swap writeback accounting
 >=20
 > From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 >=20
-> swap_writepage() is currently where frontswap hooks into the swap
-> write path to capture pages with the frontswap_store() function.
-> However, if a frontswap backend wants to "resume" the writeback of
-> a page to the swap device, it can't call swap_writepage() as
-> the page will simply reenter the backend.
+> To prevent flooding the swap device with writebacks, frontswap
+> backends need to count and limit the number of outstanding
+> writebacks.  The incrementing of the counter can be done before
+> the call to __swap_writepage().  However, the caller must receive
+> a notification when the writeback completes in order to decrement
+> the counter.
 >=20
-> This patch separates swap_writepage() into a top and bottom half, the
-> bottom half named __swap_writepage() to allow a frontswap backend,
-> like zswap, to resume writeback beyond the frontswap_store() hook.
+> To achieve this functionality, this patch modifies
+> __swap_writepage() to take the bio completion callback function
+> as an argument.
 >=20
-> __add_to_swap_cache() is also made non-static so that the page for
-> which writeback is to be resumed can be added to the swap cache.
+> end_swap_bio_write(), the normal bio completion function, is also
+> made non-static so that code doing the accounting can call it
+> after the accounting is done.
 >=20
 > Acked-by: Minchan Kim <minchan@kernel.org>
 > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
@@ -47,81 +49,69 @@ b Liu
 Reviewed-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 
 > ---
->  include/linux/swap.h |    2 ++
->  mm/page_io.c         |   14 +++++++++++---
->  mm/swap_state.c      |    2 +-
->  3 files changed, 14 insertions(+), 4 deletions(-)
+>  include/linux/swap.h |    4 +++-
+>  mm/page_io.c         |    9 +++++----
+>  2 files changed, 8 insertions(+), 5 deletions(-)
 >=20
 > diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 2818a12..76f6c3b 100644
+> index 76f6c3b..b5b12c7 100644
 > --- a/include/linux/swap.h
 > +++ b/include/linux/swap.h
-> @@ -330,6 +330,7 @@ static inline void mem_cgroup_uncharge_swap(swp_entry=
+> @@ -330,7 +330,9 @@ static inline void mem_cgroup_uncharge_swap(swp_entry=
 _t ent)
 >  /* linux/mm/page_io.c */
 >  extern int swap_readpage(struct page *);
 >  extern int swap_writepage(struct page *page, struct writeback_control *w=
 bc);
-> +extern int __swap_writepage(struct page *page, struct writeback_control =
+> -extern int __swap_writepage(struct page *page, struct writeback_control =
 *wbc);
+> +extern void end_swap_bio_write(struct bio *bio, int err);
+> +extern int __swap_writepage(struct page *page, struct writeback_control =
+*wbc,
+> +=09void (*end_write_func)(struct bio *, int));
 >  extern int swap_set_page_dirty(struct page *page);
 >  extern void end_swap_bio_read(struct bio *bio, int err);
 >=20
-> @@ -345,6 +346,7 @@ extern unsigned long total_swapcache_pages(void);
->  extern void show_swap_cache_info(void);
->  extern int add_to_swap(struct page *);
->  extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
-> +extern int __add_to_swap_cache(struct page *page, swp_entry_t entry);
->  extern void __delete_from_swap_cache(struct page *);
->  extern void delete_from_swap_cache(struct page *);
->  extern void free_page_and_swap_cache(struct page *);
 > diff --git a/mm/page_io.c b/mm/page_io.c
-> index 78eee32..8e6bcf1 100644
+> index 8e6bcf1..8e0e5c0 100644
 > --- a/mm/page_io.c
 > +++ b/mm/page_io.c
-> @@ -185,9 +185,7 @@ bad_bmap:
->   */
->  int swap_writepage(struct page *page, struct writeback_control *wbc)
->  {
-> -=09struct bio *bio;
-> -=09int ret =3D 0, rw =3D WRITE;
-> -=09struct swap_info_struct *sis =3D page_swap_info(page);
-> +=09int ret =3D 0;
+> @@ -42,7 +42,7 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
+>  =09return bio;
+>  }
 >=20
->  =09if (try_to_free_swap(page)) {
->  =09=09unlock_page(page);
-> @@ -199,6 +197,16 @@ int swap_writepage(struct page *page, struct writeba=
-ck_control *wbc)
+> -static void end_swap_bio_write(struct bio *bio, int err)
+> +void end_swap_bio_write(struct bio *bio, int err)
+>  {
+>  =09const int uptodate =3D test_bit(BIO_UPTODATE, &bio->bi_flags);
+>  =09struct page *page =3D bio->bi_io_vec[0].bv_page;
+> @@ -197,12 +197,13 @@ int swap_writepage(struct page *page, struct writeb=
+ack_control *wbc)
 >  =09=09end_page_writeback(page);
 >  =09=09goto out;
 >  =09}
-> +=09ret =3D __swap_writepage(page, wbc);
-> +out:
-> +=09return ret;
-> +}
-> +
-> +int __swap_writepage(struct page *page, struct writeback_control *wbc)
-> +{
-> +=09struct bio *bio;
-> +=09int ret =3D 0, rw =3D WRITE;
-> +=09struct swap_info_struct *sis =3D page_swap_info(page);
+> -=09ret =3D __swap_writepage(page, wbc);
+> +=09ret =3D __swap_writepage(page, wbc, end_swap_bio_write);
+>  out:
+>  =09return ret;
+>  }
 >=20
->  =09if (sis->flags & SWP_FILE) {
->  =09=09struct kiocb kiocb;
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 7efcf15..fe43fd5 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -78,7 +78,7 @@ void show_swap_cache_info(void)
->   * __add_to_swap_cache resembles add_to_page_cache_locked on swapper_spa=
-ce,
->   * but sets SwapCache flag and private instead of mapping and index.
->   */
-> -static int __add_to_swap_cache(struct page *page, swp_entry_t entry)
-> +int __add_to_swap_cache(struct page *page, swp_entry_t entry)
+> -int __swap_writepage(struct page *page, struct writeback_control *wbc)
+> +int __swap_writepage(struct page *page, struct writeback_control *wbc,
+> +=09void (*end_write_func)(struct bio *, int))
 >  {
->  =09int error;
->  =09struct address_space *address_space;
+>  =09struct bio *bio;
+>  =09int ret =3D 0, rw =3D WRITE;
+> @@ -234,7 +235,7 @@ int __swap_writepage(struct page *page, struct writeb=
+ack_control *wbc)
+>  =09=09return ret;
+>  =09}
+>=20
+> -=09bio =3D get_swap_bio(GFP_NOIO, page, end_swap_bio_write);
+> +=09bio =3D get_swap_bio(GFP_NOIO, page, end_write_func);
+>  =09if (bio =3D=3D NULL) {
+>  =09=09set_page_dirty(page);
+>  =09=09unlock_page(page);
 > --
 > 1.7.10.4
 
