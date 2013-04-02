@@ -1,69 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id E232C6B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:07:41 -0400 (EDT)
-Date: Tue, 02 Apr 2013 10:07:35 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1364911655-wel87i2g-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CABOkKT0uceznvR0bKx79GB5HSEbWA2vp0G5dAjg6V23O3anS7w@mail.gmail.com>
-References: <1364836882-9713-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1364836882-9713-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <CABOkKT0uceznvR0bKx79GB5HSEbWA2vp0G5dAjg6V23O3anS7w@mail.gmail.com>
-Subject: Re: [PATCH v2 1/2] hugetlbfs: stop setting VM_DONTDUMP in
- initializing vma(VM_HUGETLB)
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 090226B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:16:47 -0400 (EDT)
+Date: Tue, 2 Apr 2013 16:16:46 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: don't do cleanup manually if
+ mem_cgroup_css_online() fails
+Message-ID: <20130402141646.GQ24345@dhcp22.suse.cz>
+References: <515A8A40.6020406@huawei.com>
+ <20130402121600.GK24345@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20130402121600.GK24345@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: HATAYAMA Daisuke <d.hatayama@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, Apr 02, 2013 at 08:32:33PM +0900, HATAYAMA Daisuke wrote:
-> 2013/4/2 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+On Tue 02-04-13 14:16:00, Michal Hocko wrote:
+> On Tue 02-04-13 15:35:28, Li Zefan wrote:
+> [...]
+> > @@ -6247,16 +6247,7 @@ mem_cgroup_css_online(struct cgroup *cont)
+> >  
+> >  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+> >  	mutex_unlock(&memcg_create_mutex);
+> > -	if (error) {
+> > -		/*
+> > -		 * We call put now because our (and parent's) refcnts
+> > -		 * are already in place. mem_cgroup_put() will internally
+> > -		 * call __mem_cgroup_free, so return directly
+> > -		 */
+> > -		mem_cgroup_put(memcg);
+> > -		if (parent->use_hierarchy)
+> > -			mem_cgroup_put(parent);
+> > -	}
+> > +
+> >  	return error;
+> >  }
 > 
-> > Currently we fail to include any data on hugepages into coredump,
-> > because VM_DONTDUMP is set on hugetlbfs's vma. This behavior was recently
-> > introduced by commit 314e51b98 "mm: kill vma flag VM_RESERVED and
-> > mm->reserved_vm counter". This looks to me a serious regression,
-> > so let's fix it.
-> >
-> > ChangeLog v2:
-> >  - add 'return 0' in hugepage memory check
-> >
-> <cut>
+> The mem_cgroup_put(parent) part is incorrect because mem_cgroup_put goes
+> up the hierarchy already but I do not think mem_cgroup_put(memcg) should
+> go away as well. Who is going to free the last reference then?
 > 
-> > @@ -1137,6 +1137,7 @@ static unsigned long vma_dump_size(struct
-> > vm_area_struct *vma,
-> >                         goto whole;
-> >                 if (!(vma->vm_flags & VM_SHARED) &&
-> > FILTER(HUGETLB_PRIVATE))
-> >                         goto whole;
-> > +               return 0;
-> >         }
-> >
-> 
-> You should split this part into another patch. This fix is orthogonal to
-> the bug this patch tries to fix.
+> Maybe I am missing something but we have:
 
-Fair enough, thanks.
+OK, I was missing something but "there is one reference without put"
+still holds...
 
-> The bug you're trying to fix implicitly here is the filtering behaviour
-> that doesn't follow
-> the description in Documentation/filesystems/proc.txt that:
-> 
->   Note bit 0-4 doesn't effect any hugetlb memory. hugetlb memory are only
->   effected by bit 5-6.
-> 
-> Right?
+cgroup_create
+  css = ss->css_alloc(cgrp)
+    mem_cgroup_css_alloc
+      atomic_set(&memcg->refcnt, 1)
+  online_css(ss, cgrp)
+    mem_cgroup_css_online
+      memcg_init_kmem
+        mem_cgroup_get		# refcnt = 2
+          memcg_update_all_caches
+            memcg_update_cache_size	# fails with ENOMEM
+  goto err_destroy
+err_destroy:
+  cgroup_destroy_locked(cgrp)
+    offline_css
+      mem_cgroup_css_offline
 
-Right. Without this return, we will go into the subsequent flag checks
-of bit 0-4 for vma(VM_HUGETLB).
 
-Thanks,
-Naoya Horiguchi
+There is one mem_cgroup_put from mem_cgroup_css_free from cgroup_diput
+but besides that I do not see any put after the patch is applied. So I
+think you really need to drop only the mem_cgroup_put on parent part.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
