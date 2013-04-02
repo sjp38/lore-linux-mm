@@ -1,76 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 3967A6B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 16:52:24 -0400 (EDT)
-Date: Tue, 2 Apr 2013 22:52:15 +0200
-From: Frantisek Hrbata <fhrbata@redhat.com>
-Subject: Re: [PATCH] x86: add phys addr validity check for /dev/mem mmap
-Message-ID: <20130402205215.GD3314@dhcp-26-164.brq.redhat.com>
-Reply-To: Frantisek Hrbata <fhrbata@redhat.com>
-References: <1364905733-23937-1-git-send-email-fhrbata@redhat.com>
- <515B2802.1050405@zytor.com>
- <20130402191012.GC3314@dhcp-26-164.brq.redhat.com>
- <515B3F98.5020101@zytor.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <515B3F98.5020101@zytor.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 3A4B86B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 18:00:22 -0400 (EDT)
+Received: from int-mx02.intmail.prod.int.phx2.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	by mx1.redhat.com (8.14.4/8.14.4) with ESMTP id r32M0J4Y022580
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
+	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 18:00:19 -0400
+From: Jan Stancek <jstancek@redhat.com>
+Subject: [PATCH] mm: prevent mmap_cache race in find_vma()
+Date: Tue,  2 Apr 2013 23:59:26 +0200
+Message-Id: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com
+To: linux-mm@kvack.org
 
-On Tue, Apr 02, 2013 at 01:29:12PM -0700, H. Peter Anvin wrote:
-> On 04/02/2013 12:10 PM, Frantisek Hrbata wrote:
-> > 
-> > Hi, this is exactly what the patch is doing imho. Note that the
-> > valid_phys_addr_range(), which is using the high_memory, is the same as the
-> > default one in drivers/char/mem.c(#ifndef ARCH_HAS_VALID_PHYS_ADDR_RANGE). I
-> > just added x86 specific check for valid_mmap_phys_addr_range and moved both
-> > functions to arch/x86/mm/mmap.c, rather then modifying the default generic ones.
-> > This is how other archs(arm) are doing it.
-> > 
-> > Also valid_phys_addr_range is used just in read|write_mem and
-> > valid_mmap_phys_addr_range is checked in mmap_mem and it calls phys_addr_valid
-> > 
-> > static inline int phys_addr_valid(resource_size_t addr)
-> > {
-> > #ifdef CONFIG_PHYS_ADDR_T_64BIT
-> > 	return !(addr >> boot_cpu_data.x86_phys_bits);
-> > #else
-> >         return 1;
-> > #endif
-> > }                          
-> > 
-> > I for sure could overlooked something, but this seems right to me.
-> > 
-> 
-> OK, this is really confusing ... which isn't a *huge* surprise (the
-> entire /dev/mem code has some gigantic bugs in it.)
-> 
-> I think I need to do more of an in-depth review.  The other question is
-> why we don't call phys_addr_valid() everywhere.
+find_vma() can be called by multiple threads with read lock
+held on mm->mmap_sem and any of them can update mm->mmap_cache.
+Prevent compiler from re-fetching mm->mmap_cache, because other
+readers could update it in the meantime:
 
-I'm not going to pretend I understand the code, but IMHO the
-valid_phys_addr_range and valid_mmap_phys_addr_range in drivers/char/mem.c are
-generic for all archs. If some arch wants specific version of those functions it
-defines them in the arch specific code and define ARCH_HAS_VALID_PHYS_ADDR_RANGE.
-The phys_addr_valid is x86 specific defined in arch/x86/mm/physaddr.h, so IMHO
-it cannot be used in the generic checks. For example ARM has it's specific
-checks in arch/arm/mm/mmap.c.
+               thread 1                             thread 2
+                                        |
+  find_vma()                            |  find_vma()
+    struct vm_area_struct *vma = NULL;  |
+    vma = mm->mmap_cache;               |
+    if (!(vma && vma->vm_end > addr     |
+        && vma->vm_start <= addr)) {    |
+                                        |    mm->mmap_cache = vma;
+    return vma;                         |
+     ^^ compiler may optimize this      |
+        local variable out and re-read  |
+        mm->mmap_cache                  |
 
-I reused phys_addr_valid because it is already used in ioremap(__ioremap_caller)
-for the same purpose imho.
+This issue can be reproduced with gcc-4.8.0-1 on s390x by running
+mallocstress testcase from LTP, which triggers:
+  kernel BUG at mm/rmap.c:1088!
+    Call Trace:
+     ([<000003d100c57000>] 0x3d100c57000)
+      [<000000000023a1c0>] do_wp_page+0x2fc/0xa88
+      [<000000000023baae>] handle_pte_fault+0x41a/0xac8
+      [<000000000023d832>] handle_mm_fault+0x17a/0x268
+      [<000000000060507a>] do_protection_exception+0x1e2/0x394
+      [<0000000000603a04>] pgm_check_handler+0x138/0x13c
+      [<000003fffcf1f07a>] 0x3fffcf1f07a
+    Last Breaking-Event-Address:
+      [<000000000024755e>] page_add_new_anon_rmap+0xc2/0x168
 
-Thank you for looking into this.
+Thanks to Jakub Jelinek for his insight on gcc and helping to
+track this down.
 
-> 
-> 	-hpa
-> 
-> 
+Signed-off-by: Jan Stancek <jstancek@redhat.com>
+---
+ mm/mmap.c  |    2 +-
+ mm/nommu.c |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 6466699..0db0de1 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1940,7 +1940,7 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+ 
+ 	/* Check the cache first. */
+ 	/* (Cache hit rate is typically around 35%.) */
+-	vma = mm->mmap_cache;
++	vma = ACCESS_ONCE(mm->mmap_cache);
+ 	if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
+ 		struct rb_node *rb_node;
+ 
+diff --git a/mm/nommu.c b/mm/nommu.c
+index e193280..2f3ea74 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -821,7 +821,7 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
+ 	struct vm_area_struct *vma;
+ 
+ 	/* check the cache first */
+-	vma = mm->mmap_cache;
++	vma = ACCESS_ONCE(mm->mmap_cache);
+ 	if (vma && vma->vm_start <= addr && vma->vm_end > addr)
+ 		return vma;
+ 
 -- 
-Frantisek Hrbata
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
