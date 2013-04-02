@@ -1,112 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 4811B6B005A
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 23:11:05 -0400 (EDT)
-Message-ID: <515A4BD1.1020407@redhat.com>
-Date: Tue, 02 Apr 2013 11:09:05 +0800
-From: Zhouping Liu <zliu@redhat.com>
-MIME-Version: 1.0
-Subject: Re: THP: AnonHugePages in /proc/[pid]/smaps is correct or not?
-References: <383590596.664138.1364803227470.JavaMail.root@redhat.com> <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id D3AA76B0027
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 23:19:55 -0400 (EDT)
+Received: from mta11.sinojet.com ([218.85.134.85])
+	by mta30.sinojet.com (mta30.sinojet.com)
+	(MDaemon FREE v11.0.1)
+	with ESMTP id 61-md50000047821.msg
+	for <linux-mm@kvack.org>; Tue, 02 Apr 2013 11:11:53 +0800
+Received: from m13430.sinojet.com ([218.85.134.30])
+        by mta11.sinojet.com (Send Gateway 1.0) with ESMTP id NHL17126
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 11:09:26 +0800
+Received: from PC-201301020917 ([183.37.225.209])
+        by m13430.sinojet.com (Merak 8.0.3) with ASMTP id I2J40977
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 11:19:49 +0800
+Date: Tue, 2 Apr 2013 11:19:48 +0800
+From: sales <sales@szshenliang.com>
+Reply-To: sales <sales@szshenliang.com>
+Subject: precision measuring tools
+Mime-Version: 1.0
+Message-ID: <20130402111948046281155@szshenliang.com>
+Content-Type: multipart/alternative;
+	boundary="----=_001_NextPart051288063570_=----"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Amos Kong <akong@redhat.com>
+To: linux-mm <linux-mm@kvack.org>
 
-On 04/02/2013 06:23 AM, David Rientjes wrote:
-> On Mon, 1 Apr 2013, Zhouping Liu wrote:
->
->> Hi all,
->>
->> I found THP can't correctly distinguish one anonymous hugepage map.
->>
->> 1. when /sys/kernel/mm/transparent_hugepage/enabled is 'always', the
->>     amount of THP always is one less.
->>
-> It's not a problem with identifying an anonymous mapping as a hugepage,
-> setting thp enabled to "always" does not guarantee that they will always
-> be allocatable or that your mmap() will be 2MB aligned.  Your sample code
-> is using mmap() instead of posix_memalign() so you'll probably only get
-> 100% hugepages only 1/512th of the time.
+This is a multi-part message in MIME format.
 
-I don't understand clearly the last sentence 'you'll probably only get 
-100% hugepages only 1/512th of the time.'
-could you please explain more details about 'only 1/512th of the time'?
+------=_001_NextPart051288063570_=----
+Content-Type: text/plain;
+	charset="gb2312"
+Content-Transfer-Encoding: base64
 
->
->> 2. when /sys/kernel/mm/transparent_hugepage/enabled is 'madvise', THP can't
->>     distinguish any one anonymous hugepage size:
->>
->>     Testing code:
->> -------- snip --------
->> unsigned long hugepagesize = (1UL << 21);
->>
->> int main()
->> {
->> 	void *addr;
->> 	int i;
->>
->> 	printf("pid is %d\n", getpid());
->>
->> 	for (i = 0; i < 5; i++) {
->> 		addr = mmap(NULL, hugepagesize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
->>
->> 		if (addr == MAP_FAILED) {
->> 			perror("mmap");
->> 			return -1;
->> 		}
->>
->> 		if (madvise(addr, hugepagesize, MADV_HUGEPAGE) == -1) {
->> 			perror("madvise");
->> 			return -1;
->> 		}
->>
->> 		memset(addr, i, hugepagesize);
->> 	}
->>
->> 	sleep(50);
->>
->> 	return 0;
->> }
->> --------- snip ----------
->>
->> The result is that it can't find any AnonHugePages from /proc/[pid]/smaps :
->> -------------- snip -------
->> 7f0b38cd0000-7f0b396d0000 rw-p 00000000 00:00 0
->> Size:              10240 kB
->> Rss:               10240 kB
->> Pss:               10240 kB
->> Shared_Clean:          0 kB
->> Shared_Dirty:          0 kB
->> Private_Clean:         0 kB
->> Private_Dirty:     10240 kB
->> Referenced:        10240 kB
->> Anonymous:         10240 kB
->> AnonHugePages:         0 kB
->> Swap:                  0 kB
->> KernelPageSize:        4 kB
->> MMUPageSize:           4 kB
->> Locked:                0 kB
->> VmFlags: rd wr mr mw me ac
-> "hg" would be shown in VmFlags if your MADV_HUGEPAGE was successful, are
-> you sure this is the right vma?
+SGkgIE1hbmFnZXIsDQoNCkdsYWQgdG8gaGVhciB0aGF0IHlvdSBhcmUgb24gdGhlIG1hcmtldCBm
+b3IgbWVhc3VyaW5nIHRvb2xzLg0KDQpXZSBzcGVjaWFsaXplZCBpbiBtYW51ZmFjdHVyaW5nIGEg
+dmFyaWV0eSBvZiBtZWFzdXJpbmcgdG9vbHMuDQpTdWNoIGFzOkRpZ2l0YWwgY2FsaXBlcnMsRGln
+aXRhbCBpbmRpY2F0b3JzLERpYWwgY2FsaXBlcnMsZWN0Lg0KRm9yIG1vcmUgaW5mbyxwbGVhc3Qg
+a2luZGx5IHZpc2l0IG91dCB3ZWJzaXRlOiB3d3cuc3pzaGVubGlhbmcuY29tL2VuL2luZGV4LmFz
+cA0KDQpIb3BlIHdlICBmaW5kIGEgd2F5IHRvIGNvb3BlcmF0ZSB3aXRoIHlvdSENCg0KVGhhbmtz
+IGZvciB5b3VyIHZhbHVhYmxlIHRpbWUuDQoNCkJlc3QgUmVnYXJkcw0KU3VuIFNodWd1bw0KDQpT
+aGVuIExpYW5nDQpNYW5rYW4gVmlsbGFnZSxYaWxpIFRvd24sDQpOYW5zaGFuIERpc3RyaWN0LFNo
+ZW56aGVuLg0KVGVsOjg2IDc1NSA4NjExNzE4MA0KRmF4Ojg2IDc1NSA4NjExNzE5MA0KRW1haWw6
+c2FsZXNAc3pzaGVubGlhbmcuY29tDQpXZWJzaXRlOnd3dy5zenNoZW5saWFuZy5jb20=
 
-I think it's the same issue as the above, according to the sample code, 
-it does mmap() five times in total,
-and each time it map 2MB anonymous maps, as all the maps maybe aren't 
-2MB aligned, so "AnonHugePages"
-show 0 kB, and no "hg" VmFalgs.
+------=_001_NextPart051288063570_=----
+Content-Type: text/html;
+	charset="gb2312"
+Content-Transfer-Encoding: quoted-printable
 
-so, again, if I understand correctly, thp should tune the naturally 
-aligned maps, such as generated by mmap()/malloc(),
-make such maps 'hugepagesize' aligned if the maps or vma is equal and 
-greater than 'hugepagesize', doesn't it?
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE>Mail</TITLE>
+<META content=3D"MSHTML 6.00.2900.6347" name=3DGENERATOR>
+<META http-equiv=3DContent-Type content=3D"text/html; charset=3Dgb2312"><L=
+INK=20
+href=3D"Body{}" rel=3Dstylesheet>
+<STYLE>BLOCKQUOTE {
+	MARGIN-TOP: 0px; MARGIN-BOTTOM: 0px; MARGIN-LEFT: 2em
+}
+OL {
+	MARGIN-TOP: 0px; MARGIN-BOTTOM: 0px
+}
+UL {
+	MARGIN-TOP: 0px; MARGIN-BOTTOM: 0px
+}
+P {
+	MARGIN-TOP: 0px; MARGIN-BOTTOM: 0px
+}
+</STYLE>
+</HEAD>
+<BODY style=3D"FONT-SIZE: 9pt; FONT-FAMILY: =D0=C2=CB=CE=CC=E5" leftMargin=
+=3D5 topMargin=3D5 #ffffff>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4>Hi&nbsp; Manager,</FONT></D=
+IV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4></FONT>&nbsp;</DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4>Glad to hear that you are o=
+n the=20
+market for measuring tools.</FONT></DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4></FONT>&nbsp;</DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4>We specialized in manufactu=
+ring a=20
+variety of measuring tools.</FONT></DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4>Such as:Digital&nbsp;calipe=
+rs,Digital=20
+indicators,Dial calipers,ect.</FONT></DIV>
+<DIV><FONT face=3D"@Arial Unicode MS"><FONT size=3D4>For more info,pleast =
+kindly=20
+visit out website:</FONT></FONT><FONT face=3D"@Arial Unicode MS"><FONT=20
+size=3D4>&nbsp;</FONT><A href=3D"http://www.szshenliang.com/en/index.asp">=
+<FONT=20
+size=3D4>www.szshenliang.com/en/index.asp</FONT></A></FONT></DIV>
+<DIV><FONT face=3D"@Arial Unicode MS"></FONT>&nbsp;</DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4>Hope we&nbsp; find a way to=
+ cooperate=20
+with you!</FONT></DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4></FONT>&nbsp;</DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4>Thanks for your valuable=20
+time.</FONT></DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4></FONT>&nbsp;</DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4>Best Regards</FONT></DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D4>Sun Shuguo</FONT></DIV>
+<DIV><FONT face=3D"@Arial Unicode MS" size=3D2></FONT>&nbsp;</DIV>
+<DIV><FONT style=3D"BACKGROUND-COLOR: #ffffff" face=3D"@Arial Unicode MS"=20
+color=3D#008000 size=3D3>Shen Liang</FONT></DIV>
+<DIV><FONT style=3D"BACKGROUND-COLOR: #ffffff" face=3D"@Arial Unicode MS"=20
+color=3D#008000 size=3D3>Mankan Village,Xili Town,</FONT></DIV>
+<DIV><FONT style=3D"BACKGROUND-COLOR: #ffffff" face=3D"@Arial Unicode MS"=20
+color=3D#008000 size=3D3>Nanshan District,Shenzhen.</FONT></DIV>
+<DIV><FONT style=3D"BACKGROUND-COLOR: #ffffff" face=3D"@Arial Unicode MS"=20
+color=3D#008000 size=3D3>Tel:86 755 86117180</FONT></DIV>
+<DIV><FONT style=3D"BACKGROUND-COLOR: #ffffff" face=3D"@Arial Unicode MS"=20
+color=3D#008000 size=3D3>Fax:86 755 86117190</FONT></DIV>
+<DIV><FONT style=3D"BACKGROUND-COLOR: #ffffff" face=3D"@Arial Unicode MS"=20
+color=3D#008000 size=3D3>Email:sales@szshenliang.com</FONT></DIV>
+<DIV><FONT style=3D"BACKGROUND-COLOR: #ffffff" face=3D"@Arial Unicode MS"=20
+color=3D#008000 size=3D3>Website:www.szshenliang.com</FONT></DIV>
+<DIV><FONT face=3D"@Arial Unicode MS"></FONT></DIV>
+<DIV>&nbsp;</DIV>
+<DIV></DIV></BODY></HTML>
 
-Thanks,
-Zhouping
+------=_001_NextPart051288063570_=------
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
