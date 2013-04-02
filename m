@@ -1,87 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 1EE766B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:21:44 -0400 (EDT)
-Message-ID: <515ACD7F.3070009@parallels.com>
-Date: Tue, 2 Apr 2013 16:22:23 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 04D196B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:23:45 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id u28so132154qcs.22
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 05:23:45 -0700 (PDT)
+Message-ID: <515ACDC9.2090506@gmail.com>
+Date: Tue, 02 Apr 2013 20:23:37 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: don't do cleanup manually if mem_cgroup_css_online()
- fails
-References: <515A8A40.6020406@huawei.com> <20130402121600.GK24345@dhcp22.suse.cz>
-In-Reply-To: <20130402121600.GK24345@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: THP: AnonHugePages in /proc/[pid]/smaps is correct or not?
+References: <383590596.664138.1364803227470.JavaMail.root@redhat.com> <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Zhouping Liu <zliu@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Amos Kong <akong@redhat.com>
 
-On 04/02/2013 04:16 PM, Michal Hocko wrote:
-> On Tue 02-04-13 15:35:28, Li Zefan wrote:
-> [...]
->> @@ -6247,16 +6247,7 @@ mem_cgroup_css_online(struct cgroup *cont)
->>  
->>  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
->>  	mutex_unlock(&memcg_create_mutex);
->> -	if (error) {
->> -		/*
->> -		 * We call put now because our (and parent's) refcnts
->> -		 * are already in place. mem_cgroup_put() will internally
->> -		 * call __mem_cgroup_free, so return directly
->> -		 */
->> -		mem_cgroup_put(memcg);
->> -		if (parent->use_hierarchy)
->> -			mem_cgroup_put(parent);
->> -	}
->> +
->>  	return error;
->>  }
-> 
-> The mem_cgroup_put(parent) part is incorrect because mem_cgroup_put goes
-> up the hierarchy already but I do not think mem_cgroup_put(memcg) should
-> go away as well. Who is going to free the last reference then?
-> 
-> Maybe I am missing something but we have:
-> cgroup_create
->   css = ss->css_alloc(cgrp)
->     mem_cgroup_css_alloc
->       atomic_set(&memcg->refcnt, 1)
->   online_css(ss, cgrp)
->     mem_cgroup_css_online
->       error = memcg_init_kmem		# fails
->   goto err_destroy
-> err_destroy:
->   cgroup_destroy_locked(cgrp)
->     offline_css
->       mem_cgroup_css_offline
-> 
-> no mem_cgroup_put on the way.
-> 
+Hi David,
+On 04/02/2013 06:23 AM, David Rientjes wrote:
+> On Mon, 1 Apr 2013, Zhouping Liu wrote:
+>
+>> Hi all,
+>>
+>> I found THP can't correctly distinguish one anonymous hugepage map.
+>>
+>> 1. when /sys/kernel/mm/transparent_hugepage/enabled is 'always', the
+>>     amount of THP always is one less.
+>>
+> It's not a problem with identifying an anonymous mapping as a hugepage,
+> setting thp enabled to "always" does not guarantee that they will always
+> be allocatable or that your mmap() will be 2MB aligned.  Your sample code
 
-static void mem_cgroup_css_free(struct cgroup *cont)
-{
-        struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+Both thp and hugetlb pages should be 2MB aligned, correct?
 
-        kmem_cgroup_destroy(memcg);
-
-        mem_cgroup_put(memcg);
-}
-
-kernel/cgroup.c:
-err_free_all:
-        for_each_subsys(root, ss) {
-                if (cgrp->subsys[ss->subsys_id])
-                        ss->css_free(cgrp);
-        }
-
-As I've said, this error path predates kmemcg for a long time. I wasn't
-still able to identify precisely why it was working - assuming it was
-indeed working (I remember having tested it with handcrafted manual
-errors, but memory can always fail...).
-
-But our best theory so far is that the cgroup rework started calling the
-free function that wasn't called before.
+> is using mmap() instead of posix_memalign() so you'll probably only get
+> 100% hugepages only 1/512th of the time.
+>
+>> 2. when /sys/kernel/mm/transparent_hugepage/enabled is 'madvise', THP can't
+>>     distinguish any one anonymous hugepage size:
+>>
+>>     Testing code:
+>> -------- snip --------
+>> unsigned long hugepagesize = (1UL << 21);
+>>
+>> int main()
+>> {
+>> 	void *addr;
+>> 	int i;
+>>
+>> 	printf("pid is %d\n", getpid());
+>>
+>> 	for (i = 0; i < 5; i++) {
+>> 		addr = mmap(NULL, hugepagesize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+>>
+>> 		if (addr == MAP_FAILED) {
+>> 			perror("mmap");
+>> 			return -1;
+>> 		}
+>>
+>> 		if (madvise(addr, hugepagesize, MADV_HUGEPAGE) == -1) {
+>> 			perror("madvise");
+>> 			return -1;
+>> 		}
+>>
+>> 		memset(addr, i, hugepagesize);
+>> 	}
+>>
+>> 	sleep(50);
+>>
+>> 	return 0;
+>> }
+>> --------- snip ----------
+>>
+>> The result is that it can't find any AnonHugePages from /proc/[pid]/smaps :
+>> -------------- snip -------
+>> 7f0b38cd0000-7f0b396d0000 rw-p 00000000 00:00 0
+>> Size:              10240 kB
+>> Rss:               10240 kB
+>> Pss:               10240 kB
+>> Shared_Clean:          0 kB
+>> Shared_Dirty:          0 kB
+>> Private_Clean:         0 kB
+>> Private_Dirty:     10240 kB
+>> Referenced:        10240 kB
+>> Anonymous:         10240 kB
+>> AnonHugePages:         0 kB
+>> Swap:                  0 kB
+>> KernelPageSize:        4 kB
+>> MMUPageSize:           4 kB
+>> Locked:                0 kB
+>> VmFlags: rd wr mr mw me ac
+> "hg" would be shown in VmFlags if your MADV_HUGEPAGE was successful, are
+> you sure this is the right vma?
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
