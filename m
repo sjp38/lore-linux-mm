@@ -1,48 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 549996B005C
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 22:47:58 -0400 (EDT)
-Received: by mail-ye0-f178.google.com with SMTP id q1so513782yen.9
-        for <linux-mm@kvack.org>; Mon, 01 Apr 2013 19:47:57 -0700 (PDT)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH 2/2] drivers: staging: zcache: fix compile warning
-Date: Tue,  2 Apr 2013 10:47:43 +0800
-Message-Id: <1364870864-13888-2-git-send-email-bob.liu@oracle.com>
-In-Reply-To: <1364870864-13888-1-git-send-email-bob.liu@oracle.com>
-References: <1364870864-13888-1-git-send-email-bob.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 4811B6B005A
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 23:11:05 -0400 (EDT)
+Message-ID: <515A4BD1.1020407@redhat.com>
+Date: Tue, 02 Apr 2013 11:09:05 +0800
+From: Zhouping Liu <zliu@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: Re: THP: AnonHugePages in /proc/[pid]/smaps is correct or not?
+References: <383590596.664138.1364803227470.JavaMail.root@redhat.com> <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: konrad.wilk@oracle.com, dan.magenheimer@oracle.com, fengguang.wu@intel.com, linux-mm@kvack.org, akpm@linux-foundation.org, Bob Liu <bob.liu@oracle.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Amos Kong <akong@redhat.com>
 
-Fix below compile warning:
-staging/zcache/zcache-main.c: In function a??zcache_autocreate_poola??:
-staging/zcache/zcache-main.c:1393:13: warning: a??clia?? may be used uninitialized
-in this function [-Wuninitialized]
+On 04/02/2013 06:23 AM, David Rientjes wrote:
+> On Mon, 1 Apr 2013, Zhouping Liu wrote:
+>
+>> Hi all,
+>>
+>> I found THP can't correctly distinguish one anonymous hugepage map.
+>>
+>> 1. when /sys/kernel/mm/transparent_hugepage/enabled is 'always', the
+>>     amount of THP always is one less.
+>>
+> It's not a problem with identifying an anonymous mapping as a hugepage,
+> setting thp enabled to "always" does not guarantee that they will always
+> be allocatable or that your mmap() will be 2MB aligned.  Your sample code
+> is using mmap() instead of posix_memalign() so you'll probably only get
+> 100% hugepages only 1/512th of the time.
 
-Signed-off-by: Bob Liu <bob.liu@oracle.com>
----
- drivers/staging/zcache/zcache-main.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I don't understand clearly the last sentence 'you'll probably only get 
+100% hugepages only 1/512th of the time.'
+could you please explain more details about 'only 1/512th of the time'?
 
-diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-index ac75670..7999021 100644
---- a/drivers/staging/zcache/zcache-main.c
-+++ b/drivers/staging/zcache/zcache-main.c
-@@ -1341,7 +1341,7 @@ static int zcache_local_new_pool(uint32_t flags)
- int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bool eph)
- {
- 	struct tmem_pool *pool;
--	struct zcache_client *cli;
-+	struct zcache_client *cli = NULL;
- 	uint32_t flags = eph ? 0 : TMEM_POOL_PERSIST;
- 	int ret = -1;
- 
--- 
-1.7.10.4
+>
+>> 2. when /sys/kernel/mm/transparent_hugepage/enabled is 'madvise', THP can't
+>>     distinguish any one anonymous hugepage size:
+>>
+>>     Testing code:
+>> -------- snip --------
+>> unsigned long hugepagesize = (1UL << 21);
+>>
+>> int main()
+>> {
+>> 	void *addr;
+>> 	int i;
+>>
+>> 	printf("pid is %d\n", getpid());
+>>
+>> 	for (i = 0; i < 5; i++) {
+>> 		addr = mmap(NULL, hugepagesize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+>>
+>> 		if (addr == MAP_FAILED) {
+>> 			perror("mmap");
+>> 			return -1;
+>> 		}
+>>
+>> 		if (madvise(addr, hugepagesize, MADV_HUGEPAGE) == -1) {
+>> 			perror("madvise");
+>> 			return -1;
+>> 		}
+>>
+>> 		memset(addr, i, hugepagesize);
+>> 	}
+>>
+>> 	sleep(50);
+>>
+>> 	return 0;
+>> }
+>> --------- snip ----------
+>>
+>> The result is that it can't find any AnonHugePages from /proc/[pid]/smaps :
+>> -------------- snip -------
+>> 7f0b38cd0000-7f0b396d0000 rw-p 00000000 00:00 0
+>> Size:              10240 kB
+>> Rss:               10240 kB
+>> Pss:               10240 kB
+>> Shared_Clean:          0 kB
+>> Shared_Dirty:          0 kB
+>> Private_Clean:         0 kB
+>> Private_Dirty:     10240 kB
+>> Referenced:        10240 kB
+>> Anonymous:         10240 kB
+>> AnonHugePages:         0 kB
+>> Swap:                  0 kB
+>> KernelPageSize:        4 kB
+>> MMUPageSize:           4 kB
+>> Locked:                0 kB
+>> VmFlags: rd wr mr mw me ac
+> "hg" would be shown in VmFlags if your MADV_HUGEPAGE was successful, are
+> you sure this is the right vma?
+
+I think it's the same issue as the above, according to the sample code, 
+it does mmap() five times in total,
+and each time it map 2MB anonymous maps, as all the maps maybe aren't 
+2MB aligned, so "AnonHugePages"
+show 0 kB, and no "hg" VmFalgs.
+
+so, again, if I understand correctly, thp should tune the naturally 
+aligned maps, such as generated by mmap()/malloc(),
+make such maps 'hugepagesize' aligned if the maps or vma is equal and 
+greater than 'hugepagesize', doesn't it?
+
+Thanks,
+Zhouping
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
