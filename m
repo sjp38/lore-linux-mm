@@ -1,30 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id DF20B6B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 14:09:03 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id kq13so435251pab.15
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 11:09:03 -0700 (PDT)
-Date: Tue, 2 Apr 2013 11:09:01 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: THP: AnonHugePages in /proc/[pid]/smaps is correct or not?
-In-Reply-To: <515ACDC9.2090506@gmail.com>
-Message-ID: <alpine.DEB.2.02.1304021106190.17138@chino.kir.corp.google.com>
-References: <383590596.664138.1364803227470.JavaMail.root@redhat.com> <alpine.DEB.2.02.1304011512490.17714@chino.kir.corp.google.com> <515ACDC9.2090506@gmail.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id EE6916B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 14:19:44 -0400 (EDT)
+Date: Tue, 2 Apr 2013 14:19:40 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: Excessive stall times on ext4 in 3.9-rc2
+Message-ID: <20130402181940.GA4936@thunk.org>
+References: <20130402142717.GH32241@suse.de>
+ <20130402150651.GB31577@thunk.org>
+ <20130402151436.GC31577@thunk.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130402151436.GC31577@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Zhouping Liu <zliu@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Amos Kong <akong@redhat.com>
+To: Mel Gorman <mgorman@suse.de>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
 
-On Tue, 2 Apr 2013, Simon Jeons wrote:
+So I tried to reproduce the problem, and so I installed systemtap
+(bleeding edge, since otherwise it won't work with development
+kernel), and then rebuilt a kernel with all of the necessary CONFIG
+options enabled:
 
-> Both thp and hugetlb pages should be 2MB aligned, correct?
-> 
+	CONFIG_DEBUG_INFO, CONFIG_KPROBES, CONFIG_RELAY, CONFIG_DEBUG_FS,
+	CONFIG_MODULES, CONFIG_MODULE_UNLOAD
 
-To answer this question and your followup reply at the same time: they 
-come from one level higher in the page table so they will naturally need 
-to be 2MB aligned.
+I then pulled down mmtests, and tried running watch-dstate.pl, which
+is what I sasume you were using, and I got a reminder of why I've
+tried very hard to use systemtap:
+
+semantic error: while resolving probe point: identifier 'kprobe' at /tmp/stapdjN4_l:18:7
+        source: probe kprobe.function("get_request_wait")
+                      ^
+
+semantic error: no match
+semantic error: while resolving probe point: identifier 'kprobe' at :74:8
+        source: }probe kprobe.function("get_request_wait").return
+                       ^
+
+Pass 2: analysis failed.  [man error::pass2]
+Unexpected exit of STAP script at ./watch-dstate.pl line 296.
+
+I have no clue what to do next.  Can you give me a hint?
+
+Thanks,
+
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
