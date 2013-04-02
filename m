@@ -1,72 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 98C936B0006
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:32:50 -0400 (EDT)
-Message-ID: <515AEC3A.2030401@parallels.com>
-Date: Tue, 2 Apr 2013 18:33:30 +0400
-From: Glauber Costa <glommer@parallels.com>
+	by kanga.kvack.org (Postfix) with SMTP id A9EC06B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 10:34:28 -0400 (EDT)
+Message-ID: <515AEC71.9020704@profihost.ag>
+Date: Tue, 02 Apr 2013 16:34:25 +0200
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memcg: don't do cleanup manually if mem_cgroup_css_online()
- fails
-References: <515A8A40.6020406@huawei.com> <20130402121600.GK24345@dhcp22.suse.cz> <20130402141646.GQ24345@dhcp22.suse.cz> <515AE948.1000704@parallels.com> <20130402142825.GA32520@dhcp22.suse.cz>
-In-Reply-To: <20130402142825.GA32520@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: NUMA Autobalancing Kernel 3.8
+References: <515A87C3.1000309@profihost.ag> <20130402104844.GE32241@suse.de> <515AC3EE.1030803@profihost.ag> <20130402125408.GG32241@suse.de>
+In-Reply-To: <20130402125408.GG32241@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, srikar@linux.vnet.ibm.com, aarcange@redhat.com, mingo@kernel.org, riel@redhat.com
 
-On 04/02/2013 06:28 PM, Michal Hocko wrote:
-> On Tue 02-04-13 18:20:56, Glauber Costa wrote:
->> On 04/02/2013 06:16 PM, Michal Hocko wrote:
->>>  mem_cgroup_css_online
->>>       memcg_init_kmem
->>>         mem_cgroup_get		# refcnt = 2
->>>           memcg_update_all_caches
->>>             memcg_update_cache_size	# fails with ENOMEM
+Am 02.04.2013 14:54, schrieb Mel Gorman:
+> On Tue, Apr 02, 2013 at 01:41:34PM +0200, Stefan Priebe - Profihost AG wrote:
+>> Am 02.04.2013 12:48, schrieb Mel Gorman:
+>>> On Tue, Apr 02, 2013 at 09:24:51AM +0200, Stefan Priebe - Profihost AG wrote:
+>>>> Hello list,
+>>>>
+>>>> i was trying to play with the new NUMA autobalancing feature of Kernel 3.8.
+>>>>
+>>>> But if i enable:
+>>>> CONFIG_ARCH_USES_NUMA_PROT_NONE=y
+>>>> CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
+>>>> CONFIG_NUMA_BALANCING=y
+>>>>
+>>>> i see random process crashes mostly in libc using vanilla 3.8.4.
+>>>>
+>>>
+>>> Any more details than that? What sort of crashes? Anything in the kernel
+>>> log? Any particular pattern to the crashes? Any means of reliably
+>>> reproducing it? 3.8 vanilla, 3.8-stable or 3.8 with any other patches
+>>> applied?
 >>
->> Here is the thing: this one in kmem only happens for kmem enabled
->> memcgs. For those, we tend to do a get once, and put only when the last
->> kmem reference is gone.
+>> Sorry for missing information.
 >>
->> For non-kmem memcgs, refcnt will be 1 here, and will be balanced out by
->> the mem_cgroup_put() in css_free.
+>>> Any more details than that?
+>> Sadly not i just see a crash line in the kernel log - see below.
+>>
+>>> What sort of crashes?
+>> Mostly the processes just die but i've also seen processes consuming
+>> 100% CPU all the time or even just doing nothing anymore.
+>>
 > 
-> So we need this, right?
-> ---
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index f608546..2ef875d 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5306,6 +5306,8 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
->  	ret = memcg_update_cache_sizes(memcg);
->  	mutex_unlock(&set_limit_mutex);
->  out:
-> +	if (ret)
-> +		mem_cgroup_put(memcg);
->  	return ret;
->  }
->  #endif /* CONFIG_MEMCG_KMEM */
-> @@ -6417,16 +6419,6 @@ mem_cgroup_css_online(struct cgroup *cont)
->  
->  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
->  	mutex_unlock(&memcg_create_mutex);
-> -	if (error) {
-> -		/*
-> -		 * We call put now because our (and parent's) refcnts
-> -		 * are already in place. mem_cgroup_put() will internally
-> -		 * call __mem_cgroup_free, so return directly
-> -		 */
-> -		mem_cgroup_put(memcg);
-> -		if (parent->use_hierarchy)
-> -			mem_cgroup_put(parent);
-> -	}
->  	return error;
->  }
->  
+> When you see the 100% CPU usage can you cat /proc/PID/stack a couple of
+> times and post it here? That might give a hint as to where it's going wrong.
+
+Sadly i'm not able to reproduce a 100% load process tried now for some
+hours. Mostly they segfault.
+
+>>> Anything in the kernel log?
+>> Three examples:
+>> pigz[10194]: segfault at 0 ip           (null) sp 00007f6197ffed50 error
+>> 14 in pigz[400000+e000]
+>>
+>> rbd[2811]: segfault at b8 ip 00007f73c2d51b9e sp 00007f73bcae3b40 error
+>> 4 in librados.so.2.0.0[7f73c2afe000+3b9000]
+>>
+>> rbd[1805]: segfault at 0 ip 00007f60c28dceb4 sp 00007f60b7ffd1f8 error 4
+>> in ld-2.11.3.so[7f60c28cc000+1e000]
+>>
+>>> Any particular pattern to the crashes? Any means of reliably
+>>> reproducing it?
+>> No i just need to run some task and after some time they die or hang
+>> forever. I have this on 10 different E5-2640 and also on E56XX. I can
+>> "fix" this by:
+>>   1.) putting all memory to just ONE CPU
+>>   2.) Disable NUMA Balancing
+>>
+> That does point the finger at the automatic balancing.
 > 
-Yes, indeed you are very right - and thanks for looking at such depth.
+>>> 3.8 vanilla, 3.8-stable or 3.8 with any other patches
+>>> applied?
+>> 3.8.4 without any patches.
+>>
+> Did it happen in 3.8?
+
+I've now tested 3.9-rc5 this gaves me a slightly different kernel log:
+[  197.236518] pigz[2908]: segfault at 0 ip           (null) sp
+00007f347bffed00 error 14
+[  197.237632] traps: pigz[2915] general protection ip:7f3482dbce2d
+sp:7f3473ffec10 error:0 in libz.so.1.2.3.4[7f3482db7000+17000]
+[  197.330615]  in pigz[400000+10000]
+
+With 3.8 it is the same as with 3.8.4 or 3.8.5.
+
+Greets,
+Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
