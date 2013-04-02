@@ -1,51 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id EE6916B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 14:19:44 -0400 (EDT)
-Date: Tue, 2 Apr 2013 14:19:40 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-Message-ID: <20130402181940.GA4936@thunk.org>
-References: <20130402142717.GH32241@suse.de>
- <20130402150651.GB31577@thunk.org>
- <20130402151436.GC31577@thunk.org>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id C2E8D6B0036
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 14:48:45 -0400 (EDT)
+Message-ID: <515B2802.1050405@zytor.com>
+Date: Tue, 02 Apr 2013 11:48:34 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130402151436.GC31577@thunk.org>
+Subject: Re: [PATCH] x86: add phys addr validity check for /dev/mem mmap
+References: <1364905733-23937-1-git-send-email-fhrbata@redhat.com>
+In-Reply-To: <1364905733-23937-1-git-send-email-fhrbata@redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: Frantisek Hrbata <fhrbata@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com
 
-So I tried to reproduce the problem, and so I installed systemtap
-(bleeding edge, since otherwise it won't work with development
-kernel), and then rebuilt a kernel with all of the necessary CONFIG
-options enabled:
+On 04/02/2013 05:28 AM, Frantisek Hrbata wrote:
+> 
+> diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
+> index d8e8eef..39607c6 100644
+> --- a/arch/x86/include/asm/io.h
+> +++ b/arch/x86/include/asm/io.h
+> @@ -242,6 +242,10 @@ static inline void flush_write_buffers(void)
+>  #endif
+>  }
+>  
+> +#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
+> +extern int valid_phys_addr_range(phys_addr_t addr, size_t count);
+> +extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t count);
+> +
+>  #endif /* __KERNEL__ */
+>  
+>  extern void native_io_delay(void);
+> diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+> index 845df68..92ec31c 100644
+> --- a/arch/x86/mm/mmap.c
+> +++ b/arch/x86/mm/mmap.c
+> @@ -31,6 +31,8 @@
+>  #include <linux/sched.h>
+>  #include <asm/elf.h>
+>  
+> +#include "physaddr.h"
+> +
+>  struct __read_mostly va_alignment va_align = {
+>  	.flags = -1,
+>  };
+> @@ -122,3 +124,14 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
+>  		mm->unmap_area = arch_unmap_area_topdown;
+>  	}
+>  }
+> +
+> +int valid_phys_addr_range(phys_addr_t addr, size_t count)
+> +{
+> +	return addr + count <= __pa(high_memory);
+> +}
+> +
+> +int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
+> +{
+> +	resource_size_t addr = (pfn << PAGE_SHIFT) + count;
+> +	return phys_addr_valid(addr);
+> +}
+> 
 
-	CONFIG_DEBUG_INFO, CONFIG_KPROBES, CONFIG_RELAY, CONFIG_DEBUG_FS,
-	CONFIG_MODULES, CONFIG_MODULE_UNLOAD
+Good initiative, but I think the implementation is worong.  I suspect we
+should use the number of physical address bits supported rather than
+high_memory, since it is common and legal to use /dev/mem to access I/O
+resources that are beyond the last byte of RAM.
 
-I then pulled down mmtests, and tried running watch-dstate.pl, which
-is what I sasume you were using, and I got a reminder of why I've
-tried very hard to use systemtap:
+	-hpa
 
-semantic error: while resolving probe point: identifier 'kprobe' at /tmp/stapdjN4_l:18:7
-        source: probe kprobe.function("get_request_wait")
-                      ^
-
-semantic error: no match
-semantic error: while resolving probe point: identifier 'kprobe' at :74:8
-        source: }probe kprobe.function("get_request_wait").return
-                       ^
-
-Pass 2: analysis failed.  [man error::pass2]
-Unexpected exit of STAP script at ./watch-dstate.pl line 296.
-
-I have no clue what to do next.  Can you give me a hint?
-
-Thanks,
-
-						- Ted
+-- 
+H. Peter Anvin, Intel Open Source Technology Center
+I work for Intel.  I don't speak on their behalf.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
