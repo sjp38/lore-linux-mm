@@ -1,166 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 54DDB6B0006
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:30:02 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 2 Apr 2013 17:55:44 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 863DF1258023
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 18:01:11 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r32CTkcI62586892
-	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 17:59:46 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r32CToZm007814
-	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 23:29:50 +1100
-Date: Tue, 2 Apr 2013 20:29:48 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/mmap: Check for RLIMIT_AS before unmapping
-Message-ID: <20130402122948.GB17704@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <20130402095402.GA6568@rei>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 400356B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:54:13 -0400 (EDT)
+Date: Tue, 2 Apr 2013 13:54:08 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: NUMA Autobalancing Kernel 3.8
+Message-ID: <20130402125408.GG32241@suse.de>
+References: <515A87C3.1000309@profihost.ag>
+ <20130402104844.GE32241@suse.de>
+ <515AC3EE.1030803@profihost.ag>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130402095402.GA6568@rei>
+In-Reply-To: <515AC3EE.1030803@profihost.ag>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyril Hrubis <chrubis@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, srikar@linux.vnet.ibm.com, aarcange@redhat.com, mingo@kernel.org, riel@redhat.com
 
-On Tue, Apr 02, 2013 at 11:54:03AM +0200, Cyril Hrubis wrote:
->This patch fixes corner case for MAP_FIXED when requested mapping length
->is larger than rlimit for virtual memory. In such case any overlapping
->mappings are unmapped before we check for the limit and return ENOMEM.
->
->The check is moved before the loop that unmaps overlapping parts of
->existing mappings. When we are about to hit the limit (currently mapped
->pages + len > limit) we scan for overlapping pages and check again
->accounting for them.
->
->This fixes situation when userspace program expects that the previous
->mappings are preserved after the mmap() syscall has returned with error.
->(POSIX clearly states that successfull mapping shall replace any
->previous mappings.)
->
->This corner case was found and can be tested with LTP testcase:
->
->testcases/open_posix_testsuite/conformance/interfaces/mmap/24-2.c
->
->In this case the mmap, which is clearly over current limit, unmaps
->dynamic libraries and the testcase segfaults right after returning into
->userspace.
->
->I've also looked at the second instance of the unmapping loop in the
->do_brk(). The do_brk() is called from brk() syscall and from vm_brk().
->The brk() syscall checks for overlapping mappings and bails out when
->there are any (so it can't be triggered from the brk syscall). The
->vm_brk() is called only from binmft handlers so it shouldn't be
->triggered unless binmft handler created overlapping mappings.
->
+On Tue, Apr 02, 2013 at 01:41:34PM +0200, Stefan Priebe - Profihost AG wrote:
+> Am 02.04.2013 12:48, schrieb Mel Gorman:
+> > On Tue, Apr 02, 2013 at 09:24:51AM +0200, Stefan Priebe - Profihost AG wrote:
+> >> Hello list,
+> >>
+> >> i was trying to play with the new NUMA autobalancing feature of Kernel 3.8.
+> >>
+> >> But if i enable:
+> >> CONFIG_ARCH_USES_NUMA_PROT_NONE=y
+> >> CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
+> >> CONFIG_NUMA_BALANCING=y
+> >>
+> >> i see random process crashes mostly in libc using vanilla 3.8.4.
+> >>
+> > 
+> > Any more details than that? What sort of crashes? Anything in the kernel
+> > log? Any particular pattern to the crashes? Any means of reliably
+> > reproducing it? 3.8 vanilla, 3.8-stable or 3.8 with any other patches
+> > applied?
+> 
+> Sorry for missing information.
+> 
+> > Any more details than that?
+> Sadly not i just see a crash line in the kernel log - see below.
+> 
+> > What sort of crashes?
+> Mostly the processes just die but i've also seen processes consuming
+> 100% CPU all the time or even just doing nothing anymore.
+> 
 
-Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+When you see the 100% CPU usage can you cat /proc/PID/stack a couple of
+times and post it here? That might give a hint as to where it's going wrong.
 
->Signed-off-by: Cyril Hrubis <chrubis@suse.cz>
->---
-> mm/mmap.c | 50 ++++++++++++++++++++++++++++++++++++++++++++++----
-> 1 file changed, 46 insertions(+), 4 deletions(-)
->
->diff --git a/mm/mmap.c b/mm/mmap.c
->index 2664a47..e755080 100644
->--- a/mm/mmap.c
->+++ b/mm/mmap.c
->@@ -33,6 +33,7 @@
-> #include <linux/uprobes.h>
-> #include <linux/rbtree_augmented.h>
-> #include <linux/sched/sysctl.h>
->+#include <linux/kernel.h>
->
-> #include <asm/uaccess.h>
-> #include <asm/cacheflush.h>
->@@ -543,6 +544,34 @@ static int find_vma_links(struct mm_struct *mm, unsigned long addr,
-> 	return 0;
-> }
->
->+static unsigned long count_vma_pages_range(struct mm_struct *mm,
->+		unsigned long addr, unsigned long end)
->+{
->+	unsigned long nr_pages = 0;
->+	struct vm_area_struct *vma;
->+
->+	/* Find first overlaping mapping */
->+	vma = find_vma_intersection(mm, addr, end);
->+	if (!vma)
->+		return 0;
->+
->+	nr_pages = (min(end, vma->vm_end) -
->+		max(addr, vma->vm_start)) >> PAGE_SHIFT;
->+
->+	/* Iterate over the rest of the overlaps */
->+	for (vma = vma->vm_next; vma; vma = vma->vm_next) {
->+		unsigned long overlap_len;
->+
->+		if (vma->vm_start > end)
->+			break;
->+
->+		overlap_len = min(end, vma->vm_end) - vma->vm_start;
->+		nr_pages += overlap_len >> PAGE_SHIFT;
->+	}
->+
->+	return nr_pages;
->+}
->+
-> void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
-> 		struct rb_node **rb_link, struct rb_node *rb_parent)
-> {
->@@ -1433,6 +1462,23 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
-> 	unsigned long charged = 0;
-> 	struct inode *inode =  file ? file_inode(file) : NULL;
->
->+	/* Check against address space limit. */
->+	if (!may_expand_vm(mm, len >> PAGE_SHIFT)) {
->+		unsigned long nr_pages;
->+
->+		/*
->+		 * MAP_FIXED may remove pages of mappings that intersects with
->+		 * requested mapping. Account for the pages it would unmap.
->+		 */
->+		if (!(vm_flags & MAP_FIXED))
->+			return -ENOMEM;
->+
->+		nr_pages = count_vma_pages_range(mm, addr, addr + len);
->+
->+		if (!may_expand_vm(mm, (len >> PAGE_SHIFT) - nr_pages))
->+			return -ENOMEM;
->+	}
->+
-> 	/* Clear old maps */
-> 	error = -ENOMEM;
-> munmap_back:
->@@ -1442,10 +1488,6 @@ munmap_back:
-> 		goto munmap_back;
-> 	}
->
->-	/* Check against address space limit. */
->-	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
->-		return -ENOMEM;
->-
-> 	/*
-> 	 * Private writable mapping: check memory availability
-> 	 */
->-- 
->1.8.1.5
->
->See also a testsuite that exercies the newly added codepaths which is
->attached as a tarball (All testcases minus the second that tests
->that this patch works succeeds both before and after this patch).
->
->-- 
->Cyril Hrubis
->chrubis@suse.cz
+> > Anything in the kernel log?
+> Three examples:
+> pigz[10194]: segfault at 0 ip           (null) sp 00007f6197ffed50 error
+> 14 in pigz[400000+e000]
+> 
+> rbd[2811]: segfault at b8 ip 00007f73c2d51b9e sp 00007f73bcae3b40 error
+> 4 in librados.so.2.0.0[7f73c2afe000+3b9000]
+> 
+> rbd[1805]: segfault at 0 ip 00007f60c28dceb4 sp 00007f60b7ffd1f8 error 4
+> in ld-2.11.3.so[7f60c28cc000+1e000]
+> 
+> > Any particular pattern to the crashes? Any means of reliably
+> > reproducing it?
+> No i just need to run some task and after some time they die or hang
+> forever. I have this on 10 different E5-2640 and also on E56XX. I can
+> "fix" this by:
+>   1.) putting all memory to just ONE CPU
+>   2.) Disable NUMA Balancing
+> 
 
+That does point the finger at the automatic balancing.
+
+> > 3.8 vanilla, 3.8-stable or 3.8 with any other patches
+> > applied?
+> 3.8.4 without any patches.
+> 
+
+Did it happen in 3.8?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
