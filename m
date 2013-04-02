@@ -1,54 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id C16136B0044
-	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 22:47:09 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 2 Apr 2013 12:40:26 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 28901357804A
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 13:47:05 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r322kUOx3015146
-	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 13:46:30 +1100
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r322kY0U028089
-	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 13:46:34 +1100
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v5 4/8] staging: zcache: fix pers_pageframes|_max aren't exported in debugfs
-Date: Tue,  2 Apr 2013 10:46:16 +0800
-Message-Id: <1364870780-16296-5-git-send-email-liwanp@linux.vnet.ibm.com>
-In-Reply-To: <1364870780-16296-1-git-send-email-liwanp@linux.vnet.ibm.com>
-References: <1364870780-16296-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id E63F16B005A
+	for <linux-mm@kvack.org>; Mon,  1 Apr 2013 22:47:50 -0400 (EDT)
+Received: by mail-gh0-f180.google.com with SMTP id f13so502171ghb.25
+        for <linux-mm@kvack.org>; Mon, 01 Apr 2013 19:47:50 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH 1/2] drivers: staging: zcache: fix compile error
+Date: Tue,  2 Apr 2013 10:47:42 +0800
+Message-Id: <1364870864-13888-1-git-send-email-bob.liu@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Fengguang Wu <fengguang.wu@intel.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: gregkh@linuxfoundation.org
+Cc: konrad.wilk@oracle.com, dan.magenheimer@oracle.com, fengguang.wu@intel.com, linux-mm@kvack.org, akpm@linux-foundation.org, Bob Liu <bob.liu@oracle.com>
 
-Before commit 9c0ad59ef ("zcache/debug: Use an array to initialize/use debugfs attributes"),
-pers_pageframes|_max are exported in debugfs, but this commit forgot use array export 
-pers_pageframes|_max. This patch add pers_pageframes|_max back.
+Because 'ramster_debugfs_init' is not defined if !CONFIG_DEBUG_FS, there is
+compile error:
 
-Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+$ make drivers/staging/zcache/
+staging/zcache/ramster/ramster.c: In function a??ramster_inita??:
+staging/zcache/ramster/ramster.c:981:2: error: implicit declaration of
+function a??ramster_debugfs_inita?? [-Werror=implicit-function-declaration]
+
+This patch fix it and reduce some #ifdef CONFIG_DEBUG_FS in .c files the same
+way.
+
+Reported-by: Fengguang Wu <fengguang.wu@intel.com>
+Signed-off-by: Bob Liu <bob.liu@oracle.com>
 ---
- drivers/staging/zcache/debug.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
+ drivers/staging/zcache/ramster/ramster.c |    5 +++++
+ drivers/staging/zcache/zbud.c            |    7 +++++--
+ drivers/staging/zcache/zcache-main.c     |    2 --
+ 3 files changed, 10 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/staging/zcache/debug.c b/drivers/staging/zcache/debug.c
-index e951c64..254dada 100644
---- a/drivers/staging/zcache/debug.c
-+++ b/drivers/staging/zcache/debug.c
-@@ -21,6 +21,7 @@ static struct debug_entry {
- 	ATTR(pers_ate_eph), ATTR(pers_ate_eph_failed),
- 	ATTR(evicted_eph_zpages), ATTR(evicted_eph_pageframes),
- 	ATTR(eph_pageframes), ATTR(eph_pageframes_max),
-+	ATTR(pers_pageframes), ATTR(pers_pageframes_max),
- 	ATTR(eph_zpages), ATTR(eph_zpages_max),
- 	ATTR(pers_zpages), ATTR(pers_zpages_max),
- 	ATTR(last_active_file_pageframes),
+diff --git a/drivers/staging/zcache/ramster/ramster.c b/drivers/staging/zcache/ramster/ramster.c
+index 4f715c7..5617590 100644
+--- a/drivers/staging/zcache/ramster/ramster.c
++++ b/drivers/staging/zcache/ramster/ramster.c
+@@ -134,6 +134,11 @@ static int ramster_debugfs_init(void)
+ }
+ #undef	zdebugfs
+ #undef	zdfs64
++#else
++static inline int ramster_debugfs_init(void)
++{
++	return 0;
++}
+ #endif
+ 
+ static LIST_HEAD(ramster_rem_op_list);
+diff --git a/drivers/staging/zcache/zbud.c b/drivers/staging/zcache/zbud.c
+index fdff5c6..6cda4ed 100644
+--- a/drivers/staging/zcache/zbud.c
++++ b/drivers/staging/zcache/zbud.c
+@@ -342,6 +342,11 @@ static int zbud_debugfs_init(void)
+ }
+ #undef	zdfs
+ #undef	zdfs64
++#else
++static inline int zbud_debugfs_init(void)
++{
++	return 0;
++}
+ #endif
+ 
+ /* protects the buddied list and all unbuddied lists */
+@@ -1051,9 +1056,7 @@ void zbud_init(void)
+ {
+ 	int i;
+ 
+-#ifdef CONFIG_DEBUG_FS
+ 	zbud_debugfs_init();
+-#endif
+ 	BUG_ON((sizeof(struct tmem_handle) * 2 > CHUNK_SIZE));
+ 	BUG_ON(sizeof(struct zbudpage) > sizeof(struct page));
+ 	for (i = 0; i < NCHUNKS; i++) {
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index 4e52a94..ac75670 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -1753,9 +1753,7 @@ static int zcache_init(void)
+ 		namestr = "ramster";
+ 		ramster_register_pamops(&zcache_pamops);
+ 	}
+-#ifdef CONFIG_DEBUG_FS
+ 	zcache_debugfs_init();
+-#endif
+ 	if (zcache_enabled) {
+ 		unsigned int cpu;
+ 
 -- 
-1.7.7.6
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
