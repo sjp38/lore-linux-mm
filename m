@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 027BE6B0027
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 12:26:25 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1363283435-7666-21-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-21-git-send-email-kirill.shutemov@linux.intel.com>
-Subject: RE: [PATCHv2, RFC 20/30] ramfs: enable transparent huge page cache
-Content-Transfer-Encoding: 7bit
-Message-Id: <20130402162813.0B4CBE0085@blue.fi.intel.com>
-Date: Tue,  2 Apr 2013 19:28:12 +0300 (EEST)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id DB1336B0039
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 12:29:04 -0400 (EDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [PATCH 0/3] Support memory hot-delete to boot memory
+Date: Tue,  2 Apr 2013 10:17:27 -0600
+Message-Id: <1364919450-8741-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com, Toshi Kani <toshi.kani@hp.com>
 
-Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> 
-> ramfs is the most simple fs from page cache point of view. Let's start
-> transparent huge page cache enabling here.
-> 
-> For now we allocate only non-movable huge page. It's not yet clear if
-> movable page is safe here and what need to be done to make it safe.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  fs/ramfs/inode.c |    6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
-> 
-> diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
-> index c24f1e1..da30b4f 100644
-> --- a/fs/ramfs/inode.c
-> +++ b/fs/ramfs/inode.c
-> @@ -61,7 +61,11 @@ struct inode *ramfs_get_inode(struct super_block *sb,
->  		inode_init_owner(inode, dir, mode);
->  		inode->i_mapping->a_ops = &ramfs_aops;
->  		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
-> -		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
-> +		/*
-> +		 * TODO: what should be done to make movable safe?
-> +		 */
-> +		mapping_set_gfp_mask(inode->i_mapping,
-> +				GFP_TRANSHUGE & ~__GFP_MOVABLE);
+Memory hot-delete a memory range present at boot causes an
+error message in __release_region(), such as:
 
-Hugh, I've found old thread with the reason why we have GFP_HIGHUSER here, not
-GFP_HIGHUSER_MOVABLE:
+ Trying to free nonexistent resource <0000000070000000-0000000077ffffff>
 
-http://lkml.org/lkml/2006/11/27/156
+Hot-delete operation still continues since __release_region() is 
+a void function, but the target memory range is not freed from
+iomem_resource as the result.  This also leads a failure in a 
+subsequent hot-add operation to the same memory range since the
+address range is still in-use in iomem_resource.
 
-It seems the origin reason is not longer valid, correct?
+This problem happens because the granularity of memory resource ranges
+may be different between boot and hot-delete.  During bootup,
+iomem_resource is set up from the boot descriptor table, such as EFI
+Memory Table and e820.  Each resource entry usually covers the whole
+contiguous memory range.  Hot-delete request, on the other hand, may
+target to a particular range of memory resource, and its size can be
+much smaller than the whole contiguous memory.  Since the existing
+release interfaces like __release_region() require a requested region
+to be exactly matched to a resource entry, they do not allow a partial
+resource to be released.
 
--- 
- Kirill A. Shutemov
+This patchset introduces release_mem_region_adjustable() for memory
+hot-delete operations, which allows releasing a partial memory range
+and adjusts remaining resource accordingly.  This patchset makes no
+changes to the existing interfaces since their restriction is still
+valid for I/O resources.
+
+---
+Toshi Kani (3):
+ resource: Add __adjust_resource() for internal use
+ resource: Add release_mem_region_adjustable()
+ mm: Change __remove_pages() to call release_mem_region_adjustable()
+
+---
+ include/linux/ioport.h |   2 +
+ kernel/resource.c      | 122 +++++++++++++++++++++++++++++++++++++++++++------
+ mm/memory_hotplug.c    |  11 ++++-
+ 3 files changed, 120 insertions(+), 15 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
