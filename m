@@ -1,74 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 1AEAC6B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 07:41:39 -0400 (EDT)
-Message-ID: <515AC3EE.1030803@profihost.ag>
-Date: Tue, 02 Apr 2013 13:41:34 +0200
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id E726D6B0002
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:16:03 -0400 (EDT)
+Date: Tue, 2 Apr 2013 14:16:00 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: don't do cleanup manually if
+ mem_cgroup_css_online() fails
+Message-ID: <20130402121600.GK24345@dhcp22.suse.cz>
+References: <515A8A40.6020406@huawei.com>
 MIME-Version: 1.0
-Subject: Re: NUMA Autobalancing Kernel 3.8
-References: <515A87C3.1000309@profihost.ag> <20130402104844.GE32241@suse.de>
-In-Reply-To: <20130402104844.GE32241@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <515A8A40.6020406@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, srikar@linux.vnet.ibm.com, aarcange@redhat.com, mingo@kernel.org, riel@redhat.com
+To: Li Zefan <lizefan@huawei.com>
+Cc: Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-Am 02.04.2013 12:48, schrieb Mel Gorman:
-> On Tue, Apr 02, 2013 at 09:24:51AM +0200, Stefan Priebe - Profihost AG wrote:
->> Hello list,
->>
->> i was trying to play with the new NUMA autobalancing feature of Kernel 3.8.
->>
->> But if i enable:
->> CONFIG_ARCH_USES_NUMA_PROT_NONE=y
->> CONFIG_NUMA_BALANCING_DEFAULT_ENABLED=y
->> CONFIG_NUMA_BALANCING=y
->>
->> i see random process crashes mostly in libc using vanilla 3.8.4.
->>
-> 
-> Any more details than that? What sort of crashes? Anything in the kernel
-> log? Any particular pattern to the crashes? Any means of reliably
-> reproducing it? 3.8 vanilla, 3.8-stable or 3.8 with any other patches
-> applied?
+On Tue 02-04-13 15:35:28, Li Zefan wrote:
+[...]
+> @@ -6247,16 +6247,7 @@ mem_cgroup_css_online(struct cgroup *cont)
+>  
+>  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+>  	mutex_unlock(&memcg_create_mutex);
+> -	if (error) {
+> -		/*
+> -		 * We call put now because our (and parent's) refcnts
+> -		 * are already in place. mem_cgroup_put() will internally
+> -		 * call __mem_cgroup_free, so return directly
+> -		 */
+> -		mem_cgroup_put(memcg);
+> -		if (parent->use_hierarchy)
+> -			mem_cgroup_put(parent);
+> -	}
+> +
+>  	return error;
+>  }
 
-Sorry for missing information.
+The mem_cgroup_put(parent) part is incorrect because mem_cgroup_put goes
+up the hierarchy already but I do not think mem_cgroup_put(memcg) should
+go away as well. Who is going to free the last reference then?
 
-> Any more details than that?
-Sadly not i just see a crash line in the kernel log - see below.
+Maybe I am missing something but we have:
+cgroup_create
+  css = ss->css_alloc(cgrp)
+    mem_cgroup_css_alloc
+      atomic_set(&memcg->refcnt, 1)
+  online_css(ss, cgrp)
+    mem_cgroup_css_online
+      error = memcg_init_kmem		# fails
+  goto err_destroy
+err_destroy:
+  cgroup_destroy_locked(cgrp)
+    offline_css
+      mem_cgroup_css_offline
 
-> What sort of crashes?
-Mostly the processes just die but i've also seen processes consuming
-100% CPU all the time or even just doing nothing anymore.
+no mem_cgroup_put on the way.
 
-> Anything in the kernel log?
-Three examples:
-pigz[10194]: segfault at 0 ip           (null) sp 00007f6197ffed50 error
-14 in pigz[400000+e000]
-
-rbd[2811]: segfault at b8 ip 00007f73c2d51b9e sp 00007f73bcae3b40 error
-4 in librados.so.2.0.0[7f73c2afe000+3b9000]
-
-rbd[1805]: segfault at 0 ip 00007f60c28dceb4 sp 00007f60b7ffd1f8 error 4
-in ld-2.11.3.so[7f60c28cc000+1e000]
-
-> Any particular pattern to the crashes? Any means of reliably
-> reproducing it?
-No i just need to run some task and after some time they die or hang
-forever. I have this on 10 different E5-2640 and also on E56XX. I can
-"fix" this by:
-  1.) putting all memory to just ONE CPU
-  2.) Disable NUMA Balancing
-
-> 3.8 vanilla, 3.8-stable or 3.8 with any other patches
-> applied?
-3.8.4 without any patches.
-
-Greets,
-Stefan
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
