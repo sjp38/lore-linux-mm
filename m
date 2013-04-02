@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 04D196B0002
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:23:45 -0400 (EDT)
-Received: by mail-qc0-f177.google.com with SMTP id u28so132154qcs.22
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 05:23:45 -0700 (PDT)
-Message-ID: <515ACDC9.2090506@gmail.com>
-Date: Tue, 02 Apr 2013 20:23:37 +0800
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 0CD3D6B0027
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 08:26:54 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id hu16so188243qab.7
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 05:26:54 -0700 (PDT)
+Message-ID: <515ACE87.8070005@gmail.com>
+Date: Tue, 02 Apr 2013 20:26:47 +0800
 From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
 Subject: Re: THP: AnonHugePages in /proc/[pid]/smaps is correct or not?
@@ -18,7 +18,6 @@ List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
 Cc: Zhouping Liu <zliu@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Amos Kong <akong@redhat.com>
 
-Hi David,
 On 04/02/2013 06:23 AM, David Rientjes wrote:
 > On Mon, 1 Apr 2013, Zhouping Liu wrote:
 >
@@ -33,8 +32,9 @@ On 04/02/2013 06:23 AM, David Rientjes wrote:
 > setting thp enabled to "always" does not guarantee that they will always
 > be allocatable or that your mmap() will be 2MB aligned.  Your sample code
 
-Both thp and hugetlb pages should be 2MB aligned, correct?
+Btw, why need 2MB aligned? Does it has relationship with tlb?
 
+>   
 > is using mmap() instead of posix_memalign() so you'll probably only get
 > 100% hugepages only 1/512th of the time.
 >
