@@ -1,97 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 7BF6E6B007D
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 21:29:11 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 02E433EE0BD
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:29:10 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id DA18845DE58
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:29:09 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BA25545DE55
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:29:09 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AD4501DB8049
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:29:09 +0900 (JST)
-Received: from g01jpexchkw11.g01.fujitsu.local (g01jpexchkw11.g01.fujitsu.local [10.0.194.50])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 66FE21DB803A
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:29:09 +0900 (JST)
-Message-ID: <515B85D0.6030403@jp.fujitsu.com>
-Date: Wed, 3 Apr 2013 10:28:48 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 841CC6B0081
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 21:52:38 -0400 (EDT)
+Message-ID: <515B8BD9.7060308@cn.fujitsu.com>
+Date: Wed, 03 Apr 2013 09:54:33 +0800
+From: Lin Feng <linfeng@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] mm: Change __remove_pages() to call release_mem_region_adjustable()
-References: <1364919450-8741-1-git-send-email-toshi.kani@hp.com> <1364919450-8741-4-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1364919450-8741-4-git-send-email-toshi.kani@hp.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [PATCH] x86: numa: mm: kill double initialization for NODE_DATA
+References: <1364897675-15523-1-git-send-email-linfeng@cn.fujitsu.com> <20130402105709.GA10095@hacker.(null)>
+In-Reply-To: <20130402105709.GA10095@hacker.(null)>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, tmac@hp.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, yinghai@kernel.org, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com
 
-Hi Toshi,
+Hi Wanpeng,
 
-2013/04/03 1:17, Toshi Kani wrote:
-> Changed __remove_pages() to call release_mem_region_adjustable().
-> This allows a requested memory range to be released from
-> the iomem_resource table even if it does not match exactly to
-> an resource entry but still fits into.  The resource entries
-> initialized at bootup usually cover the whole contiguous
-> memory ranges and may not necessarily match with the size of
-> memory hot-delete requests.
-> 
-> If release_mem_region_adjustable() failed, __remove_pages() logs
-> an error message and continues to proceed as it was the case
-> with release_mem_region().  release_mem_region(), which is defined
-> to __release_region(), logs an error message and returns no error
-> since a void function.
-> 
-> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+On 04/02/2013 06:57 PM, Wanpeng Li wrote:
+>> >PS. For clarifying calling chains are showed as follows:
+>> >setup_arch()
+>> >  ...
+>> >  initmem_init()
+>> >    x86_numa_init()
+>> >      numa_init()
+>> >        numa_register_memblks()
+>> >          setup_node_data()
+>> >            NODE_DATA(nid)->node_id = nid;
+>> >            NODE_DATA(nid)->node_start_pfn = start >> PAGE_SHIFT;
+>> >            NODE_DATA(nid)->node_spanned_pages = (end - start) >> PAGE_SHIFT;
+>> >  ...
+>> >  x86_init.paging.pagetable_init()
+>> >  paging_init()
+>> >    ...
+>> >    sparse_init()
+>> >      sparse_early_usemaps_alloc_node()
+>> >        sparse_early_usemaps_alloc_pgdat_section()
+>> >          ___alloc_bootmem_node_nopanic()
+>> >            __alloc_memory_core_early(pgdat->node_id,...)
+>> >    ...
+>> >    zone_sizes_init()
+>> >      free_area_init_nodes()
+>> >        free_area_init_node()
+>> >          pgdat->node_id = nid;
+>> >          pgdat->node_start_pfn = node_start_pfn;
+>> >          calculate_node_totalpages();
+>> >            pgdat->node_spanned_pages = totalpages;
+>> >
+> You miss the nodes which could become online at some point, but not
+> online currently. 
 
-The patch looks good.
-Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Sorry, I'm not quite understanding what you said.
 
-Thanks,
-Yasuaki Ishimatsu
+I keep node_set_online(nid) there. In boot phase if a node is online now it wil be 
+reinitialized later by zone_sizes_init() else if a node is hotpluged after system is
+up it will also be initialized by hotadd_new_pgdat() which falls into calling 
+free_area_init_node().
 
-> ---
->   mm/memory_hotplug.c |   11 +++++++++--
->   1 file changed, 9 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 57decb2..c916582 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -705,8 +705,10 @@ EXPORT_SYMBOL_GPL(__add_pages);
->   int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
->   		 unsigned long nr_pages)
->   {
-> -	unsigned long i, ret = 0;
-> +	unsigned long i;
->   	int sections_to_remove;
-> +	resource_size_t start, size;
-> +	int ret = 0;
->   
->   	/*
->   	 * We can only remove entire sections
-> @@ -714,7 +716,12 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
->   	BUG_ON(phys_start_pfn & ~PAGE_SECTION_MASK);
->   	BUG_ON(nr_pages % PAGES_PER_SECTION);
->   
-> -	release_mem_region(phys_start_pfn << PAGE_SHIFT, nr_pages * PAGE_SIZE);
-> +	start = phys_start_pfn << PAGE_SHIFT;
-> +	size = nr_pages * PAGE_SIZE;
-> +	ret = release_mem_region_adjustable(&iomem_resource, start, size);
-> +	if (ret)
-> +		pr_warn("Unable to release resource <%016llx-%016llx> (%d)\n",
-> +				start, start + size - 1, ret);
->   
->   	sections_to_remove = nr_pages / PAGES_PER_SECTION;
->   	for (i = 0; i < sections_to_remove; i++) {
-> 
+Besides this I'm not sure there are any other dependency besides what you worry about,
+while I tested this on a x86_64 numa system with hot-add nodes and the meminfo statics
+looks right before and after hot-add memory.
 
+thanks for your patient,
+linfeng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
