@@ -1,13 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 8645B6B00B7
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:12:46 -0400 (EDT)
-Message-ID: <515BF275.5080408@huawei.com>
-Date: Wed, 3 Apr 2013 17:12:21 +0800
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id A5C9A6B00CB
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:13:18 -0400 (EDT)
+Message-ID: <515BF296.3080406@huawei.com>
+Date: Wed, 3 Apr 2013 17:12:54 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 2/7] memcg: don't use mem_cgroup_get() when creating
- a kmemcg cache
+Subject: [RFC][PATCH 4/7] memcg: use css_get/put for swap memcg
 References: <515BF233.6070308@huawei.com>
 In-Reply-To: <515BF233.6070308@huawei.com>
 Content-Type: text/plain; charset="GB2312"
@@ -17,56 +16,97 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Use css_get()/css_put() instead of mem_cgroup_get()/mem_cgroup_put().
+Use css_get/put instead of mem_cgroup_get/put.
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
 ---
- mm/memcontrol.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ mm/memcontrol.c | 26 ++++++++++++++++----------
+ 1 file changed, 16 insertions(+), 10 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 43ca91d..dafacb8 100644
+index 877551d..ad576e8 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3191,7 +3191,7 @@ void memcg_release_cache(struct kmem_cache *s)
- 	list_del(&s->memcg_params->list);
- 	mutex_unlock(&memcg->slab_caches_mutex);
- 
--	mem_cgroup_put(memcg);
-+	css_put(&memcg->css);
- out:
- 	kfree(s->memcg_params);
- }
-@@ -3350,16 +3350,18 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
- 
- 	mutex_lock(&memcg_cache_mutex);
- 	new_cachep = cachep->memcg_params->memcg_caches[idx];
--	if (new_cachep)
-+	if (new_cachep) {
-+		css_put(&memcg->css);
- 		goto out;
-+	}
- 
- 	new_cachep = kmem_cache_dup(memcg, cachep);
- 	if (new_cachep == NULL) {
- 		new_cachep = cachep;
-+		css_put(&memcg->css);
- 		goto out;
+@@ -4137,12 +4137,12 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
+ 	unlock_page_cgroup(pc);
+ 	/*
+ 	 * even after unlock, we have memcg->res.usage here and this memcg
+-	 * will never be freed.
++	 * will never be freed, so it's safe to call css_get().
+ 	 */
+ 	memcg_check_events(memcg, page);
+ 	if (do_swap_account && ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
+ 		mem_cgroup_swap_statistics(memcg, true);
+-		mem_cgroup_get(memcg);
++		css_get(&memcg->css);
  	}
+ 	/*
+ 	 * Migration does not charge the res_counter for the
+@@ -4242,7 +4242,7 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
  
--	mem_cgroup_get(memcg);
- 	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
- 
- 	cachep->memcg_params->memcg_caches[idx] = new_cachep;
-@@ -3449,8 +3451,6 @@ static void memcg_create_cache_work_func(struct work_struct *w)
- 
- 	cw = container_of(w, struct create_work, work);
- 	memcg_create_kmem_cache(cw->memcg, cw->cachep);
--	/* Drop the reference gotten when we enqueued. */
--	css_put(&cw->memcg->css);
- 	kfree(cw);
+ 	/*
+ 	 * record memcg information,  if swapout && memcg != NULL,
+-	 * mem_cgroup_get() was called in uncharge().
++	 * css_get() was called in uncharge().
+ 	 */
+ 	if (do_swap_account && swapout && memcg)
+ 		swap_cgroup_record(ent, css_id(&memcg->css));
+@@ -4273,7 +4273,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
+ 		if (!mem_cgroup_is_root(memcg))
+ 			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+ 		mem_cgroup_swap_statistics(memcg, false);
+-		mem_cgroup_put(memcg);
++		css_put(&memcg->css);
+ 	}
+ 	rcu_read_unlock();
  }
+@@ -4307,11 +4307,14 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
+ 		 * This function is only called from task migration context now.
+ 		 * It postpones res_counter and refcount handling till the end
+ 		 * of task migration(mem_cgroup_clear_mc()) for performance
+-		 * improvement. But we cannot postpone mem_cgroup_get(to)
+-		 * because if the process that has been moved to @to does
+-		 * swap-in, the refcount of @to might be decreased to 0.
++		 * improvement. But we cannot postpone css_get(to)  because if
++		 * the process that has been moved to @to does swap-in, the
++		 * refcount of @to might be decreased to 0.
++		 *
++		 * We are in attach() phase, so the cgroup is guaranteed to be
++		 * alive, so we can just call css_get().
+ 		 */
+-		mem_cgroup_get(to);
++		css_get(&to->css);
+ 		return 0;
+ 	}
+ 	return -EINVAL;
+@@ -6597,6 +6600,7 @@ static void __mem_cgroup_clear_mc(void)
+ {
+ 	struct mem_cgroup *from = mc.from;
+ 	struct mem_cgroup *to = mc.to;
++	int i;
  
+ 	/* we must uncharge all the leftover precharges from mc.to */
+ 	if (mc.precharge) {
+@@ -6617,7 +6621,9 @@ static void __mem_cgroup_clear_mc(void)
+ 		if (!mem_cgroup_is_root(mc.from))
+ 			res_counter_uncharge(&mc.from->memsw,
+ 						PAGE_SIZE * mc.moved_swap);
+-		__mem_cgroup_put(mc.from, mc.moved_swap);
++
++		for (i = 0; i < mc.moved_swap; i++)
++			css_put(&mc.from->css);
+ 
+ 		if (!mem_cgroup_is_root(mc.to)) {
+ 			/*
+@@ -6627,7 +6633,7 @@ static void __mem_cgroup_clear_mc(void)
+ 			res_counter_uncharge(&mc.to->res,
+ 						PAGE_SIZE * mc.moved_swap);
+ 		}
+-		/* we've already done mem_cgroup_get(mc.to) */
++		/* we've already done css_get(mc.to) */
+ 		mc.moved_swap = 0;
+ 	}
+ 	memcg_oom_recover(from);
 -- 
 1.8.0.2
 
