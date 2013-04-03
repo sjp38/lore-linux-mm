@@ -1,13 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id F0D146B00C0
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:13:09 -0400 (EDT)
-Message-ID: <515BF284.7060401@huawei.com>
-Date: Wed, 3 Apr 2013 17:12:36 +0800
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id A80656B00D2
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:15:00 -0400 (EDT)
+Message-ID: <515BF2E3.4000605@huawei.com>
+Date: Wed, 3 Apr 2013 17:14:11 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 3/7] memcg: use css_get/put when charging/uncharging
- kmem
+Subject: [RFC][PATCH 7/7] memcg: kill memcg refcnt
 References: <515BF233.6070308@huawei.com>
 In-Reply-To: <515BF233.6070308@huawei.com>
 Content-Type: text/plain; charset="GB2312"
@@ -17,135 +16,77 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Use css_get/put instead of mem_cgroup_get/put.
-
-We can't do a simple replacement, because here mem_cgroup_put()
-is called during mem_cgroup_css_free(), while mem_cgroup_css_free()
-won't be called until css refcnt goes down to 0.
-
-Instead we increment css refcnt in mem_cgroup_css_offline(), and
-then check if there's still kmem charges. If not, css refcnt will
-be decremented, otherwise the refcnt will be decremented when
-kmem charges goes down to 0.
+Now memcg has the same life cycle as the corresponding cgroup.
+Kill the useless refcnt.
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
 ---
- mm/memcontrol.c | 49 ++++++++++++++++++++++++++-----------------------
- 1 file changed, 26 insertions(+), 23 deletions(-)
+ mm/memcontrol.c | 24 +-----------------------
+ 1 file changed, 1 insertion(+), 23 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index dafacb8..877551d 100644
+index 45129cd..9714a16 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3004,7 +3004,7 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
- 		return;
+@@ -297,8 +297,6 @@ struct mem_cgroup {
+ 	bool		oom_lock;
+ 	atomic_t	under_oom;
  
- 	if (memcg_kmem_test_and_clear_dead(memcg))
--		mem_cgroup_put(memcg);
-+		css_put(&memcg->css);
- }
- 
- void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
-@@ -5089,14 +5089,6 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- 		 * starts accounting before all call sites are patched
- 		 */
- 		memcg_kmem_set_active(memcg);
+-	atomic_t	refcnt;
 -
--		/*
--		 * kmem charges can outlive the cgroup. In the case of slab
--		 * pages, for instance, a page contain objects from various
--		 * processes, so it is unfeasible to migrate them away. We
--		 * need to reference count the memcg because of that.
--		 */
--		mem_cgroup_get(memcg);
- 	} else
- 		ret = res_counter_set_limit(&memcg->kmem, val);
- out:
-@@ -5129,12 +5121,11 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
- 		goto out;
+ 	int	swappiness;
+ 	/* OOM-Killer disable */
+ 	int		oom_kill_disable;
+@@ -501,9 +499,6 @@ enum res_type {
+  */
+ static DEFINE_MUTEX(memcg_create_mutex);
  
- 	/*
--	 * destroy(), called if we fail, will issue static_key_slow_inc() and
--	 * mem_cgroup_put() if kmem is enabled. We have to either call them
--	 * unconditionally, or clear the KMEM_ACTIVE flag. I personally find
--	 * this more consistent, since it always leads to the same destroy path
-+	 * destroy(), called if we fail, will issue static_key_slow_dec() if
-+	 * kmem is enabled. We have to either call them unconditionally, or
-+	 * clear the KMEM_ACTIVE flag. I personally find this more consistent,
-+	 * since it always leads to the same destroy path
- 	 */
--	mem_cgroup_get(memcg);
- 	static_key_slow_inc(&memcg_kmem_enabled_key);
- 
- 	mutex_lock(&set_limit_mutex);
-@@ -5823,23 +5814,33 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- 	return mem_cgroup_sockets_init(memcg, ss);
- };
- 
--static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
-+static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+-static void mem_cgroup_get(struct mem_cgroup *memcg);
+-static void mem_cgroup_put(struct mem_cgroup *memcg);
+-
+ static inline
+ struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
  {
--	mem_cgroup_sockets_destroy(memcg);
-+	/*
-+	 * kmem charges can outlive the cgroup. In the case of slab
-+	 * pages, for instance, a page contain objects from various
-+	 * processes, so it is unfeasible to migrate them away. We
-+	 * need to reference count the memcg because of that.
-+	 */
-+	css_get(&memcg->css);
- 
-+	/*
-+	 * We need to call css_get() first, because memcg_uncharge_kmem()
-+	 * will call css_put() if it sees the memcg is dead.
-+	 */
- 	memcg_kmem_mark_dead(memcg);
- 
- 	if (res_counter_read_u64(&memcg->kmem, RES_USAGE) != 0)
- 		return;
- 
- 	/*
--	 * Charges already down to 0, undo mem_cgroup_get() done in the charge
--	 * path here, being careful not to race with memcg_uncharge_kmem: it is
--	 * possible that the charges went down to 0 between mark_dead and the
--	 * res_counter read, so in that case, we don't need the put
-+	 * Charges already down to 0, undo css_get() done previosly,, being
-+	 * careful not to race with memcg_uncharge_kmem: it is possible that
-+	 * the charges went down to 0 between mark_dead and the res_counter
-+	 * read, so in that case, we don't need the put
- 	 */
- 	if (memcg_kmem_test_and_clear_dead(memcg))
--		mem_cgroup_put(memcg);
-+		css_put(&memcg->css);
- }
- #else
- static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
-@@ -5847,7 +5848,7 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- 	return 0;
+@@ -6117,22 +6112,6 @@ static void free_rcu(struct rcu_head *rcu_head)
+ 	schedule_work(&memcg->work_freeing);
  }
  
--static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
-+static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
- {
+-static void mem_cgroup_get(struct mem_cgroup *memcg)
+-{
+-	atomic_inc(&memcg->refcnt);
+-}
+-
+-static void __mem_cgroup_put(struct mem_cgroup *memcg, int count)
+-{
+-	if (atomic_sub_and_test(count, &memcg->refcnt))
+-		call_rcu(&memcg->rcu_freeing, free_rcu);
+-}
+-
+-static void mem_cgroup_put(struct mem_cgroup *memcg)
+-{
+-	__mem_cgroup_put(memcg, 1);
+-}
+-
+ /*
+  * Returns the parent mem_cgroup in memcgroup hierarchy with hierarchy enabled.
+  */
+@@ -6192,7 +6171,6 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+ 
+ 	memcg->last_scanned_node = MAX_NUMNODES;
+ 	INIT_LIST_HEAD(&memcg->oom_notify);
+-	atomic_set(&memcg->refcnt, 1);
+ 	memcg->move_charge_at_immigrate = 0;
+ 	mutex_init(&memcg->thresholds_lock);
+ 	spin_lock_init(&memcg->move_lock);
+@@ -6279,7 +6257,7 @@ static void mem_cgroup_css_free(struct cgroup *cont)
+ 
+ 	mem_cgroup_sockets_destroy(memcg);
+ 
+-	mem_cgroup_put(memcg);
++	call_rcu(&memcg->rcu_freeing, free_rcu);
  }
- #endif
-@@ -6274,6 +6275,8 @@ static void mem_cgroup_css_offline(struct cgroup *cont)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
  
-+	kmem_cgroup_css_offline(memcg);
-+
- 	mem_cgroup_invalidate_reclaim_iterators(memcg);
- 	mem_cgroup_reparent_charges(memcg);
- 	mem_cgroup_destroy_all_caches(memcg);
-@@ -6283,7 +6286,7 @@ static void mem_cgroup_css_free(struct cgroup *cont)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
- 
--	kmem_cgroup_destroy(memcg);
-+	mem_cgroup_sockets_destroy(memcg);
- 
- 	mem_cgroup_put(memcg);
- }
+ #ifdef CONFIG_MMU
 -- 
 1.8.0.2
 
