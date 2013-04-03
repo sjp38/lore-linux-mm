@@ -1,67 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 0FC0E6B006C
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 20:14:04 -0400 (EDT)
-Date: Wed, 3 Apr 2013 09:14:01 +0900
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id F03156B004D
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 20:23:10 -0400 (EDT)
+Date: Wed, 3 Apr 2013 09:23:09 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] THP: Use explicit memory barrier
-Message-ID: <20130403001401.GC16026@blaptop>
-References: <1364773535-26264-1-git-send-email-minchan@kernel.org>
- <alpine.DEB.2.02.1304011634530.21603@chino.kir.corp.google.com>
- <20130402003746.GA30444@blaptop>
- <alpine.LNX.2.00.1304021221240.5808@eggly.anvils>
+Subject: Re: [RFC 4/4] mm: Enhance per process reclaim
+Message-ID: <20130403002309.GD16026@blaptop>
+References: <1364192494-22185-1-git-send-email-minchan@kernel.org>
+ <1364192494-22185-4-git-send-email-minchan@kernel.org>
+ <CAHO5Pa1LiBw8P5On0X3__49P8zeY4xwEU63KBoKWEpLTOHjeTw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1304021221240.5808@eggly.anvils>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAHO5Pa1LiBw8P5On0X3__49P8zeY4xwEU63KBoKWEpLTOHjeTw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sangseok Lee <sangseok.lee@lge.com>
 
-On Tue, Apr 02, 2013 at 12:30:15PM -0700, Hugh Dickins wrote:
-> On Tue, 2 Apr 2013, Minchan Kim wrote:
-> > On Mon, Apr 01, 2013 at 04:35:38PM -0700, David Rientjes wrote:
-> > > On Mon, 1 Apr 2013, Minchan Kim wrote:
-> > > 
-> > > > __do_huge_pmd_anonymous_page depends on page_add_new_anon_rmap's
-> > > > spinlock for making sure that clear_huge_page write become visible
-> > > > after set set_pmd_at() write.
-> > > > 
-> > > > But lru_cache_add_lru uses pagevec so it could miss spinlock
-> > > > easily so above rule was broken so user may see inconsistent data.
-> > > > 
-> > > > This patch fixes it with using explict barrier rather than depending
-> > > > on lru spinlock.
-> > > > 
-> > > 
-> > > Is this the same issue that Andrea responded to in the "thp and memory 
-> > > barrier assumptions" thread at http://marc.info/?t=134333512700004 ?
-> > 
-> > Yes and Peter pointed out further step.
-> > Thanks for pointing out.
-> > Not that I know that Andrea alreay noticed it, I don't care about this
-> > patch.
-> > 
-> > Remaining question is Kame's one.
-> > > Hmm...how about do_anonymous_page() ? there are no comments/locks/barriers.
-> > > Users can see non-zero value after page fault in theory ?
-> > Isn't there anyone could answer it?
+Hey Michael,
+
+On Tue, Apr 02, 2013 at 03:25:25PM +0200, Michael Kerrisk wrote:
+> Minchan,
 > 
-> See Nick's 2008 0ed361dec "mm: fix PageUptodate data race", which gave us
+> On Mon, Mar 25, 2013 at 7:21 AM, Minchan Kim <minchan@kernel.org> wrote:
+> >
+> > Some pages could be shared by several processes. (ex, libc)
+> > In case of that, it's too bad to reclaim them from the beginnig.
+> >
+> > This patch causes VM to keep them on memory until last task
+> > try to reclaim them so shared pages will be reclaimed only if
+> > all of task has gone swapping out.
+> >
+> > This feature doesn't handle non-linear mapping on ramfs because
+> > it's very time-consuming and doesn't make sure of reclaiming and
+> > not common.
 > 
-> static inline void __SetPageUptodate(struct page *page)
-> {
-> 	smp_wmb();
-> 	__set_bit(PG_uptodate, &(page)->flags);
-> }
+> Against what tree does this patch apply? I've tries various trees,
+> including MMOTM of 26 March, and encounter this error:
 > 
-> So both do_anonymous_page() and __do_huge_pmd_anonymous_page() look safe
-> to me already, though the huge_memory one could do with a fixed comment.
+>   CC      mm/ksm.o
+> mm/ksm.c: In function a??try_to_unmap_ksma??:
+> mm/ksm.c:1970:32: error: a??vmaa?? undeclared (first use in this function)
+> mm/ksm.c:1970:32: note: each undeclared identifier is reported only
+> once for each function it appears in
+> make[1]: *** [mm/ksm.o] Error 1
+> make: *** [mm] Error 2
 
-Thanks you very much!
-That's one everybody are really missing.
-
-Here it goes!
-
-==================== 8< =====================
+I did it based on mmotm-2013-03-22-15-21 and you found build problem.
+Could you apply below patch? I will fix up below in next spin.
+Thanks for the testing!
