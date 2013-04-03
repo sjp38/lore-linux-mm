@@ -1,75 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id D4BF96B00F8
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 09:05:02 -0400 (EDT)
-Message-ID: <515C2923.5020803@parallels.com>
-Date: Wed, 3 Apr 2013 17:05:39 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 925B66B0036
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 09:45:52 -0400 (EDT)
+Received: by mail-ob0-f172.google.com with SMTP id tb18so1409583obb.3
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 06:45:51 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 2/7] memcg: don't use mem_cgroup_get() when creating
- a kmemcg cache
-References: <515BF233.6070308@huawei.com> <515BF275.5080408@huawei.com>
-In-Reply-To: <515BF275.5080408@huawei.com>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20130403045814.GD4611@cmpxchg.org>
+References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
+	<alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
+	<alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
+	<alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
+	<20130403041447.GC4611@cmpxchg.org>
+	<alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
+	<20130403045814.GD4611@cmpxchg.org>
+Date: Wed, 3 Apr 2013 06:45:51 -0700
+Message-ID: <CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
+Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
+From: Ian Lance Taylor <iant@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-On 04/03/2013 01:12 PM, Li Zefan wrote:
-> Use css_get()/css_put() instead of mem_cgroup_get()/mem_cgroup_put().
-> 
-> Signed-off-by: Li Zefan <lizefan@huawei.com>
-> ---
->  mm/memcontrol.c | 10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 43ca91d..dafacb8 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3191,7 +3191,7 @@ void memcg_release_cache(struct kmem_cache *s)
->  	list_del(&s->memcg_params->list);
->  	mutex_unlock(&memcg->slab_caches_mutex);
->  
-> -	mem_cgroup_put(memcg);
-> +	css_put(&memcg->css);
->  out:
->  	kfree(s->memcg_params);
->  }
-> @@ -3350,16 +3350,18 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
->  
->  	mutex_lock(&memcg_cache_mutex);
->  	new_cachep = cachep->memcg_params->memcg_caches[idx];
-> -	if (new_cachep)
-> +	if (new_cachep) {
-> +		css_put(&memcg->css);
->  		goto out;
-> +	}
->  
->  	new_cachep = kmem_cache_dup(memcg, cachep);
->  	if (new_cachep == NULL) {
->  		new_cachep = cachep;
-> +		css_put(&memcg->css);
->  		goto out;
->  	}
->  
-> -	mem_cgroup_get(memcg);
->  	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
->  
->  	cachep->memcg_params->memcg_caches[idx] = new_cachep;
-> @@ -3449,8 +3451,6 @@ static void memcg_create_cache_work_func(struct work_struct *w)
->  
->  	cw = container_of(w, struct create_work, work);
->  	memcg_create_kmem_cache(cw->memcg, cw->cachep);
-> -	/* Drop the reference gotten when we enqueued. */
-> -	css_put(&cw->memcg->css);
->  	kfree(cw);
->  }
->  
-> 
-At first look, this one seems all right.
+On Tue, Apr 2, 2013 at 9:58 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Tue, Apr 02, 2013 at 09:25:40PM -0700, David Rientjes wrote:
+>
+>> As stated, it doesn't.  I made the comment "for what it's worth" that
+>> ACCESS_ONCE() doesn't do anything to "prevent the compiler from
+>> re-fetching" as the changelog insists it does.
+>
+> That's exactly what it does:
+>
+> /*
+>  * Prevent the compiler from merging or refetching accesses.
+>
+> This is the guarantee ACCESS_ONCE() gives, users should absolutely be
+> allowed to rely on this literal definition.  The underlying gcc
+> implementation does not matter one bit.  That's the whole point of
+> abstraction!
+
+If the definition of ACCESS_ONCE is indeed
+
+#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+
+then its behaviour is compiler-specific.
+
+The C language standard only describes how access to
+volatile-qualified objects behave.  In this case x is (presumably) not
+a volatile-qualifed object.  The standard never defines the behaviour
+of volatile-qualified pointers.  That might seem like an oversight,
+but it is not: using a non-volatile-qualified pointer to access a
+volatile-qualified object is undefined behaviour.
+
+In short, casting a pointer to a non-volatile-qualified object to a
+volatile-qualified pointer has no specific meaning in C.  It's true
+that most compilers will behave as you wish, but there is no
+guarantee.
+
+If using a sufficiently recent version of GCC, you can get the
+behaviour that I think you want by using
+    __atomic_load(&x, __ATOMIC_RELAXED)
+
+Ian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
