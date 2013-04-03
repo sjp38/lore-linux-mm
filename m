@@ -1,581 +1,491 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 0676B6B00AB
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 02:47:25 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id u11so676324pdi.22
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 23:47:25 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 48D866B00AC
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 02:51:45 -0400 (EDT)
+Received: by mail-bk0-f44.google.com with SMTP id jk13so605345bkc.31
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 23:51:43 -0700 (PDT)
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <CAKgNAkg0_QX4scwv_eucQMFaqaUctH5uOa5xXBBsn4aa+YvRLQ@mail.gmail.com>
-References: <1364192494-22185-1-git-send-email-minchan@kernel.org>
- <1364192494-22185-4-git-send-email-minchan@kernel.org> <CAHO5Pa1LiBw8P5On0X3__49P8zeY4xwEU63KBoKWEpLTOHjeTw@mail.gmail.com>
- <20130403002309.GD16026@blaptop> <CAKgNAkg0_QX4scwv_eucQMFaqaUctH5uOa5xXBBsn4aa+YvRLQ@mail.gmail.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Wed, 3 Apr 2013 08:47:05 +0200
-Message-ID: <CAKgNAkhkmB5SNJ82V=LqGkE3j3xH=Rir+R2Bb1Q8Ms61=+yrJQ@mail.gmail.com>
-Subject: Re: [RFC 4/4] mm: Enhance per process reclaim
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1364548450-28254-6-git-send-email-glommer@parallels.com>
+References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
+	<1364548450-28254-6-git-send-email-glommer@parallels.com>
+Date: Wed, 3 Apr 2013 14:51:43 +0800
+Message-ID: <CAFj3OHU_o5o_n_kcci1U_=M0tCpYEwy8abRvHKBdp-GoJ-cs3w@mail.gmail.com>
+Subject: Re: [PATCH v2 05/28] dcache: remove dentries from LRU before putting
+ on dispose list
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: multipart/alternative; boundary=14dae9c09d326dde6c04d96f49a8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sangseok Lee <sangseok.lee@lge.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, containers@lists.linux-foundation.org, Dave Chinner <dchinner@redhat.com>, Dave Shrinnker <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-Hi Minchan,
+--14dae9c09d326dde6c04d96f49a8
+Content-Type: text/plain; charset=ISO-8859-1
 
-On Wed, Apr 3, 2013 at 8:16 AM, Michael Kerrisk (man-pages)
-<mtk.manpages@gmail.com> wrote:
-> Hello Minchan
+On Fri, Mar 29, 2013 at 5:13 PM, Glauber Costa <glommer@parallels.com>wrote:
+
+> From: Dave Chinner <dchinner@redhat.com>
 >
-> On Wed, Apr 3, 2013 at 2:23 AM, Minchan Kim <minchan@kernel.org> wrote:
->> Hey Michael,
->>
->> On Tue, Apr 02, 2013 at 03:25:25PM +0200, Michael Kerrisk wrote:
->>> Minchan,
->>>
->>> On Mon, Mar 25, 2013 at 7:21 AM, Minchan Kim <minchan@kernel.org> wrote=
-:
->>> >
->>> > Some pages could be shared by several processes. (ex, libc)
->>> > In case of that, it's too bad to reclaim them from the beginnig.
->>> >
->>> > This patch causes VM to keep them on memory until last task
->>> > try to reclaim them so shared pages will be reclaimed only if
->>> > all of task has gone swapping out.
->>> >
->>> > This feature doesn't handle non-linear mapping on ramfs because
->>> > it's very time-consuming and doesn't make sure of reclaiming and
->>> > not common.
->>>
->>> Against what tree does this patch apply? I've tries various trees,
->>> including MMOTM of 26 March, and encounter this error:
->>>
->>>   CC      mm/ksm.o
->>> mm/ksm.c: In function =91try_to_unmap_ksm=92:
->>> mm/ksm.c:1970:32: error: =91vma=92 undeclared (first use in this functi=
-on)
->>> mm/ksm.c:1970:32: note: each undeclared identifier is reported only
->>> once for each function it appears in
->>> make[1]: *** [mm/ksm.o] Error 1
->>> make: *** [mm] Error 2
->>
->> I did it based on mmotm-2013-03-22-15-21 and you found build problem.
->> Could you apply below patch? I will fix up below in next spin.
->> Thanks for the testing!
+> One of the big problems with modifying the way the dcache shrinker
+> and LRU implementation works is that the LRU is abused in several
+> ways. One of these is shrink_dentry_list().
 >
-> This is getting confusing. Was that a patch on top of the other 4
-> patches? I assume so. I applied all 5 patches on
-> mmotm-2013-03-22-15-21, but still get a build error:
+> Basically, we can move a dentry off the LRU onto a different list
+> without doing any accounting changes, and then use dentry_lru_prune()
+> to remove it from what-ever list it is now on to do the LRU
+> accounting at that point.
 >
-> mm/memcontrol.c: In function =91mem_cgroup_move_parent=92:
-> mm/memcontrol.c:3868:2: error: implicit declaration of function
-> =91isolate_lru_page=92 [-Werror=3Dimplicit-function-declaration]
-> mm/memcontrol.c:3892:2: error: implicit declaration of function
-> =91putback_lru_page=92 [-Werror=3Dimplicit-function-declaration]
-> cc1: some warnings being treated as errors
-> make[1]: *** [mm/memcontrol.o] Error 1
-> make[1]: *** Waiting for unfinished jobs....
-> make: *** [mm] Error 2
-> make: *** Waiting for unfinished jobs....
+> This makes it -really hard- to change the LRU implementation. The
+> use of the per-sb LRU lock serialises movement of the dentries
+> between the different lists and the removal of them, and this is the
+> only reason that it works. If we want to break up the dentry LRU
+> lock and lists into, say, per-node lists, we remove the only
+> serialisation that allows this lru list/dispose list abuse to work.
+>
+> To make this work effectively, the dispose list has to be isolated
+> from the LRU list - dentries have to be removed from the LRU
+> *before* being placed on the dispose list. This means that the LRU
+> accounting and isolation is completed before disposal is started,
+> and that means we can change the LRU implementation freely in
+> future.
+>
+> This means that dentries *must* be marked with DCACHE_SHRINK_LIST
+> when they are placed on the dispose list so that we don't think that
+> parent dentries found in try_prune_one_dentry() are on the LRU when
+> the are actually on the dispose list. This would result in
+> accounting the dentry to the LRU a second time. Hence
+> dentry_lru_prune() has to handle the DCACHE_SHRINK_LIST case
+> differently because the dentry isn't on the LRU list.
+>
+> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> ---
+>  fs/dcache.c | 73
+> ++++++++++++++++++++++++++++++++++++++++++++++++++++---------
+>  1 file changed, 63 insertions(+), 10 deletions(-)
+>
+> diff --git a/fs/dcache.c b/fs/dcache.c
+> index 0a1d7b3..d15420b 100644
+> --- a/fs/dcache.c
+> +++ b/fs/dcache.c
+> @@ -330,7 +330,6 @@ static void dentry_lru_add(struct dentry *dentry)
+>  static void __dentry_lru_del(struct dentry *dentry)
+>  {
+>         list_del_init(&dentry->d_lru);
+> -       dentry->d_flags &= ~DCACHE_SHRINK_LIST;
+>         dentry->d_sb->s_nr_dentry_unused--;
+>         this_cpu_dec(nr_dentry_unused);
+>  }
+> @@ -340,6 +339,8 @@ static void __dentry_lru_del(struct dentry *dentry)
+>   */
+>  static void dentry_lru_del(struct dentry *dentry)
+>  {
+> +       BUG_ON(dentry->d_flags & DCACHE_SHRINK_LIST);
+> +
+>         if (!list_empty(&dentry->d_lru)) {
+>                 spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+>                 __dentry_lru_del(dentry);
+> @@ -351,28 +352,42 @@ static void dentry_lru_del(struct dentry *dentry)
+>   * Remove a dentry that is unreferenced and about to be pruned
+>   * (unhashed and destroyed) from the LRU, and inform the file system.
+>   * This wrapper should be called _prior_ to unhashing a victim dentry.
+> + *
+> + * Check that the dentry really is on the LRU as it may be on a private
+> dispose
+> + * list and in that case we do not want to call the generic LRU removal
+> + * functions. This typically happens when shrink_dcache_sb() clears the
+> LRU in
+> + * one go and then try_prune_one_dentry() walks back up the parent chain
+> finding
+> + * dentries that are also on the dispose list.
+>   */
+>  static void dentry_lru_prune(struct dentry *dentry)
+>  {
+>         if (!list_empty(&dentry->d_lru)) {
+> +
+>                 if (dentry->d_flags & DCACHE_OP_PRUNE)
+>                         dentry->d_op->d_prune(dentry);
+>
+> -               spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+> -               __dentry_lru_del(dentry);
+> -               spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
+> +               if ((dentry->d_flags & DCACHE_SHRINK_LIST))
+> +                       list_del_init(&dentry->d_lru);
+> +               else {
+> +                       spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+> +                       __dentry_lru_del(dentry);
+> +                       spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
+> +               }
+> +               dentry->d_flags &= ~DCACHE_SHRINK_LIST;
+>         }
+>  }
+>
+>  static void dentry_lru_move_list(struct dentry *dentry, struct list_head
+> *list)
+>  {
+> +       BUG_ON(dentry->d_flags & DCACHE_SHRINK_LIST);
+> +
+>         spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+>         if (list_empty(&dentry->d_lru)) {
+>                 list_add_tail(&dentry->d_lru, list);
+> -               dentry->d_sb->s_nr_dentry_unused++;
+> -               this_cpu_inc(nr_dentry_unused);
+>         } else {
+>                 list_move_tail(&dentry->d_lru, list);
+> +               dentry->d_sb->s_nr_dentry_unused--;
+> +               this_cpu_dec(nr_dentry_unused);
+>         }
+>         spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
+>  }
+> @@ -814,12 +829,18 @@ static void shrink_dentry_list(struct list_head
+> *list)
+>                 }
+>
+>                 /*
+> +                * The dispose list is isolated and dentries are not
+> accounted
+> +                * to the LRU here, so we can simply remove it from the
+> list
+> +                * here regardless of whether it is referenced or not.
+> +                */
+> +               list_del_init(&dentry->d_lru);
+> +
+> +               /*
+>                  * We found an inuse dentry which was not removed from
+> -                * the LRU because of laziness during lookup.  Do not free
+> -                * it - just keep it off the LRU list.
+> +                * the LRU because of laziness during lookup. Do not free
+> it.
+>                  */
+>                 if (dentry->d_count) {
+> -                       dentry_lru_del(dentry);
+> +                       dentry->d_flags &= ~DCACHE_SHRINK_LIST;
+>                         spin_unlock(&dentry->d_lock);
+>                         continue;
+>                 }
+> @@ -871,6 +892,8 @@ relock:
+>                 } else {
+>                         list_move_tail(&dentry->d_lru, &tmp);
+>                         dentry->d_flags |= DCACHE_SHRINK_LIST;
+> +                       this_cpu_dec(nr_dentry_unused);
+> +                       sb->s_nr_dentry_unused--;
+>                         spin_unlock(&dentry->d_lock);
+>                         if (!--count)
+>                                 break;
+> @@ -884,6 +907,28 @@ relock:
+>         shrink_dentry_list(&tmp);
+>  }
+>
+> +/*
+> + * Mark all the dentries as on being the dispose list so we don't think
+> they are
+> + * still on the LRU if we try to kill them from ascending the parent
+> chain in
+> + * try_prune_one_dentry() rather than directly from the dispose list.
+> + */
+> +static void
+> +shrink_dcache_list(
+> +       struct list_head *dispose)
+> +{
+> +       struct dentry *dentry;
+> +
+> +       rcu_read_lock();
+> +       list_for_each_entry_rcu(dentry, dispose, d_lru) {
+> +               spin_lock(&dentry->d_lock);
+> +               dentry->d_flags |= DCACHE_SHRINK_LIST;
+> +               this_cpu_dec(nr_dentry_unused);
+>
 
-Okay -- it turns out that adding 'extern' declarations for those two
-functions was enough. I have a built kernel now, and see the
-/proc/PID/reclaim files.
+Why here dec nr_dentry_unused again? Has it been decreased in the following
+shrink_dcache_sb()?
 
+
+
+> +               spin_unlock(&dentry->d_lock);
+> +       }
+> +       rcu_read_unlock();
+> +       shrink_dentry_list(dispose);
+> +}
+> +
+>  /**
+>   * shrink_dcache_sb - shrink dcache for a superblock
+>   * @sb: superblock
+> @@ -898,8 +943,16 @@ void shrink_dcache_sb(struct super_block *sb)
+>         spin_lock(&sb->s_dentry_lru_lock);
+>         while (!list_empty(&sb->s_dentry_lru)) {
+>                 list_splice_init(&sb->s_dentry_lru, &tmp);
+> +
+> +               /*
+> +                * account for removal here so we don't need to handle it
+> later
+> +                * even though the dentry is no longer on the lru list.
+> +                */
+> +               this_cpu_sub(nr_dentry_unused, sb->s_nr_dentry_unused);
+> +               sb->s_nr_dentry_unused = 0;
+> +
+>                 spin_unlock(&sb->s_dentry_lru_lock);
+> -               shrink_dentry_list(&tmp);
+> +               shrink_dcache_list(&tmp);
+>                 spin_lock(&sb->s_dentry_lru_lock);
+>         }
+>         spin_unlock(&sb->s_dentry_lru_lock);
+>
+>
+
+-- 
 Thanks,
+Sha
 
-Michael
+--14dae9c09d326dde6c04d96f49a8
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-
->> From 0934270618ccd4883d6bb05653c664a385fb9441 Mon Sep 17 00:00:00 2001
->> From: Minchan Kim <minchan@kernel.org>
->> Date: Wed, 3 Apr 2013 09:19:49 +0900
->> Subject: [PATCH] fix: compile error for CONFIG_KSM
->>
->> Signed-off-by: Minchan Kim <minchan@kernel.org>
->> ---
->>  include/linux/rmap.h | 2 ++
->>  mm/ksm.c             | 2 +-
->>  2 files changed, 3 insertions(+), 1 deletion(-)
->>
->> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
->> index 6c7d030..7bcf090 100644
->> --- a/include/linux/rmap.h
->> +++ b/include/linux/rmap.h
->> @@ -14,6 +14,8 @@ extern int isolate_lru_page(struct page *page);
->>  extern void putback_lru_page(struct page *page);
->>  extern unsigned long reclaim_pages_from_list(struct list_head *page_lis=
-t,
->>                                              struct vm_area_struct *vma)=
-;
->> +extern unsigned long vma_address(struct page *page,
->> +                               struct vm_area_struct *vma);
->>
->>  /*
->>   * The anon_vma heads a list of private "related" vmas, to scan if
->> diff --git a/mm/ksm.c b/mm/ksm.c
->> index 1a90d13..44de936 100644
->> --- a/mm/ksm.c
->> +++ b/mm/ksm.c
->> @@ -1967,7 +1967,7 @@ int try_to_unmap_ksm(struct page *page, enum ttu_f=
-lags flags,
->>
->>         if (target_vma) {
->>                 unsigned long address =3D vma_address(page, target_vma);
->> -               ret =3D try_to_unmap_one(page, vma, address, flags);
->> +               ret =3D try_to_unmap_one(page, target_vma, address, flag=
-s);
->>                 goto out;
->>         }
->>  again:
->> --
->> 1.8.2
->>
->>>
->>> Cheers,
->>>
->>> Michael
->>>
->>>
->>> > Signed-off-by: Sangseok Lee <sangseok.lee@lge.com>
->>> > Signed-off-by: Minchan Kim <minchan@kernel.org>
->>> > ---
->>> >  fs/proc/task_mmu.c   |  2 +-
->>> >  include/linux/ksm.h  |  6 ++++--
->>> >  include/linux/rmap.h |  8 +++++---
->>> >  mm/ksm.c             |  9 +++++++-
->>> >  mm/memory-failure.c  |  2 +-
->>> >  mm/migrate.c         |  6 ++++--
->>> >  mm/rmap.c            | 58 +++++++++++++++++++++++++++++++++++++-----=
-----------
->>> >  mm/vmscan.c          | 14 +++++++++++--
->>> >  8 files changed, 77 insertions(+), 28 deletions(-)
->>> >
->>> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
->>> > index c3713a4..7f6aaf5 100644
->>> > --- a/fs/proc/task_mmu.c
->>> > +++ b/fs/proc/task_mmu.c
->>> > @@ -1154,7 +1154,7 @@ cont:
->>> >                         break;
->>> >         }
->>> >         pte_unmap_unlock(pte - 1, ptl);
->>> > -       reclaim_pages_from_list(&page_list);
->>> > +       reclaim_pages_from_list(&page_list, vma);
->>> >         if (addr !=3D end)
->>> >                 goto cont;
->>> >
->>> > diff --git a/include/linux/ksm.h b/include/linux/ksm.h
->>> > index 45c9b6a..d8e556b 100644
->>> > --- a/include/linux/ksm.h
->>> > +++ b/include/linux/ksm.h
->>> > @@ -75,7 +75,8 @@ struct page *ksm_might_need_to_copy(struct page *pa=
-ge,
->>> >
->>> >  int page_referenced_ksm(struct page *page,
->>> >                         struct mem_cgroup *memcg, unsigned long *vm_f=
-lags);
->>> > -int try_to_unmap_ksm(struct page *page, enum ttu_flags flags);
->>> > +int try_to_unmap_ksm(struct page *page,
->>> > +                       enum ttu_flags flags, struct vm_area_struct *=
-vma);
->>> >  int rmap_walk_ksm(struct page *page, int (*rmap_one)(struct page *,
->>> >                   struct vm_area_struct *, unsigned long, void *), vo=
-id *arg);
->>> >  void ksm_migrate_page(struct page *newpage, struct page *oldpage);
->>> > @@ -115,7 +116,8 @@ static inline int page_referenced_ksm(struct page=
- *page,
->>> >         return 0;
->>> >  }
->>> >
->>> > -static inline int try_to_unmap_ksm(struct page *page, enum ttu_flags=
- flags)
->>> > +static inline int try_to_unmap_ksm(struct page *page,
->>> > +                       enum ttu_flags flags, struct vm_area_struct *=
-target_vma)
->>> >  {
->>> >         return 0;
->>> >  }
->>> > diff --git a/include/linux/rmap.h b/include/linux/rmap.h
->>> > index a24e34e..6c7d030 100644
->>> > --- a/include/linux/rmap.h
->>> > +++ b/include/linux/rmap.h
->>> > @@ -12,7 +12,8 @@
->>> >
->>> >  extern int isolate_lru_page(struct page *page);
->>> >  extern void putback_lru_page(struct page *page);
->>> > -extern unsigned long reclaim_pages_from_list(struct list_head *page_=
-list);
->>> > +extern unsigned long reclaim_pages_from_list(struct list_head *page_=
-list,
->>> > +                                            struct vm_area_struct *v=
-ma);
->>> >
->>> >  /*
->>> >   * The anon_vma heads a list of private "related" vmas, to scan if
->>> > @@ -192,7 +193,8 @@ int page_referenced_one(struct page *, struct vm_=
-area_struct *,
->>> >
->>> >  #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
->>> >
->>> > -int try_to_unmap(struct page *, enum ttu_flags flags);
->>> > +int try_to_unmap(struct page *, enum ttu_flags flags,
->>> > +                       struct vm_area_struct *vma);
->>> >  int try_to_unmap_one(struct page *, struct vm_area_struct *,
->>> >                         unsigned long address, enum ttu_flags flags);
->>> >
->>> > @@ -259,7 +261,7 @@ static inline int page_referenced(struct page *pa=
-ge, int is_locked,
->>> >         return 0;
->>> >  }
->>> >
->>> > -#define try_to_unmap(page, refs) SWAP_FAIL
->>> > +#define try_to_unmap(page, refs, vma) SWAP_FAIL
->>> >
->>> >  static inline int page_mkclean(struct page *page)
->>> >  {
->>> > diff --git a/mm/ksm.c b/mm/ksm.c
->>> > index 7f629e4..1a90d13 100644
->>> > --- a/mm/ksm.c
->>> > +++ b/mm/ksm.c
->>> > @@ -1949,7 +1949,8 @@ out:
->>> >         return referenced;
->>> >  }
->>> >
->>> > -int try_to_unmap_ksm(struct page *page, enum ttu_flags flags)
->>> > +int try_to_unmap_ksm(struct page *page, enum ttu_flags flags,
->>> > +                       struct vm_area_struct *target_vma)
->>> >  {
->>> >         struct stable_node *stable_node;
->>> >         struct hlist_node *hlist;
->>> > @@ -1963,6 +1964,12 @@ int try_to_unmap_ksm(struct page *page, enum t=
-tu_flags flags)
->>> >         stable_node =3D page_stable_node(page);
->>> >         if (!stable_node)
->>> >                 return SWAP_FAIL;
->>> > +
->>> > +       if (target_vma) {
->>> > +               unsigned long address =3D vma_address(page, target_vm=
-a);
->>> > +               ret =3D try_to_unmap_one(page, vma, address, flags);
->>> > +               goto out;
->>> > +       }
->>> >  again:
->>> >         hlist_for_each_entry(rmap_item, hlist, &stable_node->hlist, h=
-list) {
->>> >                 struct anon_vma *anon_vma =3D rmap_item->anon_vma;
->>> > diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->>> > index ceb0c7f..f3928e4 100644
->>> > --- a/mm/memory-failure.c
->>> > +++ b/mm/memory-failure.c
->>> > @@ -955,7 +955,7 @@ static int hwpoison_user_mappings(struct page *p,=
- unsigned long pfn,
->>> >         if (hpage !=3D ppage)
->>> >                 lock_page(ppage);
->>> >
->>> > -       ret =3D try_to_unmap(ppage, ttu);
->>> > +       ret =3D try_to_unmap(ppage, ttu, NULL);
->>> >         if (ret !=3D SWAP_SUCCESS)
->>> >                 printk(KERN_ERR "MCE %#lx: failed to unmap page (mapc=
-ount=3D%d)\n",
->>> >                                 pfn, page_mapcount(ppage));
->>> > diff --git a/mm/migrate.c b/mm/migrate.c
->>> > index 6fa4ebc..aafbc66 100644
->>> > --- a/mm/migrate.c
->>> > +++ b/mm/migrate.c
->>> > @@ -820,7 +820,8 @@ static int __unmap_and_move(struct page *page, st=
-ruct page *newpage,
->>> >         }
->>> >
->>> >         /* Establish migration ptes or remove ptes */
->>> > -       try_to_unmap(page, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_=
-ACCESS);
->>> > +       try_to_unmap(page, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_=
-ACCESS,
->>> > +                       NULL);
->>> >
->>> >  skip_unmap:
->>> >         if (!page_mapped(page))
->>> > @@ -947,7 +948,8 @@ static int unmap_and_move_huge_page(new_page_t ge=
-t_new_page,
->>> >         if (PageAnon(hpage))
->>> >                 anon_vma =3D page_get_anon_vma(hpage);
->>> >
->>> > -       try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE=
-_ACCESS);
->>> > +       try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE=
-_ACCESS,
->>> > +                                               NULL);
->>> >
->>> >         if (!page_mapped(hpage))
->>> >                 rc =3D move_to_new_page(new_hpage, hpage, 1, mode);
->>> > diff --git a/mm/rmap.c b/mm/rmap.c
->>> > index 6280da8..a880f24 100644
->>> > --- a/mm/rmap.c
->>> > +++ b/mm/rmap.c
->>> > @@ -1435,13 +1435,16 @@ bool is_vma_temporary_stack(struct vm_area_st=
-ruct *vma)
->>> >
->>> >  /**
->>> >   * try_to_unmap_anon - unmap or unlock anonymous page using the obje=
-ct-based
->>> > - * rmap method
->>> > + * rmap method if @vma is NULL
->>> >   * @page: the page to unmap/unlock
->>> >   * @flags: action and flags
->>> > + * @target_vma: vma for unmapping a @page
->>> >   *
->>> >   * Find all the mappings of a page using the mapping pointer and the=
- vma chains
->>> >   * contained in the anon_vma struct it points to.
->>> >   *
->>> > + * If @target_vma isn't NULL, this function unmap a page from the vm=
-a
->>> > + *
->>> >   * This function is only called from try_to_unmap/try_to_munlock for
->>> >   * anonymous pages.
->>> >   * When called from try_to_munlock(), the mmap_sem of the mm contain=
-ing the vma
->>> > @@ -1449,12 +1452,19 @@ bool is_vma_temporary_stack(struct vm_area_st=
-ruct *vma)
->>> >   * vm_flags for that VMA.  That should be OK, because that vma shoul=
-dn't be
->>> >   * 'LOCKED.
->>> >   */
->>> > -static int try_to_unmap_anon(struct page *page, enum ttu_flags flags=
-)
->>> > +static int try_to_unmap_anon(struct page *page, enum ttu_flags flags=
-,
->>> > +                                       struct vm_area_struct *target=
-_vma)
->>> >  {
->>> > +       int ret =3D SWAP_AGAIN;
->>> > +       unsigned long address;
->>> >         struct anon_vma *anon_vma;
->>> >         pgoff_t pgoff;
->>> >         struct anon_vma_chain *avc;
->>> > -       int ret =3D SWAP_AGAIN;
->>> > +
->>> > +       if (target_vma) {
->>> > +               address =3D vma_address(page, target_vma);
->>> > +               return try_to_unmap_one(page, target_vma, address, fl=
-ags);
->>> > +       }
->>> >
->>> >         anon_vma =3D page_lock_anon_vma_read(page);
->>> >         if (!anon_vma)
->>> > @@ -1463,7 +1473,6 @@ static int try_to_unmap_anon(struct page *page,=
- enum ttu_flags flags)
->>> >         pgoff =3D page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
->>> >         anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff=
-, pgoff) {
->>> >                 struct vm_area_struct *vma =3D avc->vma;
->>> > -               unsigned long address;
->>> >
->>> >                 /*
->>> >                  * During exec, a temporary VMA is setup and later mo=
-ved.
->>> > @@ -1491,6 +1500,7 @@ static int try_to_unmap_anon(struct page *page,=
- enum ttu_flags flags)
->>> >   * try_to_unmap_file - unmap/unlock file page using the object-based=
- rmap method
->>> >   * @page: the page to unmap/unlock
->>> >   * @flags: action and flags
->>> > + * @target_vma: vma for unmapping @page
->>> >   *
->>> >   * Find all the mappings of a page using the mapping pointer and the=
- vma chains
->>> >   * contained in the address_space struct it points to.
->>> > @@ -1502,7 +1512,8 @@ static int try_to_unmap_anon(struct page *page,=
- enum ttu_flags flags)
->>> >   * vm_flags for that VMA.  That should be OK, because that vma shoul=
-dn't be
->>> >   * 'LOCKED.
->>> >   */
->>> > -static int try_to_unmap_file(struct page *page, enum ttu_flags flags=
-)
->>> > +static int try_to_unmap_file(struct page *page, enum ttu_flags flags=
-,
->>> > +                               struct vm_area_struct *target_vma)
->>> >  {
->>> >         struct address_space *mapping =3D page->mapping;
->>> >         pgoff_t pgoff =3D page->index << (PAGE_CACHE_SHIFT - PAGE_SHI=
-FT);
->>> > @@ -1512,16 +1523,27 @@ static int try_to_unmap_file(struct page *pag=
-e, enum ttu_flags flags)
->>> >         unsigned long max_nl_cursor =3D 0;
->>> >         unsigned long max_nl_size =3D 0;
->>> >         unsigned int mapcount;
->>> > +       unsigned long address;
->>> >
->>> >         if (PageHuge(page))
->>> >                 pgoff =3D page->index << compound_order(page);
->>> >
->>> >         mutex_lock(&mapping->i_mmap_mutex);
->>> > -       vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff=
-) {
->>> > -               unsigned long address =3D vma_address(page, vma);
->>> > -               ret =3D try_to_unmap_one(page, vma, address, flags);
->>> > -               if (ret !=3D SWAP_AGAIN || !page_mapped(page))
->>> > +       if (target_vma) {
->>> > +               /* We don't handle non-linear vma on ramfs */
->>> > +               if (unlikely(!list_empty(&mapping->i_mmap_nonlinear))=
-)
->>> >                         goto out;
->>> > +
->>> > +               address =3D vma_address(page, target_vma);
->>> > +               ret =3D try_to_unmap_one(page, target_vma, address, f=
-lags);
->>> > +               goto out;
->>> > +       } else {
->>> > +               vma_interval_tree_foreach(vma, &mapping->i_mmap, pgof=
-f, pgoff) {
->>> > +                       address =3D vma_address(page, vma);
->>> > +                       ret =3D try_to_unmap_one(page, vma, address, =
-flags);
->>> > +                       if (ret !=3D SWAP_AGAIN || !page_mapped(page)=
-)
->>> > +                               goto out;
->>> > +               }
->>> >         }
->>> >
->>> >         if (list_empty(&mapping->i_mmap_nonlinear))
->>> > @@ -1602,9 +1624,12 @@ out:
->>> >   * try_to_unmap - try to remove all page table mappings to a page
->>> >   * @page: the page to get unmapped
->>> >   * @flags: action and flags
->>> > + * @vma : target vma for reclaim
->>> >   *
->>> >   * Tries to remove all the page table entries which are mapping this
->>> >   * page, used in the pageout path.  Caller must hold the page lock.
->>> > + * If @vma is not NULL, this function try to remove @page from only =
-@vma
->>> > + * without peeking all mapped vma for @page.
->>> >   * Return values are:
->>> >   *
->>> >   * SWAP_SUCCESS        - we succeeded in removing all mappings
->>> > @@ -1612,7 +1637,8 @@ out:
->>> >   * SWAP_FAIL   - the page is unswappable
->>> >   * SWAP_MLOCK  - page is mlocked.
->>> >   */
->>> > -int try_to_unmap(struct page *page, enum ttu_flags flags)
->>> > +int try_to_unmap(struct page *page, enum ttu_flags flags,
->>> > +                               struct vm_area_struct *vma)
->>> >  {
->>> >         int ret;
->>> >
->>> > @@ -1620,11 +1646,11 @@ int try_to_unmap(struct page *page, enum ttu_=
-flags flags)
->>> >         VM_BUG_ON(!PageHuge(page) && PageTransHuge(page));
->>> >
->>> >         if (unlikely(PageKsm(page)))
->>> > -               ret =3D try_to_unmap_ksm(page, flags);
->>> > +               ret =3D try_to_unmap_ksm(page, flags, vma);
->>> >         else if (PageAnon(page))
->>> > -               ret =3D try_to_unmap_anon(page, flags);
->>> > +               ret =3D try_to_unmap_anon(page, flags, vma);
->>> >         else
->>> > -               ret =3D try_to_unmap_file(page, flags);
->>> > +               ret =3D try_to_unmap_file(page, flags, vma);
->>> >         if (ret !=3D SWAP_MLOCK && !page_mapped(page))
->>> >                 ret =3D SWAP_SUCCESS;
->>> >         return ret;
->>> > @@ -1650,11 +1676,11 @@ int try_to_munlock(struct page *page)
->>> >         VM_BUG_ON(!PageLocked(page) || PageLRU(page));
->>> >
->>> >         if (unlikely(PageKsm(page)))
->>> > -               return try_to_unmap_ksm(page, TTU_MUNLOCK);
->>> > +               return try_to_unmap_ksm(page, TTU_MUNLOCK, NULL);
->>> >         else if (PageAnon(page))
->>> > -               return try_to_unmap_anon(page, TTU_MUNLOCK);
->>> > +               return try_to_unmap_anon(page, TTU_MUNLOCK, NULL);
->>> >         else
->>> > -               return try_to_unmap_file(page, TTU_MUNLOCK);
->>> > +               return try_to_unmap_file(page, TTU_MUNLOCK, NULL);
->>> >  }
->>> >
->>> >  void __put_anon_vma(struct anon_vma *anon_vma)
->>> > diff --git a/mm/vmscan.c b/mm/vmscan.c
->>> > index 367d0f4..df9c4d3 100644
->>> > --- a/mm/vmscan.c
->>> > +++ b/mm/vmscan.c
->>> > @@ -92,6 +92,13 @@ struct scan_control {
->>> >          * are scanned.
->>> >          */
->>> >         nodemask_t      *nodemask;
->>> > +
->>> > +       /*
->>> > +        * Reclaim pages from a vma. If the page is shared by other t=
-asks
->>> > +        * it is zapped from a vma without reclaim so it ends up rema=
-ining
->>> > +        * on memory until last task zap it.
->>> > +        */
->>> > +       struct vm_area_struct *target_vma;
->>> >  };
->>> >
->>> >  #define lru_to_page(_head) (list_entry((_head)->prev, struct page, l=
-ru))
->>> > @@ -793,7 +800,8 @@ static unsigned long shrink_page_list(struct list=
-_head *page_list,
->>> >                  * processes. Try to unmap it here.
->>> >                  */
->>> >                 if (page_mapped(page) && mapping) {
->>> > -                       switch (try_to_unmap(page, ttu_flags)) {
->>> > +                       switch (try_to_unmap(page,
->>> > +                                       ttu_flags, sc->target_vma)) {
->>> >                         case SWAP_FAIL:
->>> >                                 goto activate_locked;
->>> >                         case SWAP_AGAIN:
->>> > @@ -1000,13 +1008,15 @@ unsigned long reclaim_clean_pages_from_list(s=
-truct zone *zone,
->>> >  }
->>> >
->>> >  #ifdef CONFIG_PROCESS_RECLAIM
->>> > -unsigned long reclaim_pages_from_list(struct list_head *page_list)
->>> > +unsigned long reclaim_pages_from_list(struct list_head *page_list,
->>> > +                                       struct vm_area_struct *vma)
->>> >  {
->>> >         struct scan_control sc =3D {
->>> >                 .gfp_mask =3D GFP_KERNEL,
->>> >                 .priority =3D DEF_PRIORITY,
->>> >                 .may_unmap =3D 1,
->>> >                 .may_swap =3D 1,
->>> > +               .target_vma =3D vma,
->>> >         };
->>> >
->>> >         unsigned long nr_reclaimed;
->>> > --
->>> > 1.8.2
->>> >
->>> > --
->>> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> > the body to majordomo@kvack.org.  For more info on Linux MM,
->>> > see: http://www.linux-mm.org/ .
->>> > Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->>>
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
->>
->> --
->> Kind regards,
->> Minchan Kim
+<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
+_quote">On Fri, Mar 29, 2013 at 5:13 PM, Glauber Costa <span dir=3D"ltr">&l=
+t;<a href=3D"mailto:glommer@parallels.com" target=3D"_blank">glommer@parall=
+els.com</a>&gt;</span> wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">From: Dave Chinner &lt;<a href=3D"mailto:dch=
+inner@redhat.com">dchinner@redhat.com</a>&gt;<br>
+<br>
+One of the big problems with modifying the way the dcache shrinker<br>
+and LRU implementation works is that the LRU is abused in several<br>
+ways. One of these is shrink_dentry_list().<br>
+<br>
+Basically, we can move a dentry off the LRU onto a different list<br>
+without doing any accounting changes, and then use dentry_lru_prune()<br>
+to remove it from what-ever list it is now on to do the LRU<br>
+accounting at that point.<br>
+<br>
+This makes it -really hard- to change the LRU implementation. The<br>
+use of the per-sb LRU lock serialises movement of the dentries<br>
+between the different lists and the removal of them, and this is the<br>
+only reason that it works. If we want to break up the dentry LRU<br>
+lock and lists into, say, per-node lists, we remove the only<br>
+serialisation that allows this lru list/dispose list abuse to work.<br>
+<br>
+To make this work effectively, the dispose list has to be isolated<br>
+from the LRU list - dentries have to be removed from the LRU<br>
+*before* being placed on the dispose list. This means that the LRU<br>
+accounting and isolation is completed before disposal is started,<br>
+and that means we can change the LRU implementation freely in<br>
+future.<br>
+<br>
+This means that dentries *must* be marked with DCACHE_SHRINK_LIST<br>
+when they are placed on the dispose list so that we don&#39;t think that<br=
 >
+parent dentries found in try_prune_one_dentry() are on the LRU when<br>
+the are actually on the dispose list. This would result in<br>
+accounting the dentry to the LRU a second time. Hence<br>
+dentry_lru_prune() has to handle the DCACHE_SHRINK_LIST case<br>
+differently because the dentry isn&#39;t on the LRU list.<br>
+<br>
+Signed-off-by: Dave Chinner &lt;<a href=3D"mailto:dchinner@redhat.com">dchi=
+nner@redhat.com</a>&gt;<br>
+---<br>
+=A0fs/dcache.c | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++++---=
+------<br>
+=A01 file changed, 63 insertions(+), 10 deletions(-)<br>
+<br>
+diff --git a/fs/dcache.c b/fs/dcache.c<br>
+index 0a1d7b3..d15420b 100644<br>
+--- a/fs/dcache.c<br>
++++ b/fs/dcache.c<br>
+@@ -330,7 +330,6 @@ static void dentry_lru_add(struct dentry *dentry)<br>
+=A0static void __dentry_lru_del(struct dentry *dentry)<br>
+=A0{<br>
+=A0 =A0 =A0 =A0 list_del_init(&amp;dentry-&gt;d_lru);<br>
+- =A0 =A0 =A0 dentry-&gt;d_flags &amp;=3D ~DCACHE_SHRINK_LIST;<br>
+=A0 =A0 =A0 =A0 dentry-&gt;d_sb-&gt;s_nr_dentry_unused--;<br>
+=A0 =A0 =A0 =A0 this_cpu_dec(nr_dentry_unused);<br>
+=A0}<br>
+@@ -340,6 +339,8 @@ static void __dentry_lru_del(struct dentry *dentry)<br>
+=A0 */<br>
+=A0static void dentry_lru_del(struct dentry *dentry)<br>
+=A0{<br>
++ =A0 =A0 =A0 BUG_ON(dentry-&gt;d_flags &amp; DCACHE_SHRINK_LIST);<br>
++<br>
+=A0 =A0 =A0 =A0 if (!list_empty(&amp;dentry-&gt;d_lru)) {<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&amp;dentry-&gt;d_sb-&gt;s_dentry=
+_lru_lock);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __dentry_lru_del(dentry);<br>
+@@ -351,28 +352,42 @@ static void dentry_lru_del(struct dentry *dentry)<br>
+=A0 * Remove a dentry that is unreferenced and about to be pruned<br>
+=A0 * (unhashed and destroyed) from the LRU, and inform the file system.<br=
 >
+=A0 * This wrapper should be called _prior_ to unhashing a victim dentry.<b=
+r>
++ *<br>
++ * Check that the dentry really is on the LRU as it may be on a private di=
+spose<br>
++ * list and in that case we do not want to call the generic LRU removal<br=
 >
-> --
-> Michael Kerrisk
-> Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-> Author of "The Linux Programming Interface"; http://man7.org/tlpi/
++ * functions. This typically happens when shrink_dcache_sb() clears the LR=
+U in<br>
++ * one go and then try_prune_one_dentry() walks back up the parent chain f=
+inding<br>
++ * dentries that are also on the dispose list.<br>
+=A0 */<br>
+=A0static void dentry_lru_prune(struct dentry *dentry)<br>
+=A0{<br>
+=A0 =A0 =A0 =A0 if (!list_empty(&amp;dentry-&gt;d_lru)) {<br>
++<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (dentry-&gt;d_flags &amp; DCACHE_OP_PRUN=
+E)<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_op-&gt;d_prune=
+(dentry);<br>
+<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&amp;dentry-&gt;d_sb-&gt;s_dentry_l=
+ru_lock);<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 __dentry_lru_del(dentry);<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt;d_sb-&gt;s_dentry=
+_lru_lock);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 if ((dentry-&gt;d_flags &amp; DCACHE_SHRINK_L=
+IST))<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del_init(&amp;dentry-&gt=
+;d_lru);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 else {<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&amp;dentry-&gt;d_s=
+b-&gt;s_dentry_lru_lock);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __dentry_lru_del(dentry);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt;d=
+_sb-&gt;s_dentry_lru_lock);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_flags &amp;=3D ~DCACHE_SHRINK_LI=
+ST;<br>
+=A0 =A0 =A0 =A0 }<br>
+=A0}<br>
+<br>
+=A0static void dentry_lru_move_list(struct dentry *dentry, struct list_head=
+ *list)<br>
+=A0{<br>
++ =A0 =A0 =A0 BUG_ON(dentry-&gt;d_flags &amp; DCACHE_SHRINK_LIST);<br>
++<br>
+=A0 =A0 =A0 =A0 spin_lock(&amp;dentry-&gt;d_sb-&gt;s_dentry_lru_lock);<br>
+=A0 =A0 =A0 =A0 if (list_empty(&amp;dentry-&gt;d_lru)) {<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_add_tail(&amp;dentry-&gt;d_lru, list);=
+<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_sb-&gt;s_nr_dentry_unused++;<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_inc(nr_dentry_unused);<br>
+=A0 =A0 =A0 =A0 } else {<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_move_tail(&amp;dentry-&gt;d_lru, list)=
+;<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_sb-&gt;s_nr_dentry_unused--;<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_dec(nr_dentry_unused);<br>
+=A0 =A0 =A0 =A0 }<br>
+=A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt;d_sb-&gt;s_dentry_lru_lock);<br=
+>
+=A0}<br>
+@@ -814,12 +829,18 @@ static void shrink_dentry_list(struct list_head *list=
+)<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
+<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* The dispose list is isolated and dentrie=
+s are not accounted<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* to the LRU here, so we can simply remove=
+ it from the list<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* here regardless of whether it is referen=
+ced or not.<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del_init(&amp;dentry-&gt;d_lru);<br>
++<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* We found an inuse dentry which was not=
+ removed from<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* the LRU because of laziness during looku=
+p. =A0Do not free<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* it - just keep it off the LRU list.<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* the LRU because of laziness during looku=
+p. Do not free it.<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (dentry-&gt;d_count) {<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry_lru_del(dentry);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_flags &amp;=3D ~=
+DCACHE_SHRINK_LIST;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt=
+;d_lock);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
+@@ -871,6 +892,8 @@ relock:<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else {<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_move_tail(&amp;dentry-=
+&gt;d_lru, &amp;tmp);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_flags |=3D DCA=
+CHE_SHRINK_LIST;<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_dec(nr_dentry_unused=
+);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sb-&gt;s_nr_dentry_unused--;<=
+br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt=
+;d_lock);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!--count)<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;<br>
+@@ -884,6 +907,28 @@ relock:<br>
+=A0 =A0 =A0 =A0 shrink_dentry_list(&amp;tmp);<br>
+=A0}<br>
+<br>
++/*<br>
++ * Mark all the dentries as on being the dispose list so we don&#39;t thin=
+k they are<br>
++ * still on the LRU if we try to kill them from ascending the parent chain=
+ in<br>
++ * try_prune_one_dentry() rather than directly from the dispose list.<br>
++ */<br>
++static void<br>
++shrink_dcache_list(<br>
++ =A0 =A0 =A0 struct list_head *dispose)<br>
++{<br>
++ =A0 =A0 =A0 struct dentry *dentry;<br>
++<br>
++ =A0 =A0 =A0 rcu_read_lock();<br>
++ =A0 =A0 =A0 list_for_each_entry_rcu(dentry, dispose, d_lru) {<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&amp;dentry-&gt;d_lock);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_flags |=3D DCACHE_SHRINK_LIST;<b=
+r>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_dec(nr_dentry_unused);<br></blockquo=
+te><div><br></div><div>Why here dec nr_dentry_unused again? Has it been dec=
+reased in the following shrink_dcache_sb()?<br><br></div><div>=A0</div><blo=
+ckquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #c=
+cc solid;padding-left:1ex">
 
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt;d_lock);<br>
++ =A0 =A0 =A0 }<br>
++ =A0 =A0 =A0 rcu_read_unlock();<br>
++ =A0 =A0 =A0 shrink_dentry_list(dispose);<br>
++}<br>
++<br>
+=A0/**<br>
+=A0 * shrink_dcache_sb - shrink dcache for a superblock<br>
+=A0 * @sb: superblock<br>
+@@ -898,8 +943,16 @@ void shrink_dcache_sb(struct super_block *sb)<br>
+=A0 =A0 =A0 =A0 spin_lock(&amp;sb-&gt;s_dentry_lru_lock);<br>
+=A0 =A0 =A0 =A0 while (!list_empty(&amp;sb-&gt;s_dentry_lru)) {<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_splice_init(&amp;sb-&gt;s_dentry_lru, =
+&amp;tmp);<br>
++<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* account for removal here so we don&#39;t=
+ need to handle it later<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* even though the dentry is no longer on t=
+he lru list.<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_sub(nr_dentry_unused, sb-&gt;s_nr_de=
+ntry_unused);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 sb-&gt;s_nr_dentry_unused =3D 0;<br>
++<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;sb-&gt;s_dentry_lru_lock);=
+<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_dentry_list(&amp;tmp);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_dcache_list(&amp;tmp);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&amp;sb-&gt;s_dentry_lru_lock);<b=
+r>
+=A0 =A0 =A0 =A0 }<br>
+=A0 =A0 =A0 =A0 spin_unlock(&amp;sb-&gt;s_dentry_lru_lock);<br><span class=
+=3D"HOEnZb"></span><br></blockquote></div><br clear=3D"all"><br>-- <br>Than=
+ks,<br>Sha
+</div></div>
 
-
---
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Author of "The Linux Programming Interface"; http://man7.org/tlpi/
+--14dae9c09d326dde6c04d96f49a8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
