@@ -1,43 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 303256B00C1
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 04:54:33 -0400 (EDT)
-Message-ID: <515BEE65.40503@parallels.com>
-Date: Wed, 3 Apr 2013 12:55:01 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 77FEF6B00C2
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:12:35 -0400 (EDT)
+Message-ID: <515BF233.6070308@huawei.com>
+Date: Wed, 3 Apr 2013 17:11:15 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 05/28] dcache: remove dentries from LRU before putting
- on dispose list
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-6-git-send-email-glommer@parallels.com> <CAFj3OHU_o5o_n_kcci1U_=M0tCpYEwy8abRvHKBdp-GoJ-cs3w@mail.gmail.com>
-In-Reply-To: <CAFj3OHU_o5o_n_kcci1U_=M0tCpYEwy8abRvHKBdp-GoJ-cs3w@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: [RFC][PATCH 0/7] memcg: make memcg's life cycle the same as cgroup
+Content-Type: text/plain; charset="GB2312"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, containers@lists.linux-foundation.org, Dave Chinner <dchinner@redhat.com>, Dave Shrinnker <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 04/03/2013 10:51 AM, Sha Zhengju wrote:
->     +static void
->     +shrink_dcache_list(
->     +       struct list_head *dispose)
->     +{
->     +       struct dentry *dentry;
->     +
->     +       rcu_read_lock();
->     +       list_for_each_entry_rcu(dentry, dispose, d_lru) {
->     +               spin_lock(&dentry->d_lock);
->     +               dentry->d_flags |= DCACHE_SHRINK_LIST;
->     +               this_cpu_dec(nr_dentry_unused);
-> 
-> 
-> Why here dec nr_dentry_unused again? Has it been decreased in the
-> following shrink_dcache_sb()?
+(I'll be off from my office soon, and I won't be responsive in the following
+3 days.)
 
-You analysis seems to be correct, and the decrement in shrink_dcache_sb
-seems not to be needed.
+I'm working on converting memcg to use cgroup->id, and then we can kill css_id.
 
-Dave, have comments on this ?
+Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
+still be alive. This patchset converts memcg to always use css_get/put, so
+memcg will have the same life cycle as its corresponding cgroup, and then
+it's always safe for memcg to use cgroup->id.
+
+The historical reason that memcg didn't use css_get in some cases, is that
+cgroup couldn't be removed if there're still css refs. The situation has
+changed so that rmdir a cgroup will succeed regardless css refs, but won't
+be freed until css refs goes down to 0.
+
+This is an early post, and it's NOT TESTED. I just want to see if the changes
+are fine in general.
+
+btw, after this patchset I think we don't need to free memcg via RCU, because
+cgroup is already freed in RCU callback.
+
+Note this patchset is based on a few memcg fixes I sent (but hasn't been
+accepted)
+
+--
+ kernel/cgroup.c |  10 ++++++++
+ mm/memcontrol.c | 129 ++++++++++++++++++++++++++++++++++++++-------------------------------------------------------
+ 2 files changed, 62 insertions(+), 77 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
