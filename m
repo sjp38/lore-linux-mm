@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 057EB6B00F1
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 08:12:21 -0400 (EDT)
-Date: Wed, 3 Apr 2013 14:12:20 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: System freezes when RAM is full (64-bit)
-Message-ID: <20130403121220.GA14388@dhcp22.suse.cz>
-References: <5159DCA0.3080408@gmail.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 4D0AF6B00F3
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 08:35:06 -0400 (EDT)
+Date: Wed, 3 Apr 2013 08:34:52 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch] mm, memcg: give exiting processes access to memory
+ reserves
+Message-ID: <20130403123452.GK1953@cmpxchg.org>
+References: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5159DCA0.3080408@gmail.com>
+In-Reply-To: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ivan Danov <huhavel@gmail.com>
-Cc: linux-mm@kvack.org, 1162073@bugs.launchpad.net
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 01-04-13 21:14:40, Ivan Danov wrote:
-> The system freezes when RAM gets completely full. By using MATLAB, I
-> can get all 8GB RAM of my laptop full and it immediately freezes,
-> needing restart using the hardware button.
-
-Do you use swap (file/partition)? How big? Could you collect
-/proc/meminfo and /proc/vmstat (every few seconds)[1]?
-What does it mean when you say the system freezes? No new processes can
-be started or desktop environment doesn't react on your input? Do you
-see anything in the kernel log? OOM killer e.g.
-In case no new processes could be started what does sysrq+m say when the
-system is frozen?
-
-What is your kernel config?
-
-> Other people have
-> reported the bug at since 2007. It seems that only the 64-bit
-> version is affected and people have reported that enabling DMA in
-> BIOS settings solve the problem. However, my laptop lacks such an
-> option in the BIOS settings, so I am unable to test it. More
-> information about the bug could be found at:
-> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1162073 and
-> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/159356.
+On Wed, Mar 27, 2013 at 06:22:10PM -0700, David Rientjes wrote:
+> A memcg may livelock when oom if the process that grabs the hierarchy's
+> oom lock is never the first process with PF_EXITING set in the memcg's
+> task iteration.
 > 
-> Best Regards,
-> Ivan
+> The oom killer, both global and memcg, will defer if it finds an eligible
+> process that is in the process of exiting and it is not being ptraced.
+> The idea is to allow it to exit without using memory reserves before
+> needlessly killing another process.
 > 
+> This normally works fine except in the memcg case with a large number of
+> threads attached to the oom memcg.  In this case, the memcg oom killer
+> only gets called for the process that grabs the hierarchy's oom lock; all
+> others end up blocked on the memcg's oom waitqueue.  Thus, if the process
+> that grabs the hierarchy's oom lock is never the first PF_EXITING process
+> in the memcg's task iteration, the oom killer is constantly deferred
+> without anything making progress.
+> 
+> The fix is to give PF_EXITING processes access to memory reserves so that
+> we've marked them as oom killed without any iteration.  This allows
+> __mem_cgroup_try_charge() to succeed so that the process may exit.  This
+> makes the memcg oom killer exemption for TIF_MEMDIE tasks, now
+> immediately granted for processes with pending SIGKILLs and those in the
+> exit path, to be equivalent to what is done for the global oom killer.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
----
-[1] E.g. by
-while true
-do
-	STAMP=`date +%s`
-	cat /proc/meminfo > meminfo.$STAMP
-	cat /proc/vmscan > meminfo.$STAMP
-	sleep 2s
-done
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
