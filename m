@@ -1,66 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id DFE626B0005
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 17:14:11 -0400 (EDT)
-Received: by mail-wg0-f43.google.com with SMTP id f12so2114207wgh.22
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 14:14:10 -0700 (PDT)
-Date: Wed, 3 Apr 2013 23:14:06 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 2/3] fix hugetlb memory check in vma_dump_size()
-Message-ID: <20130403211354.GA27611@dhcp22.suse.cz>
-References: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1365014138-19589-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 45B2B6B0005
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 17:33:42 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id kp14so1113443pab.22
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 14:33:41 -0700 (PDT)
+Date: Wed, 3 Apr 2013 14:33:34 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
+Message-ID: <20130403213334.GE3411@htj.dyndns.org>
+References: <1364373399-17397-1-git-send-email-mhocko@suse.cz>
+ <20130327145727.GD29052@cmpxchg.org>
+ <20130327151104.GK16579@dhcp22.suse.cz>
+ <51530E1E.3010100@parallels.com>
+ <20130327153220.GL16579@dhcp22.suse.cz>
+ <20130327173223.GQ16579@dhcp22.suse.cz>
+ <20130328074814.GA3018@dhcp22.suse.cz>
+ <20130402082648.GB24345@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1365014138-19589-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130402082648.GB24345@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 03-04-13 14:35:37, Naoya Horiguchi wrote:
-> Documentation/filesystems/proc.txt says about coredump_filter bitmask,
-> 
->   Note bit 0-4 doesn't effect any hugetlb memory. hugetlb memory are only
->   effected by bit 5-6.
-> 
-> However current code can go into the subsequent flag checks of bit 0-4
-> for vma(VM_HUGETLB). So this patch inserts 'return' and makes it work
-> as written in the document.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: stable@vger.kernel.org
+On Tue, Apr 02, 2013 at 10:26:48AM +0200, Michal Hocko wrote:
+> Tejun,
+> could you take this one please?
 
-Just for the record. It should be stable for 3.7+ since (314e51b98)
-becuase then have lost VM_RESERVED check which used to stop hugetlb
-mappings.
+Aye aye, applied to cgroup/for-3.10.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  fs/binfmt_elf.c | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git v3.9-rc3.orig/fs/binfmt_elf.c v3.9-rc3/fs/binfmt_elf.c
-> index 3939829..86af964 100644
-> --- v3.9-rc3.orig/fs/binfmt_elf.c
-> +++ v3.9-rc3/fs/binfmt_elf.c
-> @@ -1137,6 +1137,7 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
->  			goto whole;
->  		if (!(vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_PRIVATE))
->  			goto whole;
-> +		return 0;
->  	}
->  
->  	/* Do not dump I/O mapped devices or special mappings */
-> -- 
-> 1.7.11.7
-> 
+Thanks.
 
 -- 
-Michal Hocko
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
