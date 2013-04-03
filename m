@@ -1,245 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id ED1E06B00AF
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 03:39:04 -0400 (EDT)
-Message-ID: <515BDC3B.2000907@cn.fujitsu.com>
-Date: Wed, 03 Apr 2013 15:37:31 +0800
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id AEA8B6B00B0
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 03:43:11 -0400 (EDT)
+Date: Wed, 3 Apr 2013 09:43:08 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -v2] memcg: don't do cleanup manually if
+ mem_cgroup_css_online() fails
+Message-ID: <20130403074300.GA14384@dhcp22.suse.cz>
+References: <515A8A40.6020406@huawei.com>
+ <20130402121600.GK24345@dhcp22.suse.cz>
+ <20130402141646.GQ24345@dhcp22.suse.cz>
+ <515AE948.1000704@parallels.com>
+ <20130402142825.GA32520@dhcp22.suse.cz>
+ <515AEC3A.2030401@parallels.com>
+ <20130402150422.GB32520@dhcp22.suse.cz>
+ <515BA6C9.2000704@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] resource: Add release_mem_region_adjustable()
-References: <1364919450-8741-1-git-send-email-toshi.kani@hp.com> <1364919450-8741-3-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1364919450-8741-3-git-send-email-toshi.kani@hp.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <515BA6C9.2000704@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: Li Zefan <lizefan@huawei.com>
+Cc: Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On 04/03/2013 12:17 AM, Toshi Kani wrote:
-
-> Added release_mem_region_adjustable(), which releases a requested
-> region from a currently busy memory resource.  This interface
-> adjusts the matched memory resource accordingly if the requested
-> region does not match exactly but still fits into.
+On Wed 03-04-13 11:49:29, Li Zefan wrote:
+> >> Yes, indeed you are very right - and thanks for looking at such depth.
+> > 
+> > So what about the patch bellow? It seems that I provoked all this mess
+> > but my brain managed to push it away so I do not remember why I thought
+> > the parent needs reference drop... It is "only" 3.9 thing fortunately.
+> > ---
+> >>From 3aff5d958f1d0717795018f7d0d6b63d53ad1dd3 Mon Sep 17 00:00:00 2001
+> > From: Li Zefan <lizefan@huawei.com>
+> > Date: Tue, 2 Apr 2013 16:37:39 +0200
+> > Subject: [PATCH] memcg: don't do cleanup manually if mem_cgroup_css_online()
+> >  fails
+> > 
+> > mem_cgroup_css_online is called with memcg with refcnt = 1 and it
+> > expects that mem_cgroup_css_free will drop this last reference.
+> > This doesn't hold when memcg_init_kmem fails though and a reference is
+> > dropped for both memcg and its parent explicitly if it returns with an
+> > error.
+> > 
+> > This is not correct for two reasons. Firstly mem_cgroup_put on parent is
+> > excessive because mem_cgroup_put is hierarchy aware and secondly only
+> > memcg_propagate_kmem takes an additional reference.
+> > 
+> > The first one is a real use-after-free bug introduced by e4715f01
+> > (memcg: avoid dangling reference count in creation failure)
+> > 
+> > The later one is non-issue right now because the only implementation
+> > of init_cgroup seems to be tcp_init_cgroup which doesn't fail
+> > but it is better to make the error handling saner and move the
+> > mem_cgroup_put(memcg) to memcg_propagate_kmem where it belongs.
+> > 
+> > Signed-off-by: Li Zefan <lizefan@huawei.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > ---
+> >  mm/memcontrol.c |   13 +++----------
+> >  1 file changed, 3 insertions(+), 10 deletions(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index f608546..cf9ba7e 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -5306,6 +5306,8 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
+> >  	ret = memcg_update_cache_sizes(memcg);
+> >  	mutex_unlock(&set_limit_mutex);
+> >  out:
+> > +	if (ret)
+> > +		mem_cgroup_put(memcg);
 > 
-> This new interface is intended for memory hot-delete.  During
-> bootup, memory resources are inserted from the boot descriptor
-> table, such as EFI Memory Table and e820.  Each memory resource
-> entry usually covers the whole contigous memory range.  Memory
-> hot-delete request, on the other hand, may target to a particular
-> range of memory resource, and its size can be much smaller than
-> the whole contiguous memory.  Since the existing release interfaces
-> like __release_region() require a requested region to be exactly
-> matched to a resource entry, they do not allow a partial resource
-> to be released.
+> Correct me if I'm wrong, but I think:
 > 
-> There is no change to the existing interfaces since their restriction
-> is valid for I/O resources.
+> When memcg_propagate_kmem() calls mem_cgroup_get(), it's because the kmemcg
+> is active by inheritance. Then when memcg_update_cache_sizes() fails, leading
+> to mem_cgroup_css_free() is called by cgroup core:
 > 
-> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> ---
->  include/linux/ioport.h |    2 +
->  kernel/resource.c      |   87 ++++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 89 insertions(+)
+> static void mem_cgroup_css_free(struct cgroup *cont)
+> {
+>         struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
 > 
-> diff --git a/include/linux/ioport.h b/include/linux/ioport.h
-> index 85ac9b9b..0fe1a82 100644
-> --- a/include/linux/ioport.h
-> +++ b/include/linux/ioport.h
-> @@ -192,6 +192,8 @@ extern struct resource * __request_region(struct resource *,
->  extern int __check_region(struct resource *, resource_size_t, resource_size_t);
->  extern void __release_region(struct resource *, resource_size_t,
->  				resource_size_t);
-> +extern int release_mem_region_adjustable(struct resource *, resource_size_t,
-> +				resource_size_t);
->  
->  static inline int __deprecated check_region(resource_size_t s,
->  						resource_size_t n)
-> diff --git a/kernel/resource.c b/kernel/resource.c
-> index ae246f9..789f160 100644
-> --- a/kernel/resource.c
-> +++ b/kernel/resource.c
-> @@ -1021,6 +1021,93 @@ void __release_region(struct resource *parent, resource_size_t start,
->  }
->  EXPORT_SYMBOL(__release_region);
->  
-> +/**
-> + * release_mem_region_adjustable - release a previously reserved memory region
-> + * @parent: parent resource descriptor
-> + * @start: resource start address
-> + * @size: resource region size
-> + *
-> + * The requested region is released from a currently busy memory resource.
-> + * It adjusts the matched busy memory resource accordingly if the requested
-> + * region does not match exactly but still fits into.  Existing children of
-> + * the busy memory resource must be immutable in this request.
-> + *
-> + * Note, when the busy memory resource gets split into two entries, the code
-> + * assumes that all children remain in the lower address entry for simplicity.
-> + * Enhance this logic when necessary.
-> + */
-> +int release_mem_region_adjustable(struct resource *parent,
-> +			resource_size_t start, resource_size_t size)
-> +{
-> +	struct resource **p;
-> +	struct resource *res, *new;
-> +	resource_size_t end;
-> +	int ret = 0;
-> +
-> +	p = &parent->child;
-> +	end = start + size - 1;
-> +
-> +	write_lock(&resource_lock);
-> +
-> +	while ((res = *p)) {
-> +		if (res->start > start || res->end < end) {
-> +			p = &res->sibling;
-> +			continue;
-> +		}
-> +
-> +		if (!(res->flags & IORESOURCE_MEM)) {
-> +			ret = -EINVAL;
-> +			break;
-> +		}
-> +
-> +		if (!(res->flags & IORESOURCE_BUSY)) {
-> +			p = &res->child;
-> +			continue;
-> +		}
-> +
-> +		if (res->start == start && res->end == end) {
-> +			/* free the whole entry */
-> +			*p = res->sibling;
-> +			kfree(res);
-> +		} else if (res->start == start && res->end != end) {
-> +			/* adjust the start */
-> +			ret = __adjust_resource(res, end+1,
-> +						res->end - end);
-> +		} else if (res->start != start && res->end == end) {
-> +			/* adjust the end */
-> +			ret = __adjust_resource(res, res->start,
-> +						start - res->start);
-> +		} else {
-> +			/* split into two entries */
-> +			new = kzalloc(sizeof(struct resource), GFP_KERNEL);
-> +			if (!new) {
-> +				ret = -ENOMEM;
-> +				break;
-> +			}
-> +			new->name = res->name;
-> +			new->start = end + 1;
-> +			new->end = res->end;
-> +			new->flags = res->flags;
-> +			new->parent = res->parent;
-> +			new->sibling = res->sibling;
-> +			new->child = NULL;
-> +
-> +			ret = __adjust_resource(res, res->start,
-> +						start - res->start);
-> +			if (ret) {
-> +				kfree(new);
-> +				break;
-> +			}
-> +			res->sibling = new;
-> +		}
-> +
-> +		break;
-> +	}
-> +
-> +	write_unlock(&resource_lock);
-> +	return ret;
-> +}
-> +
-
-Hi Toshi,
-  What about the following small changes? Maybe it can make the code more rigorous~
-
-Thanks,
-Gu
-
-int release_mem_region_adjustable(struct resource *parent,
-                        resource_size_t start, resource_size_t size)
-{
-        struct resource **p;
-        struct resource *res, *new;
-        resource_size_t end;
-        int ret = 0;
-
-        end = start + size - 1;
-        if ((start < parent->start) || (end > parent->end))
-                return -EINVAL;
-
-        p = &parent->child;
-
-        write_lock(&resource_lock);
-
-        while (res = *p) {
-                if (res->start <= start && res->end >= end) {
-                        if (!(res->flags & IORESOURCE_MEM)) {
-                                ret = -EINVAL;
-                                break;
-                        }  
-
-                        if (!(res->flags & IORESOURCE_BUSY)) {
-                                p = &res->child;
-                                continue;
-                        }   
-
-                        if (res->start == start && res->end == end) {
-                                /* free the whole entry */
-                                *p = res->sibling;
-                                kfree(res);
-                        } else if (res->start == start && res->end != end) {
-                                /* adjust the start */
-                                ret = __adjust_resource(res, end+1,
-                                                res->end - end);
-                        } else if (res->start != start && res->end == end) {
-                                /* adjust the end */
-                                ret = __adjust_resource(res, res->start,
-                                                start - res->start);
-                        } else {
-                                /* split into two entries */
-                                new = kzalloc(sizeof(struct resource), GFP_KERNEL);
-                                if (!new) {
-                                        ret = -ENOMEM;
-                                        break;
-                                }   
-                                new->name = res->name;
-                                new->start = end + 1;
-                                new->end = res->end;
-                                new->flags = res->flags;
-                                new->parent = res->parent;
-                                new->sibling = res->sibling;
-                                new->child = NULL;
-
-                                ret = __adjust_resource(res, res->start,
-                                                start - res->start);
-                                if (ret) {
-                                        kfree(new);
-                                        break;
-                                }   
-                                res->sibling = new;
-                        }   
-                        break;
-                }   
-                p = &res->sibling;
-        }   
-
-        write_unlock(&resource_lock);
-        return ret;
-}
-
->  /*
->   * Managed region resource
->   */
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>         kmem_cgroup_destroy(memcg);
 > 
+>         mem_cgroup_put(memcg);
+> }
+> 
+> static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
+> {
+>         mem_cgroup_sockets_destroy(memcg);
+> 
+>         memcg_kmem_mark_dead(memcg);
+> 
+>         if (res_counter_read_u64(&memcg->kmem, RES_USAGE) != 0)
+>                 return;
+> 
+>         if (memcg_kmem_test_and_clear_dead(memcg))
+>                 mem_cgroup_put(memcg);    <------- !!!!!!!!!
+> }
 
+But memcg_update_cache_sizes calls memcg_kmem_clear_activated on the
+error path.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
