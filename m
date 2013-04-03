@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id D46026B00A3
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 00:58:24 -0400 (EDT)
-Date: Wed, 3 Apr 2013 00:58:14 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 9E3D36B00A4
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 01:13:42 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id mc17so643594pbc.0
+        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 22:13:41 -0700 (PDT)
+Date: Tue, 2 Apr 2013 22:13:39 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
-Message-ID: <20130403045814.GD4611@cmpxchg.org>
-References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
- <alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
- <alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
- <alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
- <20130403041447.GC4611@cmpxchg.org>
- <alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
+In-Reply-To: <20130403045814.GD4611@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1304022201520.2554@chino.kir.corp.google.com>
+References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com> <alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com> <alpine.LNX.2.00.1304021600420.22412@eggly.anvils> <alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
+ <20130403041447.GC4611@cmpxchg.org> <alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com> <20130403045814.GD4611@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Ian Lance Taylor <iant@google.com>, linux-mm@kvack.org
 
-On Tue, Apr 02, 2013 at 09:25:40PM -0700, David Rientjes wrote:
-> On Wed, 3 Apr 2013, Johannes Weiner wrote:
+On Wed, 3 Apr 2013, Johannes Weiner wrote:
+
+> > As stated, it doesn't.  I made the comment "for what it's worth" that 
+> > ACCESS_ONCE() doesn't do anything to "prevent the compiler from 
+> > re-fetching" as the changelog insists it does.
 > 
-> > The definition of ACCESS_ONCE() relies on gcc's current
-> > implementation, the users of ACCESS_ONCE() only rely on ACCESS_ONCE()
-> > being defined.
-> > 
-> > Should it ever break you have to either fix it at the implementation
-> > level or remove/replace the abstraction in its entirety, how does the
-> > individual callsite matter in this case?
-> > 
+> That's exactly what it does:
 > 
-> As stated, it doesn't.  I made the comment "for what it's worth" that 
-> ACCESS_ONCE() doesn't do anything to "prevent the compiler from 
-> re-fetching" as the changelog insists it does.
+> /*
+>  * Prevent the compiler from merging or refetching accesses.
+> 
+> This is the guarantee ACCESS_ONCE() gives, users should absolutely be
+> allowed to rely on this literal definition.  The underlying gcc
+> implementation does not matter one bit.  That's the whole point of
+> abstraction!
+> 
 
-That's exactly what it does:
+The C99 and earlier C standards do not provide any way of "preventing the 
+compiler from refetching accesses," and in fact C99 leaves an access to a 
+volatile qualified object as implementation defined.  (If you disagree, 
+then specify what exactly about ACCESS_ONCE() prevents the compiler from 
+doing so.)
 
-/*
- * Prevent the compiler from merging or refetching accesses.
-
-This is the guarantee ACCESS_ONCE() gives, users should absolutely be
-allowed to rely on this literal definition.  The underlying gcc
-implementation does not matter one bit.  That's the whole point of
-abstraction!
-
-> I'd much rather it refer to gcc's implementation, which we're
-> counting on here,
-
-No, we really don't.  There is no
-
-  "(*(volatile typeof(x)*)&(x))"
-
-anywhere in this patch.
-
-> to avoid any confusion since I know a couple people have thought
-> that ACCESS_ONCE() forces the compiler to load memory onto the stack
-> and that belief is completely and utterly wrong.
-
-Maybe "forces the compiler to load memory onto the stack" should be
-removed from the documentation of ACCESS_ONCE() then?
+I agree that comment is confusing unless you specify that gcc's 
+implementation provides that guarantee and I would tend to agree with 
+Paul's assessment that the wide majority (all?) of compilers do the same.  
+I would hesitate to say positively that gcc will continue to implement 
+anything in the future other than what the standard specifies, though.  
+But I do agree that the comment is confusing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
