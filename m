@@ -1,104 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 52B796B0005
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 19:46:46 -0400 (EDT)
-Date: Thu, 4 Apr 2013 08:46:44 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 1/4] mm: Per process reclaim
-Message-ID: <20130403234644.GC7675@blaptop>
-References: <1364192494-22185-1-git-send-email-minchan@kernel.org>
- <CAHO5Pa0srsWS6ukpxUo=EqCOxRmYa7c_7PDg1YPh7gcMGWPpaw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHO5Pa0srsWS6ukpxUo=EqCOxRmYa7c_7PDg1YPh7gcMGWPpaw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 3C7A86B0005
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 19:52:39 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id bh4so1158594pad.40
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 16:52:38 -0700 (PDT)
+From: John Stultz <john.stultz@linaro.org>
+Subject: [RFC PATCH 0/4] Support vranges on files
+Date: Wed,  3 Apr 2013 16:52:19 -0700
+Message-Id: <1365033144-15156-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sangseok Lee <sangseok.lee@lge.com>
+To: linux-kernel@vger.kernel.org
+Cc: John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
 
-On Wed, Apr 03, 2013 at 12:10:22PM +0200, Michael Kerrisk wrote:
-> Hello Minchan,
-> 
-> On Mon, Mar 25, 2013 at 7:21 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > These day, there are many platforms avaiable in the embedded market
-> > and they are smarter than kernel which has very limited information
-> > about working set so they want to involve memory management more heavily
-> > like android's lowmemory killer and ashmem or recent many lowmemory
-> > notifier(there was several trial for various company NOKIA, SAMSUNG,
-> > Linaro, Google ChromeOS, Redhat).
-> >
-> > One of the simple imagine scenario about userspace's intelligence is that
-> > platform can manage tasks as forground and backgroud so it would be
-> > better to reclaim background's task pages for end-user's *responsibility*
-> > although it has frequent referenced pages.
-> >
-> > This patch adds new knob "reclaim under proc/<pid>/" so task manager
-> > can reclaim any target process anytime, anywhere. It could give another
-> > method to platform for using memory efficiently.
-> >
-> > It can avoid process killing for getting free memory, which was really
-> > terrible experience because I lost my best score of game I had ever
-> > after I switch the phone call while I enjoyed the game.
-> >
-> > Writing 1 to /proc/pid/reclaim reclaims only file pages.
-> > Writing 2 to /proc/pid/reclaim reclaims only anonymous pages.
-> > Writing 3 to /proc/pid/reclaim reclaims all pages from target process.
-> 
-> This interface seems to work as advertized, at least from some light
-> testing that I've done.
+This patchset is against Minchan's vrange work here:
+	https://lkml.org/lkml/2013/3/12/105
 
-Thanks for the testing!
+Extending it to support volatile ranges on files. In effect
+providing the same functionality of my earlier file based
+volatile range patches on-top of Minchan's anonymous volatile
+range work.
 
-> 
-> However, the interface is a quite blunt instrument. Would there be any
-> virtue in extending it so that an address range could be written to
-> /proc/PID/reclaim? Used in conjunction with /proc/PID/maps, a manager
-> process might then choose to trigger reclaim of just selected regions
-> of a processes address space. Thus, one might reclaim file backed
-> pages in a range using:
-> 
->     echo '2 start-address end-address' > /proc/PID/reclaim
-> 
-> What do you think?
+Volatile ranges on files are different then on anonymous memory,
+because the volatility state can be shared between multiple
+applications. This makes storing the volatile ranges exclusively
+in the mm_struct (or in vmas as in Minchan's earlier work)
+inappropriate.
 
-It is really nice idea because some platform use a address space with
-mulitple object. Simply, multiple application could work in a address space
-but they use separate virtual address range in a address space.
-In such model, per-process reclaim isn't vaild any more so your idea
-would be nice for it.
+The patchset starts with some minor cleanup.
 
-One nitpick is that I'd like to use (address, size) instead of (start_address
-, end_address) because we always confuse that end_address itself is
-inclusive or not in the range.
+Then we introduce the idea of a vrange_root, which provides a
+interval-tree root and a lock to protect the tree. This structure
+can then be stored in the mm_struct or in an addres_space. Then the
+same infrastructure can be used to manage volatile ranges on both
+anonymous and file backed memory.
 
-And I am thinking another options like this
+Next we introduce a parallel fvrange() syscall for creating
+volatile ranges directly against files.
 
-RECLAIM_SOFT_[FILE|ANON] 
+And finally, we change the range pruging logic to be able to
+handle both anonymous and file volatile ranges.
 
-It reclaims pages which are not workset.
+Now there are some quirks still to be resolved with the approach
+used here. The biggest one being the vrange() call can't be used to
+create volatile ranges against mmapped files. Instead only the
+fvrange() can be used to create file backed volatile ranges.
 
-RECLAIM_HARD_[FILE|ANON]
+This could be overcome by iterating across all the process VMAs to
+determine if they're anonymous or file based, and if file-based,
+create a VMA sized volatile range on the mapping pointed to by the
+VMA.
 
-It reclaims pages of range unconditionally although pages are shared by
-several processes.
+But this would have downsides, as Minchan has been clear that he wants
+to optmize the vrange() calls so that it is very cheap to create and
+destroy volatile ranges. Having simple per-process ranges be created
+means we don't have to iterate across the vmas in the range to
+determine if they're anonymous or file backed. Instead the current
+vrange() code just creates per process ranges (which may or may not
+cover mmapped file data), but will only purge anonymous pages in
+that range. This keeps the vrange() call cheap.
 
-But before that, I'd like to hear other guys's opinion.
+Additionally, just creating or destroying a single range is very
+simple to do, and requires a fixed amount of memory known up front.
+Thus we can allocate needed data prior to making any modifications.
 
-> 
-> Thanks,
-> 
-> Michael
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+But If we were to create a range that crosses anonymous and file
+backed pages, it must create or destroy multiple per-process or
+per-file ranges. This could require an unknown number of allocations,
+opening the possibility of getting an ENOMEM half-way through the
+operation, leaving the volatile range partially created or destroyed.
+
+So to keep this simple for this first pass, for now we have two
+syscalls for two types of volatile ranges.
+
+Let me know if you have any thoughts or comments. I'm sure there's
+plenty of room for improvement here.
+
+In the meantime I'll be playing with some different approaches to
+try to handle single volatile ranges that cross file and anonymous
+vmas.
+
+The entire queue, both Minchan's changes and mine can be found here:
+git://git.linaro.org/people/jstultz/android-dev.git dev/vrange-minchan
+
+thanks
+-john
+
+Cc: linux-mm@kvack.org
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Arun Sharma <asharma@fb.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave@sr71.net>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Neil Brown <neilb@suse.de>
+Cc: Mike Hommey <mh@glandium.org>
+Cc: Taras Glek <tglek@mozilla.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Jason Evans <je@fb.com>
+Cc: sanjay@google.com
+Cc: Paul Turner <pjt@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michel Lespinasse <walken@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>
+
+
+John Stultz (4):
+  vrange: Make various vrange.c local functions static
+  vrange: Introduce vrange_root to make vrange structures more flexible
+  vrange: Support fvrange() syscall for file based volatile ranges
+  vrange: Enable purging of file backed volatile ranges
+
+ arch/x86/syscalls/syscall_64.tbl |    1 +
+ fs/file_table.c                  |    5 +
+ fs/inode.c                       |    2 +
+ fs/proc/task_mmu.c               |   10 +-
+ include/linux/fs.h               |    2 +
+ include/linux/mm_types.h         |    4 +-
+ include/linux/vrange.h           |   60 ++++---
+ include/linux/vrange_types.h     |   22 +++
+ kernel/fork.c                    |    2 +-
+ mm/vrange.c                      |  334 ++++++++++++++++++++++++++------------
+ 10 files changed, 308 insertions(+), 134 deletions(-)
+ create mode 100644 include/linux/vrange_types.h
 
 -- 
-Kind regards,
-Minchan Kim
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
