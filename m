@@ -1,66 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id EA64A6B0006
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 12:41:32 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 3 Apr 2013 12:41:31 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 374C26E8044
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 12:41:26 -0400 (EDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r33GfQUc270976
-	for <linux-mm@kvack.org>; Wed, 3 Apr 2013 12:41:27 -0400
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r33GhmhD017271
-	for <linux-mm@kvack.org>; Wed, 3 Apr 2013 10:43:49 -0600
-Date: Wed, 3 Apr 2013 09:41:01 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
-Message-ID: <20130403164101.GA20957@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
- <alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
- <alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
- <alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
- <20130403041447.GC4611@cmpxchg.org>
- <alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
- <20130403045814.GD4611@cmpxchg.org>
- <CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
- <20130403163348.GD28522@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 2EFD46B0005
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 13:00:14 -0400 (EDT)
+Date: Wed, 3 Apr 2013 12:00:12 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] mm, x86: Do not zero hugetlbfs pages at boot. -v2
+Message-ID: <20130403170012.GY29151@sgi.com>
+References: <E1UDME8-00041J-B4@eag09.americas.sgi.com>
+ <20130314085138.GA11636@dhcp22.suse.cz>
+ <20130403024344.GA4384@sgi.com>
+ <20130403140247.GJ16471@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130403163348.GD28522@linux.vnet.ibm.com>
+In-Reply-To: <20130403140247.GJ16471@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ian Lance Taylor <iant@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Robin Holt <holt@sgi.com>, Cliff Wickman <cpw@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, wli@holomorphy.com
 
-On Wed, Apr 03, 2013 at 09:33:48AM -0700, Paul E. McKenney wrote:
-> On Wed, Apr 03, 2013 at 06:45:51AM -0700, Ian Lance Taylor wrote:
-
-[ . . . ]
-
-> > If using a sufficiently recent version of GCC, you can get the
-> > behaviour that I think you want by using
-> >     __atomic_load(&x, __ATOMIC_RELAXED)
+On Wed, Apr 03, 2013 at 04:02:47PM +0200, Michal Hocko wrote:
+> On Tue 02-04-13 21:43:44, Robin Holt wrote:
+> [...]
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index ca9a7c6..7683f6a 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -1185,7 +1185,7 @@ int __weak alloc_bootmem_huge_page(struct hstate *h)
+> >  	while (nr_nodes) {
+> >  		void *addr;
+> >  
+> > -		addr = __alloc_bootmem_node_nopanic(
+> > +		addr = __alloc_bootmem_node_nopanic_notzeroed(
+> >  				NODE_DATA(hstate_next_node_to_alloc(h,
+> >  						&node_states[N_MEMORY])),
+> >  				huge_page_size(h), huge_page_size(h), 0);
 > 
-> If this maps to the memory_order_relaxed token defined in earlier versions
-> of the C11 standard, then this absolutely does -not-, repeat -not-, work
-> for ACCESS_ONCE().  The relaxed load instead guarantees is that the load
-> will be atomic with respect to other atomic stores to that same variable,
-> in other words, it will prevent "load tearing" and "store tearing".  I
-> also believe that it prevents reloading ...
+> Ohh, and powerpc seems to have its own opinion how to allocate huge
+> pages. See arch/powerpc/mm/hugetlbpage.c
 
-In addition, even if the semantics of relaxed loads now guarantee against
-load combining, note that ACCESS_ONCE() is also used to prevent combining
-and splitting of stores, for example:
+Do I need to address their allocations?  Can I leave that part of the
+changes as something powerpc can address if they are affected by this?
 
-	ACCESS_ONCE(p) = give_me_a_pointer();
-
-							Thanx, Paul
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
