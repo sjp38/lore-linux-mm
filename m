@@ -1,168 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id A69B56B0005
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 13:21:34 -0400 (EDT)
-Date: Wed, 3 Apr 2013 12:21:32 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH] mm, x86: Do not zero hugetlbfs pages at boot. -v2
-Message-ID: <20130403172132.GZ29151@sgi.com>
-References: <E1UDME8-00041J-B4@eag09.americas.sgi.com>
- <20130314085138.GA11636@dhcp22.suse.cz>
- <20130403024344.GA4384@sgi.com>
- <20130403140049.GI16471@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 0F95B6B0005
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 13:47:29 -0400 (EDT)
+Received: by mail-ob0-f171.google.com with SMTP id x4so1666819obh.2
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 10:47:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130403140049.GI16471@dhcp22.suse.cz>
+In-Reply-To: <20130403163348.GD28522@linux.vnet.ibm.com>
+References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
+	<alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
+	<alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
+	<alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
+	<20130403041447.GC4611@cmpxchg.org>
+	<alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
+	<20130403045814.GD4611@cmpxchg.org>
+	<CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
+	<20130403163348.GD28522@linux.vnet.ibm.com>
+Date: Wed, 3 Apr 2013 10:47:28 -0700
+Message-ID: <CAKOQZ8wd24AUCN2c6p9iLFeHMpJy=jRO2xoiKkH93k=+iYQpEA@mail.gmail.com>
+Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
+From: Ian Lance Taylor <iant@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Robin Holt <holt@sgi.com>, Cliff Wickman <cpw@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, wli@holomorphy.com
+To: Paul McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org
 
-On Wed, Apr 03, 2013 at 04:00:49PM +0200, Michal Hocko wrote:
-> On Tue 02-04-13 21:43:44, Robin Holt wrote:
-> [...]
-> > diff --git a/mm/bootmem.c b/mm/bootmem.c
-> > index 2b0bcb0..b2e4027 100644
-> > --- a/mm/bootmem.c
-> > +++ b/mm/bootmem.c
-> > @@ -705,12 +705,16 @@ void * __init __alloc_bootmem(unsigned long size, unsigned long align,
-> >  
-> >  void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
-> >  				unsigned long size, unsigned long align,
-> > -				unsigned long goal, unsigned long limit)
-> > +				unsigned long goal, unsigned long limit,
-> > +				int zeroed)
-> >  {
-> >  	void *ptr;
-> >  
-> >  	if (WARN_ON_ONCE(slab_is_available()))
-> > -		return kzalloc(size, GFP_NOWAIT);
-> > +		if (zeroed)
-> > +			return kzalloc(size, GFP_NOWAIT);
-> > +		else
-> > +			return kmalloc(size, GFP_NOWAIT);
-> >  again:
-> >  
-> >  	/* do not panic in alloc_bootmem_bdata() */
-> 
-> You need to update alloc_bootmem_bdata and alloc_bootmem_core as well.
-> Otherwise this is a no-op for early allocations when slab is not
-> available which is the case unless something is broken.
+On Wed, Apr 3, 2013 at 9:33 AM, Paul E. McKenney
+<paulmck@linux.vnet.ibm.com> wrote:
+> On Wed, Apr 03, 2013 at 06:45:51AM -0700, Ian Lance Taylor wrote:
+>
+>> The C language standard only describes how access to
+>> volatile-qualified objects behave.  In this case x is (presumably) not
+>> a volatile-qualifed object.  The standard never defines the behaviour
+>> of volatile-qualified pointers.  That might seem like an oversight,
+>> but it is not: using a non-volatile-qualified pointer to access a
+>> volatile-qualified object is undefined behaviour.
+>>
+>> In short, casting a pointer to a non-volatile-qualified object to a
+>> volatile-qualified pointer has no specific meaning in C.  It's true
+>> that most compilers will behave as you wish, but there is no
+>> guarantee.
+>
+> But we are not using a non-volatile-qualified pointer to access a
+> volatile-qualified object.  We are doing the opposite.  I therefore
+> don't understand the relevance of your comment about undefined behavior.
 
-Michal,
+That was just a digression to explain why the standard does not need
+to define the behaviour of volatile-qualified pointers.
 
-Does this do what you would expect?  I compiled this for ia64, but I
-have not tested it at all.
 
-Robin
+>> If using a sufficiently recent version of GCC, you can get the
+>> behaviour that I think you want by using
+>>     __atomic_load(&x, __ATOMIC_RELAXED)
+>
+> If this maps to the memory_order_relaxed token defined in earlier versions
+> of the C11 standard, then this absolutely does -not-, repeat -not-, work
+> for ACCESS_ONCE().
 
----
- mm/bootmem.c | 30 +++++++++++++++++++-----------
- 1 file changed, 19 insertions(+), 11 deletions(-)
+Yes, I'm sorry, you are right.  It will work in practice today but
+you're quite right that there is no reason to think that it will work
+in principle.
 
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index b2e4027..350e0ab 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -497,7 +497,8 @@ static unsigned long __init align_off(struct bootmem_data *bdata,
- 
- static void * __init alloc_bootmem_bdata(struct bootmem_data *bdata,
- 					unsigned long size, unsigned long align,
--					unsigned long goal, unsigned long limit)
-+					unsigned long goal, unsigned long limit,
-+					int zeroed)
- {
- 	unsigned long fallback = 0;
- 	unsigned long min, max, start, sidx, midx, step;
-@@ -584,7 +585,8 @@ find_block:
- 
- 		region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) +
- 				start_off);
--		memset(region, 0, size);
-+		if (zeroed)
-+			memset(region, 0, size);
- 		/*
- 		 * The min_count is set to 0 so that bootmem allocated blocks
- 		 * are never reported as leaks.
-@@ -605,13 +607,18 @@ find_block:
- static void * __init alloc_bootmem_core(unsigned long size,
- 					unsigned long align,
- 					unsigned long goal,
--					unsigned long limit)
-+					unsigned long limit,
-+					int zeroed)
- {
- 	bootmem_data_t *bdata;
- 	void *region;
- 
--	if (WARN_ON_ONCE(slab_is_available()))
--		return kzalloc(size, GFP_NOWAIT);
-+	if (WARN_ON_ONCE(slab_is_available())) {
-+		if (zeroed)
-+			return kzalloc(size, GFP_NOWAIT);
-+		else
-+			return kmalloc(size, GFP_NOWAIT);
-+	}
- 
- 	list_for_each_entry(bdata, &bdata_list, list) {
- 		if (goal && bdata->node_low_pfn <= PFN_DOWN(goal))
-@@ -619,7 +626,7 @@ static void * __init alloc_bootmem_core(unsigned long size,
- 		if (limit && bdata->node_min_pfn >= PFN_DOWN(limit))
- 			break;
- 
--		region = alloc_bootmem_bdata(bdata, size, align, goal, limit);
-+		region = alloc_bootmem_bdata(bdata, size, align, goal, limit, zeroed);
- 		if (region)
- 			return region;
- 	}
-@@ -635,7 +642,7 @@ static void * __init ___alloc_bootmem_nopanic(unsigned long size,
- 	void *ptr;
- 
- restart:
--	ptr = alloc_bootmem_core(size, align, goal, limit);
-+	ptr = alloc_bootmem_core(size, align, goal, limit, 1);
- 	if (ptr)
- 		return ptr;
- 	if (goal) {
-@@ -710,22 +717,23 @@ void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
- {
- 	void *ptr;
- 
--	if (WARN_ON_ONCE(slab_is_available()))
-+	if (WARN_ON_ONCE(slab_is_available())) {
- 		if (zeroed)
- 			return kzalloc(size, GFP_NOWAIT);
- 		else
- 			return kmalloc(size, GFP_NOWAIT);
-+	}
- again:
- 
- 	/* do not panic in alloc_bootmem_bdata() */
- 	if (limit && goal + size > limit)
- 		limit = 0;
- 
--	ptr = alloc_bootmem_bdata(pgdat->bdata, size, align, goal, limit);
-+	ptr = alloc_bootmem_bdata(pgdat->bdata, size, align, goal, limit, zeroed);
- 	if (ptr)
- 		return ptr;
- 
--	ptr = alloc_bootmem_core(size, align, goal, limit);
-+	ptr = alloc_bootmem_core(size, align, goal, limit, zeroed);
- 	if (ptr)
- 		return ptr;
- 
-@@ -813,7 +821,7 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
- 
- 		new_goal = MAX_DMA32_PFN << PAGE_SHIFT;
- 		ptr = alloc_bootmem_bdata(pgdat->bdata, size, align,
--						 new_goal, 0);
-+						 new_goal, 0, 1);
- 		if (ptr)
- 			return ptr;
- 	}
--- 
-1.8.1.2
+This need suggests that GCC needs a new builtin function to implement
+the functionality that you want.  Would you consider opening a request
+for that at http://gcc.gnu.org/bugzilla/ ?
+
+Ian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
