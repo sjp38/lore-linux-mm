@@ -1,50 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 4D0AF6B00F3
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 08:35:06 -0400 (EDT)
-Date: Wed, 3 Apr 2013 08:34:52 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm, memcg: give exiting processes access to memory
- reserves
-Message-ID: <20130403123452.GK1953@cmpxchg.org>
-References: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 842E56B00F5
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 08:58:15 -0400 (EDT)
+Message-ID: <515C2788.90907@parallels.com>
+Date: Wed, 3 Apr 2013 16:58:48 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1303271821120.5005@chino.kir.corp.google.com>
+Subject: Re: [RFC][PATCH 1/7] memcg: use css_get in sock_update_memcg()
+References: <515BF233.6070308@huawei.com> <515BF249.50607@huawei.com>
+In-Reply-To: <515BF249.50607@huawei.com>
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Mar 27, 2013 at 06:22:10PM -0700, David Rientjes wrote:
-> A memcg may livelock when oom if the process that grabs the hierarchy's
-> oom lock is never the first process with PF_EXITING set in the memcg's
-> task iteration.
+On 04/03/2013 01:11 PM, Li Zefan wrote:
+> Use css_get/css_put instead of mem_cgroup_get/put.
 > 
-> The oom killer, both global and memcg, will defer if it finds an eligible
-> process that is in the process of exiting and it is not being ptraced.
-> The idea is to allow it to exit without using memory reserves before
-> needlessly killing another process.
+> Note, if at the same time someone is moving @current to a different
+> cgroup and removing the old cgroup, css_tryget() may return false,
+> and sock->sk_cgrp won't be initialized.
 > 
-> This normally works fine except in the memcg case with a large number of
-> threads attached to the oom memcg.  In this case, the memcg oom killer
-> only gets called for the process that grabs the hierarchy's oom lock; all
-> others end up blocked on the memcg's oom waitqueue.  Thus, if the process
-> that grabs the hierarchy's oom lock is never the first PF_EXITING process
-> in the memcg's task iteration, the oom killer is constantly deferred
-> without anything making progress.
+> Signed-off-by: Li Zefan <lizefan@huawei.com>
+> ---
+>  mm/memcontrol.c | 8 ++++----
+>  1 file changed, 4 insertions(+), 4 deletions(-)
 > 
-> The fix is to give PF_EXITING processes access to memory reserves so that
-> we've marked them as oom killed without any iteration.  This allows
-> __mem_cgroup_try_charge() to succeed so that the process may exit.  This
-> makes the memcg oom killer exemption for TIF_MEMDIE tasks, now
-> immediately granted for processes with pending SIGKILLs and those in the
-> exit path, to be equivalent to what is done for the global oom killer.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 23d0f6e..43ca91d 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -536,15 +536,15 @@ void sock_update_memcg(struct sock *sk)
+>  		 */
+>  		if (sk->sk_cgrp) {
+>  			BUG_ON(mem_cgroup_is_root(sk->sk_cgrp->memcg));
+> -			mem_cgroup_get(sk->sk_cgrp->memcg);
+> +			css_get(&sk->sk_cgrp->memcg->css);
+>  			return;
+>  		}
+>  
+>  		rcu_read_lock();
+>  		memcg = mem_cgroup_from_task(current);
+>  		cg_proto = sk->sk_prot->proto_cgroup(memcg);
+> -		if (!mem_cgroup_is_root(memcg) && memcg_proto_active(cg_proto)) {
+> -			mem_cgroup_get(memcg);
+> +		if (!mem_cgroup_is_root(memcg) &&
+> +		    memcg_proto_active(cg_proto) && css_tryget(&memcg->css)) {
+>  			sk->sk_cgrp = cg_proto;
+>  		}
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+What happens if this tryget fails ? Won't we leak a reference here? We
+will put regardless when the socket is released, and this may go
+negative. No?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
