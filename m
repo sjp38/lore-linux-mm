@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id A328B6B0027
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 14:35:55 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 93CC96B0039
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 14:35:56 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v3 2/3] fix hugetlb memory check in vma_dump_size()
-Date: Wed,  3 Apr 2013 14:35:37 -0400
-Message-Id: <1365014138-19589-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v3 3/3] hugetlbfs: add swap entry check in follow_hugetlb_page()
+Date: Wed,  3 Apr 2013 14:35:38 -0400
+Message-Id: <1365014138-19589-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,33 +13,55 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Documentation/filesystems/proc.txt says about coredump_filter bitmask,
+With applying the previous patch "hugetlbfs: stop setting VM_DONTDUMP in
+initializing vma(VM_HUGETLB)" to reenable hugepage coredump, if a memory
+error happens on a hugepage and the affected processes try to access
+the error hugepage, we hit VM_BUG_ON(atomic_read(&page->_count) <= 0)
+in get_page().
 
-  Note bit 0-4 doesn't effect any hugetlb memory. hugetlb memory are only
-  effected by bit 5-6.
+The reason for this bug is that coredump-related code doesn't recognise
+"hugepage hwpoison entry" with which a pmd entry is replaced when a memory
+error occurs on a hugepage.
+In other words, physical address information is stored in different bit layout
+between hugepage hwpoison entry and pmd entry, so follow_hugetlb_page()
+which is called in get_dump_page() returns a wrong page from a given address.
 
-However current code can go into the subsequent flag checks of bit 0-4
-for vma(VM_HUGETLB). So this patch inserts 'return' and makes it work
-as written in the document.
+We need to filter out only hwpoison hugepages to have data on healthy
+hugepages in coredump. So this patch makes follow_hugetlb_page() avoid
+trying to get page when a pmd is in swap entry like format.
+
+ChangeLog v3:
+ - add comment about using is_swap_pte()
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
 Cc: stable@vger.kernel.org
 ---
- fs/binfmt_elf.c | 1 +
- 1 file changed, 1 insertion(+)
+ mm/hugetlb.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-diff --git v3.9-rc3.orig/fs/binfmt_elf.c v3.9-rc3/fs/binfmt_elf.c
-index 3939829..86af964 100644
---- v3.9-rc3.orig/fs/binfmt_elf.c
-+++ v3.9-rc3/fs/binfmt_elf.c
-@@ -1137,6 +1137,7 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
- 			goto whole;
- 		if (!(vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_PRIVATE))
- 			goto whole;
-+		return 0;
- 	}
+diff --git v3.9-rc3.orig/mm/hugetlb.c v3.9-rc3/mm/hugetlb.c
+index 0d1705b..3bc20bd 100644
+--- v3.9-rc3.orig/mm/hugetlb.c
++++ v3.9-rc3/mm/hugetlb.c
+@@ -2966,9 +2966,15 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		 * Some archs (sparc64, sh*) have multiple pte_ts to
+ 		 * each hugepage.  We have to make sure we get the
+ 		 * first, for the page indexing below to work.
++		 *
++		 * is_swap_pte test covers both is_hugetlb_entry_hwpoisoned
++		 * and hugepages under migration in which case
++		 * hugetlb_fault waits for the migration and bails out
++		 * properly for HWPosined pages.
+ 		 */
+ 		pte = huge_pte_offset(mm, vaddr & huge_page_mask(h));
+-		absent = !pte || huge_pte_none(huge_ptep_get(pte));
++		absent = !pte || huge_pte_none(huge_ptep_get(pte)) ||
++			is_swap_pte(huge_ptep_get(pte));
  
- 	/* Do not dump I/O mapped devices or special mappings */
+ 		/*
+ 		 * When coredumping, it suits get_dump_page if we just return
 -- 
 1.7.11.7
 
