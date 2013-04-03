@@ -1,53 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id F03156B004D
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 20:23:10 -0400 (EDT)
-Date: Wed, 3 Apr 2013 09:23:09 +0900
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 805EE6B0072
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 21:11:07 -0400 (EDT)
+Date: Wed, 3 Apr 2013 10:11:04 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 4/4] mm: Enhance per process reclaim
-Message-ID: <20130403002309.GD16026@blaptop>
-References: <1364192494-22185-1-git-send-email-minchan@kernel.org>
- <1364192494-22185-4-git-send-email-minchan@kernel.org>
- <CAHO5Pa1LiBw8P5On0X3__49P8zeY4xwEU63KBoKWEpLTOHjeTw@mail.gmail.com>
+Subject: Re: [PATCHv2, RFC 20/30] ramfs: enable transparent huge page cache
+Message-ID: <20130403011104.GF16026@blaptop>
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1363283435-7666-21-git-send-email-kirill.shutemov@linux.intel.com>
+ <20130402162813.0B4CBE0085@blue.fi.intel.com>
+ <alpine.LNX.2.00.1304021422460.19363@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAHO5Pa1LiBw8P5On0X3__49P8zeY4xwEU63KBoKWEpLTOHjeTw@mail.gmail.com>
+In-Reply-To: <alpine.LNX.2.00.1304021422460.19363@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sangseok Lee <sangseok.lee@lge.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ying Han <yinghan@google.com>, Christoph Lameter <cl@linux.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hey Michael,
+On Tue, Apr 02, 2013 at 03:15:23PM -0700, Hugh Dickins wrote:
+> On Tue, 2 Apr 2013, Kirill A. Shutemov wrote:
+> > Kirill A. Shutemov wrote:
+> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > > 
+> > > ramfs is the most simple fs from page cache point of view. Let's start
+> > > transparent huge page cache enabling here.
+> > > 
+> > > For now we allocate only non-movable huge page. It's not yet clear if
+> > > movable page is safe here and what need to be done to make it safe.
+> > > 
+> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > ---
+> > >  fs/ramfs/inode.c |    6 +++++-
+> > >  1 file changed, 5 insertions(+), 1 deletion(-)
+> > > 
+> > > diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
+> > > index c24f1e1..da30b4f 100644
+> > > --- a/fs/ramfs/inode.c
+> > > +++ b/fs/ramfs/inode.c
+> > > @@ -61,7 +61,11 @@ struct inode *ramfs_get_inode(struct super_block *sb,
+> > >  		inode_init_owner(inode, dir, mode);
+> > >  		inode->i_mapping->a_ops = &ramfs_aops;
+> > >  		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
+> > > -		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
+> > > +		/*
+> > > +		 * TODO: what should be done to make movable safe?
+> > > +		 */
+> > > +		mapping_set_gfp_mask(inode->i_mapping,
+> > > +				GFP_TRANSHUGE & ~__GFP_MOVABLE);
+> > 
+> > Hugh, I've found old thread with the reason why we have GFP_HIGHUSER here, not
+> > GFP_HIGHUSER_MOVABLE:
+> > 
+> > http://lkml.org/lkml/2006/11/27/156
+> > 
+> > It seems the origin reason is not longer valid, correct?
+> 
+> Incorrect, I believe: so far as I know, the original reason remains
+> valid - though it would only require a couple of good small changes
+> to reverse that - or perhaps you have already made these changes?
+> 
+> The original reason is that ramfs pages are not migratable,
+> therefore they should be allocated from an unmovable area.
+> 
+> As I understand it (and I would have preferred to run a test to check
+> my understanding before replying, but don't have time for that), ramfs
+> pages cannot be migrated for two reasons, neither of them a good reason.
+> 
+> One reason (okay, it wouldn't have been quite this way in 2006) is that
+> ramfs (rightly) calls mapping_set_unevictable(), so its pages will fail
+> the page_evictable() test, so they will be marked PageUnevictable, so
+> __isolate_lru_page() will refuse to isolate them for migration (except
+> for CMA).
 
-On Tue, Apr 02, 2013 at 03:25:25PM +0200, Michael Kerrisk wrote:
-> Minchan,
-> 
-> On Mon, Mar 25, 2013 at 7:21 AM, Minchan Kim <minchan@kernel.org> wrote:
-> >
-> > Some pages could be shared by several processes. (ex, libc)
-> > In case of that, it's too bad to reclaim them from the beginnig.
-> >
-> > This patch causes VM to keep them on memory until last task
-> > try to reclaim them so shared pages will be reclaimed only if
-> > all of task has gone swapping out.
-> >
-> > This feature doesn't handle non-linear mapping on ramfs because
-> > it's very time-consuming and doesn't make sure of reclaiming and
-> > not common.
-> 
-> Against what tree does this patch apply? I've tries various trees,
-> including MMOTM of 26 March, and encounter this error:
-> 
->   CC      mm/ksm.o
-> mm/ksm.c: In function a??try_to_unmap_ksma??:
-> mm/ksm.c:1970:32: error: a??vmaa?? undeclared (first use in this function)
-> mm/ksm.c:1970:32: note: each undeclared identifier is reported only
-> once for each function it appears in
-> make[1]: *** [mm/ksm.o] Error 1
-> make: *** [mm] Error 2
+True.
 
-I did it based on mmotm-2013-03-22-15-21 and you found build problem.
-Could you apply below patch? I will fix up below in next spin.
-Thanks for the testing!
+> 
+> I am strongly in favour of removing that limitation from
+> __isolate_lru_page() (and the thread you pointed - thank you - shows Mel
+> and Christoph were both in favour too); and note that there is no such
+> restriction in the confusingly similar but different isolate_lru_page().
+> 
+> Some people do worry that migrating Mlocked pages would introduce the
+> occasional possibility of a minor fault (with migration_entry_wait())
+> on an Mlocked region which never faulted before.  I tend to dismiss
+> that worry, but maybe I'm wrong to do so: maybe there should be a
+> tunable for realtimey people to set, to prohibit page migration from
+> mlocked areas; but the default should be to allow it.
+
+I agree.
+Just FYI for mlocked page migration
+
+I tried migratioin of mlocked page and Johannes and Mel had a concern
+about that.
+http://lkml.indiana.edu/hypermail/linux/kernel/1109.0/00175.html
+
+But later, Peter already acked it and I guess by reading the thread that
+Hugh was in favour when page migration was merged first time.
+
+http://marc.info/?l=linux-mm&m=133697873414205&w=2
+http://marc.info/?l=linux-mm&m=133700341823358&w=2
+
+Many people said mlock means memory-resident, NOT pinning so it could
+allow minor fault while Mel still had a concern except CMA.
+http://marc.info/?l=linux-mm&m=133674219714419&w=2
+
+> 
+> (Of course, we could separate ramfs's mapping_unevictable case from
+> the Mlocked case; but I'd prefer to continue to treat them the same.)
+
+Fair enough.
+
+> 
+> The other reason it looks as if ramfs pages cannot be migrated, is
+> that it does not set a suitable ->migratepage method, so would be
+> handled by fallback_migrate_page(), whose PageDirty test will end
+> up failing the migration with -EBUSY or -EINVAL - if I read it
+> correctly.
+
+True.
+
+> 
+> Perhaps other such reasons would surface once those are fixed.
+> But until ramfs pages can be migrated, they should not be allocated
+> with __GFP_MOVABLE.  (I've been writing about the migratability of
+> small pages: I expect you have the migratability of THPages in flux.)
+
+Agreed.
+
+> 
+> Hugh
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
