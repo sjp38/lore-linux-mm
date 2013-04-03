@@ -1,37 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id CBBBF6B00D6
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:18:50 -0400 (EDT)
-Message-ID: <515BF41D.9080300@parallels.com>
-Date: Wed, 3 Apr 2013 13:19:25 +0400
-From: Glauber Costa <glommer@parallels.com>
+	by kanga.kvack.org (Postfix) with SMTP id D75D86B00D8
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:37:26 -0400 (EDT)
+Date: Wed, 3 Apr 2013 11:37:21 +0200
+From: Jakub Jelinek <jakub@redhat.com>
+Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
+Message-ID: <20130403093721.GA20003@tucnak.redhat.com>
+Reply-To: Jakub Jelinek <jakub@redhat.com>
+References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
+ <alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/7] memcg: make memcg's life cycle the same as cgroup
-References: <515BF233.6070308@huawei.com>
-In-Reply-To: <515BF233.6070308@huawei.com>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org
 
-On 04/03/2013 01:11 PM, Li Zefan wrote:
-> The historical reason that memcg didn't use css_get in some cases, is that
-> cgroup couldn't be removed if there're still css refs. The situation has
-> changed so that rmdir a cgroup will succeed regardless css refs, but won't
-> be freed until css refs goes down to 0.
+On Tue, Apr 02, 2013 at 03:33:58PM -0700, David Rientjes wrote:
+> On Tue, 2 Apr 2013, Jan Stancek wrote:
 > 
-> This is an early post, and it's NOT TESTED. I just want to see if the changes
-> are fine in general.
-Well, from my PoV, this will in general greatly simplify memcg lifecycle
-management.
+> > find_vma() can be called by multiple threads with read lock
+> > held on mm->mmap_sem and any of them can update mm->mmap_cache.
+> > Prevent compiler from re-fetching mm->mmap_cache, because other
+> > readers could update it in the meantime:
+> > 
+> 
+> FWIW, ACCESS_ONCE() does not guarantee that the compiler will not refetch 
+> mm->mmap_cache whatsoever; there is nothing that prevents this either in 
+> the C standard.  You'll be relying solely on gcc's implementation of how 
+> it dereferences volatile-qualified pointers.
 
-Indeed, I can remember no other reason for those complications other
-than the problem with removing directories. If cgroup no longer have
-this limitation, I would much rather see your approach in.
+FYI, the volatile access can be also unnecessarily pessimizing, other
+projects like glibc use a friendlier alternative to the kernel's
+ACCESS_ONCE.  In glibc it is:
+# define atomic_forced_read(x) \
+  ({ __typeof (x) __x; __asm ("" : "=r" (__x) : "0" (x)); __x; })
+(could as well use "=g" instead).  This isn't volatile, so it can be
+scheduled freely but if you store the result of it in a local variable and
+use only that local variable everywhere in the function (and don't modify
+it), there is a guarantee that you'll always see the same value.
+The above should work fine with any GCC versions that can be used to compile
+kernel.
 
-I will look into the patches individually soon
+Or of course, starting with GCC 4.7 you have also the alternative to use
+# define ATOMIC_ONCE(x) __atomic_load_n (&x, __ATOMIC_RELAXED)
+
+	Jakub
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
