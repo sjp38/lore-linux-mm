@@ -1,37 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 45B2B6B0005
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 17:33:42 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id kp14so1113443pab.22
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 14:33:41 -0700 (PDT)
-Date: Wed, 3 Apr 2013 14:33:34 -0700
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 248EF6B0005
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 17:43:41 -0400 (EDT)
+Received: by mail-da0-f46.google.com with SMTP id y19so838394dan.33
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 14:43:40 -0700 (PDT)
+Date: Wed, 3 Apr 2013 14:43:36 -0700
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] memcg: fix memcg_cache_name() to use cgroup_name()
-Message-ID: <20130403213334.GE3411@htj.dyndns.org>
-References: <1364373399-17397-1-git-send-email-mhocko@suse.cz>
- <20130327145727.GD29052@cmpxchg.org>
- <20130327151104.GK16579@dhcp22.suse.cz>
- <51530E1E.3010100@parallels.com>
- <20130327153220.GL16579@dhcp22.suse.cz>
- <20130327173223.GQ16579@dhcp22.suse.cz>
- <20130328074814.GA3018@dhcp22.suse.cz>
- <20130402082648.GB24345@dhcp22.suse.cz>
+Subject: Re: [RFC][PATCH 0/7] memcg: make memcg's life cycle the same as
+ cgroup
+Message-ID: <20130403214336.GF3411@htj.dyndns.org>
+References: <515BF233.6070308@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130402082648.GB24345@dhcp22.suse.cz>
+In-Reply-To: <515BF233.6070308@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, Apr 02, 2013 at 10:26:48AM +0200, Michal Hocko wrote:
-> Tejun,
-> could you take this one please?
+On Wed, Apr 03, 2013 at 05:11:15PM +0800, Li Zefan wrote:
+> (I'll be off from my office soon, and I won't be responsive in the following
+> 3 days.)
+> 
+> I'm working on converting memcg to use cgroup->id, and then we can kill css_id.
+> 
+> Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
+> still be alive. This patchset converts memcg to always use css_get/put, so
+> memcg will have the same life cycle as its corresponding cgroup, and then
+> it's always safe for memcg to use cgroup->id.
+> 
+> The historical reason that memcg didn't use css_get in some cases, is that
+> cgroup couldn't be removed if there're still css refs. The situation has
+> changed so that rmdir a cgroup will succeed regardless css refs, but won't
+> be freed until css refs goes down to 0.
 
-Aye aye, applied to cgroup/for-3.10.
+Hallelujah.  This one is egregious if you take a step back and what
+happened as a whole.  cgroup core had this weird object life-time
+management rule where it forces draining of all css refs on cgroup
+destruction, which is very unusual and puts unnecessary restrictions
+on css object usages in controllers.
 
-Thanks.
+As the restriction wasn't too nice, memcg goes ahead and creates its
+own object which basically is the same as css but has a different
+life-time rule and does refcnting for both objects.  Bah....
+
+So, yeah, let's please get rid of this abomination.  It shouldn't have
+existed from the beginning.
+
+Thanks a lot for doing this!
 
 -- 
 tejun
