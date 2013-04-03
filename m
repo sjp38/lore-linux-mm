@@ -1,12 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 7C6176B00BB
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:13:05 -0400 (EDT)
-Message-ID: <515BF249.50607@huawei.com>
-Date: Wed, 3 Apr 2013 17:11:37 +0800
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id C69706B00CC
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:13:30 -0400 (EDT)
+Message-ID: <515BF2A4.1070703@huawei.com>
+Date: Wed, 3 Apr 2013 17:13:08 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 1/7] memcg: use css_get in sock_update_memcg()
+Subject: [RFC][PATCH 5/7] cgroup: make sure parent won't be destroyed before
+ its children
 References: <515BF233.6070308@huawei.com>
 In-Reply-To: <515BF233.6070308@huawei.com>
 Content-Type: text/plain; charset="GB2312"
@@ -16,49 +17,46 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Use css_get/css_put instead of mem_cgroup_get/put.
+Suppose we rmdir a cgroup and there're still css refs, this cgroup won't
+be freed. Then we rmdir the parent cgroup, and the parent is freed due
+to css ref draining to 0. Now it would be a disaster if the child cgroup
+tries to access its parent.
 
-Note, if at the same time someone is moving @current to a different
-cgroup and removing the old cgroup, css_tryget() may return false,
-and sock->sk_cgrp won't be initialized.
+Make sure this won't happen.
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
 ---
- mm/memcontrol.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ kernel/cgroup.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 23d0f6e..43ca91d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -536,15 +536,15 @@ void sock_update_memcg(struct sock *sk)
- 		 */
- 		if (sk->sk_cgrp) {
- 			BUG_ON(mem_cgroup_is_root(sk->sk_cgrp->memcg));
--			mem_cgroup_get(sk->sk_cgrp->memcg);
-+			css_get(&sk->sk_cgrp->memcg->css);
- 			return;
- 		}
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index fa54b92..78204bc 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -888,6 +888,13 @@ static void cgroup_free_fn(struct work_struct *work)
+ 	mutex_unlock(&cgroup_mutex);
  
- 		rcu_read_lock();
- 		memcg = mem_cgroup_from_task(current);
- 		cg_proto = sk->sk_prot->proto_cgroup(memcg);
--		if (!mem_cgroup_is_root(memcg) && memcg_proto_active(cg_proto)) {
--			mem_cgroup_get(memcg);
-+		if (!mem_cgroup_is_root(memcg) &&
-+		    memcg_proto_active(cg_proto) && css_tryget(&memcg->css)) {
- 			sk->sk_cgrp = cg_proto;
- 		}
- 		rcu_read_unlock();
-@@ -558,7 +558,7 @@ void sock_release_memcg(struct sock *sk)
- 		struct mem_cgroup *memcg;
- 		WARN_ON(!sk->sk_cgrp->memcg);
- 		memcg = sk->sk_cgrp->memcg;
--		mem_cgroup_put(memcg);
-+		css_put(&sk->sk_cgrp->memcg->css);
- 	}
- }
+ 	/*
++	 * We get a ref to the parent's dentry, and put the ref when
++	 * this cgroup is being freed, so it's guaranteed that the
++	 * parent won't be destroyed before its children.
++	 */
++	dput(cgrp->parent->dentry);
++
++	/*
+ 	 * Drop the active superblock reference that we took when we
+ 	 * created the cgroup
+ 	 */
+@@ -4171,6 +4178,9 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
+ 	for_each_subsys(root, ss)
+ 		dget(dentry);
  
++	/* hold a ref to the parent's dentry */
++	dget(parent->dentry);
++
+ 	/* creation succeeded, notify subsystems */
+ 	for_each_subsys(root, ss) {
+ 		err = online_css(ss, cgrp);
 -- 
 1.8.0.2
 
