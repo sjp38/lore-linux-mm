@@ -1,177 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 8C7096B0005
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 12:34:11 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 0B3136B0006
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 12:38:46 -0400 (EDT)
 Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Wed, 3 Apr 2013 10:34:10 -0600
+	Wed, 3 Apr 2013 10:38:45 -0600
 Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id A319819D8048
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:34:01 -0600 (MDT)
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 9A8B8C40003
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:33:28 -0600 (MDT)
 Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r33GY1KG359020
-	for <linux-mm@kvack.org>; Wed, 3 Apr 2013 10:34:02 -0600
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r33GcRIM369856
+	for <linux-mm@kvack.org>; Wed, 3 Apr 2013 10:38:27 -0600
 Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r33GaZOM016046
-	for <linux-mm@kvack.org>; Wed, 3 Apr 2013 10:36:36 -0600
-Date: Wed, 3 Apr 2013 09:33:48 -0700
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r33GfAvw006110
+	for <linux-mm@kvack.org>; Wed, 3 Apr 2013 10:41:10 -0600
+Date: Wed, 3 Apr 2013 09:38:23 -0700
 From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
-Message-ID: <20130403163348.GD28522@linux.vnet.ibm.com>
+Message-ID: <20130403163823.GE28522@linux.vnet.ibm.com>
 Reply-To: paulmck@linux.vnet.ibm.com
 References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
  <alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
  <alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
  <alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
- <20130403041447.GC4611@cmpxchg.org>
- <alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
- <20130403045814.GD4611@cmpxchg.org>
- <CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
+ <20130403031902.GM3804@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1304022110160.32184@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.02.1304022110160.32184@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ian Lance Taylor <iant@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, Ian Lance Taylor <iant@google.com>, linux-mm@kvack.org
 
-On Wed, Apr 03, 2013 at 06:45:51AM -0700, Ian Lance Taylor wrote:
-> On Tue, Apr 2, 2013 at 9:58 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Tue, Apr 02, 2013 at 09:25:40PM -0700, David Rientjes wrote:
-> >
-> >> As stated, it doesn't.  I made the comment "for what it's worth" that
-> >> ACCESS_ONCE() doesn't do anything to "prevent the compiler from
-> >> re-fetching" as the changelog insists it does.
-> >
-> > That's exactly what it does:
-> >
-> > /*
-> >  * Prevent the compiler from merging or refetching accesses.
-> >
-> > This is the guarantee ACCESS_ONCE() gives, users should absolutely be
-> > allowed to rely on this literal definition.  The underlying gcc
-> > implementation does not matter one bit.  That's the whole point of
-> > abstraction!
+On Tue, Apr 02, 2013 at 09:21:49PM -0700, David Rientjes wrote:
+> On Tue, 2 Apr 2013, Paul E. McKenney wrote:
 > 
-> If the definition of ACCESS_ONCE is indeed
+> > So although I agree that the standard does not say as much as one might
+> > like about volatile, ACCESS_ONCE()'s use of volatile should be expected
+> > to work in a wide range of C compilers.  ACCESS_ONCE()'s use of typeof()
+> > might not be quite so generally applicable, but a fair range of C
+> > compilers do seem to support typeof() as well as ACCESS_ONCE()'s use
+> > of volatile.
+> > 
 > 
-> #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+> Agreed and I have nothing against code that uses it in that manner based 
+> on the implementations of those compilers.  The _only_ thing I've said in 
+> this thread is that ACCESS_ONCE() does not "prevent the compiler from 
+> re-fetching."  The only thing that is going to prevent the compiler from 
+> doing anything is the standard and, as you eluded, it's legal for a 
+> compiler to compile code such as 
 > 
-> then its behaviour is compiler-specific.
+> 	vma = ACCESS_ONCE(mm->mmap_cache);
+> 	if (vma && vma->vm_start <= addr && vma->vm_end > addr)
+> 		return vma;
+> 
+> to be equivalent as if it had been written
+> 
+> 	if (mm->mmap_cache && mm->mmap_cache->vm_start <= addr &&
+> 	    mm->mmap_cache->vm_end > addr)
+> 		return mm->mmap_cache;
+> 
+> and still be a conforming implementation.  We know gcc doesn't do that, so 
+> nobody is arguing the code in this patch as being incorrect.  In fact, to 
+> remove any question about it:
+> 
+> Acked-by: David Rientjes <rientjes@google.com>
 
-That is the implementation of ACCESS_ONCE().  As Johannes noted,
-in the unlikely event that this implementation ever fails to provide
-the semantics required of ACCESS_ONCE(), something will be changed.
-This has already happened at least once.  A recent version of gcc allowed
-volatile stores of certain constants to be split, but gcc was changed
-to avoid this behavior, while of course preserving this optimization
-for non-volatile stores.  If we later need to change the ACCESS_ONCE()
-macro, we will make that change.
+Thank you!
 
-> The C language standard only describes how access to
-> volatile-qualified objects behave.  In this case x is (presumably) not
-> a volatile-qualifed object.  The standard never defines the behaviour
-> of volatile-qualified pointers.  That might seem like an oversight,
-> but it is not: using a non-volatile-qualified pointer to access a
-> volatile-qualified object is undefined behaviour.
->
-> In short, casting a pointer to a non-volatile-qualified object to a
-> volatile-qualified pointer has no specific meaning in C.  It's true
-> that most compilers will behave as you wish, but there is no
-> guarantee.
+> However, as originally stated, I would prefer that the changelog be 
+> reworded so nobody believes ACCESS_ONCE() prevents the compiler from 
+> re-fetching anything.
 
-But we are not using a non-volatile-qualified pointer to access a
-volatile-qualified object.  We are doing the opposite.  I therefore
-don't understand the relevance of your comment about undefined behavior.
+If you were to instead say:
 
-> If using a sufficiently recent version of GCC, you can get the
-> behaviour that I think you want by using
->     __atomic_load(&x, __ATOMIC_RELAXED)
+	However, as originally stated, I would prefer that the changelog
+	be reworded so nobody believes that the C standard guarantees that
+	volatile casts prevent the compiler from re-fetching anything.
 
-If this maps to the memory_order_relaxed token defined in earlier versions
-of the C11 standard, then this absolutely does -not-, repeat -not-, work
-for ACCESS_ONCE().  The relaxed load instead guarantees is that the load
-will be atomic with respect to other atomic stores to that same variable,
-in other words, it will prevent "load tearing" and "store tearing".  I
-also believe that it prevents reloading, in other words, preventing this:
-
-	tmp = __atomic_load(&x, __ATOMIC_RELAXED);
-	do_something_with(tmp);
-	do_something_else_with(tmp);
-
-from being optimized into something like this:
-
-	do_something_with(__atomic_load(&x, __ATOMIC_RELAXED));
-	do_something_else_with(__atomic_load(&x, __ATOMIC_RELAXED));
-
-It says nothing about combining nearby loads from that same variable.
-As I understand it, the compiler would be within its rights to do the
-reverse optimization from this:
-
-	do_something_with(__atomic_load(&x, __ATOMIC_RELAXED));
-	do_something_else_with(__atomic_load(&x, __ATOMIC_RELAXED));
-
-into this:
-
-	tmp = __atomic_load(&x, __ATOMIC_RELAXED);
-	do_something_with(tmp);
-	do_something_else_with(tmp);
-
-It is only permitted to do finite combining, so that it is prohibited
-from turning this:
-
-	while (__atomic_load(&x, __ATOMIC_RELAXED) != 0)
-		do_some_other_thing();
-
-into this:
-
-	tmp = __atomic_load(&x, __ATOMIC_RELAXED);
-	while (tmp)
-		do_some_other_thing();
-
-and thus into this:
-
-	tmp = __atomic_load(&x, __ATOMIC_RELAXED);
-	for (;;)
-		do_some_other_thing();
-
-But it would be within its rights to unroll the original loop into
-something like this:
-
-	while (__atomic_load(&x, __ATOMIC_RELAXED) != 0) {
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-		do_some_other_thing();
-	}
-
-This could of course destroy the response-time characteristics of the
-resulting program, so we absolutely must have a way to prevent the
-compiler from doing this.  One way to prevent it from doing this is in
-fact a volatile cast:
-
-	while (__atomic_load((volatile typeof(x) *)&x, __ATOMIC_RELAXED) != 0)
-		do_some_other_thing();
-
-The last time I went through this with the C/C++ standards committee
-members, they agreed with my interpretation.  Perhaps the standard has
-been changed to allow volatile to be dispensed with, but I have not
-seen any such change.  So, if you believe differently, please show me
-the wording in the standard that supports your view.
+I might agree with you.  But ACCESS_ONCE() really is defined to prevent
+the compiler from refetching anything.  If a new version of gcc appears
+for which volatile casts does not protect against refetching, then we
+will change either (1) gcc or (2) the implementation of ACCESS_ONCE().
+Whatever is needed to provide the guarantee against refetching.  The
+Linux kernel absolutely needs -something- that provides this guarantee.
 
 							Thanx, Paul
 
