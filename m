@@ -1,60 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id A20776B0036
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 09:53:47 -0400 (EDT)
-Date: Wed, 3 Apr 2013 13:53:45 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: RE: [PATCHv2, RFC 20/30] ramfs: enable transparent huge page cache
-In-Reply-To: <alpine.LNX.2.00.1304021422460.19363@eggly.anvils>
-Message-ID: <0000013dd02cbd43-c64cd198-7c04-4dfa-acdc-e725c776fed7-000000@email.amazonses.com>
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <1363283435-7666-21-git-send-email-kirill.shutemov@linux.intel.com> <20130402162813.0B4CBE0085@blue.fi.intel.com> <alpine.LNX.2.00.1304021422460.19363@eggly.anvils>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 51EF76B0002
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:00:52 -0400 (EDT)
+Date: Wed, 3 Apr 2013 16:00:49 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm, x86: Do not zero hugetlbfs pages at boot. -v2
+Message-ID: <20130403140049.GI16471@dhcp22.suse.cz>
+References: <E1UDME8-00041J-B4@eag09.americas.sgi.com>
+ <20130314085138.GA11636@dhcp22.suse.cz>
+ <20130403024344.GA4384@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130403024344.GA4384@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ying Han <yinghan@google.com>, Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Robin Holt <holt@sgi.com>
+Cc: Cliff Wickman <cpw@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, wli@holomorphy.com
 
-On Tue, 2 Apr 2013, Hugh Dickins wrote:
+On Tue 02-04-13 21:43:44, Robin Holt wrote:
+[...]
+> diff --git a/mm/bootmem.c b/mm/bootmem.c
+> index 2b0bcb0..b2e4027 100644
+> --- a/mm/bootmem.c
+> +++ b/mm/bootmem.c
+> @@ -705,12 +705,16 @@ void * __init __alloc_bootmem(unsigned long size, unsigned long align,
+>  
+>  void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+>  				unsigned long size, unsigned long align,
+> -				unsigned long goal, unsigned long limit)
+> +				unsigned long goal, unsigned long limit,
+> +				int zeroed)
+>  {
+>  	void *ptr;
+>  
+>  	if (WARN_ON_ONCE(slab_is_available()))
+> -		return kzalloc(size, GFP_NOWAIT);
+> +		if (zeroed)
+> +			return kzalloc(size, GFP_NOWAIT);
+> +		else
+> +			return kmalloc(size, GFP_NOWAIT);
+>  again:
+>  
+>  	/* do not panic in alloc_bootmem_bdata() */
 
-> I am strongly in favour of removing that limitation from
-> __isolate_lru_page() (and the thread you pointed - thank you - shows Mel
-> and Christoph were both in favour too); and note that there is no such
-> restriction in the confusingly similar but different isolate_lru_page().
+You need to update alloc_bootmem_bdata and alloc_bootmem_core as well.
+Otherwise this is a no-op for early allocations when slab is not
+available which is the case unless something is broken.
 
-Well the naming could be cleaned up. The fundamental issue with migrating
-pages is that all references have to be tracked and updates in a way that
-no references can be followed to invalid or stale page contents. If ramfs
-does not maintain separate pointers but only relies on pointers already
-handled by the migration logic then migration is fine.
-
-> Some people do worry that migrating Mlocked pages would introduce the
-> occasional possibility of a minor fault (with migration_entry_wait())
-> on an Mlocked region which never faulted before.  I tend to dismiss
-> that worry, but maybe I'm wrong to do so: maybe there should be a
-> tunable for realtimey people to set, to prohibit page migration from
-> mlocked areas; but the default should be to allow it.
-
-Could we have a different way of marking pages "pinned"? This is useful
-for various subsystems (like RDMA and various graphics drivers etc) which
-need to ensure that virtual address to physical address mappings stay the
-same for a prolonged period of time. I think this use case is becoming
-more frequent given that offload techniques have to be used these days to
-overcome the limits on processor performance.
-
-> The other reason it looks as if ramfs pages cannot be migrated, is
-> that it does not set a suitable ->migratepage method, so would be
-> handled by fallback_migrate_page(), whose PageDirty test will end
-> up failing the migration with -EBUSY or -EINVAL - if I read it
-> correctly.
-
-These could be handled the same way that anonymous pages are handled.
-
-> But until ramfs pages can be migrated, they should not be allocated
-> with __GFP_MOVABLE.  (I've been writing about the migratability of
-> small pages: I expect you have the migratability of THPages in flux.)
-
-I agree.
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
