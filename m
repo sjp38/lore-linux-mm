@@ -1,30 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id F27E86B00E2
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 06:13:03 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id m15so1356314wgh.3
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 03:13:02 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAHO5Pa0srsWS6ukpxUo=EqCOxRmYa7c_7PDg1YPh7gcMGWPpaw@mail.gmail.com>
-References: <1364192494-22185-1-git-send-email-minchan@kernel.org> <CAHO5Pa0srsWS6ukpxUo=EqCOxRmYa7c_7PDg1YPh7gcMGWPpaw@mail.gmail.com>
-From: Michael Kerrisk <mtk.manpages@gmail.com>
-Date: Wed, 3 Apr 2013 12:12:42 +0200
-Message-ID: <CAHO5Pa1we3FCoBTSHTO23tzCss4Z-AkZzoGxBYkTy7e5aYmcJw@mail.gmail.com>
-Subject: Re: [RFC 1/4] mm: Per process reclaim
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 82A436B00DC
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 06:16:36 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 3 Apr 2013 15:41:22 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 0E5E23940023
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 15:46:27 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r33AGLK363635630
+	for <linux-mm@kvack.org>; Wed, 3 Apr 2013 15:46:21 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r33AGO7C017592
+	for <linux-mm@kvack.org>; Wed, 3 Apr 2013 21:16:25 +1100
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH part2 v6 0/3] staging: zcache: Support zero-filled pages more efficiently
+Date: Wed,  3 Apr 2013 18:16:20 +0800
+Message-Id: <1364984183-9711-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sangseok Lee <sangseok.lee@lge.com>, Michael Kerrisk-manpages <mtk.manpages@gmail.com>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Fengguang Wu <fengguang.wu@intel.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-> However, the interface is a quite blunt instrument. Would there be any
-> virtue in extending it so that an address range could be written to
+Changelog:
+ v5 -> v6:
+  * shove variables in debug.c and in debug.h just have an extern, spotted by Konrad
+  * update patch description, spotted by Konrad
+ v4 -> v5:
+  * fix compile error, reported by Fengguang, Geert
+  * add check for !is_ephemeral(pool), spotted by Bob
+ v3 -> v4:
+  * handle duplication in page_is_zero_filled, spotted by Bob
+  * fix zcache writeback in dubugfs
+  * fix pers_pageframes|_max isn't exported in debugfs
+  * fix static variable defined in debug.h but used in multiple C files
+  * rebase on Greg's staging-next
+ v2 -> v3:
+  * increment/decrement zcache_[eph|pers]_zpages for zero-filled pages, spotted by Dan
+  * replace "zero" or "zero page" by "zero_filled_page", spotted by Dan
+ v1 -> v2:
+  * avoid changing tmem.[ch] entirely, spotted by Dan.
+  * don't accumulate [eph|pers]pageframe and [eph|pers]zpages for
+    zero-filled pages, spotted by Dan
+  * cleanup TODO list
+  * add Dan Acked-by.
 
-Here, I did mean to say "an *optional* address range.
+Motivation:
 
-Thanks,
+- Seth Jennings points out compress zero-filled pages with LZO(a lossless
+  data compression algorithm) will waste memory and result in fragmentation.
+  https://lkml.org/lkml/2012/8/14/347
+- Dan Magenheimer add "Support zero-filled pages more efficiently" feature
+  in zcache TODO list https://lkml.org/lkml/2013/2/13/503
 
-Michael
+Design:
+
+- For store page, capture zero-filled pages(evicted clean page cache pages and
+  swap pages), but don't compress them, set pampd which store zpage address to
+  0x2(since 0x0 and 0x1 has already been ocuppied) to mark special zero-filled
+  case and take advantage of tmem infrastructure to transform handle-tuple(pool
+  id, object id, and an index) to a pampd. Twice compress zero-filled pages will
+  contribute to one zcache_[eph|pers]_pageframes count accumulated.
+- For load page, traverse tmem hierachical to transform handle-tuple to pampd
+  and identify zero-filled case by pampd equal to 0x2 when filesystem reads
+  file pages or a page needs to be swapped in, then refill the page to zero
+  and return.
+
+Test:
+
+dd if=/dev/zero of=zerofile bs=1MB count=500
+vmtouch -t zerofile
+vmtouch -e zerofile
+
+formula:
+- fragmentation level = (zcache_[eph|pers]_pageframes * PAGE_SIZE - zcache_[eph|pers]_zbytes)
+  * 100 / (zcache_[eph|pers]_pageframes * PAGE_SIZE)
+- memory zcache occupy = zcache_[eph|pers]_zbytes
+
+Result:
+
+without zero-filled awareness:
+- fragmentation level: 98%
+- memory zcache occupy: 238MB
+with zero-filled awareness:
+- fragmentation level: 0%
+- memory zcache occupy: 0MB
+
+Wanpeng Li (3):
+  staging: zcache: fix static variables defined in debug.h but used in
+    mutiple C files
+  staging: zcache: introduce zero-filled page stat count
+  staging: zcache: clean TODO list
+
+ drivers/staging/zcache/TODO          |    3 +-
+ drivers/staging/zcache/debug.c       |   35 +++++++++++++++
+ drivers/staging/zcache/debug.h       |   79 ++++++++++++++++++++-------------
+ drivers/staging/zcache/zcache-main.c |    4 ++
+ 4 files changed, 88 insertions(+), 33 deletions(-)
+
+-- 
+1.7.5.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
