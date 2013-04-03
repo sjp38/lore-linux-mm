@@ -1,89 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 21B286B0089
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 23:19:08 -0400 (EDT)
-Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 2 Apr 2013 21:19:07 -0600
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 9C8CA3E4003E
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 21:18:53 -0600 (MDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r333J5f7160004
-	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 21:19:05 -0600
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r333LnHJ030696
-	for <linux-mm@kvack.org>; Tue, 2 Apr 2013 21:21:49 -0600
-Date: Tue, 2 Apr 2013 20:19:02 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
-Message-ID: <20130403031902.GM3804@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
- <alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
- <alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
- <alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id E5FC56B008C
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 23:44:05 -0400 (EDT)
+Message-ID: <515BA567.2090804@huawei.com>
+Date: Wed, 3 Apr 2013 11:43:35 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
+Subject: Re: [PATCH] memcg: don't do cleanup manually if mem_cgroup_css_online()
+ fails
+References: <515A8A40.6020406@huawei.com> <20130402121600.GK24345@dhcp22.suse.cz> <515ACD7F.3070009@parallels.com> <20130402133227.GM24345@dhcp22.suse.cz>
+In-Reply-To: <20130402133227.GM24345@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, Ian Lance Taylor <iant@google.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, Apr 02, 2013 at 04:55:45PM -0700, David Rientjes wrote:
-> On Tue, 2 Apr 2013, Hugh Dickins wrote:
+On 2013/4/2 21:32, Michal Hocko wrote:
+> On Tue 02-04-13 16:22:23, Glauber Costa wrote:
+>> On 04/02/2013 04:16 PM, Michal Hocko wrote:
+>>> On Tue 02-04-13 15:35:28, Li Zefan wrote:
+>>> [...]
+>>>> @@ -6247,16 +6247,7 @@ mem_cgroup_css_online(struct cgroup *cont)
+>>>>  
+>>>>  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+>>>>  	mutex_unlock(&memcg_create_mutex);
+>>>> -	if (error) {
+>>>> -		/*
+>>>> -		 * We call put now because our (and parent's) refcnts
+>>>> -		 * are already in place. mem_cgroup_put() will internally
+>>>> -		 * call __mem_cgroup_free, so return directly
+>>>> -		 */
+>>>> -		mem_cgroup_put(memcg);
+>>>> -		if (parent->use_hierarchy)
+>>>> -			mem_cgroup_put(parent);
+>>>> -	}
+>>>> +
+>>>>  	return error;
+>>>>  }
+>>>
+>>> The mem_cgroup_put(parent) part is incorrect because mem_cgroup_put goes
+>>> up the hierarchy already but I do not think mem_cgroup_put(memcg) should
+>>> go away as well. Who is going to free the last reference then?
+>>>
+>>> Maybe I am missing something but we have:
+>>> cgroup_create
+>>>   css = ss->css_alloc(cgrp)
+>>>     mem_cgroup_css_alloc
+>>>       atomic_set(&memcg->refcnt, 1)
+>>>   online_css(ss, cgrp)
+>>>     mem_cgroup_css_online
+>>>       error = memcg_init_kmem		# fails
+>>>   goto err_destroy
+>>> err_destroy:
+>>>   cgroup_destroy_locked(cgrp)
+>>>     offline_css
+>>>       mem_cgroup_css_offline
+>>>
+>>> no mem_cgroup_put on the way.
+>>>
+>>
+>> static void mem_cgroup_css_free(struct cgroup *cont)
+>> {
+>>         struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+>>
+>>         kmem_cgroup_destroy(memcg);
+>>
+>>         mem_cgroup_put(memcg);
+>> }
+>>
+>> kernel/cgroup.c:
+>> err_free_all:
+>>         for_each_subsys(root, ss) {
+>>                 if (cgrp->subsys[ss->subsys_id])
+>>                         ss->css_free(cgrp);
+>>         }
 > 
-> > > > find_vma() can be called by multiple threads with read lock
-> > > > held on mm->mmap_sem and any of them can update mm->mmap_cache.
-> > > > Prevent compiler from re-fetching mm->mmap_cache, because other
-> > > > readers could update it in the meantime:
-> > > 
-> > > FWIW, ACCESS_ONCE() does not guarantee that the compiler will not refetch 
-> > > mm->mmap_cache whatsoever; there is nothing that prevents this either in 
-> > > the C standard.  You'll be relying solely on gcc's implementation of how 
-> > > it dereferences volatile-qualified pointers.
-> > 
-> > Jan is using ACCESS_ONCE() as it should be used, for its intended
-> > purpose.  If the kernel's implementation of ACCESS_ONCE() is deficient,
-> > then we should fix that, not discourage its use.
-> > 
+> But we do not get to that path after online_css fails because that one
+> jumps to err_destroy. So this is not it. Maybe css_free gets called from
+> cgroup_diput but I got lost in the indirection.
 > 
-> My comment is about the changelog, quoted above, saying "prevent compiler 
-> from re-fetching mm->mmap_cache..."  ACCESS_ONCE(), as implemented, does 
-> not prevent the compiler from re-fetching anything.  It is entirely 
-> plausible that in gcc's current implementation that this guarantee is 
-> made, but it is not prevented by the language standard and I think the 
-> changelog should be reworded for anybody who reads it in the future.  
-> There is a dependency here on gcc's implementation, it's a meaningful 
-> distinction.
-> 
-> I never discouraged its use since for gcc's current implementation it 
-> appears to work as desired and without gcc extensions there is no way to 
-> make such a guarantee by the standard.  In fact, I acked a patch from Eric 
-> Dumazet that fixes a NULL pointer dereference by using ACCESS_ONCE() with 
-> gcc in slub.
 
-This LWN comment from user "nix" is helpful here:
-
-https://lwn.net/Articles/509731/
-
-In particular:
-
-	... volatile's meaning as 'minimize optimizations applied to
-	things manipulating anything of volatile type, do not duplicate,
-	elide, move, fold, spindle or mutilate' is of long standing.
-
-So although I agree that the standard does not say as much as one might
-like about volatile, ACCESS_ONCE()'s use of volatile should be expected
-to work in a wide range of C compilers.  ACCESS_ONCE()'s use of typeof()
-might not be quite so generally applicable, but a fair range of C
-compilers do seem to support typeof() as well as ACCESS_ONCE()'s use
-of volatile.
-
-							Thanx, Paul
+Just like rmdir a cgroup. cgroup_destroy_locked() will be called, and it
+makes cgroup dentry go down to 0, and then cgroup_diput() is called, which
+calls mem_cgroup_css_free().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
