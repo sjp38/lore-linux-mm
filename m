@@ -1,25 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 4879B6B0005
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 16:06:34 -0400 (EDT)
-Message-ID: <1365018905.11159.113.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 8402B6B0006
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 16:09:34 -0400 (EDT)
+Message-ID: <1365019085.11159.115.camel@misato.fc.hp.com>
 Subject: Re: [PATCH 2/3] resource: Add release_mem_region_adjustable()
 From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 03 Apr 2013 13:55:05 -0600
-In-Reply-To: <20130403053720.GA26398@ram.oc3035372033.ibm.com>
+Date: Wed, 03 Apr 2013 13:58:05 -0600
+In-Reply-To: <515BDC3B.2000907@cn.fujitsu.com>
 References: <1364919450-8741-1-git-send-email-toshi.kani@hp.com>
 	 <1364919450-8741-3-git-send-email-toshi.kani@hp.com>
-	 <20130403053720.GA26398@ram.oc3035372033.ibm.com>
+	 <515BDC3B.2000907@cn.fujitsu.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
-On Wed, 2013-04-03 at 13:37 +0800, Ram Pai wrote:
-> On Tue, Apr 02, 2013 at 10:17:29AM -0600, Toshi Kani wrote:
+On Wed, 2013-04-03 at 15:37 +0800, Gu Zheng wrote:
+> On 04/03/2013 12:17 AM, Toshi Kani wrote:
+> 
 > > Added release_mem_region_adjustable(), which releases a requested
 > > region from a currently busy memory resource.  This interface
 > > adjusts the matched memory resource accordingly if the requested
@@ -55,7 +56,7 @@ On Wed, 2013-04-03 at 13:37 +0800, Ram Pai wrote:
 > >  				resource_size_t);
 > > +extern int release_mem_region_adjustable(struct resource *, resource_size_t,
 > > +				resource_size_t);
-> > 
+> >  
 > >  static inline int __deprecated check_region(resource_size_t s,
 > >  						resource_size_t n)
 > > diff --git a/kernel/resource.c b/kernel/resource.c
@@ -65,7 +66,7 @@ On Wed, 2013-04-03 at 13:37 +0800, Ram Pai wrote:
 > > @@ -1021,6 +1021,93 @@ void __release_region(struct resource *parent, resource_size_t start,
 > >  }
 > >  EXPORT_SYMBOL(__release_region);
-> > 
+> >  
 > > +/**
 > > + * release_mem_region_adjustable - release a previously reserved memory region
 > > + * @parent: parent resource descriptor
@@ -96,31 +97,6 @@ On Wed, 2013-04-03 at 13:37 +0800, Ram Pai wrote:
 > > +
 > > +	while ((res = *p)) {
 > > +		if (res->start > start || res->end < end) {
-> 
-> This check looks sub-optimal; possbily wrong, to me.  if the res->start
-> is greater than 'start', then obviously its sibling's start will
-> also be greater than 'start'. So it will loop through all the
-> resources unnecesarily.
-
-I think this check is necessary to check if the requested range fits
-into a resource.  It needs to check both sides to verify this.  I will
-add some comment on this check.
-
->   you might want something like
-> 
-> 		if (start >= res->end) {
-
-I agree that this list is sorted, so we can optimize an error case (i.e.
-no matching entry is found) with an additional check.  I will add the
-following check at the beginning of the while loop.  
-
-                if (res->start >= end)
-                        break;
-
-I also realized that the function returns 0 when no matching entry is
-found.  I will change it to return -EINVAL as well.  
-
-> 		
 > > +			p = &res->sibling;
 > > +			continue;
 > > +		}
@@ -139,16 +115,150 @@ found.  I will change it to return -EINVAL as well.
 > > +			/* free the whole entry */
 > > +			*p = res->sibling;
 > > +			kfree(res);
+> > +		} else if (res->start == start && res->end != end) {
+> > +			/* adjust the start */
+> > +			ret = __adjust_resource(res, end+1,
+> > +						res->end - end);
+> > +		} else if (res->start != start && res->end == end) {
+> > +			/* adjust the end */
+> > +			ret = __adjust_resource(res, res->start,
+> > +						start - res->start);
+> > +		} else {
+> > +			/* split into two entries */
+> > +			new = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> > +			if (!new) {
+> > +				ret = -ENOMEM;
+> > +				break;
+> > +			}
+> > +			new->name = res->name;
+> > +			new->start = end + 1;
+> > +			new->end = res->end;
+> > +			new->flags = res->flags;
+> > +			new->parent = res->parent;
+> > +			new->sibling = res->sibling;
+> > +			new->child = NULL;
+> > +
+> > +			ret = __adjust_resource(res, res->start,
+> > +						start - res->start);
+> > +			if (ret) {
+> > +				kfree(new);
+> > +				break;
+> > +			}
+> > +			res->sibling = new;
+> > +		}
+> > +
+> > +		break;
+> > +	}
+> > +
+> > +	write_unlock(&resource_lock);
+> > +	return ret;
+> > +}
+> > +
 > 
-> This is incomplete. the prev resource's sibling should now point to
-> this resource's sibling. The parent's child has to be updated if
-> this resource is the first child resource. no?
+> Hi Toshi,
+>   What about the following small changes? Maybe it can make the code more rigorous~
+> 
+> Thanks,
+> Gu
+> 
+> int release_mem_region_adjustable(struct resource *parent,
+>                         resource_size_t start, resource_size_t size)
+> {
+>         struct resource **p;
+>         struct resource *res, *new;
+>         resource_size_t end;
+>         int ret = 0;
+> 
+>         end = start + size - 1;
+>         if ((start < parent->start) || (end > parent->end))
+>                 return -EINVAL;
 
-If this resource is the first child, *p is set to &parent->child.  So,
-it will update the parents' child.
+Sure, I will add this check.
+
+> 
+>         p = &parent->child;
+> 
+>         write_lock(&resource_lock);
+> 
+>         while (res = *p) {
+
+gcc actually complains if I do not put parentheses "((res = *p))" here.
+
+>                 if (res->start <= start && res->end >= end) {
+
+Yes, this way works the same as well.  But, I'd prefer to avoid a big
+if-statement in a loop in order to keep indent small.  I will add
+comments to make sure that the code is easy to follow.
 
 Thanks!
 -Toshi
+
+>                         if (!(res->flags & IORESOURCE_MEM)) {
+>                                 ret = -EINVAL;
+>                                 break;
+>                         }  
+> 
+>                         if (!(res->flags & IORESOURCE_BUSY)) {
+>                                 p = &res->child;
+>                                 continue;
+>                         }   
+> 
+>                         if (res->start == start && res->end == end) {
+>                                 /* free the whole entry */
+>                                 *p = res->sibling;
+>                                 kfree(res);
+>                         } else if (res->start == start && res->end != end) {
+>                                 /* adjust the start */
+>                                 ret = __adjust_resource(res, end+1,
+>                                                 res->end - end);
+>                         } else if (res->start != start && res->end == end) {
+>                                 /* adjust the end */
+>                                 ret = __adjust_resource(res, res->start,
+>                                                 start - res->start);
+>                         } else {
+>                                 /* split into two entries */
+>                                 new = kzalloc(sizeof(struct resource), GFP_KERNEL);
+>                                 if (!new) {
+>                                         ret = -ENOMEM;
+>                                         break;
+>                                 }   
+>                                 new->name = res->name;
+>                                 new->start = end + 1;
+>                                 new->end = res->end;
+>                                 new->flags = res->flags;
+>                                 new->parent = res->parent;
+>                                 new->sibling = res->sibling;
+>                                 new->child = NULL;
+> 
+>                                 ret = __adjust_resource(res, res->start,
+>                                                 start - res->start);
+>                                 if (ret) {
+>                                         kfree(new);
+>                                         break;
+>                                 }   
+>                                 res->sibling = new;
+>                         }   
+>                         break;
+>                 }   
+>                 p = &res->sibling;
+>         }   
+> 
+>         write_unlock(&resource_lock);
+>         return ret;
+> }
+> 
+> >  /*
+> >   * Managed region resource
+> >   */
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Please read the FAQ at  http://www.tux.org/lkml/
+> > 
+> 
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
