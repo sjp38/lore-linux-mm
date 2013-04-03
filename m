@@ -1,53 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id C70236B0036
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:20:24 -0400 (EDT)
-Date: Wed, 3 Apr 2013 15:20:19 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v3] mm: Make snapshotting pages for stable writes a
- per-bio operation
-Message-ID: <20130403142019.GC5811@suse.de>
-References: <20130313011020.GA5313@blackbox.djwong.org>
- <20130313085021.GA29730@quack.suse.cz>
- <20130313194429.GE5313@blackbox.djwong.org>
- <20130313210216.GA7754@quack.suse.cz>
- <20130314224243.GI5313@blackbox.djwong.org>
- <20130315100105.GA4889@quack.suse.cz>
- <20130315232816.GN5313@blackbox.djwong.org>
- <20130318174134.GB7852@quack.suse.cz>
- <20130318230259.GP5313@blackbox.djwong.org>
- <20130402170143.GA8910@blackbox.djwong.org>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 3AFE36B0002
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:33:20 -0400 (EDT)
+Date: Wed, 3 Apr 2013 10:33:02 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
+Message-ID: <20130403143302.GL1953@cmpxchg.org>
+References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
+ <alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
+ <alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
+ <alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
+ <20130403041447.GC4611@cmpxchg.org>
+ <alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
+ <20130403045814.GD4611@cmpxchg.org>
+ <CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130402170143.GA8910@blackbox.djwong.org>
+In-Reply-To: <CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Shuge <shugelinux@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Kevin <kevin@allwinnertech.com>, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
+To: Ian Lance Taylor <iant@google.com>
+Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org
 
-On Tue, Apr 02, 2013 at 10:01:43AM -0700, Darrick J. Wong wrote:
-> Hi,
+On Wed, Apr 03, 2013 at 06:45:51AM -0700, Ian Lance Taylor wrote:
+> On Tue, Apr 2, 2013 at 9:58 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Tue, Apr 02, 2013 at 09:25:40PM -0700, David Rientjes wrote:
+> >
+> >> As stated, it doesn't.  I made the comment "for what it's worth" that
+> >> ACCESS_ONCE() doesn't do anything to "prevent the compiler from
+> >> re-fetching" as the changelog insists it does.
+> >
+> > That's exactly what it does:
+> >
+> > /*
+> >  * Prevent the compiler from merging or refetching accesses.
+> >
+> > This is the guarantee ACCESS_ONCE() gives, users should absolutely be
+> > allowed to rely on this literal definition.  The underlying gcc
+> > implementation does not matter one bit.  That's the whole point of
+> > abstraction!
 > 
-> A couple of weeks have gone by without further comments about this patch.
+> If the definition of ACCESS_ONCE is indeed
 > 
-> Are you interested in the minor cleanups and added comments, or is the v2 patch
-> in -next good enough?
+> #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
 > 
-> Apparently Mel Gorman's interested in this patchset too.  Mel: Most of stable
-> pages part 2 are already in upstream for 3.9... except this piece.  Are you
-> interested in having this piece in 3.9 also?  Or is 3.10 good enough for
-> everyone?
-> 
+> then its behaviour is compiler-specific.
 
-My understanding is that it only affects ARM and DEBUG_VM so there is a
-relatively small chance of this generating spurious bug reports.  However,
-3.9 is still far enough away that I see no good reason to delay this patch
-until 3.10 either.
+Who cares about the implementation, we are discussing a user here.
+ACCESS_ONCE() isolates a problem so that the users don't have to think
+about it, that's the whole point of abstraction.  ACCESS_ONCE() is an
+opaque building block that says it prevents the compiler from merging
+and refetching accesses.  That's all we care about right now.
 
--- 
-Mel Gorman
-SUSE Labs
+It may rely on compiler-specific behavior to achieve this, and its
+implementation may change if the underlying compilers change, but this
+will not affect the promise that it makes and so this is off-topic.
+This patch uses "ACCESS_ONCE()" and not "<compiler-specific tricks>".
+
+> The C language standard only describes how access to
+> volatile-qualified objects behave.  In this case x is (presumably) not
+> a volatile-qualifed object.  The standard never defines the behaviour
+> of volatile-qualified pointers.  That might seem like an oversight,
+> but it is not: using a non-volatile-qualified pointer to access a
+> volatile-qualified object is undefined behaviour.
+> 
+> In short, casting a pointer to a non-volatile-qualified object to a
+> volatile-qualified pointer has no specific meaning in C.  It's true
+> that most compilers will behave as you wish, but there is no
+> guarantee.
+
+I am operating under the assumption that people compile their kernels
+with a subset of "most compilers" and not the C standard.
+
+[ Actually, I just tried to imagine how you would compile the kernel
+  using the C standard instead of a compiler and that may have popped
+  a blood vessel in my eye. ]
+
+> If using a sufficiently recent version of GCC, you can get the
+> behaviour that I think you want by using
+>     __atomic_load(&x, __ATOMIC_RELAXED)
+
+This is good to know but the implementation details of ACCESS_ONCE()
+are irrelevant here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
