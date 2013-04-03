@@ -1,68 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 925B66B0036
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 09:45:52 -0400 (EDT)
-Received: by mail-ob0-f172.google.com with SMTP id tb18so1409583obb.3
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 06:45:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id A20776B0036
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 09:53:47 -0400 (EDT)
+Date: Wed, 3 Apr 2013 13:53:45 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: RE: [PATCHv2, RFC 20/30] ramfs: enable transparent huge page cache
+In-Reply-To: <alpine.LNX.2.00.1304021422460.19363@eggly.anvils>
+Message-ID: <0000013dd02cbd43-c64cd198-7c04-4dfa-acdc-e725c776fed7-000000@email.amazonses.com>
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <1363283435-7666-21-git-send-email-kirill.shutemov@linux.intel.com> <20130402162813.0B4CBE0085@blue.fi.intel.com> <alpine.LNX.2.00.1304021422460.19363@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20130403045814.GD4611@cmpxchg.org>
-References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
-	<alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
-	<alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
-	<alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
-	<20130403041447.GC4611@cmpxchg.org>
-	<alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
-	<20130403045814.GD4611@cmpxchg.org>
-Date: Wed, 3 Apr 2013 06:45:51 -0700
-Message-ID: <CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
-Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
-From: Ian Lance Taylor <iant@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ying Han <yinghan@google.com>, Minchan Kim <minchan@kernel.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Apr 2, 2013 at 9:58 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Tue, Apr 02, 2013 at 09:25:40PM -0700, David Rientjes wrote:
->
->> As stated, it doesn't.  I made the comment "for what it's worth" that
->> ACCESS_ONCE() doesn't do anything to "prevent the compiler from
->> re-fetching" as the changelog insists it does.
->
-> That's exactly what it does:
->
-> /*
->  * Prevent the compiler from merging or refetching accesses.
->
-> This is the guarantee ACCESS_ONCE() gives, users should absolutely be
-> allowed to rely on this literal definition.  The underlying gcc
-> implementation does not matter one bit.  That's the whole point of
-> abstraction!
+On Tue, 2 Apr 2013, Hugh Dickins wrote:
 
-If the definition of ACCESS_ONCE is indeed
+> I am strongly in favour of removing that limitation from
+> __isolate_lru_page() (and the thread you pointed - thank you - shows Mel
+> and Christoph were both in favour too); and note that there is no such
+> restriction in the confusingly similar but different isolate_lru_page().
 
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+Well the naming could be cleaned up. The fundamental issue with migrating
+pages is that all references have to be tracked and updates in a way that
+no references can be followed to invalid or stale page contents. If ramfs
+does not maintain separate pointers but only relies on pointers already
+handled by the migration logic then migration is fine.
 
-then its behaviour is compiler-specific.
+> Some people do worry that migrating Mlocked pages would introduce the
+> occasional possibility of a minor fault (with migration_entry_wait())
+> on an Mlocked region which never faulted before.  I tend to dismiss
+> that worry, but maybe I'm wrong to do so: maybe there should be a
+> tunable for realtimey people to set, to prohibit page migration from
+> mlocked areas; but the default should be to allow it.
 
-The C language standard only describes how access to
-volatile-qualified objects behave.  In this case x is (presumably) not
-a volatile-qualifed object.  The standard never defines the behaviour
-of volatile-qualified pointers.  That might seem like an oversight,
-but it is not: using a non-volatile-qualified pointer to access a
-volatile-qualified object is undefined behaviour.
+Could we have a different way of marking pages "pinned"? This is useful
+for various subsystems (like RDMA and various graphics drivers etc) which
+need to ensure that virtual address to physical address mappings stay the
+same for a prolonged period of time. I think this use case is becoming
+more frequent given that offload techniques have to be used these days to
+overcome the limits on processor performance.
 
-In short, casting a pointer to a non-volatile-qualified object to a
-volatile-qualified pointer has no specific meaning in C.  It's true
-that most compilers will behave as you wish, but there is no
-guarantee.
+> The other reason it looks as if ramfs pages cannot be migrated, is
+> that it does not set a suitable ->migratepage method, so would be
+> handled by fallback_migrate_page(), whose PageDirty test will end
+> up failing the migration with -EBUSY or -EINVAL - if I read it
+> correctly.
 
-If using a sufficiently recent version of GCC, you can get the
-behaviour that I think you want by using
-    __atomic_load(&x, __ATOMIC_RELAXED)
+These could be handled the same way that anonymous pages are handled.
 
-Ian
+> But until ramfs pages can be migrated, they should not be allocated
+> with __GFP_MOVABLE.  (I've been writing about the migratability of
+> small pages: I expect you have the migratability of THPages in flux.)
+
+I agree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
