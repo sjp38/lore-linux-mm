@@ -1,491 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 48D866B00AC
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 02:51:45 -0400 (EDT)
-Received: by mail-bk0-f44.google.com with SMTP id jk13so605345bkc.31
-        for <linux-mm@kvack.org>; Tue, 02 Apr 2013 23:51:43 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id ED1E06B00AF
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 03:39:04 -0400 (EDT)
+Message-ID: <515BDC3B.2000907@cn.fujitsu.com>
+Date: Wed, 03 Apr 2013 15:37:31 +0800
+From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1364548450-28254-6-git-send-email-glommer@parallels.com>
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
-	<1364548450-28254-6-git-send-email-glommer@parallels.com>
-Date: Wed, 3 Apr 2013 14:51:43 +0800
-Message-ID: <CAFj3OHU_o5o_n_kcci1U_=M0tCpYEwy8abRvHKBdp-GoJ-cs3w@mail.gmail.com>
-Subject: Re: [PATCH v2 05/28] dcache: remove dentries from LRU before putting
- on dispose list
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: multipart/alternative; boundary=14dae9c09d326dde6c04d96f49a8
+Subject: Re: [PATCH 2/3] resource: Add release_mem_region_adjustable()
+References: <1364919450-8741-1-git-send-email-toshi.kani@hp.com> <1364919450-8741-3-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <1364919450-8741-3-git-send-email-toshi.kani@hp.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, containers@lists.linux-foundation.org, Dave Chinner <dchinner@redhat.com>, Dave Shrinnker <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
---14dae9c09d326dde6c04d96f49a8
-Content-Type: text/plain; charset=ISO-8859-1
+On 04/03/2013 12:17 AM, Toshi Kani wrote:
 
-On Fri, Mar 29, 2013 at 5:13 PM, Glauber Costa <glommer@parallels.com>wrote:
-
-> From: Dave Chinner <dchinner@redhat.com>
->
-> One of the big problems with modifying the way the dcache shrinker
-> and LRU implementation works is that the LRU is abused in several
-> ways. One of these is shrink_dentry_list().
->
-> Basically, we can move a dentry off the LRU onto a different list
-> without doing any accounting changes, and then use dentry_lru_prune()
-> to remove it from what-ever list it is now on to do the LRU
-> accounting at that point.
->
-> This makes it -really hard- to change the LRU implementation. The
-> use of the per-sb LRU lock serialises movement of the dentries
-> between the different lists and the removal of them, and this is the
-> only reason that it works. If we want to break up the dentry LRU
-> lock and lists into, say, per-node lists, we remove the only
-> serialisation that allows this lru list/dispose list abuse to work.
->
-> To make this work effectively, the dispose list has to be isolated
-> from the LRU list - dentries have to be removed from the LRU
-> *before* being placed on the dispose list. This means that the LRU
-> accounting and isolation is completed before disposal is started,
-> and that means we can change the LRU implementation freely in
-> future.
->
-> This means that dentries *must* be marked with DCACHE_SHRINK_LIST
-> when they are placed on the dispose list so that we don't think that
-> parent dentries found in try_prune_one_dentry() are on the LRU when
-> the are actually on the dispose list. This would result in
-> accounting the dentry to the LRU a second time. Hence
-> dentry_lru_prune() has to handle the DCACHE_SHRINK_LIST case
-> differently because the dentry isn't on the LRU list.
->
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> Added release_mem_region_adjustable(), which releases a requested
+> region from a currently busy memory resource.  This interface
+> adjusts the matched memory resource accordingly if the requested
+> region does not match exactly but still fits into.
+> 
+> This new interface is intended for memory hot-delete.  During
+> bootup, memory resources are inserted from the boot descriptor
+> table, such as EFI Memory Table and e820.  Each memory resource
+> entry usually covers the whole contigous memory range.  Memory
+> hot-delete request, on the other hand, may target to a particular
+> range of memory resource, and its size can be much smaller than
+> the whole contiguous memory.  Since the existing release interfaces
+> like __release_region() require a requested region to be exactly
+> matched to a resource entry, they do not allow a partial resource
+> to be released.
+> 
+> There is no change to the existing interfaces since their restriction
+> is valid for I/O resources.
+> 
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 > ---
->  fs/dcache.c | 73
-> ++++++++++++++++++++++++++++++++++++++++++++++++++++---------
->  1 file changed, 63 insertions(+), 10 deletions(-)
->
-> diff --git a/fs/dcache.c b/fs/dcache.c
-> index 0a1d7b3..d15420b 100644
-> --- a/fs/dcache.c
-> +++ b/fs/dcache.c
-> @@ -330,7 +330,6 @@ static void dentry_lru_add(struct dentry *dentry)
->  static void __dentry_lru_del(struct dentry *dentry)
->  {
->         list_del_init(&dentry->d_lru);
-> -       dentry->d_flags &= ~DCACHE_SHRINK_LIST;
->         dentry->d_sb->s_nr_dentry_unused--;
->         this_cpu_dec(nr_dentry_unused);
+>  include/linux/ioport.h |    2 +
+>  kernel/resource.c      |   87 ++++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 89 insertions(+)
+> 
+> diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+> index 85ac9b9b..0fe1a82 100644
+> --- a/include/linux/ioport.h
+> +++ b/include/linux/ioport.h
+> @@ -192,6 +192,8 @@ extern struct resource * __request_region(struct resource *,
+>  extern int __check_region(struct resource *, resource_size_t, resource_size_t);
+>  extern void __release_region(struct resource *, resource_size_t,
+>  				resource_size_t);
+> +extern int release_mem_region_adjustable(struct resource *, resource_size_t,
+> +				resource_size_t);
+>  
+>  static inline int __deprecated check_region(resource_size_t s,
+>  						resource_size_t n)
+> diff --git a/kernel/resource.c b/kernel/resource.c
+> index ae246f9..789f160 100644
+> --- a/kernel/resource.c
+> +++ b/kernel/resource.c
+> @@ -1021,6 +1021,93 @@ void __release_region(struct resource *parent, resource_size_t start,
 >  }
-> @@ -340,6 +339,8 @@ static void __dentry_lru_del(struct dentry *dentry)
->   */
->  static void dentry_lru_del(struct dentry *dentry)
->  {
-> +       BUG_ON(dentry->d_flags & DCACHE_SHRINK_LIST);
-> +
->         if (!list_empty(&dentry->d_lru)) {
->                 spin_lock(&dentry->d_sb->s_dentry_lru_lock);
->                 __dentry_lru_del(dentry);
-> @@ -351,28 +352,42 @@ static void dentry_lru_del(struct dentry *dentry)
->   * Remove a dentry that is unreferenced and about to be pruned
->   * (unhashed and destroyed) from the LRU, and inform the file system.
->   * This wrapper should be called _prior_ to unhashing a victim dentry.
+>  EXPORT_SYMBOL(__release_region);
+>  
+> +/**
+> + * release_mem_region_adjustable - release a previously reserved memory region
+> + * @parent: parent resource descriptor
+> + * @start: resource start address
+> + * @size: resource region size
 > + *
-> + * Check that the dentry really is on the LRU as it may be on a private
-> dispose
-> + * list and in that case we do not want to call the generic LRU removal
-> + * functions. This typically happens when shrink_dcache_sb() clears the
-> LRU in
-> + * one go and then try_prune_one_dentry() walks back up the parent chain
-> finding
-> + * dentries that are also on the dispose list.
->   */
->  static void dentry_lru_prune(struct dentry *dentry)
->  {
->         if (!list_empty(&dentry->d_lru)) {
-> +
->                 if (dentry->d_flags & DCACHE_OP_PRUNE)
->                         dentry->d_op->d_prune(dentry);
->
-> -               spin_lock(&dentry->d_sb->s_dentry_lru_lock);
-> -               __dentry_lru_del(dentry);
-> -               spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
-> +               if ((dentry->d_flags & DCACHE_SHRINK_LIST))
-> +                       list_del_init(&dentry->d_lru);
-> +               else {
-> +                       spin_lock(&dentry->d_sb->s_dentry_lru_lock);
-> +                       __dentry_lru_del(dentry);
-> +                       spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
-> +               }
-> +               dentry->d_flags &= ~DCACHE_SHRINK_LIST;
->         }
->  }
->
->  static void dentry_lru_move_list(struct dentry *dentry, struct list_head
-> *list)
->  {
-> +       BUG_ON(dentry->d_flags & DCACHE_SHRINK_LIST);
-> +
->         spin_lock(&dentry->d_sb->s_dentry_lru_lock);
->         if (list_empty(&dentry->d_lru)) {
->                 list_add_tail(&dentry->d_lru, list);
-> -               dentry->d_sb->s_nr_dentry_unused++;
-> -               this_cpu_inc(nr_dentry_unused);
->         } else {
->                 list_move_tail(&dentry->d_lru, list);
-> +               dentry->d_sb->s_nr_dentry_unused--;
-> +               this_cpu_dec(nr_dentry_unused);
->         }
->         spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
->  }
-> @@ -814,12 +829,18 @@ static void shrink_dentry_list(struct list_head
-> *list)
->                 }
->
->                 /*
-> +                * The dispose list is isolated and dentries are not
-> accounted
-> +                * to the LRU here, so we can simply remove it from the
-> list
-> +                * here regardless of whether it is referenced or not.
-> +                */
-> +               list_del_init(&dentry->d_lru);
-> +
-> +               /*
->                  * We found an inuse dentry which was not removed from
-> -                * the LRU because of laziness during lookup.  Do not free
-> -                * it - just keep it off the LRU list.
-> +                * the LRU because of laziness during lookup. Do not free
-> it.
->                  */
->                 if (dentry->d_count) {
-> -                       dentry_lru_del(dentry);
-> +                       dentry->d_flags &= ~DCACHE_SHRINK_LIST;
->                         spin_unlock(&dentry->d_lock);
->                         continue;
->                 }
-> @@ -871,6 +892,8 @@ relock:
->                 } else {
->                         list_move_tail(&dentry->d_lru, &tmp);
->                         dentry->d_flags |= DCACHE_SHRINK_LIST;
-> +                       this_cpu_dec(nr_dentry_unused);
-> +                       sb->s_nr_dentry_unused--;
->                         spin_unlock(&dentry->d_lock);
->                         if (!--count)
->                                 break;
-> @@ -884,6 +907,28 @@ relock:
->         shrink_dentry_list(&tmp);
->  }
->
-> +/*
-> + * Mark all the dentries as on being the dispose list so we don't think
-> they are
-> + * still on the LRU if we try to kill them from ascending the parent
-> chain in
-> + * try_prune_one_dentry() rather than directly from the dispose list.
+> + * The requested region is released from a currently busy memory resource.
+> + * It adjusts the matched busy memory resource accordingly if the requested
+> + * region does not match exactly but still fits into.  Existing children of
+> + * the busy memory resource must be immutable in this request.
+> + *
+> + * Note, when the busy memory resource gets split into two entries, the code
+> + * assumes that all children remain in the lower address entry for simplicity.
+> + * Enhance this logic when necessary.
 > + */
-> +static void
-> +shrink_dcache_list(
-> +       struct list_head *dispose)
+> +int release_mem_region_adjustable(struct resource *parent,
+> +			resource_size_t start, resource_size_t size)
 > +{
-> +       struct dentry *dentry;
+> +	struct resource **p;
+> +	struct resource *res, *new;
+> +	resource_size_t end;
+> +	int ret = 0;
 > +
-> +       rcu_read_lock();
-> +       list_for_each_entry_rcu(dentry, dispose, d_lru) {
-> +               spin_lock(&dentry->d_lock);
-> +               dentry->d_flags |= DCACHE_SHRINK_LIST;
-> +               this_cpu_dec(nr_dentry_unused);
->
-
-Why here dec nr_dentry_unused again? Has it been decreased in the following
-shrink_dcache_sb()?
-
-
-
-> +               spin_unlock(&dentry->d_lock);
-> +       }
-> +       rcu_read_unlock();
-> +       shrink_dentry_list(dispose);
+> +	p = &parent->child;
+> +	end = start + size - 1;
+> +
+> +	write_lock(&resource_lock);
+> +
+> +	while ((res = *p)) {
+> +		if (res->start > start || res->end < end) {
+> +			p = &res->sibling;
+> +			continue;
+> +		}
+> +
+> +		if (!(res->flags & IORESOURCE_MEM)) {
+> +			ret = -EINVAL;
+> +			break;
+> +		}
+> +
+> +		if (!(res->flags & IORESOURCE_BUSY)) {
+> +			p = &res->child;
+> +			continue;
+> +		}
+> +
+> +		if (res->start == start && res->end == end) {
+> +			/* free the whole entry */
+> +			*p = res->sibling;
+> +			kfree(res);
+> +		} else if (res->start == start && res->end != end) {
+> +			/* adjust the start */
+> +			ret = __adjust_resource(res, end+1,
+> +						res->end - end);
+> +		} else if (res->start != start && res->end == end) {
+> +			/* adjust the end */
+> +			ret = __adjust_resource(res, res->start,
+> +						start - res->start);
+> +		} else {
+> +			/* split into two entries */
+> +			new = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> +			if (!new) {
+> +				ret = -ENOMEM;
+> +				break;
+> +			}
+> +			new->name = res->name;
+> +			new->start = end + 1;
+> +			new->end = res->end;
+> +			new->flags = res->flags;
+> +			new->parent = res->parent;
+> +			new->sibling = res->sibling;
+> +			new->child = NULL;
+> +
+> +			ret = __adjust_resource(res, res->start,
+> +						start - res->start);
+> +			if (ret) {
+> +				kfree(new);
+> +				break;
+> +			}
+> +			res->sibling = new;
+> +		}
+> +
+> +		break;
+> +	}
+> +
+> +	write_unlock(&resource_lock);
+> +	return ret;
 > +}
 > +
->  /**
->   * shrink_dcache_sb - shrink dcache for a superblock
->   * @sb: superblock
-> @@ -898,8 +943,16 @@ void shrink_dcache_sb(struct super_block *sb)
->         spin_lock(&sb->s_dentry_lru_lock);
->         while (!list_empty(&sb->s_dentry_lru)) {
->                 list_splice_init(&sb->s_dentry_lru, &tmp);
-> +
-> +               /*
-> +                * account for removal here so we don't need to handle it
-> later
-> +                * even though the dentry is no longer on the lru list.
-> +                */
-> +               this_cpu_sub(nr_dentry_unused, sb->s_nr_dentry_unused);
-> +               sb->s_nr_dentry_unused = 0;
-> +
->                 spin_unlock(&sb->s_dentry_lru_lock);
-> -               shrink_dentry_list(&tmp);
-> +               shrink_dcache_list(&tmp);
->                 spin_lock(&sb->s_dentry_lru_lock);
->         }
->         spin_unlock(&sb->s_dentry_lru_lock);
->
->
 
--- 
+Hi Toshi,
+  What about the following small changes? Maybe it can make the code more rigorous~
+
 Thanks,
-Sha
+Gu
 
---14dae9c09d326dde6c04d96f49a8
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+int release_mem_region_adjustable(struct resource *parent,
+                        resource_size_t start, resource_size_t size)
+{
+        struct resource **p;
+        struct resource *res, *new;
+        resource_size_t end;
+        int ret = 0;
 
-<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
-_quote">On Fri, Mar 29, 2013 at 5:13 PM, Glauber Costa <span dir=3D"ltr">&l=
-t;<a href=3D"mailto:glommer@parallels.com" target=3D"_blank">glommer@parall=
-els.com</a>&gt;</span> wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">From: Dave Chinner &lt;<a href=3D"mailto:dch=
-inner@redhat.com">dchinner@redhat.com</a>&gt;<br>
-<br>
-One of the big problems with modifying the way the dcache shrinker<br>
-and LRU implementation works is that the LRU is abused in several<br>
-ways. One of these is shrink_dentry_list().<br>
-<br>
-Basically, we can move a dentry off the LRU onto a different list<br>
-without doing any accounting changes, and then use dentry_lru_prune()<br>
-to remove it from what-ever list it is now on to do the LRU<br>
-accounting at that point.<br>
-<br>
-This makes it -really hard- to change the LRU implementation. The<br>
-use of the per-sb LRU lock serialises movement of the dentries<br>
-between the different lists and the removal of them, and this is the<br>
-only reason that it works. If we want to break up the dentry LRU<br>
-lock and lists into, say, per-node lists, we remove the only<br>
-serialisation that allows this lru list/dispose list abuse to work.<br>
-<br>
-To make this work effectively, the dispose list has to be isolated<br>
-from the LRU list - dentries have to be removed from the LRU<br>
-*before* being placed on the dispose list. This means that the LRU<br>
-accounting and isolation is completed before disposal is started,<br>
-and that means we can change the LRU implementation freely in<br>
-future.<br>
-<br>
-This means that dentries *must* be marked with DCACHE_SHRINK_LIST<br>
-when they are placed on the dispose list so that we don&#39;t think that<br=
->
-parent dentries found in try_prune_one_dentry() are on the LRU when<br>
-the are actually on the dispose list. This would result in<br>
-accounting the dentry to the LRU a second time. Hence<br>
-dentry_lru_prune() has to handle the DCACHE_SHRINK_LIST case<br>
-differently because the dentry isn&#39;t on the LRU list.<br>
-<br>
-Signed-off-by: Dave Chinner &lt;<a href=3D"mailto:dchinner@redhat.com">dchi=
-nner@redhat.com</a>&gt;<br>
----<br>
-=A0fs/dcache.c | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++++---=
-------<br>
-=A01 file changed, 63 insertions(+), 10 deletions(-)<br>
-<br>
-diff --git a/fs/dcache.c b/fs/dcache.c<br>
-index 0a1d7b3..d15420b 100644<br>
---- a/fs/dcache.c<br>
-+++ b/fs/dcache.c<br>
-@@ -330,7 +330,6 @@ static void dentry_lru_add(struct dentry *dentry)<br>
-=A0static void __dentry_lru_del(struct dentry *dentry)<br>
-=A0{<br>
-=A0 =A0 =A0 =A0 list_del_init(&amp;dentry-&gt;d_lru);<br>
-- =A0 =A0 =A0 dentry-&gt;d_flags &amp;=3D ~DCACHE_SHRINK_LIST;<br>
-=A0 =A0 =A0 =A0 dentry-&gt;d_sb-&gt;s_nr_dentry_unused--;<br>
-=A0 =A0 =A0 =A0 this_cpu_dec(nr_dentry_unused);<br>
-=A0}<br>
-@@ -340,6 +339,8 @@ static void __dentry_lru_del(struct dentry *dentry)<br>
-=A0 */<br>
-=A0static void dentry_lru_del(struct dentry *dentry)<br>
-=A0{<br>
-+ =A0 =A0 =A0 BUG_ON(dentry-&gt;d_flags &amp; DCACHE_SHRINK_LIST);<br>
-+<br>
-=A0 =A0 =A0 =A0 if (!list_empty(&amp;dentry-&gt;d_lru)) {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&amp;dentry-&gt;d_sb-&gt;s_dentry=
-_lru_lock);<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __dentry_lru_del(dentry);<br>
-@@ -351,28 +352,42 @@ static void dentry_lru_del(struct dentry *dentry)<br>
-=A0 * Remove a dentry that is unreferenced and about to be pruned<br>
-=A0 * (unhashed and destroyed) from the LRU, and inform the file system.<br=
->
-=A0 * This wrapper should be called _prior_ to unhashing a victim dentry.<b=
-r>
-+ *<br>
-+ * Check that the dentry really is on the LRU as it may be on a private di=
-spose<br>
-+ * list and in that case we do not want to call the generic LRU removal<br=
->
-+ * functions. This typically happens when shrink_dcache_sb() clears the LR=
-U in<br>
-+ * one go and then try_prune_one_dentry() walks back up the parent chain f=
-inding<br>
-+ * dentries that are also on the dispose list.<br>
-=A0 */<br>
-=A0static void dentry_lru_prune(struct dentry *dentry)<br>
-=A0{<br>
-=A0 =A0 =A0 =A0 if (!list_empty(&amp;dentry-&gt;d_lru)) {<br>
-+<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (dentry-&gt;d_flags &amp; DCACHE_OP_PRUN=
-E)<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_op-&gt;d_prune=
-(dentry);<br>
-<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&amp;dentry-&gt;d_sb-&gt;s_dentry_l=
-ru_lock);<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 __dentry_lru_del(dentry);<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt;d_sb-&gt;s_dentry=
-_lru_lock);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 if ((dentry-&gt;d_flags &amp; DCACHE_SHRINK_L=
-IST))<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del_init(&amp;dentry-&gt=
-;d_lru);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 else {<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&amp;dentry-&gt;d_s=
-b-&gt;s_dentry_lru_lock);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __dentry_lru_del(dentry);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt;d=
-_sb-&gt;s_dentry_lru_lock);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_flags &amp;=3D ~DCACHE_SHRINK_LI=
-ST;<br>
-=A0 =A0 =A0 =A0 }<br>
-=A0}<br>
-<br>
-=A0static void dentry_lru_move_list(struct dentry *dentry, struct list_head=
- *list)<br>
-=A0{<br>
-+ =A0 =A0 =A0 BUG_ON(dentry-&gt;d_flags &amp; DCACHE_SHRINK_LIST);<br>
-+<br>
-=A0 =A0 =A0 =A0 spin_lock(&amp;dentry-&gt;d_sb-&gt;s_dentry_lru_lock);<br>
-=A0 =A0 =A0 =A0 if (list_empty(&amp;dentry-&gt;d_lru)) {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_add_tail(&amp;dentry-&gt;d_lru, list);=
-<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_sb-&gt;s_nr_dentry_unused++;<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_inc(nr_dentry_unused);<br>
-=A0 =A0 =A0 =A0 } else {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_move_tail(&amp;dentry-&gt;d_lru, list)=
-;<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_sb-&gt;s_nr_dentry_unused--;<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_dec(nr_dentry_unused);<br>
-=A0 =A0 =A0 =A0 }<br>
-=A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt;d_sb-&gt;s_dentry_lru_lock);<br=
->
-=A0}<br>
-@@ -814,12 +829,18 @@ static void shrink_dentry_list(struct list_head *list=
-)<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
-<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* The dispose list is isolated and dentrie=
-s are not accounted<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* to the LRU here, so we can simply remove=
- it from the list<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* here regardless of whether it is referen=
-ced or not.<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del_init(&amp;dentry-&gt;d_lru);<br>
-+<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* We found an inuse dentry which was not=
- removed from<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* the LRU because of laziness during looku=
-p. =A0Do not free<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* it - just keep it off the LRU list.<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* the LRU because of laziness during looku=
-p. Do not free it.<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (dentry-&gt;d_count) {<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry_lru_del(dentry);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_flags &amp;=3D ~=
-DCACHE_SHRINK_LIST;<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt=
-;d_lock);<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
-@@ -871,6 +892,8 @@ relock:<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_move_tail(&amp;dentry-=
-&gt;d_lru, &amp;tmp);<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_flags |=3D DCA=
-CHE_SHRINK_LIST;<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_dec(nr_dentry_unused=
-);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 sb-&gt;s_nr_dentry_unused--;<=
-br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt=
-;d_lock);<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (!--count)<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 break;<br>
-@@ -884,6 +907,28 @@ relock:<br>
-=A0 =A0 =A0 =A0 shrink_dentry_list(&amp;tmp);<br>
-=A0}<br>
-<br>
-+/*<br>
-+ * Mark all the dentries as on being the dispose list so we don&#39;t thin=
-k they are<br>
-+ * still on the LRU if we try to kill them from ascending the parent chain=
- in<br>
-+ * try_prune_one_dentry() rather than directly from the dispose list.<br>
-+ */<br>
-+static void<br>
-+shrink_dcache_list(<br>
-+ =A0 =A0 =A0 struct list_head *dispose)<br>
-+{<br>
-+ =A0 =A0 =A0 struct dentry *dentry;<br>
-+<br>
-+ =A0 =A0 =A0 rcu_read_lock();<br>
-+ =A0 =A0 =A0 list_for_each_entry_rcu(dentry, dispose, d_lru) {<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&amp;dentry-&gt;d_lock);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 dentry-&gt;d_flags |=3D DCACHE_SHRINK_LIST;<b=
-r>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_dec(nr_dentry_unused);<br></blockquo=
-te><div><br></div><div>Why here dec nr_dentry_unused again? Has it been dec=
-reased in the following shrink_dcache_sb()?<br><br></div><div>=A0</div><blo=
-ckquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #c=
-cc solid;padding-left:1ex">
+        end = start + size - 1;
+        if ((start < parent->start) || (end > parent->end))
+                return -EINVAL;
 
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;dentry-&gt;d_lock);<br>
-+ =A0 =A0 =A0 }<br>
-+ =A0 =A0 =A0 rcu_read_unlock();<br>
-+ =A0 =A0 =A0 shrink_dentry_list(dispose);<br>
-+}<br>
-+<br>
-=A0/**<br>
-=A0 * shrink_dcache_sb - shrink dcache for a superblock<br>
-=A0 * @sb: superblock<br>
-@@ -898,8 +943,16 @@ void shrink_dcache_sb(struct super_block *sb)<br>
-=A0 =A0 =A0 =A0 spin_lock(&amp;sb-&gt;s_dentry_lru_lock);<br>
-=A0 =A0 =A0 =A0 while (!list_empty(&amp;sb-&gt;s_dentry_lru)) {<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_splice_init(&amp;sb-&gt;s_dentry_lru, =
-&amp;tmp);<br>
-+<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* account for removal here so we don&#39;t=
- need to handle it later<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* even though the dentry is no longer on t=
-he lru list.<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 this_cpu_sub(nr_dentry_unused, sb-&gt;s_nr_de=
-ntry_unused);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 sb-&gt;s_nr_dentry_unused =3D 0;<br>
-+<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_unlock(&amp;sb-&gt;s_dentry_lru_lock);=
-<br>
-- =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_dentry_list(&amp;tmp);<br>
-+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 shrink_dcache_list(&amp;tmp);<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 spin_lock(&amp;sb-&gt;s_dentry_lru_lock);<b=
-r>
-=A0 =A0 =A0 =A0 }<br>
-=A0 =A0 =A0 =A0 spin_unlock(&amp;sb-&gt;s_dentry_lru_lock);<br><span class=
-=3D"HOEnZb"></span><br></blockquote></div><br clear=3D"all"><br>-- <br>Than=
-ks,<br>Sha
-</div></div>
+        p = &parent->child;
 
---14dae9c09d326dde6c04d96f49a8--
+        write_lock(&resource_lock);
+
+        while (res = *p) {
+                if (res->start <= start && res->end >= end) {
+                        if (!(res->flags & IORESOURCE_MEM)) {
+                                ret = -EINVAL;
+                                break;
+                        }  
+
+                        if (!(res->flags & IORESOURCE_BUSY)) {
+                                p = &res->child;
+                                continue;
+                        }   
+
+                        if (res->start == start && res->end == end) {
+                                /* free the whole entry */
+                                *p = res->sibling;
+                                kfree(res);
+                        } else if (res->start == start && res->end != end) {
+                                /* adjust the start */
+                                ret = __adjust_resource(res, end+1,
+                                                res->end - end);
+                        } else if (res->start != start && res->end == end) {
+                                /* adjust the end */
+                                ret = __adjust_resource(res, res->start,
+                                                start - res->start);
+                        } else {
+                                /* split into two entries */
+                                new = kzalloc(sizeof(struct resource), GFP_KERNEL);
+                                if (!new) {
+                                        ret = -ENOMEM;
+                                        break;
+                                }   
+                                new->name = res->name;
+                                new->start = end + 1;
+                                new->end = res->end;
+                                new->flags = res->flags;
+                                new->parent = res->parent;
+                                new->sibling = res->sibling;
+                                new->child = NULL;
+
+                                ret = __adjust_resource(res, res->start,
+                                                start - res->start);
+                                if (ret) {
+                                        kfree(new);
+                                        break;
+                                }   
+                                res->sibling = new;
+                        }   
+                        break;
+                }   
+                p = &res->sibling;
+        }   
+
+        write_unlock(&resource_lock);
+        return ret;
+}
+
+>  /*
+>   * Managed region resource
+>   */
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
