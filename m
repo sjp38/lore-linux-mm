@@ -1,10 +1,10 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 9C3F66B00B8
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 04:30:16 -0400 (EDT)
-Message-ID: <515BE8C3.6040205@parallels.com>
-Date: Wed, 3 Apr 2013 12:30:59 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 724296B005A
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 04:39:30 -0400 (EDT)
+Message-ID: <515BEA61.9080100@huawei.com>
+Date: Wed, 3 Apr 2013 16:37:53 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH -v2] memcg: don't do cleanup manually if mem_cgroup_css_online()
  fails
@@ -15,31 +15,34 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+Cc: Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On 04/03/2013 12:18 PM, Michal Hocko wrote:
+>>> But memcg_update_cache_sizes calls memcg_kmem_clear_activated on the
+>>> error path.
+>>>
+>>
+>> But memcg_kmem_mark_dead() checks the ACCOUNT flag not the ACCOUNTED flag.
+>> Am I missing something?
+>>
+> 
 > Dang. You are right! Glauber, is there any reason why
 > memcg_kmem_mark_dead checks only KMEM_ACCOUNTED_ACTIVE rather than
 > KMEM_ACCOUNTED_MASK?
 > 
 > This all is very confusing to say the least.
-Yes, it is.
+> 
+> Anyway, this all means that Li's first patch is correct. I am not sure I
+> like it though. I think that the refcount cleanup should be done as
+> close to where it has been taken as possible otherwise we will end up in
+> this "chase the nasty details" again and again. There are definitely two
+> bugs here. The one introduced by e4715f01 and the other one introduced
+> even earlier (I haven't checked that history yet). I think we should do
+> something like the 2 follow up patches but if you guys think that the smaller
+> patch from Li is more appropriate then I will not block it.
+> 
 
-In kmemcg we need to differentiate between "active" and "activated"
-states due to static branches management. This is only important in the
-first activation, to make sure the static branches patching are
-synchronized.
-
->From this point on, the ACTIVE flag is the one we should be looking at.
-
-Again, I fully agree it is complicated, but being that a property of the
-static branches (we tried to fix it in the static branches itself but
-without a lot of luck, since by their design they patch one site at a
-time). I tried to overcome this by testing handcrafted errors and
-documenting the states as well as I could.
-
-But that not always work *that* well. Maybe we can use the results of
-this discussion to document the tear down process a bit more?
+Or we can queue my patch for 3.9, and then see if we want to change the
+tear down process, and if yes we make the change for 3.10.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
