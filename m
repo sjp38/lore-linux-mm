@@ -1,12 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 77FEF6B00C2
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:12:35 -0400 (EDT)
-Message-ID: <515BF233.6070308@huawei.com>
-Date: Wed, 3 Apr 2013 17:11:15 +0800
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 8645B6B00B7
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 05:12:46 -0400 (EDT)
+Message-ID: <515BF275.5080408@huawei.com>
+Date: Wed, 3 Apr 2013 17:12:21 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [RFC][PATCH 0/7] memcg: make memcg's life cycle the same as cgroup
+Subject: [RFC][PATCH 2/7] memcg: don't use mem_cgroup_get() when creating
+ a kmemcg cache
+References: <515BF233.6070308@huawei.com>
+In-Reply-To: <515BF233.6070308@huawei.com>
 Content-Type: text/plain; charset="GB2312"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,34 +17,58 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-(I'll be off from my office soon, and I won't be responsive in the following
-3 days.)
+Use css_get()/css_put() instead of mem_cgroup_get()/mem_cgroup_put().
 
-I'm working on converting memcg to use cgroup->id, and then we can kill css_id.
+Signed-off-by: Li Zefan <lizefan@huawei.com>
+---
+ mm/memcontrol.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
-still be alive. This patchset converts memcg to always use css_get/put, so
-memcg will have the same life cycle as its corresponding cgroup, and then
-it's always safe for memcg to use cgroup->id.
-
-The historical reason that memcg didn't use css_get in some cases, is that
-cgroup couldn't be removed if there're still css refs. The situation has
-changed so that rmdir a cgroup will succeed regardless css refs, but won't
-be freed until css refs goes down to 0.
-
-This is an early post, and it's NOT TESTED. I just want to see if the changes
-are fine in general.
-
-btw, after this patchset I think we don't need to free memcg via RCU, because
-cgroup is already freed in RCU callback.
-
-Note this patchset is based on a few memcg fixes I sent (but hasn't been
-accepted)
-
---
- kernel/cgroup.c |  10 ++++++++
- mm/memcontrol.c | 129 ++++++++++++++++++++++++++++++++++++++-------------------------------------------------------
- 2 files changed, 62 insertions(+), 77 deletions(-)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 43ca91d..dafacb8 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3191,7 +3191,7 @@ void memcg_release_cache(struct kmem_cache *s)
+ 	list_del(&s->memcg_params->list);
+ 	mutex_unlock(&memcg->slab_caches_mutex);
+ 
+-	mem_cgroup_put(memcg);
++	css_put(&memcg->css);
+ out:
+ 	kfree(s->memcg_params);
+ }
+@@ -3350,16 +3350,18 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 
+ 	mutex_lock(&memcg_cache_mutex);
+ 	new_cachep = cachep->memcg_params->memcg_caches[idx];
+-	if (new_cachep)
++	if (new_cachep) {
++		css_put(&memcg->css);
+ 		goto out;
++	}
+ 
+ 	new_cachep = kmem_cache_dup(memcg, cachep);
+ 	if (new_cachep == NULL) {
+ 		new_cachep = cachep;
++		css_put(&memcg->css);
+ 		goto out;
+ 	}
+ 
+-	mem_cgroup_get(memcg);
+ 	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
+ 
+ 	cachep->memcg_params->memcg_caches[idx] = new_cachep;
+@@ -3449,8 +3451,6 @@ static void memcg_create_cache_work_func(struct work_struct *w)
+ 
+ 	cw = container_of(w, struct create_work, work);
+ 	memcg_create_kmem_cache(cw->memcg, cw->cachep);
+-	/* Drop the reference gotten when we enqueued. */
+-	css_put(&cw->memcg->css);
+ 	kfree(cw);
+ }
+ 
+-- 
+1.8.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
