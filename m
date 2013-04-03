@@ -1,146 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 805EE6B0072
-	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 21:11:07 -0400 (EDT)
-Date: Wed, 3 Apr 2013 10:11:04 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCHv2, RFC 20/30] ramfs: enable transparent huge page cache
-Message-ID: <20130403011104.GF16026@blaptop>
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-21-git-send-email-kirill.shutemov@linux.intel.com>
- <20130402162813.0B4CBE0085@blue.fi.intel.com>
- <alpine.LNX.2.00.1304021422460.19363@eggly.anvils>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 452796B0074
+	for <linux-mm@kvack.org>; Tue,  2 Apr 2013 21:12:03 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5B9763EE0BC
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:12:01 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 42A0545DE4E
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:12:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2A08545DE4D
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:12:01 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 19AB81DB8038
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:12:01 +0900 (JST)
+Received: from g01jpexchyt31.g01.fujitsu.local (g01jpexchyt31.g01.fujitsu.local [10.128.193.114])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B93CA1DB802C
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 10:12:00 +0900 (JST)
+Message-ID: <515B81B8.9020307@jp.fujitsu.com>
+Date: Wed, 3 Apr 2013 10:11:20 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1304021422460.19363@eggly.anvils>
+Subject: Re: [PATCH 1/3] resource: Add __adjust_resource() for internal use
+References: <1364919450-8741-1-git-send-email-toshi.kani@hp.com> <1364919450-8741-2-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <1364919450-8741-2-git-send-email-toshi.kani@hp.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ying Han <yinghan@google.com>, Christoph Lameter <cl@linux.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, tmac@hp.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
-On Tue, Apr 02, 2013 at 03:15:23PM -0700, Hugh Dickins wrote:
-> On Tue, 2 Apr 2013, Kirill A. Shutemov wrote:
-> > Kirill A. Shutemov wrote:
-> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > > 
-> > > ramfs is the most simple fs from page cache point of view. Let's start
-> > > transparent huge page cache enabling here.
-> > > 
-> > > For now we allocate only non-movable huge page. It's not yet clear if
-> > > movable page is safe here and what need to be done to make it safe.
-> > > 
-> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > ---
-> > >  fs/ramfs/inode.c |    6 +++++-
-> > >  1 file changed, 5 insertions(+), 1 deletion(-)
-> > > 
-> > > diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
-> > > index c24f1e1..da30b4f 100644
-> > > --- a/fs/ramfs/inode.c
-> > > +++ b/fs/ramfs/inode.c
-> > > @@ -61,7 +61,11 @@ struct inode *ramfs_get_inode(struct super_block *sb,
-> > >  		inode_init_owner(inode, dir, mode);
-> > >  		inode->i_mapping->a_ops = &ramfs_aops;
-> > >  		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
-> > > -		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
-> > > +		/*
-> > > +		 * TODO: what should be done to make movable safe?
-> > > +		 */
-> > > +		mapping_set_gfp_mask(inode->i_mapping,
-> > > +				GFP_TRANSHUGE & ~__GFP_MOVABLE);
-> > 
-> > Hugh, I've found old thread with the reason why we have GFP_HIGHUSER here, not
-> > GFP_HIGHUSER_MOVABLE:
-> > 
-> > http://lkml.org/lkml/2006/11/27/156
-> > 
-> > It seems the origin reason is not longer valid, correct?
+Hi Toshi,
+
+2013/04/03 1:17, Toshi Kani wrote:
+> Added __adjust_resource(), which is called by adjust_resource()
+> internally after the resource_lock is held.  There is no interface
+> change to adjust_resource().  This change allows other functions
+> to call __adjust_resource() internally while the resource_lock is
+> held.
 > 
-> Incorrect, I believe: so far as I know, the original reason remains
-> valid - though it would only require a couple of good small changes
-> to reverse that - or perhaps you have already made these changes?
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+
+The patch looks good.
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+
+Thanks,
+Yasuaki Ishimatsu
+
+> ---
+>   kernel/resource.c |   35 ++++++++++++++++++++++-------------
+>   1 file changed, 22 insertions(+), 13 deletions(-)
 > 
-> The original reason is that ramfs pages are not migratable,
-> therefore they should be allocated from an unmovable area.
+> diff --git a/kernel/resource.c b/kernel/resource.c
+> index 73f35d4..ae246f9 100644
+> --- a/kernel/resource.c
+> +++ b/kernel/resource.c
+> @@ -706,24 +706,13 @@ void insert_resource_expand_to_fit(struct resource *root, struct resource *new)
+>   	write_unlock(&resource_lock);
+>   }
+>   
+> -/**
+> - * adjust_resource - modify a resource's start and size
+> - * @res: resource to modify
+> - * @start: new start value
+> - * @size: new size
+> - *
+> - * Given an existing resource, change its start and size to match the
+> - * arguments.  Returns 0 on success, -EBUSY if it can't fit.
+> - * Existing children of the resource are assumed to be immutable.
+> - */
+> -int adjust_resource(struct resource *res, resource_size_t start, resource_size_t size)
+> +static int __adjust_resource(struct resource *res, resource_size_t start,
+> +				resource_size_t size)
+>   {
+>   	struct resource *tmp, *parent = res->parent;
+>   	resource_size_t end = start + size - 1;
+>   	int result = -EBUSY;
+>   
+> -	write_lock(&resource_lock);
+> -
+>   	if (!parent)
+>   		goto skip;
+>   
+> @@ -751,6 +740,26 @@ skip:
+>   	result = 0;
+>   
+>    out:
+> +	return result;
+> +}
+> +
+> +/**
+> + * adjust_resource - modify a resource's start and size
+> + * @res: resource to modify
+> + * @start: new start value
+> + * @size: new size
+> + *
+> + * Given an existing resource, change its start and size to match the
+> + * arguments.  Returns 0 on success, -EBUSY if it can't fit.
+> + * Existing children of the resource are assumed to be immutable.
+> + */
+> +int adjust_resource(struct resource *res, resource_size_t start,
+> +			resource_size_t size)
+> +{
+> +	int result;
+> +
+> +	write_lock(&resource_lock);
+> +	result = __adjust_resource(res, start, size);
+>   	write_unlock(&resource_lock);
+>   	return result;
+>   }
 > 
-> As I understand it (and I would have preferred to run a test to check
-> my understanding before replying, but don't have time for that), ramfs
-> pages cannot be migrated for two reasons, neither of them a good reason.
-> 
-> One reason (okay, it wouldn't have been quite this way in 2006) is that
-> ramfs (rightly) calls mapping_set_unevictable(), so its pages will fail
-> the page_evictable() test, so they will be marked PageUnevictable, so
-> __isolate_lru_page() will refuse to isolate them for migration (except
-> for CMA).
 
-True.
-
-> 
-> I am strongly in favour of removing that limitation from
-> __isolate_lru_page() (and the thread you pointed - thank you - shows Mel
-> and Christoph were both in favour too); and note that there is no such
-> restriction in the confusingly similar but different isolate_lru_page().
-> 
-> Some people do worry that migrating Mlocked pages would introduce the
-> occasional possibility of a minor fault (with migration_entry_wait())
-> on an Mlocked region which never faulted before.  I tend to dismiss
-> that worry, but maybe I'm wrong to do so: maybe there should be a
-> tunable for realtimey people to set, to prohibit page migration from
-> mlocked areas; but the default should be to allow it.
-
-I agree.
-Just FYI for mlocked page migration
-
-I tried migratioin of mlocked page and Johannes and Mel had a concern
-about that.
-http://lkml.indiana.edu/hypermail/linux/kernel/1109.0/00175.html
-
-But later, Peter already acked it and I guess by reading the thread that
-Hugh was in favour when page migration was merged first time.
-
-http://marc.info/?l=linux-mm&m=133697873414205&w=2
-http://marc.info/?l=linux-mm&m=133700341823358&w=2
-
-Many people said mlock means memory-resident, NOT pinning so it could
-allow minor fault while Mel still had a concern except CMA.
-http://marc.info/?l=linux-mm&m=133674219714419&w=2
-
-> 
-> (Of course, we could separate ramfs's mapping_unevictable case from
-> the Mlocked case; but I'd prefer to continue to treat them the same.)
-
-Fair enough.
-
-> 
-> The other reason it looks as if ramfs pages cannot be migrated, is
-> that it does not set a suitable ->migratepage method, so would be
-> handled by fallback_migrate_page(), whose PageDirty test will end
-> up failing the migration with -EBUSY or -EINVAL - if I read it
-> correctly.
-
-True.
-
-> 
-> Perhaps other such reasons would surface once those are fixed.
-> But until ramfs pages can be migrated, they should not be allocated
-> with __GFP_MOVABLE.  (I've been writing about the migratability of
-> small pages: I expect you have the migratability of THPages in flux.)
-
-Agreed.
-
-> 
-> Hugh
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
