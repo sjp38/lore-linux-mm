@@ -1,92 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 5C9CE6B0036
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 18:30:44 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 6EE8A6B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 19:35:24 -0400 (EDT)
 Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 4 Apr 2013 16:30:41 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 2FB261FF0039
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 16:25:40 -0600 (MDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r34MUc0N268038
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 16:30:38 -0600
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r34MXN14026145
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 16:33:23 -0600
-Date: Thu, 4 Apr 2013 15:30:34 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
-Message-ID: <20130404223034.GQ28522@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <alpine.LNX.2.00.1304041120510.26822@eggly.anvils>
- <CA+55aFwCG2h1ijWTCJ38LVcUyczDAfk72c4MVSU+_-BiLoMOOw@mail.gmail.com>
- <alpine.LNX.2.00.1304041149030.29847@eggly.anvils>
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 5 Apr 2013 05:02:16 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id AD80DE002D
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 05:07:00 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r34NZCqQ65077426
+	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 05:05:13 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r34NZFHO001287
+	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 10:35:16 +1100
+Date: Fri, 5 Apr 2013 07:35:14 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/6] mm/hugetlb: gigantic hugetlb page pools shrink
+ supporting
+Message-ID: <20130404233514.GA32731@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1304041149030.29847@eggly.anvils>
+In-Reply-To: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Stancek <jstancek@redhat.com>, Jakub Jelinek <jakub@redhat.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Ian Lance Taylor <iant@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <ak@linux.intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Thu, Apr 04, 2013 at 12:01:52PM -0700, Hugh Dickins wrote:
-> On Thu, 4 Apr 2013, Linus Torvalds wrote:
-> > On Thu, Apr 4, 2013 at 11:35 AM, Hugh Dickins <hughd@google.com> wrote:
-> > >
-> > > find_vma() can be called by multiple threads with read lock
-> > > held on mm->mmap_sem and any of them can update mm->mmap_cache.
-> > > Prevent compiler from re-fetching mm->mmap_cache, because other
-> > > readers could update it in the meantime:
-> > 
-> > Ack. I do wonder if we should mark the unlocked update too some way
-> > (also in find_vma()), although it's probably not a problem in practice
-> > since there's no way the compiler can reasonably really do anything
-> > odd with it. We *could* make that an ACCESS_ONCE() write too just to
-> > highlight the fact that it's an unlocked write to this optimistic data
-> > structure.
-> 
-> Hah, you beat me to it.
-> 
-> I wanted to get Jan's patch in first, seeing as it actually fixes his
-> observed issue; and it is very nice to have such a good description of
-> one of those, when ACCESS_ONCE() is usually just an insurance policy.
-> 
-> But then I was researching the much rarer "ACCESS_ONCE(x) = y" usage
-> (popular in drivers/net/wireless/ath/ath9k and kernel/rcutree* and
-> sound/firewire, but few places else).
-> 
-> When Paul reminded us of it yesterday, I came to wonder if actually
-> every use of ACCESS_ONCE in the read form should strictly be matched
-> by ACCESS_ONCE whenever modifying the location.
-
->From a hygiene/insurance/documentation point of view, I agree.  Of course,
-it is OK to use things like cmpxchg() in place of ACCESS_ONCE().
-
-The possible exceptions that come to mind are (1) if the access in
-question is done holding a lock that excludes all other accesses to that
-location, (2) if the access in question happens during initialization
-before any other CPU has access to that location, and (3) if the access
-in question happens during cleanup after all other CPUs have lost access
-to that location.  Any others?
-
-/me goes to look to see if the RCU code follows this good advice...
-
-							Thanx, Paul
-
-> My uneducated guess is that strictly it ought to, in the sense of
-> insurance policy; but that (apart from that strange split writing
-> issue which came up a couple of months ago) in practice our compilers
-> have not "advanced" to the point of making this an issue yet.
-> 
-> > 
-> > Anyway, applied.
-> 
-> Thanks,
-> Hugh
-> 
+Cc Andi,
+On Thu, Apr 04, 2013 at 05:09:08PM +0800, Wanpeng Li wrote:
+>order >= MAX_ORDER pages are only allocated at boot stage using the 
+>bootmem allocator with the "hugepages=xxx" option. These pages are never 
+>free after boot by default since it would be a one-way street(>= MAX_ORDER
+>pages cannot be allocated later), but if administrator confirm not to 
+>use these gigantic pages any more, these pinned pages will waste memory
+>since other users can't grab free pages from gigantic hugetlb pool even
+>if OOM, it's not flexible.  The patchset add hugetlb gigantic page pools
+>shrink supporting. Administrator can enable knob exported in sysctl to
+>permit to shrink gigantic hugetlb pool.
+>
+>Testcase:
+>boot: hugepagesz=1G hugepages=10
+>
+>[root@localhost hugepages]# free -m
+>             total       used       free     shared    buffers     cached
+>Mem:         36269      10836      25432          0         11        288
+>-/+ buffers/cache:      10537      25732
+>Swap:        35999          0      35999
+>[root@localhost hugepages]# echo 0 > /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages
+>-bash: echo: write error: Invalid argument
+>[root@localhost hugepages]# echo 1 > /proc/sys/vm/hugetlb_shrink_gigantic_pool
+>[root@localhost hugepages]# echo 0 > /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages
+>[root@localhost hugepages]# free -m
+>             total       used       free     shared    buffers     cached
+>Mem:         36269        597      35672          0         11        288
+>-/+ buffers/cache:        297      35972
+>Swap:        35999          0      35999
+>
+>Wanpeng Li (6):
+>  introduce new sysctl knob which control gigantic page pools shrinking
+>  update_and_free_page gigantic pages awareness
+>  enable gigantic hugetlb page pools shrinking
+>  use already exist huge_page_order() instead of h->order
+>  remove redundant hugetlb_prefault 
+>  use already exist interface huge_page_shift
+>
+> Documentation/sysctl/vm.txt |   13 +++++++
+> include/linux/hugetlb.h     |    5 +--
+> kernel/sysctl.c             |    7 ++++
+> mm/hugetlb.c                |   83 +++++++++++++++++++++++++++++--------------
+> mm/internal.h               |    1 +
+> mm/page_alloc.c             |    2 +-
+> 6 files changed, 82 insertions(+), 29 deletions(-)
+>
+>-- 
+>1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
