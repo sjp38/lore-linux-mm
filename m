@@ -1,10 +1,9 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 0/6] mm/hugetlb: gigantic hugetlb page pools shrink
- supporting
-Date: Fri, 5 Apr 2013 07:41:23 +0800
-Message-ID: <10521.6808421121$1365118923@news.gmane.org>
-References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130404161746.GP29911@dhcp22.suse.cz>
+Subject: Re: [patch]THP: add split tail pages to shrink page list in page
+ reclaim
+Date: Fri, 5 Apr 2013 07:50:01 +0800
+Message-ID: <45831.0758848258$1365119440@news.gmane.org>
+References: <20130401132605.GA2996@kernel.org>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,109 +11,256 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UNtn6-0005Vo-7k
-	for glkm-linux-mm-2@m.gmane.org; Fri, 05 Apr 2013 01:42:00 +0200
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 8B4896B0005
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 19:41:32 -0400 (EDT)
+	id 1UNtvR-0003ms-M4
+	for glkm-linux-mm-2@m.gmane.org; Fri, 05 Apr 2013 01:50:38 +0200
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id C95D26B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 19:50:09 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 5 Apr 2013 09:34:43 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 3AB1F2BB0052
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 10:41:27 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r34NfMbI4194730
-	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 10:41:22 +1100
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r34NfQur001126
-	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 10:41:26 +1100
+	Fri, 5 Apr 2013 05:17:02 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 63CCD125804E
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 05:21:24 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r34NnxX265077432
+	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 05:20:00 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r34No2Ei001522
+	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 10:50:02 +1100
 Content-Disposition: inline
-In-Reply-To: <20130404161746.GP29911@dhcp22.suse.cz>
+In-Reply-To: <20130401132605.GA2996@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, minchan@kernel.org
 
-On Thu, Apr 04, 2013 at 06:17:46PM +0200, Michal Hocko wrote:
->On Thu 04-04-13 17:09:08, Wanpeng Li wrote:
->> order >= MAX_ORDER pages are only allocated at boot stage using the 
->> bootmem allocator with the "hugepages=xxx" option. These pages are never 
->> free after boot by default since it would be a one-way street(>= MAX_ORDER
->> pages cannot be allocated later), but if administrator confirm not to 
->> use these gigantic pages any more, these pinned pages will waste memory
->> since other users can't grab free pages from gigantic hugetlb pool even
->> if OOM, it's not flexible.  The patchset add hugetlb gigantic page pools
->> shrink supporting. Administrator can enable knob exported in sysctl to
->> permit to shrink gigantic hugetlb pool.
+On Mon, Apr 01, 2013 at 09:26:05PM +0800, Shaohua Li wrote:
+>In page reclaim, huge page is split. split_huge_page() adds tail pages to LRU
+>list. Since we are reclaiming a huge page, it's better we reclaim all subpages
+>of the huge page instead of just the head page. This patch adds split tail
+>pages to shrink page list so the tail pages can be reclaimed soon.
 >
->I am not sure I see why the new knob is needed.
->/sys/kernel/mm/hugepages/hugepages-*/nr_hugepages is root interface so
->an additional step to allow writing to the file doesn't make much sense
->to me to be honest.
+>Before this patch, run a swap workload:
+>thp_fault_alloc 3492
+>thp_fault_fallback 608
+>thp_collapse_alloc 6
+>thp_collapse_alloc_failed 0
+>thp_split 916
 >
->Support for shrinking gigantic huge pages makes some sense to me but I
->would be interested in the real world example. GB pages are usually used
->in very specific environments where the amount is usually well known.
+>With this patch:
+>thp_fault_alloc 4085
+>thp_fault_fallback 16
+>thp_collapse_alloc 90
+>thp_collapse_alloc_failed 0
+>thp_split 1272
+>
+>fallback allocation is reduced a lot.
+>
+>Signed-off-by: Shaohua Li <shli@fusionio.com>
 
-Gigantic huge pages in hugetlb means h->order >= MAX_ORDER instead of GB 
-pages. ;-)
+Nice!
 
-Regards,
-Wanpeng Li 
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
+>---
+> include/linux/huge_mm.h |   11 ++++++++++-
+> include/linux/swap.h    |    4 ++--
+> mm/huge_memory.c        |   14 ++++++++------
+> mm/swap.c               |   11 ++++++++---
+> mm/swap_state.c         |    4 ++--
+> mm/vmscan.c             |    2 +-
+> 6 files changed, 31 insertions(+), 15 deletions(-)
 >
->I could imagine nr_hugepages_mempolicy would make more sense to free
->pages from particular nodes so they could be offlined for example.
->Does the patchset handles this as well?
+>Index: linux/include/linux/huge_mm.h
+>===================================================================
+>--- linux.orig/include/linux/huge_mm.h	2013-04-01 20:16:23.822120955 +0800
+>+++ linux/include/linux/huge_mm.h	2013-04-01 20:18:22.668627309 +0800
+>@@ -99,7 +99,11 @@ extern int copy_pte_range(struct mm_stru
+> extern int handle_pte_fault(struct mm_struct *mm,
+> 			    struct vm_area_struct *vma, unsigned long address,
+> 			    pte_t *pte, pmd_t *pmd, unsigned int flags);
+>-extern int split_huge_page(struct page *page);
+>+extern int split_huge_page_to_list(struct page *page, struct list_head *list);
+>+static inline int split_huge_page(struct page *page)
+>+{
+>+	return split_huge_page_to_list(page, NULL);
+>+}
+> extern void __split_huge_page_pmd(struct vm_area_struct *vma,
+> 		unsigned long address, pmd_t *pmd);
+> #define split_huge_page_pmd(__vma, __address, __pmd)			\
+>@@ -186,6 +190,11 @@ extern int do_huge_pmd_numa_page(struct
+> #define transparent_hugepage_enabled(__vma) 0
 >
->> Testcase:
->> boot: hugepagesz=1G hugepages=10
->> 
->> [root@localhost hugepages]# free -m
->>              total       used       free     shared    buffers     cached
->> Mem:         36269      10836      25432          0         11        288
->> -/+ buffers/cache:      10537      25732
->> Swap:        35999          0      35999
->> [root@localhost hugepages]# echo 0 > /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages
->> -bash: echo: write error: Invalid argument
->> [root@localhost hugepages]# echo 1 > /proc/sys/vm/hugetlb_shrink_gigantic_pool
->> [root@localhost hugepages]# echo 0 > /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages
->> [root@localhost hugepages]# free -m
->>              total       used       free     shared    buffers     cached
->> Mem:         36269        597      35672          0         11        288
->> -/+ buffers/cache:        297      35972
->> Swap:        35999          0      35999
->> 
->> Wanpeng Li (6):
->>   introduce new sysctl knob which control gigantic page pools shrinking
->>   update_and_free_page gigantic pages awareness
->>   enable gigantic hugetlb page pools shrinking
->>   use already exist huge_page_order() instead of h->order
->>   remove redundant hugetlb_prefault 
->>   use already exist interface huge_page_shift
->> 
->>  Documentation/sysctl/vm.txt |   13 +++++++
->>  include/linux/hugetlb.h     |    5 +--
->>  kernel/sysctl.c             |    7 ++++
->>  mm/hugetlb.c                |   83 +++++++++++++++++++++++++++++--------------
->>  mm/internal.h               |    1 +
->>  mm/page_alloc.c             |    2 +-
->>  6 files changed, 82 insertions(+), 29 deletions(-)
->> 
->> -- 
->> 1.7.10.4
->> 
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
+> #define transparent_hugepage_flags 0UL
+>+static inline int
+>+split_huge_page_to_list(struct page *page, struct list_head *list)
+>+{
+>+	return 0;
+>+}
+> static inline int split_huge_page(struct page *page)
+> {
+> 	return 0;
+>Index: linux/include/linux/swap.h
+>===================================================================
+>--- linux.orig/include/linux/swap.h	2013-04-01 20:16:23.810121105 +0800
+>+++ linux/include/linux/swap.h	2013-04-01 20:18:22.668627309 +0800
+>@@ -236,7 +236,7 @@ extern unsigned long nr_free_pagecache_p
+> extern void __lru_cache_add(struct page *, enum lru_list lru);
+> extern void lru_cache_add_lru(struct page *, enum lru_list lru);
+> extern void lru_add_page_tail(struct page *page, struct page *page_tail,
+>-			      struct lruvec *lruvec);
+>+			 struct lruvec *lruvec, struct list_head *head);
+> extern void activate_page(struct page *);
+> extern void mark_page_accessed(struct page *);
+> extern void lru_add_drain(void);
+>@@ -343,7 +343,7 @@ extern struct address_space swapper_spac
+> #define swap_address_space(entry) (&swapper_spaces[swp_type(entry)])
+> extern unsigned long total_swapcache_pages(void);
+> extern void show_swap_cache_info(void);
+>-extern int add_to_swap(struct page *);
+>+extern int add_to_swap(struct page *, struct list_head *list);
+> extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
+> extern void __delete_from_swap_cache(struct page *);
+> extern void delete_from_swap_cache(struct page *);
+>Index: linux/mm/huge_memory.c
+>===================================================================
+>--- linux.orig/mm/huge_memory.c	2013-04-01 20:16:23.798121258 +0800
+>+++ linux/mm/huge_memory.c	2013-04-01 20:18:43.020371209 +0800
+>@@ -1560,7 +1560,8 @@ static int __split_huge_page_splitting(s
+> 	return ret;
+> }
 >
->-- 
->Michal Hocko
->SUSE Labs
+>-static void __split_huge_page_refcount(struct page *page)
+>+static void __split_huge_page_refcount(struct page *page,
+>+				       struct list_head *list)
+> {
+> 	int i;
+> 	struct zone *zone = page_zone(page);
+>@@ -1646,7 +1647,7 @@ static void __split_huge_page_refcount(s
+> 		BUG_ON(!PageDirty(page_tail));
+> 		BUG_ON(!PageSwapBacked(page_tail));
+>
+>-		lru_add_page_tail(page, page_tail, lruvec);
+>+		lru_add_page_tail(page, page_tail, lruvec, list);
+> 	}
+> 	atomic_sub(tail_count, &page->_count);
+> 	BUG_ON(atomic_read(&page->_count) <= 0);
+>@@ -1753,7 +1754,8 @@ static int __split_huge_page_map(struct
+>
+> /* must be called with anon_vma->root->rwsem held */
+> static void __split_huge_page(struct page *page,
+>-			      struct anon_vma *anon_vma)
+>+			      struct anon_vma *anon_vma,
+>+			      struct list_head *list)
+> {
+> 	int mapcount, mapcount2;
+> 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+>@@ -1784,7 +1786,7 @@ static void __split_huge_page(struct pag
+> 		       mapcount, page_mapcount(page));
+> 	BUG_ON(mapcount != page_mapcount(page));
+>
+>-	__split_huge_page_refcount(page);
+>+	__split_huge_page_refcount(page, list);
+>
+> 	mapcount2 = 0;
+> 	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff, pgoff) {
+>@@ -1799,7 +1801,7 @@ static void __split_huge_page(struct pag
+> 	BUG_ON(mapcount != mapcount2);
+> }
+>
+>-int split_huge_page(struct page *page)
+>+int split_huge_page_to_list(struct page *page, struct list_head *list)
+> {
+> 	struct anon_vma *anon_vma;
+> 	int ret = 1;
+>@@ -1824,7 +1826,7 @@ int split_huge_page(struct page *page)
+> 		goto out_unlock;
+>
+> 	BUG_ON(!PageSwapBacked(page));
+>-	__split_huge_page(page, anon_vma);
+>+	__split_huge_page(page, anon_vma, list);
+> 	count_vm_event(THP_SPLIT);
+>
+> 	BUG_ON(PageCompound(page));
+>Index: linux/mm/swap.c
+>===================================================================
+>--- linux.orig/mm/swap.c	2013-04-01 20:16:23.794121307 +0800
+>+++ linux/mm/swap.c	2013-04-01 20:18:22.668627309 +0800
+>@@ -737,7 +737,7 @@ EXPORT_SYMBOL(__pagevec_release);
+> #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> /* used by __split_huge_page_refcount() */
+> void lru_add_page_tail(struct page *page, struct page *page_tail,
+>-		       struct lruvec *lruvec)
+>+		       struct lruvec *lruvec, struct list_head *list)
+> {
+> 	int uninitialized_var(active);
+> 	enum lru_list lru;
+>@@ -749,7 +749,8 @@ void lru_add_page_tail(struct page *page
+> 	VM_BUG_ON(NR_CPUS != 1 &&
+> 		  !spin_is_locked(&lruvec_zone(lruvec)->lru_lock));
+>
+>-	SetPageLRU(page_tail);
+>+	if (!list)
+>+		SetPageLRU(page_tail);
+>
+> 	if (page_evictable(page_tail)) {
+> 		if (PageActive(page)) {
+>@@ -767,7 +768,11 @@ void lru_add_page_tail(struct page *page
+>
+> 	if (likely(PageLRU(page)))
+> 		list_add_tail(&page_tail->lru, &page->lru);
+>-	else {
+>+	else if (list) {
+>+		/* page reclaim is reclaiming a huge page */
+>+		get_page(page_tail);
+>+		list_add_tail(&page_tail->lru, list);
+>+	} else {
+> 		struct list_head *list_head;
+> 		/*
+> 		 * Head page has not yet been counted, as an hpage,
+>Index: linux/mm/swap_state.c
+>===================================================================
+>--- linux.orig/mm/swap_state.c	2013-04-01 20:16:23.778121508 +0800
+>+++ linux/mm/swap_state.c	2013-04-01 20:18:22.668627309 +0800
+>@@ -160,7 +160,7 @@ void __delete_from_swap_cache(struct pag
+>  * Allocate swap space for the page and add the page to the
+>  * swap cache.  Caller needs to hold the page lock. 
+>  */
+>-int add_to_swap(struct page *page)
+>+int add_to_swap(struct page *page, struct list_head *list)
+> {
+> 	swp_entry_t entry;
+> 	int err;
+>@@ -173,7 +173,7 @@ int add_to_swap(struct page *page)
+> 		return 0;
+>
+> 	if (unlikely(PageTransHuge(page)))
+>-		if (unlikely(split_huge_page(page))) {
+>+		if (unlikely(split_huge_page_to_list(page, list))) {
+> 			swapcache_free(entry, NULL);
+> 			return 0;
+> 		}
+>Index: linux/mm/vmscan.c
+>===================================================================
+>--- linux.orig/mm/vmscan.c	2013-04-01 20:16:23.782121457 +0800
+>+++ linux/mm/vmscan.c	2013-04-01 20:18:22.668627309 +0800
+>@@ -780,7 +780,7 @@ static unsigned long shrink_page_list(st
+> 		if (PageAnon(page) && !PageSwapCache(page)) {
+> 			if (!(sc->gfp_mask & __GFP_IO))
+> 				goto keep_locked;
+>-			if (!add_to_swap(page))
+>+			if (!add_to_swap(page, page_list))
+> 				goto activate_locked;
+> 			may_enter_fs = 1;
+> 		}
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
