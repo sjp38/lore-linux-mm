@@ -1,63 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 0BF446B0005
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 20:38:08 -0400 (EDT)
-Received: by mail-vc0-f172.google.com with SMTP id hr11so1943239vcb.17
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 17:38:08 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id C18256B0005
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 20:43:07 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C9AFB3EE0BD
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 09:43:05 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A4C1945DE53
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 09:43:05 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8CCD845DDCF
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 09:43:05 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CE3BE08008
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 09:43:05 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2E7ABE08001
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 09:43:05 +0900 (JST)
+Message-ID: <515CCC8C.5030007@jp.fujitsu.com>
+Date: Thu, 04 Apr 2013 09:42:52 +0900
+From: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.02.1304031659160.718@chino.kir.corp.google.com>
-References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
-	<alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
-	<alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
-	<alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
-	<20130403041447.GC4611@cmpxchg.org>
-	<alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
-	<20130403045814.GD4611@cmpxchg.org>
-	<CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
-	<20130403143302.GL1953@cmpxchg.org>
-	<alpine.DEB.2.02.1304031648170.718@chino.kir.corp.google.com>
-	<alpine.DEB.2.02.1304031659160.718@chino.kir.corp.google.com>
-Date: Wed, 3 Apr 2013 17:38:07 -0700
-Message-ID: <CA+55aFwdJCxnNQMQEAaC-+8pEGpHKgaq5aL4K2n=vRVBUg863A@mail.gmail.com>
-Subject: Re: [patch] compiler: clarify ACCESS_ONCE() relies on compiler implementation
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v3 2/3] fix hugetlb memory check in vma_dump_size()
+References: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1365014138-19589-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1365014138-19589-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ian Lance Taylor <iant@google.com>, Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Apr 3, 2013 at 5:00 PM, David Rientjes <rientjes@google.com> wrote:
-> The dereference of a volatile-qualified pointer does not guarantee that it
-> cannot be optimized by the compiler to be loaded multiple times into
-> memory even if assigned to a local variable by C99 or any previous C
-> standard.
->
-> Clarify the comment of ACCESS_ONCE() to state explicitly that its current
-> form relies on the compiler's implementation to work correctly.
+(2013/04/04 3:35), Naoya Horiguchi wrote:
+> Documentation/filesystems/proc.txt says about coredump_filter bitmask,
+> 
+>    Note bit 0-4 doesn't effect any hugetlb memory. hugetlb memory are only
+>    effected by bit 5-6.
+> 
+> However current code can go into the subsequent flag checks of bit 0-4
+> for vma(VM_HUGETLB). So this patch inserts 'return' and makes it work
+> as written in the document.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: stable@vger.kernel.org
+> ---
+>   fs/binfmt_elf.c | 1 +
+>   1 file changed, 1 insertion(+)
+> 
+> diff --git v3.9-rc3.orig/fs/binfmt_elf.c v3.9-rc3/fs/binfmt_elf.c
+> index 3939829..86af964 100644
+> --- v3.9-rc3.orig/fs/binfmt_elf.c
+> +++ v3.9-rc3/fs/binfmt_elf.c
+> @@ -1137,6 +1137,7 @@ static unsigned long vma_dump_size(struct vm_area_struct *vma,
+>   			goto whole;
+>   		if (!(vma->vm_flags & VM_SHARED) && FILTER(HUGETLB_PRIVATE))
+>   			goto whole;
+> +		return 0;
+>   	}
+>   
+>   	/* Do not dump I/O mapped devices or special mappings */
+> 
 
-This is utter bullshit and garbage.
+Thanks for splitting this fix. Now it's easier to keep track of this fix.
 
-Any compiler that thinks it can load something through a "volatile"
-pointer multiple times is SHIT. We don't add these kinds of comments
-to make excuses for crap, we call out such compilers and tell people
-not to use the utter crap they are.
+Reviewed-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
 
-The fact is, "volatile" is pretty much the only thing that can do this
-(and there are no sane alternate semantics that a compiler *could* use
-for a volatile cast), and no amount of weasel-wording by compiler
-apologists makes it not so. I'm not a huge fan of volatile as a C
-feature, but I'm even less of a fan of people trying to make excuses
-for bad compilers.
+Thanks.
+HATAYAMA, Daisuke
 
-Is there a reason why you want to add this idiotic comment? Is there a
-compiler that actually dismisses a volatile cast? If so, warn us about
-that kind of crap, and I'll happily make it very clear that people
-should not use the piece-of-shit compiler in question. Making excuses
-for that kind of compiler behavior is absolutely the last thing we
-should do.
-
-                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
