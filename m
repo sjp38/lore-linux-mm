@@ -1,71 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id E11776B0027
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 18:30:41 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 5C9CE6B0036
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 18:30:44 -0400 (EDT)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 4 Apr 2013 18:30:40 -0400
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id BEB6DC90025
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 18:30:38 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r34MUc31305592
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 18:30:38 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r34MUbOC005806
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 18:30:38 -0400
-Message-ID: <515DFF08.3060005@linux.vnet.ibm.com>
-Date: Thu, 04 Apr 2013 17:30:32 -0500
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Thu, 4 Apr 2013 16:30:41 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 2FB261FF0039
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 16:25:40 -0600 (MDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r34MUc0N268038
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 16:30:38 -0600
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r34MXN14026145
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 16:33:23 -0600
+Date: Thu, 4 Apr 2013 15:30:34 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
+Message-ID: <20130404223034.GQ28522@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <alpine.LNX.2.00.1304041120510.26822@eggly.anvils>
+ <CA+55aFwCG2h1ijWTCJ38LVcUyczDAfk72c4MVSU+_-BiLoMOOw@mail.gmail.com>
+ <alpine.LNX.2.00.1304041149030.29847@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCHv8 5/8] mm: break up swap_writepage() for frontswap backends
-References: <1365113446-25647-1-git-send-email-sjenning@linux.vnet.ibm.com> <1365113446-25647-6-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <1365113446-25647-6-git-send-email-sjenning@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1304041149030.29847@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Bob Liu <lliubbo@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Stancek <jstancek@redhat.com>, Jakub Jelinek <jakub@redhat.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Ian Lance Taylor <iant@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 04/04/2013 05:10 PM, Seth Jennings wrote:
-> swap_writepage() is currently where frontswap hooks into the swap
-> write path to capture pages with the frontswap_store() function.
-> However, if a frontswap backend wants to "resume" the writeback of
-> a page to the swap device, it can't call swap_writepage() as
-> the page will simply reenter the backend.
+On Thu, Apr 04, 2013 at 12:01:52PM -0700, Hugh Dickins wrote:
+> On Thu, 4 Apr 2013, Linus Torvalds wrote:
+> > On Thu, Apr 4, 2013 at 11:35 AM, Hugh Dickins <hughd@google.com> wrote:
+> > >
+> > > find_vma() can be called by multiple threads with read lock
+> > > held on mm->mmap_sem and any of them can update mm->mmap_cache.
+> > > Prevent compiler from re-fetching mm->mmap_cache, because other
+> > > readers could update it in the meantime:
+> > 
+> > Ack. I do wonder if we should mark the unlocked update too some way
+> > (also in find_vma()), although it's probably not a problem in practice
+> > since there's no way the compiler can reasonably really do anything
+> > odd with it. We *could* make that an ACCESS_ONCE() write too just to
+> > highlight the fact that it's an unlocked write to this optimistic data
+> > structure.
 > 
-> This patch separates swap_writepage() into a top and bottom half, the
-> bottom half named __swap_writepage() to allow a frontswap backend,
-> like zswap, to resume writeback beyond the frontswap_store() hook.
+> Hah, you beat me to it.
 > 
-> __add_to_swap_cache() is also made non-static so that the page for
-> which writeback is to be resumed can be added to the swap cache.
+> I wanted to get Jan's patch in first, seeing as it actually fixes his
+> observed issue; and it is very nice to have such a good description of
+> one of those, when ACCESS_ONCE() is usually just an insurance policy.
 > 
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> But then I was researching the much rarer "ACCESS_ONCE(x) = y" usage
+> (popular in drivers/net/wireless/ath/ath9k and kernel/rcutree* and
+> sound/firewire, but few places else).
+> 
+> When Paul reminded us of it yesterday, I came to wonder if actually
+> every use of ACCESS_ONCE in the read form should strictly be matched
+> by ACCESS_ONCE whenever modifying the location.
 
-Adding Cc Bob Liu.
+>From a hygiene/insurance/documentation point of view, I agree.  Of course,
+it is OK to use things like cmpxchg() in place of ACCESS_ONCE().
 
-I just remembered that Bob had done a repost of the 5 and 6 patches,
-outside the zswap thread,  with a small change to avoid a checkpatch
-warning.  I didn't pull that change into my version, but I should have.
+The possible exceptions that come to mind are (1) if the access in
+question is done holding a lock that excludes all other accesses to that
+location, (2) if the access in question happens during initialization
+before any other CPU has access to that location, and (3) if the access
+in question happens during cleanup after all other CPUs have lost access
+to that location.  Any others?
 
-It doesn't make a functional difference, so this patch can still go
-forward and the checkpatch warning can be cleaned up in a subsequent
-patch.  If another revision of the patchset is needed for other
-reasons, I'll pull this change into the next version.
+/me goes to look to see if the RCU code follows this good advice...
 
-I think Dan and Bob would be ok with their tags being applied to 5 and 6:
+							Thanx, Paul
 
-Acked-by: Bob Liu <bob.liu@oracle.com>
-Reviewed-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-
-That ok?
-
-Thanks,
-Seth
+> My uneducated guess is that strictly it ought to, in the sense of
+> insurance policy; but that (apart from that strange split writing
+> issue which came up a couple of months ago) in practice our compilers
+> have not "advanced" to the point of making this an issue yet.
+> 
+> > 
+> > Anyway, applied.
+> 
+> Thanks,
+> Hugh
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
