@@ -1,66 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 3B5016B0005
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 04:38:25 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id F2F996B0027
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 05:09:32 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 4 Apr 2013 14:03:50 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 20E8E394002D
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 14:08:18 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r348cEk63801410
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 14:08:14 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r348cGL3021084
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 19:38:17 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V5 00/25] THP support for PPC64
-In-Reply-To: <515D1A2C.1000606@gmail.com>
-References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <515D1A2C.1000606@gmail.com>
-Date: Thu, 04 Apr 2013 14:08:15 +0530
-Message-ID: <878v4y4rns.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 4 Apr 2013 19:02:19 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 864BD2CE804D
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 20:09:26 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r348u5vd9765172
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 19:56:06 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3499P2p025533
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 20:09:25 +1100
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 3/6] mm/hugetlb: enable gigantic hugetlb page pools shrinking
+Date: Thu,  4 Apr 2013 17:09:11 +0800
+Message-Id: <1365066554-29195-4-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Simon Jeons <simon.jeons@gmail.com> writes:
+Enable gigantic hugetlb page pools shrinking.
 
-> Hi Aneesh,
-> On 04/04/2013 01:57 PM, Aneesh Kumar K.V wrote:
->> Hi,
->>
->> This patchset adds transparent hugepage support for PPC64.
->>
->> TODO:
->> * hash preload support in update_mmu_cache_pmd (we don't do that for hugetlb)
->>
->> Some numbers:
->>
->> The latency measurements code from Anton  found at
->> http://ozlabs.org/~anton/junkcode/latency2001.c
->>
->> THP disabled 64K page size
->> ------------------------
->> [root@llmp24l02 ~]# ./latency2001 8G
->>   8589934592    731.73 cycles    205.77 ns
->> [root@llmp24l02 ~]# ./latency2001 8G
->>   8589934592    743.39 cycles    209.05 ns
->
-> Could you explain what's the meaning of result?
->
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ mm/hugetlb.c |    7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-That is the total memory range, cycles taken to access an address and
-time taken to access. That numbers shows the overhead of tlb miss.
-
-you can find the source at http://ozlabs.org/~anton/junkcode/latency2001.c
-
-
--aneesh
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index eeaf6f2..328f140 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1416,7 +1416,8 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+ {
+ 	unsigned long min_count, ret;
+ 
+-	if (h->order >= MAX_ORDER)
++	if (h->order >= MAX_ORDER && (!hugetlb_shrink_gigantic_pool ||
++				count > persistent_huge_pages(h)))
+ 		return h->max_huge_pages;
+ 
+ 	/*
+@@ -1542,7 +1543,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 		goto out;
+ 
+ 	h = kobj_to_hstate(kobj, &nid);
+-	if (h->order >= MAX_ORDER) {
++	if (h->order >= MAX_ORDER && !hugetlb_shrink_gigantic_pool) {
+ 		err = -EINVAL;
+ 		goto out;
+ 	}
+@@ -2036,7 +2037,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+ 
+ 	tmp = h->max_huge_pages;
+ 
+-	if (write && h->order >= MAX_ORDER)
++	if (write && h->order >= MAX_ORDER && !hugetlb_shrink_gigantic_pool)
+ 		return -EINVAL;
+ 
+ 	table->data = &tmp;
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
