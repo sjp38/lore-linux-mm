@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 319816B0027
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 5330F6B0036
 	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 01:58:20 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 4 Apr 2013 11:23:04 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id ECEF81258023
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 11:29:33 +0530 (IST)
+	Thu, 4 Apr 2013 11:25:14 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id E97463940058
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 11:28:14 +0530 (IST)
 Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r345w7fG8192464
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 11:28:07 +0530
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r345w9bk55050388
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 11:28:09 +0530
 Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r345wCaN026379
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 05:58:12 GMT
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r345wDOW026438
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 05:58:13 GMT
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V5 01/25] powerpc: Use signed formatting when printing error
-Date: Thu,  4 Apr 2013 11:27:39 +0530
-Message-Id: <1365055083-31956-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V5 04/25] powerpc: Reduce the PTE_INDEX_SIZE
+Date: Thu,  4 Apr 2013 11:27:42 +0530
+Message-Id: <1365055083-31956-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -28,28 +28,34 @@ Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <anees
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-PAPR defines these errors as negative values. So print them accordingly
-for easy debugging.
+This make one PMD cover 16MB range. That helps in easier implementation of THP
+on power. THP core code make use of one pmd entry to track the hugepage and
+the range mapped by a single pmd entry should be equal to the hugepage size
+supported by the hardware.
 
 Acked-by: Paul Mackerras <paulus@samba.org>
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/platforms/pseries/lpar.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/powerpc/include/asm/pgtable-ppc64-64k.h |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/arch/powerpc/platforms/pseries/lpar.c b/arch/powerpc/platforms/pseries/lpar.c
-index 0da39fe..a77c35b 100644
---- a/arch/powerpc/platforms/pseries/lpar.c
-+++ b/arch/powerpc/platforms/pseries/lpar.c
-@@ -155,7 +155,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
- 	 */
- 	if (unlikely(lpar_rc != H_SUCCESS)) {
- 		if (!(vflags & HPTE_V_BOLTED))
--			pr_devel(" lpar err %lu\n", lpar_rc);
-+			pr_devel(" lpar err %ld\n", lpar_rc);
- 		return -2;
- 	}
- 	if (!(vflags & HPTE_V_BOLTED))
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64-64k.h b/arch/powerpc/include/asm/pgtable-ppc64-64k.h
+index be4e287..3c529b4 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64-64k.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64-64k.h
+@@ -4,10 +4,10 @@
+ #include <asm-generic/pgtable-nopud.h>
+ 
+ 
+-#define PTE_INDEX_SIZE  12
++#define PTE_INDEX_SIZE  8
+ #define PMD_INDEX_SIZE  12
+ #define PUD_INDEX_SIZE	0
+-#define PGD_INDEX_SIZE  6
++#define PGD_INDEX_SIZE  10
+ 
+ #ifndef __ASSEMBLY__
+ #define PTE_TABLE_SIZE	(sizeof(real_pte_t) << PTE_INDEX_SIZE)
 -- 
 1.7.10
 
