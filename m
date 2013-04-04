@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 146706B0036
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 21:09:58 -0400 (EDT)
-Received: by mail-oa0-f74.google.com with SMTP id k14so795850oag.5
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2013 18:09:57 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with SMTP id 58D216B0037
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 21:10:32 -0400 (EDT)
+Received: by mail-ia0-f202.google.com with SMTP id p22so794916iad.1
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2013 18:10:31 -0700 (PDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v2 06/28] mm: new shrinker API
+Subject: Re: [PATCH v2 08/28] list: add a new LRU list type
+Date: Thu, 04 Apr 2013 14:53:49 -0700
 References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
-	<1364548450-28254-7-git-send-email-glommer@parallels.com>
-Date: Thu, 04 Apr 2013 18:09:55 -0700
-Message-ID: <xr93k3ohkckc.fsf@gthelen.mtv.corp.google.com>
+	<1364548450-28254-9-git-send-email-glommer@parallels.com>
+Message-ID: <xr93ehepkcje.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -21,53 +21,214 @@ On Fri, Mar 29 2013, Glauber Costa wrote:
 
 > From: Dave Chinner <dchinner@redhat.com>
 >
-> The current shrinker callout API uses an a single shrinker call for
-> multiple functions. To determine the function, a special magical
-> value is passed in a parameter to change the behaviour. This
-> complicates the implementation and return value specification for
-> the different behaviours.
+> Several subsystems use the same construct for LRU lists - a list
+> head, a spin lock and and item count. They also use exactly the same
+> code for adding and removing items from the LRU. Create a generic
+> type for these LRU lists.
 >
-> Separate the two different behaviours into separate operations, one
-> to return a count of freeable objects in the cache, and another to
-> scan a certain number of objects in the cache for freeing. In
-> defining these new operations, ensure the return values and
-> resultant behaviours are clearly defined and documented.
->
-> Modify shrink_slab() to use the new API and implement the callouts
-> for all the existing shrinkers.
+> This is the beginning of generic, node aware LRUs for shrinkers to
+> work with.
 >
 > Signed-off-by: Dave Chinner <dchinner@redhat.com>
 > ---
->  include/linux/shrinker.h | 37 +++++++++++++++++++++++++----------
->  mm/vmscan.c              | 51 +++++++++++++++++++++++++++++++-----------------
->  2 files changed, 60 insertions(+), 28 deletions(-)
+>  include/linux/list_lru.h |  36 +++++++++++++++
+>  lib/Makefile             |   2 +-
+>  lib/list_lru.c           | 117 +++++++++++++++++++++++++++++++++++++++++++++++
+>  3 files changed, 154 insertions(+), 1 deletion(-)
+>  create mode 100644 include/linux/list_lru.h
+>  create mode 100644 lib/list_lru.c
 >
-> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-> index ac6b8ee..4f59615 100644
-> --- a/include/linux/shrinker.h
-> +++ b/include/linux/shrinker.h
-> @@ -4,31 +4,47 @@
->  /*
->   * This struct is used to pass information from page reclaim to the shrinkers.
->   * We consolidate the values for easier extention later.
+> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+> new file mode 100644
+> index 0000000..3423949
+> --- /dev/null
+> +++ b/include/linux/list_lru.h
+> @@ -0,0 +1,36 @@
+> +/*
+> + * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
+> + * Author: David Chinner
 > + *
-> + * The 'gfpmask' refers to the allocation we are currently trying to
-> + * fulfil.
-> + *
-> + * Note that 'shrink' will be passed nr_to_scan == 0 when the VM is
-> + * querying the cache size, so a fastpath for that case is appropriate.
->   */
->  struct shrink_control {
->  	gfp_t gfp_mask;
+> + * Generic LRU infrastructure
+> + */
+> +#ifndef _LRU_LIST_H
+> +#define _LRU_LIST_H 0
+
+Utter nitpicking, but all other .h files in this directory use the form:
+
+  #define _LRU_LIST_H
+
+not the removed trailing 0.
+
+> +
+> +#include <linux/list.h>
+> +
+> +struct list_lru {
+> +	spinlock_t		lock;
+> +	struct list_head	list;
+> +	long			nr_items;
+> +};
+> +
+> +int list_lru_init(struct list_lru *lru);
+> +int list_lru_add(struct list_lru *lru, struct list_head *item);
+> +int list_lru_del(struct list_lru *lru, struct list_head *item);
+> +
+> +static inline long list_lru_count(struct list_lru *lru)
+> +{
+> +	return lru->nr_items;
+> +}
+> +
+> +typedef int (*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock,
+> +				void *cb_arg);
+> +typedef void (*list_lru_dispose_cb)(struct list_head *dispose_list);
+> +
+> +long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
+> +		   void *cb_arg, long nr_to_walk);
+> +
+> +long list_lru_dispose_all(struct list_lru *lru, list_lru_dispose_cb dispose);
+> +
+> +#endif /* _LRU_LIST_H */
+> diff --git a/lib/Makefile b/lib/Makefile
+> index d7946ff..f14abd9 100644
+> --- a/lib/Makefile
+> +++ b/lib/Makefile
+> @@ -13,7 +13,7 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
+>  	 sha1.o md5.o irq_regs.o reciprocal_div.o argv_split.o \
+>  	 proportions.o flex_proportions.o prio_heap.o ratelimit.o show_mem.o \
+>  	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
+> -	 earlycpio.o
+> +	 earlycpio.o list_lru.o
 >  
->  	/* How many slab objects shrinker() should scan and try to reclaim */
-> -	unsigned long nr_to_scan;
-> +	long nr_to_scan;
+>  lib-$(CONFIG_MMU) += ioremap.o
+>  lib-$(CONFIG_SMP) += cpumask.o
+> diff --git a/lib/list_lru.c b/lib/list_lru.c
+> new file mode 100644
+> index 0000000..475d0e9
+> --- /dev/null
+> +++ b/lib/list_lru.c
+> @@ -0,0 +1,117 @@
+> +/*
+> + * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
+> + * Author: David Chinner
+> + *
+> + * Generic LRU infrastructure
+> + */
+> +#include <linux/kernel.h>
+> +#include <linux/module.h>
+> +#include <linux/list_lru.h>
+> +
+> +int
+> +list_lru_add(
+> +	struct list_lru	*lru,
+> +	struct list_head *item)
+> +{
+> +	spin_lock(&lru->lock);
+> +	if (list_empty(item)) {
+> +		list_add_tail(item, &lru->list);
+> +		lru->nr_items++;
+> +		spin_unlock(&lru->lock);
+> +		return 1;
+> +	}
+> +	spin_unlock(&lru->lock);
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL_GPL(list_lru_add);
+> +
+> +int
+> +list_lru_del(
+> +	struct list_lru	*lru,
+> +	struct list_head *item)
+> +{
+> +	spin_lock(&lru->lock);
+> +	if (!list_empty(item)) {
+> +		list_del_init(item);
+> +		lru->nr_items--;
+> +		spin_unlock(&lru->lock);
+> +		return 1;
+> +	}
+> +	spin_unlock(&lru->lock);
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL_GPL(list_lru_del);
+> +
+> +long
+> +list_lru_walk(
+> +	struct list_lru *lru,
+> +	list_lru_walk_cb isolate,
+> +	void		*cb_arg,
+> +	long		nr_to_walk)
+> +{
+> +	struct list_head *item, *n;
+> +	long removed = 0;
+> +restart:
+> +	spin_lock(&lru->lock);
+> +	list_for_each_safe(item, n, &lru->list) {
+> +		int ret;
+> +
+> +		if (nr_to_walk-- < 0)
+> +			break;
+> +
+> +		ret = isolate(item, &lru->lock, cb_arg);
+> +		switch (ret) {
+> +		case 0:	/* item removed from list */
+> +			lru->nr_items--;
+> +			removed++;
+> +			break;
+> +		case 1: /* item referenced, give another pass */
+> +			list_move_tail(item, &lru->list);
+> +			break;
+> +		case 2: /* item cannot be locked, skip */
+> +			break;
+> +		case 3: /* item not freeable, lock dropped */
+> +			goto restart;
 
-Why convert from unsigned?  What's a poor shrinker to do with a negative
-to-scan request?
+These four magic return values might benefit from an enum (or #define)
+for clarity.
 
-[snip]
+Maybe the names would be LRU_OK, LRU_REMOVED, LRU_ROTATE, LRU_RETRY.
+
+> +		default:
+> +			BUG();
+> +		}
+> +	}
+> +	spin_unlock(&lru->lock);
+> +	return removed;
+> +}
+> +EXPORT_SYMBOL_GPL(list_lru_walk);
+> +
+> +long
+> +list_lru_dispose_all(
+> +	struct list_lru *lru,
+> +	list_lru_dispose_cb dispose)
+> +{
+> +	long disposed = 0;
+> +	LIST_HEAD(dispose_list);
+> +
+> +	spin_lock(&lru->lock);
+> +	while (!list_empty(&lru->list)) {
+> +		list_splice_init(&lru->list, &dispose_list);
+> +		disposed += lru->nr_items;
+> +		lru->nr_items = 0;
+> +		spin_unlock(&lru->lock);
+> +
+> +		dispose(&dispose_list);
+> +
+> +		spin_lock(&lru->lock);
+> +	}
+> +	spin_unlock(&lru->lock);
+> +	return disposed;
+> +}
+> +
+> +int
+> +list_lru_init(
+> +	struct list_lru	*lru)
+> +{
+> +	spin_lock_init(&lru->lock);
+> +	INIT_LIST_HEAD(&lru->list);
+> +	lru->nr_items = 0;
+> +
+> +	return 0;
+> +}
+> +EXPORT_SYMBOL_GPL(list_lru_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
