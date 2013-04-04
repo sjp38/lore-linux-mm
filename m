@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id F2F996B0027
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id DC0866B0006
 	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 05:09:32 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 4 Apr 2013 19:02:19 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 864BD2CE804D
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 20:09:26 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r348u5vd9765172
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 19:56:06 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3499P2p025533
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 20:09:25 +1100
+	Thu, 4 Apr 2013 14:34:38 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 14FE33940059
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 14:39:23 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3499Jk058458318
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 14:39:20 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3499LO5029835
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 20:09:22 +1100
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 3/6] mm/hugetlb: enable gigantic hugetlb page pools shrinking
-Date: Thu,  4 Apr 2013 17:09:11 +0800
-Message-Id: <1365066554-29195-4-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 1/6] mm/hugetlb: introduce new sysctl knob which control gigantic page pools shrinking
+Date: Thu,  4 Apr 2013 17:09:09 +0800
+Message-Id: <1365066554-29195-2-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,45 +26,117 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Enable gigantic hugetlb page pools shrinking.
+This patch introduces new sysctl knob to support gigantic hugetlb page
+pools shrinking. The default value is 0 since gigantic page pools
+aren't permitted shrinked by default, administrator can echo 1 to knob
+to enable gigantic page pools shrinking after they confirm they won't
+use them any more.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/hugetlb.c |    7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ Documentation/sysctl/vm.txt |   13 +++++++++++++
+ include/linux/hugetlb.h     |    3 +++
+ kernel/sysctl.c             |    7 +++++++
+ mm/hugetlb.c                |    9 +++++++++
+ 4 files changed, 32 insertions(+)
 
+diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+index 21ad181..3baf332 100644
+--- a/Documentation/sysctl/vm.txt
++++ b/Documentation/sysctl/vm.txt
+@@ -30,6 +30,7 @@ Currently, these files are in /proc/sys/vm:
+ - extfrag_threshold
+ - hugepages_treat_as_movable
+ - hugetlb_shm_group
++- hugetlb_shrink_gigantic_pool
+ - laptop_mode
+ - legacy_va_layout
+ - lowmem_reserve_ratio
+@@ -211,6 +212,18 @@ shared memory segment using hugetlb page.
+ 
+ ==============================================================
+ 
++hugetlb_shrink_gigantic_pool
++
++order >= MAX_ORDER pages are only allocated at boot stage using the bootmem
++allocator with the "hugepages=xxx" option. These pages are never free'd
++by default since it would be a one-way street(>= MAX_ORDER pages cannot
++be allocated later), but if administrator confirm not to use these gigantic
++pages any more, these pinned pages will waste memory since other users
++can't grab free pages from gigantic hugetlb pool even OOM. Administrator
++can enable this parameter to permit to shrink gigantic hugetlb pool
++
++==============================================================
++
+ laptop_mode
+ 
+ laptop_mode is a knob that controls "laptop mode". All the things that are
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 3a62df3..b7e4106 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -36,6 +36,8 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
+ int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+ int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+ int hugetlb_treat_movable_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
++int hugetlb_shrink_gigantic_pool_handler(struct ctl_table *,
++				int, void __user *, size_t *, loff_t *);
+ 
+ #ifdef CONFIG_NUMA
+ int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int,
+@@ -73,6 +75,7 @@ extern unsigned long hugepages_treat_as_movable;
+ extern const unsigned long hugetlb_zero, hugetlb_infinity;
+ extern int sysctl_hugetlb_shm_group;
+ extern struct list_head huge_boot_pages;
++extern int hugetlb_shrink_gigantic_pool;
+ 
+ /* arch callbacks */
+ 
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 3dadde5..25eb85f 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1187,6 +1187,13 @@ static struct ctl_table vm_table[] = {
+ 		.extra1		= (void *)&hugetlb_zero,
+ 		.extra2		= (void *)&hugetlb_infinity,
+ 	},
++	{
++		.procname       = "hugetlb_shrink_gigantic_pool",
++		.data           = &hugetlb_shrink_gigantic_pool,
++		.maxlen         = sizeof(int),
++		.mode           = 0644,
++		.proc_handler   = hugetlb_shrink_gigantic_pool_handler,
++	},
+ #ifdef CONFIG_NUMA
+ 	{
+ 		.procname       = "nr_hugepages_mempolicy",
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index eeaf6f2..328f140 100644
+index bacdf38..4a0c270 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -1416,7 +1416,8 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
- {
- 	unsigned long min_count, ret;
+@@ -35,6 +35,7 @@
+ const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
+ static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
+ unsigned long hugepages_treat_as_movable;
++int hugetlb_shrink_gigantic_pool;
  
--	if (h->order >= MAX_ORDER)
-+	if (h->order >= MAX_ORDER && (!hugetlb_shrink_gigantic_pool ||
-+				count > persistent_huge_pages(h)))
- 		return h->max_huge_pages;
- 
- 	/*
-@@ -1542,7 +1543,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
- 		goto out;
- 
- 	h = kobj_to_hstate(kobj, &nid);
--	if (h->order >= MAX_ORDER) {
-+	if (h->order >= MAX_ORDER && !hugetlb_shrink_gigantic_pool) {
- 		err = -EINVAL;
- 		goto out;
+ int hugetlb_max_hstate __read_mostly;
+ unsigned int default_hstate_idx;
+@@ -671,6 +672,14 @@ static void prep_compound_gigantic_page(struct page *page, unsigned long order)
  	}
-@@ -2036,7 +2037,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+ }
  
- 	tmp = h->max_huge_pages;
- 
--	if (write && h->order >= MAX_ORDER)
-+	if (write && h->order >= MAX_ORDER && !hugetlb_shrink_gigantic_pool)
- 		return -EINVAL;
- 
- 	table->data = &tmp;
++int hugetlb_shrink_gigantic_pool_handler(struct ctl_table *table, int write,
++			void __user *buffer,
++			size_t *length, loff_t *ppos)
++{
++	proc_dointvec(table, write, buffer, length, ppos);
++	return 0;
++}
++
+ /*
+  * PageHuge() only returns true for hugetlbfs pages, but not for normal or
+  * transparent huge pages.  See the PageTransHuge() documentation for more
 -- 
 1.7.10.4
 
