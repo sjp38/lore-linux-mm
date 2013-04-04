@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 4BE476B0027
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id B6EFA6B0044
 	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 01:58:22 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 4 Apr 2013 11:23:48 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id AEE1F1258059
+	Thu, 4 Apr 2013 11:25:17 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 53B641258055
 	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 11:29:38 +0530 (IST)
 Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r345wCLe10813854
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 11:28:12 +0530
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r345wEWA2359770
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 11:28:14 +0530
 Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r345wGG7026689
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r345wFXL026676
 	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 05:58:16 GMT
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V5 06/25] powerpc: Reduce PTE table memory wastage
-Date: Thu,  4 Apr 2013 11:27:44 +0530
-Message-Id: <1365055083-31956-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V5 07/25] powerpc: Use encode avpn where we need only avpn values
+Date: Thu,  4 Apr 2013 11:27:45 +0530
+Message-Id: <1365055083-31956-8-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -28,428 +28,125 @@ Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <anees
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-We allocate one page for the last level of linux page table. With THP and
-large page size of 16MB, that would mean we are wasting large part
-of that page. To map 16MB area, we only need a PTE space of 2K with 64K
-page size. This patch reduce the space wastage by sharing the page
-allocated for the last level of linux page table with multiple pmd
-entries. We call these smaller chunks PTE page fragments and allocated
-page, PTE page.
+In all these cases we are doing something similar to
 
-In order to support systems which doesn't have 64K HPTE support, we also
-add another 2K to PTE page fragment. The second half of the PTE fragments
-is used for storing slot and secondary bit information of an HPTE. With this
-we now have a 4K PTE fragment.
+HPTE_V_COMPARE(hpte_v, want_v) which ignores the HPTE_V_LARGE bit
 
-We use a simple approach to share the PTE page. On allocation, we bump the
-PTE page refcount to 16 and share the PTE page with the next 16 pte alloc
-request. This should help in the node locality of the PTE page fragment,
-assuming that the immediate pte alloc request will mostly come from the
-same NUMA node. We don't try to reuse the freed PTE page fragment. Hence
-we could be waisting some space.
+With MPSS support we would need actual page size to set HPTE_V_LARGE
+bit and that won't be available in most of these cases. Since we are ignoring
+HPTE_V_LARGE bit, use the  avpn value instead. There should not be any change
+in behaviour after this patch.
 
+Acked-by: Paul Mackerras <paulus@samba.org>
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/include/asm/mmu-book3e.h |    4 +
- arch/powerpc/include/asm/mmu-hash64.h |    4 +
- arch/powerpc/include/asm/page.h       |    4 +
- arch/powerpc/include/asm/pgalloc-64.h |   72 ++++-------------
- arch/powerpc/kernel/setup_64.c        |    4 +-
- arch/powerpc/mm/mmu_context_hash64.c  |   35 +++++++++
- arch/powerpc/mm/pgtable_64.c          |  137 +++++++++++++++++++++++++++++++++
- 7 files changed, 202 insertions(+), 58 deletions(-)
+ arch/powerpc/mm/hash_native_64.c        |    8 ++++----
+ arch/powerpc/platforms/cell/beat_htab.c |   10 +++++-----
+ arch/powerpc/platforms/ps3/htab.c       |    2 +-
+ 3 files changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/mmu-book3e.h b/arch/powerpc/include/asm/mmu-book3e.h
-index 99d43e0..affbd68 100644
---- a/arch/powerpc/include/asm/mmu-book3e.h
-+++ b/arch/powerpc/include/asm/mmu-book3e.h
-@@ -231,6 +231,10 @@ typedef struct {
- 	u64 high_slices_psize;  /* 4 bits per slice for now */
- 	u16 user_psize;         /* page size index */
- #endif
-+#ifdef CONFIG_PPC_64K_PAGES
-+	/* for 4K PTE fragment support */
-+	struct page *pgtable_page;
-+#endif
- } mm_context_t;
+diff --git a/arch/powerpc/mm/hash_native_64.c b/arch/powerpc/mm/hash_native_64.c
+index ffc1e00..9d8983a 100644
+--- a/arch/powerpc/mm/hash_native_64.c
++++ b/arch/powerpc/mm/hash_native_64.c
+@@ -252,7 +252,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
+ 	unsigned long hpte_v, want_v;
+ 	int ret = 0;
  
- /* Page size definitions, common between 32 and 64-bit
-diff --git a/arch/powerpc/include/asm/mmu-hash64.h b/arch/powerpc/include/asm/mmu-hash64.h
-index 35bb51e..300ac3c 100644
---- a/arch/powerpc/include/asm/mmu-hash64.h
-+++ b/arch/powerpc/include/asm/mmu-hash64.h
-@@ -498,6 +498,10 @@ typedef struct {
- 	unsigned long acop;	/* mask of enabled coprocessor types */
- 	unsigned int cop_pid;	/* pid value used with coprocessors */
- #endif /* CONFIG_PPC_ICSWX */
-+#ifdef CONFIG_PPC_64K_PAGES
-+	/* for 4K PTE fragment support */
-+	struct page *pgtable_page;
-+#endif
- } mm_context_t;
+-	want_v = hpte_encode_v(vpn, psize, ssize);
++	want_v = hpte_encode_avpn(vpn, psize, ssize);
  
+ 	DBG_LOW("    update(vpn=%016lx, avpnv=%016lx, group=%lx, newpp=%lx)",
+ 		vpn, want_v & HPTE_V_AVPN, slot, newpp);
+@@ -288,7 +288,7 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
+ 	unsigned long want_v, hpte_v;
  
-diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
-index f072e97..38e7ff6 100644
---- a/arch/powerpc/include/asm/page.h
-+++ b/arch/powerpc/include/asm/page.h
-@@ -378,7 +378,11 @@ void arch_free_page(struct page *page, int order);
+ 	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
+-	want_v = hpte_encode_v(vpn, psize, ssize);
++	want_v = hpte_encode_avpn(vpn, psize, ssize);
  
- struct vm_area_struct;
+ 	/* Bolted mappings are only ever in the primary group */
+ 	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+@@ -348,7 +348,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
  
-+#ifdef CONFIG_PPC_64K_PAGES
-+typedef pte_t *pgtable_t;
-+#else
- typedef struct page *pgtable_t;
-+#endif
+ 	DBG_LOW("    invalidate(vpn=%016lx, hash: %lx)\n", vpn, slot);
  
- #include <asm-generic/memory_model.h>
- #endif /* __ASSEMBLY__ */
-diff --git a/arch/powerpc/include/asm/pgalloc-64.h b/arch/powerpc/include/asm/pgalloc-64.h
-index cdbf555..3418989 100644
---- a/arch/powerpc/include/asm/pgalloc-64.h
-+++ b/arch/powerpc/include/asm/pgalloc-64.h
-@@ -150,6 +150,13 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
+-	want_v = hpte_encode_v(vpn, psize, ssize);
++	want_v = hpte_encode_avpn(vpn, psize, ssize);
+ 	native_lock_hpte(hptep);
+ 	hpte_v = hptep->v;
  
- #else /* if CONFIG_PPC_64K_PAGES */
+@@ -520,7 +520,7 @@ static void native_flush_hash_range(unsigned long number, int local)
+ 			slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+ 			slot += hidx & _PTEIDX_GROUP_IX;
+ 			hptep = htab_address + slot;
+-			want_v = hpte_encode_v(vpn, psize, ssize);
++			want_v = hpte_encode_avpn(vpn, psize, ssize);
+ 			native_lock_hpte(hptep);
+ 			hpte_v = hptep->v;
+ 			if (!HPTE_V_COMPARE(hpte_v, want_v) ||
+diff --git a/arch/powerpc/platforms/cell/beat_htab.c b/arch/powerpc/platforms/cell/beat_htab.c
+index 0f6f839..472f9a7 100644
+--- a/arch/powerpc/platforms/cell/beat_htab.c
++++ b/arch/powerpc/platforms/cell/beat_htab.c
+@@ -191,7 +191,7 @@ static long beat_lpar_hpte_updatepp(unsigned long slot,
+ 	u64 dummy0, dummy1;
+ 	unsigned long want_v;
  
-+extern pte_t *page_table_alloc(struct mm_struct *, unsigned long, int);
-+extern void page_table_free(struct mm_struct *, unsigned long *, int);
-+extern void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift);
-+#ifdef CONFIG_SMP
-+extern void __tlb_remove_table(void *_table);
-+#endif
-+
- #define pud_populate(mm, pud, pmd)	pud_set(pud, (unsigned long)pmd)
+-	want_v = hpte_encode_v(vpn, psize, MMU_SEGSIZE_256M);
++	want_v = hpte_encode_avpn(vpn, psize, MMU_SEGSIZE_256M);
  
- static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
-@@ -161,90 +168,42 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
- static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
- 				pgtable_t pte_page)
- {
--	pmd_populate_kernel(mm, pmd, page_address(pte_page));
-+	pmd_set(pmd, (unsigned long)pte_page);
- }
+ 	DBG_LOW("    update: "
+ 		"avpnv=%016lx, slot=%016lx, psize: %d, newpp %016lx ... ",
+@@ -228,7 +228,7 @@ static long beat_lpar_hpte_find(unsigned long vpn, int psize)
+ 	unsigned long want_v, hpte_v;
  
- static inline pgtable_t pmd_pgtable(pmd_t pmd)
- {
--	return pmd_page(pmd);
-+	return (pgtable_t)(pmd_val(pmd) & -sizeof(pte_t)*PTRS_PER_PTE);
- }
+ 	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, MMU_SEGSIZE_256M);
+-	want_v = hpte_encode_v(vpn, psize, MMU_SEGSIZE_256M);
++	want_v = hpte_encode_avpn(vpn, psize, MMU_SEGSIZE_256M);
  
- static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
- 					  unsigned long address)
- {
--	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO);
-+	return (pte_t *)page_table_alloc(mm, address, 1);
- }
+ 	for (j = 0; j < 2; j++) {
+ 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+@@ -283,7 +283,7 @@ static void beat_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
  
- static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
--				      unsigned long address)
-+					unsigned long address)
- {
--	struct page *page;
--	pte_t *pte;
--
--	pte = pte_alloc_one_kernel(mm, address);
--	if (!pte)
--		return NULL;
--	page = virt_to_page(pte);
--	pgtable_page_ctor(page);
--	return page;
-+	return (pgtable_t)page_table_alloc(mm, address, 0);
- }
+ 	DBG_LOW("    inval : slot=%lx, va=%016lx, psize: %d, local: %d\n",
+ 		slot, va, psize, local);
+-	want_v = hpte_encode_v(vpn, psize, MMU_SEGSIZE_256M);
++	want_v = hpte_encode_avpn(vpn, psize, MMU_SEGSIZE_256M);
  
- static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
- {
--	free_page((unsigned long)pte);
-+	page_table_free(mm, (unsigned long *)pte, 1);
- }
+ 	raw_spin_lock_irqsave(&beat_htab_lock, flags);
+ 	dummy1 = beat_lpar_hpte_getword0(slot);
+@@ -372,7 +372,7 @@ static long beat_lpar_hpte_updatepp_v3(unsigned long slot,
+ 	unsigned long want_v;
+ 	unsigned long pss;
  
- static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
- {
--	pgtable_page_dtor(ptepage);
--	__free_page(ptepage);
--}
--
--static inline void pgtable_free(void *table, unsigned index_size)
--{
--	if (!index_size)
--		free_page((unsigned long)table);
--	else {
--		BUG_ON(index_size > MAX_PGTABLE_INDEX_SIZE);
--		kmem_cache_free(PGT_CACHE(index_size), table);
--	}
-+	page_table_free(mm, (unsigned long *)ptepage, 0);
- }
+-	want_v = hpte_encode_v(vpn, psize, MMU_SEGSIZE_256M);
++	want_v = hpte_encode_avpn(vpn, psize, MMU_SEGSIZE_256M);
+ 	pss = (psize == MMU_PAGE_4K) ? -1UL : mmu_psize_defs[psize].penc;
  
--#ifdef CONFIG_SMP
--static inline void pgtable_free_tlb(struct mmu_gather *tlb,
--				    void *table, int shift)
--{
--	unsigned long pgf = (unsigned long)table;
--	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
--	pgf |= shift;
--	tlb_remove_table(tlb, (void *)pgf);
--}
--
--static inline void __tlb_remove_table(void *_table)
--{
--	void *table = (void *)((unsigned long)_table & ~MAX_PGTABLE_INDEX_SIZE);
--	unsigned shift = (unsigned long)_table & MAX_PGTABLE_INDEX_SIZE;
--
--	pgtable_free(table, shift);
--}
--#else /* !CONFIG_SMP */
--static inline void pgtable_free_tlb(struct mmu_gather *tlb,
--				    void *table, int shift)
--{
--	pgtable_free(table, shift);
--}
--#endif /* CONFIG_SMP */
--
- static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
- 				  unsigned long address)
- {
--	struct page *page = page_address(table);
--
- 	tlb_flush_pgtable(tlb, address);
--	pgtable_page_dtor(page);
--	pgtable_free_tlb(tlb, page, 0);
-+	pgtable_free_tlb(tlb, table, 0);
- }
--
- #endif /* CONFIG_PPC_64K_PAGES */
+ 	DBG_LOW("    update: "
+@@ -402,7 +402,7 @@ static void beat_lpar_hpte_invalidate_v3(unsigned long slot, unsigned long vpn,
  
- static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
-@@ -258,7 +217,6 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
- 	kmem_cache_free(PGT_CACHE(PMD_INDEX_SIZE), pmd);
- }
+ 	DBG_LOW("    inval : slot=%lx, vpn=%016lx, psize: %d, local: %d\n",
+ 		slot, vpn, psize, local);
+-	want_v = hpte_encode_v(vpn, psize, MMU_SEGSIZE_256M);
++	want_v = hpte_encode_avpn(vpn, psize, MMU_SEGSIZE_256M);
+ 	pss = (psize == MMU_PAGE_4K) ? -1UL : mmu_psize_defs[psize].penc;
  
--
- #define __pmd_free_tlb(tlb, pmd, addr)		      \
- 	pgtable_free_tlb(tlb, pmd, PMD_INDEX_SIZE)
- #ifndef CONFIG_PPC_64K_PAGES
-diff --git a/arch/powerpc/kernel/setup_64.c b/arch/powerpc/kernel/setup_64.c
-index 6da881b..04d833c 100644
---- a/arch/powerpc/kernel/setup_64.c
-+++ b/arch/powerpc/kernel/setup_64.c
-@@ -575,7 +575,9 @@ void __init setup_arch(char **cmdline_p)
- 	init_mm.end_code = (unsigned long) _etext;
- 	init_mm.end_data = (unsigned long) _edata;
- 	init_mm.brk = klimit;
--	
-+#ifdef CONFIG_PPC_64K_PAGES
-+	init_mm.context.pgtable_page = NULL;
-+#endif
- 	irqstack_early_init();
- 	exc_lvl_early_init();
- 	emergency_stack_init();
-diff --git a/arch/powerpc/mm/mmu_context_hash64.c b/arch/powerpc/mm/mmu_context_hash64.c
-index 59cd773..fbfdca2 100644
---- a/arch/powerpc/mm/mmu_context_hash64.c
-+++ b/arch/powerpc/mm/mmu_context_hash64.c
-@@ -86,6 +86,9 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
- 	spin_lock_init(mm->context.cop_lockp);
- #endif /* CONFIG_PPC_ICSWX */
+ 	lpar_rc = beat_invalidate_htab_entry3(0, slot, want_v, pss);
+diff --git a/arch/powerpc/platforms/ps3/htab.c b/arch/powerpc/platforms/ps3/htab.c
+index d00d7b0..07a4bba 100644
+--- a/arch/powerpc/platforms/ps3/htab.c
++++ b/arch/powerpc/platforms/ps3/htab.c
+@@ -115,7 +115,7 @@ static long ps3_hpte_updatepp(unsigned long slot, unsigned long newpp,
+ 	unsigned long flags;
+ 	long ret;
  
-+#ifdef CONFIG_PPC_64K_PAGES
-+	mm->context.pgtable_page = NULL;
-+#endif
- 	return 0;
- }
+-	want_v = hpte_encode_v(vpn, psize, ssize);
++	want_v = hpte_encode_avpn(vpn, psize, ssize);
  
-@@ -97,13 +100,45 @@ void __destroy_context(int context_id)
- }
- EXPORT_SYMBOL_GPL(__destroy_context);
+ 	spin_lock_irqsave(&ps3_htab_lock, flags);
  
-+#ifdef CONFIG_PPC_64K_PAGES
-+static void destroy_pagetable_page(struct mm_struct *mm)
-+{
-+	int count;
-+	struct page *page;
-+
-+	page = mm->context.pgtable_page;
-+	if (!page)
-+		return;
-+
-+	/* drop all the pending references */
-+	count = atomic_read(&page->_mapcount) + 1;
-+	/* We allow PTE_FRAG_NR(16) fragments from a PTE page */
-+	count = atomic_sub_return(16 - count, &page->_count);
-+	if (!count) {
-+		pgtable_page_dtor(page);
-+		reset_page_mapcount(page);
-+		free_hot_cold_page(page, 0);
-+	}
-+}
-+
-+#else
-+static inline void destroy_pagetable_page(struct mm_struct *mm)
-+{
-+	return;
-+}
-+#endif
-+
-+
- void destroy_context(struct mm_struct *mm)
- {
-+
- #ifdef CONFIG_PPC_ICSWX
- 	drop_cop(mm->context.acop, mm);
- 	kfree(mm->context.cop_lockp);
- 	mm->context.cop_lockp = NULL;
- #endif /* CONFIG_PPC_ICSWX */
-+
-+	destroy_pagetable_page(mm);
- 	__destroy_context(mm->context.id);
- 	subpage_prot_free(mm);
- 	mm->context.id = MMU_NO_CONTEXT;
-diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index e212a27..e79840b 100644
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -337,3 +337,140 @@ EXPORT_SYMBOL(__ioremap_at);
- EXPORT_SYMBOL(iounmap);
- EXPORT_SYMBOL(__iounmap);
- EXPORT_SYMBOL(__iounmap_at);
-+
-+#ifdef CONFIG_PPC_64K_PAGES
-+/*
-+ * we support 16 fragments per PTE page. This is limited by how many
-+ * bits we can pack in page->_mapcount. We use the first half for
-+ * tracking the usage for rcu page table free.
-+ */
-+#define PTE_FRAG_NR	16
-+/*
-+ * We use a 2K PTE page fragment and another 2K for storing
-+ * real_pte_t hash index
-+ */
-+#define PTE_FRAG_SIZE (2 * PTRS_PER_PTE * sizeof(pte_t))
-+
-+static pte_t *get_from_cache(struct mm_struct *mm)
-+{
-+	int index;
-+	pte_t *ret = NULL;
-+	struct page *page;
-+
-+	spin_lock(&mm->page_table_lock);
-+	page = mm->context.pgtable_page;
-+	if (page) {
-+		void *p = page_address(page);
-+		index = atomic_add_return(1, &page->_mapcount);
-+		ret = (pte_t *) (p + (index * PTE_FRAG_SIZE));
-+		/*
-+		 * If we have taken up all the fragments mark PTE page NULL
-+		 */
-+		if (index == PTE_FRAG_NR - 1)
-+			mm->context.pgtable_page = NULL;
-+	}
-+	spin_unlock(&mm->page_table_lock);
-+	return ret;
-+}
-+
-+static pte_t *__alloc_for_cache(struct mm_struct *mm, int kernel)
-+{
-+	pte_t *ret = NULL;
-+	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
-+				       __GFP_REPEAT | __GFP_ZERO);
-+	if (!page)
-+		return NULL;
-+
-+	spin_lock(&mm->page_table_lock);
-+	/*
-+	 * If we find pgtable_page set, we return
-+	 * the allocated page with single fragement
-+	 * count.
-+	 */
-+	if (likely(!mm->context.pgtable_page)) {
-+		atomic_set(&page->_count, PTE_FRAG_NR);
-+		atomic_set(&page->_mapcount, 0);
-+		mm->context.pgtable_page = page;
-+	}
-+	spin_unlock(&mm->page_table_lock);
-+
-+	ret = (unsigned long *)page_address(page);
-+	if (!kernel)
-+		pgtable_page_ctor(page);
-+
-+	return ret;
-+}
-+
-+pte_t *page_table_alloc(struct mm_struct *mm, unsigned long vmaddr, int kernel)
-+{
-+	pte_t *pte;
-+
-+	pte = get_from_cache(mm);
-+	if (pte)
-+		return pte;
-+
-+	return __alloc_for_cache(mm, kernel);
-+}
-+
-+void page_table_free(struct mm_struct *mm, unsigned long *table, int kernel)
-+{
-+	struct page *page = virt_to_page(table);
-+	if (put_page_testzero(page)) {
-+		if (!kernel)
-+			pgtable_page_dtor(page);
-+		reset_page_mapcount(page);
-+		free_hot_cold_page(page, 0);
-+	}
-+}
-+
-+#ifdef CONFIG_SMP
-+static void page_table_free_rcu(void *table)
-+{
-+	struct page *page = virt_to_page(table);
-+	if (put_page_testzero(page)) {
-+		pgtable_page_dtor(page);
-+		reset_page_mapcount(page);
-+		free_hot_cold_page(page, 0);
-+	}
-+}
-+
-+void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
-+{
-+	unsigned long pgf = (unsigned long)table;
-+
-+	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
-+	pgf |= shift;
-+	tlb_remove_table(tlb, (void *)pgf);
-+}
-+
-+void __tlb_remove_table(void *_table)
-+{
-+	void *table = (void *)((unsigned long)_table & ~MAX_PGTABLE_INDEX_SIZE);
-+	unsigned shift = (unsigned long)_table & MAX_PGTABLE_INDEX_SIZE;
-+
-+	if (!shift)
-+		/* PTE page needs special handling */
-+		page_table_free_rcu(table);
-+	else {
-+		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
-+		kmem_cache_free(PGT_CACHE(shift), table);
-+	}
-+}
-+#else
-+void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
-+{
-+	if (!shift) {
-+		/* PTE page needs special handling */
-+		struct page *page = virt_to_page(table);
-+		if (put_page_testzero(page)) {
-+			pgtable_page_dtor(page);
-+			reset_page_mapcount(page);
-+			free_hot_cold_page(page, 0);
-+		}
-+	} else {
-+		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
-+		kmem_cache_free(PGT_CACHE(shift), table);
-+	}
-+}
-+#endif
-+#endif /* CONFIG_PPC_64K_PAGES */
 -- 
 1.7.10
 
