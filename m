@@ -1,55 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id A8EF66B0027
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 12:20:25 -0400 (EDT)
-Date: Thu, 4 Apr 2013 18:20:23 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 0/6] mm/hugetlb: gigantic hugetlb page pools shrink
- supporting
-Message-ID: <20130404162023.GQ29911@dhcp22.suse.cz>
-References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130404161746.GP29911@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130404161746.GP29911@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 7CD206B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 12:27:11 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <515D9041.8080000@oracle.com>
+References: <51559150.3040407@oracle.com>
+ <515D882E.6040001@oracle.com>
+ <20130404143048.02672E0085@blue.fi.intel.com>
+ <515D9041.8080000@oracle.com>
+Subject: Re: mm: BUG in do_huge_pmd_wp_page
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130404162851.39ECBE0085@blue.fi.intel.com>
+Date: Thu,  4 Apr 2013 19:28:51 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Mel Gorman <mgorman@suse.de>, Dave Jones <davej@redhat.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu 04-04-13 18:17:46, Michal Hocko wrote:
-> On Thu 04-04-13 17:09:08, Wanpeng Li wrote:
-> > order >= MAX_ORDER pages are only allocated at boot stage using the 
-> > bootmem allocator with the "hugepages=xxx" option. These pages are never 
-> > free after boot by default since it would be a one-way street(>= MAX_ORDER
-> > pages cannot be allocated later), but if administrator confirm not to 
-> > use these gigantic pages any more, these pinned pages will waste memory
-> > since other users can't grab free pages from gigantic hugetlb pool even
-> > if OOM, it's not flexible.  The patchset add hugetlb gigantic page pools
-> > shrink supporting. Administrator can enable knob exported in sysctl to
-> > permit to shrink gigantic hugetlb pool.
+Sasha Levin wrote:
+> On 04/04/2013 10:30 AM, Kirill A. Shutemov wrote:
+> > Sasha Levin wrote:
+> >> Ping? I'm seeing a whole bunch of these with current -next.
+> > 
+> > Do you have a way to reproduce?
 > 
-> I am not sure I see why the new knob is needed.
-> /sys/kernel/mm/hugepages/hugepages-*/nr_hugepages is root interface so
-> an additional step to allow writing to the file doesn't make much sense
-> to me to be honest.
+> Not really, trinity just manages to make it happen quite often.
 > 
-> Support for shrinking gigantic huge pages makes some sense to me but I
-> would be interested in the real world example. GB pages are usually used
-> in very specific environments where the amount is usually well known.
-> 
-> I could imagine nr_hugepages_mempolicy would make more sense to free
-> pages from particular nodes so they could be offlined for example.
-> Does the patchset handles this as well?
- 
-Ohh, I should have checked before asking. Both knobs use the same
-hugetlb_sysctl_handler_common and unless there is something hardcoded in
-the patches then it should be supproted.
+> I can add something in the code to spew more debug info when it
+> happens though, I just couldn't come up with anything that might
+> be useful.
+
+I will try to reproduce on my own.
+
+I'm new with trinity. Any hint on run parameters?
+Is 'trinity -g vm -C 8' in lkvm good enough?
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
