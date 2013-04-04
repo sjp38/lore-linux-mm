@@ -1,105 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id C7FC16B0006
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 11:35:01 -0400 (EDT)
-Date: Thu, 4 Apr 2013 17:35:00 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 7/7] memcg: kill memcg refcnt
-Message-ID: <20130404153500.GO29911@dhcp22.suse.cz>
-References: <515BF233.6070308@huawei.com>
- <515BF2E3.4000605@huawei.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id B74FF6B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 11:49:47 -0400 (EDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH v2, part1 03/29] mm/ARM: use common help functions to free reserved pages
+Date: Thu, 4 Apr 2013 15:47:52 +0000
+References: <1362896833-21104-1-git-send-email-jiang.liu@huawei.com> <1362896833-21104-4-git-send-email-jiang.liu@huawei.com>
+In-Reply-To: <1362896833-21104-4-git-send-email-jiang.liu@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <515BF2E3.4000605@huawei.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201304041547.52539.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
 
-On Wed 03-04-13 17:14:11, Li Zefan wrote:
-> Now memcg has the same life cycle as the corresponding cgroup.
-> Kill the useless refcnt.
+On Sunday 10 March 2013, Jiang Liu wrote:
+> Use common help functions to free reserved pages.
 > 
-> Signed-off-by: Li Zefan <lizefan@huawei.com>
+> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> Cc: Russell King <linux@arm.linux.org.uk>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: linux-arm-kernel@lists.infradead.org
+> Cc: linux-kernel@vger.kernel.org
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Hello Jiang Liu,
 
-Thanks!
+I'm getting a few new build warnings from this patch in linux-next, can you please
+have a look what's going on here? 
 
-> ---
->  mm/memcontrol.c | 24 +-----------------------
->  1 file changed, 1 insertion(+), 23 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 45129cd..9714a16 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -297,8 +297,6 @@ struct mem_cgroup {
->  	bool		oom_lock;
->  	atomic_t	under_oom;
+> @@ -609,8 +600,7 @@ void __init mem_init(void)
 >  
-> -	atomic_t	refcnt;
-> -
->  	int	swappiness;
->  	/* OOM-Killer disable */
->  	int		oom_kill_disable;
-> @@ -501,9 +499,6 @@ enum res_type {
->   */
->  static DEFINE_MUTEX(memcg_create_mutex);
->  
-> -static void mem_cgroup_get(struct mem_cgroup *memcg);
-> -static void mem_cgroup_put(struct mem_cgroup *memcg);
-> -
->  static inline
->  struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
->  {
-> @@ -6117,22 +6112,6 @@ static void free_rcu(struct rcu_head *rcu_head)
->  	schedule_work(&memcg->work_freeing);
->  }
->  
-> -static void mem_cgroup_get(struct mem_cgroup *memcg)
-> -{
-> -	atomic_inc(&memcg->refcnt);
-> -}
-> -
-> -static void __mem_cgroup_put(struct mem_cgroup *memcg, int count)
-> -{
-> -	if (atomic_sub_and_test(count, &memcg->refcnt))
-> -		call_rcu(&memcg->rcu_freeing, free_rcu);
-> -}
-> -
-> -static void mem_cgroup_put(struct mem_cgroup *memcg)
-> -{
-> -	__mem_cgroup_put(memcg, 1);
-> -}
-> -
->  /*
->   * Returns the parent mem_cgroup in memcgroup hierarchy with hierarchy enabled.
->   */
-> @@ -6192,7 +6171,6 @@ mem_cgroup_css_alloc(struct cgroup *cont)
->  
->  	memcg->last_scanned_node = MAX_NUMNODES;
->  	INIT_LIST_HEAD(&memcg->oom_notify);
-> -	atomic_set(&memcg->refcnt, 1);
->  	memcg->move_charge_at_immigrate = 0;
->  	mutex_init(&memcg->thresholds_lock);
->  	spin_lock_init(&memcg->move_lock);
-> @@ -6279,7 +6257,7 @@ static void mem_cgroup_css_free(struct cgroup *cont)
->  
->  	mem_cgroup_sockets_destroy(memcg);
->  
-> -	mem_cgroup_put(memcg);
-> +	call_rcu(&memcg->rcu_freeing, free_rcu);
->  }
->  
->  #ifdef CONFIG_MMU
-> -- 
-> 1.8.0.2
+>  #ifdef CONFIG_SA1111
+>  	/* now that our DMA memory is actually so designated, we can free it */
+> -	totalram_pages += free_area(PHYS_PFN_OFFSET,
+> -				    __phys_to_pfn(__pa(swapper_pg_dir)), NULL);
+> +	free_reserved_area(__va(PHYS_PFN_OFFSET), swapper_pg_dir, 0, NULL);
+>  #endif
 
--- 
-Michal Hocko
-SUSE Labs
+Using neponset_defconfig:
+
+arch/arm/mm/init.c: In function 'mem_init':
+arch/arm/mm/init.c:603:2: warning: passing argument 1 of 'free_reserved_area' makes integer from pointer without a cast [enabled by default]
+  free_reserved_area(__va(PHYS_PFN_OFFSET), swapper_pg_dir, 0, NULL);
+  ^
+In file included from include/linux/mman.h:4:0,
+                 from arch/arm/mm/init.c:15:
+include/linux/mm.h:1301:22: note: expected 'long unsigned int' but argument is of type 'void *'
+ extern unsigned long free_reserved_area(unsigned long start, unsigned long end,
+                      ^
+
+> @@ -738,16 +728,12 @@ void free_initmem(void)
+>  	extern char __tcm_start, __tcm_end;
+>  
+>  	poison_init_mem(&__tcm_start, &__tcm_end - &__tcm_start);
+> -	totalram_pages += free_area(__phys_to_pfn(__pa(&__tcm_start)),
+> -				    __phys_to_pfn(__pa(&__tcm_end)),
+> -				    "TCM link");
+> +	free_reserved_area(&__tcm_start, &__tcm_end, 0, "TCM link");
+>  #endif
+
+Using one of {realview,s3c6400,u300}_defconfig:
+
+/git/arm-soc/arch/arm/mm/init.c: In function 'free_initmem':
+/git/arm-soc/arch/arm/mm/init.c:731:2: warning: passing argument 1 of 'free_reserved_area' makes integer from pointer without a cast [enabled by default]
+  free_reserved_area(&__tcm_start, &__tcm_end, 0, "TCM link");
+  ^
+In file included from /git/arm-soc/include/linux/mman.h:4:0,
+                 from /git/arm-soc/arch/arm/mm/init.c:15:
+/git/arm-soc/include/linux/mm.h:1301:22: note: expected 'long unsigned int' but argument is of type 'char *'
+ extern unsigned long free_reserved_area(unsigned long start, unsigned long end,
+                      ^
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
