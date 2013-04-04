@@ -1,63 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 49C606B00A8
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 02:19:43 -0400 (EDT)
-Date: Thu, 4 Apr 2013 17:19:38 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2 05/28] dcache: remove dentries from LRU before putting
- on dispose list
-Message-ID: <20130404061938.GD12011@dastard>
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
- <1364548450-28254-6-git-send-email-glommer@parallels.com>
- <CAFj3OHU_o5o_n_kcci1U_=M0tCpYEwy8abRvHKBdp-GoJ-cs3w@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 671896B00AB
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 02:49:08 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Thu, 4 Apr 2013 00:49:07 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 770EF19D8045
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 00:48:57 -0600 (MDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r346n1Ro122238
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 00:49:01 -0600
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r346piCZ016591
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 00:51:45 -0600
+Date: Thu, 4 Apr 2013 14:48:49 +0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH 2/3] resource: Add release_mem_region_adjustable()
+Message-ID: <20130404064849.GA5709@ram.oc3035372033.ibm.com>
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1364919450-8741-1-git-send-email-toshi.kani@hp.com>
+ <1364919450-8741-3-git-send-email-toshi.kani@hp.com>
+ <20130403053720.GA26398@ram.oc3035372033.ibm.com>
+ <1365018905.11159.113.camel@misato.fc.hp.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFj3OHU_o5o_n_kcci1U_=M0tCpYEwy8abRvHKBdp-GoJ-cs3w@mail.gmail.com>
+In-Reply-To: <1365018905.11159.113.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: Glauber Costa <glommer@parallels.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, containers@lists.linux-foundation.org, Dave Chinner <dchinner@redhat.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
-On Wed, Apr 03, 2013 at 02:51:43PM +0800, Sha Zhengju wrote:
-> On Fri, Mar 29, 2013 at 5:13 PM, Glauber Costa <glommer@parallels.com>wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > @@ -884,6 +907,28 @@ relock:
-> >         shrink_dentry_list(&tmp);
-> >  }
-> >
-> > +/*
-> > + * Mark all the dentries as on being the dispose list so we don't think
-> > they are
-> > + * still on the LRU if we try to kill them from ascending the parent
-> > chain in
-> > + * try_prune_one_dentry() rather than directly from the dispose list.
-> > + */
-> > +static void
-> > +shrink_dcache_list(
-> > +       struct list_head *dispose)
-> > +{
-> > +       struct dentry *dentry;
-> > +
-> > +       rcu_read_lock();
-> > +       list_for_each_entry_rcu(dentry, dispose, d_lru) {
-> > +               spin_lock(&dentry->d_lock);
-> > +               dentry->d_flags |= DCACHE_SHRINK_LIST;
-> > +               this_cpu_dec(nr_dentry_unused);
-> >
+On Wed, Apr 03, 2013 at 01:55:05PM -0600, Toshi Kani wrote:
+> On Wed, 2013-04-03 at 13:37 +0800, Ram Pai wrote:
+> > On Tue, Apr 02, 2013 at 10:17:29AM -0600, Toshi Kani wrote:
+> > > +	while ((res = *p)) {
+
+...snip...
+
+> > > +		if (res->start > start || res->end < end) {
+> > 
+> > This check looks sub-optimal; possbily wrong, to me.  if the res->start
+> > is greater than 'start', then obviously its sibling's start will
+> > also be greater than 'start'. So it will loop through all the
+> > resources unnecesarily.
 > 
-> Why here dec nr_dentry_unused again? Has it been decreased in the following
-> shrink_dcache_sb()?
+> I think this check is necessary to check if the requested range fits
+> into a resource.  It needs to check both sides to verify this.  I will
+> add some comment on this check.
+> 
+> >   you might want something like
+> > 
+> > 		if (start >= res->end) {
+> 
+> I agree that this list is sorted, so we can optimize an error case (i.e.
+> no matching entry is found) with an additional check.  I will add the
+> following check at the beginning of the while loop.  
+> 
+>                 if (res->start >= end)
+>                         break;
+> 
+> I also realized that the function returns 0 when no matching entry is
+> found.  I will change it to return -EINVAL as well.  
 
-You are right, that's a bugi as we've already accounted for the
-dentry being pulled off the LRU list. Good catch.
+ok. this will take care of it.
 
-Cheers,
+> 
+> > 		
+> > > +			p = &res->sibling;
+> > > +			continue;
+> > > +		}
+> > > +
+> > > +		if (!(res->flags & IORESOURCE_MEM)) {
+> > > +			ret = -EINVAL;
+> > > +			break;
+> > > +		}
+> > > +
+> > > +		if (!(res->flags & IORESOURCE_BUSY)) {
+> > > +			p = &res->child;
+> > > +			continue;
+> > > +		}
+> > > +
+> > > +		if (res->start == start && res->end == end) {
+> > > +			/* free the whole entry */
+> > > +			*p = res->sibling;
+> > > +			kfree(res);
+> > 
+> > This is incomplete. the prev resource's sibling should now point to
+> > this resource's sibling. The parent's child has to be updated if
+> > this resource is the first child resource. no?
+> 
+> If this resource is the first child, *p is set to &parent->child.  So,
+> it will update the parents' child.
 
-Dave.
+But if the resource is not the parent's first child? will it update the
+previous siblings ->sibling ?
+
 -- 
-Dave Chinner
-david@fromorbit.com
+Ram Pai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
