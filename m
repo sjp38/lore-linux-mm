@@ -1,70 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 700596B0005
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 09:46:01 -0400 (EDT)
-Date: Thu, 4 Apr 2013 15:45:45 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] THP: Use explicit memory barrier
-Message-ID: <20130404134545.GF3423@redhat.com>
-References: <1364773535-26264-1-git-send-email-minchan@kernel.org>
- <alpine.DEB.2.02.1304011634530.21603@chino.kir.corp.google.com>
- <20130402003746.GA30444@blaptop>
- <alpine.LNX.2.00.1304021221240.5808@eggly.anvils>
- <20130403001401.GC16026@blaptop>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id BAAAD6B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 09:53:58 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id 3so1447166pdj.13
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2013 06:53:57 -0700 (PDT)
+Date: Thu, 4 Apr 2013 06:53:53 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC][PATCH 5/7] cgroup: make sure parent won't be destroyed
+ before its children
+Message-ID: <20130404133706.GA9425@htj.dyndns.org>
+References: <515BF233.6070308@huawei.com>
+ <515BF2A4.1070703@huawei.com>
+ <20130404113750.GH29911@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130403001401.GC16026@blaptop>
+In-Reply-To: <20130404113750.GH29911@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Apr 03, 2013 at 09:14:01AM +0900, Minchan Kim wrote:
->  	clear_huge_page(page, haddr, HPAGE_PMD_NR);
-> +	/*
-> +	 * The memory barrier inside __SetPageUptodate makes sure that
-> +	 * clear_huge_page writes become visible after the set_pmd_at()
+Hey,
 
-s/after/before/
+On Thu, Apr 04, 2013 at 01:37:50PM +0200, Michal Hocko wrote:
+> On Wed 03-04-13 17:13:08, Li Zefan wrote:
+> > Suppose we rmdir a cgroup and there're still css refs, this cgroup won't
+> > be freed. Then we rmdir the parent cgroup, and the parent is freed due
+> > to css ref draining to 0. Now it would be a disaster if the child cgroup
+> > tries to access its parent.
+> 
+> Hmm, I am not sure what is the correct layer for this to handle - cgroup
+> core or memcg. But we have enforced that in mem_cgroup_css_online where
+> we take an additional reference to the memcg.
+> 
+> Handling it in the memcg code would have an advantage of limiting an
+> additional reference only to use_hierarchy cases which is sufficient
+> as we never touch the parent otherwise (parent_mem_cgroup).
 
-> +	 * write.
-> +	 */
->  	__SetPageUptodate(page);
->  
->  	spin_lock(&mm->page_table_lock);
-> @@ -724,12 +729,6 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
->  	} else {
->  		pmd_t entry;
->  		entry = mk_huge_pmd(page, vma);
-> -		/*
-> -		 * The spinlocking to take the lru_lock inside
-> -		 * page_add_new_anon_rmap() acts as a full memory
-> -		 * barrier to be sure clear_huge_page writes become
-> -		 * visible after the set_pmd_at() write.
-> -		 */
->  		page_add_new_anon_rmap(page, vma, haddr);
->  		set_pmd_at(mm, haddr, pmd, entry);
->  		pgtable_trans_huge_deposit(mm, pgtable);
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 494526a..d0da51e 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3196,6 +3196,11 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	page = alloc_zeroed_user_highpage_movable(vma, address);
->  	if (!page)
->  		goto oom;
-> +	/*
-> +	 * The memory barrier inside __SetPageUptodate makes sure that
-> +	 * preceeding stores to the page contents become visible after
-> +	 * the set_pte_at() write.
-> +	 */
+But what harm does an additional reference do?  And given that there
+are cgroup core interfaces which access ->parent, I think it'd be a
+good idea that parent always exists while there are children.
 
-s/after/before/
+Thanks.
 
-After the above correction it looks nice cleanup, thanks!
-
-Acked-by: Andrea Arcangeli <aarcange@redhat.com>
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
