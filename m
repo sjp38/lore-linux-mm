@@ -1,105 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 671896B00AB
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 02:49:08 -0400 (EDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Thu, 4 Apr 2013 00:49:07 -0600
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 770EF19D8045
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 00:48:57 -0600 (MDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r346n1Ro122238
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 00:49:01 -0600
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r346piCZ016591
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 00:51:45 -0600
-Date: Thu, 4 Apr 2013 14:48:49 +0800
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH 2/3] resource: Add release_mem_region_adjustable()
-Message-ID: <20130404064849.GA5709@ram.oc3035372033.ibm.com>
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1364919450-8741-1-git-send-email-toshi.kani@hp.com>
- <1364919450-8741-3-git-send-email-toshi.kani@hp.com>
- <20130403053720.GA26398@ram.oc3035372033.ibm.com>
- <1365018905.11159.113.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 0B47D6B0087
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 02:55:11 -0400 (EDT)
+Date: Thu, 4 Apr 2013 15:55:09 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC PATCH 0/4] Support vranges on files
+Message-ID: <20130404065509.GE7675@blaptop>
+References: <1365033144-15156-1-git-send-email-john.stultz@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1365018905.11159.113.camel@misato.fc.hp.com>
+In-Reply-To: <1365033144-15156-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: John Stultz <john.stultz@linaro.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Apr 03, 2013 at 01:55:05PM -0600, Toshi Kani wrote:
-> On Wed, 2013-04-03 at 13:37 +0800, Ram Pai wrote:
-> > On Tue, Apr 02, 2013 at 10:17:29AM -0600, Toshi Kani wrote:
-> > > +	while ((res = *p)) {
+Hey John,
 
-...snip...
+First of all, I should confess I just glanced your code and poped
+several questions. If I miss something, please slap me.
 
-> > > +		if (res->start > start || res->end < end) {
-> > 
-> > This check looks sub-optimal; possbily wrong, to me.  if the res->start
-> > is greater than 'start', then obviously its sibling's start will
-> > also be greater than 'start'. So it will loop through all the
-> > resources unnecesarily.
+On Wed, Apr 03, 2013 at 04:52:19PM -0700, John Stultz wrote:
+> This patchset is against Minchan's vrange work here:
+> 	https://lkml.org/lkml/2013/3/12/105
 > 
-> I think this check is necessary to check if the requested range fits
-> into a resource.  It needs to check both sides to verify this.  I will
-> add some comment on this check.
+> Extending it to support volatile ranges on files. In effect
+> providing the same functionality of my earlier file based
+> volatile range patches on-top of Minchan's anonymous volatile
+> range work.
 > 
-> >   you might want something like
-> > 
-> > 		if (start >= res->end) {
+> Volatile ranges on files are different then on anonymous memory,
+> because the volatility state can be shared between multiple
+> applications. This makes storing the volatile ranges exclusively
+> in the mm_struct (or in vmas as in Minchan's earlier work)
+> inappropriate.
 > 
-> I agree that this list is sorted, so we can optimize an error case (i.e.
-> no matching entry is found) with an additional check.  I will add the
-> following check at the beginning of the while loop.  
+> The patchset starts with some minor cleanup.
 > 
->                 if (res->start >= end)
->                         break;
-> 
-> I also realized that the function returns 0 when no matching entry is
-> found.  I will change it to return -EINVAL as well.  
+> Then we introduce the idea of a vrange_root, which provides a
+> interval-tree root and a lock to protect the tree. This structure
+> can then be stored in the mm_struct or in an addres_space. Then the
+> same infrastructure can be used to manage volatile ranges on both
+> anonymous and file backed memory.
 
-ok. this will take care of it.
+Thanks for the above two patches. It is a nice cleanup.
 
 > 
-> > 		
-> > > +			p = &res->sibling;
-> > > +			continue;
-> > > +		}
-> > > +
-> > > +		if (!(res->flags & IORESOURCE_MEM)) {
-> > > +			ret = -EINVAL;
-> > > +			break;
-> > > +		}
-> > > +
-> > > +		if (!(res->flags & IORESOURCE_BUSY)) {
-> > > +			p = &res->child;
-> > > +			continue;
-> > > +		}
-> > > +
-> > > +		if (res->start == start && res->end == end) {
-> > > +			/* free the whole entry */
-> > > +			*p = res->sibling;
-> > > +			kfree(res);
-> > 
-> > This is incomplete. the prev resource's sibling should now point to
-> > this resource's sibling. The parent's child has to be updated if
-> > this resource is the first child resource. no?
+> Next we introduce a parallel fvrange() syscall for creating
+> volatile ranges directly against files.
+
+Okay. It seems you want to replace ashmem interface with fvrange.
+I dobut we have to eat a slot for system call. Can't we add "int fd"
+in vrange systemcall without inventing new wheel?
+
 > 
-> If this resource is the first child, *p is set to &parent->child.  So,
-> it will update the parents' child.
+> And finally, we change the range pruging logic to be able to
+> handle both anonymous and file volatile ranges.
 
-But if the resource is not the parent's first child? will it update the
-previous siblings ->sibling ?
+Okay. Then, what's the semantic file-vrange?
 
+There is a file F. Process A mapped some part of file into his
+address space. Then, Process B calls fvrange same part.
+As I looked over your code, it purges the range although process B
+is using now. Right? Is it your intention? Maybe isn't.
+
+Let's define fvrange's semantic same with anon-vrange.
+If there is a process using range with non-volatile, at least,
+we shouldn't purge at all.
+
+So your [4/4] should investigate all processes mapped the page
+atomically. You could do it with i_mmap_mutex and vrange_lock
+and percolate the logic into try_to_discard_vpage.
+
+> 
+> Now there are some quirks still to be resolved with the approach
+> used here. The biggest one being the vrange() call can't be used to
+> create volatile ranges against mmapped files. Instead only the
+
+Why?
+
+> fvrange() can be used to create file backed volatile ranges.
+
+I could't understand your point. It would be better to explain
+my thought firstly then, you could point out something I am missing
+now. Look below.
+
+> 
+> This could be overcome by iterating across all the process VMAs to
+> determine if they're anonymous or file based, and if file-based,
+> create a VMA sized volatile range on the mapping pointed to by the
+> VMA.
+
+It needs just when we start to discard pages. Simply, it is related
+to reclaim path, NOT system call path so it's not a problem.
+
+> 
+> But this would have downsides, as Minchan has been clear that he wants
+> to optmize the vrange() calls so that it is very cheap to create and
+> destroy volatile ranges. Having simple per-process ranges be created
+> means we don't have to iterate across the vmas in the range to
+> determine if they're anonymous or file backed. Instead the current
+> vrange() code just creates per process ranges (which may or may not
+> cover mmapped file data), but will only purge anonymous pages in
+> that range. This keeps the vrange() call cheap.
+
+Right.
+
+> 
+> Additionally, just creating or destroying a single range is very
+> simple to do, and requires a fixed amount of memory known up front.
+> Thus we can allocate needed data prior to making any modifications.
+> 
+> But If we were to create a range that crosses anonymous and file
+> backed pages, it must create or destroy multiple per-process or
+> per-file ranges. This could require an unknown number of allocations,
+
+This is a part I can fail to parse your opinion.
+
+> opening the possibility of getting an ENOMEM half-way through the
+> operation, leaving the volatile range partially created or destroyed.
+> 
+> So to keep this simple for this first pass, for now we have two
+> syscalls for two types of volatile ranges.
+
+
+My idea is following as
+
+        vrange(fd, start, len, mode, behavior)
+
+A) fd = 0
+
+1) system call context - vrange system call registers new vrange
+   in mm_struct.
+2) Add new vrange into LRU
+3) reclaim context - walk with rmap to confirm all processes make
+   the range with volatile -> discard
+
+B) fd = 1
+
+1) system call context - vrange system call registers new vrange
+   in address_space
+2) Add new vrange into LRU
+3) reclaim context - walk with rmap to confirm all processes make
+   the range with volatile -> discard
+
+What's the problem in this logic?
+
+> 
+> Let me know if you have any thoughts or comments. I'm sure there's
+> plenty of room for improvement here.
+> 
+> In the meantime I'll be playing with some different approaches to
+> try to handle single volatile ranges that cross file and anonymous
+> vmas.
+> 
+> The entire queue, both Minchan's changes and mine can be found here:
+> git://git.linaro.org/people/jstultz/android-dev.git dev/vrange-minchan
+> 
+> thanks
+> -john
+> 
 -- 
-Ram Pai
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
