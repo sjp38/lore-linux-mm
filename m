@@ -1,67 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 262896B008C
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 03:08:58 -0400 (EDT)
-Date: Thu, 4 Apr 2013 09:08:56 +0200
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 1CB8D6B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 04:08:48 -0400 (EDT)
+Date: Thu, 4 Apr 2013 10:08:45 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: System freezes when RAM is full (64-bit)
-Message-ID: <20130404070856.GB29911@dhcp22.suse.cz>
-References: <5159DCA0.3080408@gmail.com>
- <20130403121220.GA14388@dhcp22.suse.cz>
- <515CC8E6.3000402@gmail.com>
+Subject: Re: [PATCH] mm, x86: Do not zero hugetlbfs pages at boot. -v2
+Message-ID: <20130404080845.GC29911@dhcp22.suse.cz>
+References: <E1UDME8-00041J-B4@eag09.americas.sgi.com>
+ <20130314085138.GA11636@dhcp22.suse.cz>
+ <20130403024344.GA4384@sgi.com>
+ <20130403140247.GJ16471@dhcp22.suse.cz>
+ <20130403170012.GY29151@sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <515CC8E6.3000402@gmail.com>
+In-Reply-To: <20130403170012.GY29151@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Ivan Danov <huhavel@gmail.com>, linux-mm@kvack.org, 1162073@bugs.launchpad.net
+To: Robin Holt <holt@sgi.com>
+Cc: Cliff Wickman <cpw@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, wli@holomorphy.com
 
-On Thu 04-04-13 08:27:18, Simon Jeons wrote:
-> On 04/03/2013 08:12 PM, Michal Hocko wrote:
-> >On Mon 01-04-13 21:14:40, Ivan Danov wrote:
-> >>The system freezes when RAM gets completely full. By using MATLAB, I
-> >>can get all 8GB RAM of my laptop full and it immediately freezes,
-> >>needing restart using the hardware button.
-> >Do you use swap (file/partition)? How big? Could you collect
-> >/proc/meminfo and /proc/vmstat (every few seconds)[1]?
-> >What does it mean when you say the system freezes? No new processes can
-> >be started or desktop environment doesn't react on your input? Do you
-> >see anything in the kernel log? OOM killer e.g.
-> >In case no new processes could be started what does sysrq+m say when the
-> >system is frozen?
-> >
-> >What is your kernel config?
-> >
-> >>Other people have
-> >>reported the bug at since 2007. It seems that only the 64-bit
-> >>version is affected and people have reported that enabling DMA in
-> >>BIOS settings solve the problem. However, my laptop lacks such an
-> >>option in the BIOS settings, so I am unable to test it. More
-> >>information about the bug could be found at:
-> >>https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1162073 and
-> >>https://bugs.launchpad.net/ubuntu/+source/linux/+bug/159356.
-> >>
-> >>Best Regards,
-> >>Ivan
-> >>
-> >---
-> >[1] E.g. by
-> >while true
-> >do
-> >	STAMP=`date +%s`
-> >	cat /proc/meminfo > meminfo.$STAMP
-> >	cat /proc/vmscan > meminfo.$STAMP
+On Wed 03-04-13 12:00:12, Robin Holt wrote:
+> On Wed, Apr 03, 2013 at 04:02:47PM +0200, Michal Hocko wrote:
+> > On Tue 02-04-13 21:43:44, Robin Holt wrote:
+> > [...]
+> > > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > > index ca9a7c6..7683f6a 100644
+> > > --- a/mm/hugetlb.c
+> > > +++ b/mm/hugetlb.c
+> > > @@ -1185,7 +1185,7 @@ int __weak alloc_bootmem_huge_page(struct hstate *h)
+> > >  	while (nr_nodes) {
+> > >  		void *addr;
+> > >  
+> > > -		addr = __alloc_bootmem_node_nopanic(
+> > > +		addr = __alloc_bootmem_node_nopanic_notzeroed(
+> > >  				NODE_DATA(hstate_next_node_to_alloc(h,
+> > >  						&node_states[N_MEMORY])),
+> > >  				huge_page_size(h), huge_page_size(h), 0);
+> > 
+> > Ohh, and powerpc seems to have its own opinion how to allocate huge
+> > pages. See arch/powerpc/mm/hugetlbpage.c
 > 
-> s/vmscan/vmstat
+> Do I need to address their allocations?  Can I leave that part of the
+> changes as something powerpc can address if they are affected by this?
 
-Right. Sorry about the typo and thanks for pointing out Simon.
-
-> 
-> >	sleep 2s
-> >done
-> 
+I mentioned powerpc basically because I encountered it as the only
+alternative implementation of alloc_bootmem_huge_page. I haven't checked
+how it does the job and now that I am looking closer it uses memblock
+allocator so it would need a separate fix.
+I guess you are right saying that this should be handled when the need
+arises.
 
 -- 
 Michal Hocko
