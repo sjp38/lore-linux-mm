@@ -1,62 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 793F96B0027
-	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 20:27:24 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id um15so1121919pbc.22
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 17:27:23 -0700 (PDT)
-Message-ID: <515CC8E6.3000402@gmail.com>
-Date: Thu, 04 Apr 2013 08:27:18 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 0BF446B0005
+	for <linux-mm@kvack.org>; Wed,  3 Apr 2013 20:38:08 -0400 (EDT)
+Received: by mail-vc0-f172.google.com with SMTP id hr11so1943239vcb.17
+        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 17:38:08 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: System freezes when RAM is full (64-bit)
-References: <5159DCA0.3080408@gmail.com> <20130403121220.GA14388@dhcp22.suse.cz>
-In-Reply-To: <20130403121220.GA14388@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <alpine.DEB.2.02.1304031659160.718@chino.kir.corp.google.com>
+References: <3ae9b7e77e8428cfeb34c28ccf4a25708cbea1be.1364938782.git.jstancek@redhat.com>
+	<alpine.DEB.2.02.1304021532220.25286@chino.kir.corp.google.com>
+	<alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
+	<alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
+	<20130403041447.GC4611@cmpxchg.org>
+	<alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
+	<20130403045814.GD4611@cmpxchg.org>
+	<CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
+	<20130403143302.GL1953@cmpxchg.org>
+	<alpine.DEB.2.02.1304031648170.718@chino.kir.corp.google.com>
+	<alpine.DEB.2.02.1304031659160.718@chino.kir.corp.google.com>
+Date: Wed, 3 Apr 2013 17:38:07 -0700
+Message-ID: <CA+55aFwdJCxnNQMQEAaC-+8pEGpHKgaq5aL4K2n=vRVBUg863A@mail.gmail.com>
+Subject: Re: [patch] compiler: clarify ACCESS_ONCE() relies on compiler implementation
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Ivan Danov <huhavel@gmail.com>, linux-mm@kvack.org, 1162073@bugs.launchpad.net
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ian Lance Taylor <iant@google.com>, Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>
 
-On 04/03/2013 08:12 PM, Michal Hocko wrote:
-> On Mon 01-04-13 21:14:40, Ivan Danov wrote:
->> The system freezes when RAM gets completely full. By using MATLAB, I
->> can get all 8GB RAM of my laptop full and it immediately freezes,
->> needing restart using the hardware button.
-> Do you use swap (file/partition)? How big? Could you collect
-> /proc/meminfo and /proc/vmstat (every few seconds)[1]?
-> What does it mean when you say the system freezes? No new processes can
-> be started or desktop environment doesn't react on your input? Do you
-> see anything in the kernel log? OOM killer e.g.
-> In case no new processes could be started what does sysrq+m say when the
-> system is frozen?
+On Wed, Apr 3, 2013 at 5:00 PM, David Rientjes <rientjes@google.com> wrote:
+> The dereference of a volatile-qualified pointer does not guarantee that it
+> cannot be optimized by the compiler to be loaded multiple times into
+> memory even if assigned to a local variable by C99 or any previous C
+> standard.
 >
-> What is your kernel config?
->
->> Other people have
->> reported the bug at since 2007. It seems that only the 64-bit
->> version is affected and people have reported that enabling DMA in
->> BIOS settings solve the problem. However, my laptop lacks such an
->> option in the BIOS settings, so I am unable to test it. More
->> information about the bug could be found at:
->> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1162073 and
->> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/159356.
->>
->> Best Regards,
->> Ivan
->>
-> ---
-> [1] E.g. by
-> while true
-> do
-> 	STAMP=`date +%s`
-> 	cat /proc/meminfo > meminfo.$STAMP
-> 	cat /proc/vmscan > meminfo.$STAMP
+> Clarify the comment of ACCESS_ONCE() to state explicitly that its current
+> form relies on the compiler's implementation to work correctly.
 
-s/vmscan/vmstat
+This is utter bullshit and garbage.
 
-> 	sleep 2s
-> done
+Any compiler that thinks it can load something through a "volatile"
+pointer multiple times is SHIT. We don't add these kinds of comments
+to make excuses for crap, we call out such compilers and tell people
+not to use the utter crap they are.
+
+The fact is, "volatile" is pretty much the only thing that can do this
+(and there are no sane alternate semantics that a compiler *could* use
+for a volatile cast), and no amount of weasel-wording by compiler
+apologists makes it not so. I'm not a huge fan of volatile as a C
+feature, but I'm even less of a fan of people trying to make excuses
+for bad compilers.
+
+Is there a reason why you want to add this idiotic comment? Is there a
+compiler that actually dismisses a volatile cast? If so, warn us about
+that kind of crap, and I'll happily make it very clear that people
+should not use the piece-of-shit compiler in question. Making excuses
+for that kind of compiler behavior is absolutely the last thing we
+should do.
+
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
