@@ -1,111 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id C40A56B0037
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 01:58:20 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 46CCF6B0039
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 01:58:21 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 4 Apr 2013 11:25:15 +0530
+	Thu, 4 Apr 2013 11:23:44 +0530
 Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id AFE2B3940023
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 11:28:16 +0530 (IST)
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 9C231E0057
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 11:29:56 +0530 (IST)
 Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r345wDIH3604780
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 11:28:13 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r345wA1J10027486
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 11:28:10 +0530
 Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r345wFW3026695
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 05:58:16 GMT
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r345wCmK026366
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 05:58:12 GMT
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V5 10/25] powerpc: print both base and actual page size on hash failure
-Date: Thu,  4 Apr 2013 11:27:48 +0530
-Message-Id: <1365055083-31956-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V5 00/25] THP support for PPC64
+Date: Thu,  4 Apr 2013 11:27:38 +0530
+Message-Id: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: benh@kernel.crashing.org, paulus@samba.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Hi,
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/powerpc/include/asm/mmu-hash64.h |    3 ++-
- arch/powerpc/mm/hash_utils_64.c       |   12 +++++++-----
- arch/powerpc/mm/hugetlbpage-hash64.c  |    2 +-
- 3 files changed, 10 insertions(+), 7 deletions(-)
+This patchset adds transparent hugepage support for PPC64.
 
-diff --git a/arch/powerpc/include/asm/mmu-hash64.h b/arch/powerpc/include/asm/mmu-hash64.h
-index e42f4a3..e187254 100644
---- a/arch/powerpc/include/asm/mmu-hash64.h
-+++ b/arch/powerpc/include/asm/mmu-hash64.h
-@@ -324,7 +324,8 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
- 		     unsigned int shift, unsigned int mmu_psize);
- extern void hash_failure_debug(unsigned long ea, unsigned long access,
- 			       unsigned long vsid, unsigned long trap,
--			       int ssize, int psize, unsigned long pte);
-+			       int ssize, int psize, int lpsize,
-+			       unsigned long pte);
- extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
- 			     unsigned long pstart, unsigned long prot,
- 			     int psize, int ssize);
-diff --git a/arch/powerpc/mm/hash_utils_64.c b/arch/powerpc/mm/hash_utils_64.c
-index a5a5067..56ff4bb 100644
---- a/arch/powerpc/mm/hash_utils_64.c
-+++ b/arch/powerpc/mm/hash_utils_64.c
-@@ -933,14 +933,14 @@ static inline int subpage_protection(struct mm_struct *mm, unsigned long ea)
- 
- void hash_failure_debug(unsigned long ea, unsigned long access,
- 			unsigned long vsid, unsigned long trap,
--			int ssize, int psize, unsigned long pte)
-+			int ssize, int psize, int lpsize, unsigned long pte)
- {
- 	if (!printk_ratelimit())
- 		return;
- 	pr_info("mm: Hashing failure ! EA=0x%lx access=0x%lx current=%s\n",
- 		ea, access, current->comm);
--	pr_info("    trap=0x%lx vsid=0x%lx ssize=%d psize=%d pte=0x%lx\n",
--		trap, vsid, ssize, psize, pte);
-+	pr_info("    trap=0x%lx vsid=0x%lx ssize=%d base psize=%d psize %d pte=0x%lx\n",
-+		trap, vsid, ssize, psize, lpsize, pte);
- }
- 
- /* Result code is:
-@@ -1113,7 +1113,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
- 	 */
- 	if (rc == -1)
- 		hash_failure_debug(ea, access, vsid, trap, ssize, psize,
--				   pte_val(*ptep));
-+				   psize, pte_val(*ptep));
- #ifndef CONFIG_PPC_64K_PAGES
- 	DBG_LOW(" o-pte: %016lx\n", pte_val(*ptep));
- #else
-@@ -1191,7 +1191,9 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
- 	 */
- 	if (rc == -1)
- 		hash_failure_debug(ea, access, vsid, trap, ssize,
--				   mm->context.user_psize, pte_val(*ptep));
-+				   mm->context.user_psize,
-+				   mm->context.user_psize,
-+				   pte_val(*ptep));
- 
- 	local_irq_restore(flags);
- }
-diff --git a/arch/powerpc/mm/hugetlbpage-hash64.c b/arch/powerpc/mm/hugetlbpage-hash64.c
-index e0d52ee..06ecb55 100644
---- a/arch/powerpc/mm/hugetlbpage-hash64.c
-+++ b/arch/powerpc/mm/hugetlbpage-hash64.c
-@@ -129,7 +129,7 @@ repeat:
- 		if (unlikely(slot == -2)) {
- 			*ptep = __pte(old_pte);
- 			hash_failure_debug(ea, access, vsid, trap, ssize,
--					   mmu_psize, old_pte);
-+					   mmu_psize, mmu_psize, old_pte);
- 			return -1;
- 		}
- 
--- 
-1.7.10
+TODO:
+* hash preload support in update_mmu_cache_pmd (we don't do that for hugetlb)
+
+Some numbers:
+
+The latency measurements code from Anton  found at
+http://ozlabs.org/~anton/junkcode/latency2001.c
+
+THP disabled 64K page size
+------------------------
+[root@llmp24l02 ~]# ./latency2001 8G
+ 8589934592    731.73 cycles    205.77 ns
+[root@llmp24l02 ~]# ./latency2001 8G
+ 8589934592    743.39 cycles    209.05 ns
+[root@llmp24l02 ~]#
+
+THP disabled large page via hugetlbfs
+-------------------------------------
+[root@llmp24l02 ~]# ./latency2001  -l 8G
+ 8589934592    416.09 cycles    117.01 ns
+[root@llmp24l02 ~]# ./latency2001  -l 8G
+ 8589934592    415.74 cycles    116.91 ns
+
+THP enabled 64K page size.
+----------------
+[root@llmp24l02 ~]# ./latency2001 8G
+ 8589934592    405.07 cycles    113.91 ns
+[root@llmp24l02 ~]# ./latency2001 8G
+ 8589934592    411.82 cycles    115.81 ns
+[root@llmp24l02 ~]#
+
+We are close to hugetlbfs in latency and we can achieve this with zero
+config/page reservation. Most of the allocations above are fault allocated.
+
+Another test that does 50000000 random access over 1GB area goes from
+2.65 seconds to 1.07 seconds with this patchset.
+
+split_huge_page impact:
+---------------------
+To look at the performance impact of large page invalidate, I tried the below
+experiment. The test involved, accessing a large contiguous region of memory
+location as below
+
+    for (i = 0; i < size; i += PAGE_SIZE)
+	data[i] = i;
+
+We wanted to access the data in sequential order so that we look at the
+worst case THP performance. Accesing the data in sequential order implies
+we have the Page table cached and overhead of TLB miss is as minimal as
+possible. We also don't touch the entire page, because that can result in
+cache evict.
+
+After we touched the full range as above, we now call mprotect on each
+of that page. A mprotect will result in a hugepage split. This should
+allow us to measure the impact of hugepage split.
+
+    for (i = 0; i < size; i += PAGE_SIZE)
+	 mprotect(&data[i], PAGE_SIZE, PROT_READ);
+
+Split hugepage impact: 
+---------------------
+THP enabled: 2.851561705 seconds for test completion
+THP disable: 3.599146098 seconds for test completion
+
+We are 20.7% better than non THP case even when we have all the large pages split.
+
+Detailed output:
+
+THP enabled:
+---------------------------------------
+[root@llmp24l02 ~]# cat /proc/vmstat  | grep thp
+thp_fault_alloc 0
+thp_fault_fallback 0
+thp_collapse_alloc 0
+thp_collapse_alloc_failed 0
+thp_split 0
+thp_zero_page_alloc 0
+thp_zero_page_alloc_failed 0
+[root@llmp24l02 ~]# /root/thp/tools/perf/perf stat -e page-faults,dTLB-load-misses ./split-huge-page-mpro 20G                                                                      
+time taken to touch all the data in ns: 2763096913 
+
+ Performance counter stats for './split-huge-page-mpro 20G':
+
+             1,581 page-faults                                                 
+             3,159 dTLB-load-misses                                            
+
+       2.851561705 seconds time elapsed
+
+[root@llmp24l02 ~]# 
+[root@llmp24l02 ~]# cat /proc/vmstat  | grep thp
+thp_fault_alloc 1279
+thp_fault_fallback 0
+thp_collapse_alloc 0
+thp_collapse_alloc_failed 0
+thp_split 1279
+thp_zero_page_alloc 0
+thp_zero_page_alloc_failed 0
+[root@llmp24l02 ~]# 
+
+    77.05%  split-huge-page  [kernel.kallsyms]     [k] .clear_user_page                        
+     7.10%  split-huge-page  [kernel.kallsyms]     [k] .perf_event_mmap_ctx                    
+     1.51%  split-huge-page  split-huge-page-mpro  [.] 0x0000000000000a70                      
+     0.96%  split-huge-page  [unknown]             [H] 0x000000000157e3bc                      
+     0.81%  split-huge-page  [kernel.kallsyms]     [k] .up_write                               
+     0.76%  split-huge-page  [kernel.kallsyms]     [k] .perf_event_mmap                        
+     0.76%  split-huge-page  [kernel.kallsyms]     [k] .down_write                             
+     0.74%  split-huge-page  [kernel.kallsyms]     [k] .lru_add_page_tail                      
+     0.61%  split-huge-page  [kernel.kallsyms]     [k] .split_huge_page                        
+     0.59%  split-huge-page  [kernel.kallsyms]     [k] .change_protection                      
+     0.51%  split-huge-page  [kernel.kallsyms]     [k] .release_pages                          
+
+
+     0.96%  split-huge-page  [unknown]             [H] 0x000000000157e3bc                      
+            |          
+            |--79.44%-- reloc_start
+            |          |          
+            |          |--86.54%-- .__pSeries_lpar_hugepage_invalidate
+            |          |          .pSeries_lpar_hugepage_invalidate
+            |          |          .hpte_need_hugepage_flush
+            |          |          .split_huge_page
+            |          |          .__split_huge_page_pmd
+            |          |          .vma_adjust
+            |          |          .vma_merge
+            |          |          .mprotect_fixup
+            |          |          .SyS_mprotect
+
+
+THP disabled:
+---------------
+[root@llmp24l02 ~]# echo never > /sys/kernel/mm/transparent_hugepage/enabled
+[root@llmp24l02 ~]# /root/thp/tools/perf/perf stat -e page-faults,dTLB-load-misses ./split-huge-page-mpro 20G
+time taken to touch all the data in ns: 3513767220 
+
+ Performance counter stats for './split-huge-page-mpro 20G':
+
+          3,27,726 page-faults                                                 
+          3,29,654 dTLB-load-misses                                            
+
+       3.599146098 seconds time elapsed
+
+[root@llmp24l02 ~]#
+
+Changes from V4:
+* Fix bad page error in page_table_alloc
+  BUG: Bad page state in process stream  pfn:f1a59
+  page:f0000000034dc378 count:1 mapcount:0 mapping:          (null) index:0x0
+  [c000000f322c77d0] [c00000000015e198] .bad_page+0xe8/0x140
+  [c000000f322c7860] [c00000000015e3c4] .free_pages_prepare+0x1d4/0x1e0
+  [c000000f322c7910] [c000000000160450] .free_hot_cold_page+0x50/0x230
+  [c000000f322c79c0] [c00000000003ad18] .page_table_alloc+0x168/0x1c0
+
+Changes from V3:
+* PowerNV boot fixes
+
+Change from V2:
+* Change patch "powerpc: Reduce PTE table memory wastage" to use much simpler approach
+  for PTE page sharing.
+* Changes to handle huge pages in KVM code.
+* Address other review comments
+
+Changes from V1
+* Address review comments
+* More patch split
+* Add batch hpte invalidate for hugepages.
+
+Changes from RFC V2:
+* Address review comments
+* More code cleanup and patch split
+
+Changes from RFC V1:
+* HugeTLB fs now works
+* Compile issues fixed
+* rebased to v3.8
+* Patch series reorded so that ppc64 cleanups and MM THP changes are moved
+  early in the series. This should help in picking those patches early.
+
+Thanks,
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
