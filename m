@@ -1,211 +1,457 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 46CCF6B0039
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 01:58:21 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 4BE476B0027
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 01:58:22 -0400 (EDT)
 Received: from /spool/local
 	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 4 Apr 2013 11:23:44 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 9C231E0057
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 11:29:56 +0530 (IST)
+	Thu, 4 Apr 2013 11:23:48 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id AEE1F1258059
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 11:29:38 +0530 (IST)
 Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r345wA1J10027486
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 11:28:10 +0530
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r345wCLe10813854
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 11:28:12 +0530
 Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r345wCmK026366
-	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 05:58:12 GMT
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r345wGG7026689
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 05:58:16 GMT
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V5 00/25] THP support for PPC64
-Date: Thu,  4 Apr 2013 11:27:38 +0530
-Message-Id: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V5 06/25] powerpc: Reduce PTE table memory wastage
+Date: Thu,  4 Apr 2013 11:27:44 +0530
+Message-Id: <1365055083-31956-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: benh@kernel.crashing.org, paulus@samba.org
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Hi,
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-This patchset adds transparent hugepage support for PPC64.
+We allocate one page for the last level of linux page table. With THP and
+large page size of 16MB, that would mean we are wasting large part
+of that page. To map 16MB area, we only need a PTE space of 2K with 64K
+page size. This patch reduce the space wastage by sharing the page
+allocated for the last level of linux page table with multiple pmd
+entries. We call these smaller chunks PTE page fragments and allocated
+page, PTE page.
 
-TODO:
-* hash preload support in update_mmu_cache_pmd (we don't do that for hugetlb)
+In order to support systems which doesn't have 64K HPTE support, we also
+add another 2K to PTE page fragment. The second half of the PTE fragments
+is used for storing slot and secondary bit information of an HPTE. With this
+we now have a 4K PTE fragment.
 
-Some numbers:
+We use a simple approach to share the PTE page. On allocation, we bump the
+PTE page refcount to 16 and share the PTE page with the next 16 pte alloc
+request. This should help in the node locality of the PTE page fragment,
+assuming that the immediate pte alloc request will mostly come from the
+same NUMA node. We don't try to reuse the freed PTE page fragment. Hence
+we could be waisting some space.
 
-The latency measurements code from Anton  found at
-http://ozlabs.org/~anton/junkcode/latency2001.c
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/include/asm/mmu-book3e.h |    4 +
+ arch/powerpc/include/asm/mmu-hash64.h |    4 +
+ arch/powerpc/include/asm/page.h       |    4 +
+ arch/powerpc/include/asm/pgalloc-64.h |   72 ++++-------------
+ arch/powerpc/kernel/setup_64.c        |    4 +-
+ arch/powerpc/mm/mmu_context_hash64.c  |   35 +++++++++
+ arch/powerpc/mm/pgtable_64.c          |  137 +++++++++++++++++++++++++++++++++
+ 7 files changed, 202 insertions(+), 58 deletions(-)
 
-THP disabled 64K page size
-------------------------
-[root@llmp24l02 ~]# ./latency2001 8G
- 8589934592    731.73 cycles    205.77 ns
-[root@llmp24l02 ~]# ./latency2001 8G
- 8589934592    743.39 cycles    209.05 ns
-[root@llmp24l02 ~]#
-
-THP disabled large page via hugetlbfs
--------------------------------------
-[root@llmp24l02 ~]# ./latency2001  -l 8G
- 8589934592    416.09 cycles    117.01 ns
-[root@llmp24l02 ~]# ./latency2001  -l 8G
- 8589934592    415.74 cycles    116.91 ns
-
-THP enabled 64K page size.
-----------------
-[root@llmp24l02 ~]# ./latency2001 8G
- 8589934592    405.07 cycles    113.91 ns
-[root@llmp24l02 ~]# ./latency2001 8G
- 8589934592    411.82 cycles    115.81 ns
-[root@llmp24l02 ~]#
-
-We are close to hugetlbfs in latency and we can achieve this with zero
-config/page reservation. Most of the allocations above are fault allocated.
-
-Another test that does 50000000 random access over 1GB area goes from
-2.65 seconds to 1.07 seconds with this patchset.
-
-split_huge_page impact:
----------------------
-To look at the performance impact of large page invalidate, I tried the below
-experiment. The test involved, accessing a large contiguous region of memory
-location as below
-
-    for (i = 0; i < size; i += PAGE_SIZE)
-	data[i] = i;
-
-We wanted to access the data in sequential order so that we look at the
-worst case THP performance. Accesing the data in sequential order implies
-we have the Page table cached and overhead of TLB miss is as minimal as
-possible. We also don't touch the entire page, because that can result in
-cache evict.
-
-After we touched the full range as above, we now call mprotect on each
-of that page. A mprotect will result in a hugepage split. This should
-allow us to measure the impact of hugepage split.
-
-    for (i = 0; i < size; i += PAGE_SIZE)
-	 mprotect(&data[i], PAGE_SIZE, PROT_READ);
-
-Split hugepage impact: 
----------------------
-THP enabled: 2.851561705 seconds for test completion
-THP disable: 3.599146098 seconds for test completion
-
-We are 20.7% better than non THP case even when we have all the large pages split.
-
-Detailed output:
-
-THP enabled:
----------------------------------------
-[root@llmp24l02 ~]# cat /proc/vmstat  | grep thp
-thp_fault_alloc 0
-thp_fault_fallback 0
-thp_collapse_alloc 0
-thp_collapse_alloc_failed 0
-thp_split 0
-thp_zero_page_alloc 0
-thp_zero_page_alloc_failed 0
-[root@llmp24l02 ~]# /root/thp/tools/perf/perf stat -e page-faults,dTLB-load-misses ./split-huge-page-mpro 20G                                                                      
-time taken to touch all the data in ns: 2763096913 
-
- Performance counter stats for './split-huge-page-mpro 20G':
-
-             1,581 page-faults                                                 
-             3,159 dTLB-load-misses                                            
-
-       2.851561705 seconds time elapsed
-
-[root@llmp24l02 ~]# 
-[root@llmp24l02 ~]# cat /proc/vmstat  | grep thp
-thp_fault_alloc 1279
-thp_fault_fallback 0
-thp_collapse_alloc 0
-thp_collapse_alloc_failed 0
-thp_split 1279
-thp_zero_page_alloc 0
-thp_zero_page_alloc_failed 0
-[root@llmp24l02 ~]# 
-
-    77.05%  split-huge-page  [kernel.kallsyms]     [k] .clear_user_page                        
-     7.10%  split-huge-page  [kernel.kallsyms]     [k] .perf_event_mmap_ctx                    
-     1.51%  split-huge-page  split-huge-page-mpro  [.] 0x0000000000000a70                      
-     0.96%  split-huge-page  [unknown]             [H] 0x000000000157e3bc                      
-     0.81%  split-huge-page  [kernel.kallsyms]     [k] .up_write                               
-     0.76%  split-huge-page  [kernel.kallsyms]     [k] .perf_event_mmap                        
-     0.76%  split-huge-page  [kernel.kallsyms]     [k] .down_write                             
-     0.74%  split-huge-page  [kernel.kallsyms]     [k] .lru_add_page_tail                      
-     0.61%  split-huge-page  [kernel.kallsyms]     [k] .split_huge_page                        
-     0.59%  split-huge-page  [kernel.kallsyms]     [k] .change_protection                      
-     0.51%  split-huge-page  [kernel.kallsyms]     [k] .release_pages                          
-
-
-     0.96%  split-huge-page  [unknown]             [H] 0x000000000157e3bc                      
-            |          
-            |--79.44%-- reloc_start
-            |          |          
-            |          |--86.54%-- .__pSeries_lpar_hugepage_invalidate
-            |          |          .pSeries_lpar_hugepage_invalidate
-            |          |          .hpte_need_hugepage_flush
-            |          |          .split_huge_page
-            |          |          .__split_huge_page_pmd
-            |          |          .vma_adjust
-            |          |          .vma_merge
-            |          |          .mprotect_fixup
-            |          |          .SyS_mprotect
-
-
-THP disabled:
----------------
-[root@llmp24l02 ~]# echo never > /sys/kernel/mm/transparent_hugepage/enabled
-[root@llmp24l02 ~]# /root/thp/tools/perf/perf stat -e page-faults,dTLB-load-misses ./split-huge-page-mpro 20G
-time taken to touch all the data in ns: 3513767220 
-
- Performance counter stats for './split-huge-page-mpro 20G':
-
-          3,27,726 page-faults                                                 
-          3,29,654 dTLB-load-misses                                            
-
-       3.599146098 seconds time elapsed
-
-[root@llmp24l02 ~]#
-
-Changes from V4:
-* Fix bad page error in page_table_alloc
-  BUG: Bad page state in process stream  pfn:f1a59
-  page:f0000000034dc378 count:1 mapcount:0 mapping:          (null) index:0x0
-  [c000000f322c77d0] [c00000000015e198] .bad_page+0xe8/0x140
-  [c000000f322c7860] [c00000000015e3c4] .free_pages_prepare+0x1d4/0x1e0
-  [c000000f322c7910] [c000000000160450] .free_hot_cold_page+0x50/0x230
-  [c000000f322c79c0] [c00000000003ad18] .page_table_alloc+0x168/0x1c0
-
-Changes from V3:
-* PowerNV boot fixes
-
-Change from V2:
-* Change patch "powerpc: Reduce PTE table memory wastage" to use much simpler approach
-  for PTE page sharing.
-* Changes to handle huge pages in KVM code.
-* Address other review comments
-
-Changes from V1
-* Address review comments
-* More patch split
-* Add batch hpte invalidate for hugepages.
-
-Changes from RFC V2:
-* Address review comments
-* More code cleanup and patch split
-
-Changes from RFC V1:
-* HugeTLB fs now works
-* Compile issues fixed
-* rebased to v3.8
-* Patch series reorded so that ppc64 cleanups and MM THP changes are moved
-  early in the series. This should help in picking those patches early.
-
-Thanks,
--aneesh
+diff --git a/arch/powerpc/include/asm/mmu-book3e.h b/arch/powerpc/include/asm/mmu-book3e.h
+index 99d43e0..affbd68 100644
+--- a/arch/powerpc/include/asm/mmu-book3e.h
++++ b/arch/powerpc/include/asm/mmu-book3e.h
+@@ -231,6 +231,10 @@ typedef struct {
+ 	u64 high_slices_psize;  /* 4 bits per slice for now */
+ 	u16 user_psize;         /* page size index */
+ #endif
++#ifdef CONFIG_PPC_64K_PAGES
++	/* for 4K PTE fragment support */
++	struct page *pgtable_page;
++#endif
+ } mm_context_t;
+ 
+ /* Page size definitions, common between 32 and 64-bit
+diff --git a/arch/powerpc/include/asm/mmu-hash64.h b/arch/powerpc/include/asm/mmu-hash64.h
+index 35bb51e..300ac3c 100644
+--- a/arch/powerpc/include/asm/mmu-hash64.h
++++ b/arch/powerpc/include/asm/mmu-hash64.h
+@@ -498,6 +498,10 @@ typedef struct {
+ 	unsigned long acop;	/* mask of enabled coprocessor types */
+ 	unsigned int cop_pid;	/* pid value used with coprocessors */
+ #endif /* CONFIG_PPC_ICSWX */
++#ifdef CONFIG_PPC_64K_PAGES
++	/* for 4K PTE fragment support */
++	struct page *pgtable_page;
++#endif
+ } mm_context_t;
+ 
+ 
+diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
+index f072e97..38e7ff6 100644
+--- a/arch/powerpc/include/asm/page.h
++++ b/arch/powerpc/include/asm/page.h
+@@ -378,7 +378,11 @@ void arch_free_page(struct page *page, int order);
+ 
+ struct vm_area_struct;
+ 
++#ifdef CONFIG_PPC_64K_PAGES
++typedef pte_t *pgtable_t;
++#else
+ typedef struct page *pgtable_t;
++#endif
+ 
+ #include <asm-generic/memory_model.h>
+ #endif /* __ASSEMBLY__ */
+diff --git a/arch/powerpc/include/asm/pgalloc-64.h b/arch/powerpc/include/asm/pgalloc-64.h
+index cdbf555..3418989 100644
+--- a/arch/powerpc/include/asm/pgalloc-64.h
++++ b/arch/powerpc/include/asm/pgalloc-64.h
+@@ -150,6 +150,13 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
+ 
+ #else /* if CONFIG_PPC_64K_PAGES */
+ 
++extern pte_t *page_table_alloc(struct mm_struct *, unsigned long, int);
++extern void page_table_free(struct mm_struct *, unsigned long *, int);
++extern void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift);
++#ifdef CONFIG_SMP
++extern void __tlb_remove_table(void *_table);
++#endif
++
+ #define pud_populate(mm, pud, pmd)	pud_set(pud, (unsigned long)pmd)
+ 
+ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
+@@ -161,90 +168,42 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd,
+ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
+ 				pgtable_t pte_page)
+ {
+-	pmd_populate_kernel(mm, pmd, page_address(pte_page));
++	pmd_set(pmd, (unsigned long)pte_page);
+ }
+ 
+ static inline pgtable_t pmd_pgtable(pmd_t pmd)
+ {
+-	return pmd_page(pmd);
++	return (pgtable_t)(pmd_val(pmd) & -sizeof(pte_t)*PTRS_PER_PTE);
+ }
+ 
+ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
+ 					  unsigned long address)
+ {
+-	return (pte_t *)__get_free_page(GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO);
++	return (pte_t *)page_table_alloc(mm, address, 1);
+ }
+ 
+ static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
+-				      unsigned long address)
++					unsigned long address)
+ {
+-	struct page *page;
+-	pte_t *pte;
+-
+-	pte = pte_alloc_one_kernel(mm, address);
+-	if (!pte)
+-		return NULL;
+-	page = virt_to_page(pte);
+-	pgtable_page_ctor(page);
+-	return page;
++	return (pgtable_t)page_table_alloc(mm, address, 0);
+ }
+ 
+ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
+ {
+-	free_page((unsigned long)pte);
++	page_table_free(mm, (unsigned long *)pte, 1);
+ }
+ 
+ static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
+ {
+-	pgtable_page_dtor(ptepage);
+-	__free_page(ptepage);
+-}
+-
+-static inline void pgtable_free(void *table, unsigned index_size)
+-{
+-	if (!index_size)
+-		free_page((unsigned long)table);
+-	else {
+-		BUG_ON(index_size > MAX_PGTABLE_INDEX_SIZE);
+-		kmem_cache_free(PGT_CACHE(index_size), table);
+-	}
++	page_table_free(mm, (unsigned long *)ptepage, 0);
+ }
+ 
+-#ifdef CONFIG_SMP
+-static inline void pgtable_free_tlb(struct mmu_gather *tlb,
+-				    void *table, int shift)
+-{
+-	unsigned long pgf = (unsigned long)table;
+-	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
+-	pgf |= shift;
+-	tlb_remove_table(tlb, (void *)pgf);
+-}
+-
+-static inline void __tlb_remove_table(void *_table)
+-{
+-	void *table = (void *)((unsigned long)_table & ~MAX_PGTABLE_INDEX_SIZE);
+-	unsigned shift = (unsigned long)_table & MAX_PGTABLE_INDEX_SIZE;
+-
+-	pgtable_free(table, shift);
+-}
+-#else /* !CONFIG_SMP */
+-static inline void pgtable_free_tlb(struct mmu_gather *tlb,
+-				    void *table, int shift)
+-{
+-	pgtable_free(table, shift);
+-}
+-#endif /* CONFIG_SMP */
+-
+ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
+ 				  unsigned long address)
+ {
+-	struct page *page = page_address(table);
+-
+ 	tlb_flush_pgtable(tlb, address);
+-	pgtable_page_dtor(page);
+-	pgtable_free_tlb(tlb, page, 0);
++	pgtable_free_tlb(tlb, table, 0);
+ }
+-
+ #endif /* CONFIG_PPC_64K_PAGES */
+ 
+ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+@@ -258,7 +217,6 @@ static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
+ 	kmem_cache_free(PGT_CACHE(PMD_INDEX_SIZE), pmd);
+ }
+ 
+-
+ #define __pmd_free_tlb(tlb, pmd, addr)		      \
+ 	pgtable_free_tlb(tlb, pmd, PMD_INDEX_SIZE)
+ #ifndef CONFIG_PPC_64K_PAGES
+diff --git a/arch/powerpc/kernel/setup_64.c b/arch/powerpc/kernel/setup_64.c
+index 6da881b..04d833c 100644
+--- a/arch/powerpc/kernel/setup_64.c
++++ b/arch/powerpc/kernel/setup_64.c
+@@ -575,7 +575,9 @@ void __init setup_arch(char **cmdline_p)
+ 	init_mm.end_code = (unsigned long) _etext;
+ 	init_mm.end_data = (unsigned long) _edata;
+ 	init_mm.brk = klimit;
+-	
++#ifdef CONFIG_PPC_64K_PAGES
++	init_mm.context.pgtable_page = NULL;
++#endif
+ 	irqstack_early_init();
+ 	exc_lvl_early_init();
+ 	emergency_stack_init();
+diff --git a/arch/powerpc/mm/mmu_context_hash64.c b/arch/powerpc/mm/mmu_context_hash64.c
+index 59cd773..fbfdca2 100644
+--- a/arch/powerpc/mm/mmu_context_hash64.c
++++ b/arch/powerpc/mm/mmu_context_hash64.c
+@@ -86,6 +86,9 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+ 	spin_lock_init(mm->context.cop_lockp);
+ #endif /* CONFIG_PPC_ICSWX */
+ 
++#ifdef CONFIG_PPC_64K_PAGES
++	mm->context.pgtable_page = NULL;
++#endif
+ 	return 0;
+ }
+ 
+@@ -97,13 +100,45 @@ void __destroy_context(int context_id)
+ }
+ EXPORT_SYMBOL_GPL(__destroy_context);
+ 
++#ifdef CONFIG_PPC_64K_PAGES
++static void destroy_pagetable_page(struct mm_struct *mm)
++{
++	int count;
++	struct page *page;
++
++	page = mm->context.pgtable_page;
++	if (!page)
++		return;
++
++	/* drop all the pending references */
++	count = atomic_read(&page->_mapcount) + 1;
++	/* We allow PTE_FRAG_NR(16) fragments from a PTE page */
++	count = atomic_sub_return(16 - count, &page->_count);
++	if (!count) {
++		pgtable_page_dtor(page);
++		reset_page_mapcount(page);
++		free_hot_cold_page(page, 0);
++	}
++}
++
++#else
++static inline void destroy_pagetable_page(struct mm_struct *mm)
++{
++	return;
++}
++#endif
++
++
+ void destroy_context(struct mm_struct *mm)
+ {
++
+ #ifdef CONFIG_PPC_ICSWX
+ 	drop_cop(mm->context.acop, mm);
+ 	kfree(mm->context.cop_lockp);
+ 	mm->context.cop_lockp = NULL;
+ #endif /* CONFIG_PPC_ICSWX */
++
++	destroy_pagetable_page(mm);
+ 	__destroy_context(mm->context.id);
+ 	subpage_prot_free(mm);
+ 	mm->context.id = MMU_NO_CONTEXT;
+diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+index e212a27..e79840b 100644
+--- a/arch/powerpc/mm/pgtable_64.c
++++ b/arch/powerpc/mm/pgtable_64.c
+@@ -337,3 +337,140 @@ EXPORT_SYMBOL(__ioremap_at);
+ EXPORT_SYMBOL(iounmap);
+ EXPORT_SYMBOL(__iounmap);
+ EXPORT_SYMBOL(__iounmap_at);
++
++#ifdef CONFIG_PPC_64K_PAGES
++/*
++ * we support 16 fragments per PTE page. This is limited by how many
++ * bits we can pack in page->_mapcount. We use the first half for
++ * tracking the usage for rcu page table free.
++ */
++#define PTE_FRAG_NR	16
++/*
++ * We use a 2K PTE page fragment and another 2K for storing
++ * real_pte_t hash index
++ */
++#define PTE_FRAG_SIZE (2 * PTRS_PER_PTE * sizeof(pte_t))
++
++static pte_t *get_from_cache(struct mm_struct *mm)
++{
++	int index;
++	pte_t *ret = NULL;
++	struct page *page;
++
++	spin_lock(&mm->page_table_lock);
++	page = mm->context.pgtable_page;
++	if (page) {
++		void *p = page_address(page);
++		index = atomic_add_return(1, &page->_mapcount);
++		ret = (pte_t *) (p + (index * PTE_FRAG_SIZE));
++		/*
++		 * If we have taken up all the fragments mark PTE page NULL
++		 */
++		if (index == PTE_FRAG_NR - 1)
++			mm->context.pgtable_page = NULL;
++	}
++	spin_unlock(&mm->page_table_lock);
++	return ret;
++}
++
++static pte_t *__alloc_for_cache(struct mm_struct *mm, int kernel)
++{
++	pte_t *ret = NULL;
++	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
++				       __GFP_REPEAT | __GFP_ZERO);
++	if (!page)
++		return NULL;
++
++	spin_lock(&mm->page_table_lock);
++	/*
++	 * If we find pgtable_page set, we return
++	 * the allocated page with single fragement
++	 * count.
++	 */
++	if (likely(!mm->context.pgtable_page)) {
++		atomic_set(&page->_count, PTE_FRAG_NR);
++		atomic_set(&page->_mapcount, 0);
++		mm->context.pgtable_page = page;
++	}
++	spin_unlock(&mm->page_table_lock);
++
++	ret = (unsigned long *)page_address(page);
++	if (!kernel)
++		pgtable_page_ctor(page);
++
++	return ret;
++}
++
++pte_t *page_table_alloc(struct mm_struct *mm, unsigned long vmaddr, int kernel)
++{
++	pte_t *pte;
++
++	pte = get_from_cache(mm);
++	if (pte)
++		return pte;
++
++	return __alloc_for_cache(mm, kernel);
++}
++
++void page_table_free(struct mm_struct *mm, unsigned long *table, int kernel)
++{
++	struct page *page = virt_to_page(table);
++	if (put_page_testzero(page)) {
++		if (!kernel)
++			pgtable_page_dtor(page);
++		reset_page_mapcount(page);
++		free_hot_cold_page(page, 0);
++	}
++}
++
++#ifdef CONFIG_SMP
++static void page_table_free_rcu(void *table)
++{
++	struct page *page = virt_to_page(table);
++	if (put_page_testzero(page)) {
++		pgtable_page_dtor(page);
++		reset_page_mapcount(page);
++		free_hot_cold_page(page, 0);
++	}
++}
++
++void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
++{
++	unsigned long pgf = (unsigned long)table;
++
++	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
++	pgf |= shift;
++	tlb_remove_table(tlb, (void *)pgf);
++}
++
++void __tlb_remove_table(void *_table)
++{
++	void *table = (void *)((unsigned long)_table & ~MAX_PGTABLE_INDEX_SIZE);
++	unsigned shift = (unsigned long)_table & MAX_PGTABLE_INDEX_SIZE;
++
++	if (!shift)
++		/* PTE page needs special handling */
++		page_table_free_rcu(table);
++	else {
++		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
++		kmem_cache_free(PGT_CACHE(shift), table);
++	}
++}
++#else
++void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
++{
++	if (!shift) {
++		/* PTE page needs special handling */
++		struct page *page = virt_to_page(table);
++		if (put_page_testzero(page)) {
++			pgtable_page_dtor(page);
++			reset_page_mapcount(page);
++			free_hot_cold_page(page, 0);
++		}
++	} else {
++		BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
++		kmem_cache_free(PGT_CACHE(shift), table);
++	}
++}
++#endif
++#endif /* CONFIG_PPC_64K_PAGES */
+-- 
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
