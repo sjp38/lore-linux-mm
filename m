@@ -1,61 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id D28576B0005
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 01:28:51 -0400 (EDT)
-Received: by mail-ia0-f170.google.com with SMTP id h8so1947601iaa.1
-        for <linux-mm@kvack.org>; Wed, 03 Apr 2013 22:28:51 -0700 (PDT)
-Message-ID: <515D0F8E.7020906@gmail.com>
-Date: Thu, 04 Apr 2013 13:28:46 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 00/24] DNUMA: Runtime NUMA memory layout reconfiguration
-References: <20130228024112.GA24970@negative> <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <1362084272-11282-1-git-send-email-cody@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id B2F236B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 01:58:19 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 4 Apr 2013 11:23:27 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id BDA1DE0059
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 11:29:56 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r345w7nP8520098
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 11:28:07 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r345wCPi026407
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2013 05:58:12 GMT
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V5 02/25] powerpc: Save DAR and DSISR in pt_regs on MCE
+Date: Thu,  4 Apr 2013 11:27:40 +0530
+Message-Id: <1365055083-31956-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cody P Schafer <cody@linux.vnet.ibm.com>
-Cc: Linux MM <linux-mm@kvack.org>, David Hansen <dave@linux.vnet.ibm.com>
+To: benh@kernel.crashing.org, paulus@samba.org
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Hi Cody,
-On 03/01/2013 04:44 AM, Cody P Schafer wrote:
-> Some people asked me to send the email patches for this instead of just posting a git tree link
->
-> For reference, this is the original message:
-> 	http://lkml.org/lkml/2013/2/27/374
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Could you show me your test codes?
+We were not saving DAR and DSISR on MCE. Save then and also print the values
+along with exception details in xmon.
 
-> --
->
->   arch/x86/Kconfig                 |   1 -
->   arch/x86/include/asm/sparsemem.h |   4 +-
->   arch/x86/mm/numa.c               |  32 +++-
->   include/linux/dnuma.h            |  96 +++++++++++
->   include/linux/memlayout.h        | 111 +++++++++++++
->   include/linux/memory_hotplug.h   |   4 +
->   include/linux/mm.h               |   7 +-
->   include/linux/page-flags.h       |  18 ++
->   include/linux/rbtree.h           |  11 ++
->   init/main.c                      |   2 +
->   lib/rbtree.c                     |  40 +++++
->   mm/Kconfig                       |  44 +++++
->   mm/Makefile                      |   2 +
->   mm/dnuma.c                       | 351 +++++++++++++++++++++++++++++++++++++++
->   mm/internal.h                    |  13 +-
->   mm/memlayout-debugfs.c           | 323 +++++++++++++++++++++++++++++++++++
->   mm/memlayout-debugfs.h           |  35 ++++
->   mm/memlayout.c                   | 267 +++++++++++++++++++++++++++++
->   mm/memory_hotplug.c              |  53 +++---
->   mm/page_alloc.c                  | 112 +++++++++++--
->   20 files changed, 1486 insertions(+), 40 deletions(-)
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Acked-by: Paul Mackerras <paulus@samba.org>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/kernel/exceptions-64s.S |    9 +++++++++
+ arch/powerpc/xmon/xmon.c             |    2 +-
+ 2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/arch/powerpc/kernel/exceptions-64s.S b/arch/powerpc/kernel/exceptions-64s.S
+index 0e9c48c..d02e730 100644
+--- a/arch/powerpc/kernel/exceptions-64s.S
++++ b/arch/powerpc/kernel/exceptions-64s.S
+@@ -640,9 +640,18 @@ slb_miss_user_pseries:
+ 	.align	7
+ 	.globl machine_check_common
+ machine_check_common:
++
++	mfspr	r10,SPRN_DAR
++	std	r10,PACA_EXGEN+EX_DAR(r13)
++	mfspr	r10,SPRN_DSISR
++	stw	r10,PACA_EXGEN+EX_DSISR(r13)
+ 	EXCEPTION_PROLOG_COMMON(0x200, PACA_EXMC)
+ 	FINISH_NAP
+ 	DISABLE_INTS
++	ld	r3,PACA_EXGEN+EX_DAR(r13)
++	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
++	std	r3,_DAR(r1)
++	std	r4,_DSISR(r1)
+ 	bl	.save_nvgprs
+ 	addi	r3,r1,STACK_FRAME_OVERHEAD
+ 	bl	.machine_check_exception
+diff --git a/arch/powerpc/xmon/xmon.c b/arch/powerpc/xmon/xmon.c
+index 1f8d2f1..a72e490 100644
+--- a/arch/powerpc/xmon/xmon.c
++++ b/arch/powerpc/xmon/xmon.c
+@@ -1423,7 +1423,7 @@ static void excprint(struct pt_regs *fp)
+ 	printf("    sp: %lx\n", fp->gpr[1]);
+ 	printf("   msr: %lx\n", fp->msr);
+ 
+-	if (trap == 0x300 || trap == 0x380 || trap == 0x600) {
++	if (trap == 0x300 || trap == 0x380 || trap == 0x600 || trap == 0x200) {
+ 		printf("   dar: %lx\n", fp->dar);
+ 		if (trap != 0x380)
+ 			printf(" dsisr: %lx\n", fp->dsisr);
+-- 
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
