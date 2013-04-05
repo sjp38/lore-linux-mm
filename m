@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id AA2916B0044
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 05:37:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id E2A866B0069
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 05:37:24 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 04/11] x86, numa, acpi, memory-hotplug: Introduce hotplug info into struct numa_meminfo.
-Date: Fri, 5 Apr 2013 17:39:54 +0800
-Message-Id: <1365154801-473-5-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 06/11] X86, numa, acpi, memory-hotplug: Add hotpluggable ranges to movablemem_map.
+Date: Fri, 5 Apr 2013 17:39:56 +0800
+Message-Id: <1365154801-473-7-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,147 +13,192 @@ List-ID: <linux-mm.kvack.org>
 To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linfeng@cn.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, jiang.liu@huawei.com, guz.fnst@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Since we are using struct numa_meminfo to store SRAT info, and sanitize
-movablemem_map.map[], we need hotplug info in struct numa_meminfo.
-
-This patch introduces a "bool hotpluggable" member into struct
-numa_meminfo.
-
-And modifies the following APIs' prototypes to support it:
-   - numa_add_memblk()
-   - numa_add_memblk_to()
-
-And the following callers:
-   - numaq_register_node()
-   - dummy_numa_init()
-   - amd_numa_init()
-   - acpi_numa_memory_affinity_init() in x86
+When parsing SRAT, we are able to know which memory ranges are hotpluggable,
+and we add them to movablemem_map. So movablemem_map could be used to prevent
+memblock from allocating memory in area which will be set as ZONE_MOVABLE later.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/include/asm/numa.h     |    3 ++-
- arch/x86/kernel/apic/numaq_32.c |    2 +-
- arch/x86/mm/amdtopology.c       |    3 ++-
- arch/x86/mm/numa.c              |   10 +++++++---
- arch/x86/mm/numa_internal.h     |    1 +
- arch/x86/mm/srat.c              |    2 +-
- 6 files changed, 14 insertions(+), 7 deletions(-)
+ arch/x86/mm/numa.c |   39 ++++++++++++++++++++++
+ include/linux/mm.h |    4 ++
+ mm/page_alloc.c    |   92 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 135 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/include/asm/numa.h b/arch/x86/include/asm/numa.h
-index 1b99ee5..73096b2 100644
---- a/arch/x86/include/asm/numa.h
-+++ b/arch/x86/include/asm/numa.h
-@@ -31,7 +31,8 @@ extern int numa_off;
- extern s16 __apicid_to_node[MAX_LOCAL_APIC];
- extern nodemask_t numa_nodes_parsed __initdata;
- 
--extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
-+extern int __init numa_add_memblk(int nodeid, u64 start, u64 end,
-+				  bool hotpluggable);
- extern void __init numa_set_distance(int from, int to, int distance);
- 
- static inline void set_apicid_to_node(int apicid, s16 node)
-diff --git a/arch/x86/kernel/apic/numaq_32.c b/arch/x86/kernel/apic/numaq_32.c
-index d661ee9..7a9c542 100644
---- a/arch/x86/kernel/apic/numaq_32.c
-+++ b/arch/x86/kernel/apic/numaq_32.c
-@@ -82,7 +82,7 @@ static inline void numaq_register_node(int node, struct sys_cfg_data *scd)
- 	int ret;
- 
- 	node_set(node, numa_nodes_parsed);
--	ret = numa_add_memblk(node, start, end);
-+	ret = numa_add_memblk(node, start, end, false);
- 	BUG_ON(ret < 0);
- }
- 
-diff --git a/arch/x86/mm/amdtopology.c b/arch/x86/mm/amdtopology.c
-index 5247d01..d521471 100644
---- a/arch/x86/mm/amdtopology.c
-+++ b/arch/x86/mm/amdtopology.c
-@@ -167,7 +167,8 @@ int __init amd_numa_init(void)
- 			nodeid, base, limit);
- 
- 		prevbase = base;
--		numa_add_memblk(nodeid, base, limit);
-+		/* Do not support memory hotplug for AMD cpu. */
-+		numa_add_memblk(nodeid, base, limit, false);
- 		node_set(nodeid, numa_nodes_parsed);
- 	}
- 
 diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 4f754e6..ecf37fd 100644
+index 26d1800..73e7934 100644
 --- a/arch/x86/mm/numa.c
 +++ b/arch/x86/mm/numa.c
-@@ -134,6 +134,7 @@ void __init setup_node_to_cpumask_map(void)
+@@ -725,6 +725,43 @@ static void __init early_x86_numa_init_mapping(void)
  }
+ #endif
  
- static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
-+				     bool hotpluggable,
- 				     struct numa_meminfo *mi)
++#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
++/**
++ * early_mem_hotplug_init - Add hotpluggable memory ranges to movablemem_map.
++ *
++ * This function scan numa_meminfo.blk[], and add all the hotpluggable memory 
++ * ranges to movablemem_map. movablemem_map can be used to prevent memblock
++ * from allocating memory in area which will be set as ZONE_MOVABLE later, so
++ * this function should be called after memory mapping is initialized because
++ * we will put pagetable pages in local node even if the memory of that node is
++ * hotpluggable.
++ *
++ * If users specify movablemem_map=acpi, then:
++ *
++ * SRAT:                |_____| |_____| |_________| |_________| ......
++ * node id:                0       1         1           2
++ * hotpluggable:           n       y         y           n
++ * movablemem_map:              |_____| |_________|
++ */
++static void __init early_mem_hotplug_init()
++{
++	int i;
++
++	if (!movablemem_map.acpi)
++		return;
++
++	for (i = 0; i < numa_meminfo.nr_blks; i++) {
++		if (numa_meminfo.blk[i].hotpluggable)
++			movablemem_map_add_region(numa_meminfo.blk[i].start,
++						  numa_meminfo.blk[i].end);
++	}
++}
++#else          /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
++static inline void early_mem_hotplug_init()
++{
++}
++#endif         /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
++
+ void __init early_initmem_init(void)
  {
- 	/* ignore zero length blks */
-@@ -155,6 +156,7 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
- 	mi->blk[mi->nr_blks].start = start;
- 	mi->blk[mi->nr_blks].end = end;
- 	mi->blk[mi->nr_blks].nid = nid;
-+	mi->blk[mi->nr_blks].hotpluggable = hotpluggable;
- 	mi->nr_blks++;
- 	return 0;
- }
-@@ -179,15 +181,17 @@ void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi)
-  * @nid: NUMA node ID of the new memblk
-  * @start: Start address of the new memblk
-  * @end: End address of the new memblk
-+ * @hotpluggable: True if memblk is hotpluggable
-  *
-  * Add a new memblk to the default numa_meminfo.
-  *
-  * RETURNS:
-  * 0 on success, -errno on failure.
-  */
--int __init numa_add_memblk(int nid, u64 start, u64 end)
-+int __init numa_add_memblk(int nid, u64 start, u64 end,
-+			   bool hotpluggable)
- {
--	return numa_add_memblk_to(nid, start, end, &numa_meminfo);
-+	return numa_add_memblk_to(nid, start, end, hotpluggable, &numa_meminfo);
+ 	early_x86_numa_init();
+@@ -734,6 +771,8 @@ void __init early_initmem_init(void)
+ 	load_cr3(swapper_pg_dir);
+ 	__flush_tlb_all();
+ 
++	early_mem_hotplug_init();
++
+ 	early_memtest(0, max_pfn_mapped<<PAGE_SHIFT);
  }
  
- /* Initialize NODE_DATA for a node on the local memory */
-@@ -631,7 +635,7 @@ static int __init dummy_numa_init(void)
- 	       0LLU, PFN_PHYS(max_pfn) - 1);
- 
- 	node_set(0, numa_nodes_parsed);
--	numa_add_memblk(0, 0, PFN_PHYS(max_pfn));
-+	numa_add_memblk(0, 0, PFN_PHYS(max_pfn), false);
- 
- 	return 0;
- }
-diff --git a/arch/x86/mm/numa_internal.h b/arch/x86/mm/numa_internal.h
-index bb2fbcc..1ce4e6b 100644
---- a/arch/x86/mm/numa_internal.h
-+++ b/arch/x86/mm/numa_internal.h
-@@ -8,6 +8,7 @@ struct numa_memblk {
- 	u64			start;
- 	u64			end;
- 	int			nid;
-+	bool			hotpluggable;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 52c3558..7468221 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1344,6 +1344,10 @@ struct movablemem_map {
+ 	struct movablemem_entry map[MOVABLEMEM_MAP_MAX];
  };
  
- struct numa_meminfo {
-diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-index 5055fa7..f7f6fd4 100644
---- a/arch/x86/mm/srat.c
-+++ b/arch/x86/mm/srat.c
-@@ -171,7 +171,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- 		goto out_err_bad_srat;
- 	}
++extern struct movablemem_map movablemem_map;
++
++extern void __init movablemem_map_add_region(u64 start, u64 size);
++
+ #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
  
--	if (numa_add_memblk(node, start, end) < 0)
-+	if (numa_add_memblk(node, start, end, hotpluggable) < 0)
- 		goto out_err_bad_srat;
+ #if !defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP) && \
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 475fd8b..2a7904f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5068,6 +5068,98 @@ early_param("kernelcore", cmdline_parse_kernelcore);
+ early_param("movablecore", cmdline_parse_movablecore);
  
- 	node_set(node, numa_nodes_parsed);
+ /**
++ * insert_movablemem_map - Insert a memory range in to movablemem_map.map.
++ * @start_pfn: start pfn of the range
++ * @end_pfn:   end pfn of the range
++ *
++ * This function will also merge the overlapped ranges, and sort the array
++ * by start_pfn in monotonic increasing order.
++ */
++static void __init insert_movablemem_map(unsigned long start_pfn,
++					 unsigned long end_pfn)
++{
++	int pos, overlap;
++
++	/*
++	 * pos will be at the 1st overlapped range, or the position
++	 * where the element should be inserted.
++	 */
++	for (pos = 0; pos < movablemem_map.nr_map; pos++)
++		if (start_pfn <= movablemem_map.map[pos].end_pfn)
++			break;
++
++	/* If there is no overlapped range, just insert the element. */
++	if (pos == movablemem_map.nr_map ||
++	    end_pfn < movablemem_map.map[pos].start_pfn) {
++		/*
++		 * If pos is not the end of array, we need to move all
++		 * the rest elements backward.
++		 */
++		if (pos < movablemem_map.nr_map)
++			memmove(&movablemem_map.map[pos+1],
++				&movablemem_map.map[pos],
++				sizeof(struct movablemem_entry) *
++				(movablemem_map.nr_map - pos));
++		movablemem_map.map[pos].start_pfn = start_pfn;
++		movablemem_map.map[pos].end_pfn = end_pfn;
++		movablemem_map.nr_map++;
++		return;
++	}
++
++	/* overlap will be at the last overlapped range */
++	for (overlap = pos + 1; overlap < movablemem_map.nr_map; overlap++)
++		if (end_pfn < movablemem_map.map[overlap].start_pfn)
++			break;
++
++	/*
++	 * If there are more ranges overlapped, we need to merge them,
++	 * and move the rest elements forward.
++	 */
++	overlap--;
++	movablemem_map.map[pos].start_pfn = min(start_pfn,
++					movablemem_map.map[pos].start_pfn);
++	movablemem_map.map[pos].end_pfn = max(end_pfn,
++					movablemem_map.map[overlap].end_pfn);
++
++	if (pos != overlap && overlap + 1 != movablemem_map.nr_map)
++		memmove(&movablemem_map.map[pos+1],
++			&movablemem_map.map[overlap+1],
++			sizeof(struct movablemem_entry) *
++			(movablemem_map.nr_map - overlap - 1));
++
++	movablemem_map.nr_map -= overlap - pos;
++}
++
++/**
++ * movablemem_map_add_region - Add a memory range into movablemem_map.
++ * @start:     physical start address of range
++ * @end:       physical end address of range
++ *
++ * This function transform the physical address into pfn, and then add the
++ * range into movablemem_map by calling insert_movablemem_map().
++ */
++void __init movablemem_map_add_region(u64 start, u64 size)
++{
++	unsigned long start_pfn, end_pfn;
++
++	/* In case size == 0 or start + size overflows */
++	if (start + size <= start)
++		return;
++
++	if (movablemem_map.nr_map >= ARRAY_SIZE(movablemem_map.map)) {
++		pr_err("movablemem_map: too many entries; "
++		       "ignoring [mem %#010llx-%#010llx]\n",
++		       (unsigned long long) start,
++		       (unsigned long long) (start + size - 1));
++		return;
++	}
++
++	start_pfn = PFN_DOWN(start);
++	end_pfn = PFN_UP(start + size);
++	insert_movablemem_map(start_pfn, end_pfn);
++}
++
++/**
+  * cmdline_parse_movablemem_map - Parse boot option movablemem_map.
+  * @p:	The boot option of the following format:
+  *	movablemem_map=acpi
 -- 
 1.7.1
 
