@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 2AD5D6B00A8
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:22 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 7A6D86B00AE
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:23 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 07/34] thp, mm: basic defines for transparent huge page cache
-Date: Fri,  5 Apr 2013 14:59:31 +0300
-Message-Id: <1365163198-29726-8-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 13/34] thp, mm: trigger bug in replace_page_cache_page() on THP
+Date: Fri,  5 Apr 2013 14:59:37 +0300
+Message-Id: <1365163198-29726-14-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,37 +15,30 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+replace_page_cache_page() is only used by FUSE. It's unlikely that we
+will support THP in FUSE page cache any soon.
+
+Let's pospone implemetation of THP handling in replace_page_cache_page()
+until any will use it.
+
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/huge_mm.h |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ mm/filemap.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index ee1c244..a54939c 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -64,6 +64,10 @@ extern pmd_t *page_check_address_pmd(struct page *page,
- #define HPAGE_PMD_MASK HPAGE_MASK
- #define HPAGE_PMD_SIZE HPAGE_SIZE
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 56a81e3..1defa83 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -412,6 +412,8 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+ {
+ 	int error;
  
-+#define HPAGE_CACHE_ORDER      (HPAGE_SHIFT - PAGE_CACHE_SHIFT)
-+#define HPAGE_CACHE_NR         (1L << HPAGE_CACHE_ORDER)
-+#define HPAGE_CACHE_INDEX_MASK (HPAGE_CACHE_NR - 1)
-+
- extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
- 
- #define transparent_hugepage_enabled(__vma)				\
-@@ -181,6 +185,10 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
- #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
- #define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
- 
-+#define HPAGE_CACHE_ORDER      ({ BUILD_BUG(); 0; })
-+#define HPAGE_CACHE_NR         ({ BUILD_BUG(); 0; })
-+#define HPAGE_CACHE_INDEX_MASK ({ BUILD_BUG(); 0; })
-+
- #define hpage_nr_pages(x) 1
- 
- #define transparent_hugepage_enabled(__vma) 0
++	VM_BUG_ON(PageTransHuge(old));
++	VM_BUG_ON(PageTransHuge(new));
+ 	VM_BUG_ON(!PageLocked(old));
+ 	VM_BUG_ON(!PageLocked(new));
+ 	VM_BUG_ON(new->mapping);
 -- 
 1.7.10.4
 
