@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 289116B0071
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 05:37:26 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 177B36B0073
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 05:37:27 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 11/11] x86, numa, acpi, memory-hotplug: Memblock limit with movablemem_map
-Date: Fri, 5 Apr 2013 17:40:01 +0800
-Message-Id: <1365154801-473-12-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 07/11] x86, numa, acpi, memory-hotplug: Make any node which the kernel resides in un-hotpluggable.
+Date: Fri, 5 Apr 2013 17:39:57 +0800
+Message-Id: <1365154801-473-8-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,116 +13,115 @@ List-ID: <linux-mm.kvack.org>
 To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linfeng@cn.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, jiang.liu@huawei.com, guz.fnst@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Ensure memblock will not allocate memory from areas that may be
-ZONE_MOVABLE. The map info is from movablemem_map boot option.
-
-The following problem was reported by Stephen Rothwell:
-The definition of struct movablecore_map is protected by
-CONFIG_HAVE_MEMBLOCK_NODE_MAP but its use in memblock_overlaps_region()
-is not. So add CONFIG_HAVE_MEMBLOCK_NODE_MAP to protect the use of
-movablecore_map in memblock_overlaps_region().
+Before parsing SRAT, memblock has already reserved some memory ranges
+for other purposes, such as for kernel image. We cannot prevent
+kernel from using these memory. Furthermore, if all the memory is
+hotpluggable, then the system won't have enough memory to boot if we set
+all of them as movable. So we always set the nodes which the kernel
+resides in as non-movable.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
-Reviewed-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
-Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
 ---
- include/linux/memblock.h |    2 +
- mm/memblock.c            |   50 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 52 insertions(+), 0 deletions(-)
+ arch/x86/mm/numa.c |   25 +++++++++++++++++++------
+ arch/x86/mm/srat.c |   17 ++++++++++++++++-
+ include/linux/mm.h |    1 +
+ 3 files changed, 36 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index f388203..3e5ecb2 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -42,6 +42,7 @@ struct memblock {
- 
- extern struct memblock memblock;
- extern int memblock_debug;
-+extern struct movablemem_map movablemem_map;
- 
- #define memblock_dbg(fmt, ...) \
- 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
-@@ -60,6 +61,7 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
- void memblock_trim_memory(phys_addr_t align);
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-+
- void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
- 			  unsigned long *out_end_pfn, int *out_nid);
- 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index b8d9147..1bcd9b9 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -92,9 +92,58 @@ static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 73e7934..dcaf248 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -736,24 +736,37 @@ static void __init early_x86_numa_init_mapping(void)
+  * we will put pagetable pages in local node even if the memory of that node is
+  * hotpluggable.
   *
-  * Find @size free area aligned to @align in the specified range and node.
-  *
-+ * If we have CONFIG_HAVE_MEMBLOCK_NODE_MAP defined, we need to check if the
-+ * memory we found if not in hotpluggable ranges.
+- * If users specify movablemem_map=acpi, then:
++ * And, when the kernel is booting, memblock has reserved some memory for other
++ * purpose, such as storing kernel image. We cannot prevent the kernel from
++ * using this kind of memory. So whatever node the kernel resides in should be
++ * un-hotpluggable, because if all the memory is hotpluggable, and is set as
++ * movable, the kernel won't have enough memory to boot.
 + *
-  * RETURNS:
-  * Found address on success, %0 on failure.
++ * It works like this:
++ * If users specify movablemem_map=acpi, then
+  *
+  * SRAT:                |_____| |_____| |_________| |_________| ......
+  * node id:                0       1         1           2
+- * hotpluggable:           n       y         y           n
++ * hotpluggable:           y       y         y           n
++ * kernel resides in:      y       n         n           n
+  * movablemem_map:              |_____| |_________|
   */
-+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-+phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
-+					phys_addr_t end, phys_addr_t size,
-+					phys_addr_t align, int nid)
-+{
-+	phys_addr_t this_start, this_end, cand;
-+	u64 i;
-+	int curr = movablemem_map.nr_map - 1;
+ static void __init early_mem_hotplug_init()
+ {
+-	int i;
++	int i, nid;
+ 
+ 	if (!movablemem_map.acpi)
+ 		return;
+ 
+ 	for (i = 0; i < numa_meminfo.nr_blks; i++) {
+-		if (numa_meminfo.blk[i].hotpluggable)
+-			movablemem_map_add_region(numa_meminfo.blk[i].start,
+-						  numa_meminfo.blk[i].end);
++		nid = numa_meminfo_all.blk[i].nid;
 +
-+	/* pump up @end */
-+	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
-+		end = memblock.current_limit;
-+
-+	/* avoid allocating the first page */
-+	start = max_t(phys_addr_t, start, PAGE_SIZE);
-+	end = max(start, end);
-+
-+	for_each_free_mem_range_reverse(i, nid, &this_start, &this_end, NULL) {
-+		this_start = clamp(this_start, start, end);
-+		this_end = clamp(this_end, start, end);
-+
-+restart:
-+		if (this_end <= this_start || this_end < size)
++		if (node_isset(nid, movablemem_map.numa_nodes_kernel) ||
++		    !numa_meminfo.blk[i].hotpluggable)
 +			continue;
 +
-+		for (; curr >= 0; curr--) {
-+			if ((movablemem_map.map[curr].start_pfn << PAGE_SHIFT)
-+			    < this_end)
-+				break;
-+		}
++		movablemem_map_add_region(numa_meminfo.blk[i].start,
++					  numa_meminfo.blk[i].end);
+ 	}
+ }
+ #else          /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
+index f7f6fd4..0b5904e 100644
+--- a/arch/x86/mm/srat.c
++++ b/arch/x86/mm/srat.c
+@@ -147,7 +147,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ {
+ 	u64 start, end;
+ 	u32 hotpluggable;
+-	int node, pxm;
++	int node, pxm, i;
++	struct memblock_type *rgn = &memblock.reserved;
+ 
+ 	if (srat_disabled())
+ 		goto out_err;
+@@ -176,6 +177,20 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ 
+ 	node_set(node, numa_nodes_parsed);
+ 
++	/*
++	 * Before parsing SRAT, memblock has reserved some memory for other
++	 * purpose, such as storing kernel image. We cannot prevent the kernel
++	 * from using this kind of memory. So just mark which nodes the kernel
++	 * resides in, and set these nodes un-hotpluggable later.
++	 */
++	for (i = 0; i < rgn->cnt; i++) {
++		if (end <= rgn->regions[i].base ||
++		    start >= rgn->regions[i].base + rgn->regions[i].size)
++			continue;
 +
-+		cand = round_down(this_end - size, align);
-+		if (curr >= 0 &&
-+		    cand < movablemem_map.map[curr].end_pfn << PAGE_SHIFT) {
-+			this_end = movablemem_map.map[curr].start_pfn
-+				   << PAGE_SHIFT;
-+			goto restart;
-+		}
-+
-+		if (cand >= this_start)
-+			return cand;
++		node_set(node, movablemem_map.numa_nodes_kernel);
 +	}
 +
-+	return 0;
-+}
-+#else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
- 					phys_addr_t end, phys_addr_t size,
- 					phys_addr_t align, int nid)
-@@ -123,6 +172,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
- 	}
- 	return 0;
- }
-+#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ 	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
+ 	       node, pxm,
+ 	       (unsigned long long) start, (unsigned long long) end - 1,
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7468221..2835c91 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1342,6 +1342,7 @@ struct movablemem_map {
+ 	bool acpi;
+ 	int nr_map;
+ 	struct movablemem_entry map[MOVABLEMEM_MAP_MAX];
++	nodemask_t numa_nodes_kernel;   /* on which nodes kernel resides in */
+ };
  
- /**
-  * memblock_find_in_range - find free area in given range
+ extern struct movablemem_map movablemem_map;
 -- 
 1.7.1
 
