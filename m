@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id DB3C96B00A4
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:15 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 30F886B00A2
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:16 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 03/34] mm: implement zero_huge_user_segment and friends
-Date: Fri,  5 Apr 2013 14:59:27 +0300
-Message-Id: <1365163198-29726-4-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 02/34] block: implement add_bdi_stat()
+Date: Fri,  5 Apr 2013 14:59:26 +0300
+Message-Id: <1365163198-29726-3-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,80 +15,36 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Let's add helpers to clear huge page segment(s). They provide the same
-functionallity as zero_user_segment and zero_user, but for huge pages.
+We're going to add/remove a number of page cache entries at once. This
+patch implements add_bdi_stat() which adjusts bdi stats by arbitrary
+amount. It's required for batched page cache manipulations.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/mm.h |    7 +++++++
- mm/memory.c        |   36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 43 insertions(+)
+ include/linux/backing-dev.h |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5b7fd4e..09530c7 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1731,6 +1731,13 @@ extern void dump_page(struct page *page);
- extern void clear_huge_page(struct page *page,
- 			    unsigned long addr,
- 			    unsigned int pages_per_huge_page);
-+extern void zero_huge_user_segment(struct page *page,
-+		unsigned start, unsigned end);
-+static inline void zero_huge_user(struct page *page,
-+		unsigned start, unsigned len)
-+{
-+	zero_huge_user_segment(page, start, start + len);
-+}
- extern void copy_user_huge_page(struct page *dst, struct page *src,
- 				unsigned long addr, struct vm_area_struct *vma,
- 				unsigned int pages_per_huge_page);
-diff --git a/mm/memory.c b/mm/memory.c
-index 494526a..9da540f 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4213,6 +4213,42 @@ void clear_huge_page(struct page *page,
- 	}
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 3504599..b05d961 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -167,6 +167,16 @@ static inline void __dec_bdi_stat(struct backing_dev_info *bdi,
+ 	__add_bdi_stat(bdi, item, -1);
  }
  
-+void zero_huge_user_segment(struct page *page, unsigned start, unsigned end)
++static inline void add_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item, s64 amount)
 +{
-+	int i;
-+	unsigned start_idx, end_idx;
-+	unsigned start_off, end_off;
++	unsigned long flags;
 +
-+	BUG_ON(end < start);
-+
-+	might_sleep();
-+
-+	if (start == end)
-+		return;
-+
-+	start_idx = start >> PAGE_SHIFT;
-+	start_off = start & ~PAGE_MASK;
-+	end_idx = (end - 1) >> PAGE_SHIFT;
-+	end_off = ((end - 1) & ~PAGE_MASK) + 1;
-+
-+	/*
-+	 * if start and end are on the same small page we can call
-+	 * zero_user_segment() once and save one kmap_atomic().
-+	 */
-+	if (start_idx == end_idx)
-+		return zero_user_segment(page + start_idx, start_off, end_off);
-+
-+	/* zero the first (possibly partial) page */
-+	zero_user_segment(page + start_idx, start_off, PAGE_SIZE);
-+	for (i = start_idx + 1; i < end_idx; i++) {
-+		cond_resched();
-+		clear_highpage(page + i);
-+		flush_dcache_page(page + i);
-+	}
-+	/* zero the last (possibly partial) page */
-+	zero_user_segment(page + end_idx, 0, end_off);
++	local_irq_save(flags);
++	__add_bdi_stat(bdi, item, amount);
++	local_irq_restore(flags);
 +}
 +
- static void copy_user_gigantic_page(struct page *dst, struct page *src,
- 				    unsigned long addr,
- 				    struct vm_area_struct *vma,
+ static inline void dec_bdi_stat(struct backing_dev_info *bdi,
+ 		enum bdi_stat_item item)
+ {
 -- 
 1.7.10.4
 
