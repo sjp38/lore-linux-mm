@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id A00556B0005
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 20:26:43 -0400 (EDT)
-Received: by mail-ob0-f172.google.com with SMTP id tb18so3228844obb.31
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2013 17:26:42 -0700 (PDT)
-Message-ID: <515E1A3B.70508@gmail.com>
-Date: Fri, 05 Apr 2013 08:26:35 +0800
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 3A7846B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 21:03:35 -0400 (EDT)
+Received: by mail-ob0-f176.google.com with SMTP id er7so3212096obc.21
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2013 18:03:34 -0700 (PDT)
+Message-ID: <515E22DE.1010207@gmail.com>
+Date: Fri, 05 Apr 2013 09:03:26 +0800
 From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH, RFC 00/16] Transparent huge page cache
@@ -131,6 +131,11 @@ On 01/31/2013 10:12 AM, Hugh Dickins wrote:
 >>> on tmpfs alone where it gets hard to support the others (writeback
 >>> springs to mind).  khugepaged would be migrating little pages into
 >>> huge pages, where it saw that the mmaps of the file would benefit
+
+If add heuristic to adjust khugepaged_max_ptes_none make sense? Reduce 
+its value if memoy pressure is big and increase it if memory pressure is 
+small.
+
 >>> (and for testing I would hack mmap alignment choice to favour it).
 >> I don't think all fs at once would fly, but it's wonderful, if I'm
 >> wrong :)
@@ -139,11 +144,7 @@ On 01/31/2013 10:12 AM, Hugh Dickins wrote:
 > seeing which would benefit from huge pagecache (let's assume offset 0
 > belongs on hugepage boundary - maybe one day someone will want to tune
 > some files or parts differently, but that's low priority), migrating 4k
-> pages over to 2MB page (wouldn't have to be done all in one pass), they
-
-There are isolation and migration process during collapse. But why 
-didn't use migration entry in migration process?
-
+> pages over to 2MB page (wouldn't have to be done all in one pass), then
 > finally slotting in the pmds for that.
 >
 > But going this way, I expect we'd have to split at page_mkwrite():
