@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 102216B0101
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 11:02:50 -0400 (EDT)
-Received: by mail-qa0-f44.google.com with SMTP id o13so336076qaj.10
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 08:02:49 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 282226B0103
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 12:25:49 -0400 (EDT)
+Date: Fri, 5 Apr 2013 12:25:36 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/2] memcg: consistently use vmalloc for page_cgroup
+ allocations
+Message-ID: <20130405162536.GO1953@cmpxchg.org>
+References: <1365156072-24100-1-git-send-email-glommer@parallels.com>
+ <1365156072-24100-2-git-send-email-glommer@parallels.com>
+ <20130405120604.GN1953@cmpxchg.org>
+ <515EC34C.8040704@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <515CF884.8010103@gmail.com>
-References: <20130325134247.GB1393@localhost.localdomain> <515CF884.8010103@gmail.com>
-From: Andrew Shewmaker <agshew@gmail.com>
-Date: Fri, 5 Apr 2013 09:02:29 -0600
-Message-ID: <CAF-E8XFQFm9GrBnkax+TiByUPHxp=Ukp1LcuAWjYL0OeLE1Saw@mail.gmail.com>
-Subject: Re: [PATCH v7 2/2] mm: replace hardcoded 3% with admin_reserve_pages knob
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <515EC34C.8040704@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, ric.masonn@gmail.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>
 
-On Wed, Apr 3, 2013 at 9:50 PM, Simon Jeons <simon.jeons@gmail.com> wrote:
->> FAQ
->>
-...
->>   * How do you calculate a minimum useful reserve?
->>
->>     A user or the admin needs enough memory to login and perform
->>     recovery operations, which includes, at a minimum:
->>
->>     sshd or login + bash (or some other shell) + top (or ps, kill, etc.)
->>
->>     For overcommit 'guess', we can sum resident set sizes (RSS).
->>     On x86_64 this is about 8MB.
->>
->>     For overcommit 'never', we can take the max of their virtual sizes
->> (VSZ)
->>     and add the sum of their RSS.
->>     On x86_64 this is about 128MB.
->
->
-> 1.Why has this different between guess and never?
+On Fri, Apr 05, 2013 at 04:27:56PM +0400, Glauber Costa wrote:
+> On 04/05/2013 04:06 PM, Johannes Weiner wrote:
+> > On Fri, Apr 05, 2013 at 02:01:11PM +0400, Glauber Costa wrote:
+> >> Right now, allocation for page_cgroup is a bit complicated, dependent on
+> >> a variety of system conditions:
+> >>
+> >> For flat memory, we are likely to need quite big pages, so the page
+> >> allocator won't cut. We are forced to init flatmem mappings very early,
+> >> because if we run after the page allocator is in place those allocations
+> >> will be denied. Flatmem mappings thus resort to the bootmem allocator.
+> >>
+> >> We can fix this by using vmalloc for flatmem mappings. However, we now
+> >> have the situation in which flatmem mapping allocate using vmalloc, but
+> >> sparsemem may or may not allocate with vmalloc. It will try the
+> >> page_allocator first, and retry vmalloc if it fails.
+> > 
+> > Vmalloc space is a precious resource on 32-bit systems and harder on
+> > the TLB than the identity mapping.
+> > 
+> > It's a last resort thing for when you need an unusually large chunk of
+> > contiguously addressable memory during runtime, like loading a module,
+> > buffers shared with userspace etc..  But here we know, during boot
+> > time, the exact amount of memory we need for the page_cgroup array.
+> > 
+> > Code cleanup is not a good reason to use vmalloc in this case, IMO.
+> > 
+> This is indeed a code cleanup, but a code cleanup with a side goal:
+> freeing us from the need to register page_cgroup mandatorily at init
+> time. This is done because page_cgroup_init_flatmem will use the bootmem
+> allocator, to avoid the page allocator limitations.
+> 
+> What I can try to do, and would happily do, is to try a normal page
+> allocation and then resort to vmalloc if it is too big.
+> 
+> Would that be okay to you ?
 
-The default, overcommit 'guess' mode, only needs a reserve for
-what the recovery programs will typically use. Overcommit 'never'
-mode will only successfully launch an app when it can fulfill all of
-its requested memory allocations--even if the app only uses a
-fraction of what it asks for.
+With the size of page_cgroup right now (2 words), we need half a page
+per MB of represented memory on 32 bit, so booting on a 4GB 32 bit
+machine needs an order-11 (MAX_ORDER) allocation and thus fall back to
+8MB of the 128MB vmalloc space.  A 16GB machine falls back to 32MB, a
+quarter of the vmalloc space.
 
-> 2.You just test x86/x86_64, other platforms also will use memory overcommit,
-> did you test them?
+Now, I think we all agree that these are not necessarily recommended
+configurations but we should not be breaking them for the hell of it
+either.
 
-No, I haven't. Unfortunately, I don't currently have any other platforms to test
-with. I'll see what I can do.
-
-Thanks,
-
-Andrew
+How about leaving flatmem as it is and have an on-demand allocation
+model that just works with sparsemem?  A 128MB section on 64 bit
+"only" needs order-7 pages, but we satisfy order-9 THP allocations all
+the time during runtime, so this may just work.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
