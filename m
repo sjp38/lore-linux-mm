@@ -1,109 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id A5FAD6B009B
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 06:27:36 -0400 (EDT)
-Message-ID: <515EA73C.8050602@parallels.com>
-Date: Fri, 5 Apr 2013 14:28:12 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 7E3456B009F
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:12:07 -0400 (EDT)
+Date: Fri, 5 Apr 2013 12:11:59 +0100
+From: Steve Capper <steve.capper@arm.com>
+Subject: Re: [PATCH] arm: mm: lockless get_user_pages_fast
+Message-ID: <20130405111158.GA13428@e103986-lin>
+References: <1360890012-4684-1-git-send-email-chanho61.park@samsung.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 2/7] memcg: don't use mem_cgroup_get() when creating
- a kmemcg cache
-References: <515BF233.6070308@huawei.com> <515BF275.5080408@huawei.com> <20130403153133.GM16471@dhcp22.suse.cz>
-In-Reply-To: <20130403153133.GM16471@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1360890012-4684-1-git-send-email-chanho61.park@samsung.com>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Chanho Park <chanho61.park@samsung.com>
+Cc: "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, Catalin Marinas <Catalin.Marinas@arm.com>, Inki Dae <inki.dae@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kyungmin Park <kyungmin.park@samsung.com>, Myungjoo Ham <myungjoo.ham@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Grazvydas Ignotas <notasas@gmail.com>
 
-On 04/03/2013 07:31 PM, Michal Hocko wrote:
-> On Wed 03-04-13 17:12:21, Li Zefan wrote:
->> Use css_get()/css_put() instead of mem_cgroup_get()/mem_cgroup_put().
->>
->> Signed-off-by: Li Zefan <lizefan@huawei.com>
->> ---
->>  mm/memcontrol.c | 10 +++++-----
->>  1 file changed, 5 insertions(+), 5 deletions(-)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 43ca91d..dafacb8 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -3191,7 +3191,7 @@ void memcg_release_cache(struct kmem_cache *s)
->>  	list_del(&s->memcg_params->list);
->>  	mutex_unlock(&memcg->slab_caches_mutex);
->>  
->> -	mem_cgroup_put(memcg);
->> +	css_put(&memcg->css);
->>  out:
->>  	kfree(s->memcg_params);
->>  }
->> @@ -3350,16 +3350,18 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
->>  
->>  	mutex_lock(&memcg_cache_mutex);
->>  	new_cachep = cachep->memcg_params->memcg_caches[idx];
->> -	if (new_cachep)
->> +	if (new_cachep) {
->> +		css_put(&memcg->css);
->>  		goto out;
->> +	}
->>  
->>  	new_cachep = kmem_cache_dup(memcg, cachep);
->>  	if (new_cachep == NULL) {
->>  		new_cachep = cachep;
->> +		css_put(&memcg->css);
->>  		goto out;
->>  	}
->>  
->> -	mem_cgroup_get(memcg);
->>  	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
->>  
->>  	cachep->memcg_params->memcg_caches[idx] = new_cachep;
->> @@ -3449,8 +3451,6 @@ static void memcg_create_cache_work_func(struct work_struct *w)
->>  
->>  	cw = container_of(w, struct create_work, work);
->>  	memcg_create_kmem_cache(cw->memcg, cw->cachep);
->> -	/* Drop the reference gotten when we enqueued. */
->> -	css_put(&cw->memcg->css);
->>  	kfree(cw);
->>  }
-> 
-> You are putting references but I do not see any single css_{try}get
-> here. /me puzzled.
-> 
+Hi Chanho,
 
-There are two things being done in this code:
-First, we acquired a css_ref to make sure that the underlying cgroup
-would not go away. That is a short lived reference, and it is put as
-soon as the cache is created.
-At this point, we acquire a long-lived per-cache memcg reference count
-to guarantee that the memcg will still be alive.
+Apologies for the tardy response, this patch slipped past me.
 
-so it is:
+On Fri, Feb 15, 2013 at 01:00:12AM +0000, Chanho Park wrote:
+> This patch adds get_user_pages_fast(old name is "fast_gup") for ARM.
+> The fast_gup can walk pagetable without taking mmap_sem or any locks. If =
+there
+> is not a pte with the correct permissions for the access, we fall back to=
+ slow
+> path(get_user_pages) to get remaining pages. This patch is written on ref=
+erence
+> the x86's gup implementation. Traversing of hugepages is excluded because=
+ ARM
+> haven't supported hugepages yet[1], just only RFC.
+>=20
 
-enqueue: css_get
-create : memcg_get, css_put
-destroy: css_put
+I've tested this patch out, unfortunately it treats huge pmds as regular
+pmds and attempts to traverse them rather than fall back to a slow path.
+The fix for this is very minor, please see my suggestion below.
 
-If I understand Li's patch correctly, he is not touching the first
-css_get, only turning that into the long lived reference (which was not
-possible before, since that would prevent rmdir).
+As an aside, I would like to extend this fast_gup to include full huge
+page support and include a __get_user_pages_fast implementation. This
+will hopefully fix a problem that was brought to my attention by
+Grazvydas Ignotas whereby a FUTEX_WAIT on a THP tail page will cause
+an infinite loop due to the stock implementation of __get_user_pages_fast
+always returning 0.
 
-Then he only needs to get rid of the memcg_get, change the memcg_put to
-css_put, and get rid of the now extra css_put.
+> diff --git a/arch/arm/mm/gup.c b/arch/arm/mm/gup.c
+> new file mode 100644
+> index 0000000..ed54fd8
 
-He is issuing extra css_puts in memcg_create_kmem_cache, but only in
-failure paths. So the code reads as:
-* css_get on enqueue (already done, so not shown in patch)
-* if it fails, css_put
-* if it succeeds, don't do anything. This is already the long-lived
-reference count. put it at release time.
+...
 
-The code looks correct, and of course, extremely simpler due to the
-use of a single reference.
+> +static int gup_pmd_range(pud_t *pudp, unsigned long addr, unsigned long =
+end,
+> +=09=09int write, struct page **pages, int *nr)
+> +{
+> +=09unsigned long next;
+> +=09pmd_t *pmdp;
+> +
+> +=09pmdp =3D pmd_offset(pudp, addr);
+> +=09do {
+> +=09=09next =3D pmd_addr_end(addr, end);
+> +=09=09if (pmd_none(*pmdp))
+> +=09=09=09return 0;
 
-Li, am I right in my understanding that this is your intention?
+I would suggest:
+=09=09if (pmd_none(*pmdp) || pmd_bad(*pmdp))
+=09=09=09return 0;
+as this will pick up pmds that can't be traversed, and fall back to the slo=
+w path.
+
+> +=09=09else if (!gup_pte_range(pmdp, addr, next, write, pages, nr))
+> +=09=09=09return 0;
+> +=09} while (pmdp++, addr =3D next, addr !=3D end);
+> +
+> +=09return 1;
+> +}
+> +
+
+Cheers,
+--=20
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
