@@ -1,39 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id BEDCC6B0006
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 04:09:29 -0400 (EDT)
-Message-ID: <515E86DA.1090907@parallels.com>
-Date: Fri, 5 Apr 2013 12:10:02 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 550BF6B0005
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 04:12:42 -0400 (EDT)
+Date: Fri, 5 Apr 2013 10:12:39 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/6] mm/hugetlb: gigantic hugetlb page pools shrink
+ supporting
+Message-ID: <20130405081239.GC14882@dhcp22.suse.cz>
+References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130404161746.GP29911@dhcp22.suse.cz>
+ <20130404234123.GA362@hacker.(null)>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 5/7] cgroup: make sure parent won't be destroyed
- before its children
-References: <515BF233.6070308@huawei.com> <515BF2A4.1070703@huawei.com> <20130404113750.GH29911@dhcp22.suse.cz> <20130404133706.GA9425@htj.dyndns.org> <20130404152028.GK29911@dhcp22.suse.cz> <20130404152213.GL9425@htj.dyndns.org>
-In-Reply-To: <20130404152213.GL9425@htj.dyndns.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130404234123.GA362@hacker.(null)>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 04/04/2013 07:22 PM, Tejun Heo wrote:
-> On Thu, Apr 04, 2013 at 05:20:28PM +0200, Michal Hocko wrote:
->>> But what harm does an additional reference do?
->>
->> No harm at all. I just wanted to be sure that this is not yet another
->> "for memcg" hack. So if this is useful for other controllers then I have
->> no objections of course.
+On Fri 05-04-13 07:41:23, Wanpeng Li wrote:
+> On Thu, Apr 04, 2013 at 06:17:46PM +0200, Michal Hocko wrote:
+> >On Thu 04-04-13 17:09:08, Wanpeng Li wrote:
+> >> order >= MAX_ORDER pages are only allocated at boot stage using the 
+> >> bootmem allocator with the "hugepages=xxx" option. These pages are never 
+> >> free after boot by default since it would be a one-way street(>= MAX_ORDER
+> >> pages cannot be allocated later), but if administrator confirm not to 
+> >> use these gigantic pages any more, these pinned pages will waste memory
+> >> since other users can't grab free pages from gigantic hugetlb pool even
+> >> if OOM, it's not flexible.  The patchset add hugetlb gigantic page pools
+> >> shrink supporting. Administrator can enable knob exported in sysctl to
+> >> permit to shrink gigantic hugetlb pool.
+> >
+> >I am not sure I see why the new knob is needed.
+> >/sys/kernel/mm/hugepages/hugepages-*/nr_hugepages is root interface so
+> >an additional step to allow writing to the file doesn't make much sense
+> >to me to be honest.
+> >
+> >Support for shrinking gigantic huge pages makes some sense to me but I
+> >would be interested in the real world example. GB pages are usually used
+> >in very specific environments where the amount is usually well known.
 > 
-> I think it makes sense in general, so let's do it in cgroup core.  I
-> suppose it'd be easier for this to be routed together with other memcg
-> changes?
-> 
-> Thanks.
-> 
-You guys seems already settled, but FWIW I agree with Tejun here. It
-makes sense from a design point of view for a cgroup to pin its parent.
-cgroup core it is.
+> Gigantic huge pages in hugetlb means h->order >= MAX_ORDER instead of GB 
+> pages. ;-)
+
+Yes, I am aware of that but the question remains the same (and
+unanswered). What is the use case?
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
