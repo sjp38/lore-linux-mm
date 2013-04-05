@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id C1F9D6B0112
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 16:33:34 -0400 (EDT)
-Received: by mail-qe0-f50.google.com with SMTP id k5so2299494qej.9
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 13:33:33 -0700 (PDT)
-Message-ID: <515F351C.403@gmail.com>
-Date: Fri, 05 Apr 2013 16:33:32 -0400
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 743006B0115
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 16:33:51 -0400 (EDT)
+Received: by mail-qe0-f46.google.com with SMTP id nd7so250658qeb.5
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 13:33:50 -0700 (PDT)
+Message-ID: <515F352D.8020405@gmail.com>
+Date: Fri, 05 Apr 2013 16:33:49 -0400
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 01/10] migrate: add migrate_entry_wait_huge()
@@ -36,7 +36,7 @@ hugetlb_fault call "address &= hugetlb_mask()" at first and then migration_entry
 could grab right pte lock. And from !x86 point of view, this funciton still doesn't work
 because huge page != pmd on some arch.
 
-I might be missing though.
+I might be missing something though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
