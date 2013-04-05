@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 00F7A6B011B
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 16:34:27 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 5873E6B011C
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 16:34:28 -0400 (EDT)
 Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Fri, 5 Apr 2013 16:34:26 -0400
-Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id E547538C801C
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 16:34:23 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r35KYNF6305192
-	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 16:34:24 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r35KYN0k000816
-	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 16:34:23 -0400
+	Fri, 5 Apr 2013 16:34:27 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id BCA816E8044
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 16:34:21 -0400 (EDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r35KYKUB147084
+	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 16:34:21 -0400
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r35KYIsJ025443
+	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 14:34:18 -0600
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH 3/3] mm: when handling percpu_pagelist_fraction, use on_each_cpu() to set percpu pageset fields.
-Date: Fri,  5 Apr 2013 13:33:50 -0700
-Message-Id: <1365194030-28939-4-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [PATCH 2/3] mm/page_alloc: convert zone_pcp_update() to use on_each_cpu() instead of stop_machine()
+Date: Fri,  5 Apr 2013 13:33:49 -0700
+Message-Id: <1365194030-28939-3-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,62 +26,70 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-In free_hot_cold_page(), we rely on pcp->batch remaining stable.
-Updating it without being on the cpu owning the percpu pageset
-potentially destroys this stability.
+No off-cpu users of the percpu pagesets exist.
 
-Change for_each_cpu() to on_each_cpu() to fix.
+zone_pcp_update()'s goal is to adjust the ->high and ->mark members of a
+percpu pageset based on a zone's ->managed_pages. We don't need to drain
+the entire percpu pageset just to modify these fields. Avoid calling
+setup_pageset() (and the draining required to call it) and instead just
+set the fields' values.
+
+This does change the behavior of zone_pcp_update() as the percpu
+pagesets will not be drained when zone_pcp_update() is called (they will
+end up being shrunk, not completely drained, later when a 0-order page
+is freed in free_hot_cold_page()).
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- mm/page_alloc.c | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
+ mm/page_alloc.c | 30 ++++++++++--------------------
+ 1 file changed, 10 insertions(+), 20 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 48f2faa..507db31 100644
+index 5877cf0..48f2faa 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -5475,30 +5475,31 @@ int lowmem_reserve_ratio_sysctl_handler(ctl_table *table, int write,
- 	return 0;
- }
+@@ -5987,32 +5987,22 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+ #endif
  
-+static void _zone_set_pageset_highmark(void *data)
-+{
-+	struct zone *zone = data;
-+	unsigned long  high;
-+	high = zone->managed_pages / percpu_pagelist_fraction;
-+	setup_pagelist_highmark(
-+			per_cpu_ptr(zone->pageset, smp_processor_id()), high);
-+}
-+
- /*
-  * percpu_pagelist_fraction - changes the pcp->high for each zone on each
-  * cpu.  It is the fraction of total pages in each zone that a hot per cpu pagelist
-  * can have before it gets flushed back to buddy allocator.
-  */
--
- int percpu_pagelist_fraction_sysctl_handler(ctl_table *table, int write,
- 	void __user *buffer, size_t *length, loff_t *ppos)
+ #ifdef CONFIG_MEMORY_HOTPLUG
+-static int __meminit __zone_pcp_update(void *data)
++static void __meminit __zone_pcp_update(void *data)
  {
- 	struct zone *zone;
--	unsigned int cpu;
- 	int ret;
- 
- 	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
- 	if (!write || (ret < 0))
- 		return ret;
--	for_each_populated_zone(zone) {
--		for_each_possible_cpu(cpu) {
--			unsigned long  high;
--			high = zone->managed_pages / percpu_pagelist_fraction;
--			setup_pagelist_highmark(
--				per_cpu_ptr(zone->pageset, cpu), high);
--		}
+ 	struct zone *zone = data;
+-	int cpu;
+-	unsigned long batch = zone_batchsize(zone), flags;
+-
+-	for_each_possible_cpu(cpu) {
+-		struct per_cpu_pageset *pset;
+-		struct per_cpu_pages *pcp;
+-
+-		pset = per_cpu_ptr(zone->pageset, cpu);
+-		pcp = &pset->pcp;
+-
+-		local_irq_save(flags);
+-		if (pcp->count > 0)
+-			free_pcppages_bulk(zone, pcp->count, pcp);
+-		drain_zonestat(zone, pset);
+-		setup_pageset(pset, batch);
+-		local_irq_restore(flags);
 -	}
-+	for_each_populated_zone(zone)
-+		on_each_cpu(_zone_set_pageset_highmark, zone, true);
- 	return 0;
+-	return 0;
++	unsigned long batch = zone_batchsize(zone);
++	struct per_cpu_pageset *pset =
++		per_cpu_ptr(zone->pageset, smp_processor_id());
++	pageset_set_batch(pset, batch);
  }
+ 
++/*
++ * The zone indicated has a new number of managed_pages; batch sizes and percpu
++ * page high values need to be recalulated.
++ */
+ void __meminit zone_pcp_update(struct zone *zone)
+ {
+-	stop_machine(__zone_pcp_update, zone, NULL);
++	on_each_cpu(__zone_pcp_update, zone, true);
+ }
+ #endif
  
 -- 
 1.8.2
