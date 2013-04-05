@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 474656B008C
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 06:00:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 13D166B0093
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 06:00:50 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 2/2] memcg: defer page_cgroup initialization
-Date: Fri,  5 Apr 2013 14:01:12 +0400
-Message-Id: <1365156072-24100-3-git-send-email-glommer@parallels.com>
+Subject: [PATCH 1/2] memcg: consistently use vmalloc for page_cgroup allocations
+Date: Fri,  5 Apr 2013 14:01:11 +0400
+Message-Id: <1365156072-24100-2-git-send-email-glommer@parallels.com>
 In-Reply-To: <1365156072-24100-1-git-send-email-glommer@parallels.com>
 References: <1365156072-24100-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,144 +13,157 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@parallels.com>
 
-We have now reached the point in which there is no real need to allocate
-page_cgroup upon system boot. We can defer it to the first memcg
-initialization, and if it fails, we treat it like any other memcg memory
-failures (like for instance, if the mem_cgroup structure itself failed).
-In the future, we may want to defer this to the first non-root cgroup
-initialization, but we are not there yet.
+Right now, allocation for page_cgroup is a bit complicated, dependent on
+a variety of system conditions:
 
-With that, page_cgroup can be more silent in its initialization.
+For flat memory, we are likely to need quite big pages, so the page
+allocator won't cut. We are forced to init flatmem mappings very early,
+because if we run after the page allocator is in place those allocations
+will be denied. Flatmem mappings thus resort to the bootmem allocator.
+
+We can fix this by using vmalloc for flatmem mappings. However, we now
+have the situation in which flatmem mapping allocate using vmalloc, but
+sparsemem may or may not allocate with vmalloc. It will try the
+page_allocator first, and retry vmalloc if it fails.
+
+With that change in place, not only we *can* move
+page_cgroup_flatmem_init, but we absolutely must move it. It now needs
+to run with vmalloc enabled. Instead of just moving it after vmalloc, we
+will move it together with the normal page_cgroup initialization. It
+becomes then natural to merge them into a single name.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 ---
- include/linux/page_cgroup.h |  6 +-----
+ include/linux/page_cgroup.h | 15 ---------------
  init/main.c                 |  1 -
- mm/memcontrol.c             |  2 ++
- mm/page_cgroup.c            | 29 ++++++++---------------------
- 4 files changed, 11 insertions(+), 27 deletions(-)
+ mm/page_cgroup.c            | 24 ++++++++++--------------
+ 3 files changed, 10 insertions(+), 30 deletions(-)
 
 diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index 4860eca..121b17b 100644
+index 777a524..4860eca 100644
 --- a/include/linux/page_cgroup.h
 +++ b/include/linux/page_cgroup.h
-@@ -29,7 +29,7 @@ struct page_cgroup {
+@@ -29,17 +29,7 @@ struct page_cgroup {
  
  void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat);
  
--extern void __init page_cgroup_init(void);
-+extern bool page_cgroup_init(void);
+-#ifdef CONFIG_SPARSEMEM
+-static inline void __init page_cgroup_init_flatmem(void)
+-{
+-}
+ extern void __init page_cgroup_init(void);
+-#else
+-void __init page_cgroup_init_flatmem(void);
+-static inline void __init page_cgroup_init(void)
+-{
+-}
+-#endif
  
  struct page_cgroup *lookup_page_cgroup(struct page *page);
  struct page *lookup_cgroup_page(struct page_cgroup *pc);
-@@ -83,10 +83,6 @@ static inline struct page_cgroup *lookup_page_cgroup(struct page *page)
+@@ -97,11 +87,6 @@ static inline struct page_cgroup *lookup_page_cgroup(struct page *page)
+ static inline void page_cgroup_init(void)
  {
- 	return NULL;
  }
 -
--static inline void page_cgroup_init(void)
+-static inline void __init page_cgroup_init_flatmem(void)
 -{
 -}
+-
  #endif /* CONFIG_MEMCG */
  
  #include <linux/swap.h>
 diff --git a/init/main.c b/init/main.c
-index 494774f..1fb3ec0 100644
+index cee4b5c..494774f 100644
 --- a/init/main.c
 +++ b/init/main.c
-@@ -591,7 +591,6 @@ asmlinkage void __init start_kernel(void)
- 		initrd_start = 0;
- 	}
- #endif
--	page_cgroup_init();
- 	debug_objects_mem_init();
- 	kmemleak_init();
- 	setup_per_cpu_pageset();
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f608546..59a5b1f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -6357,6 +6357,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
- 		res_counter_init(&memcg->res, NULL);
- 		res_counter_init(&memcg->memsw, NULL);
- 		res_counter_init(&memcg->kmem, NULL);
-+		if (page_cgroup_init())
-+			goto free_out;
- 	}
- 
- 	memcg->last_scanned_node = MAX_NUMNODES;
+@@ -457,7 +457,6 @@ static void __init mm_init(void)
+ 	 * page_cgroup requires contiguous pages,
+ 	 * bigger than MAX_ORDER unless SPARSEMEM.
+ 	 */
+-	page_cgroup_init_flatmem();
+ 	mem_init();
+ 	kmem_cache_init();
+ 	percpu_init_late();
 diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 84bca4b..0256658 100644
+index 6d757e3..84bca4b 100644
 --- a/mm/page_cgroup.c
 +++ b/mm/page_cgroup.c
-@@ -61,27 +61,20 @@ static int __init alloc_node_page_cgroup(int nid)
+@@ -53,9 +53,7 @@ static int __init alloc_node_page_cgroup(int nid)
+ 		return 0;
+ 
+ 	table_size = sizeof(struct page_cgroup) * nr_pages;
+-
+-	base = __alloc_bootmem_node_nopanic(NODE_DATA(nid),
+-			table_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
++	base = vzalloc_node(table_size, nid);
+ 	if (!base)
+ 		return -ENOMEM;
+ 	NODE_DATA(nid)->node_page_cgroup = base;
+@@ -63,7 +61,7 @@ static int __init alloc_node_page_cgroup(int nid)
  	return 0;
  }
  
--void __init page_cgroup_init(void)
-+bool page_cgroup_init(void)
+-void __init page_cgroup_init_flatmem(void)
++void __init page_cgroup_init(void)
  {
  
  	int nid, fail;
- 
- 	if (mem_cgroup_disabled())
--		return;
-+		return 0;
- 
- 	for_each_online_node(nid)  {
- 		fail = alloc_node_page_cgroup(nid);
- 		if (fail)
--			goto fail;
-+			return 1;
- 	}
--	printk(KERN_INFO "allocated %ld bytes of page_cgroup\n", total_usage);
--	printk(KERN_INFO "please try 'cgroup_disable=memory' option if you"
--	" don't want memory cgroups\n");
--	return;
--fail:
--	printk(KERN_CRIT "allocation of page_cgroup failed.\n");
--	printk(KERN_CRIT "please try 'cgroup_disable=memory' boot option\n");
--	panic("Out of memory");
-+	return 0;
+@@ -105,38 +103,37 @@ struct page_cgroup *lookup_page_cgroup(struct page *page)
+ 	return section->page_cgroup + pfn;
  }
  
- #else /* CONFIG_FLAT_NODE_MEM_MAP */
-@@ -262,13 +255,13 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
- 
- #endif
- 
--void __init page_cgroup_init(void)
-+bool page_cgroup_init(void)
+-static void *__meminit alloc_page_cgroup(size_t size, int nid)
++static void *alloc_page_cgroup(int nid)
  {
- 	unsigned long pfn;
- 	int nid;
+ 	gfp_t flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN;
+ 	void *addr = NULL;
++	size_t table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
  
- 	if (mem_cgroup_disabled())
--		return;
-+		return 0;
- 
- 	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long start_pfn, end_pfn;
-@@ -295,17 +288,11 @@ void __init page_cgroup_init(void)
- 			if (pfn_to_nid(pfn) != nid)
- 				continue;
- 			if (init_section_page_cgroup(pfn, nid))
--				goto oom;
-+				return 1;
- 		}
+-	addr = alloc_pages_exact_nid(nid, size, flags);
++	addr = alloc_pages_exact_nid(nid, table_size, flags);
+ 	if (addr) {
+-		kmemleak_alloc(addr, size, 1, flags);
++		kmemleak_alloc(addr, table_size, 1, flags);
+ 		return addr;
  	}
- 	hotplug_memory_notifier(page_cgroup_callback, 0);
--	printk(KERN_INFO "allocated %ld bytes of page_cgroup\n", total_usage);
--	printk(KERN_INFO "please try 'cgroup_disable=memory' option if you "
--			 "don't want memory cgroups\n");
--	return;
--oom:
--	printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
--	panic("Out of memory");
-+	return 0;
+ 
+ 	if (node_state(nid, N_HIGH_MEMORY))
+-		addr = vzalloc_node(size, nid);
++		addr = vzalloc_node(table_size, nid);
+ 	else
+-		addr = vzalloc(size);
++		addr = vzalloc(table_size);
+ 
+ 	return addr;
  }
  
- void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
+-static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
++static int init_section_page_cgroup(unsigned long pfn, int nid)
+ {
+ 	struct mem_section *section;
+ 	struct page_cgroup *base;
+-	unsigned long table_size;
+ 
+ 	section = __pfn_to_section(pfn);
+ 
+ 	if (section->page_cgroup)
+ 		return 0;
+ 
+-	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+-	base = alloc_page_cgroup(table_size, nid);
++	base = alloc_page_cgroup(nid);
+ 
+ 	/*
+ 	 * The value stored in section->page_cgroup is (base - pfn)
+@@ -156,7 +153,6 @@ static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
+ 	 */
+ 	pfn &= PAGE_SECTION_MASK;
+ 	section->page_cgroup = base - pfn;
+-	total_usage += table_size;
+ 	return 0;
+ }
+ #ifdef CONFIG_MEMORY_HOTPLUG
 -- 
 1.8.1.4
 
