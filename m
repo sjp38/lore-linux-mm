@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 18A026B0070
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 289116B0071
 	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 05:37:26 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 08/11] x86, numa, acpi, memory-hotplug: Introduce zone_movable_limit[] to store start pfn of ZONE_MOVABLE.
-Date: Fri, 5 Apr 2013 17:39:58 +0800
-Message-Id: <1365154801-473-9-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 11/11] x86, numa, acpi, memory-hotplug: Memblock limit with movablemem_map
+Date: Fri, 5 Apr 2013 17:40:01 +0800
+Message-Id: <1365154801-473-12-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,96 +13,116 @@ List-ID: <linux-mm.kvack.org>
 To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linfeng@cn.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, jiang.liu@huawei.com, guz.fnst@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Since node info in SRAT may not be in increasing order, we may meet
-a lower range after we handled a higher range. So we need to keep
-the lowest movable pfn each time we parse a SRAT memory entry, and
-update it when we get a lower one.
+Ensure memblock will not allocate memory from areas that may be
+ZONE_MOVABLE. The map info is from movablemem_map boot option.
 
-This patch introduces a new array zone_movable_limit[], which is used
-to store the start pfn of each node's ZONE_MOVABLE.
-
-We update it each time we parsed a SRAT memory entry if necessary.
+The following problem was reported by Stephen Rothwell:
+The definition of struct movablecore_map is protected by
+CONFIG_HAVE_MEMBLOCK_NODE_MAP but its use in memblock_overlaps_region()
+is not. So add CONFIG_HAVE_MEMBLOCK_NODE_MAP to protect the use of
+movablecore_map in memblock_overlaps_region().
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
+Reviewed-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
+Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
 ---
- arch/x86/mm/numa.c |   16 ++++++++++++++--
- include/linux/mm.h |    2 ++
- mm/page_alloc.c    |    1 +
- 3 files changed, 17 insertions(+), 2 deletions(-)
+ include/linux/memblock.h |    2 +
+ mm/memblock.c            |   50 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index dcaf248..8cbe8a0 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -727,7 +727,8 @@ static void __init early_x86_numa_init_mapping(void)
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index f388203..3e5ecb2 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -42,6 +42,7 @@ struct memblock {
+ 
+ extern struct memblock memblock;
+ extern int memblock_debug;
++extern struct movablemem_map movablemem_map;
+ 
+ #define memblock_dbg(fmt, ...) \
+ 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+@@ -60,6 +61,7 @@ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ void memblock_trim_memory(phys_addr_t align);
  
  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- /**
-- * early_mem_hotplug_init - Add hotpluggable memory ranges to movablemem_map.
-+ * early_mem_hotplug_init - Add hotpluggable memory ranges to movablemem_mapi,
-+ *                          and initialize zone_movable_limit.
++
+ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+ 			  unsigned long *out_end_pfn, int *out_nid);
+ 
+diff --git a/mm/memblock.c b/mm/memblock.c
+index b8d9147..1bcd9b9 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -92,9 +92,58 @@ static long __init_memblock memblock_overlaps_region(struct memblock_type *type,
   *
-  * This function scan numa_meminfo.blk[], and add all the hotpluggable memory 
-  * ranges to movablemem_map. movablemem_map can be used to prevent memblock
-@@ -750,6 +751,10 @@ static void __init early_x86_numa_init_mapping(void)
-  * hotpluggable:           y       y         y           n
-  * kernel resides in:      y       n         n           n
-  * movablemem_map:              |_____| |_________|
+  * Find @size free area aligned to @align in the specified range and node.
+  *
++ * If we have CONFIG_HAVE_MEMBLOCK_NODE_MAP defined, we need to check if the
++ * memory we found if not in hotpluggable ranges.
 + *
-+ * This function will also initialize zone_movable_limit[].
-+ * ZONE_MOVABLE of node i should start at least from zone_movable_limit[i].
-+ * zone_movable_limit[i] == 0 means there is no limitation for node i.
+  * RETURNS:
+  * Found address on success, %0 on failure.
   */
- static void __init early_mem_hotplug_init()
- {
-@@ -759,7 +764,7 @@ static void __init early_mem_hotplug_init()
- 		return;
- 
- 	for (i = 0; i < numa_meminfo.nr_blks; i++) {
--		nid = numa_meminfo_all.blk[i].nid;
-+		nid = numa_meminfo.blk[i].nid;
- 
- 		if (node_isset(nid, movablemem_map.numa_nodes_kernel) ||
- 		    !numa_meminfo.blk[i].hotpluggable)
-@@ -767,6 +772,13 @@ static void __init early_mem_hotplug_init()
- 
- 		movablemem_map_add_region(numa_meminfo.blk[i].start,
- 					  numa_meminfo.blk[i].end);
++#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
++phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
++					phys_addr_t end, phys_addr_t size,
++					phys_addr_t align, int nid)
++{
++	phys_addr_t this_start, this_end, cand;
++	u64 i;
++	int curr = movablemem_map.nr_map - 1;
 +
-+		if (zone_movable_limit[nid])
-+			zone_movable_limit[nid] = min(zone_movable_limit[nid],
-+					PFN_DOWN(numa_meminfo.blk[i].start));
-+		else
-+			zone_movable_limit[nid] = 
-+					PFN_DOWN(numa_meminfo.blk[i].start);
++	/* pump up @end */
++	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
++		end = memblock.current_limit;
++
++	/* avoid allocating the first page */
++	start = max_t(phys_addr_t, start, PAGE_SIZE);
++	end = max(start, end);
++
++	for_each_free_mem_range_reverse(i, nid, &this_start, &this_end, NULL) {
++		this_start = clamp(this_start, start, end);
++		this_end = clamp(this_end, start, end);
++
++restart:
++		if (this_end <= this_start || this_end < size)
++			continue;
++
++		for (; curr >= 0; curr--) {
++			if ((movablemem_map.map[curr].start_pfn << PAGE_SHIFT)
++			    < this_end)
++				break;
++		}
++
++		cand = round_down(this_end - size, align);
++		if (curr >= 0 &&
++		    cand < movablemem_map.map[curr].end_pfn << PAGE_SHIFT) {
++			this_end = movablemem_map.map[curr].start_pfn
++				   << PAGE_SHIFT;
++			goto restart;
++		}
++
++		if (cand >= this_start)
++			return cand;
++	}
++
++	return 0;
++}
++#else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
+ 					phys_addr_t end, phys_addr_t size,
+ 					phys_addr_t align, int nid)
+@@ -123,6 +172,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
  	}
+ 	return 0;
  }
- #else          /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 2835c91..b313d83 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1349,6 +1349,8 @@ extern struct movablemem_map movablemem_map;
++#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
  
- extern void __init movablemem_map_add_region(u64 start, u64 size);
- 
-+extern unsigned long __meminitdata zone_movable_limit[MAX_NUMNODES];
-+
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
- 
- #if !defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP) && \
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2a7904f..b97bdb5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -213,6 +213,7 @@ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
- static unsigned long __initdata required_kernelcore;
- static unsigned long __initdata required_movablecore;
- static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
-+unsigned long __meminitdata zone_movable_limit[MAX_NUMNODES];
- 
- /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
- int movable_zone;
+ /**
+  * memblock_find_in_range - find free area in given range
 -- 
 1.7.1
 
