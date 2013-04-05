@@ -1,55 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 033DD6B00EE
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 08:27:16 -0400 (EDT)
-Message-ID: <515EC34C.8040704@parallels.com>
-Date: Fri, 5 Apr 2013 16:27:56 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 65CE26B00F3
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 09:38:20 -0400 (EDT)
+Date: Fri, 5 Apr 2013 15:38:15 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC][PATCH 1/7] memcg: use css_get in sock_update_memcg()
+Message-ID: <20130405133815.GE31132@dhcp22.suse.cz>
+References: <515BF233.6070308@huawei.com>
+ <515BF249.50607@huawei.com>
+ <515C2788.90907@parallels.com>
+ <20130403152934.GL16471@dhcp22.suse.cz>
+ <515E8688.3000504@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] memcg: consistently use vmalloc for page_cgroup allocations
-References: <1365156072-24100-1-git-send-email-glommer@parallels.com> <1365156072-24100-2-git-send-email-glommer@parallels.com> <20130405120604.GN1953@cmpxchg.org>
-In-Reply-To: <20130405120604.GN1953@cmpxchg.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <515E8688.3000504@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 04/05/2013 04:06 PM, Johannes Weiner wrote:
-> On Fri, Apr 05, 2013 at 02:01:11PM +0400, Glauber Costa wrote:
->> Right now, allocation for page_cgroup is a bit complicated, dependent on
->> a variety of system conditions:
->>
->> For flat memory, we are likely to need quite big pages, so the page
->> allocator won't cut. We are forced to init flatmem mappings very early,
->> because if we run after the page allocator is in place those allocations
->> will be denied. Flatmem mappings thus resort to the bootmem allocator.
->>
->> We can fix this by using vmalloc for flatmem mappings. However, we now
->> have the situation in which flatmem mapping allocate using vmalloc, but
->> sparsemem may or may not allocate with vmalloc. It will try the
->> page_allocator first, and retry vmalloc if it fails.
+On Fri 05-04-13 12:08:40, Glauber Costa wrote:
+> On 04/03/2013 07:29 PM, Michal Hocko wrote:
+> > On Wed 03-04-13 16:58:48, Glauber Costa wrote:
+> >> On 04/03/2013 01:11 PM, Li Zefan wrote:
+> >>> Use css_get/css_put instead of mem_cgroup_get/put.
+> >>>
+> >>> Note, if at the same time someone is moving @current to a different
+> >>> cgroup and removing the old cgroup, css_tryget() may return false,
+> >>> and sock->sk_cgrp won't be initialized.
+> >>>
+> >>> Signed-off-by: Li Zefan <lizefan@huawei.com>
+> >>> ---
+> >>>  mm/memcontrol.c | 8 ++++----
+> >>>  1 file changed, 4 insertions(+), 4 deletions(-)
+> >>>
+> >>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >>> index 23d0f6e..43ca91d 100644
+> >>> --- a/mm/memcontrol.c
+> >>> +++ b/mm/memcontrol.c
+> >>> @@ -536,15 +536,15 @@ void sock_update_memcg(struct sock *sk)
+> >>>  		 */
+> >>>  		if (sk->sk_cgrp) {
+> >>>  			BUG_ON(mem_cgroup_is_root(sk->sk_cgrp->memcg));
+> >>> -			mem_cgroup_get(sk->sk_cgrp->memcg);
+> >>> +			css_get(&sk->sk_cgrp->memcg->css);
+> > 
+> > I am not sure I understand this one. So we have a goup here (which means
+> > that somebody already took a reference on it, right?) and we are taking
+> > another reference. If this is released by sock_release_memcg then who
+> > releases the previous one? It is not directly related to the patch
+> > because this has been done previously already. Could you clarify
+> > Glauber, please?
 > 
-> Vmalloc space is a precious resource on 32-bit systems and harder on
-> the TLB than the identity mapping.
+> This should be documented in the commit that introduced this, and it was
+> one of the first bugs I've handled with this code.
 > 
-> It's a last resort thing for when you need an unusually large chunk of
-> contiguously addressable memory during runtime, like loading a module,
-> buffers shared with userspace etc..  But here we know, during boot
-> time, the exact amount of memory we need for the page_cgroup array.
+> Bottom line, we can create sockets normally, and those will have process
+> context. But we also can create sockets by cloning existing sockets. To
+> the best of my knowledge, this is done by things like accept().
 > 
-> Code cleanup is not a good reason to use vmalloc in this case, IMO.
+> Because those sockets are a clone of their ancestors, they also belong
+> to a workload that should be limited. Also note that because they have
+> cgroup context, we will eventually try to put them. So we need to grab
+> an extra reference.
 > 
-This is indeed a code cleanup, but a code cleanup with a side goal:
-freeing us from the need to register page_cgroup mandatorily at init
-time. This is done because page_cgroup_init_flatmem will use the bootmem
-allocator, to avoid the page allocator limitations.
+> socket_update_cgroup is always called at socket creation, and the
+> original structures are filled with zeroes. Therefore cloning is the
+> *only* path that takes us here with sk->sk_cgroup filled.
 
-What I can try to do, and would happily do, is to try a normal page
-allocation and then resort to vmalloc if it is too big.
+OK, I guess I understand.
 
-Would that be okay to you ?
+Thanks for the clarification, Galuber!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
