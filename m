@@ -1,118 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id EC9D66B0006
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 04:01:11 -0400 (EDT)
-Date: Fri, 5 Apr 2013 17:01:06 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCHv2, RFC 20/30] ramfs: enable transparent huge page cache
-Message-ID: <20130405080106.GB32126@blaptop>
-References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1363283435-7666-21-git-send-email-kirill.shutemov@linux.intel.com>
- <20130402162813.0B4CBE0085@blue.fi.intel.com>
- <alpine.LNX.2.00.1304021422460.19363@eggly.anvils>
- <20130403011104.GF16026@blaptop>
- <515E737D.8030204@gmail.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 181626B0005
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 04:08:15 -0400 (EDT)
+Message-ID: <515E8688.3000504@parallels.com>
+Date: Fri, 5 Apr 2013 12:08:40 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <515E737D.8030204@gmail.com>
+Subject: Re: [RFC][PATCH 1/7] memcg: use css_get in sock_update_memcg()
+References: <515BF233.6070308@huawei.com> <515BF249.50607@huawei.com> <515C2788.90907@parallels.com> <20130403152934.GL16471@dhcp22.suse.cz>
+In-Reply-To: <20130403152934.GL16471@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ying Han <yinghan@google.com>, Christoph Lameter <cl@linux.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri, Apr 05, 2013 at 02:47:25PM +0800, Simon Jeons wrote:
-> Hi Minchan,
-> On 04/03/2013 09:11 AM, Minchan Kim wrote:
-> >On Tue, Apr 02, 2013 at 03:15:23PM -0700, Hugh Dickins wrote:
-> >>On Tue, 2 Apr 2013, Kirill A. Shutemov wrote:
-> >>>Kirill A. Shutemov wrote:
-> >>>>From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> >>>>
-> >>>>ramfs is the most simple fs from page cache point of view. Let's start
-> >>>>transparent huge page cache enabling here.
-> >>>>
-> >>>>For now we allocate only non-movable huge page. It's not yet clear if
-> >>>>movable page is safe here and what need to be done to make it safe.
-> >>>>
-> >>>>Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >>>>---
-> >>>>  fs/ramfs/inode.c |    6 +++++-
-> >>>>  1 file changed, 5 insertions(+), 1 deletion(-)
-> >>>>
-> >>>>diff --git a/fs/ramfs/inode.c b/fs/ramfs/inode.c
-> >>>>index c24f1e1..da30b4f 100644
-> >>>>--- a/fs/ramfs/inode.c
-> >>>>+++ b/fs/ramfs/inode.c
-> >>>>@@ -61,7 +61,11 @@ struct inode *ramfs_get_inode(struct super_block *sb,
-> >>>>  		inode_init_owner(inode, dir, mode);
-> >>>>  		inode->i_mapping->a_ops = &ramfs_aops;
-> >>>>  		inode->i_mapping->backing_dev_info = &ramfs_backing_dev_info;
-> >>>>-		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
-> >>>>+		/*
-> >>>>+		 * TODO: what should be done to make movable safe?
-> >>>>+		 */
-> >>>>+		mapping_set_gfp_mask(inode->i_mapping,
-> >>>>+				GFP_TRANSHUGE & ~__GFP_MOVABLE);
-> >>>Hugh, I've found old thread with the reason why we have GFP_HIGHUSER here, not
-> >>>GFP_HIGHUSER_MOVABLE:
-> >>>
-> >>>http://lkml.org/lkml/2006/11/27/156
-> >>>
-> >>>It seems the origin reason is not longer valid, correct?
-> >>Incorrect, I believe: so far as I know, the original reason remains
-> >>valid - though it would only require a couple of good small changes
-> >>to reverse that - or perhaps you have already made these changes?
-> >>
-> >>The original reason is that ramfs pages are not migratable,
-> >>therefore they should be allocated from an unmovable area.
-> >>
-> >>As I understand it (and I would have preferred to run a test to check
-> >>my understanding before replying, but don't have time for that), ramfs
-> >>pages cannot be migrated for two reasons, neither of them a good reason.
-> >>
-> >>One reason (okay, it wouldn't have been quite this way in 2006) is that
-> >>ramfs (rightly) calls mapping_set_unevictable(), so its pages will fail
-> >>the page_evictable() test, so they will be marked PageUnevictable, so
-> >>__isolate_lru_page() will refuse to isolate them for migration (except
-> >>for CMA).
-> >True.
-> >
-> >>I am strongly in favour of removing that limitation from
-> >>__isolate_lru_page() (and the thread you pointed - thank you - shows Mel
-> >>and Christoph were both in favour too); and note that there is no such
-> >>restriction in the confusingly similar but different isolate_lru_page().
-> >>
-> >>Some people do worry that migrating Mlocked pages would introduce the
-> >>occasional possibility of a minor fault (with migration_entry_wait())
-> >>on an Mlocked region which never faulted before.  I tend to dismiss
-> >>that worry, but maybe I'm wrong to do so: maybe there should be a
-> >>tunable for realtimey people to set, to prohibit page migration from
-> >>mlocked areas; but the default should be to allow it.
-> >I agree.
-> >Just FYI for mlocked page migration
-> >
-> >I tried migratioin of mlocked page and Johannes and Mel had a concern
-> >about that.
-> >http://lkml.indiana.edu/hypermail/linux/kernel/1109.0/00175.html
-> >
-> >But later, Peter already acked it and I guess by reading the thread that
-> >Hugh was in favour when page migration was merged first time.
-> >
-> >http://marc.info/?l=linux-mm&m=133697873414205&w=2
-> >http://marc.info/?l=linux-mm&m=133700341823358&w=2
-> >
-> >Many people said mlock means memory-resident, NOT pinning so it could
-> >allow minor fault while Mel still had a concern except CMA.
-> >http://marc.info/?l=linux-mm&m=133674219714419&w=2
+On 04/03/2013 07:29 PM, Michal Hocko wrote:
+> On Wed 03-04-13 16:58:48, Glauber Costa wrote:
+>> On 04/03/2013 01:11 PM, Li Zefan wrote:
+>>> Use css_get/css_put instead of mem_cgroup_get/put.
+>>>
+>>> Note, if at the same time someone is moving @current to a different
+>>> cgroup and removing the old cgroup, css_tryget() may return false,
+>>> and sock->sk_cgrp won't be initialized.
+>>>
+>>> Signed-off-by: Li Zefan <lizefan@huawei.com>
+>>> ---
+>>>  mm/memcontrol.c | 8 ++++----
+>>>  1 file changed, 4 insertions(+), 4 deletions(-)
+>>>
+>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>>> index 23d0f6e..43ca91d 100644
+>>> --- a/mm/memcontrol.c
+>>> +++ b/mm/memcontrol.c
+>>> @@ -536,15 +536,15 @@ void sock_update_memcg(struct sock *sk)
+>>>  		 */
+>>>  		if (sk->sk_cgrp) {
+>>>  			BUG_ON(mem_cgroup_is_root(sk->sk_cgrp->memcg));
+>>> -			mem_cgroup_get(sk->sk_cgrp->memcg);
+>>> +			css_get(&sk->sk_cgrp->memcg->css);
 > 
-> How about add a knob?
+> I am not sure I understand this one. So we have a goup here (which means
+> that somebody already took a reference on it, right?) and we are taking
+> another reference. If this is released by sock_release_memcg then who
+> releases the previous one? It is not directly related to the patch
+> because this has been done previously already. Could you clarify
+> Glauber, please?
 
-Maybe, volunteering?
+This should be documented in the commit that introduced this, and it was
+one of the first bugs I've handled with this code.
 
--- 
-Kind regards,
-Minchan Kim
+Bottom line, we can create sockets normally, and those will have process
+context. But we also can create sockets by cloning existing sockets. To
+the best of my knowledge, this is done by things like accept().
+
+Because those sockets are a clone of their ancestors, they also belong
+to a workload that should be limited. Also note that because they have
+cgroup context, we will eventually try to put them. So we need to grab
+an extra reference.
+
+socket_update_cgroup is always called at socket creation, and the
+original structures are filled with zeroes. Therefore cloning is the
+*only* path that takes us here with sk->sk_cgroup filled.
+
+My comment right above this excerpt states:
+
+                /* Socket cloning can throw us here with sk_cgrp already
+                 * filled. It won't however, necessarily happen from
+                 * process context. So the test for root memcg given
+                 * the current task's memcg won't help us in this case.
+                 *
+                 * Respecting the original socket's memcg is a better
+                 * decision in this case.
+                 */
+
+> 
+>>>  			return;
+>>>  		}
+>>>  
+>>>  		rcu_read_lock();
+>>>  		memcg = mem_cgroup_from_task(current);
+>>>  		cg_proto = sk->sk_prot->proto_cgroup(memcg);
+>>> -		if (!mem_cgroup_is_root(memcg) && memcg_proto_active(cg_proto)) {
+>>> -			mem_cgroup_get(memcg);
+>>> +		if (!mem_cgroup_is_root(memcg) &&
+>>> +		    memcg_proto_active(cg_proto) && css_tryget(&memcg->css)) {
+>>>  			sk->sk_cgrp = cg_proto;
+>>>  		}
+>>
+>> What happens if this tryget fails ? Won't we leak a reference here? We
+>> will put regardless when the socket is released, and this may go
+>> negative. No?
+>  
+> AFAICS sock_release_memcg releases the reference only if sk->sk_cgrp and
+> that one wouldn't be set if css_tryget fails.
+> 
+
+Yes, this is totally fine. I was actually thinking of the same socket
+cloning I mentioned above. We cannot fail that path because we already
+have an "implicit" reference, we just need to officially mark it.
+
+Failing here is indeed fine. Future cloned sockets from this socket will
+have NULL cgroup context as well.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
