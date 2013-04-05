@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 708E06B00C2
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 66B5F6B00C1
 	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:26 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 27/34] thp: prepare zap_huge_pmd() to uncharge file pages
-Date: Fri,  5 Apr 2013 14:59:51 +0300
-Message-Id: <1365163198-29726-28-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 34/34] thp: map file-backed huge pages on fault
+Date: Fri,  5 Apr 2013 14:59:58 +0300
+Message-Id: <1365163198-29726-35-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,31 +15,42 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Uncharge pages from correct counter.
+Look like all pieces are in place, we can map file-backed huge-pages
+now.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ include/linux/huge_mm.h |    4 +++-
+ mm/memory.c             |    1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 7c48f58..4a1d8d7 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1368,10 +1368,12 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 			spin_unlock(&tlb->mm->page_table_lock);
- 			put_huge_zero_page();
- 		} else {
-+			int member;
- 			page = pmd_page(orig_pmd);
- 			page_remove_rmap(page);
- 			VM_BUG_ON(page_mapcount(page) < 0);
--			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-+			member = PageAnon(page) ? MM_ANONPAGES : MM_FILEPAGES;
-+			add_mm_counter(tlb->mm, member, -HPAGE_PMD_NR);
- 			VM_BUG_ON(!PageHead(page));
- 			tlb->mm->nr_ptes--;
- 			spin_unlock(&tlb->mm->page_table_lock);
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index c6e3aef..c175c78 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -80,7 +80,9 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+ 	   (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG) &&			\
+ 	   ((__vma)->vm_flags & VM_HUGEPAGE))) &&			\
+ 	 !((__vma)->vm_flags & VM_NOHUGEPAGE) &&			\
+-	 !is_vma_temporary_stack(__vma))
++	 !is_vma_temporary_stack(__vma) &&				\
++	 (!(__vma)->vm_ops ||						\
++		  mapping_can_have_hugepages((__vma)->vm_file->f_mapping)))
+ #define transparent_hugepage_defrag(__vma)				\
+ 	((transparent_hugepage_flags &					\
+ 	  (1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)) ||			\
+diff --git a/mm/memory.c b/mm/memory.c
+index 2895f0e..e40965f 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3738,6 +3738,7 @@ retry:
+ 		if (!vma->vm_ops)
+ 			return do_huge_pmd_anonymous_page(mm, vma, address,
+ 							  pmd, flags);
++		return do_huge_linear_fault(mm, vma, address, pmd, flags);
+ 	} else {
+ 		pmd_t orig_pmd = *pmd;
+ 		int ret;
 -- 
 1.7.10.4
 
