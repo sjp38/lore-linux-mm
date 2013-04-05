@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 660EF6B00C0
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:26 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id B45B76B00BF
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:25 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 33/34] thp: call __vma_adjust_trans_huge() for file-backed VMA
-Date: Fri,  5 Apr 2013 14:59:57 +0300
-Message-Id: <1365163198-29726-34-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 17/34] thp, mm: implement grab_thp_write_begin()
+Date: Fri,  5 Apr 2013 14:59:41 +0300
+Message-Id: <1365163198-29726-18-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,36 +15,163 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Since we're going to have huge pages in page cache, we need to call
-__vma_adjust_trans_huge() for file-backed VMA, which potentially can
-contain huge pages.
+The function is grab_cache_page_write_begin() twin but it tries to
+allocate huge page at given position aligned to HPAGE_CACHE_NR.
 
-For now we call it for all VMAs with vm_ops->huge_fault defined.
-
-Probably later we will need to introduce a flag to indicate that the VMA
-has huge pages.
+If, for some reason, it's not possible allocate a huge page at this
+possition, it returns NULL. Caller should take care of fallback to
+small pages.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/huge_mm.h |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ include/linux/pagemap.h |   10 ++++++
+ mm/filemap.c            |   89 +++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 85 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index aa52c48..c6e3aef 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -161,9 +161,9 @@ static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
- 					 unsigned long end,
- 					 long adjust_next)
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index bd07fc1..5a7dda9 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -271,6 +271,16 @@ unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
+ 
+ struct page *grab_cache_page_write_begin(struct address_space *mapping,
+ 			pgoff_t index, unsigned flags);
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++struct page *grab_thp_write_begin(struct address_space *mapping,
++		pgoff_t index, unsigned flags);
++#else
++static inline struct page *grab_thp_write_begin(struct address_space *mapping,
++		pgoff_t index, unsigned flags)
++{
++	return NULL;
++}
++#endif
+ 
+ /*
+  * Returns locked page at given index in given cache, creating it if needed.
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 7b4736c..bcb679c 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2290,16 +2290,17 @@ out:
+ EXPORT_SYMBOL(generic_file_direct_write);
+ 
+ /*
+- * Find or create a page at the given pagecache position. Return the locked
+- * page. This function is specifically for buffered writes.
++ * Returns true if the page was found in page cache and
++ * false if it had to allocate a new page.
+  */
+-struct page *grab_cache_page_write_begin(struct address_space *mapping,
+-					pgoff_t index, unsigned flags)
++static bool __grab_cache_page_write_begin(struct address_space *mapping,
++		pgoff_t index, unsigned flags, unsigned int order,
++		struct page **page)
  {
--	if (!vma->anon_vma || vma->vm_ops)
--		return;
--	__vma_adjust_trans_huge(vma, start, end, adjust_next);
-+	if ((vma->anon_vma && !vma->vm_ops) ||
-+			(vma->vm_ops && vma->vm_ops->huge_fault))
-+		__vma_adjust_trans_huge(vma, start, end, adjust_next);
+ 	int status;
+ 	gfp_t gfp_mask;
+-	struct page *page;
+ 	gfp_t gfp_notmask = 0;
++	int found = true;
+ 
+ 	gfp_mask = mapping_gfp_mask(mapping);
+ 	if (mapping_cap_account_dirty(mapping))
+@@ -2307,27 +2308,87 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
+ 	if (flags & AOP_FLAG_NOFS)
+ 		gfp_notmask = __GFP_FS;
+ repeat:
+-	page = find_lock_page(mapping, index);
+-	if (page)
++	*page = find_lock_page(mapping, index);
++	if (*page)
+ 		goto found;
+ 
+-	page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
+-	if (!page)
+-		return NULL;
+-	status = add_to_page_cache_lru(page, mapping, index,
++	found = false;
++	if (order)
++		*page = alloc_pages(gfp_mask & ~gfp_notmask, order);
++	else
++		*page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
++	if (!*page)
++		return false;
++	status = add_to_page_cache_lru(*page, mapping, index,
+ 						GFP_KERNEL & ~gfp_notmask);
+ 	if (unlikely(status)) {
+-		page_cache_release(page);
++		page_cache_release(*page);
+ 		if (status == -EEXIST)
+ 			goto repeat;
+-		return NULL;
++		*page = NULL;
++		return false;
+ 	}
+ found:
+-	wait_for_stable_page(page);
++	wait_for_stable_page(*page);
++	return found;
++}
++
++/*
++ * Find or create a page at the given pagecache position. Return the locked
++ * page. This function is specifically for buffered writes.
++ */
++struct page *grab_cache_page_write_begin(struct address_space *mapping,
++					pgoff_t index, unsigned flags)
++{
++	struct page *page;
++	__grab_cache_page_write_begin(mapping, index, flags, 0, &page);
+ 	return page;
  }
- static inline int hpage_nr_pages(struct page *page)
+ EXPORT_SYMBOL(grab_cache_page_write_begin);
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++/*
++ * Find or create a huge page at the given pagecache position, aligned to
++ * HPAGE_CACHE_NR. Return the locked huge page.
++ *
++ * If, for some reason, it's not possible allocate a huge page at this
++ * possition, it returns NULL. Caller should take care of fallback to small
++ * pages.
++ *
++ * This function is specifically for buffered writes.
++ */
++struct page *grab_thp_write_begin(struct address_space *mapping,
++		pgoff_t index, unsigned flags)
++{
++	gfp_t gfp_mask;
++	struct page *page;
++	bool found;
++
++	BUG_ON(index & HPAGE_CACHE_INDEX_MASK);
++	gfp_mask = mapping_gfp_mask(mapping);
++	BUG_ON(!(gfp_mask & __GFP_COMP));
++
++	found = __grab_cache_page_write_begin(mapping, index, flags,
++			HPAGE_PMD_ORDER, &page);
++	if (!page) {
++		if (!found)
++			count_vm_event(THP_WRITE_ALLOC_FAILED);
++		return NULL;
++	}
++
++	if (!found)
++		count_vm_event(THP_WRITE_ALLOC);
++
++	if (!PageTransHuge(page)) {
++		unlock_page(page);
++		page_cache_release(page);
++		return NULL;
++	}
++
++	return page;
++}
++#endif
++
+ static ssize_t generic_perform_write(struct file *file,
+ 				struct iov_iter *i, loff_t pos)
  {
 -- 
 1.7.10.4
