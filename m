@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 848756B00A2
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id DB3C96B00A4
 	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:15 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 01/34] mm: drop actor argument of do_generic_file_read()
-Date: Fri,  5 Apr 2013 14:59:25 +0300
-Message-Id: <1365163198-29726-2-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 03/34] mm: implement zero_huge_user_segment and friends
+Date: Fri,  5 Apr 2013 14:59:27 +0300
+Message-Id: <1365163198-29726-4-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,61 +15,80 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-There's only one caller of do_generic_file_read() and the only actor is
-file_read_actor(). No reason to have a callback parameter.
+Let's add helpers to clear huge page segment(s). They provide the same
+functionallity as zero_user_segment and zero_user, but for huge pages.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c |   10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ include/linux/mm.h |    7 +++++++
+ mm/memory.c        |   36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 4ebaf95..2d99191 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1075,7 +1075,6 @@ static void shrink_readahead_size_eio(struct file *filp,
-  * @filp:	the file to read
-  * @ppos:	current file position
-  * @desc:	read_descriptor
-- * @actor:	read method
-  *
-  * This is a generic file read routine, and uses the
-  * mapping->a_ops->readpage() function for the actual low-level stuff.
-@@ -1084,7 +1083,7 @@ static void shrink_readahead_size_eio(struct file *filp,
-  * of the logic when it comes to error handling etc.
-  */
- static void do_generic_file_read(struct file *filp, loff_t *ppos,
--		read_descriptor_t *desc, read_actor_t actor)
-+		read_descriptor_t *desc)
- {
- 	struct address_space *mapping = filp->f_mapping;
- 	struct inode *inode = mapping->host;
-@@ -1185,13 +1184,14 @@ page_ok:
- 		 * Ok, we have the page, and it's up-to-date, so
- 		 * now we can copy it to user space...
- 		 *
--		 * The actor routine returns how many bytes were actually used..
-+		 * The file_read_actor routine returns how many bytes were
-+		 * actually used..
- 		 * NOTE! This may not be the same as how much of a user buffer
- 		 * we filled up (we may be padding etc), so we can only update
- 		 * "pos" here (the actor routine has to update the user buffer
- 		 * pointers and the remaining count).
- 		 */
--		ret = actor(desc, page, offset, nr);
-+		ret = file_read_actor(desc, page, offset, nr);
- 		offset += ret;
- 		index += offset >> PAGE_CACHE_SHIFT;
- 		offset &= ~PAGE_CACHE_MASK;
-@@ -1464,7 +1464,7 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
- 		if (desc.count == 0)
- 			continue;
- 		desc.error = 0;
--		do_generic_file_read(filp, ppos, &desc, file_read_actor);
-+		do_generic_file_read(filp, ppos, &desc);
- 		retval += desc.written;
- 		if (desc.error) {
- 			retval = retval ?: desc.error;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5b7fd4e..09530c7 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1731,6 +1731,13 @@ extern void dump_page(struct page *page);
+ extern void clear_huge_page(struct page *page,
+ 			    unsigned long addr,
+ 			    unsigned int pages_per_huge_page);
++extern void zero_huge_user_segment(struct page *page,
++		unsigned start, unsigned end);
++static inline void zero_huge_user(struct page *page,
++		unsigned start, unsigned len)
++{
++	zero_huge_user_segment(page, start, start + len);
++}
+ extern void copy_user_huge_page(struct page *dst, struct page *src,
+ 				unsigned long addr, struct vm_area_struct *vma,
+ 				unsigned int pages_per_huge_page);
+diff --git a/mm/memory.c b/mm/memory.c
+index 494526a..9da540f 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4213,6 +4213,42 @@ void clear_huge_page(struct page *page,
+ 	}
+ }
+ 
++void zero_huge_user_segment(struct page *page, unsigned start, unsigned end)
++{
++	int i;
++	unsigned start_idx, end_idx;
++	unsigned start_off, end_off;
++
++	BUG_ON(end < start);
++
++	might_sleep();
++
++	if (start == end)
++		return;
++
++	start_idx = start >> PAGE_SHIFT;
++	start_off = start & ~PAGE_MASK;
++	end_idx = (end - 1) >> PAGE_SHIFT;
++	end_off = ((end - 1) & ~PAGE_MASK) + 1;
++
++	/*
++	 * if start and end are on the same small page we can call
++	 * zero_user_segment() once and save one kmap_atomic().
++	 */
++	if (start_idx == end_idx)
++		return zero_user_segment(page + start_idx, start_off, end_off);
++
++	/* zero the first (possibly partial) page */
++	zero_user_segment(page + start_idx, start_off, PAGE_SIZE);
++	for (i = start_idx + 1; i < end_idx; i++) {
++		cond_resched();
++		clear_highpage(page + i);
++		flush_dcache_page(page + i);
++	}
++	/* zero the last (possibly partial) page */
++	zero_user_segment(page + end_idx, 0, end_off);
++}
++
+ static void copy_user_gigantic_page(struct page *dst, struct page *src,
+ 				    unsigned long addr,
+ 				    struct vm_area_struct *vma,
 -- 
 1.7.10.4
 
