@@ -1,55 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 57B5F6B00E3
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 08:00:39 -0400 (EDT)
-Date: Fri, 5 Apr 2013 13:00:35 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: NUMA Autobalancing Kernel 3.8
-Message-ID: <20130405120034.GA2623@suse.de>
-References: <515A87C3.1000309@profihost.ag>
- <20130402104844.GE32241@suse.de>
- <515AC3EE.1030803@profihost.ag>
- <20130402125408.GG32241@suse.de>
- <515AEC71.9020704@profihost.ag>
- <20130403140344.GA5811@suse.de>
- <515C388C.5040903@profihost.ag>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id D8C5A6B00EC
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 08:06:15 -0400 (EDT)
+Date: Fri, 5 Apr 2013 08:06:05 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/2] memcg: consistently use vmalloc for page_cgroup
+ allocations
+Message-ID: <20130405120604.GN1953@cmpxchg.org>
+References: <1365156072-24100-1-git-send-email-glommer@parallels.com>
+ <1365156072-24100-2-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <515C388C.5040903@profihost.ag>
+In-Reply-To: <1365156072-24100-2-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, srikar@linux.vnet.ibm.com, aarcange@redhat.com, mingo@kernel.org, riel@redhat.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>
 
-On Wed, Apr 03, 2013 at 04:11:24PM +0200, Stefan Priebe - Profihost AG wrote:
-> Am 03.04.2013 16:03, schrieb Mel Gorman:
-> >> I've now tested 3.9-rc5 this gaves me a slightly different kernel log:
-> >> [  197.236518] pigz[2908]: segfault at 0 ip           (null) sp
-> >> 00007f347bffed00 error 14
-> >> [  197.237632] traps: pigz[2915] general protection ip:7f3482dbce2d
-> >> sp:7f3473ffec10 error:0 in libz.so.1.2.3.4[7f3482db7000+17000]
-> >> [  197.330615]  in pigz[400000+10000]
-> >>
-> >> With 3.8 it is the same as with 3.8.4 or 3.8.5.
-> >>
-> > 
-> > Ok. Are there NUMA machines were you do *not* see this problem?
-> Sadly no.
+On Fri, Apr 05, 2013 at 02:01:11PM +0400, Glauber Costa wrote:
+> Right now, allocation for page_cgroup is a bit complicated, dependent on
+> a variety of system conditions:
 > 
-> I can really fast reproduce it with this one:
-> 1.) Machine with only 16GB Mem
-> 2.) compressing two 60GB Files in parallel with pigz consuming all cores
+> For flat memory, we are likely to need quite big pages, so the page
+> allocator won't cut. We are forced to init flatmem mappings very early,
+> because if we run after the page allocator is in place those allocations
+> will be denied. Flatmem mappings thus resort to the bootmem allocator.
 > 
+> We can fix this by using vmalloc for flatmem mappings. However, we now
+> have the situation in which flatmem mapping allocate using vmalloc, but
+> sparsemem may or may not allocate with vmalloc. It will try the
+> page_allocator first, and retry vmalloc if it fails.
 
-Ok, I'm dealing with this slower than I'd like due to an unfortunate
-abundance of bugs right now. I am putting together a reproduction case but
-I still can't trigger it unfortunately. Can you post your .config in case
-it's my kernel config that is the reason I can't see the problem please?
+Vmalloc space is a precious resource on 32-bit systems and harder on
+the TLB than the identity mapping.
 
--- 
-Mel Gorman
-SUSE Labs
+It's a last resort thing for when you need an unusually large chunk of
+contiguously addressable memory during runtime, like loading a module,
+buffers shared with userspace etc..  But here we know, during boot
+time, the exact amount of memory we need for the page_cgroup array.
+
+Code cleanup is not a good reason to use vmalloc in this case, IMO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
