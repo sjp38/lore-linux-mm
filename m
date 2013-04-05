@@ -1,60 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 0EAFC6B00FC
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 09:46:36 -0400 (EDT)
-Date: Fri, 5 Apr 2013 15:46:35 +0200
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id F05EF6B00FE
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 09:48:47 -0400 (EDT)
+Date: Fri, 5 Apr 2013 15:48:44 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 2/7] memcg: don't use mem_cgroup_get() when creating
- a kmemcg cache
-Message-ID: <20130405134635.GH31132@dhcp22.suse.cz>
+Subject: Re: [RFC][PATCH 3/7] memcg: use css_get/put when charging/uncharging
+ kmem
+Message-ID: <20130405134844.GI31132@dhcp22.suse.cz>
 References: <515BF233.6070308@huawei.com>
- <515BF275.5080408@huawei.com>
- <515E664E.5060005@jp.fujitsu.com>
+ <515BF284.7060401@huawei.com>
+ <20130404094333.GE29911@dhcp22.suse.cz>
+ <515EA532.4050706@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <515E664E.5060005@jp.fujitsu.com>
+In-Reply-To: <515EA532.4050706@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri 05-04-13 14:51:10, KAMEZAWA Hiroyuki wrote:
-> (2013/04/03 18:12), Li Zefan wrote:
-> > Use css_get()/css_put() instead of mem_cgroup_get()/mem_cgroup_put().
-> > 
-> > Signed-off-by: Li Zefan <lizefan@huawei.com>
-> > ---
-> >   mm/memcontrol.c | 10 +++++-----
-> >   1 file changed, 5 insertions(+), 5 deletions(-)
-> > 
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 43ca91d..dafacb8 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -3191,7 +3191,7 @@ void memcg_release_cache(struct kmem_cache *s)
-> >   	list_del(&s->memcg_params->list);
-> >   	mutex_unlock(&memcg->slab_caches_mutex);
-> >   
-> > -	mem_cgroup_put(memcg);
-> > +	css_put(&memcg->css);
-> >   out:
-> >   	kfree(s->memcg_params);
-> >   }
-> > @@ -3350,16 +3350,18 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
-> >   
-> >   	mutex_lock(&memcg_cache_mutex);
-> >   	new_cachep = cachep->memcg_params->memcg_caches[idx];
-> > -	if (new_cachep)
-> > +	if (new_cachep) {
-> > +		css_put(&memcg->css);
-> >   		goto out;
-> > +	}
+On Fri 05-04-13 14:19:30, Glauber Costa wrote:
 > 
-> Where css_get() against this is done ?
+> > 	 * __mem_cgroup_free will issue static_key_slow_dec because this
+> > 	 * memcg is active already. If the later initialization fails
+> > 	 * then the cgroup core triggers the cleanup so we do not have
+> > 	 * to do it here.
+> > 	 */
+> >> -	mem_cgroup_get(memcg);
+> >>  	static_key_slow_inc(&memcg_kmem_enabled_key);
+> >>  
+> >>  	mutex_lock(&set_limit_mutex);
+> >> @@ -5823,23 +5814,33 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+> >>  	return mem_cgroup_sockets_init(memcg, ss);
+> >>  };
+> >>  
+> >> -static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
+> >> +static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+> >>  {
+> >> -	mem_cgroup_sockets_destroy(memcg);
+> >> +	/*
+> >> +	 * kmem charges can outlive the cgroup. In the case of slab
+> >> +	 * pages, for instance, a page contain objects from various
+> >> +	 * processes, so it is unfeasible to migrate them away. We
+> >> +	 * need to reference count the memcg because of that.
+> >> +	 */
+> > 
+> > I would prefer if we could merge all three comments in this function
+> > into a single one. What about something like the following?
+> > 	/*
+> > 	 * kmem charges can outlive the cgroup. In the case of slab
+> > 	 * pages, for instance, a page contain objects from various
+> > 	 * processes. As we prevent from taking a reference for every
+> > 	 * such allocation we have to be careful when doing uncharge
+> > 	 * (see memcg_uncharge_kmem) and here during offlining.
+> > 	 * The idea is that that only the _last_ uncharge which sees
+> > 	 * the dead memcg will drop the last reference. An additional
+> > 	 * reference is taken here before the group is marked dead
+> > 	 * which is then paired with css_put during uncharge resp. here.
+> > 	 * Although this might sound strange as this path is called when
+> > 	 * the reference has already dropped down to 0 and shouldn't be
+> > 	 * incremented anymore (css_tryget would fail) we do not have
+> > 	 * other options because of the kmem allocations lifetime.
+> > 	 */
+> >> +	css_get(&memcg->css);
+> > 
+> > I think that you need a write memory barrier here because css_get
+> > nor memcg_kmem_mark_dead implies it. memcg_uncharge_kmem uses
+> > memcg_kmem_test_and_clear_dead which imply a full memory barrier but it
+> > should see the elevated reference count. No?
+> > 
+> 
+> We don't use barriers for any other kind of reference counting. What is
+> different here?
 
-As glauber explained in another email in this thread. It was
-__memcg_create_cache_enqueue which took the reference.
+Now we need to make sure that the racing uncharge sees an elevated
+reference count before the group is marked dead. Otherwise we could see
+a dead group with ref count == 0, no?
+
 -- 
 Michal Hocko
 SUSE Labs
