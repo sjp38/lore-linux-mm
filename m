@@ -1,42 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 743006B0115
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 16:33:51 -0400 (EDT)
-Received: by mail-qe0-f46.google.com with SMTP id nd7so250658qeb.5
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 13:33:50 -0700 (PDT)
-Message-ID: <515F352D.8020405@gmail.com>
-Date: Fri, 05 Apr 2013 16:33:49 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] migrate: add migrate_entry_wait_huge()
-References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1363983835-20184-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1363983835-20184-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 6FD3A6B0117
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 16:34:19 -0400 (EDT)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Fri, 5 Apr 2013 14:34:18 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id BEAF019D8043
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 14:34:11 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r35KYFmf329694
+	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 14:34:15 -0600
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r35KYEbG004876
+	for <linux-mm@kvack.org>; Fri, 5 Apr 2013 14:34:14 -0600
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Subject: [PATCH 1/3] mm/page_alloc: factor out setting of pcp->high and pcp->batch.
+Date: Fri,  5 Apr 2013 13:33:48 -0700
+Message-Id: <1365194030-28939-2-git-send-email-cody@linux.vnet.ibm.com>
+In-Reply-To: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com>
+References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-> diff --git v3.9-rc3.orig/mm/hugetlb.c v3.9-rc3/mm/hugetlb.c
-> index 0a0be33..98a478e 100644
-> --- v3.9-rc3.orig/mm/hugetlb.c
-> +++ v3.9-rc3/mm/hugetlb.c
-> @@ -2819,7 +2819,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  	if (ptep) {
->  		entry = huge_ptep_get(ptep);
->  		if (unlikely(is_hugetlb_entry_migration(entry))) {
-> -			migration_entry_wait(mm, (pmd_t *)ptep, address);
-> +			migration_entry_wait_huge(mm, (pmd_t *)ptep, address);
+Creates pageset_set_batch() for use in setup_pageset().
+pageset_set_batch() imitates the functionality of
+setup_pagelist_highmark(), but uses the boot time
+(percpu_pagelist_fraction == 0) calculations for determining ->high
+based on ->batch.
 
-Hm.
+Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+---
+ mm/page_alloc.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
 
-How do you test this? From x86 point of view, this patch seems unnecessary because
-hugetlb_fault call "address &= hugetlb_mask()" at first and then migration_entry_wait()
-could grab right pte lock. And from !x86 point of view, this funciton still doesn't work
-because huge page != pmd on some arch.
-
-I might be missing something though.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8fcced7..5877cf0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4004,6 +4004,14 @@ static int __meminit zone_batchsize(struct zone *zone)
+ #endif
+ }
+ 
++/* a companion to setup_pagelist_highmark() */
++static void pageset_set_batch(struct per_cpu_pageset *p, unsigned long batch)
++{
++	struct per_cpu_pages *pcp = &p->pcp;
++	pcp->high = 6 * batch;
++	pcp->batch = max(1UL, 1 * batch);
++}
++
+ static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
+ {
+ 	struct per_cpu_pages *pcp;
+@@ -4013,8 +4021,7 @@ static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
+ 
+ 	pcp = &p->pcp;
+ 	pcp->count = 0;
+-	pcp->high = 6 * batch;
+-	pcp->batch = max(1UL, 1 * batch);
++	pageset_set_batch(p, batch);
+ 	for (migratetype = 0; migratetype < MIGRATE_PCPTYPES; migratetype++)
+ 		INIT_LIST_HEAD(&pcp->lists[migratetype]);
+ }
+@@ -4023,7 +4030,6 @@ static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
+  * setup_pagelist_highmark() sets the high water mark for hot per_cpu_pagelist
+  * to the value high for the pageset p.
+  */
+-
+ static void setup_pagelist_highmark(struct per_cpu_pageset *p,
+ 				unsigned long high)
+ {
+-- 
+1.8.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
