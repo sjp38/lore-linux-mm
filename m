@@ -1,41 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 423A36B0108
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 14:33:23 -0400 (EDT)
-Received: by mail-gh0-f170.google.com with SMTP id z2so647105ghb.29
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 11:33:22 -0700 (PDT)
-Message-ID: <515F18F1.4050901@gmail.com>
-Date: Fri, 05 Apr 2013 14:33:21 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 2/3] fix hugetlb memory check in vma_dump_size()
-References: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1365014138-19589-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1365014138-19589-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 11E816B010A
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 14:40:42 -0400 (EDT)
+Date: Fri, 05 Apr 2013 14:40:35 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1365187235-chwg4d0m-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <515F18A8.7030102@gmail.com>
+References: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1365014138-19589-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <515F18A8.7030102@gmail.com>
+Subject: Re: [PATCH v3 1/3] hugetlbfs: stop setting VM_DONTDUMP in
+ initializing vma(VM_HUGETLB)
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-(4/3/13 2:35 PM), Naoya Horiguchi wrote:
-> Documentation/filesystems/proc.txt says about coredump_filter bitmask,
+On Fri, Apr 05, 2013 at 02:32:08PM -0400, KOSAKI Motohiro wrote:
+> (4/3/13 2:35 PM), Naoya Horiguchi wrote:
+> > Currently we fail to include any data on hugepages into coredump,
+> > because VM_DONTDUMP is set on hugetlbfs's vma. This behavior was recently
+> > introduced by commit 314e51b98 "mm: kill vma flag VM_RESERVED and
+> > mm->reserved_vm counter". This looks to me a serious regression,
+> > so let's fix it.
 > 
->   Note bit 0-4 doesn't effect any hugetlb memory. hugetlb memory are only
->   effected by bit 5-6.
+> I don't think this is enough explanations. Let's explain the code meaning
+> time to time order.
 > 
-> However current code can go into the subsequent flag checks of bit 0-4
-> for vma(VM_HUGETLB). So this patch inserts 'return' and makes it work
-> as written in the document.
+> First, we had no madvice(DONTDUMP) nor coredump_filter(HUGETLB). then hugetlb
+> pages were never dumped.
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: stable@vger.kernel.org
+> Second, I added coredump_filter(HUGETLB). and then vm_dump_size became..
+> 
+> vm_dump_size()
+> {
+> 	/* Hugetlb memory check */
+> 	if (vma->vm_flags & VM_HUGETLB) {
+> 		..
+> 		goto whole;
+> 	}
+> 	if (vma->vm_flags & VM_RESERVED)
+> 		return 0;
+> 
+> The point is, hugetlb was checked before VM_RESERVED. i.e. hugetlb core dump ignored
+> VM_RESERVED. At this time, "if (vma->vm_flags & VM_HUGETLB)" statement don't need
+> return 0 because VM_RESERVED prevented to go into the subsequent flag checks.
+> 
+> Third, Jason added madvise(DONTDUMP). then vm_dump_size became...
+> 
+> vm_dump_size()
+> {
+>        if (vma->vm_flags & VM_NODUMP)
+>                return 0;
+> 
+> 	/* Hugetlb memory check */
+> 	if (vma->vm_flags & VM_HUGETLB) {
+> 		..
+> 		goto whole;
+> 	}
+> 	if (vma->vm_flags & VM_RESERVED)
+> 		return 0;
+> 
+> Look, VM_NODUMP and VM_RESERVED had similar and different meanings at this time.
+> 
+> Finally, Konstantin removed VM_RESERVED and hugetlb coredump behavior
+> has been changed.
 
-If I were you, I merge this patch into [1/3] because both patches treat the same
-regression. but it is no big matter.
+Things were/are quite complicated, and this is a wonderful step-by-step explanation.
+Thank you very much.
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Naoya
 
+> Thus, patch [1/3] and [2/3] should be marked [stable for v3.6 or later].
+> 
+> Anyway, this patch is correct. Thank you!
+> 
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
