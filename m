@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id D8F726B0027
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 21:09:34 -0400 (EDT)
-Received: by mail-ie0-f202.google.com with SMTP id qd14so795867ieb.5
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2013 18:09:34 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 146706B0036
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 21:09:58 -0400 (EDT)
+Received: by mail-oa0-f74.google.com with SMTP id k14so795850oag.5
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2013 18:09:57 -0700 (PDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v2 03/28] dcache: convert dentry_stat.nr_unused to per-cpu counters
+Subject: Re: [PATCH v2 06/28] mm: new shrinker API
 References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
-	<1364548450-28254-4-git-send-email-glommer@parallels.com>
-Date: Thu, 04 Apr 2013 18:09:31 -0700
-Message-ID: <xr93r4ipkcl0.fsf@gthelen.mtv.corp.google.com>
+	<1364548450-28254-7-git-send-email-glommer@parallels.com>
+Date: Thu, 04 Apr 2013 18:09:55 -0700
+Message-ID: <xr93k3ohkckc.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -21,45 +21,51 @@ On Fri, Mar 29 2013, Glauber Costa wrote:
 
 > From: Dave Chinner <dchinner@redhat.com>
 >
-> Before we split up the dcache_lru_lock, the unused dentry counter
-> needs to be made independent of the global dcache_lru_lock. Convert
-> it to per-cpu counters to do this.
+> The current shrinker callout API uses an a single shrinker call for
+> multiple functions. To determine the function, a special magical
+> value is passed in a parameter to change the behaviour. This
+> complicates the implementation and return value specification for
+> the different behaviours.
+>
+> Separate the two different behaviours into separate operations, one
+> to return a count of freeable objects in the cache, and another to
+> scan a certain number of objects in the cache for freeing. In
+> defining these new operations, ensure the return values and
+> resultant behaviours are clearly defined and documented.
+>
+> Modify shrink_slab() to use the new API and implement the callouts
+> for all the existing shrinkers.
 >
 > Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
 > ---
->  fs/dcache.c | 17 ++++++++++++++---
->  1 file changed, 14 insertions(+), 3 deletions(-)
+>  include/linux/shrinker.h | 37 +++++++++++++++++++++++++----------
+>  mm/vmscan.c              | 51 +++++++++++++++++++++++++++++++-----------------
+>  2 files changed, 60 insertions(+), 28 deletions(-)
 >
-> diff --git a/fs/dcache.c b/fs/dcache.c
-> index fbfae008..f1196f2 100644
-> --- a/fs/dcache.c
-> +++ b/fs/dcache.c
-> @@ -118,6 +118,7 @@ struct dentry_stat_t dentry_stat = {
->  };
+> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> index ac6b8ee..4f59615 100644
+> --- a/include/linux/shrinker.h
+> +++ b/include/linux/shrinker.h
+> @@ -4,31 +4,47 @@
+>  /*
+>   * This struct is used to pass information from page reclaim to the shrinkers.
+>   * We consolidate the values for easier extention later.
+> + *
+> + * The 'gfpmask' refers to the allocation we are currently trying to
+> + * fulfil.
+> + *
+> + * Note that 'shrink' will be passed nr_to_scan == 0 when the VM is
+> + * querying the cache size, so a fastpath for that case is appropriate.
+>   */
+>  struct shrink_control {
+>  	gfp_t gfp_mask;
 >  
->  static DEFINE_PER_CPU(unsigned int, nr_dentry);
-> +static DEFINE_PER_CPU(unsigned int, nr_dentry_unused);
->  
->  #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
->  static int get_nr_dentry(void)
-> @@ -129,10 +130,20 @@ static int get_nr_dentry(void)
->  	return sum < 0 ? 0 : sum;
->  }
->  
-> +static int get_nr_dentry_unused(void)
-> +{
-> +	int i;
-> +	int sum = 0;
-> +	for_each_possible_cpu(i)
-> +		sum += per_cpu(nr_dentry_unused, i);
-> +	return sum < 0 ? 0 : sum;
-> +}
+>  	/* How many slab objects shrinker() should scan and try to reclaim */
+> -	unsigned long nr_to_scan;
+> +	long nr_to_scan;
 
-Just checking...  If cpu x is removed, then its per cpu nr_dentry_unused
-count survives so we don't leak nr_dentry_unused.  Right?  I see code in
-percpu_counter_sum_positive() to explicitly handle this case and I want
-to make sure we don't need it here.
+Why convert from unsigned?  What's a poor shrinker to do with a negative
+to-scan request?
 
 [snip]
 
