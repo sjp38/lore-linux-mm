@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 7A6D86B00AE
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:23 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id BDE176B00BB
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:24 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 13/34] thp, mm: trigger bug in replace_page_cache_page() on THP
-Date: Fri,  5 Apr 2013 14:59:37 +0300
-Message-Id: <1365163198-29726-14-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 23/34] thp, mm: split huge page on mmap file page
+Date: Fri,  5 Apr 2013 14:59:47 +0300
+Message-Id: <1365163198-29726-24-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,11 +15,11 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-replace_page_cache_page() is only used by FUSE. It's unlikely that we
-will support THP in FUSE page cache any soon.
+We are not ready to mmap file-backed tranparent huge pages. Let's split
+them on fault attempt.
 
-Let's pospone implemetation of THP handling in replace_page_cache_page()
-until any will use it.
+Later in the patchset we'll implement mmap() properly and this code path
+be used for fallback cases.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
@@ -27,18 +27,18 @@ Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
  1 file changed, 2 insertions(+)
 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 56a81e3..1defa83 100644
+index 3296f5c..6f0e3be 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -412,6 +412,8 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
- {
- 	int error;
+@@ -1683,6 +1683,8 @@ retry_find:
+ 			goto no_cached_page;
+ 	}
  
-+	VM_BUG_ON(PageTransHuge(old));
-+	VM_BUG_ON(PageTransHuge(new));
- 	VM_BUG_ON(!PageLocked(old));
- 	VM_BUG_ON(!PageLocked(new));
- 	VM_BUG_ON(new->mapping);
++	if (PageTransCompound(page))
++		split_huge_page(compound_trans_head(page));
+ 	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags)) {
+ 		page_cache_release(page);
+ 		return ret | VM_FAULT_RETRY;
 -- 
 1.7.10.4
 
