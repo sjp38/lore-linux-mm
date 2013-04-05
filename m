@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 08DFE6B00C8
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:27 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id A869C6B00BC
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:28 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 28/34] thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
-Date: Fri,  5 Apr 2013 14:59:52 +0300
-Message-Id: <1365163198-29726-29-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 16/34] thp, mm: add event counters for huge page alloc on write to a file
+Date: Fri,  5 Apr 2013 14:59:40 +0300
+Message-Id: <1365163198-29726-17-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,65 +15,44 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-It's confusing that mk_huge_pmd() has sematics different from mk_pte()
-or mk_pmd().
+Existing stats specify source of thp page: fault or collapse. We're
+going allocate a new huge page with write(2). It's nither fault nor
+collapse.
 
-Let's move maybe_pmd_mkwrite() out of mk_huge_pmd() and adjust
-prototype to match mk_pte().
+Let's introduce new events for that.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c |   14 ++++++++------
- 1 file changed, 8 insertions(+), 6 deletions(-)
+ include/linux/vm_event_item.h |    2 ++
+ mm/vmstat.c                   |    2 ++
+ 2 files changed, 4 insertions(+)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 4a1d8d7..0cf2e79 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -691,11 +691,10 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
- 	return pmd;
- }
- 
--static inline pmd_t mk_huge_pmd(struct page *page, struct vm_area_struct *vma)
-+static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
- {
- 	pmd_t entry;
--	entry = mk_pmd(page, vma->vm_page_prot);
--	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-+	entry = mk_pmd(page, prot);
- 	entry = pmd_mkhuge(entry);
- 	return entry;
- }
-@@ -723,7 +722,8 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 		pte_free(mm, pgtable);
- 	} else {
- 		pmd_t entry;
--		entry = mk_huge_pmd(page, vma);
-+		entry = mk_huge_pmd(page, vma->vm_page_prot);
-+		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
- 		/*
- 		 * The spinlocking to take the lru_lock inside
- 		 * page_add_new_anon_rmap() acts as a full memory
-@@ -1212,7 +1212,8 @@ alloc:
- 		goto out_mn;
- 	} else {
- 		pmd_t entry;
--		entry = mk_huge_pmd(new_page, vma);
-+		entry = mk_huge_pmd(new_page, vma->vm_page_prot);
-+		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
- 		pmdp_clear_flush(vma, haddr, pmd);
- 		page_add_new_anon_rmap(new_page, vma, haddr);
- 		set_pmd_at(mm, haddr, pmd, entry);
-@@ -2386,7 +2387,8 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	__SetPageUptodate(new_page);
- 	pgtable = pmd_pgtable(_pmd);
- 
--	_pmd = mk_huge_pmd(new_page, vma);
-+	_pmd = mk_huge_pmd(new_page, vma->vm_page_prot);
-+	_pmd = maybe_pmd_mkwrite(pmd_mkdirty(_pmd), vma);
- 
- 	/*
- 	 * spin_lock() below is not the equivalent of smp_wmb(), so
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index d4b7a18..584c71c 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -71,6 +71,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		THP_FAULT_FALLBACK,
+ 		THP_COLLAPSE_ALLOC,
+ 		THP_COLLAPSE_ALLOC_FAILED,
++		THP_WRITE_ALLOC,
++		THP_WRITE_ALLOC_FAILED,
+ 		THP_SPLIT,
+ 		THP_ZERO_PAGE_ALLOC,
+ 		THP_ZERO_PAGE_ALLOC_FAILED,
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 292b1cf..dd8323a 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -818,6 +818,8 @@ const char * const vmstat_text[] = {
+ 	"thp_fault_fallback",
+ 	"thp_collapse_alloc",
+ 	"thp_collapse_alloc_failed",
++	"thp_write_alloc",
++	"thp_write_alloc_failed",
+ 	"thp_split",
+ 	"thp_zero_page_alloc",
+ 	"thp_zero_page_alloc_failed",
 -- 
 1.7.10.4
 
