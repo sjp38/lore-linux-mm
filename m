@@ -1,47 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 48C386B00A0
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:31:54 -0400 (EDT)
-Message-ID: <515EB64B.8010104@parallels.com>
-Date: Fri, 5 Apr 2013 15:32:27 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] page_cgroup cleanups
-References: <1365156072-24100-1-git-send-email-glommer@parallels.com>
-In-Reply-To: <1365156072-24100-1-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 848756B00A2
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:15 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 01/34] mm: drop actor argument of do_generic_file_read()
+Date: Fri,  5 Apr 2013 14:59:25 +0300
+Message-Id: <1365163198-29726-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 04/05/2013 02:01 PM, Glauber Costa wrote:
-> Hi,
-> 
-> Last time I sent the mem cgroup bypass patches, Kame and Michal pointed out
-> that some of it was a bit of cleanup, specifically at the page_cgroup side.
-> I've decided to separate those patches and send them separately. After these
-> patches are applied, page_cgroup will be initialized together with the root
-> cgroup, instead of init/main.c
-> 
-> When we move cgroup initialization to the first non-root cgroup created, all
-> we'll have to do from the page_cgroup side would be to move the initialization
-> that now happens at root, to the first child.
-> 
-> Glauber Costa (2):
->   memcg: consistently use vmalloc for page_cgroup allocations
->   memcg: defer page_cgroup initialization
-> 
->  include/linux/page_cgroup.h | 21 +------------------
->  init/main.c                 |  2 --
->  mm/memcontrol.c             |  2 ++
->  mm/page_cgroup.c            | 51 +++++++++++++++------------------------------
->  4 files changed, 20 insertions(+), 56 deletions(-)
-> 
-FYI: There are kbuild warnings with this. I wanted to send it earlier to
-see what people think. If there is no changes requested, please let me
-know I will send a new version with just the kbuild fixes folded.
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+
+There's only one caller of do_generic_file_read() and the only actor is
+file_read_actor(). No reason to have a callback parameter.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/filemap.c |   10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 4ebaf95..2d99191 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1075,7 +1075,6 @@ static void shrink_readahead_size_eio(struct file *filp,
+  * @filp:	the file to read
+  * @ppos:	current file position
+  * @desc:	read_descriptor
+- * @actor:	read method
+  *
+  * This is a generic file read routine, and uses the
+  * mapping->a_ops->readpage() function for the actual low-level stuff.
+@@ -1084,7 +1083,7 @@ static void shrink_readahead_size_eio(struct file *filp,
+  * of the logic when it comes to error handling etc.
+  */
+ static void do_generic_file_read(struct file *filp, loff_t *ppos,
+-		read_descriptor_t *desc, read_actor_t actor)
++		read_descriptor_t *desc)
+ {
+ 	struct address_space *mapping = filp->f_mapping;
+ 	struct inode *inode = mapping->host;
+@@ -1185,13 +1184,14 @@ page_ok:
+ 		 * Ok, we have the page, and it's up-to-date, so
+ 		 * now we can copy it to user space...
+ 		 *
+-		 * The actor routine returns how many bytes were actually used..
++		 * The file_read_actor routine returns how many bytes were
++		 * actually used..
+ 		 * NOTE! This may not be the same as how much of a user buffer
+ 		 * we filled up (we may be padding etc), so we can only update
+ 		 * "pos" here (the actor routine has to update the user buffer
+ 		 * pointers and the remaining count).
+ 		 */
+-		ret = actor(desc, page, offset, nr);
++		ret = file_read_actor(desc, page, offset, nr);
+ 		offset += ret;
+ 		index += offset >> PAGE_CACHE_SHIFT;
+ 		offset &= ~PAGE_CACHE_MASK;
+@@ -1464,7 +1464,7 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+ 		if (desc.count == 0)
+ 			continue;
+ 		desc.error = 0;
+-		do_generic_file_read(filp, ppos, &desc, file_read_actor);
++		do_generic_file_read(filp, ppos, &desc);
+ 		retval += desc.written;
+ 		if (desc.error) {
+ 			retval = retval ?: desc.error;
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
