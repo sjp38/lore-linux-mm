@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id EF3C66B00CB
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 4E76A6B00B2
 	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:28 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 25/34] x86-64, mm: proper alignment mappings with hugepages
-Date: Fri,  5 Apr 2013 14:59:49 +0300
-Message-Id: <1365163198-29726-26-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 32/34] thp: handle write-protect exception to file-backed huge pages
+Date: Fri,  5 Apr 2013 14:59:56 +0300
+Message-Id: <1365163198-29726-33-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,58 +15,116 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Make arch_get_unmapped_area() return unmapped area aligned to HPAGE_MASK
-if the file mapping can have huge pages.
-
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/kernel/sys_x86_64.c |   12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ mm/huge_memory.c |   69 ++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 67 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index dbded5a..d97ab40 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -15,6 +15,7 @@
- #include <linux/random.h>
- #include <linux/uaccess.h>
- #include <linux/elf.h>
-+#include <linux/pagemap.h>
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index ed4389b..6dde87f 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1339,7 +1339,6 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
  
- #include <asm/ia32.h>
- #include <asm/syscalls.h>
-@@ -34,6 +35,13 @@ static unsigned long get_align_mask(void)
- 	return va_align.mask;
- }
+-	VM_BUG_ON(!vma->anon_vma);
+ 	haddr = address & HPAGE_PMD_MASK;
+ 	if (is_huge_zero_pmd(orig_pmd))
+ 		goto alloc;
+@@ -1349,7 +1348,7 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
  
-+static inline unsigned long mapping_align_mask(struct address_space *mapping)
-+{
-+	if (mapping_can_have_hugepages(mapping))
-+		return PAGE_MASK & ~HPAGE_MASK;
-+	return get_align_mask();
-+}
+ 	page = pmd_page(orig_pmd);
+ 	VM_BUG_ON(!PageCompound(page) || !PageHead(page));
+-	if (page_mapcount(page) == 1) {
++	if (PageAnon(page) && page_mapcount(page) == 1) {
+ 		pmd_t entry;
+ 		entry = pmd_mkyoung(orig_pmd);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+@@ -1357,10 +1356,72 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			update_mmu_cache_pmd(vma, address, pmd);
+ 		ret |= VM_FAULT_WRITE;
+ 		goto out_unlock;
++	} else if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
++			(VM_WRITE|VM_SHARED)) {
++		struct vm_fault vmf;
++		pmd_t entry;
++		struct address_space *mapping;
 +
- unsigned long align_vdso_addr(unsigned long addr)
- {
- 	unsigned long align_mask = get_align_mask();
-@@ -135,7 +143,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
- 	info.length = len;
- 	info.low_limit = begin;
- 	info.high_limit = end;
--	info.align_mask = filp ? get_align_mask() : 0;
-+	info.align_mask = filp ? mapping_align_mask(filp->f_mapping) : 0;
- 	info.align_offset = pgoff << PAGE_SHIFT;
- 	return vm_unmapped_area(&info);
- }
-@@ -174,7 +182,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	info.length = len;
- 	info.low_limit = PAGE_SIZE;
- 	info.high_limit = mm->mmap_base;
--	info.align_mask = filp ? get_align_mask() : 0;
-+	info.align_mask = filp ? mapping_align_mask(filp->f_mapping) : 0;
- 	info.align_offset = pgoff << PAGE_SHIFT;
- 	addr = vm_unmapped_area(&info);
- 	if (!(addr & ~PAGE_MASK))
++		/* not yet impemented */
++		VM_BUG_ON(!vma->vm_ops || !vma->vm_ops->page_mkwrite);
++
++		vmf.virtual_address = (void __user *)haddr;
++		vmf.pgoff = page->index;
++		vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
++		vmf.page = page;
++
++		page_cache_get(page);
++		spin_unlock(&mm->page_table_lock);
++
++		ret = vma->vm_ops->page_mkwrite(vma, &vmf);
++		if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
++			page_cache_release(page);
++			goto out;
++		}
++		if (unlikely(!(ret & VM_FAULT_LOCKED))) {
++			lock_page(page);
++			if (!page->mapping) {
++				ret = 0; /* retry */
++				unlock_page(page);
++				page_cache_release(page);
++				goto out;
++			}
++		} else
++			VM_BUG_ON(!PageLocked(page));
++		spin_lock(&mm->page_table_lock);
++		if (unlikely(!pmd_same(*pmd, orig_pmd))) {
++			unlock_page(page);
++			page_cache_release(page);
++			goto out_unlock;
++		}
++
++		flush_cache_page(vma, address, pmd_pfn(orig_pmd));
++		entry = pmd_mkyoung(orig_pmd);
++		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++		if (pmdp_set_access_flags(vma, haddr, pmd, entry,  1))
++			update_mmu_cache_pmd(vma, address, pmd);
++		ret = VM_FAULT_WRITE;
++		spin_unlock(&mm->page_table_lock);
++
++		mapping = page->mapping;
++		set_page_dirty(page);
++		unlock_page(page);
++		page_cache_release(page);
++		if (mapping)	{
++			/*
++			 * Some device drivers do not set page.mapping
++			 * but still dirty their pages
++			 */
++			balance_dirty_pages_ratelimited(mapping);
++		}
++		return ret;
+ 	}
+ 	get_page(page);
+ 	spin_unlock(&mm->page_table_lock);
+ alloc:
++	if (unlikely(anon_vma_prepare(vma)))
++		return VM_FAULT_OOM;
++
+ 	if (transparent_hugepage_enabled(vma) &&
+ 	    !transparent_hugepage_debug_cow())
+ 		new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+@@ -1424,6 +1485,10 @@ alloc:
+ 			add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
+ 			put_huge_zero_page();
+ 		} else {
++			if (!PageAnon(page)) {
++				add_mm_counter(mm, MM_FILEPAGES, -HPAGE_PMD_NR);
++				add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
++			}
+ 			VM_BUG_ON(!PageHead(page));
+ 			page_remove_rmap(page);
+ 			put_page(page);
 -- 
 1.7.10.4
 
