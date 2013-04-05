@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id BDE176B00BB
+	by kanga.kvack.org (Postfix) with SMTP id 558856B00B9
 	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:24 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 23/34] thp, mm: split huge page on mmap file page
-Date: Fri,  5 Apr 2013 14:59:47 +0300
-Message-Id: <1365163198-29726-24-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 18/34] thp, mm: naive support of thp in generic read/write routines
+Date: Fri,  5 Apr 2013 14:59:42 +0300
+Message-Id: <1365163198-29726-19-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,30 +15,59 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We are not ready to mmap file-backed tranparent huge pages. Let's split
-them on fault attempt.
+For now we still write/read at most PAGE_CACHE_SIZE bytes a time.
 
-Later in the patchset we'll implement mmap() properly and this code path
-be used for fallback cases.
+This implementation doesn't cover address spaces with backing store.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c |    2 ++
- 1 file changed, 2 insertions(+)
+ mm/filemap.c |   18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 3296f5c..6f0e3be 100644
+index bcb679c..3296f5c 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -1683,6 +1683,8 @@ retry_find:
- 			goto no_cached_page;
- 	}
+@@ -1161,6 +1161,16 @@ find_page:
+ 			if (unlikely(page == NULL))
+ 				goto no_cached_page;
+ 		}
++		if (PageTransCompound(page)) {
++			struct page *head = compound_trans_head(page);
++			/*
++			 * We don't yet support huge pages in page cache
++			 * for filesystems with backing device, so pages
++			 * should always be up-to-date.
++			 */
++			BUG_ON(PageReadahead(head) || !PageUptodate(head));
++			goto page_ok;
++		}
+ 		if (PageReadahead(page)) {
+ 			page_cache_async_readahead(mapping,
+ 					ra, filp, page,
+@@ -2439,8 +2449,13 @@ again:
+ 		if (mapping_writably_mapped(mapping))
+ 			flush_dcache_page(page);
  
-+	if (PageTransCompound(page))
-+		split_huge_page(compound_trans_head(page));
- 	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags)) {
- 		page_cache_release(page);
- 		return ret | VM_FAULT_RETRY;
++		if (PageTransHuge(page))
++			offset = pos & ~HPAGE_PMD_MASK;
++
+ 		pagefault_disable();
+-		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
++		copied = iov_iter_copy_from_user_atomic(
++				page + (offset >> PAGE_CACHE_SHIFT),
++				i, offset & ~PAGE_CACHE_MASK, bytes);
+ 		pagefault_enable();
+ 		flush_dcache_page(page);
+ 
+@@ -2463,6 +2478,7 @@ again:
+ 			 * because not all segments in the iov can be copied at
+ 			 * once without a pagefault.
+ 			 */
++			offset = pos & ~PAGE_CACHE_MASK;
+ 			bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
+ 						iov_iter_single_seg_count(i));
+ 			goto again;
 -- 
 1.7.10.4
 
