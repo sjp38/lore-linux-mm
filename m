@@ -1,72 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 1C8346B0027
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 04:08:19 -0400 (EDT)
-Date: Fri, 5 Apr 2013 17:08:17 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
-Message-ID: <20130405080817.GC32126@blaptop>
-References: <20130122065341.GA1850@kernel.org>
- <20130123075808.GH2723@blaptop>
- <515E17FC.9050008@gmail.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id E1DBE6B0027
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 04:08:31 -0400 (EDT)
+Date: Fri, 5 Apr 2013 10:08:28 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC][PATCH 0/9] extend hugepage migration
+Message-ID: <20130405080828.GA14882@dhcp22.suse.cz>
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <5148F830.3070601@gmail.com>
+ <1363815326-urchkyxr-mutt-n-horiguchi@ah.jp.nec.com>
+ <514A4B1C.6020201@gmail.com>
+ <20130321125628.GB6051@dhcp22.suse.cz>
+ <514B9BD8.9050207@gmail.com>
+ <20130322081532.GC31457@dhcp22.suse.cz>
+ <515E2592.7020607@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <515E17FC.9050008@gmail.com>
+In-Reply-To: <515E2592.7020607@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Shaohua Li <shli@kernel.org>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>
 
-On Fri, Apr 05, 2013 at 08:17:00AM +0800, Simon Jeons wrote:
-> Hi Minchan,
-> On 01/23/2013 03:58 PM, Minchan Kim wrote:
-> >On Tue, Jan 22, 2013 at 02:53:41PM +0800, Shaohua Li wrote:
-> >>Hi,
-> >>
-> >>Because of high density, low power and low price, flash storage (SSD) is a good
-> >>candidate to partially replace DRAM. A quick answer for this is using SSD as
-> >>swap. But Linux swap is designed for slow hard disk storage. There are a lot of
-> >>challenges to efficiently use SSD for swap:
-> >Many of below item could be applied in in-memory swap like zram, zcache.
+On Fri 05-04-13 09:14:58, Simon Jeons wrote:
+> Hi Michal,
+> On 03/22/2013 04:15 PM, Michal Hocko wrote:
+> >[getting off-list]
 > >
-> >>1. Lock contentions (swap_lock, anon_vma mutex, swap address space lock)
-> >>2. TLB flush overhead. To reclaim one page, we need at least 2 TLB flush. This
-> >>overhead is very high even in a normal 2-socket machine.
-> >>3. Better swap IO pattern. Both direct and kswapd page reclaim can do swap,
-> >>which makes swap IO pattern is interleave. Block layer isn't always efficient
-> >>to do request merge. Such IO pattern also makes swap prefetch hard.
-> >Agreed.
-> >
-> >>4. Swap map scan overhead. Swap in-memory map scan scans an array, which is
-> >>very inefficient, especially if swap storage is fast.
-> >Agreed.
-> >
-> >>5. SSD related optimization, mainly discard support
-> >>6. Better swap prefetch algorithm. Besides item 3, sequentially accessed pages
-> >>aren't always in LRU list adjacently, so page reclaim will not swap such pages
-> >>in adjacent storage sectors. This makes swap prefetch hard.
-> >One of problem is LRU churning and I wanted to try to fix it.
-> >http://marc.info/?l=linux-mm&m=130978831028952&w=4
+> >On Fri 22-03-13 07:46:32, Simon Jeons wrote:
+> >>Hi Michal,
+> >>On 03/21/2013 08:56 PM, Michal Hocko wrote:
+> >>>On Thu 21-03-13 07:49:48, Simon Jeons wrote:
+> >>>[...]
+> >>>>When I hacking arch/x86/mm/hugetlbpage.c like this,
+> >>>>diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+> >>>>index ae1aa71..87f34ee 100644
+> >>>>--- a/arch/x86/mm/hugetlbpage.c
+> >>>>+++ b/arch/x86/mm/hugetlbpage.c
+> >>>>@@ -354,14 +354,13 @@ hugetlb_get_unmapped_area(struct file *file,
+> >>>>unsigned long addr,
+> >>>>
+> >>>>#endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
+> >>>>
+> >>>>-#ifdef CONFIG_X86_64
+> >>>>static __init int setup_hugepagesz(char *opt)
+> >>>>{
+> >>>>unsigned long ps = memparse(opt, &opt);
+> >>>>if (ps == PMD_SIZE) {
+> >>>>hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
+> >>>>- } else if (ps == PUD_SIZE && cpu_has_gbpages) {
+> >>>>- hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+> >>>>+ } else if (ps == PUD_SIZE) {
+> >>>>+ hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT+4);
+> >>>>} else {
+> >>>>printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
+> >>>>ps >> 20);
+> >>>>
+> >>>>I set boot=hugepagesz=1G hugepages=10, then I got 10 32MB huge pages.
+> >>>>What's the difference between these pages which I hacking and normal
+> >>>>huge pages?
+> >>>How is this related to the patch set?
+> >>>Please _stop_ distracting discussion to unrelated topics!
+> >>>
+> >>>Nothing personal but this is just wasting our time.
+> >>Sorry kindly Michal, my bad.
+> >>Btw, could you explain this question for me? very sorry waste your time.
+> >Your CPU has to support GB pages. You have removed cpu_has_gbpages test
+> >and added a hstate for order 13 pages which is a weird number on its
+> >own (32MB) because there is no page table level to support them.
 > 
-> I'm interested in this feature, why it didn't merged? what's the
-> fatal issue in your patchset?
-> http://lwn.net/Articles/449866/
+> But after hacking, there is /sys/kernel/mm/hugepages/hugepages-*,
+> and have equal number of 32MB huge pages which I set up in boot
+> parameter.
 
-There wasn't any fatal issue, AFAIRC but some people had a concern about
-balancing between code complexity and benefit and dragged for a long time
-and I lost interest.
+because hugetlb_add_hstate creates hstate for those pages and
+hugetlb_init_hstates allocates them later on.
 
-> You mentioned test script and all-at-once patch, but I can't get
-> them from the URL, could you tell me how to get it?
+> If there is no page table level to support them, how can
+> them present?
 
-You can google it and google will find it in a few second.
-
-http://www.filewatcher.com/b/ftp/ftp.cs.huji.ac.il/mirror/linux/kernel/linux/kernel/people/minchan/inorder_putback/v4-0.html
-
+Because hugetlb hstate handling code doesn't care about page tables and
+the way how those pages are going to be mapped _at all_. Or put it in
+another way. Nobody prevents you to allocate order-5 page for a single
+pte but that would be a pure waste. Page fault code expects that pages
+with a proper size are allocated.
 -- 
-Kind regards,
-Minchan Kim
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
