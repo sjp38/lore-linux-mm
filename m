@@ -1,63 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 9A4E56B0111
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 15:52:27 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id kl13so2212036pab.18
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 12:52:26 -0700 (PDT)
-Date: Fri, 5 Apr 2013 12:52:24 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] THP: fix comment about memory barrier
-In-Reply-To: <1365149799-839-1-git-send-email-minchan@kernel.org>
-Message-ID: <alpine.DEB.2.02.1304051252100.21173@chino.kir.corp.google.com>
-References: <1365149799-839-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id C1F9D6B0112
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 16:33:34 -0400 (EDT)
+Received: by mail-qe0-f50.google.com with SMTP id k5so2299494qej.9
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 13:33:33 -0700 (PDT)
+Message-ID: <515F351C.403@gmail.com>
+Date: Fri, 05 Apr 2013 16:33:32 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 01/10] migrate: add migrate_entry_wait_huge()
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1363983835-20184-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1363983835-20184-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
 
-On Fri, 5 Apr 2013, Minchan Kim wrote:
+> diff --git v3.9-rc3.orig/mm/hugetlb.c v3.9-rc3/mm/hugetlb.c
+> index 0a0be33..98a478e 100644
+> --- v3.9-rc3.orig/mm/hugetlb.c
+> +++ v3.9-rc3/mm/hugetlb.c
+> @@ -2819,7 +2819,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	if (ptep) {
+>  		entry = huge_ptep_get(ptep);
+>  		if (unlikely(is_hugetlb_entry_migration(entry))) {
+> -			migration_entry_wait(mm, (pmd_t *)ptep, address);
+> +			migration_entry_wait_huge(mm, (pmd_t *)ptep, address);
 
-> Now, memory barrier in __do_huge_pmd_anonymous_page doesn't work.
-> Because lru_cache_add_lru uses pagevec so it could miss spinlock
-> easily so above rule was broken so user might see inconsistent data.
-> 
-> I was not first person who pointed out the problem. Mel and Peter
-> pointed out a few months ago and Peter pointed out further that
-> even spin_lock/unlock can't make sure it.
-> http://marc.info/?t=134333512700004
-> 
-> 	In particular:
-> 
->         	*A = a;
->         	LOCK
->         	UNLOCK
->         	*B = b;
-> 
-> 	may occur as:
-> 
->         	LOCK, STORE *B, STORE *A, UNLOCK
-> 
-> At last, Hugh pointed out that even we don't need memory barrier
-> in there because __SetPageUpdate already have done it from
-> Nick's [1] explicitly.
-> 
-> So this patch fixes comment on THP and adds same comment for
-> do_anonymous_page, too because everybody except Hugh was missing
-> that. It means we needs COMMENT about that.
-> 
-> [1] 0ed361dec "mm: fix PageUptodate data race"
-> 
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Acked-by: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+Hm.
 
-Acked-by: David Rientjes <rientjes@google.com>
+How do you test this? From x86 point of view, this patch seems unnecessary because
+hugetlb_fault call "address &= hugetlb_mask()" at first and then migration_entry_wait()
+could grab right pte lock. And from !x86 point of view, this funciton still doesn't work
+because huge page != pmd on some arch.
+
+I might be missing though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
