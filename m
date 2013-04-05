@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 94A4A6B00BE
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:25 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 708E06B00C2
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:26 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 22/34] thp, mm: truncate support for transparent huge page cache
-Date: Fri,  5 Apr 2013 14:59:46 +0300
-Message-Id: <1365163198-29726-23-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 27/34] thp: prepare zap_huge_pmd() to uncharge file pages
+Date: Fri,  5 Apr 2013 14:59:51 +0300
+Message-Id: <1365163198-29726-28-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,48 +15,31 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-If we starting position of truncation is in tail page we have to spilit
-the huge page page first.
-
-We also have to split if end is within the huge page. Otherwise we can
-truncate whole huge page at once.
+Uncharge pages from correct counter.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/truncate.c |   13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ mm/huge_memory.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index c75b736..0152feb 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -231,6 +231,17 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			if (index > end)
- 				break;
- 
-+			/* split page if we start from tail page */
-+			if (PageTransTail(page))
-+				split_huge_page(compound_trans_head(page));
-+			if (PageTransHuge(page)) {
-+				/* split if end is within huge page */
-+				if (index == (end & ~HPAGE_CACHE_INDEX_MASK))
-+					split_huge_page(page);
-+				else
-+					/* skip tail pages */
-+					i += HPAGE_CACHE_NR - 1;
-+			}
- 			if (!trylock_page(page))
- 				continue;
- 			WARN_ON(page->index != index);
-@@ -280,6 +291,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			if (index > end)
- 				break;
- 
-+			if (PageTransHuge(page))
-+				split_huge_page(page);
- 			lock_page(page);
- 			WARN_ON(page->index != index);
- 			wait_on_page_writeback(page);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 7c48f58..4a1d8d7 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1368,10 +1368,12 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			spin_unlock(&tlb->mm->page_table_lock);
+ 			put_huge_zero_page();
+ 		} else {
++			int member;
+ 			page = pmd_page(orig_pmd);
+ 			page_remove_rmap(page);
+ 			VM_BUG_ON(page_mapcount(page) < 0);
+-			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
++			member = PageAnon(page) ? MM_ANONPAGES : MM_FILEPAGES;
++			add_mm_counter(tlb->mm, member, -HPAGE_PMD_NR);
+ 			VM_BUG_ON(!PageHead(page));
+ 			tlb->mm->nr_ptes--;
+ 			spin_unlock(&tlb->mm->page_table_lock);
 -- 
 1.7.10.4
 
