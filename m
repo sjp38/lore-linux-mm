@@ -1,13 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 30F886B00A2
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 335C06B00A5
 	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:16 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 02/34] block: implement add_bdi_stat()
-Date: Fri,  5 Apr 2013 14:59:26 +0300
-Message-Id: <1365163198-29726-3-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 00/34] Transparent huge page cache
+Date: Fri,  5 Apr 2013 14:59:24 +0300
+Message-Id: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
@@ -15,36 +13,120 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We're going to add/remove a number of page cache entries at once. This
-patch implements add_bdi_stat() which adjusts bdi stats by arbitrary
-amount. It's required for batched page cache manipulations.
+Here's third RFC. Thanks everybody for feedback.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- include/linux/backing-dev.h |   10 ++++++++++
- 1 file changed, 10 insertions(+)
+The patchset is pretty big already and I want to stop generate new
+features to keep it reviewable. Next I'll concentrate on benchmarking and
+tuning.
 
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 3504599..b05d961 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -167,6 +167,16 @@ static inline void __dec_bdi_stat(struct backing_dev_info *bdi,
- 	__add_bdi_stat(bdi, item, -1);
- }
- 
-+static inline void add_bdi_stat(struct backing_dev_info *bdi,
-+		enum bdi_stat_item item, s64 amount)
-+{
-+	unsigned long flags;
-+
-+	local_irq_save(flags);
-+	__add_bdi_stat(bdi, item, amount);
-+	local_irq_restore(flags);
-+}
-+
- static inline void dec_bdi_stat(struct backing_dev_info *bdi,
- 		enum bdi_stat_item item)
- {
+Therefore some features will be outside initial transparent huge page
+cache implementation:
+ - page collapsing;
+ - migration;
+ - tmpfs/shmem;
+
+There are few features which are not implemented and potentially can block
+upstreaming:
+
+1. Currently we allocate 2M page even if we create only 1 byte file on
+ramfs. I don't think it's a problem by itself. With anon thp pages we also
+try to allocate huge pages whenever possible.
+The problem is that ramfs pages are unevictable and we can't just split
+and pushed them in swap as with anon thp. We (at some point) have to have
+mechanism to split last page of the file under memory pressure to reclaim
+some memory.
+
+2. We don't have knobs for disabling transparent huge page cache per-mount
+or per-file. Should we have mount option and fadivse flags as part of
+initial implementation?
+
+Any thoughts?
+
+The patchset is also on git:
+
+git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git thp/pagecache
+
+v3:
+ - set RADIX_TREE_PRELOAD_NR to 512 only if we build with THP;
+ - rewrite lru_add_page_tail() to address few bags;
+ - memcg accounting;
+ - represent file thp pages in meminfo and friends;
+ - dump page order in filemap trace;
+ - add missed flush_dcache_page() in zero_huge_user_segment;
+ - random cleanups based on feedback.
+v2:
+ - mmap();
+ - fix add_to_page_cache_locked() and delete_from_page_cache();
+ - introduce mapping_can_have_hugepages();
+ - call split_huge_page() only for head page in filemap_fault();
+ - wait_split_huge_page(): serialize over i_mmap_mutex too;
+ - lru_add_page_tail: avoid PageUnevictable on active/inactive lru lists;
+ - fix off-by-one in zero_huge_user_segment();
+ - THP_WRITE_ALLOC/THP_WRITE_FAILED counters;
+
+Kirill A. Shutemov (34):
+  mm: drop actor argument of do_generic_file_read()
+  block: implement add_bdi_stat()
+  mm: implement zero_huge_user_segment and friends
+  radix-tree: implement preload for multiple contiguous elements
+  memcg, thp: charge huge cache pages
+  thp, mm: avoid PageUnevictable on active/inactive lru lists
+  thp, mm: basic defines for transparent huge page cache
+  thp, mm: introduce mapping_can_have_hugepages() predicate
+  thp: represent file thp pages in meminfo and friends
+  thp, mm: rewrite add_to_page_cache_locked() to support huge pages
+  mm: trace filemap: dump page order
+  thp, mm: rewrite delete_from_page_cache() to support huge pages
+  thp, mm: trigger bug in replace_page_cache_page() on THP
+  thp, mm: locking tail page is a bug
+  thp, mm: handle tail pages in page_cache_get_speculative()
+  thp, mm: add event counters for huge page alloc on write to a file
+  thp, mm: implement grab_thp_write_begin()
+  thp, mm: naive support of thp in generic read/write routines
+  thp, libfs: initial support of thp in
+    simple_read/write_begin/write_end
+  thp: handle file pages in split_huge_page()
+  thp: wait_split_huge_page(): serialize over i_mmap_mutex too
+  thp, mm: truncate support for transparent huge page cache
+  thp, mm: split huge page on mmap file page
+  ramfs: enable transparent huge page cache
+  x86-64, mm: proper alignment mappings with hugepages
+  mm: add huge_fault() callback to vm_operations_struct
+  thp: prepare zap_huge_pmd() to uncharge file pages
+  thp: move maybe_pmd_mkwrite() out of mk_huge_pmd()
+  thp, mm: basic huge_fault implementation for generic_file_vm_ops
+  thp: extract fallback path from do_huge_pmd_anonymous_page() to a
+    function
+  thp: initial implementation of do_huge_linear_fault()
+  thp: handle write-protect exception to file-backed huge pages
+  thp: call __vma_adjust_trans_huge() for file-backed VMA
+  thp: map file-backed huge pages on fault
+
+ arch/x86/kernel/sys_x86_64.c   |   12 +-
+ drivers/base/node.c            |   10 +
+ fs/libfs.c                     |   48 +++-
+ fs/proc/meminfo.c              |    6 +
+ fs/ramfs/inode.c               |    6 +-
+ include/linux/backing-dev.h    |   10 +
+ include/linux/huge_mm.h        |   36 ++-
+ include/linux/mm.h             |    8 +
+ include/linux/mmzone.h         |    1 +
+ include/linux/pagemap.h        |   33 ++-
+ include/linux/radix-tree.h     |   11 +
+ include/linux/vm_event_item.h  |    2 +
+ include/trace/events/filemap.h |    7 +-
+ lib/radix-tree.c               |   33 ++-
+ mm/filemap.c                   |  298 ++++++++++++++++++++-----
+ mm/huge_memory.c               |  474 +++++++++++++++++++++++++++++++++-------
+ mm/memcontrol.c                |    2 -
+ mm/memory.c                    |   41 +++-
+ mm/mmap.c                      |    3 +
+ mm/page_alloc.c                |    7 +-
+ mm/swap.c                      |   20 +-
+ mm/truncate.c                  |   13 ++
+ mm/vmstat.c                    |    2 +
+ 23 files changed, 902 insertions(+), 181 deletions(-)
+
 -- 
 1.7.10.4
 
