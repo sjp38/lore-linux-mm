@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 32C9E6B00B8
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 660EF6B00C0
 	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:26 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 19/34] thp, libfs: initial support of thp in simple_read/write_begin/write_end
-Date: Fri,  5 Apr 2013 14:59:43 +0300
-Message-Id: <1365163198-29726-20-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 33/34] thp: call __vma_adjust_trans_huge() for file-backed VMA
+Date: Fri,  5 Apr 2013 14:59:57 +0300
+Message-Id: <1365163198-29726-34-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,113 +15,37 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For now we try to grab a huge cache page if gfp_mask has __GFP_COMP.
-It's probably to weak condition and need to be reworked later.
+Since we're going to have huge pages in page cache, we need to call
+__vma_adjust_trans_huge() for file-backed VMA, which potentially can
+contain huge pages.
+
+For now we call it for all VMAs with vm_ops->huge_fault defined.
+
+Probably later we will need to introduce a flag to indicate that the VMA
+has huge pages.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/libfs.c              |   48 ++++++++++++++++++++++++++++++++++++-----------
- include/linux/pagemap.h |    8 ++++++++
- 2 files changed, 45 insertions(+), 11 deletions(-)
+ include/linux/huge_mm.h |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/fs/libfs.c b/fs/libfs.c
-index 916da8c..6e5286d 100644
---- a/fs/libfs.c
-+++ b/fs/libfs.c
-@@ -383,7 +383,7 @@ EXPORT_SYMBOL(simple_setattr);
- 
- int simple_readpage(struct file *file, struct page *page)
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index aa52c48..c6e3aef 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -161,9 +161,9 @@ static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
+ 					 unsigned long end,
+ 					 long adjust_next)
  {
--	clear_highpage(page);
-+	clear_pagecache_page(page);
- 	flush_dcache_page(page);
- 	SetPageUptodate(page);
- 	unlock_page(page);
-@@ -394,21 +394,42 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
- 			loff_t pos, unsigned len, unsigned flags,
- 			struct page **pagep, void **fsdata)
+-	if (!vma->anon_vma || vma->vm_ops)
+-		return;
+-	__vma_adjust_trans_huge(vma, start, end, adjust_next);
++	if ((vma->anon_vma && !vma->vm_ops) ||
++			(vma->vm_ops && vma->vm_ops->huge_fault))
++		__vma_adjust_trans_huge(vma, start, end, adjust_next);
+ }
+ static inline int hpage_nr_pages(struct page *page)
  {
--	struct page *page;
-+	struct page *page = NULL;
- 	pgoff_t index;
- 
- 	index = pos >> PAGE_CACHE_SHIFT;
- 
--	page = grab_cache_page_write_begin(mapping, index, flags);
-+	/* XXX: too weak condition. Good enough for initial testing */
-+	if (mapping_can_have_hugepages(mapping)) {
-+		page = grab_thp_write_begin(mapping,
-+				index & ~HPAGE_CACHE_INDEX_MASK, flags);
-+		/* fallback to small page */
-+		if (!page || !PageTransHuge(page)) {
-+			unsigned long offset;
-+			offset = pos & ~PAGE_CACHE_MASK;
-+			len = min_t(unsigned long,
-+					len, PAGE_CACHE_SIZE - offset);
-+		}
-+	}
-+	if (!page)
-+		page = grab_cache_page_write_begin(mapping, index, flags);
- 	if (!page)
- 		return -ENOMEM;
--
- 	*pagep = page;
- 
--	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
--		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
--
--		zero_user_segments(page, 0, from, from + len, PAGE_CACHE_SIZE);
-+	if (!PageUptodate(page)) {
-+		unsigned from;
-+
-+		if (PageTransHuge(page) && len != HPAGE_PMD_SIZE) {
-+			from = pos & ~HPAGE_PMD_MASK;
-+			zero_huge_user_segment(page, 0, from);
-+			zero_huge_user_segment(page,
-+					from + len, HPAGE_PMD_SIZE);
-+		} else if (len != PAGE_CACHE_SIZE) {
-+			from = pos & ~PAGE_CACHE_MASK;
-+			zero_user_segments(page, 0, from,
-+					from + len, PAGE_CACHE_SIZE);
-+		}
- 	}
- 	return 0;
- }
-@@ -443,9 +464,14 @@ int simple_write_end(struct file *file, struct address_space *mapping,
- 
- 	/* zero the stale part of the page if we did a short copy */
- 	if (copied < len) {
--		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
--
--		zero_user(page, from + copied, len - copied);
-+		unsigned from;
-+		if (PageTransHuge(page)) {
-+			from = pos & ~HPAGE_PMD_MASK;
-+			zero_huge_user(page, from + copied, len - copied);
-+		} else {
-+			from = pos & ~PAGE_CACHE_MASK;
-+			zero_user(page, from + copied, len - copied);
-+		}
- 	}
- 
- 	if (!PageUptodate(page))
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 5a7dda9..c64d19c 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -581,4 +581,12 @@ static inline int add_to_page_cache(struct page *page,
- 	return error;
- }
- 
-+static inline void clear_pagecache_page(struct page *page)
-+{
-+	if (PageTransHuge(page))
-+		zero_huge_user(page, 0, HPAGE_PMD_SIZE);
-+	else
-+		clear_highpage(page);
-+}
-+
- #endif /* _LINUX_PAGEMAP_H */
 -- 
 1.7.10.4
 
