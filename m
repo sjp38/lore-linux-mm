@@ -1,41 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id D168D6B012C
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 18:23:08 -0400 (EDT)
-Received: by mail-qa0-f44.google.com with SMTP id o13so418135qaj.3
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 15:23:07 -0700 (PDT)
-Message-ID: <515F4ECB.9050105@gmail.com>
-Date: Fri, 05 Apr 2013 18:23:07 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 748806B012F
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 19:16:40 -0400 (EDT)
+Date: Fri, 5 Apr 2013 19:16:35 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: Excessive stall times on ext4 in 3.9-rc2
+Message-ID: <20130405231635.GA6521@thunk.org>
+References: <20130402142717.GH32241@suse.de>
+ <20130402150651.GB31577@thunk.org>
+ <20130402151436.GC31577@thunk.org>
+ <20130403101925.GA7341@suse.de>
+ <515F4DA3.2000000@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/10] mbind: add hugepage migration code to mbind()
-References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1363983835-20184-8-git-send-email-n-horiguchi@ah.jp.nec.com> <20130325134926.GZ2154@dhcp22.suse.cz>
-In-Reply-To: <20130325134926.GZ2154@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <515F4DA3.2000000@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
->> -	if (!new_hpage)
->> +	/*
->> +	 * Getting a new hugepage with alloc_huge_page() (which can happen
->> +	 * when migration is caused by mbind()) can return ERR_PTR value,
->> +	 * so we need take care of the case here.
->> +	 */
->> +	if (!new_hpage || IS_ERR_VALUE(new_hpage))
->>  		return -ENOMEM;
-> 
-> Please no. get_new_page returns NULL or a page. You are hooking a wrong
-> callback here. The error value doesn't make any sense here. IMO you
-> should just wrap alloc_huge_page by something that returns NULL or page.
+On Sat, Apr 06, 2013 at 12:18:11AM +0200, Jiri Slaby wrote:
+> Ok, so now I'm runnning 3.9.0-rc5-next-20130404, it's not that bad, but
+> it still sucks. Updating a kernel in a VM still results in "Your system
+> is too SLOW to play this!" by mplayer and frame dropping.
 
-I suggest just opposite way. new_vma_page() always return ENOMEM, ENOSPC etc instad 
-of NULL. and caller propegate it to userland.
-I guess userland want to distingush why mbind was failed.
+What was the first kernel where you didn't have the problem?  Were you
+using the 3.8 kernel earlier, and did you see the interactivity
+problems there?
 
-Anyway, If new_vma_page() have a change to return both NULL and -ENOMEM. That's a bug.
+What else was running in on your desktop at the same time?  How was
+the file system mounted, and can you send me the output of dumpe2fs -h
+/dev/XXX?  Oh, and what options were you using to when you kicked off
+the VM?
+
+The other thing that would be useful was to enable the jbd2_run_stats
+tracepoint and to send the output of the trace log when you notice the
+interactivity problems.
+
+Thanks,
+
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
