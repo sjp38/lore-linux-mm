@@ -1,86 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id F05EF6B00FE
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 09:48:47 -0400 (EDT)
-Date: Fri, 5 Apr 2013 15:48:44 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 3/7] memcg: use css_get/put when charging/uncharging
- kmem
-Message-ID: <20130405134844.GI31132@dhcp22.suse.cz>
-References: <515BF233.6070308@huawei.com>
- <515BF284.7060401@huawei.com>
- <20130404094333.GE29911@dhcp22.suse.cz>
- <515EA532.4050706@parallels.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 102216B0101
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 11:02:50 -0400 (EDT)
+Received: by mail-qa0-f44.google.com with SMTP id o13so336076qaj.10
+        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 08:02:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <515EA532.4050706@parallels.com>
+In-Reply-To: <515CF884.8010103@gmail.com>
+References: <20130325134247.GB1393@localhost.localdomain> <515CF884.8010103@gmail.com>
+From: Andrew Shewmaker <agshew@gmail.com>
+Date: Fri, 5 Apr 2013 09:02:29 -0600
+Message-ID: <CAF-E8XFQFm9GrBnkax+TiByUPHxp=Ukp1LcuAWjYL0OeLE1Saw@mail.gmail.com>
+Subject: Re: [PATCH v7 2/2] mm: replace hardcoded 3% with admin_reserve_pages knob
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, ric.masonn@gmail.com
 
-On Fri 05-04-13 14:19:30, Glauber Costa wrote:
-> 
-> > 	 * __mem_cgroup_free will issue static_key_slow_dec because this
-> > 	 * memcg is active already. If the later initialization fails
-> > 	 * then the cgroup core triggers the cleanup so we do not have
-> > 	 * to do it here.
-> > 	 */
-> >> -	mem_cgroup_get(memcg);
-> >>  	static_key_slow_inc(&memcg_kmem_enabled_key);
-> >>  
-> >>  	mutex_lock(&set_limit_mutex);
-> >> @@ -5823,23 +5814,33 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
-> >>  	return mem_cgroup_sockets_init(memcg, ss);
-> >>  };
-> >>  
-> >> -static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
-> >> +static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
-> >>  {
-> >> -	mem_cgroup_sockets_destroy(memcg);
-> >> +	/*
-> >> +	 * kmem charges can outlive the cgroup. In the case of slab
-> >> +	 * pages, for instance, a page contain objects from various
-> >> +	 * processes, so it is unfeasible to migrate them away. We
-> >> +	 * need to reference count the memcg because of that.
-> >> +	 */
-> > 
-> > I would prefer if we could merge all three comments in this function
-> > into a single one. What about something like the following?
-> > 	/*
-> > 	 * kmem charges can outlive the cgroup. In the case of slab
-> > 	 * pages, for instance, a page contain objects from various
-> > 	 * processes. As we prevent from taking a reference for every
-> > 	 * such allocation we have to be careful when doing uncharge
-> > 	 * (see memcg_uncharge_kmem) and here during offlining.
-> > 	 * The idea is that that only the _last_ uncharge which sees
-> > 	 * the dead memcg will drop the last reference. An additional
-> > 	 * reference is taken here before the group is marked dead
-> > 	 * which is then paired with css_put during uncharge resp. here.
-> > 	 * Although this might sound strange as this path is called when
-> > 	 * the reference has already dropped down to 0 and shouldn't be
-> > 	 * incremented anymore (css_tryget would fail) we do not have
-> > 	 * other options because of the kmem allocations lifetime.
-> > 	 */
-> >> +	css_get(&memcg->css);
-> > 
-> > I think that you need a write memory barrier here because css_get
-> > nor memcg_kmem_mark_dead implies it. memcg_uncharge_kmem uses
-> > memcg_kmem_test_and_clear_dead which imply a full memory barrier but it
-> > should see the elevated reference count. No?
-> > 
-> 
-> We don't use barriers for any other kind of reference counting. What is
-> different here?
+On Wed, Apr 3, 2013 at 9:50 PM, Simon Jeons <simon.jeons@gmail.com> wrote:
+>> FAQ
+>>
+...
+>>   * How do you calculate a minimum useful reserve?
+>>
+>>     A user or the admin needs enough memory to login and perform
+>>     recovery operations, which includes, at a minimum:
+>>
+>>     sshd or login + bash (or some other shell) + top (or ps, kill, etc.)
+>>
+>>     For overcommit 'guess', we can sum resident set sizes (RSS).
+>>     On x86_64 this is about 8MB.
+>>
+>>     For overcommit 'never', we can take the max of their virtual sizes
+>> (VSZ)
+>>     and add the sum of their RSS.
+>>     On x86_64 this is about 128MB.
+>
+>
+> 1.Why has this different between guess and never?
 
-Now we need to make sure that the racing uncharge sees an elevated
-reference count before the group is marked dead. Otherwise we could see
-a dead group with ref count == 0, no?
+The default, overcommit 'guess' mode, only needs a reserve for
+what the recovery programs will typically use. Overcommit 'never'
+mode will only successfully launch an app when it can fulfill all of
+its requested memory allocations--even if the app only uses a
+fraction of what it asks for.
 
--- 
-Michal Hocko
-SUSE Labs
+> 2.You just test x86/x86_64, other platforms also will use memory overcommit,
+> did you test them?
+
+No, I haven't. Unfortunately, I don't currently have any other platforms to test
+with. I'll see what I can do.
+
+Thanks,
+
+Andrew
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
