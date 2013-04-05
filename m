@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 177B36B0073
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 11DD26B0074
 	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 05:37:27 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 07/11] x86, numa, acpi, memory-hotplug: Make any node which the kernel resides in un-hotpluggable.
-Date: Fri, 5 Apr 2013 17:39:57 +0800
-Message-Id: <1365154801-473-8-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH 09/11] x86, numa, acpi, memory-hotplug: Sanitize zone_movable_limit[].
+Date: Fri, 5 Apr 2013 17:39:59 +0800
+Message-Id: <1365154801-473-10-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,115 +13,104 @@ List-ID: <linux-mm.kvack.org>
 To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linfeng@cn.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, jiang.liu@huawei.com, guz.fnst@cn.fujitsu.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Before parsing SRAT, memblock has already reserved some memory ranges
-for other purposes, such as for kernel image. We cannot prevent
-kernel from using these memory. Furthermore, if all the memory is
-hotpluggable, then the system won't have enough memory to boot if we set
-all of them as movable. So we always set the nodes which the kernel
-resides in as non-movable.
+As mentioned by Liu Jiang and Wu Jiangguo, users could specify DMA,
+DMA32, and HIGHMEM as movable. In order to ensure the kernel will
+work correctly, we should exclude these memory ranges out from
+zone_movable_limit[].
 
+NOTE: Do find_usable_zone_for_movable() to initialize movable_zone
+      so that sanitize_zone_movable_limit() could use it. This is
+      pointed out by Wu Jianguo <wujianguo@huawei.com>.
+
+Reported-by: Wu Jianguo <wujianguo@huawei.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Signed-off-by: Liu Jiang <jiang.liu@huawei.com>
+Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
+Reviewed-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
 ---
- arch/x86/mm/numa.c |   25 +++++++++++++++++++------
- arch/x86/mm/srat.c |   17 ++++++++++++++++-
- include/linux/mm.h |    1 +
- 3 files changed, 36 insertions(+), 7 deletions(-)
+ mm/page_alloc.c |   54 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 files changed, 53 insertions(+), 1 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 73e7934..dcaf248 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -736,24 +736,37 @@ static void __init early_x86_numa_init_mapping(void)
-  * we will put pagetable pages in local node even if the memory of that node is
-  * hotpluggable.
-  *
-- * If users specify movablemem_map=acpi, then:
-+ * And, when the kernel is booting, memblock has reserved some memory for other
-+ * purpose, such as storing kernel image. We cannot prevent the kernel from
-+ * using this kind of memory. So whatever node the kernel resides in should be
-+ * un-hotpluggable, because if all the memory is hotpluggable, and is set as
-+ * movable, the kernel won't have enough memory to boot.
-+ *
-+ * It works like this:
-+ * If users specify movablemem_map=acpi, then
-  *
-  * SRAT:                |_____| |_____| |_________| |_________| ......
-  * node id:                0       1         1           2
-- * hotpluggable:           n       y         y           n
-+ * hotpluggable:           y       y         y           n
-+ * kernel resides in:      y       n         n           n
-  * movablemem_map:              |_____| |_________|
-  */
- static void __init early_mem_hotplug_init()
- {
--	int i;
-+	int i, nid;
- 
- 	if (!movablemem_map.acpi)
- 		return;
- 
- 	for (i = 0; i < numa_meminfo.nr_blks; i++) {
--		if (numa_meminfo.blk[i].hotpluggable)
--			movablemem_map_add_region(numa_meminfo.blk[i].start,
--						  numa_meminfo.blk[i].end);
-+		nid = numa_meminfo_all.blk[i].nid;
-+
-+		if (node_isset(nid, movablemem_map.numa_nodes_kernel) ||
-+		    !numa_meminfo.blk[i].hotpluggable)
-+			continue;
-+
-+		movablemem_map_add_region(numa_meminfo.blk[i].start,
-+					  numa_meminfo.blk[i].end);
- 	}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b97bdb5..f800aec 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4412,6 +4412,57 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
+ 	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
  }
- #else          /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-index f7f6fd4..0b5904e 100644
---- a/arch/x86/mm/srat.c
-+++ b/arch/x86/mm/srat.c
-@@ -147,7 +147,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- {
- 	u64 start, end;
- 	u32 hotpluggable;
--	int node, pxm;
-+	int node, pxm, i;
-+	struct memblock_type *rgn = &memblock.reserved;
  
- 	if (srat_disabled())
- 		goto out_err;
-@@ -176,6 +177,20 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- 
- 	node_set(node, numa_nodes_parsed);
- 
-+	/*
-+	 * Before parsing SRAT, memblock has reserved some memory for other
-+	 * purpose, such as storing kernel image. We cannot prevent the kernel
-+	 * from using this kind of memory. So just mark which nodes the kernel
-+	 * resides in, and set these nodes un-hotpluggable later.
-+	 */
-+	for (i = 0; i < rgn->cnt; i++) {
-+		if (end <= rgn->regions[i].base ||
-+		    start >= rgn->regions[i].base + rgn->regions[i].size)
++/**
++ * sanitize_zone_movable_limit - Sanitize the zone_movable_limit array.
++ *
++ * zone_movable_limit[] have been initialized when parsing SRAT or
++ * movablemem_map. This function will try to exclude ZONE_DMA, ZONE_DMA32,
++ * and HIGHMEM from zone_movable_limit[].
++ *
++ * zone_movable_limit[nid] == 0 means no limit for the node.
++ *
++ * Note: Need to be called with movable_zone initialized.
++ */
++static void __meminit sanitize_zone_movable_limit(void)
++{
++	int nid;
++
++	if (!movablemem_map.nr_map)
++		return;
++
++	/* Iterate each node id. */
++	for_each_node(nid) {
++		/* If we have no limit for this node, just skip it. */
++		if (!zone_movable_limit[nid])
 +			continue;
 +
-+		node_set(node, movablemem_map.numa_nodes_kernel);
-+	}
++#ifdef CONFIG_ZONE_DMA
++		/* Skip DMA memory. */
++		if (zone_movable_limit[nid] <
++		    arch_zone_highest_possible_pfn[ZONE_DMA])
++			zone_movable_limit[nid] =
++				arch_zone_highest_possible_pfn[ZONE_DMA];
++#endif
 +
- 	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
- 	       node, pxm,
- 	       (unsigned long long) start, (unsigned long long) end - 1,
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 7468221..2835c91 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1342,6 +1342,7 @@ struct movablemem_map {
- 	bool acpi;
- 	int nr_map;
- 	struct movablemem_entry map[MOVABLEMEM_MAP_MAX];
-+	nodemask_t numa_nodes_kernel;   /* on which nodes kernel resides in */
- };
++#ifdef CONFIG_ZONE_DMA32
++		/* Skip DMA32 memory. */
++		if (zone_movable_limit[nid] <
++		    arch_zone_highest_possible_pfn[ZONE_DMA32])
++			zone_movable_limit[nid] =
++				arch_zone_highest_possible_pfn[ZONE_DMA32];
++#endif
++
++#ifdef CONFIG_HIGHMEM
++		/* Skip lowmem if ZONE_MOVABLE is highmem. */
++		if (zone_movable_is_highmem() &&
++		    zone_movable_limit[nid] <
++		    arch_zone_lowest_possible_pfn[ZONE_HIGHMEM])
++			zone_movable_limit[nid] =
++				arch_zone_lowest_possible_pfn[ZONE_HIGHMEM];
++#endif
++	}
++}
++
+ #else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
+ 					unsigned long zone_type,
+@@ -4826,7 +4877,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 		goto out;
  
- extern struct movablemem_map movablemem_map;
+ 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+-	find_usable_zone_for_movable();
+ 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+ 
+ restart:
+@@ -4985,6 +5035,8 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 
+ 	/* Find the PFNs that ZONE_MOVABLE begins at in each node */
+ 	memset(zone_movable_pfn, 0, sizeof(zone_movable_pfn));
++	find_usable_zone_for_movable();
++	sanitize_zone_movable_limit();
+ 	find_zone_movable_pfns_for_nodes();
+ 
+ 	/* Print out the zone ranges */
 -- 
 1.7.1
 
