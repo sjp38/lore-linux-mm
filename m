@@ -1,234 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 58D216B0037
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 21:10:32 -0400 (EDT)
-Received: by mail-ia0-f202.google.com with SMTP id p22so794916iad.1
-        for <linux-mm@kvack.org>; Thu, 04 Apr 2013 18:10:31 -0700 (PDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v2 08/28] list: add a new LRU list type
-Date: Thu, 04 Apr 2013 14:53:49 -0700
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
-	<1364548450-28254-9-git-send-email-glommer@parallels.com>
-Message-ID: <xr93ehepkcje.fsf@gthelen.mtv.corp.google.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 87FA16B0027
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 21:15:05 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id wp18so2573577obc.0
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2013 18:15:04 -0700 (PDT)
+Message-ID: <515E2592.7020607@gmail.com>
+Date: Fri, 05 Apr 2013 09:14:58 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [RFC][PATCH 0/9] extend hugepage migration
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com> <5148F830.3070601@gmail.com> <1363815326-urchkyxr-mutt-n-horiguchi@ah.jp.nec.com> <514A4B1C.6020201@gmail.com> <20130321125628.GB6051@dhcp22.suse.cz> <514B9BD8.9050207@gmail.com> <20130322081532.GC31457@dhcp22.suse.cz>
+In-Reply-To: <20130322081532.GC31457@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, hughd@google.com, yinghan@google.com, Dave Chinner <dchinner@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>
 
-On Fri, Mar 29 2013, Glauber Costa wrote:
-
-> From: Dave Chinner <dchinner@redhat.com>
+Hi Michal,
+On 03/22/2013 04:15 PM, Michal Hocko wrote:
+> [getting off-list]
 >
-> Several subsystems use the same construct for LRU lists - a list
-> head, a spin lock and and item count. They also use exactly the same
-> code for adding and removing items from the LRU. Create a generic
-> type for these LRU lists.
->
-> This is the beginning of generic, node aware LRUs for shrinkers to
-> work with.
->
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> ---
->  include/linux/list_lru.h |  36 +++++++++++++++
->  lib/Makefile             |   2 +-
->  lib/list_lru.c           | 117 +++++++++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 154 insertions(+), 1 deletion(-)
->  create mode 100644 include/linux/list_lru.h
->  create mode 100644 lib/list_lru.c
->
-> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-> new file mode 100644
-> index 0000000..3423949
-> --- /dev/null
-> +++ b/include/linux/list_lru.h
-> @@ -0,0 +1,36 @@
-> +/*
-> + * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
-> + * Author: David Chinner
-> + *
-> + * Generic LRU infrastructure
-> + */
-> +#ifndef _LRU_LIST_H
-> +#define _LRU_LIST_H 0
+> On Fri 22-03-13 07:46:32, Simon Jeons wrote:
+>> Hi Michal,
+>> On 03/21/2013 08:56 PM, Michal Hocko wrote:
+>>> On Thu 21-03-13 07:49:48, Simon Jeons wrote:
+>>> [...]
+>>>> When I hacking arch/x86/mm/hugetlbpage.c like this,
+>>>> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+>>>> index ae1aa71..87f34ee 100644
+>>>> --- a/arch/x86/mm/hugetlbpage.c
+>>>> +++ b/arch/x86/mm/hugetlbpage.c
+>>>> @@ -354,14 +354,13 @@ hugetlb_get_unmapped_area(struct file *file,
+>>>> unsigned long addr,
+>>>>
+>>>> #endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
+>>>>
+>>>> -#ifdef CONFIG_X86_64
+>>>> static __init int setup_hugepagesz(char *opt)
+>>>> {
+>>>> unsigned long ps = memparse(opt, &opt);
+>>>> if (ps == PMD_SIZE) {
+>>>> hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
+>>>> - } else if (ps == PUD_SIZE && cpu_has_gbpages) {
+>>>> - hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+>>>> + } else if (ps == PUD_SIZE) {
+>>>> + hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT+4);
+>>>> } else {
+>>>> printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
+>>>> ps >> 20);
+>>>>
+>>>> I set boot=hugepagesz=1G hugepages=10, then I got 10 32MB huge pages.
+>>>> What's the difference between these pages which I hacking and normal
+>>>> huge pages?
+>>> How is this related to the patch set?
+>>> Please _stop_ distracting discussion to unrelated topics!
+>>>
+>>> Nothing personal but this is just wasting our time.
+>> Sorry kindly Michal, my bad.
+>> Btw, could you explain this question for me? very sorry waste your time.
+> Your CPU has to support GB pages. You have removed cpu_has_gbpages test
+> and added a hstate for order 13 pages which is a weird number on its
+> own (32MB) because there is no page table level to support them.
 
-Utter nitpicking, but all other .h files in this directory use the form:
+But after hacking, there is /sys/kernel/mm/hugepages/hugepages-*, and 
+have equal number of 32MB huge pages which I set up in boot parameter. 
+If there is no page table level to support them, how can them present? I 
+can hacking this successfully in ubuntu, but not in fedora.
 
-  #define _LRU_LIST_H
-
-not the removed trailing 0.
-
-> +
-> +#include <linux/list.h>
-> +
-> +struct list_lru {
-> +	spinlock_t		lock;
-> +	struct list_head	list;
-> +	long			nr_items;
-> +};
-> +
-> +int list_lru_init(struct list_lru *lru);
-> +int list_lru_add(struct list_lru *lru, struct list_head *item);
-> +int list_lru_del(struct list_lru *lru, struct list_head *item);
-> +
-> +static inline long list_lru_count(struct list_lru *lru)
-> +{
-> +	return lru->nr_items;
-> +}
-> +
-> +typedef int (*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock,
-> +				void *cb_arg);
-> +typedef void (*list_lru_dispose_cb)(struct list_head *dispose_list);
-> +
-> +long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
-> +		   void *cb_arg, long nr_to_walk);
-> +
-> +long list_lru_dispose_all(struct list_lru *lru, list_lru_dispose_cb dispose);
-> +
-> +#endif /* _LRU_LIST_H */
-> diff --git a/lib/Makefile b/lib/Makefile
-> index d7946ff..f14abd9 100644
-> --- a/lib/Makefile
-> +++ b/lib/Makefile
-> @@ -13,7 +13,7 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
->  	 sha1.o md5.o irq_regs.o reciprocal_div.o argv_split.o \
->  	 proportions.o flex_proportions.o prio_heap.o ratelimit.o show_mem.o \
->  	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
-> -	 earlycpio.o
-> +	 earlycpio.o list_lru.o
->  
->  lib-$(CONFIG_MMU) += ioremap.o
->  lib-$(CONFIG_SMP) += cpumask.o
-> diff --git a/lib/list_lru.c b/lib/list_lru.c
-> new file mode 100644
-> index 0000000..475d0e9
-> --- /dev/null
-> +++ b/lib/list_lru.c
-> @@ -0,0 +1,117 @@
-> +/*
-> + * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
-> + * Author: David Chinner
-> + *
-> + * Generic LRU infrastructure
-> + */
-> +#include <linux/kernel.h>
-> +#include <linux/module.h>
-> +#include <linux/list_lru.h>
-> +
-> +int
-> +list_lru_add(
-> +	struct list_lru	*lru,
-> +	struct list_head *item)
-> +{
-> +	spin_lock(&lru->lock);
-> +	if (list_empty(item)) {
-> +		list_add_tail(item, &lru->list);
-> +		lru->nr_items++;
-> +		spin_unlock(&lru->lock);
-> +		return 1;
-> +	}
-> +	spin_unlock(&lru->lock);
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL_GPL(list_lru_add);
-> +
-> +int
-> +list_lru_del(
-> +	struct list_lru	*lru,
-> +	struct list_head *item)
-> +{
-> +	spin_lock(&lru->lock);
-> +	if (!list_empty(item)) {
-> +		list_del_init(item);
-> +		lru->nr_items--;
-> +		spin_unlock(&lru->lock);
-> +		return 1;
-> +	}
-> +	spin_unlock(&lru->lock);
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL_GPL(list_lru_del);
-> +
-> +long
-> +list_lru_walk(
-> +	struct list_lru *lru,
-> +	list_lru_walk_cb isolate,
-> +	void		*cb_arg,
-> +	long		nr_to_walk)
-> +{
-> +	struct list_head *item, *n;
-> +	long removed = 0;
-> +restart:
-> +	spin_lock(&lru->lock);
-> +	list_for_each_safe(item, n, &lru->list) {
-> +		int ret;
-> +
-> +		if (nr_to_walk-- < 0)
-> +			break;
-> +
-> +		ret = isolate(item, &lru->lock, cb_arg);
-> +		switch (ret) {
-> +		case 0:	/* item removed from list */
-> +			lru->nr_items--;
-> +			removed++;
-> +			break;
-> +		case 1: /* item referenced, give another pass */
-> +			list_move_tail(item, &lru->list);
-> +			break;
-> +		case 2: /* item cannot be locked, skip */
-> +			break;
-> +		case 3: /* item not freeable, lock dropped */
-> +			goto restart;
-
-These four magic return values might benefit from an enum (or #define)
-for clarity.
-
-Maybe the names would be LRU_OK, LRU_REMOVED, LRU_ROTATE, LRU_RETRY.
-
-> +		default:
-> +			BUG();
-> +		}
-> +	}
-> +	spin_unlock(&lru->lock);
-> +	return removed;
-> +}
-> +EXPORT_SYMBOL_GPL(list_lru_walk);
-> +
-> +long
-> +list_lru_dispose_all(
-> +	struct list_lru *lru,
-> +	list_lru_dispose_cb dispose)
-> +{
-> +	long disposed = 0;
-> +	LIST_HEAD(dispose_list);
-> +
-> +	spin_lock(&lru->lock);
-> +	while (!list_empty(&lru->list)) {
-> +		list_splice_init(&lru->list, &dispose_list);
-> +		disposed += lru->nr_items;
-> +		lru->nr_items = 0;
-> +		spin_unlock(&lru->lock);
-> +
-> +		dispose(&dispose_list);
-> +
-> +		spin_lock(&lru->lock);
-> +	}
-> +	spin_unlock(&lru->lock);
-> +	return disposed;
-> +}
-> +
-> +int
-> +list_lru_init(
-> +	struct list_lru	*lru)
-> +{
-> +	spin_lock_init(&lru->lock);
-> +	INIT_LIST_HEAD(&lru->list);
-> +	lru->nr_items = 0;
-> +
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL_GPL(list_lru_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
