@@ -1,96 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 0BE376B0069
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 05:37:27 -0400 (EDT)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH 10/11] x86, numa, acpi, memory-hotplug: make movablemem_map have higher priority
-Date: Fri, 5 Apr 2013 17:40:00 +0800
-Message-Id: <1365154801-473-11-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 8AD456B0082
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 05:48:36 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 09FED3EE0C0
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 18:48:35 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D120045DE54
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 18:48:34 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 68DB645DE4F
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 18:48:34 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 553321DB8040
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 18:48:34 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 06F6F1DB803B
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 18:48:34 +0900 (JST)
+Message-ID: <515E9DC5.4050402@jp.fujitsu.com>
+Date: Fri, 05 Apr 2013 18:47:49 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] THP: fix comment about memory barrier
+References: <1365149799-839-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1365149799-839-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linfeng@cn.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, jiang.liu@huawei.com, guz.fnst@cn.fujitsu.com
-Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-If kernelcore or movablecore is specified at the same time with
-movablemem_map, movablemem_map will have higher priority to be
-satisfied.  This patch will make find_zone_movable_pfns_for_nodes()
-calculate zone_movable_pfn[] with the limit from zone_movable_limit[].
+(2013/04/05 17:16), Minchan Kim wrote:
+> Now, memory barrier in __do_huge_pmd_anonymous_page doesn't work.
+> Because lru_cache_add_lru uses pagevec so it could miss spinlock
+> easily so above rule was broken so user might see inconsistent data.
+> 
+> I was not first person who pointed out the problem. Mel and Peter
+> pointed out a few months ago and Peter pointed out further that
+> even spin_lock/unlock can't make sure it.
+> http://marc.info/?t=134333512700004
+> 
+> 	In particular:
+> 
+>          	*A = a;
+>          	LOCK
+>          	UNLOCK
+>          	*B = b;
+> 
+> 	may occur as:
+> 
+>          	LOCK, STORE *B, STORE *A, UNLOCK
+> 
+> At last, Hugh pointed out that even we don't need memory barrier
+> in there because __SetPageUpdate already have done it from
+> Nick's [1] explicitly.
+> 
+> So this patch fixes comment on THP and adds same comment for
+> do_anonymous_page, too because everybody except Hugh was missing
+> that. It means we needs COMMENT about that.
+> 
+> [1] 0ed361dec "mm: fix PageUptodate data race"
+> 
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Acked-by: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
-Reviewed-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
----
- mm/page_alloc.c |   28 +++++++++++++++++++++++++---
- 1 files changed, 25 insertions(+), 3 deletions(-)
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f800aec..5db286f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4872,9 +4872,17 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		required_kernelcore = max(required_kernelcore, corepages);
- 	}
- 
--	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
--	if (!required_kernelcore)
-+	/*
-+	 * If neither kernelcore/movablecore nor movablemem_map is specified,
-+	 * there is no ZONE_MOVABLE. But if movablemem_map is specified, the
-+	 * start pfn of ZONE_MOVABLE has been stored in zone_movable_limit[].
-+	 */
-+	if (!required_kernelcore) {
-+		if (movablemem_map.nr_map)
-+			memcpy(zone_movable_pfn, zone_movable_limit,
-+				sizeof(zone_movable_pfn));
- 		goto out;
-+	}
- 
- 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
- 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
-@@ -4904,10 +4912,24 @@ restart:
- 		for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, NULL) {
- 			unsigned long size_pages;
- 
-+			/*
-+			 * Find more memory for kernelcore in
-+			 * [zone_movable_pfn[nid], zone_movable_limit[nid]).
-+			 */
- 			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
- 			if (start_pfn >= end_pfn)
- 				continue;
- 
-+			if (zone_movable_limit[nid]) {
-+				end_pfn = min(end_pfn, zone_movable_limit[nid]);
-+				/* No range left for kernelcore in this node */
-+				if (start_pfn >= end_pfn) {
-+					zone_movable_pfn[nid] =
-+							zone_movable_limit[nid];
-+					break;
-+				}
-+			}
-+
- 			/* Account for what is only usable for kernelcore */
- 			if (start_pfn < usable_startpfn) {
- 				unsigned long kernel_pages;
-@@ -4967,12 +4989,12 @@ restart:
- 	if (usable_nodes && required_kernelcore > usable_nodes)
- 		goto restart;
- 
-+out:
- 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
- 	for (nid = 0; nid < MAX_NUMNODES; nid++)
- 		zone_movable_pfn[nid] =
- 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
- 
--out:
- 	/* restore the node_state */
- 	node_states[N_MEMORY] = saved_node_state;
- }
--- 
-1.7.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
