@@ -1,100 +1,330 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 2E68C6B0005
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 03:46:06 -0400 (EDT)
-Received: by mail-da0-f45.google.com with SMTP id v40so1480712dad.32
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 00:46:05 -0700 (PDT)
-Message-ID: <515E8137.8050709@gmail.com>
-Date: Fri, 05 Apr 2013 15:45:59 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id B358B6B0005
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 03:55:07 -0400 (EDT)
+Date: Fri, 5 Apr 2013 16:55:04 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC PATCH 0/4] Support vranges on files
+Message-ID: <20130405075504.GA32126@blaptop>
+References: <1365033144-15156-1-git-send-email-john.stultz@linaro.org>
+ <20130404065509.GE7675@blaptop>
+ <515DBA70.8010606@linaro.org>
 MIME-Version: 1.0
-Subject: mm, thp: fix mapped pages avoiding unevictable list on mlock
-Content-Type: multipart/alternative;
- boundary="------------000500090300060005060807"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <515DBA70.8010606@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: John Stultz <john.stultz@linaro.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-This is a multi-part message in MIME format.
---------------000500090300060005060807
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Hi John,
 
-Hi David,
+On Thu, Apr 04, 2013 at 10:37:52AM -0700, John Stultz wrote:
+> On 04/03/2013 11:55 PM, Minchan Kim wrote:
+> >On Wed, Apr 03, 2013 at 04:52:19PM -0700, John Stultz wrote:
+> >>Next we introduce a parallel fvrange() syscall for creating
+> >>volatile ranges directly against files.
+> >Okay. It seems you want to replace ashmem interface with fvrange.
+> >I dobut we have to eat a slot for system call. Can't we add "int fd"
+> >in vrange systemcall without inventing new wheel?
+> 
+> Sure, that would be doable. I just added the new syscall to make the
+> differences in functionality clear.
+> Once the subtleties are understood, we can condense things down if
+> we think its best.
 
-http://marc.info/?l=linux-mm&m=134810397323814&w=2
+Fair enough.
 
-	#define MAP_SIZE	(4 << 30)	/* 4GB */
+> 
+> 
+> >>And finally, we change the range pruging logic to be able to
+> >>handle both anonymous and file volatile ranges.
+> >Okay. Then, what's the semantic file-vrange?
+> >
+> >There is a file F. Process A mapped some part of file into his
+> >address space. Then, Process B calls fvrange same part.
+> >As I looked over your code, it purges the range although process B
+> >is using now. Right? Is it your intention? Maybe isn't.
+> 
+> Not sure if you're example has a type-o and you meant "process A is
+> using it"?  If so, yes. The point is the volatility is shared and
+> consistent across all users of the file, in the same way the data in
+> the file is shared. If process B punched a hole in the file, process
+> A would see the effect immediately. With volatile ranges, the hole
+> punching is just delayed and possibly done later by the kernel, in
+> effect on behalf of process B, so the behavior is the same.
+> 
+> Consider the case where we could have two processes mmap a tmpfs
+> file in order to create a circular buffer shared between them. You
+> could then have a producer/consumer relationship with two processes
+> where any data not between the head & tail offsets were marked
+> volatile. The producer would mark tail+size non-volatile, write the
+> data, and update the tail offset. The consumer would read data from
+> the head offset, mark the just-read range as volatile, and update
+> the offset.
+> 
+> In this example, the producer would be the only process to mark data
+> non-volatile, while the consumer would be the only one marking
+> ranges volatile. Thus the state of volatility would need to be an
+> attribute of the file, not the process, in the same way the shared
+> data is.
+> 
+> Is that clear?
 
-	void *ptr = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE,
-			 MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-	mlock(ptr, MAP_SIZE);
+Yes, I got your point that you meant shared mapping.
+Let's enumerate more examples.
 
-		$ grep -E "Unevictable|Inactive\(anon" /proc/meminfo
-		Inactive(anon):     6304 kB
-		Unevictable:     4213924 kB
+1. Process A mapped FILE A with MAP_SHARED
+   Process B mapped FILE A with MAP_SHARED
+   Process C calls fvrange
+   Discard all pages of process A and B -> Make sense to me.
 
-These pages are allocated in mlock path(gup), correct? If the answer is yes,follow_page also will not set these pages unevictable, is it? Then how you get these pages unevictable?
+2. Process A mapped FILE A with MAP_PRIVATE and is using it with read-only
+   Process B mapped FILE A with MAP_PRIVATE and is using it with write-only
+   Process C calls fvrange
 
+   What does it happens? I expect process A lost all pages while process B
+   keeps COWed pages.
 
+3. Process A mapped FILE A with MAP_PRIVATE and is using it with read/write
+   Process C calls fvrange
 
-	munlock(ptr, MAP_SIZE);
+   Some pages non-COWed in process A are lost while some pages COWed are kept.
+   Mixing.
 
-		Inactive(anon):  4186252 kB
-		Unevictable:       19652 kB
+Above all are your intention?
+It would be very clear if you should have wrote down semantic you intent
+about private mapped file and shared mapped file. ;-)
 
-	mlock(ptr, MAP_SIZE);
+> 
+> 
+> 
+> >Let's define fvrange's semantic same with anon-vrange.
+> >If there is a process using range with non-volatile, at least,
+> >we shouldn't purge at all.
+> 
+> So this I'm not in agreement with.
 
-		Inactive(anon):  4198556 kB
-		Unevictable:       21684 kB
+I got your point.
 
+> 
+> Anonymous pages are for the most part not shared, except via COW.
+> And for the COW case, yes, I agree, we shouldn't purge those pages.
+> 
+> Similarly (and I have yet to handle this in the code), for private
+> mapped files, those pages shouldn't be purged either (or purging
+> them shouldn't affect the private mapped pages - not sure which
+> direction to go here).
 
+Yeb. It's questionable.
+It seems fallocate for punch hole removes non-COWed pages although
+they are mapped privately if I didn't miss something to read code.
+If I was right, it looks very strange to me. COWed pages remain
+in memory while NOT-YET-COWed pages are discarded. :(
+Ho, Hmm.
 
---------------000500090300060005060807
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+> 
+> But for shared mapped files, we need to keep the volatility state
+> shared as well.
+> 
+> 
+> >>Now there are some quirks still to be resolved with the approach
+> >>used here. The biggest one being the vrange() call can't be used to
+> >>create volatile ranges against mmapped files. Instead only the
+> >Why?
+> 
+> As explained above, the volatility is shared like the data. The
+> current vrange() code creates per-mm volatile ranges, which aren't
+> shared.
 
-<html>
-  <head>
+Strictly speaking, we can do it by only per-mm volatile range, I think.
+But the concern if we choose the approach is that what you mention in
+below is we have to iterate all process's mm_sturct to check in system
+call context. Of course, I don't like it and too bad design.
 
-    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
-  </head>
-  <body text="#000000" bgcolor="#FFFFFF">
-    Hi David,<br>
-    <br>
-    <meta http-equiv="content-type" content="text/html;
-      charset=ISO-8859-1">
-    <a href="http://marc.info/?l=linux-mm&amp;m=134810397323814&amp;w=2">http://marc.info/?l=linux-mm&amp;m=134810397323814&amp;w=2</a><br>
-    <br>
-    <meta http-equiv="content-type" content="text/html;
-      charset=ISO-8859-1">
-    <pre style="color: rgb(0, 0, 0); font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: auto; text-align: start; text-indent: 0px; text-transform: none; widows: auto; word-spacing: 0px; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;">	#define MAP_SIZE	(4 &lt;&lt; 30)	/* 4GB */
+> 
+> 
+> >
+> >>fvrange() can be used to create file backed volatile ranges.
+> >I could't understand your point. It would be better to explain
+> >my thought firstly then, you could point out something I am missing
+> >now. Look below.
+> >
+> >>This could be overcome by iterating across all the process VMAs to
+> >>determine if they're anonymous or file based, and if file-based,
+> >>create a VMA sized volatile range on the mapping pointed to by the
+> >>VMA.
+> >It needs just when we start to discard pages. Simply, it is related
+> >to reclaim path, NOT system call path so it's not a problem.
+> 
+> The reason we can't defer this to only the reclaim path is if
+> volatile ranges on shared mappings are stored in the mm_struct, if
+> process A sets up a volatile range on a shared mapping, but stores
+> the volatility in its own mm, then process B wants to clear the
+> volatility on the range, process B would have to iterate over all
+> processes that have those file vmas mapped and change them.
 
-	void *ptr = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE,
-			 MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-	mlock(ptr, MAP_SIZE);
+Right. I think iterating all of relevant vmas isn't big cost
+in normal situation but it could be rather bigger when the memory
+pressure is severe, especially for file-backed pages because it's
+not even read/write lock.
+I'd like to minimize the system call overhead if possible.
 
-		$ grep -E "Unevictable|Inactive\(anon" /proc/meminfo
-		Inactive(anon):     6304 kB
-		Unevictable:     4213924 kB                          
+> 
+> Additionally if process A sets up a volatile range on a shared
+> mapped file, then quits, the volatility state dies with that
+> process.
 
-These pages are allocated in mlock path(gup), correct? If the answer is yes, <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">follow_page also will not set these pages unevictable, is it? Then how you get these pages unevictable?<pre style="color: rgb(0, 0, 0); font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: auto; text-align: start; text-indent: 0px; text-transform: none; widows: auto; word-spacing: 0px; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px;"></pre>
+Yes, so don't you want to use vrange system call for mmaped-file
+range at the moment?
 
-	munlock(ptr, MAP_SIZE);
+> 
+> Either way, its not just a simple matter of handling data on your
+> own mm_struct. That's fine for the process' own anonymous memory,
+> but doesn't work for shared file mappings.
 
-		Inactive(anon):  4186252 kB
-		Unevictable:       19652 kB
+Agreed.
 
-	mlock(ptr, MAP_SIZE);
+> 
+> 
+> >
+> >>But this would have downsides, as Minchan has been clear that he wants
+> >>to optmize the vrange() calls so that it is very cheap to create and
+> >>destroy volatile ranges. Having simple per-process ranges be created
+> >>means we don't have to iterate across the vmas in the range to
+> >>determine if they're anonymous or file backed. Instead the current
+> >>vrange() code just creates per process ranges (which may or may not
+> >>cover mmapped file data), but will only purge anonymous pages in
+> >>that range. This keeps the vrange() call cheap.
+> >Right.
+> >
+> >>Additionally, just creating or destroying a single range is very
+> >>simple to do, and requires a fixed amount of memory known up front.
+> >>Thus we can allocate needed data prior to making any modifications.
+> >>
+> >>But If we were to create a range that crosses anonymous and file
+> >>backed pages, it must create or destroy multiple per-process or
+> >>per-file ranges. This could require an unknown number of allocations,
+> >This is a part I can fail to parse your opinion.
+> 
+> So if we were in the vrange() code to iterate over all the VMAs in
+> the range, creating VMA sizes ranges on either the mm_struct or the
+> backing address_space where appropriate, its possible that we could
+> hit an ENOMEM half way through the operation. This would leaving the
+> range in an inconsistent state: partially marked, and potentially
+> causing us to lose the purged state on the subranges.
+> 
+> 
+> 
+> >
+> >>opening the possibility of getting an ENOMEM half-way through the
+> >>operation, leaving the volatile range partially created or destroyed.
+> >>
+> >>So to keep this simple for this first pass, for now we have two
+> >>syscalls for two types of volatile ranges.
+> >
+> >My idea is following as
+> >
+> >         vrange(fd, start, len, mode, behavior)
+> >
+> >A) fd = 0
+> 
+> Well we'd probably need to use -1 or something that would be an
+> invalid fd here.
+> 
+> And really, I think having separate interfaces might be good, just
+> as there are separate madvise() and fadvise() calls (and when all
+> this is done, we may need to re-visit the new syscall vs new
+> madvise/fadvise flags decision).
 
-		Inactive(anon):  4198556 kB
-		Unevictable:       21684 kB</pre>
-    <br>
-  </body>
-</html>
+It does make sense in this phase where we are still RFC.
 
---------------000500090300060005060807--
+> 
+> >
+> >1) system call context - vrange system call registers new vrange
+> >    in mm_struct.
+> >2) Add new vrange into LRU
+> >3) reclaim context - walk with rmap to confirm all processes make
+> >    the range with volatile -> discard
+> >
+> >B) fd = 1
+> The fd would just need to be valid right, not 1.
+> 
+> >1) system call context - vrange system call registers new vrange
+> >    in address_space
+> >2) Add new vrange into LRU
+> >3) reclaim context - walk with rmap to confirm all processes make
+> >    the range with volatile -> discard
+> >
+> >What's the problem in this logic?
+> 
+> The problem is only if in the first case, the volatile range being
+> created crosses over both anonymous and shared file mmap pages. In
+> that case we have to create appropriate sub-ranges on the mm_struct,
+> and sub-ranges on the address_space of the mmaped file.
+> 
+> This isn't impossible to do, but again, the handling of errors
+> mid-way through creating subranges is problematic (there may be yet
+> a way around it, I just haven't thought of it yet).
+
+Fair enough.
+
+> 
+> 
+> Thus with my patches, I simplified the problem a bit by partitioning
+> it into two separate problems and two separate interfaces: Volatile
+> ranges that are created by the vrange() call won't affect mmaped
+> pages, only anonymous pages. We may create a range that covers them,
+> but the volatility isn't shared with other processes and the purging
+> logic still skips file pages. If you want to to create a volatile
+> range on file pages, you have to use fvrange().
+
+Okay, I got your intention by this paragraph.
+You don't want to handle file pages with vrange() and want to use
+fvrange for file pages. I don't oppose it but please write down
+why we did like you explained to me on above.
+It would make reviewers happier.
+
+> 
+> Of course, my patchset has its own inconsistencies too, since if a
+> range is marked non-volatile that covers a mmapped file that has
+> been marked volatile, that volatility would persist. So I probably
+> should return an error if the vrange call covers any mmapped files.
+
+Hmm, if you intend to separate anon and file with vrange and fvrange's
+separate data structure, it's no problem?
+
+> 
+> 
+> Also, to be clear, I'm not saying that we *have* to partition these
+> operations into two separate behaviors, but I think having two
+> separate behaviors at first helps makes clear the subtleties of the
+> differences between them.
+
+I got your point and I am thinking about that more.
+
+> 
+> 
+> Let me know if any of this helps your understanding. :)
+
+Thank you very much. John!
+
+Looking forward to seeing you in SF.
+
+> 
+> thanks
+> -john
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
