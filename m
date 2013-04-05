@@ -1,130 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 6C5016B00F8
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 09:45:59 -0400 (EDT)
-Date: Fri, 5 Apr 2013 15:45:57 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 2/7] memcg: don't use mem_cgroup_get() when creating
- a kmemcg cache
-Message-ID: <20130405134557.GG31132@dhcp22.suse.cz>
-References: <515BF233.6070308@huawei.com>
- <515BF275.5080408@huawei.com>
- <20130403153133.GM16471@dhcp22.suse.cz>
- <515EA73C.8050602@parallels.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 1C7476B00FA
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 09:46:25 -0400 (EDT)
+Date: Fri, 5 Apr 2013 13:46:23 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCHv2, RFC 20/30] ramfs: enable transparent huge page cache
+In-Reply-To: <20130405083112.GD32126@blaptop>
+Message-ID: <0000013dda72b161-378f03f8-2ed6-4a03-81e5-104df52a67f1-000000@email.amazonses.com>
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <1363283435-7666-21-git-send-email-kirill.shutemov@linux.intel.com> <20130402162813.0B4CBE0085@blue.fi.intel.com> <alpine.LNX.2.00.1304021422460.19363@eggly.anvils>
+ <20130403011104.GF16026@blaptop> <515E737D.8030204@gmail.com> <20130405080106.GB32126@blaptop> <515e89d2.e725320a.3a74.7fe7SMTPIN_ADDED_BROKEN@mx.google.com> <20130405083112.GD32126@blaptop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <515EA73C.8050602@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Ying Han <yinghan@google.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri 05-04-13 14:28:12, Glauber Costa wrote:
-> On 04/03/2013 07:31 PM, Michal Hocko wrote:
-> > On Wed 03-04-13 17:12:21, Li Zefan wrote:
-> >> Use css_get()/css_put() instead of mem_cgroup_get()/mem_cgroup_put().
-> >>
-> >> Signed-off-by: Li Zefan <lizefan@huawei.com>
-> >> ---
-> >>  mm/memcontrol.c | 10 +++++-----
-> >>  1 file changed, 5 insertions(+), 5 deletions(-)
-> >>
-> >> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >> index 43ca91d..dafacb8 100644
-> >> --- a/mm/memcontrol.c
-> >> +++ b/mm/memcontrol.c
-> >> @@ -3191,7 +3191,7 @@ void memcg_release_cache(struct kmem_cache *s)
-> >>  	list_del(&s->memcg_params->list);
-> >>  	mutex_unlock(&memcg->slab_caches_mutex);
-> >>  
-> >> -	mem_cgroup_put(memcg);
-> >> +	css_put(&memcg->css);
-> >>  out:
-> >>  	kfree(s->memcg_params);
-> >>  }
-> >> @@ -3350,16 +3350,18 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
-> >>  
-> >>  	mutex_lock(&memcg_cache_mutex);
-> >>  	new_cachep = cachep->memcg_params->memcg_caches[idx];
-> >> -	if (new_cachep)
-> >> +	if (new_cachep) {
-> >> +		css_put(&memcg->css);
-> >>  		goto out;
-> >> +	}
-> >>  
-> >>  	new_cachep = kmem_cache_dup(memcg, cachep);
-> >>  	if (new_cachep == NULL) {
-> >>  		new_cachep = cachep;
-> >> +		css_put(&memcg->css);
-> >>  		goto out;
-> >>  	}
-> >>  
-> >> -	mem_cgroup_get(memcg);
-> >>  	atomic_set(&new_cachep->memcg_params->nr_pages , 0);
-> >>  
-> >>  	cachep->memcg_params->memcg_caches[idx] = new_cachep;
-> >> @@ -3449,8 +3451,6 @@ static void memcg_create_cache_work_func(struct work_struct *w)
-> >>  
-> >>  	cw = container_of(w, struct create_work, work);
-> >>  	memcg_create_kmem_cache(cw->memcg, cw->cachep);
-> >> -	/* Drop the reference gotten when we enqueued. */
-> >> -	css_put(&cw->memcg->css);
-> >>  	kfree(cw);
-> >>  }
-> > 
-> > You are putting references but I do not see any single css_{try}get
-> > here. /me puzzled.
-> > 
-> 
-> There are two things being done in this code:
-> First, we acquired a css_ref to make sure that the underlying cgroup
-> would not go away. That is a short lived reference, and it is put as
-> soon as the cache is created.
-> At this point, we acquire a long-lived per-cache memcg reference count
-> to guarantee that the memcg will still be alive.
-> 
-> so it is:
-> 
-> enqueue: css_get
-> create : memcg_get, css_put
-> destroy: css_put
-> 
-> If I understand Li's patch correctly, he is not touching the first
-> css_get, only turning that into the long lived reference (which was not
-> possible before, since that would prevent rmdir).
-> 
-> Then he only needs to get rid of the memcg_get, change the memcg_put to
-> css_put, and get rid of the now extra css_put.
-> 
-> He is issuing extra css_puts in memcg_create_kmem_cache, but only in
-> failure paths. So the code reads as:
-> * css_get on enqueue (already done, so not shown in patch)
-> * if it fails, css_put
-> * if it succeeds, don't do anything. This is already the long-lived
-> reference count. put it at release time.
+On Fri, 5 Apr 2013, Minchan Kim wrote:
 
-OK, this makes more sense now. It is __memcg_create_cache_enqueue which
-takes the reference and it is not put after this because it replaced
-mem_cgroup reference counting.
-Li, please put something along these lines into the changelog. This is
-really tricky and easy to get misunderstand.
+> > >> How about add a knob?
+> > >
+> > >Maybe, volunteering?
+> >
+> > Hi Minchan,
+> >
+> > I can be the volunteer, what I care is if add a knob make sense?
+>
+> Frankly sepaking, I'd like to avoid new knob but there might be
+> some workloads suffered from mlocked page migration so we coudn't
+> dismiss it. In such case, introducing the knob would be a solution
+> with default enabling. If we don't have any report for a long time,
+> we can remove the knob someday, IMHO.
 
-You can put my Acked-by then.
+No Knob please. A new implementation for page pinning that avoids the
+mlock crap.
 
-> The code looks correct, and of course, extremely simpler due to the
-> use of a single reference.
-> 
-> Li, am I right in my understanding that this is your intention?
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+1. It should be available for device drivers to pin their memory (they are
+now elevating the ref counter which means page migration will have to see
+if it can account for all references before giving up and it does that
+quite frequently). So there needs to be an in kernel API, a syscall API as
+well as a command line one. Preferably as similar as possible.
 
--- 
-Michal Hocko
-SUSE Labs
+2. A sane API for marking pages as mlocked. Maybe part of MMAP? I hate the
+command line tools and the APIs for doing that right now.
+
+3. The reservation scheme for mlock via ulimit is broken. We have per
+process constraints only it seems. If you start enough processes you can
+still make the kernel go OOM.
+
+4. mlock semantics are prescribed by posix which states that the page
+stays in memory. I think we should stay with that narrow definition for
+mlock.
+
+5. Pinning could also mean that page faults on the page are to be avoided.
+COW could occur on fork and page table entries could be instantated at
+mmap/fork time. Pinning could mean that minor/major faults will not occur
+on a page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
