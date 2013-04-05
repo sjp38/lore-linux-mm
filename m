@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 558856B00B9
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 9A7C46B00BA
 	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:24 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 18/34] thp, mm: naive support of thp in generic read/write routines
-Date: Fri,  5 Apr 2013 14:59:42 +0300
-Message-Id: <1365163198-29726-19-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 15/34] thp, mm: handle tail pages in page_cache_get_speculative()
+Date: Fri,  5 Apr 2013 14:59:39 +0300
+Message-Id: <1365163198-29726-16-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,59 +15,36 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For now we still write/read at most PAGE_CACHE_SIZE bytes a time.
-
-This implementation doesn't cover address spaces with backing store.
+For tail page we call __get_page_tail(). It has the same semantics, but
+for tail page.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c |   18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ include/linux/pagemap.h |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index bcb679c..3296f5c 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1161,6 +1161,16 @@ find_page:
- 			if (unlikely(page == NULL))
- 				goto no_cached_page;
- 		}
-+		if (PageTransCompound(page)) {
-+			struct page *head = compound_trans_head(page);
-+			/*
-+			 * We don't yet support huge pages in page cache
-+			 * for filesystems with backing device, so pages
-+			 * should always be up-to-date.
-+			 */
-+			BUG_ON(PageReadahead(head) || !PageUptodate(head));
-+			goto page_ok;
-+		}
- 		if (PageReadahead(page)) {
- 			page_cache_async_readahead(mapping,
- 					ra, filp, page,
-@@ -2439,8 +2449,13 @@ again:
- 		if (mapping_writably_mapped(mapping))
- 			flush_dcache_page(page);
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 56debde..bd07fc1 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -160,6 +160,9 @@ static inline int page_cache_get_speculative(struct page *page)
+ {
+ 	VM_BUG_ON(in_interrupt());
  
-+		if (PageTransHuge(page))
-+			offset = pos & ~HPAGE_PMD_MASK;
++	if (unlikely(PageTail(page)))
++		return __get_page_tail(page);
 +
- 		pagefault_disable();
--		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
-+		copied = iov_iter_copy_from_user_atomic(
-+				page + (offset >> PAGE_CACHE_SHIFT),
-+				i, offset & ~PAGE_CACHE_MASK, bytes);
- 		pagefault_enable();
- 		flush_dcache_page(page);
+ #ifdef CONFIG_TINY_RCU
+ # ifdef CONFIG_PREEMPT_COUNT
+ 	VM_BUG_ON(!in_atomic());
+@@ -186,7 +189,6 @@ static inline int page_cache_get_speculative(struct page *page)
+ 		return 0;
+ 	}
+ #endif
+-	VM_BUG_ON(PageTail(page));
  
-@@ -2463,6 +2478,7 @@ again:
- 			 * because not all segments in the iov can be copied at
- 			 * once without a pagefault.
- 			 */
-+			offset = pos & ~PAGE_CACHE_MASK;
- 			bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
- 						iov_iter_single_seg_count(i));
- 			goto again;
+ 	return 1;
+ }
 -- 
 1.7.10.4
 
