@@ -1,71 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 0040D6B0005
-	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 22:22:53 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 36F186B0005
+	for <linux-mm@kvack.org>; Thu,  4 Apr 2013 23:37:32 -0400 (EDT)
+Received: by mail-ob0-f173.google.com with SMTP id wn14so2272431obc.4
+        for <linux-mm@kvack.org>; Thu, 04 Apr 2013 20:37:31 -0700 (PDT)
+Message-ID: <515E46F3.1060400@gmail.com>
+Date: Fri, 05 Apr 2013 11:37:23 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Message-ID: <7058b4bf-4473-4755-a017-e32f5389a73f@default>
-Date: Thu, 4 Apr 2013 19:22:21 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCHv8 5/8] mm: break up swap_writepage() for frontswap
- backends
-References: <1365113446-25647-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1365113446-25647-6-git-send-email-sjenning@linux.vnet.ibm.com>
- <515DFF08.3060005@linux.vnet.ibm.com>
-In-Reply-To: <515DFF08.3060005@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCHv2, RFC 04/30] radix-tree: implement preload for multiple
+ contiguous elements
+References: <1363283435-7666-1-git-send-email-kirill.shutemov@linux.intel.com> <1363283435-7666-5-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1363283435-7666-5-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Bob Liu <lliubbo@gmail.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Subject: Re: [PATCHv8 5/8] mm: break up swap_writepage() for frontswap ba=
-ckends
->=20
-> On 04/04/2013 05:10 PM, Seth Jennings wrote:
-> > swap_writepage() is currently where frontswap hooks into the swap
-> > write path to capture pages with the frontswap_store() function.
-> > However, if a frontswap backend wants to "resume" the writeback of
-> > a page to the swap device, it can't call swap_writepage() as
-> > the page will simply reenter the backend.
-> >
-> > This patch separates swap_writepage() into a top and bottom half, the
-> > bottom half named __swap_writepage() to allow a frontswap backend,
-> > like zswap, to resume writeback beyond the frontswap_store() hook.
-> >
-> > __add_to_swap_cache() is also made non-static so that the page for
-> > which writeback is to be resumed can be added to the swap cache.
-> >
-> > Acked-by: Minchan Kim <minchan@kernel.org>
-> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
->=20
-> Adding Cc Bob Liu.
->=20
-> I just remembered that Bob had done a repost of the 5 and 6 patches,
-> outside the zswap thread,  with a small change to avoid a checkpatch
-> warning.  I didn't pull that change into my version, but I should have.
->=20
-> It doesn't make a functional difference, so this patch can still go
-> forward and the checkpatch warning can be cleaned up in a subsequent
-> patch.  If another revision of the patchset is needed for other
-> reasons, I'll pull this change into the next version.
->=20
-> I think Dan and Bob would be ok with their tags being applied to 5 and 6:
->=20
-> Acked-by: Bob Liu <bob.liu@oracle.com>
-> Reviewed-by: Dan Magenheimer <dan.magenheimer@oracle.com>
->=20
-> That ok?
+Hi Kirill,
+On 03/15/2013 01:50 AM, Kirill A. Shutemov wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>
+> Currently radix_tree_preload() only guarantees enough nodes to insert
+> one element. It's a hard limit. You cannot batch a number insert under
+> one tree_lock.
+>
+> This patch introduces radix_tree_preload_count(). It allows to
+> preallocate nodes enough to insert a number of *contiguous* elements.
+>
+> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>   include/linux/radix-tree.h |    3 +++
+>   lib/radix-tree.c           |   32 +++++++++++++++++++++++++-------
+>   2 files changed, 28 insertions(+), 7 deletions(-)
+>
+> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+> index ffc444c..81318cb 100644
+> --- a/include/linux/radix-tree.h
+> +++ b/include/linux/radix-tree.h
+> @@ -83,6 +83,8 @@ do {									\
+>   	(root)->rnode = NULL;						\
+>   } while (0)
+>   
+> +#define RADIX_TREE_PRELOAD_NR		512 /* For THP's benefit */
+> +
+>   /**
+>    * Radix-tree synchronization
+>    *
+> @@ -231,6 +233,7 @@ unsigned long radix_tree_next_hole(struct radix_tree_root *root,
+>   unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
+>   				unsigned long index, unsigned long max_scan);
+>   int radix_tree_preload(gfp_t gfp_mask);
+> +int radix_tree_preload_count(unsigned size, gfp_t gfp_mask);
+>   void radix_tree_init(void);
+>   void *radix_tree_tag_set(struct radix_tree_root *root,
+>   			unsigned long index, unsigned int tag);
+> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> index e796429..9bef0ac 100644
+> --- a/lib/radix-tree.c
+> +++ b/lib/radix-tree.c
+> @@ -81,16 +81,24 @@ static struct kmem_cache *radix_tree_node_cachep;
+>    * The worst case is a zero height tree with just a single item at index 0,
+>    * and then inserting an item at index ULONG_MAX. This requires 2 new branches
+>    * of RADIX_TREE_MAX_PATH size to be created, with only the root node shared.
+> + *
+> + * Worst case for adding N contiguous items is adding entries at indexes
+> + * (ULONG_MAX - N) to ULONG_MAX. It requires nodes to insert single worst-case
+> + * item plus extra nodes if you cross the boundary from one node to the next.
+> + *
 
-OK with me.  I do support these two MM patches as candidates for the
-3.10 window since both zswap AND in-tree zcache depend on them,
-but the silence from Andrew was a bit deafening.
+What's the meaning of this comments? Could you explain in details? I 
+also don't understand #define RADIX_TREE_PRELOAD_SIZE 
+(RADIX_TREE_MAX_PATH * 2 - 1), why RADIX_TREE_MAX_PATH * 2 - 1, I fail 
+to understand comments above it.
 
-Seth, perhaps you could add a #ifdef CONFIG_ZSWAP_WRITEBACK
-to the zswap code and Kconfig (as zcache has done) and then
-these two patches in your patchset can be reviewed
-separately?
+>    * Hence:
+>    */
+> -#define RADIX_TREE_PRELOAD_SIZE (RADIX_TREE_MAX_PATH * 2 - 1)
+> +#define RADIX_TREE_PRELOAD_MIN (RADIX_TREE_MAX_PATH * 2 - 1)
+> +#define RADIX_TREE_PRELOAD_MAX \
+> +	(RADIX_TREE_PRELOAD_MIN + \
+> +	 DIV_ROUND_UP(RADIX_TREE_PRELOAD_NR - 1, RADIX_TREE_MAP_SIZE))
+>   
+>   /*
+>    * Per-cpu pool of preloaded nodes
+>    */
+>   struct radix_tree_preload {
+>   	int nr;
+> -	struct radix_tree_node *nodes[RADIX_TREE_PRELOAD_SIZE];
+> +	struct radix_tree_node *nodes[RADIX_TREE_PRELOAD_MAX];
+>   };
+>   static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
+>   
+> @@ -257,29 +265,34 @@ radix_tree_node_free(struct radix_tree_node *node)
+>   
+>   /*
+>    * Load up this CPU's radix_tree_node buffer with sufficient objects to
+> - * ensure that the addition of a single element in the tree cannot fail.  On
+> - * success, return zero, with preemption disabled.  On error, return -ENOMEM
+> + * ensure that the addition of *contiguous* elements in the tree cannot fail.
+> + * On success, return zero, with preemption disabled.  On error, return -ENOMEM
+>    * with preemption not disabled.
+>    *
+>    * To make use of this facility, the radix tree must be initialised without
+>    * __GFP_WAIT being passed to INIT_RADIX_TREE().
+>    */
+> -int radix_tree_preload(gfp_t gfp_mask)
+> +int radix_tree_preload_count(unsigned size, gfp_t gfp_mask)
+>   {
+>   	struct radix_tree_preload *rtp;
+>   	struct radix_tree_node *node;
+>   	int ret = -ENOMEM;
+> +	int alloc = RADIX_TREE_PRELOAD_MIN +
+> +		DIV_ROUND_UP(size - 1, RADIX_TREE_MAP_SIZE);
+> +
+> +	if (size > RADIX_TREE_PRELOAD_NR)
+> +		return -ENOMEM;
+>   
+>   	preempt_disable();
+>   	rtp = &__get_cpu_var(radix_tree_preloads);
+> -	while (rtp->nr < ARRAY_SIZE(rtp->nodes)) {
+> +	while (rtp->nr < alloc) {
+>   		preempt_enable();
+>   		node = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
+>   		if (node == NULL)
+>   			goto out;
+>   		preempt_disable();
+>   		rtp = &__get_cpu_var(radix_tree_preloads);
+> -		if (rtp->nr < ARRAY_SIZE(rtp->nodes))
+> +		if (rtp->nr < alloc)
+>   			rtp->nodes[rtp->nr++] = node;
+>   		else
+>   			kmem_cache_free(radix_tree_node_cachep, node);
+> @@ -288,6 +301,11 @@ int radix_tree_preload(gfp_t gfp_mask)
+>   out:
+>   	return ret;
+>   }
+> +
+> +int radix_tree_preload(gfp_t gfp_mask)
+> +{
+> +	return radix_tree_preload_count(1, gfp_mask);
+> +}
+>   EXPORT_SYMBOL(radix_tree_preload);
+>   
+>   /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
