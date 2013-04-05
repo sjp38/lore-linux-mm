@@ -1,93 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id E1DBE6B0027
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 04:08:31 -0400 (EDT)
-Date: Fri, 5 Apr 2013 10:08:28 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 0/9] extend hugepage migration
-Message-ID: <20130405080828.GA14882@dhcp22.suse.cz>
-References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <5148F830.3070601@gmail.com>
- <1363815326-urchkyxr-mutt-n-horiguchi@ah.jp.nec.com>
- <514A4B1C.6020201@gmail.com>
- <20130321125628.GB6051@dhcp22.suse.cz>
- <514B9BD8.9050207@gmail.com>
- <20130322081532.GC31457@dhcp22.suse.cz>
- <515E2592.7020607@gmail.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id BEDCC6B0006
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 04:09:29 -0400 (EDT)
+Message-ID: <515E86DA.1090907@parallels.com>
+Date: Fri, 5 Apr 2013 12:10:02 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <515E2592.7020607@gmail.com>
+Subject: Re: [RFC][PATCH 5/7] cgroup: make sure parent won't be destroyed
+ before its children
+References: <515BF233.6070308@huawei.com> <515BF2A4.1070703@huawei.com> <20130404113750.GH29911@dhcp22.suse.cz> <20130404133706.GA9425@htj.dyndns.org> <20130404152028.GK29911@dhcp22.suse.cz> <20130404152213.GL9425@htj.dyndns.org>
+In-Reply-To: <20130404152213.GL9425@htj.dyndns.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Fri 05-04-13 09:14:58, Simon Jeons wrote:
-> Hi Michal,
-> On 03/22/2013 04:15 PM, Michal Hocko wrote:
-> >[getting off-list]
-> >
-> >On Fri 22-03-13 07:46:32, Simon Jeons wrote:
-> >>Hi Michal,
-> >>On 03/21/2013 08:56 PM, Michal Hocko wrote:
-> >>>On Thu 21-03-13 07:49:48, Simon Jeons wrote:
-> >>>[...]
-> >>>>When I hacking arch/x86/mm/hugetlbpage.c like this,
-> >>>>diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-> >>>>index ae1aa71..87f34ee 100644
-> >>>>--- a/arch/x86/mm/hugetlbpage.c
-> >>>>+++ b/arch/x86/mm/hugetlbpage.c
-> >>>>@@ -354,14 +354,13 @@ hugetlb_get_unmapped_area(struct file *file,
-> >>>>unsigned long addr,
-> >>>>
-> >>>>#endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
-> >>>>
-> >>>>-#ifdef CONFIG_X86_64
-> >>>>static __init int setup_hugepagesz(char *opt)
-> >>>>{
-> >>>>unsigned long ps = memparse(opt, &opt);
-> >>>>if (ps == PMD_SIZE) {
-> >>>>hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
-> >>>>- } else if (ps == PUD_SIZE && cpu_has_gbpages) {
-> >>>>- hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
-> >>>>+ } else if (ps == PUD_SIZE) {
-> >>>>+ hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT+4);
-> >>>>} else {
-> >>>>printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
-> >>>>ps >> 20);
-> >>>>
-> >>>>I set boot=hugepagesz=1G hugepages=10, then I got 10 32MB huge pages.
-> >>>>What's the difference between these pages which I hacking and normal
-> >>>>huge pages?
-> >>>How is this related to the patch set?
-> >>>Please _stop_ distracting discussion to unrelated topics!
-> >>>
-> >>>Nothing personal but this is just wasting our time.
-> >>Sorry kindly Michal, my bad.
-> >>Btw, could you explain this question for me? very sorry waste your time.
-> >Your CPU has to support GB pages. You have removed cpu_has_gbpages test
-> >and added a hstate for order 13 pages which is a weird number on its
-> >own (32MB) because there is no page table level to support them.
+On 04/04/2013 07:22 PM, Tejun Heo wrote:
+> On Thu, Apr 04, 2013 at 05:20:28PM +0200, Michal Hocko wrote:
+>>> But what harm does an additional reference do?
+>>
+>> No harm at all. I just wanted to be sure that this is not yet another
+>> "for memcg" hack. So if this is useful for other controllers then I have
+>> no objections of course.
 > 
-> But after hacking, there is /sys/kernel/mm/hugepages/hugepages-*,
-> and have equal number of 32MB huge pages which I set up in boot
-> parameter.
-
-because hugetlb_add_hstate creates hstate for those pages and
-hugetlb_init_hstates allocates them later on.
-
-> If there is no page table level to support them, how can
-> them present?
-
-Because hugetlb hstate handling code doesn't care about page tables and
-the way how those pages are going to be mapped _at all_. Or put it in
-another way. Nobody prevents you to allocate order-5 page for a single
-pte but that would be a pure waste. Page fault code expects that pages
-with a proper size are allocated.
--- 
-Michal Hocko
-SUSE Labs
+> I think it makes sense in general, so let's do it in cgroup core.  I
+> suppose it'd be easier for this to be routed together with other memcg
+> changes?
+> 
+> Thanks.
+> 
+You guys seems already settled, but FWIW I agree with Tejun here. It
+makes sense from a design point of view for a cgroup to pin its parent.
+cgroup core it is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
