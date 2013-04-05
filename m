@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id E41BB6B00B1
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:20 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 58BFA6B00B2
+	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 07:58:21 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3, RFC 11/34] mm: trace filemap: dump page order
-Date: Fri,  5 Apr 2013 14:59:35 +0300
-Message-Id: <1365163198-29726-12-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3, RFC 14/34] thp, mm: locking tail page is a bug
+Date: Fri,  5 Apr 2013 14:59:38 +0300
+Message-Id: <1365163198-29726-15-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,49 +15,34 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Dump page order to trace to be able to distinguish between small page
-and huge page in page cache.
+Locking head page means locking entire compound page.
+If we try to lock tail page, something went wrong.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/trace/events/filemap.h |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ mm/filemap.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
-index 0421f49..7e14b13 100644
---- a/include/trace/events/filemap.h
-+++ b/include/trace/events/filemap.h
-@@ -21,6 +21,7 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
- 		__field(struct page *, page)
- 		__field(unsigned long, i_ino)
- 		__field(unsigned long, index)
-+		__field(int, order)
- 		__field(dev_t, s_dev)
- 	),
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 1defa83..7b4736c 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -665,6 +665,7 @@ void __lock_page(struct page *page)
+ {
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
  
-@@ -28,18 +29,20 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
- 		__entry->page = page;
- 		__entry->i_ino = page->mapping->host->i_ino;
- 		__entry->index = page->index;
-+		__entry->order = compound_order(page);
- 		if (page->mapping->host->i_sb)
- 			__entry->s_dev = page->mapping->host->i_sb->s_dev;
- 		else
- 			__entry->s_dev = page->mapping->host->i_rdev;
- 	),
++	VM_BUG_ON(PageTail(page));
+ 	__wait_on_bit_lock(page_waitqueue(page), &wait, sleep_on_page,
+ 							TASK_UNINTERRUPTIBLE);
+ }
+@@ -674,6 +675,7 @@ int __lock_page_killable(struct page *page)
+ {
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
  
--	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
-+	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu order=%d",
- 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
- 		__entry->i_ino,
- 		__entry->page,
- 		page_to_pfn(__entry->page),
--		__entry->index << PAGE_SHIFT)
-+		__entry->index << PAGE_SHIFT,
-+		__entry->order)
- );
- 
- DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_delete_from_page_cache,
++	VM_BUG_ON(PageTail(page));
+ 	return __wait_on_bit_lock(page_waitqueue(page), &wait,
+ 					sleep_on_page_killable, TASK_KILLABLE);
+ }
 -- 
 1.7.10.4
 
