@@ -1,42 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id F2F016B017C
-	for <linux-mm@kvack.org>; Sat,  6 Apr 2013 10:42:38 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id w11so2428678pde.23
-        for <linux-mm@kvack.org>; Sat, 06 Apr 2013 07:42:38 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id B1E916B0180
+	for <linux-mm@kvack.org>; Sat,  6 Apr 2013 10:42:48 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id lb1so2479564pab.5
+        for <linux-mm@kvack.org>; Sat, 06 Apr 2013 07:42:47 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v4, part3 05/41] score: normalize global variables exported by vmlinux.lds
-Date: Sat,  6 Apr 2013 22:32:04 +0800
-Message-Id: <1365258760-30821-6-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH v4, part3 06/41] tile: normalize global variables exported by vmlinux.lds
+Date: Sat,  6 Apr 2013 22:32:05 +0800
+Message-Id: <1365258760-30821-7-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1365258760-30821-1-git-send-email-jiang.liu@huawei.com>
 References: <1365258760-30821-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Chen Liqin <liqin.chen@sunplusct.com>, Lennox Wu <lennox.wu@gmail.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Rusty Russell <rusty@rustcorp.com.au>, Bjorn Helgaas <bhelgaas@google.com>, "David S. Miller" <davem@davemloft.net>
 
-Generate mandatory global variables _sdata in file vmlinux.lds.
+Normalize global variables exported by vmlinux.lds to conform usage
+guidelines from include/asm-generic/sections.h.
+
+1) Use _text to mark the start of the kernel image including the head
+text, and _stext to mark the start of the .text section.
+2) Export mandatory global variables __init_begin and __init_end.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Chen Liqin <liqin.chen@sunplusct.com>
-Cc: Lennox Wu <lennox.wu@gmail.com>
+Cc: Chris Metcalf <cmetcalf@tilera.com>
+Cc: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Bjorn Helgaas <bhelgaas@google.com>
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Wen Congyang <wency@cn.fujitsu.com>
+Cc: David Howells <dhowells@redhat.com>
 Cc: linux-kernel@vger.kernel.org
 ---
- arch/score/kernel/vmlinux.lds.S |    1 +
- 1 file changed, 1 insertion(+)
+ arch/tile/include/asm/sections.h |    2 +-
+ arch/tile/kernel/setup.c         |    4 ++--
+ arch/tile/kernel/vmlinux.lds.S   |    4 +++-
+ arch/tile/mm/init.c              |    2 +-
+ 4 files changed, 7 insertions(+), 5 deletions(-)
 
-diff --git a/arch/score/kernel/vmlinux.lds.S b/arch/score/kernel/vmlinux.lds.S
-index eebcbaa..7274b5c 100644
---- a/arch/score/kernel/vmlinux.lds.S
-+++ b/arch/score/kernel/vmlinux.lds.S
-@@ -49,6 +49,7 @@ SECTIONS
+diff --git a/arch/tile/include/asm/sections.h b/arch/tile/include/asm/sections.h
+index d062d46..7d8a935 100644
+--- a/arch/tile/include/asm/sections.h
++++ b/arch/tile/include/asm/sections.h
+@@ -34,7 +34,7 @@ extern char __sys_cmpxchg_grab_lock[];
+ extern char __start_atomic_asm_code[], __end_atomic_asm_code[];
+ #endif
+ 
+-/* Handle the discontiguity between _sdata and _stext. */
++/* Handle the discontiguity between _sdata and _text. */
+ static inline int arch_is_kernel_data(unsigned long addr)
+ {
+ 	return addr >= (unsigned long)_sdata &&
+diff --git a/arch/tile/kernel/setup.c b/arch/tile/kernel/setup.c
+index d1e15f7..a986b71 100644
+--- a/arch/tile/kernel/setup.c
++++ b/arch/tile/kernel/setup.c
+@@ -307,8 +307,8 @@ static void __cpuinit store_permanent_mappings(void)
+ 		hv_store_mapping(addr, pages << PAGE_SHIFT, pa);
  	}
  
- 	. = ALIGN(16);
-+	_sdata =  .;			/* Start of data section */
- 	RODATA
+-	hv_store_mapping((HV_VirtAddr)_stext,
+-			 (uint32_t)(_einittext - _stext), 0);
++	hv_store_mapping((HV_VirtAddr)_text,
++			 (uint32_t)(_einittext - _text), 0);
+ }
  
- 	EXCEPTION_TABLE(16)
+ /*
+diff --git a/arch/tile/kernel/vmlinux.lds.S b/arch/tile/kernel/vmlinux.lds.S
+index 631f10d..a13ed90 100644
+--- a/arch/tile/kernel/vmlinux.lds.S
++++ b/arch/tile/kernel/vmlinux.lds.S
+@@ -27,7 +27,6 @@ SECTIONS
+   .intrpt1 (LOAD_OFFSET) : AT ( 0 )   /* put at the start of physical memory */
+   {
+     _text = .;
+-    _stext = .;
+     *(.intrpt1)
+   } :intrpt1 =0
+ 
+@@ -36,6 +35,7 @@ SECTIONS
+ 
+   /* Now the real code */
+   . = ALIGN(0x20000);
++  _stext = .;
+   .text : AT (ADDR(.text) - LOAD_OFFSET) {
+     HEAD_TEXT
+     SCHED_TEXT
+@@ -58,11 +58,13 @@ SECTIONS
+   #define LOAD_OFFSET PAGE_OFFSET
+ 
+   . = ALIGN(PAGE_SIZE);
++  __init_begin = .;
+   VMLINUX_SYMBOL(_sinitdata) = .;
+   INIT_DATA_SECTION(16) :data =0
+   PERCPU_SECTION(L2_CACHE_BYTES)
+   . = ALIGN(PAGE_SIZE);
+   VMLINUX_SYMBOL(_einitdata) = .;
++  __init_end = .;
+ 
+   _sdata = .;                   /* Start of data section */
+ 
+diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
+index 45ce26d..f2ac2f4 100644
+--- a/arch/tile/mm/init.c
++++ b/arch/tile/mm/init.c
+@@ -562,7 +562,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
+ 			prot = ktext_set_nocache(prot);
+ 		}
+ 
+-		BUG_ON(address != (unsigned long)_stext);
++		BUG_ON(address != (unsigned long)_text);
+ 		pte = NULL;
+ 		for (; address < (unsigned long)_einittext;
+ 		     pfn++, address += PAGE_SIZE) {
 -- 
 1.7.9.5
 
