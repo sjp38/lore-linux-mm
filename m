@@ -1,83 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 063ED6B019B
-	for <linux-mm@kvack.org>; Sat,  6 Apr 2013 10:44:51 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id 5so2455642pdd.31
-        for <linux-mm@kvack.org>; Sat, 06 Apr 2013 07:44:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 5530B6B019D
+	for <linux-mm@kvack.org>; Sat,  6 Apr 2013 10:45:00 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id 10so2467901pdi.1
+        for <linux-mm@kvack.org>; Sat, 06 Apr 2013 07:44:59 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v4, part3 20/41] mm/h8300: prepare for removing num_physpages and simplify mem_init()
-Date: Sat,  6 Apr 2013 22:32:19 +0800
-Message-Id: <1365258760-30821-21-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH v4, part3 21/41] mm/hexagon: prepare for removing num_physpages and simplify mem_init()
+Date: Sat,  6 Apr 2013 22:32:20 +0800
+Message-Id: <1365258760-30821-22-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1365258760-30821-1-git-send-email-jiang.liu@huawei.com>
 References: <1365258760-30821-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Richard Kuo <rkuo@codeaurora.org>, linux-hexagon@vger.kernel.org
 
 Prepare for removing num_physpages and simplify mem_init().
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Richard Kuo <rkuo@codeaurora.org>
+Cc: linux-hexagon@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
 ---
- arch/h8300/mm/init.c |   34 ++++++++--------------------------
- 1 file changed, 8 insertions(+), 26 deletions(-)
+ arch/hexagon/mm/init.c |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/arch/h8300/mm/init.c b/arch/h8300/mm/init.c
-index 22fd869..0088f3a 100644
---- a/arch/h8300/mm/init.c
-+++ b/arch/h8300/mm/init.c
-@@ -121,40 +121,22 @@ void __init paging_init(void)
- 
+diff --git a/arch/hexagon/mm/init.c b/arch/hexagon/mm/init.c
+index c048d06e..c0f0781 100644
+--- a/arch/hexagon/mm/init.c
++++ b/arch/hexagon/mm/init.c
+@@ -70,9 +70,8 @@ unsigned long long kmap_generation;
  void __init mem_init(void)
  {
--	int codek = 0, datak = 0, initk = 0;
--	/* DAVIDM look at setup memory map generically with reserved area */
--	unsigned long tmp;
--	extern unsigned long  _ramend, _ramstart;
--	unsigned long len = &_ramend - &_ramstart;
--	unsigned long start_mem = memory_start; /* DAVIDM - these must start at end of kernel */
--	unsigned long end_mem   = memory_end; /* DAVIDM - this must not include kernel stack at top */
-+	unsigned long codesize = _etext - _stext;
- 
- #ifdef DEBUG
--	printk(KERN_DEBUG "Mem_init: start=%lx, end=%lx\n", start_mem, end_mem);
-+	pr_debug("Mem_init: start=%lx, end=%lx\n", memory_start, memory_end);
- #endif
- 
--	end_mem &= PAGE_MASK;
--	high_memory = (void *) end_mem;
--
--	start_mem = PAGE_ALIGN(start_mem);
--	max_mapnr = num_physpages = MAP_NR(high_memory);
-+	high_memory = (void *) (memory_end & PAGE_MASK);
-+	max_mapnr = MAP_NR(high_memory);
- 
- 	/* this will put all low memory onto the freelists */
  	free_all_bootmem();
+-	num_physpages = bootmem_lastpg;	/*  seriously, what?  */
  
--	codek = (_etext - _stext) >> 10;
--	datak = (__bss_stop - _sdata) >> 10;
--	initk = (__init_begin - __init_end) >> 10;
--
--	tmp = nr_free_pages() << PAGE_SHIFT;
--	printk(KERN_INFO "Memory available: %luk/%luk RAM, %luk/%luk ROM (%dk kernel code, %dk data)\n",
--	       tmp >> 10,
--	       len >> 10,
--	       (rom_length > 0) ? ((rom_length >> 10) - codek) : 0,
--	       rom_length >> 10,
--	       codek,
--	       datak
--	       );
+-	printk(KERN_INFO "totalram_pages = %ld\n", totalram_pages);
 +	mem_init_print_info(NULL);
-+	if (rom_length > 0 && rom_length > codesize)
-+		pr_info("Memory available: %luK/%luK ROM\n",
-+			(rom_length - codesize) >> 10, rom_length >> 10);
- }
  
- 
+ 	/*
+ 	 *  To-Do:  someone somewhere should wipe out the bootmem map
 -- 
 1.7.9.5
 
