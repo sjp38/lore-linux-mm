@@ -1,156 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 219E06B0166
-	for <linux-mm@kvack.org>; Sat,  6 Apr 2013 09:57:37 -0400 (EDT)
-Received: by mail-da0-f50.google.com with SMTP id t1so1928869dae.23
-        for <linux-mm@kvack.org>; Sat, 06 Apr 2013 06:57:36 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 81A796B0168
+	for <linux-mm@kvack.org>; Sat,  6 Apr 2013 09:57:49 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id bi5so2499486pad.17
+        for <linux-mm@kvack.org>; Sat, 06 Apr 2013 06:57:48 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v4, part3 12/15] mm: make __free_pages_bootmem() only available at boot time
-Date: Sat,  6 Apr 2013 21:55:06 +0800
-Message-Id: <1365256509-29024-13-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH v4, part3 13/15] mm: correctly update zone->mamaged_pages
+Date: Sat,  6 Apr 2013 21:55:07 +0800
+Message-Id: <1365256509-29024-14-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1365256509-29024-1-git-send-email-jiang.liu@huawei.com>
 References: <1365256509-29024-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Yinghai Lu <yinghai@kernel.org>, x86@kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Chris Metcalf <cmetcalf@tilera.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Jeremy Fitzhardinge <jeremy@goop.org>, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, virtualization@lists.linux-foundation.org, xen-devel@lists.xensource.com
 
-In order to simpilify management of totalram_pages and
-zone->managed_pages, make __free_pages_bootmem() only available
-at boot time. With this change applied, __free_pages_bootmem()
-will only be used by bootmem.c and nobootmem.c at boot time,
-so mark it as __init.  Other callers of __free_pages_bootmem()
-have been converted to use free_reserved_page(), which handles
-totalram_pages and zone->managed_pages in a safer way.
+Enhance adjust_managed_page_count() to adjust totalhigh_pages for
+highmem pages. And change code which directly adjusts totalram_pages
+to use adjust_managed_page_count() because it adjusts totalram_pages,
+totalhigh_pages and zone->managed_pages altogether in a safe way.
 
-This patch also fix a bug in free_pagetable() for x86_64, which
-should increase zone->managed_pages instead of zone->present_pages
-when freeing reserved pages.
+Remove inc_totalhigh_pages() and dec_totalhigh_pages() from xen/balloon
+driver bacause adjust_managed_page_count() has already adjusted
+totalhigh_pages.
 
-And now we have managed_pages_count_lock to protect totalram_pages
-and zone->managed_pages, so remove the redundant ppb_lock lock in
-put_page_bootmem(). This greatly simplifies the locking rules.
+This patch also fixes two bugs:
+1) enhances virtio_balloon driver to adjust totalhigh_pages when
+   reserve/unreserve pages.
+2) enhance memory_hotplug.c to adjust totalhigh_pages when hot-removing
+   memory.
+
+We still need to deal with modifications of totalram_pages in file
+arch/powerpc/platforms/pseries/cmm.c, but need help from PPC experts.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Yinghai Lu <yinghai@kernel.org>
-Cc: x86@kernel.org
+Cc: Chris Metcalf <cmetcalf@tilera.com>
+Cc: Rusty Russell <rusty@rustcorp.com.au>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Jeremy Fitzhardinge <jeremy@goop.org>
 Cc: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tang Chen <tangchen@cn.fujitsu.com>
 Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: linux-kernel@vger.kernel.org
+Cc: virtualization@lists.linux-foundation.org
+Cc: xen-devel@lists.xensource.com
 Cc: linux-mm@kvack.org
 ---
- arch/x86/mm/init_64.c |   18 ++----------------
- mm/memory_hotplug.c   |   16 ++--------------
- mm/page_alloc.c       |    9 +--------
- 3 files changed, 5 insertions(+), 38 deletions(-)
+ drivers/virtio/virtio_balloon.c |    8 +++++---
+ drivers/xen/balloon.c           |   23 +++++------------------
+ mm/hugetlb.c                    |    2 +-
+ mm/memory_hotplug.c             |   15 +++------------
+ mm/page_alloc.c                 |   10 +++++-----
+ 5 files changed, 19 insertions(+), 39 deletions(-)
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 0c6efb8..6ab46f2 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -711,36 +711,22 @@ EXPORT_SYMBOL_GPL(arch_add_memory);
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index bd3ae32..6649968 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -148,7 +148,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+ 		}
+ 		set_page_pfns(vb->pfns + vb->num_pfns, page);
+ 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+-		totalram_pages--;
++		adjust_managed_page_count(page, -1);
+ 	}
  
- static void __meminit free_pagetable(struct page *page, int order)
+ 	/* Did we get any? */
+@@ -160,11 +160,13 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+ static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
  {
--	struct zone *zone;
--	bool bootmem = false;
- 	unsigned long magic;
- 	unsigned int nr_pages = 1 << order;
+ 	unsigned int i;
++	struct page *page;
  
- 	/* bootmem page has reserved flag */
- 	if (PageReserved(page)) {
- 		__ClearPageReserved(page);
--		bootmem = true;
- 
- 		magic = (unsigned long)page->lru.next;
- 		if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
- 			while (nr_pages--)
- 				put_page_bootmem(page++);
- 		} else
--			__free_pages_bootmem(page, order);
-+			while (nr_pages--)
-+				free_reserved_page(page++);
- 	} else
- 		free_pages((unsigned long)page_address(page), order);
--
--	/*
--	 * SECTION_INFO pages and MIX_SECTION_INFO pages
--	 * are all allocated by bootmem.
--	 */
--	if (bootmem) {
--		zone = page_zone(page);
--		zone_span_writelock(zone);
--		zone->present_pages += nr_pages;
--		zone_span_writeunlock(zone);
--		totalram_pages += nr_pages;
--	}
+ 	/* Find pfns pointing at start of each page, get pages and free them. */
+ 	for (i = 0; i < num; i += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+-		balloon_page_free(balloon_pfn_to_page(pfns[i]));
+-		totalram_pages++;
++		page = balloon_pfn_to_page(pfns[i]);
++		balloon_page_free(page);
++		adjust_managed_page_count(page, 1);
+ 	}
  }
  
- static void __meminit free_pte_table(pte_t *pte_start, pmd_t *pmd)
+diff --git a/drivers/xen/balloon.c b/drivers/xen/balloon.c
+index d42da3b..a453c05 100644
+--- a/drivers/xen/balloon.c
++++ b/drivers/xen/balloon.c
+@@ -89,14 +89,6 @@ EXPORT_SYMBOL_GPL(balloon_stats);
+ /* We increase/decrease in batches which fit in a page */
+ static xen_pfn_t frame_list[PAGE_SIZE / sizeof(unsigned long)];
+ 
+-#ifdef CONFIG_HIGHMEM
+-#define inc_totalhigh_pages() (totalhigh_pages++)
+-#define dec_totalhigh_pages() (totalhigh_pages--)
+-#else
+-#define inc_totalhigh_pages() do {} while (0)
+-#define dec_totalhigh_pages() do {} while (0)
+-#endif
+-
+ /* List of ballooned pages, threaded through the mem_map array. */
+ static LIST_HEAD(ballooned_pages);
+ 
+@@ -132,9 +124,7 @@ static void __balloon_append(struct page *page)
+ static void balloon_append(struct page *page)
+ {
+ 	__balloon_append(page);
+-	if (PageHighMem(page))
+-		dec_totalhigh_pages();
+-	totalram_pages--;
++	adjust_managed_page_count(page, -1);
+ }
+ 
+ /* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
+@@ -151,13 +141,12 @@ static struct page *balloon_retrieve(bool prefer_highmem)
+ 		page = list_entry(ballooned_pages.next, struct page, lru);
+ 	list_del(&page->lru);
+ 
+-	if (PageHighMem(page)) {
++	if (PageHighMem(page))
+ 		balloon_stats.balloon_high--;
+-		inc_totalhigh_pages();
+-	} else
++	else
+ 		balloon_stats.balloon_low--;
+ 
+-	totalram_pages++;
++	adjust_managed_page_count(page, 1);
+ 
+ 	return page;
+ }
+@@ -374,9 +363,7 @@ static enum bp_state increase_reservation(unsigned long nr_pages)
+ #endif
+ 
+ 		/* Relinquish the page back to the allocator. */
+-		ClearPageReserved(page);
+-		init_page_count(page);
+-		__free_page(page);
++		__free_reserved_page(page);
+ 	}
+ 
+ 	balloon_stats.current_pages += rc;
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index bacdf38..28757b7 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1246,7 +1246,7 @@ static void __init gather_bootmem_prealloc(void)
+ 		 * side-effects, like CommitLimit going negative.
+ 		 */
+ 		if (h->order > (MAX_ORDER - 1))
+-			totalram_pages += 1 << h->order;
++			adjust_managed_page_count(page, 1 << h->order);
+ 	}
+ }
+ 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index a5b8fde..6a600f1 100644
+index 6a600f1..f3b12d70 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -101,12 +101,9 @@ void get_page_bootmem(unsigned long info,  struct page *page,
- 	atomic_inc(&page->_count);
- }
+@@ -760,20 +760,13 @@ EXPORT_SYMBOL_GPL(__online_page_set_limits);
  
--/* reference to __meminit __free_pages_bootmem is valid
-- * so use __ref to tell modpost not to generate a warning */
--void __ref put_page_bootmem(struct page *page)
-+void put_page_bootmem(struct page *page)
+ void __online_page_increment_counters(struct page *page)
  {
- 	unsigned long type;
--	static DEFINE_MUTEX(ppb_lock);
- 
- 	type = (unsigned long) page->lru.next;
- 	BUG_ON(type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
-@@ -116,17 +113,8 @@ void __ref put_page_bootmem(struct page *page)
- 		ClearPagePrivate(page);
- 		set_page_private(page, 0);
- 		INIT_LIST_HEAD(&page->lru);
+-	totalram_pages++;
 -
--		/*
--		 * Please refer to comment for __free_pages_bootmem()
--		 * for why we serialize here.
--		 */
--		mutex_lock(&ppb_lock);
--		__free_pages_bootmem(page, 0);
--		mutex_unlock(&ppb_lock);
--		totalram_pages++;
-+		free_reserved_page(page);
- 	}
--
+-#ifdef CONFIG_HIGHMEM
+-	if (PageHighMem(page))
+-		totalhigh_pages++;
+-#endif
++	adjust_managed_page_count(page, 1);
  }
+ EXPORT_SYMBOL_GPL(__online_page_increment_counters);
  
- #ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
+ void __online_page_free(struct page *page)
+ {
+-	ClearPageReserved(page);
+-	init_page_count(page);
+-	__free_page(page);
++	__free_reserved_page(page);
+ }
+ EXPORT_SYMBOL_GPL(__online_page_free);
+ 
+@@ -970,7 +963,6 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 		return ret;
+ 	}
+ 
+-	zone->managed_pages += onlined_pages;
+ 	zone->present_pages += onlined_pages;
+ 	zone->zone_pgdat->node_present_pages += onlined_pages;
+ 	if (onlined_pages) {
+@@ -1554,10 +1546,9 @@ repeat:
+ 	/* reset pagetype flags and makes migrate type to be MOVABLE */
+ 	undo_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
+ 	/* removal success */
+-	zone->managed_pages -= offlined_pages;
++	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
+ 	zone->present_pages -= offlined_pages;
+ 	zone->zone_pgdat->node_present_pages -= offlined_pages;
+-	totalram_pages -= offlined_pages;
+ 
+ 	init_per_zone_wmark_min();
+ 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ca1a6ce..b87596f 100644
+index b87596f..4257a63 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -745,14 +745,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	local_irq_restore(flags);
+@@ -780,11 +780,7 @@ void __init init_cma_reserved_pageblock(struct page *page)
+ 	set_page_refcounted(page);
+ 	set_pageblock_migratetype(page, MIGRATE_CMA);
+ 	__free_pages(page, pageblock_order);
+-	totalram_pages += pageblock_nr_pages;
+-#ifdef CONFIG_HIGHMEM
+-	if (PageHighMem(page))
+-		totalhigh_pages += pageblock_nr_pages;
+-#endif
++	adjust_managed_page_count(page, pageblock_nr_pages);
  }
+ #endif
  
--/*
-- * Read access to zone->managed_pages is safe because it's unsigned long,
-- * but we still need to serialize writers. Currently all callers of
-- * __free_pages_bootmem() except put_page_bootmem() should only be used
-- * at boot time. So for shorter boot time, we shift the burden to
-- * put_page_bootmem() to serialize writers.
-- */
--void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
-+void __init __free_pages_bootmem(struct page *page, unsigned int order)
- {
- 	unsigned int nr_pages = 1 << order;
- 	unsigned int loop;
+@@ -5192,6 +5188,10 @@ void adjust_managed_page_count(struct page *page, long count)
+ 
+ 	page_zone(page)->managed_pages += count;
+ 	totalram_pages += count;
++#ifdef	CONFIG_HIGHMEM
++	if (PageHighMem(page))
++		totalhigh_pages += count;
++#endif
+ 
+ 	if (lock)
+ 		spin_unlock(&managed_page_count_lock);
 -- 
 1.7.9.5
 
