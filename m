@@ -1,40 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 5CC4A6B0134
-	for <linux-mm@kvack.org>; Fri,  5 Apr 2013 20:15:49 -0400 (EDT)
-Received: by mail-qc0-f182.google.com with SMTP id k19so1886645qcs.27
-        for <linux-mm@kvack.org>; Fri, 05 Apr 2013 17:15:48 -0700 (PDT)
-Message-ID: <515F6934.1090508@gmail.com>
-Date: Fri, 05 Apr 2013 20:15:48 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 22BDF6B0137
+	for <linux-mm@kvack.org>; Sat,  6 Apr 2013 03:04:55 -0400 (EDT)
+Received: by mail-ea0-f170.google.com with SMTP id a15so1636273eae.29
+        for <linux-mm@kvack.org>; Sat, 06 Apr 2013 00:04:53 -0700 (PDT)
+Date: Sat, 6 Apr 2013 09:04:50 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 07/10] mbind: add hugepage migration code to mbind()
+Message-ID: <20130406070450.GC4501@dhcp22.suse.cz>
+References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1363983835-20184-8-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20130325134926.GZ2154@dhcp22.suse.cz>
+ <515F4ECB.9050105@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 10/10] prepare to remove /proc/sys/vm/hugepages_treat_as_movable
-References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1363983835-20184-11-git-send-email-n-horiguchi@ah.jp.nec.com> <20130325151246.GB2154@dhcp22.suse.cz>
-In-Reply-To: <20130325151246.GB2154@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <515F4ECB.9050105@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org
 
-(3/25/13 11:12 AM), Michal Hocko wrote:
-> On Fri 22-03-13 16:23:55, Naoya Horiguchi wrote:
-> [...]
->> @@ -2086,11 +2085,7 @@ int hugetlb_treat_movable_handler(struct ctl_table *table, int write,
->>  			void __user *buffer,
->>  			size_t *length, loff_t *ppos)
->>  {
->> -	proc_dointvec(table, write, buffer, length, ppos);
->> -	if (hugepages_treat_as_movable)
->> -		htlb_alloc_mask = GFP_HIGHUSER_MOVABLE;
->> -	else
->> -		htlb_alloc_mask = GFP_HIGHUSER;
->> +	/* hugepages_treat_as_movable is obsolete and to be removed. */
+On Fri 05-04-13 18:23:07, KOSAKI Motohiro wrote:
+> >> -	if (!new_hpage)
+> >> +	/*
+> >> +	 * Getting a new hugepage with alloc_huge_page() (which can happen
+> >> +	 * when migration is caused by mbind()) can return ERR_PTR value,
+> >> +	 * so we need take care of the case here.
+> >> +	 */
+> >> +	if (!new_hpage || IS_ERR_VALUE(new_hpage))
+> >>  		return -ENOMEM;
+> > 
+> > Please no. get_new_page returns NULL or a page. You are hooking a wrong
+> > callback here. The error value doesn't make any sense here. IMO you
+> > should just wrap alloc_huge_page by something that returns NULL or page.
 > 
-> WARN_ON_ONCE("This knob is obsolete and has no effect. It is scheduled for removal")
+> I suggest just opposite way. new_vma_page() always return ENOMEM, ENOSPC etc instad 
+> of NULL. and caller propegate it to userland.
+> I guess userland want to distingush why mbind was failed.
 
-Indeed.
+Sure, and I wasn't suggesting to change alloc_huge_page. I was just
+pointing out that new_page_t used to return page or NULL and hugetlb
+unmap_and_move shouldn't be any different in that direction so using
+alloc_huge_page is not a good fit here.
+
+> Anyway, If new_vma_page() have a change to return both NULL and
+> -ENOMEM. That's a bug.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
