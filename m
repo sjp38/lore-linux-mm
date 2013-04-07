@@ -1,123 +1,236 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id DDA5A6B0005
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 03:10:57 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 7 Apr 2013 12:37:59 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id AD4D33940057
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 12:40:50 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r377AiWE7143868
-	for <linux-mm@kvack.org>; Sun, 7 Apr 2013 12:40:44 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r377An5r024865
-	for <linux-mm@kvack.org>; Sun, 7 Apr 2013 17:10:49 +1000
-Date: Sun, 7 Apr 2013 15:10:47 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [BUG?] thp: too much anonymous hugepage caused 'khugepaged'
- thread stopped
-Message-ID: <20130407071047.GA8626@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1101781431.260745.1365313808038.JavaMail.root@redhat.com>
- <338291050.277410.1365316170850.JavaMail.root@redhat.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id A3EC26B0006
+	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 03:26:24 -0400 (EDT)
+Received: by mail-oa0-f43.google.com with SMTP id l10so5249561oag.16
+        for <linux-mm@kvack.org>; Sun, 07 Apr 2013 00:26:23 -0700 (PDT)
+Message-ID: <51611F94.7060801@gmail.com>
+Date: Sun, 07 Apr 2013 15:26:12 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <338291050.277410.1365316170850.JavaMail.root@redhat.com>
+Subject: Re: [RFC] mm: remove swapcache page early
+References: <1364350932-12853-1-git-send-email-minchan@kernel.org> <alpine.LNX.2.00.1303271230210.29687@eggly.anvils> <515ADFCF.4010209@gmail.com>
+In-Reply-To: <515ADFCF.4010209@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouping Liu <zliu@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Sun, Apr 07, 2013 at 02:29:30AM -0400, Zhouping Liu wrote:
->Hello All,
+Ping Minchan.
+On 04/02/2013 09:40 PM, Simon Jeons wrote:
+> Hi Hugh,
+> On 03/28/2013 05:41 AM, Hugh Dickins wrote:
+>> On Wed, 27 Mar 2013, Minchan Kim wrote:
+>>
+>>> Swap subsystem does lazy swap slot free with expecting the page
+>>> would be swapped out again so we can't avoid unnecessary write.
+>>                               so we can avoid unnecessary write.
 >
->When I did some testing to check thp's performance, the following
->strange action occurred:
+> If page can be swap out again, which codes can avoid unnecessary 
+> write? Could you point out to me? Thanks in advance. ;-)
 >
->when a process try to allocate 500+(or other large value)
->anonymous hugepage, the 'khugepaged' thread will stop to
->scan vma. the testing system has 2Gb RAM, and the thp
->enabled value is 'always', set 0 to 'scan_sleep_millisecs'
+>>> But the problem in in-memory swap is that it consumes memory space
+>>> until vm_swap_full(ie, used half of all of swap device) condition
+>>> meet. It could be bad if we use multiple swap device, small 
+>>> in-memory swap
+>>> and big storage swap or in-memory swap alone.
+>> That is a very good realization: it's surprising that none of us
+>> thought of it before - no disrespect to you, well done, thank you.
+>>
+>> And I guess swap readahead is utterly unhelpful in this case too.
+>>
+>>> This patch changes vm_swap_full logic slightly so it could free
+>>> swap slot early if the backed device is really fast.
+>>> For it, I used SWP_SOLIDSTATE but It might be controversial.
+>> But I strongly disagree with almost everything in your patch :)
+>> I disagree with addressing it in vm_swap_full(), I disagree that
+>> it can be addressed by device, I disagree that it has anything to
+>> do with SWP_SOLIDSTATE.
+>>
+>> This is not a problem with swapping to /dev/ram0 or to /dev/zram0,
+>> is it?  In those cases, a fixed amount of memory has been set aside
+>> for swap, and it works out just like with disk block devices. The
+>> memory set aside may be wasted, but that is accepted upfront.
+>>
+>> Similarly, this is not a problem with swapping to SSD.  There might
+>> or might not be other reasons for adjusting the vm_swap_full() logic
+>> for SSD or generally, but those have nothing to do with this issue.
+>>
+>> The problem here is peculiar to frontswap, and the variably sized
+>> memory behind it, isn't it?  We are accustomed to using swap to free
+>> up memory by transferring its data to some other, cheaper but slower
+>> resource.
+>>
+>> But in the case of frontswap and zmem (I'll say that to avoid thinking
+>> through which backends are actually involved), it is not a cheaper and
+>> slower resource, but the very same memory we are trying to save: swap
+>> is stolen from the memory under reclaim, so any duplication becomes
+>> counter-productive (if we ignore cpu compression/decompression costs:
+>> I have no idea how fair it is to do so, but anyone who chooses zmem
+>> is prepared to pay some cpu price for that).
+>>
+>> And because it's a frontswap thing, we cannot decide this by device:
+>> frontswap may or may not stand in front of each device.  There is no
+>> problem with swapcache duplicated on disk (until that area approaches
+>> being full or fragmented), but at the higher level we cannot see what
+>> is in zmem and what is on disk: we only want to free up the zmem dup.
+>>
+>> I believe the answer is for frontswap/zmem to invalidate the frontswap
+>> copy of the page (to free up the compressed memory when possible) and
+>> SetPageDirty on the PageUptodate PageSwapCache page when swapping in
+>> (setting page dirty so nothing will later go to read it from the
+>> unfreed location on backing swap disk, which was never written).
+>>
+>> We cannot rely on freeing the swap itself, because in general there
+>> may be multiple references to the swap, and we only satisfy the one
+>> which has faulted.  It may or may not be a good idea to use rmap to
+>> locate the other places to insert pte in place of swap entry, to
+>> resolve them all at once; but we have chosen not to do so in the
+>> past, and there's no need for that, if the zmem gets invalidated
+>> and the swapcache page set dirty.
+>>
+>> Hugh
+>>
+>>> So let's add Ccing Shaohua and Hugh.
+>>> If it's a problem for SSD, I'd like to create new type SWP_INMEMORY
+>>> or something for z* family.
+>>>
+>>> Other problem is zram is block device so that it can set SWP_INMEMORY
+>>> or SWP_SOLIDSTATE easily(ie, actually, zram is already done) but
+>>> I have no idea to use it for frontswap.
+>>>
+>>> Any idea?
+>>>
+>>> Other optimize point is we remove it unconditionally when we
+>>> found it's exclusive when swap in happen.
+>>> It could help frontswap family, too.
+>>> What do you think about it?
+>>>
+>>> Cc: Hugh Dickins <hughd@google.com>
+>>> Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+>>> Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+>>> Cc: Nitin Gupta <ngupta@vflare.org>
+>>> Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
+>>> Cc: Shaohua Li <shli@kernel.org>
+>>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+>>> ---
+>>>   include/linux/swap.h | 11 ++++++++---
+>>>   mm/memory.c          |  3 ++-
+>>>   mm/swapfile.c        | 11 +++++++----
+>>>   mm/vmscan.c          |  2 +-
+>>>   4 files changed, 18 insertions(+), 9 deletions(-)
+>>>
+>>> diff --git a/include/linux/swap.h b/include/linux/swap.h
+>>> index 2818a12..1f4df66 100644
+>>> --- a/include/linux/swap.h
+>>> +++ b/include/linux/swap.h
+>>> @@ -359,9 +359,14 @@ extern struct page 
+>>> *swapin_readahead(swp_entry_t, gfp_t,
+>>>   extern atomic_long_t nr_swap_pages;
+>>>   extern long total_swap_pages;
+>>>   -/* Swap 50% full? Release swapcache more aggressively.. */
+>>> -static inline bool vm_swap_full(void)
+>>> +/*
+>>> + * Swap 50% full or fast backed device?
+>>> + * Release swapcache more aggressively.
+>>> + */
+>>> +static inline bool vm_swap_full(struct swap_info_struct *si)
+>>>   {
+>>> +    if (si->flags & SWP_SOLIDSTATE)
+>>> +        return true;
+>>>       return atomic_long_read(&nr_swap_pages) * 2 < total_swap_pages;
+>>>   }
+>>>   @@ -405,7 +410,7 @@ mem_cgroup_uncharge_swapcache(struct page 
+>>> *page, swp_entry_t ent, bool swapout)
+>>>   #define get_nr_swap_pages()            0L
+>>>   #define total_swap_pages            0L
+>>>   #define total_swapcache_pages()            0UL
+>>> -#define vm_swap_full()                0
+>>> +#define vm_swap_full(si)            0
+>>>     #define si_swapinfo(val) \
+>>>       do { (val)->freeswap = (val)->totalswap = 0; } while (0)
+>>> diff --git a/mm/memory.c b/mm/memory.c
+>>> index 705473a..1ca21a9 100644
+>>> --- a/mm/memory.c
+>>> +++ b/mm/memory.c
+>>> @@ -3084,7 +3084,8 @@ static int do_swap_page(struct mm_struct *mm, 
+>>> struct vm_area_struct *vma,
+>>>       mem_cgroup_commit_charge_swapin(page, ptr);
+>>>         swap_free(entry);
+>>> -    if (vm_swap_full() || (vma->vm_flags & VM_LOCKED) || 
+>>> PageMlocked(page))
+>>> +    if (likely(PageSwapCache(page)) && 
+>>> (vm_swap_full(page_swap_info(page))
+>>> +            || (vma->vm_flags & VM_LOCKED) || PageMlocked(page)))
+>>>           try_to_free_swap(page);
+>>>       unlock_page(page);
+>>>       if (page != swapcache) {
+>>> diff --git a/mm/swapfile.c b/mm/swapfile.c
+>>> index 1bee6fa..f9cc701 100644
+>>> --- a/mm/swapfile.c
+>>> +++ b/mm/swapfile.c
+>>> @@ -293,7 +293,7 @@ checks:
+>>>           scan_base = offset = si->lowest_bit;
+>>>         /* reuse swap entry of cache-only swap if not busy. */
+>>> -    if (vm_swap_full() && si->swap_map[offset] == SWAP_HAS_CACHE) {
+>>> +    if (vm_swap_full(si) && si->swap_map[offset] == SWAP_HAS_CACHE) {
+>>>           int swap_was_freed;
+>>>           spin_unlock(&si->lock);
+>>>           swap_was_freed = __try_to_reclaim_swap(si, offset);
+>>> @@ -382,7 +382,8 @@ scan:
+>>>               spin_lock(&si->lock);
+>>>               goto checks;
+>>>           }
+>>> -        if (vm_swap_full() && si->swap_map[offset] == 
+>>> SWAP_HAS_CACHE) {
+>>> +        if (vm_swap_full(si) &&
+>>> +            si->swap_map[offset] == SWAP_HAS_CACHE) {
+>>>               spin_lock(&si->lock);
+>>>               goto checks;
+>>>           }
+>>> @@ -397,7 +398,8 @@ scan:
+>>>               spin_lock(&si->lock);
+>>>               goto checks;
+>>>           }
+>>> -        if (vm_swap_full() && si->swap_map[offset] == 
+>>> SWAP_HAS_CACHE) {
+>>> +        if (vm_swap_full(si) &&
+>>> +            si->swap_map[offset] == SWAP_HAS_CACHE) {
+>>>               spin_lock(&si->lock);
+>>>               goto checks;
+>>>           }
+>>> @@ -763,7 +765,8 @@ int free_swap_and_cache(swp_entry_t entry)
+>>>            * Also recheck PageSwapCache now page is locked (above).
+>>>            */
+>>>           if (PageSwapCache(page) && !PageWriteback(page) &&
+>>> -                (!page_mapped(page) || vm_swap_full())) {
+>>> +                (!page_mapped(page) ||
+>>> +                  vm_swap_full(page_swap_info(page)))) {
+>>>               delete_from_swap_cache(page);
+>>>               SetPageDirty(page);
+>>>           }
+>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>>> index df78d17..145c59c 100644
+>>> --- a/mm/vmscan.c
+>>> +++ b/mm/vmscan.c
+>>> @@ -933,7 +933,7 @@ cull_mlocked:
+>>>     activate_locked:
+>>>           /* Not a candidate for swapping, so reclaim swap space. */
+>>> -        if (PageSwapCache(page) && vm_swap_full())
+>>> +        if (PageSwapCache(page) && vm_swap_full(page_swap_info(page)))
+>>>               try_to_free_swap(page);
+>>>           VM_BUG_ON(PageActive(page));
+>>>           SetPageActive(page);
+>>> -- 
+>>> 1.8.2
+>> -- 
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 >
->you can use the following steps to confirm the issue:
->
->---------------- example code ------------
->/* file test_thp.c */
->
->#include <stdio.h>
->#include <stdlib.h>
->#include <string.h>
->#include <sys/mman.h>
->
->int main(int argc, char *argv[])
->{
->	int nr_thps = 1000, ret = 0;
->	unsigned long hugepagesize, size;
->	void *addr;
->
->	hugepagesize = (1UL << 21);
->
->	if (argc == 2)
->		nr_thps = atoi(argv[1]);
->
->	printf("try to allocate %d transparent hugepages\n", nr_thps);
->	size = (unsigned long)nr_thps * hugepagesize;
->
->	ret = posix_memalign(&addr, hugepagesize, size);
->	if (ret != 0) {
->		printf("posix_memalign failed\n");
->		return ret;
->	}
->
->	memset (addr, 10, size);
->
->	sleep(50);
->
->	return ret;
->}
->-------- end example code -----------
->
->executing './test_thp 500' in a system with 2GB RAM, the values in
->/sys/kernel/mm/transparent_hugepage/khugepaged/* will never change,
->you can  repeatedly do '# cat /sys/kernel/mm/transparent_hugepage/khugepaged/*' to check this.
->
->as we know, when we set 0 to /sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs,
->the /sys/kernel/mm/transparent_hugepage/khugepaged/full_to_scans will increasing at least,
->but the actual is opposite, the value is never change, so I checked 'khugepaged' thread,
->and found the 'khugepaged' is stopped:
-># ps aux | grep -i hugepaged
->root        67 10.9  0.0      0     0 ?        SN   Apr06 172:10 [khugepaged]
->                                               ^^ 
->also I did the same actions on some large machine, e.g on 16Gb RAM, 1000+ anonymous hugepages
->will cause 'khugepaged' stopped, but there are 2Gb+ free memory, why is it? is that normal?
->comments?
-
-khugepaged will preallocate one hugepage in NUMA case or alloc one 
-hugepage before collapse in UMA case. If the memory is serious 
-fragmentation and can't successfully allocate hugepage, khugepaged 
-will go to sleep one minute. scan_sleep_millisecs determines how 
-many milliseconds to wait in khugepaged between each pass, however, 
-alloc_sleep_millisecs(default value is one minute) determines how 
-many milliseconds to wait in khugepaged if there's an hugepage 
-allocation failure to throttle the next allocation attempt.
-
-Regards,
-Wanpeng Li 
-
->
->-- 
->Thanks,
->Zhouping
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
