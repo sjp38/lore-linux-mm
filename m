@@ -1,67 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 385006B0027
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 16:21:37 -0400 (EDT)
-Received: by mail-qc0-f182.google.com with SMTP id k19so2229425qcs.41
-        for <linux-mm@kvack.org>; Sun, 07 Apr 2013 13:21:36 -0700 (PDT)
-Date: Sun, 7 Apr 2013 22:21:30 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH 0/7] memcg: make memcg's life cycle the same as
- cgroup
-Message-ID: <20130407202130.GB12678@dhcp22.suse.cz>
-References: <515BF233.6070308@huawei.com>
- <20130404120049.GI29911@dhcp22.suse.cz>
- <51610B78.7080001@huawei.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 59E3D6B0037
+	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 17:59:09 -0400 (EDT)
+Subject: Re: Excessive stall times on ext4 in 3.9-rc2
+References: <20130402142717.GH32241@suse.de>
+	<20130402150651.GB31577@thunk.org> <20130402151436.GC31577@thunk.org>
+	<20130402181940.GA4936@thunk.org>
+From: fche@redhat.com (Frank Ch. Eigler)
+Date: Sun, 07 Apr 2013 17:59:06 -0400
+In-Reply-To: <20130402181940.GA4936@thunk.org> (Theodore Ts'o's message of "Tue, 2 Apr 2013 14:19:40 -0400")
+Message-ID: <y0mwqsehuj9.fsf@fche.csb>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51610B78.7080001@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Mel Gorman <mgorman@suse.de>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
 
-On Sun 07-04-13 14:00:24, Li Zefan wrote:
-> On 2013/4/4 20:00, Michal Hocko wrote:
-> > On Wed 03-04-13 17:11:15, Li Zefan wrote:
-> >> (I'll be off from my office soon, and I won't be responsive in the following
-> >> 3 days.)
-> >>
-> >> I'm working on converting memcg to use cgroup->id, and then we can kill css_id.
-> >>
-> >> Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
-> >> still be alive. This patchset converts memcg to always use css_get/put, so
-> >> memcg will have the same life cycle as its corresponding cgroup, and then
-> >> it's always safe for memcg to use cgroup->id.
-> >>
-> >> The historical reason that memcg didn't use css_get in some cases, is that
-> >> cgroup couldn't be removed if there're still css refs. The situation has
-> >> changed so that rmdir a cgroup will succeed regardless css refs, but won't
-> >> be freed until css refs goes down to 0.
-> >>
-> >> This is an early post, and it's NOT TESTED. I just want to see if the changes
-> >> are fine in general.
-> > 
-> > yes, I like the approach and it looks correct as well (some minor things
-> > mentioned in the patches). Thanks a lot Li! This will make our lifes much
-> > easier. The separate ref counting was PITA especially after
-> > introduction of kmem accounting which made its usage even more trickier.
-> > 
-> >> btw, after this patchset I think we don't need to free memcg via RCU, because
-> >> cgroup is already freed in RCU callback.
-> > 
-> > But this depends on changes waiting in for-3.10 branch, right?
-> 
-> What changes? memcg changes or cgroup core changes? I don't think this depends
-> on anything in cgroup 3.10 branch.
 
-cgroup (be445626 e.g.) but now I've noticed that those are already
-merged in Linus tree.
+Hi -
 
-FYI: I've cherry-picked themo my -mm git tree.
--- 
-Michal Hocko
-SUSE Labs
+
+tytso wrote:
+
+> So I tried to reproduce the problem, and so I installed systemtap
+> (bleeding edge, since otherwise it won't work with development
+> kernel), and then rebuilt a kernel with all of the necessary CONFIG
+> options enabled:
+>
+> 	CONFIG_DEBUG_INFO, CONFIG_KPROBES, CONFIG_RELAY, CONFIG_DEBUG_FS,
+> 	CONFIG_MODULES, CONFIG_MODULE_UNLOAD
+> [...]
+
+That sounds about right.
+
+
+> I then pulled down mmtests, and tried running watch-dstate.pl, which
+> is what I assume you were using [...]
+
+I just took a look at the mmtests, particularly the stap-fix.sh stuff.
+The heroics therein are really not called for.  git kernel developers
+should use git systemtap, as has always been the case.  All
+compatibility hacks in stap-fix.sh have already been merged, in many
+cases for months.
+
+
+> [...]
+> semantic error: while resolving probe point: identifier 'kprobe' at /tmp/stapdjN4_l:18:7
+>         source: probe kprobe.function("get_request_wait")
+>                       ^
+> Pass 2: analysis failed.  [man error::pass2]
+> Unexpected exit of STAP script at ./watch-dstate.pl line 296.
+> I have no clue what to do next.  Can you give me a hint?
+
+You should see the error::pass2 man page, which refers to
+error::reporting, which refers to involving stap folks and running
+stap-report to gather needed info.
+
+But in this case, that's unnecessary: the problem is most likely that
+the get_request_wait function does not actually exist any longer, since
+
+commit a06e05e6afab70b4b23c0a7975aaeae24b195cd6
+Author: Tejun Heo <tj@kernel.org>
+Date:   Mon Jun 4 20:40:55 2012 -0700
+
+    block: refactor get_request[_wait]()
+
+
+Systemtap could endavour to list roughly-matching functions that do
+exist, if you think that's be helpful.
+
+
+- FChE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
