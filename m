@@ -1,50 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id CAEEB6B0027
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 13:59:53 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 44B976B0006
+	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 15:51:18 -0400 (EDT)
+Received: by mail-ea0-f172.google.com with SMTP id z7so2042031eaf.31
+        for <linux-mm@kvack.org>; Sun, 07 Apr 2013 12:51:16 -0700 (PDT)
+Date: Sun, 7 Apr 2013 21:51:12 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC][PATCH 0/7] memcg: make memcg's life cycle the same as
+ cgroup
+Message-ID: <20130407195112.GA12678@dhcp22.suse.cz>
+References: <515BF233.6070308@huawei.com>
+ <516131D7.8030004@huawei.com>
 MIME-Version: 1.0
-Message-ID: <dc2642fc-f662-41cd-a236-fccf4c252dfa@default>
-Date: Sun, 7 Apr 2013 10:59:18 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH part2 v6 0/3] staging: zcache: Support zero-filled pages
- more efficiently
-References: <1364984183-9711-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130407090341.GA22589@hacker.(null)>
- <62e1fe34-e5be-42f5-83af-f8f428fce57b@default>
-In-Reply-To: <62e1fe34-e5be-42f5-83af-f8f428fce57b@default>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <516131D7.8030004@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Fengguang Wu <fengguang.wu@intel.com>, Bob Liu <bob.liu@oracle.com>, Ric Mason <ric.masonn@gmail.com>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-> From: Dan Magenheimer
-> Subject: RE: [PATCH part2 v6 0/3] staging: zcache: Support zero-filled pa=
-ges more efficiently
->=20
-> > From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
-> > Subject: Re: [PATCH part2 v6 0/3] staging: zcache: Support zero-filled =
-pages more efficiently
-> >
-> > Hi Dan,
-> >
-> > Some issues against Ramster:
-> >
->=20
-> Sure!  I am concerned about Konrad's patches adding debug.c as they
-> add many global variables.  They are only required when ZCACHE_DEBUG
-> is enabled so they may be ok.  If not, adding ramster variables
-> to debug.c may make the problem worse.
+On Sun 07-04-13 16:44:07, Li Zefan wrote:
+> Hi,
+> 
+> I'm rebasing this patchset against latest linux-next, and it conflicts with
+> "[PATCH v2] memcg: debugging facility to access dangling memcgs." slightly.
+> 
+> That is a debugging patch and will never be pushed into mainline, so should I
+> still base this patchset on that debugging patch?
 
-Oops, I just noticed/remembered that ramster uses BOTH debugfs and sysfs.
-The sysfs variables are all currently required, i.e. for configuration
-so should not be tied to debugfs or a DEBUG config option.  However,
-if there is a more acceptable way to implement the function of
-those sysfs variables, that would be fine.
+Could you split CONFIG_MEMCG_DEBUG_ASYNC_DESTROY changes into a separate
+patch so that Andrew could put it on top of the mentioned patch?
 
-Thanks,
-Dan
+> Also that patch needs update (and can be simplified) after this patchset:
+> - move memcg_dangling_add() to mem_cgroup_css_offline()
+> - remove memcg->memcg_name, and use cgroup_path() in mem_cgroup_dangling_read()?
+
+Every improvement is welcome.
+
+Thanks
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
