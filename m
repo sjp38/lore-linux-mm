@@ -1,250 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 9668E6B0005
-	for <linux-mm@kvack.org>; Sat,  6 Apr 2013 20:26:32 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 7 Apr 2013 10:19:39 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 3CED42BB0052
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 10:26:24 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r370QIEv65208326
-	for <linux-mm@kvack.org>; Sun, 7 Apr 2013 10:26:19 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r370QMeH028867
-	for <linux-mm@kvack.org>; Sun, 7 Apr 2013 10:26:23 +1000
-Date: Sun, 7 Apr 2013 08:26:19 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH, RFC 00/16] Transparent huge page cache
-Message-ID: <20130407002619.GA19381@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1359365068-10147-1-git-send-email-kirill.shutemov@linux.intel.com>
- <alpine.LNX.2.00.1301282041280.27186@eggly.anvils>
- <5107cb52e07b1_376199eb7059997@blue.mail>
- <alpine.LNX.2.00.1301301619040.24861@eggly.anvils>
- <20130405014208.GC362@hacker.(null)>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 7BE116B0005
+	for <linux-mm@kvack.org>; Sat,  6 Apr 2013 20:32:37 -0400 (EDT)
+Received: by mail-oa0-f45.google.com with SMTP id o6so5194691oag.32
+        for <linux-mm@kvack.org>; Sat, 06 Apr 2013 17:32:36 -0700 (PDT)
+Message-ID: <5160BE9E.1050905@gmail.com>
+Date: Sun, 07 Apr 2013 08:32:30 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130405014208.GC362@hacker.(null)>
+Subject: Re: [RFC][PATCH 0/9] extend hugepage migration
+References: <1361475708-25991-1-git-send-email-n-horiguchi@ah.jp.nec.com> <5148F830.3070601@gmail.com> <1363815326-urchkyxr-mutt-n-horiguchi@ah.jp.nec.com> <514A4B1C.6020201@gmail.com> <20130321125628.GB6051@dhcp22.suse.cz> <514B9BD8.9050207@gmail.com> <20130322081532.GC31457@dhcp22.suse.cz> <515E2592.7020607@gmail.com> <20130405080828.GA14882@dhcp22.suse.cz> <515E92CA.4000507@gmail.com> <20130405093034.GB31132@dhcp22.suse.cz>
+In-Reply-To: <20130405093034.GB31132@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>
 
-On Fri, Apr 05, 2013 at 09:42:08AM +0800, Wanpeng Li wrote:
->On Wed, Jan 30, 2013 at 06:12:05PM -0800, Hugh Dickins wrote:
->>On Tue, 29 Jan 2013, Kirill A. Shutemov wrote:
->>> Hugh Dickins wrote:
->>> > On Mon, 28 Jan 2013, Kirill A. Shutemov wrote:
->>> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->>> > > 
->>> > > Here's first steps towards huge pages in page cache.
->>> > > 
->>> > > The intend of the work is get code ready to enable transparent huge page
->>> > > cache for the most simple fs -- ramfs.
->>> > > 
->>> > > It's not yet near feature-complete. It only provides basic infrastructure.
->>> > > At the moment we can read, write and truncate file on ramfs with huge pages in
->>> > > page cache. The most interesting part, mmap(), is not yet there. For now
->>> > > we split huge page on mmap() attempt.
->>> > > 
->>> > > I can't say that I see whole picture. I'm not sure if I understand locking
->>> > > model around split_huge_page(). Probably, not.
->>> > > Andrea, could you check if it looks correct?
->>> > > 
->>> > > Next steps (not necessary in this order):
->>> > >  - mmap();
->>> > >  - migration (?);
->>> > >  - collapse;
->>> > >  - stats, knobs, etc.;
->>> > >  - tmpfs/shmem enabling;
->>> > >  - ...
->>> > > 
->>> > > Kirill A. Shutemov (16):
->>> > >   block: implement add_bdi_stat()
->>> > >   mm: implement zero_huge_user_segment and friends
->>> > >   mm: drop actor argument of do_generic_file_read()
->>> > >   radix-tree: implement preload for multiple contiguous elements
->>> > >   thp, mm: basic defines for transparent huge page cache
->>> > >   thp, mm: rewrite add_to_page_cache_locked() to support huge pages
->>> > >   thp, mm: rewrite delete_from_page_cache() to support huge pages
->>> > >   thp, mm: locking tail page is a bug
->>> > >   thp, mm: handle tail pages in page_cache_get_speculative()
->>> > >   thp, mm: implement grab_cache_huge_page_write_begin()
->>> > >   thp, mm: naive support of thp in generic read/write routines
->>> > >   thp, libfs: initial support of thp in
->>> > >     simple_read/write_begin/write_end
->>> > >   thp: handle file pages in split_huge_page()
->>> > >   thp, mm: truncate support for transparent huge page cache
->>> > >   thp, mm: split huge page on mmap file page
->>> > >   ramfs: enable transparent huge page cache
->>> > > 
->>> > >  fs/libfs.c                  |   54 +++++++++---
->>> > >  fs/ramfs/inode.c            |    6 +-
->>> > >  include/linux/backing-dev.h |   10 +++
->>> > >  include/linux/huge_mm.h     |    8 ++
->>> > >  include/linux/mm.h          |   15 ++++
->>> > >  include/linux/pagemap.h     |   14 ++-
->>> > >  include/linux/radix-tree.h  |    3 +
->>> > >  lib/radix-tree.c            |   32 +++++--
->>> > >  mm/filemap.c                |  204 +++++++++++++++++++++++++++++++++++--------
->>> > >  mm/huge_memory.c            |   62 +++++++++++--
->>> > >  mm/memory.c                 |   22 +++++
->>> > >  mm/truncate.c               |   12 +++
->>> > >  12 files changed, 375 insertions(+), 67 deletions(-)
->>> > 
->>> > Interesting.
->>> > 
->>> > I was starting to think about Transparent Huge Pagecache a few
->>> > months ago, but then got washed away by incoming waves as usual.
->>> > 
->>> > Certainly I don't have a line of code to show for it; but my first
->>> > impression of your patches is that we have very different ideas of
->>> > where to start.
+Hi Michal,
+On 04/05/2013 05:30 PM, Michal Hocko wrote:
+> On Fri 05-04-13 17:00:58, Simon Jeons wrote:
+>> Hi Michal,
+>> On 04/05/2013 04:08 PM, Michal Hocko wrote:
+>>> On Fri 05-04-13 09:14:58, Simon Jeons wrote:
+>>>> Hi Michal,
+>>>> On 03/22/2013 04:15 PM, Michal Hocko wrote:
+>>>>> [getting off-list]
+>>>>>
+>>>>> On Fri 22-03-13 07:46:32, Simon Jeons wrote:
+>>>>>> Hi Michal,
+>>>>>> On 03/21/2013 08:56 PM, Michal Hocko wrote:
+>>>>>>> On Thu 21-03-13 07:49:48, Simon Jeons wrote:
+>>>>>>> [...]
+>>>>>>>> When I hacking arch/x86/mm/hugetlbpage.c like this,
+>>>>>>>> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+>>>>>>>> index ae1aa71..87f34ee 100644
+>>>>>>>> --- a/arch/x86/mm/hugetlbpage.c
+>>>>>>>> +++ b/arch/x86/mm/hugetlbpage.c
+>>>>>>>> @@ -354,14 +354,13 @@ hugetlb_get_unmapped_area(struct file *file,
+>>>>>>>> unsigned long addr,
+>>>>>>>>
+>>>>>>>> #endif /*HAVE_ARCH_HUGETLB_UNMAPPED_AREA*/
+>>>>>>>>
+>>>>>>>> -#ifdef CONFIG_X86_64
+>>>>>>>> static __init int setup_hugepagesz(char *opt)
+>>>>>>>> {
+>>>>>>>> unsigned long ps = memparse(opt, &opt);
+>>>>>>>> if (ps == PMD_SIZE) {
+>>>>>>>> hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
+>>>>>>>> - } else if (ps == PUD_SIZE && cpu_has_gbpages) {
+>>>>>>>> - hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+>>>>>>>> + } else if (ps == PUD_SIZE) {
+>>>>>>>> + hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT+4);
+>>>>>>>> } else {
+>>>>>>>> printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
+>>>>>>>> ps >> 20);
+>>>>>>>>
+>>>>>>>> I set boot=hugepagesz=1G hugepages=10, then I got 10 32MB huge pages.
+>>>>>>>> What's the difference between these pages which I hacking and normal
+>>>>>>>> huge pages?
+>>>>>>> How is this related to the patch set?
+>>>>>>> Please _stop_ distracting discussion to unrelated topics!
+>>>>>>>
+>>>>>>> Nothing personal but this is just wasting our time.
+>>>>>> Sorry kindly Michal, my bad.
+>>>>>> Btw, could you explain this question for me? very sorry waste your time.
+>>>>> Your CPU has to support GB pages. You have removed cpu_has_gbpages test
+>>>>> and added a hstate for order 13 pages which is a weird number on its
+>>>>> own (32MB) because there is no page table level to support them.
+>>>> But after hacking, there is /sys/kernel/mm/hugepages/hugepages-*,
+>>>> and have equal number of 32MB huge pages which I set up in boot
+>>>> parameter.
+>>> because hugetlb_add_hstate creates hstate for those pages and
+>>> hugetlb_init_hstates allocates them later on.
+>>>
+>>>> If there is no page table level to support them, how can
+>>>> them present?
+>>> Because hugetlb hstate handling code doesn't care about page tables and
+>>> the way how those pages are going to be mapped _at all_. Or put it in
+>>> another way. Nobody prevents you to allocate order-5 page for a single
+>>> pte but that would be a pure waste. Page fault code expects that pages
+>>> with a proper size are allocated.
+>> Do you mean 32MB pages will map to one pmd which should map 2MB pages?
 >>
->>A second impression confirms that we have very different ideas of
->>where to start.  I don't want to be dismissive, and please don't let
->>me discourage you, but I just don't find what you have very interesting.
->>
->>I'm sure you'll agree that the interesting part, and the difficult part,
->>comes with mmap(); and there's no point whatever to THPages without mmap()
->>(of course, I'm including exec and brk and shm when I say mmap there).
->>
->>(There may be performance benefits in working with larger page cache
->>size, which Christoph Lameter explored a few years back, but that's a
->>different topic: I think 2MB - if I may be x86_64-centric - would not be
->>the unit of choice for that, unless SSD erase block were to dominate.)
->>
->>I'm interested to get to the point of prototyping something that does
->>support mmap() of THPageCache: I'm pretty sure that I'd then soon learn
->>a lot about my misconceptions, and have to rework for a while (or give
->>up!); but I don't see much point in posting anything without that.
->>I don't know if we have 5 or 50 places which "know" that a THPage
->>must be Anon: some I'll spot in advance, some I sadly won't.
->>
->>It's not clear to me that the infrastructural changes you make in this
->>series will be needed or not, if I pursue my approach: some perhaps as
->>optimizations on top of the poorly performing base that may emerge from
->>going about it my way.  But for me it's too soon to think about those.
->>
->>Something I notice that we do agree upon: the radix_tree holding the
->>4k subpages, at least for now.  When I first started thinking towards
->>THPageCache, I was fascinated by how we could manage the hugepages in
->>the radix_tree, cutting out unnecessary levels etc; but after a while
->>I realized that although there's probably nice scope for cleverness
->>there (significantly constrained by RCU expectations), it would only
->>be about optimization.  Let's be simple and stupid about radix_tree
->>for now, the problems that need to be worked out lie elsewhere.
->>
->>> > 
->>> > Perhaps that's good complementarity, or perhaps I'll disagree with
->>> > your approach.  I'll be taking a look at yours in the coming days,
->>> > and trying to summon back up my own ideas to summarize them for you.
->>> 
->>> Yeah, it would be nice to see alternative design ideas. Looking forward.
->>> 
->>> > Perhaps I was naive to imagine it, but I did intend to start out
->>> > generically, independent of filesystem; but content to narrow down
->>> > on tmpfs alone where it gets hard to support the others (writeback
->>> > springs to mind).  khugepaged would be migrating little pages into
->>> > huge pages, where it saw that the mmaps of the file would benefit
->>> > (and for testing I would hack mmap alignment choice to favour it).
->>> 
->>> I don't think all fs at once would fly, but it's wonderful, if I'm
->>> wrong :)
->>
->>You are imagining the filesystem putting huge pages into its cache.
->>Whereas I'm imagining khugepaged looking around at mmaped file areas,
->>seeing which would benefit from huge pagecache (let's assume offset 0
->>belongs on hugepage boundary - maybe one day someone will want to tune
->>some files or parts differently, but that's low priority), migrating 4k
->>pages over to 2MB page (wouldn't have to be done all in one pass), then
->>finally slotting in the pmds for that.
->>
->>But going this way, I expect we'd have to split at page_mkwrite():
->>we probably don't want a single touch to dirty 2MB at a time,
->>unless tmpfs or ramfs.
->>
->>> 
->>> > I had arrived at a conviction that the first thing to change was
->>> > the way that tail pages of a THP are refcounted, that it had been a
->>> > mistake to use the compound page method of holding the THP together.
->>> > But I'll have to enter a trance now to recall the arguments ;)
->>> 
->>> THP refcounting looks reasonable for me, if take split_huge_page() in
->>> account.
->>
->>I'm not claiming that the THP refcounting is wrong in what it's doing
->>at present; but that I suspect we'll want to rework it for THPageCache.
->>
->>Something I take for granted, I think you do too but I'm not certain:
->>a file with transparent huge pages in its page cache can also have small
->>pages in other extents of its page cache; and can be mapped hugely (2MB
->>extents) into one address space at the same time as individual 4k pages
->>from those extents are mapped into another (or the same) address space.
->>
->>One can certainly imagine sacrificing that principle, splitting whenever
->>there's such a "conflict"; but it then becomes uninteresting to me, too
->>much like hugetlbfs.  Splitting an anonymous hugepage in all address
->>spaces that hold it when one of them needs it split, that has been a
->>pragmatic strategy: it's not a common case for forks to diverge like
->>that; but files are expected to be more widely shared.
->>
->>At present THP is using compound pages, with mapcount of tail pages
->>reused to track their contribution to head page count; but I think we
->>shall want to be able to use the mapcount, and the count, of TH tail
->>pages for their original purpose if huge mappings can coexist with tiny.
->>Not fully thought out, but that's my feeling.
->>
->>The use of compound pages, in particular the redirection of tail page
->>count to head page count, was important in hugetlbfs: a get_user_pages
->>reference on a subpage must prevent the containing hugepage from being
->>freed, because hugetlbfs has its own separate pool of hugepages to
->>which freeing returns them.
->>
->>But for transparent huge pages?  It should not matter so much if the
->>subpages are freed independently.  So I'd like to devise another glue
->>to hold them together more loosely (for prototyping I can certainly
->>pretend we have infinite pageflag and pagefield space if that helps):
->>I may find in practice that they're forever falling apart, and I run
->>crying back to compound pages; but at present I'm hoping not.
->>
->>This mail might suggest that I'm about to start coding: I wish that
->>were true, but in reality there's always a lot of unrelated things
->>I have to look at, which dilute my focus.  So if I've said anything
->>that sparks ideas for you, go with them.
+> Please refer to hugetlb_fault for more information.
 
-Hi Hugh,
-
-commit 70b50f94f16 ("mm: thp: tail page refcounting fix") tells us account 
-the tail page references on tail_page->_count wasn't safe.
-
-Regards,
-Wanpeng Li 
+Thanks for your pointing out. So my assume is correct, is it? Can pmd 
+which support 2MB map 32MB pages work well?
 
 >
->It seems that it's a good idea, Hugh. I will start coding this. ;-)
->
->Regards,
->Wanpeng Li 
->
->>
->>Hugh
->>
->>--
->>To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>the body to majordomo@kvack.org.  For more info on Linux MM,
->>see: http://www.linux-mm.org/ .
->>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
