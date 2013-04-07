@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id F0AAD6B0005
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 03:32:22 -0400 (EDT)
-Received: by mail-ia0-f180.google.com with SMTP id f27so4244016iae.39
-        for <linux-mm@kvack.org>; Sun, 07 Apr 2013 00:32:22 -0700 (PDT)
-Message-ID: <516120FA.6060303@gmail.com>
-Date: Sun, 07 Apr 2013 15:32:10 +0800
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 7A1D36B0005
+	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 03:35:45 -0400 (EDT)
+Received: by mail-ia0-f172.google.com with SMTP id k38so591706iah.3
+        for <linux-mm@kvack.org>; Sun, 07 Apr 2013 00:35:44 -0700 (PDT)
+Message-ID: <516121C7.6070508@gmail.com>
+Date: Sun, 07 Apr 2013 15:35:35 +0800
 From: Will Huck <will.huckk@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd reclaims
@@ -17,9 +17,9 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Fengguang Wu <fengguang.wu@intel.com>
 
-Ping Rik.
+cc Fengguang,
 On 04/05/2013 08:05 AM, Will Huck wrote:
 > Hi Rik,
 > On 03/22/2013 09:01 PM, Rik van Riel wrote:
