@@ -1,138 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 2FD9E6B0005
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 04:33:32 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 7 Apr 2013 13:58:08 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 6B28BE004A
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 14:05:12 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r378XMmJ1376538
-	for <linux-mm@kvack.org>; Sun, 7 Apr 2013 14:03:22 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r378XPfC002117
-	for <linux-mm@kvack.org>; Sun, 7 Apr 2013 18:33:25 +1000
-Date: Sun, 7 Apr 2013 16:33:23 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [BUG?] thp: too much anonymous hugepage caused 'khugepaged'
- thread stopped
-Message-ID: <20130407083323.GA19898@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1101781431.260745.1365313808038.JavaMail.root@redhat.com>
- <338291050.277410.1365316170850.JavaMail.root@redhat.com>
- <20130407071047.GA8626@hacker.(null)>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 902FF6B0006
+	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 04:44:31 -0400 (EDT)
+Message-ID: <516131D7.8030004@huawei.com>
+Date: Sun, 7 Apr 2013 16:44:07 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130407071047.GA8626@hacker.(null)>
+Subject: Re: [RFC][PATCH 0/7] memcg: make memcg's life cycle the same as cgroup
+References: <515BF233.6070308@huawei.com>
+In-Reply-To: <515BF233.6070308@huawei.com>
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouping Liu <zliu@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Sun, Apr 07, 2013 at 03:10:47PM +0800, Wanpeng Li wrote:
->On Sun, Apr 07, 2013 at 02:29:30AM -0400, Zhouping Liu wrote:
->>Hello All,
->>
->>When I did some testing to check thp's performance, the following
->>strange action occurred:
->>
->>when a process try to allocate 500+(or other large value)
->>anonymous hugepage, the 'khugepaged' thread will stop to
->>scan vma. the testing system has 2Gb RAM, and the thp
->>enabled value is 'always', set 0 to 'scan_sleep_millisecs'
->>
->>you can use the following steps to confirm the issue:
->>
->>---------------- example code ------------
->>/* file test_thp.c */
->>
->>#include <stdio.h>
->>#include <stdlib.h>
->>#include <string.h>
->>#include <sys/mman.h>
->>
->>int main(int argc, char *argv[])
->>{
->>	int nr_thps = 1000, ret = 0;
->>	unsigned long hugepagesize, size;
->>	void *addr;
->>
->>	hugepagesize = (1UL << 21);
->>
->>	if (argc == 2)
->>		nr_thps = atoi(argv[1]);
->>
->>	printf("try to allocate %d transparent hugepages\n", nr_thps);
->>	size = (unsigned long)nr_thps * hugepagesize;
->>
->>	ret = posix_memalign(&addr, hugepagesize, size);
->>	if (ret != 0) {
->>		printf("posix_memalign failed\n");
->>		return ret;
->>	}
->>
->>	memset (addr, 10, size);
->>
->>	sleep(50);
->>
->>	return ret;
->>}
->>-------- end example code -----------
->>
->>executing './test_thp 500' in a system with 2GB RAM, the values in
->>/sys/kernel/mm/transparent_hugepage/khugepaged/* will never change,
->>you can  repeatedly do '# cat /sys/kernel/mm/transparent_hugepage/khugepaged/*' to check this.
->>
->>as we know, when we set 0 to /sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs,
->>the /sys/kernel/mm/transparent_hugepage/khugepaged/full_to_scans will increasing at least,
->>but the actual is opposite, the value is never change, so I checked 'khugepaged' thread,
->>and found the 'khugepaged' is stopped:
->># ps aux | grep -i hugepaged
->>root        67 10.9  0.0      0     0 ?        SN   Apr06 172:10 [khugepaged]
->>                                               ^^ 
->>also I did the same actions on some large machine, e.g on 16Gb RAM, 1000+ anonymous hugepages
->>will cause 'khugepaged' stopped, but there are 2Gb+ free memory, why is it? is that normal?
->>comments?
->
->khugepaged will preallocate one hugepage in NUMA case or alloc one 
->hugepage before collapse in UMA case. If the memory is serious
+Hi,
 
-Sorry, it should be reverse. khugepaged will preallocate one hugepage 
-in UMA case and alloc one hugepage before collapse in NUMA case.
+I'm rebasing this patchset against latest linux-next, and it conflicts with
+"[PATCH v2] memcg: debugging facility to access dangling memcgs." slightly.
 
-Regards,
-Wanpeng Li 
+That is a debugging patch and will never be pushed into mainline, so should I
+still base this patchset on that debugging patch?
 
->fragmentation and can't successfully allocate hugepage, khugepaged 
->will go to sleep one minute. scan_sleep_millisecs determines how 
->many milliseconds to wait in khugepaged between each pass, however, 
->alloc_sleep_millisecs(default value is one minute) determines how 
->many milliseconds to wait in khugepaged if there's an hugepage 
->allocation failure to throttle the next allocation attempt.
->
->Regards,
->Wanpeng Li 
->
->>
->>-- 
->>Thanks,
->>Zhouping
->>
->>--
->>To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>the body to majordomo@kvack.org.  For more info on Linux MM,
->>see: http://www.linux-mm.org/ .
->>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Also that patch needs update (and can be simplified) after this patchset:
+- move memcg_dangling_add() to mem_cgroup_css_offline()
+- remove memcg->memcg_name, and use cgroup_path() in mem_cgroup_dangling_read()?
+
+On 2013/4/3 17:11, Li Zefan wrote:
+> (I'll be off from my office soon, and I won't be responsive in the following
+> 3 days.)
+> 
+> I'm working on converting memcg to use cgroup->id, and then we can kill css_id.
+> 
+> Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
+> still be alive. This patchset converts memcg to always use css_get/put, so
+> memcg will have the same life cycle as its corresponding cgroup, and then
+> it's always safe for memcg to use cgroup->id.
+> 
+> The historical reason that memcg didn't use css_get in some cases, is that
+> cgroup couldn't be removed if there're still css refs. The situation has
+> changed so that rmdir a cgroup will succeed regardless css refs, but won't
+> be freed until css refs goes down to 0.
+> 
+> This is an early post, and it's NOT TESTED. I just want to see if the changes
+> are fine in general.
+> 
+> btw, after this patchset I think we don't need to free memcg via RCU, because
+> cgroup is already freed in RCU callback.
+> 
+> Note this patchset is based on a few memcg fixes I sent (but hasn't been
+> accepted)
+> 
+> --
+>  kernel/cgroup.c |  10 ++++++++
+>  mm/memcontrol.c | 129 ++++++++++++++++++++++++++++++++++++++-------------------------------------------------------
+>  2 files changed, 62 insertions(+), 77 deletions(-)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
