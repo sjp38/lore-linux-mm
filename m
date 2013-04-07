@@ -1,60 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 5CA0D6B0005
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 02:01:04 -0400 (EDT)
-Message-ID: <51610B78.7080001@huawei.com>
-Date: Sun, 7 Apr 2013 14:00:24 +0800
-From: Li Zefan <lizefan@huawei.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 6454E6B0006
+	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 02:29:33 -0400 (EDT)
+Date: Sun, 7 Apr 2013 02:29:30 -0400 (EDT)
+From: Zhouping Liu <zliu@redhat.com>
+Message-ID: <338291050.277410.1365316170850.JavaMail.root@redhat.com>
+In-Reply-To: <1101781431.260745.1365313808038.JavaMail.root@redhat.com>
+Subject: [BUG?] thp: too much anonymous hugepage caused 'khugepaged' thread
+ stopped
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/7] memcg: make memcg's life cycle the same as cgroup
-References: <515BF233.6070308@huawei.com> <20130404120049.GI29911@dhcp22.suse.cz>
-In-Reply-To: <20130404120049.GI29911@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 2013/4/4 20:00, Michal Hocko wrote:
-> On Wed 03-04-13 17:11:15, Li Zefan wrote:
->> (I'll be off from my office soon, and I won't be responsive in the following
->> 3 days.)
->>
->> I'm working on converting memcg to use cgroup->id, and then we can kill css_id.
->>
->> Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
->> still be alive. This patchset converts memcg to always use css_get/put, so
->> memcg will have the same life cycle as its corresponding cgroup, and then
->> it's always safe for memcg to use cgroup->id.
->>
->> The historical reason that memcg didn't use css_get in some cases, is that
->> cgroup couldn't be removed if there're still css refs. The situation has
->> changed so that rmdir a cgroup will succeed regardless css refs, but won't
->> be freed until css refs goes down to 0.
->>
->> This is an early post, and it's NOT TESTED. I just want to see if the changes
->> are fine in general.
-> 
-> yes, I like the approach and it looks correct as well (some minor things
-> mentioned in the patches). Thanks a lot Li! This will make our lifes much
-> easier. The separate ref counting was PITA especially after
-> introduction of kmem accounting which made its usage even more trickier.
-> 
->> btw, after this patchset I think we don't need to free memcg via RCU, because
->> cgroup is already freed in RCU callback.
-> 
-> But this depends on changes waiting in for-3.10 branch, right?
+Hello All,
 
-What changes? memcg changes or cgroup core changes? I don't think this depends
-on anything in cgroup 3.10 branch.
+When I did some testing to check thp's performance, the following
+strange action occurred:
 
-> Anyway, I think we should be safe with the workqueue based releasing as
-> well once mem_cgroup_{get,put} are gone, right?
-> 
+when a process try to allocate 500+(or other large value)
+anonymous hugepage, the 'khugepaged' thread will stop to
+scan vma. the testing system has 2Gb RAM, and the thp
+enabled value is 'always', set 0 to 'scan_sleep_millisecs'
 
-cgroup calls mem_cgroup_css_free() in a work function, so seems memcg doesn't
-need to use RCU or workqueue in mem_cgroup_css_free().
+you can use the following steps to confirm the issue:
+
+---------------- example code ------------
+/* file test_thp.c */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+
+int main(int argc, char *argv[])
+{
+	int nr_thps = 1000, ret = 0;
+	unsigned long hugepagesize, size;
+	void *addr;
+
+	hugepagesize = (1UL << 21);
+
+	if (argc == 2)
+		nr_thps = atoi(argv[1]);
+
+	printf("try to allocate %d transparent hugepages\n", nr_thps);
+	size = (unsigned long)nr_thps * hugepagesize;
+
+	ret = posix_memalign(&addr, hugepagesize, size);
+	if (ret != 0) {
+		printf("posix_memalign failed\n");
+		return ret;
+	}
+
+	memset (addr, 10, size);
+
+	sleep(50);
+
+	return ret;
+}
+-------- end example code -----------
+
+executing './test_thp 500' in a system with 2GB RAM, the values in
+/sys/kernel/mm/transparent_hugepage/khugepaged/* will never change,
+you can  repeatedly do '# cat /sys/kernel/mm/transparent_hugepage/khugepaged/*' to check this.
+
+as we know, when we set 0 to /sys/kernel/mm/transparent_hugepage/khugepaged/scan_sleep_millisecs,
+the /sys/kernel/mm/transparent_hugepage/khugepaged/full_to_scans will increasing at least,
+but the actual is opposite, the value is never change, so I checked 'khugepaged' thread,
+and found the 'khugepaged' is stopped:
+# ps aux | grep -i hugepaged
+root        67 10.9  0.0      0     0 ?        SN   Apr06 172:10 [khugepaged]
+                                               ^^ 
+also I did the same actions on some large machine, e.g on 16Gb RAM, 1000+ anonymous hugepages
+will cause 'khugepaged' stopped, but there are 2Gb+ free memory, why is it? is that normal?
+comments?
+
+-- 
+Thanks,
+Zhouping
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
