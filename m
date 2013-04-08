@@ -1,63 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 0B5806B009D
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 06:21:28 -0400 (EDT)
-Message-ID: <51629A94.5000200@cn.fujitsu.com>
-Date: Mon, 08 Apr 2013 18:23:16 +0800
-From: Lin Feng <linfeng@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm: vmemmap: x86: add vmemmap_verify check for hot-add
- node case
-References: <1365415000-10389-1-git-send-email-linfeng@cn.fujitsu.com> <1365415000-10389-2-git-send-email-linfeng@cn.fujitsu.com>
-In-Reply-To: <1365415000-10389-2-git-send-email-linfeng@cn.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 9B6536B009F
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 06:52:55 -0400 (EDT)
+Date: Mon, 8 Apr 2013 06:52:53 -0400
+From: "Frank Ch. Eigler" <fche@redhat.com>
+Subject: Re: Excessive stall times on ext4 in 3.9-rc2
+Message-ID: <20130408105253.GA5275@redhat.com>
+References: <20130402142717.GH32241@suse.de> <20130402150651.GB31577@thunk.org> <20130402151436.GC31577@thunk.org> <20130402181940.GA4936@thunk.org> <y0mwqsehuj9.fsf@fche.csb> <20130408083645.GC2623@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130408083645.GC2623@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, cl@linux.com
-Cc: Lin Feng <linfeng@cn.fujitsu.com>, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, catalin.marinas@arm.com, will.deacon@arm.com, arnd@arndb.de, tony@atomide.com, ben@decadent.org.uk, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, isimatu.yasuaki@jp.fujitsu.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
 
-Hi all,
+Hi, Mel -
 
-On 04/08/2013 05:56 PM, Lin Feng wrote:
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index 474e28f..e2a7277 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -1318,6 +1318,8 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
->  			if (!p)
->  				return -ENOMEM;
->  
-> +			vmemmap_verify((pte_t *)p, node, addr, addr + PAGE_SIZE);
-> +
->  			addr_end = addr + PAGE_SIZE;
->  			p_end = p + PAGE_SIZE;
->  		} else {
-IIUC it seems that the original 'p_end = p + PAGE_SIZE' assignment is buggy, because:
+> > [...]  git kernel developers
+> > should use git systemtap, as has always been the case.  [...]
+> 
+> At one point in the past this used to be the case but then systemtap had to
+> be compiled as part of automated tests across different kernel versions. It
+> could have been worked around in various ways or even installed manually
+> when machines were deployed but stap-fix.sh generally took less time to
+> keep working.
 
-1309                 if (!cpu_has_pse) {
-1310                         next = (addr + PAGE_SIZE) & PAGE_MASK;
-1311                         pmd = vmemmap_pmd_populate(pud, addr, node);
-1312 
-1313                         if (!pmd)
-1314                                 return -ENOMEM;
-1315 
-1316                         p = vmemmap_pte_populate(pmd, addr, node);
-1317 
-1318                         if (!p)
-1319                                 return -ENOMEM;
-1320 
-1321                         addr_end = addr + PAGE_SIZE;
-1322                         p_end = p + PAGE_SIZE;
+OK, if that works for you.  Keep in mind though that newer versions of
+systemtap retain backward-compatibility for ancient versions of the
+kernel, so git systemtap should work on those older versions just
+fine.
 
-The return value of vmemmap_pte_populate() is the virtual address of pte, not the allocated
-virtual address, which is different from vmemmap_alloc_block_buf() in cpu_has_pse case, so
-the addition PAGE_SIZE in !cpu_has_pse case is nonsense.
 
-Or am I missing something?
+> [...]
+> Yes, this was indeed the problem. The next version of watch-dstate.pl
+> treated get_request_wait() as a function that may or may not exist. It
+> uses /proc/kallsyms to figure it out.
 
-thanks,
-linfeng
+... or you can use the "?" punctuation in the script to have
+systemtap adapt:
+
+    probe kprobe.function("get_request_wait") ?  { ... }
+
+
+- FChE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
