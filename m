@@ -1,77 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 3A9746B0082
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 05:05:28 -0400 (EDT)
-Message-ID: <51628877.5000701@parallels.com>
-Date: Mon, 8 Apr 2013 13:05:59 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 2EB286B0085
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 05:14:13 -0400 (EDT)
+Message-ID: <51628A62.1050507@profihost.ag>
+Date: Mon, 08 Apr 2013 11:14:10 +0200
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-3-git-send-email-glommer@parallels.com> <20130408084202.GA21654@lge.com> <51628412.6050803@parallels.com> <20130408090131.GB21654@lge.com>
-In-Reply-To: <20130408090131.GB21654@lge.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: NUMA Autobalancing Kernel 3.8
+References: <515A87C3.1000309@profihost.ag> <20130402104844.GE32241@suse.de> <515AC3EE.1030803@profihost.ag> <20130402125408.GG32241@suse.de> <515AEC71.9020704@profihost.ag> <20130403140344.GA5811@suse.de> <515C388C.5040903@profihost.ag> <20130405120034.GA2623@suse.de> <515EBF38.8040804@profihost.ag> <20130408081316.GB2623@suse.de>
+In-Reply-To: <20130408081316.GB2623@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: Mel Gorman <mgorman@suse.de>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, srikar@linux.vnet.ibm.com, aarcange@redhat.com, mingo@kernel.org, riel@redhat.com
 
-On 04/08/2013 01:01 PM, Joonsoo Kim wrote:
-> On Mon, Apr 08, 2013 at 12:47:14PM +0400, Glauber Costa wrote:
->> On 04/08/2013 12:42 PM, Joonsoo Kim wrote:
->>> Hello, Glauber.
->>>
->>> On Fri, Mar 29, 2013 at 01:13:44PM +0400, Glauber Costa wrote:
->>>> In very low free kernel memory situations, it may be the case that we
->>>> have less objects to free than our initial batch size. If this is the
->>>> case, it is better to shrink those, and open space for the new workload
->>>> then to keep them and fail the new allocations.
+Am 08.04.2013 10:13, schrieb Mel Gorman:
+> On Fri, Apr 05, 2013 at 02:10:32PM +0200, Stefan Priebe - Profihost AG wrote:
+>> Am 05.04.2013 14:00, schrieb Mel Gorman:
+>>> On Wed, Apr 03, 2013 at 04:11:24PM +0200, Stefan Priebe - Profihost AG wrote:
+>>>> Am 03.04.2013 16:03, schrieb Mel Gorman:
+>>>>>> I've now tested 3.9-rc5 this gaves me a slightly different kernel log:
+>>>>>> [  197.236518] pigz[2908]: segfault at 0 ip           (null) sp
+>>>>>> 00007f347bffed00 error 14
+>>>>>> [  197.237632] traps: pigz[2915] general protection ip:7f3482dbce2d
+>>>>>> sp:7f3473ffec10 error:0 in libz.so.1.2.3.4[7f3482db7000+17000]
+>>>>>> [  197.330615]  in pigz[400000+10000]
+>>>>>>
+>>>>>> With 3.8 it is the same as with 3.8.4 or 3.8.5.
+>>>>>>
+>>>>>
+>>>>> Ok. Are there NUMA machines were you do *not* see this problem?
+>>>> Sadly no.
 >>>>
->>>> More specifically, this happens because we encode this in a loop with
->>>> the condition: "while (total_scan >= batch_size)". So if we are in such
->>>> a case, we'll not even enter the loop.
+>>>> I can really fast reproduce it with this one:
+>>>> 1.) Machine with only 16GB Mem
+>>>> 2.) compressing two 60GB Files in parallel with pigz consuming all cores
 >>>>
->>>> This patch modifies turns it into a do () while {} loop, that will
->>>> guarantee that we scan it at least once, while keeping the behaviour
->>>> exactly the same for the cases in which total_scan > batch_size.
 >>>
->>> Current user of shrinker not only use their own condition, but also
->>> use batch_size and seeks to throttle their behavior. So IMHO,
->>> this behavior change is very dangerous to some users.
->>>
->>> For example, think lowmemorykiller.
->>> With this patch, he always kill some process whenever shrink_slab() is
->>> called and their low memory condition is satisfied.
->>> Before this, total_scan also prevent us to go into lowmemorykiller, so
->>> killing innocent process is limited as much as possible.
->>>
->> shrinking is part of the normal operation of the Linux kernel and
->> happens all the time. Not only the call to shrink_slab, but actual
->> shrinking of unused objects.
+>>> Ok, I'm dealing with this slower than I'd like due to an unfortunate
+>>> abundance of bugs right now. I am putting together a reproduction case but
+>>> I still can't trigger it unfortunately. Can you post your .config in case
+>>> it's my kernel config that is the reason I can't see the problem please?
 >>
->> I don't know therefore about any code that would kill process only
->> because they have reached shrink_slab.
+>> no problem. Attaches is my kernel config.
 >>
->> In normal systems, this loop will be executed many, many times. So we're
->> not shrinking *more*, we're just guaranteeing that at least one pass
->> will be made.
 > 
-> This one pass guarantee is a problem for lowmemory killer.
+> It does indeed appear that the kernel configuration is a factor.  Can you
+> try applying the following to your .config please?
 > 
->> Also, anyone looking at this to see if we should kill processes, is a
->> lot more likely to kill something if we tried to shrink but didn't, than
->> if we successfully shrunk something.
-> 
-> lowmemory killer is hacky user of shrink_slab interface.
+> --- config-bad  2013-04-07 21:08:02.213112445 +0100
+> +++ .config     2013-04-07 23:28:09.275973625 +0100
+> @@ -2518,8 +2518,8 @@
+>  CONFIG_TMPFS=y
+>  CONFIG_TMPFS_POSIX_ACL=y
+>  CONFIG_TMPFS_XATTR=y
+> -# CONFIG_HUGETLBFS is not set
+> -# CONFIG_HUGETLB_PAGE is not set
+> +CONFIG_HUGETLBFS=y
+> +CONFIG_HUGETLB_PAGE=y
+>  CONFIG_CONFIGFS_FS=y
+>  CONFIG_MISC_FILESYSTEMS=y
+>  # CONFIG_ADFS_FS is not set
 
-Well, it says it all =)
+Yes this works!
 
-In special, I really can't see how, hacky or not, it makes sense to kill
-a process if we *actually* shrunk memory.
-
-Moreover, I don't see the code in drivers/staging/android/lowmemory.c
-doing anything even remotely close to that. Could you point me to some
-code that does it ?
+Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
