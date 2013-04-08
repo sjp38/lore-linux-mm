@@ -1,177 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id E2F856B00B0
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 10:01:03 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id BF2D86B00B3
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 10:01:05 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 01/32] super: fix calculation of shrinkable objects for small numbers
-Date: Mon,  8 Apr 2013 18:00:28 +0400
-Message-Id: <1365429659-22108-2-git-send-email-glommer@parallels.com>
+Subject: [PATCH v3 04/32] dentry: move to per-sb LRU locks
+Date: Mon,  8 Apr 2013 18:00:31 +0400
+Message-Id: <1365429659-22108-5-git-send-email-glommer@parallels.com>
 In-Reply-To: <1365429659-22108-1-git-send-email-glommer@parallels.com>
 References: <1365429659-22108-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Serge Hallyn <serge.hallyn@canonical.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@parallels.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Serge Hallyn <serge.hallyn@canonical.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
 
-The sysctl knob sysctl_vfs_cache_pressure is used to determine which
-percentage of the shrinkable objects in our cache we should actively try
-to shrink.
+From: Dave Chinner <dchinner@redhat.com>
 
-It works great in situations in which we have many objects (at least
-more than 100), because the aproximation errors will be negligible. But
-if this is not the case, specially when total_objects < 100, we may end
-up concluding that we have no objects at all (total / 100 = 0,  if total
-< 100).
+With the dentry LRUs being per-sb structures, there is no real need
+for a global dentry_lru_lock. The locking can be made more
+fine-grained by moving to a per-sb LRU lock, isolating the LRU
+operations of different filesytsems completely from each other.
 
-This is certainly not the biggest killer in the world, but may matter in
-very low kernel memory situations.
-
-[ v2: fix it for all occurrences of sysctl_vfs_cache_pressure ]
-
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Dave Chinner <david@fromorbit.com>
-CC: "Theodore Ts'o" <tytso@mit.edu>
-CC: Al Viro <viro@zeniv.linux.org.uk>
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 ---
- fs/gfs2/glock.c        |  2 +-
- fs/gfs2/quota.c        |  2 +-
- fs/mbcache.c           |  2 +-
- fs/nfs/dir.c           |  2 +-
- fs/quota/dquot.c       |  5 ++---
- fs/super.c             | 14 +++++++-------
- fs/xfs/xfs_qm.c        |  2 +-
- include/linux/dcache.h |  4 ++++
- 8 files changed, 18 insertions(+), 15 deletions(-)
+ fs/dcache.c        | 37 ++++++++++++++++++-------------------
+ fs/super.c         |  1 +
+ include/linux/fs.h |  4 +++-
+ 3 files changed, 22 insertions(+), 20 deletions(-)
 
-diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
-index cf35155..078daa5 100644
---- a/fs/gfs2/glock.c
-+++ b/fs/gfs2/glock.c
-@@ -1476,7 +1476,7 @@ static int gfs2_shrink_glock_memory(struct shrinker *shrink,
- 		gfs2_scan_glock_lru(sc->nr_to_scan);
+diff --git a/fs/dcache.c b/fs/dcache.c
+index ffdd461..de09780 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -48,7 +48,7 @@
+  *   - the dcache hash table
+  * s_anon bl list spinlock protects:
+  *   - the s_anon list (see __d_drop)
+- * dcache_lru_lock protects:
++ * dentry->d_sb->s_dentry_lru_lock protects:
+  *   - the dcache lru lists and counters
+  * d_lock protects:
+  *   - d_flags
+@@ -63,7 +63,7 @@
+  * Ordering:
+  * dentry->d_inode->i_lock
+  *   dentry->d_lock
+- *     dcache_lru_lock
++ *     dentry->d_sb->s_dentry_lru_lock
+  *     dcache_hash_bucket lock
+  *     s_anon lock
+  *
+@@ -81,7 +81,6 @@
+ int sysctl_vfs_cache_pressure __read_mostly = 100;
+ EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
+ 
+-static __cacheline_aligned_in_smp DEFINE_SPINLOCK(dcache_lru_lock);
+ __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
+ 
+ EXPORT_SYMBOL(rename_lock);
+@@ -327,11 +326,11 @@ static void dentry_unlink_inode(struct dentry * dentry)
+ static void dentry_lru_add(struct dentry *dentry)
+ {
+ 	if (list_empty(&dentry->d_lru)) {
+-		spin_lock(&dcache_lru_lock);
++		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+ 		list_add(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
+ 		dentry->d_sb->s_nr_dentry_unused++;
+ 		this_cpu_inc(nr_dentry_unused);
+-		spin_unlock(&dcache_lru_lock);
++		spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
  	}
- 
--	return (atomic_read(&lru_count) / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(atomic_read(&lru_count));
  }
  
- static struct shrinker glock_shrinker = {
-diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
-index c7c840e..5c14206 100644
---- a/fs/gfs2/quota.c
-+++ b/fs/gfs2/quota.c
-@@ -114,7 +114,7 @@ int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
- 	spin_unlock(&qd_lru_lock);
- 
- out:
--	return (atomic_read(&qd_lru_count) * sysctl_vfs_cache_pressure) / 100;
-+	return vfs_pressure_ratio(atomic_read(&qd_lru_count));
- }
- 
- static u64 qd2index(struct gfs2_quota_data *qd)
-diff --git a/fs/mbcache.c b/fs/mbcache.c
-index 8c32ef3..5eb0476 100644
---- a/fs/mbcache.c
-+++ b/fs/mbcache.c
-@@ -189,7 +189,7 @@ mb_cache_shrink_fn(struct shrinker *shrink, struct shrink_control *sc)
- 	list_for_each_entry_safe(entry, tmp, &free_list, e_lru_list) {
- 		__mb_cache_entry_forget(entry, gfp_mask);
+@@ -349,9 +348,9 @@ static void __dentry_lru_del(struct dentry *dentry)
+ static void dentry_lru_del(struct dentry *dentry)
+ {
+ 	if (!list_empty(&dentry->d_lru)) {
+-		spin_lock(&dcache_lru_lock);
++		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+ 		__dentry_lru_del(dentry);
+-		spin_unlock(&dcache_lru_lock);
++		spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
  	}
--	return (count / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(count);
  }
  
+@@ -366,15 +365,15 @@ static void dentry_lru_prune(struct dentry *dentry)
+ 		if (dentry->d_flags & DCACHE_OP_PRUNE)
+ 			dentry->d_op->d_prune(dentry);
  
-diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
-index f23f455..197bfff 100644
---- a/fs/nfs/dir.c
-+++ b/fs/nfs/dir.c
-@@ -1996,7 +1996,7 @@ remove_lru_entry:
+-		spin_lock(&dcache_lru_lock);
++		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+ 		__dentry_lru_del(dentry);
+-		spin_unlock(&dcache_lru_lock);
++		spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
  	}
- 	spin_unlock(&nfs_access_lru_lock);
- 	nfs_access_free_list(&head);
--	return (atomic_long_read(&nfs_access_nr_entries) / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(atomic_long_read(&nfs_access_nr_entries));
  }
  
- static void __nfs_access_zap_cache(struct nfs_inode *nfsi, struct list_head *head)
-diff --git a/fs/quota/dquot.c b/fs/quota/dquot.c
-index 3e64169..762b09c 100644
---- a/fs/quota/dquot.c
-+++ b/fs/quota/dquot.c
-@@ -719,9 +719,8 @@ static int shrink_dqcache_memory(struct shrinker *shrink,
- 		prune_dqcache(nr);
- 		spin_unlock(&dq_list_lock);
+ static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
+ {
+-	spin_lock(&dcache_lru_lock);
++	spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+ 	if (list_empty(&dentry->d_lru)) {
+ 		list_add_tail(&dentry->d_lru, list);
+ 		dentry->d_sb->s_nr_dentry_unused++;
+@@ -382,7 +381,7 @@ static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
+ 	} else {
+ 		list_move_tail(&dentry->d_lru, list);
  	}
--	return ((unsigned)
--		percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS])
--		/100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(
-+	percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS]));
+-	spin_unlock(&dcache_lru_lock);
++	spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
  }
  
- static struct shrinker dqcache_shrinker = {
+ /**
+@@ -860,14 +859,14 @@ void prune_dcache_sb(struct super_block *sb, int count)
+ 	LIST_HEAD(tmp);
+ 
+ relock:
+-	spin_lock(&dcache_lru_lock);
++	spin_lock(&sb->s_dentry_lru_lock);
+ 	while (!list_empty(&sb->s_dentry_lru)) {
+ 		dentry = list_entry(sb->s_dentry_lru.prev,
+ 				struct dentry, d_lru);
+ 		BUG_ON(dentry->d_sb != sb);
+ 
+ 		if (!spin_trylock(&dentry->d_lock)) {
+-			spin_unlock(&dcache_lru_lock);
++			spin_unlock(&sb->s_dentry_lru_lock);
+ 			cpu_relax();
+ 			goto relock;
+ 		}
+@@ -883,11 +882,11 @@ relock:
+ 			if (!--count)
+ 				break;
+ 		}
+-		cond_resched_lock(&dcache_lru_lock);
++		cond_resched_lock(&sb->s_dentry_lru_lock);
+ 	}
+ 	if (!list_empty(&referenced))
+ 		list_splice(&referenced, &sb->s_dentry_lru);
+-	spin_unlock(&dcache_lru_lock);
++	spin_unlock(&sb->s_dentry_lru_lock);
+ 
+ 	shrink_dentry_list(&tmp);
+ }
+@@ -903,14 +902,14 @@ void shrink_dcache_sb(struct super_block *sb)
+ {
+ 	LIST_HEAD(tmp);
+ 
+-	spin_lock(&dcache_lru_lock);
++	spin_lock(&sb->s_dentry_lru_lock);
+ 	while (!list_empty(&sb->s_dentry_lru)) {
+ 		list_splice_init(&sb->s_dentry_lru, &tmp);
+-		spin_unlock(&dcache_lru_lock);
++		spin_unlock(&sb->s_dentry_lru_lock);
+ 		shrink_dentry_list(&tmp);
+-		spin_lock(&dcache_lru_lock);
++		spin_lock(&sb->s_dentry_lru_lock);
+ 	}
+-	spin_unlock(&dcache_lru_lock);
++	spin_unlock(&sb->s_dentry_lru_lock);
+ }
+ EXPORT_SYMBOL(shrink_dcache_sb);
+ 
 diff --git a/fs/super.c b/fs/super.c
-index 7465d43..2a37fd6 100644
+index 2a37fd6..0be75fb 100644
 --- a/fs/super.c
 +++ b/fs/super.c
-@@ -82,13 +82,13 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
- 		int	inodes;
+@@ -182,6 +182,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+ 		INIT_HLIST_BL_HEAD(&s->s_anon);
+ 		INIT_LIST_HEAD(&s->s_inodes);
+ 		INIT_LIST_HEAD(&s->s_dentry_lru);
++		spin_lock_init(&s->s_dentry_lru_lock);
+ 		INIT_LIST_HEAD(&s->s_inode_lru);
+ 		spin_lock_init(&s->s_inode_lru_lock);
+ 		INIT_LIST_HEAD(&s->s_mounts);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 2c28271..02934f5 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1261,7 +1261,9 @@ struct super_block {
+ 	struct list_head	s_files;
+ #endif
+ 	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */
+-	/* s_dentry_lru, s_nr_dentry_unused protected by dcache.c lru locks */
++
++	/* s_dentry_lru_lock protects s_dentry_lru and s_nr_dentry_unused */
++	spinlock_t		s_dentry_lru_lock ____cacheline_aligned_in_smp;
+ 	struct list_head	s_dentry_lru;	/* unused dentry lru */
+ 	int			s_nr_dentry_unused;	/* # of dentry on lru */
  
- 		/* proportion the scan between the caches */
--		dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) /
--							total_objects;
--		inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) /
--							total_objects;
-+		dentries = mult_frac(sc->nr_to_scan, sb->s_nr_dentry_unused,
-+							total_objects);
-+		inodes = mult_frac(sc->nr_to_scan, sb->s_nr_inodes_unused,
-+							total_objects);
- 		if (fs_objects)
--			fs_objects = (sc->nr_to_scan * fs_objects) /
--							total_objects;
-+			fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
-+							total_objects);
- 		/*
- 		 * prune the dcache first as the icache is pinned by it, then
- 		 * prune the icache, followed by the filesystem specific caches
-@@ -104,7 +104,7 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
- 				sb->s_nr_inodes_unused + fs_objects;
- 	}
- 
--	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
-+	total_objects = vfs_pressure_ratio(total_objects);
- 	drop_super(sb);
- 	return total_objects;
- }
-diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
-index e5b5cf9..305f4e5 100644
---- a/fs/xfs/xfs_qm.c
-+++ b/fs/xfs/xfs_qm.c
-@@ -1568,7 +1568,7 @@ xfs_qm_shake(
- 	}
- 
- out:
--	return (qi->qi_lru_count / 100) * sysctl_vfs_cache_pressure;
-+	return vfs_pressure_ratio(qi->qi_lru_count);
- }
- 
- /*
-diff --git a/include/linux/dcache.h b/include/linux/dcache.h
-index 1a6bb81..4d24a12 100644
---- a/include/linux/dcache.h
-+++ b/include/linux/dcache.h
-@@ -411,4 +411,8 @@ static inline bool d_mountpoint(struct dentry *dentry)
- 
- extern int sysctl_vfs_cache_pressure;
- 
-+static inline unsigned long vfs_pressure_ratio(unsigned long val)
-+{
-+	return mult_frac(val, sysctl_vfs_cache_pressure, 100);
-+}
- #endif	/* __LINUX_DCACHE_H */
 -- 
 1.8.1.4
 
