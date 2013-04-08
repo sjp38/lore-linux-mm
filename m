@@ -1,39 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 743D86B0037
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 16:58:07 -0400 (EDT)
-Received: by mail-ob0-f182.google.com with SMTP id ef5so6201795obb.27
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 13:58:06 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1365449252-9pc7knd5-mutt-n-horiguchi@ah.jp.nec.com>
-References: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1365014138-19589-4-git-send-email-n-horiguchi@ah.jp.nec.com>
- <515F1F1F.6060900@gmail.com> <1365449252-9pc7knd5-mutt-n-horiguchi@ah.jp.nec.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Mon, 8 Apr 2013 16:57:44 -0400
-Message-ID: <CAHGf_=ruv9itn7fhcL=Ar7z_6wQ5Ga_4kj7Ui3EfDUe_cV7D0w@mail.gmail.com>
-Subject: Re: [PATCH v3 3/3] hugetlbfs: add swap entry check in follow_hugetlb_page()
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 7BEF66B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 17:10:42 -0400 (EDT)
+Message-ID: <1365454703.32127.8.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2 0/3] Support memory hot-delete to boot memory
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 08 Apr 2013 14:58:23 -0600
+In-Reply-To: <20130408134438.2a4388a07163e10a37158eed@linux-foundation.org>
+References: <1365440996-30981-1-git-send-email-toshi.kani@hp.com>
+	 <20130408134438.2a4388a07163e10a37158eed@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
-> -               if (absent ||
-> +               /*
-> +                * is_swap_pte test covers both is_hugetlb_entry_hwpoisoned
-> +                * and hugepages under migration in which case
-> +                * hugetlb_fault waits for the migration and bails out
-> +                * properly for HWPosined pages.
-> +                */
-> +               if (absent || is_swap_pte(huge_ptep_get(pte)) ||
->                     ((flags & FOLL_WRITE) && !pte_write(huge_ptep_get(pte)))) {
->                         int ret;
+On Mon, 2013-04-08 at 13:44 -0700, Andrew Morton wrote:
+> On Mon,  8 Apr 2013 11:09:53 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
+> 
+> > Memory hot-delete to a memory range present at boot causes an
+> > error message in __release_region(), such as:
+> > 
+> >  Trying to free nonexistent resource <0000000070000000-0000000077ffffff>
+> > 
+> > Hot-delete operation still continues since __release_region() is 
+> > a void function, but the target memory range is not freed from
+> > iomem_resource as the result.  This also leads a failure in a 
+> > subsequent hot-add operation to the same memory range since the
+> > address range is still in-use in iomem_resource.
+> > 
+> > This problem happens because the granularity of memory resource ranges
+> > may be different between boot and hot-delete.
+> 
+> So we don't need this new code if CONFIG_MEMORY_HOTPLUG=n?  If so, can
+> we please arrange for it to not be present if the user doesn't need it?
 
-Your comment describe what the code is. However we want the comment describe
-why. In migration case, calling hugetlb_fault() is natural. but in
-hwpoison case, it is
-needed more explanation. Why can't we call is_hugetlb_hwpoisoned() directly?
+Good point!  Yes, since the new function is intended for memory
+hot-delete and is only called from __remove_pages() in
+mm/memory_hotplug.c, it should be added as #ifdef CONFIG_MEMORY_HOTPLUG
+in PATCH 2/3.
+
+I will make the change, and send an updated patch to PATCH 2/3.
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
