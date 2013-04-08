@@ -1,48 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id B1CD66B00AD
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 09:39:48 -0400 (EDT)
-Message-ID: <5162C887.5070900@redhat.com>
-Date: Mon, 08 Apr 2013 09:39:19 -0400
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 4B6DB6B00AE
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 09:40:44 -0400 (EDT)
+Message-ID: <5162C8CF.6070706@redhat.com>
+Date: Mon, 08 Apr 2013 09:40:31 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4, part3 11/15] mm: use a dedicated lock to protect totalram_pages
- and zone->managed_pages
-References: <1365256509-29024-1-git-send-email-jiang.liu@huawei.com> <1365256509-29024-12-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1365256509-29024-12-git-send-email-jiang.liu@huawei.com>
+Subject: Re: [Resend with Ack][PATCH] mm: remove CONFIG_HOTPLUG ifdefs
+References: <1365411202-8612-1-git-send-email-wangyijing@huawei.com>
+In-Reply-To: <1365411202-8612-1-git-send-email-wangyijing@huawei.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>
+To: Yijing Wang <wangyijing@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, jiang.liu@huawei.com, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Hugh Dickins <hughd@google.com>, Bill Pemberton <wfp5p@virginia.edu>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On 04/06/2013 09:55 AM, Jiang Liu wrote:
-
-> @@ -5186,6 +5189,22 @@ early_param("movablecore", cmdline_parse_movablecore);
+On 04/08/2013 04:53 AM, Yijing Wang wrote:
+> CONFIG_HOTPLUG is going away as an option, cleanup CONFIG_HOTPLUG
+> ifdefs in mm files.
 >
->   #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->
-> +void adjust_managed_page_count(struct page *page, long count)
-> +{
-> +	bool lock = (system_state != SYSTEM_BOOTING);
-> +
-> +	/* No need to acquire the lock during boot */
-> +	if (lock)
-> +		spin_lock(&managed_page_count_lock);
-> +
-> +	page_zone(page)->managed_pages += count;
-> +	totalram_pages += count;
-> +
-> +	if (lock)
-> +		spin_unlock(&managed_page_count_lock);
-> +}
+> Signed-off-by: Yijing Wang <wangyijing@huawei.com>
+> Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Bill Pemberton <wfp5p@virginia.edu>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-While I agree the boot code currently does not need the lock, is
-there any harm to removing that conditional?
+Acked-by: Rik van Riel <riel@redhat.com>
 
-That would simplify the code, and protect against possible future
-cleverness of initializing multiple memory things simultaneously.
 
 -- 
 All rights reversed
