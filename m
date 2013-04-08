@@ -1,66 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 10B9F6B00A6
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 08:20:46 -0400 (EDT)
-Received: by mail-lb0-f172.google.com with SMTP id u10so5670683lbi.17
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 05:20:45 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 191D26B00A9
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 09:14:21 -0400 (EDT)
+Message-ID: <5162C2C4.7010807@parallels.com>
+Date: Mon, 8 Apr 2013 17:14:44 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <1365194030-28939-4-git-send-email-cody@linux.vnet.ibm.com>
-References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com>
-	<1365194030-28939-4-git-send-email-cody@linux.vnet.ibm.com>
-Date: Mon, 8 Apr 2013 15:20:44 +0300
-Message-ID: <CAOtvUMdT0-oQMTsHAjFqL6K8vrLeCcXG2hX-sShxu6GGRBPxJw@mail.gmail.com>
-Subject: Re: [PATCH 3/3] mm: when handling percpu_pagelist_fraction, use
- on_each_cpu() to set percpu pageset fields.
-From: Gilad Ben-Yossef <gilad@benyossef.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v2 10/28] dcache: convert to use new lru list infrastructure
+References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-11-git-send-email-glommer@parallels.com>
+In-Reply-To: <1364548450-28254-11-git-send-email-glommer@parallels.com>
+Content-Type: multipart/mixed;
+	boundary="------------090304080507060707090207"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cody P Schafer <cody@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: hughd@google.com, containers@lists.linux-foundation.org, Dave Chinner <dchinner@redhat.com>, Dave Shrinnker <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Apr 5, 2013 at 11:33 PM, Cody P Schafer <cody@linux.vnet.ibm.com> wrote:
-> In free_hot_cold_page(), we rely on pcp->batch remaining stable.
-> Updating it without being on the cpu owning the percpu pageset
-> potentially destroys this stability.
->
-> Change for_each_cpu() to on_each_cpu() to fix.
+--------------090304080507060707090207
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 
-Are you referring to this? -
+On 03/29/2013 01:13 PM, Glauber Costa wrote:
+> +	if (dentry->d_flags & DCACHE_REFERENCED) {
+> +		dentry->d_flags &= ~DCACHE_REFERENCED;
+> +		spin_unlock(&dentry->d_lock);
+> +
+> +		/*
+> +		 * XXX: this list move should be be done under d_lock. Need to
+> +		 * determine if it is safe just to do it under the lru lock.
+> +		 */
+> +		return 1;
+> +	}
 
-1329         if (pcp->count >= pcp->high) {
-1330                 free_pcppages_bulk(zone, pcp->batch, pcp);
-1331                 pcp->count -= pcp->batch;
-1332         }
-
-I'm probably missing the obvious but won't it be simpler to do this in
- free_hot_cold_page() -
-
-1329         if (pcp->count >= pcp->high) {
-1330                  unsigned int batch = ACCESS_ONCE(pcp->batch);
-1331                 free_pcppages_bulk(zone, batch, pcp);
-1332                 pcp->count -= batch;
-1333         }
-
-Now the batch value used is stable and you don't have to IPI every CPU
-in the system just to change a config knob...
-
-Thanks,
-Gilad
+I've carefully audited the list manipulations in dcache and determined
+this is safe. I've replaced the fixme string for the following text. Let
+me know if you believe this is not right.
 
 
 
---
-Gilad Ben-Yossef
-Chief Coffee Drinker
-gilad@benyossef.com
-Israel Cell: +972-52-8260388
-US Cell: +1-973-8260388
-http://benyossef.com
+--------------090304080507060707090207
+Content-Type: text/plain; charset="UTF-8"; name="comment"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="comment"
 
-"If you take a class in large-scale robotics, can you end up in a situation
-where the homework eats your dog?"
- -- Jean-Baptiste Queru
+diff --git a/fs/dcache.c b/fs/dcache.c
+index a2fc76e..8e166a4 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -855,8 +855,23 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+ 		spin_unlock(&dentry->d_lock);
+ 
+ 		/*
+-		 * XXX: this list move should be be done under d_lock. Need to
+-		 * determine if it is safe just to do it under the lru lock.
++		 * The list move itself will be made by the common LRU code. At
++		 * this point, we've dropped the dentry->d_lock but keep the
++		 * lru lock. This is safe to do, since every list movement is
++		 * protected by the lru lock even if both locks are held.
++		 *
++		 * This is guaranteed by the fact that all LRU management
++		 * functions are intermediated by the LRU API calls like
++		 * list_lru_add and list_lru_del. List movement in this file
++		 * only ever occur through this functions or through callbacks
++		 * like this one, that are called from the LRU API.
++		 *
++		 * The only exceptions to this are functions like
++		 * shrink_dentry_list, and code that first checks for the
++		 * DCACHE_SHRINK_LIST flag.  Those are guaranteed to be
++		 * operating only with stack provided lists after they are
++		 * properly isolated from the main list.  It is thus, always a
++		 * local access.
+ 		 */
+ 		return LRU_ROTATE;
+ 	}
+
+--------------090304080507060707090207--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
