@@ -1,96 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 1958E6B0107
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:49 -0400 (EDT)
-Date: Mon, 8 Apr 2013 17:01:47 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 7/8] memcg: don't use css_id any more
-Message-ID: <20130408150147.GO17178@dhcp22.suse.cz>
-References: <51627DA9.7020507@huawei.com>
- <51627E74.5020300@huawei.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 9D5146B0109
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:36:41 -0400 (EDT)
+Received: by mail-da0-f48.google.com with SMTP id p8so2652984dan.21
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 08:36:39 -0700 (PDT)
+Date: Mon, 8 Apr 2013 08:36:35 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 09/12] cgroup: make sure parent won't be destroyed before
+ its children
+Message-ID: <20130408153635.GB3021@htj.dyndns.org>
+References: <5162648B.9070802@huawei.com>
+ <51626516.3000603@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51627E74.5020300@huawei.com>
+In-Reply-To: <51626516.3000603@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Li Zefan <lizefan@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon 08-04-13 16:23:16, Li Zefan wrote:
-> Now memcg uses cgroup->id instead of css_id. Update some comments and
-> set mem_cgroup_subsys->use_id to 0.
+On Mon, Apr 08, 2013 at 02:35:02PM +0800, Li Zefan wrote:
+> Suppose we rmdir a cgroup and there're still css refs, this cgroup won't
+> be freed. Then we rmdir the parent cgroup, and the parent is freed
+> immediately due to css ref draining to 0. Now it would be a disaster if
+> the still-alive child cgroup tries to access its parent.
+> 
+> Make sure this won't happen.
 > 
 > Signed-off-by: Li Zefan <lizefan@huawei.com>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Tejun Heo <tj@kernel.org>
 
-> ---
->  mm/memcontrol.c | 21 +++++++--------------
->  1 file changed, 7 insertions(+), 14 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 947dff1..26ee672 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -574,16 +574,11 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
->  #ifdef CONFIG_MEMCG_KMEM
->  /*
->   * This will be the memcg's index in each cache's ->memcg_params->memcg_caches.
-> - * There are two main reasons for not using the css_id for this:
-> - *  1) this works better in sparse environments, where we have a lot of memcgs,
-> - *     but only a few kmem-limited. Or also, if we have, for instance, 200
-> - *     memcgs, and none but the 200th is kmem-limited, we'd have to have a
-> - *     200 entry array for that.
-> - *
-> - *  2) In order not to violate the cgroup API, we would like to do all memory
-> - *     allocation in ->create(). At that point, we haven't yet allocated the
-> - *     css_id. Having a separate index prevents us from messing with the cgroup
-> - *     core for this
-> + * The main reason for not using cgrp_id for this:
-> + *  this works better in sparse environments, where we have a lot of memcgs,
-> + *  but only a few kmem-limited. Or also, if we have, for instance, 200
-> + *  memcgs, and none but the 200th is kmem-limited, we'd have to have a
-> + *  200 entry array for that.
->   *
->   * The current size of the caches array is stored in
->   * memcg_limited_groups_array_size.  It will double each time we have to
-> @@ -598,10 +593,10 @@ int memcg_limited_groups_array_size;
->   * cgroups is a reasonable guess. In the future, it could be a parameter or
->   * tunable, but that is strictly not necessary.
->   *
-> - * MAX_SIZE should be as large as the number of css_ids. Ideally, we could get
-> + * MAX_SIZE should be as large as the number of cgrp_ids. Ideally, we could get
->   * this constant directly from cgroup, but it is understandable that this is
->   * better kept as an internal representation in cgroup.c. In any case, the
-> - * css_id space is not getting any smaller, and we don't have to necessarily
-> + * cgrp_id space is not getting any smaller, and we don't have to necessarily
->   * increase ours as well if it increases.
->   */
->  #define MEMCG_CACHES_MIN_SIZE 4
-> @@ -6065,7 +6060,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
->  	size_t size = memcg_size();
->  
->  	mem_cgroup_remove_from_trees(memcg);
-> -	free_css_id(&mem_cgroup_subsys, &memcg->css);
->  
->  	for_each_node(node)
->  		free_mem_cgroup_per_zone_info(memcg, node);
-> @@ -6846,7 +6840,6 @@ struct cgroup_subsys mem_cgroup_subsys = {
->  	.attach = mem_cgroup_move_task,
->  	.base_cftypes = mem_cgroup_files,
->  	.early_init = 0,
-> -	.use_id = 1,
->  };
->  
->  #ifdef CONFIG_MEMCG_SWAP
-> -- 
-> 1.8.0.2
-> 
+Thanks.
 
 -- 
-Michal Hocko
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
