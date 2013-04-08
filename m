@@ -1,48 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id BA0726B0037
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 15:08:12 -0400 (EDT)
-Received: by mail-qe0-f52.google.com with SMTP id jy17so3246308qeb.25
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 12:08:11 -0700 (PDT)
-Message-ID: <5163159A.20800@gmail.com>
-Date: Mon, 08 Apr 2013 15:08:10 -0400
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 13A246B0006
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 15:17:00 -0400 (EDT)
+Received: by mail-qe0-f46.google.com with SMTP id nd7so1251707qeb.5
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 12:16:59 -0700 (PDT)
+Message-ID: <516317A9.7040208@gmail.com>
+Date: Mon, 08 Apr 2013 15:16:57 -0400
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] mm: fixup changers of per cpu pageset's ->high and
- ->batch
-References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com> <51618F5A.3060005@gmail.com> <5162FB82.5020607@linux.vnet.ibm.com>
-In-Reply-To: <5162FB82.5020607@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: [PATCH 3/3] mm: when handling percpu_pagelist_fraction, use on_each_cpu()
+ to set percpu pageset fields.
+References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com> <1365194030-28939-4-git-send-email-cody@linux.vnet.ibm.com> <CAOtvUMdT0-oQMTsHAjFqL6K8vrLeCcXG2hX-sShxu6GGRBPxJw@mail.gmail.com>
+In-Reply-To: <CAOtvUMdT0-oQMTsHAjFqL6K8vrLeCcXG2hX-sShxu6GGRBPxJw@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cody P Schafer <cody@linux.vnet.ibm.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Gilad Ben-Yossef <gilad@benyossef.com>
+Cc: Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kosaki.motohiro@gmail.com
 
-(4/8/13 1:16 PM), Cody P Schafer wrote:
-> On 04/07/2013 08:23 AM, KOSAKI Motohiro wrote:
->> (4/5/13 4:33 PM), Cody P Schafer wrote:
->>> In one case while modifying the ->high and ->batch fields of per cpu pagesets
->>> we're unneededly using stop_machine() (patches 1 & 2), and in another we don't have any
->>> syncronization at all (patch 3).
->>>
->>> This patchset fixes both of them.
->>>
->>> Note that it results in a change to the behavior of zone_pcp_update(), which is
->>> used by memory_hotplug. I _think_ that I've diserned (and preserved) the
->>> essential behavior (changing ->high and ->batch), and only eliminated unneeded
->>> actions (draining the per cpu pages), but this may not be the case.
+(4/8/13 8:20 AM), Gilad Ben-Yossef wrote:
+> On Fri, Apr 5, 2013 at 11:33 PM, Cody P Schafer <cody@linux.vnet.ibm.com> wrote:
+>> In free_hot_cold_page(), we rely on pcp->batch remaining stable.
+>> Updating it without being on the cpu owning the percpu pageset
+>> potentially destroys this stability.
 >>
->> at least, memory hotplug need to drain.
+>> Change for_each_cpu() to on_each_cpu() to fix.
 > 
-> Could you explain why the drain is required here? From what I can tell,
-> after the stop_machine() completes, the per cpu page sets could be
-> repopulated at any point, making the combination of draining and
-> modifying ->batch & ->high uneeded.
+> Are you referring to this? -
+> 
+> 1329         if (pcp->count >= pcp->high) {
+> 1330                 free_pcppages_bulk(zone, pcp->batch, pcp);
+> 1331                 pcp->count -= pcp->batch;
+> 1332         }
+> 
+> I'm probably missing the obvious but won't it be simpler to do this in
+>  free_hot_cold_page() -
+> 
+> 1329         if (pcp->count >= pcp->high) {
+> 1330                  unsigned int batch = ACCESS_ONCE(pcp->batch);
+> 1331                 free_pcppages_bulk(zone, batch, pcp);
+> 1332                 pcp->count -= batch;
+> 1333         }
+> 
+> Now the batch value used is stable and you don't have to IPI every CPU
+> in the system just to change a config knob...
 
-Then, memory hotplug again and again try to drain. Moreover hotplug prevent repopulation
-by using MIGRATE_ISOLATE.
-pcp never be page count == 0 and it prevent memory hot remove.
+OK, right. Your approach is much better.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
