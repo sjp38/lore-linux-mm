@@ -1,41 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id CD98F6B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 19:10:20 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id hu16so1463974qab.0
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 16:10:19 -0700 (PDT)
-Message-ID: <51634E58.4080104@gmail.com>
-Date: Mon, 08 Apr 2013 19:10:16 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 579E76B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 19:26:49 -0400 (EDT)
+Date: Tue, 9 Apr 2013 09:26:20 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 03/28] dcache: convert dentry_stat.nr_unused to
+ per-cpu counters
+Message-ID: <20130408232620.GC17758@dastard>
+References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
+ <1364548450-28254-4-git-send-email-glommer@parallels.com>
+ <xr93r4ipkcl0.fsf@gthelen.mtv.corp.google.com>
+ <20130405011506.GG12011@dastard>
+ <51628A88.2090002@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/1] mm: Another attempt to monitor task's memory
- changes
-References: <515F0484.1010703@parallels.com>
-In-Reply-To: <515F0484.1010703@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51628A88.2090002@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Glauber Costa <glommer@parallels.com>, Matthew Wilcox <willy@linux.intel.com>, kosaki.motohiro@gmail.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, yinghan@google.com, Dave Chinner <dchinner@redhat.com>
 
-> This approach works on any task via it's proc, and can be used on different
-> tasks in parallel.
+On Mon, Apr 08, 2013 at 01:14:48PM +0400, Glauber Costa wrote:
+> On 04/05/2013 05:15 AM, Dave Chinner wrote:
+> > On Thu, Apr 04, 2013 at 06:09:31PM -0700, Greg Thelen wrote:
+> >> On Fri, Mar 29 2013, Glauber Costa wrote:
+> >>
+> >>> From: Dave Chinner <dchinner@redhat.com>
+> >>>
+> >>> Before we split up the dcache_lru_lock, the unused dentry counter
+> >>> needs to be made independent of the global dcache_lru_lock. Convert
+> >>> it to per-cpu counters to do this.
+> >>>
+> >>> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> >>> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> >>> ---
+> >>>  fs/dcache.c | 17 ++++++++++++++---
+> >>>  1 file changed, 14 insertions(+), 3 deletions(-)
+> >>>
+> >>> diff --git a/fs/dcache.c b/fs/dcache.c
+> >>> index fbfae008..f1196f2 100644
+> >>> --- a/fs/dcache.c
+> >>> +++ b/fs/dcache.c
+> >>> @@ -118,6 +118,7 @@ struct dentry_stat_t dentry_stat = {
+> >>>  };
+> >>>  
+> >>>  static DEFINE_PER_CPU(unsigned int, nr_dentry);
+> >>> +static DEFINE_PER_CPU(unsigned int, nr_dentry_unused);
+> >>>  
+> >>>  #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
+> >>>  static int get_nr_dentry(void)
+> >>> @@ -129,10 +130,20 @@ static int get_nr_dentry(void)
+> >>>  	return sum < 0 ? 0 : sum;
+> >>>  }
+> >>>  
+> >>> +static int get_nr_dentry_unused(void)
+> >>> +{
+> >>> +	int i;
+> >>> +	int sum = 0;
+> >>> +	for_each_possible_cpu(i)
+> >>> +		sum += per_cpu(nr_dentry_unused, i);
+> >>> +	return sum < 0 ? 0 : sum;
+> >>> +}
+> >>
+> >> Just checking...  If cpu x is removed, then its per cpu nr_dentry_unused
+> >> count survives so we don't leak nr_dentry_unused.  Right?  I see code in
+> >> percpu_counter_sum_positive() to explicitly handle this case and I want
+> >> to make sure we don't need it here.
+> > 
+> > DEFINE_PER_CPU() gives a variable per possible CPU, and we sum for
+> > all possible CPUs. Therefore online/offline CPUs just don't matter.
+> > 
+> > The percpu_counter code uses for_each_online_cpu(), and so it has to
+> > be aware of hotplug operations so taht it doesn't leak counts.
 > 
-> Also, Andrew was asking for some performance numbers related to the change.
-> Now I can say, that as long as soft dirty bits are not cleared, no performance
-> penalty occur, since the soft dirty bit and the regular dirty bit are set at 
-> the same time within the same instruction. When soft dirty is cleared via 
-> clear_refs, the task in question might slow down, but it will depend on how
-> actively it uses the memory.
-> 
-> 
-> What do you think, does it make sense to develop this approach further?
+> It is an unsigned quantity, however. Can't we go negative if it becomes
+> unused in one cpu, but used in another?
 
-When touching mmaped page, cpu turns on dirty bit but doesn't turn on soft dirty.
-So, I'm not convinced how to use this flag. Please show us your userland algorithm
-how to detect diff.
+Sure, but it's unsigned for the purposes of summing, not for the
+purposes of having pos/neg values - they are just delta counters.
 
+I'm just copying the code from fs/inode.c. I originally implemented
+the fs/inode.c code using generic per-cpu counters, but there was
+a hissy fit over "too much overhead" and so someone implemented
+their own lightweight version. I've just copied the existing code to
+code because I don't care to revisit this....
+
+> Ex:
+> 
+> nr_unused/0: 0
+> nr_unused/1: 0
+> 
+> dentry goes to the LRU at cpu 1:
+> nr_unused/0: 0
+> nr_unused/1: 1
+> 
+> CPU 1 goes down:
+> nr_unused/0: 0
+
+why?
+
+> dentry goes out of the LRU at cpu 0:
+> nr_unused/0: 1 << 32.
+
+Sorry, where does that shift come from? Pulling from the LRU is just
+a simple subtraction. (i.e. 0 - 1 = 0xffffffff), and so
+when we sum them all up:
+
+nr_unused/0: 1
+nr_unused/0: -1 (0xffffffff)
+
+sum = 1 + 0xffffffff = 0
+
+> That would easily be fixed by using a normal signed long, and is in fact
+> what the percpu code does in its internal operations.
+
+Changing it to a long means it becomes at 64 bit value on 64 bit
+machines (doubling memory usage), and now you're summing a 64 bit
+values into a 32 bit integer. Something else to go wrong....
+
+> Any reason not to do it? Something I am not seeing?
+
+It's a direct copy of the counting code in fs/inode.c. That has not
+demonstrated any problems in all my monitoring for the past coupl
+eof years  (these are userspace visible stats) so AFAICT this code
+is just fine...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
