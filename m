@@ -1,71 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id C3D106B0071
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 18:00:42 -0400 (EDT)
-Date: Tue, 09 Apr 2013 18:00:34 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1365544834-c6v2jpoo-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CAHGf_=ruv9itn7fhcL=Ar7z_6wQ5Ga_4kj7Ui3EfDUe_cV7D0w@mail.gmail.com>
-References: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1365014138-19589-4-git-send-email-n-horiguchi@ah.jp.nec.com>
- <515F1F1F.6060900@gmail.com>
- <1365449252-9pc7knd5-mutt-n-horiguchi@ah.jp.nec.com>
- <CAHGf_=ruv9itn7fhcL=Ar7z_6wQ5Ga_4kj7Ui3EfDUe_cV7D0w@mail.gmail.com>
-Subject: Re: [PATCH v3 3/3] hugetlbfs: add swap entry check in
- follow_hugetlb_page()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 0F0006B0006
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 18:14:45 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id wz12so430920pbc.3
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 15:14:45 -0700 (PDT)
+Date: Mon, 8 Apr 2013 17:00:40 -0400
+From: Andrew Shewmaker <agshew@gmail.com>
+Subject: Re: [PATCH v8 3/3] mm: reinititalise user and admin reserves if
+ memory is added or removed
+Message-ID: <20130408210039.GA3396@localhost.localdomain>
+References: <20130408190738.GC2321@localhost.localdomain>
+ <20130408133712.bd327017dec19a2c14e22662@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20130408133712.bd327017dec19a2c14e22662@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, simon.jeons@gmail.com, ric.masonn@gmail.com
 
-On Mon, Apr 08, 2013 at 04:57:44PM -0400, KOSAKI Motohiro wrote:
-> > -               if (absent ||
-> > +               /*
-> > +                * is_swap_pte test covers both is_hugetlb_entry_hwpoisoned
-> > +                * and hugepages under migration in which case
-> > +                * hugetlb_fault waits for the migration and bails out
-> > +                * properly for HWPosined pages.
-> > +                */
-> > +               if (absent || is_swap_pte(huge_ptep_get(pte)) ||
-> >                     ((flags & FOLL_WRITE) && !pte_write(huge_ptep_get(pte)))) {
-> >                         int ret;
+On Mon, Apr 08, 2013 at 01:37:12PM -0700, Andrew Morton wrote:
+> On Mon, 8 Apr 2013 15:07:38 -0400 Andrew Shewmaker <agshew@gmail.com> wrote:
 > 
-> Your comment describe what the code is. However we want the comment describe
-> why. In migration case, calling hugetlb_fault() is natural. but in
-> hwpoison case, it is
-> needed more explanation.
+> > This patch alters the admin and user reserves of the previous patches 
+> > in this series when memory is added or removed.
+> > 
+> > If memory is added and the reserves have been eliminated or increased above
+> > the default max, then we'll trust the admin.
+> > 
+> > If memory is removed and there isn't enough free memory, then we
+> > need to reset the reserves.
+> > 
+> > Otherwise keep the reserve set by the admin.
+> > 
+> > The reserve reset code is the same as the reserve initialization code.
+> > 
+> > Does this sound reasonable to other people? I figured that hot removal
+> > with too large of memory in the reserves was the most important case 
+> > to get right.
+> 
+> Seems reasonable to me.
+> 
+> I don't understand the magic numbers 1<<13 and 1<<17.  How could I? 
+> Please add comments explaining how and why these were chosen.
 
-We should call hugetlb_fault() when we encounter any kind of swap
-type entry. It's consistent with handling of normal pages.
+I'm preparing a new version with this and the other changes you 
+gave me. Thank you!
 
-> Why can't we call is_hugetlb_hwpoisoned() directly?
+Should I add the memory notifier code to mm/nommu.c too?
+I'm guessing that if a system doesn't have an mmu that it also 
+won't be hotplugging memory.
 
-We can use it, but I like to make code simple.
-
-I rewrite the comment here, how about this?
-
--		if (absent ||
-+		/*
-+		 * We need call hugetlb_fault for both hugepages under migration
-+		 * (in which case hugetlb_fault waits for the migration,) and
-+		 * hwpoisoned hugepages (in which case we need to prevent the
-+		 * caller from accessing to them.) In order to do this, we use
-+		 * here is_swap_pte instead of is_hugetlb_entry_migration and
-+		 * is_hugetlb_entry_hwpoisoned. This is because it simply covers
-+		 * both cases, and because we can't follow correct pages directly
-+		 * from any kind of swap entries.
-+		 */
-+		if (absent || is_swap_pte(huge_ptep_get(pte)) ||
- 		    ((flags & FOLL_WRITE) && !pte_write(huge_ptep_get(pte)))) {
- 			int ret;
-
-Thanks,
-Naoya
+> Your patch adds 400 bytes of unusable code to the
+> CONFIG_MEMORY_HOTPLUG=n kernel.  We have a fix for that in the CPU
+> hotplug case: register_hotcpu_notifier().  Memory hotplug has its own
+> hotplug_memory_notifier() but a) it's broken and b) it just doesn't
+> work!  With my gcc-4.4.4, the unused functions are still included in
+> the .o file.
+> 
+> So I did this:
+> 
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: include/linux/memory.h: implement register_hotmemory_notifier()
+> 
+> When CONFIG_MEMORY_HOTPLUG=n, we don't want the memory-hotplug notifier
+> handlers to be included in the .o files, for space reasons.
+> 
+> The existing hotplug_memory_notifier() tries to handle this but testing
+> with gcc-4.4.4 shows that it doesn't work - the hotplug functions are
+> still present in the .o files.
+> 
+> So implement a new register_hotmemory_notifier() which is a copy of
+> register_hotcpu_notifier(), and which actually works as desired. 
+> hotplug_memory_notifier() and register_memory_notifier() callsites should
+> be converted to use this new register_hotmemory_notifier().
+> 
+> While we're there, let's repair the existing hotplug_memory_notifier(): it
+> simply stomps on the register_memory_notifier() return value, so
+> well-behaved code cannot check for errors.  Apparently non of the existing
+> callers were well-behaved :(
+> 
+> Cc: Andrew Shewmaker <agshew@gmail.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  include/linux/memory.h   |   15 ++++++++++++---
+>  include/linux/notifier.h |    5 ++++-
+>  2 files changed, 16 insertions(+), 4 deletions(-)
+> 
+> diff -puN include/linux/memory.h~include-linux-memoryh-implement-register_hotmemory_notifier include/linux/memory.h
+> --- a/include/linux/memory.h~include-linux-memoryh-implement-register_hotmemory_notifier
+> +++ a/include/linux/memory.h
+> @@ -18,6 +18,7 @@
+>  #include <linux/node.h>
+>  #include <linux/compiler.h>
+>  #include <linux/mutex.h>
+> +#include <linux/notifier.h>
+>  
+>  #define MIN_MEMORY_BLOCK_SIZE     (1UL << SECTION_SIZE_BITS)
+>  
+> @@ -127,13 +128,21 @@ enum mem_add_context { BOOT, HOTPLUG };
+>  #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+>  
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+> -#define hotplug_memory_notifier(fn, pri) {			\
+> +#define hotplug_memory_notifier(fn, pri) ({			\
+>  	static __meminitdata struct notifier_block fn##_mem_nb =\
+>  		{ .notifier_call = fn, .priority = pri };	\
+>  	register_memory_notifier(&fn##_mem_nb);			\
+> -}
+> +})
+> +#define register_hotmemory_notifier(nb)		register_memory_notifier(nb)
+> +#define unregister_hotmemory_notifier(nb) 	unregister_memory_notifier(nb)
+>  #else
+> -#define hotplug_memory_notifier(fn, pri) do { } while (0)
+> +static inline int hotplug_memory_notifier(notifier_fn_t fn, int priority)
+> +{
+> +	return 0;
+> +}
+> +/* These aren't inline functions due to a GCC bug. */
+> +#define register_hotmemory_notifier(nb)    ({ (void)(nb); 0; })
+> +#define unregister_hotmemory_notifier(nb)  ({ (void)(nb); })
+>  #endif
+>  
+>  /*
+> diff -puN include/linux/notifier.h~include-linux-memoryh-implement-register_hotmemory_notifier include/linux/notifier.h
+> --- a/include/linux/notifier.h~include-linux-memoryh-implement-register_hotmemory_notifier
+> +++ a/include/linux/notifier.h
+> @@ -47,8 +47,11 @@
+>   * runtime initialization.
+>   */
+>  
+> +typedef	int (*notifier_fn_t)(struct notifier_block *nb,
+> +			unsigned long action, void *data);
+> +
+>  struct notifier_block {
+> -	int (*notifier_call)(struct notifier_block *, unsigned long, void *);
+> +	notifier_fn_t notifier_call;
+>  	struct notifier_block __rcu *next;
+>  	int priority;
+>  };
+> _
+> 
+> 
+> And then I changed your patch thusly:
+> 
+> --- a/mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix
+> +++ a/mm/mmap.c
+> @@ -3198,7 +3198,7 @@ static struct notifier_block reserve_mem
+>  
+>  int __meminit init_reserve_notifier(void)
+>  {
+> -	if (register_memory_notifier(&reserve_mem_nb))
+> +	if (register_hotmemory_notifier(&reserve_mem_nb))
+>  		printk("Failed registering memory add/remove notifier for admin reserve");
+>  
+>  	return 0;
+> _
+> 
+> and voila, no more bloat.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
