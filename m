@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id A0B4D6B003B
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 04:22:11 -0400 (EDT)
-Message-ID: <51627E09.5010605@huawei.com>
-Date: Mon, 8 Apr 2013 16:21:29 +0800
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 3C2A96B005A
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 04:22:50 -0400 (EDT)
+Message-ID: <51627E33.4090107@huawei.com>
+Date: Mon, 8 Apr 2013 16:22:11 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 4/8] memcg: convert to use cgroup_from_id()
+Subject: [PATCH 5/8] memcg: convert to use cgroup->id
 References: <51627DA9.7020507@huawei.com>
 In-Reply-To: <51627DA9.7020507@huawei.com>
 Content-Type: text/plain; charset="GB2312"
@@ -20,33 +20,54 @@ This is a preparation to kill css_id.
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
 ---
- mm/memcontrol.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ mm/memcontrol.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 14f1375..3561d0b 100644
+index 3561d0b..c4e0173 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2769,15 +2769,15 @@ static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
-  */
- static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
- {
--	struct cgroup_subsys_state *css;
-+	struct cgroup *cgrp;
- 
- 	/* ID 0 is unused ID */
- 	if (!id)
- 		return NULL;
--	css = css_lookup(&mem_cgroup_subsys, id);
--	if (!css)
-+	cgrp = cgroup_from_id(&mem_cgroup_subsys, id);
-+	if (!cgrp)
- 		return NULL;
--	return mem_cgroup_from_css(css);
-+	return mem_cgroup_from_cont(cgrp);
+@@ -492,6 +492,11 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+ 	return (memcg == root_mem_cgroup);
  }
  
- struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
++static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
++{
++	return memcg->css.cgroup->id;
++}
++
+ /* Writing them here to avoid exposing memcg's inner layout */
+ #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
+ 
+@@ -4234,7 +4239,7 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
+ 	 * css_get() was called in uncharge().
+ 	 */
+ 	if (do_swap_account && swapout && memcg)
+-		swap_cgroup_record(ent, css_id(&memcg->css));
++		swap_cgroup_record(ent, mem_cgroup_id(memcg));
+ }
+ #endif
+ 
+@@ -4286,8 +4291,8 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
+ {
+ 	unsigned short old_id, new_id;
+ 
+-	old_id = css_id(&from->css);
+-	new_id = css_id(&to->css);
++	old_id = mem_cgroup_id(from);
++	new_id = mem_cgroup_id(to);
+ 
+ 	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
+ 		mem_cgroup_swap_statistics(from, false);
+@@ -6428,7 +6433,7 @@ static enum mc_target_type get_mctgt_type(struct vm_area_struct *vma,
+ 	}
+ 	/* There is a swap entry and a page doesn't exist or isn't charged */
+ 	if (ent.val && !ret &&
+-			css_id(&mc.from->css) == lookup_swap_cgroup_id(ent)) {
++	    mem_cgroup_id(mc.from) == lookup_swap_cgroup_id(ent)) {
+ 		ret = MC_TARGET_SWAP;
+ 		if (target)
+ 			target->ent = ent;
 -- 
 1.8.0.2
 
