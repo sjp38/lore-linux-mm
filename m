@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id B8D7A6B005C
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 04:22:56 -0400 (EDT)
-Message-ID: <51627DEB.4090104@huawei.com>
-Date: Mon, 8 Apr 2013 16:20:59 +0800
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 907016B0068
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 04:24:19 -0400 (EDT)
+Message-ID: <51627E74.5020300@huawei.com>
+Date: Mon, 8 Apr 2013 16:23:16 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 2/8] cgroup: implement cgroup_from_id()
+Subject: [PATCH 7/8] memcg: don't use css_id any more
 References: <51627DA9.7020507@huawei.com>
 In-Reply-To: <51627DA9.7020507@huawei.com>
 Content-Type: text/plain; charset="GB2312"
@@ -16,117 +16,69 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-This will be used as a replacement for css_lookup().
+Now memcg uses cgroup->id instead of css_id. Update some comments and
+set mem_cgroup_subsys->use_id to 0.
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
 ---
- include/linux/cgroup.h |  1 +
- kernel/cgroup.c        | 31 +++++++++++++++++++++++++------
- 2 files changed, 26 insertions(+), 6 deletions(-)
+ mm/memcontrol.c | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 96072e4..6ae8ae1 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -732,6 +732,7 @@ unsigned short css_depth(struct cgroup_subsys_state *css);
- struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 947dff1..26ee672 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -574,16 +574,11 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
+ #ifdef CONFIG_MEMCG_KMEM
+ /*
+  * This will be the memcg's index in each cache's ->memcg_params->memcg_caches.
+- * There are two main reasons for not using the css_id for this:
+- *  1) this works better in sparse environments, where we have a lot of memcgs,
+- *     but only a few kmem-limited. Or also, if we have, for instance, 200
+- *     memcgs, and none but the 200th is kmem-limited, we'd have to have a
+- *     200 entry array for that.
+- *
+- *  2) In order not to violate the cgroup API, we would like to do all memory
+- *     allocation in ->create(). At that point, we haven't yet allocated the
+- *     css_id. Having a separate index prevents us from messing with the cgroup
+- *     core for this
++ * The main reason for not using cgrp_id for this:
++ *  this works better in sparse environments, where we have a lot of memcgs,
++ *  but only a few kmem-limited. Or also, if we have, for instance, 200
++ *  memcgs, and none but the 200th is kmem-limited, we'd have to have a
++ *  200 entry array for that.
+  *
+  * The current size of the caches array is stored in
+  * memcg_limited_groups_array_size.  It will double each time we have to
+@@ -598,10 +593,10 @@ int memcg_limited_groups_array_size;
+  * cgroups is a reasonable guess. In the future, it could be a parameter or
+  * tunable, but that is strictly not necessary.
+  *
+- * MAX_SIZE should be as large as the number of css_ids. Ideally, we could get
++ * MAX_SIZE should be as large as the number of cgrp_ids. Ideally, we could get
+  * this constant directly from cgroup, but it is understandable that this is
+  * better kept as an internal representation in cgroup.c. In any case, the
+- * css_id space is not getting any smaller, and we don't have to necessarily
++ * cgrp_id space is not getting any smaller, and we don't have to necessarily
+  * increase ours as well if it increases.
+  */
+ #define MEMCG_CACHES_MIN_SIZE 4
+@@ -6065,7 +6060,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ 	size_t size = memcg_size();
  
- bool cgroup_is_ancestor(struct cgroup *child, struct cgroup *root);
-+struct cgroup *cgroup_from_id(struct cgroup_subsys *ss, int id);
+ 	mem_cgroup_remove_from_trees(memcg);
+-	free_css_id(&mem_cgroup_subsys, &memcg->css);
  
- #else /* !CONFIG_CGROUPS */
+ 	for_each_node(node)
+ 		free_mem_cgroup_per_zone_info(memcg, node);
+@@ -6846,7 +6840,6 @@ struct cgroup_subsys mem_cgroup_subsys = {
+ 	.attach = mem_cgroup_move_task,
+ 	.base_cftypes = mem_cgroup_files,
+ 	.early_init = 0,
+-	.use_id = 1,
+ };
  
-diff --git a/kernel/cgroup.c b/kernel/cgroup.c
-index e87872c..5ae1e87 100644
---- a/kernel/cgroup.c
-+++ b/kernel/cgroup.c
-@@ -139,7 +139,7 @@ struct cgroupfs_root {
- 	unsigned long flags;
- 
- 	/* IDs for cgroups in this hierarchy */
--	struct ida cgroup_ida;
-+	struct idr cgroup_idr;
- 
- 	/* The path to use for release notifications. */
- 	char release_agent_path[PATH_MAX];
-@@ -908,7 +908,7 @@ static void cgroup_free_fn(struct work_struct *work)
- 
- 	simple_xattrs_free(&cgrp->xattrs);
- 
--	ida_simple_remove(&cgrp->root->cgroup_ida, cgrp->id);
-+	idr_remove(&cgrp->root->cgroup_idr, cgrp->id);
- 	kfree(rcu_dereference_raw(cgrp->name));
- 	kfree(cgrp);
- }
-@@ -1512,7 +1512,8 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
- 
- 	root->subsys_mask = opts->subsys_mask;
- 	root->flags = opts->flags;
--	ida_init(&root->cgroup_ida);
-+	idr_init(&root->cgroup_idr);
-+
- 	if (opts->release_agent)
- 		strcpy(root->release_agent_path, opts->release_agent);
- 	if (opts->name)
-@@ -1531,7 +1532,7 @@ static void cgroup_drop_root(struct cgroupfs_root *root)
- 	spin_lock(&hierarchy_id_lock);
- 	ida_remove(&hierarchy_ida, root->hierarchy_id);
- 	spin_unlock(&hierarchy_id_lock);
--	ida_destroy(&root->cgroup_ida);
-+	idr_destroy(&root->cgroup_idr);
- 	kfree(root);
- }
- 
-@@ -1645,6 +1646,11 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
- 		mutex_lock(&cgroup_mutex);
- 		mutex_lock(&cgroup_root_mutex);
- 
-+		root_cgrp->id = idr_alloc(&root->cgroup_idr, root_cgrp,
-+					  0, 0, GFP_KERNEL);
-+		if (root_cgrp->id < 0)
-+			goto unlock_drop;
-+
- 		/* Check for name clashes with existing mounts */
- 		ret = -EBUSY;
- 		if (strlen(root->name))
-@@ -4104,7 +4110,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
- 		goto err_free_cgrp;
- 	rcu_assign_pointer(cgrp->name, name);
- 
--	cgrp->id = ida_simple_get(&root->cgroup_ida, 1, 0, GFP_KERNEL);
-+	cgrp->id = idr_alloc(&root->cgroup_idr, cgrp, 1, 0, GFP_KERNEL);
- 	if (cgrp->id < 0)
- 		goto err_free_name;
- 
-@@ -4215,7 +4221,7 @@ err_free_all:
- 	/* Release the reference count that we took on the superblock */
- 	deactivate_super(sb);
- err_free_id:
--	ida_simple_remove(&root->cgroup_ida, cgrp->id);
-+	idr_remove(&root->cgroup_idr, cgrp->id);
- err_free_name:
- 	kfree(rcu_dereference_raw(cgrp->name));
- err_free_cgrp:
-@@ -5320,6 +5326,19 @@ bool cgroup_is_ancestor(struct cgroup *child, struct cgroup *root)
- 	return (child == root);
- }
- 
-+/**
-+ * cgroup_from_id - lookup cgroup by id
-+ * @ss: cgroup subsys to be looked into.
-+ * @id: the id
-+ *
-+ * Returns pointer to cgroup if there is valid one with id.
-+ * NULL if not. Should be called under rcu_read_lock()
-+ */
-+struct cgroup *cgroup_from_id(struct cgroup_subsys *ss, int id)
-+{
-+	return idr_find(&ss->root->cgroup_idr, id);
-+}
-+
- #ifdef CONFIG_CGROUP_DEBUG
- static struct cgroup_subsys_state *debug_css_alloc(struct cgroup *cont)
- {
+ #ifdef CONFIG_MEMCG_SWAP
 -- 
 1.8.0.2
 
