@@ -1,57 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id ED60F8D0001
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:57:33 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id bj3so3331122pad.20
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 08:57:33 -0700 (PDT)
-Date: Mon, 8 Apr 2013 08:57:26 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/8] cgroup: implement cgroup_is_ancestor()
-Message-ID: <20130408155726.GG3021@htj.dyndns.org>
-References: <51627DA9.7020507@huawei.com>
- <51627DBB.5050005@huawei.com>
- <20130408144750.GK17178@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 224A66B0113
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 12:06:08 -0400 (EDT)
+Received: by mail-ob0-f173.google.com with SMTP id wn14so5006183obc.32
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 09:06:07 -0700 (PDT)
+Message-ID: <5162EAE2.6010306@gmail.com>
+Date: Tue, 09 Apr 2013 00:05:54 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130408144750.GK17178@dhcp22.suse.cz>
+Subject: Re: [PATCH v4, part3 11/15] mm: use a dedicated lock to protect totalram_pages
+ and zone->managed_pages
+References: <1365256509-29024-1-git-send-email-jiang.liu@huawei.com> <1365256509-29024-12-git-send-email-jiang.liu@huawei.com> <5162C887.5070900@redhat.com>
+In-Reply-To: <5162C887.5070900@redhat.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>
 
-Hello,
-
-On Mon, Apr 08, 2013 at 04:47:50PM +0200, Michal Hocko wrote:
-> On Mon 08-04-13 16:20:11, Li Zefan wrote:
-> [...]
-> > @@ -5299,6 +5300,26 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
-> >  	return css ? css : ERR_PTR(-ENOENT);
-> >  }
-> >  
-> > +/**
-> > + * cgroup_is_ancestor - test "root" cgroup is an ancestor of "child"
-> > + * @child: the cgroup to be tested.
-> > + * @root: the cgroup supposed to be an ancestor of the child.
-> > + *
-> > + * Returns true if "root" is an ancestor of "child" in its hierarchy.
-> > + */
-> > +bool cgroup_is_ancestor(struct cgroup *child, struct cgroup *root)
-> > +{
-> > +	int depth = child->depth;
+On 04/08/2013 09:39 PM, Rik van Riel wrote:
+> On 04/06/2013 09:55 AM, Jiang Liu wrote:
 > 
-> Is this functionality helpful for other controllers but memcg?
-> css_is_ancestor is currently used only by memcg code AFAICS and we can
-> get the same functionality easily by using something like:
-
-It's a basic hierarchy operation.  I'd prefer it to be in cgroup and
-in general let's try to avoid memcg-specific infrastructure.  It
-doesn't seem to end well.
-
-Thanks.
-
--- 
-tejun
+>> @@ -5186,6 +5189,22 @@ early_param("movablecore", cmdline_parse_movablecore);
+>>
+>>   #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+>>
+>> +void adjust_managed_page_count(struct page *page, long count)
+>> +{
+>> +    bool lock = (system_state != SYSTEM_BOOTING);
+>> +
+>> +    /* No need to acquire the lock during boot */
+>> +    if (lock)
+>> +        spin_lock(&managed_page_count_lock);
+>> +
+>> +    page_zone(page)->managed_pages += count;
+>> +    totalram_pages += count;
+>> +
+>> +    if (lock)
+>> +        spin_unlock(&managed_page_count_lock);
+>> +}
+> 
+> While I agree the boot code currently does not need the lock, is
+> there any harm to removing that conditional?
+> 
+> That would simplify the code, and protect against possible future
+> cleverness of initializing multiple memory things simultaneously.
+> 
+Hi Rik,
+	Thanks for you comments.
+	I'm OK with that. Acquiring/releasing the lock should be lightweight
+because there shouldn't be contention during boot. Will remove the logic in
+next version.
+	Regards!
+	Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
