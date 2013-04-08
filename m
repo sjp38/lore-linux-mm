@@ -1,168 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id E37316B0006
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 18:00:04 -0400 (EDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [UPDATE][PATCH v2 2/3] resource: Add release_mem_region_adjustable()
-Date: Mon,  8 Apr 2013 15:47:35 -0600
-Message-Id: <1365457655-7453-1-git-send-email-toshi.kani@hp.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id ED71C6B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 18:18:50 -0400 (EDT)
+Received: by mail-qc0-f178.google.com with SMTP id d10so2715313qca.23
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 15:18:50 -0700 (PDT)
+Message-ID: <5163424A.4000106@gmail.com>
+Date: Mon, 08 Apr 2013 18:18:50 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3] mm/page_alloc: convert zone_pcp_update() to use on_each_cpu()
+ instead of stop_machine()
+References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com> <1365194030-28939-3-git-send-email-cody@linux.vnet.ibm.com> <5161931A.8060501@gmail.com> <5162FF18.8010802@linux.vnet.ibm.com> <516319FF.6030104@gmail.com> <51631F4D.7050504@linux.vnet.ibm.com>
+In-Reply-To: <51631F4D.7050504@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com, Toshi Kani <toshi.kani@hp.com>
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Added release_mem_region_adjustable(), which releases a requested
-region from a currently busy memory resource.  This interface
-adjusts the matched memory resource accordingly even if the
-requested region does not match exactly but still fits into.
+(4/8/13 3:49 PM), Cody P Schafer wrote:
+> On 04/08/2013 12:26 PM, KOSAKI Motohiro wrote:
+>> (4/8/13 1:32 PM), Cody P Schafer wrote:
+>>> On 04/07/2013 08:39 AM, KOSAKI Motohiro wrote:
+>>>> (4/5/13 4:33 PM), Cody P Schafer wrote:
+>>>>> No off-cpu users of the percpu pagesets exist.
+>>>>>
+>>>>> zone_pcp_update()'s goal is to adjust the ->high and ->mark members of a
+>>>>> percpu pageset based on a zone's ->managed_pages. We don't need to drain
+>>>>> the entire percpu pageset just to modify these fields. Avoid calling
+>>>>> setup_pageset() (and the draining required to call it) and instead just
+>>>>> set the fields' values.
+>>>>>
+>>>>> This does change the behavior of zone_pcp_update() as the percpu
+>>>>> pagesets will not be drained when zone_pcp_update() is called (they will
+>>>>> end up being shrunk, not completely drained, later when a 0-order page
+>>>>> is freed in free_hot_cold_page()).
+>>>>>
+>>>>> Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+>>>>
+>>>> NAK.
+>>>>
+>>>> 1) zone_pcp_update() is only used from memory hotplug and it require page drain.
+>>>
+>>> I'm looking at this code because I'm currently working on a patchset
+>>> which adds another interface which modifies zone sizes, so "only used
+>>> from memory hotplug" is a temporary thing (unless I discover that
+>>> zone_pcp_update() is not intended to do what I want it to do).
+>>
+>> maybe yes, maybe no. I don't know temporary or not. However the fact is,
+>> you must not break anywhere. You need to look all caller always.
+> 
+> Right, which is why I want to understand memory hotplug's actual 
+> requirements.
+> 
+>>>> 2) stop_machin is used for avoiding race. just removing it is insane.
+>>>
+>>> What race? Is there a cross cpu access to ->high & ->batch that makes
+>>> using on_each_cpu() instead of stop_machine() inappropriate? It is
+>>> absolutely not just being removed.
+>>
+>> OK, I missed that. however your code is still wrong.
+>> However you can't call free_pcppages_bulk() from interrupt context and
+>> then you can't use on_each_cpu() anyway.
+> 
+> Given drain_pages() implementation, I find that hard to believe (It uses 
+> on_each_cpu_mask() and eventually calls free_pcppages_bulk()).
+> 
+> Can you provide a reference backing up your statement?
 
-This new interface is intended for memory hot-delete.  During
-bootup, memory resources are inserted from the boot descriptor
-table, such as EFI Memory Table and e820.  Each memory resource
-entry usually covers the whole contigous memory range.  Memory
-hot-delete request, on the other hand, may target to a particular
-range of memory resource, and its size can be much smaller than
-the whole contiguous memory.  Since the existing release interfaces
-like __release_region() require a requested region to be exactly
-matched to a resource entry, they do not allow a partial resource
-to be released.
+Grr. I missed again. OK you are right. go ahead.
 
-There is no change to the existing interfaces since their restriction
-is valid for I/O resources.
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-Reviewed-by : Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
----
 
-Added #ifdef CONFIG_MEMORY_HOTPLUG as suggested by Andrew Morton.
+> If this turns out to be an issue, schedule_on_each_cpu() could be an 
+> alternative.
 
----
- include/linux/ioport.h |    4 ++
- kernel/resource.c      |   96 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 100 insertions(+)
+no way. schedule_on_each_cpu() is more problematic and it should be removed
+in the future.
+schedule_on_each_cpu() can only be used when caller task don't have any lock.
+otherwise it may make deadlock.
 
-diff --git a/include/linux/ioport.h b/include/linux/ioport.h
-index 85ac9b9b..961d4dc 100644
---- a/include/linux/ioport.h
-+++ b/include/linux/ioport.h
-@@ -192,6 +192,10 @@ extern struct resource * __request_region(struct resource *,
- extern int __check_region(struct resource *, resource_size_t, resource_size_t);
- extern void __release_region(struct resource *, resource_size_t,
- 				resource_size_t);
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+extern int release_mem_region_adjustable(struct resource *, resource_size_t,
-+				resource_size_t);
-+#endif
- 
- static inline int __deprecated check_region(resource_size_t s,
- 						resource_size_t n)
-diff --git a/kernel/resource.c b/kernel/resource.c
-index ae246f9..25b945c 100644
---- a/kernel/resource.c
-+++ b/kernel/resource.c
-@@ -1021,6 +1021,102 @@ void __release_region(struct resource *parent, resource_size_t start,
- }
- EXPORT_SYMBOL(__release_region);
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+/**
-+ * release_mem_region_adjustable - release a previously reserved memory region
-+ * @parent: parent resource descriptor
-+ * @start: resource start address
-+ * @size: resource region size
-+ *
-+ * This interface is intended for memory hot-delete.  The requested region is
-+ * released from a currently busy memory resource.  It adjusts the matched
-+ * busy memory resource accordingly even if the requested region does not
-+ * match exactly but still fits into.  Existing children of the busy memory
-+ * resource must be immutable in this request.
-+ *
-+ * Note, when the busy memory resource gets split into two entries, the code
-+ * assumes that all children remain in the lower address entry for simplicity.
-+ * Enhance this logic when necessary.
-+ */
-+int release_mem_region_adjustable(struct resource *parent,
-+			resource_size_t start, resource_size_t size)
-+{
-+	struct resource **p;
-+	struct resource *res, *new;
-+	resource_size_t end;
-+	int ret = -EINVAL;
-+
-+	end = start + size - 1;
-+	if ((start < parent->start) || (end > parent->end))
-+		return ret;
-+
-+	p = &parent->child;
-+	write_lock(&resource_lock);
-+
-+	while ((res = *p)) {
-+		if (res->start >= end)
-+			break;
-+
-+		/* look for the next resource if it does not fit into */
-+		if (res->start > start || res->end < end) {
-+			p = &res->sibling;
-+			continue;
-+		}
-+
-+		if (!(res->flags & IORESOURCE_MEM))
-+			break;
-+
-+		if (!(res->flags & IORESOURCE_BUSY)) {
-+			p = &res->child;
-+			continue;
-+		}
-+
-+		/* found the target resource; let's adjust accordingly */
-+		if (res->start == start && res->end == end) {
-+			/* free the whole entry */
-+			*p = res->sibling;
-+			kfree(res);
-+			ret = 0;
-+		} else if (res->start == start && res->end != end) {
-+			/* adjust the start */
-+			ret = __adjust_resource(res, end + 1,
-+						res->end - end);
-+		} else if (res->start != start && res->end == end) {
-+			/* adjust the end */
-+			ret = __adjust_resource(res, res->start,
-+						start - res->start);
-+		} else {
-+			/* split into two entries */
-+			new = kzalloc(sizeof(struct resource), GFP_KERNEL);
-+			if (!new) {
-+				ret = -ENOMEM;
-+				break;
-+			}
-+			new->name = res->name;
-+			new->start = end + 1;
-+			new->end = res->end;
-+			new->flags = res->flags;
-+			new->parent = res->parent;
-+			new->sibling = res->sibling;
-+			new->child = NULL;
-+
-+			ret = __adjust_resource(res, res->start,
-+						start - res->start);
-+			if (ret) {
-+				kfree(new);
-+				break;
-+			}
-+			res->sibling = new;
-+		}
-+
-+		break;
-+	}
-+
-+	write_unlock(&resource_lock);
-+	return ret;
-+}
-+#endif	/* CONFIG_MEMORY_HOTPLUG */
-+
- /*
-  * Managed region resource
-  */
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
