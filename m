@@ -1,59 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 224A66B0113
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 12:06:08 -0400 (EDT)
-Received: by mail-ob0-f173.google.com with SMTP id wn14so5006183obc.32
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 09:06:07 -0700 (PDT)
-Message-ID: <5162EAE2.6010306@gmail.com>
-Date: Tue, 09 Apr 2013 00:05:54 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 7B21A6B0006
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 12:33:19 -0400 (EDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v4, part3 11/15] mm: use a dedicated lock to protect totalram_pages
- and zone->managed_pages
-References: <1365256509-29024-1-git-send-email-jiang.liu@huawei.com> <1365256509-29024-12-git-send-email-jiang.liu@huawei.com> <5162C887.5070900@redhat.com>
-In-Reply-To: <5162C887.5070900@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Message-ID: <f3c8ef05-a880-47db-86dd-156038fc7d0f@default>
+Date: Mon, 8 Apr 2013 09:32:38 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: zsmalloc defrag (Was: [PATCH] mm: remove compressed copy from zram
+ in-memory)
+References: <<1365400862-9041-1-git-send-email-minchan@kernel.org>>
+In-Reply-To: <<1365400862-9041-1-git-send-email-minchan@kernel.org>>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Bob Liu <bob.liu@oracle.com>, Shuah Khan <shuah@gonehiking.org>
 
-On 04/08/2013 09:39 PM, Rik van Riel wrote:
-> On 04/06/2013 09:55 AM, Jiang Liu wrote:
-> 
->> @@ -5186,6 +5189,22 @@ early_param("movablecore", cmdline_parse_movablecore);
->>
->>   #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->>
->> +void adjust_managed_page_count(struct page *page, long count)
->> +{
->> +    bool lock = (system_state != SYSTEM_BOOTING);
->> +
->> +    /* No need to acquire the lock during boot */
->> +    if (lock)
->> +        spin_lock(&managed_page_count_lock);
->> +
->> +    page_zone(page)->managed_pages += count;
->> +    totalram_pages += count;
->> +
->> +    if (lock)
->> +        spin_unlock(&managed_page_count_lock);
->> +}
-> 
-> While I agree the boot code currently does not need the lock, is
-> there any harm to removing that conditional?
-> 
-> That would simplify the code, and protect against possible future
-> cleverness of initializing multiple memory things simultaneously.
-> 
-Hi Rik,
-	Thanks for you comments.
-	I'm OK with that. Acquiring/releasing the lock should be lightweight
-because there shouldn't be contention during boot. Will remove the logic in
-next version.
-	Regards!
-	Gerry
+> From: Minchan Kim [mailto:minchan@kernel.org]
+> Sent: Monday, April 08, 2013 12:01 AM
+> Subject: [PATCH] mm: remove compressed copy from zram in-memory
+
+(patch removed)
+
+> Fragment ratio is almost same but memory consumption and compile time
+> is better. I am working to add defragment function of zsmalloc.
+
+Hi Minchan --
+
+I would be very interested in your design thoughts on
+how you plan to add defragmentation for zsmalloc.  In
+particular, I am wondering if your design will also
+handle the requirements for zcache (especially for
+cleancache pages) and perhaps also for ramster.
+
+In https://lkml.org/lkml/2013/3/27/501 I suggested it
+would be good to work together on a common design, but
+you didn't reply.  Are you thinking that zsmalloc
+improvements should focus only on zram, in which case
+we may -- and possibly should -- end up with a different
+allocator for frontswap-based/cleancache-based compression
+in zcache (and possibly zswap)?
+
+I'm just trying to determine if I should proceed separately
+with my design (with Bob Liu, who expressed interest) or if
+it would be beneficial to work together.
+
+Thanks,
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
