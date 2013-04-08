@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 0F33F6B003C
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 04:22:12 -0400 (EDT)
-Message-ID: <51627DFA.9050007@huawei.com>
-Date: Mon, 8 Apr 2013 16:21:14 +0800
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id A0B4D6B003B
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 04:22:11 -0400 (EDT)
+Message-ID: <51627E09.5010605@huawei.com>
+Date: Mon, 8 Apr 2013 16:21:29 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 3/8] memcg: convert to use cgroup_is_ancestor()
+Subject: [PATCH 4/8] memcg: convert to use cgroup_from_id()
 References: <51627DA9.7020507@huawei.com>
 In-Reply-To: <51627DA9.7020507@huawei.com>
 Content-Type: text/plain; charset="GB2312"
@@ -20,22 +20,33 @@ This is a preparation to kill css_id.
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
 ---
- mm/memcontrol.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/memcontrol.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 5aa6e91..14f1375 100644
+index 14f1375..3561d0b 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1383,7 +1383,7 @@ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
- 		return true;
- 	if (!root_memcg->use_hierarchy || !memcg)
- 		return false;
--	return css_is_ancestor(&memcg->css, &root_memcg->css);
-+	return cgroup_is_ancestor(memcg->css.cgroup, root_memcg->css.cgroup);
+@@ -2769,15 +2769,15 @@ static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
+  */
+ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+ {
+-	struct cgroup_subsys_state *css;
++	struct cgroup *cgrp;
+ 
+ 	/* ID 0 is unused ID */
+ 	if (!id)
+ 		return NULL;
+-	css = css_lookup(&mem_cgroup_subsys, id);
+-	if (!css)
++	cgrp = cgroup_from_id(&mem_cgroup_subsys, id);
++	if (!cgrp)
+ 		return NULL;
+-	return mem_cgroup_from_css(css);
++	return mem_cgroup_from_cont(cgrp);
  }
  
- static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
 -- 
 1.8.0.2
 
