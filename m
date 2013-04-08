@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id A43476B0088
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:35:21 -0400 (EDT)
-Message-ID: <516264FB.7030306@huawei.com>
-Date: Mon, 8 Apr 2013 14:34:35 +0800
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id F3E946B008A
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:35:41 -0400 (EDT)
+Message-ID: <51626509.2090806@huawei.com>
+Date: Mon, 8 Apr 2013 14:34:49 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 07/12] memcg: use css_get/put when charging/uncharging kmem
+Subject: [PATCH 08/12] memcg: use css_get/put for swap memcg
 References: <5162648B.9070802@huawei.com>
 In-Reply-To: <5162648B.9070802@huawei.com>
 Content-Type: text/plain; charset="GB2312"
@@ -16,156 +16,106 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-Use css_get/put instead of mem_cgroup_get/put.
+Use css_get/put instead of mem_cgroup_get/put. A simple replacement
+will do.
 
-We can't do a simple replacement, because here mem_cgroup_put()
-is called during mem_cgroup_css_free(), while mem_cgroup_css_free()
-won't be called until css refcnt goes down to 0.
-
-Instead we increment css refcnt in mem_cgroup_css_offline(), and
-then check if there's still kmem charges. If not, css refcnt will
-be decremented immediately, otherwise the refcnt won't be decremented
-when kmem charges goes down to 0.
-
-v2:
-- added wmb() in kmem_cgroup_css_offline(), pointed out by Michal
-- revised comments as suggested by Michal
-- fixed to check if kmem is activated in kmem_cgroup_css_offline()
+The historical reason that memcg has its own refcnt instead of always
+using css_get/put, is that cgroup couldn't be removed if there're still
+css refs, so css refs can't be used as long-lived reference. The
+situation has changed so that rmdir a cgroup will succeed regardless
+css refs, but won't be freed until css refs goes down to 0.
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c | 66 +++++++++++++++++++++++++++++++++++----------------------
- 1 file changed, 41 insertions(+), 25 deletions(-)
+ mm/memcontrol.c | 26 ++++++++++++++++----------
+ 1 file changed, 16 insertions(+), 10 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c308ea0..7be796c 100644
+index 7be796c..7fdd69d 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3003,8 +3003,16 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
- 	if (res_counter_uncharge(&memcg->kmem, size))
- 		return;
- 
-+	/*
-+	 * Releases a reference taken in kmem_cgroup_css_offline in case
-+	 * this last uncharge is racing with the offlining code or it is
-+	 * outliving the memcg existence.
-+	 *
-+	 * The memory barrier imposed by test&clear is paired with the
-+	 * explicit one in kmem_cgroup_css_offline.
-+	 */
- 	if (memcg_kmem_test_and_clear_dead(memcg))
--		mem_cgroup_put(memcg);
-+		css_put(&memcg->css);
- }
- 
- void memcg_cache_list_add(struct mem_cgroup *memcg, struct kmem_cache *cachep)
-@@ -5090,14 +5098,6 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- 		 * starts accounting before all call sites are patched
- 		 */
- 		memcg_kmem_set_active(memcg);
--
--		/*
--		 * kmem charges can outlive the cgroup. In the case of slab
--		 * pages, for instance, a page contain objects from various
--		 * processes, so it is unfeasible to migrate them away. We
--		 * need to reference count the memcg because of that.
--		 */
+@@ -4149,12 +4149,12 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
+ 	unlock_page_cgroup(pc);
+ 	/*
+ 	 * even after unlock, we have memcg->res.usage here and this memcg
+-	 * will never be freed.
++	 * will never be freed, so it's safe to call css_get().
+ 	 */
+ 	memcg_check_events(memcg, page);
+ 	if (do_swap_account && ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
+ 		mem_cgroup_swap_statistics(memcg, true);
 -		mem_cgroup_get(memcg);
- 	} else
- 		ret = res_counter_set_limit(&memcg->kmem, val);
- out:
-@@ -5130,12 +5130,10 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
- 		goto out;
++		css_get(&memcg->css);
+ 	}
+ 	/*
+ 	 * Migration does not charge the res_counter for the
+@@ -4254,7 +4254,7 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
  
  	/*
--	 * destroy(), called if we fail, will issue static_key_slow_inc() and
--	 * mem_cgroup_put() if kmem is enabled. We have to either call them
--	 * unconditionally, or clear the KMEM_ACTIVE flag. I personally find
--	 * this more consistent, since it always leads to the same destroy path
-+	 * __mem_cgroup_free() will issue static_key_slow_dec() because this
-+	 * memcg is active already. If the later initialization fails then the
-+	 * cgroup core triggers the cleanup so we do not have to do it here.
+ 	 * record memcg information,  if swapout && memcg != NULL,
+-	 * mem_cgroup_get() was called in uncharge().
++	 * css_get() was called in uncharge().
  	 */
--	mem_cgroup_get(memcg);
- 	static_key_slow_inc(&memcg_kmem_enabled_key);
- 
- 	mutex_lock(&set_limit_mutex);
-@@ -5818,23 +5816,39 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- 	return mem_cgroup_sockets_init(memcg, ss);
- };
- 
--static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
-+static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
- {
--	mem_cgroup_sockets_destroy(memcg);
-+	if (!memcg_kmem_is_active(memcg))
-+		return;
- 
-+	/*
-+	 * kmem charges can outlive the cgroup. In the case of slab
-+	 * pages, for instance, a page contain objects from various
-+	 * processes. As we prevent from taking a reference for every
-+	 * such allocation we have to be careful when doing uncharge
-+	 * (see memcg_uncharge_kmem) and here during offlining.
-+	 *
-+	 * The idea is that that only the _last_ uncharge which sees
-+	 * the dead memcg will drop the last reference. An additional
-+	 * reference is taken here before the group is marked dead
-+	 * which is then paired with css_put during uncharge resp. here.
-+	 *
-+	 * Although this might sound strange as this path is called when
-+	 * the reference has already dropped down to 0 and shouldn't be
-+	 * incremented anymore (css_tryget would fail) we do not have
-+	 * other options because of the kmem allocations lifetime.
-+	 */
-+	css_get(&memcg->css);
-+
-+	/* see comment in memcg_uncharge_kmem() */
-+	wmb();
- 	memcg_kmem_mark_dead(memcg);
- 
- 	if (res_counter_read_u64(&memcg->kmem, RES_USAGE) != 0)
- 		return;
- 
--	/*
--	 * Charges already down to 0, undo mem_cgroup_get() done in the charge
--	 * path here, being careful not to race with memcg_uncharge_kmem: it is
--	 * possible that the charges went down to 0 between mark_dead and the
--	 * res_counter read, so in that case, we don't need the put
--	 */
- 	if (memcg_kmem_test_and_clear_dead(memcg))
+ 	if (do_swap_account && swapout && memcg)
+ 		swap_cgroup_record(ent, css_id(&memcg->css));
+@@ -4285,7 +4285,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
+ 		if (!mem_cgroup_is_root(memcg))
+ 			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+ 		mem_cgroup_swap_statistics(memcg, false);
 -		mem_cgroup_put(memcg);
 +		css_put(&memcg->css);
+ 	}
+ 	rcu_read_unlock();
  }
- #else
- static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
-@@ -5842,7 +5856,7 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- 	return 0;
- }
- 
--static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
-+static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+@@ -4319,11 +4319,14 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
+ 		 * This function is only called from task migration context now.
+ 		 * It postpones res_counter and refcount handling till the end
+ 		 * of task migration(mem_cgroup_clear_mc()) for performance
+-		 * improvement. But we cannot postpone mem_cgroup_get(to)
+-		 * because if the process that has been moved to @to does
+-		 * swap-in, the refcount of @to might be decreased to 0.
++		 * improvement. But we cannot postpone css_get(to)  because if
++		 * the process that has been moved to @to does swap-in, the
++		 * refcount of @to might be decreased to 0.
++		 *
++		 * We are in attach() phase, so the cgroup is guaranteed to be
++		 * alive, so we can just call css_get().
+ 		 */
+-		mem_cgroup_get(to);
++		css_get(&to->css);
+ 		return 0;
+ 	}
+ 	return -EINVAL;
+@@ -6604,6 +6607,7 @@ static void __mem_cgroup_clear_mc(void)
  {
- }
- #endif
-@@ -6268,6 +6282,8 @@ static void mem_cgroup_css_offline(struct cgroup *cont)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+ 	struct mem_cgroup *from = mc.from;
+ 	struct mem_cgroup *to = mc.to;
++	int i;
  
-+	kmem_cgroup_css_offline(memcg);
+ 	/* we must uncharge all the leftover precharges from mc.to */
+ 	if (mc.precharge) {
+@@ -6624,7 +6628,9 @@ static void __mem_cgroup_clear_mc(void)
+ 		if (!mem_cgroup_is_root(mc.from))
+ 			res_counter_uncharge(&mc.from->memsw,
+ 						PAGE_SIZE * mc.moved_swap);
+-		__mem_cgroup_put(mc.from, mc.moved_swap);
 +
- 	mem_cgroup_invalidate_reclaim_iterators(memcg);
- 	mem_cgroup_reparent_charges(memcg);
- 	mem_cgroup_destroy_all_caches(memcg);
-@@ -6277,7 +6293,7 @@ static void mem_cgroup_css_free(struct cgroup *cont)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
++		for (i = 0; i < mc.moved_swap; i++)
++			css_put(&mc.from->css);
  
--	kmem_cgroup_destroy(memcg);
-+	mem_cgroup_sockets_destroy(memcg);
- 
- 	mem_cgroup_put(memcg);
- }
+ 		if (!mem_cgroup_is_root(mc.to)) {
+ 			/*
+@@ -6634,7 +6640,7 @@ static void __mem_cgroup_clear_mc(void)
+ 			res_counter_uncharge(&mc.to->res,
+ 						PAGE_SIZE * mc.moved_swap);
+ 		}
+-		/* we've already done mem_cgroup_get(mc.to) */
++		/* we've already done css_get(mc.to) */
+ 		mc.moved_swap = 0;
+ 	}
+ 	memcg_oom_recover(from);
 -- 
 1.8.0.2
 
