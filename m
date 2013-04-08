@@ -1,16 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 640796B0006
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 16:21:39 -0400 (EDT)
-Date: Mon, 08 Apr 2013 16:21:26 -0400
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id A3A606B003A
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 16:25:41 -0400 (EDT)
+Date: Mon, 08 Apr 2013 16:25:29 -0400
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1365452486-arj4q4xd-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <515F3F5C.2090709@gmail.com>
+Message-ID: <1365452729-dczpcd7w-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <515F4D9A.3060009@gmail.com>
 References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1363983835-20184-6-git-send-email-n-horiguchi@ah.jp.nec.com>
- <515F3F5C.2090709@gmail.com>
-Subject: Re: [PATCH 05/10] migrate: add hugepage migration code to
- migrate_pages()
+ <1363983835-20184-8-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <515F4D9A.3060009@gmail.com>
+Subject: Re: [PATCH 07/10] mbind: add hugepage migration code to mbind()
 Mime-Version: 1.0
 Content-Type: text/plain;
  charset=iso-2022-jp
@@ -21,22 +20,21 @@ List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org
 
-On Fri, Apr 05, 2013 at 05:17:16PM -0400, KOSAKI Motohiro wrote:
-> (3/22/13 4:23 PM), Naoya Horiguchi wrote:
-> > This patch extends check_range() to handle vma with VM_HUGETLB set.
-> > We will be able to migrate hugepage with migrate_pages(2) after
-> > applying the enablement patch which comes later in this series.
-> > 
-> > Note that for larger hugepages (covered by pud entries, 1GB for
-> > x86_64 for example), we simply skip it now.
+On Fri, Apr 05, 2013 at 06:18:02PM -0400, KOSAKI Motohiro wrote:
+> > @@ -1277,14 +1279,10 @@ static long do_mbind(unsigned long start, unsigned long len,
+> >  	if (!err) {
+> >  		int nr_failed = 0;
+> >  
+> > -		if (!list_empty(&pagelist)) {
+> > -			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
+> > -			nr_failed = migrate_pages(&pagelist, new_vma_page,
+> > +		WARN_ON_ONCE(flags & MPOL_MF_LAZY);
 > 
-> check_range() has largely duplication with mm_walk and it is quirk subset.
-> Instead of, could you replace them to mm_walk and enhance/cleanup mm_walk?
+> ???
+> MPOL_MF_LAZY always output warn? It seems really insane.
 
-OK, I'll try this.
-
-Thanks,
-Naoya
+So I'll stop replacing this block into migrate_movable_pages() and
+leave this WARN as it is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
