@@ -1,92 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id C70066B0072
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 04:36:48 -0400 (EDT)
-Date: Mon, 8 Apr 2013 09:36:45 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-Message-ID: <20130408083645.GC2623@suse.de>
-References: <20130402142717.GH32241@suse.de>
- <20130402150651.GB31577@thunk.org>
- <20130402151436.GC31577@thunk.org>
- <20130402181940.GA4936@thunk.org>
- <y0mwqsehuj9.fsf@fche.csb>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 3F23B6B0074
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 04:41:28 -0400 (EDT)
+Date: Mon, 8 Apr 2013 17:42:02 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
+Message-ID: <20130408084202.GA21654@lge.com>
+References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
+ <1364548450-28254-3-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <y0mwqsehuj9.fsf@fche.csb>
+In-Reply-To: <1364548450-28254-3-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Frank Ch. Eigler" <fche@redhat.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Sun, Apr 07, 2013 at 05:59:06PM -0400, Frank Ch. Eigler wrote:
-> 
-> Hi -
-> 
-> 
-> tytso wrote:
-> 
-> > So I tried to reproduce the problem, and so I installed systemtap
-> > (bleeding edge, since otherwise it won't work with development
-> > kernel), and then rebuilt a kernel with all of the necessary CONFIG
-> > options enabled:
-> >
-> > 	CONFIG_DEBUG_INFO, CONFIG_KPROBES, CONFIG_RELAY, CONFIG_DEBUG_FS,
-> > 	CONFIG_MODULES, CONFIG_MODULE_UNLOAD
-> > [...]
-> 
-> That sounds about right.
-> 
-> 
-> > I then pulled down mmtests, and tried running watch-dstate.pl, which
-> > is what I assume you were using [...]
-> 
-> I just took a look at the mmtests, particularly the stap-fix.sh stuff.
-> The heroics therein are really not called for.  git kernel developers
-> should use git systemtap, as has always been the case.  All
-> compatibility hacks in stap-fix.sh have already been merged, in many
-> cases for months.
-> 
+Hello, Glauber.
 
-At one point in the past this used to be the case but then systemtap had to
-be compiled as part of automated tests across different kernel versions. It
-could have been worked around in various ways or even installed manually
-when machines were deployed but stap-fix.sh generally took less time to
-keep working.
+On Fri, Mar 29, 2013 at 01:13:44PM +0400, Glauber Costa wrote:
+> In very low free kernel memory situations, it may be the case that we
+> have less objects to free than our initial batch size. If this is the
+> case, it is better to shrink those, and open space for the new workload
+> then to keep them and fail the new allocations.
+> 
+> More specifically, this happens because we encode this in a loop with
+> the condition: "while (total_scan >= batch_size)". So if we are in such
+> a case, we'll not even enter the loop.
+> 
+> This patch modifies turns it into a do () while {} loop, that will
+> guarantee that we scan it at least once, while keeping the behaviour
+> exactly the same for the cases in which total_scan > batch_size.
 
-> 
-> > [...]
-> > semantic error: while resolving probe point: identifier 'kprobe' at /tmp/stapdjN4_l:18:7
-> >         source: probe kprobe.function("get_request_wait")
-> >                       ^
-> > Pass 2: analysis failed.  [man error::pass2]
-> > Unexpected exit of STAP script at ./watch-dstate.pl line 296.
-> > I have no clue what to do next.  Can you give me a hint?
-> 
-> You should see the error::pass2 man page, which refers to
-> error::reporting, which refers to involving stap folks and running
-> stap-report to gather needed info.
-> 
-> But in this case, that's unnecessary: the problem is most likely that
-> the get_request_wait function does not actually exist any longer, since
-> 
-> commit a06e05e6afab70b4b23c0a7975aaeae24b195cd6
-> Author: Tejun Heo <tj@kernel.org>
-> Date:   Mon Jun 4 20:40:55 2012 -0700
-> 
->     block: refactor get_request[_wait]()
-> 
+Current user of shrinker not only use their own condition, but also
+use batch_size and seeks to throttle their behavior. So IMHO,
+this behavior change is very dangerous to some users.
 
-Yes, this was indeed the problem. The next version of watch-dstate.pl
-treated get_request_wait() as a function that may or may not exist. It
-uses /proc/kallsyms to figure it out.
+For example, think lowmemorykiller.
+With this patch, he always kill some process whenever shrink_slab() is
+called and their low memory condition is satisfied.
+Before this, total_scan also prevent us to go into lowmemorykiller, so
+killing innocent process is limited as much as possible.
+
+IMHO, at least, we need to be acknowledge by user of shrink_slab() about
+this change.
 
 Thanks.
 
--- 
-Mel Gorman
-SUSE Labs
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Reviewed-by: Dave Chinner <david@fromorbit.com>
+> Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
+> CC: "Theodore Ts'o" <tytso@mit.edu>
+> CC: Al Viro <viro@zeniv.linux.org.uk>
+> ---
+>  mm/vmscan.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 88c5fed..fc6d45a 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -280,7 +280,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>  					nr_pages_scanned, lru_pages,
+>  					max_pass, delta, total_scan);
+>  
+> -		while (total_scan >= batch_size) {
+> +		do {
+>  			int nr_before;
+>  
+>  			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
+> @@ -294,7 +294,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>  			total_scan -= batch_size;
+>  
+>  			cond_resched();
+> -		}
+> +		} while (total_scan >= batch_size);
+>  
+>  		/*
+>  		 * move the unused scan count back into the shrinker in a
+> -- 
+> 1.8.1.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
