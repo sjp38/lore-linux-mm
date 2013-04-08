@@ -1,98 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 4D4076B00A6
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 08:10:25 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Mon, 8 Apr 2013 22:01:25 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 979E93578052
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 22:10:17 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r38BuLYp63766732
-	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 21:56:22 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r38C9jVK026110
-	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 22:09:46 +1000
-Date: Mon, 8 Apr 2013 20:09:42 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH part2 v6 0/3] staging: zcache: Support zero-filled pages
- more efficiently
-Message-ID: <20130408120942.GA32308@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1364984183-9711-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130407090341.GA22589@hacker.(null)>
- <62e1fe34-e5be-42f5-83af-f8f428fce57b@default>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 10B9F6B00A6
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 08:20:46 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id u10so5670683lbi.17
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 05:20:45 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <62e1fe34-e5be-42f5-83af-f8f428fce57b@default>
+In-Reply-To: <1365194030-28939-4-git-send-email-cody@linux.vnet.ibm.com>
+References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com>
+	<1365194030-28939-4-git-send-email-cody@linux.vnet.ibm.com>
+Date: Mon, 8 Apr 2013 15:20:44 +0300
+Message-ID: <CAOtvUMdT0-oQMTsHAjFqL6K8vrLeCcXG2hX-sShxu6GGRBPxJw@mail.gmail.com>
+Subject: Re: [PATCH 3/3] mm: when handling percpu_pagelist_fraction, use
+ on_each_cpu() to set percpu pageset fields.
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Fengguang Wu <fengguang.wu@intel.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sun, Apr 07, 2013 at 10:51:27AM -0700, Dan Magenheimer wrote:
->> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
->> Subject: Re: [PATCH part2 v6 0/3] staging: zcache: Support zero-filled pages more efficiently
->> 
->> Hi Dan,
->> 
->> Some issues against Ramster:
->> 
->> - Ramster who takes advantage of zcache also should support zero-filled
->>   pages more efficiently, correct? It doesn't handle zero-filled pages well
->>   currently.
+On Fri, Apr 5, 2013 at 11:33 PM, Cody P Schafer <cody@linux.vnet.ibm.com> wrote:
+> In free_hot_cold_page(), we rely on pcp->batch remaining stable.
+> Updating it without being on the cpu owning the percpu pageset
+> potentially destroys this stability.
 >
->When you first posted your patchset I took a quick look at ramster
->and it looked like your patchset should work for ramster also.
->However I didn't actually run ramster to try it so there may
->be a bug.  If it doesn't work, I would very much appreciate a patch.
->
+> Change for_each_cpu() to on_each_cpu() to fix.
 
-I have already fix it. ;-)
+Are you referring to this? -
 
->> - Ramster DebugFS counters are exported in /sys/kernel/mm/, but zcache/frontswap/cleancache
->>   all are exported in /sys/kernel/debug/, should we unify them?
->
->That would be great.
->
->> - If ramster also should move DebugFS counters to a single file like
->>   zcache do?
->
->Sure!  I am concerned about Konrad's patches adding debug.c as they
->add many global variables.  They are only required when ZCACHE_DEBUG
->is enabled so they may be ok.  If not, adding ramster variables
->to debug.c may make the problem worse.
+1329         if (pcp->count >= pcp->high) {
+1330                 free_pcppages_bulk(zone, pcp->batch, pcp);
+1331                 pcp->count -= pcp->batch;
+1332         }
 
-I move counters which use dubugfs to single file in zcache/ramster/ and 
-introduce CONFIG_RAMSTER_DEBUG, patchset has already done and under test.
+I'm probably missing the obvious but won't it be simpler to do this in
+ free_hot_cold_page() -
 
->
->> If you confirm these issues are make sense to fix, I will start coding. ;-)
->
->That would be great.  Note that I have a how-to for ramster here:
->
->https://oss.oracle.com/projects/tmem/dist/files/RAMster/HOWTO-120817 
->
->If when you are testing you find that this how-to has mistakes,
->please let me know.  Or feel free to add the (corrected) how-to file
->as a patch in your patchset.
->
+1329         if (pcp->count >= pcp->high) {
+1330                  unsigned int batch = ACCESS_ONCE(pcp->batch);
+1331                 free_pcppages_bulk(zone, batch, pcp);
+1332                 pcp->count -= batch;
+1333         }
 
-Ok, I will add it to my patchset. ;-)
+Now the batch value used is stable and you don't have to IPI every CPU
+in the system just to change a config knob...
 
-Regards,
-Wanpeng Li 
+Thanks,
+Gilad
 
->Thanks very much, Wanpeng, for your great contributions!
->
->(Ric, since you have expressed interest in ramster, if you try it and
->find corrections to the how-to file above, your input would be
->very much appreciated also!)
->
->Dan
+
+
+--
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"If you take a class in large-scale robotics, can you end up in a situation
+where the homework eats your dog?"
+ -- Jean-Baptiste Queru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
