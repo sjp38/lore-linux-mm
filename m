@@ -1,52 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 077116B00A4
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 07:01:16 -0400 (EDT)
-Date: Mon, 8 Apr 2013 07:01:12 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-Message-ID: <20130408110112.GA8332@thunk.org>
-References: <20130402142717.GH32241@suse.de>
- <20130402150651.GB31577@thunk.org>
- <20130402151436.GC31577@thunk.org>
- <20130402181940.GA4936@thunk.org>
- <y0mwqsehuj9.fsf@fche.csb>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 4D4076B00A6
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 08:10:25 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Mon, 8 Apr 2013 22:01:25 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 979E93578052
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 22:10:17 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r38BuLYp63766732
+	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 21:56:22 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r38C9jVK026110
+	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 22:09:46 +1000
+Date: Mon, 8 Apr 2013 20:09:42 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH part2 v6 0/3] staging: zcache: Support zero-filled pages
+ more efficiently
+Message-ID: <20130408120942.GA32308@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1364984183-9711-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130407090341.GA22589@hacker.(null)>
+ <62e1fe34-e5be-42f5-83af-f8f428fce57b@default>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <y0mwqsehuj9.fsf@fche.csb>
+In-Reply-To: <62e1fe34-e5be-42f5-83af-f8f428fce57b@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Frank Ch. Eigler" <fche@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Fengguang Wu <fengguang.wu@intel.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Sun, Apr 07, 2013 at 05:59:06PM -0400, Frank Ch. Eigler wrote:
-> > semantic error: while resolving probe point: identifier 'kprobe' at /tmp/stapdjN4_l:18:7
-> >         source: probe kprobe.function("get_request_wait")
-> >                       ^
-> > Pass 2: analysis failed.  [man error::pass2]
-> > Unexpected exit of STAP script at ./watch-dstate.pl line 296.
-> > I have no clue what to do next.  Can you give me a hint?
+On Sun, Apr 07, 2013 at 10:51:27AM -0700, Dan Magenheimer wrote:
+>> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
+>> Subject: Re: [PATCH part2 v6 0/3] staging: zcache: Support zero-filled pages more efficiently
+>> 
+>> Hi Dan,
+>> 
+>> Some issues against Ramster:
+>> 
+>> - Ramster who takes advantage of zcache also should support zero-filled
+>>   pages more efficiently, correct? It doesn't handle zero-filled pages well
+>>   currently.
+>
+>When you first posted your patchset I took a quick look at ramster
+>and it looked like your patchset should work for ramster also.
+>However I didn't actually run ramster to try it so there may
+>be a bug.  If it doesn't work, I would very much appreciate a patch.
+>
 
-Is there any reason why the error message couldn't be simplified, to
-something as "kernel symbol not found"?  I wasn't sure if the problem
-was that there was some incompatibility between a recent change with
-kprobe and systemtap, or parse failure in the systemtap script, etc.
+I have already fix it. ;-)
 
-> Systemtap could endavour to list roughly-matching functions that do
-> exist, if you think that's be helpful.
+>> - Ramster DebugFS counters are exported in /sys/kernel/mm/, but zcache/frontswap/cleancache
+>>   all are exported in /sys/kernel/debug/, should we unify them?
+>
+>That would be great.
+>
+>> - If ramster also should move DebugFS counters to a single file like
+>>   zcache do?
+>
+>Sure!  I am concerned about Konrad's patches adding debug.c as they
+>add many global variables.  They are only required when ZCACHE_DEBUG
+>is enabled so they may be ok.  If not, adding ramster variables
+>to debug.c may make the problem worse.
 
-If the goal is ease of use, I suspect the more important thing that
-systemtap could do is to make its error messages more easily
-understandable, instead of pointing the user to read a man page where
-the user then has to figure out which one of a number of failure
-scenarios were caused by a particularly opaque error message.  (The
-man page doesn't even say that "semantic error while resolving probe
-point" means that a kernel function doesn't exist -- especially
-complaining about the kprobe identifier points the user in the wrong
-direction.)
+I move counters which use dubugfs to single file in zcache/ramster/ and 
+introduce CONFIG_RAMSTER_DEBUG, patchset has already done and under test.
 
-							- Ted
+>
+>> If you confirm these issues are make sense to fix, I will start coding. ;-)
+>
+>That would be great.  Note that I have a how-to for ramster here:
+>
+>https://oss.oracle.com/projects/tmem/dist/files/RAMster/HOWTO-120817 
+>
+>If when you are testing you find that this how-to has mistakes,
+>please let me know.  Or feel free to add the (corrected) how-to file
+>as a patch in your patchset.
+>
+
+Ok, I will add it to my patchset. ;-)
+
+Regards,
+Wanpeng Li 
+
+>Thanks very much, Wanpeng, for your great contributions!
+>
+>(Ric, since you have expressed interest in ramster, if you try it and
+>find corrections to the how-to file above, your input would be
+>very much appreciated also!)
+>
+>Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
