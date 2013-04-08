@@ -1,155 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 0FD2A6B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 17:58:48 -0400 (EDT)
-Received: by mail-ob0-f201.google.com with SMTP id uz6so1596426obc.2
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 14:58:48 -0700 (PDT)
-From: Ying Han <yinghan@google.com>
-Subject: [PATCH] memcg: support hierarchical memory.numa_stats
-Date: Mon,  8 Apr 2013 14:58:46 -0700
-Message-Id: <1365458326-17091-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id E37316B0006
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 18:00:04 -0400 (EDT)
+From: Toshi Kani <toshi.kani@hp.com>
+Subject: [UPDATE][PATCH v2 2/3] resource: Add release_mem_region_adjustable()
+Date: Mon,  8 Apr 2013 15:47:35 -0600
+Message-Id: <1365457655-7453-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com, Toshi Kani <toshi.kani@hp.com>
 
-The memory.numa_stat is not currently hierarchical. Memory charged to the
-children are not shown in parent's numa_stat.
+Added release_mem_region_adjustable(), which releases a requested
+region from a currently busy memory resource.  This interface
+adjusts the matched memory resource accordingly even if the
+requested region does not match exactly but still fits into.
 
-This change adds the "hierarchical_" stats on top of all existing stats, and
-it includes the sum of all children's values in addition to the value of
-the memcg.
+This new interface is intended for memory hot-delete.  During
+bootup, memory resources are inserted from the boot descriptor
+table, such as EFI Memory Table and e820.  Each memory resource
+entry usually covers the whole contigous memory range.  Memory
+hot-delete request, on the other hand, may target to a particular
+range of memory resource, and its size can be much smaller than
+the whole contiguous memory.  Since the existing release interfaces
+like __release_region() require a requested region to be exactly
+matched to a resource entry, they do not allow a partial resource
+to be released.
 
-Tested: Create cgroup a, a/b and run workload under b. The values of b are
-included in the "hierarchical_*" under a.
+There is no change to the existing interfaces since their restriction
+is valid for I/O resources.
 
-$ cat /dev/cgroup/memory/a/memory.numa_stat
-total=0 N0=0 N1=0
-file=0 N0=0 N1=0
-anon=0 N0=0 N1=0
-unevictable=0 N0=0 N1=0
-hierarchical_total=262474 N0=262162 N1=312
-hierarchical_file=247 N0=0 N1=247
-hierarchical_anon=262227 N0=262162 N1=65
-hierarchical_unevictable=0 N0=0 N1=0
-
-$ cat /dev/cgroup/memory/a/b/memory.numa_stat
-total=262474 N0=262162 N1=312
-file=247 N0=0 N1=247
-anon=262227 N0=262162 N1=65
-unevictable=0 N0=0 N1=0
-hierarchical_total=262474 N0=262162 N1=312
-hierarchical_file=247 N0=0 N1=247
-hierarchical_anon=262227 N0=262162 N1=65
-hierarchical_unevictable=0 N0=0 N1=0
-
-Signed-off-by: Ying Han <yinghan@google.com>
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+Reviewed-by : Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 ---
- Documentation/cgroups/memory.txt |  5 +++-
- mm/memcontrol.c                  | 65 ++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+), 1 deletion(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 8b8c28b..b519e74 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -568,7 +568,10 @@ node.  One of the use cases is evaluating application performance by
- combining this information with the application's CPU allocation.
+Added #ifdef CONFIG_MEMORY_HOTPLUG as suggested by Andrew Morton.
+
+---
+ include/linux/ioport.h |    4 ++
+ kernel/resource.c      |   96 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 100 insertions(+)
+
+diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+index 85ac9b9b..961d4dc 100644
+--- a/include/linux/ioport.h
++++ b/include/linux/ioport.h
+@@ -192,6 +192,10 @@ extern struct resource * __request_region(struct resource *,
+ extern int __check_region(struct resource *, resource_size_t, resource_size_t);
+ extern void __release_region(struct resource *, resource_size_t,
+ 				resource_size_t);
++#ifdef CONFIG_MEMORY_HOTPLUG
++extern int release_mem_region_adjustable(struct resource *, resource_size_t,
++				resource_size_t);
++#endif
  
- We export "total", "file", "anon" and "unevictable" pages per-node for
--each memcg.  The ouput format of memory.numa_stat is:
-+each memcg and "hierarchical_" for sum of all hierarchical children's values
-+in addition to the memcg's own value.
-+
-+The ouput format of memory.numa_stat is:
- 
- total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
- file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2b55222..9d8cf25 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1177,6 +1177,32 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
- 	     iter != NULL;				\
- 	     iter = mem_cgroup_iter(NULL, iter, NULL))
- 
-+static unsigned long
-+mem_cgroup_node_hierarchical_nr_lru_pages(struct mem_cgroup *memcg,
-+				int nid, unsigned int lru_mask)
-+{
-+	u64 total = 0;
-+	struct mem_cgroup *iter;
-+
-+	for_each_mem_cgroup_tree(iter, memcg)
-+		total += mem_cgroup_node_nr_lru_pages(iter, nid, lru_mask);
-+
-+	return total;
-+}
-+
-+static unsigned long
-+mem_cgroup_hierarchical_nr_lru_pages(struct mem_cgroup *memcg,
-+					unsigned int lru_mask)
-+{
-+	u64 total = 0;
-+	struct mem_cgroup *iter;
-+
-+	for_each_mem_cgroup_tree(iter, memcg)
-+	total += mem_cgroup_nr_lru_pages(iter, lru_mask);
-+
-+	return total;
-+}
-+
- void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
- {
- 	struct mem_cgroup *memcg;
-@@ -5267,6 +5293,45 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
- 	}
- 	seq_putc(m, '\n');
-+
-+	total_nr = mem_cgroup_hierarchical_nr_lru_pages(memcg, LRU_ALL);
-+	seq_printf(m, "hierarchical_total=%lu", total_nr);
-+	for_each_node_state(nid, N_HIGH_MEMORY) {
-+		node_nr =
-+			mem_cgroup_node_hierarchical_nr_lru_pages(memcg, nid,
-+								LRU_ALL);
-+		seq_printf(m, " N%d=%lu", nid, node_nr);
-+	}
-+	seq_putc(m, '\n');
-+
-+	file_nr = mem_cgroup_hierarchical_nr_lru_pages(memcg, LRU_ALL_FILE);
-+	seq_printf(m, "hierarchical_file=%lu", file_nr);
-+	for_each_node_state(nid, N_HIGH_MEMORY) {
-+		node_nr = mem_cgroup_node_hierarchical_nr_lru_pages(memcg, nid,
-+				LRU_ALL_FILE);
-+		seq_printf(m, " N%d=%lu", nid, node_nr);
-+	}
-+	seq_putc(m, '\n');
-+
-+	anon_nr = mem_cgroup_hierarchical_nr_lru_pages(memcg, LRU_ALL_ANON);
-+	seq_printf(m, "hierarchical_anon=%lu", anon_nr);
-+	for_each_node_state(nid, N_HIGH_MEMORY) {
-+		node_nr = mem_cgroup_node_hierarchical_nr_lru_pages(memcg, nid,
-+				LRU_ALL_ANON);
-+		seq_printf(m, " N%d=%lu", nid, node_nr);
-+	}
-+	seq_putc(m, '\n');
-+
-+	unevictable_nr = mem_cgroup_hierarchical_nr_lru_pages(memcg,
-+						BIT(LRU_UNEVICTABLE));
-+	seq_printf(m, "hierarchical_unevictable=%lu", unevictable_nr);
-+	for_each_node_state(nid, N_HIGH_MEMORY) {
-+		node_nr = mem_cgroup_node_hierarchical_nr_lru_pages(memcg, nid,
-+				BIT(LRU_UNEVICTABLE));
-+		seq_printf(m, " N%d=%lu", nid, node_nr);
-+	}
-+	seq_putc(m, '\n');
-+
- 	return 0;
+ static inline int __deprecated check_region(resource_size_t s,
+ 						resource_size_t n)
+diff --git a/kernel/resource.c b/kernel/resource.c
+index ae246f9..25b945c 100644
+--- a/kernel/resource.c
++++ b/kernel/resource.c
+@@ -1021,6 +1021,102 @@ void __release_region(struct resource *parent, resource_size_t start,
  }
- #endif /* CONFIG_NUMA */
--- 
-1.8.1.3
+ EXPORT_SYMBOL(__release_region);
+ 
++#ifdef CONFIG_MEMORY_HOTPLUG
++/**
++ * release_mem_region_adjustable - release a previously reserved memory region
++ * @parent: parent resource descriptor
++ * @start: resource start address
++ * @size: resource region size
++ *
++ * This interface is intended for memory hot-delete.  The requested region is
++ * released from a currently busy memory resource.  It adjusts the matched
++ * busy memory resource accordingly even if the requested region does not
++ * match exactly but still fits into.  Existing children of the busy memory
++ * resource must be immutable in this request.
++ *
++ * Note, when the busy memory resource gets split into two entries, the code
++ * assumes that all children remain in the lower address entry for simplicity.
++ * Enhance this logic when necessary.
++ */
++int release_mem_region_adjustable(struct resource *parent,
++			resource_size_t start, resource_size_t size)
++{
++	struct resource **p;
++	struct resource *res, *new;
++	resource_size_t end;
++	int ret = -EINVAL;
++
++	end = start + size - 1;
++	if ((start < parent->start) || (end > parent->end))
++		return ret;
++
++	p = &parent->child;
++	write_lock(&resource_lock);
++
++	while ((res = *p)) {
++		if (res->start >= end)
++			break;
++
++		/* look for the next resource if it does not fit into */
++		if (res->start > start || res->end < end) {
++			p = &res->sibling;
++			continue;
++		}
++
++		if (!(res->flags & IORESOURCE_MEM))
++			break;
++
++		if (!(res->flags & IORESOURCE_BUSY)) {
++			p = &res->child;
++			continue;
++		}
++
++		/* found the target resource; let's adjust accordingly */
++		if (res->start == start && res->end == end) {
++			/* free the whole entry */
++			*p = res->sibling;
++			kfree(res);
++			ret = 0;
++		} else if (res->start == start && res->end != end) {
++			/* adjust the start */
++			ret = __adjust_resource(res, end + 1,
++						res->end - end);
++		} else if (res->start != start && res->end == end) {
++			/* adjust the end */
++			ret = __adjust_resource(res, res->start,
++						start - res->start);
++		} else {
++			/* split into two entries */
++			new = kzalloc(sizeof(struct resource), GFP_KERNEL);
++			if (!new) {
++				ret = -ENOMEM;
++				break;
++			}
++			new->name = res->name;
++			new->start = end + 1;
++			new->end = res->end;
++			new->flags = res->flags;
++			new->parent = res->parent;
++			new->sibling = res->sibling;
++			new->child = NULL;
++
++			ret = __adjust_resource(res, res->start,
++						start - res->start);
++			if (ret) {
++				kfree(new);
++				break;
++			}
++			res->sibling = new;
++		}
++
++		break;
++	}
++
++	write_unlock(&resource_lock);
++	return ret;
++}
++#endif	/* CONFIG_MEMORY_HOTPLUG */
++
+ /*
+  * Managed region resource
+  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
