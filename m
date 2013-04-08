@@ -1,91 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id DAD156B00FC
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 10:38:54 -0400 (EDT)
-Message-ID: <1365431196.2186.3.camel@misato.fc.hp.com>
-Subject: Re: [UPDATE][PATCH 2/3] resource: Add
- release_mem_region_adjustable()
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 08 Apr 2013 08:26:36 -0600
-In-Reply-To: <516224E4.5010409@jp.fujitsu.com>
-References: <1365031405-25206-1-git-send-email-toshi.kani@hp.com>
-	 <516224E4.5010409@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id B59806B00FE
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 10:47:55 -0400 (EDT)
+Date: Mon, 8 Apr 2013 16:47:50 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/8] cgroup: implement cgroup_is_ancestor()
+Message-ID: <20130408144750.GK17178@dhcp22.suse.cz>
+References: <51627DA9.7020507@huawei.com>
+ <51627DBB.5050005@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51627DBB.5050005@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: Li Zefan <lizefan@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, 2013-04-08 at 11:01 +0900, Yasuaki Ishimatsu wrote:
-> Hi Toshi,
-> 
-> 2013/04/04 8:23, Toshi Kani wrote:
-> > Added release_mem_region_adjustable(), which releases a requested
-> > region from a currently busy memory resource.  This interface
-> > adjusts the matched memory resource accordingly if the requested
-> > region does not match exactly but still fits into.
-> > 
-> > This new interface is intended for memory hot-delete.  During
-> > bootup, memory resources are inserted from the boot descriptor
-> > table, such as EFI Memory Table and e820.  Each memory resource
-> > entry usually covers the whole contigous memory range.  Memory
-> > hot-delete request, on the other hand, may target to a particular
-> > range of memory resource, and its size can be much smaller than
-> > the whole contiguous memory.  Since the existing release interfaces
-> > like __release_region() require a requested region to be exactly
-> > matched to a resource entry, they do not allow a partial resource
-> > to be released.
-> > 
-> > There is no change to the existing interfaces since their restriction
-> > is valid for I/O resources.
-> > 
-> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> 
-> Reviewed-by : Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+On Mon 08-04-13 16:20:11, Li Zefan wrote:
+[...]
+> @@ -5299,6 +5300,26 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
+>  	return css ? css : ERR_PTR(-ENOENT);
+>  }
+>  
+> +/**
+> + * cgroup_is_ancestor - test "root" cgroup is an ancestor of "child"
+> + * @child: the cgroup to be tested.
+> + * @root: the cgroup supposed to be an ancestor of the child.
+> + *
+> + * Returns true if "root" is an ancestor of "child" in its hierarchy.
+> + */
+> +bool cgroup_is_ancestor(struct cgroup *child, struct cgroup *root)
+> +{
+> +	int depth = child->depth;
 
-Great!  Thanks Yasuaki!
+Is this functionality helpful for other controllers but memcg?
+css_is_ancestor is currently used only by memcg code AFAICS and we can
+get the same functionality easily by using something like:
+	
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d195f40..37bbbff 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1472,11 +1472,13 @@ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
+ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+ 				  struct mem_cgroup *memcg)
+ {
+-	if (root_memcg == memcg)
+-		return true;
+-	if (!root_memcg->use_hierarchy || !memcg)
+-		return false;
+-	return css_is_ancestor(&memcg->css, &root_memcg->css);
++	struct mem_cgroup *parent = memcg;
++	do {
++		if (parent == root_memcg)
++			return true;
++	} while ((parent = parent_mem_cgroup(parent)));
++
++	return false;
+ }
+ 
+ static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
 
-> One nitpick below.
-> 
+In both cases we have to go up the hierarchy.
 
-(snip)
+> +
+> +	if (depth < root->depth)
+> +		return false;
+> +
+> +	while (depth-- != root->depth)
+> +		child = child->parent;
+> +
+> +	return (child == root);
+> +}
+> +
+>  #ifdef CONFIG_CGROUP_DEBUG
+>  static struct cgroup_subsys_state *debug_css_alloc(struct cgroup *cont)
+>  {
+> -- 
+> 1.8.0.2
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
-> > +/**
-> > + * release_mem_region_adjustable - release a previously reserved memory region
-> > + * @parent: parent resource descriptor
-> > + * @start: resource start address
-> > + * @size: resource region size
-> > + *
-> > + * The requested region is released from a currently busy memory resource.
-> > + * It adjusts the matched busy memory resource accordingly if the requested
-> > + * region does not match exactly but still fits into.  Existing children of
-> > + * the busy memory resource must be immutable in this request.
-> > + *
-> > + * Note, when the busy memory resource gets split into two entries, the code
-> > + * assumes that all children remain in the lower address entry for simplicity.
-> > + * Enhance this logic when necessary.
-> > + */
-> > +int release_mem_region_adjustable(struct resource *parent,
-> > +			resource_size_t start, resource_size_t size)
-> > +{
-> > +	struct resource **p;
-> > +	struct resource *res, *new;
-> > +	resource_size_t end;
-> > +	int ret = -EINVAL;
-> > +
-> 
-> > +	end = start + size - 1;
-> > +	if ((start < parent->start) || (end > parent->end))
-> > +		return -EINVAL;
-> 
-> "ret" is initialized to -EINVAL. So how about use it?
-
-Sounds good.  I will make the change.
-
-Thanks again,
--Toshi
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
