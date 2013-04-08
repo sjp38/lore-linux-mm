@@ -1,88 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 5652E6B0036
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 12:33:48 -0400 (EDT)
-Date: Mon, 8 Apr 2013 18:33:44 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/8] cgroup: implement cgroup_is_ancestor()
-Message-ID: <20130408163344.GP17178@dhcp22.suse.cz>
-References: <51627DA9.7020507@huawei.com>
- <51627DBB.5050005@huawei.com>
- <20130408144750.GK17178@dhcp22.suse.cz>
- <20130408155726.GG3021@htj.dyndns.org>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id C85F76B003B
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 13:17:18 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Mon, 8 Apr 2013 11:17:17 -0600
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 21A6E38C8071
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 13:17:00 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r38HGxoF278670
+	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 13:16:59 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r38HGxWR027172
+	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 14:16:59 -0300
+Message-ID: <5162FB82.5020607@linux.vnet.ibm.com>
+Date: Mon, 08 Apr 2013 10:16:50 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130408155726.GG3021@htj.dyndns.org>
+Subject: Re: [PATCH 0/3] mm: fixup changers of per cpu pageset's ->high and
+ ->batch
+References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com> <51618F5A.3060005@gmail.com>
+In-Reply-To: <51618F5A.3060005@gmail.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 08-04-13 08:57:26, Tejun Heo wrote:
-> Hello,
+On 04/07/2013 08:23 AM, KOSAKI Motohiro wrote:
+> (4/5/13 4:33 PM), Cody P Schafer wrote:
+>> In one case while modifying the ->high and ->batch fields of per cpu pagesets
+>> we're unneededly using stop_machine() (patches 1 & 2), and in another we don't have any
+>> syncronization at all (patch 3).
+>>
+>> This patchset fixes both of them.
+>>
+>> Note that it results in a change to the behavior of zone_pcp_update(), which is
+>> used by memory_hotplug. I _think_ that I've diserned (and preserved) the
+>> essential behavior (changing ->high and ->batch), and only eliminated unneeded
+>> actions (draining the per cpu pages), but this may not be the case.
 > 
-> On Mon, Apr 08, 2013 at 04:47:50PM +0200, Michal Hocko wrote:
-> > On Mon 08-04-13 16:20:11, Li Zefan wrote:
-> > [...]
-> > > @@ -5299,6 +5300,26 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
-> > >  	return css ? css : ERR_PTR(-ENOENT);
-> > >  }
-> > >  
-> > > +/**
-> > > + * cgroup_is_ancestor - test "root" cgroup is an ancestor of "child"
-> > > + * @child: the cgroup to be tested.
-> > > + * @root: the cgroup supposed to be an ancestor of the child.
-> > > + *
-> > > + * Returns true if "root" is an ancestor of "child" in its hierarchy.
-> > > + */
-> > > +bool cgroup_is_ancestor(struct cgroup *child, struct cgroup *root)
-> > > +{
-> > > +	int depth = child->depth;
-> > 
-> > Is this functionality helpful for other controllers but memcg?
-> > css_is_ancestor is currently used only by memcg code AFAICS and we can
-> > get the same functionality easily by using something like:
-> 
-> It's a basic hierarchy operation. 
+> at least, memory hotplug need to drain.
 
-Which nobody seem to need ATM so it could be added later when an user
-emerges.
-
-> I'd prefer it to be in cgroup and in general let's try to avoid
-> memcg-specific infrastructure. 
-
-Now that I am thinking about that some more css_is_ancestor is even not
-correct. Consider this for example
-root
- \
-  A (use_hierarchy = 0)
-   \
-    B (use_hierarchy = 1)
-     \
-      C
-
-__mem_cgroup_same_or_subtree(A, C) would happily return true even though
-this is not correct because A is not a part of the same hierarchy.
-So it seems that memcg will need a special treatment here anyway because
-cgroup core doesn't know about use_hierarchy thingy which is still with
-us...
-I will post a patch.
-
-> It doesn't seem to end well.
-> 
-> Thanks.
-> 
-> -- 
-> tejun
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-
--- 
-Michal Hocko
-SUSE Labs
+Could you explain why the drain is required here? From what I can tell,
+after the stop_machine() completes, the per cpu page sets could be
+repopulated at any point, making the combination of draining and
+modifying ->batch & ->high uneeded.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
