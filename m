@@ -1,68 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 238C76B0006
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 17:17:53 -0400 (EDT)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Mon, 8 Apr 2013 17:17:52 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 6925BC9001D
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 17:17:48 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r38LHm1T263020
-	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 17:17:48 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r38LHlfM020360
-	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 17:17:48 -0400
-Message-ID: <516333F2.7090706@linux.vnet.ibm.com>
-Date: Mon, 08 Apr 2013 14:17:38 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id AFC4F6B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 17:36:52 -0400 (EDT)
+Received: by mail-qe0-f48.google.com with SMTP id 2so3355022qea.35
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 14:36:51 -0700 (PDT)
+Date: Mon, 8 Apr 2013 14:36:46 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 1/8] cgroup: implement cgroup_is_ancestor()
+Message-ID: <20130408213646.GB17159@mtj.dyndns.org>
+References: <51627DA9.7020507@huawei.com>
+ <51627DBB.5050005@huawei.com>
+ <20130408144750.GK17178@dhcp22.suse.cz>
+ <20130408180335.GA22512@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] mm: fixup changers of per cpu pageset's ->high and
- ->batch
-References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com> <51618F5A.3060005@gmail.com> <5162FB82.5020607@linux.vnet.ibm.com> <5163159A.20800@gmail.com>
-In-Reply-To: <5163159A.20800@gmail.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130408180335.GA22512@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On 04/08/2013 12:08 PM, KOSAKI Motohiro wrote:
-> (4/8/13 1:16 PM), Cody P Schafer wrote:
->> On 04/07/2013 08:23 AM, KOSAKI Motohiro wrote:
->>> (4/5/13 4:33 PM), Cody P Schafer wrote:
->>>> In one case while modifying the ->high and ->batch fields of per cpu pagesets
->>>> we're unneededly using stop_machine() (patches 1 & 2), and in another we don't have any
->>>> syncronization at all (patch 3).
->>>>
->>>> This patchset fixes both of them.
->>>>
->>>> Note that it results in a change to the behavior of zone_pcp_update(), which is
->>>> used by memory_hotplug. I _think_ that I've diserned (and preserved) the
->>>> essential behavior (changing ->high and ->batch), and only eliminated unneeded
->>>> actions (draining the per cpu pages), but this may not be the case.
->>>
->>> at least, memory hotplug need to drain.
->>
->> Could you explain why the drain is required here? From what I can tell,
->> after the stop_machine() completes, the per cpu page sets could be
->> repopulated at any point, making the combination of draining and
->> modifying ->batch & ->high uneeded.
+On Mon, Apr 08, 2013 at 08:03:44PM +0200, Michal Hocko wrote:
+> __mem_cgroup_same_or_subtree relies on css_is_ancestor if hierarchy is
+> enabled for ages. This, however, is not correct because use_hierarchy
+> doesn't need to be true all the way up the cgroup hierarchy. Consider
+> the following example:
+> root (use_hierarchy=0)
+>  \
+>   A (use_hierarchy=0)
+>    \
+>     B (use_hierarchy=1)
+>      \
+>       C (use_hierarchy=1)
 > 
-> Then, memory hotplug again and again try to drain. Moreover hotplug prevent repopulation
-> by using MIGRATE_ISOLATE.
-> pcp never be page count == 0 and it prevent memory hot remove.
+> __mem_cgroup_same_or_subtree(A, C) would return true even though C is
+> not from the same hierarchy subtree. The bug shouldn't be critical but
+> at least dump_tasks might print unrelated tasks (via
+> task_in_mem_cgroup).
 
-zone_pcp_update() is not part of the drain retry loop, in the offline
-pages case, it is only called following success in "removal" (online
-pages also calls zone_pcp_update(), I don't see how it could benifit in
-any way from draining the per cpu pagesets).
+Huh?  Isn't that avoided by the !root_memcg->use_hierarchy test?
 
-So I still don't see where the need for draining pages combined with
-modifying ->high and ->batch came from.
+> @@ -1470,9 +1470,12 @@ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+>  {
+>  	if (root_memcg == memcg)
+>  		return true;
+> -	if (!root_memcg->use_hierarchy || !memcg)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+> +	if (!memcg)
+>  		return false;
+> -	return css_is_ancestor(&memcg->css, &root_memcg->css);
+> +	while ((memcg = parent_mem_cgroup(memcg)))
+> +		if (memcg == root_memcg)
+> +			return true;
+> +	return false;
+>  }
+>  
+>  static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+> -- 
+> 1.7.10.4
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
