@@ -1,69 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 1BFB86B005C
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 21:51:42 -0400 (EDT)
-Received: by mail-ob0-f174.google.com with SMTP id wm15so2675990obc.19
-        for <linux-mm@kvack.org>; Sun, 07 Apr 2013 18:51:41 -0700 (PDT)
-Message-ID: <516222A7.7020407@gmail.com>
-Date: Mon, 08 Apr 2013 09:51:35 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id EFB0F6B0068
+	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 22:01:43 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E7A373EE0C0
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:41 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D0C4645DE7A
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:41 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B894445DE64
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:41 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AB0051DB8048
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:41 +0900 (JST)
+Received: from g01jpexchkw32.g01.fujitsu.local (unknown [10.0.193.115])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 673081DB8049
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:41 +0900 (JST)
+Message-ID: <516224E4.5010409@jp.fujitsu.com>
+Date: Mon, 8 Apr 2013 11:01:08 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] mm: remove swapcache page early
-References: <1364350932-12853-1-git-send-email-minchan@kernel.org> <alpine.LNX.2.00.1303271230210.29687@eggly.anvils> <515ADFCF.4010209@gmail.com> <51611F94.7060801@gmail.com> <20130408014845.GB6394@blaptop>
-In-Reply-To: <20130408014845.GB6394@blaptop>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [UPDATE][PATCH 2/3] resource: Add release_mem_region_adjustable()
+References: <1365031405-25206-1-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <1365031405-25206-1-git-send-email-toshi.kani@hp.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
-On 04/08/2013 09:48 AM, Minchan Kim wrote:
-> Hello Simon,
->
-> On Sun, Apr 07, 2013 at 03:26:12PM +0800, Simon Jeons wrote:
->> Ping Minchan.
->> On 04/02/2013 09:40 PM, Simon Jeons wrote:
->>> Hi Hugh,
->>> On 03/28/2013 05:41 AM, Hugh Dickins wrote:
->>>> On Wed, 27 Mar 2013, Minchan Kim wrote:
->>>>
->>>>> Swap subsystem does lazy swap slot free with expecting the page
->>>>> would be swapped out again so we can't avoid unnecessary write.
->>>>                               so we can avoid unnecessary write.
->>> If page can be swap out again, which codes can avoid unnecessary
->>> write? Could you point out to me? Thanks in advance. ;-)
-> Look at shrink_page_list.
->
-> 1) PageAnon(page) && !PageSwapCache()
-> 2) add_to_swap's SetPageDirty
-> 3) __remove_mapping
->
-> P.S)
-> It seems you are misunderstanding. Here isn't proper place to ask a
-> question for your understanding the code. As I know, there are some
-> project(ex, kernelnewbies) and books for study and sharing the
-> knowledge linux kernel.
->
-> I recommend Mel's "Understand the Linux Virtual Memory Manager".
-> It's rather outdated but will be very helpful to understand VM of
-> linux kernel. You can get it freely but I hope you pay for.
-> So if author become a billionaire by selecting best book in Amazon,
-> he might print out second edition which covers all of new VM features
-> and may solve all of you curiosity.
->
-> It would be a another method to contribute open source project. :)
->
-> I believe you talented developers can catch it up with reading the
-> code enoughly and find more bonus knowledge. I think it's why our senior
-> developers yell out RTFM and I follow them.
+Hi Toshi,
 
-What's the meaning of RTFM?
+2013/04/04 8:23, Toshi Kani wrote:
+> Added release_mem_region_adjustable(), which releases a requested
+> region from a currently busy memory resource.  This interface
+> adjusts the matched memory resource accordingly if the requested
+> region does not match exactly but still fits into.
+> 
+> This new interface is intended for memory hot-delete.  During
+> bootup, memory resources are inserted from the boot descriptor
+> table, such as EFI Memory Table and e820.  Each memory resource
+> entry usually covers the whole contigous memory range.  Memory
+> hot-delete request, on the other hand, may target to a particular
+> range of memory resource, and its size can be much smaller than
+> the whole contiguous memory.  Since the existing release interfaces
+> like __release_region() require a requested region to be exactly
+> matched to a resource entry, they do not allow a partial resource
+> to be released.
+> 
+> There is no change to the existing interfaces since their restriction
+> is valid for I/O resources.
+> 
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 
->
-> Cheers!
->
->
+Reviewed-by : Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+
+One nitpick below.
+
+> ---
+> 
+> Updated per code reviews from Yasuaki Ishimatsu, Ram Pai and
+> Gu Zheng.
+> 
+> ---
+>   include/linux/ioport.h |    2 +
+>   kernel/resource.c      |   93 ++++++++++++++++++++++++++++++++++++++++++++++++
+>   2 files changed, 95 insertions(+)
+> 
+> diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+> index 85ac9b9b..0fe1a82 100644
+> --- a/include/linux/ioport.h
+> +++ b/include/linux/ioport.h
+> @@ -192,6 +192,8 @@ extern struct resource * __request_region(struct resource *,
+>   extern int __check_region(struct resource *, resource_size_t, resource_size_t);
+>   extern void __release_region(struct resource *, resource_size_t,
+>   				resource_size_t);
+> +extern int release_mem_region_adjustable(struct resource *, resource_size_t,
+> +				resource_size_t);
+>   
+>   static inline int __deprecated check_region(resource_size_t s,
+>   						resource_size_t n)
+> diff --git a/kernel/resource.c b/kernel/resource.c
+> index ae246f9..c7966c3 100644
+> --- a/kernel/resource.c
+> +++ b/kernel/resource.c
+> @@ -1021,6 +1021,99 @@ void __release_region(struct resource *parent, resource_size_t start,
+>   }
+>   EXPORT_SYMBOL(__release_region);
+>   
+> +/**
+> + * release_mem_region_adjustable - release a previously reserved memory region
+> + * @parent: parent resource descriptor
+> + * @start: resource start address
+> + * @size: resource region size
+> + *
+> + * The requested region is released from a currently busy memory resource.
+> + * It adjusts the matched busy memory resource accordingly if the requested
+> + * region does not match exactly but still fits into.  Existing children of
+> + * the busy memory resource must be immutable in this request.
+> + *
+> + * Note, when the busy memory resource gets split into two entries, the code
+> + * assumes that all children remain in the lower address entry for simplicity.
+> + * Enhance this logic when necessary.
+> + */
+> +int release_mem_region_adjustable(struct resource *parent,
+> +			resource_size_t start, resource_size_t size)
+> +{
+> +	struct resource **p;
+> +	struct resource *res, *new;
+> +	resource_size_t end;
+> +	int ret = -EINVAL;
+> +
+
+> +	end = start + size - 1;
+> +	if ((start < parent->start) || (end > parent->end))
+> +		return -EINVAL;
+
+"ret" is initialized to -EINVAL. So how about use it?
+
+Thanks,
+Yasuaki Ishimatsu
+
+> +
+> +	p = &parent->child;
+> +	write_lock(&resource_lock);
+> +
+> +	while ((res = *p)) {
+> +		if (res->start >= end)
+> +			break;
+> +
+> +		/* look for the next resource if it does not fit into */
+> +		if (res->start > start || res->end < end) {
+> +			p = &res->sibling;
+> +			continue;
+> +		}
+> +
+> +		if (!(res->flags & IORESOURCE_MEM))
+> +			break;
+> +
+> +		if (!(res->flags & IORESOURCE_BUSY)) {
+> +			p = &res->child;
+> +			continue;
+> +		}
+> +
+> +		/* found the target resource; let's adjust accordingly */
+> +		if (res->start == start && res->end == end) {
+> +			/* free the whole entry */
+> +			*p = res->sibling;
+> +			kfree(res);
+> +			ret = 0;
+> +		} else if (res->start == start && res->end != end) {
+> +			/* adjust the start */
+> +			ret = __adjust_resource(res, end + 1,
+> +						res->end - end);
+> +		} else if (res->start != start && res->end == end) {
+> +			/* adjust the end */
+> +			ret = __adjust_resource(res, res->start,
+> +						start - res->start);
+> +		} else {
+> +			/* split into two entries */
+> +			new = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> +			if (!new) {
+> +				ret = -ENOMEM;
+> +				break;
+> +			}
+> +			new->name = res->name;
+> +			new->start = end + 1;
+> +			new->end = res->end;
+> +			new->flags = res->flags;
+> +			new->parent = res->parent;
+> +			new->sibling = res->sibling;
+> +			new->child = NULL;
+> +
+> +			ret = __adjust_resource(res, res->start,
+> +						start - res->start);
+> +			if (ret) {
+> +				kfree(new);
+> +				break;
+> +			}
+> +			res->sibling = new;
+> +		}
+> +
+> +		break;
+> +	}
+> +
+> +	write_unlock(&resource_lock);
+> +	return ret;
+> +}
+> +
+>   /*
+>    * Managed region resource
+>    */
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
