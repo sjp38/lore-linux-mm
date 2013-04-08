@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 369846B003C
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 16:44:41 -0400 (EDT)
-Date: Mon, 8 Apr 2013 13:44:38 -0700
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id A6F846B003C
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 16:51:30 -0400 (EDT)
+Date: Mon, 8 Apr 2013 13:51:28 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 0/3] Support memory hot-delete to boot memory
-Message-Id: <20130408134438.2a4388a07163e10a37158eed@linux-foundation.org>
-In-Reply-To: <1365440996-30981-1-git-send-email-toshi.kani@hp.com>
-References: <1365440996-30981-1-git-send-email-toshi.kani@hp.com>
+Subject: Re: [PATCH v3 00/32] memcg-aware slab shrinking with lasers and
+ numbers
+Message-Id: <20130408135128.a5a8b0e5b041f58f9e976bf7@linux-foundation.org>
+In-Reply-To: <1365429659-22108-1-git-send-email-glommer@parallels.com>
+References: <1365429659-22108-1-git-send-email-glommer@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Serge Hallyn <serge.hallyn@canonical.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, hughd@google.com, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Greg Thelen <gthelen@google.com>
 
-On Mon,  8 Apr 2013 11:09:53 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
+On Mon,  8 Apr 2013 18:00:27 +0400 Glauber Costa <glommer@parallels.com> wrote:
 
-> Memory hot-delete to a memory range present at boot causes an
-> error message in __release_region(), such as:
-> 
->  Trying to free nonexistent resource <0000000070000000-0000000077ffffff>
-> 
-> Hot-delete operation still continues since __release_region() is 
-> a void function, but the target memory range is not freed from
-> iomem_resource as the result.  This also leads a failure in a 
-> subsequent hot-add operation to the same memory range since the
-> address range is still in-use in iomem_resource.
-> 
-> This problem happens because the granularity of memory resource ranges
-> may be different between boot and hot-delete.
+> Cc: Dave Shrinnker <david@fromorbit.com>
 
-So we don't need this new code if CONFIG_MEMORY_HOTPLUG=n?  If so, can
-we please arrange for it to not be present if the user doesn't need it?
+I keep on receiving emails from people who claim they can fix this.
 
->  During bootup,
-> iomem_resource is set up from the boot descriptor table, such as EFI
-> Memory Table and e820.  Each resource entry usually covers the whole
-> contiguous memory range.  Hot-delete request, on the other hand, may
-> target to a particular range of memory resource, and its size can be
-> much smaller than the whole contiguous memory.  Since the existing
-> release interfaces like __release_region() require a requested region
-> to be exactly matched to a resource entry, they do not allow a partial
-> resource to be released.
-> 
-> This patchset introduces release_mem_region_adjustable() for memory
-> hot-delete operations, which allows releasing a partial memory range
-> and adjusts remaining resource accordingly.  This patchset makes no
-> changes to the existing interfaces since their restriction is still
-> valid for I/O resources.
+> This patchset implements targeted shrinking for memcg when kmem limits are
+> present. So far, we've been accounting kernel objects but failing allocations
+> when short of memory. This is because our only option would be to call the
+> global shrinker, depleting objects from all caches and breaking isolation.
+
+This is a fine-looking patchset and it even has some acks and reviews. 
+But it's huuuuge and we're at -rc6 and I've been offline for a week and
+have 975 emails in my to-apply folder.
+
+So, err, I think I'll bestow upon everyone some additional time to
+review the code ;)  Please resend for -rc1?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
