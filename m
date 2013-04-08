@@ -1,36 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 19A146B008C
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 05:52:47 -0400 (EDT)
-Date: Mon, 8 Apr 2013 11:52:41 +0200
-From: Jesper Nilsson <jesper.nilsson@axis.com>
-Subject: Re: [PATCH v4, part3 18/41] mm/cris: prepare for removing
- num_physpages and simplify mem_init()
-Message-ID: <20130408095241.GD25525@axis.com>
-References: <1365258760-30821-1-git-send-email-jiang.liu@huawei.com>
- <1365258760-30821-19-git-send-email-jiang.liu@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1365258760-30821-19-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id E69646B0092
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 06:00:22 -0400 (EDT)
+From: Lin Feng <linfeng@cn.fujitsu.com>
+Subject: [PATCH 0/2] mm: vmemmap: add vmemmap_verify check for hot-add node/memory case
+Date: Mon, 8 Apr 2013 17:56:38 +0800
+Message-Id: <1365415000-10389-1-git-send-email-linfeng@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jespern@axis.com>, linux-cris-kernel <linux-cris-kernel@axis.com>
+To: akpm@linux-foundation.org
+Cc: cl@linux.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, catalin.marinas@arm.com, will.deacon@arm.com, arnd@arndb.de, tony@atomide.com, ben@decadent.org.uk, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, isimatu.yasuaki@jp.fujitsu.com, Lin Feng <linfeng@cn.fujitsu.com>
 
-On Sat, Apr 06, 2013 at 04:32:17PM +0200, Jiang Liu wrote:
-> Prepare for removing num_physpages and simplify mem_init().
-> 
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Cc: Mikael Starvik <starvik@axis.com>
+In hot add node(memory) case, vmemmap pages are always allocated from other
+node, but the current logic just skip vmemmap_verify check. 
+So we should also issue "potential offnode page_structs" warning messages
+if we are the case
 
-For the CRIS parts:
+Lin Feng (2):
+  mm: vmemmap: x86: add vmemmap_verify check for hot-add node case
+  mm: vmemmap: arm64: add vmemmap_verify check for hot-add node case
 
-Acked-by: Jesper Nilsson <jesper.nilsson@axis.com>
+ arch/arm64/mm/mmu.c   | 4 ++--
+ arch/x86/mm/init_64.c | 6 ++++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)
 
-/^JN - Jesper Nilsson
 -- 
-               Jesper Nilsson -- jesper.nilsson@axis.com
+1.8.0.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
