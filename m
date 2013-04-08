@@ -1,40 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 4B6DB6B00AE
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 09:40:44 -0400 (EDT)
-Message-ID: <5162C8CF.6070706@redhat.com>
-Date: Mon, 08 Apr 2013 09:40:31 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [Resend with Ack][PATCH] mm: remove CONFIG_HOTPLUG ifdefs
-References: <1365411202-8612-1-git-send-email-wangyijing@huawei.com>
-In-Reply-To: <1365411202-8612-1-git-send-email-wangyijing@huawei.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id E2F856B00B0
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 10:01:03 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v3 01/32] super: fix calculation of shrinkable objects for small numbers
+Date: Mon,  8 Apr 2013 18:00:28 +0400
+Message-Id: <1365429659-22108-2-git-send-email-glommer@parallels.com>
+In-Reply-To: <1365429659-22108-1-git-send-email-glommer@parallels.com>
+References: <1365429659-22108-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yijing Wang <wangyijing@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, jiang.liu@huawei.com, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Hugh Dickins <hughd@google.com>, Bill Pemberton <wfp5p@virginia.edu>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Serge Hallyn <serge.hallyn@canonical.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@parallels.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-On 04/08/2013 04:53 AM, Yijing Wang wrote:
-> CONFIG_HOTPLUG is going away as an option, cleanup CONFIG_HOTPLUG
-> ifdefs in mm files.
->
-> Signed-off-by: Yijing Wang <wangyijing@huawei.com>
-> Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Bill Pemberton <wfp5p@virginia.edu>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+The sysctl knob sysctl_vfs_cache_pressure is used to determine which
+percentage of the shrinkable objects in our cache we should actively try
+to shrink.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+It works great in situations in which we have many objects (at least
+more than 100), because the aproximation errors will be negligible. But
+if this is not the case, specially when total_objects < 100, we may end
+up concluding that we have no objects at all (total / 100 = 0,  if total
+< 100).
 
+This is certainly not the biggest killer in the world, but may matter in
+very low kernel memory situations.
 
+[ v2: fix it for all occurrences of sysctl_vfs_cache_pressure ]
+
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+CC: Dave Chinner <david@fromorbit.com>
+CC: "Theodore Ts'o" <tytso@mit.edu>
+CC: Al Viro <viro@zeniv.linux.org.uk>
+---
+ fs/gfs2/glock.c        |  2 +-
+ fs/gfs2/quota.c        |  2 +-
+ fs/mbcache.c           |  2 +-
+ fs/nfs/dir.c           |  2 +-
+ fs/quota/dquot.c       |  5 ++---
+ fs/super.c             | 14 +++++++-------
+ fs/xfs/xfs_qm.c        |  2 +-
+ include/linux/dcache.h |  4 ++++
+ 8 files changed, 18 insertions(+), 15 deletions(-)
+
+diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
+index cf35155..078daa5 100644
+--- a/fs/gfs2/glock.c
++++ b/fs/gfs2/glock.c
+@@ -1476,7 +1476,7 @@ static int gfs2_shrink_glock_memory(struct shrinker *shrink,
+ 		gfs2_scan_glock_lru(sc->nr_to_scan);
+ 	}
+ 
+-	return (atomic_read(&lru_count) / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(atomic_read(&lru_count));
+ }
+ 
+ static struct shrinker glock_shrinker = {
+diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+index c7c840e..5c14206 100644
+--- a/fs/gfs2/quota.c
++++ b/fs/gfs2/quota.c
+@@ -114,7 +114,7 @@ int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
+ 	spin_unlock(&qd_lru_lock);
+ 
+ out:
+-	return (atomic_read(&qd_lru_count) * sysctl_vfs_cache_pressure) / 100;
++	return vfs_pressure_ratio(atomic_read(&qd_lru_count));
+ }
+ 
+ static u64 qd2index(struct gfs2_quota_data *qd)
+diff --git a/fs/mbcache.c b/fs/mbcache.c
+index 8c32ef3..5eb0476 100644
+--- a/fs/mbcache.c
++++ b/fs/mbcache.c
+@@ -189,7 +189,7 @@ mb_cache_shrink_fn(struct shrinker *shrink, struct shrink_control *sc)
+ 	list_for_each_entry_safe(entry, tmp, &free_list, e_lru_list) {
+ 		__mb_cache_entry_forget(entry, gfp_mask);
+ 	}
+-	return (count / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(count);
+ }
+ 
+ 
+diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
+index f23f455..197bfff 100644
+--- a/fs/nfs/dir.c
++++ b/fs/nfs/dir.c
+@@ -1996,7 +1996,7 @@ remove_lru_entry:
+ 	}
+ 	spin_unlock(&nfs_access_lru_lock);
+ 	nfs_access_free_list(&head);
+-	return (atomic_long_read(&nfs_access_nr_entries) / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(atomic_long_read(&nfs_access_nr_entries));
+ }
+ 
+ static void __nfs_access_zap_cache(struct nfs_inode *nfsi, struct list_head *head)
+diff --git a/fs/quota/dquot.c b/fs/quota/dquot.c
+index 3e64169..762b09c 100644
+--- a/fs/quota/dquot.c
++++ b/fs/quota/dquot.c
+@@ -719,9 +719,8 @@ static int shrink_dqcache_memory(struct shrinker *shrink,
+ 		prune_dqcache(nr);
+ 		spin_unlock(&dq_list_lock);
+ 	}
+-	return ((unsigned)
+-		percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS])
+-		/100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(
++	percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS]));
+ }
+ 
+ static struct shrinker dqcache_shrinker = {
+diff --git a/fs/super.c b/fs/super.c
+index 7465d43..2a37fd6 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -82,13 +82,13 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+ 		int	inodes;
+ 
+ 		/* proportion the scan between the caches */
+-		dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) /
+-							total_objects;
+-		inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) /
+-							total_objects;
++		dentries = mult_frac(sc->nr_to_scan, sb->s_nr_dentry_unused,
++							total_objects);
++		inodes = mult_frac(sc->nr_to_scan, sb->s_nr_inodes_unused,
++							total_objects);
+ 		if (fs_objects)
+-			fs_objects = (sc->nr_to_scan * fs_objects) /
+-							total_objects;
++			fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
++							total_objects);
+ 		/*
+ 		 * prune the dcache first as the icache is pinned by it, then
+ 		 * prune the icache, followed by the filesystem specific caches
+@@ -104,7 +104,7 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+ 				sb->s_nr_inodes_unused + fs_objects;
+ 	}
+ 
+-	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
++	total_objects = vfs_pressure_ratio(total_objects);
+ 	drop_super(sb);
+ 	return total_objects;
+ }
+diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
+index e5b5cf9..305f4e5 100644
+--- a/fs/xfs/xfs_qm.c
++++ b/fs/xfs/xfs_qm.c
+@@ -1568,7 +1568,7 @@ xfs_qm_shake(
+ 	}
+ 
+ out:
+-	return (qi->qi_lru_count / 100) * sysctl_vfs_cache_pressure;
++	return vfs_pressure_ratio(qi->qi_lru_count);
+ }
+ 
+ /*
+diff --git a/include/linux/dcache.h b/include/linux/dcache.h
+index 1a6bb81..4d24a12 100644
+--- a/include/linux/dcache.h
++++ b/include/linux/dcache.h
+@@ -411,4 +411,8 @@ static inline bool d_mountpoint(struct dentry *dentry)
+ 
+ extern int sysctl_vfs_cache_pressure;
+ 
++static inline unsigned long vfs_pressure_ratio(unsigned long val)
++{
++	return mult_frac(val, sysctl_vfs_cache_pressure, 100);
++}
+ #endif	/* __LINUX_DCACHE_H */
 -- 
-All rights reversed
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
