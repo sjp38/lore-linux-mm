@@ -1,38 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 6B0CC6B0027
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 15:07:09 -0400 (EDT)
-Message-ID: <5163155D.7030401@sr71.net>
-Date: Mon, 08 Apr 2013 12:07:09 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 08A106B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 15:07:55 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id y10so3354272pdj.26
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 12:07:54 -0700 (PDT)
+Date: Mon, 8 Apr 2013 15:07:38 -0400
+From: Andrew Shewmaker <agshew@gmail.com>
+Subject: [PATCH v8 3/3] mm: reinititalise user and admin reserves if memory
+ is added or removed
+Message-ID: <20130408190738.GC2321@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: [PATCHv3, RFC 32/34] thp: handle write-protect exception to file-backed
- huge pages
-References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com> <1365163198-29726-33-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1365163198-29726-33-git-send-email-kirill.shutemov@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, simon.jeons@gmail.com, ric.masonn@gmail.com
 
-For all the do_huge_pmd_wp_page(), I think we need a better description
-of where the code came from.  There are some more obviously
-copy-n-pasted comments in there.
+This patch alters the admin and user reserves of the previous patches 
+in this series when memory is added or removed.
 
-For the entire series, in the patch description, we need to know:
-1. What was originally written and what was copied from elsewhere
-2. For the stuff that was copied, was an attempt made to consolidate
-   instead of copy?  Why was consolidation impossible or infeasible?
+If memory is added and the reserves have been eliminated or increased above
+the default max, then we'll trust the admin.
 
-> +			if (!PageAnon(page)) {
-> +				add_mm_counter(mm, MM_FILEPAGES, -HPAGE_PMD_NR);
-> +				add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
-> +			}
+If memory is removed and there isn't enough free memory, then we
+need to reset the reserves.
 
-This seems like a bit of a hack.  Shouldn't we have just been accounting
-to MM_FILEPAGES in the first place?
+Otherwise keep the reserve set by the admin.
+
+The reserve reset code is the same as the reserve initialization code.
+
+Does this sound reasonable to other people? I figured that hot removal
+with too large of memory in the reserves was the most important case 
+to get right.
+
+I tested hot addition and removal by triggering it via sysfs. The reserves 
+shrunk when they were set high and memory was removed. They were reset 
+higher when memory was added again.
+
+---
+ mm/mmap.c | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 63 insertions(+)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 8fb9d99..321348b 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -33,6 +33,8 @@
+ #include <linux/uprobes.h>
+ #include <linux/rbtree_augmented.h>
+ #include <linux/sched/sysctl.h>
++#include <linux/notifier.h>
++#include <linux/memory.h>
+ 
+ #include <asm/uaccess.h>
+ #include <asm/cacheflush.h>
+@@ -3111,3 +3113,64 @@ int __meminit init_admin_reserve(void)
+ 	return 0;
+ }
+ module_init(init_admin_reserve)
++
++/*
++ * Reinititalise user and admin reserves if memory is added or removed.
++ *
++ * If memory is added and the reserves have been eliminated or increased above
++ * the default max, then we'll trust the admin. 
++ *
++ * If memory is removed and there isn't enough free memory, then we 
++ * need to reset the reserves.
++ *
++ * Otherwise keep the reserve set by the admin.
++ */
++static int reserve_mem_notifier(struct notifier_block *nb,
++			     unsigned long action, void *data)
++{
++	unsigned long tmp, free_kbytes;
++
++	switch (action) {
++	case MEM_ONLINE:
++		tmp = sysctl_user_reserve_kbytes;
++		if (0 < tmp && tmp < (1UL << 17))
++			init_user_reserve();
++
++		tmp = sysctl_admin_reserve_kbytes;
++		if (0 < tmp && tmp < (1UL << 13))
++			init_admin_reserve();
++
++		break;
++	case MEM_OFFLINE:
++		free_kbytes = global_page_state(NR_FREE_PAGES) << (PAGE_SHIFT - 10);
++
++		if (sysctl_user_reserve_kbytes > free_kbytes) {
++			init_user_reserve();
++			pr_info("vm.user_reserve_kbytes reset to %lu\n",
++				sysctl_user_reserve_kbytes);
++		}
++
++		if (sysctl_admin_reserve_kbytes > free_kbytes) {
++			init_admin_reserve();
++			pr_info("vm.admin_reserve_kbytes reset to %lu\n",
++				sysctl_admin_reserve_kbytes);
++		}
++		break;
++	default:
++		break;
++	}
++	return NOTIFY_OK;
++}
++
++static struct notifier_block reserve_mem_nb = {
++	.notifier_call = reserve_mem_notifier,
++};
++
++int __meminit init_reserve_notifier(void)
++{
++	if (register_memory_notifier(&reserve_mem_nb))
++		printk("Failed registering memory add/remove notifier for admin reserve");
++
++	return 0;
++}
++module_init(init_reserve_notifier)
+-- 
+1.8.0.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
