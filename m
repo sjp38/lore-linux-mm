@@ -1,113 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 36E4B6B009B
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:38:23 -0400 (EDT)
-Message-ID: <51626570.8000400@huawei.com>
-Date: Mon, 8 Apr 2013 14:36:32 +0800
-From: Li Zefan <lizefan@huawei.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 609006B0037
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 03:18:15 -0400 (EDT)
+Message-ID: <51626F50.6090204@parallels.com>
+Date: Mon, 8 Apr 2013 11:18:40 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: [PATCH 12/12] memcg: don't need to free memcg via RCU or workqueue
-References: <5162648B.9070802@huawei.com>
-In-Reply-To: <5162648B.9070802@huawei.com>
+Subject: Re: [RFC][PATCH 0/7] memcg: make memcg's life cycle the same as cgroup
+References: <515BF233.6070308@huawei.com> <516131D7.8030004@huawei.com>
+In-Reply-To: <516131D7.8030004@huawei.com>
 Content-Type: text/plain; charset="GB2312"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
+To: Li Zefan <lizefan@huawei.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, Tejun Heo <tj@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Now memcg has the same life cycle with its corresponding cgroup, and
-a cgroup is freed via RCU and then mem_cgroup_css_free() is called
-in a work function, so we can simply call __mem_cgroup_free() in
-mem_cgroup_css_free().
+On 04/07/2013 12:44 PM, Li Zefan wrote:
+> Hi,
+> 
+> I'm rebasing this patchset against latest linux-next, and it conflicts with
+> "[PATCH v2] memcg: debugging facility to access dangling memcgs." slightly.
+> 
+> That is a debugging patch and will never be pushed into mainline, so should I
+> still base this patchset on that debugging patch?
+> 
+It will conflict as well with my shrinking patches: I will still keep
+the memcgs in the dangling list, but that will have nothing to do with
+debugging. So I will split that patch in a list management part, which
+will be used, and a debugging part (with the file + the debugging
+information).
 
-This actually reverts 59927fb984de1703c67bc640c3e522d8b5276c73
-("memcg: free mem_cgroup by RCU to fix oops").
+I will be happy to rebase it ontop of your series.
 
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Li Zefan <lizefan@huawei.com>
----
- mm/memcontrol.c | 51 +++++----------------------------------------------
- 1 file changed, 5 insertions(+), 46 deletions(-)
+> Also that patch needs update (and can be simplified) after this patchset:
+> - move memcg_dangling_add() to mem_cgroup_css_offline()
+> - remove memcg->memcg_name, and use cgroup_path() in mem_cgroup_dangling_read()?
+> 
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a6d44bc..5aa6e91 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -261,28 +261,10 @@ struct mem_cgroup {
- 	 */
- 	struct res_counter res;
- 
--	union {
--		/*
--		 * the counter to account for mem+swap usage.
--		 */
--		struct res_counter memsw;
--
--		/*
--		 * rcu_freeing is used only when freeing struct mem_cgroup,
--		 * so put it into a union to avoid wasting more memory.
--		 * It must be disjoint from the css field.  It could be
--		 * in a union with the res field, but res plays a much
--		 * larger part in mem_cgroup life than memsw, and might
--		 * be of interest, even at time of free, when debugging.
--		 * So share rcu_head with the less interesting memsw.
--		 */
--		struct rcu_head rcu_freeing;
--		/*
--		 * We also need some space for a worker in deferred freeing.
--		 * By the time we call it, rcu_freeing is no longer in use.
--		 */
--		struct work_struct work_freeing;
--	};
-+	/*
-+	 * the counter to account for mem+swap usage.
-+	 */
-+	struct res_counter memsw;
- 
- 	/*
- 	 * the counter to account for kernel memory usage.
-@@ -6097,29 +6079,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- 		vfree(memcg);
- }
- 
--
--/*
-- * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
-- * but in process context.  The work_freeing structure is overlaid
-- * on the rcu_freeing structure, which itself is overlaid on memsw.
-- */
--static void free_work(struct work_struct *work)
--{
--	struct mem_cgroup *memcg;
--
--	memcg = container_of(work, struct mem_cgroup, work_freeing);
--	__mem_cgroup_free(memcg);
--}
--
--static void free_rcu(struct rcu_head *rcu_head)
--{
--	struct mem_cgroup *memcg;
--
--	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
--	INIT_WORK(&memcg->work_freeing, free_work);
--	schedule_work(&memcg->work_freeing);
--}
--
- /*
-  * Returns the parent mem_cgroup in memcgroup hierarchy with hierarchy enabled.
-  */
-@@ -6269,7 +6228,7 @@ static void mem_cgroup_css_free(struct cgroup *cont)
- 
- 	mem_cgroup_sockets_destroy(memcg);
- 
--	call_rcu(&memcg->rcu_freeing, free_rcu);
-+	__mem_cgroup_free(memcg);
- }
- 
- #ifdef CONFIG_MMU
--- 
-1.8.0.2
+Don't worry about it. If this is just this one patch conflicting, I
+would avise Andrew to remove it, and I will provide another (maybe two,
+already splitted up) version.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
