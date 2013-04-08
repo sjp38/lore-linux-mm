@@ -1,12 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id F3E946B008A
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:35:41 -0400 (EDT)
-Message-ID: <51626509.2090806@huawei.com>
-Date: Mon, 8 Apr 2013 14:34:49 +0800
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id CBBD46B0092
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:35:48 -0400 (EDT)
+Message-ID: <51626516.3000603@huawei.com>
+Date: Mon, 8 Apr 2013 14:35:02 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 08/12] memcg: use css_get/put for swap memcg
+Subject: [PATCH 09/12] cgroup: make sure parent won't be destroyed before
+ its children
 References: <5162648B.9070802@huawei.com>
 In-Reply-To: <5162648B.9070802@huawei.com>
 Content-Type: text/plain; charset="GB2312"
@@ -16,106 +17,48 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-Use css_get/put instead of mem_cgroup_get/put. A simple replacement
-will do.
+Suppose we rmdir a cgroup and there're still css refs, this cgroup won't
+be freed. Then we rmdir the parent cgroup, and the parent is freed
+immediately due to css ref draining to 0. Now it would be a disaster if
+the still-alive child cgroup tries to access its parent.
 
-The historical reason that memcg has its own refcnt instead of always
-using css_get/put, is that cgroup couldn't be removed if there're still
-css refs, so css refs can't be used as long-lived reference. The
-situation has changed so that rmdir a cgroup will succeed regardless
-css refs, but won't be freed until css refs goes down to 0.
+Make sure this won't happen.
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memcontrol.c | 26 ++++++++++++++++----------
- 1 file changed, 16 insertions(+), 10 deletions(-)
+ kernel/cgroup.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7be796c..7fdd69d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4149,12 +4149,12 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
- 	unlock_page_cgroup(pc);
- 	/*
- 	 * even after unlock, we have memcg->res.usage here and this memcg
--	 * will never be freed.
-+	 * will never be freed, so it's safe to call css_get().
- 	 */
- 	memcg_check_events(memcg, page);
- 	if (do_swap_account && ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
- 		mem_cgroup_swap_statistics(memcg, true);
--		mem_cgroup_get(memcg);
-+		css_get(&memcg->css);
- 	}
- 	/*
- 	 * Migration does not charge the res_counter for the
-@@ -4254,7 +4254,7 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
+diff --git a/kernel/cgroup.c b/kernel/cgroup.c
+index 06aeb42..7ee3bdf 100644
+--- a/kernel/cgroup.c
++++ b/kernel/cgroup.c
+@@ -888,6 +888,13 @@ static void cgroup_free_fn(struct work_struct *work)
+ 	mutex_unlock(&cgroup_mutex);
  
  	/*
- 	 * record memcg information,  if swapout && memcg != NULL,
--	 * mem_cgroup_get() was called in uncharge().
-+	 * css_get() was called in uncharge().
- 	 */
- 	if (do_swap_account && swapout && memcg)
- 		swap_cgroup_record(ent, css_id(&memcg->css));
-@@ -4285,7 +4285,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
- 		if (!mem_cgroup_is_root(memcg))
- 			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
- 		mem_cgroup_swap_statistics(memcg, false);
--		mem_cgroup_put(memcg);
-+		css_put(&memcg->css);
- 	}
- 	rcu_read_unlock();
- }
-@@ -4319,11 +4319,14 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
- 		 * This function is only called from task migration context now.
- 		 * It postpones res_counter and refcount handling till the end
- 		 * of task migration(mem_cgroup_clear_mc()) for performance
--		 * improvement. But we cannot postpone mem_cgroup_get(to)
--		 * because if the process that has been moved to @to does
--		 * swap-in, the refcount of @to might be decreased to 0.
-+		 * improvement. But we cannot postpone css_get(to)  because if
-+		 * the process that has been moved to @to does swap-in, the
-+		 * refcount of @to might be decreased to 0.
-+		 *
-+		 * We are in attach() phase, so the cgroup is guaranteed to be
-+		 * alive, so we can just call css_get().
- 		 */
--		mem_cgroup_get(to);
-+		css_get(&to->css);
- 		return 0;
- 	}
- 	return -EINVAL;
-@@ -6604,6 +6607,7 @@ static void __mem_cgroup_clear_mc(void)
- {
- 	struct mem_cgroup *from = mc.from;
- 	struct mem_cgroup *to = mc.to;
-+	int i;
- 
- 	/* we must uncharge all the leftover precharges from mc.to */
- 	if (mc.precharge) {
-@@ -6624,7 +6628,9 @@ static void __mem_cgroup_clear_mc(void)
- 		if (!mem_cgroup_is_root(mc.from))
- 			res_counter_uncharge(&mc.from->memsw,
- 						PAGE_SIZE * mc.moved_swap);
--		__mem_cgroup_put(mc.from, mc.moved_swap);
++	 * We get a ref to the parent's dentry, and put the ref when
++	 * this cgroup is being freed, so it's guaranteed that the
++	 * parent won't be destroyed before its children.
++	 */
++	dput(cgrp->parent->dentry);
 +
-+		for (i = 0; i < mc.moved_swap; i++)
-+			css_put(&mc.from->css);
++	/*
+ 	 * Drop the active superblock reference that we took when we
+ 	 * created the cgroup
+ 	 */
+@@ -4170,6 +4177,9 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
+ 	for_each_subsys(root, ss)
+ 		dget(dentry);
  
- 		if (!mem_cgroup_is_root(mc.to)) {
- 			/*
-@@ -6634,7 +6640,7 @@ static void __mem_cgroup_clear_mc(void)
- 			res_counter_uncharge(&mc.to->res,
- 						PAGE_SIZE * mc.moved_swap);
- 		}
--		/* we've already done mem_cgroup_get(mc.to) */
-+		/* we've already done css_get(mc.to) */
- 		mc.moved_swap = 0;
- 	}
- 	memcg_oom_recover(from);
++	/* hold a ref to the parent's dentry */
++	dget(parent->dentry);
++
+ 	/* creation succeeded, notify subsystems */
+ 	for_each_subsys(root, ss) {
+ 		err = online_css(ss, cgrp);
 -- 
 1.8.0.2
 
