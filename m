@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 13A246B0006
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 15:17:00 -0400 (EDT)
-Received: by mail-qe0-f46.google.com with SMTP id nd7so1251707qeb.5
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 12:16:59 -0700 (PDT)
-Message-ID: <516317A9.7040208@gmail.com>
-Date: Mon, 08 Apr 2013 15:16:57 -0400
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 679F56B0039
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 15:26:58 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id u28so2667006qcs.22
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 12:26:57 -0700 (PDT)
+Message-ID: <516319FF.6030104@gmail.com>
+Date: Mon, 08 Apr 2013 15:26:55 -0400
 From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] mm: when handling percpu_pagelist_fraction, use on_each_cpu()
- to set percpu pageset fields.
-References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com> <1365194030-28939-4-git-send-email-cody@linux.vnet.ibm.com> <CAOtvUMdT0-oQMTsHAjFqL6K8vrLeCcXG2hX-sShxu6GGRBPxJw@mail.gmail.com>
-In-Reply-To: <CAOtvUMdT0-oQMTsHAjFqL6K8vrLeCcXG2hX-sShxu6GGRBPxJw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 2/3] mm/page_alloc: convert zone_pcp_update() to use on_each_cpu()
+ instead of stop_machine()
+References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com> <1365194030-28939-3-git-send-email-cody@linux.vnet.ibm.com> <5161931A.8060501@gmail.com> <5162FF18.8010802@linux.vnet.ibm.com>
+In-Reply-To: <5162FF18.8010802@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gilad Ben-Yossef <gilad@benyossef.com>
-Cc: Cody P Schafer <cody@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kosaki.motohiro@gmail.com
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-(4/8/13 8:20 AM), Gilad Ben-Yossef wrote:
-> On Fri, Apr 5, 2013 at 11:33 PM, Cody P Schafer <cody@linux.vnet.ibm.com> wrote:
->> In free_hot_cold_page(), we rely on pcp->batch remaining stable.
->> Updating it without being on the cpu owning the percpu pageset
->> potentially destroys this stability.
+(4/8/13 1:32 PM), Cody P Schafer wrote:
+> On 04/07/2013 08:39 AM, KOSAKI Motohiro wrote:
+>> (4/5/13 4:33 PM), Cody P Schafer wrote:
+>>> No off-cpu users of the percpu pagesets exist.
+>>>
+>>> zone_pcp_update()'s goal is to adjust the ->high and ->mark members of a
+>>> percpu pageset based on a zone's ->managed_pages. We don't need to drain
+>>> the entire percpu pageset just to modify these fields. Avoid calling
+>>> setup_pageset() (and the draining required to call it) and instead just
+>>> set the fields' values.
+>>>
+>>> This does change the behavior of zone_pcp_update() as the percpu
+>>> pagesets will not be drained when zone_pcp_update() is called (they will
+>>> end up being shrunk, not completely drained, later when a 0-order page
+>>> is freed in free_hot_cold_page()).
+>>>
+>>> Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 >>
->> Change for_each_cpu() to on_each_cpu() to fix.
+>> NAK.
+>>
+>> 1) zone_pcp_update() is only used from memory hotplug and it require page drain.
 > 
-> Are you referring to this? -
-> 
-> 1329         if (pcp->count >= pcp->high) {
-> 1330                 free_pcppages_bulk(zone, pcp->batch, pcp);
-> 1331                 pcp->count -= pcp->batch;
-> 1332         }
-> 
-> I'm probably missing the obvious but won't it be simpler to do this in
->  free_hot_cold_page() -
-> 
-> 1329         if (pcp->count >= pcp->high) {
-> 1330                  unsigned int batch = ACCESS_ONCE(pcp->batch);
-> 1331                 free_pcppages_bulk(zone, batch, pcp);
-> 1332                 pcp->count -= batch;
-> 1333         }
-> 
-> Now the batch value used is stable and you don't have to IPI every CPU
-> in the system just to change a config knob...
+> I'm looking at this code because I'm currently working on a patchset
+> which adds another interface which modifies zone sizes, so "only used
+> from memory hotplug" is a temporary thing (unless I discover that
+> zone_pcp_update() is not intended to do what I want it to do).
 
-OK, right. Your approach is much better.
+maybe yes, maybe no. I don't know temporary or not. However the fact is, 
+you must not break anywhere. You need to look all caller always.
+
+
+>> 2) stop_machin is used for avoiding race. just removing it is insane.
+> 
+> What race? Is there a cross cpu access to ->high & ->batch that makes
+> using on_each_cpu() instead of stop_machine() inappropriate? It is
+> absolutely not just being removed.
+
+OK, I missed that. however your code is still wrong.
+However you can't call free_pcppages_bulk() from interrupt context and
+then you can't use on_each_cpu() anyway.
+
+
+
+
 
 
 --
