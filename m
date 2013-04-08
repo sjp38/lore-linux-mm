@@ -1,39 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 472226B0006
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 16:55:55 -0400 (EDT)
-Date: Mon, 8 Apr 2013 13:55:53 -0700
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 3DA906B0006
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 16:57:41 -0400 (EDT)
+Date: Mon, 8 Apr 2013 13:57:39 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/2] mm: vmemmap: add vmemmap_verify check for hot-add
- node/memory case
-Message-Id: <20130408135553.2f60518d923b6920bdf1931f@linux-foundation.org>
-In-Reply-To: <CAE9FiQVaByGOTjLVthRkEze_ekXm5LAKgKdHzrD+q1iYmjgZFQ@mail.gmail.com>
-References: <1365415000-10389-1-git-send-email-linfeng@cn.fujitsu.com>
-	<CAE9FiQVaByGOTjLVthRkEze_ekXm5LAKgKdHzrD+q1iYmjgZFQ@mail.gmail.com>
+Subject: Re: [PATCH v8 3/3] mm: reinititalise user and admin reserves if
+ memory is added or removed
+Message-Id: <20130408135739.a373580e624def371b542df5@linux-foundation.org>
+In-Reply-To: <20130408190738.GC2321@localhost.localdomain>
+References: <20130408190738.GC2321@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Lin Feng <linfeng@cn.fujitsu.com>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Catalin Marinas <catalin.marinas@arm.com>, will.deacon@arm.com, Arnd Bergmann <arnd@arndb.de>, tony@atomide.com, Ben Hutchings <ben@decadent.org.uk>, linux-arm-kernel@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: Andrew Shewmaker <agshew@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, simon.jeons@gmail.com, ric.masonn@gmail.com
 
-On Mon, 8 Apr 2013 11:40:11 -0700 Yinghai Lu <yinghai@kernel.org> wrote:
+On Mon, 8 Apr 2013 15:07:38 -0400 Andrew Shewmaker <agshew@gmail.com> wrote:
 
-> On Mon, Apr 8, 2013 at 2:56 AM, Lin Feng <linfeng@cn.fujitsu.com> wrote:
-> > In hot add node(memory) case, vmemmap pages are always allocated from other
-> > node,
+> This patch alters the admin and user reserves of the previous patches 
+> in this series when memory is added or removed.
 > 
-> that is broken, and should be fixed.
-> vmemmap should be on local node even for hot add node.
+> If memory is added and the reserves have been eliminated or increased above
+> the default max, then we'll trust the admin.
 > 
+> If memory is removed and there isn't enough free memory, then we
+> need to reset the reserves.
+> 
+> Otherwise keep the reserve set by the admin.
+> 
+> The reserve reset code is the same as the reserve initialization code.
+> 
+> Does this sound reasonable to other people? I figured that hot removal
+> with too large of memory in the reserves was the most important case 
+> to get right.
+> 
+> I tested hot addition and removal by triggering it via sysfs. The reserves 
+> shrunk when they were set high and memory was removed. They were reset 
+> higher when memory was added again.
 
-That would be nice.
-
-I don't see much value in the added warnings, really.  Because there's
-nothing the user can *do* about them, apart from a) stop using NUMA, b)
-stop using memory hotplug, c) become a kernel MM developer or d) switch
-to Windows.
+I have added your Signed-off-by: to my copy of this patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
