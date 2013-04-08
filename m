@@ -1,80 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id D5CFC6B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 14:49:46 -0400 (EDT)
-Received: by mail-qa0-f41.google.com with SMTP id bs12so1339258qab.14
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 11:49:45 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 567A06B0006
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 14:52:54 -0400 (EDT)
+Message-ID: <51631206.3060605@sr71.net>
+Date: Mon, 08 Apr 2013 11:52:54 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-In-Reply-To: <5160C244.6080807@gmail.com>
-References: <20130325134247.GB1393@localhost.localdomain> <515CF884.8010103@gmail.com>
- <CAF-E8XFQFm9GrBnkax+TiByUPHxp=Ukp1LcuAWjYL0OeLE1Saw@mail.gmail.com> <5160C244.6080807@gmail.com>
-From: Andrew Shewmaker <agshew@gmail.com>
-Date: Mon, 8 Apr 2013 12:49:25 -0600
-Message-ID: <CAF-E8XHnTTUPm1s5RF2wEC-sjt3wYDhLgj__UQRz-b6AyC++vQ@mail.gmail.com>
-Subject: Re: [PATCH v7 2/2] mm: replace hardcoded 3% with admin_reserve_pages knob
+Subject: Re: [PATCHv3, RFC 31/34] thp: initial implementation of do_huge_linear_fault()
+References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com> <1365163198-29726-32-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1365163198-29726-32-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, ric.masonn@gmail.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sat, Apr 6, 2013 at 6:48 PM, Simon Jeons <simon.jeons@gmail.com> wrote:
-> Hi Andrew,
->
-> On 04/05/2013 11:02 PM, Andrew Shewmaker wrote:
->>
->> On Wed, Apr 3, 2013 at 9:50 PM, Simon Jeons <simon.jeons@gmail.com> wrote:
->>>>
->>>> FAQ
->>>>
->> ...
->>>>
->>>>    * How do you calculate a minimum useful reserve?
->>>>
->>>>      A user or the admin needs enough memory to login and perform
->>>>      recovery operations, which includes, at a minimum:
->>>>
->>>>      sshd or login + bash (or some other shell) + top (or ps, kill,
->>>> etc.)
->>>>
->>>>      For overcommit 'guess', we can sum resident set sizes (RSS).
->>>>      On x86_64 this is about 8MB.
->>>>
->>>>      For overcommit 'never', we can take the max of their virtual sizes
->>>> (VSZ)
->>>>      and add the sum of their RSS.
->>>>      On x86_64 this is about 128MB.
->>>
->>>
->>> 1.Why has this different between guess and never?
->>
->> The default, overcommit 'guess' mode, only needs a reserve for
->> what the recovery programs will typically use. Overcommit 'never'
->> mode will only successfully launch an app when it can fulfill all of
->> its requested memory allocations--even if the app only uses a
->> fraction of what it asks for.
->
->
-> VSZ has already cover RSS, is it? why account RSS again?
+On 04/05/2013 04:59 AM, Kirill A. Shutemov wrote:
+> +int do_huge_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> +		unsigned long address, pmd_t *pmd, unsigned int flags)
+> +{
+> +	unsigned long haddr = address & HPAGE_PMD_MASK;
+> +	struct page *cow_page, *page, *dirty_page = NULL;
+> +	bool anon = false, fallback = false, page_mkwrite = false;
+> +	pgtable_t pgtable = NULL;
+> +	struct vm_fault vmf;
+> +	int ret;
+> +
+> +	/* Fallback if vm_pgoff and vm_start are not suitable */
+> +	if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
+> +			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
+> +		return do_fallback(mm, vma, address, pmd, flags);
+> +
+> +	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
+> +		return do_fallback(mm, vma, address, pmd, flags);
+> +
+> +	if (unlikely(khugepaged_enter(vma)))
+> +		return VM_FAULT_OOM;
+> +
+> +	/*
+> +	 * If we do COW later, allocate page before taking lock_page()
+> +	 * on the file cache page. This will reduce lock holding time.
+> +	 */
+> +	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
+> +		if (unlikely(anon_vma_prepare(vma)))
+> +			return VM_FAULT_OOM;
+> +
+> +		cow_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+> +				vma, haddr, numa_node_id(), 0);
+> +		if (!cow_page) {
+> +			count_vm_event(THP_FAULT_FALLBACK);
+> +			return do_fallback(mm, vma, address, pmd, flags);
+> +		}
+> +		count_vm_event(THP_FAULT_ALLOC);
+> +		if (mem_cgroup_newpage_charge(cow_page, mm, GFP_KERNEL)) {
+> +			page_cache_release(cow_page);
+> +			return do_fallback(mm, vma, address, pmd, flags);
+> +		}
 
-Right. Technically, I could leave out the RSS of the process that
-I'm taking the VSZ of. Leaving it in makes the estimate 2-4 MB
-larger, but it is just an estimate.
+Ugh.  This is essentially a copy-n-paste of code in __do_fault(),
+including the comments.  Is there no way to consolidate the code so that
+there's less duplication here?
 
-Choosing a good minimum is difficult because the behavior with
-and without swap is different. With swap, only about 8MB reserves
-are needed whether overcommit is disabled or not. Without swap,
-I was always able to recover when I set the reserves to over 230MB
-each. However, I was often able to recover with much less.
+Part of the reason we have so many bugs in hugetlbfs is that it's really
+a forked set of code that does things its own way.  I really hope we're
+not going down the road of creating another feature in the same way.
 
-128MB seemed to me like a decent compromise between swap
-and noswap modes, but it isn't totally safe for the case when
-both swap and memory overcommit are disabled. In that case,
-I think that an admin will have to tune the reserves for their specific
-situation.
-
---
-Andrew Shewmaker
+When you copy *this* much code (or any, really), you really need to talk
+about it in the patch description.  I was looking at other COW code, and
+just happened to stumble on to the __do_fault() code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
