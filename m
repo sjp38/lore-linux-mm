@@ -1,104 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 99CA66B006C
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:01:06 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm: remove compressed copy from zram in-memory
-Date: Mon,  8 Apr 2013 15:01:02 +0900
-Message-Id: <1365400862-9041-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 8D0546B0070
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:33:43 -0400 (EDT)
+Message-ID: <5162648B.9070802@huawei.com>
+Date: Mon, 8 Apr 2013 14:32:43 +0800
+From: Li Zefan <lizefan@huawei.com>
+MIME-Version: 1.0
+Subject: [PATCH 0/12][V2] memcg: make memcg's life cycle the same as cgroup
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-Swap subsystem does lazy swap slot free with expecting the page
-would be swapped out again so we can avoid unnecessary write.
+Changes since v1:
 
-But the problem in in-memory swap(ex, zram) is that it consumes
-memory space until vm_swap_full(ie, used half of all of swap device)
-condition meet. It could be bad if we use multiple swap device,
-small in-memory swap and big storage swap or in-memory swap alone.
+- wrote better changelog and added acked-by and reviewed-by tags
+- revised some comments as suggested by Michal
+- added a wmb() in kmem_cgroup_css_offline(), pointed out by Michal
+- fixed a bug which causes a css_put() never be called
 
-This patch makes swap subsystem free swap slot as soon as swap-read
-is completed and make the swapcache page dirty so the page should
-be written out the swap device to reclaim it.
-It means we never lose it.
 
-I tested this patch with kernel compile workload.
+Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
+still be alive. This patchset converts memcg to always use css_get/put, so
+memcg will have the same life cycle as its corresponding cgroup.
 
-1. before
+The historical reason that memcg didn't use css_get in some cases, is that
+cgroup couldn't be removed if there're still css refs. The situation has
+changed so that rmdir a cgroup will succeed regardless css refs, but won't
+be freed until css refs goes down to 0.
 
-compile time : 9882.42
-zram max wasted space by fragmentation: 13471881 byte
-memory space consumed by zram: 174227456 byte
-the number of slot free notify: 206684
+Since the introduction of kmemcg, the memcg refcnt handling grows even more
+complicated. This patchset greately simplifies memcg's life cycle management.
 
-2. after
+Also, after those changes, we can convert memcg to use cgroup->id, and then
+we can kill css_id.
 
-compile time : 9653.90
-zram max wasted space by fragmentation: 11805932 byte
-memory space consumed by zram: 154001408 byte
-the number of slot free notify: 426972
+This patchset is based on linux-next but with "memcg: debugging facility to access dangling memcgs."
+excluded.
 
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Nitin Gupta <ngupta@vflare.org>
-Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: Shaohua Li <shli@kernel.org>
-Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
+The first 4 patches are bug fixes that should go into 3.9, and the rest are
+for 3.10. The extra patch 13/12 is for the dangling memcg debugging patch.
+
+You'll see 2 small conflicts when you apply that debugging patch on top
+of this patchset. Just move memcg_dangling_add() to mem_cgroup_css_offline()
+and move memcg_dangling_free() to mem_cggroup_css_free().
+
+Li Zefan (10):
+      memcg: take reference before releasing rcu_read_lock
+      memcg: avoid accessing memcg after releasing reference
+      memcg: use css_get() in sock_update_memcg()
+      memcg: don't use mem_cgroup_get() when creating a kmemcg cache
+      memcg: use css_get/put when charging/uncharging kmem
+      memcg: use css_get/put for swap memcg
+      cgroup: make sure parent won't be destroyed before its children
+      memcg: don't need to get a reference to the parent
+      memcg: kill memcg refcnt
+      memcg: don't need to free memcg via RCU or workqueue
+
+Michal Hocko (2):
+      Revert "memcg: avoid dangling reference count in creation failure."
+      memcg, kmem: fix reference count handling on the error path
+
 ---
-Fragment ratio is almost same but memory consumption and compile time
-is better. I am working to add defragment function of zsmalloc.
-
- mm/page_io.c | 23 +++++++++++++++++++++++
- 1 file changed, 23 insertions(+)
-
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 78eee32..644900a 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -20,6 +20,7 @@
- #include <linux/buffer_head.h>
- #include <linux/writeback.h>
- #include <linux/frontswap.h>
-+#include <linux/blkdev.h>
- #include <asm/pgtable.h>
- 
- static struct bio *get_swap_bio(gfp_t gfp_flags,
-@@ -81,8 +82,30 @@ void end_swap_bio_read(struct bio *bio, int err)
- 				iminor(bio->bi_bdev->bd_inode),
- 				(unsigned long long)bio->bi_sector);
- 	} else {
-+		/*
-+		 * There is no reason to keep both uncompressed data and
-+		 * compressed data in memory.
-+		 */
-+		struct swap_info_struct *sis;
-+
- 		SetPageUptodate(page);
-+		sis = page_swap_info(page);
-+		if (sis->flags & SWP_BLKDEV) {
-+			struct gendisk *disk = sis->bdev->bd_disk;
-+			if (disk->fops->swap_slot_free_notify) {
-+				swp_entry_t entry;
-+				unsigned long offset;
-+
-+				entry.val = page_private(page);
-+				offset = swp_offset(entry);
-+
-+				SetPageDirty(page);
-+				disk->fops->swap_slot_free_notify(sis->bdev,
-+						offset);
-+			}
-+		}
- 	}
-+
- 	unlock_page(page);
- 	bio_put(bio);
- }
--- 
-1.8.2
+ kernel/cgroup.c |  10 +++
+ mm/memcontrol.c | 267 ++++++++++++++++++++++++++++------------------------------------------
+ 2 files changed, 116 insertions(+), 161 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
