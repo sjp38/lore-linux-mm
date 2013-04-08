@@ -1,12 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 8D0546B0070
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:33:43 -0400 (EDT)
-Message-ID: <5162648B.9070802@huawei.com>
-Date: Mon, 8 Apr 2013 14:32:43 +0800
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 6894B6B0071
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:33:54 -0400 (EDT)
+Message-ID: <5162649F.40108@huawei.com>
+Date: Mon, 8 Apr 2013 14:33:03 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 0/12][V2] memcg: make memcg's life cycle the same as cgroup
+Subject: [PATCH 01/12] memcg: take reference before releasing rcu_read_lock
+References: <5162648B.9070802@huawei.com>
+In-Reply-To: <5162648B.9070802@huawei.com>
 Content-Type: text/plain; charset="GB2312"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,59 +16,121 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-Changes since v1:
+The memcg is not referenced, so it can be destroyed at anytime right
+after we exit rcu read section, so it's not safe to access it.
 
-- wrote better changelog and added acked-by and reviewed-by tags
-- revised some comments as suggested by Michal
-- added a wmb() in kmem_cgroup_css_offline(), pointed out by Michal
-- fixed a bug which causes a css_put() never be called
+To fix this, we call css_tryget() to get a reference while we're still
+in rcu read section.
 
-
-Now memcg has its own refcnt, so when a cgroup is destroyed, the memcg can
-still be alive. This patchset converts memcg to always use css_get/put, so
-memcg will have the same life cycle as its corresponding cgroup.
-
-The historical reason that memcg didn't use css_get in some cases, is that
-cgroup couldn't be removed if there're still css refs. The situation has
-changed so that rmdir a cgroup will succeed regardless css refs, but won't
-be freed until css refs goes down to 0.
-
-Since the introduction of kmemcg, the memcg refcnt handling grows even more
-complicated. This patchset greately simplifies memcg's life cycle management.
-
-Also, after those changes, we can convert memcg to use cgroup->id, and then
-we can kill css_id.
-
-This patchset is based on linux-next but with "memcg: debugging facility to access dangling memcgs."
-excluded.
-
-The first 4 patches are bug fixes that should go into 3.9, and the rest are
-for 3.10. The extra patch 13/12 is for the dangling memcg debugging patch.
-
-You'll see 2 small conflicts when you apply that debugging patch on top
-of this patchset. Just move memcg_dangling_add() to mem_cgroup_css_offline()
-and move memcg_dangling_free() to mem_cggroup_css_free().
-
-Li Zefan (10):
-      memcg: take reference before releasing rcu_read_lock
-      memcg: avoid accessing memcg after releasing reference
-      memcg: use css_get() in sock_update_memcg()
-      memcg: don't use mem_cgroup_get() when creating a kmemcg cache
-      memcg: use css_get/put when charging/uncharging kmem
-      memcg: use css_get/put for swap memcg
-      cgroup: make sure parent won't be destroyed before its children
-      memcg: don't need to get a reference to the parent
-      memcg: kill memcg refcnt
-      memcg: don't need to free memcg via RCU or workqueue
-
-Michal Hocko (2):
-      Revert "memcg: avoid dangling reference count in creation failure."
-      memcg, kmem: fix reference count handling on the error path
-
+Signed-off-by: Li Zefan <lizefan@huawei.com>
+Acked-by: Glauber Costa <glommer@parallels.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- kernel/cgroup.c |  10 +++
- mm/memcontrol.c | 267 ++++++++++++++++++++++++++++------------------------------------------
- 2 files changed, 116 insertions(+), 161 deletions(-)
+ mm/memcontrol.c | 63 ++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 33 insertions(+), 30 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index d280016..e054ac0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3460,7 +3460,6 @@ static void memcg_create_cache_work_func(struct work_struct *w)
+ 
+ /*
+  * Enqueue the creation of a per-memcg kmem_cache.
+- * Called with rcu_read_lock.
+  */
+ static void __memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+ 					 struct kmem_cache *cachep)
+@@ -3468,12 +3467,8 @@ static void __memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+ 	struct create_work *cw;
+ 
+ 	cw = kmalloc(sizeof(struct create_work), GFP_NOWAIT);
+-	if (cw == NULL)
+-		return;
+-
+-	/* The corresponding put will be done in the workqueue. */
+-	if (!css_tryget(&memcg->css)) {
+-		kfree(cw);
++	if (cw == NULL) {
++		css_put(&memcg->css);
+ 		return;
+ 	}
+ 
+@@ -3529,10 +3524,9 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+ 
+ 	rcu_read_lock();
+ 	memcg = mem_cgroup_from_task(rcu_dereference(current->mm->owner));
+-	rcu_read_unlock();
+ 
+ 	if (!memcg_can_account_kmem(memcg))
+-		return cachep;
++		goto out;
+ 
+ 	idx = memcg_cache_id(memcg);
+ 
+@@ -3541,29 +3535,38 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+ 	 * code updating memcg_caches will issue a write barrier to match this.
+ 	 */
+ 	read_barrier_depends();
+-	if (unlikely(cachep->memcg_params->memcg_caches[idx] == NULL)) {
+-		/*
+-		 * If we are in a safe context (can wait, and not in interrupt
+-		 * context), we could be be predictable and return right away.
+-		 * This would guarantee that the allocation being performed
+-		 * already belongs in the new cache.
+-		 *
+-		 * However, there are some clashes that can arrive from locking.
+-		 * For instance, because we acquire the slab_mutex while doing
+-		 * kmem_cache_dup, this means no further allocation could happen
+-		 * with the slab_mutex held.
+-		 *
+-		 * Also, because cache creation issue get_online_cpus(), this
+-		 * creates a lock chain: memcg_slab_mutex -> cpu_hotplug_mutex,
+-		 * that ends up reversed during cpu hotplug. (cpuset allocates
+-		 * a bunch of GFP_KERNEL memory during cpuup). Due to all that,
+-		 * better to defer everything.
+-		 */
+-		memcg_create_cache_enqueue(memcg, cachep);
+-		return cachep;
++	if (likely(cachep->memcg_params->memcg_caches[idx])) {
++		cachep = cachep->memcg_params->memcg_caches[idx];
++		goto out;
+ 	}
+ 
+-	return cachep->memcg_params->memcg_caches[idx];
++	/* The corresponding put will be done in the workqueue. */
++	if (!css_tryget(&memcg->css))
++		goto out;
++	rcu_read_unlock();
++
++	/*
++	 * If we are in a safe context (can wait, and not in interrupt
++	 * context), we could be be predictable and return right away.
++	 * This would guarantee that the allocation being performed
++	 * already belongs in the new cache.
++	 *
++	 * However, there are some clashes that can arrive from locking.
++	 * For instance, because we acquire the slab_mutex while doing
++	 * kmem_cache_dup, this means no further allocation could happen
++	 * with the slab_mutex held.
++	 *
++	 * Also, because cache creation issue get_online_cpus(), this
++	 * creates a lock chain: memcg_slab_mutex -> cpu_hotplug_mutex,
++	 * that ends up reversed during cpu hotplug. (cpuset allocates
++	 * a bunch of GFP_KERNEL memory during cpuup). Due to all that,
++	 * better to defer everything.
++	 */
++	memcg_create_cache_enqueue(memcg, cachep);
++	return cachep;
++out:
++	rcu_read_unlock();
++	return cachep;
+ }
+ EXPORT_SYMBOL(__memcg_kmem_get_cache);
+ 
+-- 
+1.8.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
