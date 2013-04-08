@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 6FD806B0039
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 15:37:45 -0400 (EDT)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Mon, 8 Apr 2013 15:37:44 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 8FE9838C8054
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 15:37:39 -0400 (EDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r38Jbb3f282130
-	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 15:37:38 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r38JbTC9014350
-	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 13:37:29 -0600
-Message-ID: <51631C70.8010404@linux.vnet.ibm.com>
-Date: Mon, 08 Apr 2013 12:37:20 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 758916B003D
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 15:38:40 -0400 (EDT)
+Message-ID: <51631CC0.5010908@sr71.net>
+Date: Mon, 08 Apr 2013 12:38:40 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] mm: fixup changers of per cpu pageset's ->high and
- ->batch
-References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com> <5160CC94.6040909@gmail.com>
-In-Reply-To: <5160CC94.6040909@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCHv3, RFC 09/34] thp: represent file thp pages in meminfo
+ and friends
+References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com> <1365163198-29726-10-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1365163198-29726-10-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 04/06/2013 06:32 PM, Simon Jeons wrote:
-> Hi Cody,
-> On 04/06/2013 04:33 AM, Cody P Schafer wrote:
->> In one case while modifying the ->high and ->batch fields of per cpu
->> pagesets
->> we're unneededly using stop_machine() (patches 1 & 2), and in another
->> we don't have any
->> syncronization at all (patch 3).
->
-> Do you mean stop_machine() is used for syncronization between each
-> online cpu?
->
+On 04/05/2013 04:59 AM, Kirill A. Shutemov wrote:
+> The patch adds new zone stat to count file transparent huge pages and
+> adjust related places.
+> 
+> For now we don't count mapped or dirty file thp pages separately.
 
-I mean that it looks like synchronization between cpus is unneeded 
-because of how per cpu pagesets are used, so stop_machine() (which does 
-provide syncro between all cpus) is unnecessarily "strong".
+I can understand tracking NR_FILE_TRANSPARENT_HUGEPAGES itself.  But,
+why not also account for them in NR_FILE_PAGES?  That way, you don't
+have to special-case each of the cases below:
+
+> --- a/fs/proc/meminfo.c
+> +++ b/fs/proc/meminfo.c
+> @@ -41,6 +41,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+>  
+>  	cached = global_page_state(NR_FILE_PAGES) -
+>  			total_swapcache_pages() - i.bufferram;
+> +	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+> +		cached += global_page_state(NR_FILE_TRANSPARENT_HUGEPAGES) *
+> +			HPAGE_PMD_NR;
+>  	if (cached < 0)
+>  		cached = 0;
+....
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -135,6 +135,9 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+>  	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
+>  		free = global_page_state(NR_FREE_PAGES);
+>  		free += global_page_state(NR_FILE_PAGES);
+> +		if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+> +			free += global_page_state(NR_FILE_TRANSPARENT_HUGEPAGES)
+> +				* HPAGE_PMD_NR;
+...
+> -	printk("%ld total pagecache pages\n", global_page_state(NR_FILE_PAGES));
+> +	cached = global_page_state(NR_FILE_PAGES);
+> +	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+> +		cached += global_page_state(NR_FILE_TRANSPARENT_HUGEPAGES) *
+> +			HPAGE_PMD_NR;
+> +	printk("%ld total pagecache pages\n", cached);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
