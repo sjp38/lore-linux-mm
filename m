@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id D6C8C6B004D
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 16:01:54 -0400 (EDT)
-Date: Mon, 08 Apr 2013 16:00:12 -0400
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 640796B0006
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 16:21:39 -0400 (EDT)
+Date: Mon, 08 Apr 2013 16:21:26 -0400
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1365451212-xj25037p-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <515F351C.403@gmail.com>
+Message-ID: <1365452486-arj4q4xd-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <515F3F5C.2090709@gmail.com>
 References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1363983835-20184-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <515F351C.403@gmail.com>
-Subject: Re: [PATCH 01/10] migrate: add migrate_entry_wait_huge()
+ <1363983835-20184-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <515F3F5C.2090709@gmail.com>
+Subject: Re: [PATCH 05/10] migrate: add hugepage migration code to
+ migrate_pages()
 Mime-Version: 1.0
 Content-Type: text/plain;
  charset=iso-2022-jp
@@ -20,33 +21,22 @@ List-ID: <linux-mm.kvack.org>
 To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org
 
-On Fri, Apr 05, 2013 at 04:33:32PM -0400, KOSAKI Motohiro wrote:
-> > diff --git v3.9-rc3.orig/mm/hugetlb.c v3.9-rc3/mm/hugetlb.c
-> > index 0a0be33..98a478e 100644
-> > --- v3.9-rc3.orig/mm/hugetlb.c
-> > +++ v3.9-rc3/mm/hugetlb.c
-> > @@ -2819,7 +2819,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  	if (ptep) {
-> >  		entry = huge_ptep_get(ptep);
-> >  		if (unlikely(is_hugetlb_entry_migration(entry))) {
-> > -			migration_entry_wait(mm, (pmd_t *)ptep, address);
-> > +			migration_entry_wait_huge(mm, (pmd_t *)ptep, address);
+On Fri, Apr 05, 2013 at 05:17:16PM -0400, KOSAKI Motohiro wrote:
+> (3/22/13 4:23 PM), Naoya Horiguchi wrote:
+> > This patch extends check_range() to handle vma with VM_HUGETLB set.
+> > We will be able to migrate hugepage with migrate_pages(2) after
+> > applying the enablement patch which comes later in this series.
+> > 
+> > Note that for larger hugepages (covered by pud entries, 1GB for
+> > x86_64 for example), we simply skip it now.
 > 
-> Hm.
-> 
-> How do you test this? From x86 point of view, this patch seems unnecessary because
-> hugetlb_fault call "address &= hugetlb_mask()" at first and then migration_entry_wait()
-> could grab right pte lock. And from !x86 point of view, this funciton still doesn't work
-> because huge page != pmd on some arch.
+> check_range() has largely duplication with mm_walk and it is quirk subset.
+> Instead of, could you replace them to mm_walk and enhance/cleanup mm_walk?
 
-I kicked hugepage migration for address range where I repeat to access
-in a loop, and checked what happened (whether soft lockup happens or not.)
-But I don't fully understand what the problem is, and I might wrongly define
-the problem. So give me time to clarify it.
+OK, I'll try this.
 
-And I fully agree that this function should be arch dependent.
-
-> I might be missing though.
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
