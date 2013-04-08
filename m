@@ -1,50 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 599AA6B003B
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 14:03:49 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id d46so4818366wer.30
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 11:03:47 -0700 (PDT)
-Date: Mon, 8 Apr 2013 20:03:44 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/8] cgroup: implement cgroup_is_ancestor()
-Message-ID: <20130408180335.GA22512@dhcp22.suse.cz>
-References: <51627DA9.7020507@huawei.com>
- <51627DBB.5050005@huawei.com>
- <20130408144750.GK17178@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 194906B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 14:40:16 -0400 (EDT)
+Received: by mail-ia0-f174.google.com with SMTP id b35so5569598iac.33
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 11:40:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130408144750.GK17178@dhcp22.suse.cz>
+In-Reply-To: <1365415000-10389-1-git-send-email-linfeng@cn.fujitsu.com>
+References: <1365415000-10389-1-git-send-email-linfeng@cn.fujitsu.com>
+Date: Mon, 8 Apr 2013 11:40:11 -0700
+Message-ID: <CAE9FiQVaByGOTjLVthRkEze_ekXm5LAKgKdHzrD+q1iYmjgZFQ@mail.gmail.com>
+Subject: Re: [PATCH 0/2] mm: vmemmap: add vmemmap_verify check for hot-add
+ node/memory case
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: Lin Feng <linfeng@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Catalin Marinas <catalin.marinas@arm.com>, will.deacon@arm.com, Arnd Bergmann <arnd@arndb.de>, tony@atomide.com, Ben Hutchings <ben@decadent.org.uk>, linux-arm-kernel@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-On Mon 08-04-13 16:47:50, Michal Hocko wrote:
-> On Mon 08-04-13 16:20:11, Li Zefan wrote:
-> [...]
-> > @@ -5299,6 +5300,26 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
-> >  	return css ? css : ERR_PTR(-ENOENT);
-> >  }
-> >  
-> > +/**
-> > + * cgroup_is_ancestor - test "root" cgroup is an ancestor of "child"
-> > + * @child: the cgroup to be tested.
-> > + * @root: the cgroup supposed to be an ancestor of the child.
-> > + *
-> > + * Returns true if "root" is an ancestor of "child" in its hierarchy.
-> > + */
-> > +bool cgroup_is_ancestor(struct cgroup *child, struct cgroup *root)
-> > +{
-> > +	int depth = child->depth;
-> 
-> Is this functionality helpful for other controllers but memcg?
-> css_is_ancestor is currently used only by memcg code AFAICS and we can
-> get the same functionality easily by using something like:
+On Mon, Apr 8, 2013 at 2:56 AM, Lin Feng <linfeng@cn.fujitsu.com> wrote:
+> In hot add node(memory) case, vmemmap pages are always allocated from other
+> node,
 
-And as it turned out using css_is_ancestor is not correct. Here
-is a patch to fix the issue. I will leave the decision whether
-cgroup_is_ancestor makes sense even without users to you.
-Would you be willing to take this into your current series so that we to
-not clash over that code?
----
+that is broken, and should be fixed.
+vmemmap should be on local node even for hot add node.
+
+Thanks
+
+Yinghai
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
