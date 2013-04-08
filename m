@@ -1,194 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id BF2D86B00B3
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 10:01:05 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 9F6C96B00B2
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 10:01:06 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 04/32] dentry: move to per-sb LRU locks
-Date: Mon,  8 Apr 2013 18:00:31 +0400
-Message-Id: <1365429659-22108-5-git-send-email-glommer@parallels.com>
+Subject: [PATCH v3 02/32] vmscan: take at least one pass with shrinkers
+Date: Mon,  8 Apr 2013 18:00:29 +0400
+Message-Id: <1365429659-22108-3-git-send-email-glommer@parallels.com>
 In-Reply-To: <1365429659-22108-1-git-send-email-glommer@parallels.com>
 References: <1365429659-22108-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Serge Hallyn <serge.hallyn@canonical.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>
+Cc: cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Serge Hallyn <serge.hallyn@canonical.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@parallels.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-From: Dave Chinner <dchinner@redhat.com>
+In very low free kernel memory situations, it may be the case that we
+have less objects to free than our initial batch size. If this is the
+case, it is better to shrink those, and open space for the new workload
+then to keep them and fail the new allocations.
 
-With the dentry LRUs being per-sb structures, there is no real need
-for a global dentry_lru_lock. The locking can be made more
-fine-grained by moving to a per-sb LRU lock, isolating the LRU
-operations of different filesytsems completely from each other.
+More specifically, this happens because we encode this in a loop with
+the condition: "while (total_scan >= batch_size)". So if we are in such
+a case, we'll not even enter the loop.
 
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+This patch modifies turns it into a do () while {} loop, that will
+guarantee that we scan it at least once, while keeping the behaviour
+exactly the same for the cases in which total_scan > batch_size.
+
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+Reviewed-by: Dave Chinner <david@fromorbit.com>
+Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
+CC: "Theodore Ts'o" <tytso@mit.edu>
+CC: Al Viro <viro@zeniv.linux.org.uk>
 ---
- fs/dcache.c        | 37 ++++++++++++++++++-------------------
- fs/super.c         |  1 +
- include/linux/fs.h |  4 +++-
- 3 files changed, 22 insertions(+), 20 deletions(-)
+ mm/vmscan.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index ffdd461..de09780 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -48,7 +48,7 @@
-  *   - the dcache hash table
-  * s_anon bl list spinlock protects:
-  *   - the s_anon list (see __d_drop)
-- * dcache_lru_lock protects:
-+ * dentry->d_sb->s_dentry_lru_lock protects:
-  *   - the dcache lru lists and counters
-  * d_lock protects:
-  *   - d_flags
-@@ -63,7 +63,7 @@
-  * Ordering:
-  * dentry->d_inode->i_lock
-  *   dentry->d_lock
-- *     dcache_lru_lock
-+ *     dentry->d_sb->s_dentry_lru_lock
-  *     dcache_hash_bucket lock
-  *     s_anon lock
-  *
-@@ -81,7 +81,6 @@
- int sysctl_vfs_cache_pressure __read_mostly = 100;
- EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 88c5fed..fc6d45a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -280,7 +280,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 					nr_pages_scanned, lru_pages,
+ 					max_pass, delta, total_scan);
  
--static __cacheline_aligned_in_smp DEFINE_SPINLOCK(dcache_lru_lock);
- __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
+-		while (total_scan >= batch_size) {
++		do {
+ 			int nr_before;
  
- EXPORT_SYMBOL(rename_lock);
-@@ -327,11 +326,11 @@ static void dentry_unlink_inode(struct dentry * dentry)
- static void dentry_lru_add(struct dentry *dentry)
- {
- 	if (list_empty(&dentry->d_lru)) {
--		spin_lock(&dcache_lru_lock);
-+		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
- 		list_add(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
- 		dentry->d_sb->s_nr_dentry_unused++;
- 		this_cpu_inc(nr_dentry_unused);
--		spin_unlock(&dcache_lru_lock);
-+		spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
- 	}
- }
+ 			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
+@@ -294,7 +294,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 			total_scan -= batch_size;
  
-@@ -349,9 +348,9 @@ static void __dentry_lru_del(struct dentry *dentry)
- static void dentry_lru_del(struct dentry *dentry)
- {
- 	if (!list_empty(&dentry->d_lru)) {
--		spin_lock(&dcache_lru_lock);
-+		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
- 		__dentry_lru_del(dentry);
--		spin_unlock(&dcache_lru_lock);
-+		spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
- 	}
- }
+ 			cond_resched();
+-		}
++		} while (total_scan >= batch_size);
  
-@@ -366,15 +365,15 @@ static void dentry_lru_prune(struct dentry *dentry)
- 		if (dentry->d_flags & DCACHE_OP_PRUNE)
- 			dentry->d_op->d_prune(dentry);
- 
--		spin_lock(&dcache_lru_lock);
-+		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
- 		__dentry_lru_del(dentry);
--		spin_unlock(&dcache_lru_lock);
-+		spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
- 	}
- }
- 
- static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
- {
--	spin_lock(&dcache_lru_lock);
-+	spin_lock(&dentry->d_sb->s_dentry_lru_lock);
- 	if (list_empty(&dentry->d_lru)) {
- 		list_add_tail(&dentry->d_lru, list);
- 		dentry->d_sb->s_nr_dentry_unused++;
-@@ -382,7 +381,7 @@ static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
- 	} else {
- 		list_move_tail(&dentry->d_lru, list);
- 	}
--	spin_unlock(&dcache_lru_lock);
-+	spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
- }
- 
- /**
-@@ -860,14 +859,14 @@ void prune_dcache_sb(struct super_block *sb, int count)
- 	LIST_HEAD(tmp);
- 
- relock:
--	spin_lock(&dcache_lru_lock);
-+	spin_lock(&sb->s_dentry_lru_lock);
- 	while (!list_empty(&sb->s_dentry_lru)) {
- 		dentry = list_entry(sb->s_dentry_lru.prev,
- 				struct dentry, d_lru);
- 		BUG_ON(dentry->d_sb != sb);
- 
- 		if (!spin_trylock(&dentry->d_lock)) {
--			spin_unlock(&dcache_lru_lock);
-+			spin_unlock(&sb->s_dentry_lru_lock);
- 			cpu_relax();
- 			goto relock;
- 		}
-@@ -883,11 +882,11 @@ relock:
- 			if (!--count)
- 				break;
- 		}
--		cond_resched_lock(&dcache_lru_lock);
-+		cond_resched_lock(&sb->s_dentry_lru_lock);
- 	}
- 	if (!list_empty(&referenced))
- 		list_splice(&referenced, &sb->s_dentry_lru);
--	spin_unlock(&dcache_lru_lock);
-+	spin_unlock(&sb->s_dentry_lru_lock);
- 
- 	shrink_dentry_list(&tmp);
- }
-@@ -903,14 +902,14 @@ void shrink_dcache_sb(struct super_block *sb)
- {
- 	LIST_HEAD(tmp);
- 
--	spin_lock(&dcache_lru_lock);
-+	spin_lock(&sb->s_dentry_lru_lock);
- 	while (!list_empty(&sb->s_dentry_lru)) {
- 		list_splice_init(&sb->s_dentry_lru, &tmp);
--		spin_unlock(&dcache_lru_lock);
-+		spin_unlock(&sb->s_dentry_lru_lock);
- 		shrink_dentry_list(&tmp);
--		spin_lock(&dcache_lru_lock);
-+		spin_lock(&sb->s_dentry_lru_lock);
- 	}
--	spin_unlock(&dcache_lru_lock);
-+	spin_unlock(&sb->s_dentry_lru_lock);
- }
- EXPORT_SYMBOL(shrink_dcache_sb);
- 
-diff --git a/fs/super.c b/fs/super.c
-index 2a37fd6..0be75fb 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -182,6 +182,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
- 		INIT_HLIST_BL_HEAD(&s->s_anon);
- 		INIT_LIST_HEAD(&s->s_inodes);
- 		INIT_LIST_HEAD(&s->s_dentry_lru);
-+		spin_lock_init(&s->s_dentry_lru_lock);
- 		INIT_LIST_HEAD(&s->s_inode_lru);
- 		spin_lock_init(&s->s_inode_lru_lock);
- 		INIT_LIST_HEAD(&s->s_mounts);
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 2c28271..02934f5 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1261,7 +1261,9 @@ struct super_block {
- 	struct list_head	s_files;
- #endif
- 	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */
--	/* s_dentry_lru, s_nr_dentry_unused protected by dcache.c lru locks */
-+
-+	/* s_dentry_lru_lock protects s_dentry_lru and s_nr_dentry_unused */
-+	spinlock_t		s_dentry_lru_lock ____cacheline_aligned_in_smp;
- 	struct list_head	s_dentry_lru;	/* unused dentry lru */
- 	int			s_nr_dentry_unused;	/* # of dentry on lru */
- 
+ 		/*
+ 		 * move the unused scan count back into the shrinker in a
 -- 
 1.8.1.4
 
