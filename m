@@ -1,340 +1,304 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 896676B00EB
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 10:02:45 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 701D86B00EC
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 10:02:51 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 28/32] memcg: scan cache objects hierarchically
-Date: Mon,  8 Apr 2013 18:00:55 +0400
-Message-Id: <1365429659-22108-29-git-send-email-glommer@parallels.com>
+Subject: [PATCH v3 32/32] memcg: debugging facility to access dangling memcgs
+Date: Mon,  8 Apr 2013 18:00:59 +0400
+Message-Id: <1365429659-22108-33-git-send-email-glommer@parallels.com>
 In-Reply-To: <1365429659-22108-1-git-send-email-glommer@parallels.com>
 References: <1365429659-22108-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Serge Hallyn <serge.hallyn@canonical.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@parallels.com>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+Cc: cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Serge Hallyn <serge.hallyn@canonical.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@parallels.com>
 
-When reaching shrink_slab, we should descent in children memcg searching
-for objects that could be shrunk. This is true even if the memcg does
-not have kmem limits on, since the kmem res_counter will also be billed
-against the user res_counter of the parent.
+If memcg is tracking anything other than plain user memory (swap,
+tcp buf mem, or slab memory), it is possible - and normal - that a
+reference will be held by the group after it is dead.  Still, for
+developers, it would be extremely useful to be able to query about those
+states during debugging.
 
-It is possible that we will free objects and not free any pages, that
-will just harm the child groups without helping the parent group at all.
-But at this point, we basically are prepared to pay the price.
+This patch provides a debugging facility in the root memcg, so we
+can inspect which memcgs still have pending objects, and what is the
+cause of this state.
 
+[akpm@linux-foundation.org: fix up Kconfig text]
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Cc: Dave Chinner <dchinner@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
 Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/memcontrol.h |   6 ++
- mm/memcontrol.c            |  13 +++
- mm/vmscan.c                | 210 ++++++++++++++++++++++++++-------------------
- 3 files changed, 142 insertions(+), 87 deletions(-)
+ Documentation/cgroups/memory.txt |  16 ++++
+ init/Kconfig                     |  17 +++++
+ mm/memcontrol.c                  | 160 +++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 187 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 6dc1d7a..782dcbf 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -440,6 +440,7 @@ static inline bool memcg_kmem_enabled(void)
- 	return static_key_false(&memcg_kmem_enabled_key);
- }
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 8b8c28b..addb1f1 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -70,6 +70,7 @@ Brief summary of control files.
+  memory.move_charge_at_immigrate # set/show controls of moving charges
+  memory.oom_control		 # set/show oom controls.
+  memory.numa_stat		 # show the number of memory usage per numa node
++ memory.dangling_memcgs          # show debugging information about dangling groups
  
-+bool memcg_kmem_should_reclaim(struct mem_cgroup *memcg);
- bool memcg_kmem_is_active(struct mem_cgroup *memcg);
+  memory.kmem.limit_in_bytes      # set/show hard limit for kernel memory
+  memory.kmem.usage_in_bytes      # show current kernel memory allocation
+@@ -577,6 +578,21 @@ unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
  
- /*
-@@ -584,6 +585,11 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
- }
- #else
+ And we have total = file + anon + unevictable.
  
-+static inline bool memcg_kmem_should_reclaim(struct mem_cgroup *memcg)
-+{
-+	return false;
-+}
++5.7 dangling_memcgs
 +
- static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
- {
- 	return false;
++This file will only be ever present in the root cgroup, if the option
++CONFIG_MEMCG_DEBUG_ASYNC_DESTROY is set. When a memcg is destroyed, the memory
++consumed by it may not be immediately freed. This is because when some
++extensions are used, such as swap or kernel memory, objects can outlive the
++group and hold a reference to it.
++
++If this is the case, the dangling_memcgs file will show information about what
++are the memcgs still alive, and which references are still preventing it to be
++freed. There is nothing wrong with that, but it is very useful when debugging,
++to know where this memory is being held. This is a developer-oriented debugging
++facility only, and no guarantees of interface stability will be given. The file
++is read-only, and has the sole purpose of displaying information.
++
+ 6. Hierarchy support
+ 
+ The memory controller supports a deep hierarchy and hierarchical accounting.
+diff --git a/init/Kconfig b/init/Kconfig
+index 5341d72..78bfa87 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -887,6 +887,23 @@ config MEMCG_KMEM
+ 	  the kmem extension can use it to guarantee that no group of processes
+ 	  will ever exhaust kernel resources alone.
+ 
++config MEMCG_DEBUG_ASYNC_DESTROY
++	bool "Memory Resource Controller Debug asynchronous object destruction"
++	depends on MEMCG_KMEM || MEMCG_SWAP
++	default n
++	help
++	  When a memcg is destroyed, the memory consumed by it may not be
++	  immediately freed. This is because when some extensions are used, such
++	  as swap or kernel memory, objects can outlive the group and hold a
++	  reference to it.
++
++	  If this is the case, the dangling_memcgs file will show information
++	  about what are the memcgs still alive, and which references are still
++	  preventing it to be freed. There is nothing wrong with that, but it is
++	  very useful when debugging, to know where this memory is being held.
++	  This is a developer-oriented debugging facility only, and no
++	  guarantees of interface stability will be given.
++
+ config CGROUP_HUGETLB
+ 	bool "HugeTLB Resource Controller for Control Groups"
+ 	depends on RESOURCE_COUNTERS && HUGETLB_PAGE
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ad0bc4a..545f922 100644
+index cafb3c5..0e9edcb 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2869,6 +2869,19 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+@@ -321,11 +321,20 @@ struct mem_cgroup {
+ 		struct list_head dead;
+ 	};
+ 
+-	/*
+-	 * Should we move charges of a task when a task is moved into this
+-	 * mem_cgroup ? And what type of charges should we move ?
+-	 */
+-	unsigned long 	move_charge_at_immigrate;
++	union {
++		/*
++		 * Should we move charges of a task when a task is moved into
++		 * this mem_cgroup ? And what type of charges should we move ?
++		 */
++		unsigned long move_charge_at_immigrate;
++
++		/*
++		 * We are no longer concerned about moving charges after memcg
++		 * is dead. So we will fill this up with its name, to aid
++		 * debugging.
++		 */
++		char *memcg_name;
++	};
+ 	/*
+ 	 * set > 0 if pages under this cgroup are moving to other cgroup.
+ 	 */
+@@ -389,10 +398,40 @@ static inline void memcg_dangling_free(struct mem_cgroup *memcg)
+ 	mutex_lock(&dangling_memcgs_mutex);
+ 	list_del(&memcg->dead);
+ 	mutex_unlock(&dangling_memcgs_mutex);
++#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
++	free_pages((unsigned long)memcg->memcg_name, 0);
++#endif
  }
  
- #ifdef CONFIG_MEMCG_KMEM
-+bool memcg_kmem_should_reclaim(struct mem_cgroup *memcg)
-+{
-+	struct mem_cgroup *iter;
-+
-+	for_each_mem_cgroup_tree(iter, memcg) {
-+		if (memcg_kmem_is_active(iter)) {
-+			mem_cgroup_iter_break(memcg, iter);
-+			return true;
-+		}
-+	}
-+	return false;
-+}
-+
- static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
+ static inline void memcg_dangling_add(struct mem_cgroup *memcg)
  {
- 	return !mem_cgroup_disabled() && !mem_cgroup_is_root(memcg) &&
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5fc4005..752e9c7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -147,7 +147,7 @@ static bool global_reclaim(struct scan_control *sc)
- static bool has_kmem_reclaim(struct scan_control *sc)
- {
- 	return !sc->target_mem_cgroup ||
--		memcg_kmem_is_active(sc->target_mem_cgroup);
-+		memcg_kmem_should_reclaim(sc->target_mem_cgroup);
- }
- 
- static unsigned long
-@@ -227,12 +227,110 @@ EXPORT_SYMBOL(unregister_shrinker);
-  *
-  * Returns the number of slab objects which we shrunk.
-  */
-+unsigned long
-+shrink_slab_one(struct shrinker *shrinker, struct shrink_control *sc,
-+		unsigned long nr_pages_scanned, unsigned long lru_pages)
-+{
-+	unsigned long freed = 0;
-+	unsigned long long delta;
-+	long total_scan;
-+	long max_pass;
-+	long nr;
-+	long new_nr;
-+	long batch_size = shrinker->batch ? shrinker->batch
-+					  : SHRINK_BATCH;
-+
-+	max_pass = shrinker->count_objects(shrinker, sc);
-+	WARN_ON(max_pass < 0);
-+	if (max_pass <= 0)
-+		return 0;
-+
++#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
 +	/*
-+	 * copy the current shrinker scan count into a local variable
-+	 * and zero it so that other concurrent shrinker invocations
-+	 * don't also do this scanning work.
++	 * cgroup.c will do page-sized allocations most of the time,
++	 * so we'll just follow the pattern. Also, __get_free_pages
++	 * is a better interface than kmalloc for us here, because
++	 * we'd like this memory to be always billed to the root cgroup,
++	 * not to the process removing the memcg. While kmalloc would
++	 * require us to wrap it into memcg_stop/resume_kmem_account,
++	 * with __get_free_pages we just don't pass the memcg flag.
 +	 */
-+	nr = atomic_long_xchg(&shrinker->nr_in_batch, 0);
-+
-+	total_scan = nr;
-+	delta = (4 * nr_pages_scanned) / shrinker->seeks;
-+	delta *= max_pass;
-+	do_div(delta, lru_pages + 1);
-+	total_scan += delta;
-+	if (total_scan < 0) {
-+		printk(KERN_ERR
-+		"shrink_slab: %pF negative objects to delete nr=%ld\n",
-+		       shrinker->scan_objects, total_scan);
-+		total_scan = max_pass;
-+	}
++	memcg->memcg_name = (char *)__get_free_pages(GFP_KERNEL, 0);
 +
 +	/*
-+	 * We need to avoid excessive windup on filesystem shrinkers
-+	 * due to large numbers of GFP_NOFS allocations causing the
-+	 * shrinkers to return -1 all the time. This results in a large
-+	 * nr being built up so when a shrink that can do some work
-+	 * comes along it empties the entire cache due to nr >>>
-+	 * max_pass.  This is bad for sustaining a working set in
-+	 * memory.
++	 * we will, in general, just ignore failures. No need to go crazy,
++	 * being this just a debugging interface. It is nice to copy a memcg
++	 * name over, but if we (unlikely) can't, just the address will do
++	 */
++	if (!memcg->memcg_name)
++		goto add_list;
++
++	if (cgroup_path(memcg->css.cgroup, memcg->memcg_name, PAGE_SIZE) < 0) {
++		free_pages((unsigned long)memcg->memcg_name, 0);
++		memcg->memcg_name = NULL;
++	}
++
++add_list:
++#endif
+ 	INIT_LIST_HEAD(&memcg->dead);
+ 	mutex_lock(&dangling_memcgs_mutex);
+ 	list_add(&memcg->dead, &dangling_memcgs);
+@@ -3494,7 +3533,7 @@ static void kmem_cache_destroy_work_func(struct work_struct *w)
+ 	 */
+ 	if (atomic_read(&cachep->memcg_params->nr_pages) != 0) {
+ 		kmem_cache_shrink(cachep);
+-		if (atomic_read(&cachep->memcg_params->nr_pages) == 0)
++		if (atomic_read(&cachep->memcg_params->nr_pages) != 0)
+ 			return;
+ 	} else
+ 		kmem_cache_destroy(cachep);
+@@ -5286,6 +5325,107 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
+ }
+ 
++#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
++static void
++mem_cgroup_dangling_swap(struct mem_cgroup *memcg, struct seq_file *m)
++{
++#ifdef CONFIG_MEMCG_SWAP
++	u64 kmem;
++	u64 memsw;
++
++	/*
++	 * kmem will also propagate here, so we are only interested in the
++	 * difference.  See comment in mem_cgroup_reparent_charges for details.
 +	 *
-+	 * Hence only allow the shrinker to scan the entire cache when
-+	 * a large delta change is calculated directly.
++	 * We could save this value for later consumption by kmem reports, but
++	 * there is not a lot of problem if the figures differ slightly.
 +	 */
-+	if (delta < max_pass / 4)
-+		total_scan = min(total_scan, max_pass / 2);
-+
-+	/*
-+	 * Avoid risking looping forever due to too large nr value:
-+	 * never try to free more than twice the estimate number of
-+	 * freeable entries.
-+	 */
-+	if (total_scan > max_pass * 2)
-+		total_scan = max_pass * 2;
-+
-+	trace_mm_shrink_slab_start(shrinker, sc, nr,
-+				nr_pages_scanned, lru_pages,
-+				max_pass, delta, total_scan);
-+
-+	do {
-+		long ret;
-+
-+		sc->nr_to_scan = batch_size;
-+		ret = shrinker->scan_objects(shrinker, sc);
-+		if (ret == -1)
-+			break;
-+		freed += ret;
-+
-+		count_vm_events(SLABS_SCANNED, batch_size);
-+		total_scan -= batch_size;
-+
-+		cond_resched();
-+	} while (total_scan >= batch_size);
-+
-+	/*
-+	 * move the unused scan count back into the shrinker in a
-+	 * manner that handles concurrent updates. If we exhausted the
-+	 * scan, there is no need to do an update.
-+	 */
-+	if (total_scan > 0)
-+		new_nr = atomic_long_add_return(total_scan,
-+				&shrinker->nr_in_batch);
-+	else
-+		new_nr = atomic_long_read(&shrinker->nr_in_batch);
-+
-+	trace_mm_shrink_slab_end(shrinker, freed, nr, new_nr);
-+
-+	return freed;
++	kmem = res_counter_read_u64(&memcg->kmem, RES_USAGE);
++	memsw = res_counter_read_u64(&memcg->memsw, RES_USAGE) - kmem;
++	seq_printf(m, "\t%llu swap bytes\n", memsw);
++#endif
 +}
 +
-+void reap_dead_memcgs(void);
 +
- unsigned long shrink_slab(struct shrink_control *sc,
- 			  unsigned long nr_pages_scanned,
- 			  unsigned long lru_pages)
++static void
++mem_cgroup_dangling_tcp(struct mem_cgroup *memcg, struct seq_file *m)
++{
++#if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
++	struct tcp_memcontrol *tcp = &memcg->tcp_mem;
++	s64 tcp_socks;
++	u64 tcp_bytes;
++
++	tcp_socks = percpu_counter_sum_positive(&tcp->tcp_sockets_allocated);
++	tcp_bytes = res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
++	seq_printf(m, "\t%llu tcp bytes", tcp_bytes);
++	/*
++	 * if tcp_bytes == 0, tcp_socks != 0 is a bug. One more reason to print
++	 * it!
++	 */
++	if (tcp_bytes || tcp_socks)
++		seq_printf(m, ", in %lld sockets", tcp_socks);
++	seq_printf(m, "\n");
++
++#endif
++}
++
++static void
++mem_cgroup_dangling_kmem(struct mem_cgroup *memcg, struct seq_file *m)
++{
++#ifdef CONFIG_MEMCG_KMEM
++	u64 kmem;
++	struct memcg_cache_params *params;
++
++	kmem = res_counter_read_u64(&memcg->kmem, RES_USAGE);
++	seq_printf(m, "\t%llu kmem bytes", kmem);
++
++	/* list below may not be initialized, so not even try */
++	if (!kmem)
++		return;
++
++	seq_printf(m, " in caches");
++	mutex_lock(&memcg->slab_caches_mutex);
++	list_for_each_entry(params, &memcg->memcg_slab_caches, list) {
++			struct kmem_cache *s = memcg_params_to_cache(params);
++
++		seq_printf(m, " %s", s->name);
++	}
++	mutex_unlock(&memcg->slab_caches_mutex);
++	seq_printf(m, "\n");
++#endif
++}
++
++/*
++ * After a memcg is destroyed, it may still be kept around in memory.
++ * Currently, the two main reasons for it are swap entries, and kernel memory.
++ * Because they will be freed assynchronously, they will pin the memcg structure
++ * and its resources until the last reference goes away.
++ *
++ * This root-only file will show information about which users
++ */
++static int mem_cgroup_dangling_read(struct cgroup *cont, struct cftype *cft,
++					struct seq_file *m)
++{
++	struct mem_cgroup *memcg;
++
++	mutex_lock(&dangling_memcgs_mutex);
++
++	list_for_each_entry(memcg, &dangling_memcgs, dead) {
++		if (memcg->memcg_name)
++			seq_printf(m, "%s:\n", memcg->memcg_name);
++		else
++			seq_printf(m, "%p (name lost):\n", memcg);
++
++		mem_cgroup_dangling_swap(memcg, m);
++		mem_cgroup_dangling_tcp(memcg, m);
++		mem_cgroup_dangling_kmem(memcg, m);
++	}
++
++	mutex_unlock(&dangling_memcgs_mutex);
++	return 0;
++}
++#endif
++
+ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
  {
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
-+	struct mem_cgroup *root = sc->target_mem_cgroup;
- 
- 	if (nr_pages_scanned == 0)
- 		nr_pages_scanned = SWAP_CLUSTER_MAX;
-@@ -244,101 +342,39 @@ unsigned long shrink_slab(struct shrink_control *sc,
- 	}
- 
- 	list_for_each_entry(shrinker, &shrinker_list, list) {
--		unsigned long long delta;
--		long total_scan;
--		long max_pass;
--		long nr;
--		long new_nr;
--		long batch_size = shrinker->batch ? shrinker->batch
--						  : SHRINK_BATCH;
--
-+		struct mem_cgroup *memcg;
- 		/*
- 		 * If we don't have a target mem cgroup, we scan them all.
- 		 * Otherwise we will limit our scan to shrinkers marked as
- 		 * memcg aware
- 		 */
--		if (sc->target_mem_cgroup && !shrinker->memcg_shrinker)
--			continue;
--
--		max_pass = shrinker->count_objects(shrinker, sc);
--		WARN_ON(max_pass < 0);
--		if (max_pass <= 0)
-+		if (root && !shrinker->memcg_shrinker)
- 			continue;
- 
--		/*
--		 * copy the current shrinker scan count into a local variable
--		 * and zero it so that other concurrent shrinker invocations
--		 * don't also do this scanning work.
--		 */
--		nr = atomic_long_xchg(&shrinker->nr_in_batch, 0);
--
--		total_scan = nr;
--		delta = (4 * nr_pages_scanned) / shrinker->seeks;
--		delta *= max_pass;
--		do_div(delta, lru_pages + 1);
--		total_scan += delta;
--		if (total_scan < 0) {
--			printk(KERN_ERR
--			"shrink_slab: %pF negative objects to delete nr=%ld\n",
--			       shrinker->scan_objects, total_scan);
--			total_scan = max_pass;
--		}
--
--		/*
--		 * We need to avoid excessive windup on filesystem shrinkers
--		 * due to large numbers of GFP_NOFS allocations causing the
--		 * shrinkers to return -1 all the time. This results in a large
--		 * nr being built up so when a shrink that can do some work
--		 * comes along it empties the entire cache due to nr >>>
--		 * max_pass.  This is bad for sustaining a working set in
--		 * memory.
--		 *
--		 * Hence only allow the shrinker to scan the entire cache when
--		 * a large delta change is calculated directly.
--		 */
--		if (delta < max_pass / 4)
--			total_scan = min(total_scan, max_pass / 2);
--
--		/*
--		 * Avoid risking looping forever due to too large nr value:
--		 * never try to free more than twice the estimate number of
--		 * freeable entries.
--		 */
--		if (total_scan > max_pass * 2)
--			total_scan = max_pass * 2;
--
--		trace_mm_shrink_slab_start(shrinker, sc, nr,
--					nr_pages_scanned, lru_pages,
--					max_pass, delta, total_scan);
--
-+		memcg = mem_cgroup_iter(root, NULL, NULL);
- 		do {
--			long ret;
--
--			sc->nr_to_scan = batch_size;
--			ret = shrinker->scan_objects(shrinker, sc);
--			if (ret == -1)
--				break;
--			freed += ret;
--
--			count_vm_events(SLABS_SCANNED, batch_size);
--			total_scan -= batch_size;
--
--			cond_resched();
--		} while (total_scan >= batch_size);
--
--		/*
--		 * move the unused scan count back into the shrinker in a
--		 * manner that handles concurrent updates. If we exhausted the
--		 * scan, there is no need to do an update.
--		 */
--		if (total_scan > 0)
--			new_nr = atomic_long_add_return(total_scan,
--					&shrinker->nr_in_batch);
--		else
--			new_nr = atomic_long_read(&shrinker->nr_in_batch);
--
--		trace_mm_shrink_slab_end(shrinker, freed, nr, new_nr);
-+			sc->target_mem_cgroup = memcg;
-+			/*
-+			 * In a hierarchical chain, it might be that not all
-+			 * memcgs are kmem active. kmemcg design mandates that
-+			 * when one memcg is active, its children will be
-+			 * active as well. But it is perfectly possible that
-+			 * its parent is not.
-+			 *
-+			 * We also need to make sure we scan at least once, for
-+			 * the global case. So if we don't have a target memcg
-+			 * (saved in root), we proceed normally and expect to
-+			 * break in the next round.
-+			 */
-+			if (!root || memcg_kmem_is_active(memcg))
-+				freed += shrink_slab_one(shrinker, sc,
-+						 nr_pages_scanned, lru_pages);
-+			memcg = mem_cgroup_iter(root, memcg, NULL);
-+		} while (memcg);
- 	}
+ 	int ret = -EINVAL;
+@@ -6236,6 +6376,14 @@ static struct cftype mem_cgroup_files[] = {
+ 	},
+ #endif
+ #endif
 +
-+	/* restore original state */
-+	sc->target_mem_cgroup = root;
- 	up_read(&shrinker_rwsem);
- out:
- 	cond_resched();
++#ifdef CONFIG_MEMCG_DEBUG_ASYNC_DESTROY
++	{
++		.name = "dangling_memcgs",
++		.read_seq_string = mem_cgroup_dangling_read,
++		.flags = CFTYPE_ONLY_ON_ROOT,
++	},
++#endif
+ 	{ },	/* terminate */
+ };
+ 
 -- 
 1.8.1.4
 
