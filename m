@@ -1,205 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id EFB0F6B0068
-	for <linux-mm@kvack.org>; Sun,  7 Apr 2013 22:01:43 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E7A373EE0C0
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:41 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D0C4645DE7A
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B894445DE64
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:41 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AB0051DB8048
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:41 +0900 (JST)
-Received: from g01jpexchkw32.g01.fujitsu.local (unknown [10.0.193.115])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 673081DB8049
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 11:01:41 +0900 (JST)
-Message-ID: <516224E4.5010409@jp.fujitsu.com>
-Date: Mon, 8 Apr 2013 11:01:08 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [UPDATE][PATCH 2/3] resource: Add release_mem_region_adjustable()
-References: <1365031405-25206-1-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1365031405-25206-1-git-send-email-toshi.kani@hp.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 99CA66B006C
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:01:06 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] mm: remove compressed copy from zram in-memory
+Date: Mon,  8 Apr 2013 15:01:02 +0900
+Message-Id: <1365400862-9041-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
 
-Hi Toshi,
+Swap subsystem does lazy swap slot free with expecting the page
+would be swapped out again so we can avoid unnecessary write.
 
-2013/04/04 8:23, Toshi Kani wrote:
-> Added release_mem_region_adjustable(), which releases a requested
-> region from a currently busy memory resource.  This interface
-> adjusts the matched memory resource accordingly if the requested
-> region does not match exactly but still fits into.
-> 
-> This new interface is intended for memory hot-delete.  During
-> bootup, memory resources are inserted from the boot descriptor
-> table, such as EFI Memory Table and e820.  Each memory resource
-> entry usually covers the whole contigous memory range.  Memory
-> hot-delete request, on the other hand, may target to a particular
-> range of memory resource, and its size can be much smaller than
-> the whole contiguous memory.  Since the existing release interfaces
-> like __release_region() require a requested region to be exactly
-> matched to a resource entry, they do not allow a partial resource
-> to be released.
-> 
-> There is no change to the existing interfaces since their restriction
-> is valid for I/O resources.
-> 
-> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+But the problem in in-memory swap(ex, zram) is that it consumes
+memory space until vm_swap_full(ie, used half of all of swap device)
+condition meet. It could be bad if we use multiple swap device,
+small in-memory swap and big storage swap or in-memory swap alone.
 
-Reviewed-by : Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+This patch makes swap subsystem free swap slot as soon as swap-read
+is completed and make the swapcache page dirty so the page should
+be written out the swap device to reclaim it.
+It means we never lose it.
 
-One nitpick below.
+I tested this patch with kernel compile workload.
 
-> ---
-> 
-> Updated per code reviews from Yasuaki Ishimatsu, Ram Pai and
-> Gu Zheng.
-> 
-> ---
->   include/linux/ioport.h |    2 +
->   kernel/resource.c      |   93 ++++++++++++++++++++++++++++++++++++++++++++++++
->   2 files changed, 95 insertions(+)
-> 
-> diff --git a/include/linux/ioport.h b/include/linux/ioport.h
-> index 85ac9b9b..0fe1a82 100644
-> --- a/include/linux/ioport.h
-> +++ b/include/linux/ioport.h
-> @@ -192,6 +192,8 @@ extern struct resource * __request_region(struct resource *,
->   extern int __check_region(struct resource *, resource_size_t, resource_size_t);
->   extern void __release_region(struct resource *, resource_size_t,
->   				resource_size_t);
-> +extern int release_mem_region_adjustable(struct resource *, resource_size_t,
-> +				resource_size_t);
->   
->   static inline int __deprecated check_region(resource_size_t s,
->   						resource_size_t n)
-> diff --git a/kernel/resource.c b/kernel/resource.c
-> index ae246f9..c7966c3 100644
-> --- a/kernel/resource.c
-> +++ b/kernel/resource.c
-> @@ -1021,6 +1021,99 @@ void __release_region(struct resource *parent, resource_size_t start,
->   }
->   EXPORT_SYMBOL(__release_region);
->   
-> +/**
-> + * release_mem_region_adjustable - release a previously reserved memory region
-> + * @parent: parent resource descriptor
-> + * @start: resource start address
-> + * @size: resource region size
-> + *
-> + * The requested region is released from a currently busy memory resource.
-> + * It adjusts the matched busy memory resource accordingly if the requested
-> + * region does not match exactly but still fits into.  Existing children of
-> + * the busy memory resource must be immutable in this request.
-> + *
-> + * Note, when the busy memory resource gets split into two entries, the code
-> + * assumes that all children remain in the lower address entry for simplicity.
-> + * Enhance this logic when necessary.
-> + */
-> +int release_mem_region_adjustable(struct resource *parent,
-> +			resource_size_t start, resource_size_t size)
-> +{
-> +	struct resource **p;
-> +	struct resource *res, *new;
-> +	resource_size_t end;
-> +	int ret = -EINVAL;
-> +
+1. before
 
-> +	end = start + size - 1;
-> +	if ((start < parent->start) || (end > parent->end))
-> +		return -EINVAL;
+compile time : 9882.42
+zram max wasted space by fragmentation: 13471881 byte
+memory space consumed by zram: 174227456 byte
+the number of slot free notify: 206684
 
-"ret" is initialized to -EINVAL. So how about use it?
+2. after
 
-Thanks,
-Yasuaki Ishimatsu
+compile time : 9653.90
+zram max wasted space by fragmentation: 11805932 byte
+memory space consumed by zram: 154001408 byte
+the number of slot free notify: 426972
 
-> +
-> +	p = &parent->child;
-> +	write_lock(&resource_lock);
-> +
-> +	while ((res = *p)) {
-> +		if (res->start >= end)
-> +			break;
-> +
-> +		/* look for the next resource if it does not fit into */
-> +		if (res->start > start || res->end < end) {
-> +			p = &res->sibling;
-> +			continue;
-> +		}
-> +
-> +		if (!(res->flags & IORESOURCE_MEM))
-> +			break;
-> +
-> +		if (!(res->flags & IORESOURCE_BUSY)) {
-> +			p = &res->child;
-> +			continue;
-> +		}
-> +
-> +		/* found the target resource; let's adjust accordingly */
-> +		if (res->start == start && res->end == end) {
-> +			/* free the whole entry */
-> +			*p = res->sibling;
-> +			kfree(res);
-> +			ret = 0;
-> +		} else if (res->start == start && res->end != end) {
-> +			/* adjust the start */
-> +			ret = __adjust_resource(res, end + 1,
-> +						res->end - end);
-> +		} else if (res->start != start && res->end == end) {
-> +			/* adjust the end */
-> +			ret = __adjust_resource(res, res->start,
-> +						start - res->start);
-> +		} else {
-> +			/* split into two entries */
-> +			new = kzalloc(sizeof(struct resource), GFP_KERNEL);
-> +			if (!new) {
-> +				ret = -ENOMEM;
-> +				break;
-> +			}
-> +			new->name = res->name;
-> +			new->start = end + 1;
-> +			new->end = res->end;
-> +			new->flags = res->flags;
-> +			new->parent = res->parent;
-> +			new->sibling = res->sibling;
-> +			new->child = NULL;
-> +
-> +			ret = __adjust_resource(res, res->start,
-> +						start - res->start);
-> +			if (ret) {
-> +				kfree(new);
-> +				break;
-> +			}
-> +			res->sibling = new;
-> +		}
-> +
-> +		break;
-> +	}
-> +
-> +	write_unlock(&resource_lock);
-> +	return ret;
-> +}
-> +
->   /*
->    * Managed region resource
->    */
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Nitin Gupta <ngupta@vflare.org>
+Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: Shaohua Li <shli@kernel.org>
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+Fragment ratio is almost same but memory consumption and compile time
+is better. I am working to add defragment function of zsmalloc.
 
+ mm/page_io.c | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 78eee32..644900a 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -20,6 +20,7 @@
+ #include <linux/buffer_head.h>
+ #include <linux/writeback.h>
+ #include <linux/frontswap.h>
++#include <linux/blkdev.h>
+ #include <asm/pgtable.h>
+ 
+ static struct bio *get_swap_bio(gfp_t gfp_flags,
+@@ -81,8 +82,30 @@ void end_swap_bio_read(struct bio *bio, int err)
+ 				iminor(bio->bi_bdev->bd_inode),
+ 				(unsigned long long)bio->bi_sector);
+ 	} else {
++		/*
++		 * There is no reason to keep both uncompressed data and
++		 * compressed data in memory.
++		 */
++		struct swap_info_struct *sis;
++
+ 		SetPageUptodate(page);
++		sis = page_swap_info(page);
++		if (sis->flags & SWP_BLKDEV) {
++			struct gendisk *disk = sis->bdev->bd_disk;
++			if (disk->fops->swap_slot_free_notify) {
++				swp_entry_t entry;
++				unsigned long offset;
++
++				entry.val = page_private(page);
++				offset = swp_offset(entry);
++
++				SetPageDirty(page);
++				disk->fops->swap_slot_free_notify(sis->bdev,
++						offset);
++			}
++		}
+ 	}
++
+ 	unlock_page(page);
+ 	bio_put(bio);
+ }
+-- 
+1.8.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
