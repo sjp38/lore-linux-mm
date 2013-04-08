@@ -1,12 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 894566B0073
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:34:18 -0400 (EDT)
-Message-ID: <516264AF.1040906@huawei.com>
-Date: Mon, 8 Apr 2013 14:33:19 +0800
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 620826B0078
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 02:34:23 -0400 (EDT)
+Message-ID: <516264BF.2020009@huawei.com>
+Date: Mon, 8 Apr 2013 14:33:35 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 02/12] memcg: avoid accessing memcg after releasing reference
+Subject: [PATCH 03/12] Revert "memcg: avoid dangling reference count in creation
+ failure."
 References: <5162648B.9070802@huawei.com>
 In-Reply-To: <5162648B.9070802@huawei.com>
 Content-Type: text/plain; charset="GB2312"
@@ -16,32 +17,32 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-This might cause use-after-free bug.
+From: Michal Hocko <mhocko@suse.cz>
+
+This reverts commit e4715f01be697a3730c78f8ffffb595591d6a88c
+
+mem_cgroup_put is hierarchy aware so mem_cgroup_put(memcg) already drops
+an additional reference from all parents so the additional
+mem_cgrroup_put(parent) potentially causes use-after-free.
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/memcontrol.c | 2 --
+ 1 file changed, 2 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e054ac0..2364f4e 100644
+index 2364f4e..44cec72 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3192,12 +3192,12 @@ void memcg_release_cache(struct kmem_cache *s)
- 
- 	root = s->memcg_params->root_cache;
- 	root->memcg_params->memcg_caches[id] = NULL;
--	mem_cgroup_put(memcg);
- 
- 	mutex_lock(&memcg->slab_caches_mutex);
- 	list_del(&s->memcg_params->list);
- 	mutex_unlock(&memcg->slab_caches_mutex);
- 
-+	mem_cgroup_put(memcg);
- out:
- 	kfree(s->memcg_params);
+@@ -6250,8 +6250,6 @@ mem_cgroup_css_online(struct cgroup *cont)
+ 		 * call __mem_cgroup_free, so return directly
+ 		 */
+ 		mem_cgroup_put(memcg);
+-		if (parent->use_hierarchy)
+-			mem_cgroup_put(parent);
+ 	}
+ 	return error;
  }
 -- 
 1.8.0.2
