@@ -1,236 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 0FB776B0027
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 01:55:17 -0400 (EDT)
-Date: Tue, 9 Apr 2013 14:55:14 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/3] mm, vmscan: count accidental reclaimed pages failed
- to put into lru
-Message-ID: <20130409055514.GC6836@blaptop>
-References: <1365470478-645-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id E19EE6B0027
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 02:03:04 -0400 (EDT)
+Received: by mail-lb0-f170.google.com with SMTP id x11so6510115lbi.1
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 23:03:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1365470478-645-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <5162FE4D.7020308@linux.vnet.ibm.com>
+References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com>
+	<1365194030-28939-4-git-send-email-cody@linux.vnet.ibm.com>
+	<CAOtvUMdT0-oQMTsHAjFqL6K8vrLeCcXG2hX-sShxu6GGRBPxJw@mail.gmail.com>
+	<5162FE4D.7020308@linux.vnet.ibm.com>
+Date: Tue, 9 Apr 2013 09:03:02 +0300
+Message-ID: <CAOtvUMcUZsfXT1km89mm4Hng=K8hbkhgsJW6tgxufNH4Kwb7sg@mail.gmail.com>
+Subject: Re: [PATCH 3/3] mm: when handling percpu_pagelist_fraction, use
+ on_each_cpu() to set percpu pageset fields.
+From: Gilad Ben-Yossef <gilad@benyossef.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello Joonsoo,
+On Mon, Apr 8, 2013 at 8:28 PM, Cody P Schafer <cody@linux.vnet.ibm.com> wrote:
+> On 04/08/2013 05:20 AM, Gilad Ben-Yossef wrote:
+>>
+>> On Fri, Apr 5, 2013 at 11:33 PM, Cody P Schafer <cody@linux.vnet.ibm.com>
+>> wrote:
+>>>
+>>> In free_hot_cold_page(), we rely on pcp->batch remaining stable.
+>>> Updating it without being on the cpu owning the percpu pageset
+>>> potentially destroys this stability.
+>>>
+>>> Change for_each_cpu() to on_each_cpu() to fix.
+>>
+>>
+>> Are you referring to this? -
+>
+>
+> This was the case I noticed.
+>
+>
+>>
+>> 1329         if (pcp->count >= pcp->high) {
+>> 1330                 free_pcppages_bulk(zone, pcp->batch, pcp);
+>> 1331                 pcp->count -= pcp->batch;
+>> 1332         }
+>>
+>> I'm probably missing the obvious but won't it be simpler to do this in
+>>   free_hot_cold_page() -
+>>
+>> 1329         if (pcp->count >= pcp->high) {
+>> 1330                  unsigned int batch = ACCESS_ONCE(pcp->batch);
+>> 1331                 free_pcppages_bulk(zone, batch, pcp);
+>> 1332                 pcp->count -= batch;
+>> 1333         }
+>>
+>
+> Potentially, yes. Note that this was simply the one case I noticed, rather
+> than certainly the only case.
 
-On Tue, Apr 09, 2013 at 10:21:16AM +0900, Joonsoo Kim wrote:
-> In shrink_(in)active_list(), we can fail to put into lru, and these pages
-> are reclaimed accidentally. Currently, these pages are not counted
-> for sc->nr_reclaimed, but with this information, we can stop to reclaim
-> earlier, so can reduce overhead of reclaim.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+OK, so perhaps the right thing to do is to understand what are (some of) the
+other cases so that we may choose the right solution.
 
-Nice catch!
+> I also wonder whether there could be unexpected interactions between ->high
+> and ->batch not changing together atomically. For example, could adjusting
+> this knob cause ->batch to rise enough that it is greater than the previous
+> ->high? If the code above then runs with the previous ->high, ->count
+> wouldn't be correct (checking this inside free_pcppages_bulk() might help on
+> this one issue).
 
-But this patch handles very corner case and makes reclaim function's name
-rather stupid so I'd like to see text size change after we apply this patch.
-Other nipicks below.
+You are right, but that can be treated in  setup_pagelist_highmark()  e.g.:
 
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 0f615eb..5d60ae0 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -365,7 +365,7 @@ void *alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
->  extern void __free_pages(struct page *page, unsigned int order);
->  extern void free_pages(unsigned long addr, unsigned int order);
->  extern void free_hot_cold_page(struct page *page, int cold);
-> -extern void free_hot_cold_page_list(struct list_head *list, int cold);
-> +extern unsigned long free_hot_cold_page_list(struct list_head *list, int cold);
->  
->  extern void __free_memcg_kmem_pages(struct page *page, unsigned int order);
->  extern void free_memcg_kmem_pages(unsigned long addr, unsigned int order);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8fcced7..a5f3952 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1360,14 +1360,18 @@ out:
->  /*
->   * Free a list of 0-order pages
->   */
-> -void free_hot_cold_page_list(struct list_head *list, int cold)
-> +unsigned long free_hot_cold_page_list(struct list_head *list, int cold)
->  {
-> +	unsigned long nr_reclaimed = 0;
+3993 static void setup_pagelist_highmark(struct per_cpu_pageset *p,
+3994                                 unsigned long high)
+3995 {
+3996         struct per_cpu_pages *pcp;
+                unsigned int batch;
+3997
+3998         pcp = &p->pcp;
+                /* We're about to mess with PCP in an non atomic fashion.
+                   Put an intermediate safe value of batch and make sure it
+                   is visible before any other change */
+                pcp->batch = 1UL;
+                smb_mb();
 
-How about nr_free or nr_freed for consistent with function title?
+3999         pcp->high = high;
 
->  	struct page *page, *next;
->  
->  	list_for_each_entry_safe(page, next, list, lru) {
->  		trace_mm_page_free_batched(page, cold);
->  		free_hot_cold_page(page, cold);
-> +		nr_reclaimed++;
->  	}
-> +
-> +	return nr_reclaimed;
->  }
->  
->  /*
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 88c5fed..eff2927 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -915,7 +915,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		 */
->  		__clear_page_locked(page);
->  free_it:
-> -		nr_reclaimed++;
->  
->  		/*
->  		 * Is there need to periodically free_page_list? It would
-> @@ -954,7 +953,7 @@ keep:
->  	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc))
->  		zone_set_flag(zone, ZONE_CONGESTED);
->  
-> -	free_hot_cold_page_list(&free_pages, 1);
-> +	nr_reclaimed += free_hot_cold_page_list(&free_pages, 1);
+4000         batch = max(1UL, high/4);
+4001         if ((high/4) > (PAGE_SHIFT * 8))
+4002                 batch = PAGE_SHIFT * 8;
 
-Nice cleanup.
+               pcp->batch = batch;
+4003 }
 
->  
->  	list_splice(&ret_pages, page_list);
->  	count_vm_events(PGACTIVATE, pgactivate);
-> @@ -1321,7 +1320,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  	if (nr_taken == 0)
->  		return 0;
->  
-> -	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
-> +	nr_reclaimed += shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
->  					&nr_dirty, &nr_writeback, false);
+Or we could use an RCU here, but that might be an overkill.
 
-Do you have any reason to change?
-To me, '=' is more clear to initialize the variable.
-When I see above, I have to look through above lines to catch where code
-used the nr_reclaimed.
+>
+>
+>> Now the batch value used is stable and you don't have to IPI every CPU
+>> in the system just to change a config knob...
+>
+>
+> Is this really considered an issue? I wouldn't have expected someone to
+> adjust the config knob often enough (or even more than once) to cause
+> problems. Of course as a "It'd be nice" thing, I completely agree.
 
->  
->  	spin_lock_irq(&zone->lru_lock);
-> @@ -1343,7 +1342,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  
->  	spin_unlock_irq(&zone->lru_lock);
->  
-> -	free_hot_cold_page_list(&page_list, 1);
-> +	nr_reclaimed += free_hot_cold_page_list(&page_list, 1);
+Well, interfering unconditionally with other CPUs either via IPIs or
+scheduling work
+on them is a major headache for people that run work on machines with 4k CPUs,
+especially the HPC or RT or combos from the finance and networking
+users.
 
-How about considering vmstat, too?
-It could be minor but you are considering freed page as
-reclaim context. (ie, sc->nr_reclaimed) so it would be more appropriate.
+If this was the only little knob or trigger that does this, then maybe
+it wont be so bad,
+but the problem is there is a list of these little knobs and items
+that potentially cause
+cross machine interference, and the poor sys admin has to keep them
+all in his or her
+head: "Now, is it ok to pull this knob now, or will it cause an IPI s**t storm?"
 
->  
->  	/*
->  	 * If reclaim is isolating dirty pages under writeback, it implies
-> @@ -1438,7 +1437,7 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
->  		__count_vm_events(PGDEACTIVATE, pgmoved);
->  }
->  
-> -static void shrink_active_list(unsigned long nr_to_scan,
-> +static unsigned long shrink_active_list(unsigned long nr_to_scan,
->  			       struct lruvec *lruvec,
->  			       struct scan_control *sc,
->  			       enum lru_list lru)
-> @@ -1534,7 +1533,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
->  	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
->  	spin_unlock_irq(&zone->lru_lock);
->  
-> -	free_hot_cold_page_list(&l_hold, 1);
-> +	return free_hot_cold_page_list(&l_hold, 1);
+We can never get rid of them all, but I'd really prefer to keep them
+down to a minimum
+if at all possible. Here, it looks to me that it is possible and that
+the price is not great -
+that is, the resulting code is not too hairy or none maintainable. At
+least, that is how
+it looks to me.
 
-It would be better to add comment about return value.
-Otherwise, people could confuse with the number of pages moved from
-active to inactive.
-
->  }
->  
->  #ifdef CONFIG_SWAP
-> @@ -1617,7 +1616,8 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
->  {
->  	if (is_active_lru(lru)) {
->  		if (inactive_list_is_low(lruvec, lru))
-> -			shrink_active_list(nr_to_scan, lruvec, sc, lru);
-> +			return shrink_active_list(nr_to_scan, lruvec, sc, lru);
-> +
-
-Unnecessary change.
-
->  		return 0;
->  	}
->  
-> @@ -1861,8 +1861,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
->  	 * rebalance the anon lru active/inactive ratio.
->  	 */
->  	if (inactive_anon_is_low(lruvec))
-> -		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
-> -				   sc, LRU_ACTIVE_ANON);
-> +		sc->nr_reclaimed += shrink_active_list(SWAP_CLUSTER_MAX,
-> +					lruvec, sc, LRU_ACTIVE_ANON);
->  
->  	throttle_vm_writeout(sc->gfp_mask);
->  }
-> @@ -2470,23 +2470,27 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
->  }
->  #endif
->  
-> -static void age_active_anon(struct zone *zone, struct scan_control *sc)
-
-Comment about return value.
-or rename but I have no idea. Sorry.
-
-> +static unsigned long age_active_anon(struct zone *zone,
-> +					struct scan_control *sc)
->  {
-> +	unsigned long nr_reclaimed = 0;
->  	struct mem_cgroup *memcg;
->  
->  	if (!total_swap_pages)
-> -		return;
-> +		return 0;
->  
->  	memcg = mem_cgroup_iter(NULL, NULL, NULL);
->  	do {
->  		struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
->  
->  		if (inactive_anon_is_low(lruvec))
-> -			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
-> -					   sc, LRU_ACTIVE_ANON);
-> +			nr_reclaimed += shrink_active_list(SWAP_CLUSTER_MAX,
-> +					lruvec, sc, LRU_ACTIVE_ANON);
->  
->  		memcg = mem_cgroup_iter(NULL, memcg, NULL);
->  	} while (memcg);
-> +
-> +	return nr_reclaimed;
->  }
->  
->  static bool zone_balanced(struct zone *zone, int order,
-> @@ -2666,7 +2670,7 @@ loop_again:
->  			 * Do some background aging of the anon list, to give
->  			 * pages a chance to be referenced before reclaiming.
->  			 */
-> -			age_active_anon(zone, &sc);
-> +			sc.nr_reclaimed += age_active_anon(zone, &sc);
->  
->  			/*
->  			 * If the number of buffer_heads in the machine
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks,
+Gilad
 
 -- 
-Kind regards,
-Minchan Kim
+Gilad Ben-Yossef
+Chief Coffee Drinker
+gilad@benyossef.com
+Israel Cell: +972-52-8260388
+US Cell: +1-973-8260388
+http://benyossef.com
+
+"If you take a class in large-scale robotics, can you end up in a
+situation where the homework eats your dog?"
+ -- Jean-Baptiste Queru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
