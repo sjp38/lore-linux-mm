@@ -1,53 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 4377A6B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 22:58:11 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 7B92F3EE0BC
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 11:58:09 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5474145DEBB
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 11:58:09 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 14C6A45DEB6
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 11:58:09 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 02B061DB803E
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 11:58:09 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A4C1C1DB803C
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 11:58:08 +0900 (JST)
-Message-ID: <516383AD.9010305@jp.fujitsu.com>
-Date: Tue, 09 Apr 2013 11:57:49 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 73A476B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 23:03:16 -0400 (EDT)
+Message-ID: <51638463.70009@huawei.com>
+Date: Tue, 9 Apr 2013 11:00:51 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 12/12] memcg: don't need to free memcg via RCU or workqueue
-References: <5162648B.9070802@huawei.com> <51626570.8000400@huawei.com>
-In-Reply-To: <51626570.8000400@huawei.com>
-Content-Type: text/plain; charset=GB2312
+Subject: Re: [PATCH 4/8] memcg: convert to use cgroup_from_id()
+References: <51627DA9.7020507@huawei.com> <51627E09.5010605@huawei.com> <20130408145333.GL17178@dhcp22.suse.cz>
+In-Reply-To: <20130408145333.GL17178@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-(2013/04/08 15:36), Li Zefan wrote:
-> Now memcg has the same life cycle with its corresponding cgroup, and
-> a cgroup is freed via RCU and then mem_cgroup_css_free() is called
-> in a work function, so we can simply call __mem_cgroup_free() in
-> mem_cgroup_css_free().
+On 2013/4/8 22:53, Michal Hocko wrote:
+> On Mon 08-04-13 16:21:29, Li Zefan wrote:
+>> This is a preparation to kill css_id.
+>>
+>> Signed-off-by: Li Zefan <lizefan@huawei.com>
 > 
-> This actually reverts 59927fb984de1703c67bc640c3e522d8b5276c73
-> ("memcg: free mem_cgroup by RCU to fix oops").
+> I would be tempted to stuff this into the same patch which introduces
+> cgroup_from_id but this is just a minor thing.
 > 
-> Cc: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Li Zefan <lizefan@huawei.com>
 
-Very nice.
+yeah it's not a big deal, just want to separate changes to cgroup and memcg.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> 
+>> ---
+>>  mm/memcontrol.c | 8 ++++----
+>>  1 file changed, 4 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+>> index 14f1375..3561d0b 100644
+>> --- a/mm/memcontrol.c
+>> +++ b/mm/memcontrol.c
+>> @@ -2769,15 +2769,15 @@ static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
+>>   */
+>>  static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+>>  {
+>> -	struct cgroup_subsys_state *css;
+>> +	struct cgroup *cgrp;
+>>  
+>>  	/* ID 0 is unused ID */
+>>  	if (!id)
+>>  		return NULL;
+>> -	css = css_lookup(&mem_cgroup_subsys, id);
+>> -	if (!css)
+>> +	cgrp = cgroup_from_id(&mem_cgroup_subsys, id);
+>> +	if (!cgrp)
+>>  		return NULL;
+>> -	return mem_cgroup_from_css(css);
+>> +	return mem_cgroup_from_cont(cgrp);
+>>  }
+>>  
+>>  struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+>> -- 
+>> 1.8.0.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
