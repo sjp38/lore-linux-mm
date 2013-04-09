@@ -1,82 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 07AE56B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 19:28:05 -0400 (EDT)
-Date: Tue, 9 Apr 2013 09:28:03 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2 10/28] dcache: convert to use new lru list
- infrastructure
-Message-ID: <20130408232803.GD17758@dastard>
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
- <1364548450-28254-11-git-send-email-glommer@parallels.com>
- <5162C2C4.7010807@parallels.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 5042F6B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 20:36:52 -0400 (EDT)
+Received: by mail-ob0-f178.google.com with SMTP id ni5so1809556obc.23
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 17:36:51 -0700 (PDT)
+Message-ID: <5163629A.4070202@linaro.org>
+Date: Mon, 08 Apr 2013 17:36:42 -0700
+From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5162C2C4.7010807@parallels.com>
+Subject: Re: [RFC PATCH 0/4] Support vranges on files
+References: <1365033144-15156-1-git-send-email-john.stultz@linaro.org> <20130404065509.GE7675@blaptop> <515DBA70.8010606@linaro.org> <20130405075504.GA32126@blaptop> <20130408004638.GA6394@blaptop>
+In-Reply-To: <20130408004638.GA6394@blaptop>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, hughd@google.com, containers@lists.linux-foundation.org, Dave Chinner <dchinner@redhat.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Apr 08, 2013 at 05:14:44PM +0400, Glauber Costa wrote:
-> On 03/29/2013 01:13 PM, Glauber Costa wrote:
-> > +	if (dentry->d_flags & DCACHE_REFERENCED) {
-> > +		dentry->d_flags &= ~DCACHE_REFERENCED;
-> > +		spin_unlock(&dentry->d_lock);
-> > +
-> > +		/*
-> > +		 * XXX: this list move should be be done under d_lock. Need to
-> > +		 * determine if it is safe just to do it under the lru lock.
-> > +		 */
-> > +		return 1;
-> > +	}
-> 
-> I've carefully audited the list manipulations in dcache and determined
-> this is safe. I've replaced the fixme string for the following text. Let
-> me know if you believe this is not right.
+On 04/07/2013 05:46 PM, Minchan Kim wrote:
+> Hello John,
+>
+> As you know, userland people wanted to handle vrange with mmaped
+> pointer rather than fd-based and see the SIGBUS so I thought more
+> about semantic of vrange and want to make it very clear and easy.
+> So I suggest below semantic(Of course, it's not rock solid).
+>
+>          mvrange(start_addr, lengh, mode, behavior)
+>
+> It's same with that I suggested lately but different name, just
+> adding prefix "m". It's per-process model(ie, mm_struct vrange)
+> so if process is exited, "volatility" isn't valid any more.
+> It isn't a problem in anonymous but could be in file-vrange so let's
+> introduce fvrange for covering the problem.
+>
+>          fvrange(int fd, start_offset, length, mode, behavior)
+>
+> First of all, let's see mvrange with anonymous and file page POV.
+>
+> 1) anon-mvrange
+>
+> The page in volaitle range will be purged only if all of processes
+> marked the range as volatile.
+>
+> If A process calls mvrange and is forked, vrange could be copied
+> from parent to child so not-yet-COWed pages could be purged
+> unless either one of both processes marks NO_VOLATILE explicitly.
+>
+> Of course, COWed page could be purged easily because there is no link
+> any more.
 
-....
+Ack. This seems reasonable.
 
-> diff --git a/fs/dcache.c b/fs/dcache.c
-> index a2fc76e..8e166a4 100644
-> --- a/fs/dcache.c
-> +++ b/fs/dcache.c
-> @@ -855,8 +855,23 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
->  		spin_unlock(&dentry->d_lock);
->  
->  		/*
-> -		 * XXX: this list move should be be done under d_lock. Need to
-> -		 * determine if it is safe just to do it under the lru lock.
-> +		 * The list move itself will be made by the common LRU code. At
-> +		 * this point, we've dropped the dentry->d_lock but keep the
-> +		 * lru lock. This is safe to do, since every list movement is
-> +		 * protected by the lru lock even if both locks are held.
-> +		 *
-> +		 * This is guaranteed by the fact that all LRU management
-> +		 * functions are intermediated by the LRU API calls like
-> +		 * list_lru_add and list_lru_del. List movement in this file
-> +		 * only ever occur through this functions or through callbacks
-> +		 * like this one, that are called from the LRU API.
-> +		 *
-> +		 * The only exceptions to this are functions like
-> +		 * shrink_dentry_list, and code that first checks for the
-> +		 * DCACHE_SHRINK_LIST flag.  Those are guaranteed to be
-> +		 * operating only with stack provided lists after they are
-> +		 * properly isolated from the main list.  It is thus, always a
-> +		 * local access.
->  		 */
->  		return LRU_ROTATE;
 
-It looks correct - I just never got around to doing the audit to
-determine it was. Thanks!
+> 2) file-mvrange
+>
+> A page in volatile range will be purged only if all of processes mapped
+> the page marked it as volatile AND there is no process mapped the page
+> as "private". IOW, all of the process mapped the page should map it
+> with "shared" for purging.
+>
+> So, all of processes should mark each address range in own process
+> context if they want to collaborate with shared mapped file and gaurantee
+> there is no process mapped the range with "private".
+>
+> Of course, volatility state will be terminated as the process is gone.
 
-Cheers,
+This case doesn't seem ideal to me, but is sort of how the current code 
+works to avoid the complexity of dealing with memory volatile ranges 
+that cross page types (file/anonymous). Although the current code just 
+doesn't purge file pages marked with mvrange().
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I'd much prefer file-mvrange calls to behave identically to fvrange calls.
+
+The important point here is that the kernel doesn't *have* to purge 
+anything ever. Its the kernel's discretion as to which volatile pages to 
+purge when. So its easier for now to simply not purge file pages marked 
+volatile via mvolatile.
+
+There however is the inconsistency that file pages marked volatile via 
+fvrange, then are marked non-volatile via mvrange() might still be 
+purged. That is broken in my mind, and still needs to be addressed. The 
+easiest out is probably just to return an error if any of the mvrange 
+calls cover file pages. But I'd really like a better fix.
+
+
+> 3) fvrange
+>
+> It's same with 2) but volatility state could be persistent in address_space
+> until someone calls fvrange(NO_VOLATILE).
+> So it could remove the weakness of 2).
+>   
+> What do you think about above semantic?
+
+
+I'd still like mvrange() calls on shared mapped files to be stored on 
+the address_space.
+
+
+> If you don't have any problem, we could implement it. I think 1) and 2) could
+> be handled with my base code for anon-vrange handling with tweaking
+> file-vrange and need your new patches in address_space for handling 3).
+
+I think we can get it sorted out. It might just take a few iterations.
+
+thanks
+-john
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
