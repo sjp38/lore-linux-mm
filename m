@@ -1,65 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id B901D6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 02:42:52 -0400 (EDT)
-Date: Tue, 9 Apr 2013 08:42:49 +0200
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 4D71E6B0006
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 02:49:06 -0400 (EDT)
+Date: Tue, 9 Apr 2013 08:49:04 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/8] cgroup: implement cgroup_is_ancestor()
-Message-ID: <20130409064239.GA29860@dhcp22.suse.cz>
+Subject: Re: [PATCH 5/8] memcg: convert to use cgroup->id
+Message-ID: <20130409064904.GD29860@dhcp22.suse.cz>
 References: <51627DA9.7020507@huawei.com>
- <51627DBB.5050005@huawei.com>
- <20130408144750.GK17178@dhcp22.suse.cz>
- <20130408180335.GA22512@dhcp22.suse.cz>
- <20130408213646.GB17159@mtj.dyndns.org>
+ <51627E33.4090107@huawei.com>
+ <20130408145702.GM17178@dhcp22.suse.cz>
+ <516384BC.7040302@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130408213646.GB17159@mtj.dyndns.org>
+In-Reply-To: <516384BC.7040302@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon 08-04-13 14:36:46, Tejun Heo wrote:
-> On Mon, Apr 08, 2013 at 08:03:44PM +0200, Michal Hocko wrote:
-> > __mem_cgroup_same_or_subtree relies on css_is_ancestor if hierarchy is
-> > enabled for ages. This, however, is not correct because use_hierarchy
-> > doesn't need to be true all the way up the cgroup hierarchy. Consider
-> > the following example:
-> > root (use_hierarchy=0)
-> >  \
-> >   A (use_hierarchy=0)
-> >    \
-> >     B (use_hierarchy=1)
-> >      \
-> >       C (use_hierarchy=1)
+On Tue 09-04-13 11:02:20, Li Zefan wrote:
+> On 2013/4/8 22:57, Michal Hocko wrote:
+> > On Mon 08-04-13 16:22:11, Li Zefan wrote:
+> >> This is a preparation to kill css_id.
+> >>
+> >> Signed-off-by: Li Zefan <lizefan@huawei.com>
 > > 
-> > __mem_cgroup_same_or_subtree(A, C) would return true even though C is
-> > not from the same hierarchy subtree. The bug shouldn't be critical but
-> > at least dump_tasks might print unrelated tasks (via
-> > task_in_mem_cgroup).
+> > This patch depends on the following patch, doesn't it? There is no
+> > guarantee that id fits into short right now. Not such a big deal but
+> > would be nicer to have that guarantee for bisectability.
+> > 
 > 
-> Huh?  Isn't that avoided by the !root_memcg->use_hierarchy test?
+> Not necessary, because css_id still prevents us from creating too
+> many cgroups.
 
-Yes, it is. My selective blindness strikes again :/ I was convinced that
-it was memcg we tested use_hierarchy for...
-Sorry about all the churn.
+Right you are.
 
-> > @@ -1470,9 +1470,12 @@ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
-> >  {
-> >  	if (root_memcg == memcg)
-> >  		return true;
-> > -	if (!root_memcg->use_hierarchy || !memcg)
->             ^^^^^^^^^^^^^^^^^^^^^^^^^^
-> > +	if (!memcg)
-> >  		return false;
-> > -	return css_is_ancestor(&memcg->css, &root_memcg->css);
-> > +	while ((memcg = parent_mem_cgroup(memcg)))
-> > +		if (memcg == root_memcg)
-> > +			return true;
-> > +	return false;
-> >  }
-> >  
+Thanks
 -- 
 Michal Hocko
 SUSE Labs
