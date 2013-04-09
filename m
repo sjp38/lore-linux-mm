@@ -1,69 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 33C476B0036
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 18:43:49 -0400 (EDT)
-Date: Tue, 09 Apr 2013 18:43:36 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1365547416-z92y6qa9-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <CAHGf_=o+GQ9PJy=rkO1zxhd81NpyTvDQA7phN8StX2+EQ+ZE=g@mail.gmail.com>
-References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1363983835-20184-10-git-send-email-n-horiguchi@ah.jp.nec.com>
- <515F68BB.3010601@gmail.com>
- <1365538036-pu7x5mck-mutt-n-horiguchi@ah.jp.nec.com>
- <CAHGf_=o+GQ9PJy=rkO1zxhd81NpyTvDQA7phN8StX2+EQ+ZE=g@mail.gmail.com>
-Subject: Re: [PATCH 09/10] memory-hotplug: enable memory hotplug to handle
- hugepage
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id DA4B86B0006
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 19:28:46 -0400 (EDT)
+Received: from /spool/local
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Tue, 9 Apr 2013 17:28:46 -0600
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 0147B3E40040
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 17:28:28 -0600 (MDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r39NSes6164930
+	for <linux-mm@kvack.org>; Tue, 9 Apr 2013 17:28:40 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r39NSeNk006627
+	for <linux-mm@kvack.org>; Tue, 9 Apr 2013 17:28:40 -0600
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Subject: [PATCH v2 00/10] mm: fixup changers of per cpu pageset's ->high and ->batch
+Date: Tue,  9 Apr 2013 16:28:09 -0700
+Message-Id: <1365550099-6795-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Simon Jeons <simon.jeons@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Tue, Apr 09, 2013 at 05:27:44PM -0400, KOSAKI Motohiro wrote:
-> >> numa_node_id() is really silly. This might lead to allocate from offlining node.
-> >
-> > Right, it should've been alloc_huge_page().
-> >
-> >> and, offline_pages() should mark hstate as isolated likes normal pages for prohibiting
-> >> new allocation at first.
-> >
-> > It seems that alloc_migrate_target() calls alloc_page() for normal pages
-> > and the destination pages can be in the same node with the source pages
-> > (new page allocation from the same memblock are prohibited.)
-> 
-> No. It can't. memory hotplug change buddy attribute to MIGRATE_ISOLTE at first.
-> then alloc_page() never allocate from source node. however huge page don't use
-> buddy. then we need another trick.
+"Problems" with the current code:
+ 1. there is a lack of synchronization in setting ->high and ->batch in percpu_pagelist_fraction_sysctl_handler()
+ 2. stop_machine() in zone_pcp_update() is unnecissary.
+ 3. zone_pcp_update() does not consider the case where percpu_pagelist_fraction is non-zero
 
-MIGRATE_ISOLTE is changed only within the range [start_pfn, end_pfn)
-given as the argument of __offline_pages (see also start_isolate_page_range),
-so it's set only for pages within the single memblock to be offlined.
+To fix:
+ 1. add memory barriers, a safe ->batch value, and an update side mutex when updating ->high and ->batch
+ 2. avoid draining pages in zone_pcp_update(), rely upon the memory barriers added to fix #1
+ 3. factor out quite a few functions, and then call the appropriate one.
 
-BTW, in previous discussion I already agreed with checking migrate type
-in hugepage allocation code (maybe it will be in dequeue_huge_page_vma(),)
-so what you concern should be solved in the next post.
+Note that it results in a change to the behavior of zone_pcp_update(), which is
+used by memory_hotplug. I'm rather certain that I've diserned (and preserved)
+the essential behavior (changing ->high and ->batch), and only eliminated
+unneeded actions (draining the per cpu pages), but this may not be the case.
 
-> 
-> > So if we want to avoid new page allocation from the same node,
-> > this is the problem both for normal and huge pages.
-> >
-> > BTW, is it correct to think that all users of memory hotplug assume
-> > that they want to hotplug a whole node (not the part of it?)
-> 
-> Both are valid use case. admin can isolate a part of memory for isolating
-> broken memory range.
-> 
-> but I'm sure almost user want to remove whole node.
+Further note that the draining of pages that previously took place in
+zone_pcp_update() occured after repeated draining when attempting to offline a
+page, and after the offline has "succeeded". It appears that the draining was
+added to zone_pcp_update() to avoid refactoring setup_pageset() into 2
+funtions.
 
-OK. So I think about "allocation in the nearest neighbor node",
-although it can be in separate patch if it's hard to implement.
+--
+Changes since v1:
 
-Thanks,
-Naoya
+ - instead of using on_each_cpu(), use memory barriers (Gilad) and an update side mutex.
+ - add "Problem" #3 above, and fix.
+ - rename function to match naming style of similar function
+ - move unrelated comment
+
+Cody P Schafer (10):
+  mm/page_alloc: factor out setting of pcp->high and pcp->batch.
+  mm/page_alloc: prevent concurrent updaters of pcp ->batch and ->high
+  mm/page_alloc: insert memory barriers to allow async update of pcp
+    batch and high
+  mm/page_alloc: convert zone_pcp_update() to rely on memory barriers
+    instead of stop_machine()
+  mm/page_alloc: when handling percpu_pagelist_fraction, don't unneedly
+    recalulate high
+  mm/page_alloc: factor setup_pageset() into pageset_init() and
+    pageset_set_batch()
+  mm/page_alloc: relocate comment to be directly above code it refers
+    to.
+  mm/page_alloc: factor zone_pageset_init() out of setup_zone_pageset()
+  mm/page_alloc: in zone_pcp_update(), uze zone_pageset_init()
+  mm/page_alloc: rename setup_pagelist_highmark() to match naming of
+    pageset_set_batch()
+
+ mm/page_alloc.c | 124 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 73 insertions(+), 51 deletions(-)
+
+-- 
+1.8.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
