@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id A2E856B0044
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 17:51:14 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 082CA6B006C
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 17:51:24 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Wed, 10 Apr 2013 03:16:47 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 4FA5E394005C
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:21:09 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r39Lp5Pl7537128
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:21:05 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r39Lp7pC012123
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 07:51:08 +1000
+	Wed, 10 Apr 2013 03:16:54 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 46CC2E002D
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:23:08 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r39LpGIn3735824
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:21:16 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r39LpIOj031115
+	for <linux-mm@kvack.org>; Tue, 9 Apr 2013 21:51:19 GMT
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH v2 12/15] mm: Add infrastructure to evacuate memory
- regions using compaction
-Date: Wed, 10 Apr 2013 03:18:35 +0530
-Message-ID: <20130409214832.4500.17236.stgit@srivatsabhat.in.ibm.com>
+Subject: [RFC PATCH v2 13/15] mm: Implement the worker function for memory
+ region compaction
+Date: Wed, 10 Apr 2013 03:18:45 +0530
+Message-ID: <20130409214843.4500.3852.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20130409214443.4500.44168.stgit@srivatsabhat.in.ibm.com>
 References: <20130409214443.4500.44168.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -30,196 +30,150 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, mgorman@suse.de, matthew.garrett@nebula.com, dave@sr71.net, rientjes@google.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
 Cc: gargankita@gmail.com, paulmck@linux.vnet.ibm.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, wujianguo@huawei.com, kmpark@infradead.org, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-To enhance memory power-savings, we need to be able to completely evacuate
-lightly allocated regions, and move those used pages to lower regions,
-which would help consolidate all the allocations to a minimum no. of regions.
-This can be done using some of the memory compaction and reclaim algorithms.
-Develop such an infrastructure to evacuate memory regions completely.
+We are going to invoke the memory compaction algorithms for region-evacuation
+from worker threads, instead of dedicating a separate kthread to it. So
+add the worker infrastructure to perform this.
 
-The traditional compaction algorithm uses a pfn walker to get free pages
-for compaction. But this would be way too costly for us. We do a pfn walk
-only to isolate the used pages, but to get free pages, we just depend on the
-fast buddy allocator itself. But we are careful to abort when the buddy
-allocator starts giving free pages in this region itself or higher regions
-(because in that case, if we proceed, it would be defeating the purpose of
-the entire effort).
+In the worker, we calculate the cost of migration/compaction for a given
+region - if we need to migrate less than 32 pages, then we go ahead, else we
+deem the effort to be too costly and abort the compaction.
 
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- include/linux/compaction.h     |    7 ++++
- include/linux/gfp.h            |    2 +
- include/linux/migrate.h        |    3 +-
- include/trace/events/migrate.h |    3 +-
- mm/compaction.c                |   72 ++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c                |    5 +--
- 6 files changed, 87 insertions(+), 5 deletions(-)
+ include/linux/mm.h     |   20 ++++++++++++++++++++
+ include/linux/mmzone.h |   21 +++++++++++++++++++++
+ mm/page_alloc.c        |   33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 74 insertions(+)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 091d72e..6be2b08 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -26,6 +26,7 @@ extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- extern void compact_pgdat(pg_data_t *pgdat, int order);
- extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern unsigned long compaction_suitable(struct zone *zone, int order);
-+extern int evacuate_mem_region(struct zone *z, struct zone_mem_region *zmr);
- 
- /* Do not skip compaction more than 64 times */
- #define COMPACT_MAX_DEFER_SHIFT 6
-@@ -102,6 +103,12 @@ static inline bool compaction_deferred(struct zone *zone, int order)
- 	return true;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index cb0d898..e380eeb 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -755,6 +755,26 @@ static inline void set_next_region_in_freelist(struct free_list *free_list)
+ 	}
  }
  
-+static inline int evacuate_mem_region(struct zone *z,
-+				      struct zone_mem_region *zmr)
++static inline int is_mem_pwr_work_in_progress(struct mem_power_ctrl *mpc)
 +{
++	if (mpc->work_status == MEM_PWR_WORK_IN_PROGRESS)
++		return 1;
 +	return 0;
 +}
 +
- #endif /* CONFIG_COMPACTION */
- 
- #if defined(CONFIG_COMPACTION) && defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 0f615eb..dd5430f 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -351,6 +351,8 @@ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
- extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
- extern unsigned long get_zeroed_page(gfp_t gfp_mask);
- 
-+int rmqueue_bulk(struct zone *zone, unsigned int order, unsigned long count,
-+		 struct list_head *list, int migratetype, int cold);
- void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
- void free_pages_exact(void *virt, size_t size);
- /* This is different from alloc_pages_exact_node !!! */
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index a405d3dc..e006be9 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -30,7 +30,8 @@ enum migrate_reason {
- 	MR_SYSCALL,		/* also applies to cpusets */
- 	MR_MEMPOLICY_MBIND,
- 	MR_NUMA_MISPLACED,
--	MR_CMA
-+	MR_CMA,
-+	MR_PWR_MGMT
- };
- 
- #ifdef CONFIG_MIGRATION
-diff --git a/include/trace/events/migrate.h b/include/trace/events/migrate.h
-index ec2a6cc..e6892c0 100644
---- a/include/trace/events/migrate.h
-+++ b/include/trace/events/migrate.h
-@@ -15,7 +15,8 @@
- 	{MR_MEMORY_HOTPLUG,	"memory_hotplug"},		\
- 	{MR_SYSCALL,		"syscall_or_cpuset"},		\
- 	{MR_MEMPOLICY_MBIND,	"mempolicy_mbind"},		\
--	{MR_CMA,		"cma"}
-+	{MR_CMA,		"cma"},				\
-+	{MR_PWR_MGMT,		"power_management"}
- 
- TRACE_EVENT(mm_migrate_pages,
- 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index ff9cf23..a76ad90 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1162,6 +1162,78 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 	return rc;
- }
- 
-+static struct page *power_mgmt_alloc(struct page *migratepage,
-+				     unsigned long data, int **result)
++static inline void set_mem_pwr_work_in_progress(struct mem_power_ctrl *mpc)
 +{
-+	struct compact_control *cc = (struct compact_control *)data;
-+	struct page *freepage;
-+
-+	/*
-+	 * Try to allocate pages from lower memory regions. If it fails,
-+	 * abort.
-+	 */
-+	if (list_empty(&cc->freepages)) {
-+		struct zone *z = page_zone(migratepage);
-+
-+		rmqueue_bulk(z, 0, cc->nr_migratepages, &cc->freepages,
-+			     MIGRATE_MOVABLE, 1);
-+
-+		if (list_empty(&cc->freepages))
-+			return NULL;
-+	}
-+
-+	freepage = list_entry(cc->freepages.next, struct page, lru);
-+
-+	if (page_zone_region_id(freepage) >= page_zone_region_id(migratepage))
-+		return NULL; /* Freepage is not from lower region, so abort */
-+
-+	list_del(&freepage->lru);
-+	cc->nr_freepages--;
-+
-+	return freepage;
++	mpc->work_status = MEM_PWR_WORK_IN_PROGRESS;
++	smp_mb();
 +}
 +
-+static unsigned long power_mgmt_release_freepages(unsigned long info)
++static inline void set_mem_pwr_work_complete(struct mem_power_ctrl *mpc)
 +{
-+	struct compact_control *cc = (struct compact_control *)info;
-+
-+	return release_freepages(&cc->freepages);
++	mpc->work_status = MEM_PWR_WORK_COMPLETE;
++	mpc->region = NULL;
++	smp_mb();
 +}
 +
-+int evacuate_mem_region(struct zone *z, struct zone_mem_region *zmr)
-+{
-+	unsigned long start_pfn = zmr->start_pfn;
-+	unsigned long end_pfn = zmr->end_pfn;
-+
-+	struct compact_control cc = {
-+		.nr_migratepages = 0,
-+		.order = -1,
-+		.zone = page_zone(pfn_to_page(start_pfn)),
-+		.sync = false,  /* Async migration */
-+		.ignore_skip_hint = true,
-+	};
-+
-+	struct aggression_control ac = {
-+		.isolate_unevictable = false,
-+		.prep_all = false,
-+		.reclaim_clean = true,
-+		.max_tries = 1,
-+		.reason = MR_PWR_MGMT,
-+	};
-+
-+	struct free_page_control fc = {
-+		.free_page_alloc = power_mgmt_alloc,
-+		.alloc_data = (unsigned long)&cc,
-+		.release_freepages = power_mgmt_release_freepages,
-+		.free_data = (unsigned long)&cc,
-+	};
-+
-+	INIT_LIST_HEAD(&cc.migratepages);
-+	INIT_LIST_HEAD(&cc.freepages);
-+
-+	return compact_range(&cc, &ac, &fc, start_pfn, end_pfn);
-+}
-+
+ #ifdef SECTION_IN_PAGE_FLAGS
+ static inline void set_page_section(struct page *page, unsigned long section)
+ {
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 6e209e9..fdadd2a 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -17,6 +17,7 @@
+ #include <linux/pageblock-flags.h>
+ #include <linux/page-flags-layout.h>
+ #include <linux/atomic.h>
++#include <linux/workqueue.h>
+ #include <asm/page.h>
  
- /* Compact all zones within a node */
- static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+ /* Free memory management - zoned buddy allocator.  */
+@@ -337,6 +338,24 @@ enum zone_type {
+ 
+ #ifndef __GENERATING_BOUNDS_H
+ 
++/*
++ * In order to evacuate a memory region, if the no. of pages to be migrated
++ * via compaction is more than this number, the effort is considered too
++ * costly and should be aborted.
++ */
++#define MAX_NR_MEM_PWR_MIGRATE_PAGES	32
++
++enum {
++	MEM_PWR_WORK_COMPLETE = 0,
++	MEM_PWR_WORK_IN_PROGRESS
++};
++
++struct mem_power_ctrl {
++	struct work_struct work;
++	struct zone_mem_region *region;
++	int work_status;
++};
++
+ struct zone_mem_region {
+ 	unsigned long start_pfn;
+ 	unsigned long end_pfn;
+@@ -405,6 +424,8 @@ struct zone {
+ 	struct zone_mem_region	zone_regions[MAX_NR_ZONE_REGIONS];
+ 	int 			nr_zone_regions;
+ 
++	struct mem_power_ctrl	mem_power_ctrl;
++
+ #ifndef CONFIG_SPARSEMEM
+ 	/*
+ 	 * Flags for a pageblock_nr_pages block. See pageblock-flags.h.
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f31ca94..40a3aa6 100644
+index 40a3aa6..db7b892 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1445,9 +1445,8 @@ retry_reserve:
-  * a single hold of the lock, for efficiency.  Add them to the supplied list.
-  * Returns the number of new pages which were placed at *list.
-  */
--static int rmqueue_bulk(struct zone *zone, unsigned int order,
--			unsigned long count, struct list_head *list,
--			int migratetype, int cold)
-+int rmqueue_bulk(struct zone *zone, unsigned int order, unsigned long count,
-+		 struct list_head *list, int migratetype, int cold)
- {
- 	int mt = migratetype, i;
+@@ -5002,6 +5002,35 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
+ #endif /* CONFIG_FLAT_NODE_MEM_MAP */
+ }
  
++static void mem_power_mgmt_fn(struct work_struct *work)
++{
++	struct mem_power_ctrl *mpc;
++	struct zone_mem_region *region;
++	unsigned long pages_in_use;
++	struct zone *zone;
++
++	mpc = container_of(work, struct mem_power_ctrl, work);
++
++	if (!mpc->region)
++		return; /* No work to do */
++
++	zone = container_of(mpc, struct zone, mem_power_ctrl);
++	region = mpc->region;
++
++	if (region == zone->zone_regions)
++		return; /* No point compacting region 0. */
++
++	pages_in_use = region->present_pages - region->nr_free;
++
++	if (pages_in_use > 0 &&
++			(pages_in_use <= MAX_NR_MEM_PWR_MIGRATE_PAGES)) {
++
++		evacuate_mem_region(zone, region);
++	}
++
++	set_mem_pwr_work_complete(mpc);
++}
++
+ static void __meminit init_node_memory_regions(struct pglist_data *pgdat)
+ {
+ 	int nid = pgdat->node_id;
+@@ -5094,6 +5123,10 @@ static void __meminit init_zone_memory_regions(struct pglist_data *pgdat)
+ 
+ 		zone_init_free_lists_late(z);
+ 
++		INIT_WORK(&z->mem_power_ctrl.work, mem_power_mgmt_fn);
++		z->mem_power_ctrl.region = NULL;
++		set_mem_pwr_work_complete(&z->mem_power_ctrl);
++
+ 		/*
+ 		 * Revisit the last visited node memory region, in case it
+ 		 * spans multiple zones.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
