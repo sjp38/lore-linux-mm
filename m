@@ -1,239 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 81CF66B0036
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 01:07:45 -0400 (EDT)
-Date: Tue, 9 Apr 2013 14:07:42 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH 0/4] Support vranges on files
-Message-ID: <20130409050742.GB6836@blaptop>
-References: <1365033144-15156-1-git-send-email-john.stultz@linaro.org>
- <20130404065509.GE7675@blaptop>
- <515DBA70.8010606@linaro.org>
- <20130405075504.GA32126@blaptop>
- <20130408004638.GA6394@blaptop>
- <5163629A.4070202@linaro.org>
- <20130409021801.GD3467@blaptop>
- <51638AB6.6000803@linaro.org>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 09E846B0037
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 01:16:03 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1F2373EE0CD
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:15:59 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 05AE745DE4D
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:15:59 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D87F245DE4E
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:15:58 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C8D711DB803E
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:15:58 +0900 (JST)
+Received: from g01jpexchyt32.g01.fujitsu.local (g01jpexchyt32.g01.fujitsu.local [10.128.193.115])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 66F141DB8037
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:15:58 +0900 (JST)
+Message-ID: <5163A3BF.3030900@jp.fujitsu.com>
+Date: Tue, 9 Apr 2013 14:14:39 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <51638AB6.6000803@linaro.org>
+Subject: Re: [PATCH 00/11] Introduce movablemem_map=acpi boot option.
+References: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, jiang.liu@huawei.com, guz.fnst@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Apr 08, 2013 at 08:27:50PM -0700, John Stultz wrote:
-> On 04/08/2013 07:18 PM, Minchan Kim wrote:
-> >On Mon, Apr 08, 2013 at 05:36:42PM -0700, John Stultz wrote:
-> >>On 04/07/2013 05:46 PM, Minchan Kim wrote:
-> >>>Hello John,
-> >>>
-> >>>As you know, userland people wanted to handle vrange with mmaped
-> >>>pointer rather than fd-based and see the SIGBUS so I thought more
-> >>>about semantic of vrange and want to make it very clear and easy.
-> >>>So I suggest below semantic(Of course, it's not rock solid).
-> >>>
-> >>>         mvrange(start_addr, lengh, mode, behavior)
-> >>>
-> >>>It's same with that I suggested lately but different name, just
-> >>>adding prefix "m". It's per-process model(ie, mm_struct vrange)
-> >>>so if process is exited, "volatility" isn't valid any more.
-> >>>It isn't a problem in anonymous but could be in file-vrange so let's
-> >>>introduce fvrange for covering the problem.
-> >>>
-> >>>         fvrange(int fd, start_offset, length, mode, behavior)
-> >>>
-> >>>First of all, let's see mvrange with anonymous and file page POV.
-> >>>
-> >>>1) anon-mvrange
-> >>>
-> >>>The page in volaitle range will be purged only if all of processes
-> >>>marked the range as volatile.
-> >>>
-> >>>If A process calls mvrange and is forked, vrange could be copied
-> >>>from parent to child so not-yet-COWed pages could be purged
-> >>>unless either one of both processes marks NO_VOLATILE explicitly.
-> >>>
-> >>>Of course, COWed page could be purged easily because there is no link
-> >>>any more.
-> >>Ack. This seems reasonable.
-> >>
-> >>
-> >>>2) file-mvrange
-> >>>
-> >>>A page in volatile range will be purged only if all of processes mapped
-> >>>the page marked it as volatile AND there is no process mapped the page
-> >>>as "private". IOW, all of the process mapped the page should map it
-> >>>with "shared" for purging.
-> >>>
-> >>>So, all of processes should mark each address range in own process
-> >>>context if they want to collaborate with shared mapped file and gaurantee
-> >>>there is no process mapped the range with "private".
-> >>>
-> >>>Of course, volatility state will be terminated as the process is gone.
-> >>This case doesn't seem ideal to me, but is sort of how the current
-> >>code works to avoid the complexity of dealing with memory volatile
-> >>ranges that cross page types (file/anonymous). Although the current
-> >>code just doesn't purge file pages marked with mvrange().
-> >Personally, I don't think it's to avoid the complexity of implemenation.
-> >I thought explict declaration volatility on range before using would be
-> >more clear for userspace programmer.
-> >Otherwise, he can encounter SIGBUS and got confused easily.
-> >
-> >Frankly speaking, I don't like to remain volatility permanently although
-> >relavant processes go away and it could make processs using the file
-> >much error-prone and hard to debug it.
-> 
-> So this is maybe is a contentious point we'll have to work out.
-> 
-> Maybe could you describe some use cases you envision where someone
-> would want to mark pages volatile on a file that could be
-> accidentally shared? Or how you think the per-mm sense of volatility
-> would be beneficial in those use-cases?
+Hi Tang,
 
-My concern point is that following as
+The patch works well on my x86_64 box.
+I confirmed that hotpluggable node is allocated as Movable Zone.
+So feel free to add:
 
-1. Process A calls mvrange for file F.
-2. Process A is killed by someone or own BUG
-3. Process B maps F with shared in his address space
-4. Memory pressure happens
-5. Process B is killed by SIGBUS but Process B really can't know why he
-   was killed because he can't know anyone who open F except himself.
-> 
-> The use cases I envision where volatility would be used are when any
-> sharing would be coordinated between processes.
-> Again, that producer/consumer example from before where the empty
-> portion of a very large circular buffer could be made volatile,
-> scaling the actual memory usage to the actual need.
-> 
-> And really the same concern would likely apply in the common case
-> when multiple applications mmap (shared) a file, but use fvrange()
-> to mark the data as volatile. This is exactly the use case the
-> Android ashmem interface works for. In that case, once the data is
+Tested by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-I don't know Android ashmem interface well but if it works as I
-mentioned early, I think it's not good interface.
+Nitpick below.
 
-> marked volatile, it should remain volatile until someone who has the
-> file open marks it as non-volatile.  The only time we clear the
-> volatility is when the file is closed by all users.
+2013/04/05 18:39, Tang Chen wrote:
+> Before this patch-set, we introduced movablemem_map boot option which allowed
+> users to specify physical address ranges to set memory as movable. This is not
+> user friendly enough for normal users.
+> 
+> So now, we introduce just movablemem_map=acpi to allow users to enable/disable
+> the kernel to use Hot Pluggable bit in SRAT to determine which memory ranges are
+> hotpluggable, and set them as ZONE_MOVABLE.
+> 
+> This patch-set is based on Yinghai's patch-set:
+> v1: https://lkml.org/lkml/2013/3/7/642
+> v2: https://lkml.org/lkml/2013/3/10/47
+> 
+> So it supports to allocate pagetable pages in local nodes.
+> 
+> We also split the large patch-set into smaller ones, and it seems easier to review.
+> 
+> 
+> ========================================================================
+> [What we are doing]
+> This patchset introduces a boot option for users to specify ZONE_MOVABLE
+> memory map for each node in the system. Users can use it in two ways:
+> 
+> 1. movablecore_map=acpi
+>     In this way, the kernel will use Hot Pluggable bit in SRAT to determine
+>     ZONE_MOVABLE for each node. All the ranges user has specified will be
+>     ignored.
+> 
+> 
+> [Why we do this]
+> If we hot remove a memroy device, it cannot have kernel memory,
+> because Linux cannot migrate kernel memory currently. Therefore,
+> we have to guarantee that the hot removed memory has only movable
+> memoroy.
+> (Here is an exception: When we implement the node hotplug functionality,
+> for those kernel memory whose life cycle is the same as the node, such as
+> pagetables, vmemmap and so on, although the kernel cannot migrate them,
+> we can still put them on local node because we can free them before we
+> hot-remove the node. This is not completely implemented yet.)
+> 
+> Linux has two boot options, kernelcore= and movablecore=, for
+> creating movable memory. These boot options can specify the amount
+> of memory use as kernel or movable memory. Using them, we can
+> create ZONE_MOVABLE which has only movable memory.
+> (NOTE: doing this will cause NUMA performance because the kernel won't
+>   be able to distribute kernel memory evenly to each node.)
+> 
+> But it does not fulfill a requirement of memory hot remove, because
+> even if we specify the boot options, movable memory is distributed
+> in each node evenly. So when we want to hot remove memory which
+> memory range is 0x80000000-0c0000000, we have no way to specify
+> the memory as movable memory.
+> 
+> Furthermore, even if we can use SRAT, users still need an interface
+> to enable/disable this functionality if they don't want to lose their
+> NUMA performance.  So I think, a user interface is always needed.
+> 
+> So we proposed this new feature which enable/disable the kernel to set
+> hotpluggable memory as ZONE_MOVABLE.
+> 
+> 
+> [Ways to do this]
+> There may be 2 ways to specify movable memory.
+> 1. use firmware information
+> 2. use boot option
+> 
+> 1. use firmware information
+>    According to ACPI spec 5.0, SRAT table has memory affinity structure
+>    and the structure has Hot Pluggable Filed. See "5.2.16.2 Memory
+>    Affinity Structure". If we use the information, we might be able to
+>    specify movable memory by firmware. For example, if Hot Pluggable
+>    Filed is enabled, Linux sets the memory as movable memory.
+> 
+> 2. use boot option
+>    This is our proposal. New boot option can specify memory range to use
+>    as movable memory.
+> 
+> 
+> [How we do this]
+> We now propose a boot option, but support the first way above. A boot option
+> is always needed because set memory as movable will cause NUMA performance
+> down. So at least, we need an interface to enable/disable it so that users
+> who don't want to use memory hotplug functionality will also be happy.
+> 
+> 
+> [How to use]
+> Specify movablemem_map=acpi in kernel commandline:
+>           *
+>           * SRAT:                |_____| |_____| |_________| |_________| ......
+>           * node id:                0       1         1           2
+>           * hotpluggable:           n       y         y           n
+>           * ZONE_MOVABLE:                |_____| |_________|
+>           *
+>     NOTE: 1) Before parsing SRAT, memblock has already reserve some memory ranges
+>              for other purposes, such as for kernel image. We cannot prevent
+>              kernel from using these memory, so we need to exclude these memory
+>              even if it is hotpluggable.
+>              Furthermore, to ensure the kernel has enough memory to boot, we make
+>              all the memory on the node which the kernel resides in should be
+>              un-hotpluggable.
+>           2) In this case, all the user specified memory ranges will be ingored.
+> 
+> We also need to consider the following points:
+> 1) Using this boot option could cause NUMA performance down because the kernel
+>     memory will not be distributed on each node evenly. So for users who don't
+>     want to lose their NUMA performance, just don't use it.
+> 2) If kernelcore or movablecore is also specified, movablecore_map will have
+>     higher priority to be satisfied.
+> 3) This option has no conflict with memmap option.
+> 
 
-Yes. We need it that clear volatile ranges when the file is closed
-by ball users. That's what we need and blow my concern out.
 
-> 
-> I think the concern about surprising an application that isn't
-> expecting volatility is odd, since if an application jumped in and
-> punched a hole in the data, that could surprise other applications
-> as well.  If you're going to use a file that can be shared,
-> applications have to deal with potential changes to that file by
-> others.
+> Tane Chen (10):
+>    acpi: Print hotplug info in SRAT.
+>    numa, acpi, memory-hotplug: Add movablemem_map=acpi boot option.
+>    x86, numa, acpi, memory-hotplug: Introduce hotplug info into struct
+>      numa_meminfo.
+>    x86, numa, acpi, memory-hotplug: Consider hotplug info when cleanup
+>      numa_meminfo.
 
-True. My concern is delayed punching without any client of fd and
-there is no interface to detect some range of file is volatile state or
-not. It means anyone mapped a file with shared could encunter SIGBUS
-although he try to best effort to check it with lsof before using.
+>    X86, numa, acpi, memory-hotplug: Add hotpluggable ranges to
+>      movablemem_map.
 
-> 
-> To me, the value in using volatile ranges on the file data is
-> exactly because the file data can be shared. So it makes sense to me
-> to have the volatility state be like the data in the file. I guess
-> the only exception in my case is that if all the references to a
-> file are closed, we can clear the volatility (since we don't have a
-> sane way for the volatility to persist past that point).
+It has a whitespace error.
 
-Agree if you provide to clear out volatility when file are closed by
-all stakeholder.
+>    x86, numa, acpi, memory-hotplug: Make any node which the kernel
+>      resides in un-hotpluggable.
 
-> 
-> One question that might help resolve this: Would having some sort of
-> volatility checking interface be helpful in easing your concern
-> about applications being surprised by volatility?
+>    x86, numa, acpi, memory-hotplug: Introduce zone_movable_limit[] to
+>      store start pfn of ZONE_MOVABLE.
 
-If we can provide above things, I think we don't need such interface
-until someone want it with reasonable logic.
+It has a whitespace error.
 
-> 
-> 
-> >Anyway, do you agree my suggestion that "we should not purge any page if
-> >a process are using now with non-shared(ie, private)"?
-> 
-> Yes, or if we do purge any pages, they should not affect the private
-> mapped pages (in other words, the COW link should be broken - as the
-> backing page has in-effect been written to by purging).
-> 
-> 
-> >>I'd much prefer file-mvrange calls to behave identically to fvrange calls.
-> >>
-> >>The important point here is that the kernel doesn't *have* to purge
-> >>anything ever. Its the kernel's discretion as to which volatile
-> >>pages to purge when. So its easier for now to simply not purge file
-> >Right.
-> >
-> >>pages marked volatile via mvolatile.
-> >NP but we should write down vague description. User try to use it
-> >in file-backed pages and got disappointed, then is reluctant to use it
-> >any more. :)
-> >
-> >I'm not saying that let's write down description implementation specific
-> >but want to say them at least new system call can affect anonymous or file
-> >or both, at least from the beginning. Just hope.
-> 
-> I'd like to make it generic enough that we have some flexibility to
-> modify the puring rules if we find its more optimal. But I agree,
-> the desired semantics of what could occur should be clear.
-> 
-> 
-> >>There however is the inconsistency that file pages marked volatile
-> >>via fvrange, then are marked non-volatile via mvrange() might still
-> >>be purged. That is broken in my mind, and still needs to be
-> >>addressed. The easiest out is probably just to return an error if
-> >>any of the mvrange calls cover file pages. But I'd really like a
-> >It needs vma enumeration and mmap_sem read-lock.
-> >It could hurt anon-vrange performance severely.
-> 
-> True. And performance needs to be good if this hinting interface is
-> to be used easily. Although I worry about performance trumping sane
-> semantics. So let me try to implement the desired behavior and we
-> can measure the difference.
+>    x86, numa, acpi, memory-hotplug: Sanitize zone_movable_limit[].
+>    x86, numa, acpi, memory-hotplug: make movablemem_map have higher
+>      priority
+>    x86, numa, acpi, memory-hotplug: Memblock limit with movablemem_map
 
-NP. But keep in mind that mmap_sem was really terrible for performance
-when I took a expereiment(ie, concurrent page fault by many threads
-while a thread calls mmap).
-I guess primary reason is CONFIG_MUTEX_SPIN_ON_OWNER.
-So at least, we should avoid it by introducing new mode like
-VOLATILE_ANON|VOLATILE_FILE|VOLATILE_BOTH if we want to
-support mvrange-file and mvragne interface was thing userland people
-really want although ashmem have used fd-based model.
-
-Thanks.
+Thanks,
+Yasuaki Ishimatsu
 
 > 
+> Yasuaki Ishimatsu (1):
+>    x86: get pg_data_t's memory from other node
 > 
-> >>better fix.
-> >Another idea is that we can move per-mm vrange element to address_space
-> >when the process goes away if the element covers file-backd vma.
-> >But I'm still very not sure whether we should keep it persistent.
-> 
-> I really think the persistence of file-backed volatile ranges (as
-> long as someone has the file open or a mapping to it) is important.
-> Again, I think of the volatility really being a state of the page,
-> but since a page-based approach is too costly, we're optimizing it
-> into mm_struct state or address_space state.
-> 
-> thanks
-> -john
+>   Documentation/kernel-parameters.txt |   11 ++
+>   arch/x86/include/asm/numa.h         |    3 +-
+>   arch/x86/kernel/apic/numaq_32.c     |    2 +-
+>   arch/x86/mm/amdtopology.c           |    3 +-
+>   arch/x86/mm/numa.c                  |   92 ++++++++++++++--
+>   arch/x86/mm/numa_internal.h         |    1 +
+>   arch/x86/mm/srat.c                  |   28 ++++-
+>   include/linux/memblock.h            |    2 +
+>   include/linux/mm.h                  |   19 +++
+>   mm/memblock.c                       |   50 ++++++++
+>   mm/page_alloc.c                     |  210 ++++++++++++++++++++++++++++++++++-
+>   11 files changed, 399 insertions(+), 22 deletions(-)
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
