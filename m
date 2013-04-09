@@ -1,76 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 2C1DA6B0080
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 05:31:48 -0400 (EDT)
-Subject: Re: [Cluster-devel] [PATCH v3 08/18] gfs2: use ->invalidatepage()
- length argument
-From: Steven Whitehouse <swhiteho@redhat.com>
-In-Reply-To: <1365498867-27782-9-git-send-email-lczerner@redhat.com>
-References: <1365498867-27782-1-git-send-email-lczerner@redhat.com>
-	 <1365498867-27782-9-git-send-email-lczerner@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 09 Apr 2013 10:29:33 +0100
-Message-ID: <1365499773.2708.5.camel@menhir>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 4D82B6B0082
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 05:38:36 -0400 (EDT)
+Received: by mail-oa0-f45.google.com with SMTP id o6so7083201oag.4
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 02:38:35 -0700 (PDT)
+Message-ID: <5163E194.3080600@gmail.com>
+Date: Tue, 09 Apr 2013 17:38:28 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3] mm, slub: count freed pages via rcu as this task's
+ reclaimed_slab
+References: <1365470478-645-1-git-send-email-iamjoonsoo.kim@lge.com> <1365470478-645-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1365470478-645-2-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lukas Czerner <lczerner@redhat.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org, cluster-devel@redhat.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-Hi,
+Hi Joonsoo,
+On 04/09/2013 09:21 AM, Joonsoo Kim wrote:
+> Currently, freed pages via rcu is not counted for reclaimed_slab, because
+> it is freed in rcu context, not current task context. But, this free is
+> initiated by this task, so counting this into this task's reclaimed_slab
+> is meaningful to decide whether we continue reclaim, or not.
+> So change code to count these pages for this task's reclaimed_slab.
+>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: Matt Mackall <mpm@selenic.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 4aec537..16fd2d5 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1409,8 +1409,6 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+>   
+>   	memcg_release_pages(s, order);
+>   	page_mapcount_reset(page);
+> -	if (current->reclaim_state)
+> -		current->reclaim_state->reclaimed_slab += pages;
+>   	__free_memcg_kmem_pages(page, order);
+>   }
+>   
+> @@ -1431,6 +1429,8 @@ static void rcu_free_slab(struct rcu_head *h)
+>   
+>   static void free_slab(struct kmem_cache *s, struct page *page)
+>   {
+> +	int pages = 1 << compound_order(page);
 
-On Tue, 2013-04-09 at 11:14 +0200, Lukas Czerner wrote:
-> ->invalidatepage() aop now accepts range to invalidate so we can make
-> use of it in gfs2_invalidatepage().
-> 
-> Signed-off-by: Lukas Czerner <lczerner@redhat.com>
-> Cc: cluster-devel@redhat.com
-Acked-by: Steven Whitehouse <swhiteho@redhat.com>
+One question irrelevant this patch. Why slab cache can use compound 
+page(hugetlbfs pages/thp pages)? They are just used by app to optimize 
+tlb miss, is it?
 
-Steve.
-
-> ---
->  fs/gfs2/aops.c |    9 +++++++--
->  1 files changed, 7 insertions(+), 2 deletions(-)
-> 
-> diff --git a/fs/gfs2/aops.c b/fs/gfs2/aops.c
-> index 37093ba..ea920bf 100644
-> --- a/fs/gfs2/aops.c
-> +++ b/fs/gfs2/aops.c
-> @@ -947,24 +947,29 @@ static void gfs2_invalidatepage(struct page *page, unsigned int offset,
->  				unsigned int length)
->  {
->  	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
-> +	unsigned int stop = offset + length;
-> +	int partial_page = (offset || length < PAGE_CACHE_SIZE);
->  	struct buffer_head *bh, *head;
->  	unsigned long pos = 0;
->  
->  	BUG_ON(!PageLocked(page));
-> -	if (offset == 0)
-> +	if (!partial_page)
->  		ClearPageChecked(page);
->  	if (!page_has_buffers(page))
->  		goto out;
->  
->  	bh = head = page_buffers(page);
->  	do {
-> +		if (pos + bh->b_size > stop)
-> +			return;
 > +
->  		if (offset <= pos)
->  			gfs2_discard(sdp, bh);
->  		pos += bh->b_size;
->  		bh = bh->b_this_page;
->  	} while (bh != head);
->  out:
-> -	if (offset == 0)
-> +	if (!partial_page)
->  		try_to_release_page(page, 0);
->  }
->  
-
+>   	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU)) {
+>   		struct rcu_head *head;
+>   
+> @@ -1450,6 +1450,9 @@ static void free_slab(struct kmem_cache *s, struct page *page)
+>   		call_rcu(head, rcu_free_slab);
+>   	} else
+>   		__free_slab(s, page);
+> +
+> +	if (current->reclaim_state)
+> +		current->reclaim_state->reclaimed_slab += pages;
+>   }
+>   
+>   static void discard_slab(struct kmem_cache *s, struct page *page)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
