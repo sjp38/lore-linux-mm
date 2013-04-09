@@ -1,86 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 248706B0038
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 09:27:58 -0400 (EDT)
-Date: Tue, 9 Apr 2013 15:27:56 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3 09/18] reiserfs: use ->invalidatepage() length
- argument
-Message-ID: <20130409132756.GE13672@quack.suse.cz>
-References: <1365498867-27782-1-git-send-email-lczerner@redhat.com>
- <1365498867-27782-10-git-send-email-lczerner@redhat.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 603976B0027
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 09:31:45 -0400 (EDT)
+Date: Tue, 9 Apr 2013 15:31:42 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 1/3] memcg: integrate soft reclaim tighter with zone
+ shrinking code
+Message-ID: <20130409133142.GH29860@dhcp22.suse.cz>
+References: <1365509595-665-1-git-send-email-mhocko@suse.cz>
+ <1365509595-665-2-git-send-email-mhocko@suse.cz>
+ <20130409130833.GP1953@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1365498867-27782-10-git-send-email-lczerner@redhat.com>
+In-Reply-To: <20130409130833.GP1953@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lukas Czerner <lczerner@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, reiserfs-devel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>
 
-On Tue 09-04-13 11:14:18, Lukas Czerner wrote:
-> ->invalidatepage() aop now accepts range to invalidate so we can make
-> use of it in reiserfs_invalidatepage()
-  Hum, reiserfs is probably never going to support punch hole. So shouldn't
-we rather WARN and return without doing anything if stop !=
-PAGE_CACHE_SIZE?
+On Tue 09-04-13 09:08:33, Johannes Weiner wrote:
+> On Tue, Apr 09, 2013 at 02:13:13PM +0200, Michal Hocko wrote:
+[...]
+> > TODO: remove mem_cgroup_tree_per_zone, mem_cgroup_shrink_node_zone and co.
+> > but maybe it would be easier for review to remove that code in a separate
+> > patch...
+> 
+> It should be in this series, though, for the diffstat :-)
 
-								Honza
+Sure thing, I just wanted to prevent from pointless work during rebasing
+when this changes its shape, like all such "bug changes"
+
 > 
-> Signed-off-by: Lukas Czerner <lczerner@redhat.com>
-> Cc: reiserfs-devel@vger.kernel.org
-> ---
->  fs/reiserfs/inode.c |    9 +++++++--
->  1 files changed, 7 insertions(+), 2 deletions(-)
+> > ---
+> > [1] TODO: put size vmlinux before/after whole clean-up
 > 
-> diff --git a/fs/reiserfs/inode.c b/fs/reiserfs/inode.c
-> index 808e02e..e963164 100644
-> --- a/fs/reiserfs/inode.c
-> +++ b/fs/reiserfs/inode.c
-> @@ -2975,11 +2975,13 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
->  	struct buffer_head *head, *bh, *next;
->  	struct inode *inode = page->mapping->host;
->  	unsigned int curr_off = 0;
-> +	unsigned int stop = offset + length;
-> +	int partial_page = (offset || length < PAGE_CACHE_SIZE);
->  	int ret = 1;
->  
->  	BUG_ON(!PageLocked(page));
->  
-> -	if (offset == 0)
-> +	if (!partial_page)
->  		ClearPageChecked(page);
->  
->  	if (!page_has_buffers(page))
-> @@ -2991,6 +2993,9 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
->  		unsigned int next_off = curr_off + bh->b_size;
->  		next = bh->b_this_page;
->  
-> +		if (next_off > stop)
-> +			goto out;
-> +
->  		/*
->  		 * is this block fully invalidated?
->  		 */
-> @@ -3009,7 +3014,7 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
->  	 * The get_block cached value has been unconditionally invalidated,
->  	 * so real IO is not possible anymore.
->  	 */
-> -	if (!offset && ret) {
-> +	if (!partial_page && ret) {
->  		ret = try_to_release_page(page, 0);
->  		/* maybe should BUG_ON(!ret); - neilb */
->  	}
-> -- 
-> 1.7.7.6
+> Yes!
 > 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > @@ -1984,6 +2003,27 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> >  		} while (memcg);
+> >  	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+> >  					 sc->nr_scanned - nr_scanned, sc));
+> > +
+> > +	return nr_shrunk;
+> > +}
+> > +
+> > +
+> > +static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> > +{
+> > +	bool do_soft_reclaim = mem_cgroup_should_soft_reclaim(sc);
+> > +	unsigned long nr_scanned = sc->nr_scanned;
+> > +	unsigned nr_shrunk;
+> > +
+> > +	nr_shrunk = __shrink_zone(zone, sc, do_soft_reclaim);
+> > +
+> > +	/*
+> > +	 * No group is over the soft limit or those that are do not have
+> > +	 * pages in the zone we are reclaiming so we have to reclaim everybody
+> > +	 */
+> > +	if (do_soft_reclaim && (!nr_shrunk || sc->nr_scanned == nr_scanned)) {
+> 
+> If no pages were scanned you are doing a second pass regardless of
+> nr_shrunk.  If pages were scanned, nr_shrunk must have been increased
+> as well.  So I think you can remove all the nr_shrunk counting and
+> just check for scanned pages, no?
+
+Yes you are right. I have started with nr_shrunk part only and then
+realized that no scaning could be a problem so I've just added it. I
+didn't optimize it yet.
+I will remove nr_shrunk part in later versions.
+
+Thanks
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
