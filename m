@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id AA2B96B0027
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 10:52:18 -0400 (EDT)
-Message-ID: <51642B1A.9000203@parallels.com>
-Date: Tue, 09 Apr 2013 18:52:10 +0400
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id DE5966B0006
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 11:08:32 -0400 (EDT)
+Message-ID: <51642EEB.1010204@parallels.com>
+Date: Tue, 09 Apr 2013 19:08:27 +0400
 From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH 1/1] mm: Another attempt to monitor task's memory
  changes
-References: <515F0484.1010703@parallels.com> <51634E58.4080104@gmail.com>
-In-Reply-To: <51634E58.4080104@gmail.com>
+References: <515F0484.1010703@parallels.com> <20130408153024.4edbcb491f18c948adbe9fe8@linux-foundation.org>
+In-Reply-To: <20130408153024.4edbcb491f18c948adbe9fe8@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Glauber Costa <glommer@parallels.com>, Matthew Wilcox <willy@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux MM <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Glauber Costa <glommer@parallels.com>, Matthew Wilcox <willy@linux.intel.com>
 
-On 04/09/2013 03:10 AM, KOSAKI Motohiro wrote:
->> This approach works on any task via it's proc, and can be used on different
->> tasks in parallel.
->>
->> Also, Andrew was asking for some performance numbers related to the change.
->> Now I can say, that as long as soft dirty bits are not cleared, no performance
->> penalty occur, since the soft dirty bit and the regular dirty bit are set at 
->> the same time within the same instruction. When soft dirty is cleared via 
->> clear_refs, the task in question might slow down, but it will depend on how
->> actively it uses the memory.
->>
->>
->> What do you think, does it make sense to develop this approach further?
+On 04/09/2013 02:30 AM, Andrew Morton wrote:
+> On Fri, 05 Apr 2013 21:06:12 +0400 Pavel Emelyanov <xemul@parallels.com> wrote:
 > 
-> When touching mmaped page, cpu turns on dirty bit but doesn't turn on soft dirty.
+>> Hello,
+>>
+>> This is another attempt (previous one was [1]) to implement support for 
+>> memory snapshot for the the checkpoint-restore project (http://criu.org).
+>> Let me remind what the issue is.
+>>
+>> << EOF
+>> To create a dump of an application(s) we save all the information about it
+>> to files, and the biggest part of such dump is the contents of tasks' memory.
+>> However, there are usage scenarios where it's not required to get _all_ the
+>> task memory while creating a dump. For example, when doing periodical dumps,
+>> it's only required to take full memory dump only at the first step and then
+>> take incremental changes of memory. Another example is live migration. We 
+>> copy all the memory to the destination node without stopping all tasks, then
+>> stop them, check for what pages has changed, dump it and the rest of the state,
+>> then copy it to the destination node. This decreases freeze time significantly.
+>>
+>> That said, some help from kernel to watch how processes modify the contents
+>> of their memory is required. Previous attempt used ftrace to inform userspace
+>> about memory being written to. This one is different.
+>>
+>> EOF
+> 
+> Did you consider teaching the kernel to perform a strong hash on a
+> page's contents so that userspace can do a before-and-after check to see
+> if it changed?
 
-Yes. BTW, I've just thought that "soft" in soft dirty should be read as softWARE,
-i.e. this bit is managed by kernel, rather than CPU.
+I did (unless I misunderstood _your_ idea with hashes :( ), but judged, that
+a single bit on a pte would be less cpu and memory consuming than calculating
+and keeping 32/64 bits of hash value.
 
-> So, I'm not convinced how to use this flag. Please show us your userland algorithm
-> how to detect diff.
 
-It's like this:
+As far as all other comments are concerned -- thanks a LOT for the feedback!
+I will address them all.
 
-1. First do "echo 4 > /proc/$pid/clear_refs".
-   At that point kernel clears the soft dirty _and_ the writable bits from all ptes
-   of process $pid. From now on every write to any page will result in #pf and the
-   subsequent call to pte_mkdirty/pmd_mkdirty, which in turn will set the soft dirty
-   flag.
-
-2. Then read the /proc/$pid/pagemap (well, /proc/$pid/pagemap2 when it will appear)
-   and check the soft-dirty bit reported there (in this RFC patch it's the
-   PM_SOFT_DIRTY one). If set, the respective pte was written to since last call
-   to clear refs. 
 
 Thanks,
 Pavel
