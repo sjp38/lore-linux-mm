@@ -1,397 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id A1E466B0039
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 16:07:31 -0400 (EDT)
-Date: Tue, 09 Apr 2013 16:07:16 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1365538036-pu7x5mck-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <515F68BB.3010601@gmail.com>
-References: <1363983835-20184-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1363983835-20184-10-git-send-email-n-horiguchi@ah.jp.nec.com>
- <515F68BB.3010601@gmail.com>
-Subject: Re: [PATCH 09/10] memory-hotplug: enable memory hotplug to handle
- hugepage
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 3F88D6B003B
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 16:26:12 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <c3d40e0f-68b3-45a4-9251-a97c59a50b2e@default>
+Date: Tue, 9 Apr 2013 13:25:45 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: zsmalloc defrag (Was: [PATCH] mm: remove compressed copy from
+ zram in-memory)
+References: <1365400862-9041-1-git-send-email-minchan@kernel.org>
+ <f3c8ef05-a880-47db-86dd-156038fc7d0f@default>
+ <20130409012719.GB3467@blaptop>
+In-Reply-To: <20130409012719.GB3467@blaptop>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Hillf Danton <dhillf@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Bob Liu <bob.liu@oracle.com>, Shuah Khan <shuah@gonehiking.org>
 
-On Fri, Apr 05, 2013 at 08:13:47PM -0400, KOSAKI Motohiro wrote:
-> (3/22/13 4:23 PM), Naoya Horiguchi wrote:
-> > Currently we can't offline memory blocks which contain hugepages because
-> > a hugepage is considered as an unmovable page. But now with this patch
-> > series, a hugepage has become movable, so by using hugepage migration we
-> > can offline such memory blocks.
-> > 
-> > What's different from other users of hugepage migration is that we need
-> > to decompose all the hugepages inside the target memory block into free
-> > buddy pages after hugepage migration, because otherwise free hugepages
-> > remaining in the memory block intervene the memory offlining.
-> > For this reason we introduce new functions dissolve_free_huge_page() and
-> > dissolve_free_huge_pages().
-> > 
-> > Other than that, what this patch does is straightforwardly to add hugepage
-> > migration code, that is, adding hugepage code to the functions which scan
-> > over pfn and collect hugepages to be migrated, and adding a hugepage
-> > allocation function to alloc_migrate_target().
-> > 
-> > As for larger hugepages (1GB for x86_64), it's not easy to do hotremove
-> > over them because it's larger than memory block. So we now simply leave
-> > it to fail as it is.
-> > 
-> > ChangeLog v2:
-> >  - changed return value type of is_hugepage_movable() to bool
-> >  - is_hugepage_movable() uses list_for_each_entry() instead of *_safe()
-> >  - moved if(PageHuge) block before get_page_unless_zero() in do_migrate_range()
-> >  - do_migrate_range() returns -EBUSY for hugepages larger than memory block
-> >  - dissolve_free_huge_pages() calculates scan step and sets it to minimum
-> >    hugepage size
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > ---
-> >  include/linux/hugetlb.h |  6 +++++
-> >  mm/hugetlb.c            | 58 +++++++++++++++++++++++++++++++++++++++++++++++++
-> >  mm/memory_hotplug.c     | 42 +++++++++++++++++++++++++++--------
-> >  mm/page_alloc.c         | 12 ++++++++++
-> >  mm/page_isolation.c     |  5 +++++
-> >  5 files changed, 114 insertions(+), 9 deletions(-)
-> > 
-> > diff --git v3.9-rc3.orig/include/linux/hugetlb.h v3.9-rc3/include/linux/hugetlb.h
-> > index 981eff8..8220a8a 100644
-> > --- v3.9-rc3.orig/include/linux/hugetlb.h
-> > +++ v3.9-rc3/include/linux/hugetlb.h
-> > @@ -69,6 +69,7 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
-> >  void putback_active_hugepage(struct page *page);
-> >  void putback_active_hugepages(struct list_head *l);
-> >  void migrate_hugepage_add(struct page *page, struct list_head *list);
-> > +bool is_hugepage_movable(struct page *page);
-> >  void copy_huge_page(struct page *dst, struct page *src);
-> >  
-> >  extern unsigned long hugepages_treat_as_movable;
-> > @@ -134,6 +135,7 @@ static inline int dequeue_hwpoisoned_huge_page(struct page *page)
-> >  #define putback_active_hugepage(p) 0
-> >  #define putback_active_hugepages(l) 0
-> >  #define migrate_hugepage_add(p, l) 0
-> > +#define is_hugepage_movable(x) 0
-> 
-> should be false instaed of 0.
+> From: Minchan Kim [mailto:minchan@kernel.org]
+> Subject: Re: zsmalloc defrag (Was: [PATCH] mm: remove compressed copy fro=
+m zram in-memory)
+>=20
+> Hi Dan,
+>=20
+> On Mon, Apr 08, 2013 at 09:32:38AM -0700, Dan Magenheimer wrote:
+> > > From: Minchan Kim [mailto:minchan@kernel.org]
+> > > Sent: Monday, April 08, 2013 12:01 AM
+> > > Subject: [PATCH] mm: remove compressed copy from zram in-memory
+> >
+> > (patch removed)
+> >
+> > > Fragment ratio is almost same but memory consumption and compile time
+> > > is better. I am working to add defragment function of zsmalloc.
+> >
+> > Hi Minchan --
+> >
+> > I would be very interested in your design thoughts on
+> > how you plan to add defragmentation for zsmalloc.  In
+>=20
+> What I can say now about is only just a word "Compaction".
+> As you know, zsmalloc has a transparent handle so we can do whatever
+> under user. Of course, there is a tradeoff between performance
+> and memory efficiency. I'm biased to latter for embedded usecase.
 
-OK.
+Have you designed or implemented this yet?  I have a couple
+of concerns:
 
-> 
-> >  static inline void copy_huge_page(struct page *dst, struct page *src)
-> >  {
-> >  }
-> > @@ -356,6 +358,9 @@ static inline int hstate_index(struct hstate *h)
-> >  	return h - hstates;
-> >  }
-> >  
-> > +extern void dissolve_free_huge_pages(unsigned long start_pfn,
-> > +				     unsigned long end_pfn);
-> > +
-> >  #else
-> >  struct hstate {};
-> >  #define alloc_huge_page(v, a, r) NULL
-> > @@ -376,6 +381,7 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
-> >  }
-> >  #define hstate_index_to_shift(index) 0
-> >  #define hstate_index(h) 0
-> > +#define dissolve_free_huge_pages(s, e) 0
-> 
-> no need 0.
+1) The handle is transparent to the "user", but it is still a form
+   of a "pointer" to a zpage.  Are you planning on walking zram's
+   tables and changing those pointers?  That may be OK for zram
+   but for more complex data structures than tables (as in zswap
+   and zcache) it may not be as easy, due to races, or as efficient
+   because you will have to walk potentially very large trees.
+2) Compaction in the kernel is heavily dependent on page migration
+   and page migration is dependent on using flags in the struct page.
+   There's a lot of code in those two code modules and there
+   are going to be a lot of implementation differences between
+   compacting pages vs compacting zpages.
 
-OK.
+I'm also wondering if you will be implementing "variable length
+zspages".  Without that, I'm not sure compaction will help
+enough.  (And that is a good example of the difference between
+the kernel page compaction design/code and zspage compaction.)
 
-> >  #endif
-> >  
-> >  #endif /* _LINUX_HUGETLB_H */
-> > diff --git v3.9-rc3.orig/mm/hugetlb.c v3.9-rc3/mm/hugetlb.c
-> > index d9d3dd7..ef79871 100644
-> > --- v3.9-rc3.orig/mm/hugetlb.c
-> > +++ v3.9-rc3/mm/hugetlb.c
-> > @@ -844,6 +844,36 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
-> >  	return ret;
-> >  }
-> >  
-> > +/* Dissolve a given free hugepage into free pages. */
-> > +static void dissolve_free_huge_page(struct page *page)
-> > +{
-> > +	spin_lock(&hugetlb_lock);
-> > +	if (PageHuge(page) && !page_count(page)) {
-> > +		struct hstate *h = page_hstate(page);
-> > +		int nid = page_to_nid(page);
-> > +		list_del(&page->lru);
-> > +		h->free_huge_pages--;
-> > +		h->free_huge_pages_node[nid]--;
-> > +		update_and_free_page(h, page);
-> > +	}
-> > +	spin_unlock(&hugetlb_lock);
-> > +}
-> > +
-> > +/* Dissolve free hugepages in a given pfn range. Used by memory hotplug. */
-> > +void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
-> > +{
-> > +	unsigned int order = 8 * sizeof(void *);
-> > +	unsigned long pfn;
-> > +	struct hstate *h;
-> > +
-> > +	/* Set scan step to minimum hugepage size */
-> > +	for_each_hstate(h)
-> > +		if (order > huge_page_order(h))
-> > +			order = huge_page_order(h);
-> > +	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << order)
-> > +		dissolve_free_huge_page(pfn_to_page(pfn));
-> > +}
-> 
-> hotplug.c must not have such pure huge page function.
+> > particular, I am wondering if your design will also
+> > handle the requirements for zcache (especially for
+> > cleancache pages) and perhaps also for ramster.
+>=20
+> I don't know requirements for cleancache pages but compaction is
+> general as you know well so I expect you can get a benefit from it
+> if you are concern on memory efficiency but not sure it's valuable
+> to compact cleancache pages for getting more slot in RAM.
+> Sometime, just discarding would be much better, IMHO.
 
-This code is put in mm/hugetlb.c.
+Zcache has page reclaim.  Zswap has zpage reclaim.  I am
+concerned that these continue to work in the presence of
+compaction.   With no reclaim at all, zram is a simpler use
+case but if you implement compaction in a way that can't be
+used by either zcache or zswap, then zsmalloc is essentially
+forking.
 
-> >  {
-> >  	struct page *page;
-> > @@ -3155,6 +3185,34 @@ static int is_hugepage_on_freelist(struct page *hpage)
-> >  	return 0;
-> >  }
-> >  
-> > +/* Returns true for head pages of in-use hugepages, otherwise returns false. */
-> > +bool is_hugepage_movable(struct page *hpage)
-> > +{
-> > +	struct page *page;
-> > +	struct hstate *h;
-> > +	bool ret = false;
-> > +
-> > +	VM_BUG_ON(!PageHuge(hpage));
-> > +	/*
-> > +	 * This function can be called for a tail page because memory hotplug
-> > +	 * scans movability of pages by pfn range of a memory block.
-> > +	 * Larger hugepages (1GB for x86_64) are larger than memory block, so
-> > +	 * the scan can start at the tail page of larger hugepages.
-> > +	 * 1GB hugepage is not movable now, so we return with false for now.
-> > +	 */
-> > +	if (PageTail(hpage))
-> > +		return false;
-> > +	h = page_hstate(hpage);
-> > +	spin_lock(&hugetlb_lock);
-> > +	list_for_each_entry(page, &h->hugepage_activelist, lru)
-> > +		if (page == hpage) {
-> > +			ret = true;
-> > +			break;
-> > +		}
-> > +	spin_unlock(&hugetlb_lock);
-> > +	return ret;
-> > +}
-> > +
-> >  /*
-> >   * This function is called from memory failure code.
-> >   * Assume the caller holds page lock of the head page.
-> > diff --git v3.9-rc3.orig/mm/memory_hotplug.c v3.9-rc3/mm/memory_hotplug.c
-> > index 9597eec..2d206e8 100644
-> > --- v3.9-rc3.orig/mm/memory_hotplug.c
-> > +++ v3.9-rc3/mm/memory_hotplug.c
-> > @@ -30,6 +30,7 @@
-> >  #include <linux/mm_inline.h>
-> >  #include <linux/firmware-map.h>
-> >  #include <linux/stop_machine.h>
-> > +#include <linux/hugetlb.h>
-> >  
-> >  #include <asm/tlbflush.h>
-> >  
-> > @@ -1215,10 +1216,12 @@ static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
-> >  }
-> >  
-> >  /*
-> > - * Scanning pfn is much easier than scanning lru list.
-> > - * Scan pfn from start to end and Find LRU page.
-> > + * Scan pfn range [start,end) to find movable/migratable pages (LRU pages
-> > + * and hugepages). We scan pfn because it's much easier than scanning over
-> > + * linked list. This function returns the pfn of the first found movable
-> > + * page if it's found, otherwise 0.
-> >   */
-> > -static unsigned long scan_lru_pages(unsigned long start, unsigned long end)
-> > +static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
-> 
-> We can kill scan_lru_pages() completely. That's mere minor optimization and memory
-> hotremove it definitely not hot path.
+> > In https://lkml.org/lkml/2013/3/27/501 I suggested it
+> > would be good to work together on a common design, but
+> > you didn't reply.  Are you thinking that zsmalloc
+>=20
+> I saw the thread but explicit agreement is really matter?
+> I believe everybody want it although they didn't reply. :)
+>=20
+> You can make the design/post it or prototyping/post it.
+> If there are some conflit with something in my brain,
+> I will be happy to feedback. :)
+>=20
+> Anyway, I think my above statement "COMPACTION" would be enough to
+> express my current thought to avoid duplicated work and you can catch up.
+>=20
+> I will get around to it after LSF/MM.
+>=20
+> > improvements should focus only on zram, in which case
+>=20
+> Just focusing zsmalloc.
 
-OK.
+Right.  Again, I am asking if you are changing zsmalloc in
+a way that helps zram but hurts zswap and makes it impossible
+for zcache to ever use the improvements to zsmalloc.
 
-> 
-> >  {
-> >  	unsigned long pfn;
-> >  	struct page *page;
-> > @@ -1227,6 +1230,12 @@ static unsigned long scan_lru_pages(unsigned long start, unsigned long end)
-> >  			page = pfn_to_page(pfn);
-> >  			if (PageLRU(page))
-> >  				return pfn;
-> > +			if (PageHuge(page)) {
-> > +				if (is_hugepage_movable(page))
-> > +					return pfn;
-> > +				else
-> > +					pfn += (1 << compound_order(page)) - 1;
-> > +			}
-> >  		}
-> >  	}
-> >  	return 0;
-> > @@ -1247,6 +1256,21 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-> >  		if (!pfn_valid(pfn))
-> >  			continue;
-> >  		page = pfn_to_page(pfn);
-> > +
-> > +		if (PageHuge(page)) {
-> > +			struct page *head = compound_head(page);
-> > +			pfn = page_to_pfn(head) + (1<<compound_order(head)) - 1;
-> > +			if (compound_order(head) > PFN_SECTION_SHIFT) {
-> > +				ret = -EBUSY;
-> > +				break;
-> > +			}
-> > +			if (!get_page_unless_zero(page))
-> > +				continue;
-> > +			list_move_tail(&head->lru, &source);
-> > +			move_pages -= 1 << compound_order(head);
-> > +			continue;
-> > +		}
-> > +
-> >  		if (!get_page_unless_zero(page))
-> >  			continue;
-> >  		/*
-> > @@ -1279,7 +1303,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-> >  	}
-> >  	if (!list_empty(&source)) {
-> >  		if (not_managed) {
-> > -			putback_lru_pages(&source);
-> > +			putback_movable_pages(&source);
-> >  			goto out;
-> >  		}
-> >  
-> > @@ -1287,10 +1311,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-> >  		 * alloc_migrate_target should be improooooved!!
-> >  		 * migrate_pages returns # of failed pages.
-> >  		 */
-> > -		ret = migrate_pages(&source, alloc_migrate_target, 0,
-> > +		ret = migrate_movable_pages(&source, alloc_migrate_target, 0,
-> >  					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
-> > -		if (ret)
-> > -			putback_lru_pages(&source);
-> >  	}
-> >  out:
-> >  	return ret;
-> > @@ -1533,8 +1555,8 @@ static int __ref __offline_pages(unsigned long start_pfn,
-> >  		drain_all_pages();
-> >  	}
-> 
-> After applying your patch, __offline_pages() free hugetlb persistent and surplus pages. 
-> Thus this should allocate same size huge pages on other nodes.
-> Otherwise, total hugepages implicitely decrease and application may crash after offline page
-> success.
+If so, that's fine, but please make it clear that is your goal.
 
-I'm not sure that this should be done in kernel, because the user processes
-which trigger page migration should know more about what they want.
-It seems to me more reasonable that we leave it for userspace.
+> > we may -- and possibly should -- end up with a different
+> > allocator for frontswap-based/cleancache-based compression
+> > in zcache (and possibly zswap)?
+>=20
+> > I'm just trying to determine if I should proceed separately
+> > with my design (with Bob Liu, who expressed interest) or if
+> > it would be beneficial to work together.
+>=20
+> Just posting and if it affects zsmalloc/zram/zswap and goes the way
+> I don't want, I will involve the discussion because our product uses
+> zram heavily and consider zswap, too.
+>=20
+> I really appreciate your enthusiastic collaboration model to find
+> optimal solution!
 
-> 
-> >  
-> > -	pfn = scan_lru_pages(start_pfn, end_pfn);
-> > -	if (pfn) { /* We have page on LRU */
-> > +	pfn = scan_movable_pages(start_pfn, end_pfn);
-> > +	if (pfn) { /* We have movable pages */
-> >  		ret = do_migrate_range(pfn, end_pfn);
-> >  		if (!ret) {
-> >  			drain = 1;
-> > @@ -1553,6 +1575,8 @@ static int __ref __offline_pages(unsigned long start_pfn,
-> >  	yield();
-> >  	/* drain pcp pages, this is synchronous. */
-> >  	drain_all_pages();
-> > +	/* dissolve all free hugepages inside the memory block */
-> > +	dissolve_free_huge_pages(start_pfn, end_pfn);
-> >  	/* check again */
-> >  	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
-> >  	if (offlined_pages < 0) {
-> > diff --git v3.9-rc3.orig/mm/page_alloc.c v3.9-rc3/mm/page_alloc.c
-> > index 8fcced7..09a95e7 100644
-> > --- v3.9-rc3.orig/mm/page_alloc.c
-> > +++ v3.9-rc3/mm/page_alloc.c
-> > @@ -59,6 +59,7 @@
-> >  #include <linux/migrate.h>
-> >  #include <linux/page-debug-flags.h>
-> >  #include <linux/sched/rt.h>
-> > +#include <linux/hugetlb.h>
-> >  
-> >  #include <asm/tlbflush.h>
-> >  #include <asm/div64.h>
-> > @@ -5716,6 +5717,17 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
-> >  			continue;
-> >  
-> >  		page = pfn_to_page(check);
-> > +
-> > +		/*
-> > +		 * Hugepages are not in LRU lists, but they're movable.
-> > +		 * We need not scan over tail pages bacause we don't
-> > +		 * handle each tail page individually in migration.
-> > +		 */
-> > +		if (PageHuge(page)) {
-> > +			iter += (1 << compound_order(page)) - 1;
-> > +			continue;
-> > +		}
-> 
-> Your patch description says, we can't move 1GB hugepage. and then this seems
-> too blutal.
-
-iter should be set to the last tail page of the hugepage.
-
-> > +
-> >  		/*
-> >  		 * We can't use page_count without pin a page
-> >  		 * because another CPU can free compound page.
-> > diff --git v3.9-rc3.orig/mm/page_isolation.c v3.9-rc3/mm/page_isolation.c
-> > index 383bdbb..cf48ef6 100644
-> > --- v3.9-rc3.orig/mm/page_isolation.c
-> > +++ v3.9-rc3/mm/page_isolation.c
-> > @@ -6,6 +6,7 @@
-> >  #include <linux/page-isolation.h>
-> >  #include <linux/pageblock-flags.h>
-> >  #include <linux/memory.h>
-> > +#include <linux/hugetlb.h>
-> >  #include "internal.h"
-> >  
-> >  int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
-> > @@ -252,6 +253,10 @@ struct page *alloc_migrate_target(struct page *page, unsigned long private,
-> >  {
-> >  	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
-> >  
-> > +	if (PageHuge(page))
-> > +		return alloc_huge_page_node(page_hstate(compound_head(page)),
-> > +					    numa_node_id());
-> 
-> numa_node_id() is really silly. This might lead to allocate from offlining node.
-
-Right, it should've been alloc_huge_page().
-
-> and, offline_pages() should mark hstate as isolated likes normal pages for prohibiting
-> new allocation at first.
-
-It seems that alloc_migrate_target() calls alloc_page() for normal pages
-and the destination pages can be in the same node with the source pages
-(new page allocation from the same memblock are prohibited.)
-So if we want to avoid new page allocation from the same node,
-this is the problem both for normal and huge pages.
-
-BTW, is it correct to think that all users of memory hotplug assume
-that they want to hotplug a whole node (not the part of it?)
-If that's correct, introducing a kind of "allocate pages from the nearest
-neighbor node" can be an improvement.
-But I'm not sure how hard it is to implement yet.
-Or if my assumption is wrong, what kind of real use cases to do memory
-hotplug in more smaller (zone/memblock) unit are there?
-
-Anyway, thank you for the detailed reviews/comments.
-
-Thanks,
-Naoya
+My goal is to have compression be an integral part of Linux
+memory management.  It may be tied to a config option, but
+the goal is that distros turn it on by default.  I don't think
+zsmalloc meets that objective yet, but it may be fine for
+your needs.  If so it would be good to understand exactly why
+it doesn't meet the other zproject needs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
