@@ -1,123 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 22FB36B003A
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 07:24:55 -0400 (EDT)
-Date: Tue, 9 Apr 2013 12:13:59 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 08/10] mm: vmscan: Have kswapd shrink slab only once per
- priority
-Message-ID: <20130409111358.GB2002@suse.de>
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
- <1363525456-10448-9-git-send-email-mgorman@suse.de>
- <20130409065325.GA4411@lge.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130409065325.GA4411@lge.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 2DF4A6B0027
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 08:13:33 -0400 (EDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [RFC 0/3] soft reclaim rework
+Date: Tue,  9 Apr 2013 14:13:12 +0200
+Message-Id: <1365509595-665-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>
 
-On Tue, Apr 09, 2013 at 03:53:25PM +0900, Joonsoo Kim wrote:
-> Hello, Mel.
-> Sorry for too late question.
-> 
+Hi all,
+It's been a long when I promised my take on the $subject but I got
+permanently preempted by other tasks. I finally got it, fortunately.
 
-No need to apologise at all.
+This is just a first attempt. There are still some todos but I wanted to
+post it soon to get a feedback.
 
-> On Sun, Mar 17, 2013 at 01:04:14PM +0000, Mel Gorman wrote:
-> > If kswaps fails to make progress but continues to shrink slab then it'll
-> > either discard all of slab or consume CPU uselessly scanning shrinkers.
-> > This patch causes kswapd to only call the shrinkers once per priority.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > ---
-> >  mm/vmscan.c | 28 +++++++++++++++++++++-------
-> >  1 file changed, 21 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 7d5a932..84375b2 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -2661,9 +2661,10 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
-> >   */
-> >  static bool kswapd_shrink_zone(struct zone *zone,
-> >  			       struct scan_control *sc,
-> > -			       unsigned long lru_pages)
-> > +			       unsigned long lru_pages,
-> > +			       bool shrinking_slab)
-> >  {
-> > -	unsigned long nr_slab;
-> > +	unsigned long nr_slab = 0;
-> >  	struct reclaim_state *reclaim_state = current->reclaim_state;
-> >  	struct shrink_control shrink = {
-> >  		.gfp_mask = sc->gfp_mask,
-> > @@ -2673,9 +2674,15 @@ static bool kswapd_shrink_zone(struct zone *zone,
-> >  	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
-> >  	shrink_zone(zone, sc);
-> >  
-> > -	reclaim_state->reclaimed_slab = 0;
-> > -	nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
-> > -	sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-> > +	/*
-> > +	 * Slabs are shrunk for each zone once per priority or if the zone
-> > +	 * being balanced is otherwise unreclaimable
-> > +	 */
-> > +	if (shrinking_slab || !zone_reclaimable(zone)) {
-> > +		reclaim_state->reclaimed_slab = 0;
-> > +		nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
-> > +		sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-> > +	}
-> >  
-> >  	if (nr_slab == 0 && !zone_reclaimable(zone))
-> >  		zone->all_unreclaimable = 1;
-> 
-> Why shrink_slab() is called here?
+The basic idea is quite simple. Pull soft reclaim into shrink_zone in
+the first step and get rid of the previous soft reclaim infrastructure.
+shrink_zone is done in two passes now. First it tries to do the soft
+limit reclaim and it falls back to reclaim-all-mode if no group is over
+the limit or no pages have been scanned. The second pass happens at the
+same priority so the only time we waste is the memcg tree walk which
+shouldn't be a big deal. There is certainly room for improvements in
+that direction. But let's keep it simple for now.
+As a bonus we will get rid of a _lot_ of code by this and soft reclaim
+will not stand out like before.
+The second step is somehow more controversial. I am redefining meaning
+of the default soft limit value. I've not chosen 0 as we discussed
+previously because I want to preserve hierarchical property of the soft
+limit (if a parent up the hierarchy is over its limit then children are
+over as well) so I have kept the default untouched - unlimited - but I
+have slightly changed the meaning of this value. I interpret it as "user
+doesn't care about soft limit". More precisely the value is ignored
+unless it has been specified by user so such groups are eligible for
+soft reclaim even though they do not reach the limit. Such groups
+do not force their children to be reclaimed of course.
+I guess the only possible use case where this wouldn't work as
+expected is when somebody creates a group and set its soft limit to
+a small value (e.g. 0) just to protect all other groups from being
+reclaimed. With a new scheme all groups would be reclaimed while the
+previous implementation could end up reclaiming only the "special"
+group. This configuration can be achieved by the new scheme trivially
+so I think we should be safe. Or does this sound like a big problem?
+Finally the third step is soft limit reclaim integration into targeted
+reclaim. The patch is trivial one liner.
 
-Preserves existing behaviour.
+I haven't get to test it properly yet. I've tested only 2 workloads:
+1) 1GB RAM + 128MB swap in a kvm (host 4 GB RAM)
+   - 2 memcgs (directly under root)
+   	- A has soft limit 500MB and hard unlimited
+	- B both hard and soft unlimited (default values)
+   - One dd if=/dev/zero of=storage/$file bs=1024 count=1228800 per group
+2) same setup
+   - tar -xf linux source tree + make -j2 vmlinux
 
-> I think that outside of zone loop is better place to run shrink_slab(),
-> because shrink_slab() is not directly related to a specific zone.
-> 
+Results
+1) I've checked memory.usage_in_bytes
+Base (-mm tree)
+	Group A		Group B	
+median	446498816	448659456
 
-This is true and has been the case for a long time. The slab shrinkers
-are not zone aware and it is complicated by the fact that slab usage can
-indirectly pin memory on other zones. Consider for example a slab object
-that is an inode entry that is allocated from the Normal zone on a
-32-bit machine. Reclaiming may free memory from the Highmem zone.
+Patches applied
+median	524314624	377921536
 
-It's less obvious a problem on 64-bit machines but freeing slab objects
-from a zone like DMA32 can indirectly free memory from the Normal zone or
-even another node entirely.
+So as expected, A got more room on behalf of B and it is nicely over its
+soft limit. I wanted to compare the reclaim performance as well but we
+do not account scanned and reclaimed pages during the old soft reclaim
+(global_reclaim prevents that). But I am planning to look at it.
+Anyway it doesn't look like we are scanning/reclaiming more with the
+patched kernel:
+Base: 	 pgscan_kswapd_dma32 394382	pgsteal_kswapd_dma32 394372
+Patched: pgscan_kswapd_dma32 394501	pgsteal_kswapd_dma32 394491
 
-> And this is a question not related to this patch.
-> Why nr_slab is used here to decide zone->all_unreclaimable?
+So I would assume that the soft limit reclaim scanned more in the end.
 
-Slab is not directly associated with a slab but as reclaiming slab can
-free memory from unpredictable zones we do not consider a zone to be
-fully unreclaimable until we cannot shrink slab any more.
+Total runtime was slightly smaller for the patch version:
+Base
+		Group A		Group B
+total time	480.087 s	480.067 s
 
-You may be thinking that this is extremely heavy handed and you're
-right, it is.
+Patches applied
+total time	474.853 s	474.736 s
 
-> nr_slab is not directly related whether a specific zone is reclaimable
-> or not, and, moreover, nr_slab is not directly related to number of
-> reclaimed pages. It just say some objects in the system are freed.
-> 
+But this could be an artifacts of the guest scheduling or related to the
+host activity so I wouldn't draw any conclusions from here.
 
-All true, it's the indirect relation between slab objects and the memory
-that is freed when slab objects are reclaimed that has to be taken into
-account.
+2) kbuild test showed more or less the same results
+usage_in_bytes
+Base
+		Group A		Group B
+Median		394817536	395634688
 
-> This question comes from my ignorance, so please enlighten me.
-> 
+Patches applied
+median		483481600	302131200
 
-I hope this clarifies matters.
+A is kept closer to the soft limit again. There is some fluctuation
+around the limit because kbuild creates a lot of short lived processes.
+Base: 	 pgscan_kswapd_dma32 1648718	pgsteal_kswapd_dma32 1510749
+Patched: pgscan_kswapd_dma32 2042065	pgsteal_kswapd_dma32 1667745
 
--- 
-Mel Gorman
-SUSE Labs
+The differences are much bigger now so it would be interesting how much
+has been scanned/reclaimed during soft reclaim in the base kernel.
+
+I haven't included total runtime statistics here because they seemed
+even more random due to guest/host interaction.
+
+Any comments are welcome, of course.
+
+Michal Hocko (3):
+      memcg: integrate soft reclaim tighter with zone shrinking code
+      memcg: Ignore soft limit until it is explicitly specified
+      vmscan, memcg: Do softlimit reclaim also for targeted reclaim
+
+Incomplete diffstat (without node-zone soft limit tree removal etc...)
+so more deletions to come.
+ include/linux/memcontrol.h |   10 +--
+ mm/memcontrol.c            |  175 +++++++++-----------------------------------
+ mm/vmscan.c                |   67 ++++++++++-------
+ 3 files changed, 78 insertions(+), 174 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
