@@ -1,79 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id DA7526B0027
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 09:09:20 -0400 (EDT)
-Date: Tue, 9 Apr 2013 09:09:20 -0400 (EDT)
-From: Bob Peterson <rpeterso@redhat.com>
-Message-ID: <686810645.4576872.1365512960001.JavaMail.root@redhat.com>
-In-Reply-To: <1365498867-27782-9-git-send-email-lczerner@redhat.com>
-References: <1365498867-27782-1-git-send-email-lczerner@redhat.com> <1365498867-27782-9-git-send-email-lczerner@redhat.com>
-Subject: Re: [PATCH v3 08/18] gfs2: use ->invalidatepage() length argument
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id C46026B0027
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 09:20:28 -0400 (EDT)
+Date: Tue, 9 Apr 2013 15:20:26 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 04/18] jbd: change journal_invalidatepage() to
+ accept length
+Message-ID: <20130409132026.GA13672@quack.suse.cz>
+References: <1365498867-27782-1-git-send-email-lczerner@redhat.com>
+ <1365498867-27782-5-git-send-email-lczerner@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1365498867-27782-5-git-send-email-lczerner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Lukas Czerner <lczerner@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, cluster-devel@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-Hi,
+On Tue 09-04-13 11:14:13, Lukas Czerner wrote:
+> ->invalidatepage() aop now accepts range to invalidate so we can make
+> use of it in journal_invalidatepage() and all the users in ext3 file
+> system. Also update ext3 trace point to print out length argument.
+> 
+> Signed-off-by: Lukas Czerner <lczerner@redhat.com>
+  Looks good. You can add:
+Reviewed-by: Jan Kara <jack@suse.cz>
 
------ Original Message -----
-| ->invalidatepage() aop now accepts range to invalidate so we can make
-| use of it in gfs2_invalidatepage().
-| 
-| Signed-off-by: Lukas Czerner <lczerner@redhat.com>
-| Cc: cluster-devel@redhat.com
-| ---
-|  fs/gfs2/aops.c |    9 +++++++--
-|  1 files changed, 7 insertions(+), 2 deletions(-)
-| 
-| diff --git a/fs/gfs2/aops.c b/fs/gfs2/aops.c
-| index 37093ba..ea920bf 100644
-| --- a/fs/gfs2/aops.c
-| +++ b/fs/gfs2/aops.c
-| @@ -947,24 +947,29 @@ static void gfs2_invalidatepage(struct page *page,
-| unsigned int offset,
-|  				unsigned int length)
-|  {
-|  	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
-| +	unsigned int stop = offset + length;
-| +	int partial_page = (offset || length < PAGE_CACHE_SIZE);
-|  	struct buffer_head *bh, *head;
-|  	unsigned long pos = 0;
-|  
-|  	BUG_ON(!PageLocked(page));
-| -	if (offset == 0)
-| +	if (!partial_page)
-|  		ClearPageChecked(page);
-|  	if (!page_has_buffers(page))
-|  		goto out;
-|  
-|  	bh = head = page_buffers(page);
-|  	do {
-| +		if (pos + bh->b_size > stop)
-| +			return;
-| +
+								Honza
 
-I always regret it when I review something this early in the morning,
-or post before the caffeine has taken full effect. But...
-Shouldn't the statement above be (1) ">= stop" and (2) goto out;?
-
-|  		if (offset <= pos)
-|  			gfs2_discard(sdp, bh);
-|  		pos += bh->b_size;
-|  		bh = bh->b_this_page;
-|  	} while (bh != head);
-|  out:
-| -	if (offset == 0)
-| +	if (!partial_page)
-|  		try_to_release_page(page, 0);
-|  }
-
-Regards,
-
-Bob Peterson
-Red Hat File Systems
+> ---
+>  fs/ext3/inode.c             |    6 +++---
+>  fs/jbd/transaction.c        |   19 ++++++++++++++-----
+>  include/linux/jbd.h         |    2 +-
+>  include/trace/events/ext3.h |   12 +++++++-----
+>  4 files changed, 25 insertions(+), 14 deletions(-)
+> 
+> diff --git a/fs/ext3/inode.c b/fs/ext3/inode.c
+> index 349d4ce..b12936b 100644
+> --- a/fs/ext3/inode.c
+> +++ b/fs/ext3/inode.c
+> @@ -1828,15 +1828,15 @@ static void ext3_invalidatepage(struct page *page, unsigned int offset,
+>  {
+>  	journal_t *journal = EXT3_JOURNAL(page->mapping->host);
+>  
+> -	trace_ext3_invalidatepage(page, offset);
+> +	trace_ext3_invalidatepage(page, offset, length);
+>  
+>  	/*
+>  	 * If it's a full truncate we just forget about the pending dirtying
+>  	 */
+> -	if (offset == 0)
+> +	if (offset == 0 && length == PAGE_CACHE_SIZE)
+>  		ClearPageChecked(page);
+>  
+> -	journal_invalidatepage(journal, page, offset);
+> +	journal_invalidatepage(journal, page, offset, length);
+>  }
+>  
+>  static int ext3_releasepage(struct page *page, gfp_t wait)
+> diff --git a/fs/jbd/transaction.c b/fs/jbd/transaction.c
+> index 071d690..a1fef89 100644
+> --- a/fs/jbd/transaction.c
+> +++ b/fs/jbd/transaction.c
+> @@ -2020,16 +2020,20 @@ zap_buffer_unlocked:
+>   * void journal_invalidatepage() - invalidate a journal page
+>   * @journal: journal to use for flush
+>   * @page:    page to flush
+> - * @offset:  length of page to invalidate.
+> + * @offset:  offset of the range to invalidate
+> + * @length:  length of the range to invalidate
+>   *
+> - * Reap page buffers containing data after offset in page.
+> + * Reap page buffers containing data in specified range in page.
+>   */
+>  void journal_invalidatepage(journal_t *journal,
+>  		      struct page *page,
+> -		      unsigned long offset)
+> +		      unsigned int offset,
+> +		      unsigned int length)
+>  {
+>  	struct buffer_head *head, *bh, *next;
+> +	unsigned int stop = offset + length;
+>  	unsigned int curr_off = 0;
+> +	int partial_page = (offset || length < PAGE_CACHE_SIZE);
+>  	int may_free = 1;
+>  
+>  	if (!PageLocked(page))
+> @@ -2037,6 +2041,8 @@ void journal_invalidatepage(journal_t *journal,
+>  	if (!page_has_buffers(page))
+>  		return;
+>  
+> +	BUG_ON(stop > PAGE_CACHE_SIZE || stop < length);
+> +
+>  	/* We will potentially be playing with lists other than just the
+>  	 * data lists (especially for journaled data mode), so be
+>  	 * cautious in our locking. */
+> @@ -2046,11 +2052,14 @@ void journal_invalidatepage(journal_t *journal,
+>  		unsigned int next_off = curr_off + bh->b_size;
+>  		next = bh->b_this_page;
+>  
+> +		if (next_off > stop)
+> +			return;
+> +
+>  		if (offset <= curr_off) {
+>  			/* This block is wholly outside the truncation point */
+>  			lock_buffer(bh);
+>  			may_free &= journal_unmap_buffer(journal, bh,
+> -							 offset > 0);
+> +							 partial_page);
+>  			unlock_buffer(bh);
+>  		}
+>  		curr_off = next_off;
+> @@ -2058,7 +2067,7 @@ void journal_invalidatepage(journal_t *journal,
+>  
+>  	} while (bh != head);
+>  
+> -	if (!offset) {
+> +	if (!partial_page) {
+>  		if (may_free && try_to_free_buffers(page))
+>  			J_ASSERT(!page_has_buffers(page));
+>  	}
+> diff --git a/include/linux/jbd.h b/include/linux/jbd.h
+> index c8f3297..d02e16c 100644
+> --- a/include/linux/jbd.h
+> +++ b/include/linux/jbd.h
+> @@ -840,7 +840,7 @@ extern void	 journal_release_buffer (handle_t *, struct buffer_head *);
+>  extern int	 journal_forget (handle_t *, struct buffer_head *);
+>  extern void	 journal_sync_buffer (struct buffer_head *);
+>  extern void	 journal_invalidatepage(journal_t *,
+> -				struct page *, unsigned long);
+> +				struct page *, unsigned int, unsigned int);
+>  extern int	 journal_try_to_free_buffers(journal_t *, struct page *, gfp_t);
+>  extern int	 journal_stop(handle_t *);
+>  extern int	 journal_flush (journal_t *);
+> diff --git a/include/trace/events/ext3.h b/include/trace/events/ext3.h
+> index 15d11a3..6797b9d 100644
+> --- a/include/trace/events/ext3.h
+> +++ b/include/trace/events/ext3.h
+> @@ -290,13 +290,14 @@ DEFINE_EVENT(ext3__page_op, ext3_releasepage,
+>  );
+>  
+>  TRACE_EVENT(ext3_invalidatepage,
+> -	TP_PROTO(struct page *page, unsigned long offset),
+> +	TP_PROTO(struct page *page, unsigned int offset, unsigned int length),
+>  
+> -	TP_ARGS(page, offset),
+> +	TP_ARGS(page, offset, length),
+>  
+>  	TP_STRUCT__entry(
+>  		__field(	pgoff_t, index			)
+> -		__field(	unsigned long, offset		)
+> +		__field(	unsigned int, offset		)
+> +		__field(	unsigned int, length		)
+>  		__field(	ino_t,	ino			)
+>  		__field(	dev_t,	dev			)
+>  
+> @@ -305,14 +306,15 @@ TRACE_EVENT(ext3_invalidatepage,
+>  	TP_fast_assign(
+>  		__entry->index	= page->index;
+>  		__entry->offset	= offset;
+> +		__entry->length	= length;
+>  		__entry->ino	= page->mapping->host->i_ino;
+>  		__entry->dev	= page->mapping->host->i_sb->s_dev;
+>  	),
+>  
+> -	TP_printk("dev %d,%d ino %lu page_index %lu offset %lu",
+> +	TP_printk("dev %d,%d ino %lu page_index %lu offset %u length %u",
+>  		  MAJOR(__entry->dev), MINOR(__entry->dev),
+>  		  (unsigned long) __entry->ino,
+> -		  __entry->index, __entry->offset)
+> +		  __entry->index, __entry->offset, __entry->length)
+>  );
+>  
+>  TRACE_EVENT(ext3_discard_blocks,
+> -- 
+> 1.7.7.6
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
