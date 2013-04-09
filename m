@@ -1,211 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 09E846B0037
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 01:16:03 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 1F2373EE0CD
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:15:59 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 05AE745DE4D
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:15:59 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D87F245DE4E
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:15:58 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C8D711DB803E
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:15:58 +0900 (JST)
-Received: from g01jpexchyt32.g01.fujitsu.local (g01jpexchyt32.g01.fujitsu.local [10.128.193.115])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 66F141DB8037
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:15:58 +0900 (JST)
-Message-ID: <5163A3BF.3030900@jp.fujitsu.com>
-Date: Tue, 9 Apr 2013 14:14:39 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 2FBAD6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 01:37:00 -0400 (EDT)
+Received: by mail-oa0-f47.google.com with SMTP id o17so6954130oag.20
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 22:36:59 -0700 (PDT)
+Message-ID: <5163A8F4.7060807@gmail.com>
+Date: Tue, 09 Apr 2013 13:36:52 +0800
+From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/11] Introduce movablemem_map=acpi boot option.
-References: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1365154801-473-1-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [PATCH] mm: remove compressed copy from zram in-memory
+References: <1365400862-9041-1-git-send-email-minchan@kernel.org> <20130408141710.1a1f76a0054bba49a42c76ca@linux-foundation.org> <20130409010231.GA3467@blaptop>
+In-Reply-To: <20130409010231.GA3467@blaptop>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, yinghai@kernel.org, akpm@linux-foundation.org, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, mgorman@suse.de, walken@google.com, riel@redhat.com, khlebnikov@openvz.org, tj@kernel.org, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, jiang.liu@huawei.com, guz.fnst@cn.fujitsu.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
 
-Hi Tang,
+Hi Minchan,
+On 04/09/2013 09:02 AM, Minchan Kim wrote:
+> Hi Andrew,
+>
+> On Mon, Apr 08, 2013 at 02:17:10PM -0700, Andrew Morton wrote:
+>> On Mon,  8 Apr 2013 15:01:02 +0900 Minchan Kim <minchan@kernel.org> wrote:
+>>
+>>> Swap subsystem does lazy swap slot free with expecting the page
+>>> would be swapped out again so we can avoid unnecessary write.
+>> Is that correct?  How can it save a write?
+> Correct.
+>
+> The add_to_swap makes the page dirty and we must pageout only if the page is
+> dirty. If a anon page is already charged into swapcache, we skip writeout
+> the page in shrink_page_list, then just remove the page from swapcache and
+> free it by __remove_mapping.
+>
+> I did received same question multiple time so it would be good idea to
+> write down it in vmscan.c somewhere.
+>
+>>> But the problem in in-memory swap(ex, zram) is that it consumes
+>>> memory space until vm_swap_full(ie, used half of all of swap device)
+>>> condition meet. It could be bad if we use multiple swap device,
+>>> small in-memory swap and big storage swap or in-memory swap alone.
+>>>
+>>> This patch makes swap subsystem free swap slot as soon as swap-read
+>>> is completed and make the swapcache page dirty so the page should
+>>> be written out the swap device to reclaim it.
+>>> It means we never lose it.
+>> >From my reading of the patch, that isn't how it works?  It changed
+>> end_swap_bio_read() to call zram_slot_free_notify(), which appears to
+>> free the underlying compressed page.  I have a feeling I'm hopelessly
+>> confused.
+> You understand right totally.
+> Selecting swap slot in my description was totally miss.
+> Need to rewrite the description.
 
-The patch works well on my x86_64 box.
-I confirmed that hotpluggable node is allocated as Movable Zone.
-So feel free to add:
+free the swap slot and free compress page is the same, isn't it?
 
-Tested by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-
-Nitpick below.
-
-2013/04/05 18:39, Tang Chen wrote:
-> Before this patch-set, we introduced movablemem_map boot option which allowed
-> users to specify physical address ranges to set memory as movable. This is not
-> user friendly enough for normal users.
-> 
-> So now, we introduce just movablemem_map=acpi to allow users to enable/disable
-> the kernel to use Hot Pluggable bit in SRAT to determine which memory ranges are
-> hotpluggable, and set them as ZONE_MOVABLE.
-> 
-> This patch-set is based on Yinghai's patch-set:
-> v1: https://lkml.org/lkml/2013/3/7/642
-> v2: https://lkml.org/lkml/2013/3/10/47
-> 
-> So it supports to allocate pagetable pages in local nodes.
-> 
-> We also split the large patch-set into smaller ones, and it seems easier to review.
-> 
-> 
-> ========================================================================
-> [What we are doing]
-> This patchset introduces a boot option for users to specify ZONE_MOVABLE
-> memory map for each node in the system. Users can use it in two ways:
-> 
-> 1. movablecore_map=acpi
->     In this way, the kernel will use Hot Pluggable bit in SRAT to determine
->     ZONE_MOVABLE for each node. All the ranges user has specified will be
->     ignored.
-> 
-> 
-> [Why we do this]
-> If we hot remove a memroy device, it cannot have kernel memory,
-> because Linux cannot migrate kernel memory currently. Therefore,
-> we have to guarantee that the hot removed memory has only movable
-> memoroy.
-> (Here is an exception: When we implement the node hotplug functionality,
-> for those kernel memory whose life cycle is the same as the node, such as
-> pagetables, vmemmap and so on, although the kernel cannot migrate them,
-> we can still put them on local node because we can free them before we
-> hot-remove the node. This is not completely implemented yet.)
-> 
-> Linux has two boot options, kernelcore= and movablecore=, for
-> creating movable memory. These boot options can specify the amount
-> of memory use as kernel or movable memory. Using them, we can
-> create ZONE_MOVABLE which has only movable memory.
-> (NOTE: doing this will cause NUMA performance because the kernel won't
->   be able to distribute kernel memory evenly to each node.)
-> 
-> But it does not fulfill a requirement of memory hot remove, because
-> even if we specify the boot options, movable memory is distributed
-> in each node evenly. So when we want to hot remove memory which
-> memory range is 0x80000000-0c0000000, we have no way to specify
-> the memory as movable memory.
-> 
-> Furthermore, even if we can use SRAT, users still need an interface
-> to enable/disable this functionality if they don't want to lose their
-> NUMA performance.  So I think, a user interface is always needed.
-> 
-> So we proposed this new feature which enable/disable the kernel to set
-> hotpluggable memory as ZONE_MOVABLE.
-> 
-> 
-> [Ways to do this]
-> There may be 2 ways to specify movable memory.
-> 1. use firmware information
-> 2. use boot option
-> 
-> 1. use firmware information
->    According to ACPI spec 5.0, SRAT table has memory affinity structure
->    and the structure has Hot Pluggable Filed. See "5.2.16.2 Memory
->    Affinity Structure". If we use the information, we might be able to
->    specify movable memory by firmware. For example, if Hot Pluggable
->    Filed is enabled, Linux sets the memory as movable memory.
-> 
-> 2. use boot option
->    This is our proposal. New boot option can specify memory range to use
->    as movable memory.
-> 
-> 
-> [How we do this]
-> We now propose a boot option, but support the first way above. A boot option
-> is always needed because set memory as movable will cause NUMA performance
-> down. So at least, we need an interface to enable/disable it so that users
-> who don't want to use memory hotplug functionality will also be happy.
-> 
-> 
-> [How to use]
-> Specify movablemem_map=acpi in kernel commandline:
->           *
->           * SRAT:                |_____| |_____| |_________| |_________| ......
->           * node id:                0       1         1           2
->           * hotpluggable:           n       y         y           n
->           * ZONE_MOVABLE:                |_____| |_________|
->           *
->     NOTE: 1) Before parsing SRAT, memblock has already reserve some memory ranges
->              for other purposes, such as for kernel image. We cannot prevent
->              kernel from using these memory, so we need to exclude these memory
->              even if it is hotpluggable.
->              Furthermore, to ensure the kernel has enough memory to boot, we make
->              all the memory on the node which the kernel resides in should be
->              un-hotpluggable.
->           2) In this case, all the user specified memory ranges will be ingored.
-> 
-> We also need to consider the following points:
-> 1) Using this boot option could cause NUMA performance down because the kernel
->     memory will not be distributed on each node evenly. So for users who don't
->     want to lose their NUMA performance, just don't use it.
-> 2) If kernelcore or movablecore is also specified, movablecore_map will have
->     higher priority to be satisfied.
-> 3) This option has no conflict with memmap option.
-> 
-
-
-> Tane Chen (10):
->    acpi: Print hotplug info in SRAT.
->    numa, acpi, memory-hotplug: Add movablemem_map=acpi boot option.
->    x86, numa, acpi, memory-hotplug: Introduce hotplug info into struct
->      numa_meminfo.
->    x86, numa, acpi, memory-hotplug: Consider hotplug info when cleanup
->      numa_meminfo.
-
->    X86, numa, acpi, memory-hotplug: Add hotpluggable ranges to
->      movablemem_map.
-
-It has a whitespace error.
-
->    x86, numa, acpi, memory-hotplug: Make any node which the kernel
->      resides in un-hotpluggable.
-
->    x86, numa, acpi, memory-hotplug: Introduce zone_movable_limit[] to
->      store start pfn of ZONE_MOVABLE.
-
-It has a whitespace error.
-
->    x86, numa, acpi, memory-hotplug: Sanitize zone_movable_limit[].
->    x86, numa, acpi, memory-hotplug: make movablemem_map have higher
->      priority
->    x86, numa, acpi, memory-hotplug: Memblock limit with movablemem_map
-
-Thanks,
-Yasuaki Ishimatsu
-
-> 
-> Yasuaki Ishimatsu (1):
->    x86: get pg_data_t's memory from other node
-> 
->   Documentation/kernel-parameters.txt |   11 ++
->   arch/x86/include/asm/numa.h         |    3 +-
->   arch/x86/kernel/apic/numaq_32.c     |    2 +-
->   arch/x86/mm/amdtopology.c           |    3 +-
->   arch/x86/mm/numa.c                  |   92 ++++++++++++++--
->   arch/x86/mm/numa_internal.h         |    1 +
->   arch/x86/mm/srat.c                  |   28 ++++-
->   include/linux/memblock.h            |    2 +
->   include/linux/mm.h                  |   19 +++
->   mm/memblock.c                       |   50 ++++++++
->   mm/page_alloc.c                     |  210 ++++++++++++++++++++++++++++++++++-
->   11 files changed, 399 insertions(+), 22 deletions(-)
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
+>
+>>> --- a/mm/page_io.c
+>>> +++ b/mm/page_io.c
+>>> @@ -20,6 +20,7 @@
+>>>   #include <linux/buffer_head.h>
+>>>   #include <linux/writeback.h>
+>>>   #include <linux/frontswap.h>
+>>> +#include <linux/blkdev.h>
+>>>   #include <asm/pgtable.h>
+>>>   
+>>>   static struct bio *get_swap_bio(gfp_t gfp_flags,
+>>> @@ -81,8 +82,30 @@ void end_swap_bio_read(struct bio *bio, int err)
+>>>   				iminor(bio->bi_bdev->bd_inode),
+>>>   				(unsigned long long)bio->bi_sector);
+>>>   	} else {
+>>> +		/*
+>>> +		 * There is no reason to keep both uncompressed data and
+>>> +		 * compressed data in memory.
+>>> +		 */
+>>> +		struct swap_info_struct *sis;
+>>> +
+>>>   		SetPageUptodate(page);
+>>> +		sis = page_swap_info(page);
+>>> +		if (sis->flags & SWP_BLKDEV) {
+>>> +			struct gendisk *disk = sis->bdev->bd_disk;
+>>> +			if (disk->fops->swap_slot_free_notify) {
+>>> +				swp_entry_t entry;
+>>> +				unsigned long offset;
+>>> +
+>>> +				entry.val = page_private(page);
+>>> +				offset = swp_offset(entry);
+>>> +
+>>> +				SetPageDirty(page);
+>>> +				disk->fops->swap_slot_free_notify(sis->bdev,
+>>> +						offset);
+>>> +			}
+>>> +		}
+>>>   	}
+>>> +
+>>>   	unlock_page(page);
+>>>   	bio_put(bio);
+>> The new code is wasted space if CONFIG_BLOCK=n, yes?
+> CONFIG_SWAP is already dependent on CONFIG_BLOCK.
+>
+>> Also, what's up with the SWP_BLKDEV test?  zram doesn't support
+>> SWP_FILE?  Why on earth not?
+>>
+>> Putting swap_slot_free_notify() into block_device_operations seems
+>> rather wrong.  It precludes zram-over-swapfiles for all time and means
+>> that other subsystems cannot get notifications for swap slot freeing
+>> for swapfile-backed swap.
+> Zram is just pseudo-block device so anyone can format it with any FSes
+> and swapon a file. In such case, he can't get a benefit from
+> swap_slot_free_notify. But I think it's not a severe problem because
+> there is no reason to use a file-swap on zram. If anyone want to use it,
+> I'd like to know the reason. If it's reasonable, we have to rethink a
+> wheel and it's another story, IMHO.
+>
+>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
