@@ -1,126 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 2FBAD6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 01:37:00 -0400 (EDT)
-Received: by mail-oa0-f47.google.com with SMTP id o17so6954130oag.20
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 22:36:59 -0700 (PDT)
-Message-ID: <5163A8F4.7060807@gmail.com>
-Date: Tue, 09 Apr 2013 13:36:52 +0800
-From: Ric Mason <ric.masonn@gmail.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 545CC6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 01:42:56 -0400 (EDT)
+Received: by mail-ob0-f180.google.com with SMTP id un3so2402671obb.11
+        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 22:42:55 -0700 (PDT)
+Message-ID: <5163AA5A.9010205@gmail.com>
+Date: Tue, 09 Apr 2013 13:42:50 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: remove compressed copy from zram in-memory
-References: <1365400862-9041-1-git-send-email-minchan@kernel.org> <20130408141710.1a1f76a0054bba49a42c76ca@linux-foundation.org> <20130409010231.GA3467@blaptop>
-In-Reply-To: <20130409010231.GA3467@blaptop>
+Subject: Re: [PATCH 1/3] mm/page_alloc: factor out setting of pcp->high and
+ pcp->batch.
+References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com> <1365194030-28939-2-git-send-email-cody@linux.vnet.ibm.com> <5160CDD8.3050908@gmail.com> <516300C7.7000008@linux.vnet.ibm.com>
+In-Reply-To: <516300C7.7000008@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Minchan,
-On 04/09/2013 09:02 AM, Minchan Kim wrote:
-> Hi Andrew,
->
-> On Mon, Apr 08, 2013 at 02:17:10PM -0700, Andrew Morton wrote:
->> On Mon,  8 Apr 2013 15:01:02 +0900 Minchan Kim <minchan@kernel.org> wrote:
+Hi Cody,
+On 04/09/2013 01:39 AM, Cody P Schafer wrote:
+> On 04/06/2013 06:37 PM, Simon Jeons wrote:
+>> Hi Cody,
+>> On 04/06/2013 04:33 AM, Cody P Schafer wrote:
+>>> Creates pageset_set_batch() for use in setup_pageset().
+>>> pageset_set_batch() imitates the functionality of
+>>> setup_pagelist_highmark(), but uses the boot time
+>>> (percpu_pagelist_fraction == 0) calculations for determining ->high
 >>
->>> Swap subsystem does lazy swap slot free with expecting the page
->>> would be swapped out again so we can avoid unnecessary write.
->> Is that correct?  How can it save a write?
-> Correct.
->
-> The add_to_swap makes the page dirty and we must pageout only if the page is
-> dirty. If a anon page is already charged into swapcache, we skip writeout
-> the page in shrink_page_list, then just remove the page from swapcache and
-> free it by __remove_mapping.
->
-> I did received same question multiple time so it would be good idea to
-> write down it in vmscan.c somewhere.
->
->>> But the problem in in-memory swap(ex, zram) is that it consumes
->>> memory space until vm_swap_full(ie, used half of all of swap device)
->>> condition meet. It could be bad if we use multiple swap device,
->>> small in-memory swap and big storage swap or in-memory swap alone.
->>>
->>> This patch makes swap subsystem free swap slot as soon as swap-read
->>> is completed and make the swapcache page dirty so the page should
->>> be written out the swap device to reclaim it.
->>> It means we never lose it.
->> >From my reading of the patch, that isn't how it works?  It changed
->> end_swap_bio_read() to call zram_slot_free_notify(), which appears to
->> free the underlying compressed page.  I have a feeling I'm hopelessly
->> confused.
-> You understand right totally.
-> Selecting swap slot in my description was totally miss.
-> Need to rewrite the description.
-
-free the swap slot and free compress page is the same, isn't it?
-
->
->>> --- a/mm/page_io.c
->>> +++ b/mm/page_io.c
->>> @@ -20,6 +20,7 @@
->>>   #include <linux/buffer_head.h>
->>>   #include <linux/writeback.h>
->>>   #include <linux/frontswap.h>
->>> +#include <linux/blkdev.h>
->>>   #include <asm/pgtable.h>
->>>   
->>>   static struct bio *get_swap_bio(gfp_t gfp_flags,
->>> @@ -81,8 +82,30 @@ void end_swap_bio_read(struct bio *bio, int err)
->>>   				iminor(bio->bi_bdev->bd_inode),
->>>   				(unsigned long long)bio->bi_sector);
->>>   	} else {
->>> +		/*
->>> +		 * There is no reason to keep both uncompressed data and
->>> +		 * compressed data in memory.
->>> +		 */
->>> +		struct swap_info_struct *sis;
->>> +
->>>   		SetPageUptodate(page);
->>> +		sis = page_swap_info(page);
->>> +		if (sis->flags & SWP_BLKDEV) {
->>> +			struct gendisk *disk = sis->bdev->bd_disk;
->>> +			if (disk->fops->swap_slot_free_notify) {
->>> +				swp_entry_t entry;
->>> +				unsigned long offset;
->>> +
->>> +				entry.val = page_private(page);
->>> +				offset = swp_offset(entry);
->>> +
->>> +				SetPageDirty(page);
->>> +				disk->fops->swap_slot_free_notify(sis->bdev,
->>> +						offset);
->>> +			}
->>> +		}
->>>   	}
->>> +
->>>   	unlock_page(page);
->>>   	bio_put(bio);
->> The new code is wasted space if CONFIG_BLOCK=n, yes?
-> CONFIG_SWAP is already dependent on CONFIG_BLOCK.
->
->> Also, what's up with the SWP_BLKDEV test?  zram doesn't support
->> SWP_FILE?  Why on earth not?
+>> Why need adjust pcp->high, pcp->batch during system running? What's the
+>> requirement?
 >>
->> Putting swap_slot_free_notify() into block_device_operations seems
->> rather wrong.  It precludes zram-over-swapfiles for all time and means
->> that other subsystems cannot get notifications for swap slot freeing
->> for swapfile-backed swap.
-> Zram is just pseudo-block device so anyone can format it with any FSes
-> and swapon a file. In such case, he can't get a benefit from
-> swap_slot_free_notify. But I think it's not a severe problem because
-> there is no reason to use a file-swap on zram. If anyone want to use it,
-> I'd like to know the reason. If it's reasonable, we have to rethink a
-> wheel and it's another story, IMHO.
 >
+> There is currently a sysctl (which I patch later in this series) which 
+> allows adjusting the ->high mark (and, indirectly, ->batch). 
+> Additionally, memory hotplug changes ->high and ->batch due to the 
+> zone size changing (essentially, zone->managed_pages and 
+> zone->present_pages have changed) , meaning that zone_batchsize(), 
+> which is used at boot to set ->batch and (indirectly) ->high has a 
+> different output.
+
+Thanks for your explain. I'm curious about this sysctl, when need adjust 
+the ->high, ->batch during system running except memory hotplug which 
+will change zone size?
+
 >
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Note that in addition to the 2 users of this functionality mentioned 
+> here, I'm currently working on anther resizer of zones (runtime NUMA 
+> reconfiguration).
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
