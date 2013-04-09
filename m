@@ -1,113 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 5042F6B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 20:36:52 -0400 (EDT)
-Received: by mail-ob0-f178.google.com with SMTP id ni5so1809556obc.23
-        for <linux-mm@kvack.org>; Mon, 08 Apr 2013 17:36:51 -0700 (PDT)
-Message-ID: <5163629A.4070202@linaro.org>
-Date: Mon, 08 Apr 2013 17:36:42 -0700
-From: John Stultz <john.stultz@linaro.org>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 7AB876B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 20:55:15 -0400 (EDT)
+Date: Tue, 9 Apr 2013 09:55:47 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
+Message-ID: <20130409005547.GC21654@lge.com>
+References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
+ <1364548450-28254-3-git-send-email-glommer@parallels.com>
+ <20130408084202.GA21654@lge.com>
+ <51628412.6050803@parallels.com>
+ <20130408090131.GB21654@lge.com>
+ <51628877.5000701@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/4] Support vranges on files
-References: <1365033144-15156-1-git-send-email-john.stultz@linaro.org> <20130404065509.GE7675@blaptop> <515DBA70.8010606@linaro.org> <20130405075504.GA32126@blaptop> <20130408004638.GA6394@blaptop>
-In-Reply-To: <20130408004638.GA6394@blaptop>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51628877.5000701@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-On 04/07/2013 05:46 PM, Minchan Kim wrote:
-> Hello John,
->
-> As you know, userland people wanted to handle vrange with mmaped
-> pointer rather than fd-based and see the SIGBUS so I thought more
-> about semantic of vrange and want to make it very clear and easy.
-> So I suggest below semantic(Of course, it's not rock solid).
->
->          mvrange(start_addr, lengh, mode, behavior)
->
-> It's same with that I suggested lately but different name, just
-> adding prefix "m". It's per-process model(ie, mm_struct vrange)
-> so if process is exited, "volatility" isn't valid any more.
-> It isn't a problem in anonymous but could be in file-vrange so let's
-> introduce fvrange for covering the problem.
->
->          fvrange(int fd, start_offset, length, mode, behavior)
->
-> First of all, let's see mvrange with anonymous and file page POV.
->
-> 1) anon-mvrange
->
-> The page in volaitle range will be purged only if all of processes
-> marked the range as volatile.
->
-> If A process calls mvrange and is forked, vrange could be copied
-> from parent to child so not-yet-COWed pages could be purged
-> unless either one of both processes marks NO_VOLATILE explicitly.
->
-> Of course, COWed page could be purged easily because there is no link
-> any more.
+Hello, Glauber.
 
-Ack. This seems reasonable.
+On Mon, Apr 08, 2013 at 01:05:59PM +0400, Glauber Costa wrote:
+> On 04/08/2013 01:01 PM, Joonsoo Kim wrote:
+> > On Mon, Apr 08, 2013 at 12:47:14PM +0400, Glauber Costa wrote:
+> >> On 04/08/2013 12:42 PM, Joonsoo Kim wrote:
+> >>> Hello, Glauber.
+> >>>
+> >>> On Fri, Mar 29, 2013 at 01:13:44PM +0400, Glauber Costa wrote:
+> >>>> In very low free kernel memory situations, it may be the case that we
+> >>>> have less objects to free than our initial batch size. If this is the
+> >>>> case, it is better to shrink those, and open space for the new workload
+> >>>> then to keep them and fail the new allocations.
+> >>>>
+> >>>> More specifically, this happens because we encode this in a loop with
+> >>>> the condition: "while (total_scan >= batch_size)". So if we are in such
+> >>>> a case, we'll not even enter the loop.
+> >>>>
+> >>>> This patch modifies turns it into a do () while {} loop, that will
+> >>>> guarantee that we scan it at least once, while keeping the behaviour
+> >>>> exactly the same for the cases in which total_scan > batch_size.
+> >>>
+> >>> Current user of shrinker not only use their own condition, but also
+> >>> use batch_size and seeks to throttle their behavior. So IMHO,
+> >>> this behavior change is very dangerous to some users.
+> >>>
+> >>> For example, think lowmemorykiller.
+> >>> With this patch, he always kill some process whenever shrink_slab() is
+> >>> called and their low memory condition is satisfied.
+> >>> Before this, total_scan also prevent us to go into lowmemorykiller, so
+> >>> killing innocent process is limited as much as possible.
+> >>>
+> >> shrinking is part of the normal operation of the Linux kernel and
+> >> happens all the time. Not only the call to shrink_slab, but actual
+> >> shrinking of unused objects.
+> >>
+> >> I don't know therefore about any code that would kill process only
+> >> because they have reached shrink_slab.
+> >>
+> >> In normal systems, this loop will be executed many, many times. So we're
+> >> not shrinking *more*, we're just guaranteeing that at least one pass
+> >> will be made.
+> > 
+> > This one pass guarantee is a problem for lowmemory killer.
+> > 
+> >> Also, anyone looking at this to see if we should kill processes, is a
+> >> lot more likely to kill something if we tried to shrink but didn't, than
+> >> if we successfully shrunk something.
+> > 
+> > lowmemory killer is hacky user of shrink_slab interface.
+> 
+> Well, it says it all =)
+> 
+> In special, I really can't see how, hacky or not, it makes sense to kill
+> a process if we *actually* shrunk memory.
+> 
+> Moreover, I don't see the code in drivers/staging/android/lowmemory.c
+> doing anything even remotely close to that. Could you point me to some
+> code that does it ?
 
+Sorry for late. :)
 
-> 2) file-mvrange
->
-> A page in volatile range will be purged only if all of processes mapped
-> the page marked it as volatile AND there is no process mapped the page
-> as "private". IOW, all of the process mapped the page should map it
-> with "shared" for purging.
->
-> So, all of processes should mark each address range in own process
-> context if they want to collaborate with shared mapped file and gaurantee
-> there is no process mapped the range with "private".
->
-> Of course, volatility state will be terminated as the process is gone.
+lowmemkiller makes spare memory via killing a task.
 
-This case doesn't seem ideal to me, but is sort of how the current code 
-works to avoid the complexity of dealing with memory volatile ranges 
-that cross page types (file/anonymous). Although the current code just 
-doesn't purge file pages marked with mvrange().
+Below is code from lowmem_shrink() in lowmemorykiller.c
 
-I'd much prefer file-mvrange calls to behave identically to fvrange calls.
+        for (i = 0; i < array_size; i++) {
+                if (other_free < lowmem_minfree[i] &&
+                    other_file < lowmem_minfree[i]) {
+                        min_score_adj = lowmem_adj[i];
+                        break;
+                }   
+        } 
 
-The important point here is that the kernel doesn't *have* to purge 
-anything ever. Its the kernel's discretion as to which volatile pages to 
-purge when. So its easier for now to simply not purge file pages marked 
-volatile via mvolatile.
+lowmemkiller kill a process if min_score_adj is assigned.
+And then, it goes to for_each_process() loop and select target task.
+And then, execute below code.
 
-There however is the inconsistency that file pages marked volatile via 
-fvrange, then are marked non-volatile via mvrange() might still be 
-purged. That is broken in my mind, and still needs to be addressed. The 
-easiest out is probably just to return an error if any of the mvrange 
-calls cover file pages. But I'd really like a better fix.
+        if (selected) {
+		...
+                send_sig(SIGKILL, selected, 0);
+                set_tsk_thread_flag(selected, TIF_MEMDIE);
+		...
+        }
 
+lowmemkiller just check sc->nr_to_scan whether it is 0 or not. And it don't
+check it anymore. So if we run do_shrinker_shrink() atleast once
+without checking batch_size, there will be side-effect.
 
-> 3) fvrange
->
-> It's same with 2) but volatility state could be persistent in address_space
-> until someone calls fvrange(NO_VOLATILE).
-> So it could remove the weakness of 2).
->   
-> What do you think about above semantic?
+Thanks.
 
-
-I'd still like mvrange() calls on shared mapped files to be stored on 
-the address_space.
-
-
-> If you don't have any problem, we could implement it. I think 1) and 2) could
-> be handled with my base code for anon-vrange handling with tweaking
-> file-vrange and need your new patches in address_space for handling 3).
-
-I think we can get it sorted out. It might just take a few iterations.
-
-thanks
--john
-
-
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
