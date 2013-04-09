@@ -1,66 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id DE5966B0006
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 11:08:32 -0400 (EDT)
-Message-ID: <51642EEB.1010204@parallels.com>
-Date: Tue, 09 Apr 2013 19:08:27 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id B938E6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 11:37:46 -0400 (EDT)
+Date: Tue, 9 Apr 2013 17:37:42 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 0/3] soft reclaim rework
+Message-ID: <20130409153742.GL29860@dhcp22.suse.cz>
+References: <1365509595-665-1-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/1] mm: Another attempt to monitor task's memory
- changes
-References: <515F0484.1010703@parallels.com> <20130408153024.4edbcb491f18c948adbe9fe8@linux-foundation.org>
-In-Reply-To: <20130408153024.4edbcb491f18c948adbe9fe8@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1365509595-665-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux MM <linux-mm@kvack.org>, Matt Mackall <mpm@selenic.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Glauber Costa <glommer@parallels.com>, Matthew Wilcox <willy@linux.intel.com>
+To: linux-mm@kvack.org
+Cc: Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>
 
-On 04/09/2013 02:30 AM, Andrew Morton wrote:
-> On Fri, 05 Apr 2013 21:06:12 +0400 Pavel Emelyanov <xemul@parallels.com> wrote:
+On Tue 09-04-13 14:13:12, Michal Hocko wrote:
+[...]
+> 2) kbuild test showed more or less the same results
+> usage_in_bytes
+> Base
+> 		Group A		Group B
+> Median		394817536	395634688
 > 
->> Hello,
->>
->> This is another attempt (previous one was [1]) to implement support for 
->> memory snapshot for the the checkpoint-restore project (http://criu.org).
->> Let me remind what the issue is.
->>
->> << EOF
->> To create a dump of an application(s) we save all the information about it
->> to files, and the biggest part of such dump is the contents of tasks' memory.
->> However, there are usage scenarios where it's not required to get _all_ the
->> task memory while creating a dump. For example, when doing periodical dumps,
->> it's only required to take full memory dump only at the first step and then
->> take incremental changes of memory. Another example is live migration. We 
->> copy all the memory to the destination node without stopping all tasks, then
->> stop them, check for what pages has changed, dump it and the rest of the state,
->> then copy it to the destination node. This decreases freeze time significantly.
->>
->> That said, some help from kernel to watch how processes modify the contents
->> of their memory is required. Previous attempt used ftrace to inform userspace
->> about memory being written to. This one is different.
->>
->> EOF
+> Patches applied
+> median		483481600	302131200
 > 
-> Did you consider teaching the kernel to perform a strong hash on a
-> page's contents so that userspace can do a before-and-after check to see
-> if it changed?
+> A is kept closer to the soft limit again. There is some fluctuation
+> around the limit because kbuild creates a lot of short lived processes.
+> Base: 	 pgscan_kswapd_dma32 1648718	pgsteal_kswapd_dma32 1510749
+> Patched: pgscan_kswapd_dma32 2042065	pgsteal_kswapd_dma32 1667745
 
-I did (unless I misunderstood _your_ idea with hashes :( ), but judged, that
-a single bit on a pte would be less cpu and memory consuming than calculating
-and keeping 32/64 bits of hash value.
+OK, so I have patched the base version with the patch bellow which
+uncovers soft reclaim scanning and reclaim and guess what:
+Base:	 pgscan_kswapd_dma32 3710092	pgsteal_kswapd_dma32 3225191
+Patched: pgscan_kswapd_dma32 1846700	pgsteal_kswapd_dma32 1442232
+Base:	 pgscan_direct_dma32 2417683	pgsteal_direct_dma32 459702
+Patched: pgscan_direct_dma32 1839331	pgsteal_direct_dma32 244338
 
+The numbers are obviously timing dependent (wrt. previous run ~10% for
+the patched kernel) but the ~1/2 half wrt. the base kernel seems real
+we just haven't seen it previously because it wasn't accounted. I guess
+this can be attributed to prio-0 soft reclaim behavior and a lot of
+dirty pages on the LRU.
 
-As far as all other comments are concerned -- thanks a LOT for the feedback!
-I will address them all.
-
-
-Thanks,
-Pavel
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> The differences are much bigger now so it would be interesting how much
+> has been scanned/reclaimed during soft reclaim in the base kernel.
+---
