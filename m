@@ -1,60 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 49F196B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 23:19:23 -0400 (EDT)
-Message-ID: <5163887D.1040809@huawei.com>
-Date: Tue, 9 Apr 2013 11:18:21 +0800
-From: Li Zefan <lizefan@huawei.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id AAA4E6B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 23:22:06 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 278FD3EE0C2
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 12:22:05 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E61745DE5E
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 12:22:05 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id E844645DE59
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 12:22:04 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id D592CE08001
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 12:22:04 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8783A1DB804A
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 12:22:04 +0900 (JST)
+Message-ID: <51638947.9060303@jp.fujitsu.com>
+Date: Tue, 09 Apr 2013 12:21:43 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 13/12] memcg: don't need memcg->memcg_name
-References: <5162648B.9070802@huawei.com> <51626584.7050405@huawei.com> <5163868B.3020905@jp.fujitsu.com>
-In-Reply-To: <5163868B.3020905@jp.fujitsu.com>
-Content-Type: text/plain; charset="GB2312"
+Subject: Re: [PATCH 1/8] cgroup: implement cgroup_is_ancestor()
+References: <51627DA9.7020507@huawei.com> <51627DBB.5050005@huawei.com>
+In-Reply-To: <51627DBB.5050005@huawei.com>
+Content-Type: text/plain; charset=GB2312
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
->> @@ -5188,12 +5154,28 @@ static int mem_cgroup_dangling_read(struct cgroup *cont, struct cftype *cft,
->>   					struct seq_file *m)
->>   {
->>   	struct mem_cgroup *memcg;
->> +	char *memcg_name;
->> +	int ret;
->> +
->> +	/*
->> +	 * cgroup.c will do page-sized allocations most of the time,
->> +	 * so we'll just follow the pattern. Also, __get_free_pages
->> +	 * is a better interface than kmalloc for us here, because
->> +	 * we'd like this memory to be always billed to the root cgroup,
->> +	 * not to the process removing the memcg. While kmalloc would
->> +	 * require us to wrap it into memcg_stop/resume_kmem_account,
->> +	 * with __get_free_pages we just don't pass the memcg flag.
->> +	 */
->> +	memcg_name = (char *)__get_free_pages(GFP_KERNEL, 0);
->> +	if (!memcg_name)
->> +		return -ENOMEM;
->>   
->>   	mutex_lock(&dangling_memcgs_mutex);
->>   
->>   	list_for_each_entry(memcg, &dangling_memcgs, dead) {
->> -		if (memcg->memcg_name)
->> -			seq_printf(m, "%s:\n", memcg->memcg_name);
->> +		ret = cgroup_path(memcg->css.cgroup, memcg_name, PAGE_SIZE);
->> +		if (!ret)
->> +			seq_printf(m, "%s:\n", memcg_name);
->>   		else
->>   			seq_printf(m, "%p (name lost):\n", memcg);
->>   
+(2013/04/08 17:20), Li Zefan wrote:
+> This will be used as a replacement for css_is_ancestor().
 > 
-> I'm sorry for dawm question ...when this error happens ?
-> We may get ENAMETOOLONG even with PAGE_SIZE(>=4096bytes) buffer ?
-> 
+> Signed-off-by: Li Zefan <lizefan@huawei.com>
 
-It does no harm to check the return value, and we don't have to
-worry about if cgroup_path() will be changed to return some other
-errno like ENOMEM in the future.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+Hmm....but do we need "depth" ?
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
