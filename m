@@ -1,242 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 0F2226B0005
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 14:47:44 -0400 (EDT)
-Date: Tue, 9 Apr 2013 20:47:41 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v3] [RESEND] mm: Make snapshotting pages for stable
- writes a per-bio operation
-Message-ID: <20130409184741.GB15214@quack.suse.cz>
-References: <20130409180617.GB8907@blackbox.djwong.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130409180617.GB8907@blackbox.djwong.org>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 1AEDC6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 15:14:50 -0400 (EDT)
+Message-ID: <1365534150.32127.55.camel@misato.fc.hp.com>
+Subject: Re: [UPDATE][PATCH v2 2/3] resource: Add
+ release_mem_region_adjustable()
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 09 Apr 2013 13:02:30 -0600
+In-Reply-To: <20130409054825.GB7251@ram.oc3035372033.ibm.com>
+References: <1365457655-7453-1-git-send-email-toshi.kani@hp.com>
+	 <20130409054825.GB7251@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Shuge <shugelinux@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Kevin <kevin@allwinnertech.com>, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "guz.fnst@cn.fujitsu.com" <guz.fnst@cn.fujitsu.com>, "Makphaibulchoke, Thavatchai" <thavatchai.makpahibulchoke@hp.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "tangchen@cn.fujitsu.com" <tangchen@cn.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>
 
-On Tue 09-04-13 11:06:17, Darrick J. Wong wrote:
-> Walking a bio's page mappings has proved problematic, so create a new bio flag
-> to indicate that a bio's data needs to be snapshotted in order to guarantee
-> stable pages during writeback.  Next, for the one user (ext3/jbd) of
-> snapshotting, hook all the places where writes can be initiated without
-> PG_writeback set, and set BIO_SNAP_STABLE there.  We must also flag journal
-> "metadata" bios for stable writeout, since file data can be written through the
-> journal.  Finally, the MS_SNAP_STABLE mount flag (only used by ext3) is now
-> superfluous, so get rid of it.
+On Tue, 2013-04-09 at 05:48 +0000, Ram Pai wrote:
+> On Mon, Apr 08, 2013 at 03:47:35PM -0600, Toshi Kani wrote:
+> > Added release_mem_region_adjustable(), which releases a requested
+> > region from a currently busy memory resource.  This interface
+> > adjusts the matched memory resource accordingly even if the
+> > requested region does not match exactly but still fits into.
+> > 
+> > This new interface is intended for memory hot-delete.  During
+> > bootup, memory resources are inserted from the boot descriptor
+> > table, such as EFI Memory Table and e820.  Each memory resource
+> > entry usually covers the whole contigous memory range.  Memory
+> > hot-delete request, on the other hand, may target to a particular
+> > range of memory resource, and its size can be much smaller than
+> > the whole contiguous memory.  Since the existing release interfaces
+> > like __release_region() require a requested region to be exactly
+> > matched to a resource entry, they do not allow a partial resource
+> > to be released.
+> > 
+> > There is no change to the existing interfaces since their restriction
+> > is valid for I/O resources.
+> > 
+> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> > Reviewed-by : Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> > ---
+> > 
+> > Added #ifdef CONFIG_MEMORY_HOTPLUG as suggested by Andrew Morton.
+> > 
+> > ---
+> >  include/linux/ioport.h |    4 ++
+> >  kernel/resource.c      |   96 ++++++++++++++++++++++++++++++++++++++++++++++++
+> >  2 files changed, 100 insertions(+)
+> > 
+> > diff --git a/include/linux/ioport.h b/include/linux/ioport.h
+> > index 85ac9b9b..961d4dc 100644
+> > --- a/include/linux/ioport.h
+> > +++ b/include/linux/ioport.h
+> > @@ -192,6 +192,10 @@ extern struct resource * __request_region(struct resource *,
+> >  extern int __check_region(struct resource *, resource_size_t, resource_size_t);
+> >  extern void __release_region(struct resource *, resource_size_t,
+> >  				resource_size_t);
+> > +#ifdef CONFIG_MEMORY_HOTPLUG
+> > +extern int release_mem_region_adjustable(struct resource *, resource_size_t,
+> > +				resource_size_t);
+> > +#endif
+> > 
+> >  static inline int __deprecated check_region(resource_size_t s,
+> >  						resource_size_t n)
+> > diff --git a/kernel/resource.c b/kernel/resource.c
+> > index ae246f9..25b945c 100644
+> > --- a/kernel/resource.c
+> > +++ b/kernel/resource.c
+> > @@ -1021,6 +1021,102 @@ void __release_region(struct resource *parent, resource_size_t start,
+> >  }
+> >  EXPORT_SYMBOL(__release_region);
+> > 
+> > +#ifdef CONFIG_MEMORY_HOTPLUG
+> > +/**
+> > + * release_mem_region_adjustable - release a previously reserved memory region
+> > + * @parent: parent resource descriptor
+> > + * @start: resource start address
+> > + * @size: resource region size
+> > + *
+> > + * This interface is intended for memory hot-delete.  The requested region is
+> > + * released from a currently busy memory resource.  It adjusts the matched
+> > + * busy memory resource accordingly even if the requested region does not
+> > + * match exactly but still fits into.  Existing children of the busy memory
+> > + * resource must be immutable in this request.
+> > + *
+> > + * Note, when the busy memory resource gets split into two entries, the code
+> > + * assumes that all children remain in the lower address entry for simplicity.
+> > + * Enhance this logic when necessary.
+> > + */
+> > +int release_mem_region_adjustable(struct resource *parent,
+> > +			resource_size_t start, resource_size_t size)
+> > +{
+> > +	struct resource **p;
+> > +	struct resource *res, *new;
+> > +	resource_size_t end;
+> > +	int ret = -EINVAL;
+> > +
+> > +	end = start + size - 1;
+> > +	if ((start < parent->start) || (end > parent->end))
+> > +		return ret;
+> > +
+> > +	p = &parent->child;
+> > +	write_lock(&resource_lock);
+> > +
+> > +	while ((res = *p)) {
+> > +		if (res->start >= end)
+> > +			break;
+> > +
+> > +		/* look for the next resource if it does not fit into */
+> > +		if (res->start > start || res->end < end) {
+> > +			p = &res->sibling;
+> > +			continue;
+> > +		}
 > 
-> v3: Improve the documentation in jbd for why we're doing this, and clean up
-> some code.
+> What if the resource overlaps. In other words, the res->start > start 
+> but res->end > end  ? 
 > 
-> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> 
-> [darrick.wong@oracle.com: Fold in a couple of small cleanups from akpm]
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-  You can add:
-Reviewed-by: Jan Kara <jack@suse.cz>
+> Also do you handle the case where the range <start,end> spans
+> across multiple adjacent resources?
 
-								Honza
-> ---
->  fs/buffer.c                 |    9 ++++++++-
->  fs/ext3/super.c             |    1 -
->  fs/jbd/commit.c             |   25 ++++++++++++++++++++++---
->  include/linux/blk_types.h   |    3 ++-
->  include/linux/buffer_head.h |    1 +
->  include/uapi/linux/fs.h     |    1 -
->  mm/bounce.c                 |   21 +--------------------
->  mm/page-writeback.c         |    4 ----
->  8 files changed, 34 insertions(+), 31 deletions(-)
-> 
-> diff --git a/fs/buffer.c b/fs/buffer.c
-> index b4dcb34..71578d6 100644
-> --- a/fs/buffer.c
-> +++ b/fs/buffer.c
-> @@ -2949,7 +2949,7 @@ static void guard_bh_eod(int rw, struct bio *bio, struct buffer_head *bh)
->  	}
->  }
->  
-> -int submit_bh(int rw, struct buffer_head * bh)
-> +int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
->  {
->  	struct bio *bio;
->  	int ret = 0;
-> @@ -2984,6 +2984,7 @@ int submit_bh(int rw, struct buffer_head * bh)
->  
->  	bio->bi_end_io = end_bio_bh_io_sync;
->  	bio->bi_private = bh;
-> +	bio->bi_flags |= bio_flags;
->  
->  	/* Take care of bh's that straddle the end of the device */
->  	guard_bh_eod(rw, bio, bh);
-> @@ -2997,6 +2998,12 @@ int submit_bh(int rw, struct buffer_head * bh)
->  	bio_put(bio);
->  	return ret;
->  }
-> +EXPORT_SYMBOL_GPL(_submit_bh);
-> +
-> +int submit_bh(int rw, struct buffer_head *bh)
-> +{
-> +	return _submit_bh(rw, bh, 0);
-> +}
->  EXPORT_SYMBOL(submit_bh);
->  
->  /**
-> diff --git a/fs/ext3/super.c b/fs/ext3/super.c
-> index fb5120a..3dc48cc 100644
-> --- a/fs/ext3/super.c
-> +++ b/fs/ext3/super.c
-> @@ -2067,7 +2067,6 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
->  		test_opt(sb,DATA_FLAGS) == EXT3_MOUNT_JOURNAL_DATA ? "journal":
->  		test_opt(sb,DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA ? "ordered":
->  		"writeback");
-> -	sb->s_flags |= MS_SNAP_STABLE;
->  
->  	return 0;
->  
-> diff --git a/fs/jbd/commit.c b/fs/jbd/commit.c
-> index 86b39b1..11bb11f 100644
-> --- a/fs/jbd/commit.c
-> +++ b/fs/jbd/commit.c
-> @@ -162,8 +162,17 @@ static void journal_do_submit_data(struct buffer_head **wbuf, int bufs,
->  
->  	for (i = 0; i < bufs; i++) {
->  		wbuf[i]->b_end_io = end_buffer_write_sync;
-> -		/* We use-up our safety reference in submit_bh() */
-> -		submit_bh(write_op, wbuf[i]);
-> +		/*
-> +		 * Here we write back pagecache data that may be mmaped. Since
-> +		 * we cannot afford to clean the page and set PageWriteback
-> +		 * here due to lock ordering (page lock ranks above transaction
-> +		 * start), the data can change while IO is in flight. Tell the
-> +		 * block layer it should bounce the bio pages if stable data
-> +		 * during write is required.
-> +		 *
-> +		 * We use up our safety reference in submit_bh().
-> +		 */
-> +		_submit_bh(write_op, wbuf[i], 1 << BIO_SNAP_STABLE);
->  	}
->  }
->  
-> @@ -667,7 +676,17 @@ start_journal_io:
->  				clear_buffer_dirty(bh);
->  				set_buffer_uptodate(bh);
->  				bh->b_end_io = journal_end_buffer_io_sync;
-> -				submit_bh(write_op, bh);
-> +				/*
-> +				 * In data=journal mode, here we can end up
-> +				 * writing pagecache data that might be
-> +				 * mmapped. Since we can't afford to clean the
-> +				 * page and set PageWriteback (see the comment
-> +				 * near the other use of _submit_bh()), the
-> +				 * data can change while the write is in
-> +				 * flight.  Tell the block layer to bounce the
-> +				 * bio pages if stable pages are required.
-> +				 */
-> +				_submit_bh(write_op, bh, 1 << BIO_SNAP_STABLE);
->  			}
->  			cond_resched();
->  
-> diff --git a/include/linux/blk_types.h b/include/linux/blk_types.h
-> index cdf1119..22990cf 100644
-> --- a/include/linux/blk_types.h
-> +++ b/include/linux/blk_types.h
-> @@ -111,12 +111,13 @@ struct bio {
->  #define BIO_FS_INTEGRITY 9	/* fs owns integrity data, not block layer */
->  #define BIO_QUIET	10	/* Make BIO Quiet */
->  #define BIO_MAPPED_INTEGRITY 11/* integrity metadata has been remapped */
-> +#define BIO_SNAP_STABLE	12	/* bio data must be snapshotted during write */
->  
->  /*
->   * Flags starting here get preserved by bio_reset() - this includes
->   * BIO_POOL_IDX()
->   */
-> -#define BIO_RESET_BITS	12
-> +#define BIO_RESET_BITS	13
->  
->  #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
->  
-> diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
-> index 5afc4f9..4c16c4a 100644
-> --- a/include/linux/buffer_head.h
-> +++ b/include/linux/buffer_head.h
-> @@ -181,6 +181,7 @@ void ll_rw_block(int, int, struct buffer_head * bh[]);
->  int sync_dirty_buffer(struct buffer_head *bh);
->  int __sync_dirty_buffer(struct buffer_head *bh, int rw);
->  void write_dirty_buffer(struct buffer_head *bh, int rw);
-> +int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags);
->  int submit_bh(int, struct buffer_head *);
->  void write_boundary_block(struct block_device *bdev,
->  			sector_t bblock, unsigned blocksize);
-> diff --git a/include/uapi/linux/fs.h b/include/uapi/linux/fs.h
-> index c7fc1e6..a4ed56c 100644
-> --- a/include/uapi/linux/fs.h
-> +++ b/include/uapi/linux/fs.h
-> @@ -88,7 +88,6 @@ struct inodes_stat_t {
->  #define MS_STRICTATIME	(1<<24) /* Always perform atime updates */
->  
->  /* These sb flags are internal to the kernel */
-> -#define MS_SNAP_STABLE	(1<<27) /* Snapshot pages during writeback, if needed */
->  #define MS_NOSEC	(1<<28)
->  #define MS_BORN		(1<<29)
->  #define MS_ACTIVE	(1<<30)
-> diff --git a/mm/bounce.c b/mm/bounce.c
-> index 5f89017..a5c2ec3 100644
-> --- a/mm/bounce.c
-> +++ b/mm/bounce.c
-> @@ -181,32 +181,13 @@ static void bounce_end_io_read_isa(struct bio *bio, int err)
->  #ifdef CONFIG_NEED_BOUNCE_POOL
->  static int must_snapshot_stable_pages(struct request_queue *q, struct bio *bio)
->  {
-> -	struct page *page;
-> -	struct backing_dev_info *bdi;
-> -	struct address_space *mapping;
-> -	struct bio_vec *from;
-> -	int i;
-> -
->  	if (bio_data_dir(bio) != WRITE)
->  		return 0;
->  
->  	if (!bdi_cap_stable_pages_required(&q->backing_dev_info))
->  		return 0;
->  
-> -	/*
-> -	 * Based on the first page that has a valid mapping, decide whether or
-> -	 * not we have to employ bounce buffering to guarantee stable pages.
-> -	 */
-> -	bio_for_each_segment(from, bio, i) {
-> -		page = from->bv_page;
-> -		mapping = page_mapping(page);
-> -		if (!mapping)
-> -			continue;
-> -		bdi = mapping->backing_dev_info;
-> -		return mapping->host->i_sb->s_flags & MS_SNAP_STABLE;
-> -	}
-> -
-> -	return 0;
-> +	return test_bit(BIO_SNAP_STABLE, &bio->bi_flags);
->  }
->  #else
->  static int must_snapshot_stable_pages(struct request_queue *q, struct bio *bio)
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index efe6814..4514ad7 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -2311,10 +2311,6 @@ void wait_for_stable_page(struct page *page)
->  
->  	if (!bdi_cap_stable_pages_required(bdi))
->  		return;
-> -#ifdef CONFIG_NEED_BOUNCE_POOL
-> -	if (mapping->host->i_sb->s_flags & MS_SNAP_STABLE)
-> -		return;
-> -#endif /* CONFIG_NEED_BOUNCE_POOL */
->  
->  	wait_on_page_writeback(page);
->  }
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Good questions!  The two cases above are handled as error cases
+(-EINVAL) by design.  A requested region must either match exactly or
+fit into a single resource entry.  There are basically two design
+choices in release -- restrictive or non-restrictive.  Restrictive only
+releases under certain conditions, and non-restrictive releases under
+any conditions.  Since the existing release interfaces,
+__release_region() and __release_resource(), are restrictive, I intend
+to follow the same policy and made this new interface restrictive as
+well.  This new interface handles the common scenarios of memory
+hot-plug operations well.  I think your example cases are non-typical
+scenarios for memory hot-plug, and I am not sure if they happen under
+normal cases at this point.  Hence, they are handled as error cases for
+now.  We can always enhance this interface when we find them necessary
+to support as this interface is dedicated for memory hot-plug.  In other
+words, we should make such enhancement after we understand their
+scenarios well.  Does it make sense?
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
