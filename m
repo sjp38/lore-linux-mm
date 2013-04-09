@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 0DBF26B0006
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 21:20:46 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 3A9DC6B0036
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 21:20:49 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 2/3] mm, slub: count freed pages via rcu as this task's reclaimed_slab
-Date: Tue,  9 Apr 2013 10:21:17 +0900
-Message-Id: <1365470478-645-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 3/3] mm, slab: count freed pages via rcu as this task's reclaimed_slab
+Date: Tue,  9 Apr 2013 10:21:18 +0900
+Message-Id: <1365470478-645-3-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1365470478-645-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1365470478-645-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,38 +24,37 @@ Cc: Pekka Enberg <penberg@kernel.org>
 Cc: Matt Mackall <mpm@selenic.com>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 4aec537..16fd2d5 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1409,8 +1409,6 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+diff --git a/mm/slab.c b/mm/slab.c
+index 856e4a1..4d94bcb 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1934,8 +1934,6 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
+ 	}
  
- 	memcg_release_pages(s, order);
- 	page_mapcount_reset(page);
+ 	memcg_release_pages(cachep, cachep->gfporder);
 -	if (current->reclaim_state)
--		current->reclaim_state->reclaimed_slab += pages;
- 	__free_memcg_kmem_pages(page, order);
+-		current->reclaim_state->reclaimed_slab += nr_freed;
+ 	free_memcg_kmem_pages((unsigned long)addr, cachep->gfporder);
  }
  
-@@ -1431,6 +1429,8 @@ static void rcu_free_slab(struct rcu_head *h)
- 
- static void free_slab(struct kmem_cache *s, struct page *page)
+@@ -2165,6 +2163,7 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep, struct slab *slab
+  */
+ static void slab_destroy(struct kmem_cache *cachep, struct slab *slabp)
  {
-+	int pages = 1 << compound_order(page);
-+
- 	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU)) {
- 		struct rcu_head *head;
++	unsigned long nr_freed = (1 << cachep->gfporder);
+ 	void *addr = slabp->s_mem - slabp->colouroff;
  
-@@ -1450,6 +1450,9 @@ static void free_slab(struct kmem_cache *s, struct page *page)
- 		call_rcu(head, rcu_free_slab);
- 	} else
- 		__free_slab(s, page);
+ 	slab_destroy_debugcheck(cachep, slabp);
+@@ -2180,6 +2179,9 @@ static void slab_destroy(struct kmem_cache *cachep, struct slab *slabp)
+ 		if (OFF_SLAB(cachep))
+ 			kmem_cache_free(cachep->slabp_cache, slabp);
+ 	}
 +
 +	if (current->reclaim_state)
-+		current->reclaim_state->reclaimed_slab += pages;
++		current->reclaim_state->reclaimed_slab += nr_freed;
  }
  
- static void discard_slab(struct kmem_cache *s, struct page *page)
+ /**
 -- 
 1.7.9.5
 
