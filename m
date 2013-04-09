@@ -1,113 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id D4FF76B0005
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 08:47:39 -0400 (EDT)
-Date: Tue, 9 Apr 2013 22:47:32 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2 03/28] dcache: convert dentry_stat.nr_unused to
- per-cpu counters
-Message-ID: <20130409124732.GN17758@dastard>
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
- <1364548450-28254-4-git-send-email-glommer@parallels.com>
- <xr93r4ipkcl0.fsf@gthelen.mtv.corp.google.com>
- <20130405011506.GG12011@dastard>
- <51628A88.2090002@parallels.com>
- <20130408232620.GC17758@dastard>
- <5163CB0D.1040000@parallels.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 9C6BB6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 09:08:45 -0400 (EDT)
+Date: Tue, 9 Apr 2013 09:08:33 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC 1/3] memcg: integrate soft reclaim tighter with zone
+ shrinking code
+Message-ID: <20130409130833.GP1953@cmpxchg.org>
+References: <1365509595-665-1-git-send-email-mhocko@suse.cz>
+ <1365509595-665-2-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5163CB0D.1040000@parallels.com>
+In-Reply-To: <1365509595-665-2-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, yinghan@google.com, Dave Chinner <dchinner@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>
 
-On Tue, Apr 09, 2013 at 12:02:21PM +0400, Glauber Costa wrote:
-> On 04/09/2013 03:26 AM, Dave Chinner wrote:
-> > On Mon, Apr 08, 2013 at 01:14:48PM +0400, Glauber Costa wrote:
-> >> On 04/05/2013 05:15 AM, Dave Chinner wrote:
-> >>> On Thu, Apr 04, 2013 at 06:09:31PM -0700, Greg Thelen wrote:
-> >>>> On Fri, Mar 29 2013, Glauber Costa wrote:
-> >>>>
-> >>>>> From: Dave Chinner <dchinner@redhat.com>
-> >>>>>
-> >>>>> Before we split up the dcache_lru_lock, the unused dentry counter
-> >>>>> needs to be made independent of the global dcache_lru_lock. Convert
-> >>>>> it to per-cpu counters to do this.
-> >>>>>
-> >>>>> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> >>>>> Reviewed-by: Christoph Hellwig <hch@lst.de>
-> >>>>> ---
-> >>>>>  fs/dcache.c | 17 ++++++++++++++---
-> >>>>>  1 file changed, 14 insertions(+), 3 deletions(-)
-> >>>>>
-> >>>>> diff --git a/fs/dcache.c b/fs/dcache.c
-> >>>>> index fbfae008..f1196f2 100644
-> >>>>> --- a/fs/dcache.c
-> >>>>> +++ b/fs/dcache.c
-> >>>>> @@ -118,6 +118,7 @@ struct dentry_stat_t dentry_stat = {
-> >>>>>  };
-> >>>>>  
-> >>>>>  static DEFINE_PER_CPU(unsigned int, nr_dentry);
-> >>>>> +static DEFINE_PER_CPU(unsigned int, nr_dentry_unused);
-> >>>>>  
-> >>>>>  #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
-> >>>>>  static int get_nr_dentry(void)
-> >>>>> @@ -129,10 +130,20 @@ static int get_nr_dentry(void)
-> >>>>>  	return sum < 0 ? 0 : sum;
-> >>>>>  }
-> >>>>>  
-> >>>>> +static int get_nr_dentry_unused(void)
-> >>>>> +{
-> >>>>> +	int i;
-> >>>>> +	int sum = 0;
-> >>>>> +	for_each_possible_cpu(i)
-> >>>>> +		sum += per_cpu(nr_dentry_unused, i);
-> >>>>> +	return sum < 0 ? 0 : sum;
-> >>>>> +}
-> >>>>
-> >>>> Just checking...  If cpu x is removed, then its per cpu nr_dentry_unused
-> >>>> count survives so we don't leak nr_dentry_unused.  Right?  I see code in
-> >>>> percpu_counter_sum_positive() to explicitly handle this case and I want
-> >>>> to make sure we don't need it here.
-> >>>
-> >>> DEFINE_PER_CPU() gives a variable per possible CPU, and we sum for
-> >>> all possible CPUs. Therefore online/offline CPUs just don't matter.
-> >>>
-> >>> The percpu_counter code uses for_each_online_cpu(), and so it has to
-> >>> be aware of hotplug operations so taht it doesn't leak counts.
-> >>
-> >> It is an unsigned quantity, however. Can't we go negative if it becomes
-> >> unused in one cpu, but used in another?
-> > 
-> > Sure, but it's unsigned for the purposes of summing, not for the
-> > purposes of having pos/neg values - they are just delta counters.
-> > 
-> > I'm just copying the code from fs/inode.c. I originally implemented
-> > the fs/inode.c code using generic per-cpu counters, but there was
-> > a hissy fit over "too much overhead" and so someone implemented
-> > their own lightweight version. I've just copied the existing code to
-> > code because I don't care to revisit this....
-> > 
+On Tue, Apr 09, 2013 at 02:13:13PM +0200, Michal Hocko wrote:
+> Memcg soft reclaim has been traditionally triggered from the global
+> reclaim paths before calling shrink_zone. mem_cgroup_soft_limit_reclaim
+> then picked up a group which exceeds the soft limit the most and
+> reclaimed it with 0 priority to reclaim at least SWAP_CLUSTER_MAX pages.
 > 
-> Funny enough, we re implement per-cpu counters in memcg as well.
-> This is mostly overhead/counters cache layout related. Maybe it is time
-> for a better percpu counter ? (not that I have the time for it...)
+> The infrastructure requires per-node-zone trees which hold over-limit
+> groups and keep them up-to-date (via memcg_check_events) which is not
+> cost free. Although this overhead hasn't turned out to be a bottle neck
+> the implementation is suboptimal because mem_cgroup_update_tree has no
+> idea which zones consumed memory over the limit so we could easily end
+> up having a group on a node-zone tree having only few pages from that
+> node-zone.
+> 
+> This patch doesn't try to fix node-zone trees management because it
+> seems that integrating soft reclaim into zone shrinking sounds much
+> easier and more appropriate for several reasons.
+> First of all 0 priority reclaim was a crude hack which might lead to
+> big stalls if the group's LRUs are big and hard to reclaim (e.g. a lot
+> of dirty/writeback pages).
+> Soft reclaim should be applicable also to the targeted reclaim which is
+> awkward right now without additional hacks.
+> Last but not least the whole infrastructure eats a lot of code[1].
+> 
+> After this patch shrink_zone is done in 2. First it tries to do the
+> soft reclaim if appropriate (only for global reclaim for now to keep
+> compatible with the current state) and fall back to ignoring soft limit
+> if no group is eligible to soft reclaim or nothing has been scanned
+> during the first pass. Only groups which are over their soft limit or
+> any of their parent up the hierarchy is over the limit are considered
+> eligible during the first pass.
+> 
+> TODO: remove mem_cgroup_tree_per_zone, mem_cgroup_shrink_node_zone and co.
+> but maybe it would be easier for review to remove that code in a separate
+> patch...
 
-Word.
+It should be in this series, though, for the diffstat :-)
 
-I've just given up trying to convince people to use the generic code
-when they are set on micro-optimising code. The "I can trim 3
-instructions from every increment and decrement" argument seems to
-win every time over "we know the generic counters work"....
+> ---
+> [1] TODO: put size vmlinux before/after whole clean-up
 
-Cheers,
+Yes!
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> @@ -1984,6 +2003,27 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  		} while (memcg);
+>  	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+>  					 sc->nr_scanned - nr_scanned, sc));
+> +
+> +	return nr_shrunk;
+> +}
+> +
+> +
+> +static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> +{
+> +	bool do_soft_reclaim = mem_cgroup_should_soft_reclaim(sc);
+> +	unsigned long nr_scanned = sc->nr_scanned;
+> +	unsigned nr_shrunk;
+> +
+> +	nr_shrunk = __shrink_zone(zone, sc, do_soft_reclaim);
+> +
+> +	/*
+> +	 * No group is over the soft limit or those that are do not have
+> +	 * pages in the zone we are reclaiming so we have to reclaim everybody
+> +	 */
+> +	if (do_soft_reclaim && (!nr_shrunk || sc->nr_scanned == nr_scanned)) {
+
+If no pages were scanned you are doing a second pass regardless of
+nr_shrunk.  If pages were scanned, nr_shrunk must have been increased
+as well.  So I think you can remove all the nr_shrunk counting and
+just check for scanned pages, no?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
