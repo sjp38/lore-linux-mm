@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 09EF46B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 21:36:09 -0400 (EDT)
-Date: Tue, 9 Apr 2013 10:36:06 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zsmalloc defrag (Was: [PATCH] mm: remove compressed copy from
- zram in-memory)
-Message-ID: <20130409013606.GC3467@blaptop>
-References: <1365400862-9041-1-git-send-email-minchan@kernel.org>
- <f3c8ef05-a880-47db-86dd-156038fc7d0f@default>
- <20130409012719.GB3467@blaptop>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 8EB136B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 21:53:02 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Mon, 8 Apr 2013 21:53:01 -0400
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id B6CAFC9001D
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 21:52:58 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r391qw5h57081952
+	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 21:52:58 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r391qv7x019827
+	for <linux-mm@kvack.org>; Mon, 8 Apr 2013 21:52:58 -0400
+Message-ID: <51637470.5030906@linux.vnet.ibm.com>
+Date: Mon, 08 Apr 2013 18:52:48 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130409012719.GB3467@blaptop>
+Subject: Re: [PATCH 2/3] mm/page_alloc: convert zone_pcp_update() to use on_each_cpu()
+ instead of stop_machine()
+References: <1365194030-28939-1-git-send-email-cody@linux.vnet.ibm.com> <1365194030-28939-3-git-send-email-cody@linux.vnet.ibm.com> <5161931A.8060501@gmail.com> <5162FF18.8010802@linux.vnet.ibm.com> <516319FF.6030104@gmail.com> <51631F4D.7050504@linux.vnet.ibm.com> <5163424A.4000106@gmail.com>
+In-Reply-To: <5163424A.4000106@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Bob Liu <bob.liu@oracle.com>, Shuah Khan <shuah@gonehiking.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Apr 09, 2013 at 10:27:19AM +0900, Minchan Kim wrote:
-> Hi Dan,
-> 
-> On Mon, Apr 08, 2013 at 09:32:38AM -0700, Dan Magenheimer wrote:
-> > > From: Minchan Kim [mailto:minchan@kernel.org]
-> > > Sent: Monday, April 08, 2013 12:01 AM
-> > > Subject: [PATCH] mm: remove compressed copy from zram in-memory
-> > 
-> > (patch removed)
-> > 
-> > > Fragment ratio is almost same but memory consumption and compile time
-> > > is better. I am working to add defragment function of zsmalloc.
-> > 
-> > Hi Minchan --
-> > 
-> > I would be very interested in your design thoughts on
-> > how you plan to add defragmentation for zsmalloc.  In
-> 
-> What I can say now about is only just a word "Compaction".
-> As you know, zsmalloc has a transparent handle so we can do whatever
-> under user. Of course, there is a tradeoff between performance 
-> and memory efficiency. I'm biased to latter for embedded usecase.
-> 
-> And I might post it because as you know well, zsmalloc
+On 04/08/2013 03:18 PM, KOSAKI Motohiro wrote:
+> (4/8/13 3:49 PM), Cody P Schafer wrote:>
+>> If this turns out to be an issue, schedule_on_each_cpu() could be an
+>> alternative.
+>
+> no way. schedule_on_each_cpu() is more problematic and it should be removed
+> in the future.
+> schedule_on_each_cpu() can only be used when caller task don't have any lock.
+> otherwise it may make deadlock.
 
-Incomplete sentense,
+I wasn't aware of that. Just to be clear, the deadlock you're referring 
+to isn't the same one refered to in
 
-I might not post it until promoting zsmalloc because as you know well,
-zsmalloc/zram's all new stuffs are blocked into staging tree.
-Even if we could add it into staging, as you know well, staging is where
-every mm guys ignore so we end up needing another round to promote it. sigh.
+commit b71ab8c2025caef8db719aa41af0ed735dc543cd
+Author: Tejun Heo <tj@kernel.org>
+Date:   Tue Jun 29 10:07:14 2010 +0200
+workqueue: increase max_active of keventd and kill current_is_keventd()
 
-I hope it gets better after LSF/MM.
+and
 
--- 
-Kind regards,
-Minchan Kim
+commit 65a64464349883891e21e74af16c05d6e1eeb4e9
+Author: Andi Kleen <ak@linux.intel.com>
+Date:   Wed Oct 14 06:22:47 2009 +0200
+HWPOISON: Allow schedule_on_each_cpu() from keventd
+
+If you're referencing some other deadlock, could you please provide a 
+link to the relevant discussion? (I'd really like to add a note to 
+schedule_on_each_cpu()'s doc comment about it so others can avoid that 
+pitfall).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
