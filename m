@@ -1,107 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 2100E6B0005
-	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 21:27:22 -0400 (EDT)
-Date: Tue, 9 Apr 2013 10:27:19 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zsmalloc defrag (Was: [PATCH] mm: remove compressed copy from
- zram in-memory)
-Message-ID: <20130409012719.GB3467@blaptop>
-References: <1365400862-9041-1-git-send-email-minchan@kernel.org>
- <f3c8ef05-a880-47db-86dd-156038fc7d0f@default>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 3BCCE6B0005
+	for <linux-mm@kvack.org>; Mon,  8 Apr 2013 21:29:07 -0400 (EDT)
+Message-ID: <51636EAC.10307@huawei.com>
+Date: Tue, 9 Apr 2013 09:28:12 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f3c8ef05-a880-47db-86dd-156038fc7d0f@default>
+Subject: Re: [PATCH 13/12] memcg: don't need memcg->memcg_name
+References: <5162648B.9070802@huawei.com> <51626584.7050405@huawei.com> <20130408142503.GH17178@dhcp22.suse.cz>
+In-Reply-To: <20130408142503.GH17178@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Bob Liu <bob.liu@oracle.com>, Shuah Khan <shuah@gonehiking.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-Hi Dan,
-
-On Mon, Apr 08, 2013 at 09:32:38AM -0700, Dan Magenheimer wrote:
-> > From: Minchan Kim [mailto:minchan@kernel.org]
-> > Sent: Monday, April 08, 2013 12:01 AM
-> > Subject: [PATCH] mm: remove compressed copy from zram in-memory
+On 2013/4/8 22:25, Michal Hocko wrote:
+> On Mon 08-04-13 14:36:52, Li Zefan wrote:
+> [...]
+>> @@ -5188,12 +5154,28 @@ static int mem_cgroup_dangling_read(struct cgroup *cont, struct cftype *cft,
+>>  					struct seq_file *m)
+>>  {
+>>  	struct mem_cgroup *memcg;
+>> +	char *memcg_name;
+>> +	int ret;
 > 
-> (patch removed)
-> 
-> > Fragment ratio is almost same but memory consumption and compile time
-> > is better. I am working to add defragment function of zsmalloc.
-> 
-> Hi Minchan --
-> 
-> I would be very interested in your design thoughts on
-> how you plan to add defragmentation for zsmalloc.  In
+> The interface is only for debugging, all right, but that doesn't mean we
+> should allocate a buffer for each read. Why cannot we simply use
+> cgroup_path for seq_printf directly? Can we still race with the group
+> rename?
 
-What I can say now about is only just a word "Compaction".
-As you know, zsmalloc has a transparent handle so we can do whatever
-under user. Of course, there is a tradeoff between performance 
-and memory efficiency. I'm biased to latter for embedded usecase.
-
-And I might post it because as you know well, zsmalloc
-
-> particular, I am wondering if your design will also
-> handle the requirements for zcache (especially for
-> cleancache pages) and perhaps also for ramster.
-
-I don't know requirements for cleancache pages but compaction is
-general as you know well so I expect you can get a benefit from it
-if you are concern on memory efficiency but not sure it's valuable
-to compact cleancache pages for getting more slot in RAM.
-Sometime, just discarding would be much better, IMHO.
+because cgroup_path() requires the caller pass a buffer to it.
 
 > 
-> In https://lkml.org/lkml/2013/3/27/501 I suggested it
-> would be good to work together on a common design, but
-> you didn't reply.  Are you thinking that zsmalloc
-
-I saw the thread but explicit agreement is really matter?
-I believe everybody want it although they didn't reply. :)
-
-You can make the design/post it or prototyping/post it.
-If there are some conflit with something in my brain,
-I will be happy to feedback. :)
-
-Anyway, I think my above statement "COMPACTION" would be enough to
-express my current thought to avoid duplicated work and you can catch up.
-
-I will get around to it after LSF/MM.
-
-> improvements should focus only on zram, in which case
-
-Just focusing zsmalloc.
-
-> we may -- and possibly should -- end up with a different
-> allocator for frontswap-based/cleancache-based compression
-> in zcache (and possibly zswap)?
-
-> 
-> I'm just trying to determine if I should proceed separately
-> with my design (with Bob Liu, who expressed interest) or if
-> it would be beneficial to work together.
-
-Just posting and if it affects zsmalloc/zram/zswap and goes the way
-I don't want, I will involve the discussion because our product uses
-zram heavily and consider zswap, too.
-
-I really appreciate your enthusiastic collaboration model to find
-optimal solution!
-
-> 
-> Thanks,
-> Dan
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+>> +
+>> +	/*
+>> +	 * cgroup.c will do page-sized allocations most of the time,
+>> +	 * so we'll just follow the pattern. Also, __get_free_pages
+>> +	 * is a better interface than kmalloc for us here, because
+>> +	 * we'd like this memory to be always billed to the root cgroup,
+>> +	 * not to the process removing the memcg. While kmalloc would
+>> +	 * require us to wrap it into memcg_stop/resume_kmem_account,
+>> +	 * with __get_free_pages we just don't pass the memcg flag.
+>> +	 */
+>> +	memcg_name = (char *)__get_free_pages(GFP_KERNEL, 0);
+>> +	if (!memcg_name)
+>> +		return -ENOMEM;
+>>  
+>>  	mutex_lock(&dangling_memcgs_mutex);
+>>  
+>>  	list_for_each_entry(memcg, &dangling_memcgs, dead) {
+>> -		if (memcg->memcg_name)
+>> -			seq_printf(m, "%s:\n", memcg->memcg_name);
+>> +		ret = cgroup_path(memcg->css.cgroup, memcg_name, PAGE_SIZE);
+>> +		if (!ret)
+>> +			seq_printf(m, "%s:\n", memcg_name);
+>>  		else
+>>  			seq_printf(m, "%p (name lost):\n", memcg);
+>>  
+>> @@ -5203,6 +5185,7 @@ static int mem_cgroup_dangling_read(struct cgroup *cont, struct cftype *cft,
+>>  	}
+>>  
+>>  	mutex_unlock(&dangling_memcgs_mutex);
+>> +	free_pages((unsigned long)memcg_name, 0);
+>>  	return 0;
+>>  }
+>>  #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
