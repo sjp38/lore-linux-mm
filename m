@@ -1,71 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id AB1F96B0006
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:15:56 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id kl13so523917pab.32
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 14:15:55 -0700 (PDT)
-Date: Wed, 10 Apr 2013 14:15:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: Print the correct method to disable automatic numa
- migration
-In-Reply-To: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
-Message-ID: <alpine.DEB.2.02.1304101410160.25932@chino.kir.corp.google.com>
-References: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 133E96B0006
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:23:55 -0400 (EDT)
+Date: Wed, 10 Apr 2013 14:23:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 00/11] mm: fixup changers of per cpu pageset's ->high
+ and ->batch
+Message-Id: <20130410142354.6044338fd68ff2ad165b1bc8@linux-foundation.org>
+In-Reply-To: <1365618219-17154-1-git-send-email-cody@linux.vnet.ibm.com>
+References: <1365618219-17154-1-git-send-email-cody@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, mgorman@suse.de
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Simon Jeons <simon.jeons@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 10 Apr 2013, Andi Kleen wrote:
+On Wed, 10 Apr 2013 11:23:28 -0700 Cody P Schafer <cody@linux.vnet.ibm.com> wrote:
 
-> From: Andi Kleen <ak@linux.intel.com>
+> "Problems" with the current code:
+>  1. there is a lack of synchronization in setting ->high and ->batch in
+>     percpu_pagelist_fraction_sysctl_handler()
+>  2. stop_machine() in zone_pcp_update() is unnecissary.
+>  3. zone_pcp_update() does not consider the case where percpu_pagelist_fraction is non-zero
 > 
-> When the "default y" CONFIG_NUMA_BALANCING_DEFAULT_ENABLED is enabled,
-> the message it prints refers to a sysctl to disable it again.
-> But that sysctl doesn't exist.
+> To fix:
+>  1. add memory barriers, a safe ->batch value, an update side mutex when
+>     updating ->high and ->batch, and use ACCESS_ONCE() for ->batch users that
+>     expect a stable value.
+>  2. avoid draining pages in zone_pcp_update(), rely upon the memory barriers added to fix #1
+>  3. factor out quite a few functions, and then call the appropriate one.
 > 
-> Document the correct (highly obscure method) through debugfs.
+> Note that it results in a change to the behavior of zone_pcp_update(), which is
+> used by memory_hotplug. I'm rather certain that I've diserned (and preserved)
+> the essential behavior (changing ->high and ->batch), and only eliminated
+> unneeded actions (draining the per cpu pages), but this may not be the case.
 > 
-> This should be also in Documentation/* but isn't.
-> 
-> Also fix the checkpatch problems.
-> 
-> BTW I think the "default y" is highly dubious for such a
-> experimential feature.
-> 
+> Further note that the draining of pages that previously took place in
+> zone_pcp_update() occured after repeated draining when attempting to offline a
+> page, and after the offline has "succeeded". It appears that the draining was
+> added to zone_pcp_update() to avoid refactoring setup_pageset() into 2
+> funtions.
 
-CONFIG_NUMA_BALANCING should be default n on everything, but probably for 
-unknown reasons: ARCH_WANT_NUMA_VARIABLE_LOCALITY isn't default n and 
-nothing on x86 actually disables it.
+There hasn't been a ton of review activity for this patchset :(
 
-> Cc: mgorman@suse.de
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> ---
->  mm/mempolicy.c |    4 ++--
->  1 files changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 7431001..8a4dc29 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -2530,8 +2530,8 @@ static void __init check_numabalancing_enable(void)
->  		numabalancing_default = true;
->  
->  	if (nr_node_ids > 1 && !numabalancing_override) {
-> -		printk(KERN_INFO "Enabling automatic NUMA balancing. "
-> -			"Configure with numa_balancing= or sysctl");
-> +		pr_info("Enabling automatic NUMA balancing.\n");
-> +		pr_info("Change with numa_balancing= or echo -NUMA >/sys/kernel/debug/sched_features\n");
->  		set_numabalancing_state(numabalancing_default);
->  	}
->  }
-
-Shouldn't this be echo NO_NUMA?
-
-/sys/kernel/debug/sched_features only exists for CONFIG_SCHED_DEBUG, so
-perhaps suppress this pointer for configs where it's not helpful?
+I'm inclined to duck it until after 3.9.  Do the patches fix any
+noticeably bad userspace behavior?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
