@@ -1,49 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 42C7E6B0006
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 09:29:14 -0400 (EDT)
-Date: Wed, 10 Apr 2013 14:29:07 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 03/10] mm: vmscan: Flatten kswapd priority loop
-Message-ID: <20130410132907.GA3710@suse.de>
-References: <1365505625-9460-1-git-send-email-mgorman@suse.de>
- <1365505625-9460-4-git-send-email-mgorman@suse.de>
- <51651913.4040007@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 29CE06B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 09:54:55 -0400 (EDT)
+Date: Wed, 10 Apr 2013 13:54:53 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 2/3] mm, slub: count freed pages via rcu as this task's
+ reclaimed_slab
+In-Reply-To: <5164DA6A.5060607@gmail.com>
+Message-ID: <0000013df43a48e5-6addd57e-952b-4754-848e-6d454b0a906c-000000@email.amazonses.com>
+References: <1365470478-645-1-git-send-email-iamjoonsoo.kim@lge.com> <1365470478-645-2-git-send-email-iamjoonsoo.kim@lge.com> <5163E194.3080600@gmail.com> <0000013def363b50-9a16dd09-72ad-494f-9c25-17269fc3aab3-000000@email.amazonses.com>
+ <5164DA6A.5060607@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <51651913.4040007@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On Wed, Apr 10, 2013 at 04:47:31PM +0900, Kamezawa Hiroyuki wrote:
-> > @@ -2811,8 +2814,16 @@ loop_again:
-> >   
-> >   			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
-> >   			    !zone_balanced(zone, testorder,
-> > -					   balance_gap, end_zone))
-> > -				kswapd_shrink_zone(zone, &sc, lru_pages);
-> > +					   balance_gap, end_zone)) {
-> > +				/*
-> > +				 * There should be no need to raise the
-> > +				 * scanning priority if enough pages are
-> > +				 * already being scanned that high
-> > +				 * watermark would be met at 100% efficiency.
-> > +				 */
-> > +				if (kswapd_shrink_zone(zone, &sc, lru_pages))
-> > +					raise_priority = false;
-> 
-> priority will be raised up enough to scan the amount of "high" watermark
-> and will not get larger than that if some pages are reclaimed ?
-> 
+On Wed, 10 Apr 2013, Simon Jeons wrote:
 
-Yes.
+> It seems that you misunderstand my question. I don't doubt slab/slub can use
+> high order pages. However, what I focus on is why slab/slub can use compound
+> page, PageCompound() just on behalf of hugetlbfs pages or thp pages which
+> should used by apps, isn't it?
 
--- 
-Mel Gorman
-SUSE Labs
+I am not entirely clear on what you are asking for. The following gives a
+couple of answers to what I guess the question was.
+
+THP pages and user pages are on the lru and are managed differently.
+The slab allocators cannot work with those pages.
+
+Slab allocators *can* allocate higher order pages therefore they could
+allocate a page of the same order as huge pages and manage it that way.
+
+However there is no way that these pages could be handled like THP pages
+since they cannot be broken up (unless we add the capability to move slab
+objects which I wanted to do for a long time).
+
+
+You can boot a Linux system that uses huge pages for slab allocation
+by specifying the following parameter on the kernel command line.
+
+	slub_min_order=9
+
+The slub allocator will start using huge pages for all its storage
+needs. You need a large number of huge pages to do this. Lots of memory
+is going to be lost due to fragmentation but its going to be fast since
+the slowpaths are rarely used. OOMs due to reclaim failure become much
+more likely ;-).
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
