@@ -1,116 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 9FB7E6B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 05:47:51 -0400 (EDT)
-Date: Wed, 10 Apr 2013 10:47:45 +0100
-From: Steve Capper <steve.capper@arm.com>
-Subject: Re: [PATCH] arm: mm: lockless get_user_pages_fast
-Message-ID: <20130410094743.GA13494@e103986-lin>
-References: <1360890012-4684-1-git-send-email-chanho61.park@samsung.com>
- <20130405111158.GA13428@e103986-lin>
- <00a201ce35bd$5626fd90$0274f8b0$@samsusng.com>
- <20130410082059.GA12296@e103986-lin>
- <00bc01ce35cb$38b9ffb0$aa2dff10$@samsusng.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id EF1BF6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 05:52:02 -0400 (EDT)
+Date: Wed, 10 Apr 2013 11:51:54 +0200 (CEST)
+From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
+Subject: Re: [PATCH v3 09/18] reiserfs: use ->invalidatepage() length
+ argument
+In-Reply-To: <20130409132756.GE13672@quack.suse.cz>
+Message-ID: <alpine.LFD.2.00.1304101151130.10609@dhcp-1-230.brq.redhat.com>
+References: <1365498867-27782-1-git-send-email-lczerner@redhat.com> <1365498867-27782-10-git-send-email-lczerner@redhat.com> <20130409132756.GE13672@quack.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <00bc01ce35cb$38b9ffb0$aa2dff10$@samsusng.com>
-Content-Type: text/plain; charset=WINDOWS-1252
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chanho Park <chanho61.park@samsusng.com>
-Cc: Steve Capper <Steve.Capper@arm.com>, 'Chanho Park' <chanho61.park@samsung.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, Catalin Marinas <Catalin.Marinas@arm.com>, 'Inki Dae' <inki.dae@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Myungjoo Ham' <myungjoo.ham@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, 'Grazvydas Ignotas' <notasas@gmail.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Lukas Czerner <lczerner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, reiserfs-devel@vger.kernel.org
 
-On Wed, Apr 10, 2013 at 10:10:18AM +0100, Chanho Park wrote:
-> > From: Steve Capper [mailto:steve.capper@arm.com]
-> > Sent: Wednesday, April 10, 2013 5:21 PM
-> > To: Chanho Park
-> > Cc: Steve Capper; 'Chanho Park'; linux@arm.linux.org.uk; Catalin Marina=
-s;
-> > 'Inki Dae'; linux-mm@kvack.org; 'Kyungmin Park'; 'Myungjoo Ham'; linux-
-> > arm-kernel@lists.infradead.org; 'Grazvydas Ignotas'
-> > Subject: Re: [PATCH] arm: mm: lockless get_user_pages_fast
-> >=20
-> > On Wed, Apr 10, 2013 at 08:30:54AM +0100, Chanho Park wrote:
-> > > > Apologies for the tardy response, this patch slipped past me.
-> > >
-> > > Never mind.
-> > >
-> > > > I've tested this patch out, unfortunately it treats huge pmds as
-> > > > regular pmds and attempts to traverse them rather than fall back to=
- a
-> > slow path.
-> > > > The fix for this is very minor, please see my suggestion below.
-> > > OK. I'll fix it.
-> > >
-> > > >
-> > > > As an aside, I would like to extend this fast_gup to include full
-> > > > huge page support and include a __get_user_pages_fast
-> > > > implementation. This will hopefully fix a problem that was brought
-> > > > to my attention by Grazvydas Ignotas whereby a FUTEX_WAIT on a THP
-> > > > tail page will cause an infinite loop due to the stock
-> > > > implementation of __get_user_pages_fast always returning 0.
-> > >
-> > > I'll add the __get_user_pages_fast implementation. BTW, HugeTLB on AR=
-M
-> > > wasn't supported yet. There is no problem to add gup_huge_pmd. But I
-> > > think it need a test for hugepages.
-> > >
-> >=20
-> > Thanks, that would be helpful. My plan was to then put the huge page
-> > specific bits in, with another patch. That way I can test it all out he=
-re.
->=20
-> Can I see the patch? I think it will be helpful to implement the
-> gup_huge_pmd.
-> Or how about you think except gup_huge_pmd in this patch?
-> IMO it will be added easily after hugetlb on arm is merged.
->=20
+On Tue, 9 Apr 2013, Jan Kara wrote:
 
-I think it would be better if this patch did not have gup_huge_pmd in it.
+> Date: Tue, 9 Apr 2013 15:27:56 +0200
+> From: Jan Kara <jack@suse.cz>
+> To: Lukas Czerner <lczerner@redhat.com>
+> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+>     linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
+>     reiserfs-devel@vger.kernel.org
+> Subject: Re: [PATCH v3 09/18] reiserfs: use ->invalidatepage() length argument
+> 
+> On Tue 09-04-13 11:14:18, Lukas Czerner wrote:
+> > ->invalidatepage() aop now accepts range to invalidate so we can make
+> > use of it in reiserfs_invalidatepage()
+>   Hum, reiserfs is probably never going to support punch hole. So shouldn't
+> we rather WARN and return without doing anything if stop !=
+> PAGE_CACHE_SIZE?
+> 
+> 								Honza
 
-I am still working on my implementation and running it through a battery of
-tests here. Also, I will likely change a few things in my huge page patches
-to make a gup_huge_pmd easier to implement. I will be resending a V2 of my
-huge pages soon.
+Hi,
 
-It still would be helpful to have the pmd_bad(*pmdp) condition check in as
-I suggested before though.
+I can not even think of the case when this would happen since it
+could not happen before either. However in the case it happens the
+code will do what's expected. So I do not have any strong preference
+about this one, but I do not think it's necessary to WARN here. If
+you still insist on the WARN, let me know and I'll resend the patch.
 
-> >=20
-> > > > I would suggest:
-> > > > =09=09if (pmd_none(*pmdp) || pmd_bad(*pmdp))
-> > > > =09=09=09return 0;
-> > > > as this will pick up pmds that can't be traversed, and fall back to
-> > > > the slow path.
-> > >
-> > > Thanks for your suggestion.
-> > > I'll prepare the v2 patch.
-> > >
-> >=20
-> > Also, just one more thing. In your gup_pte_range function there is an
-> > smp_rmb() just after the pte is dereferenced. I don't understand why
-> > though?
->=20
-> I think it would be needed for 64 bit machine. A pte of 64bit machine
-> consists of low and high value. In this version, there is no need to add =
-it.
-> I'll remove it. Thanks.
+Thanks for the reviews!
+-Lukas
 
-The pte will only be 64 bit if LPAE is enabled, and LPAE support mandates
-that 64 bit page table entries be read atomically. So we should be ok witho=
-ut
-the read barrier.
-
->=20
-> Best regards,
-> Chanho Park
->=20
->=20
-
-Cheers,
---
-Steve
+> > 
+> > Signed-off-by: Lukas Czerner <lczerner@redhat.com>
+> > Cc: reiserfs-devel@vger.kernel.org
+> > ---
+> >  fs/reiserfs/inode.c |    9 +++++++--
+> >  1 files changed, 7 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/fs/reiserfs/inode.c b/fs/reiserfs/inode.c
+> > index 808e02e..e963164 100644
+> > --- a/fs/reiserfs/inode.c
+> > +++ b/fs/reiserfs/inode.c
+> > @@ -2975,11 +2975,13 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
+> >  	struct buffer_head *head, *bh, *next;
+> >  	struct inode *inode = page->mapping->host;
+> >  	unsigned int curr_off = 0;
+> > +	unsigned int stop = offset + length;
+> > +	int partial_page = (offset || length < PAGE_CACHE_SIZE);
+> >  	int ret = 1;
+> >  
+> >  	BUG_ON(!PageLocked(page));
+> >  
+> > -	if (offset == 0)
+> > +	if (!partial_page)
+> >  		ClearPageChecked(page);
+> >  
+> >  	if (!page_has_buffers(page))
+> > @@ -2991,6 +2993,9 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
+> >  		unsigned int next_off = curr_off + bh->b_size;
+> >  		next = bh->b_this_page;
+> >  
+> > +		if (next_off > stop)
+> > +			goto out;
+> > +
+> >  		/*
+> >  		 * is this block fully invalidated?
+> >  		 */
+> > @@ -3009,7 +3014,7 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
+> >  	 * The get_block cached value has been unconditionally invalidated,
+> >  	 * so real IO is not possible anymore.
+> >  	 */
+> > -	if (!offset && ret) {
+> > +	if (!partial_page && ret) {
+> >  		ret = try_to_release_page(page, 0);
+> >  		/* maybe should BUG_ON(!ret); - neilb */
+> >  	}
+> > -- 
+> > 1.7.7.6
+> > 
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
