@@ -1,110 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id C1AF46B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 18:24:06 -0400 (EDT)
-Date: Wed, 10 Apr 2013 15:24:04 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 2/3] resource: Add release_mem_region_adjustable()
-Message-Id: <20130410152404.e0836af597ba3545b9846672@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.02.1304101505250.1526@chino.kir.corp.google.com>
-References: <1365614221-685-1-git-send-email-toshi.kani@hp.com>
-	<1365614221-685-3-git-send-email-toshi.kani@hp.com>
-	<20130410144412.395bf9f2fb8192920175e30a@linux-foundation.org>
-	<1365630585.32127.110.camel@misato.fc.hp.com>
-	<alpine.DEB.2.02.1304101505250.1526@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 2FE576B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 18:28:31 -0400 (EDT)
+Date: Wed, 10 Apr 2013 15:28:32 -0700 (PDT)
+From: dormando <dormando@rydia.net>
+Subject: Re: [PATCH 0/10] Reduce system disruption due to kswapd V2
+In-Reply-To: <20130410141445.GD3710@suse.de>
+Message-ID: <alpine.DEB.2.02.1304101524120.7738@dtop>
+References: <1365505625-9460-1-git-send-email-mgorman@suse.de> <0000013defd666bf-213d70fc-dfbd-4a50-82ed-e9f4f7391b55-000000@email.amazonses.com> <20130410141445.GD3710@suse.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 10 Apr 2013 15:08:29 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+> On Tue, Apr 09, 2013 at 05:27:18PM +0000, Christoph Lameter wrote:
+> > One additional measure that may be useful is to make kswapd prefer one
+> > specific processor on a socket. Two benefits arise from that:
+> >
+> > 1. Better use of cpu caches and therefore higher speed, less
+> > serialization.
+> >
+>
+> Considering the volume of pages that kswapd can scan when it's active
+> I would expect that it trashes its cache anyway. The L1 cache would be
+> flushed after scanning struct pages for just a few MB of memory.
+>
+> > 2. Reduction of the disturbances to one processor.
+> >
+>
+> I've never checked it but I would have expected kswapd to stay on the
+> same processor for significant periods of time. Have you experienced
+> problems where kswapd bounces around on CPUs within a node causing
+> workload disruption?
 
-> On Wed, 10 Apr 2013, Toshi Kani wrote:
-> 
-> > > I'll switch it to GFP_ATOMIC.  Which is horridly lame but the
-> > > allocation is small and alternatives are unobvious.
-> > 
-> > Great!  Again, thanks for the update!
-> 
-> release_mem_region_adjustable() allocates at most one struct resource, so 
-> why not do kmalloc(sizeof(struct resource), GFP_KERNEL) before taking 
-> resource_lock and then testing whether it's NULL or not when splitting?  
-> It unnecessarily allocates memory when there's no split, but 
-> __remove_pages() shouldn't be a hotpath.
-
-yup.
-
---- a/kernel/resource.c~resource-add-release_mem_region_adjustable-fix-fix
-+++ a/kernel/resource.c
-@@ -1046,7 +1046,8 @@ int release_mem_region_adjustable(struct
- 			resource_size_t start, resource_size_t size)
- {
- 	struct resource **p;
--	struct resource *res, *new;
-+	struct resource *res;
-+	struct resource *new_res;
- 	resource_size_t end;
- 	int ret = -EINVAL;
- 
-@@ -1054,6 +1055,9 @@ int release_mem_region_adjustable(struct
- 	if ((start < parent->start) || (end > parent->end))
- 		return ret;
- 
-+	/* The kzalloc() result gets checked later */
-+	new_res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-+
- 	p = &parent->child;
- 	write_lock(&resource_lock);
- 
-@@ -1091,32 +1095,33 @@ int release_mem_region_adjustable(struct
- 						start - res->start);
- 		} else {
- 			/* split into two entries */
--			new = kzalloc(sizeof(struct resource), GFP_ATOMIC);
--			if (!new) {
-+			if (!new_res) {
- 				ret = -ENOMEM;
- 				break;
- 			}
--			new->name = res->name;
--			new->start = end + 1;
--			new->end = res->end;
--			new->flags = res->flags;
--			new->parent = res->parent;
--			new->sibling = res->sibling;
--			new->child = NULL;
-+			new_res->name = res->name;
-+			new_res->start = end + 1;
-+			new_res->end = res->end;
-+			new_res->flags = res->flags;
-+			new_res->parent = res->parent;
-+			new_res->sibling = res->sibling;
-+			new_res->child = NULL;
- 
- 			ret = __adjust_resource(res, res->start,
- 						start - res->start);
- 			if (ret) {
--				kfree(new);
-+				kfree(new_res);
- 				break;
- 			}
--			res->sibling = new;
-+			res->sibling = new_res;
-+			new_res = NULL;
- 		}
- 
- 		break;
- 	}
- 
- 	write_unlock(&resource_lock);
-+	kfree(new_res);
- 	return ret;
- }
- #endif	/* CONFIG_MEMORY_HOTPLUG */
-_
+When kswapd shares the same CPU as our main process it causes a measurable
+drop in response time (graphs show tiny spikes at the same time memory is
+freed). Would be nice to be able to ensure it runs on a different core
+than our latency sensitive processes at least. We can pin processes to
+subsets of cores but I don't think there's a way to keep kswapd from
+waking up on any of them?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
