@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 7C3546B003C
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 20:26:24 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 7B18F6B003C
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 20:26:28 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 10 Apr 2013 05:51:38 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 23533E0054
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 05:58:08 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3A0QFJO12452206
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 05:56:15 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3A0QI4M016424
+	Wed, 10 Apr 2013 10:17:40 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 17B902BB0051
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:26:24 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3A0QIjZ8782120
 	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:26:18 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3A0QNlY020768
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:26:23 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 07/10] staging: ramster/debug: Add RAMSTER_DEBUG Kconfig entry 
-Date: Wed, 10 Apr 2013 08:25:57 +0800
-Message-Id: <1365553560-32258-8-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 09/10] staging: zcache/debug: fix coding style
+Date: Wed, 10 Apr 2013 08:25:59 +0800
+Message-Id: <1365553560-32258-10-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,32 +26,62 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Add RAMSTER_DEBUG Kconfig entry.
+Fix coding style issue: ERROR: space prohibited before that '++' (ctx:WxO)
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- drivers/staging/zcache/Kconfig |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ drivers/staging/zcache/debug.h |   36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)
 
-diff --git a/drivers/staging/zcache/Kconfig b/drivers/staging/zcache/Kconfig
-index c3b8a10..05e87a1 100644
---- a/drivers/staging/zcache/Kconfig
-+++ b/drivers/staging/zcache/Kconfig
-@@ -33,6 +33,14 @@ config RAMSTER
- 	  zcache2, compresses swap pages into local RAM, but then remotifies
- 	  the compressed pages to another node in the RAMster cluster.
+diff --git a/drivers/staging/zcache/debug.h b/drivers/staging/zcache/debug.h
+index ddad92f..08c9c7b5 100644
+--- a/drivers/staging/zcache/debug.h
++++ b/drivers/staging/zcache/debug.h
+@@ -174,26 +174,26 @@ extern ssize_t zcache_writtenback_pages;
+ extern ssize_t zcache_outstanding_writeback_pages;
+ #endif
  
-+config RAMSTER_DEBUG
-+        bool "Enable ramster debug statistics"
-+        depends on DEBUG_FS && RAMSTER
-+        default n
-+        help
-+          This is used to provide an debugfs directory with counters of
-+          how ramster is doing. You probably want to set this to 'N'.
-+
- # Depends on not-yet-upstreamed mm patches to export end_swap_bio_write and
- # __add_to_swap_cache, and implement __swap_writepage (which is swap_writepage
- # without the frontswap call. When these are in-tree, the dependency on
+-static inline void inc_zcache_flush_total(void) { zcache_flush_total ++; };
+-static inline void inc_zcache_flush_found(void) { zcache_flush_found ++; };
+-static inline void inc_zcache_flobj_total(void) { zcache_flobj_total ++; };
+-static inline void inc_zcache_flobj_found(void) { zcache_flobj_found ++; };
+-static inline void inc_zcache_failed_eph_puts(void) { zcach.e_failed_eph_puts ++; };
+-static inline void inc_zcache_failed_pers_puts(void) { zcache_failed_pers_puts ++; };
+-static inline void inc_zcache_failed_getfreepages(void) { zcache_failed_getfreepages ++; };
+-static inline void inc_zcache_failed_alloc(void) { zcache_failed_alloc ++; };
+-static inline void inc_zcache_put_to_flush(void) { zcache_put_to_flush ++; };
+-static inline void inc_zcache_compress_poor(void) { zcache_compress_poor ++; };
+-static inline void inc_zcache_mean_compress_poor(void) { zcache_mean_compress_poor ++; };
+-static inline void inc_zcache_eph_ate_tail(void) { zcache_eph_ate_tail ++; };
+-static inline void inc_zcache_eph_ate_tail_failed(void) { zcache_eph_ate_tail_failed ++; };
+-static inline void inc_zcache_pers_ate_eph(void) { zcache_pers_ate_eph ++; };
+-static inline void inc_zcache_pers_ate_eph_failed(void) { zcache_pers_ate_eph_failed ++; };
++static inline void inc_zcache_flush_total(void) { zcache_flush_total++; };
++static inline void inc_zcache_flush_found(void) { zcache_flush_found++; };
++static inline void inc_zcache_flobj_total(void) { zcache_flobj_total++; };
++static inline void inc_zcache_flobj_found(void) { zcache_flobj_found++; };
++static inline void inc_zcache_failed_eph_puts(void) { zcache_failed_eph_puts++; };
++static inline void inc_zcache_failed_pers_puts(void) { zcache_failed_pers_puts++; };
++static inline void inc_zcache_failed_getfreepages(void) { zcache_failed_getfreepages++; };
++static inline void inc_zcache_failed_alloc(void) { zcache_failed_alloc++; };
++static inline void inc_zcache_put_to_flush(void) { zcache_put_to_flush++; };
++static inline void inc_zcache_compress_poor(void) { zcache_compress_poor++; };
++static inline void inc_zcache_mean_compress_poor(void) { zcache_mean_compress_poor++; };
++static inline void inc_zcache_eph_ate_tail(void) { zcache_eph_ate_tail++; };
++static inline void inc_zcache_eph_ate_tail_failed(void) { zcache_eph_ate_tail_failed++; };
++static inline void inc_zcache_pers_ate_eph(void) { zcache_pers_ate_eph++; };
++static inline void inc_zcache_pers_ate_eph_failed(void) { zcache_pers_ate_eph_failed++; };
+ static inline void inc_zcache_evicted_eph_zpages(unsigned zpages) { zcache_evicted_eph_zpages += zpages; };
+-static inline void inc_zcache_evicted_eph_pageframes(void) { zcache_evicted_eph_pageframes ++; };
++static inline void inc_zcache_evicted_eph_pageframes(void) { zcache_evicted_eph_pageframes++; };
+ 
+-static inline void inc_zcache_eph_nonactive_puts_ignored(void) { zcache_eph_nonactive_puts_ignored ++; };
+-static inline void inc_zcache_pers_nonactive_puts_ignored(void) { zcache_pers_nonactive_puts_ignored ++; };
++static inline void inc_zcache_eph_nonactive_puts_ignored(void) { zcache_eph_nonactive_puts_ignored++; };
++static inline void inc_zcache_pers_nonactive_puts_ignored(void) { zcache_pers_nonactive_puts_ignored++; };
+ 
+ int zcache_debugfs_init(void);
+ #else
 -- 
 1.7.10.4
 
