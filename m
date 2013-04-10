@@ -1,126 +1,271 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id A04876B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 06:07:55 -0400 (EDT)
-Date: Wed, 10 Apr 2013 20:07:52 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
-Message-ID: <20130410100752.GA10481@dastard>
-References: <20130408084202.GA21654@lge.com>
- <51628412.6050803@parallels.com>
- <20130408090131.GB21654@lge.com>
- <51628877.5000701@parallels.com>
- <20130409005547.GC21654@lge.com>
- <20130409012931.GE17758@dastard>
- <20130409020505.GA4218@lge.com>
- <20130409123008.GM17758@dastard>
- <20130410025115.GA5872@lge.com>
- <20130410084606.GA10235@hacker.(null)>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130410084606.GA10235@hacker.(null)>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id DD6FC6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 06:21:35 -0400 (EDT)
+Received: from epcpsbgr1.samsung.com
+ (u141.gpu120.samsung.co.kr [203.254.230.141])
+ by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0ML100FQ6BFT3MH0@mailout2.samsung.com> for linux-mm@kvack.org;
+ Wed, 10 Apr 2013 19:21:34 +0900 (KST)
+From: Chanho Park <chanho61.park@samsung.com>
+Subject: [PATCHv2] arm: mm: lockless get_user_pages_fast support
+Date: Wed, 10 Apr 2013 19:19:52 +0900
+Message-id: <1365589192-5883-1-git-send-email-chanho61.park@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: linux@arm.linux.org.uk, linux-arm-kernel@lists.infradead.org
+Cc: Steve.Capper@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, kyungmin.park@samsung.com, inki.dae@samsung.com, myungjoo.ham@samsung.com, notasas@gmail.com, linux-mm@kvack.org, Chanho Park <chanho61.park@samsung.com>
 
-On Wed, Apr 10, 2013 at 04:46:06PM +0800, Wanpeng Li wrote:
-> On Wed, Apr 10, 2013 at 11:51:16AM +0900, Joonsoo Kim wrote:
-> >On Tue, Apr 09, 2013 at 10:30:08PM +1000, Dave Chinner wrote:
-> >> On Tue, Apr 09, 2013 at 11:05:05AM +0900, Joonsoo Kim wrote:
-> >> > I don't think so.
-> >> > Yes, lowmem_shrink() return number of (in)active lru pages
-> >> > when nr_to_scan is 0. And in shrink_slab(), we divide it by lru_pages.
-> >> > lru_pages can vary where shrink_slab() is called, anyway, perhaps this
-> >> > logic makes total_scan below 128.
-> >> 
-> >> "perhaps"
-> >> 
-> >> 
-> >> There is no "perhaps" here - there is *zero* guarantee of the
-> >> behaviour you are claiming the lowmem killer shrinker is dependent
-> >> on with the existing shrinker infrastructure. So, lets say we have:
-.....
-> >> IOWs, this algorithm effectively causes the shrinker to be called
-> >> 127 times out of 128 in this arbitrary scenario. It does not behave
-> >> as you are assuming it to, and as such any code based on those
-> >> assumptions is broken....
-> >
-> >Thanks for good example. I got your point :)
-> >But, my concern is not solved entirely, because this is not problem
-> >just for lowmem killer and I can think counter example. And other drivers
-> >can be suffered from this change.
-> >
-> >I look at the code for "huge_zero_page_shrinker".
-> >They return HPAGE_PMD_NR if there is shrikerable object.
+This patch adds get_user_pages_fast(old name is "fast_gup") for ARM.
+The fast_gup can walk pagetable without taking mmap_sem or any locks. If there
+is not a pte with the correct permissions for the access, we fall back to slow
+path(get_user_pages) to get remaining pages. This patch is written on reference
+the x86's gup implementation.
+When Bill's hugetlb patchset[1] is applied, gup may need a implementation of
+gup_huge_pud to traverse hugepages.
+The patch also includes __get_user_pages_fast which is same with normal gup
+except its IRQ-safe. It will be needed in futex for THP.
 
-<sigh>
+[1]: http://lists.infradead.org/pipermail/linux-arm-kernel/2012-October/126382.html
 
-Yet another new shrinker that is just plain broken. it tracks a
-*single object*, and returns a value only when the ref count value
-is 1 which will result in freeing the zero page at some
-random time in the future after some number of other calls to the
-shrinker where the refcount is also 1.
+Signed-off-by: Chanho Park <chanho61.park@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+Changes from v1:
+ - Remove unnecessary smb_rmb barrier in gup_pte_range
+ - Add __get_user_pages_fast implementation
 
-This is *insane*.
+ arch/arm/mm/Makefile |    2 +-
+ arch/arm/mm/gup.c    |  204 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 205 insertions(+), 1 deletion(-)
+ create mode 100644 arch/arm/mm/gup.c
 
-> >I try to borrow your example for this case.
-> >
-> > 	nr_pages_scanned = 1,000
-> > 	lru_pages = 100,000
-> > 	batch_size = SHRINK_BATCH = 128
-> > 	max_pass= 512 (HPAGE_PMD_NR)
-> >
-> > 	total_scan = shrinker->nr_in_batch = 0
-> > 	delta = 4 * 1,000 / 2 = 2,000
-> > 	delta = 2,000 * 512 = 1,024,000
-> > 	delta = 1,024,000 / 100,001 = 10
-> > 	total_scan += delta = 10
-> >
-> >As you can see, before this patch, do_shrinker_shrink() for
-> >"huge_zero_page_shrinker" is not called until we call shrink_slab() more
-> >than 13 times. *Frequency* we call do_shrinker_shrink() actually is
-> >largely different with before.
-
-If the frequency of the shrinker calls breaks the shrinker
-functionality or the subsystem because it pays no attention to
-nr_to_scan, then the shrinker is fundamentally broken. The shrinker
-has *no control* over the frequency of the calls to it or the bathc
-size, and so being dependent on "small numbers means few calls" for
-correct behaviour is dangerously unpredictable and completely
-non-deterministic.
-
-Besides, if you don't want to be shrunk, return a count of -1.
-Shock, horror, it is even documented in the API!
-
- * 'sc' is passed shrink_control which includes a count 'nr_to_scan'             
- * and a 'gfpmask'.  It should look through the least-recently-used              
- * 'nr_to_scan' entries and attempt to free them up.  It should return           
- * the number of objects which remain in the cache.  If it returns -1, it means  
- * it cannot do any scanning at this time (eg. there is a risk of deadlock).     
-
-> >With this patch, we actually call
-> >do_shrinker_shrink() for "huge_zero_page_shrinker" 12 times more
-> >than before. Can we be convinced that there will be no problem?
-> >
-> >This is why I worry about this change.
-> >Am I worried too much? :)
-
-You're worrying about the wrong thing. You're assuming that
-shrinkers are implemented correctly and sanely, but the reality is
-that most shrinkers are fundamentally broken in some way or another.
-
-These are just two examples of many. We are trying to fix the API
-and shrinker infrastructure to remove the current insanity. We want
-to make the shrinkers more flexible so that stuff like one-shot low
-memory event notifications can be implemented without grotesque
-hacks like the shrinkers you've used as examples so far...
-
--Dave.
+diff --git a/arch/arm/mm/Makefile b/arch/arm/mm/Makefile
+index 4e333fa..1c2896e 100644
+--- a/arch/arm/mm/Makefile
++++ b/arch/arm/mm/Makefile
+@@ -6,7 +6,7 @@ obj-y				:= dma-mapping.o extable.o fault.o init.o \
+ 				   iomap.o
+ 
+ obj-$(CONFIG_MMU)		+= fault-armv.o flush.o idmap.o ioremap.o \
+-				   mmap.o pgd.o mmu.o
++				   mmap.o pgd.o mmu.o gup.o
+ 
+ ifneq ($(CONFIG_MMU),y)
+ obj-y				+= nommu.o
+diff --git a/arch/arm/mm/gup.c b/arch/arm/mm/gup.c
+new file mode 100644
+index 0000000..0f9adce
+--- /dev/null
++++ b/arch/arm/mm/gup.c
+@@ -0,0 +1,204 @@
++/*
++ * linux/arch/arm/mm/gup.c - Lockless get_user_pages_fast for arm
++ *
++ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
++ *		http://www.samsung.com
++ * Author : Chanho Park <chanho61.park@samsung.com>
++ *
++ * This code is written on reference from the x86 and PowerPC versions, by:
++ *
++ *	Copyright (C) 2008 Nick Piggin
++ *	Copyright (C) 2008 Novell Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/sched.h>
++#include <linux/mm.h>
++#include <linux/pagemap.h>
++#include <linux/rwsem.h>
++#include <asm/pgtable.h>
++
++/*
++ * The performance critical leaf functions are made noinline otherwise gcc
++ * inlines everything into a single function which results in too much
++ * register pressure.
++ */
++static noinline int gup_pte_range(pmd_t *pmdp, unsigned long addr,
++		unsigned long end, int write, struct page **pages, int *nr)
++{
++	pte_t *ptep, pte;
++
++	ptep = pte_offset_kernel(pmdp, addr);
++	do {
++		struct page *page;
++
++		pte = *ptep;
++
++		if (!pte_present_user(pte) || (write && !pte_write(pte)))
++			return 0;
++
++		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
++		page = pte_page(pte);
++
++		if (!page_cache_get_speculative(page))
++			return 0;
++
++		pages[*nr] = page;
++		(*nr)++;
++
++	} while (ptep++, addr += PAGE_SIZE, addr != end);
++
++	return 1;
++}
++
++static int gup_pmd_range(pud_t *pudp, unsigned long addr, unsigned long end,
++		int write, struct page **pages, int *nr)
++{
++	unsigned long next;
++	pmd_t *pmdp;
++
++	pmdp = pmd_offset(pudp, addr);
++	do {
++		next = pmd_addr_end(addr, end);
++		if (pmd_none(*pmdp) || pmd_bad(*pmdp))
++			return 0;
++		else if (!gup_pte_range(pmdp, addr, next, write, pages, nr))
++			return 0;
++	} while (pmdp++, addr = next, addr != end);
++
++	return 1;
++}
++
++static int gup_pud_range(pgd_t *pgdp, unsigned long addr, unsigned long end,
++		int write, struct page **pages, int *nr)
++{
++	unsigned long next;
++	pud_t *pudp;
++
++	pudp = pud_offset(pgdp, addr);
++	do {
++		next = pud_addr_end(addr, end);
++		if (pud_none(*pudp))
++			return 0;
++		else if (!gup_pmd_range(pudp, addr, next, write, pages, nr))
++			return 0;
++	} while (pudp++, addr = next, addr != end);
++
++	return 1;
++}
++
++/*
++ * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
++ * back to the regular GUP.
++ */
++int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
++			  struct page **pages)
++{
++	struct mm_struct *mm = current->mm;
++	unsigned long addr, len, end;
++	unsigned long next, flags;
++	pgd_t *pgdp;
++	int nr = 0;
++
++	start &= PAGE_MASK;
++	addr = start;
++	len = (unsigned long) nr_pages << PAGE_SHIFT;
++	end = start + len;
++
++	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
++					start, len)))
++		return 0;
++
++	/*
++	 * This doesn't prevent pagetable teardown, but does prevent
++	 * the pagetables from being freed on arm.
++	 *
++	 * So long as we atomically load page table pointers versus teardown,
++	 * we can follow the address down to the the page and take a ref on it.
++	 */
++	local_irq_save(flags);
++
++	pgdp = pgd_offset(mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if (pgd_none(*pgdp))
++			break;
++		else if (!gup_pud_range(pgdp, addr, next, write, pages, &nr))
++			break;
++	} while (pgdp++, addr = next, addr != end);
++
++	local_irq_restore(flags);
++
++	return nr;
++}
++
++int get_user_pages_fast(unsigned long start, int nr_pages, int write,
++			struct page **pages)
++{
++	struct mm_struct *mm = current->mm;
++	unsigned long addr, len, end;
++	unsigned long next;
++	pgd_t *pgdp;
++	int nr = 0;
++
++	start &= PAGE_MASK;
++	addr = start;
++	len = (unsigned long) nr_pages << PAGE_SHIFT;
++	end = start + len;
++
++	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
++					start, len)))
++		goto slow_irqon;
++
++	/*
++	 * This doesn't prevent pagetable teardown, but does prevent
++	 * the pagetables from being freed on arm.
++	 *
++	 * So long as we atomically load page table pointers versus teardown,
++	 * we can follow the address down to the the page and take a ref on it.
++	 */
++	local_irq_disable();
++
++	pgdp = pgd_offset(mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if (pgd_none(*pgdp))
++			goto slow;
++		else if (!gup_pud_range(pgdp, addr, next, write, pages, &nr))
++			goto slow;
++	} while (pgdp++, addr = next, addr != end);
++
++	local_irq_enable();
++
++	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
++	return nr;
++
++	{
++		int ret;
++
++slow:
++		local_irq_enable();
++slow_irqon:
++		/* Try to get the remaining pages with get_user_pages */
++		start += nr << PAGE_SHIFT;
++		pages += nr;
++
++		down_read(&mm->mmap_sem);
++		ret = get_user_pages(current, mm, start,
++			(end - start) >> PAGE_SHIFT, write, 0, pages, NULL);
++		up_read(&mm->mmap_sem);
++
++		/* Have to be a bit careful with return values */
++		if (nr > 0) {
++			if (ret < 0)
++				ret = nr;
++			else
++				ret += nr;
++		}
++
++		return ret;
++	}
++}
 -- 
-Dave Chinner
-david@fromorbit.com
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
