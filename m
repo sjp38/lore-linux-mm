@@ -1,63 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 10EF16B0006
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 04:18:34 -0400 (EDT)
-Date: Wed, 10 Apr 2013 17:19:15 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
-Message-ID: <20130410081915.GG5872@lge.com>
-References: <20130408084202.GA21654@lge.com>
- <51628412.6050803@parallels.com>
- <20130408090131.GB21654@lge.com>
- <51628877.5000701@parallels.com>
- <20130409005547.GC21654@lge.com>
- <20130409012931.GE17758@dastard>
- <20130409020505.GA4218@lge.com>
- <20130409123008.GM17758@dastard>
- <20130410025115.GA5872@lge.com>
- <51651518.4010007@parallels.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 2D2986B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 04:21:08 -0400 (EDT)
+Date: Wed, 10 Apr 2013 09:21:00 +0100
+From: Steve Capper <steve.capper@arm.com>
+Subject: Re: [PATCH] arm: mm: lockless get_user_pages_fast
+Message-ID: <20130410082059.GA12296@e103986-lin>
+References: <1360890012-4684-1-git-send-email-chanho61.park@samsung.com>
+ <20130405111158.GA13428@e103986-lin>
+ <00a201ce35bd$5626fd90$0274f8b0$@samsusng.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <00a201ce35bd$5626fd90$0274f8b0$@samsusng.com>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <51651518.4010007@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: Chanho Park <chanho61.park@samsusng.com>
+Cc: Steve Capper <Steve.Capper@arm.com>, 'Chanho Park' <chanho61.park@samsung.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, Catalin Marinas <Catalin.Marinas@arm.com>, 'Inki Dae' <inki.dae@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Myungjoo Ham' <myungjoo.ham@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, 'Grazvydas Ignotas' <notasas@gmail.com>
 
-On Wed, Apr 10, 2013 at 11:30:32AM +0400, Glauber Costa wrote:
-> On 04/10/2013 06:51 AM, Joonsoo Kim wrote:
-> > As you can see, before this patch, do_shrinker_shrink() for
-> > "huge_zero_page_shrinker" is not called until we call shrink_slab() more
-> > than 13 times. *Frequency* we call do_shrinker_shrink() actually is
-> > largely different with before. With this patch, we actually call
-> > do_shrinker_shrink() for "huge_zero_page_shrinker" 12 times more
-> > than before. Can we be convinced that there will be no problem?
-> > 
-> > This is why I worry about this change.
-> > Am I worried too much? :)
-> 
-> Yes, you are. The amount of times shrink_slab is called is completely
-> unpredictable. Changing the size of cached data structures is a lot more
-> likely to change this than this shrinker change, for instance.
-> 
-> Not to mention, the amount of times shrink_slab() is called is not
-> changed directly here. But rather, the amount of times an individual
-> shrinker actually does work.
+On Wed, Apr 10, 2013 at 08:30:54AM +0100, Chanho Park wrote:
+> > Apologies for the tardy response, this patch slipped past me.
+>=20
+> Never mind.
+>=20
+> > I've tested this patch out, unfortunately it treats huge pmds as regula=
+r
+> > pmds and attempts to traverse them rather than fall back to a slow path=
+.
+> > The fix for this is very minor, please see my suggestion below.
+> OK. I'll fix it.
+>=20
+> >=20
+> > As an aside, I would like to extend this fast_gup to include full huge
+> > page support and include a __get_user_pages_fast implementation. This w=
+ill
+> > hopefully fix a problem that was brought to my attention by Grazvydas
+> > Ignotas whereby a FUTEX_WAIT on a THP tail page will cause an infinite
+> > loop due to the stock implementation of __get_user_pages_fast always
+> > returning 0.
+>=20
+> I'll add the __get_user_pages_fast implementation. BTW, HugeTLB on ARM
+> wasn't
+> supported yet. There is no problem to add gup_huge_pmd. But I think it ne=
+ed
+> a test
+> for hugepages.
+>=20
 
-Yes, I worried about the amount of times an individual shrinker triggered.
-As you mentioned, it can be unpredictable. My concern without data may
-be useless and invalid to you. So, from now on, I will stop to worry about this.
+Thanks, that would be helpful. My plan was to then put the huge page
+specific bits in, with another patch. That way I can test it all out
+here.
 
-Thanks.
+> > I would suggest:
+> > =09=09if (pmd_none(*pmdp) || pmd_bad(*pmdp))
+> > =09=09=09return 0;
+> > as this will pick up pmds that can't be traversed, and fall back to the
+> > slow path.
+>=20
+> Thanks for your suggestion.
+> I'll prepare the v2 patch.
+>=20
 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Also, just one more thing. In your gup_pte_range function there is
+an smp_rmb() just after the pte is dereferenced. I don't understand
+why though?
+
+> Best regards,
+> Chanho Park
+>=20
+>=20
+
+Thanks,
+--=20
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
