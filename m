@@ -1,185 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 040396B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 04:05:54 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E7D963EE0B6
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:05:52 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 300C245DE60
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:05:52 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 069F745DE58
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:05:52 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id ED9791DB804C
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:05:51 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 96786E08002
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:05:51 +0900 (JST)
-Message-ID: <51651D3A.4000301@jp.fujitsu.com>
-Date: Wed, 10 Apr 2013 17:05:14 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id EF54B6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 04:07:09 -0400 (EDT)
+Date: Wed, 10 Apr 2013 10:07:06 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 3/3] hugetlbfs: add swap entry check in
+ follow_hugetlb_page()
+Message-ID: <20130410080706.GA20998@dhcp22.suse.cz>
+References: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1365014138-19589-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <515F1F1F.6060900@gmail.com>
+ <1365449252-9pc7knd5-mutt-n-horiguchi@ah.jp.nec.com>
+ <CAHGf_=ruv9itn7fhcL=Ar7z_6wQ5Ga_4kj7Ui3EfDUe_cV7D0w@mail.gmail.com>
+ <1365544834-c6v2jpoo-mutt-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 04/10] mm: vmscan: Decide whether to compact the pgdat
- based on reclaim progress
-References: <1365505625-9460-1-git-send-email-mgorman@suse.de> <1365505625-9460-5-git-send-email-mgorman@suse.de>
-In-Reply-To: <1365505625-9460-5-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1365544834-c6v2jpoo-mutt-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-(2013/04/09 20:06), Mel Gorman wrote:
-> In the past, kswapd makes a decision on whether to compact memory after the
-> pgdat was considered balanced. This more or less worked but it is late to
-> make such a decision and does not fit well now that kswapd makes a decision
-> whether to exit the zone scanning loop depending on reclaim progress.
+On Tue 09-04-13 18:00:34, Naoya Horiguchi wrote:
+[...]
+> I rewrite the comment here, how about this?
 > 
-> This patch will compact a pgdat if at least the requested number of pages
-> were reclaimed from unbalanced zones for a given priority. If any zone is
-> currently balanced, kswapd will not call compaction as it is expected the
-> necessary pages are already available.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> -		if (absent ||
+> +		/*
+> +		 * We need call hugetlb_fault for both hugepages under migration
+> +		 * (in which case hugetlb_fault waits for the migration,) and
+> +		 * hwpoisoned hugepages (in which case we need to prevent the
+> +		 * caller from accessing to them.) In order to do this, we use
+> +		 * here is_swap_pte instead of is_hugetlb_entry_migration and
+> +		 * is_hugetlb_entry_hwpoisoned. This is because it simply covers
+> +		 * both cases, and because we can't follow correct pages directly
+> +		 * from any kind of swap entries.
+> +		 */
+> +		if (absent || is_swap_pte(huge_ptep_get(pte)) ||
+>  		    ((flags & FOLL_WRITE) && !pte_write(huge_ptep_get(pte)))) {
+>  			int ret;
 
-I like this way.
+OK, thanks!
 
-> ---
->   mm/vmscan.c | 60 ++++++++++++++++++++++++++++++------------------------------
->   1 file changed, 30 insertions(+), 30 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 78268ca..a9e68b4 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2640,7 +2640,8 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
->    */
->   static bool kswapd_shrink_zone(struct zone *zone,
->   			       struct scan_control *sc,
-> -			       unsigned long lru_pages)
-> +			       unsigned long lru_pages,
-> +			       unsigned long *nr_attempted)
->   {
->   	unsigned long nr_slab;
->   	struct reclaim_state *reclaim_state = current->reclaim_state;
-> @@ -2656,6 +2657,9 @@ static bool kswapd_shrink_zone(struct zone *zone,
->   	nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
->   	sc->nr_reclaimed += reclaim_state->reclaimed_slab;
->   
-> +	/* Account for the number of pages attempted to reclaim */
-> +	*nr_attempted += sc->nr_to_reclaim;
-> +
->   	if (nr_slab == 0 && !zone_reclaimable(zone))
->   		zone->all_unreclaimable = 1;
->   
-> @@ -2703,8 +2707,11 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->   
->   	do {
->   		unsigned long lru_pages = 0;
-> +		unsigned long nr_attempted = 0;
->   		unsigned long nr_reclaimed = sc.nr_reclaimed = 0;
-> +		unsigned long this_reclaimed;
->   		bool raise_priority = true;
-> +		bool pgdat_needs_compaction = (order > 0);
->   
->   		/*
->   		 * Scan in the highmem->dma direction for the highest
-> @@ -2752,7 +2759,21 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->   		for (i = 0; i <= end_zone; i++) {
->   			struct zone *zone = pgdat->node_zones + i;
->   
-> +			if (!populated_zone(zone))
-> +				continue;
-> +
->   			lru_pages += zone_reclaimable_pages(zone);
-> +
-> +			/*
-> +			 * If any zone is currently balanced then kswapd will
-> +			 * not call compaction as it is expected that the
-> +			 * necessary pages are already available.
-> +			 */
-> +			if (pgdat_needs_compaction &&
-> +					zone_watermark_ok(zone, order,
-> +						low_wmark_pages(zone),
-> +						*classzone_idx, 0))
-> +				pgdat_needs_compaction = false;
->   		}
->   
->   		/*
-> @@ -2821,7 +2842,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->   				 * already being scanned that high
->   				 * watermark would be met at 100% efficiency.
->   				 */
-> -				if (kswapd_shrink_zone(zone, &sc, lru_pages))
-> +				if (kswapd_shrink_zone(zone, &sc, lru_pages,
-> +						       &nr_attempted))
->   					raise_priority = false;
->   			}
->   
-> @@ -2873,42 +2895,20 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->   		if (try_to_freeze() || kthread_should_stop())
->   			break;
->   
-> +		/* Compact if necessary and kswapd is reclaiming efficiently */
-> +		this_reclaimed = sc.nr_reclaimed - nr_reclaimed;
-> +		if (pgdat_needs_compaction && this_reclaimed > nr_attempted)
-> +			compact_pgdat(pgdat, order);
-> +
-
-What does "this_reclaimed" mean ?   
-"the total amount of reclaimed memory - reclaimed memory at this iteration" ?
-
-And this_reclaimed > nr_attempted means kswapd is efficient ?
-What "efficient" means here ?
-
-Thanks,
--Kame
-
->   		/*
->   		 * Raise priority if scanning rate is too low or there was no
->   		 * progress in reclaiming pages
->   		 */
-> -		if (raise_priority || sc.nr_reclaimed - nr_reclaimed == 0)
-> +		if (raise_priority || !this_reclaimed)
->   			sc.priority--;
->   	} while (sc.priority >= 0 &&
->   		 !pgdat_balanced(pgdat, order, *classzone_idx));
->   
-> -	/*
-> -	 * If kswapd was reclaiming at a higher order, it has the option of
-> -	 * sleeping without all zones being balanced. Before it does, it must
-> -	 * ensure that the watermarks for order-0 on *all* zones are met and
-> -	 * that the congestion flags are cleared. The congestion flag must
-> -	 * be cleared as kswapd is the only mechanism that clears the flag
-> -	 * and it is potentially going to sleep here.
-> -	 */
-> -	if (order) {
-> -		int zones_need_compaction = 1;
-> -
-> -		for (i = 0; i <= end_zone; i++) {
-> -			struct zone *zone = pgdat->node_zones + i;
-> -
-> -			if (!populated_zone(zone))
-> -				continue;
-> -
-> -			/* Check if the memory needs to be defragmented. */
-> -			if (zone_watermark_ok(zone, order,
-> -				    low_wmark_pages(zone), *classzone_idx, 0))
-> -				zones_need_compaction = 0;
-> -		}
-> -
-> -		if (zones_need_compaction)
-> -			compact_pgdat(pgdat, order);
-> -	}
-> -
->   out:
->   	/*
->   	 * Return the order we were reclaiming at so prepare_kswapd_sleep()
-> 
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
