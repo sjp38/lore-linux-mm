@@ -1,46 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 94F9F6B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 09:12:50 -0400 (EDT)
-Date: Wed, 10 Apr 2013 09:12:45 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-Message-ID: <20130410131245.GC4862@thunk.org>
-References: <20130402142717.GH32241@suse.de>
- <20130402150651.GB31577@thunk.org>
- <20130410105608.GC1910@suse.de>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 42C7E6B0006
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 09:29:14 -0400 (EDT)
+Date: Wed, 10 Apr 2013 14:29:07 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 03/10] mm: vmscan: Flatten kswapd priority loop
+Message-ID: <20130410132907.GA3710@suse.de>
+References: <1365505625-9460-1-git-send-email-mgorman@suse.de>
+ <1365505625-9460-4-git-send-email-mgorman@suse.de>
+ <51651913.4040007@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130410105608.GC1910@suse.de>
+In-Reply-To: <51651913.4040007@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Apr 10, 2013 at 11:56:08AM +0100, Mel Gorman wrote:
-> During major activity there is likely to be "good" behaviour
-> with stalls roughly every 30 seconds roughly corresponding to
-> dirty_expire_centiseconds. As you'd expect, the flusher thread is stuck
-> when this happens.
+On Wed, Apr 10, 2013 at 04:47:31PM +0900, Kamezawa Hiroyuki wrote:
+> > @@ -2811,8 +2814,16 @@ loop_again:
+> >   
+> >   			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
+> >   			    !zone_balanced(zone, testorder,
+> > -					   balance_gap, end_zone))
+> > -				kswapd_shrink_zone(zone, &sc, lru_pages);
+> > +					   balance_gap, end_zone)) {
+> > +				/*
+> > +				 * There should be no need to raise the
+> > +				 * scanning priority if enough pages are
+> > +				 * already being scanned that high
+> > +				 * watermark would be met at 100% efficiency.
+> > +				 */
+> > +				if (kswapd_shrink_zone(zone, &sc, lru_pages))
+> > +					raise_priority = false;
 > 
->   237 ?        00:00:00 flush-8:0
-> [<ffffffff811a35b9>] sleep_on_buffer+0x9/0x10
-> [<ffffffff811a35ee>] __lock_buffer+0x2e/0x30
-> [<ffffffff8123a21f>] do_get_write_access+0x43f/0x4b0
+> priority will be raised up enough to scan the amount of "high" watermark
+> and will not get larger than that if some pages are reclaimed ?
+> 
 
-If we're stalling on lock_buffer(), that implies that buffer was being
-written, and for some reason it was taking a very long time to
-complete.
+Yes.
 
-It might be worthwhile to put a timestamp in struct dm_crypt_io, and
-record the time when a particular I/O encryption/decryption is getting
-queued to the kcryptd workqueues, and when they finally squirt out.
-
-Something else that might be worth trying is to add WQ_HIGHPRI to the
-workqueue flags and see if that makes a difference.
-
-	  	    	   	- Ted
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
