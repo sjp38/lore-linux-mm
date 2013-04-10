@@ -1,88 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id F134C6B003D
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 12:25:56 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id ro12so358294pbb.18
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 09:25:56 -0700 (PDT)
-Date: Mon, 8 Apr 2013 20:42:41 -0400
-From: Andrew Shewmaker <agshew@gmail.com>
-Subject: Re: [PATCH v8 3/3] mm: reinititalise user and admin reserves if
- memory is added or removed
-Message-ID: <20130409004241.GA4277@localhost.localdomain>
-References: <20130408190738.GC2321@localhost.localdomain>
- <20130408133712.bd327017dec19a2c14e22662@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 2EA956B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 12:32:01 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id f4so640766oah.28
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 09:32:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130408133712.bd327017dec19a2c14e22662@linux-foundation.org>
+In-Reply-To: <1365610669-16625-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1365610669-16625-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1365610669-16625-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Wed, 10 Apr 2013 12:31:39 -0400
+Message-ID: <CAHGf_=o6+RxyutMxai-82eHQDrx5KfiJ0-MCjqAO-nkbp1eiCA@mail.gmail.com>
+Subject: Re: [RESEND][PATCH v5 3/3] hugetlbfs: add swap entry check in follow_hugetlb_page()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk, simon.jeons@gmail.com, ric.masonn@gmail.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 08, 2013 at 01:37:12PM -0700, Andrew Morton wrote:
-> On Mon, 8 Apr 2013 15:07:38 -0400 Andrew Shewmaker <agshew@gmail.com> wrote:
-> 
-> > This patch alters the admin and user reserves of the previous patches 
-> > in this series when memory is added or removed.
-> > 
-> > If memory is added and the reserves have been eliminated or increased above
-> > the default max, then we'll trust the admin.
-> > 
-> > If memory is removed and there isn't enough free memory, then we
-> > need to reset the reserves.
-> > 
-> > Otherwise keep the reserve set by the admin.
-> > 
-> > The reserve reset code is the same as the reserve initialization code.
-> > 
-> > Does this sound reasonable to other people? I figured that hot removal
-> > with too large of memory in the reserves was the most important case 
-> > to get right.
-> 
-> Seems reasonable to me.
-> 
-> I don't understand the magic numbers 1<<13 and 1<<17.  How could I? 
-> Please add comments explaining how and why these were chosen.
+On Wed, Apr 10, 2013 at 12:17 PM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> # I suspended Reviewed and Acked given for the previous version, because
+> # it has a non-minor change. If you want to restore it, please let me know.
+> -----
+> With applying the previous patch "hugetlbfs: stop setting VM_DONTDUMP in
+> initializing vma(VM_HUGETLB)" to reenable hugepage coredump, if a memory
+> error happens on a hugepage and the affected processes try to access
+> the error hugepage, we hit VM_BUG_ON(atomic_read(&page->_count) <= 0)
+> in get_page().
+>
+> The reason for this bug is that coredump-related code doesn't recognise
+> "hugepage hwpoison entry" with which a pmd entry is replaced when a memory
+> error occurs on a hugepage.
+> In other words, physical address information is stored in different bit layout
+> between hugepage hwpoison entry and pmd entry, so follow_hugetlb_page()
+> which is called in get_dump_page() returns a wrong page from a given address.
+>
+> The expected behavior is like this:
+>
+>   absent   is_swap_pte   FOLL_DUMP   Expected behavior
+>   -------------------------------------------------------------------
+>    true     false         false       hugetlb_fault
+>    false    true          false       hugetlb_fault
+>    false    false         false       return page
+>    true     false         true        skip page (to avoid allocation)
+>    false    true          true        hugetlb_fault
+>    false    false         true        return page
+>
+> With this patch, we can call hugetlb_fault() and take proper actions
+> (we wait for migration entries, fail with VM_FAULT_HWPOISON_LARGE for
+> hwpoisoned entries,) and as the result we can dump all hugepages except
+> for hwpoisoned ones.
+>
+> ChangeLog v5:
+>  - improve comment and description.
+>
+> ChangeLog v4:
+>  - move is_swap_page() to right place.
+>
+> ChangeLog v3:
+>  - add comment about using is_swap_pte()
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: stable@vger.kernel.org
 
-The v9 patch I posted has this too, but here is a patch against 
-yesterday's mmotm.
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 099a16d..cee7e74 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3119,6 +3119,13 @@ module_init(init_admin_reserve)
- /*
-  * Reinititalise user and admin reserves if memory is added or removed.
-  *
-+ * The default user reserve max is 128MB, and the default max for the
-+ * admin reserve is 8MB. These are usually, but not always, enough to
-+ * enable recovery from a memory hogging process using login/sshd, a shell,
-+ * and tools like top. It may make sense to increase or even disable the
-+ * reserve depending on the existence of swap or variations in the recovery
-+ * tools. So, the admin may have changed them.
-+ *
-  * If memory is added and the reserves have been eliminated or increased above
-  * the default max, then we'll trust the admin.
-  *
-@@ -3134,10 +3141,16 @@ static int reserve_mem_notifier(struct notifier_block *nb,
- 
- 	switch (action) {
- 	case MEM_ONLINE:
-+		/*
-+		 * Default max is 128MB. Leave alone if modified by operator.
-+ 		 */
- 		tmp = sysctl_user_reserve_kbytes;
- 		if (0 < tmp && tmp < (1UL << 17))
- 			init_user_reserve();
- 
-+		/*
-+		 * Default max is 8MB. Leave alone if modified by operator.
-+ 		 */
- 		tmp = sysctl_admin_reserve_kbytes;
- 		if (0 < tmp && tmp < (1UL << 13))
- 			init_admin_reserve();
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
