@@ -1,60 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 6C3C36B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:21:27 -0400 (EDT)
-Date: Wed, 10 Apr 2013 17:21:23 +1000
-From: Michael Ellerman <michael@ellerman.id.au>
-Subject: Re: [PATCH -V5 19/25] powerpc/THP: Differentiate THP PMD entries
- from HUGETLB PMD entries
-Message-ID: <20130410072122.GC24786@concordia>
-References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1365055083-31956-20-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id AF8236B0027
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:30:02 -0400 (EDT)
+Message-ID: <51651518.4010007@parallels.com>
+Date: Wed, 10 Apr 2013 11:30:32 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1365055083-31956-20-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
+References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-3-git-send-email-glommer@parallels.com> <20130408084202.GA21654@lge.com> <51628412.6050803@parallels.com> <20130408090131.GB21654@lge.com> <51628877.5000701@parallels.com> <20130409005547.GC21654@lge.com> <20130409012931.GE17758@dastard> <20130409020505.GA4218@lge.com> <20130409123008.GM17758@dastard> <20130410025115.GA5872@lge.com>
+In-Reply-To: <20130410025115.GA5872@lge.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Thu, Apr 04, 2013 at 11:27:57AM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On 04/10/2013 06:51 AM, Joonsoo Kim wrote:
+> As you can see, before this patch, do_shrinker_shrink() for
+> "huge_zero_page_shrinker" is not called until we call shrink_slab() more
+> than 13 times. *Frequency* we call do_shrinker_shrink() actually is
+> largely different with before. With this patch, we actually call
+> do_shrinker_shrink() for "huge_zero_page_shrinker" 12 times more
+> than before. Can we be convinced that there will be no problem?
 > 
-> HUGETLB clear the top bit of PMD entries and use that to indicate
-> a HUGETLB page directory. Since we store pfns in PMDs for THP,
-> we would have the top bit cleared by default. Add the top bit mask
-> for THP PMD entries and clear that when we are looking for pmd_pfn.
-> 
-> @@ -44,6 +44,14 @@ struct mm_struct;
->  #define PMD_HUGE_RPN_SHIFT	PTE_RPN_SHIFT
->  #define HUGE_PAGE_SIZE		(ASM_CONST(1) << 24)
->  #define HUGE_PAGE_MASK		(~(HUGE_PAGE_SIZE - 1))
-> +/*
-> + * HugeTLB looks at the top bit of the Linux page table entries to
-> + * decide whether it is a huge page directory or not. Mark HUGE
-> + * PMD to differentiate
-> + */
-> +#define PMD_HUGE_NOT_HUGETLB	(ASM_CONST(1) << 63)
-> +#define PMD_ISHUGE		(_PMD_ISHUGE | PMD_HUGE_NOT_HUGETLB)
-> +#define PMD_HUGE_PROTBITS	(0xfff | PMD_HUGE_NOT_HUGETLB)
->  
->  #ifndef __ASSEMBLY__
->  extern void hpte_need_hugepage_flush(struct mm_struct *mm, unsigned long addr,
-> @@ -84,7 +93,8 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
->  	/*
->  	 * Only called for hugepage pmd
->  	 */
-> -	return pmd_val(pmd) >> PMD_HUGE_RPN_SHIFT;
-> +	unsigned long val = pmd_val(pmd) & ~PMD_HUGE_PROTBITS;
-> +	return val  >> PMD_HUGE_RPN_SHIFT;
->  }
+> This is why I worry about this change.
+> Am I worried too much? :)
 
-This is breaking the 32-bit build for me (pmac32_defconfig):
+Yes, you are. The amount of times shrink_slab is called is completely
+unpredictable. Changing the size of cached data structures is a lot more
+likely to change this than this shrinker change, for instance.
 
-arch/powerpc/include/asm/pgtable.h:123:2: error: left shift count >= width of type [-Werror]
+Not to mention, the amount of times shrink_slab() is called is not
+changed directly here. But rather, the amount of times an individual
+shrinker actually does work.
 
-cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
