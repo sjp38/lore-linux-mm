@@ -1,32 +1,48 @@
-From: Wanpeng Li <liwanp-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org>
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
 Date: Wed, 10 Apr 2013 16:46:06 +0800
-Message-ID: <11288.8913638473$1365583589@news.gmane.org>
+Message-ID: <35843.6738410548$1365583613@news.gmane.org>
 References: <1364548450-28254-3-git-send-email-glommer@parallels.com>
-	<20130408084202.GA21654@lge.com> <51628412.6050803@parallels.com>
-	<20130408090131.GB21654@lge.com> <51628877.5000701@parallels.com>
-	<20130409005547.GC21654@lge.com> <20130409012931.GE17758@dastard>
-	<20130409020505.GA4218@lge.com> <20130409123008.GM17758@dastard>
-	<20130410025115.GA5872@lge.com>
-Reply-To: Wanpeng Li <liwanp-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org>
+ <20130408084202.GA21654@lge.com>
+ <51628412.6050803@parallels.com>
+ <20130408090131.GB21654@lge.com>
+ <51628877.5000701@parallels.com>
+ <20130409005547.GC21654@lge.com>
+ <20130409012931.GE17758@dastard>
+ <20130409020505.GA4218@lge.com>
+ <20130409123008.GM17758@dastard>
+ <20130410025115.GA5872@lge.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1UPqg5-0000vy-Sm
+	for glkm-linux-mm-2@m.gmane.org; Wed, 10 Apr 2013 10:46:50 +0200
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id EC85F6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 04:46:46 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 10 Apr 2013 18:41:58 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 0CC75357804E
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 18:46:41 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3A8WgVl11141578
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 18:32:44 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3A8k8cV008149
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 18:46:09 +1000
 Content-Disposition: inline
-In-Reply-To: <20130410025115.GA5872-Hm3cg6mZ9cc@public.gmane.org>
-List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/containers>,
-	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linuxfoundation.org/pipermail/containers/>
-List-Post: <mailto:containers-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/containers>,
-	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: Glauber Costa <glommer-bzQdu9zFT3WakBO8gow8eQ@public.gmane.org>
-Cc: Theodore Ts'o <tytso-3s7WtUTddSA@public.gmane.org>, hughd-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org, containers-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org, Dave Chinner <david-FqsqvQoI3Ljby3iVrkZq2A@public.gmane.org>, Michal Hocko <mhocko-AlSwsSmVLrQ@public.gmane.org>, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, Al Viro <viro-RmSDqhL/yNMiFSDQTTA3OLVCufUGDwFn@public.gmane.org>, Johannes Weiner <hannes-druUgvl0LCNAfugRpC6u6w@public.gmane.org>, linux-fsdevel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Andrew Morton <akpm-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org>
-List-Id: linux-mm.kvack.org
+In-Reply-To: <20130410025115.GA5872@lge.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
 Hi Glauber,
 On Wed, Apr 10, 2013 at 11:51:16AM +0900, Joonsoo Kim wrote:
@@ -207,16 +223,22 @@ Wanpeng Li
 >> Dave.
 >> -- 
 >> Dave Chinner
->> david-FqsqvQoI3Ljby3iVrkZq2A@public.gmane.org
+>> david@fromorbit.com
 >> 
 >> --
 >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo-Bw31MaZKKs0EbZ0PF+XxCw@public.gmane.org  For more info on Linux MM,
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
 >> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org"> email-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org </a>
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo-Bw31MaZKKs0EbZ0PF+XxCw@public.gmane.org  For more info on Linux MM,
+>the body to majordomo@kvack.org.  For more info on Linux MM,
 >see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org"> email-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org </a>
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
