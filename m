@@ -1,84 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 9FE566B0006
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:59:21 -0400 (EDT)
-Received: by mail-qe0-f46.google.com with SMTP id nd7so531660qeb.33
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 13:59:20 -0700 (PDT)
-Date: Wed, 10 Apr 2013 16:55:59 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
- hardware access to the CPU page tables of user processes
-Message-ID: <20130410205557.GB3958@gmail.com>
-References: <5114DF05.7070702@mellanox.com>
- <CANN689Ff6vSu4ZvHek4J4EMzFG7EjF-Ej48hJKV_4SrLoj+mCA@mail.gmail.com>
- <CAH3drwaACy5KFv_2ozEe35u1Jpxs0f6msKoW=3_0nrWZpJnO4w@mail.gmail.com>
- <5164C6EE.7020502@gmail.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id AB1F96B0006
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:15:56 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id kl13so523917pab.32
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 14:15:55 -0700 (PDT)
+Date: Wed, 10 Apr 2013 14:15:53 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: Print the correct method to disable automatic numa
+ migration
+In-Reply-To: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
+Message-ID: <alpine.DEB.2.02.1304101410160.25932@chino.kir.corp.google.com>
+References: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5164C6EE.7020502@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>, Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, mgorman@suse.de
 
-On Wed, Apr 10, 2013 at 09:57:02AM +0800, Simon Jeons wrote:
-> Hi Jerome,
-> On 02/10/2013 12:29 AM, Jerome Glisse wrote:
-> >On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse <walken@google.com> wrote:
-> >>On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel <raindel@mellanox.com> wrote:
-> >>>Hi,
-> >>>
-> >>>We would like to present a reference implementation for safely sharing
-> >>>memory pages from user space with the hardware, without pinning.
-> >>>
-> >>>We will be happy to hear the community feedback on our prototype
-> >>>implementation, and suggestions for future improvements.
-> >>>
-> >>>We would also like to discuss adding features to the core MM subsystem to
-> >>>assist hardware access to user memory without pinning.
-> >>This sounds kinda scary TBH; however I do understand the need for such
-> >>technology.
-> >>
-> >>I think one issue is that many MM developers are insufficiently aware
-> >>of such developments; having a technology presentation would probably
-> >>help there; but traditionally LSF/MM sessions are more interactive
-> >>between developers who are already quite familiar with the technology.
-> >>I think it would help if you could send in advance a detailed
-> >>presentation of the problem and the proposed solutions (and then what
-> >>they require of the MM layer) so people can be better prepared.
-> >>
-> >>And first I'd like to ask, aren't IOMMUs supposed to already largely
-> >>solve this problem ? (probably a dumb question, but that just tells
-> >>you how much you need to explain :)
-> >For GPU the motivation is three fold. With the advance of GPU compute
-> >and also with newer graphic program we see a massive increase in GPU
-> >memory consumption. We easily can reach buffer that are bigger than
-> >1gbytes. So the first motivation is to directly use the memory the
-> >user allocated through malloc in the GPU this avoid copying 1gbytes of
-> >data with the cpu to the gpu buffer. The second and mostly important
-> >to GPU compute is the use of GPU seamlessly with the CPU, in order to
-> >achieve this you want the programmer to have a single address space on
-> >the CPU and GPU. So that the same address point to the same object on
-> >GPU as on the CPU. This would also be a tremendous cleaner design from
-> >driver point of view toward memory management.
+On Wed, 10 Apr 2013, Andi Kleen wrote:
+
+> From: Andi Kleen <ak@linux.intel.com>
 > 
-> When GPU will comsume memory?
+> When the "default y" CONFIG_NUMA_BALANCING_DEFAULT_ENABLED is enabled,
+> the message it prints refers to a sysctl to disable it again.
+> But that sysctl doesn't exist.
 > 
-> The userspace process like mplayer will have video datas and GPU
-> will play this datas and use memory of mplayer since these video
-> datas load in mplayer process's address space? So GPU codes will
-> call gup to take a reference of memory? Please correct me if my
-> understanding is wrong. ;-)
+> Document the correct (highly obscure method) through debugfs.
+> 
+> This should be also in Documentation/* but isn't.
+> 
+> Also fix the checkpatch problems.
+> 
+> BTW I think the "default y" is highly dubious for such a
+> experimential feature.
+> 
 
-First target is not thing such as video decompression, however they could
-too benefit from it given updated driver kernel API. In case of using
-iommu hardware page fault we don't call get_user_pages (gup) those we
-don't take a reference on the page. That's the whole point of the hardware
-pagefault, not taking reference on the page.
+CONFIG_NUMA_BALANCING should be default n on everything, but probably for 
+unknown reasons: ARCH_WANT_NUMA_VARIABLE_LOCALITY isn't default n and 
+nothing on x86 actually disables it.
 
-Cheers,
-Jerome Glisse
+> Cc: mgorman@suse.de
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> ---
+>  mm/mempolicy.c |    4 ++--
+>  1 files changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 7431001..8a4dc29 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -2530,8 +2530,8 @@ static void __init check_numabalancing_enable(void)
+>  		numabalancing_default = true;
+>  
+>  	if (nr_node_ids > 1 && !numabalancing_override) {
+> -		printk(KERN_INFO "Enabling automatic NUMA balancing. "
+> -			"Configure with numa_balancing= or sysctl");
+> +		pr_info("Enabling automatic NUMA balancing.\n");
+> +		pr_info("Change with numa_balancing= or echo -NUMA >/sys/kernel/debug/sched_features\n");
+>  		set_numabalancing_state(numabalancing_default);
+>  	}
+>  }
+
+Shouldn't this be echo NO_NUMA?
+
+/sys/kernel/debug/sched_features only exists for CONFIG_SCHED_DEBUG, so
+perhaps suppress this pointer for configs where it's not helpful?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
