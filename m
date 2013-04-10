@@ -1,155 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 7F3626B0027
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 21:08:06 -0400 (EDT)
-Received: by mail-qc0-f182.google.com with SMTP id k19so3230407qcs.41
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 18:08:05 -0700 (PDT)
-Message-ID: <5164BB6E.1040408@gmail.com>
-Date: Wed, 10 Apr 2013 09:07:58 +0800
-From: Ric Mason <ric.masonn@gmail.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id BDEE76B0005
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 21:42:05 -0400 (EDT)
+Received: by mail-qe0-f49.google.com with SMTP id 6so2573027qeb.22
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 18:42:04 -0700 (PDT)
+Message-ID: <5164C365.70302@gmail.com>
+Date: Wed, 10 Apr 2013 09:41:57 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: zsmalloc defrag (Was: [PATCH] mm: remove compressed copy from
- zram in-memory)
-References: <1365400862-9041-1-git-send-email-minchan@kernel.org> <f3c8ef05-a880-47db-86dd-156038fc7d0f@default> <20130409012719.GB3467@blaptop> <c3d40e0f-68b3-45a4-9251-a97c59a50b2e@default> <20130410005004.GF6836@blaptop>
-In-Reply-To: <20130410005004.GF6836@blaptop>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
+ hardware access to the CPU page tables of user processes
+References: <5114DF05.7070702@mellanox.com> <CANN689Ff6vSu4ZvHek4J4EMzFG7EjF-Ej48hJKV_4SrLoj+mCA@mail.gmail.com> <CAH3drwaACy5KFv_2ozEe35u1Jpxs0f6msKoW=3_0nrWZpJnO4w@mail.gmail.com> <5163D119.80603@gmail.com> <20130409142156.GA1909@gmail.com>
+In-Reply-To: <20130409142156.GA1909@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Bob Liu <bob.liu@oracle.com>, Shuah Khan <shuah@gonehiking.org>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Michel Lespinasse <walken@google.com>, Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-Hi Minchan,
-On 04/10/2013 08:50 AM, Minchan Kim wrote:
-> On Tue, Apr 09, 2013 at 01:25:45PM -0700, Dan Magenheimer wrote:
->>> From: Minchan Kim [mailto:minchan@kernel.org]
->>> Subject: Re: zsmalloc defrag (Was: [PATCH] mm: remove compressed copy from zram in-memory)
->>>
->>> Hi Dan,
->>>
->>> On Mon, Apr 08, 2013 at 09:32:38AM -0700, Dan Magenheimer wrote:
->>>>> From: Minchan Kim [mailto:minchan@kernel.org]
->>>>> Sent: Monday, April 08, 2013 12:01 AM
->>>>> Subject: [PATCH] mm: remove compressed copy from zram in-memory
->>>> (patch removed)
+Hi Jerome,
+On 04/09/2013 10:21 PM, Jerome Glisse wrote:
+> On Tue, Apr 09, 2013 at 04:28:09PM +0800, Simon Jeons wrote:
+>> Hi Jerome,
+>> On 02/10/2013 12:29 AM, Jerome Glisse wrote:
+>>> On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse <walken@google.com> wrote:
+>>>> On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel <raindel@mellanox.com> wrote:
+>>>>> Hi,
+>>>>>
+>>>>> We would like to present a reference implementation for safely sharing
+>>>>> memory pages from user space with the hardware, without pinning.
+>>>>>
+>>>>> We will be happy to hear the community feedback on our prototype
+>>>>> implementation, and suggestions for future improvements.
+>>>>>
+>>>>> We would also like to discuss adding features to the core MM subsystem to
+>>>>> assist hardware access to user memory without pinning.
+>>>> This sounds kinda scary TBH; however I do understand the need for such
+>>>> technology.
 >>>>
->>>>> Fragment ratio is almost same but memory consumption and compile time
->>>>> is better. I am working to add defragment function of zsmalloc.
->>>> Hi Minchan --
+>>>> I think one issue is that many MM developers are insufficiently aware
+>>>> of such developments; having a technology presentation would probably
+>>>> help there; but traditionally LSF/MM sessions are more interactive
+>>>> between developers who are already quite familiar with the technology.
+>>>> I think it would help if you could send in advance a detailed
+>>>> presentation of the problem and the proposed solutions (and then what
+>>>> they require of the MM layer) so people can be better prepared.
 >>>>
->>>> I would be very interested in your design thoughts on
->>>> how you plan to add defragmentation for zsmalloc.  In
->>> What I can say now about is only just a word "Compaction".
->>> As you know, zsmalloc has a transparent handle so we can do whatever
->>> under user. Of course, there is a tradeoff between performance
->>> and memory efficiency. I'm biased to latter for embedded usecase.
->> Have you designed or implemented this yet?  I have a couple
->> of concerns:
-> Not yet implemented but just had a time to think about it, simply.
-> So surely, there are some obstacle so I want to uncase the code and
-> number after I make a prototype/test the performance.
-> Of course, if it has a severe problem, will drop it without wasting
-> many guys's time.
->
->> 1) The handle is transparent to the "user", but it is still a form
->>     of a "pointer" to a zpage.  Are you planning on walking zram's
->>     tables and changing those pointers?  That may be OK for zram
->>     but for more complex data structures than tables (as in zswap
->>     and zcache) it may not be as easy, due to races, or as efficient
->>     because you will have to walk potentially very large trees.
-> Rough concept is following as.
->
-> I'm considering for zsmalloc to return transparent fake handle
-> but we have to maintain it with real one.
-> It could be done in zsmalloc internal so there isn't any race we should consider.
->
->
->> 2) Compaction in the kernel is heavily dependent on page migration
->>     and page migration is dependent on using flags in the struct page.
->>     There's a lot of code in those two code modules and there
->>     are going to be a lot of implementation differences between
->>     compacting pages vs compacting zpages.
-> Compaction of kernel is never related to zsmalloc's one.
->
->> I'm also wondering if you will be implementing "variable length
->> zspages".  Without that, I'm not sure compaction will help
->> enough.  (And that is a good example of the difference between
-> Why do you think so?
-> variable lengh zspage could be further step to improve but it's not
-> only a solution to solve fragmentation.
->
->> the kernel page compaction design/code and zspage compaction.)
->>>> particular, I am wondering if your design will also
->>>> handle the requirements for zcache (especially for
->>>> cleancache pages) and perhaps also for ramster.
->>> I don't know requirements for cleancache pages but compaction is
->>> general as you know well so I expect you can get a benefit from it
->>> if you are concern on memory efficiency but not sure it's valuable
->>> to compact cleancache pages for getting more slot in RAM.
->>> Sometime, just discarding would be much better, IMHO.
->> Zcache has page reclaim.  Zswap has zpage reclaim.  I am
->> concerned that these continue to work in the presence of
->> compaction.   With no reclaim at all, zram is a simpler use
->> case but if you implement compaction in a way that can't be
->> used by either zcache or zswap, then zsmalloc is essentially
->> forking.
-> Don't go too far. If it's really problem for zswap and zcache,
-> maybe, we could add it optionally.
->
->>>> In https://lkml.org/lkml/2013/3/27/501 I suggested it
->>>> would be good to work together on a common design, but
->>>> you didn't reply.  Are you thinking that zsmalloc
->>> I saw the thread but explicit agreement is really matter?
->>> I believe everybody want it although they didn't reply. :)
+>>>> And first I'd like to ask, aren't IOMMUs supposed to already largely
+>>>> solve this problem ? (probably a dumb question, but that just tells
+>>>> you how much you need to explain :)
+>>> For GPU the motivation is three fold. With the advance of GPU compute
+>>> and also with newer graphic program we see a massive increase in GPU
+>>> memory consumption. We easily can reach buffer that are bigger than
+>>> 1gbytes. So the first motivation is to directly use the memory the
+>>> user allocated through malloc in the GPU this avoid copying 1gbytes of
+>>> data with the cpu to the gpu buffer. The second and mostly important
+>>> to GPU compute is the use of GPU seamlessly with the CPU, in order to
+>>> achieve this you want the programmer to have a single address space on
+>>> the CPU and GPU. So that the same address point to the same object on
+>>> GPU as on the CPU. This would also be a tremendous cleaner design from
+>>> driver point of view toward memory management.
 >>>
->>> You can make the design/post it or prototyping/post it.
->>> If there are some conflit with something in my brain,
->>> I will be happy to feedback. :)
->>>
->>> Anyway, I think my above statement "COMPACTION" would be enough to
->>> express my current thought to avoid duplicated work and you can catch up.
->>>
->>> I will get around to it after LSF/MM.
->>>
->>>> improvements should focus only on zram, in which case
->>> Just focusing zsmalloc.
->> Right.  Again, I am asking if you are changing zsmalloc in
->> a way that helps zram but hurts zswap and makes it impossible
->> for zcache to ever use the improvements to zsmalloc.
-> As I said, I'm biased to memory efficiency rather than performace.
-> Of course, severe performance drop is disaster but small drop will
-> be acceptable for memory-efficiency concerning systems.
->
->> If so, that's fine, but please make it clear that is your goal.
-> Simple, help memory hungry system. :)
+>>> And last, the most important, with such big buffer (>1gbytes) the
+>>> memory pinning is becoming way to expensive and also drastically
+>>> reduce the freedom of the mm to free page for other process. Most of
+>>> the time a small window (every thing is relative the window can be >
+>>> 100mbytes not so small :)) of the object will be in use by the
+>>> hardware. The hardware pagefault support would avoid the necessity to
+>> What's the meaning of hardware pagefault?
+> It's a PCIE extension (well it's a combination of extension that allow
+> that see http://www.pcisig.com/specifications/iov/ats/). Idea is that the
+> iommu can trigger a regular pagefault inside a process address space on
+> behalf of the hardware. The only iommu supporting that right now is the
+> AMD iommu v2 that you find on recent AMD platform.
 
-Which kind of system are memory hungry?
+Why need hardware page fault? regular page fault is trigger by cpu mmu, 
+correct?
+
+>>> pin memory and thus offer greater flexibility. At the same time the
+>>> driver wants to avoid page fault as much as possible this is why i
+>>> would like to be able to give hint to the mm about range of address it
+>>> should avoid freeing page (swapping them out).
+>>>
+>>> The iommu was designed with other goals, which were first isolate
+>>> device from one another and restrict device access to allowed memory.
+>>> Second allow to remap address that are above device address space
+>> When need remap address?
+> Some hardware have 24bits or 32bits address limitation, iommu allow to
+> remap memory that are above this range into the working range of the
+> device. Just as i said below. Or are your question different ?
+
+Oh, this method can replace bounce buffer, correct?
 
 >
->>>> we may -- and possibly should -- end up with a different
->>>> allocator for frontswap-based/cleancache-based compression
->>>> in zcache (and possibly zswap)?
->>>> I'm just trying to determine if I should proceed separately
->>>> with my design (with Bob Liu, who expressed interest) or if
->>>> it would be beneficial to work together.
->>> Just posting and if it affects zsmalloc/zram/zswap and goes the way
->>> I don't want, I will involve the discussion because our product uses
->>> zram heavily and consider zswap, too.
+> Cheers,
+> Jerome
+>
+>>> limit. Lot of device can only address 24bit or 32bit of memory and
+>>> with computer with several gbytes of memory suddenly lot of the page
+>>> become unreachable to the hardware. The iommu allow to work around
+>>> this by remapping those high page into address that the hardware can
+>>> reach.
 >>>
->>> I really appreciate your enthusiastic collaboration model to find
->>> optimal solution!
->> My goal is to have compression be an integral part of Linux
->> memory management.  It may be tied to a config option, but
->> the goal is that distros turn it on by default.  I don't think
->> zsmalloc meets that objective yet, but it may be fine for
->> your needs.  If so it would be good to understand exactly why
->> it doesn't meet the other zproject needs.
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>> The hardware page fault support is a new feature of iommu designed to
+>>> help the os and driver to reduce memory pinning and also share address
+>>> space. Thought i am sure there are other motivations that i am not
+>>> even aware off or would think off.
+>>>
+>>> Btw i won't be at LSF/MM so a free good beer (or other beverage) on me
+>>> to whoever takes note on this subject in next conf we run into each
+>>> others.
+>>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
