@@ -1,123 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 81F1E6B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 04:02:05 -0400 (EDT)
-Date: Wed, 10 Apr 2013 17:02:02 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: mm: BUG in do_huge_pmd_wp_page
-Message-ID: <20130410080202.GB21292@blaptop>
-References: <51559150.3040407@oracle.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 040396B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 04:05:54 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E7D963EE0B6
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:05:52 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 300C245DE60
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:05:52 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 069F745DE58
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:05:52 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id ED9791DB804C
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:05:51 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 96786E08002
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:05:51 +0900 (JST)
+Message-ID: <51651D3A.4000301@jp.fujitsu.com>
+Date: Wed, 10 Apr 2013 17:05:14 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51559150.3040407@oracle.com>
+Subject: Re: [PATCH 04/10] mm: vmscan: Decide whether to compact the pgdat
+ based on reclaim progress
+References: <1365505625-9460-1-git-send-email-mgorman@suse.de> <1365505625-9460-5-git-send-email-mgorman@suse.de>
+In-Reply-To: <1365505625-9460-5-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Mel Gorman <mgorman@suse.de>, Dave Jones <davej@redhat.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Mar 29, 2013 at 09:04:16AM -0400, Sasha Levin wrote:
-> Hi all,
+(2013/04/09 20:06), Mel Gorman wrote:
+> In the past, kswapd makes a decision on whether to compact memory after the
+> pgdat was considered balanced. This more or less worked but it is late to
+> make such a decision and does not fit well now that kswapd makes a decision
+> whether to exit the zone scanning loop depending on reclaim progress.
 > 
-> While fuzzing with trinity inside a KVM tools guest running latest -next kernel,
-> I've stumbled on the following.
+> This patch will compact a pgdat if at least the requested number of pages
+> were reclaimed from unbalanced zones for a given priority. If any zone is
+> currently balanced, kswapd will not call compaction as it is expected the
+> necessary pages are already available.
 > 
-> It seems that the code in do_huge_pmd_wp_page() was recently modified in
-> "thp: do_huge_pmd_wp_page(): handle huge zero page".
-> 
-> Here's the trace:
-> 
-> [  246.244708] BUG: unable to handle kernel paging request at ffff88009c422000
-> [  246.245743] IP: [<ffffffff81a0a795>] copy_page_rep+0x5/0x10
-> [  246.250569] PGD 7232067 PUD 7235067 PMD bfefe067 PTE 800000009c422060
-> [  246.251529] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [  246.252325] Dumping ftrace buffer:
-> [  246.252791]    (ftrace buffer empty)
-> [  246.252869] Modules linked in:
-> [  246.252869] CPU 3
-> [  246.252869] Pid: 11985, comm: trinity-child12 Tainted: G        W    3.9.0-rc4-next-20130328-sasha-00014-g91a3267 #319
-> [  246.252869] RIP: 0010:[<ffffffff81a0a795>]  [<ffffffff81a0a795>] copy_page_rep+0x5/0x10
-> [  246.252869] RSP: 0018:ffff88000015bc40  EFLAGS: 00010286
-> [  246.252869] RAX: ffff88000015bfd8 RBX: 0000000002710880 RCX: 0000000000000200
-> [  246.252869] RDX: 0000000000000000 RSI: ffff88009c422000 RDI: ffff88009a422000
-> [  246.252869] RBP: ffff88000015bc98 R08: 0000000002718000 R09: 0000000000000001
-> [  246.252869] R10: 0000000000000001 R11: 0000000000000000 R12: ffff880000000000
-> [  246.252869] R13: ffff88000015bfd8 R14: ffff88000015bfd8 R15: fffffffffff80000
-> [  246.252869] FS:  00007f53db93f700(0000) GS:ffff8800bba00000(0000) knlGS:0000000000000000
-> [  246.252869] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  246.252869] CR2: ffff88009c422000 CR3: 0000000000159000 CR4: 00000000000406e0
-> [  246.252869] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> [  246.252869] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> [  246.252869] Process trinity-child12 (pid: 11985, threadinfo ffff88000015a000, task ffff88009c60b000)
-> [  246.252869] Stack:
-> [  246.252869]  ffffffff81234aae ffff88000015bc88 ffffffff81273639 0000000000a00000
-> [  246.252869]  0000000002718000 ffff8800ab36d050 ffff880000153800 ffffea0002690000
-> [  246.252869]  0000000000a00000 ffff8800ab36d000 ffffea0002710000 ffff88000015bd48
-> [  246.252869] Call Trace:
-> [  246.252869]  [<ffffffff81234aae>] ? copy_user_huge_page+0x1de/0x240
-> [  246.252869]  [<ffffffff81273639>] ? mem_cgroup_charge_common+0xa9/0xc0
-> [  246.252869]  [<ffffffff8126b4d7>] do_huge_pmd_wp_page+0x9f7/0xc60
-> [  246.252869]  [<ffffffff81a0acd9>] ? __const_udelay+0x29/0x30
-> [  246.252869]  [<ffffffff8123364e>] handle_mm_fault+0x26e/0x650
-> [  246.252869]  [<ffffffff8117dc1a>] ? __lock_is_held+0x5a/0x80
-> [  246.252869]  [<ffffffff83db3814>] ? __do_page_fault+0x514/0x5e0
-> [  246.252869]  [<ffffffff83db3870>] __do_page_fault+0x570/0x5e0
-> [  246.252869]  [<ffffffff811c6500>] ? rcu_eqs_exit_common+0x60/0x260
-> [  246.252869]  [<ffffffff811c740e>] ? rcu_eqs_enter_common+0x33e/0x3b0
-> [  246.252869]  [<ffffffff811c679c>] ? rcu_eqs_exit+0x9c/0xb0
-> [  246.252869]  [<ffffffff83db3912>] do_page_fault+0x32/0x50
-> [  246.252869]  [<ffffffff83db2ef0>] do_async_page_fault+0x30/0xc0
-> [  246.252869]  [<ffffffff83db01e8>] async_page_fault+0x28/0x30
-> [  246.252869] Code: 90 90 90 90 90 90 9c fa 65 48 3b 06 75 14 65 48 3b 56 08 75 0d 65 48 89 1e 65 48 89 4e 08 9d b0 01 c3 9d 30
-> c0 c3 b9 00 02 00 00 <f3> 48 a5 c3 0f 1f 80 00 00 00 00 eb ee 66 66 66 90 66 66 66 90
-> [  246.252869] RIP  [<ffffffff81a0a795>] copy_page_rep+0x5/0x10
-> [  246.252869]  RSP <ffff88000015bc40>
-> [  246.252869] CR2: ffff88009c422000
-> [  246.252869] ---[ end trace 09fbe37b108d5766 ]---
-> 
-> And this is the code:
-> 
->         if (is_huge_zero_pmd(orig_pmd))
->                 clear_huge_page(new_page, haddr, HPAGE_PMD_NR);
->         else
->                 copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR); <--- this
-> 
-> 
-> Thanks,
-> Sasha
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-I don't know this issue was already resolved. If so, my reply become a just
-question to Kirill regardless of this BUG.
+I like this way.
 
-When I am looking at the code, I was wonder about the logic of GHZP(aka,
-get_huge_zero_page) reference handling. The logic depends on that page
-allocator never alocate PFN 0.
+> ---
+>   mm/vmscan.c | 60 ++++++++++++++++++++++++++++++------------------------------
+>   1 file changed, 30 insertions(+), 30 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 78268ca..a9e68b4 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2640,7 +2640,8 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+>    */
+>   static bool kswapd_shrink_zone(struct zone *zone,
+>   			       struct scan_control *sc,
+> -			       unsigned long lru_pages)
+> +			       unsigned long lru_pages,
+> +			       unsigned long *nr_attempted)
+>   {
+>   	unsigned long nr_slab;
+>   	struct reclaim_state *reclaim_state = current->reclaim_state;
+> @@ -2656,6 +2657,9 @@ static bool kswapd_shrink_zone(struct zone *zone,
+>   	nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
+>   	sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+>   
+> +	/* Account for the number of pages attempted to reclaim */
+> +	*nr_attempted += sc->nr_to_reclaim;
+> +
+>   	if (nr_slab == 0 && !zone_reclaimable(zone))
+>   		zone->all_unreclaimable = 1;
+>   
+> @@ -2703,8 +2707,11 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>   
+>   	do {
+>   		unsigned long lru_pages = 0;
+> +		unsigned long nr_attempted = 0;
+>   		unsigned long nr_reclaimed = sc.nr_reclaimed = 0;
+> +		unsigned long this_reclaimed;
+>   		bool raise_priority = true;
+> +		bool pgdat_needs_compaction = (order > 0);
+>   
+>   		/*
+>   		 * Scan in the highmem->dma direction for the highest
+> @@ -2752,7 +2759,21 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>   		for (i = 0; i <= end_zone; i++) {
+>   			struct zone *zone = pgdat->node_zones + i;
+>   
+> +			if (!populated_zone(zone))
+> +				continue;
+> +
+>   			lru_pages += zone_reclaimable_pages(zone);
+> +
+> +			/*
+> +			 * If any zone is currently balanced then kswapd will
+> +			 * not call compaction as it is expected that the
+> +			 * necessary pages are already available.
+> +			 */
+> +			if (pgdat_needs_compaction &&
+> +					zone_watermark_ok(zone, order,
+> +						low_wmark_pages(zone),
+> +						*classzone_idx, 0))
+> +				pgdat_needs_compaction = false;
+>   		}
+>   
+>   		/*
+> @@ -2821,7 +2842,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>   				 * already being scanned that high
+>   				 * watermark would be met at 100% efficiency.
+>   				 */
+> -				if (kswapd_shrink_zone(zone, &sc, lru_pages))
+> +				if (kswapd_shrink_zone(zone, &sc, lru_pages,
+> +						       &nr_attempted))
+>   					raise_priority = false;
+>   			}
+>   
+> @@ -2873,42 +2895,20 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>   		if (try_to_freeze() || kthread_should_stop())
+>   			break;
+>   
+> +		/* Compact if necessary and kswapd is reclaiming efficiently */
+> +		this_reclaimed = sc.nr_reclaimed - nr_reclaimed;
+> +		if (pgdat_needs_compaction && this_reclaimed > nr_attempted)
+> +			compact_pgdat(pgdat, order);
+> +
 
-Who makes sure it? What happens if allocator allocates PFN 0?
-I don't know all of architecture makes sure it.
-You investigated it for all arches?
+What does "this_reclaimed" mean ?   
+"the total amount of reclaimed memory - reclaimed memory at this iteration" ?
 
-If not, 
-CPU 1                   CPU 2                                   CPU 3
+And this_reclaimed > nr_attempted means kswapd is efficient ?
+What "efficient" means here ?
 
-shrink_huge_zero_page
-huge_zero_refcount = 0;
-                        GHZP
-                        pfn_0_zero_page = alloc_pages 
-                                                         GHZP
-                                                         pfn_some_zero_page = alloc_page
-huge_zero_pfn = 0
-                        huge_zero_pfn = pfn_0
-                        huge_zero_refcount = 2
-                                                        huge_zero_pfn = pfn_some
-                                                        huge_zero_refcount = 2
+Thanks,
+-Kame
 
-So, if you want to stick this logic, at least, don't we need BUG_ON to check
-pfn 0 allocation in get_huge_zero_page?
+>   		/*
+>   		 * Raise priority if scanning rate is too low or there was no
+>   		 * progress in reclaiming pages
+>   		 */
+> -		if (raise_priority || sc.nr_reclaimed - nr_reclaimed == 0)
+> +		if (raise_priority || !this_reclaimed)
+>   			sc.priority--;
+>   	} while (sc.priority >= 0 &&
+>   		 !pgdat_balanced(pgdat, order, *classzone_idx));
+>   
+> -	/*
+> -	 * If kswapd was reclaiming at a higher order, it has the option of
+> -	 * sleeping without all zones being balanced. Before it does, it must
+> -	 * ensure that the watermarks for order-0 on *all* zones are met and
+> -	 * that the congestion flags are cleared. The congestion flag must
+> -	 * be cleared as kswapd is the only mechanism that clears the flag
+> -	 * and it is potentially going to sleep here.
+> -	 */
+> -	if (order) {
+> -		int zones_need_compaction = 1;
+> -
+> -		for (i = 0; i <= end_zone; i++) {
+> -			struct zone *zone = pgdat->node_zones + i;
+> -
+> -			if (!populated_zone(zone))
+> -				continue;
+> -
+> -			/* Check if the memory needs to be defragmented. */
+> -			if (zone_watermark_ok(zone, order,
+> -				    low_wmark_pages(zone), *classzone_idx, 0))
+> -				zones_need_compaction = 0;
+> -		}
+> -
+> -		if (zones_need_compaction)
+> -			compact_pgdat(pgdat, order);
+> -	}
+> -
+>   out:
+>   	/*
+>   	 * Return the order we were reclaiming at so prepare_kswapd_sleep()
+> 
 
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
