@@ -1,54 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 29CE06B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 09:54:55 -0400 (EDT)
-Date: Wed, 10 Apr 2013 13:54:53 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/3] mm, slub: count freed pages via rcu as this task's
- reclaimed_slab
-In-Reply-To: <5164DA6A.5060607@gmail.com>
-Message-ID: <0000013df43a48e5-6addd57e-952b-4754-848e-6d454b0a906c-000000@email.amazonses.com>
-References: <1365470478-645-1-git-send-email-iamjoonsoo.kim@lge.com> <1365470478-645-2-git-send-email-iamjoonsoo.kim@lge.com> <5163E194.3080600@gmail.com> <0000013def363b50-9a16dd09-72ad-494f-9c25-17269fc3aab3-000000@email.amazonses.com>
- <5164DA6A.5060607@gmail.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 740376B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 09:57:18 -0400 (EDT)
+Date: Wed, 10 Apr 2013 14:57:13 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 04/10] mm: vmscan: Decide whether to compact the pgdat
+ based on reclaim progress
+Message-ID: <20130410135713.GB3710@suse.de>
+References: <1365505625-9460-1-git-send-email-mgorman@suse.de>
+ <1365505625-9460-5-git-send-email-mgorman@suse.de>
+ <51651D3A.4000301@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <51651D3A.4000301@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 10 Apr 2013, Simon Jeons wrote:
+On Wed, Apr 10, 2013 at 05:05:14PM +0900, Kamezawa Hiroyuki wrote:
+> (2013/04/09 20:06), Mel Gorman wrote:
+> > In the past, kswapd makes a decision on whether to compact memory after the
+> > pgdat was considered balanced. This more or less worked but it is late to
+> > make such a decision and does not fit well now that kswapd makes a decision
+> > whether to exit the zone scanning loop depending on reclaim progress.
+> > 
+> > This patch will compact a pgdat if at least the requested number of pages
+> > were reclaimed from unbalanced zones for a given priority. If any zone is
+> > currently balanced, kswapd will not call compaction as it is expected the
+> > necessary pages are already available.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> 
+> I like this way.
+> 
 
-> It seems that you misunderstand my question. I don't doubt slab/slub can use
-> high order pages. However, what I focus on is why slab/slub can use compound
-> page, PageCompound() just on behalf of hugetlbfs pages or thp pages which
-> should used by apps, isn't it?
+Thanks
+> > <SNIP>
+> > @@ -2873,42 +2895,20 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+> >   		if (try_to_freeze() || kthread_should_stop())
+> >   			break;
+> >   
+> > +		/* Compact if necessary and kswapd is reclaiming efficiently */
+> > +		this_reclaimed = sc.nr_reclaimed - nr_reclaimed;
+> > +		if (pgdat_needs_compaction && this_reclaimed > nr_attempted)
+> > +			compact_pgdat(pgdat, order);
+> > +
+> 
+> What does "this_reclaimed" mean ?   
+> "the total amount of reclaimed memory - reclaimed memory at this iteration" ?
+> 
 
-I am not entirely clear on what you are asking for. The following gives a
-couple of answers to what I guess the question was.
+It's meant to be "reclaimed memory at this iteration" but I made a merge
+error when I decided to reset sc.nr_reclaimed to 0 on every loop in the patch
+"mm: vmscan: Flatten kswapd priority loop". Once I did that, nr_reclaimed
+became redundant and should have been removed. I've done that now.
 
-THP pages and user pages are on the lru and are managed differently.
-The slab allocators cannot work with those pages.
+> And this_reclaimed > nr_attempted means kswapd is efficient ?
+> What "efficient" means here ?
+> 
 
-Slab allocators *can* allocate higher order pages therefore they could
-allocate a page of the same order as huge pages and manage it that way.
+Reclaim efficiency is normally the ratio between pages scanned and pages
+reclaimed. Ideally, every page scanned is reclaimed. In this case, being
+efficient means that we reclaimed at least the number of pages requested
+which is sc->nr_to_reclaim which in the case of kswapd is the high
+watermark. I changed the comment to
 
-However there is no way that these pages could be handled like THP pages
-since they cannot be broken up (unless we add the capability to move slab
-objects which I wanted to do for a long time).
+                /*
+                 * Compact if necessary and kswapd is reclaiming at least the
+                 * high watermark number of pages as requested
+                 */
 
-
-You can boot a Linux system that uses huge pages for slab allocation
-by specifying the following parameter on the kernel command line.
-
-	slub_min_order=9
-
-The slub allocator will start using huge pages for all its storage
-needs. You need a large number of huge pages to do this. Lots of memory
-is going to be lost due to fragmentation but its going to be fast since
-the slowpaths are rarely used. OOMs due to reclaim failure become much
-more likely ;-).
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
