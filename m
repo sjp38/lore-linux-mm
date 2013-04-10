@@ -1,34 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id B2D476B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 18:08:32 -0400 (EDT)
-Received: by mail-da0-f49.google.com with SMTP id t11so388642daj.8
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 15:08:31 -0700 (PDT)
-Date: Wed, 10 Apr 2013 15:08:29 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 13B086B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 18:13:42 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz11so548485pad.30
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 15:13:42 -0700 (PDT)
+Date: Wed, 10 Apr 2013 15:13:39 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v3 2/3] resource: Add release_mem_region_adjustable()
-In-Reply-To: <1365630585.32127.110.camel@misato.fc.hp.com>
-Message-ID: <alpine.DEB.2.02.1304101505250.1526@chino.kir.corp.google.com>
-References: <1365614221-685-1-git-send-email-toshi.kani@hp.com> <1365614221-685-3-git-send-email-toshi.kani@hp.com> <20130410144412.395bf9f2fb8192920175e30a@linux-foundation.org> <1365630585.32127.110.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v3 3/3] mm: Change __remove_pages() to call
+ release_mem_region_adjustable()
+In-Reply-To: <1365614221-685-4-git-send-email-toshi.kani@hp.com>
+Message-ID: <alpine.DEB.2.02.1304101513260.1526@chino.kir.corp.google.com>
+References: <1365614221-685-1-git-send-email-toshi.kani@hp.com> <1365614221-685-4-git-send-email-toshi.kani@hp.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Toshi Kani <toshi.kani@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
 On Wed, 10 Apr 2013, Toshi Kani wrote:
 
-> > I'll switch it to GFP_ATOMIC.  Which is horridly lame but the
-> > allocation is small and alternatives are unobvious.
+> Changed __remove_pages() to call release_mem_region_adjustable().
+> This allows a requested memory range to be released from
+> the iomem_resource table even if it does not match exactly to
+> an resource entry but still fits into.  The resource entries
+> initialized at bootup usually cover the whole contiguous
+> memory ranges and may not necessarily match with the size of
+> memory hot-delete requests.
 > 
-> Great!  Again, thanks for the update!
+> If release_mem_region_adjustable() failed, __remove_pages() emits
+> a warning message and continues to proceed as it was the case
+> with release_mem_region().  release_mem_region(), which is defined
+> to __release_region(), emits a warning message and returns no error
+> since a void function.
+> 
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> Reviewed-by : Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-release_mem_region_adjustable() allocates at most one struct resource, so 
-why not do kmalloc(sizeof(struct resource), GFP_KERNEL) before taking 
-resource_lock and then testing whether it's NULL or not when splitting?  
-It unnecessarily allocates memory when there's no split, but 
-__remove_pages() shouldn't be a hotpath.
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
