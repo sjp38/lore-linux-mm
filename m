@@ -1,83 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id A00AF6B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:03:21 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Thu, 11 Apr 2013 05:54:31 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id DBCD1357804E
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 06:03:14 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3AK2IYm5833092
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 06:02:18 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3AK2NML002916
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 06:02:23 +1000
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [PATCH] mm: Rewrite the comment over migrate_pages() more
- comprehensibly
-Date: Thu, 11 Apr 2013 01:29:48 +0530
-Message-ID: <20130410195919.17355.23052.stgit@srivatsabhat.in.ibm.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 6B8176B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:21:32 -0400 (EDT)
+Received: by mail-ee0-f48.google.com with SMTP id b15so420530eek.7
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 13:21:30 -0700 (PDT)
+Date: Wed, 10 Apr 2013 22:21:27 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RESEND][PATCH v5 3/3] hugetlbfs: add swap entry check in
+ follow_hugetlb_page()
+Message-ID: <20130410202127.GA30063@dhcp22.suse.cz>
+References: <1365610669-16625-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1365610669-16625-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1365610669-16625-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The comment over migrate_pages() looks quite weird, and makes it hard
-to grasp what it is trying to say. Rewrite it more comprehensibly.
+On Wed 10-04-13 12:17:49, Naoya Horiguchi wrote:
+> # I suspended Reviewed and Acked given for the previous version, because
+> # it has a non-minor change. If you want to restore it, please let me know.
+> -----
+> With applying the previous patch "hugetlbfs: stop setting VM_DONTDUMP in
+> initializing vma(VM_HUGETLB)" to reenable hugepage coredump, if a memory
+> error happens on a hugepage and the affected processes try to access
+> the error hugepage, we hit VM_BUG_ON(atomic_read(&page->_count) <= 0)
+> in get_page().
+> 
+> The reason for this bug is that coredump-related code doesn't recognise
+> "hugepage hwpoison entry" with which a pmd entry is replaced when a memory
+> error occurs on a hugepage.
+> In other words, physical address information is stored in different bit layout
+> between hugepage hwpoison entry and pmd entry, so follow_hugetlb_page()
+> which is called in get_dump_page() returns a wrong page from a given address.
+> 
+> The expected behavior is like this:
+> 
+>   absent   is_swap_pte   FOLL_DUMP   Expected behavior
+>   -------------------------------------------------------------------
+>    true     false         false       hugetlb_fault
+>    false    true          false       hugetlb_fault
+>    false    false         false       return page
+>    true     false         true        skip page (to avoid allocation)
+>    false    true          true        hugetlb_fault
+>    false    false         true        return page
+> 
+> With this patch, we can call hugetlb_fault() and take proper actions
+> (we wait for migration entries, fail with VM_FAULT_HWPOISON_LARGE for
+> hwpoisoned entries,) and as the result we can dump all hugepages except
+> for hwpoisoned ones.
+> 
+> ChangeLog v5:
+>  - improve comment and description.
+> 
+> ChangeLog v4:
+>  - move is_swap_page() to right place.
+> 
+> ChangeLog v3:
+>  - add comment about using is_swap_pte()
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: stable@vger.kernel.org
 
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
----
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
- mm/migrate.c |   22 +++++++++++++---------
- 1 file changed, 13 insertions(+), 9 deletions(-)
+Thanks!
+> ---
+>  mm/hugetlb.c | 12 +++++++++++-
+>  1 file changed, 11 insertions(+), 1 deletion(-)
+> 
+> diff --git v3.9-rc3.orig/mm/hugetlb.c v3.9-rc3/mm/hugetlb.c
+> index 0d1705b..bf26ee8 100644
+> --- v3.9-rc3.orig/mm/hugetlb.c
+> +++ v3.9-rc3/mm/hugetlb.c
+> @@ -2983,7 +2983,17 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  			break;
+>  		}
+>  
+> -		if (absent ||
+> +		/*
+> +		 * We need call hugetlb_fault for both hugepages under migration
+> +		 * (in which case hugetlb_fault waits for the migration,) and
+> +		 * hwpoisoned hugepages (in which case we need to prevent the
+> +		 * caller from accessing to them.) In order to do this, we use
+> +		 * here is_swap_pte instead of is_hugetlb_entry_migration and
+> +		 * is_hugetlb_entry_hwpoisoned. This is because it simply covers
+> +		 * both cases, and because we can't follow correct pages
+> +		 * directly from any kind of swap entries.
+> +		 */
+> +		if (absent || is_swap_pte(huge_ptep_get(pte)) ||
+>  		    ((flags & FOLL_WRITE) && !pte_write(huge_ptep_get(pte)))) {
+>  			int ret;
+>  
+> -- 
+> 1.7.11.7
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 3bbaf5d..3618b04 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -973,19 +973,23 @@ out:
- }
- 
- /*
-- * migrate_pages
-+ * migrate_pages - migrate the pages specified in a list, to the free pages
-+ *		   supplied as the target for the page migration
-  *
-- * The function takes one list of pages to migrate and a function
-- * that determines from the page to be migrated and the private data
-- * the target of the move and allocates the page.
-+ * @from:		The list of pages to be migrated.
-+ * @get_new_page:	The function used to allocate free pages to be used
-+ *			as the target of the page migration.
-+ * @private:		Private data to be passed on to get_new_page()
-+ * @mode:		The migration mode that specifies the constraints for
-+ *			page migration, if any.
-+ * @reason:		The reason for page migration.
-  *
-- * The function returns after 10 attempts or if no pages
-- * are movable anymore because to has become empty
-- * or no retryable pages exist anymore.
-- * Caller should call putback_lru_pages to return pages to the LRU
-+ * The function returns after 10 attempts or if no pages are movable any more
-+ * because the list has become empty or no retryable pages exist any more.
-+ * The caller should call putback_lru_pages() to return pages to the LRU
-  * or free list only if ret != 0.
-  *
-- * Return: Number of pages not migrated or error code.
-+ * Returns the number of pages that were not migrated, or an error code.
-  */
- int migrate_pages(struct list_head *from, new_page_t get_new_page,
- 		unsigned long private, enum migrate_mode mode, int reason)
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
