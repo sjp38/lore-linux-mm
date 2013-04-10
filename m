@@ -1,45 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id DEB026B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:14:50 -0400 (EDT)
-Date: Wed, 10 Apr 2013 15:14:45 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/10] Reduce system disruption due to kswapd V2
-Message-ID: <20130410141445.GD3710@suse.de>
-References: <1365505625-9460-1-git-send-email-mgorman@suse.de>
- <0000013defd666bf-213d70fc-dfbd-4a50-82ed-e9f4f7391b55-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 65BA36B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:24:40 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id hm14so525008wib.16
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 07:24:38 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <0000013defd666bf-213d70fc-dfbd-4a50-82ed-e9f4f7391b55-000000@email.amazonses.com>
+In-Reply-To: <0000013df43c9afa-0cba04ce-4a5b-435e-acc4-5ee5a1cfeb6b-000000@email.amazonses.com>
+References: <1365470478-645-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1365470478-645-2-git-send-email-iamjoonsoo.kim@lge.com>
+	<0000013def3255c0-87577820-0ad9-46ac-8498-0589db4e7180-000000@email.amazonses.com>
+	<20130410052619.GD5872@lge.com>
+	<0000013df43c9afa-0cba04ce-4a5b-435e-acc4-5ee5a1cfeb6b-000000@email.amazonses.com>
+Date: Wed, 10 Apr 2013 23:24:38 +0900
+Message-ID: <CAAmzW4PZ4ODR5gjYczmoNBYP-yk7q6MTNdOO4A_qux0xCFH_Gg@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mm, slub: count freed pages via rcu as this task's reclaimed_slab
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On Tue, Apr 09, 2013 at 05:27:18PM +0000, Christoph Lameter wrote:
-> One additional measure that may be useful is to make kswapd prefer one
-> specific processor on a socket. Two benefits arise from that:
-> 
-> 1. Better use of cpu caches and therefore higher speed, less
-> serialization.
-> 
+2013/4/10 Christoph Lameter <cl@linux.com>:
+> On Wed, 10 Apr 2013, Joonsoo Kim wrote:
+>
+>> Hello, Christoph.
+>>
+>> On Tue, Apr 09, 2013 at 02:28:06PM +0000, Christoph Lameter wrote:
+>> > On Tue, 9 Apr 2013, Joonsoo Kim wrote:
+>> >
+>> > > Currently, freed pages via rcu is not counted for reclaimed_slab, because
+>> > > it is freed in rcu context, not current task context. But, this free is
+>> > > initiated by this task, so counting this into this task's reclaimed_slab
+>> > > is meaningful to decide whether we continue reclaim, or not.
+>> > > So change code to count these pages for this task's reclaimed_slab.
+>> >
+>> > slab->reclaim_state guides the reclaim actions in vmscan.c. With this
+>> > patch slab->reclaim_state could get quite a high value without new pages being
+>> > available for allocation. slab->reclaim_state will only be updated
+>> > when the RCU period ends.
+>>
+>> Okay.
+>>
+>> In addition, there is a little place who use SLAB_DESTROY_BY_RCU.
+>> I will drop this patch[2/3] and [3/3] for next spin.
+>
+> What you have discoverd is an issue that we have so far overlooked. Could
+> you add comments to both places explaining the situation?
 
-Considering the volume of pages that kswapd can scan when it's active
-I would expect that it trashes its cache anyway. The L1 cache would be
-flushed after scanning struct pages for just a few MB of memory.
+Yes, I can.
 
-> 2. Reduction of the disturbances to one processor.
-> 
+> RCU is used for
+> some inode and the dentry cache. Failing to account for these frees could
+> pose a problem. One solution would be to ensure that we get through an RCU
+> quiescent period in the slabs reclaim. If we can ensure that then your
+> patch may be ok.
 
-I've never checked it but I would have expected kswapd to stay on the
-same processor for significant periods of time. Have you experienced
-problems where kswapd bounces around on CPUs within a node causing
-workload disruption?
+Hmm... I don't perfectly understand RCU code and it's quiescent
+period. But, yes, it
+can be one of possible solutions in my quick thought. Currently, I
+have no ability to
+do that, so I skip to think about this.
 
--- 
-Mel Gorman
-SUSE Labs
+Thanks.
+
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
