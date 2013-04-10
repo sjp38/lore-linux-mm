@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 916BD6B0036
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 18:15:27 -0400 (EDT)
-Received: by mail-ie0-f202.google.com with SMTP id x12so154136ief.1
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 15:15:26 -0700 (PDT)
-Subject: + mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix.patch added to -mm tree
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 808D36B0037
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 18:15:30 -0400 (EDT)
+Received: by mail-ie0-f201.google.com with SMTP id a11so235905iee.0
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 15:15:29 -0700 (PDT)
+Subject: + mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix.patch added to -mm tree
 From: akpm@linux-foundation.org
-Date: Wed, 10 Apr 2013 15:15:25 -0700
-Message-Id: <20130410221525.D0DC231C107@corp2gmr1-1.hot.corp.google.com>
+Date: Wed, 10 Apr 2013 15:15:28 -0700
+Message-Id: <20130410221528.D866F31C107@corp2gmr1-1.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mm-commits@vger.kernel.org
@@ -15,9 +15,9 @@ Cc: akpm@linux-foundation.org, agshew@gmail.com, linux-mm@kvack.org
 
 
 The patch titled
-     Subject: mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix
+     Subject: mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix
 has been added to the -mm tree.  Its filename is
-     mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix.patch
+     mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix.patch
 
 Before you just go and hit "reply", please:
    a) Consider who else should be cc'ed
@@ -32,40 +32,36 @@ there every 3-4 working days
 
 ------------------------------------------------------
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix
+Subject: mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix
 
-make init_admin_reserve() static
+init_user_reserve() and init_admin_reserve can no longer be __meminit
 
 Cc: <linux-mm@kvack.org>
 Cc: Andrew Shewmaker <agshew@gmail.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- mm/mmap.c  |    2 +-
- mm/nommu.c |    2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ mm/mmap.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff -puN mm/mmap.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix mm/mmap.c
---- a/mm/mmap.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix
+diff -puN mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix mm/mmap.c
+--- a/mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix
 +++ a/mm/mmap.c
-@@ -3131,7 +3131,7 @@ module_init(init_user_reserve)
-  * with sshd, bash, and top in OVERCOMMIT_GUESS. Smaller systems will
-  * only reserve 3% of free pages by default.
+@@ -3112,7 +3112,7 @@ void __init mmap_init(void)
+  * The default value is min(3% of free memory, 128MB)
+  * 128MB is enough to recover with sshd/login, bash, and top/kill.
   */
--int __meminit init_admin_reserve(void)
-+static int __meminit init_admin_reserve(void)
+-static int __meminit init_user_reserve(void)
++static int init_user_reserve(void)
  {
  	unsigned long free_kbytes;
  
-diff -puN mm/nommu.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix mm/nommu.c
---- a/mm/nommu.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix
-+++ a/mm/nommu.c
-@@ -2148,7 +2148,7 @@ module_init(init_user_reserve)
+@@ -3133,7 +3133,7 @@ module_init(init_user_reserve)
   * with sshd, bash, and top in OVERCOMMIT_GUESS. Smaller systems will
   * only reserve 3% of free pages by default.
   */
--int __meminit init_admin_reserve(void)
-+static int __meminit init_admin_reserve(void)
+-static int __meminit init_admin_reserve(void)
++static int init_admin_reserve(void)
  {
  	unsigned long free_kbytes;
  
