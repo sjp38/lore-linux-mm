@@ -1,62 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 60F636B0027
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:30:57 -0400 (EDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0ML100DN33J6UBD0@mailout1.samsung.com> for
- linux-mm@kvack.org; Wed, 10 Apr 2013 16:30:55 +0900 (KST)
-From: Chanho Park <chanho61.park@samsusng.com>
-References: <1360890012-4684-1-git-send-email-chanho61.park@samsung.com>
- <20130405111158.GA13428@e103986-lin>
-In-reply-to: <20130405111158.GA13428@e103986-lin>
-Subject: RE: [PATCH] arm: mm: lockless get_user_pages_fast
-Date: Wed, 10 Apr 2013 16:30:54 +0900
-Message-id: <00a201ce35bd$5626fd90$0274f8b0$@samsusng.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: ko
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 101D26B0037
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:32:01 -0400 (EDT)
+Message-ID: <51651596.7090903@parallels.com>
+Date: Wed, 10 Apr 2013 11:32:38 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
+References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-3-git-send-email-glommer@parallels.com> <515936B5.8070501@jp.fujitsu.com> <515940E4.8050704@parallels.com> <5164F416.8040903@gmail.com>
+In-Reply-To: <5164F416.8040903@gmail.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Steve Capper' <steve.capper@arm.com>, 'Chanho Park' <chanho61.park@samsung.com>
-Cc: linux@arm.linux.org.uk, 'Catalin Marinas' <Catalin.Marinas@arm.com>, 'Inki Dae' <inki.dae@samsung.com>, linux-mm@kvack.org, 'Kyungmin Park' <kyungmin.park@samsung.com>, 'Myungjoo Ham' <myungjoo.ham@samsung.com>, linux-arm-kernel@lists.infradead.org, 'Grazvydas Ignotas' <notasas@gmail.com>
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-> Apologies for the tardy response, this patch slipped past me.
-
-Never mind.
-
-> I've tested this patch out, unfortunately it treats huge pmds as regular
-> pmds and attempts to traverse them rather than fall back to a slow path.
-> The fix for this is very minor, please see my suggestion below.
-OK. I'll fix it.
-
+On 04/10/2013 09:09 AM, Ric Mason wrote:
+>> Before it, we will try to shrink 512 objects and succeed at 0 (because
+>> > batch is 1024). After this, we will try to free 512 objects and succeed
+>> > at an undefined quantity between 0 and 512.
+> Where you get the magic number 512 and 1024? The value of SHRINK_BATCH
+> is 128.
 > 
-> As an aside, I would like to extend this fast_gup to include full huge
-> page support and include a __get_user_pages_fast implementation. This will
-> hopefully fix a problem that was brought to my attention by Grazvydas
-> Ignotas whereby a FUTEX_WAIT on a THP tail page will cause an infinite
-> loop due to the stock implementation of __get_user_pages_fast always
-> returning 0.
+This is shrinker-defined. For instance, the super-block shrinker reads:
 
-I'll add the __get_user_pages_fast implementation. BTW, HugeTLB on ARM
-wasn't
-supported yet. There is no problem to add gup_huge_pmd. But I think it need
-a test
-for hugepages.
+                s->s_shrink.shrink = prune_super;
+                s->s_shrink.batch = 1024;
 
-> I would suggest:
-> 		if (pmd_none(*pmdp) || pmd_bad(*pmdp))
-> 			return 0;
-> as this will pick up pmds that can't be traversed, and fall back to the
-> slow path.
+And then vmscan:
+                long batch_size = shrinker->batch ? shrinker->batch
+                                                  : SHRINK_BATCH;
 
-Thanks for your suggestion.
-I'll prepare the v2 patch.
+I am dealing too much with the super block shrinker these days, so I
+just had that cached in my mind and forgot to check the code and be more
+explicit.
 
-Best regards,
-Chanho Park
+In any case, that was a numeric example that is valid nevertheless.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
