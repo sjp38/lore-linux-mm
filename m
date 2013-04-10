@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id BE6E16B0006
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 19:50:53 -0400 (EDT)
-Received: by mail-da0-f48.google.com with SMTP id p8so417680dan.35
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:50:52 -0700 (PDT)
-Date: Wed, 10 Apr 2013 16:50:51 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 4D04A6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 19:56:54 -0400 (EDT)
+Received: by mail-vb0-f42.google.com with SMTP id p12so851997vbe.15
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:56:53 -0700 (PDT)
+Message-ID: <5165FC42.6060304@gmail.com>
+Date: Wed, 10 Apr 2013 19:56:50 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] mm: madvise: complete input validation before taking
  lock
-In-Reply-To: <u0leheij6gt.fsf@orc05.imf.au.dk>
-Message-ID: <alpine.DEB.2.02.1304101650210.27541@chino.kir.corp.google.com>
 References: <u0leheij6gt.fsf@orc05.imf.au.dk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <u0leheij6gt.fsf@orc05.imf.au.dk>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@gmail.com
 
-On Wed, 10 Apr 2013, Rasmus Villemoes wrote:
-
+(4/10/13 7:45 PM), Rasmus Villemoes wrote:
 > In madvise(), there doesn't seem to be any reason for taking the
 > &current->mm->mmap_sem before start and len_in have been
 > validated. Incidentally, this removes the need for the out: label.
@@ -27,9 +27,10 @@ On Wed, 10 Apr 2013, Rasmus Villemoes wrote:
 > 
 > Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-Acked-by: David Rientjes <rientjes@google.com>
+Looks good.
 
-Would be nice to do s/out_plug/out/ now if you have a chance.
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
