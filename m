@@ -1,109 +1,222 @@
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH part2 v6 0/3] staging: zcache: Support zero-filled pages
- more efficiently
-Date: Wed, 10 Apr 2013 08:38:44 +0800
-Message-ID: <49674.5976772674$1365554370@news.gmane.org>
-References: <1364984183-9711-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130407090341.GA22589@hacker.(null)>
- <62e1fe34-e5be-42f5-83af-f8f428fce57b@default>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+From: Wanpeng Li <liwanp-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org>
+Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
+Date: Wed, 10 Apr 2013 16:46:06 +0800
+Message-ID: <11288.8913638473$1365583589@news.gmane.org>
+References: <1364548450-28254-3-git-send-email-glommer@parallels.com>
+	<20130408084202.GA21654@lge.com> <51628412.6050803@parallels.com>
+	<20130408090131.GB21654@lge.com> <51628877.5000701@parallels.com>
+	<20130409005547.GC21654@lge.com> <20130409012931.GE17758@dastard>
+	<20130409020505.GA4218@lge.com> <20130409123008.GM17758@dastard>
+	<20130410025115.GA5872@lge.com>
+Reply-To: Wanpeng Li <liwanp-23VcF4HTsmIX0ybBhKVfKdBPR1lH4CV8@public.gmane.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <owner-linux-mm@kvack.org>
-Received: from kanga.kvack.org ([205.233.56.17])
-	by plane.gmane.org with esmtp (Exim 4.69)
-	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UPj4O-0005FE-Vu
-	for glkm-linux-mm-2@m.gmane.org; Wed, 10 Apr 2013 02:39:25 +0200
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 8C2AF6B003B
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 20:39:21 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 10 Apr 2013 10:33:42 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 90914357804E
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:39:17 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3A0PK5N6226228
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:25:20 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3A0ckHg007351
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:38:47 +1000
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
 Content-Disposition: inline
-In-Reply-To: <62e1fe34-e5be-42f5-83af-f8f428fce57b@default>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Fengguang Wu <fengguang.wu@intel.com>
+In-Reply-To: <20130410025115.GA5872-Hm3cg6mZ9cc@public.gmane.org>
+List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/containers>,
+	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.linuxfoundation.org/pipermail/containers/>
+List-Post: <mailto:containers-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+List-Help: <mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/containers>,
+	<mailto:containers-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
+Sender: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+Errors-To: containers-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+To: Glauber Costa <glommer-bzQdu9zFT3WakBO8gow8eQ@public.gmane.org>
+Cc: Theodore Ts'o <tytso-3s7WtUTddSA@public.gmane.org>, hughd-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org, containers-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org, Dave Chinner <david-FqsqvQoI3Ljby3iVrkZq2A@public.gmane.org>, Michal Hocko <mhocko-AlSwsSmVLrQ@public.gmane.org>, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, Al Viro <viro-RmSDqhL/yNMiFSDQTTA3OLVCufUGDwFn@public.gmane.org>, Johannes Weiner <hannes-druUgvl0LCNAfugRpC6u6w@public.gmane.org>, linux-fsdevel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Andrew Morton <akpm-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org>
+List-Id: linux-mm.kvack.org
 
-On Sun, Apr 07, 2013 at 10:51:27AM -0700, Dan Magenheimer wrote:
->> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
->> Subject: Re: [PATCH part2 v6 0/3] staging: zcache: Support zero-filled pages more efficiently
+Hi Glauber,
+On Wed, Apr 10, 2013 at 11:51:16AM +0900, Joonsoo Kim wrote:
+>Hello, Dave.
+>
+>On Tue, Apr 09, 2013 at 10:30:08PM +1000, Dave Chinner wrote:
+>> On Tue, Apr 09, 2013 at 11:05:05AM +0900, Joonsoo Kim wrote:
+>> > On Tue, Apr 09, 2013 at 11:29:31AM +1000, Dave Chinner wrote:
+>> > > On Tue, Apr 09, 2013 at 09:55:47AM +0900, Joonsoo Kim wrote:
+>> > > > lowmemkiller makes spare memory via killing a task.
+>> > > > 
+>> > > > Below is code from lowmem_shrink() in lowmemorykiller.c
+>> > > > 
+>> > > >         for (i = 0; i < array_size; i++) {
+>> > > >                 if (other_free < lowmem_minfree[i] &&
+>> > > >                     other_file < lowmem_minfree[i]) {
+>> > > >                         min_score_adj = lowmem_adj[i];
+>> > > >                         break;
+>> > > >                 }   
+>> > > >         } 
+>> > > 
+>> > > I don't think you understand what the current lowmemkiller shrinker
+>> > > hackery actually does.
+>> > > 
+>> > >         rem = global_page_state(NR_ACTIVE_ANON) +
+>> > >                 global_page_state(NR_ACTIVE_FILE) +
+>> > >                 global_page_state(NR_INACTIVE_ANON) +
+>> > >                 global_page_state(NR_INACTIVE_FILE);
+>> > >         if (sc->nr_to_scan <= 0 || min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
+>> > >                 lowmem_print(5, "lowmem_shrink %lu, %x, return %d\n",
+>> > >                              sc->nr_to_scan, sc->gfp_mask, rem);
+>> > >                 return rem;
+>> > >         }
+>> > > 
+>> > > So, when nr_to_scan == 0 (i.e. the count phase), the shrinker is
+>> > > going to return a count of active/inactive pages in the cache. That
+>> > > is almost always going to be non-zero, and almost always be > 1000
+>> > > because of the minimum working set needed to run the system.
+>> > > Even after applying the seek count adjustment, total_scan is almost
+>> > > always going to be larger than the shrinker default batch size of
+>> > > 128, and that means this shrinker will almost always run at least
+>> > > once per shrink_slab() call.
+>> > 
+>> > I don't think so.
+>> > Yes, lowmem_shrink() return number of (in)active lru pages
+>> > when nr_to_scan is 0. And in shrink_slab(), we divide it by lru_pages.
+>> > lru_pages can vary where shrink_slab() is called, anyway, perhaps this
+>> > logic makes total_scan below 128.
 >> 
->> Hi Dan,
+>> "perhaps"
 >> 
->> Some issues against Ramster:
 >> 
->> - Ramster who takes advantage of zcache also should support zero-filled
->>   pages more efficiently, correct? It doesn't handle zero-filled pages well
->>   currently.
+>> There is no "perhaps" here - there is *zero* guarantee of the
+>> behaviour you are claiming the lowmem killer shrinker is dependent
+>> on with the existing shrinker infrastructure. So, lets say we have:
+>> 
+>> 	nr_pages_scanned = 1000
+>> 	lru_pages = 100,000
+>> 
+>> Your shrinker is going to return 100,000 when nr_to_scan = 0. So,
+>> we have:
+>> 
+>> 	batch_size = SHRINK_BATCH = 128
+>> 	max_pass= 100,000
+>> 
+>> 	total_scan = shrinker->nr_in_batch = 0
+>> 	delta = 4 * 1000 / 32 = 128
+>> 	delta = 128 * 100,000 = 12,800,000
+>> 	delta = 12,800,000 / 100,001 = 127
+>> 	total_scan += delta = 127
+>> 
+>> Assuming the LRU pages count does not change(*), nr_pages_scanned is
+>> irrelevant and delta always comes in 1 count below the batch size,
+>> and the shrinker is not called. The remainder is then:
+>> 
+>> 	shrinker->nr_in_batch += total_scan = 127
+>> 
+>> (*) the lru page count will change, because reclaim and shrinkers
+>> run concurrently, and so we can't even make a simple contrived case
+>> where delta is consistently < batch_size here.
+>> 
+>> Anyway, the next time the shrinker is entered, we start with:
+>> 
+>> 	total_scan = shrinker->nr_in_batch = 127
+>> 	.....
+>> 	total_scan += delta = 254
+>> 
+>> 	<shrink once, total scan -= batch_size = 126>
+>> 
+>> 	shrinker->nr_in_batch += total_scan = 126
+>> 
+>> And so on for all the subsequent shrink_slab calls....
+>> 
+>> IOWs, this algorithm effectively causes the shrinker to be called
+>> 127 times out of 128 in this arbitrary scenario. It does not behave
+>> as you are assuming it to, and as such any code based on those
+>> assumptions is broken....
 >
->When you first posted your patchset I took a quick look at ramster
->and it looked like your patchset should work for ramster also.
->However I didn't actually run ramster to try it so there may
->be a bug.  If it doesn't work, I would very much appreciate a patch.
+>Thanks for good example. I got your point :)
+>But, my concern is not solved entirely, because this is not problem
+>just for lowmem killer and I can think counter example. And other drivers
+>can be suffered from this change.
 >
->> - Ramster DebugFS counters are exported in /sys/kernel/mm/, but zcache/frontswap/cleancache
->>   all are exported in /sys/kernel/debug/, should we unify them?
+>I look at the code for "huge_zero_page_shrinker".
+>They return HPAGE_PMD_NR if there is shrikerable object.
 >
->That would be great.
+>I try to borrow your example for this case.
 >
->> - If ramster also should move DebugFS counters to a single file like
->>   zcache do?
+> 	nr_pages_scanned = 1,000
+> 	lru_pages = 100,000
+> 	batch_size = SHRINK_BATCH = 128
+> 	max_pass= 512 (HPAGE_PMD_NR)
 >
->Sure!  I am concerned about Konrad's patches adding debug.c as they
->add many global variables.  They are only required when ZCACHE_DEBUG
->is enabled so they may be ok.  If not, adding ramster variables
->to debug.c may make the problem worse.
+> 	total_scan = shrinker->nr_in_batch = 0
+> 	delta = 4 * 1,000 / 2 = 2,000
+> 	delta = 2,000 * 512 = 1,024,000
+> 	delta = 1,024,000 / 100,001 = 10
+> 	total_scan += delta = 10
 >
->> If you confirm these issues are make sense to fix, I will start coding. ;-)
+>As you can see, before this patch, do_shrinker_shrink() for
+>"huge_zero_page_shrinker" is not called until we call shrink_slab() more
+>than 13 times. *Frequency* we call do_shrinker_shrink() actually is
+>largely different with before. With this patch, we actually call
+>do_shrinker_shrink() for "huge_zero_page_shrinker" 12 times more
+>than before. Can we be convinced that there will be no problem?
+>
+>This is why I worry about this change.
+>Am I worried too much? :)
+>
+>I show another scenario what I am thinking for lowmem killer.
+>
+>In reality, 'nr_pages_scanned' reflect sc->priority.
+>You can see it get_scan_count() in vmscan.c
+>
+>	size = get_lru_size(lruvec, lru);
+>	scan = size >> sc->priority;
+>
+>So, I try to re-construct your example with above assumption.
+>
+>If sc->priority is DEF_PRIORITY (12)
+>
+> 	nr_pages_scanned = 25 (100,000 / 4,096)
+> 	lru_pages = 100,000
+> 	batch_size = SHRINK_BATCH = 128
+> 	max_pass= 100,000
+>
+> 	total_scan = shrinker->nr_in_batch = 0
+> 	delta = 4 * 25 / 32 = 3
+> 	delta = 3 * 100,000 = 300,000
+> 	delta = 300,000 / 100,001 = 3
+> 	total_scan += delta = 3
+>
+>So, do_shrinker_shrink() is not called for lowmem killer until
+>we call shrink_slab() more than 40 times if sc->priority is DEF_PRIORITY.
+>So, AICT, if we don't have trouble too much in reclaiming memory, it will not
+>triggered frequently.
+>
 
-Hi Dan,
-
->
->That would be great.  Note that I have a how-to for ramster here:
->
->https://oss.oracle.com/projects/tmem/dist/files/RAMster/HOWTO-120817 
->
->If when you are testing you find that this how-to has mistakes,
->please let me know.  Or feel free to add the (corrected) how-to file
->as a patch in your patchset.
-
-You can review my patchset [PATCH 00/10] staging: zcache/ramster: fix
-and ramster/debugfs improvement
-
-Just update TESTING RAMSTER part since some knobs are eported in 
-/sys/kernel/debug/ramster/ instead of /sys/kernel/mm/ramster/ for 
-your HOWTO file. 
-
-D. TESTING RAMSTER 
-+2) To see if RAMster is working, on the remote system
+As the example from Joonsoo, before the patch, if scan priority is low, 
+slab cache won't be shrinked, however, after the patch, slab cache is 
+shrinked more aggressive. Furthmore, these slab cache pages maybe more 
+seek expensive than lru pages.
 
 Regards,
 Wanpeng Li 
 
+>I like this patchset, and I think shrink_slab interface should be
+>re-worked. What I want to say is just that this patch is not trivial
+>change and should notify user to test it.
+>I want to say again, I don't want to become a stopper for this patchset :)
 >
->Thanks very much, Wanpeng, for your great contributions!
+>Please let me know what I am missing.
 >
->(Ric, since you have expressed interest in ramster, if you try it and
->find corrections to the how-to file above, your input would be
->very much appreciated also!)
+>Thanks.
 >
->Dan
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> Cheers,
+>> 
+>> Dave.
+>> -- 
+>> Dave Chinner
+>> david-FqsqvQoI3Ljby3iVrkZq2A@public.gmane.org
+>> 
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo-Bw31MaZKKs0EbZ0PF+XxCw@public.gmane.org  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org"> email-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org </a>
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo-Bw31MaZKKs0EbZ0PF+XxCw@public.gmane.org  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org"> email-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org </a>
