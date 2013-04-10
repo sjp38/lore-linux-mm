@@ -1,78 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id E6ED26B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 19:26:08 -0400 (EDT)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Wed, 10 Apr 2013 19:26:07 -0400
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id E4AE038C804D
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 19:26:05 -0400 (EDT)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3ANQ56u30081278
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 19:26:05 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3ANQ45H026391
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 20:26:05 -0300
-Message-ID: <5165F508.4020207@linux.vnet.ibm.com>
-Date: Wed, 10 Apr 2013 16:26:00 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH v2 14/15] mm: Add alloc-free handshake to trigger
- memory region compaction
-References: <20130409214443.4500.44168.stgit@srivatsabhat.in.ibm.com> <20130409214853.4500.63619.stgit@srivatsabhat.in.ibm.com>
-In-Reply-To: <20130409214853.4500.63619.stgit@srivatsabhat.in.ibm.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 100FD6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 19:44:56 -0400 (EDT)
+Date: Wed, 10 Apr 2013 16:44:55 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] vfs: dcache: cond_resched in shrink_dentry_list
+Message-Id: <20130410164455.a3cbcbdf86bc72455c22f420@linux-foundation.org>
+In-Reply-To: <xr9361zvdxvj.fsf@gthelen.mtv.corp.google.com>
+References: <1364232151-23242-1-git-send-email-gthelen@google.com>
+	<20130325235614.GI6369@dastard>
+	<xr93fvzjgfke.fsf@gthelen.mtv.corp.google.com>
+	<20130326024032.GJ6369@dastard>
+	<xr934nfyg4ld.fsf@gthelen.mtv.corp.google.com>
+	<xr9361zvdxvj.fsf@gthelen.mtv.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, matthew.garrett@nebula.com, dave@sr71.net, rientjes@google.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, wujianguo@huawei.com, kmpark@infradead.org, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 04/09/2013 02:48 PM, Srivatsa S. Bhat wrote:
-> We need a way to decide when to trigger the worker threads to perform
-> region evacuation/compaction. So the strategy used is as follows:
->
-> Alloc path of page allocator:
-> ----------------------------
->
-> This accurately tracks the allocations and detects the first allocation
-> in a new region and notes down that region number. Performing compaction
-> rightaway is not going to be helpful because we need free pages in the
-> lower regions to be able to do that. And the page allocator allocated in
-> this region precisely because there was no memory available in lower regions.
-> So the alloc path just notes down the freshly used region's id.
->
-> Free path of page allocator:
-> ---------------------------
->
-> When we enter this path, we know that some memory is being freed. Here we
-> check if the alloc path had noted down any region for compaction. If so,
-> we trigger the worker function that tries to compact that memory.
->
-> Also, we avoid any locking/synchronization overhead over this worker
-> function in the alloc/free path, by attaching appropriate semantics to the
-> available status flags etc, such that we won't need any special locking
-> around them.
->
+On Tue, 09 Apr 2013 17:37:20 -0700 Greg Thelen <gthelen@google.com> wrote:
 
-Can you explain why avoiding locking works in this case?
+> > Call cond_resched() in shrink_dcache_parent() to maintain
+> > interactivity.
+> >
+> > Before this patch:
+> >
+> > void shrink_dcache_parent(struct dentry * parent)
+> > {
+> > 	while ((found = select_parent(parent, &dispose)) != 0)
+> > 		shrink_dentry_list(&dispose);
+> > }
+> >
+> > select_parent() populates the dispose list with dentries which
+> > shrink_dentry_list() then deletes.  select_parent() carefully uses
+> > need_resched() to avoid doing too much work at once.  But neither
+> > shrink_dcache_parent() nor its called functions call cond_resched().
+> > So once need_resched() is set select_parent() will return single
+> > dentry dispose list which is then deleted by shrink_dentry_list().
+> > This is inefficient when there are a lot of dentry to process.  This
+> > can cause softlockup and hurts interactivity on non preemptable
+> > kernels.
+> >
+> > This change adds cond_resched() in shrink_dcache_parent().  The
+> > benefit of this is that need_resched() is quickly cleared so that
+> > future calls to select_parent() are able to efficiently return a big
+> > batch of dentry.
+> >
+> > These additional cond_resched() do not seem to impact performance, at
+> > least for the workload below.
+> >
+> > Here is a program which can cause soft lockup on a if other system
+> > activity sets need_resched().
 
-It appears the lack of locking is only on the worker side, and the 
-mem_power_ctrl is implicitly protected by zone->lock on the alloc & free 
-side.
+I was unable to guess what word was missing from "on a if other" ;)
 
-In the previous patch I see smp_mb(), but no explanation is provided for 
-why they are needed. Are they related to/necessary for this lack of locking?
+> Should this change go through Al's or Andrew's branch?
 
-What happens when a region is passed over for compaction because the 
-worker is already compacting another region? Can this occur? Will the 
-compaction re-trigger appropriately?
+I'll fight him for it.
 
-I recommend combining this patch and the previous patch to make the 
-interface more clear, or make functions that explicitly handle the 
-interface for accessing mem_power_ctrl.
+
+Softlockups are fairly serious, so I'll put a cc:stable in there.  Or
+were the changes which triggered this problem added after 3.9?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
