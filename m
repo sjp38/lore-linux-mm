@@ -1,111 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 340456B0005
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 21:48:42 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id jh10so25413pab.38
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 18:48:41 -0700 (PDT)
-Message-ID: <5164C4F2.7090108@gmail.com>
-Date: Wed, 10 Apr 2013 09:48:34 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id E98586B0005
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 21:54:16 -0400 (EDT)
+Received: by mail-oa0-f52.google.com with SMTP id k14so8237644oag.11
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 18:54:16 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
- hardware access to the CPU page tables of user processes
-References: <5114DF05.7070702@mellanox.com> <5163CEB3.80707@gmail.com>
-In-Reply-To: <5163CEB3.80707@gmail.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <1365544834-c6v2jpoo-mutt-n-horiguchi@ah.jp.nec.com>
+References: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1365014138-19589-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <515F1F1F.6060900@gmail.com> <1365449252-9pc7knd5-mutt-n-horiguchi@ah.jp.nec.com>
+ <CAHGf_=ruv9itn7fhcL=Ar7z_6wQ5Ga_4kj7Ui3EfDUe_cV7D0w@mail.gmail.com> <1365544834-c6v2jpoo-mutt-n-horiguchi@ah.jp.nec.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Tue, 9 Apr 2013 21:53:55 -0400
+Message-ID: <CAHGf_=pDuFb4s3hg4M+AKphthgkCgFWMPKb9od7opcvDop4haQ@mail.gmail.com>
+Subject: Re: [PATCH v3 3/3] hugetlbfs: add swap entry check in follow_hugetlb_page()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shachar Raindel <raindel@mellanox.com>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>, Jerome Glisse <j.glisse@gmail.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Ping Jerome,
+> I rewrite the comment here, how about this?
+>
+> -               if (absent ||
+> +               /*
+> +                * We need call hugetlb_fault for both hugepages under migration
+> +                * (in which case hugetlb_fault waits for the migration,) and
+> +                * hwpoisoned hugepages (in which case we need to prevent the
+> +                * caller from accessing to them.) In order to do this, we use
+> +                * here is_swap_pte instead of is_hugetlb_entry_migration and
+> +                * is_hugetlb_entry_hwpoisoned. This is because it simply covers
+> +                * both cases, and because we can't follow correct pages directly
+> +                * from any kind of swap entries.
+> +                */
+> +               if (absent || is_swap_pte(huge_ptep_get(pte)) ||
+>                     ((flags & FOLL_WRITE) && !pte_write(huge_ptep_get(pte)))) {
+>                         int ret;
 
-On 04/09/2013 04:17 PM, Simon Jeons wrote:
-> Hi Simon,
-> On 02/08/2013 07:18 PM, Shachar Raindel wrote:
->> Hi,
->>
->> We would like to present a reference implementation for safely 
->> sharing memory pages from user space with the hardware, without pinning.
->>
->> We will be happy to hear the community feedback on our prototype 
->> implementation, and suggestions for future improvements.
->>
->> We would also like to discuss adding features to the core MM 
->> subsystem to assist hardware access to user memory without pinning.
->>
->> Following is a longer motivation and explanation on the technology 
->> presented:
->>
->> Many application developers would like to be able to be able to 
->> communicate directly with the hardware from the userspace.
->>
->> Use cases for that includes high performance networking API such as 
->> InfiniBand, RoCE and iWarp and interfacing with GPUs.
->>
->> Currently, if the user space application wants to share system memory 
->> with the hardware device, the kernel component must pin the memory 
->> pages in RAM, using get_user_pages.
->>
->> This is a hurdle, as it usually makes large portions the application 
->> memory unmovable. This pinning also makes the user space development 
->> model very complicated ? one needs to register memory before using it 
->> for communication with the hardware.
->>
->> We use the mmu-notifiers [1] mechanism to inform the hardware when 
->> the mapping of a page is changed. If the hardware tries to access a 
->> page which is not yet mapped for the hardware, it requests a 
->> resolution for the page address from the kernel.
->
-> mmu_notifiers is used for host notice guest a page changed, is it? Why 
-> you said that it is used for informing the hardware when the mapping 
-> of a page is changed?
->
->>
->> This mechanism allows the hardware to access the entire address space 
->> of the user application, without pinning even a single page.
->>
->> We would like to use the LSF/MM forum opportunity to discuss open 
->> issues we have for further development, such as:
->>
->> -Allowing the hardware to perform page table walk, similar to 
->> get_user_pages_fast to resolve user pages that are already in RAM.
->>
->> -Batching page eviction by various kernel subsystems (swapper, 
->> page-cache) to reduce the amount of communication needed with the 
->> hardware in such events
->>
->> -Hinting from the hardware to the MM regarding page fetches which are 
->> speculative, similarly to prefetching done by the page-cache
->>
->> -Page-in notifications from the kernel to the driver, such that we 
->> can keep our secondary TLB in sync with the kernel page table without 
->> incurring page faults.
->>
->> -Allowed and banned actions while in an MMU notifier callback. We 
->> have already done some work on making the MMU notifiers sleepable 
->> [2], but there might be additional limitations, which we would like 
->> to discuss.
->>
->> -Hinting from the MMU notifiers as for the reason for the 
->> notification - for example we would like to react differently if a 
->> page was moved by NUMA migration vs. page being swapped out.
->>
->> [1] http://lwn.net/Articles/266320/
->>
->> [2] http://comments.gmane.org/gmane.linux.kernel.mm/85002
->>
->> Thanks,
->>
->> --Shachar
->>
->> -- 
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org. For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+Looks ok to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
