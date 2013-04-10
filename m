@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 370E06B003D
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 12:18:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 356366B005C
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 12:18:48 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [RESEND][PATCH v5 1/3] hugetlbfs: stop setting VM_DONTDUMP in initializing vma(VM_HUGETLB)
-Date: Wed, 10 Apr 2013 12:17:47 -0400
-Message-Id: <1365610669-16625-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [RESEND][PATCH v5 3/3] hugetlbfs: add swap entry check in follow_hugetlb_page()
+Date: Wed, 10 Apr 2013 12:17:49 -0400
+Message-Id: <1365610669-16625-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1365610669-16625-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1365610669-16625-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,41 +13,76 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Currently we fail to include any data on hugepages into coredump,
-because VM_DONTDUMP is set on hugetlbfs's vma. This behavior was recently
-introduced by commit 314e51b98 "mm: kill vma flag VM_RESERVED and
-mm->reserved_vm counter". This looks to me a serious regression,
-so let's fix it.
+# I suspended Reviewed and Acked given for the previous version, because
+# it has a non-minor change. If you want to restore it, please let me know.
+-----
+With applying the previous patch "hugetlbfs: stop setting VM_DONTDUMP in
+initializing vma(VM_HUGETLB)" to reenable hugepage coredump, if a memory
+error happens on a hugepage and the affected processes try to access
+the error hugepage, we hit VM_BUG_ON(atomic_read(&page->_count) <= 0)
+in get_page().
+
+The reason for this bug is that coredump-related code doesn't recognise
+"hugepage hwpoison entry" with which a pmd entry is replaced when a memory
+error occurs on a hugepage.
+In other words, physical address information is stored in different bit layout
+between hugepage hwpoison entry and pmd entry, so follow_hugetlb_page()
+which is called in get_dump_page() returns a wrong page from a given address.
+
+The expected behavior is like this:
+
+  absent   is_swap_pte   FOLL_DUMP   Expected behavior
+  -------------------------------------------------------------------
+   true     false         false       hugetlb_fault
+   false    true          false       hugetlb_fault
+   false    false         false       return page
+   true     false         true        skip page (to avoid allocation)
+   false    true          true        hugetlb_fault
+   false    false         true        return page
+
+With this patch, we can call hugetlb_fault() and take proper actions
+(we wait for migration entries, fail with VM_FAULT_HWPOISON_LARGE for
+hwpoisoned entries,) and as the result we can dump all hugepages except
+for hwpoisoned ones.
+
+ChangeLog v5:
+ - improve comment and description.
+
+ChangeLog v4:
+ - move is_swap_page() to right place.
 
 ChangeLog v3:
- - move 'return 0' into a separate patch
-
-ChangeLog v2:
- - add 'return 0' in hugepage memory check
+ - add comment about using is_swap_pte()
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 Cc: stable@vger.kernel.org
 ---
- fs/hugetlbfs/inode.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/hugetlb.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
 
-diff --git v3.9-rc3.orig/fs/hugetlbfs/inode.c v3.9-rc3/fs/hugetlbfs/inode.c
-index 84e3d85..523464e 100644
---- v3.9-rc3.orig/fs/hugetlbfs/inode.c
-+++ v3.9-rc3/fs/hugetlbfs/inode.c
-@@ -110,7 +110,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
- 	 * way when do_mmap_pgoff unwinds (may be important on powerpc
- 	 * and ia64).
- 	 */
--	vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND | VM_DONTDUMP;
-+	vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND;
- 	vma->vm_ops = &hugetlb_vm_ops;
+diff --git v3.9-rc3.orig/mm/hugetlb.c v3.9-rc3/mm/hugetlb.c
+index 0d1705b..bf26ee8 100644
+--- v3.9-rc3.orig/mm/hugetlb.c
++++ v3.9-rc3/mm/hugetlb.c
+@@ -2983,7 +2983,17 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			break;
+ 		}
  
- 	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
+-		if (absent ||
++		/*
++		 * We need call hugetlb_fault for both hugepages under migration
++		 * (in which case hugetlb_fault waits for the migration,) and
++		 * hwpoisoned hugepages (in which case we need to prevent the
++		 * caller from accessing to them.) In order to do this, we use
++		 * here is_swap_pte instead of is_hugetlb_entry_migration and
++		 * is_hugetlb_entry_hwpoisoned. This is because it simply covers
++		 * both cases, and because we can't follow correct pages
++		 * directly from any kind of swap entries.
++		 */
++		if (absent || is_swap_pte(huge_ptep_get(pte)) ||
+ 		    ((flags & FOLL_WRITE) && !pte_write(huge_ptep_get(pte)))) {
+ 			int ret;
+ 
 -- 
 1.7.11.7
 
