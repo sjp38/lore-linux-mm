@@ -1,74 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 1EE446B0038
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 20:16:16 -0400 (EDT)
-Date: Wed, 10 Apr 2013 09:16:13 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: remove compressed copy from zram in-memory
-Message-ID: <20130410001613.GE6836@blaptop>
-References: <1365400862-9041-1-git-send-email-minchan@kernel.org>
- <20130408141710.1a1f76a0054bba49a42c76ca@linux-foundation.org>
- <20130409010231.GA3467@blaptop>
- <20130409125423.19592f11e44345df2bca6cfd@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20130409125423.19592f11e44345df2bca6cfd@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 9EE566B0038
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 20:26:14 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 10 Apr 2013 05:51:07 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id E666E3940058
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 05:56:06 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3A0Q2Tm7209364
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 05:56:03 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3A0Q5xV002583
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 00:26:05 GMT
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 01/10] staging: zcache: fix account foregin counters against zero-filled pages
+Date: Wed, 10 Apr 2013 08:25:51 +0800
+Message-Id: <1365553560-32258-2-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Tue, Apr 09, 2013 at 12:54:23PM -0700, Andrew Morton wrote:
-> On Tue, 9 Apr 2013 10:02:31 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > > Also, what's up with the SWP_BLKDEV test?  zram doesn't support
-> > > SWP_FILE?  Why on earth not?
-> > > 
-> > > Putting swap_slot_free_notify() into block_device_operations seems
-> > > rather wrong.  It precludes zram-over-swapfiles for all time and means
-> > > that other subsystems cannot get notifications for swap slot freeing
-> > > for swapfile-backed swap.
-> > 
-> > Zram is just pseudo-block device so anyone can format it with any FSes
-> > and swapon a file. In such case, he can't get a benefit from
-> > swap_slot_free_notify. But I think it's not a severe problem because
-> > there is no reason to use a file-swap on zram. If anyone want to use it,
-> > I'd like to know the reason. If it's reasonable, we have to rethink a
-> > wheel and it's another story, IMHO.
-> 
-> My point is that making the swap_slot_free_notify() callback a
-> blockdev-specific thing was restrictive.  What happens if someone wants
-> to use it for swapfile-backed swap?  This has nothing to do with zram.
+zero-filled pages won't be compressed and sent to remote system. Monitor
+the number ephemeral and persistent pages that Ramster has sent make no
+sense. This patch skip account foregin counters against zero-filled pages.
 
-Agree that it's not specific to zram even if zram is only user at the memont.
-IMHO, more general one is that we introduce SWP_INMEMORY with
-QUEUE_FLAS_INMEMORY_OR_SOMETHING so we can register swap_slot_free_notify
-if backed device has a such type.
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ drivers/staging/zcache/zcache-main.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-Do you really want to do above work(or alternative one, hope someone
-in this thread suggest better idea) prio to this patch?
-If so, I am happy to do it.
-But my concern that it will introduce to change core kernel for staging one
-where everyone ignore and apparently someone will regist it so will be stucked,
-again.
-
-So, I need a excuse to tell him "Hey guy, akpm told me "let's resolve
-the issue prio to solving duplicated copy problem of zram although
-it is for staging one". :)
-
-Could you give me a license to kill? 
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index f3de76d..e23d814 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -415,7 +415,7 @@ create_in_new_page:
+ got_pampd:
+ 	inc_zcache_eph_zbytes(clen);
+ 	inc_zcache_eph_zpages();
+-	if (ramster_enabled && raw)
++	if (ramster_enabled && raw && !zero_filled)
+ 		ramster_count_foreign_pages(true, 1);
+ 	if (zero_filled)
+ 		pampd = (void *)ZERO_FILLED;
+@@ -500,7 +500,7 @@ create_in_new_page:
+ got_pampd:
+ 	inc_zcache_pers_zpages();
+ 	inc_zcache_pers_zbytes(clen);
+-	if (ramster_enabled && raw)
++	if (ramster_enabled && raw && !zero_filled)
+ 		ramster_count_foreign_pages(false, 1);
+ 	if (zero_filled)
+ 		pampd = (void *)ZERO_FILLED;
+@@ -681,7 +681,7 @@ zero_fill:
+ 		dec_zcache_pers_zpages(zpages);
+ 		dec_zcache_pers_zbytes(zsize);
+ 	}
+-	if (!is_local_client(pool->client))
++	if (!is_local_client(pool->client) && !zero_filled)
+ 		ramster_count_foreign_pages(eph, -1);
+ 	if (page && !zero_filled)
+ 		zcache_free_page(page);
+@@ -732,7 +732,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
+ 		dec_zcache_pers_zpages(zpages);
+ 		dec_zcache_pers_zbytes(zsize);
+ 	}
+-	if (!is_local_client(pool->client))
++	if (!is_local_client(pool->client) && !zero_filled)
+ 		ramster_count_foreign_pages(is_ephemeral(pool), -1);
+ 	if (page && !zero_filled)
+ 		zcache_free_page(page);
 -- 
-Kind regards,
-Minchan Kim
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
