@@ -1,43 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id E98586B0005
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 21:54:16 -0400 (EDT)
-Received: by mail-oa0-f52.google.com with SMTP id k14so8237644oag.11
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 18:54:16 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 395A06B0006
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 21:57:11 -0400 (EDT)
+Received: by mail-qe0-f54.google.com with SMTP id s14so4038919qeb.13
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 18:57:10 -0700 (PDT)
+Message-ID: <5164C6EE.7020502@gmail.com>
+Date: Wed, 10 Apr 2013 09:57:02 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1365544834-c6v2jpoo-mutt-n-horiguchi@ah.jp.nec.com>
-References: <1365014138-19589-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1365014138-19589-4-git-send-email-n-horiguchi@ah.jp.nec.com>
- <515F1F1F.6060900@gmail.com> <1365449252-9pc7knd5-mutt-n-horiguchi@ah.jp.nec.com>
- <CAHGf_=ruv9itn7fhcL=Ar7z_6wQ5Ga_4kj7Ui3EfDUe_cV7D0w@mail.gmail.com> <1365544834-c6v2jpoo-mutt-n-horiguchi@ah.jp.nec.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Tue, 9 Apr 2013 21:53:55 -0400
-Message-ID: <CAHGf_=pDuFb4s3hg4M+AKphthgkCgFWMPKb9od7opcvDop4haQ@mail.gmail.com>
-Subject: Re: [PATCH v3 3/3] hugetlbfs: add swap entry check in follow_hugetlb_page()
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
+ hardware access to the CPU page tables of user processes
+References: <5114DF05.7070702@mellanox.com> <CANN689Ff6vSu4ZvHek4J4EMzFG7EjF-Ej48hJKV_4SrLoj+mCA@mail.gmail.com> <CAH3drwaACy5KFv_2ozEe35u1Jpxs0f6msKoW=3_0nrWZpJnO4w@mail.gmail.com>
+In-Reply-To: <CAH3drwaACy5KFv_2ozEe35u1Jpxs0f6msKoW=3_0nrWZpJnO4w@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Michel Lespinasse <walken@google.com>, Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-> I rewrite the comment here, how about this?
+Hi Jerome,
+On 02/10/2013 12:29 AM, Jerome Glisse wrote:
+> On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse <walken@google.com> wrote:
+>> On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel <raindel@mellanox.com> wrote:
+>>> Hi,
+>>>
+>>> We would like to present a reference implementation for safely sharing
+>>> memory pages from user space with the hardware, without pinning.
+>>>
+>>> We will be happy to hear the community feedback on our prototype
+>>> implementation, and suggestions for future improvements.
+>>>
+>>> We would also like to discuss adding features to the core MM subsystem to
+>>> assist hardware access to user memory without pinning.
+>> This sounds kinda scary TBH; however I do understand the need for such
+>> technology.
+>>
+>> I think one issue is that many MM developers are insufficiently aware
+>> of such developments; having a technology presentation would probably
+>> help there; but traditionally LSF/MM sessions are more interactive
+>> between developers who are already quite familiar with the technology.
+>> I think it would help if you could send in advance a detailed
+>> presentation of the problem and the proposed solutions (and then what
+>> they require of the MM layer) so people can be better prepared.
+>>
+>> And first I'd like to ask, aren't IOMMUs supposed to already largely
+>> solve this problem ? (probably a dumb question, but that just tells
+>> you how much you need to explain :)
+> For GPU the motivation is three fold. With the advance of GPU compute
+> and also with newer graphic program we see a massive increase in GPU
+> memory consumption. We easily can reach buffer that are bigger than
+> 1gbytes. So the first motivation is to directly use the memory the
+> user allocated through malloc in the GPU this avoid copying 1gbytes of
+> data with the cpu to the gpu buffer. The second and mostly important
+> to GPU compute is the use of GPU seamlessly with the CPU, in order to
+> achieve this you want the programmer to have a single address space on
+> the CPU and GPU. So that the same address point to the same object on
+> GPU as on the CPU. This would also be a tremendous cleaner design from
+> driver point of view toward memory management.
+
+When GPU will comsume memory?
+
+The userspace process like mplayer will have video datas and GPU will 
+play this datas and use memory of mplayer since these video datas load 
+in mplayer process's address space? So GPU codes will call gup to take a 
+reference of memory? Please correct me if my understanding is wrong. ;-)
+
+
+> And last, the most important, with such big buffer (>1gbytes) the
+> memory pinning is becoming way to expensive and also drastically
+> reduce the freedom of the mm to free page for other process. Most of
+> the time a small window (every thing is relative the window can be >
+> 100mbytes not so small :)) of the object will be in use by the
+> hardware. The hardware pagefault support would avoid the necessity to
+> pin memory and thus offer greater flexibility. At the same time the
+> driver wants to avoid page fault as much as possible this is why i
+> would like to be able to give hint to the mm about range of address it
+> should avoid freeing page (swapping them out).
 >
-> -               if (absent ||
-> +               /*
-> +                * We need call hugetlb_fault for both hugepages under migration
-> +                * (in which case hugetlb_fault waits for the migration,) and
-> +                * hwpoisoned hugepages (in which case we need to prevent the
-> +                * caller from accessing to them.) In order to do this, we use
-> +                * here is_swap_pte instead of is_hugetlb_entry_migration and
-> +                * is_hugetlb_entry_hwpoisoned. This is because it simply covers
-> +                * both cases, and because we can't follow correct pages directly
-> +                * from any kind of swap entries.
-> +                */
-> +               if (absent || is_swap_pte(huge_ptep_get(pte)) ||
->                     ((flags & FOLL_WRITE) && !pte_write(huge_ptep_get(pte)))) {
->                         int ret;
-
-Looks ok to me.
+> The iommu was designed with other goals, which were first isolate
+> device from one another and restrict device access to allowed memory.
+> Second allow to remap address that are above device address space
+> limit. Lot of device can only address 24bit or 32bit of memory and
+> with computer with several gbytes of memory suddenly lot of the page
+> become unreachable to the hardware. The iommu allow to work around
+> this by remapping those high page into address that the hardware can
+> reach.
+>
+> The hardware page fault support is a new feature of iommu designed to
+> help the os and driver to reduce memory pinning and also share address
+> space. Thought i am sure there are other motivations that i am not
+> even aware off or would think off.
+>
+> Btw i won't be at LSF/MM so a free good beer (or other beverage) on me
+> to whoever takes note on this subject in next conf we run into each
+> others.
+>
+> Cheers,
+> Jerome
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
