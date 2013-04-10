@@ -1,66 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id F23326B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 01:09:52 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id kl13so106509pab.4
-        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 22:09:52 -0700 (PDT)
-Message-ID: <5164F416.8040903@gmail.com>
-Date: Wed, 10 Apr 2013 13:09:42 +0800
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id CB3DC6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 01:15:48 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa11so106258pad.27
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 22:15:47 -0700 (PDT)
+Message-ID: <5164F57E.3030106@gmail.com>
+Date: Wed, 10 Apr 2013 13:15:42 +0800
 From: Ric Mason <ric.masonn@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-3-git-send-email-glommer@parallels.com> <515936B5.8070501@jp.fujitsu.com> <515940E4.8050704@parallels.com>
-In-Reply-To: <515940E4.8050704@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: [PATCH] mm: page_alloc: Avoid marking zones full prematurely
+ after zone_reclaim()
+References: <20130320181957.GA1878@suse.de> <514A7163.5070700@gmail.com> <20130321081902.GD6094@dhcp22.suse.cz> <515E6FC4.5000202@gmail.com> <5163E7EA.1040608@gmail.com> <20130409101437.GE29860@dhcp22.suse.cz>
+In-Reply-To: <20130409101437.GE29860@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Simon Jeons <simon.jeons@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Hedi Berriche <hedi@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Glauber,
-On 04/01/2013 04:10 PM, Glauber Costa wrote:
-> Hi Kame,
->
->> Doesn't this break
->>
->> ==
->>                 /*
->>                  * copy the current shrinker scan count into a local variable
->>                  * and zero it so that other concurrent shrinker invocations
->>                  * don't also do this scanning work.
->>                  */
->>                 nr = atomic_long_xchg(&shrinker->nr_in_batch, 0);
->> ==
->>
->> This xchg magic ?
->>
->> Thnks,
->> -Kame
-> This is done before the actual reclaim attempt, and all it does is to
-> indicate to other concurrent shrinkers that "I've got it", and others
-> should not attempt to shrink.
->
-> Even before I touch this, this quantity represents the number of
-> entities we will try to shrink. Not necessarily we will succeed. What my
-> patch does, is to try at least once if the number is too small.
->
-> Before it, we will try to shrink 512 objects and succeed at 0 (because
-> batch is 1024). After this, we will try to free 512 objects and succeed
-> at an undefined quantity between 0 and 512.
+Hi Michal,
+On 04/09/2013 06:14 PM, Michal Hocko wrote:
+> On Tue 09-04-13 18:05:30, Simon Jeons wrote:
+> [...]
+>>> I try this in v3.9-rc5:
+>>> dd if=/dev/sda of=/dev/null bs=1MB
+>>> 14813+0 records in
+>>> 14812+0 records out
+>>> 14812000000 bytes (15 GB) copied, 105.988 s, 140 MB/s
+>>>
+>>> free -m -s 1
+>>>
+>>>                    total       used       free     shared buffers
+>>> cached
+>>> Mem:          7912       1181       6731          0 663        239
+>>> -/+ buffers/cache:        277       7634
+>>> Swap:         8011          0       8011
+>>>
+>>> It seems that almost 15GB copied before I stop dd, but the used
+>>> pages which I monitor during dd always around 1200MB. Weird, why?
+>>>
+>> Sorry for waste your time, but the test result is weird, is it?
+> I am not sure which values you have been watching but you have to
+> realize that you are reading a _partition_ not a file and those pages
+> go into buffers rather than the page chache.
 
-Where you get the magic number 512 and 1024? The value of SHRINK_BATCH
-is 128.
+Interesting. ;-)
 
->
-> In both cases, we will zero out nr_in_batch in the shrinker structure to
-> notify other shrinkers that we are the ones shrinking.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+What's the difference between buffers and page cache? Why buffers don't 
+grow?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
