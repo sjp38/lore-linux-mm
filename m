@@ -1,42 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 101D26B0037
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:32:01 -0400 (EDT)
-Message-ID: <51651596.7090903@parallels.com>
-Date: Wed, 10 Apr 2013 11:32:38 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 0518B6B0027
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:48:05 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7C7503EE0C0
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:48:04 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6754345DEB5
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:48:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F2D245DEB2
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:48:04 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 42CE81DB803B
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:48:04 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E51711DB8038
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:48:03 +0900 (JST)
+Message-ID: <51651913.4040007@jp.fujitsu.com>
+Date: Wed, 10 Apr 2013 16:47:31 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com> <1364548450-28254-3-git-send-email-glommer@parallels.com> <515936B5.8070501@jp.fujitsu.com> <515940E4.8050704@parallels.com> <5164F416.8040903@gmail.com>
-In-Reply-To: <5164F416.8040903@gmail.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [PATCH 03/10] mm: vmscan: Flatten kswapd priority loop
+References: <1365505625-9460-1-git-send-email-mgorman@suse.de> <1365505625-9460-4-git-send-email-mgorman@suse.de>
+In-Reply-To: <1365505625-9460-4-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ric Mason <ric.masonn@gmail.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 04/10/2013 09:09 AM, Ric Mason wrote:
->> Before it, we will try to shrink 512 objects and succeed at 0 (because
->> > batch is 1024). After this, we will try to free 512 objects and succeed
->> > at an undefined quantity between 0 and 512.
-> Where you get the magic number 512 and 1024? The value of SHRINK_BATCH
-> is 128.
+(2013/04/09 20:06), Mel Gorman wrote:
+> kswapd stops raising the scanning priority when at least SWAP_CLUSTER_MAX
+> pages have been reclaimed or the pgdat is considered balanced. It then
+> rechecks if it needs to restart at DEF_PRIORITY and whether high-order
+> reclaim needs to be reset. This is not wrong per-se but it is confusing
+> to follow and forcing kswapd to stay at DEF_PRIORITY may require several
+> restarts before it has scanned enough pages to meet the high watermark even
+> at 100% efficiency. This patch irons out the logic a bit by controlling
+> when priority is raised and removing the "goto loop_again".
 > 
-This is shrinker-defined. For instance, the super-block shrinker reads:
+> This patch has kswapd raise the scanning priority until it is scanning
+> enough pages that it could meet the high watermark in one shrink of the
+> LRU lists if it is able to reclaim at 100% efficiency. It will not raise
+> the scanning prioirty higher unless it is failing to reclaim any pages.
+> 
+> To avoid infinite looping for high-order allocation requests kswapd will
+> not reclaim for high-order allocations when it has reclaimed at least
+> twice the number of pages as the allocation request.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>   mm/vmscan.c | 85 +++++++++++++++++++++++++++++--------------------------------
+>   1 file changed, 40 insertions(+), 45 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 0742c45..78268ca 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2633,8 +2633,12 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+>   /*
+>    * kswapd shrinks the zone by the number of pages required to reach
+>    * the high watermark.
+> + *
+> + * Returns true if kswapd scanned at least the requested number of pages to
+> + * reclaim. This is used to determine if the scanning priority needs to be
+> + * raised.
+>    */
+> -static void kswapd_shrink_zone(struct zone *zone,
+> +static bool kswapd_shrink_zone(struct zone *zone,
+>   			       struct scan_control *sc,
+>   			       unsigned long lru_pages)
+>   {
+> @@ -2654,6 +2658,8 @@ static void kswapd_shrink_zone(struct zone *zone,
+>   
+>   	if (nr_slab == 0 && !zone_reclaimable(zone))
+>   		zone->all_unreclaimable = 1;
+> +
+> +	return sc->nr_scanned >= sc->nr_to_reclaim;
+>   }
+>   
+>   /*
+> @@ -2680,26 +2686,25 @@ static void kswapd_shrink_zone(struct zone *zone,
+>   static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>   							int *classzone_idx)
+>   {
+> -	bool pgdat_is_balanced = false;
+>   	int i;
+>   	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+>   	unsigned long nr_soft_reclaimed;
+>   	unsigned long nr_soft_scanned;
+>   	struct scan_control sc = {
+>   		.gfp_mask = GFP_KERNEL,
+> +		.priority = DEF_PRIORITY,
+>   		.may_unmap = 1,
+>   		.may_swap = 1,
+> +		.may_writepage = !laptop_mode,
+>   		.order = order,
+>   		.target_mem_cgroup = NULL,
+>   	};
+> -loop_again:
+> -	sc.priority = DEF_PRIORITY;
+> -	sc.nr_reclaimed = 0;
+> -	sc.may_writepage = !laptop_mode;
+>   	count_vm_event(PAGEOUTRUN);
+>   
+>   	do {
+>   		unsigned long lru_pages = 0;
+> +		unsigned long nr_reclaimed = sc.nr_reclaimed = 0;
+> +		bool raise_priority = true;
+>   
+>   		/*
+>   		 * Scan in the highmem->dma direction for the highest
+> @@ -2741,10 +2746,8 @@ loop_again:
+>   			}
+>   		}
+>   
+> -		if (i < 0) {
+> -			pgdat_is_balanced = true;
+> +		if (i < 0)
+>   			goto out;
+> -		}
+>   
+>   		for (i = 0; i <= end_zone; i++) {
+>   			struct zone *zone = pgdat->node_zones + i;
+> @@ -2811,8 +2814,16 @@ loop_again:
+>   
+>   			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
+>   			    !zone_balanced(zone, testorder,
+> -					   balance_gap, end_zone))
+> -				kswapd_shrink_zone(zone, &sc, lru_pages);
+> +					   balance_gap, end_zone)) {
+> +				/*
+> +				 * There should be no need to raise the
+> +				 * scanning priority if enough pages are
+> +				 * already being scanned that high
+> +				 * watermark would be met at 100% efficiency.
+> +				 */
+> +				if (kswapd_shrink_zone(zone, &sc, lru_pages))
+> +					raise_priority = false;
 
-                s->s_shrink.shrink = prune_super;
-                s->s_shrink.batch = 1024;
+priority will be raised up enough to scan the amount of "high" watermark
+and will not get larger than that if some pages are reclaimed ?
 
-And then vmscan:
-                long batch_size = shrinker->batch ? shrinker->batch
-                                                  : SHRINK_BATCH;
+Thanks,
+-Kame
 
-I am dealing too much with the super block shrinker these days, so I
-just had that cached in my mind and forgot to check the code and be more
-explicit.
 
-In any case, that was a numeric example that is valid nevertheless.
+> +			}
+>   
+>   			/*
+>   			 * If we're getting trouble reclaiming, start doing
+> @@ -2847,46 +2858,29 @@ loop_again:
+>   				pfmemalloc_watermark_ok(pgdat))
+>   			wake_up(&pgdat->pfmemalloc_wait);
+>   
+> -		if (pgdat_balanced(pgdat, order, *classzone_idx)) {
+> -			pgdat_is_balanced = true;
+> -			break;		/* kswapd: all done */
+> -		}
+> -
+>   		/*
+> -		 * We do this so kswapd doesn't build up large priorities for
+> -		 * example when it is freeing in parallel with allocators. It
+> -		 * matches the direct reclaim path behaviour in terms of impact
+> -		 * on zone->*_priority.
+> +		 * Fragmentation may mean that the system cannot be rebalanced
+> +		 * for high-order allocations in all zones. If twice the
+> +		 * allocation size has been reclaimed and the zones are still
+> +		 * not balanced then recheck the watermarks at order-0 to
+> +		 * prevent kswapd reclaiming excessively. Assume that a
+> +		 * process requested a high-order can direct reclaim/compact.
+>   		 */
+> -		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
+> -			break;
+> -	} while (--sc.priority >= 0);
+> -
+> -out:
+> -	if (!pgdat_is_balanced) {
+> -		cond_resched();
+> +		if (order && sc.nr_reclaimed >= 2UL << order)
+> +			order = sc.order = 0;
+>   
+> -		try_to_freeze();
+> +		/* Check if kswapd should be suspending */
+> +		if (try_to_freeze() || kthread_should_stop())
+> +			break;
+>   
+>   		/*
+> -		 * Fragmentation may mean that the system cannot be
+> -		 * rebalanced for high-order allocations in all zones.
+> -		 * At this point, if nr_reclaimed < SWAP_CLUSTER_MAX,
+> -		 * it means the zones have been fully scanned and are still
+> -		 * not balanced. For high-order allocations, there is
+> -		 * little point trying all over again as kswapd may
+> -		 * infinite loop.
+> -		 *
+> -		 * Instead, recheck all watermarks at order-0 as they
+> -		 * are the most important. If watermarks are ok, kswapd will go
+> -		 * back to sleep. High-order users can still perform direct
+> -		 * reclaim if they wish.
+> +		 * Raise priority if scanning rate is too low or there was no
+> +		 * progress in reclaiming pages
+>   		 */
+> -		if (sc.nr_reclaimed < SWAP_CLUSTER_MAX)
+> -			order = sc.order = 0;
+> -
+> -		goto loop_again;
+> -	}
+> +		if (raise_priority || sc.nr_reclaimed - nr_reclaimed == 0)
+> +			sc.priority--;
+> +	} while (sc.priority >= 0 &&
+> +		 !pgdat_balanced(pgdat, order, *classzone_idx));
+>   
+>   	/*
+>   	 * If kswapd was reclaiming at a higher order, it has the option of
+> @@ -2915,6 +2909,7 @@ out:
+>   			compact_pgdat(pgdat, order);
+>   	}
+>   
+> +out:
+>   	/*
+>   	 * Return the order we were reclaiming at so prepare_kswapd_sleep()
+>   	 * makes a decision on the order we were last reclaiming at. However,
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
