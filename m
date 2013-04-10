@@ -1,73 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 8E6E76B0036
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 20:26:14 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id C298F6B0039
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 20:26:15 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 10 Apr 2013 05:52:21 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 6CDEB1258023
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 05:57:32 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3A0PxOE65732690
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 05:56:02 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3A0Q4pC023185
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:26:04 +1000
+	Wed, 10 Apr 2013 10:24:02 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 0E8112BB0052
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:26:09 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3A0CfsO63766546
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:12:42 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3A0Q7xu017137
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 10:26:08 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH 00/10] staging: zcache/ramster: fix and ramster/debugfs improvement
-Date: Wed, 10 Apr 2013 08:25:50 +0800
-Message-Id: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH 02/10] staging: zcache: remove zcache_freeze
+Date: Wed, 10 Apr 2013 08:25:52 +0800
+Message-Id: <1365553560-32258-3-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Fix bugs in zcache and rips out the debug counters out of ramster.c and 
-sticks them in a debug.c file. Introduce accessory functions for counters 
-increase/decrease, they are available when config RAMSTER_DEBUG, otherwise 
-they are empty non-debug functions. Using an array to initialize/use debugfs 
-attributes to make them neater. Dan Magenheimer confirm these works 
-are needed. http://marc.info/?l=linux-mm&m=136535713106882&w=2
+The default value of zcache_freeze is false and it won't be modified by
+other codes. Remove zcache_freeze since no routine can disable zcache
+during system running.
 
-Patch 1~2 fix bugs in zcache
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ drivers/staging/zcache/zcache-main.c |   55 +++++++++++-----------------------
+ 1 file changed, 18 insertions(+), 37 deletions(-)
 
-Patch 3~8 rips out the debug counters out of ramster.c and sticks them 
-		  in a debug.c file 
-
-Patch 9 fix coding style issue introduced in zcache2 cleanups 
-        (s/int/bool + debugfs movement) patchset 
-
-Patch 10 add how-to for ramster 
-
-Dan Magenheimer (1):
-	staging: ramster: add how-to for ramster
-	
-Wanpeng Li (9):
-	staging: zcache: fix account foregin counters against zero-filled pages
-	staging: zcache: remove zcache_freeze  
-	staging: ramster: Provide accessory functions for counter increase
-	staging: ramster: Provide accessory functions for counter decrease
-	staging: ramster: Move debugfs code out of ramster.c files
-	staging: ramster/debug: Use an array to initialize/use debugfs attributes
-	staging: ramster/debug: Add RAMSTER_DEBUG Kconfig entry
-	staging: ramster: Add incremental accessory counters
-	staging: zcache/debug: fix coding style
-
- drivers/staging/zcache/Kconfig           |    8 +
- drivers/staging/zcache/Makefile          |    1 +
- drivers/staging/zcache/debug.h           |   36 ++---
- drivers/staging/zcache/ramster/HOWTO.txt |  257 ++++++++++++++++++++++++++++++
- drivers/staging/zcache/ramster/debug.c   |   66 ++++++++
- drivers/staging/zcache/ramster/debug.h   |  104 ++++++++++++
- drivers/staging/zcache/ramster/ramster.c |  145 ++++-------------
- drivers/staging/zcache/zcache-main.c     |   63 +++-----
- 8 files changed, 505 insertions(+), 175 deletions(-)
- create mode 100644 drivers/staging/zcache/ramster/HOWTO.txt
- create mode 100644 drivers/staging/zcache/ramster/debug.c
- create mode 100644 drivers/staging/zcache/ramster/debug.h
-
+diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+index e23d814..fe6801a 100644
+--- a/drivers/staging/zcache/zcache-main.c
++++ b/drivers/staging/zcache/zcache-main.c
+@@ -1118,15 +1118,6 @@ free_and_out:
+ #endif /* CONFIG_ZCACHE_WRITEBACK */
+ 
+ /*
+- * When zcache is disabled ("frozen"), pools can be created and destroyed,
+- * but all puts (and thus all other operations that require memory allocation)
+- * must fail.  If zcache is unfrozen, accepts puts, then frozen again,
+- * data consistency requires all puts while frozen to be converted into
+- * flushes.
+- */
+-static bool zcache_freeze;
+-
+-/*
+  * This zcache shrinker interface reduces the number of ephemeral pageframes
+  * used by zcache to approximately the same as the total number of LRU_FILE
+  * pageframes in use, and now also reduces the number of persistent pageframes
+@@ -1221,44 +1212,34 @@ int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
+ {
+ 	struct tmem_pool *pool;
+ 	struct tmem_handle th;
+-	int ret = -1;
++	int ret = 0;
+ 	void *pampd = NULL;
+ 
+ 	BUG_ON(!irqs_disabled());
+ 	pool = zcache_get_pool_by_id(cli_id, pool_id);
+ 	if (unlikely(pool == NULL))
+ 		goto out;
+-	if (!zcache_freeze) {
+-		ret = 0;
+-		th.client_id = cli_id;
+-		th.pool_id = pool_id;
+-		th.oid = *oidp;
+-		th.index = index;
+-		pampd = zcache_pampd_create((char *)page, size, raw,
+-				ephemeral, &th);
+-		if (pampd == NULL) {
+-			ret = -ENOMEM;
+-			if (ephemeral)
+-				inc_zcache_failed_eph_puts();
+-			else
+-				inc_zcache_failed_pers_puts();
+-		} else {
+-			if (ramster_enabled)
+-				ramster_do_preload_flnode(pool);
+-			ret = tmem_put(pool, oidp, index, 0, pampd);
+-			if (ret < 0)
+-				BUG();
+-		}
+-		zcache_put_pool(pool);
++
++	th.client_id = cli_id;
++	th.pool_id = pool_id;
++	th.oid = *oidp;
++	th.index = index;
++	pampd = zcache_pampd_create((char *)page, size, raw,
++			ephemeral, &th);
++	if (pampd == NULL) {
++		ret = -ENOMEM;
++		if (ephemeral)
++			inc_zcache_failed_eph_puts();
++		else
++			inc_zcache_failed_pers_puts();
+ 	} else {
+-		inc_zcache_put_to_flush();
+ 		if (ramster_enabled)
+ 			ramster_do_preload_flnode(pool);
+-		if (atomic_read(&pool->obj_count) > 0)
+-			/* the put fails whether the flush succeeds or not */
+-			(void)tmem_flush_page(pool, oidp, index);
+-		zcache_put_pool(pool);
++		ret = tmem_put(pool, oidp, index, 0, pampd);
++		if (ret < 0)
++			BUG();
+ 	}
++	zcache_put_pool(pool);
+ out:
+ 	return ret;
+ }
 -- 
 1.7.10.4
 
