@@ -1,104 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id EF1BF6B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 05:52:02 -0400 (EDT)
-Date: Wed, 10 Apr 2013 11:51:54 +0200 (CEST)
-From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
-Subject: Re: [PATCH v3 09/18] reiserfs: use ->invalidatepage() length
- argument
-In-Reply-To: <20130409132756.GE13672@quack.suse.cz>
-Message-ID: <alpine.LFD.2.00.1304101151130.10609@dhcp-1-230.brq.redhat.com>
-References: <1365498867-27782-1-git-send-email-lczerner@redhat.com> <1365498867-27782-10-git-send-email-lczerner@redhat.com> <20130409132756.GE13672@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id A04876B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 06:07:55 -0400 (EDT)
+Date: Wed, 10 Apr 2013 20:07:52 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
+Message-ID: <20130410100752.GA10481@dastard>
+References: <20130408084202.GA21654@lge.com>
+ <51628412.6050803@parallels.com>
+ <20130408090131.GB21654@lge.com>
+ <51628877.5000701@parallels.com>
+ <20130409005547.GC21654@lge.com>
+ <20130409012931.GE17758@dastard>
+ <20130409020505.GA4218@lge.com>
+ <20130409123008.GM17758@dastard>
+ <20130410025115.GA5872@lge.com>
+ <20130410084606.GA10235@hacker.(null)>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130410084606.GA10235@hacker.(null)>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Lukas Czerner <lczerner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, reiserfs-devel@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Tue, 9 Apr 2013, Jan Kara wrote:
+On Wed, Apr 10, 2013 at 04:46:06PM +0800, Wanpeng Li wrote:
+> On Wed, Apr 10, 2013 at 11:51:16AM +0900, Joonsoo Kim wrote:
+> >On Tue, Apr 09, 2013 at 10:30:08PM +1000, Dave Chinner wrote:
+> >> On Tue, Apr 09, 2013 at 11:05:05AM +0900, Joonsoo Kim wrote:
+> >> > I don't think so.
+> >> > Yes, lowmem_shrink() return number of (in)active lru pages
+> >> > when nr_to_scan is 0. And in shrink_slab(), we divide it by lru_pages.
+> >> > lru_pages can vary where shrink_slab() is called, anyway, perhaps this
+> >> > logic makes total_scan below 128.
+> >> 
+> >> "perhaps"
+> >> 
+> >> 
+> >> There is no "perhaps" here - there is *zero* guarantee of the
+> >> behaviour you are claiming the lowmem killer shrinker is dependent
+> >> on with the existing shrinker infrastructure. So, lets say we have:
+.....
+> >> IOWs, this algorithm effectively causes the shrinker to be called
+> >> 127 times out of 128 in this arbitrary scenario. It does not behave
+> >> as you are assuming it to, and as such any code based on those
+> >> assumptions is broken....
+> >
+> >Thanks for good example. I got your point :)
+> >But, my concern is not solved entirely, because this is not problem
+> >just for lowmem killer and I can think counter example. And other drivers
+> >can be suffered from this change.
+> >
+> >I look at the code for "huge_zero_page_shrinker".
+> >They return HPAGE_PMD_NR if there is shrikerable object.
 
-> Date: Tue, 9 Apr 2013 15:27:56 +0200
-> From: Jan Kara <jack@suse.cz>
-> To: Lukas Czerner <lczerner@redhat.com>
-> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
->     linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
->     reiserfs-devel@vger.kernel.org
-> Subject: Re: [PATCH v3 09/18] reiserfs: use ->invalidatepage() length argument
-> 
-> On Tue 09-04-13 11:14:18, Lukas Czerner wrote:
-> > ->invalidatepage() aop now accepts range to invalidate so we can make
-> > use of it in reiserfs_invalidatepage()
->   Hum, reiserfs is probably never going to support punch hole. So shouldn't
-> we rather WARN and return without doing anything if stop !=
-> PAGE_CACHE_SIZE?
-> 
-> 								Honza
+<sigh>
 
-Hi,
+Yet another new shrinker that is just plain broken. it tracks a
+*single object*, and returns a value only when the ref count value
+is 1 which will result in freeing the zero page at some
+random time in the future after some number of other calls to the
+shrinker where the refcount is also 1.
 
-I can not even think of the case when this would happen since it
-could not happen before either. However in the case it happens the
-code will do what's expected. So I do not have any strong preference
-about this one, but I do not think it's necessary to WARN here. If
-you still insist on the WARN, let me know and I'll resend the patch.
+This is *insane*.
 
-Thanks for the reviews!
--Lukas
+> >I try to borrow your example for this case.
+> >
+> > 	nr_pages_scanned = 1,000
+> > 	lru_pages = 100,000
+> > 	batch_size = SHRINK_BATCH = 128
+> > 	max_pass= 512 (HPAGE_PMD_NR)
+> >
+> > 	total_scan = shrinker->nr_in_batch = 0
+> > 	delta = 4 * 1,000 / 2 = 2,000
+> > 	delta = 2,000 * 512 = 1,024,000
+> > 	delta = 1,024,000 / 100,001 = 10
+> > 	total_scan += delta = 10
+> >
+> >As you can see, before this patch, do_shrinker_shrink() for
+> >"huge_zero_page_shrinker" is not called until we call shrink_slab() more
+> >than 13 times. *Frequency* we call do_shrinker_shrink() actually is
+> >largely different with before.
 
-> > 
-> > Signed-off-by: Lukas Czerner <lczerner@redhat.com>
-> > Cc: reiserfs-devel@vger.kernel.org
-> > ---
-> >  fs/reiserfs/inode.c |    9 +++++++--
-> >  1 files changed, 7 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/fs/reiserfs/inode.c b/fs/reiserfs/inode.c
-> > index 808e02e..e963164 100644
-> > --- a/fs/reiserfs/inode.c
-> > +++ b/fs/reiserfs/inode.c
-> > @@ -2975,11 +2975,13 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
-> >  	struct buffer_head *head, *bh, *next;
-> >  	struct inode *inode = page->mapping->host;
-> >  	unsigned int curr_off = 0;
-> > +	unsigned int stop = offset + length;
-> > +	int partial_page = (offset || length < PAGE_CACHE_SIZE);
-> >  	int ret = 1;
-> >  
-> >  	BUG_ON(!PageLocked(page));
-> >  
-> > -	if (offset == 0)
-> > +	if (!partial_page)
-> >  		ClearPageChecked(page);
-> >  
-> >  	if (!page_has_buffers(page))
-> > @@ -2991,6 +2993,9 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
-> >  		unsigned int next_off = curr_off + bh->b_size;
-> >  		next = bh->b_this_page;
-> >  
-> > +		if (next_off > stop)
-> > +			goto out;
-> > +
-> >  		/*
-> >  		 * is this block fully invalidated?
-> >  		 */
-> > @@ -3009,7 +3014,7 @@ static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
-> >  	 * The get_block cached value has been unconditionally invalidated,
-> >  	 * so real IO is not possible anymore.
-> >  	 */
-> > -	if (!offset && ret) {
-> > +	if (!partial_page && ret) {
-> >  		ret = try_to_release_page(page, 0);
-> >  		/* maybe should BUG_ON(!ret); - neilb */
-> >  	}
-> > -- 
-> > 1.7.7.6
-> > 
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
+If the frequency of the shrinker calls breaks the shrinker
+functionality or the subsystem because it pays no attention to
+nr_to_scan, then the shrinker is fundamentally broken. The shrinker
+has *no control* over the frequency of the calls to it or the bathc
+size, and so being dependent on "small numbers means few calls" for
+correct behaviour is dangerously unpredictable and completely
+non-deterministic.
+
+Besides, if you don't want to be shrunk, return a count of -1.
+Shock, horror, it is even documented in the API!
+
+ * 'sc' is passed shrink_control which includes a count 'nr_to_scan'             
+ * and a 'gfpmask'.  It should look through the least-recently-used              
+ * 'nr_to_scan' entries and attempt to free them up.  It should return           
+ * the number of objects which remain in the cache.  If it returns -1, it means  
+ * it cannot do any scanning at this time (eg. there is a risk of deadlock).     
+
+> >With this patch, we actually call
+> >do_shrinker_shrink() for "huge_zero_page_shrinker" 12 times more
+> >than before. Can we be convinced that there will be no problem?
+> >
+> >This is why I worry about this change.
+> >Am I worried too much? :)
+
+You're worrying about the wrong thing. You're assuming that
+shrinkers are implemented correctly and sanely, but the reality is
+that most shrinkers are fundamentally broken in some way or another.
+
+These are just two examples of many. We are trying to fix the API
+and shrinker infrastructure to remove the current insanity. We want
+to make the shrinkers more flexible so that stuff like one-shot low
+memory event notifications can be implemented without grotesque
+hacks like the shrinkers you've used as examples so far...
+
+-Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
