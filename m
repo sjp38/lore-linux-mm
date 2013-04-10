@@ -1,231 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 0518B6B0027
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:48:05 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7C7503EE0C0
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:48:04 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6754345DEB5
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:48:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4F2D245DEB2
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:48:04 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 42CE81DB803B
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:48:04 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E51711DB8038
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:48:03 +0900 (JST)
-Message-ID: <51651913.4040007@jp.fujitsu.com>
-Date: Wed, 10 Apr 2013 16:47:31 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 12F816B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 03:54:21 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 10 Apr 2013 17:46:49 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 8C2E3357804A
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:54:13 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3A7eDYF55378040
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:40:13 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3A7rd2p018847
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:53:39 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V5 06/25] powerpc: Reduce PTE table memory wastage
+In-Reply-To: <20130410070403.GH8165@truffula.fritz.box>
+References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1365055083-31956-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130410044611.GF8165@truffula.fritz.box> <8738uyq4om.fsf@linux.vnet.ibm.com> <20130410070403.GH8165@truffula.fritz.box>
+Date: Wed, 10 Apr 2013 13:23:25 +0530
+Message-ID: <87r4iiom8a.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 03/10] mm: vmscan: Flatten kswapd priority loop
-References: <1365505625-9460-1-git-send-email-mgorman@suse.de> <1365505625-9460-4-git-send-email-mgorman@suse.de>
-In-Reply-To: <1365505625-9460-4-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Gibson <dwg@au1.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-(2013/04/09 20:06), Mel Gorman wrote:
-> kswapd stops raising the scanning priority when at least SWAP_CLUSTER_MAX
-> pages have been reclaimed or the pgdat is considered balanced. It then
-> rechecks if it needs to restart at DEF_PRIORITY and whether high-order
-> reclaim needs to be reset. This is not wrong per-se but it is confusing
-> to follow and forcing kswapd to stay at DEF_PRIORITY may require several
-> restarts before it has scanned enough pages to meet the high watermark even
-> at 100% efficiency. This patch irons out the logic a bit by controlling
-> when priority is raised and removing the "goto loop_again".
-> 
-> This patch has kswapd raise the scanning priority until it is scanning
-> enough pages that it could meet the high watermark in one shrink of the
-> LRU lists if it is able to reclaim at 100% efficiency. It will not raise
-> the scanning prioirty higher unless it is failing to reclaim any pages.
-> 
-> To avoid infinite looping for high-order allocation requests kswapd will
-> not reclaim for high-order allocations when it has reclaimed at least
-> twice the number of pages as the allocation request.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> ---
->   mm/vmscan.c | 85 +++++++++++++++++++++++++++++--------------------------------
->   1 file changed, 40 insertions(+), 45 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 0742c45..78268ca 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2633,8 +2633,12 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
->   /*
->    * kswapd shrinks the zone by the number of pages required to reach
->    * the high watermark.
-> + *
-> + * Returns true if kswapd scanned at least the requested number of pages to
-> + * reclaim. This is used to determine if the scanning priority needs to be
-> + * raised.
->    */
-> -static void kswapd_shrink_zone(struct zone *zone,
-> +static bool kswapd_shrink_zone(struct zone *zone,
->   			       struct scan_control *sc,
->   			       unsigned long lru_pages)
->   {
-> @@ -2654,6 +2658,8 @@ static void kswapd_shrink_zone(struct zone *zone,
->   
->   	if (nr_slab == 0 && !zone_reclaimable(zone))
->   		zone->all_unreclaimable = 1;
-> +
-> +	return sc->nr_scanned >= sc->nr_to_reclaim;
->   }
->   
->   /*
-> @@ -2680,26 +2686,25 @@ static void kswapd_shrink_zone(struct zone *zone,
->   static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->   							int *classzone_idx)
->   {
-> -	bool pgdat_is_balanced = false;
->   	int i;
->   	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
->   	unsigned long nr_soft_reclaimed;
->   	unsigned long nr_soft_scanned;
->   	struct scan_control sc = {
->   		.gfp_mask = GFP_KERNEL,
-> +		.priority = DEF_PRIORITY,
->   		.may_unmap = 1,
->   		.may_swap = 1,
-> +		.may_writepage = !laptop_mode,
->   		.order = order,
->   		.target_mem_cgroup = NULL,
->   	};
-> -loop_again:
-> -	sc.priority = DEF_PRIORITY;
-> -	sc.nr_reclaimed = 0;
-> -	sc.may_writepage = !laptop_mode;
->   	count_vm_event(PAGEOUTRUN);
->   
->   	do {
->   		unsigned long lru_pages = 0;
-> +		unsigned long nr_reclaimed = sc.nr_reclaimed = 0;
-> +		bool raise_priority = true;
->   
->   		/*
->   		 * Scan in the highmem->dma direction for the highest
-> @@ -2741,10 +2746,8 @@ loop_again:
->   			}
->   		}
->   
-> -		if (i < 0) {
-> -			pgdat_is_balanced = true;
-> +		if (i < 0)
->   			goto out;
-> -		}
->   
->   		for (i = 0; i <= end_zone; i++) {
->   			struct zone *zone = pgdat->node_zones + i;
-> @@ -2811,8 +2814,16 @@ loop_again:
->   
->   			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
->   			    !zone_balanced(zone, testorder,
-> -					   balance_gap, end_zone))
-> -				kswapd_shrink_zone(zone, &sc, lru_pages);
-> +					   balance_gap, end_zone)) {
-> +				/*
-> +				 * There should be no need to raise the
-> +				 * scanning priority if enough pages are
-> +				 * already being scanned that high
-> +				 * watermark would be met at 100% efficiency.
-> +				 */
-> +				if (kswapd_shrink_zone(zone, &sc, lru_pages))
-> +					raise_priority = false;
+David Gibson <dwg@au1.ibm.com> writes:
 
-priority will be raised up enough to scan the amount of "high" watermark
-and will not get larger than that if some pages are reclaimed ?
+> On Wed, Apr 10, 2013 at 11:59:29AM +0530, Aneesh Kumar K.V wrote:
+>> David Gibson <dwg@au1.ibm.com> writes:
+>> > On Thu, Apr 04, 2013 at 11:27:44AM +0530, Aneesh Kumar K.V wrote:
+> [snip]
+>> >> @@ -97,13 +100,45 @@ void __destroy_context(int context_id)
+>> >>  }
+>> >>  EXPORT_SYMBOL_GPL(__destroy_context);
+>> >>  
+>> >> +#ifdef CONFIG_PPC_64K_PAGES
+>> >> +static void destroy_pagetable_page(struct mm_struct *mm)
+>> >> +{
+>> >> +	int count;
+>> >> +	struct page *page;
+>> >> +
+>> >> +	page = mm->context.pgtable_page;
+>> >> +	if (!page)
+>> >> +		return;
+>> >> +
+>> >> +	/* drop all the pending references */
+>> >> +	count = atomic_read(&page->_mapcount) + 1;
+>> >> +	/* We allow PTE_FRAG_NR(16) fragments from a PTE page */
+>> >> +	count = atomic_sub_return(16 - count, &page->_count);
+>> >
+>> > You should really move PTE_FRAG_NR to a header so you can actually use
+>> > it here rather than hard coding 16.
+>> >
+>> > It took me a fair while to convince myself that there is no race here
+>> > with something altering mapcount and count between the atomic_read()
+>> > and the atomic_sub_return().  It could do with a comment to explain
+>> > why that is safe.
+>> >
+>> > Re-using the mapcount field for your index also seems odd, and it took
+>> > me a while to convince myself that that's safe too.  Wouldn't it be
+>> > simpler to store a pointer to the next sub-page in the mm_context
+>> > instead? You can get from that to the struct page easily enough with a
+>> > shift and pfn_to_page().
+>> 
+>> I found using _mapcount simpler in this case. I was looking at it not
+>> as an index, but rather how may fragments are mapped/used already.
+>
+> Except that it's actually (#fragments - 1).  Using subpage pointer
+> makes the fragments calculation (very slightly) harder, but the
+> calculation of the table address easier.  More importantly it avoids
+> adding effectively an extra variable - which is then shoehorned into a
+> structure not really designed to hold it.
 
-Thanks,
--Kame
+Even with subpage pointer we would need mm->context.pgtable_page or
+something similar. We don't add any other extra variable right ?. Let me
+try what you are suggesting here and see if that make it simpler.
 
 
-> +			}
->   
->   			/*
->   			 * If we're getting trouble reclaiming, start doing
-> @@ -2847,46 +2858,29 @@ loop_again:
->   				pfmemalloc_watermark_ok(pgdat))
->   			wake_up(&pgdat->pfmemalloc_wait);
->   
-> -		if (pgdat_balanced(pgdat, order, *classzone_idx)) {
-> -			pgdat_is_balanced = true;
-> -			break;		/* kswapd: all done */
-> -		}
-> -
->   		/*
-> -		 * We do this so kswapd doesn't build up large priorities for
-> -		 * example when it is freeing in parallel with allocators. It
-> -		 * matches the direct reclaim path behaviour in terms of impact
-> -		 * on zone->*_priority.
-> +		 * Fragmentation may mean that the system cannot be rebalanced
-> +		 * for high-order allocations in all zones. If twice the
-> +		 * allocation size has been reclaimed and the zones are still
-> +		 * not balanced then recheck the watermarks at order-0 to
-> +		 * prevent kswapd reclaiming excessively. Assume that a
-> +		 * process requested a high-order can direct reclaim/compact.
->   		 */
-> -		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
-> -			break;
-> -	} while (--sc.priority >= 0);
-> -
-> -out:
-> -	if (!pgdat_is_balanced) {
-> -		cond_resched();
-> +		if (order && sc.nr_reclaimed >= 2UL << order)
-> +			order = sc.order = 0;
->   
-> -		try_to_freeze();
-> +		/* Check if kswapd should be suspending */
-> +		if (try_to_freeze() || kthread_should_stop())
-> +			break;
->   
->   		/*
-> -		 * Fragmentation may mean that the system cannot be
-> -		 * rebalanced for high-order allocations in all zones.
-> -		 * At this point, if nr_reclaimed < SWAP_CLUSTER_MAX,
-> -		 * it means the zones have been fully scanned and are still
-> -		 * not balanced. For high-order allocations, there is
-> -		 * little point trying all over again as kswapd may
-> -		 * infinite loop.
-> -		 *
-> -		 * Instead, recheck all watermarks at order-0 as they
-> -		 * are the most important. If watermarks are ok, kswapd will go
-> -		 * back to sleep. High-order users can still perform direct
-> -		 * reclaim if they wish.
-> +		 * Raise priority if scanning rate is too low or there was no
-> +		 * progress in reclaiming pages
->   		 */
-> -		if (sc.nr_reclaimed < SWAP_CLUSTER_MAX)
-> -			order = sc.order = 0;
-> -
-> -		goto loop_again;
-> -	}
-> +		if (raise_priority || sc.nr_reclaimed - nr_reclaimed == 0)
-> +			sc.priority--;
-> +	} while (sc.priority >= 0 &&
-> +		 !pgdat_balanced(pgdat, order, *classzone_idx));
->   
->   	/*
->   	 * If kswapd was reclaiming at a higher order, it has the option of
-> @@ -2915,6 +2909,7 @@ out:
->   			compact_pgdat(pgdat, order);
->   	}
->   
-> +out:
->   	/*
->   	 * Return the order we were reclaiming at so prepare_kswapd_sleep()
->   	 * makes a decision on the order we were last reclaiming at. However,
-> 
+>> Using
+>> subpage pointer in mm->context.xyz means, we have to calculate the
+>> number of fragments used/mapped via the pointer. We need the fragment
+>> count so that we can drop page reference count correctly here.
+>> 
+>> 
+>> >
+>> >> +	if (!count) {
+>> >> +		pgtable_page_dtor(page);
+>> >> +		reset_page_mapcount(page);
+>> >> +		free_hot_cold_page(page, 0);
+>> >
+>> > It would be nice to use put_page() somehow instead of duplicating its
+>> > logic, though I realise the sparc code you've based this on does the
+>> > same thing.
+>> 
+>> That is not exactly put_page. We can avoid lots of check in this
+>> specific case.
+>
+> [snip]
+>> >> +static pte_t *__alloc_for_cache(struct mm_struct *mm, int kernel)
+>> >> +{
+>> >> +	pte_t *ret = NULL;
+>> >> +	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK |
+>> >> +				       __GFP_REPEAT | __GFP_ZERO);
+>> >> +	if (!page)
+>> >> +		return NULL;
+>> >> +
+>> >> +	spin_lock(&mm->page_table_lock);
+>> >> +	/*
+>> >> +	 * If we find pgtable_page set, we return
+>> >> +	 * the allocated page with single fragement
+>> >> +	 * count.
+>> >> +	 */
+>> >> +	if (likely(!mm->context.pgtable_page)) {
+>> >> +		atomic_set(&page->_count, PTE_FRAG_NR);
+>> >> +		atomic_set(&page->_mapcount, 0);
+>> >> +		mm->context.pgtable_page = page;
+>> >> +	}
+>> >
+>> > .. and in the unlikely case where there *is* a pgtable_page already
+>> > set, what then?  Seems like you should BUG_ON, or at least return NULL
+>> > - as it is you will return the first sub-page of that page again,
+>> > which is very likely in use.
+>> 
+>> 
+>> As explained in the comment above, we return with the allocated page
+>> with fragment count set to 1. So we end up having only one fragment. The
+>> other option I had was to to free the allocated page and do a
+>> get_from_cache under the page_table_lock. But since we already allocated
+>> the page, why not use that ?. It also keep the code similar to
+>> sparc.
+>
+> My point is that I can't see any circumstance under which we should
+> ever hit this case.  Which means if we do something is badly messed up
+> and we should BUG() (or at least WARN()).
 
+A multi threaded test would easily hit that. stream is the test I used.
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
