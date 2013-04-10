@@ -1,76 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 8E7F16B0006
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 19:45:08 -0400 (EDT)
-Subject: [PATCH] mm: madvise: complete input validation before taking lock
-From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Date: Wed, 10 Apr 2013 23:45:06 +0000
-Message-ID: <u0leheij6gt.fsf@orc05.imf.au.dk>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 0A4D86B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 19:46:24 -0400 (EDT)
+Received: by mail-vb0-f52.google.com with SMTP id w8so850649vbf.11
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 16:46:23 -0700 (PDT)
+Message-ID: <5165F9CE.5050600@gmail.com>
+Date: Wed, 10 Apr 2013 19:46:22 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH 0/10] Reduce system disruption due to kswapd V2
+References: <1365505625-9460-1-git-send-email-mgorman@suse.de> <0000013defd666bf-213d70fc-dfbd-4a50-82ed-e9f4f7391b55-000000@email.amazonses.com> <20130410141445.GD3710@suse.de> <alpine.DEB.2.02.1304101524120.7738@dtop>
+In-Reply-To: <alpine.DEB.2.02.1304101524120.7738@dtop>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: dormando <dormando@rydia.net>
+Cc: Mel Gorman <mgorman@suse.de>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kosaki.motohiro@gmail.com
 
-In madvise(), there doesn't seem to be any reason for taking the
-&current->mm->mmap_sem before start and len_in have been
-validated. Incidentally, this removes the need for the out: label.
+>> I've never checked it but I would have expected kswapd to stay on the
+>> same processor for significant periods of time. Have you experienced
+>> problems where kswapd bounces around on CPUs within a node causing
+>> workload disruption?
+> 
+> When kswapd shares the same CPU as our main process it causes a measurable
+> drop in response time (graphs show tiny spikes at the same time memory is
+> freed). Would be nice to be able to ensure it runs on a different core
+> than our latency sensitive processes at least. We can pin processes to
+> subsets of cores but I don't think there's a way to keep kswapd from
+> waking up on any of them?
 
+You are only talking about extream corner case and don't talk about the other hand.
+When number-of-nodes > nubmer-of-cpus, we have no way to avoid cpu sharing. 
 
-Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
----
-
-diff --git a/mm/madvise.c b/mm/madvise.c
-index c58c94b..d2ae668 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -473,27 +473,27 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- 	if (!madvise_behavior_valid(behavior))
- 		return error;
- 
--	write = madvise_need_mmap_write(behavior);
--	if (write)
--		down_write(&current->mm->mmap_sem);
--	else
--		down_read(&current->mm->mmap_sem);
--
- 	if (start & ~PAGE_MASK)
--		goto out;
-+		return error;
- 	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
- 
- 	/* Check to see whether len was rounded up from small -ve to zero */
- 	if (len_in && !len)
--		goto out;
-+		return error;
- 
- 	end = start + len;
- 	if (end < start)
--		goto out;
-+		return error;
- 
- 	error = 0;
- 	if (end == start)
--		goto out;
-+		return error;
-+
-+	write = madvise_need_mmap_write(behavior);
-+	if (write)
-+		down_write(&current->mm->mmap_sem);
-+	else
-+		down_read(&current->mm->mmap_sem);
- 
- 	/*
- 	 * If the interval [start,end) covers some unmapped address
-@@ -541,7 +541,6 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- 	}
- out_plug:
- 	blk_finish_plug(&plug);
--out:
- 	if (write)
- 		up_write(&current->mm->mmap_sem);
- 	else
+Moreover, this is not kswapd specific isssue, every kernel thread makes the same
+latency ick. so, this issue should be solved more generic layer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
