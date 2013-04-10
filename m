@@ -1,131 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 7AEBF6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 22:48:52 -0400 (EDT)
-Date: Wed, 10 Apr 2013 11:48:48 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH 0/4] Support vranges on files
-Message-ID: <20130410024848.GA21292@blaptop>
-References: <1365033144-15156-1-git-send-email-john.stultz@linaro.org>
- <20130404065509.GE7675@blaptop>
- <515DBA70.8010606@linaro.org>
- <20130405075504.GA32126@blaptop>
- <20130408004638.GA6394@blaptop>
- <5163629A.4070202@linaro.org>
- <20130409021801.GD3467@blaptop>
- <51638AB6.6000803@linaro.org>
- <20130409050742.GB6836@blaptop>
- <516497E4.1000001@linaro.org>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 1FB5A6B0005
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 22:50:36 -0400 (EDT)
+Date: Wed, 10 Apr 2013 11:51:16 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
+Message-ID: <20130410025115.GA5872@lge.com>
+References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
+ <1364548450-28254-3-git-send-email-glommer@parallels.com>
+ <20130408084202.GA21654@lge.com>
+ <51628412.6050803@parallels.com>
+ <20130408090131.GB21654@lge.com>
+ <51628877.5000701@parallels.com>
+ <20130409005547.GC21654@lge.com>
+ <20130409012931.GE17758@dastard>
+ <20130409020505.GA4218@lge.com>
+ <20130409123008.GM17758@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <516497E4.1000001@linaro.org>
+In-Reply-To: <20130409123008.GM17758@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Tue, Apr 09, 2013 at 03:36:20PM -0700, John Stultz wrote:
-> On 04/08/2013 10:07 PM, Minchan Kim wrote:
-> >On Mon, Apr 08, 2013 at 08:27:50PM -0700, John Stultz wrote:
-> >>marked volatile, it should remain volatile until someone who has the
-> >>file open marks it as non-volatile.  The only time we clear the
-> >>volatility is when the file is closed by all users.
-> >Yes. We need it that clear volatile ranges when the file is closed
-> >by ball users. That's what we need and blow my concern out.
-> 
-> Ok, sorry this wasn't more clear. In all the implementations I've
-> pushed, the volatility only persists as long as someone holds the
-> file open. Once its closed by all users, the volatility is cleared.
+Hello, Dave.
 
-I now confirmed it with your implementation.
-Sorry for the confusing without looking into your code in detail. :(
+On Tue, Apr 09, 2013 at 10:30:08PM +1000, Dave Chinner wrote:
+> On Tue, Apr 09, 2013 at 11:05:05AM +0900, Joonsoo Kim wrote:
+> > On Tue, Apr 09, 2013 at 11:29:31AM +1000, Dave Chinner wrote:
+> > > On Tue, Apr 09, 2013 at 09:55:47AM +0900, Joonsoo Kim wrote:
+> > > > lowmemkiller makes spare memory via killing a task.
+> > > > 
+> > > > Below is code from lowmem_shrink() in lowmemorykiller.c
+> > > > 
+> > > >         for (i = 0; i < array_size; i++) {
+> > > >                 if (other_free < lowmem_minfree[i] &&
+> > > >                     other_file < lowmem_minfree[i]) {
+> > > >                         min_score_adj = lowmem_adj[i];
+> > > >                         break;
+> > > >                 }   
+> > > >         } 
+> > > 
+> > > I don't think you understand what the current lowmemkiller shrinker
+> > > hackery actually does.
+> > > 
+> > >         rem = global_page_state(NR_ACTIVE_ANON) +
+> > >                 global_page_state(NR_ACTIVE_FILE) +
+> > >                 global_page_state(NR_INACTIVE_ANON) +
+> > >                 global_page_state(NR_INACTIVE_FILE);
+> > >         if (sc->nr_to_scan <= 0 || min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
+> > >                 lowmem_print(5, "lowmem_shrink %lu, %x, return %d\n",
+> > >                              sc->nr_to_scan, sc->gfp_mask, rem);
+> > >                 return rem;
+> > >         }
+> > > 
+> > > So, when nr_to_scan == 0 (i.e. the count phase), the shrinker is
+> > > going to return a count of active/inactive pages in the cache. That
+> > > is almost always going to be non-zero, and almost always be > 1000
+> > > because of the minimum working set needed to run the system.
+> > > Even after applying the seek count adjustment, total_scan is almost
+> > > always going to be larger than the shrinker default batch size of
+> > > 128, and that means this shrinker will almost always run at least
+> > > once per shrink_slab() call.
+> > 
+> > I don't think so.
+> > Yes, lowmem_shrink() return number of (in)active lru pages
+> > when nr_to_scan is 0. And in shrink_slab(), we divide it by lru_pages.
+> > lru_pages can vary where shrink_slab() is called, anyway, perhaps this
+> > logic makes total_scan below 128.
+> 
+> "perhaps"
+> 
+> 
+> There is no "perhaps" here - there is *zero* guarantee of the
+> behaviour you are claiming the lowmem killer shrinker is dependent
+> on with the existing shrinker infrastructure. So, lets say we have:
+> 
+> 	nr_pages_scanned = 1000
+> 	lru_pages = 100,000
+> 
+> Your shrinker is going to return 100,000 when nr_to_scan = 0. So,
+> we have:
+> 
+> 	batch_size = SHRINK_BATCH = 128
+> 	max_pass= 100,000
+> 
+> 	total_scan = shrinker->nr_in_batch = 0
+> 	delta = 4 * 1000 / 32 = 128
+> 	delta = 128 * 100,000 = 12,800,000
+> 	delta = 12,800,000 / 100,001 = 127
+> 	total_scan += delta = 127
+> 
+> Assuming the LRU pages count does not change(*), nr_pages_scanned is
+> irrelevant and delta always comes in 1 count below the batch size,
+> and the shrinker is not called. The remainder is then:
+> 
+> 	shrinker->nr_in_batch += total_scan = 127
+> 
+> (*) the lru page count will change, because reclaim and shrinkers
+> run concurrently, and so we can't even make a simple contrived case
+> where delta is consistently < batch_size here.
+> 
+> Anyway, the next time the shrinker is entered, we start with:
+> 
+> 	total_scan = shrinker->nr_in_batch = 127
+> 	.....
+> 	total_scan += delta = 254
+> 
+> 	<shrink once, total scan -= batch_size = 126>
+> 
+> 	shrinker->nr_in_batch += total_scan = 126
+> 
+> And so on for all the subsequent shrink_slab calls....
+> 
+> IOWs, this algorithm effectively causes the shrinker to be called
+> 127 times out of 128 in this arbitrary scenario. It does not behave
+> as you are assuming it to, and as such any code based on those
+> assumptions is broken....
 
-> 
-> Hopefully that calms your worries here. :)
+Thanks for good example. I got your point :)
+But, my concern is not solved entirely, because this is not problem
+just for lowmem killer and I can think counter example. And other drivers
+can be suffered from this change.
 
-Yeb.
+I look at the code for "huge_zero_page_shrinker".
+They return HPAGE_PMD_NR if there is shrikerable object.
 
-> 
-> 
-> 
-> >>I think the concern about surprising an application that isn't
-> >>expecting volatility is odd, since if an application jumped in and
-> >>punched a hole in the data, that could surprise other applications
-> >>as well.  If you're going to use a file that can be shared,
-> >>applications have to deal with potential changes to that file by
-> >>others.
-> >True. My concern is delayed punching without any client of fd and
-> >there is no interface to detect some range of file is volatile state or
-> >not. It means anyone mapped a file with shared could encunter SIGBUS
-> >although he try to best effort to check it with lsof before using.
-> 
-> I'll grant the SIGBUG semantics create the potential for stranger
-> behavior then usual, but I think the use cases are still attractive
-> enough to try to make it work.
+I try to borrow your example for this case.
 
-Indeed.
+ 	nr_pages_scanned = 1,000
+ 	lru_pages = 100,000
+ 	batch_size = SHRINK_BATCH = 128
+ 	max_pass= 512 (HPAGE_PMD_NR)
+ 
+ 	total_scan = shrinker->nr_in_batch = 0
+ 	delta = 4 * 1,000 / 2 = 2,000
+ 	delta = 2,000 * 512 = 1,024,000
+ 	delta = 1,024,000 / 100,001 = 10
+ 	total_scan += delta = 10
 
-> 
-> 
-> >>To me, the value in using volatile ranges on the file data is
-> >>exactly because the file data can be shared. So it makes sense to me
-> >>to have the volatility state be like the data in the file. I guess
-> >>the only exception in my case is that if all the references to a
-> >>file are closed, we can clear the volatility (since we don't have a
-> >>sane way for the volatility to persist past that point).
-> >Agree if you provide to clear out volatility when file are closed by
-> >all stakeholder.
-> 
-> Agreed.
-> 
-> 
-> >>One question that might help resolve this: Would having some sort of
-> >>volatility checking interface be helpful in easing your concern
-> >>about applications being surprised by volatility?
-> >If we can provide above things, I think we don't need such interface
-> >until someone want it with reasonable logic.
-> 
-> Sure, I just wanted to know if you saw a need right away. For now we
-> can leave it be.
-> 
-> >>True. And performance needs to be good if this hinting interface is
-> >>to be used easily. Although I worry about performance trumping sane
-> >>semantics. So let me try to implement the desired behavior and we
-> >>can measure the difference.
-> >NP. But keep in mind that mmap_sem was really terrible for performance
-> >when I took a expereiment(ie, concurrent page fault by many threads
-> >while a thread calls mmap).
-> >I guess primary reason is CONFIG_MUTEX_SPIN_ON_OWNER.
-> >So at least, we should avoid it by introducing new mode like
-> >VOLATILE_ANON|VOLATILE_FILE|VOLATILE_BOTH if we want to
-> >support mvrange-file and mvragne interface was thing userland people
-> >really want although ashmem have used fd-based model.
-> 
-> The VOLATILE_ANON|VOLATILE_FILE|VOLATILE_BOTH may be an interesting
-> compromise.
-> 
-> Though, if one marks a VOLATILE_ANON range on an address that's an
-> mmaped file, how do we detect this and provide a sane error value
-> without checking the vmas?
-> 
+As you can see, before this patch, do_shrinker_shrink() for
+"huge_zero_page_shrinker" is not called until we call shrink_slab() more
+than 13 times. *Frequency* we call do_shrinker_shrink() actually is
+largely different with before. With this patch, we actually call
+do_shrinker_shrink() for "huge_zero_page_shrinker" 12 times more
+than before. Can we be convinced that there will be no problem?
 
-Should we check vma?
-If there are conflict with existing vrange type, just return an -EINVAL?
+This is why I worry about this change.
+Am I worried too much? :)
 
+I show another scenario what I am thinking for lowmem killer.
+
+In reality, 'nr_pages_scanned' reflect sc->priority.
+You can see it get_scan_count() in vmscan.c
+
+	size = get_lru_size(lruvec, lru);
+	scan = size >> sc->priority;
+
+So, I try to re-construct your example with above assumption.
+
+If sc->priority is DEF_PRIORITY (12)
+
+ 	nr_pages_scanned = 25 (100,000 / 4,096)
+ 	lru_pages = 100,000
+ 	batch_size = SHRINK_BATCH = 128
+ 	max_pass= 100,000
+ 
+ 	total_scan = shrinker->nr_in_batch = 0
+ 	delta = 4 * 25 / 32 = 3
+ 	delta = 3 * 100,000 = 300,000
+ 	delta = 300,000 / 100,001 = 3
+ 	total_scan += delta = 3
+
+So, do_shrinker_shrink() is not called for lowmem killer until
+we call shrink_slab() more than 40 times if sc->priority is DEF_PRIORITY.
+So, AICT, if we don't have trouble too much in reclaiming memory, it will not
+triggered frequently.
+
+I like this patchset, and I think shrink_slab interface should be
+re-worked. What I want to say is just that this patch is not trivial
+change and should notify user to test it.
+I want to say again, I don't want to become a stopper for this patchset :)
+
+Please let me know what I am missing.
+
+Thanks.
+
+> Cheers,
 > 
-> thanks
-> -john
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
