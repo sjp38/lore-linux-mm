@@ -1,72 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 2DCCB6B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:51:50 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id u11so483473pdi.8
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 14:51:49 -0700 (PDT)
-Date: Wed, 10 Apr 2013 14:51:46 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RESEND][PATCH v5 3/3] hugetlbfs: add swap entry check in
- follow_hugetlb_page()
-In-Reply-To: <1365610669-16625-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.DEB.2.02.1304101450110.1526@chino.kir.corp.google.com>
-References: <1365610669-16625-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1365610669-16625-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 298816B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 18:02:05 -0400 (EDT)
+Message-ID: <1365630585.32127.110.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v3 2/3] resource: Add release_mem_region_adjustable()
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 10 Apr 2013 15:49:45 -0600
+In-Reply-To: <20130410144412.395bf9f2fb8192920175e30a@linux-foundation.org>
+References: <1365614221-685-1-git-send-email-toshi.kani@hp.com>
+	 <1365614221-685-3-git-send-email-toshi.kani@hp.com>
+	 <20130410144412.395bf9f2fb8192920175e30a@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Michal Hocko <mhocko@suse.cz>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
-On Wed, 10 Apr 2013, Naoya Horiguchi wrote:
+On Wed, 2013-04-10 at 14:44 -0700, Andrew Morton wrote:
+> On Wed, 10 Apr 2013 11:17:00 -0600 Toshi Kani <toshi.kani@hp.com> wrote:
+> 
+> > Added release_mem_region_adjustable(), which releases a requested
+> > region from a currently busy memory resource.  This interface
+> > adjusts the matched memory resource accordingly even if the
+> > requested region does not match exactly but still fits into.
+> > 
+> > This new interface is intended for memory hot-delete.  During
+> > bootup, memory resources are inserted from the boot descriptor
+> > table, such as EFI Memory Table and e820.  Each memory resource
+> > entry usually covers the whole contigous memory range.  Memory
+> > hot-delete request, on the other hand, may target to a particular
+> > range of memory resource, and its size can be much smaller than
+> > the whole contiguous memory.  Since the existing release interfaces
+> > like __release_region() require a requested region to be exactly
+> > matched to a resource entry, they do not allow a partial resource
+> > to be released.
+> > 
+> > This new interface is restrictive (i.e. release under certain
+> > conditions), which is consistent with other release interfaces,
+> > __release_region() and __release_resource().  Additional release
+> > conditions, such as an overlapping region to a resource entry,
+> > can be supported after they are confirmed as valid cases.
+> > 
+> > There is no change to the existing interfaces since their restriction
+> > is valid for I/O resources.
+> > 
+> > ...
+> >
+> > +int release_mem_region_adjustable(struct resource *parent,
+> > +			resource_size_t start, resource_size_t size)
+> > +{
+> > +	struct resource **p;
+> > +	struct resource *res, *new;
+> > +	resource_size_t end;
+> > +	int ret = -EINVAL;
+> > +
+> > +	end = start + size - 1;
+> > +	if ((start < parent->start) || (end > parent->end))
+> > +		return ret;
+> > +
+> > +	p = &parent->child;
+> > +	write_lock(&resource_lock);
+> > +
+> > +	while ((res = *p)) {
+> > +		if (res->start >= end)
+> > +			break;
+> > +
+> > +		/* look for the next resource if it does not fit into */
+> > +		if (res->start > start || res->end < end) {
+> > +			p = &res->sibling;
+> > +			continue;
+> > +		}
+> > +
+> > +		if (!(res->flags & IORESOURCE_MEM))
+> > +			break;
+> > +
+> > +		if (!(res->flags & IORESOURCE_BUSY)) {
+> > +			p = &res->child;
+> > +			continue;
+> > +		}
+> > +
+> > +		/* found the target resource; let's adjust accordingly */
+> > +		if (res->start == start && res->end == end) {
+> > +			/* free the whole entry */
+> > +			*p = res->sibling;
+> > +			kfree(res);
+> > +			ret = 0;
+> > +		} else if (res->start == start && res->end != end) {
+> > +			/* adjust the start */
+> > +			ret = __adjust_resource(res, end + 1,
+> > +						res->end - end);
+> > +		} else if (res->start != start && res->end == end) {
+> > +			/* adjust the end */
+> > +			ret = __adjust_resource(res, res->start,
+> > +						start - res->start);
+> > +		} else {
+> > +			/* split into two entries */
+> > +			new = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> 
+> Nope, we can't perform a GFP_KERNEL allocation under write_lock().
+> 
+> Was this code path runtime tested?  If no, please try
+> to find a way to test it.  If yes, please see
+> Documentation/SubmitChecklist section 12 and use that in the future.
 
-> # I suspended Reviewed and Acked given for the previous version, because
-> # it has a non-minor change. If you want to restore it, please let me know.
-> -----
-> With applying the previous patch "hugetlbfs: stop setting VM_DONTDUMP in
-> initializing vma(VM_HUGETLB)" to reenable hugepage coredump, if a memory
-> error happens on a hugepage and the affected processes try to access
-> the error hugepage, we hit VM_BUG_ON(atomic_read(&page->_count) <= 0)
-> in get_page().
-> 
-> The reason for this bug is that coredump-related code doesn't recognise
-> "hugepage hwpoison entry" with which a pmd entry is replaced when a memory
-> error occurs on a hugepage.
-> In other words, physical address information is stored in different bit layout
-> between hugepage hwpoison entry and pmd entry, so follow_hugetlb_page()
-> which is called in get_dump_page() returns a wrong page from a given address.
-> 
-> The expected behavior is like this:
-> 
->   absent   is_swap_pte   FOLL_DUMP   Expected behavior
->   -------------------------------------------------------------------
->    true     false         false       hugetlb_fault
->    false    true          false       hugetlb_fault
->    false    false         false       return page
->    true     false         true        skip page (to avoid allocation)
->    false    true          true        hugetlb_fault
->    false    false         true        return page
-> 
-> With this patch, we can call hugetlb_fault() and take proper actions
-> (we wait for migration entries, fail with VM_FAULT_HWPOISON_LARGE for
-> hwpoisoned entries,) and as the result we can dump all hugepages except
-> for hwpoisoned ones.
-> 
-> ChangeLog v5:
->  - improve comment and description.
-> 
-> ChangeLog v4:
->  - move is_swap_page() to right place.
-> 
-> ChangeLog v3:
->  - add comment about using is_swap_pte()
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: stable@vger.kernel.org
+Yes, I tested all cases.  But I did not test with all the config options
+described in the document.  I will make sure to test with the options
+next time.  Thanks a lot for the pointer!
 
-Acked-by: David Rientjes <rientjes@google.com>
+> I'll switch it to GFP_ATOMIC.  Which is horridly lame but the
+> allocation is small and alternatives are unobvious.
 
-Stable for 2.6.34+?
+Great!  Again, thanks for the update!
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
