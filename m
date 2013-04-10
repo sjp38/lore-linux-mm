@@ -1,205 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 1FB5A6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 22:50:36 -0400 (EDT)
-Date: Wed, 10 Apr 2013 11:51:16 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
-Message-ID: <20130410025115.GA5872@lge.com>
-References: <1364548450-28254-1-git-send-email-glommer@parallels.com>
- <1364548450-28254-3-git-send-email-glommer@parallels.com>
- <20130408084202.GA21654@lge.com>
- <51628412.6050803@parallels.com>
- <20130408090131.GB21654@lge.com>
- <51628877.5000701@parallels.com>
- <20130409005547.GC21654@lge.com>
- <20130409012931.GE17758@dastard>
- <20130409020505.GA4218@lge.com>
- <20130409123008.GM17758@dastard>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id C90216B0006
+	for <linux-mm@kvack.org>; Tue,  9 Apr 2013 23:20:17 -0400 (EDT)
+Received: by mail-ia0-f182.google.com with SMTP id u20so17280iag.13
+        for <linux-mm@kvack.org>; Tue, 09 Apr 2013 20:20:17 -0700 (PDT)
+Message-ID: <5164DA6A.5060607@gmail.com>
+Date: Wed, 10 Apr 2013 11:20:10 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130409123008.GM17758@dastard>
+Subject: Re: [PATCH 2/3] mm, slub: count freed pages via rcu as this task's
+ reclaimed_slab
+References: <1365470478-645-1-git-send-email-iamjoonsoo.kim@lge.com> <1365470478-645-2-git-send-email-iamjoonsoo.kim@lge.com> <5163E194.3080600@gmail.com> <0000013def363b50-9a16dd09-72ad-494f-9c25-17269fc3aab3-000000@email.amazonses.com>
+In-Reply-To: <0000013def363b50-9a16dd09-72ad-494f-9c25-17269fc3aab3-000000@email.amazonses.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-Hello, Dave.
+Hi Christoph,
+On 04/09/2013 10:32 PM, Christoph Lameter wrote:
+> On Tue, 9 Apr 2013, Simon Jeons wrote:
+>
+>>> +	int pages = 1 << compound_order(page);
+>> One question irrelevant this patch. Why slab cache can use compound
+>> page(hugetlbfs pages/thp pages)? They are just used by app to optimize tlb
+>> miss, is it?
+> Slab caches can use any order pages because these pages are never on
+> the LRU and are not part of the page cache. Large continuous physical
+> memory means that objects can be arranged in a more efficient way in the
+> page. This is particularly useful for larger objects where we might use a
+> lot of memory because objects do not fit well into a 4k page.
+>
+> It also reduces the slab page management if higher order pages are used.
+> In the case of slub the page size also determines the number of objects
+> that can be allocated/freed without the need for some form of
+> synchronization.
 
-On Tue, Apr 09, 2013 at 10:30:08PM +1000, Dave Chinner wrote:
-> On Tue, Apr 09, 2013 at 11:05:05AM +0900, Joonsoo Kim wrote:
-> > On Tue, Apr 09, 2013 at 11:29:31AM +1000, Dave Chinner wrote:
-> > > On Tue, Apr 09, 2013 at 09:55:47AM +0900, Joonsoo Kim wrote:
-> > > > lowmemkiller makes spare memory via killing a task.
-> > > > 
-> > > > Below is code from lowmem_shrink() in lowmemorykiller.c
-> > > > 
-> > > >         for (i = 0; i < array_size; i++) {
-> > > >                 if (other_free < lowmem_minfree[i] &&
-> > > >                     other_file < lowmem_minfree[i]) {
-> > > >                         min_score_adj = lowmem_adj[i];
-> > > >                         break;
-> > > >                 }   
-> > > >         } 
-> > > 
-> > > I don't think you understand what the current lowmemkiller shrinker
-> > > hackery actually does.
-> > > 
-> > >         rem = global_page_state(NR_ACTIVE_ANON) +
-> > >                 global_page_state(NR_ACTIVE_FILE) +
-> > >                 global_page_state(NR_INACTIVE_ANON) +
-> > >                 global_page_state(NR_INACTIVE_FILE);
-> > >         if (sc->nr_to_scan <= 0 || min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
-> > >                 lowmem_print(5, "lowmem_shrink %lu, %x, return %d\n",
-> > >                              sc->nr_to_scan, sc->gfp_mask, rem);
-> > >                 return rem;
-> > >         }
-> > > 
-> > > So, when nr_to_scan == 0 (i.e. the count phase), the shrinker is
-> > > going to return a count of active/inactive pages in the cache. That
-> > > is almost always going to be non-zero, and almost always be > 1000
-> > > because of the minimum working set needed to run the system.
-> > > Even after applying the seek count adjustment, total_scan is almost
-> > > always going to be larger than the shrinker default batch size of
-> > > 128, and that means this shrinker will almost always run at least
-> > > once per shrink_slab() call.
-> > 
-> > I don't think so.
-> > Yes, lowmem_shrink() return number of (in)active lru pages
-> > when nr_to_scan is 0. And in shrink_slab(), we divide it by lru_pages.
-> > lru_pages can vary where shrink_slab() is called, anyway, perhaps this
-> > logic makes total_scan below 128.
-> 
-> "perhaps"
-> 
-> 
-> There is no "perhaps" here - there is *zero* guarantee of the
-> behaviour you are claiming the lowmem killer shrinker is dependent
-> on with the existing shrinker infrastructure. So, lets say we have:
-> 
-> 	nr_pages_scanned = 1000
-> 	lru_pages = 100,000
-> 
-> Your shrinker is going to return 100,000 when nr_to_scan = 0. So,
-> we have:
-> 
-> 	batch_size = SHRINK_BATCH = 128
-> 	max_pass= 100,000
-> 
-> 	total_scan = shrinker->nr_in_batch = 0
-> 	delta = 4 * 1000 / 32 = 128
-> 	delta = 128 * 100,000 = 12,800,000
-> 	delta = 12,800,000 / 100,001 = 127
-> 	total_scan += delta = 127
-> 
-> Assuming the LRU pages count does not change(*), nr_pages_scanned is
-> irrelevant and delta always comes in 1 count below the batch size,
-> and the shrinker is not called. The remainder is then:
-> 
-> 	shrinker->nr_in_batch += total_scan = 127
-> 
-> (*) the lru page count will change, because reclaim and shrinkers
-> run concurrently, and so we can't even make a simple contrived case
-> where delta is consistently < batch_size here.
-> 
-> Anyway, the next time the shrinker is entered, we start with:
-> 
-> 	total_scan = shrinker->nr_in_batch = 127
-> 	.....
-> 	total_scan += delta = 254
-> 
-> 	<shrink once, total scan -= batch_size = 126>
-> 
-> 	shrinker->nr_in_batch += total_scan = 126
-> 
-> And so on for all the subsequent shrink_slab calls....
-> 
-> IOWs, this algorithm effectively causes the shrinker to be called
-> 127 times out of 128 in this arbitrary scenario. It does not behave
-> as you are assuming it to, and as such any code based on those
-> assumptions is broken....
+It seems that you misunderstand my question. I don't doubt slab/slub can 
+use high order pages. However, what I focus on is why slab/slub can use 
+compound page, PageCompound() just on behalf of hugetlbfs pages or thp 
+pages which should used by apps, isn't it?
 
-Thanks for good example. I got your point :)
-But, my concern is not solved entirely, because this is not problem
-just for lowmem killer and I can think counter example. And other drivers
-can be suffered from this change.
-
-I look at the code for "huge_zero_page_shrinker".
-They return HPAGE_PMD_NR if there is shrikerable object.
-
-I try to borrow your example for this case.
-
- 	nr_pages_scanned = 1,000
- 	lru_pages = 100,000
- 	batch_size = SHRINK_BATCH = 128
- 	max_pass= 512 (HPAGE_PMD_NR)
- 
- 	total_scan = shrinker->nr_in_batch = 0
- 	delta = 4 * 1,000 / 2 = 2,000
- 	delta = 2,000 * 512 = 1,024,000
- 	delta = 1,024,000 / 100,001 = 10
- 	total_scan += delta = 10
-
-As you can see, before this patch, do_shrinker_shrink() for
-"huge_zero_page_shrinker" is not called until we call shrink_slab() more
-than 13 times. *Frequency* we call do_shrinker_shrink() actually is
-largely different with before. With this patch, we actually call
-do_shrinker_shrink() for "huge_zero_page_shrinker" 12 times more
-than before. Can we be convinced that there will be no problem?
-
-This is why I worry about this change.
-Am I worried too much? :)
-
-I show another scenario what I am thinking for lowmem killer.
-
-In reality, 'nr_pages_scanned' reflect sc->priority.
-You can see it get_scan_count() in vmscan.c
-
-	size = get_lru_size(lruvec, lru);
-	scan = size >> sc->priority;
-
-So, I try to re-construct your example with above assumption.
-
-If sc->priority is DEF_PRIORITY (12)
-
- 	nr_pages_scanned = 25 (100,000 / 4,096)
- 	lru_pages = 100,000
- 	batch_size = SHRINK_BATCH = 128
- 	max_pass= 100,000
- 
- 	total_scan = shrinker->nr_in_batch = 0
- 	delta = 4 * 25 / 32 = 3
- 	delta = 3 * 100,000 = 300,000
- 	delta = 300,000 / 100,001 = 3
- 	total_scan += delta = 3
-
-So, do_shrinker_shrink() is not called for lowmem killer until
-we call shrink_slab() more than 40 times if sc->priority is DEF_PRIORITY.
-So, AICT, if we don't have trouble too much in reclaiming memory, it will not
-triggered frequently.
-
-I like this patchset, and I think shrink_slab interface should be
-re-worked. What I want to say is just that this patch is not trivial
-change and should notify user to test it.
-I want to say again, I don't want to become a stopper for this patchset :)
-
-Please let me know what I am missing.
-
-Thanks.
-
-> Cheers,
-> 
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
