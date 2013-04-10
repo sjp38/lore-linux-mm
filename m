@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 281B16B0006
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 12:49:09 -0400 (EDT)
-Message-ID: <1365611810.32127.100.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2 2/3] resource: Add release_mem_region_adjustable()
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id C53D66B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 13:29:34 -0400 (EDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 10 Apr 2013 10:36:50 -0600
-In-Reply-To: <alpine.DEB.2.02.1304092315180.3916@chino.kir.corp.google.com>
-References: <1365440996-30981-1-git-send-email-toshi.kani@hp.com>
-	 <1365440996-30981-3-git-send-email-toshi.kani@hp.com>
-	 <alpine.DEB.2.02.1304092315180.3916@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH v3 0/3] Support memory hot-delete to boot memory
+Date: Wed, 10 Apr 2013 11:16:58 -0600
+Message-Id: <1365614221-685-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com, Toshi Kani <toshi.kani@hp.com>
 
-On Tue, 2013-04-09 at 23:16 -0700, David Rientjes wrote:
-> On Mon, 8 Apr 2013, Toshi Kani wrote:
-> 
-> > Added release_mem_region_adjustable(), which releases a requested
-> > region from a currently busy memory resource.  This interface
-> > adjusts the matched memory resource accordingly even if the
-> > requested region does not match exactly but still fits into.
-> > 
-> > This new interface is intended for memory hot-delete.  During
-> > bootup, memory resources are inserted from the boot descriptor
-> > table, such as EFI Memory Table and e820.  Each memory resource
-> > entry usually covers the whole contigous memory range.  Memory
-> > hot-delete request, on the other hand, may target to a particular
-> > range of memory resource, and its size can be much smaller than
-> > the whole contiguous memory.  Since the existing release interfaces
-> > like __release_region() require a requested region to be exactly
-> > matched to a resource entry, they do not allow a partial resource
-> > to be released.
-> > 
-> > There is no change to the existing interfaces since their restriction
-> > is valid for I/O resources.
-> > 
-> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> > Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> 
-> Should this emit a warning for attempting to free a non-existant region 
-> like __release_region() does?
+Memory hot-delete to a memory range present at boot causes an
+error message in __release_region(), such as:
 
-Since __release_region() is a void function, it needs to emit a warning
-within the func.  I made release_mem_region_adjustable() as an int
-function so that the caller can receive an error and decide what to do
-based on its operation.  I changed the caller __remove_pages() to emit a
-warning message in PATCH 3/3 in this case.
+ Trying to free nonexistent resource <0000000070000000-0000000077ffffff>
 
-> I think it would be better to base this off my patch and surround it with 
-> #ifdef CONFIG_MEMORY_HOTREMOVE as suggested by Andrew.  There shouldn't be 
-> any conflicts.
+Hot-delete operation still continues since __release_region() is 
+a void function, but the target memory range is not freed from
+iomem_resource as the result.  This also leads a failure in a 
+subsequent hot-add operation to the same memory range since the
+address range is still in-use in iomem_resource.
 
-Yes, I realized that CONFIG_MEMORY_HOTREMOVE was a better choice, but I
-had to use CONFIG_MEMORY_HOTPLUG at this time.  So, thanks for doing the
-cleanup!
+This problem happens because the granularity of memory resource ranges
+may be different between boot and hot-delete.  During bootup,
+iomem_resource is set up from the boot descriptor table, such as EFI
+Memory Table and e820.  Each resource entry usually covers the whole
+contiguous memory range.  Hot-delete request, on the other hand, may
+target to a particular range of memory resource, and its size can be
+much smaller than the whole contiguous memory.  Since the existing
+release interfaces like __release_region() require a requested region
+to be exactly matched to a resource entry, they do not allow a partial
+resource to be released.
 
-Since it's already rc6, I will keep my patchset independent for now.  I
-will make minor change to update CONFIG_MEMORY_HOTPLUG to
-CONFIG_MEMORY_HOTREMOVE after your patch gets accepted -- either by
-sending a separate patch (if my patchset is already accepted) or
-updating my current patchset (if my patchset is not accepted yet).
+This patchset introduces release_mem_region_adjustable() for memory
+hot-delete operations, which allows releasing a partial memory range
+and adjusts remaining resource accordingly.  This patchset makes no
+changes to the existing interfaces since their restriction is still
+valid for I/O resources.
 
-Thanks!
--Toshi
+---
+v3:
+- Added #ifdef CONFIG_MEMORY_HOTPLUG to release_mem_region_adjustable()
+  as suggested by Andrew Morton.  This #ifdef will be changed to
+  CONFIG_MEMORY_HOTREMOVE after David Rientjes's patch gets accepted.
+- Updated comments & change log of release_mem_region_adjustable()
+  per code reviews from Ram Pai and Andrew Morton. 
+
+v2:
+- Updated release_mem_region_adjustable() per code reviews from
+  Yasuaki Ishimatsu, Ram Pai and Gu Zheng. 
+
+---
+Toshi Kani (3):
+ resource: Add __adjust_resource() for internal use
+ resource: Add release_mem_region_adjustable()
+ mm: Change __remove_pages() to call release_mem_region_adjustable()
+
+---
+ include/linux/ioport.h |   4 ++
+ kernel/resource.c      | 135 ++++++++++++++++++++++++++++++++++++++++++++-----
+ mm/memory_hotplug.c    |  11 +++-
+ 3 files changed, 135 insertions(+), 15 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
