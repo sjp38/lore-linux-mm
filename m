@@ -1,86 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 51B276B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 18:57:37 -0400 (EDT)
-Date: Thu, 11 Apr 2013 15:57:34 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/mmap: Check for RLIMIT_AS before unmapping
-Message-Id: <20130411155734.911dc8bf8e555b169191be5a@linux-foundation.org>
-In-Reply-To: <20130402095402.GA6568@rei>
-References: <20130402095402.GA6568@rei>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 7BA4B6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 19:20:50 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Fri, 12 Apr 2013 04:45:40 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 43017394004F
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 04:50:44 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3BNKe8N6095124
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 04:50:40 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3BNKhOn030351
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 09:20:43 +1000
+Date: Fri, 12 Apr 2013 07:20:42 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH 00/10] staging: zcache/ramster: fix and ramster/debugfs
+ improvement
+Message-ID: <20130411232042.GA29398@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <399a2a41-fa4d-41d9-80aa-5b4c51fee68e@default>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <399a2a41-fa4d-41d9-80aa-5b4c51fee68e@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyril Hrubis <chrubis@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>
 
-On Tue, 2 Apr 2013 11:54:03 +0200 Cyril Hrubis <chrubis@suse.cz> wrote:
-
-> This patch fixes corner case for MAP_FIXED when requested mapping length
-> is larger than rlimit for virtual memory. In such case any overlapping
-> mappings are unmapped before we check for the limit and return ENOMEM.
-> 
-> The check is moved before the loop that unmaps overlapping parts of
-> existing mappings. When we are about to hit the limit (currently mapped
-> pages + len > limit) we scan for overlapping pages and check again
-> accounting for them.
-> 
-> This fixes situation when userspace program expects that the previous
-> mappings are preserved after the mmap() syscall has returned with error.
-> (POSIX clearly states that successfull mapping shall replace any
-> previous mappings.)
-> 
-> This corner case was found and can be tested with LTP testcase:
-> 
-> testcases/open_posix_testsuite/conformance/interfaces/mmap/24-2.c
-> 
-> In this case the mmap, which is clearly over current limit, unmaps
-> dynamic libraries and the testcase segfaults right after returning into
-> userspace.
-> 
-> I've also looked at the second instance of the unmapping loop in the
-> do_brk(). The do_brk() is called from brk() syscall and from vm_brk().
-> The brk() syscall checks for overlapping mappings and bails out when
-> there are any (so it can't be triggered from the brk syscall). The
-> vm_brk() is called only from binmft handlers so it shouldn't be
-> triggered unless binmft handler created overlapping mappings.
-> 
-> ...
+On Thu, Apr 11, 2013 at 10:17:56AM -0700, Dan Magenheimer wrote:
+>> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
+>> Sent: Tuesday, April 09, 2013 6:26 PM
+>> To: Greg Kroah-Hartman
+>> Cc: Dan Magenheimer; Seth Jennings; Konrad Rzeszutek Wilk; Minchan Kim; linux-mm@kvack.org; linux-
+>> kernel@vger.kernel.org; Andrew Morton; Bob Liu; Wanpeng Li
+>> Subject: [PATCH 00/10] staging: zcache/ramster: fix and ramster/debugfs improvement
+>> 
+>> Fix bugs in zcache and rips out the debug counters out of ramster.c and
+>> sticks them in a debug.c file. Introduce accessory functions for counters
+>> increase/decrease, they are available when config RAMSTER_DEBUG, otherwise
+>> they are empty non-debug functions. Using an array to initialize/use debugfs
+>> attributes to make them neater. Dan Magenheimer confirm these works
+>> are needed. http://marc.info/?l=linux-mm&m=136535713106882&w=2
+>> 
+>> Patch 1~2 fix bugs in zcache
+>> 
+>> Patch 3~8 rips out the debug counters out of ramster.c and sticks them
+>> 		  in a debug.c file
+>> 
+>> Patch 9 fix coding style issue introduced in zcache2 cleanups
+>>         (s/int/bool + debugfs movement) patchset
+>> 
+>> Patch 10 add how-to for ramster
 >
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -33,6 +33,7 @@
->  #include <linux/uprobes.h>
->  #include <linux/rbtree_augmented.h>
->  #include <linux/sched/sysctl.h>
-> +#include <linux/kernel.h>
->  
->  #include <asm/uaccess.h>
->  #include <asm/cacheflush.h>
-> @@ -543,6 +544,34 @@ static int find_vma_links(struct mm_struct *mm, unsigned long addr,
->  	return 0;
->  }
->  
-> +static unsigned long count_vma_pages_range(struct mm_struct *mm,
-> +		unsigned long addr, unsigned long end)
-> +{
-> +	unsigned long nr_pages = 0;
-> +	struct vm_area_struct *vma;
-> +
-> +	/* Find first overlaping mapping */
-> +	vma = find_vma_intersection(mm, addr, end);
-> +	if (!vma)
-> +		return 0;
-> +
-> +	nr_pages = (min(end, vma->vm_end) -
-> +		max(addr, vma->vm_start)) >> PAGE_SHIFT;
+>Note my preference to not apply patch 2of10 (which GregKH may choose
 
-urgh, these things always make my head spin.  Is it guaranteed that
-end, vm_end, addr and vm_start are all multiples of PAGE_SIZE?  If not,
-we have a problem don't we?
+Ok. 
 
+>to override), but for all, please add my:
+>Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+
+Thanks, Dan. ;-)
+
+Regards,
+Wanpeng Li 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
