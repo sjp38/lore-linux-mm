@@ -1,83 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id EFF4D6B0027
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 20:15:23 -0400 (EDT)
-Received: by mail-ob0-f202.google.com with SMTP id va7so259648obc.1
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 17:15:23 -0700 (PDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH] vfs: dcache: cond_resched in shrink_dentry_list
-References: <1364232151-23242-1-git-send-email-gthelen@google.com>
-	<20130325235614.GI6369@dastard>
-	<xr93fvzjgfke.fsf@gthelen.mtv.corp.google.com>
-	<20130326024032.GJ6369@dastard>
-	<xr934nfyg4ld.fsf@gthelen.mtv.corp.google.com>
-	<xr9361zvdxvj.fsf@gthelen.mtv.corp.google.com>
-	<20130410164455.a3cbcbdf86bc72455c22f420@linux-foundation.org>
-Date: Wed, 10 Apr 2013 17:15:21 -0700
-In-Reply-To: <20130410164455.a3cbcbdf86bc72455c22f420@linux-foundation.org>
-	(Andrew Morton's message of "Wed, 10 Apr 2013 16:44:55 -0700")
-Message-ID: <xr93mwt59b3a.fsf@gthelen.mtv.corp.google.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 496436B0036
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 20:41:24 -0400 (EDT)
+Date: Thu, 11 Apr 2013 10:41:14 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
+Message-ID: <20130411004114.GC10481@dastard>
+References: <51628412.6050803@parallels.com>
+ <20130408090131.GB21654@lge.com>
+ <51628877.5000701@parallels.com>
+ <20130409005547.GC21654@lge.com>
+ <20130409012931.GE17758@dastard>
+ <20130409020505.GA4218@lge.com>
+ <20130409123008.GM17758@dastard>
+ <20130410025115.GA5872@lge.com>
+ <20130410100752.GA10481@dastard>
+ <CAAmzW4OMyZ=nVbHK_AiifPK5LVxvhOQUXmsD5NGfo33CBjf=eA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAmzW4OMyZ=nVbHK_AiifPK5LVxvhOQUXmsD5NGfo33CBjf=eA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Wed, Apr 10 2013, Andrew Morton wrote:
+On Wed, Apr 10, 2013 at 11:03:39PM +0900, JoonSoo Kim wrote:
+> Another one what I found is that they don't account "nr_reclaimed" precisely.
+> There is no code which check whether "current->reclaim_state" exist or not,
+> except prune_inode().
 
-> On Tue, 09 Apr 2013 17:37:20 -0700 Greg Thelen <gthelen@google.com> wrote:
->
->> > Call cond_resched() in shrink_dcache_parent() to maintain
->> > interactivity.
->> >
->> > Before this patch:
->> >
->> > void shrink_dcache_parent(struct dentry * parent)
->> > {
->> > 	while ((found = select_parent(parent, &dispose)) != 0)
->> > 		shrink_dentry_list(&dispose);
->> > }
->> >
->> > select_parent() populates the dispose list with dentries which
->> > shrink_dentry_list() then deletes.  select_parent() carefully uses
->> > need_resched() to avoid doing too much work at once.  But neither
->> > shrink_dcache_parent() nor its called functions call cond_resched().
->> > So once need_resched() is set select_parent() will return single
->> > dentry dispose list which is then deleted by shrink_dentry_list().
->> > This is inefficient when there are a lot of dentry to process.  This
->> > can cause softlockup and hurts interactivity on non preemptable
->> > kernels.
->> >
->> > This change adds cond_resched() in shrink_dcache_parent().  The
->> > benefit of this is that need_resched() is quickly cleared so that
->> > future calls to select_parent() are able to efficiently return a big
->> > batch of dentry.
->> >
->> > These additional cond_resched() do not seem to impact performance, at
->> > least for the workload below.
->> >
->> > Here is a program which can cause soft lockup on a if other system
->> > activity sets need_resched().
->
-> I was unable to guess what word was missing from "on a if other" ;)
+That's because prune_inode() can free page cache pages when the
+inode mapping is invalidated. Hence it accounts this in addition
+to the slab objects being freed.
 
-Less is more ;)  Reword to:
+IOWs, if you have a shrinker that frees pages from the page cache,
+you need to do this. Last time I checked, only inode cache reclaim
+caused extra page cache reclaim to occur, so most (all?) other
+shrinkers do not need to do this.
 
-  Here is a program which can cause soft lockup if other system activity
-  sets need_resched().
+It's just another wart that we need to clean up....
 
->> Should this change go through Al's or Andrew's branch?
->
-> I'll fight him for it.
+Cheers,
 
-Thanks.
-
-> Softlockups are fairly serious, so I'll put a cc:stable in there.  Or
-> were the changes which triggered this problem added after 3.9?
-
-This also applies to stable.  I see the problem at least back to v3.3.
-I did not test earlier kernels, but could if you want.
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
