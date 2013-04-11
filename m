@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id DE6386B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 01:54:32 -0400 (EDT)
-Received: by mail-ia0-f177.google.com with SMTP id w33so1119123iag.36
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 22:54:32 -0700 (PDT)
-Message-ID: <51665010.1030203@gmail.com>
-Date: Thu, 11 Apr 2013 13:54:24 +0800
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 75A536B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 01:58:45 -0400 (EDT)
+Received: by mail-ie0-f171.google.com with SMTP id e14so1597888iej.30
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 22:58:44 -0700 (PDT)
+Message-ID: <5166510E.2050709@gmail.com>
+Date: Thu, 11 Apr 2013 13:58:38 +0800
 From: Will Huck <will.huckk@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd reclaims
@@ -31,11 +31,13 @@ On 03/22/2013 11:52 AM, Rik van Riel wrote:
 >> age_acitve_anon(zone, &sc);
 >
 > The anon lrus use a two-handed clock algorithm. New anonymous pages
-
-Why the algorithm has relationship with two-handed clock?
-
 > start off on the active anon list. Older anonymous pages get moved
 > to the inactive anon list.
+
+The downside of page cache use-once replacement algorithm is 
+inter-reference distance, corret? Does it have any other downside? 
+What's the downside of two-handed clock algorithm against anonymous pages?
+
 >
 > If they get referenced before they reach the end of the inactive anon
 > list, they get moved back to the active list.
