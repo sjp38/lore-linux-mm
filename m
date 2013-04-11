@@ -1,172 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 8261D6B0006
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 03:14:27 -0400 (EDT)
-Date: Thu, 11 Apr 2013 03:14:21 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1365664461-7zv87ja0-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <51662D64.3000409@hitachi.com>
-References: <51662D64.3000409@hitachi.com>
-Subject: Re: [RFC Patch 1/2] mm: Add a parameter to force a kernel panic when
- memory error occurs on dirty cache
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 7FFC56B0006
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 03:20:35 -0400 (EDT)
+Received: by mail-ve0-f181.google.com with SMTP id pa12so1123066veb.26
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 00:20:34 -0700 (PDT)
+Message-ID: <5166643E.6050704@gmail.com>
+Date: Thu, 11 Apr 2013 03:20:30 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [RFC v7 00/11] Support vrange for anonymous page
+References: <1363073915-25000-1-git-send-email-minchan@kernel.org> <5165CA22.6080808@gmail.com> <20130411065546.GA10303@blaptop>
+In-Reply-To: <20130411065546.GA10303@blaptop>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, John Stultz <john.stultz@linaro.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-# You can run checkpatch.pl to find coding style violation.
-
-On Thu, Apr 11, 2013 at 12:26:28PM +0900, Mitsuhiro Tanino wrote:
-> This patch introduces a sysctl interface,
-> vm.memory_failure_dirty_panic, to provide selectable actions
-> when a memory error is detected on dirty page cache.
-
-Using another value of sysctl_memory_failure_recovery looks to me
-better than adding a new interface, because this interface is not
-orthogonal to sysctl_memory_failure_recovery
-(if sysctl_memory_failure_recovery == 0, vm.memory_failure_dirty_panic
-is meaningless.)
-
+>>>   DONTNEED makes sure user always can see zero-fill pages after
+>>>   he calls madvise while vrange can see data or encounter SIGBUS.
+>>
+>> For replacing DONTNEED, user want to zero-fill pages like DONTNEED
+>> instead of SIGBUS. So, new flag option would be nice.
 > 
+> If userspace people want it, I can do it. 
+> But not sure they want it at the moment becaue vrange is rather
+> different concept of madvise(DONTNEED) POV usage.
 > 
-> Signed-off-by: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>
-> ---
+> As you know well, in case of DONTNEED, user calls madvise _once_ and
+> VM releases memory as soon as he called system call.
+> But vrange is same with delayed free when the system memory pressure
+> happens so user can't know OS frees the pages anytime.
+> It means user should call pair of system call both VRANGE_VOLATILE
+> and VRANGE_NOVOLATILE for right usage of volatile range
+> (for simple, I don't want to tell SIGBUS fault recovery method).
+> If he took a mistake(ie, NOT to call VRANGE_NOVOLATILE) on the range
+> which is used by current process, pages used by some process could be
+> disappeared suddenly.
 > 
-> diff --git a/a/Documentation/sysctl/vm.txt b/b/Documentation/sysctl/vm.txt
-> index 078701f..7dad994 100644
-> --- a/a/Documentation/sysctl/vm.txt
-> +++ b/b/Documentation/sysctl/vm.txt
-> @@ -34,6 +34,7 @@ Currently, these files are in /proc/sys/vm:
->  - legacy_va_layout
->  - lowmem_reserve_ratio
->  - max_map_count
-> +- memory_failure_dirty_panic
->  - memory_failure_early_kill
->  - memory_failure_recovery
->  - min_free_kbytes
-> @@ -306,6 +307,29 @@ The default value is 65536.
->  
->  =============================================================
->  
-> +memory_failure_dirty_panic:
-> +
-> +Control whether a system continues to operate or not when uncorrected
-> +recoverable memory error (typically a 2bit error in a memory module)
-> +is detected in the background by hardware and a page type is a dirty
-> +page cache.
-> +
-> +When uncorrected recoverable memory error occurs on a dirty page
-> +cache, the kernel truncates the page because a system crashes if
-> +the kernel touches the corrupted page. However, this page truncation
-> +causes data lost problem because the dirty page cache does not write
-> +back to a disk. As a result, if the dirty cache belongs a file,
-> +the file is not renewed and remains old data.
-> +
-> +0: Keep a system running. Note a dirty page is truncated and data
-> +of dirty page is lost.
-> +
-> +1: Force the kernel panic.
-> +
-> +The default value is 0.
-> +
-> +=============================================================
-> +
->  memory_failure_early_kill:
->  
->  Control how to kill processes when uncorrected memory error (typically
-> diff --git a/a/include/linux/mm.h b/b/include/linux/mm.h
-> index 66e2f7c..0025882 100644
-> --- a/a/include/linux/mm.h
-> +++ b/b/include/linux/mm.h
-> @@ -1718,6 +1718,7 @@ enum mf_flags {
->  extern int memory_failure(unsigned long pfn, int trapno, int flags);
->  extern void memory_failure_queue(unsigned long pfn, int trapno, int flags);
->  extern int unpoison_memory(unsigned long pfn);
-> +extern int sysctl_memory_failure_dirty_panic;
->  extern int sysctl_memory_failure_early_kill;
->  extern int sysctl_memory_failure_recovery;
->  extern void shake_page(struct page *p, int access);
-> diff --git a/a/kernel/sysctl.c b/b/kernel/sysctl.c
-> index c88878d..452dd80 100644
-> --- a/a/kernel/sysctl.c
-> +++ b/b/kernel/sysctl.c
-> @@ -1412,6 +1412,15 @@ static struct ctl_table vm_table[] = {
->  		.extra1		= &zero,
->  		.extra2		= &one,
->  	},
-> +	{
-> +		.procname	= "memory_failure_dirty_panic",
-> +		.data		= &sysctl_memory_failure_dirty_panic,
-> +		.maxlen		= sizeof(sysctl_memory_failure_dirty_panic),
-> +		.mode		= 0644,
-> +		.proc_handler	= proc_dointvec_minmax,
-> +		.extra1		= &zero,
-> +		.extra2		= &one,
-> +	},
->  #endif
->  	{ }
->  };
-> diff --git a/a/mm/memory-failure.c b/b/mm/memory-failure.c
-> index c6e4dd3..6d3c0ed 100644
-> --- a/a/mm/memory-failure.c
-> +++ b/b/mm/memory-failure.c
-> @@ -57,6 +57,8 @@
->  #include <linux/kfifo.h>
->  #include "internal.h"
->  
-> +int sysctl_memory_failure_dirty_panic __read_mostly = 0;
-> +
->  int sysctl_memory_failure_early_kill __read_mostly = 0;
->  
->  int sysctl_memory_failure_recovery __read_mostly = 1;
-> @@ -618,8 +620,16 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
->  	struct address_space *mapping = page_mapping(p);
->  
->  	SetPageError(p);
-> -	/* TBD: print more information about the file. */
->  	if (mapping) {
-> +		/* Print more information about the file. */
-> +		if (mapping->host != NULL && S_ISREG(mapping->host->i_mode))
-> +			pr_info("MCE %#lx: File was corrupted: Dev:%s Inode:%lu Offset:%lu\n",
-> +				page_to_pfn(p), mapping->host->i_sb->s_id,
-> +				mapping->host->i_ino, page_index(p));
-> +		else
-> +			pr_info("MCE %#lx: A dirty page cache was corrupted.\n",
-> +				page_to_pfn(p));
-> +
->  		/*
->  		 * IO error will be reported by write(), fsync(), etc.
->  		 * who check the mapping.
-> @@ -657,6 +667,19 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
->  		mapping_set_error(mapping, EIO);
->  	}
->  
-> +	/* Force a kernel panic instantly because a dirty page cache is
-> +	   truncated and this leads data corruption problem when
-> +	   application processes old data.
-> +	*/
-> +	if (sysctl_memory_failure_dirty_panic) {
-> +		if (mapping != NULL && mapping->host != NULL)
-> +			panic("MCE %#lx: Force a panic because a dirty page cache was corrupted: File type:0x%x\n",
-> +				page_to_pfn(p), mapping->host->i_mode);
-> +		else
-> +			panic("MCE %#lx: Force a panic because a dirty page cache was corrupted.\n",
-> +				page_to_pfn(p));
-> +	}
-> +
->  	return me_pagecache_clean(p, pfn);
->  }
+> In summary, I don't think vrange is a replacement of madvise(DONTNEED)
+> but could be useful with madvise(DONTNEED) friend. For example, we can
+> make return 1 in vrange(VRANGE_VOLATILE) if memory pressure was already
 
-I think that adding sysctl parameter and printing out file information
-should be done in separate patches.
+Do you mean vrange(VRANGE_UNVOLATILE)?
+btw, assign new error number to asm-generic/errno.h is better than strange '1'.
 
-Thanks,
-Naoya
+
+> severe so user can catch up memory pressure by return value and calls
+> madvise(DONTNEED) if memory pressure was already severe. Of course, we
+> can handle it vrange system call itself(ex, change vrange system call to
+> madvise(DONTNEED) but don't want it because I want to keep vrange hinting
+> sytem call very light at all times so user can expect latency.
+
+For allocator usage, vrange(UNVOLATILE) is annoying and don't need at all.
+When data has already been purged, just return new zero filled page. so,
+maybe adding new flag is worthwhile. Because malloc is definitely fast path
+and adding new syscall invokation is unwelcome.
+
+
+>> # of     # of   # of
+>> thread   iter   iter (patched glibc)
+> 
+> What's the workload?
+
+Ahh, sorry. I forgot to write. I use ebizzy, your favolite workload.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
