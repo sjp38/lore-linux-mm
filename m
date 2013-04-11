@@ -1,69 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id C20196B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 05:09:14 -0400 (EDT)
-Date: Thu, 11 Apr 2013 10:09:09 +0100
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 74F576B0006
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 05:10:48 -0400 (EDT)
+Date: Thu, 11 Apr 2013 10:10:44 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 02/10] mm: vmscan: Obey proportional scanning
- requirements for kswapd
-Message-ID: <20130411090909.GF3710@suse.de>
+Subject: Re: [PATCH 0/10] Reduce system disruption due to kswapd V2
+Message-ID: <20130411091044.GG3710@suse.de>
 References: <1365505625-9460-1-git-send-email-mgorman@suse.de>
- <1365505625-9460-3-git-send-email-mgorman@suse.de>
- <516511DF.5020805@jp.fujitsu.com>
- <20130410140824.GC3710@suse.de>
- <5166005B.3060607@jp.fujitsu.com>
+ <0000013defd666bf-213d70fc-dfbd-4a50-82ed-e9f4f7391b55-000000@email.amazonses.com>
+ <20130410141445.GD3710@suse.de>
+ <alpine.DEB.2.02.1304101524120.7738@dtop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <5166005B.3060607@jp.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.02.1304101524120.7738@dtop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: dormando <dormando@rydia.net>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Apr 11, 2013 at 09:14:19AM +0900, Kamezawa Hiroyuki wrote:
+On Wed, Apr 10, 2013 at 03:28:32PM -0700, dormando wrote:
+> > On Tue, Apr 09, 2013 at 05:27:18PM +0000, Christoph Lameter wrote:
+> > > One additional measure that may be useful is to make kswapd prefer one
+> > > specific processor on a socket. Two benefits arise from that:
+> > >
+> > > 1. Better use of cpu caches and therefore higher speed, less
+> > > serialization.
+> > >
 > >
-> >nr[lru] at the end there is pages remaining to be scanned not pages
-> >scanned already.
-> 
-> yes.
-> 
-> >Did you mean something like this?
+> > Considering the volume of pages that kswapd can scan when it's active
+> > I would expect that it trashes its cache anyway. The L1 cache would be
+> > flushed after scanning struct pages for just a few MB of memory.
 > >
-> >nr[lru] = scantarget[lru] * percentage / 100 - (scantarget[lru] - nr[lru])
+> > > 2. Reduction of the disturbances to one processor.
+> > >
 > >
+> > I've never checked it but I would have expected kswapd to stay on the
+> > same processor for significant periods of time. Have you experienced
+> > problems where kswapd bounces around on CPUs within a node causing
+> > workload disruption?
 > 
-> For clarification, this "percentage" means the ratio of remaining scan target of
-> another LRU. So, *scanned* percentage is "100 - percentage", right ?
-> 
+> When kswapd shares the same CPU as our main process it causes a measurable
+> drop in response time (graphs show tiny spikes at the same time memory is
+> freed). Would be nice to be able to ensure it runs on a different core
+> than our latency sensitive processes at least. We can pin processes to
+> subsets of cores but I don't think there's a way to keep kswapd from
+> waking up on any of them?
 
-Yes, correct.
+I've never tried it myself but does the following work?
 
-> If I understand the changelog correctly, you'd like to keep
-> 
->    scantarget[anon] : scantarget[file]
->    == really_scanned_num[anon] : really_scanned_num[file]
-> 
+taskset -p MASK `pidof kswapd`
 
-Yes.
-
-> even if we stop scanning in the middle of scantarget. And you introduced "percentage"
-> to make sure that both scantarget should be done in the same ratio.
-> 
-
-Yes.
-
-> So...another lru should scan  scantarget[x] * (100 - percentage)/100 in total.
-> 
-> nr[lru] = scantarget[lru] * (100 - percentage)/100 - (scantarget[lru] - nr[lru])
->           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^    ^^^^^^^^^^^^^^^^^^^^^^^^^
->              proportionally adjusted scan target        already scanned num
-> 
->        =  nr[lru] - scantarget[lru] * percentage/100.
-> 
-
-Yes, you are completely correct. This preserves the original ratio of
-anon:file scanning properly.
+where MASK is a cpumask describing what CPUs kswapd can run on?
+Obviously care should be taken to ensure that you bind kswapd to a CPU
+running on the node kswapd cares about.
 
 -- 
 Mel Gorman
