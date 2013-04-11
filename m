@@ -1,116 +1,261 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id E635A6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 02:36:21 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 11 Apr 2013 12:03:02 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 00EE31258023
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 12:07:38 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3B6a6wr35979514
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 12:06:06 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3B6aA04019069
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:36:11 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V5 13/25] powerpc: Update tlbie/tlbiel as per ISA doc
-In-Reply-To: <20130411061630.GG8165@truffula.fritz.box>
-References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1365055083-31956-14-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130411033010.GV8165@truffula.fritz.box> <871uahod83.fsf@linux.vnet.ibm.com> <20130411061630.GG8165@truffula.fritz.box>
-Date: Thu, 11 Apr 2013 12:06:05 +0530
-Message-ID: <87vc7tmv56.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 8849E6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 02:55:52 -0400 (EDT)
+Date: Thu, 11 Apr 2013 15:55:46 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC v7 00/11] Support vrange for anonymous page
+Message-ID: <20130411065546.GA10303@blaptop>
+References: <1363073915-25000-1-git-send-email-minchan@kernel.org>
+ <5165CA22.6080808@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5165CA22.6080808@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Gibson <dwg@au1.ibm.com>
-Cc: paulus@samba.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, John Stultz <john.stultz@linaro.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-David Gibson <dwg@au1.ibm.com> writes:
+On Wed, Apr 10, 2013 at 04:22:58PM -0400, KOSAKI Motohiro wrote:
+> (3/12/13 3:38 AM), Minchan Kim wrote:
+> > First of all, let's define the term.
+> > From now on, I'd like to call it as vrange(a.k.a volatile range)
+> > for anonymous page. If you have a better name in mind, please suggest.
+> > 
+> > This version is still *RFC* because it's just quick prototype so
+> > it doesn't support THP/HugeTLB/KSM and even couldn't build on !x86.
+> > Before further sorting out issues, I'd like to post current direction
+> > and discuss it. Of course, I'd like to extend this discussion in
+> > comming LSF/MM.
+> > 
+> > In this version, I changed lots of thing, expecially removed vma-based
+> > approach because it needs write-side lock for mmap_sem, which will drop
+> > performance in mutli-threaded big SMP system, KOSAKI pointed out.
+> > And vma-based approach is hard to meet requirement of new system call by
+> > John Stultz's suggested semantic for consistent purged handling.
+> > (http://linux-kernel.2935.n7.nabble.com/RFC-v5-0-8-Support-volatile-for-anonymous-range-tt575773.html#none)
+> > 
+> > I tested this patchset with modified jemalloc allocator which was
+> > leaded by Jason Evans(jemalloc author) who was interest in this feature
+> > and was happy to port his allocator to use new system call.
+> > Super Thanks Jason!
+> > 
+> > The benchmark for test is ebizzy. It have been used for testing the
+> > allocator performance so it's good for me. Again, thanks for recommending
+> > the benchmark, Jason.
+> > (http://people.freebsd.org/~kris/scaling/ebizzy.html)
+> > 
+> > The result is good on my machine (12 CPU, 1.2GHz, DRAM 2G)
+> > 
+> > 	ebizzy -S 20
+> > 
+> > jemalloc-vanilla: 52389 records/sec
+> > jemalloc-vrange: 203414 records/sec
+> > 
+> > 	ebizzy -S 20 with background memory pressure
+> > 
+> > jemalloc-vanilla: 40746 records/sec
+> > jemalloc-vrange: 174910 records/sec
+> > 
+> > And it's much improved on KVM virtual machine.
+> > 
+> > This patchset is based on v3.9-rc2
+> > 
+> > - What's the sys_vrange(addr, length, mode, behavior)?
+> > 
+> >   It's a hint that user deliver to kernel so kernel can *discard*
+> >   pages in a range anytime. mode is one of VRANGE_VOLATILE and
+> >   VRANGE_NOVOLATILE. VRANGE_NOVOLATILE is memory pin operation so
+> >   kernel coudn't discard any pages any more while VRANGE_VOLATILE
+> >   is memory unpin opeartion so kernel can discard pages in vrange
+> >   anytime. At a moment, behavior is one of VRANGE_FULL and VRANGE
+> >   PARTIAL. VRANGE_FULL tell kernel that once kernel decide to
+> >   discard page in a vrange, please, discard all of pages in a
+> >   vrange selected by victim vrange. VRANGE_PARTIAL tell kernel
+> >   that please discard of some pages in a vrange. But now I didn't
+> >   implemented VRANGE_PARTIAL handling yet.
+> > 
+> > - What happens if user access page(ie, virtual address) discarded
+> >   by kernel?
+> > 
+> >   The user can encounter SIGBUS.
+> > 
+> > - What should user do for avoding SIGBUS?
+> >   He should call vrange(addr, length, VRANGE_NOVOLATILE, mode) before
+> >   accessing the range which was called
+> >   vrange(addr, length, VRANGE_VOLATILE, mode)
+> > 
+> > - What happens if user access page(ie, virtual address) doesn't
+> >   discarded by kernel?
+> > 
+> >   The user can see vaild data which was there before calling
+> > vrange(., VRANGE_VOLATILE) without page fault.
+> > 
+> > - What's different with madvise(DONTNEED)?
+> > 
+> >   System call semantic
+> > 
+> >   DONTNEED makes sure user always can see zero-fill pages after
+> >   he calls madvise while vrange can see data or encounter SIGBUS.
+> 
+> For replacing DONTNEED, user want to zero-fill pages like DONTNEED
+> instead of SIGBUS. So, new flag option would be nice.
 
-> On Thu, Apr 11, 2013 at 10:50:12AM +0530, Aneesh Kumar K.V wrote:
->> David Gibson <dwg@au1.ibm.com> writes:
->> 
->> > On Thu, Apr 04, 2013 at 11:27:51AM +0530, Aneesh Kumar K.V wrote:
->> >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> >> 
->> >> This make sure we handle multiple page size segment correctly.
->> >
->> > This needs a much more detailed message.  In what way was the existing
->> > code not matching the ISA documentation?  What consequences did that
->> > have?
->> 
->> Mostly to make sure we use the right penc values in tlbie. I did test
->> these changes on PowerNV. 
->
-> A vague description like this is not adequate.  Your commit message
-> needs to explain what was wrong with the existing behaviour.
->
->> >> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->> >> ---
->> >>  arch/powerpc/mm/hash_native_64.c |   30 ++++++++++++++++++++++++++++--
->> >>  1 file changed, 28 insertions(+), 2 deletions(-)
->> >> 
->> >> diff --git a/arch/powerpc/mm/hash_native_64.c b/arch/powerpc/mm/hash_native_64.c
->> >> index b461b2d..ac84fa6 100644
->> >> --- a/arch/powerpc/mm/hash_native_64.c
->> >> +++ b/arch/powerpc/mm/hash_native_64.c
->> >> @@ -61,7 +61,10 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
->> >>  
->> >>  	switch (psize) {
->> >>  	case MMU_PAGE_4K:
->> >> +		/* clear out bits after (52) [0....52.....63] */
->> >> +		va &= ~((1ul << (64 - 52)) - 1);
->> >>  		va |= ssize << 8;
->> >> +		va |= mmu_psize_defs[apsize].sllp << 6;
->> >
->> > sllp is the per-segment encoding, so it sure must be looked up via
->> > psize, not apsize.
->> 
->> as per ISA doc, for base page size 4K, RB[56:58] must be set to
->> SLB[L|LP] encoded for the page size corresponding to the actual page
->> size specified by the PTE that was used to create the the TLB entry to
->> be invalidated.
->
-> Ok, I see.  Wow, our architecture is even more convoluted than I
-> thought.  This could really do with a comment, because this is a very
-> surprising aspect of the architecture.
->
->> >
->> >>  		asm volatile(ASM_FTR_IFCLR("tlbie %0,0", PPC_TLBIE(%1,%0), %2)
->> >>  			     : : "r" (va), "r"(0), "i" (CPU_FTR_ARCH_206)
->> >>  			     : "memory");
->> >> @@ -69,9 +72,19 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
->> >>  	default:
->> >>  		/* We need 14 to 14 + i bits of va */
->> >>  		penc = mmu_psize_defs[psize].penc[apsize];
->> >> -		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
->> >> +		va &= ~((1ul << mmu_psize_defs[apsize].shift) - 1);
->> >>  		va |= penc << 12;
->> >>  		va |= ssize << 8;
->> >> +		/* Add AVAL part */
->> >> +		if (psize != apsize) {
->> >> +			/*
->> >> +			 * MPSS, 64K base page size and 16MB parge page size
->> >> +			 * We don't need all the bits, but this seems to work.
->> >> +			 * vpn cover upto 65 bits of va. (0...65) and we need
->> >> +			 * 58..64 bits of va.
->> >
->> > "seems to work" is not a comment I like to see in core MMU code...
->> >
->> 
->> As per ISA spec, the "other bits" in RB[56:62] must be ignored by the
->> processor. Hence I didn't bother to do zero it out. Since we only
->> support one MPSS combination, we could easily zero out using 0xf0. 
->
-> Then update the comment to clearly explain why what you're doing is
-> correct, not just say it "seems to work".
+If userspace people want it, I can do it. 
+But not sure they want it at the moment becaue vrange is rather
+different concept of madvise(DONTNEED) POV usage.
 
-Will do.
+As you know well, in case of DONTNEED, user calls madvise _once_ and
+VM releases memory as soon as he called system call.
+But vrange is same with delayed free when the system memory pressure
+happens so user can't know OS frees the pages anytime.
+It means user should call pair of system call both VRANGE_VOLATILE
+and VRANGE_NOVOLATILE for right usage of volatile range
+(for simple, I don't want to tell SIGBUS fault recovery method).
+If he took a mistake(ie, NOT to call VRANGE_NOVOLATILE) on the range
+which is used by current process, pages used by some process could be
+disappeared suddenly.
 
--aneesh
+In summary, I don't think vrange is a replacement of madvise(DONTNEED)
+but could be useful with madvise(DONTNEED) friend. For example, we can
+make return 1 in vrange(VRANGE_VOLATILE) if memory pressure was already
+severe so user can catch up memory pressure by return value and calls
+madvise(DONTNEED) if memory pressure was already severe. Of course, we
+can handle it vrange system call itself(ex, change vrange system call to
+madvise(DONTNEED) but don't want it because I want to keep vrange hinting
+sytem call very light at all times so user can expect latency.
+
+> 
+> I played a bit this patch. The result looks really promissing.
+> (i.e. 20x faster)
+
+Thanks for the testing with Glibc!
+Yes. Although I didn't post my KVM test result with jemalloc, it could be
+very good, too.
+
+> 
+> My machine have 24cpus, 8GB ram, kvm guest. I guess current DONTNEED
+> implementation doesn't fit kvm at all.
+
+Yes. I expect virtual machine MMU/cache/TLB handling would be expensive
+than bare box.
+
+> 
+> 
+> # of     # of   # of
+> thread   iter   iter (patched glibc)
+
+What's the workload?
+
+> ----------------------------------
+>   1      438    10740
+>   2      842    20916
+>   4      987    32534
+>   8      717    15155
+>  12      714    14109
+>  16      708    13457
+>  20      720    13742
+>  24      727    13642
+>  28      715    13328
+>  32      709    13096
+>  36      705    13661
+>  40      708    13634
+>  44      707    13367
+>  48      714    13377
+> 
+> 
+> ---------libc patch (just dirty hack) ----------------------
+> 
+> diff --git a/malloc/arena.c b/malloc/arena.c
+> index 12a48ad..da04f67 100644
+> --- a/malloc/arena.c
+> +++ b/malloc/arena.c
+> @@ -365,6 +365,8 @@ extern struct dl_open_hook *_dl_open_hook;
+>  libc_hidden_proto (_dl_open_hook);
+>  #endif
+> 
+> +int vrange_enabled = 0;
+> +
+>  static void
+>  ptmalloc_init (void)
+>  {
+> @@ -457,6 +459,18 @@ ptmalloc_init (void)
+>      if (check_action != 0)
+>        __malloc_check_init();
+>    }
+> +
+> +  {
+> +    char *vrange = getenv("MALLOC_VRANGE");
+> +    if (vrange) {
+> +      int val = atoi(vrange);
+> +      if (val) {
+> +       printf("glibc: vrange enabled\n");
+> +       vrange_enabled = !!val;
+> +      }
+> +    }
+> +  }
+> +
+>    void (*hook) (void) = force_reg (__malloc_initialize_hook);
+>    if (hook != NULL)
+>      (*hook)();
+> @@ -628,9 +642,14 @@ shrink_heap(heap_info *h, long diff)
+>         return -2;
+>        h->mprotect_size = new_size;
+>      }
+> -  else
+> -    __madvise ((char *)h + new_size, diff, MADV_DONTNEED);
+> +  else {
+> +    if (vrange_enabled) {
+> +      syscall(314, (char *)h + new_size, diff, 0, 1);
+> +    } else {
+> +      __madvise ((char *)h + new_size, diff, MADV_DONTNEED);
+> +    }
+>    /*fprintf(stderr, "shrink %p %08lx\n", h, new_size);*/
+> +  }
+> 
+>    h->size = new_size;
+>    return 0;
+> diff --git a/malloc/malloc.c b/malloc/malloc.c
+> index 70b9329..3782244 100644
+> --- a/malloc/malloc.c
+> +++ b/malloc/malloc.c
+> @@ -4403,6 +4403,7 @@ _int_pvalloc(mstate av, size_t bytes)
+>  /*
+>    ------------------------------ malloc_trim ------------------------------
+>  */
+> +extern int vrange_enabled;
+> 
+>  static int mtrim(mstate av, size_t pad)
+>  {
+> @@ -4443,7 +4444,12 @@ static int mtrim(mstate av, size_t pad)
+>                        content.  */
+>                     memset (paligned_mem, 0x89, size & ~psm1);
+>  #endif
+> -                   __madvise (paligned_mem, size & ~psm1, MADV_DONTNEED);
+> +
+> +                   if (vrange_enabled) {
+> +                     syscall(314, paligned_mem, size & ~psm1, 0, 1);
+> +                   } else {
+> +                     __madvise (paligned_mem, size & ~psm1, MADV_DONTNEED);
+> +                   }
+> 
+>                     result = 1;
+>                   }
+> (END)
+
+I can't find VRANGE_NOVOLATILE call in your patch so I think you just
+test with enough memory. I expect you wanted just fast prototype to see
+the performance gain. Yes, looks good although above code isn't complete
+since it doesn't handle purged pages.
+
+Next step of us would optimize reclaim path so when memory pressure is
+severe, vrange could have a improved result rather than vanilla for
+avoing swap out. Any suggestion are welcome.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
