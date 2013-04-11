@@ -1,58 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 743DA6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 10:19:47 -0400 (EDT)
-Date: Thu, 11 Apr 2013 15:19:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Print the correct method to disable automatic numa
- migration
-Message-ID: <20130411141942.GL3710@suse.de>
-References: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
- <20130411124803.GK3710@suse.de>
- <20130411140425.GJ16732@two.firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id C1D256B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 10:47:13 -0400 (EDT)
+Date: Thu, 11 Apr 2013 10:47:06 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1365691626-w2h428s2-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130411140012.GI16732@two.firstfloor.org>
+References: <1365665524-nj0fhwkj-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130411140012.GI16732@two.firstfloor.org>
+Subject: Re: [RFC Patch 2/2] mm: Add parameters to limit a rate of outputting
+ memory error messages
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20130411140425.GJ16732@two.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>
+Cc: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Thu, Apr 11, 2013 at 04:04:25PM +0200, Andi Kleen wrote:
-> > As David pointed out, CONFIG_NUMA_BALANCING_DEFAULT_ENABLED only comes
-> > into play when CONFIG_NUMA_BALANCING is set and CONFIG_NUMA_BALANCING
-> > will default to N for make oldconfig. I think it's sensible to enable it
-> > by default if it's configured in.
+On Thu, Apr 11, 2013 at 04:00:12PM +0200, Andi Kleen wrote:
+> > I don't think it's enough to do ratelimit only for me_pagecache_dirty().
+> > When tons of memory errors flood, all of printk()s in memory error handler
+> > can print out tons of messages.
 > 
-> I've got reports from users who got it unexpected and it messed 
-> everything up for them.
+> Note that when you really have a flood of uncorrected errors you'll
+> likely die soon anyways as something unrecoverable is very likely to
+> happen. Error memory recovery cannot fix large scale memory corruptions,
+> just the rare events that slip through all the other memory error correction
+> schemes.
 > 
+> So I wouldn't worry too much about that.
 
-They enabled the option to have the feature and were then surprised it
-was enabled? That surprises me.
+I agree.
+My previous comment is valid only when we assume the flooding can happen
+(and I personally don't believe that can happen except for in testing.)
 
-> > 
-> > David has also already pointed out the problems with NO_NUMA vs -NUMA and
-> > the fact that the option only exists if CONFIG_SCHED_DEBUG which I agree
-> > is unfortunate. Ends up with this sort of mess
-> 
-> We just need the sysctl. Are you adding one or should I send
-> another patch with it?
-> 
+And for paranoid users, we can suggest that they set up mcelog script
+triggering to turn off vm.memory_failure_recovery when memory errors flood.
+Such users don't expect that memory error handling works fine in flooding,
+so just suppressing kernel messages is pointless.
 
-I hadn't planned on it in the short term at least. Originally there was
-a sysctl to control the NUMA auto balancing behaviour but it was one of
-the points of contention that got dropped along the way. As SCHED_DEBUG
-is enabled in some distribution configs at least, it was expected the
-option would generally be available even though the documentation for
-/sys/kernel/debug/sched_features is non-existent. I had hoped to have
-revisited NUMA balancing a long time ago but too many bugs have been
-getting in the way.
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
