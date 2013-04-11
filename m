@@ -1,40 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id C9A336B0006
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 10:00:14 -0400 (EDT)
-Date: Thu, 11 Apr 2013 16:00:12 +0200
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 82C166B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 10:04:27 -0400 (EDT)
+Date: Thu, 11 Apr 2013 16:04:25 +0200
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC Patch 2/2] mm: Add parameters to limit a rate of
- outputting memory error messages
-Message-ID: <20130411140012.GI16732@two.firstfloor.org>
-References: <1365665524-nj0fhwkj-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm: Print the correct method to disable automatic numa
+ migration
+Message-ID: <20130411140425.GJ16732@two.firstfloor.org>
+References: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
+ <20130411124803.GK3710@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1365665524-nj0fhwkj-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130411124803.GK3710@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>
 
-> I don't think it's enough to do ratelimit only for me_pagecache_dirty().
-> When tons of memory errors flood, all of printk()s in memory error handler
-> can print out tons of messages.
+> As David pointed out, CONFIG_NUMA_BALANCING_DEFAULT_ENABLED only comes
+> into play when CONFIG_NUMA_BALANCING is set and CONFIG_NUMA_BALANCING
+> will default to N for make oldconfig. I think it's sensible to enable it
+> by default if it's configured in.
 
-Note that when you really have a flood of uncorrected errors you'll
-likely die soon anyways as something unrecoverable is very likely to
-happen. Error memory recovery cannot fix large scale memory corruptions,
-just the rare events that slip through all the other memory error correction
-schemes.
+I've got reports from users who got it unexpected and it messed 
+everything up for them.
 
-So I wouldn't worry too much about that.
+> 
+> David has also already pointed out the problems with NO_NUMA vs -NUMA and
+> the fact that the option only exists if CONFIG_SCHED_DEBUG which I agree
+> is unfortunate. Ends up with this sort of mess
 
-The flooding problem is typically more with corrected error reporting.
+We just need the sysctl. Are you adding one or should I send
+another patch with it?
+
+BTW all the knobs are undocumented in Documentation/* too.
+Please document any sysctl you submit.
+
+Undocumented = may as well no exist.
 
 -Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
