@@ -1,63 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 74F576B0006
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 05:10:48 -0400 (EDT)
-Date: Thu, 11 Apr 2013 10:10:44 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/10] Reduce system disruption due to kswapd V2
-Message-ID: <20130411091044.GG3710@suse.de>
-References: <1365505625-9460-1-git-send-email-mgorman@suse.de>
- <0000013defd666bf-213d70fc-dfbd-4a50-82ed-e9f4f7391b55-000000@email.amazonses.com>
- <20130410141445.GD3710@suse.de>
- <alpine.DEB.2.02.1304101524120.7738@dtop>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 66BBC6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 05:25:30 -0400 (EDT)
+Date: Thu, 11 Apr 2013 19:25:24 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
+Message-ID: <20130411092524.GK10481@dastard>
+References: <51628877.5000701@parallels.com>
+ <20130409005547.GC21654@lge.com>
+ <20130409012931.GE17758@dastard>
+ <20130409020505.GA4218@lge.com>
+ <20130409123008.GM17758@dastard>
+ <20130410025115.GA5872@lge.com>
+ <20130410100752.GA10481@dastard>
+ <CAAmzW4OMyZ=nVbHK_AiifPK5LVxvhOQUXmsD5NGfo33CBjf=eA@mail.gmail.com>
+ <20130411004114.GC10481@dastard>
+ <20130411072729.GA3605@hacker.(null)>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1304101524120.7738@dtop>
+In-Reply-To: <20130411072729.GA3605@hacker.(null)>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dormando <dormando@rydia.net>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: JoonSoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Wed, Apr 10, 2013 at 03:28:32PM -0700, dormando wrote:
-> > On Tue, Apr 09, 2013 at 05:27:18PM +0000, Christoph Lameter wrote:
-> > > One additional measure that may be useful is to make kswapd prefer one
-> > > specific processor on a socket. Two benefits arise from that:
-> > >
-> > > 1. Better use of cpu caches and therefore higher speed, less
-> > > serialization.
-> > >
+On Thu, Apr 11, 2013 at 03:27:30PM +0800, Wanpeng Li wrote:
+> On Thu, Apr 11, 2013 at 10:41:14AM +1000, Dave Chinner wrote:
+> >On Wed, Apr 10, 2013 at 11:03:39PM +0900, JoonSoo Kim wrote:
+> >> Another one what I found is that they don't account "nr_reclaimed" precisely.
+> >> There is no code which check whether "current->reclaim_state" exist or not,
+> >> except prune_inode().
 > >
-> > Considering the volume of pages that kswapd can scan when it's active
-> > I would expect that it trashes its cache anyway. The L1 cache would be
-> > flushed after scanning struct pages for just a few MB of memory.
+> >That's because prune_inode() can free page cache pages when the
+> >inode mapping is invalidated. Hence it accounts this in addition
+> >to the slab objects being freed.
 > >
-> > > 2. Reduction of the disturbances to one processor.
-> > >
+> >IOWs, if you have a shrinker that frees pages from the page cache,
+> >you need to do this. Last time I checked, only inode cache reclaim
+> >caused extra page cache reclaim to occur, so most (all?) other
+> >shrinkers do not need to do this.
 > >
-> > I've never checked it but I would have expected kswapd to stay on the
-> > same processor for significant periods of time. Have you experienced
-> > problems where kswapd bounces around on CPUs within a node causing
-> > workload disruption?
 > 
-> When kswapd shares the same CPU as our main process it causes a measurable
-> drop in response time (graphs show tiny spikes at the same time memory is
-> freed). Would be nice to be able to ensure it runs on a different core
-> than our latency sensitive processes at least. We can pin processes to
-> subsets of cores but I don't think there's a way to keep kswapd from
-> waking up on any of them?
+> If we should account "nr_reclaimed" against huge zero page? There are 
+> large number(512) of pages reclaimed which can throttle direct or 
+> kswapd relcaim to avoid reclaim excess pages. I can do this work if 
+> you think the idea is needed.
 
-I've never tried it myself but does the following work?
+I'm not sure. the zero hugepage is allocated through:
 
-taskset -p MASK `pidof kswapd`
+	zero_page = alloc_pages((GFP_TRANSHUGE | __GFP_ZERO) & ~__GFP_MOVABLE,   
+				HPAGE_PMD_ORDER);
 
-where MASK is a cpumask describing what CPUs kswapd can run on?
-Obviously care should be taken to ensure that you bind kswapd to a CPU
-running on the node kswapd cares about.
+which means the pages reclaimed by the shrinker aren't file/anon LRU
+pages.  Hence I'm not sure what extra accounting might be useful
+here, but accounting them as LRU pages being reclaimed seems wrong.
 
+FWIW, the reclaim of a single global object by a shrinker is not
+really a use case the shrinkers were designed for, so I suspect that
+anything we try to do right now within the current framework will
+just be a hack.
+
+I suspect that what we need to do is add the current zone reclaim
+priority to the shrinker control structure (like has been done with
+the nodemask) so that objects like this can be considered for
+removal at a specific reclaim priority level rather than trying to
+use scan/count trickery to get where we want to be.
+
+Perhaps we need a shrinker->shrink_priority method that is called just
+once when the reclaim priority is high enough to trigger it. i.e.
+all these "do something special when memory reclaim is struggling to
+make progress" operations set the priority at which they get called
+and every time shrink_slab() is then called with that priority (or
+higher) the shrinker->shrink_priority method is called just once?
+
+Cheers,
+
+Dave.
 -- 
-Mel Gorman
-SUSE Labs
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
