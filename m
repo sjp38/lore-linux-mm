@@ -1,51 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id B3DD76B0006
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 11:53:05 -0400 (EDT)
-Date: Thu, 11 Apr 2013 08:53:04 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH] mm: Print the correct method to disable automatic numa
- migration
-Message-ID: <20130411155304.GK22166@tassilo.jf.intel.com>
-References: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
- <20130411124803.GK3710@suse.de>
- <20130411140425.GJ16732@two.firstfloor.org>
- <20130411141942.GL3710@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130411141942.GL3710@suse.de>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 676F86B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 12:42:26 -0400 (EDT)
+Message-ID: <1365697802.32127.117.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v3 2/3] resource: Add release_mem_region_adjustable()
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 11 Apr 2013 10:30:02 -0600
+In-Reply-To: <20130410152404.e0836af597ba3545b9846672@linux-foundation.org>
+References: <1365614221-685-1-git-send-email-toshi.kani@hp.com>
+	 <1365614221-685-3-git-send-email-toshi.kani@hp.com>
+	 <20130410144412.395bf9f2fb8192920175e30a@linux-foundation.org>
+	 <1365630585.32127.110.camel@misato.fc.hp.com>
+	 <alpine.DEB.2.02.1304101505250.1526@chino.kir.corp.google.com>
+	 <20130410152404.e0836af597ba3545b9846672@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
-> > > David has also already pointed out the problems with NO_NUMA vs -NUMA and
-> > > the fact that the option only exists if CONFIG_SCHED_DEBUG which I agree
-> > > is unfortunate. Ends up with this sort of mess
-> > 
-> > We just need the sysctl. Are you adding one or should I send
-> > another patch with it?
-> > 
+On Wed, 2013-04-10 at 15:24 -0700, Andrew Morton wrote:
+> On Wed, 10 Apr 2013 15:08:29 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 > 
-> I hadn't planned on it in the short term at least. Originally there was
+> > On Wed, 10 Apr 2013, Toshi Kani wrote:
+> > 
+> > > > I'll switch it to GFP_ATOMIC.  Which is horridly lame but the
+> > > > allocation is small and alternatives are unobvious.
+> > > 
+> > > Great!  Again, thanks for the update!
+> > 
+> > release_mem_region_adjustable() allocates at most one struct resource, so 
+> > why not do kmalloc(sizeof(struct resource), GFP_KERNEL) before taking 
+> > resource_lock and then testing whether it's NULL or not when splitting?  
+> > It unnecessarily allocates memory when there's no split, but 
+> > __remove_pages() shouldn't be a hotpath.
+> 
+> yup.
+> 
+> --- a/kernel/resource.c~resource-add-release_mem_region_adjustable-fix-fix
+> +++ a/kernel/resource.c
+> @@ -1046,7 +1046,8 @@ int release_mem_region_adjustable(struct
+>  			resource_size_t start, resource_size_t size)
+>  {
+>  	struct resource **p;
+> -	struct resource *res, *new;
+> +	struct resource *res;
+> +	struct resource *new_res;
+>  	resource_size_t end;
+>  	int ret = -EINVAL;
+>  
+> @@ -1054,6 +1055,9 @@ int release_mem_region_adjustable(struct
+>  	if ((start < parent->start) || (end > parent->end))
+>  		return ret;
+>  
+> +	/* The kzalloc() result gets checked later */
+> +	new_res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> +
+>  	p = &parent->child;
+>  	write_lock(&resource_lock);
+>  
+> @@ -1091,32 +1095,33 @@ int release_mem_region_adjustable(struct
+>  						start - res->start);
+>  		} else {
+>  			/* split into two entries */
+> -			new = kzalloc(sizeof(struct resource), GFP_ATOMIC);
+> -			if (!new) {
+> +			if (!new_res) {
+>  				ret = -ENOMEM;
+>  				break;
+>  			}
+> -			new->name = res->name;
+> -			new->start = end + 1;
+> -			new->end = res->end;
+> -			new->flags = res->flags;
+> -			new->parent = res->parent;
+> -			new->sibling = res->sibling;
+> -			new->child = NULL;
+> +			new_res->name = res->name;
+> +			new_res->start = end + 1;
+> +			new_res->end = res->end;
+> +			new_res->flags = res->flags;
+> +			new_res->parent = res->parent;
+> +			new_res->sibling = res->sibling;
+> +			new_res->child = NULL;
+>  
+>  			ret = __adjust_resource(res, res->start,
+>  						start - res->start);
+>  			if (ret) {
+> -				kfree(new);
+> +				kfree(new_res);
+>  				break;
+>  			}
 
-I'll send a patch.
+The kfree() in the if-statement above is not necessary since kfree() is
+called before the return at the end.  That is, the if-statement needs to
+be:
+	if (ret)
+		break;
 
-But are you taking care of the documentation of all the existing knobs?
+With this change, I confirmed that all my test cases passed (with all
+the config debug options this time :).  With the change:
 
-I think if you had done that earlier you would have noticed
-that the current situation is not very satisfying.
+Reviewed-by: Toshi Kani <toshi.kani@hp.com>
+Tested-by: Toshi Kani <toshi.kani@hp.com>
 
-Writing documentation is one of the best ways we have
-to sanitize user interfaces.
+Thanks!
+-Toshi
 
-> revisited NUMA balancing a long time ago but too many bugs have been
-> getting in the way.
 
-That will likely make everything even worse.
+> -			res->sibling = new;
+> +			res->sibling = new_res;
+> +			new_res = NULL;
+>  		}
+>  
+>  		break;
+>  	}
+>  
+>  	write_unlock(&resource_lock);
+> +	kfree(new_res);
+>  	return ret;
+>  }
+>  #endif	/* CONFIG_MEMORY_HOTPLUG */
+> _
+> 
 
--Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
