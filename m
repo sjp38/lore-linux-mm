@@ -1,164 +1,122 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 02/10] staging: zcache: remove zcache_freeze
-Date: Fri, 12 Apr 2013 07:22:53 +0800
-Message-ID: <32693.2094329552$1365722588@news.gmane.org>
+Subject: Re: [PATCH 05/10] staging: ramster: Move debugfs code out of
+ ramster.c file
+Date: Fri, 12 Apr 2013 07:27:41 +0800
+Message-ID: <37087.0740771808$1365722879@news.gmane.org>
 References: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1365553560-32258-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <ecb7519b-669a-48e4-b217-a77ecb60afd4@default>
+ <1365553560-32258-6-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130411200428.GA31680@kroah.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1UQQpc-0002LQ-0b
-	for glkm-linux-mm-2@m.gmane.org; Fri, 12 Apr 2013 01:23:04 +0200
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 521D66B0027
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 19:23:00 -0400 (EDT)
+	id 1UQQuI-000066-K3
+	for glkm-linux-mm-2@m.gmane.org; Fri, 12 Apr 2013 01:27:54 +0200
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id CDC866B0027
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 19:27:51 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 12 Apr 2013 09:16:00 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 2D6AE2CE804A
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 09:22:56 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3BN9aPZ8389046
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 09:09:36 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3BNMtJp026107
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 09:22:56 +1000
+	Fri, 12 Apr 2013 04:52:16 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 9F8453940023
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 04:57:43 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3BNRbYj10944820
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 04:57:37 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3BNRgIO014212
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 09:27:43 +1000
 Content-Disposition: inline
-In-Reply-To: <ecb7519b-669a-48e4-b217-a77ecb60afd4@default>
+In-Reply-To: <20130411200428.GA31680@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>
 
-On Thu, Apr 11, 2013 at 10:13:42AM -0700, Dan Magenheimer wrote:
->> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
->> Subject: [PATCH 02/10] staging: zcache: remove zcache_freeze
->> 
->> The default value of zcache_freeze is false and it won't be modified by
->> other codes. Remove zcache_freeze since no routine can disable zcache
->> during system running.
->> 
->> Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+On Thu, Apr 11, 2013 at 01:04:28PM -0700, Greg Kroah-Hartman wrote:
+>On Wed, Apr 10, 2013 at 08:25:55AM +0800, Wanpeng Li wrote:
+>> Note that at this point there is no CONFIG_RAMSTER_DEBUG
+>> option in the Kconfig. So in effect all of the counters
+>> are nop until that option gets re-introduced in:
+>> zcache/ramster/debug: Add RAMSTE_DEBUG Kconfig entry
 >
->I'd prefer to leave this code in place as it may be very useful
->if/when zcache becomes more tightly integrated into the MM subsystem
->and the rest of the kernel.  And the subtleties for temporarily disabling
->zcache (which is what zcache_freeze does) are non-obvious and
->may cause data loss so if someone wants to add this functionality
->back in later and don't have this piece of code, it may take
->a lot of pain to get it working.
+>This patch breaks the build badly:
 >
->Usage example: All CPUs are fully saturated so it is questionable
->whether spending CPU cycles for compression is wise.  Kernel
->could disable zcache using zcache_freeze.  (Yes, a new entry point
->would need to be added to enable/disable zcache_freeze.)
+>drivers/staging/zcache/ramster/ramster.c: In function =E2=80=98ramster_l=
+ocalify=E2=80=99:
+>drivers/staging/zcache/ramster/ramster.c:159:4: error: =E2=80=98ramster_=
+remote_eph_pages_unsucc_get=E2=80=99 undeclared (first use in this functi=
+on)
+>drivers/staging/zcache/ramster/ramster.c:159:4: note: each undeclared id=
+entifier is reported only once for each function it appears in
+>drivers/staging/zcache/ramster/ramster.c:161:4: error: =E2=80=98ramster_=
+remote_pers_pages_unsucc_get=E2=80=99 undeclared (first use in this funct=
+ion)
+>drivers/staging/zcache/ramster/ramster.c:212:3: error: =E2=80=98ramster_=
+remote_eph_pages_succ_get=E2=80=99 undeclared (first use in this function=
+)
+>drivers/staging/zcache/ramster/ramster.c:214:3: error: =E2=80=98ramster_=
+remote_pers_pages_succ_get=E2=80=99 undeclared (first use in this functio=
+n)
+>drivers/staging/zcache/ramster/ramster.c: In function =E2=80=98ramster_p=
+ampd_repatriate_preload=E2=80=99:
+>drivers/staging/zcache/ramster/ramster.c:299:3: error: =E2=80=98ramster_=
+pers_pages_remote_nomem=E2=80=99 undeclared (first use in this function)
+>drivers/staging/zcache/ramster/ramster.c: In function =E2=80=98ramster_r=
+emote_flush_page=E2=80=99:
+>drivers/staging/zcache/ramster/ramster.c:437:3: error: =E2=80=98ramster_=
+remote_pages_flushed=E2=80=99 undeclared (first use in this function)
+>drivers/staging/zcache/ramster/ramster.c:439:3: error: =E2=80=98ramster_=
+remote_page_flushes_failed=E2=80=99 undeclared (first use in this functio=
+n)
+>drivers/staging/zcache/ramster/ramster.c: In function =E2=80=98ramster_r=
+emote_flush_object=E2=80=99:
+>drivers/staging/zcache/ramster/ramster.c:454:3: error: =E2=80=98ramster_=
+remote_objects_flushed=E2=80=99 undeclared (first use in this function)
+>drivers/staging/zcache/ramster/ramster.c:456:3: error: =E2=80=98ramster_=
+remote_object_flushes_failed=E2=80=99 undeclared (first use in this funct=
+ion)
+>drivers/staging/zcache/ramster/ramster.c: In function =E2=80=98ramster_r=
+emotify_pageframe=E2=80=99:
+>drivers/staging/zcache/ramster/ramster.c:507:5: error: =E2=80=98ramster_=
+eph_pages_remote_failed=E2=80=99 undeclared (first use in this function)
+>drivers/staging/zcache/ramster/ramster.c:509:5: error: =E2=80=98ramster_=
+pers_pages_remote_failed=E2=80=99 undeclared (first use in this function)
+>drivers/staging/zcache/ramster/ramster.c:516:4: error: =E2=80=98ramster_=
+eph_pages_remoted=E2=80=99 undeclared (first use in this function)
+>drivers/staging/zcache/ramster/ramster.c:518:4: error: =E2=80=98ramster_=
+pers_pages_remoted=E2=80=99 undeclared (first use in this function)
+>make[3]: *** [drivers/staging/zcache/ramster/ramster.o] Error 1
 >
->My two cents... others are welcome to override.
+>Please always test your patches.
 >
+>I've applied patch 1, 3, and 4 in this series.  Please fix this up if yo=
+u want
+>me to apply anything else.
 
-Fair enough. ;-)
+Sorry for the bisect issue in my patchset, I will fix it and repost
+ASAP. Thanks for your patient.=20
 
 Regards,
-Wanpeng Li 
+Wanpeng Li=20
 
->> ---
->>  drivers/staging/zcache/zcache-main.c |   55 +++++++++++-----------------------
->>  1 file changed, 18 insertions(+), 37 deletions(-)
->> 
->> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
->> index e23d814..fe6801a 100644
->> --- a/drivers/staging/zcache/zcache-main.c
->> +++ b/drivers/staging/zcache/zcache-main.c
->> @@ -1118,15 +1118,6 @@ free_and_out:
->>  #endif /* CONFIG_ZCACHE_WRITEBACK */
->> 
->>  /*
->> - * When zcache is disabled ("frozen"), pools can be created and destroyed,
->> - * but all puts (and thus all other operations that require memory allocation)
->> - * must fail.  If zcache is unfrozen, accepts puts, then frozen again,
->> - * data consistency requires all puts while frozen to be converted into
->> - * flushes.
->> - */
->> -static bool zcache_freeze;
->> -
->> -/*
->>   * This zcache shrinker interface reduces the number of ephemeral pageframes
->>   * used by zcache to approximately the same as the total number of LRU_FILE
->>   * pageframes in use, and now also reduces the number of persistent pageframes
->> @@ -1221,44 +1212,34 @@ int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
->>  {
->>  	struct tmem_pool *pool;
->>  	struct tmem_handle th;
->> -	int ret = -1;
->> +	int ret = 0;
->>  	void *pampd = NULL;
->> 
->>  	BUG_ON(!irqs_disabled());
->>  	pool = zcache_get_pool_by_id(cli_id, pool_id);
->>  	if (unlikely(pool == NULL))
->>  		goto out;
->> -	if (!zcache_freeze) {
->> -		ret = 0;
->> -		th.client_id = cli_id;
->> -		th.pool_id = pool_id;
->> -		th.oid = *oidp;
->> -		th.index = index;
->> -		pampd = zcache_pampd_create((char *)page, size, raw,
->> -				ephemeral, &th);
->> -		if (pampd == NULL) {
->> -			ret = -ENOMEM;
->> -			if (ephemeral)
->> -				inc_zcache_failed_eph_puts();
->> -			else
->> -				inc_zcache_failed_pers_puts();
->> -		} else {
->> -			if (ramster_enabled)
->> -				ramster_do_preload_flnode(pool);
->> -			ret = tmem_put(pool, oidp, index, 0, pampd);
->> -			if (ret < 0)
->> -				BUG();
->> -		}
->> -		zcache_put_pool(pool);
->> +
->> +	th.client_id = cli_id;
->> +	th.pool_id = pool_id;
->> +	th.oid = *oidp;
->> +	th.index = index;
->> +	pampd = zcache_pampd_create((char *)page, size, raw,
->> +			ephemeral, &th);
->> +	if (pampd == NULL) {
->> +		ret = -ENOMEM;
->> +		if (ephemeral)
->> +			inc_zcache_failed_eph_puts();
->> +		else
->> +			inc_zcache_failed_pers_puts();
->>  	} else {
->> -		inc_zcache_put_to_flush();
->>  		if (ramster_enabled)
->>  			ramster_do_preload_flnode(pool);
->> -		if (atomic_read(&pool->obj_count) > 0)
->> -			/* the put fails whether the flush succeeds or not */
->> -			(void)tmem_flush_page(pool, oidp, index);
->> -		zcache_put_pool(pool);
->> +		ret = tmem_put(pool, oidp, index, 0, pampd);
->> +		if (ret < 0)
->> +			BUG();
->>  	}
->> +	zcache_put_pool(pool);
->>  out:
->>  	return ret;
->>  }
->> --
->> 1.7.10.4
+>
+>greg k-h
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
 see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
