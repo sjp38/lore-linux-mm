@@ -1,64 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 461D26B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:47:21 -0400 (EDT)
-Received: by mail-vb0-f73.google.com with SMTP id q12so183918vbe.4
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:47:20 -0700 (PDT)
-Subject: [folded-merged] mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix.patch removed from -mm tree
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id D800B6B0006
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:48:21 -0400 (EDT)
+Received: by mail-qc0-f201.google.com with SMTP id o22so183835qcr.4
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:48:20 -0700 (PDT)
+Subject: [folded-merged] mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix.patch removed from -mm tree
 From: akpm@linux-foundation.org
-Date: Thu, 11 Apr 2013 13:47:19 -0700
-Message-Id: <20130411204719.9B89031C27F@corp2gmr1-1.hot.corp.google.com>
+Date: Thu, 11 Apr 2013 13:48:20 -0700
+Message-Id: <20130411204820.5119E31C27F@corp2gmr1-1.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, agshew@gmail.com, linux-mm@kvack.org, mm-commits@vger.kernel.org
 
 
 The patch titled
-     Subject: mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix
+     Subject: mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix
 has been removed from the -mm tree.  Its filename was
-     mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix.patch
+     mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix.patch
 
-This patch was dropped because it was folded into mm-replace-hardcoded-3%-with-admin_reserve_pages-knob.patch
+This patch was dropped because it was folded into mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed.patch
 
 ------------------------------------------------------
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix
+Subject: mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix
 
-make init_admin_reserve() static
+use register_hotmemory_notifier()
 
 Cc: <linux-mm@kvack.org>
 Cc: Andrew Shewmaker <agshew@gmail.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- mm/mmap.c  |    2 +-
- mm/nommu.c |    2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ mm/mmap.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff -puN mm/mmap.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix mm/mmap.c
---- a/mm/mmap.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix
+diff -puN mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix mm/mmap.c
+--- a/mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix
 +++ a/mm/mmap.c
-@@ -3131,7 +3131,7 @@ module_init(init_user_reserve)
-  * with sshd, bash, and top in OVERCOMMIT_GUESS. Smaller systems will
-  * only reserve 3% of free pages by default.
-  */
--int __meminit init_admin_reserve(void)
-+static int __meminit init_admin_reserve(void)
- {
- 	unsigned long free_kbytes;
+@@ -3198,7 +3198,7 @@ static struct notifier_block reserve_mem
  
-diff -puN mm/nommu.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix mm/nommu.c
---- a/mm/nommu.c~mm-replace-hardcoded-3%-with-admin_reserve_pages-knob-fix
-+++ a/mm/nommu.c
-@@ -2148,7 +2148,7 @@ module_init(init_user_reserve)
-  * with sshd, bash, and top in OVERCOMMIT_GUESS. Smaller systems will
-  * only reserve 3% of free pages by default.
-  */
--int __meminit init_admin_reserve(void)
-+static int __meminit init_admin_reserve(void)
+ int __meminit init_reserve_notifier(void)
  {
- 	unsigned long free_kbytes;
+-	if (register_memory_notifier(&reserve_mem_nb))
++	if (register_hotmemory_notifier(&reserve_mem_nb))
+ 		printk("Failed registering memory add/remove notifier for admin reserve");
  
+ 	return 0;
 _
 
 Patches currently in -mm which might be from akpm@linux-foundation.org are
@@ -89,7 +76,7 @@ fs-proc-kcorec-use-register_hotmemory_notifier.patch
 kernel-cpusetc-use-register_hotmemory_notifier.patch
 mm-limit-growth-of-3%-hardcoded-other-user-reserve.patch
 mm-replace-hardcoded-3%-with-admin_reserve_pages-knob.patch
-mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix.patch
+mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed.patch
 mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix.patch
 resource-add-release_mem_region_adjustable-fix.patch
 resource-add-release_mem_region_adjustable-fix-fix.patch
