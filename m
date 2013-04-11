@@ -1,68 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id CD8236B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 14:10:06 -0400 (EDT)
-Date: Thu, 11 Apr 2013 20:10:04 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC Patch 0/2] mm: Add parameters to make kernel behavior at
- memory error on dirty cache selectable
-Message-ID: <20130411181004.GK16732@two.firstfloor.org>
-References: <51662D5B.3050001@hitachi.com>
- <20130411134915.GH16732@two.firstfloor.org>
- <1365693788-djsd2ymu-mutt-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 3A2B36B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 14:35:16 -0400 (EDT)
+Date: Thu, 11 Apr 2013 14:35:12 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: Excessive stall times on ext4 in 3.9-rc2
+Message-ID: <20130411183512.GA12298@thunk.org>
+References: <20130402142717.GH32241@suse.de>
+ <20130402150651.GB31577@thunk.org>
+ <20130410105608.GC1910@suse.de>
+ <20130410131245.GC4862@thunk.org>
+ <20130411170402.GB11656@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1365693788-djsd2ymu-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130411170402.GB11656@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
 
-On Thu, Apr 11, 2013 at 11:23:08AM -0400, Naoya Horiguchi wrote:
-> On Thu, Apr 11, 2013 at 03:49:16PM +0200, Andi Kleen wrote:
-> > > As a result, if the dirty cache includes user data, the data is lost,
-> > > and data corruption occurs if an application uses old data.
+On Thu, Apr 11, 2013 at 06:04:02PM +0100, Mel Gorman wrote:
+> > If we're stalling on lock_buffer(), that implies that buffer was being
+> > written, and for some reason it was taking a very long time to
+> > complete.
 > > 
-> > The application cannot use old data, the kernel code kills it if it
-> > would do that. And if it's IO data there is an EIO triggered.
-> > 
-> > iirc the only concern in the past was that the application may miss
-> > the asynchronous EIO because it's cleared on any fd access. 
-> > 
-> > This is a general problem not specific to memory error handling, 
-> > as these asynchronous IO errors can happen due to other reason
-> > (bad disk etc.) 
-> > 
-> > If you're really concerned about this case I think the solution
-> > is to make the EIO more sticky so that there is a higher chance
-> > than it gets returned.  This will make your data much more safe,
-> > as it will cover all kinds of IO errors, not just the obscure memory
-> > errors.
 > 
-> I'm interested in this topic, and in previous discussion, what I was said
-> is that we can't expect user applications to change their behaviors when
-> they get EIO, so globally changing EIO's stickiness is not a great approach.
+> Yes.
+> 
+> > It might be worthwhile to put a timestamp in struct dm_crypt_io, and
+> > record the time when a particular I/O encryption/decryption is getting
+> > queued to the kcryptd workqueues, and when they finally squirt out.
+> > 
+> 
+> That somewhat assumes that dm_crypt was at fault which is not unreasonable
+> but I was skeptical as the workload on dm_crypt was opening a maildir
+> and mostly reads.
 
-Not sure. Some of the current behavior may be dubious and it may 
-be possible to change it. But would need more analysis.
+Hmm... well, I've reviewed all of the places in the ext4 and jbd2
+layer where we call lock_buffer(), and with one exception[1] we're not
+holding the the bh locked any longer than necessary.  There are a few
+places where we grab a spinlock or two before we can do what we need
+to do and then release the lock'ed buffer head, but the only time we
+hold the bh locked for long periods of time is when we submit metadata
+blocks for I/O.
 
-I don't think we're concerned that much about "correct" applications,
-but more ones that do not check everything. So returning more
-errors should be safer.
+[1] There is one exception in ext4_xattr_release_block() where I
+believe we should move the call to unlock_buffer(bh) before the call
+to ext4_free_blocks(), since we've already elevanted the bh count and
+ext4_free_blocks() does not need to have the bh locked.  It's not
+related to any of the stalls you've repored, though, as near as I can
+tell (none of the stack traces include the ext4 xattr code, and this
+would only affect external extended attribute blocks).
 
-For example you could have a sysctl that enables always stick
-IO error -- that keeps erroring until it is closed.
 
-> I'm working on a new pagecache tag based mechanism to solve this.
-> But it needs time and more discussions.
-> So I guess Tanino-san suggests giving up on dirty pagecache errors
-> as a quick solution.
+Could you code which checks the hold time of lock_buffer(), measuing
+from when the lock is successfully grabbed, to see if you can see if I
+missed some code path in ext4 or jbd2 where the bh is locked and then
+there is some call to some function which needs to block for some
+random reason?  What I'd suggest is putting a timestamp in buffer_head
+structure, which is set by lock_buffer once it is successfully grabbed
+the lock, and then in unlock_buffer(), if it is held for more than a
+second or some such, to dump out the stack trace.
 
-A quick solution would be enabling panic for any asynchronous IO error.
-I don't think the memory error code is the right point to hook into.
+Because at this point, either I'm missing something or I'm beginning
+to suspect that your hard drive (or maybe something the block layer?)
+is simply taking a long time to service an I/O request.  Putting in
+this check should be able to very quickly determine what code path
+and/or which subsystem we should be focused upon.
 
--Andi
+Thanks,
+
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
