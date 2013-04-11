@@ -1,167 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 26FF26B0006
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 23:27:18 -0400 (EDT)
-Message-ID: <51662D93.1050804@hitachi.com>
-Date: Thu, 11 Apr 2013 12:27:15 +0900
-From: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id C53866B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 23:37:43 -0400 (EDT)
+Received: by mail-qe0-f41.google.com with SMTP id b10so675933qen.0
+        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 20:37:42 -0700 (PDT)
+Message-ID: <51662FFF.10103@gmail.com>
+Date: Thu, 11 Apr 2013 11:37:35 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: [RFC Patch 2/2] mm: Add parameters to limit a rate of outputting
- memory error messages
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
+ hardware access to the CPU page tables of user processes
+References: <5114DF05.7070702@mellanox.com> <CANN689Ff6vSu4ZvHek4J4EMzFG7EjF-Ej48hJKV_4SrLoj+mCA@mail.gmail.com> <CAH3drwaACy5KFv_2ozEe35u1Jpxs0f6msKoW=3_0nrWZpJnO4w@mail.gmail.com> <5164C6EE.7020502@gmail.com> <20130410205557.GB3958@gmail.com>
+In-Reply-To: <20130410205557.GB3958@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Michel Lespinasse <walken@google.com>, Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-This patch introduces new sysctl interfaces in order to limit
-a rate of outputting memory error messages.
+Hi Jerome,
+On 04/11/2013 04:55 AM, Jerome Glisse wrote:
+> On Wed, Apr 10, 2013 at 09:57:02AM +0800, Simon Jeons wrote:
+>> Hi Jerome,
+>> On 02/10/2013 12:29 AM, Jerome Glisse wrote:
+>>> On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse <walken@google.com> wrote:
+>>>> On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel <raindel@mellanox.com> wrote:
+>>>>> Hi,
+>>>>>
+>>>>> We would like to present a reference implementation for safely sharing
+>>>>> memory pages from user space with the hardware, without pinning.
+>>>>>
+>>>>> We will be happy to hear the community feedback on our prototype
+>>>>> implementation, and suggestions for future improvements.
+>>>>>
+>>>>> We would also like to discuss adding features to the core MM subsystem to
+>>>>> assist hardware access to user memory without pinning.
+>>>> This sounds kinda scary TBH; however I do understand the need for such
+>>>> technology.
+>>>>
+>>>> I think one issue is that many MM developers are insufficiently aware
+>>>> of such developments; having a technology presentation would probably
+>>>> help there; but traditionally LSF/MM sessions are more interactive
+>>>> between developers who are already quite familiar with the technology.
+>>>> I think it would help if you could send in advance a detailed
+>>>> presentation of the problem and the proposed solutions (and then what
+>>>> they require of the MM layer) so people can be better prepared.
+>>>>
+>>>> And first I'd like to ask, aren't IOMMUs supposed to already largely
+>>>> solve this problem ? (probably a dumb question, but that just tells
+>>>> you how much you need to explain :)
+>>> For GPU the motivation is three fold. With the advance of GPU compute
+>>> and also with newer graphic program we see a massive increase in GPU
+>>> memory consumption. We easily can reach buffer that are bigger than
+>>> 1gbytes. So the first motivation is to directly use the memory the
+>>> user allocated through malloc in the GPU this avoid copying 1gbytes of
+>>> data with the cpu to the gpu buffer. The second and mostly important
+>>> to GPU compute is the use of GPU seamlessly with the CPU, in order to
+>>> achieve this you want the programmer to have a single address space on
+>>> the CPU and GPU. So that the same address point to the same object on
+>>> GPU as on the CPU. This would also be a tremendous cleaner design from
+>>> driver point of view toward memory management.
+>> When GPU will comsume memory?
+>>
+>> The userspace process like mplayer will have video datas and GPU
+>> will play this datas and use memory of mplayer since these video
+>> datas load in mplayer process's address space? So GPU codes will
+>> call gup to take a reference of memory? Please correct me if my
+>> understanding is wrong. ;-)
+> First target is not thing such as video decompression, however they could
+> too benefit from it given updated driver kernel API. In case of using
+> iommu hardware page fault we don't call get_user_pages (gup) those we
+> don't take a reference on the page. That's the whole point of the hardware
+> pagefault, not taking reference on the page.
 
-- vm.memory_failure_print_ratelimit:
-  Specify the minimum length of time between messages.
-  By default the rate limiting is disabled.
-
-- vm.memory_failure_print_ratelimit_burst:
-  Specify the number of messages we can send before rate limiting.
+mplayer process is running on normal CPU or GPU?
+chipset_integrated graphics will use normal memory and discrete graphics 
+will use its own memory, correct? So the memory used by discrete 
+graphics won't need gup, correct?
 
 
-Signed-off-by: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>
----
-
-diff --git a/a/Documentation/sysctl/vm.txt b/b/Documentation/sysctl/vm.txt
-index 7dad994..eea6f4d 100644
---- a/a/Documentation/sysctl/vm.txt
-+++ b/b/Documentation/sysctl/vm.txt
-@@ -36,6 +36,8 @@ Currently, these files are in /proc/sys/vm:
- - max_map_count
- - memory_failure_dirty_panic
- - memory_failure_early_kill
-+- memory_failure_print_ratelimit
-+- memory_failure_print_ratelimit_burst
- - memory_failure_recovery
- - min_free_kbytes
- - min_slab_ratio
-@@ -358,6 +360,30 @@ Applications can override this setting individually with the PR_MCE_KILL prctl
- 
- ==============================================================
- 
-+memory_failure_print_ratelimit:
-+
-+Error messages related data lost which come from truncating
-+dirty page cache are rate limited.
-+memory_failure_print_ratelimit specifies the minimum length of
-+time between these messages (in jiffies), by default the rate
-+limiting is disabled.
-+
-+If a value is set to 5, we allow one error message every 5 seconds.
-+
-+==============================================================
-+
-+memory_failure_print_ratelimit_burst:
-+
-+While long term we enforce one message per
-+memory_failure_print_ratelimit seconds, we do allow a burst of
-+messages to pass through.
-+memory_failure_print_ratelimit_burst specifies the number of
-+messages we can send before rate limiting kicks in.
-+If memory_failure_print_ratelimit is set to 0, this parameter
-+is ineffective.
-+
-+==============================================================
-+
- memory_failure_recovery
- 
- Enable memory failure recovery (when supported by the platform)
-diff --git a/a/include/linux/mm.h b/b/include/linux/mm.h
-index 0025882..ca27bd9 100644
---- a/a/include/linux/mm.h
-+++ b/b/include/linux/mm.h
-@@ -1721,6 +1721,7 @@ extern int unpoison_memory(unsigned long pfn);
- extern int sysctl_memory_failure_dirty_panic;
- extern int sysctl_memory_failure_early_kill;
- extern int sysctl_memory_failure_recovery;
-+extern struct ratelimit_state sysctl_memory_failure_print_ratelimit;
- extern void shake_page(struct page *p, int access);
- extern atomic_long_t mce_bad_pages;
- extern int soft_offline_page(struct page *page, int flags);
-diff --git a/a/kernel/sysctl.c b/b/kernel/sysctl.c
-index 452dd80..0703c2e 100644
---- a/a/kernel/sysctl.c
-+++ b/b/kernel/sysctl.c
-@@ -1421,6 +1421,20 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= &zero,
- 		.extra2		= &one,
- 	},
-+	{
-+		.procname	= "memory_failure_print_ratelimit",
-+		.data		= &sysctl_memory_failure_print_ratelimit.interval,
-+		.maxlen		= sizeof(int),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec_jiffies,
-+	},
-+	{
-+		.procname	= "memory_failure_print_ratelimit_burst",
-+		.data		= &sysctl_memory_failure_print_ratelimit.burst,
-+		.maxlen		= sizeof(int),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	},
- #endif
- 	{ }
- };
-diff --git a/a/mm/memory-failure.c b/b/mm/memory-failure.c
-index 6d3c0ed..ce5bb1a 100644
---- a/a/mm/memory-failure.c
-+++ b/b/mm/memory-failure.c
-@@ -55,6 +55,7 @@
- #include <linux/memory_hotplug.h>
- #include <linux/mm_inline.h>
- #include <linux/kfifo.h>
-+#include <linux/ratelimit.h>
- #include "internal.h"
- 
- int sysctl_memory_failure_dirty_panic __read_mostly = 0;
-@@ -78,6 +79,16 @@ EXPORT_SYMBOL_GPL(hwpoison_filter_dev_minor);
- EXPORT_SYMBOL_GPL(hwpoison_filter_flags_mask);
- EXPORT_SYMBOL_GPL(hwpoison_filter_flags_value);
- 
-+/*
-+ * This enforces a rate limit for outputting error message.
-+ * The default interval is set to "0" HZ. This means that
-+ * outputting error message is not limited by default.
-+ * The default burst is set to "10". This parameter can control
-+ * to output number of messages per interval.
-+ * If interval is set to "0", the burst is ineffective.
-+ */
-+DEFINE_RATELIMIT_STATE(sysctl_memory_failure_print_ratelimit, 0 * HZ, 10);
-+
- static int hwpoison_filter_dev(struct page *p)
- {
- 	struct address_space *mapping;
-@@ -622,13 +633,16 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
- 	SetPageError(p);
- 	if (mapping) {
- 		/* Print more information about the file. */
--		if (mapping->host != NULL && S_ISREG(mapping->host->i_mode))
--			pr_info("MCE %#lx: File was corrupted: Dev:%s Inode:%lu Offset:%lu\n",
--				page_to_pfn(p), mapping->host->i_sb->s_id,
--				mapping->host->i_ino, page_index(p));
--		else
--			pr_info("MCE %#lx: A dirty page cache was corrupted.\n",
--				page_to_pfn(p));
-+		if (__ratelimit(&sysctl_memory_failure_print_ratelimit)) {
-+			if (mapping->host != NULL &&
-+			    S_ISREG(mapping->host->i_mode))
-+				pr_info("MCE %#lx: File was corrupted: Dev:%s Inode:%lu Offset:%lu\n",
-+				   page_to_pfn(p), mapping->host->i_sb->s_id,
-+				   mapping->host->i_ino, page_index(p));
-+			else
-+				pr_info("MCE %#lx: A dirty page cache was corrupted.\n",
-+					page_to_pfn(p));
-+		}
- 
- 		/*
- 		 * IO error will be reported by write(), fsync(), etc.
+>
+> Cheers,
+> Jerome Glisse
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
