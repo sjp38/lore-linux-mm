@@ -1,62 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id C46FF6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 06:29:45 -0400 (EDT)
-Received: by mail-qe0-f53.google.com with SMTP id q19so798160qeb.12
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 03:29:44 -0700 (PDT)
-Message-ID: <51669091.5070406@gmail.com>
-Date: Thu, 11 Apr 2013 18:29:37 +0800
-From: Ric Mason <ric.masonn@gmail.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 2F5FC6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 07:28:36 -0400 (EDT)
+Message-ID: <51669E5F.4000801@parallels.com>
+Date: Thu, 11 Apr 2013 15:28:31 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/10] mm: vmscan: Have kswapd shrink slab only once per
- priority
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-9-git-send-email-mgorman@suse.de> <20130409065325.GA4411@lge.com> <20130409111358.GB2002@suse.de> <20130410052142.GB5872@lge.com> <20130411100115.GJ3710@suse.de>
-In-Reply-To: <20130411100115.GJ3710@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: [PATCH 0/5] mm: Ability to monitor task memory changes (v3)
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hi Mel,
-On 04/11/2013 06:01 PM, Mel Gorman wrote:
-> On Wed, Apr 10, 2013 at 02:21:42PM +0900, Joonsoo Kim wrote:
->>>>> @@ -2673,9 +2674,15 @@ static bool kswapd_shrink_zone(struct zone *zone,
->>>>>   	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
->>>>>   	shrink_zone(zone, sc);
->>>>>   
->>>>> -	reclaim_state->reclaimed_slab = 0;
->>>>> -	nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
->>>>> -	sc->nr_reclaimed += reclaim_state->reclaimed_slab;
->>>>> +	/*
->>>>> +	 * Slabs are shrunk for each zone once per priority or if the zone
->>>>> +	 * being balanced is otherwise unreclaimable
->>>>> +	 */
->>>>> +	if (shrinking_slab || !zone_reclaimable(zone)) {
->>>>> +		reclaim_state->reclaimed_slab = 0;
->>>>> +		nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
->>>>> +		sc->nr_reclaimed += reclaim_state->reclaimed_slab;
->>>>> +	}
->>>>>   
->>>>>   	if (nr_slab == 0 && !zone_reclaimable(zone))
->>>>>   		zone->all_unreclaimable = 1;
->>>> Why shrink_slab() is called here?
->>> Preserves existing behaviour.
->> Yes, but, with this patch, existing behaviour is changed, that is, we call
->> shrink_slab() once per priority. For now, there is no reason this function
->> is called here. How about separating it and executing it outside of
->> zone loop?
->>
-> We are calling it fewer times but it's still receiving the same information
-> from sc->nr_scanned it received before. With the change you are suggesting
-> it would be necessary to accumulating sc->nr_scanned for each zone shrunk
-> and then pass the sum to shrink_slab() once per priority. While this is not
-> necessarily wrong, there is little or no motivation to alter the shrinkers
-> in this manner in this series.
+Hello,
 
-Why the result is not the same?
+This is the implementation of the soft-dirty bit concept that should help
+keep track of changes in user memory, which in turn is very-very required by
+the checkpoint-restore project (http://criu.org). Let me briefly remind what
+the issue is.
 
+<< EOF
+To create a dump of an application(s) we save all the information about it
+to files, and the biggest part of such dump is the contents of tasks' memory.
+However, there are usage scenarios where it's not required to get _all_ the
+task memory while creating a dump. For example, when doing periodical dumps,
+it's only required to take full memory dump only at the first step and then
+take incremental changes of memory. Another example is live migration. We 
+copy all the memory to the destination node without stopping all tasks, then
+stop them, check for what pages has changed, dump it and the rest of the state,
+then copy it to the destination node. This decreases freeze time significantly.
+
+That said, some help from kernel to watch how processes modify the contents
+of their memory is required.
+EOF
+
+The proposal is to track changes with the help of new soft-dirty bit this way:
+
+1. First do "echo 4 > /proc/$pid/clear_refs".
+   At that point kernel clears the soft dirty _and_ the writable bits from all 
+   ptes of process $pid. From now on every write to any page will result in #pf 
+   and the subsequent call to pte_mkdirty/pmd_mkdirty, which in turn will set
+   the soft dirty flag.
+
+2. Then read the /proc/$pid/pagemap2 and check the soft-dirty bit reported there
+   (the 55'th one). If set, the respective pte was written to since last call
+   to clear refs.
+
+The soft-dirty bit is the _PAGE_BIT_HIDDEN one. Although it's used by kmemcheck,
+the latter one marks kernel pages with it, while the former bit is put on user 
+pages so they do not conflict to each other.
+
+The set is against the v3.9-rc5.
+It includes preparations to /proc/pid's clear_refs file, adds the pagemap2 one
+and the soft-dirty concept itself with Andrew's comments on the previous patch 
+(hopefully) fixed.
+
+
+History of the set:
+
+* Previous version of this patch, commented out by Andrew:
+  http://lwn.net/Articles/546184/
+
+* Pre-previous ftrace-based approach:
+  http://permalink.gmane.org/gmane.linux.kernel.mm/91428
+
+  This one was not nice, because ftrace could drop events so we might
+  miss significant information about page updates.
+
+  Another issue with it -- it was impossible to use one to watch arbitrary
+  task -- task had to mark memory areas with madvise itself to make events
+  occur.
+
+  Also, program, that monitored the update events could interfere with 
+  anyone else trying to mess with ftrace.
+
+Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
