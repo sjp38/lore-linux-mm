@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 0A1A26B0036
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:05:20 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id up7so1034482pbc.1
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:05:20 -0700 (PDT)
-Date: Thu, 11 Apr 2013 13:05:18 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 02/10] staging: zcache: remove zcache_freeze
-Message-ID: <20130411200518.GA5268@kroah.com>
-References: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1365553560-32258-3-git-send-email-liwanp@linux.vnet.ibm.com>
- <ecb7519b-669a-48e4-b217-a77ecb60afd4@default>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 69BA46B0036
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:10:20 -0400 (EDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 11 Apr 2013 14:10:19 -0600
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 9573F38C8029
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:10:10 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3BKAA6q294102
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:10:10 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3BKAA0N020634
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 17:10:10 -0300
+Date: Thu, 11 Apr 2013 15:10:02 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: zsmalloc zbud hybrid design discussion?
+Message-ID: <20130411201002.GD28296@cerebellum>
+References: <ef105888-1996-4c78-829a-36b84973ce65@default>
+ <20130411193534.GB28296@cerebellum>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ecb7519b-669a-48e4-b217-a77ecb60afd4@default>
+In-Reply-To: <20130411193534.GB28296@cerebellum>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>
+Cc: Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Bob Liu <bob.liu@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Apr 11, 2013 at 10:13:42AM -0700, Dan Magenheimer wrote:
-> > From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
-> > Subject: [PATCH 02/10] staging: zcache: remove zcache_freeze
-> > 
-> > The default value of zcache_freeze is false and it won't be modified by
-> > other codes. Remove zcache_freeze since no routine can disable zcache
-> > during system running.
-> > 
-> > Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+On Thu, Apr 11, 2013 at 02:35:34PM -0500, Seth Jennings wrote:
+> Not a requirement:
 > 
-> I'd prefer to leave this code in place as it may be very useful
-> if/when zcache becomes more tightly integrated into the MM subsystem
-> and the rest of the kernel.  And the subtleties for temporarily disabling
-> zcache (which is what zcache_freeze does) are non-obvious and
-> may cause data loss so if someone wants to add this functionality
-> back in later and don't have this piece of code, it may take
-> a lot of pain to get it working.
-> 
-> Usage example: All CPUs are fully saturated so it is questionable
-> whether spending CPU cycles for compression is wise.  Kernel
-> could disable zcache using zcache_freeze.  (Yes, a new entry point
-> would need to be added to enable/disable zcache_freeze.)
-> 
-> My two cents... others are welcome to override.
+> Compaction - compaction would basically involve creating a virtual address
+> space of sorts, which zsmalloc is capable of through its API with handles,
+> not pointer.  However, as Dan points out this requires a structure the maintain
+> the mappings and adds to complexity.  Additionally, the need for compaction
+> diminishes as the allocations are short-lived with frontswap backends doing
+> writeback and cleancache backends shrinking.
 
-I will not override, and did not take this patch.
+Of course I say this, but for zram, this can be important as the allocations
+can't be moved out of memory and, therefore, are long lived.  I was speaking
+from the zswap perspective.
 
-greg k-h
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
