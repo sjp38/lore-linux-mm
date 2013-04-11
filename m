@@ -1,144 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 727166B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 04:31:48 -0400 (EDT)
-Date: Thu, 11 Apr 2013 17:31:46 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC v7 00/11] Support vrange for anonymous page
-Message-ID: <20130411083146.GB12626@blaptop>
-References: <1363073915-25000-1-git-send-email-minchan@kernel.org>
- <5165CA22.6080808@gmail.com>
- <20130411065546.GA10303@blaptop>
- <5166643E.6050704@gmail.com>
- <20130411080243.GA12626@blaptop>
- <5166712C.7040802@gmail.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 342156B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 04:43:51 -0400 (EDT)
+Date: Thu, 11 Apr 2013 10:43:46 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 0/3] soft reclaim rework
+Message-ID: <20130411084346.GB1488@dhcp22.suse.cz>
+References: <1365509595-665-1-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5166712C.7040802@gmail.com>
+In-Reply-To: <1365509595-665-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, John Stultz <john.stultz@linaro.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>
 
-On Thu, Apr 11, 2013 at 04:15:40AM -0400, KOSAKI Motohiro wrote:
-> (4/11/13 4:02 AM), Minchan Kim wrote:
-> > On Thu, Apr 11, 2013 at 03:20:30AM -0400, KOSAKI Motohiro wrote:
-> >>>>>   DONTNEED makes sure user always can see zero-fill pages after
-> >>>>>   he calls madvise while vrange can see data or encounter SIGBUS.
-> >>>>
-> >>>> For replacing DONTNEED, user want to zero-fill pages like DONTNEED
-> >>>> instead of SIGBUS. So, new flag option would be nice.
-> >>>
-> >>> If userspace people want it, I can do it. 
-> >>> But not sure they want it at the moment becaue vrange is rather
-> >>> different concept of madvise(DONTNEED) POV usage.
-> >>>
-> >>> As you know well, in case of DONTNEED, user calls madvise _once_ and
-> >>> VM releases memory as soon as he called system call.
-> >>> But vrange is same with delayed free when the system memory pressure
-> >>> happens so user can't know OS frees the pages anytime.
-> >>> It means user should call pair of system call both VRANGE_VOLATILE
-> >>> and VRANGE_NOVOLATILE for right usage of volatile range
-> >>> (for simple, I don't want to tell SIGBUS fault recovery method).
-> >>> If he took a mistake(ie, NOT to call VRANGE_NOVOLATILE) on the range
-> >>> which is used by current process, pages used by some process could be
-> >>> disappeared suddenly.
-> >>>
-> >>> In summary, I don't think vrange is a replacement of madvise(DONTNEED)
-> >>> but could be useful with madvise(DONTNEED) friend. For example, we can
-> >>> make return 1 in vrange(VRANGE_VOLATILE) if memory pressure was already
-> >>
-> >> Do you mean vrange(VRANGE_UNVOLATILE)?
-> > 
-> > I meant VRANGE_VOLATILE. It seems my explanation was poor. Here it goes, again.
-> > Now vrange's semantic return just 0 if the system call is successful, otherwise,
-> > return error. But we can change it as folows
-> > 
-> > 1. return 0 if the system call is successful and memory pressure isn't severe
-> > 2. return 1 if the system call is successful and memory pressure is severe
-> > 3. return -ERRXXX if the system call is failed by some reason
-> > 
-> > So the process can know system-wide memory pressure without peeking the vmstat
-> > and then call madvise(DONTNEED) right after vrange call. The benefit is system
-> > can zap all pages instantly.
-> 
-> Do you mean your patchset is not latest? and when do you use this feature? what's
+Hi,
+I have retested kbuild test on a bare HW (8CPUs, 1GB RAM limited by
+mem=1G, 2GB swap partition). There are 2 groups (A, B) without any hard
+limit and group A has soft limit set to 700M (to have 70% of available
+memory). Build starts after fresh boot by extracting sources and
+make -j4 vmlinux.
+Each group works on a separate source tree. I have repeated the test 3
+times:
 
-Yes. I meant I can it in next spin up for hearing the opinion.
+First some data as returned by /usr/bin/time -v:
+* Patched:
+A:
+User time (seconds): 1133.06
+User time (seconds): 1132.84
+User time (seconds): 1135.37
+		Avg: 1133.76
+System time (seconds): 258.02
+System time (seconds): 259.33
+System time (seconds): 258.83
+		Avg: 258.73
+Elapsed (wall clock) time (h:mm:ss or m:ss): 8:57.55
+Elapsed (wall clock) time (h:mm:ss or m:ss): 8:55.68
+Elapsed (wall clock) time (h:mm:ss or m:ss): 8:50.96
+		Avg: 08:54.73
 
-> happen VRANGE_VOLATILE return 0 and purge the range just after returning syscall.
+B:
+User time (seconds): 1149.22
+User time (seconds): 1153.98
+User time (seconds): 1150.37
+		Avg: 1151.19 (101.5% of A)
+System time (seconds): 262.13
+System time (seconds): 263.31
+System time (seconds): 260.84
+		Avg: 262.09 (101.3% of A)
+Elapsed (wall clock) time (h:mm:ss or m:ss): 10:13.37
+Elapsed (wall clock) time (h:mm:ss or m:ss): 10:17.15
+Elapsed (wall clock) time (h:mm:ss or m:ss): 10:05.23
+		Avg: 10:11.92 (114.4% of A)
 
-It could be an idea but I will think it over.
+* Base:
+A:
+User time (seconds): 1132.58
+User time (seconds): 1140.63
+User time (seconds): 1135.68
+		avg: 1136.30 (100.2% of A - patched)
+System time (seconds): 264.88
+System time (seconds): 263.54
+System time (seconds): 261.99
+		avg: 263.47 (101.8 of A - patched)
+Elapsed (wall clock) time (h:mm:ss or m:ss): 9:48.54
+Elapsed (wall clock) time (h:mm:ss or m:ss): 9:50.44
+Elapsed (wall clock) time (h:mm:ss or m:ss): 9:44.28
+		avg: 09:47.75 (109.9% of A - patched)
 
-> 
-> 
-> >> btw, assign new error number to asm-generic/errno.h is better than strange '1'.
-> > 
-> > I can and admit "1" is rather weired.
-> > But it's not error, either.
-> 
-> If this is really necessary, I don't oppose it. However I am still not convinced.
-> 
-> 
-> 
-> >>> severe so user can catch up memory pressure by return value and calls
-> >>> madvise(DONTNEED) if memory pressure was already severe. Of course, we
-> >>> can handle it vrange system call itself(ex, change vrange system call to
-> >>> madvise(DONTNEED) but don't want it because I want to keep vrange hinting
-> >>> sytem call very light at all times so user can expect latency.
-> >>
-> >> For allocator usage, vrange(UNVOLATILE) is annoying and don't need at all.
-> >> When data has already been purged, just return new zero filled page. so,
-> >> maybe adding new flag is worthwhile. Because malloc is definitely fast path
-> > 
-> > I really want it and it's exactly same with madvise(MADV_FREE).
-> > But for implementation, we need page granularity someting in address range
-> > in system call context like zap_pte_range(ex, clear page table bits and
-> > mark something to page flags for reclaimer to detect it).
-> > It means vrange system call is still bigger although we are able to remove
-> > lazy page fault.
-> > 
-> > Do you have any idea to remove it? If so, I'm very open to implement it.
-> 
-> Hm. Maybe I am missing something. I'll look the code closely after LFS.
+B:
+User time (seconds): 1138.32
+User time (seconds): 1135.70
+User time (seconds): 1136.80
+		avg: 1136.94 (100.2% of A - patched)
 
-Please see the Rik's old work about MADV_FREE.
+System time (seconds): 261.56
+System time (seconds): 262.10
+System time (seconds): 262.24
+		avg: 261.97  (100% of A - patched)
+Elapsed (wall clock) time (h:mm:ss or m:ss): 9:39.17
+Elapsed (wall clock) time (h:mm:ss or m:ss): 9:46.95
+Elapsed (wall clock) time (h:mm:ss or m:ss): 9:44.73
+		avg: 09:47.75 (109.1% of A - patched)
 
-> 
-> 
-> >> and adding new syscall invokation is unwelcome.
-> > 
-> > Sure. But one more system call could be cheaper than page-granuarity
-> > operation on purged range.
-> 
-> I don't think vrange(VOLATILE) cost is the related of this discusstion.
-> Whether sending SIGBUS or just nuke pte, purge should be done on vmscan,
-> not vrange() syscall.
+While for the patched kernel soft limit helped to protect A's working
+set so it was faster (14% in the total time) than B without any limits.
+The unpatched kernel has treated them more or less equally regardless
+the softlimit setting.
 
-Again, please see the MADV_FREE. http://lwn.net/Articles/230799/
-It does changes pte and page flags on all pages of the range through
-zap_pte_range. So it would make vrange(VOLASTILE) expensive and
-the bigger cost is, the bigger range is.
+If we compare patched and base kernels numbers then the overall
+situation improved slightly (A+B Elapsed time is 2% smaller) with the
+patched kernel which was quite surprising for me. Maybe a side effect of
+priority-0 soft reclaim in the base kernel.
 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+As the variance between runs wasn't very high I have focused on the first
+run for the memory usage and reclaim statistics comparisons between the
+base and patched kernels.
 
+* Patched:
+pgscan_direct_dma32 	252408
+pgscan_kswapd_dma32 	988928
+pgsteal_direct_dma32 	63565
+pgsteal_kswapd_dma32	905223
+
+* Base:
+pgscan_direct_dma32 	97310	(38% of patched)
+pgscan_kswapd_dma32 	1702971	(172%)
+pgsteal_direct_dma32 	83377	(131%)
+pgsteal_kswapd_dma32 	1534616	(169.5%)
+
+So it seems that we scanned much more on the patched kernel during the
+direct reclaim but we have reclaimed less nevertheless. This is most
+probably because there is a bigger pressure on B's LRU and we encounter
+more dirty pages so more pages are scanned in the end. In sum we scanned
+and reclaimed less (by 45% resp. 67%) though.
+
+You can find some graphs at:
+- http://labs.suse.cz/mhocko/soft_limit_rework/base-usage.png
+- http://labs.suse.cz/mhocko/soft_limit_rework/patched-usage.png
+
+Per group charges over time.
+
+- http://labs.suse.cz/mhocko/soft_limit_rework/base-usage-histogram.png
+- http://labs.suse.cz/mhocko/soft_limit_rework/patched-usage-histogram.png
+
+Same here but in the histogram form to see the main tendencies.
+
+- http://labs.suse.cz/mhocko/soft_limit_rework/pgscan.png
+- http://labs.suse.cz/mhocko/soft_limit_rework/pgsteal.png
+
+Scanning and reclaiming activity comparision between the base and the
+patched kernel.
 -- 
-Kind regards,
-Minchan Kim
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
