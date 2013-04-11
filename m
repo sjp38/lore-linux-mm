@@ -1,88 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id CDC866B0027
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 19:27:51 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 12 Apr 2013 04:52:16 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 9F8453940023
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 04:57:43 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3BNRbYj10944820
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 04:57:37 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3BNRgIO014212
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 09:27:43 +1000
-Date: Fri, 12 Apr 2013 07:27:41 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 05/10] staging: ramster: Move debugfs code out of
- ramster.c file
-Message-ID: <20130411232741.GA30716@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1365553560-32258-6-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130411200428.GA31680@kroah.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 2BD586B0036
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 19:28:29 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20130411200428.GA31680@kroah.com>
+Message-ID: <764b8d66-5456-4bd0-b7a4-5fa3aaf717dd@default>
+Date: Thu, 11 Apr 2013 16:28:19 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: zsmalloc zbud hybrid design discussion?
+References: <ef105888-1996-4c78-829a-36b84973ce65@default>
+ <20130411193534.GB28296@cerebellum>
+In-Reply-To: <20130411193534.GB28296@cerebellum>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Konrad Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Bob Liu <bob.liu@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.orgBob Liu <bob.liu@oracle.com>
 
-On Thu, Apr 11, 2013 at 01:04:28PM -0700, Greg Kroah-Hartman wrote:
->On Wed, Apr 10, 2013 at 08:25:55AM +0800, Wanpeng Li wrote:
->> Note that at this point there is no CONFIG_RAMSTER_DEBUG
->> option in the Kconfig. So in effect all of the counters
->> are nop until that option gets re-introduced in:
->> zcache/ramster/debug: Add RAMSTE_DEBUG Kconfig entry
->
->This patch breaks the build badly:
->
->drivers/staging/zcache/ramster/ramster.c: In function a??ramster_localifya??:
->drivers/staging/zcache/ramster/ramster.c:159:4: error: a??ramster_remote_eph_pages_unsucc_geta?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c:159:4: note: each undeclared identifier is reported only once for each function it appears in
->drivers/staging/zcache/ramster/ramster.c:161:4: error: a??ramster_remote_pers_pages_unsucc_geta?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c:212:3: error: a??ramster_remote_eph_pages_succ_geta?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c:214:3: error: a??ramster_remote_pers_pages_succ_geta?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c: In function a??ramster_pampd_repatriate_preloada??:
->drivers/staging/zcache/ramster/ramster.c:299:3: error: a??ramster_pers_pages_remote_nomema?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c: In function a??ramster_remote_flush_pagea??:
->drivers/staging/zcache/ramster/ramster.c:437:3: error: a??ramster_remote_pages_flusheda?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c:439:3: error: a??ramster_remote_page_flushes_faileda?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c: In function a??ramster_remote_flush_objecta??:
->drivers/staging/zcache/ramster/ramster.c:454:3: error: a??ramster_remote_objects_flusheda?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c:456:3: error: a??ramster_remote_object_flushes_faileda?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c: In function a??ramster_remotify_pageframea??:
->drivers/staging/zcache/ramster/ramster.c:507:5: error: a??ramster_eph_pages_remote_faileda?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c:509:5: error: a??ramster_pers_pages_remote_faileda?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c:516:4: error: a??ramster_eph_pages_remoteda?? undeclared (first use in this function)
->drivers/staging/zcache/ramster/ramster.c:518:4: error: a??ramster_pers_pages_remoteda?? undeclared (first use in this function)
->make[3]: *** [drivers/staging/zcache/ramster/ramster.o] Error 1
->
->Please always test your patches.
->
->I've applied patch 1, 3, and 4 in this series.  Please fix this up if you want
->me to apply anything else.
+(Bob Liu added)
 
-Sorry for the bisect issue in my patchset, I will fix it and repost
-ASAP. Thanks for your patient. 
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Subject: Re: zsmalloc zbud hybrid design discussion?
+>=20
+> On Wed, Mar 27, 2013 at 01:04:25PM -0700, Dan Magenheimer wrote:
+> > Seth and all zproject folks --
+> >
+> > I've been giving some deep thought as to how a zpage
+> > allocator might be designed that would incorporate the
+> > best of both zsmalloc and zbud.
+> >
+> > Rather than dive into coding, it occurs to me that the
+> > best chance of success would be if all interested parties
+> > could first discuss (on-list) and converge on a design
+> > that we can all agree on.  If we achieve that, I don't
+> > care who writes the code and/or gets the credit or
+> > chooses the name.  If we can't achieve consensus, at
+> > least it will be much clearer where our differences lie.
+> >
+> > Any thoughts?
 
-Regards,
-Wanpeng Li 
+Hi Seth!
+=20
+> I'll put some thoughts, keeping in mind that I'm not throwing zsmalloc un=
+der
+> the bus here.  Just what I would do starting from scratch given all that =
+has
+> happened.
 
->
->greg k-h
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Excellent.  Good food for thought.  I'll add some of my thinking
+too and we can talk more next week.
+
+BTW, I'm not throwing zsmalloc under the bus either.  I'm OK with
+using zsmalloc as a "base" for an improved hybrid, and even calling
+the result "zsmalloc".  I *am* however willing to throw the
+"generic" nature of zsmalloc away... I think the combined requirements
+of the zprojects are complex enough and the likelihood of zsmalloc
+being appropriate for future "users" is low enough, that we should
+accept that zsmalloc is highly tuned for zprojects and modify it
+as required.  I.e. the API to zsmalloc need not be exposed to and
+documented for the rest of the kernel.
+=20
+> Simplicity - the simpler the better
+
+Generally I agree.  But only if the simplicity addresses the
+whole problem.  I'm specifically very concerned that we have
+an allocator that works well across a wide variety of zsize distributions,
+even if it adds complexity to the allocator.
+
+> High density - LZO best case is ~40 bytes. That's around 1/100th of a pag=
+e.
+> I'd say it should support up to at least 64 object per page in the best c=
+ase.
+> (see Reclaim effectiveness before responding here)
+
+Hmmm... if you pre-check for zero pages, I would guess the percentage
+of pages with zsize less than 64 is actually quite small.  But 64 size
+classes may be a good place to start as long as it doesn't overly
+complicate or restrict other design points.
+
+> No slab - the slab approach limits LRU and swap slot locality within the =
+pool
+> pages.  Also swap slots have a tendency to be freed in clusters.  If we i=
+mprove
+> locality within each pool page, it is more likely that page will be freed
+> sooner as the zpages it contains will likely be invalidated all together.
+
+"Pool page" =3D?=3D "pageframe used by zsmalloc"
+
+Isn't it true that that there is no correlation between whether a
+page is in the same cluster and the zsize (and thus size class) of
+the zpage?  So every zpage may end up in a different pool page
+and this theory wouldn't work.  Or am I misunderstanding?
+
+> Also, take a note out of the zbud playbook at track LRU based on pool pag=
+es,
+> not zpages.  One would fill allocation requests from the most recently us=
+ed
+> pool page.
+
+Yes, I'm also thinking that should be in any hybrid solution.
+A "global LRU queue" (like in zbud) could also be applicable to entire zspa=
+ges;
+this is similar to pageframe-reclaim except all the pageframes in a zspage
+would be claimed at the same time.
+
+> Reclaim effectiveness - conflicts with density. As the number of zpages p=
+er
+> page increases, the odds decrease that all of those objects will be
+> invalidated, which is necessary to free up the underlying page, since mov=
+ing
+> objects out of sparely used pages would involve compaction (see next).  O=
+ne
+> solution is to lower the density, but I think that is self-defeating as w=
+e lose
+> much the compression benefit though fragmentation. I think the better sol=
+ution
+> is to improve the likelihood that the zpages in the page are likely to be=
+ freed
+> together through increased locality.
+
+I do think we should seriously reconsider ZS_MAX_ZSPAGE_ORDER=3D=3D2.
+The value vs ZS_MAX_ZSPAGE_ORDER=3D=3D0 is enough for most cases and
+1 is enough for the rest.  If get_pages_per_zspage were "flexible",
+there might be a better tradeoff of density vs reclaim effectiveness.
+
+I've some ideas along the lines of a hybrid adaptively combining
+buddying and slab which might make it rarely necessary to have
+pages_per_zspage exceed 2.  That also might make it much easier
+to have "variable sized" zspages (size is always one or two).
+
+> Not a requirement:
+>=20
+> Compaction - compaction would basically involve creating a virtual addres=
+s
+> space of sorts, which zsmalloc is capable of through its API with handles=
+,
+> not pointer.  However, as Dan points out this requires a structure the ma=
+intain
+> the mappings and adds to complexity.  Additionally, the need for compacti=
+on
+> diminishes as the allocations are short-lived with frontswap backends doi=
+ng
+> writeback and cleancache backends shrinking.
+
+I have an idea that might be a step towards compaction but
+it is still forming.  I'll think about it more and, if
+it makes sense by then, we can talk about it next week.
+
+> So just some thoughts to start some specific discussion.  Any thoughts?
+
+Thanks for your thoughts and moving the conversation forward!
+It will be nice to talk about this f2f instead of getting sore
+fingers from long typing!
+
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
