@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id D800B6B0006
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:48:21 -0400 (EDT)
-Received: by mail-qc0-f201.google.com with SMTP id o22so183835qcr.4
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:48:20 -0700 (PDT)
-Subject: [folded-merged] mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix.patch removed from -mm tree
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id D43646B0027
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:48:26 -0400 (EDT)
+Received: by mail-qc0-f201.google.com with SMTP id o22so183868qcr.0
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:48:25 -0700 (PDT)
+Subject: [folded-merged] mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix.patch removed from -mm tree
 From: akpm@linux-foundation.org
-Date: Thu, 11 Apr 2013 13:48:20 -0700
-Message-Id: <20130411204820.5119E31C27F@corp2gmr1-1.hot.corp.google.com>
+Date: Thu, 11 Apr 2013 13:48:24 -0700
+Message-Id: <20130411204825.4925F31C27C@corp2gmr1-1.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, agshew@gmail.com, linux-mm@kvack.org, mm-commits@vger.kernel.org
 
 
 The patch titled
-     Subject: mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix
+     Subject: mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix
 has been removed from the -mm tree.  Its filename was
-     mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix.patch
+     mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix.patch
 
 This patch was dropped because it was folded into mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed.patch
 
 ------------------------------------------------------
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix
+Subject: mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix
 
-use register_hotmemory_notifier()
+init_user_reserve() and init_admin_reserve can no longer be __meminit
 
 Cc: <linux-mm@kvack.org>
 Cc: Andrew Shewmaker <agshew@gmail.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- mm/mmap.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/mmap.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff -puN mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix mm/mmap.c
---- a/mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix
+diff -puN mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix mm/mmap.c
+--- a/mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix
 +++ a/mm/mmap.c
-@@ -3198,7 +3198,7 @@ static struct notifier_block reserve_mem
- 
- int __meminit init_reserve_notifier(void)
+@@ -3112,7 +3112,7 @@ void __init mmap_init(void)
+  * The default value is min(3% of free memory, 128MB)
+  * 128MB is enough to recover with sshd/login, bash, and top/kill.
+  */
+-static int __meminit init_user_reserve(void)
++static int init_user_reserve(void)
  {
--	if (register_memory_notifier(&reserve_mem_nb))
-+	if (register_hotmemory_notifier(&reserve_mem_nb))
- 		printk("Failed registering memory add/remove notifier for admin reserve");
+ 	unsigned long free_kbytes;
  
- 	return 0;
+@@ -3133,7 +3133,7 @@ module_init(init_user_reserve)
+  * with sshd, bash, and top in OVERCOMMIT_GUESS. Smaller systems will
+  * only reserve 3% of free pages by default.
+  */
+-static int __meminit init_admin_reserve(void)
++static int init_admin_reserve(void)
+ {
+ 	unsigned long free_kbytes;
+ 
 _
 
 Patches currently in -mm which might be from akpm@linux-foundation.org are
@@ -77,7 +86,6 @@ kernel-cpusetc-use-register_hotmemory_notifier.patch
 mm-limit-growth-of-3%-hardcoded-other-user-reserve.patch
 mm-replace-hardcoded-3%-with-admin_reserve_pages-knob.patch
 mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed.patch
-mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix.patch
 resource-add-release_mem_region_adjustable-fix.patch
 resource-add-release_mem_region_adjustable-fix-fix.patch
 mm-madvise-complete-input-validation-before-taking-lock-fix.patch
