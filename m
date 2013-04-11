@@ -1,60 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 75A536B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 01:58:45 -0400 (EDT)
-Received: by mail-ie0-f171.google.com with SMTP id e14so1597888iej.30
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 22:58:44 -0700 (PDT)
-Message-ID: <5166510E.2050709@gmail.com>
-Date: Thu, 11 Apr 2013 13:58:38 +0800
-From: Will Huck <will.huckk@gmail.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 3F5DA6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 02:05:43 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dwg@au1.ibm.com>;
+	Thu, 11 Apr 2013 15:54:21 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id EFFFA2BB0050
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:05:36 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3B65VgH13042018
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:05:31 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3B65aDe024568
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:05:36 +1000
+Date: Thu, 11 Apr 2013 15:57:19 +1000
+From: David Gibson <dwg@au1.ibm.com>
+Subject: Re: [PATCH -V5 12/25] powerpc: Return all the valid pte ecndoing in
+ KVM_PPC_GET_SMMU_INFO ioctl
+Message-ID: <20130411055719.GF8165@truffula.fritz.box>
+References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1365055083-31956-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20130411032447.GU8165@truffula.fritz.box>
+ <874nfdodlu.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/10] mm: vmscan: Limit the number of pages kswapd reclaims
- at each priority
-References: <1363525456-10448-1-git-send-email-mgorman@suse.de> <1363525456-10448-2-git-send-email-mgorman@suse.de> <20130321155705.GA27848@cmpxchg.org> <514BA04D.2090002@gmail.com> <514BD56F.6050709@redhat.com>
-In-Reply-To: <514BD56F.6050709@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="k040vn1t/h12DMPO"
+Content-Disposition: inline
+In-Reply-To: <874nfdodlu.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: paulus@samba.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-Hi Rik,
-On 03/22/2013 11:52 AM, Rik van Riel wrote:
-> On 03/21/2013 08:05 PM, Will Huck wrote:
->
->> One offline question, how to understand this in function balance_pgdat:
->> /*
->>   * Do some background aging of the anon list, to give
->>   * pages a chance to be referenced before reclaiming.
->>   */
->> age_acitve_anon(zone, &sc);
->
-> The anon lrus use a two-handed clock algorithm. New anonymous pages
-> start off on the active anon list. Older anonymous pages get moved
-> to the inactive anon list.
+--k040vn1t/h12DMPO
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-The downside of page cache use-once replacement algorithm is 
-inter-reference distance, corret? Does it have any other downside? 
-What's the downside of two-handed clock algorithm against anonymous pages?
+On Thu, Apr 11, 2013 at 10:41:57AM +0530, Aneesh Kumar K.V wrote:
+> David Gibson <dwg@au1.ibm.com> writes:
+>=20
+> > On Thu, Apr 04, 2013 at 11:27:50AM +0530, Aneesh Kumar K.V wrote:
+> >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> >
+> > Surely this can't be correct until the KVM H_ENTER implementation is
+> > updated to cope with the MPSS page sizes.
+>=20
+> Why ? We are returning info regarding penc values for different
+> combination. I would guess qemu to only use info related to base page
+> size. Rest it can ignore right ?. Obviously i haven't tested this
+> part. So let me know if I should drop this ?
 
->
-> If they get referenced before they reach the end of the inactive anon
-> list, they get moved back to the active list.
->
-> If we need to swap something out and find a non-referenced page at the
-> end of the inactive anon list, we will swap it out.
->
-> In order to make good pageout decisions, pages need to stay on the
-> inactive anon list for a longer time, so they have plenty of time to
-> get referenced, before the reclaim code looks at them.
->
-> To achieve that, we will move some active anon pages to the inactive
-> anon list even when we do not want to swap anything out - as long as
-> the inactive anon list is below its target size.
->
-> Does that make sense?
->
+The guest can't actually use those encodings unless the host's H_ENTER
+allows it to, though, so this patch should be moved after extended
+that KVM support.
+
+--=20
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
+
+--k040vn1t/h12DMPO
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iEYEARECAAYFAlFmUL8ACgkQaILKxv3ab8aJCACeOcEiDD1hRF2jKSZ+grlgeEmv
+CGQAn3Wg6OUWGgyH+DE3rgdgwwV8MWLe
+=7Ky2
+-----END PGP SIGNATURE-----
+
+--k040vn1t/h12DMPO--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
