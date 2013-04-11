@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 575936B0037
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 11:23:15 -0400 (EDT)
-Date: Thu, 11 Apr 2013 11:23:08 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1365693788-djsd2ymu-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130411134915.GH16732@two.firstfloor.org>
-References: <51662D5B.3050001@hitachi.com>
- <20130411134915.GH16732@two.firstfloor.org>
-Subject: Re: [RFC Patch 0/2] mm: Add parameters to make kernel behavior at
- memory error on dirty cache selectable
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id B3DD76B0006
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 11:53:05 -0400 (EDT)
+Date: Thu, 11 Apr 2013 08:53:04 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH] mm: Print the correct method to disable automatic numa
+ migration
+Message-ID: <20130411155304.GK22166@tassilo.jf.intel.com>
+References: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
+ <20130411124803.GK3710@suse.de>
+ <20130411140425.GJ16732@two.firstfloor.org>
+ <20130411141942.GL3710@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20130411141942.GL3710@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Thu, Apr 11, 2013 at 03:49:16PM +0200, Andi Kleen wrote:
-> > As a result, if the dirty cache includes user data, the data is lost,
-> > and data corruption occurs if an application uses old data.
+> > > David has also already pointed out the problems with NO_NUMA vs -NUMA and
+> > > the fact that the option only exists if CONFIG_SCHED_DEBUG which I agree
+> > > is unfortunate. Ends up with this sort of mess
+> > 
+> > We just need the sysctl. Are you adding one or should I send
+> > another patch with it?
+> > 
 > 
-> The application cannot use old data, the kernel code kills it if it
-> would do that. And if it's IO data there is an EIO triggered.
-> 
-> iirc the only concern in the past was that the application may miss
-> the asynchronous EIO because it's cleared on any fd access. 
-> 
-> This is a general problem not specific to memory error handling, 
-> as these asynchronous IO errors can happen due to other reason
-> (bad disk etc.) 
-> 
-> If you're really concerned about this case I think the solution
-> is to make the EIO more sticky so that there is a higher chance
-> than it gets returned.  This will make your data much more safe,
-> as it will cover all kinds of IO errors, not just the obscure memory
-> errors.
+> I hadn't planned on it in the short term at least. Originally there was
 
-I'm interested in this topic, and in previous discussion, what I was said
-is that we can't expect user applications to change their behaviors when
-they get EIO, so globally changing EIO's stickiness is not a great approach.
-I'm working on a new pagecache tag based mechanism to solve this.
-But it needs time and more discussions.
-So I guess Tanino-san suggests giving up on dirty pagecache errors
-as a quick solution.
+I'll send a patch.
 
-Thanks,
-Naoya
+But are you taking care of the documentation of all the existing knobs?
+
+I think if you had done that earlier you would have noticed
+that the current situation is not very satisfying.
+
+Writing documentation is one of the best ways we have
+to sanitize user interfaces.
+
+> revisited NUMA balancing a long time ago but too many bugs have been
+> getting in the way.
+
+That will likely make everything even worse.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
