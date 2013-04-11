@@ -1,77 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 3A2B36B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 14:35:16 -0400 (EDT)
-Date: Thu, 11 Apr 2013 14:35:12 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-Message-ID: <20130411183512.GA12298@thunk.org>
-References: <20130402142717.GH32241@suse.de>
- <20130402150651.GB31577@thunk.org>
- <20130410105608.GC1910@suse.de>
- <20130410131245.GC4862@thunk.org>
- <20130411170402.GB11656@suse.de>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 9457D6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 14:42:09 -0400 (EDT)
+Received: by mail-ee0-f43.google.com with SMTP id e50so898982eek.30
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 11:42:08 -0700 (PDT)
+Date: Thu, 11 Apr 2013 14:38:29 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
+ hardware access to the CPU page tables of user processes
+Message-ID: <20130411183828.GA6696@gmail.com>
+References: <5114DF05.7070702@mellanox.com>
+ <CANN689Ff6vSu4ZvHek4J4EMzFG7EjF-Ej48hJKV_4SrLoj+mCA@mail.gmail.com>
+ <CAH3drwaACy5KFv_2ozEe35u1Jpxs0f6msKoW=3_0nrWZpJnO4w@mail.gmail.com>
+ <5163D119.80603@gmail.com>
+ <20130409142156.GA1909@gmail.com>
+ <5164C365.70302@gmail.com>
+ <20130410204507.GA3958@gmail.com>
+ <5166310D.4020100@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130411170402.GB11656@suse.de>
+In-Reply-To: <5166310D.4020100@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Michel Lespinasse <walken@google.com>, Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-On Thu, Apr 11, 2013 at 06:04:02PM +0100, Mel Gorman wrote:
-> > If we're stalling on lock_buffer(), that implies that buffer was being
-> > written, and for some reason it was taking a very long time to
-> > complete.
-> > 
+On Thu, Apr 11, 2013 at 11:42:05AM +0800, Simon Jeons wrote:
+> Hi Jerome,
+> On 04/11/2013 04:45 AM, Jerome Glisse wrote:
+> >On Wed, Apr 10, 2013 at 09:41:57AM +0800, Simon Jeons wrote:
+> >>Hi Jerome,
+> >>On 04/09/2013 10:21 PM, Jerome Glisse wrote:
+> >>>On Tue, Apr 09, 2013 at 04:28:09PM +0800, Simon Jeons wrote:
+> >>>>Hi Jerome,
+> >>>>On 02/10/2013 12:29 AM, Jerome Glisse wrote:
+> >>>>>On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse <walken@google.com> wrote:
+> >>>>>>On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel <raindel@mellanox.com> wrote:
+> >>>>>>>Hi,
+> >>>>>>>
+> >>>>>>>We would like to present a reference implementation for safely sharing
+> >>>>>>>memory pages from user space with the hardware, without pinning.
+> >>>>>>>
+> >>>>>>>We will be happy to hear the community feedback on our prototype
+> >>>>>>>implementation, and suggestions for future improvements.
+> >>>>>>>
+> >>>>>>>We would also like to discuss adding features to the core MM subsystem to
+> >>>>>>>assist hardware access to user memory without pinning.
+> >>>>>>This sounds kinda scary TBH; however I do understand the need for such
+> >>>>>>technology.
+> >>>>>>
+> >>>>>>I think one issue is that many MM developers are insufficiently aware
+> >>>>>>of such developments; having a technology presentation would probably
+> >>>>>>help there; but traditionally LSF/MM sessions are more interactive
+> >>>>>>between developers who are already quite familiar with the technology.
+> >>>>>>I think it would help if you could send in advance a detailed
+> >>>>>>presentation of the problem and the proposed solutions (and then what
+> >>>>>>they require of the MM layer) so people can be better prepared.
+> >>>>>>
+> >>>>>>And first I'd like to ask, aren't IOMMUs supposed to already largely
+> >>>>>>solve this problem ? (probably a dumb question, but that just tells
+> >>>>>>you how much you need to explain :)
+> >>>>>For GPU the motivation is three fold. With the advance of GPU compute
+> >>>>>and also with newer graphic program we see a massive increase in GPU
+> >>>>>memory consumption. We easily can reach buffer that are bigger than
+> >>>>>1gbytes. So the first motivation is to directly use the memory the
+> >>>>>user allocated through malloc in the GPU this avoid copying 1gbytes of
+> >>>>>data with the cpu to the gpu buffer. The second and mostly important
+> >>>>>to GPU compute is the use of GPU seamlessly with the CPU, in order to
+> >>>>>achieve this you want the programmer to have a single address space on
+> >>>>>the CPU and GPU. So that the same address point to the same object on
+> >>>>>GPU as on the CPU. This would also be a tremendous cleaner design from
+> >>>>>driver point of view toward memory management.
+> >>>>>
+> >>>>>And last, the most important, with such big buffer (>1gbytes) the
+> >>>>>memory pinning is becoming way to expensive and also drastically
+> >>>>>reduce the freedom of the mm to free page for other process. Most of
+> >>>>>the time a small window (every thing is relative the window can be >
+> >>>>>100mbytes not so small :)) of the object will be in use by the
+> >>>>>hardware. The hardware pagefault support would avoid the necessity to
+> >>>>What's the meaning of hardware pagefault?
+> >>>It's a PCIE extension (well it's a combination of extension that allow
+> >>>that see http://www.pcisig.com/specifications/iov/ats/). Idea is that the
+> >>>iommu can trigger a regular pagefault inside a process address space on
+> >>>behalf of the hardware. The only iommu supporting that right now is the
+> >>>AMD iommu v2 that you find on recent AMD platform.
+> >>Why need hardware page fault? regular page fault is trigger by cpu
+> >>mmu, correct?
+> >Well here i abuse regular page fault term. Idea is that with hardware page
+> >fault you don't need to pin memory or take reference on page for hardware to
+> >use it. So that kernel can free as usual page that would otherwise have been
 > 
-> Yes.
+> For the case when GPU need to pin memory, why GPU need grap the
+> memory of normal process instead of allocating for itself?
+
+Pin memory is today world where gpu allocate its own memory (GB of memory)
+that disappear from kernel control ie kernel can no longer reclaim this
+memory it's lost memory (i had complain about that already from user than
+saw GB of memory vanish and couldn't understand why the GPU was using so
+much).
+
+Tomorrow world we want gpu to be able to access memory that the application
+allocated through a simple malloc and we want the kernel to be able to
+recycly any page at any time because of memory pressure or because kernel
+decide to do so.
+
+That's just what we want to do. To achieve so we are getting hw that can do
+pagefault. No change to kernel core mm code (some improvement might be made).
+
 > 
-> > It might be worthwhile to put a timestamp in struct dm_crypt_io, and
-> > record the time when a particular I/O encryption/decryption is getting
-> > queued to the kcryptd workqueues, and when they finally squirt out.
-> > 
+> >pinned. If GPU is really using them it will trigger a fault through the iommu
+> >driver that call get_user_pages (which can end up calling handle_mm_fault like
+> >a regular page fault that happened on the CPU).
 > 
-> That somewhat assumes that dm_crypt was at fault which is not unreasonable
-> but I was skeptical as the workload on dm_crypt was opening a maildir
-> and mostly reads.
+> This time normal process can't use this page, correct? So GPU and
+> normal process both have their own pages?
 
-Hmm... well, I've reviewed all of the places in the ext4 and jbd2
-layer where we call lock_buffer(), and with one exception[1] we're not
-holding the the bh locked any longer than necessary.  There are a few
-places where we grab a spinlock or two before we can do what we need
-to do and then release the lock'ed buffer head, but the only time we
-hold the bh locked for long periods of time is when we submit metadata
-blocks for I/O.
+No, tomorrow world, gpu and cpu both using same page in same address space at
+the same time. Just like two cpu core each running a different thread of
+the same process would. Just consider the gpu as a new cpu core working in same
+address space using the same memory all at the same time as cpu.
 
-[1] There is one exception in ext4_xattr_release_block() where I
-believe we should move the call to unlock_buffer(bh) before the call
-to ext4_free_blocks(), since we've already elevanted the bh count and
-ext4_free_blocks() does not need to have the bh locked.  It's not
-related to any of the stalls you've repored, though, as near as I can
-tell (none of the stack traces include the ext4 xattr code, and this
-would only affect external extended attribute blocks).
-
-
-Could you code which checks the hold time of lock_buffer(), measuing
-from when the lock is successfully grabbed, to see if you can see if I
-missed some code path in ext4 or jbd2 where the bh is locked and then
-there is some call to some function which needs to block for some
-random reason?  What I'd suggest is putting a timestamp in buffer_head
-structure, which is set by lock_buffer once it is successfully grabbed
-the lock, and then in unlock_buffer(), if it is held for more than a
-second or some such, to dump out the stack trace.
-
-Because at this point, either I'm missing something or I'm beginning
-to suspect that your hard drive (or maybe something the block layer?)
-is simply taking a long time to service an I/O request.  Putting in
-this check should be able to very quickly determine what code path
-and/or which subsystem we should be focused upon.
-
-Thanks,
-
-					- Ted
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
