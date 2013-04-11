@@ -1,117 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id A9B336B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 03:11:24 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dwg@au1.ibm.com>;
-	Thu, 11 Apr 2013 17:02:33 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 554EF3578051
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 17:11:18 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3B6vJ4R62455822
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:57:20 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3B7Ak64000841
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 17:10:46 +1000
-Date: Thu, 11 Apr 2013 17:10:43 +1000
-From: David Gibson <dwg@au1.ibm.com>
-Subject: Re: [PATCH -V5 04/25] powerpc: Reduce the PTE_INDEX_SIZE
-Message-ID: <20130411071043.GJ8165@truffula.fritz.box>
-References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1365055083-31956-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="ljn2+zwPkKedfiv/"
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 2B5BE6B0006
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 03:11:55 -0400 (EDT)
+Date: Thu, 11 Apr 2013 03:11:46 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1365664306-rvrpdnsl-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <51662D5B.3050001@hitachi.com>
+References: <51662D5B.3050001@hitachi.com>
+Subject: Re: [RFC Patch 0/2] mm: Add parameters to make kernel behavior at
+ memory error on dirty cache selectable
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1365055083-31956-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
---ljn2+zwPkKedfiv/
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Hi Tanino-san,
 
-On Thu, Apr 04, 2013 at 11:27:42AM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->=20
-> This make one PMD cover 16MB range. That helps in easier implementation o=
-f THP
-> on power. THP core code make use of one pmd entry to track the hugepage a=
-nd
-> the range mapped by a single pmd entry should be equal to the hugepage si=
-ze
-> supported by the hardware.
->=20
-> Acked-by: Paul Mackerras <paulus@samba.org>
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  arch/powerpc/include/asm/pgtable-ppc64-64k.h |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
->=20
-> diff --git a/arch/powerpc/include/asm/pgtable-ppc64-64k.h b/arch/powerpc/=
-include/asm/pgtable-ppc64-64k.h
-> index be4e287..3c529b4 100644
-> --- a/arch/powerpc/include/asm/pgtable-ppc64-64k.h
-> +++ b/arch/powerpc/include/asm/pgtable-ppc64-64k.h
-> @@ -4,10 +4,10 @@
->  #include <asm-generic/pgtable-nopud.h>
-> =20
-> =20
-> -#define PTE_INDEX_SIZE  12
-> +#define PTE_INDEX_SIZE  8
->  #define PMD_INDEX_SIZE  12
->  #define PUD_INDEX_SIZE	0
-> -#define PGD_INDEX_SIZE  6
-> +#define PGD_INDEX_SIZE  10
-> =20
->  #ifndef __ASSEMBLY__
->  #define PTE_TABLE_SIZE	(sizeof(real_pte_t) << PTE_INDEX_SIZE)
+On Thu, Apr 11, 2013 at 12:26:19PM +0900, Mitsuhiro Tanino wrote:
+...
+> Solution
+> ---------
+> The patch proposes a new sysctl interface, vm.memory_failure_dirty_panic,
+> in order to prevent data corruption comes from data lost problem.
+> Also this patch displays information of affected file such as device name,
+> inode number, file offset and file type if the file is mapped on a memory
+> and the page is dirty cache.
+> 
+> When SRAO machine check occurs on a dirty page cache, corresponding
+> data cannot be recovered any more. Therefore, the patch proposes a kernel
+> option to keep a system running or force system panic in order
+> to avoid further trouble such as data corruption problem of application.
+> 
+> System administrator can select an error action using this option
+> according to characteristics of target system.
 
-Actually, I've realised there's a much more serious problem here.
-This patch as is will break existing hugpage support.  With the
-previous numbers we had pagetable levels covering 256M and 1TB.  That
-meant that at whichever level we split off a hugepd, it would line up
-with the slice/segment boundaries.  Now it won't, and that means that
-(explicitly) mapping hugepages and normal pages with correctly
-constructed alignments will lead to the normal page fault paths
-attempting to walk down hugepds or vice versa which will cause
-crashes.
+Can we do this in userspace?
+mcelog can trigger scripts when a MCE which matches the user-configurable
+conditions happens, so I think that we can trigger a kernel panic by
+chekcing kernel messages from the triggered script.
+For that purpose, I recently fixed the dirty/clean messaging in commit
+ff604cf6d4 "mm: hwpoison: fix action_result() to print out dirty/clean".
 
-In fact.. with the new boundaries, we will attempt to put explicit 16M
-hugepages in a hugepd of 4096 entries covering a total of 64G.  Which
-means any attempt to use explicit hugepages in a 32-bit process will
-blow up horribly.
+> 
+> Use Case
+> ---------
+> This option is intended to be adopted in KVM guest because it is
+> supposed that Linux on KVM guest operates customers business and
+> it is big impact to lost or corrupt customers data by memory failure.
+> 
+> On the other hand, this option does not recommend to apply KVM host
+> as following reasons.
+> 
+> - Making KVM host panic has a big impact because all virtual guests are
+>   affected by their host panic. Affected virtual guests are forced to stop
+>   and have to be restarted on the other hypervisor.
 
-The obvious solution is to make explicit hugepages also use your new
-hugepage encoding, as a PMD entry pointing directly to the page data.
-That's also a good idea, to avoid yet more variants on the pagetable
-encoding.  But this conversion of the explicit hugepage code really
-needs to be done before attempting to implement THP.
+In this reasoning, you seem to assume that important data (business data)
+are only handled on guest OS. That's true in most cases, but not always.
+I think that the more general approach for this use case is that
+we trigger kernel panic if memory errors happened on dirty pagecaches
+used by 'important' processes (for example by adding process flags
+controlled by prctl(),) and set it on qemu processes.
 
---=20
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
+> - If disk cached model of qemu is set to "none", I/O type of virtual
+>   guests becomes O_DIRECT and KVM host does not cache guest's disk I/O.
+>   Therefore, if SRAO machine check is reported on a dirty page cache
+>   in KVM host, its virtual machines are not affected by the machine check.
+>   So the host is expected to keep operating instead of kernel panic.
 
---ljn2+zwPkKedfiv/
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+What to do if there're multiple guests, and some have "none" cache and
+others have other types?
+I think that we need more flexible settings for this use case.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
+> 
+> Past discussion
+> --------------------
+> This problem was previously discussed in the kernel community, 
+> (refer: mail threads pertaining to
+> http://marc.info/?l=linux-kernel&m=135187403804934&w=4). 
+> 
+> > > - I worry that if a hardware error occurs, it might affect a large
+> > >   amount of memory all at the same time.  For example, if a 4G memory
+> > >   block goes bad, this message will be printed a million times?
+> 
+> As Andrew mentioned in the above threads, if 4GB memory blocks goes bad,
+> error messages will be printed a million times and this behavior loses
+> a system reliability.
 
-iEYEARECAAYFAlFmYfMACgkQaILKxv3ab8YdiACdEs26LCa1d2eMGCE5HZDMI++0
-UccAnjd4r2ll2/eTd7WwQjnxnf1PtJNx
-=98PO
------END PGP SIGNATURE-----
+Maybe "4G memory block goes bad" is not a MCE SRAO but a MCE with higher
+severity, so we have no choice but to make kernel panic.
 
---ljn2+zwPkKedfiv/--
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
