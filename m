@@ -1,32 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id D346E6B0027
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 11:03:49 -0400 (EDT)
-Date: Thu, 11 Apr 2013 15:03:48 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/3] mm, slub: count freed pages via rcu as this task's
- reclaimed_slab
-In-Reply-To: <51663210.7070502@gmail.com>
-Message-ID: <0000013df99fbc98-f20c5345-92eb-405b-81e8-df781dab2391-000000@email.amazonses.com>
-References: <1365470478-645-1-git-send-email-iamjoonsoo.kim@lge.com> <1365470478-645-2-git-send-email-iamjoonsoo.kim@lge.com> <5163E194.3080600@gmail.com> <0000013def363b50-9a16dd09-72ad-494f-9c25-17269fc3aab3-000000@email.amazonses.com> <5164DA6A.5060607@gmail.com>
- <0000013df43a48e5-6addd57e-952b-4754-848e-6d454b0a906c-000000@email.amazonses.com> <51663210.7070502@gmail.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id E2C086B0037
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 11:10:28 -0400 (EDT)
+Received: by mail-ia0-f180.google.com with SMTP id l29so1489456iag.39
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 08:10:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <51666930.6090702@cn.fujitsu.com>
+References: <1365415000-10389-1-git-send-email-linfeng@cn.fujitsu.com>
+	<CAE9FiQVaByGOTjLVthRkEze_ekXm5LAKgKdHzrD+q1iYmjgZFQ@mail.gmail.com>
+	<51666930.6090702@cn.fujitsu.com>
+Date: Thu, 11 Apr 2013 08:10:28 -0700
+Message-ID: <CAE9FiQU-zqFdSz-7yq5EgV1YCzyNH_BY36Ym3tdHVEHHY6cdNg@mail.gmail.com>
+Subject: Re: [PATCH 0/2] mm: vmemmap: add vmemmap_verify check for hot-add
+ node/memory case
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Lin Feng <linfeng@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Catalin Marinas <catalin.marinas@arm.com>, will.deacon@arm.com, Arnd Bergmann <arnd@arndb.de>, tony@atomide.com, Ben Hutchings <ben@decadent.org.uk>, linux-arm-kernel@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>
 
-On Thu, 11 Apr 2013, Simon Jeons wrote:
+On Thu, Apr 11, 2013 at 12:41 AM, Tang Chen <tangchen@cn.fujitsu.com> wrote:
+>
+> 3. If we add flag to memblock, we can mark different memory. And I remember
+>    you mentioned before that we can use memblock to reserve local node data
+>    for node-life-cycle data, like vmemmap, pagetable.
+>
+>    So are you doing the similar work now ?
 
-> It seems that I need to simple my question.
-> All pages which order >=1 are compound pages?
+No, i did not start it yet.
 
-In the slub allocator that is true.
+>
+>    If not, I think I can merge it into mine, and push a new patch-set with
+>    hot-add, hot-remove code modified to support putting vmemmap, pagetable,
+>    pgdat, page_cgroup, ..., on local node.
 
-One can request and free a series of contiguous pages that are not
-compound pages from the page allocator and a couple of subsystems use
-those.
+Need to have it separated with moving_zone.
+
+1. rework memblock to keep alive all the way for hotplug usage.
+2. put pagetable and vmemap on the local node range with help of memblock.
+
+
+Thanks
+
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
