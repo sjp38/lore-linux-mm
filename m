@@ -1,53 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 56FFE6B0006
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:18:12 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id DBAF06B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:25:13 -0400 (EDT)
+Date: Thu, 11 Apr 2013 18:25:08 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Print the correct method to disable automatic numa
+ migration
+Message-ID: <20130411172508.GC11656@suse.de>
+References: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
+ <20130411124803.GK3710@suse.de>
+ <20130411140425.GJ16732@two.firstfloor.org>
+ <20130411141942.GL3710@suse.de>
+ <20130411155304.GK22166@tassilo.jf.intel.com>
 MIME-Version: 1.0
-Message-ID: <399a2a41-fa4d-41d9-80aa-5b4c51fee68e@default>
-Date: Thu, 11 Apr 2013 10:17:56 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 00/10] staging: zcache/ramster: fix and ramster/debugfs
- improvement
-References: <<1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>>
-In-Reply-To: <<1365553560-32258-1-git-send-email-liwanp@linux.vnet.ibm.com>>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130411155304.GK22166@tassilo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org
 
-> From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
-> Sent: Tuesday, April 09, 2013 6:26 PM
-> To: Greg Kroah-Hartman
-> Cc: Dan Magenheimer; Seth Jennings; Konrad Rzeszutek Wilk; Minchan Kim; l=
-inux-mm@kvack.org; linux-
-> kernel@vger.kernel.org; Andrew Morton; Bob Liu; Wanpeng Li
-> Subject: [PATCH 00/10] staging: zcache/ramster: fix and ramster/debugfs i=
-mprovement
->=20
-> Fix bugs in zcache and rips out the debug counters out of ramster.c and
-> sticks them in a debug.c file. Introduce accessory functions for counters
-> increase/decrease, they are available when config RAMSTER_DEBUG, otherwis=
-e
-> they are empty non-debug functions. Using an array to initialize/use debu=
-gfs
-> attributes to make them neater. Dan Magenheimer confirm these works
-> are needed. http://marc.info/?l=3Dlinux-mm&m=3D136535713106882&w=3D2
->=20
-> Patch 1~2 fix bugs in zcache
->=20
-> Patch 3~8 rips out the debug counters out of ramster.c and sticks them
-> =09=09  in a debug.c file
->=20
-> Patch 9 fix coding style issue introduced in zcache2 cleanups
->         (s/int/bool + debugfs movement) patchset
->=20
-> Patch 10 add how-to for ramster
+On Thu, Apr 11, 2013 at 08:53:04AM -0700, Andi Kleen wrote:
+> > > > David has also already pointed out the problems with NO_NUMA vs -NUMA and
+> > > > the fact that the option only exists if CONFIG_SCHED_DEBUG which I agree
+> > > > is unfortunate. Ends up with this sort of mess
+> > > 
+> > > We just need the sysctl. Are you adding one or should I send
+> > > another patch with it?
+> > > 
+> > 
+> > I hadn't planned on it in the short term at least. Originally there was
+> 
+> I'll send a patch.
+> 
 
-Note my preference to not apply patch 2of10 (which GregKH may choose
-to override), but for all, please add my:
-Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Ok.
+
+> But are you taking care of the documentation of all the existing knobs?
+> 
+
+Which knobs? The sched_features knobs? No, I was not planning on
+documenting them. Some of them are already partially documented in
+kernel/sched/features.h but the consequences of tuning them is heavily
+workload dependant. While this is unsatisfactory, the interface is only
+intended for debugging. For NUMA balancing, the tuning knob is a kernel
+parameter and it is already documented in Documentation/kernel-parameters.txt
+
+> I think if you had done that earlier you would have noticed
+> that the current situation is not very satisfying.
+> 
+> Writing documentation is one of the best ways we have
+> to sanitize user interfaces.
+> 
+> > revisited NUMA balancing a long time ago but too many bugs have been
+> > getting in the way.
+> 
+> That will likely make everything even worse.
+> 
+
+With one exception, the bugs I've been working on are not related to
+automatic NUMA balancing.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
