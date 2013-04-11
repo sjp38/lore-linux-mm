@@ -1,85 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 66BBC6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 05:25:30 -0400 (EDT)
-Date: Thu, 11 Apr 2013 19:25:24 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
-Message-ID: <20130411092524.GK10481@dastard>
-References: <51628877.5000701@parallels.com>
- <20130409005547.GC21654@lge.com>
- <20130409012931.GE17758@dastard>
- <20130409020505.GA4218@lge.com>
- <20130409123008.GM17758@dastard>
- <20130410025115.GA5872@lge.com>
- <20130410100752.GA10481@dastard>
- <CAAmzW4OMyZ=nVbHK_AiifPK5LVxvhOQUXmsD5NGfo33CBjf=eA@mail.gmail.com>
- <20130411004114.GC10481@dastard>
- <20130411072729.GA3605@hacker.(null)>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 9F6ED6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 05:53:32 -0400 (EDT)
+Date: Thu, 11 Apr 2013 10:53:25 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 08/10] mm: vmscan: Have kswapd shrink slab only once per
+ priority
+Message-ID: <20130411095325.GI3710@suse.de>
+References: <1363525456-10448-1-git-send-email-mgorman@suse.de>
+ <1363525456-10448-9-git-send-email-mgorman@suse.de>
+ <20130409065325.GA4411@lge.com>
+ <20130409111358.GB2002@suse.de>
+ <20130410010734.GR17758@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130411072729.GA3605@hacker.(null)>
+In-Reply-To: <20130410010734.GR17758@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: JoonSoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Apr 11, 2013 at 03:27:30PM +0800, Wanpeng Li wrote:
-> On Thu, Apr 11, 2013 at 10:41:14AM +1000, Dave Chinner wrote:
-> >On Wed, Apr 10, 2013 at 11:03:39PM +0900, JoonSoo Kim wrote:
-> >> Another one what I found is that they don't account "nr_reclaimed" precisely.
-> >> There is no code which check whether "current->reclaim_state" exist or not,
-> >> except prune_inode().
-> >
-> >That's because prune_inode() can free page cache pages when the
-> >inode mapping is invalidated. Hence it accounts this in addition
-> >to the slab objects being freed.
-> >
-> >IOWs, if you have a shrinker that frees pages from the page cache,
-> >you need to do this. Last time I checked, only inode cache reclaim
-> >caused extra page cache reclaim to occur, so most (all?) other
-> >shrinkers do not need to do this.
-> >
+On Wed, Apr 10, 2013 at 11:07:34AM +1000, Dave Chinner wrote:
+> On Tue, Apr 09, 2013 at 12:13:59PM +0100, Mel Gorman wrote:
+> > On Tue, Apr 09, 2013 at 03:53:25PM +0900, Joonsoo Kim wrote:
+> > 
+> > > I think that outside of zone loop is better place to run shrink_slab(),
+> > > because shrink_slab() is not directly related to a specific zone.
+> > > 
+> > 
+> > This is true and has been the case for a long time. The slab shrinkers
+> > are not zone aware and it is complicated by the fact that slab usage can
+> > indirectly pin memory on other zones.
+> ......
+> > > And this is a question not related to this patch.
+> > > Why nr_slab is used here to decide zone->all_unreclaimable?
+> > 
+> > Slab is not directly associated with a slab but as reclaiming slab can
+> > free memory from unpredictable zones we do not consider a zone to be
+> > fully unreclaimable until we cannot shrink slab any more.
 > 
-> If we should account "nr_reclaimed" against huge zero page? There are 
-> large number(512) of pages reclaimed which can throttle direct or 
-> kswapd relcaim to avoid reclaim excess pages. I can do this work if 
-> you think the idea is needed.
+> This is something the numa aware shrinkers will greatly help with -
+> instead of being a global shrink it becomes a
+> node-the-zone-belongs-to shrink, and so....
+> 
 
-I'm not sure. the zero hugepage is allocated through:
+Yes, 100% agreed.
 
-	zero_page = alloc_pages((GFP_TRANSHUGE | __GFP_ZERO) & ~__GFP_MOVABLE,   
-				HPAGE_PMD_ORDER);
-
-which means the pages reclaimed by the shrinker aren't file/anon LRU
-pages.  Hence I'm not sure what extra accounting might be useful
-here, but accounting them as LRU pages being reclaimed seems wrong.
-
-FWIW, the reclaim of a single global object by a shrinker is not
-really a use case the shrinkers were designed for, so I suspect that
-anything we try to do right now within the current framework will
-just be a hack.
-
-I suspect that what we need to do is add the current zone reclaim
-priority to the shrinker control structure (like has been done with
-the nodemask) so that objects like this can be considered for
-removal at a specific reclaim priority level rather than trying to
-use scan/count trickery to get where we want to be.
-
-Perhaps we need a shrinker->shrink_priority method that is called just
-once when the reclaim priority is high enough to trigger it. i.e.
-all these "do something special when memory reclaim is struggling to
-make progress" operations set the priority at which they get called
-and every time shrink_slab() is then called with that priority (or
-higher) the shrinker->shrink_priority method is called just once?
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
