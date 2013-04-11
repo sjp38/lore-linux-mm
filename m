@@ -1,157 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 1E9636B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 09:04:40 -0400 (EDT)
-Date: Thu, 11 Apr 2013 15:04:36 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 0/3] soft reclaim rework
-Message-ID: <20130411130436.GE1488@dhcp22.suse.cz>
-References: <1365509595-665-1-git-send-email-mhocko@suse.cz>
- <20130411084346.GB1488@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130411084346.GB1488@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 294A36B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 09:16:16 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20130410080202.GB21292@blaptop>
+References: <51559150.3040407@oracle.com>
+ <20130410080202.GB21292@blaptop>
+Subject: Re: mm: BUG in do_huge_pmd_wp_page
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130411131813.17FD7E0085@blue.fi.intel.com>
+Date: Thu, 11 Apr 2013 16:18:13 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Mel Gorman <mgorman@suse.de>, Dave Jones <davej@redhat.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave@sr71.net>
 
-On Thu 11-04-13 10:43:46, Michal Hocko wrote:
-> Hi,
-> I have retested kbuild test on a bare HW (8CPUs, 1GB RAM limited by
-> mem=1G, 2GB swap partition). There are 2 groups (A, B) without any hard
-> limit and group A has soft limit set to 700M (to have 70% of available
-> memory). Build starts after fresh boot by extracting sources and
-> make -j4 vmlinux.
-> Each group works on a separate source tree. I have repeated the test 3
-> times:
-
-[Cutting the previous results and keeping only averages for overview]
-> * Patched:
-> A:
-> User time (seconds): Avg: 1133.76
-> System time (seconds): Avg: 258.73
-> Elapsed (wall clock) time (h:mm:ss or m:ss): Avg: 08:54.73
+Minchan Kim wrote:
+> On Fri, Mar 29, 2013 at 09:04:16AM -0400, Sasha Levin wrote:
+> > Hi all,
+> > 
+> > While fuzzing with trinity inside a KVM tools guest running latest -next kernel,
+> > I've stumbled on the following.
+> > 
+> > It seems that the code in do_huge_pmd_wp_page() was recently modified in
+> > "thp: do_huge_pmd_wp_page(): handle huge zero page".
+> > 
+> > Here's the trace:
+> > 
+> > [  246.244708] BUG: unable to handle kernel paging request at ffff88009c422000
+> > [  246.245743] IP: [<ffffffff81a0a795>] copy_page_rep+0x5/0x10
+> > [  246.250569] PGD 7232067 PUD 7235067 PMD bfefe067 PTE 800000009c422060
+> > [  246.251529] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> > [  246.252325] Dumping ftrace buffer:
+> > [  246.252791]    (ftrace buffer empty)
+> > [  246.252869] Modules linked in:
+> > [  246.252869] CPU 3
+> > [  246.252869] Pid: 11985, comm: trinity-child12 Tainted: G        W    3.9.0-rc4-next-20130328-sasha-00014-g91a3267 #319
+> > [  246.252869] RIP: 0010:[<ffffffff81a0a795>]  [<ffffffff81a0a795>] copy_page_rep+0x5/0x10
+> > [  246.252869] RSP: 0018:ffff88000015bc40  EFLAGS: 00010286
+> > [  246.252869] RAX: ffff88000015bfd8 RBX: 0000000002710880 RCX: 0000000000000200
+> > [  246.252869] RDX: 0000000000000000 RSI: ffff88009c422000 RDI: ffff88009a422000
+> > [  246.252869] RBP: ffff88000015bc98 R08: 0000000002718000 R09: 0000000000000001
+> > [  246.252869] R10: 0000000000000001 R11: 0000000000000000 R12: ffff880000000000
+> > [  246.252869] R13: ffff88000015bfd8 R14: ffff88000015bfd8 R15: fffffffffff80000
+> > [  246.252869] FS:  00007f53db93f700(0000) GS:ffff8800bba00000(0000) knlGS:0000000000000000
+> > [  246.252869] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > [  246.252869] CR2: ffff88009c422000 CR3: 0000000000159000 CR4: 00000000000406e0
+> > [  246.252869] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> > [  246.252869] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> > [  246.252869] Process trinity-child12 (pid: 11985, threadinfo ffff88000015a000, task ffff88009c60b000)
+> > [  246.252869] Stack:
+> > [  246.252869]  ffffffff81234aae ffff88000015bc88 ffffffff81273639 0000000000a00000
+> > [  246.252869]  0000000002718000 ffff8800ab36d050 ffff880000153800 ffffea0002690000
+> > [  246.252869]  0000000000a00000 ffff8800ab36d000 ffffea0002710000 ffff88000015bd48
+> > [  246.252869] Call Trace:
+> > [  246.252869]  [<ffffffff81234aae>] ? copy_user_huge_page+0x1de/0x240
+> > [  246.252869]  [<ffffffff81273639>] ? mem_cgroup_charge_common+0xa9/0xc0
+> > [  246.252869]  [<ffffffff8126b4d7>] do_huge_pmd_wp_page+0x9f7/0xc60
+> > [  246.252869]  [<ffffffff81a0acd9>] ? __const_udelay+0x29/0x30
+> > [  246.252869]  [<ffffffff8123364e>] handle_mm_fault+0x26e/0x650
+> > [  246.252869]  [<ffffffff8117dc1a>] ? __lock_is_held+0x5a/0x80
+> > [  246.252869]  [<ffffffff83db3814>] ? __do_page_fault+0x514/0x5e0
+> > [  246.252869]  [<ffffffff83db3870>] __do_page_fault+0x570/0x5e0
+> > [  246.252869]  [<ffffffff811c6500>] ? rcu_eqs_exit_common+0x60/0x260
+> > [  246.252869]  [<ffffffff811c740e>] ? rcu_eqs_enter_common+0x33e/0x3b0
+> > [  246.252869]  [<ffffffff811c679c>] ? rcu_eqs_exit+0x9c/0xb0
+> > [  246.252869]  [<ffffffff83db3912>] do_page_fault+0x32/0x50
+> > [  246.252869]  [<ffffffff83db2ef0>] do_async_page_fault+0x30/0xc0
+> > [  246.252869]  [<ffffffff83db01e8>] async_page_fault+0x28/0x30
+> > [  246.252869] Code: 90 90 90 90 90 90 9c fa 65 48 3b 06 75 14 65 48 3b 56 08 75 0d 65 48 89 1e 65 48 89 4e 08 9d b0 01 c3 9d 30
+> > c0 c3 b9 00 02 00 00 <f3> 48 a5 c3 0f 1f 80 00 00 00 00 eb ee 66 66 66 90 66 66 66 90
+> > [  246.252869] RIP  [<ffffffff81a0a795>] copy_page_rep+0x5/0x10
+> > [  246.252869]  RSP <ffff88000015bc40>
+> > [  246.252869] CR2: ffff88009c422000
+> > [  246.252869] ---[ end trace 09fbe37b108d5766 ]---
+> > 
+> > And this is the code:
+> > 
+> >         if (is_huge_zero_pmd(orig_pmd))
+> >                 clear_huge_page(new_page, haddr, HPAGE_PMD_NR);
+> >         else
+> >                 copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR); <--- this
+> > 
+> > 
+> > Thanks,
+> > Sasha
 > 
-> B:
-> User time (seconds): Avg: 1151.19 (101.5% of A)
-> System time (seconds): Avg: 262.09 (101.3% of A)
-> Elapsed (wall clock) time (h:mm:ss or m:ss): Avg: 10:11.92 (114.4% of A)
+> I don't know this issue was already resolved. If so, my reply become a just
+> question to Kirill regardless of this BUG.
 > 
-> * Base:
-> A:
-> User time (seconds): avg: 1136.30 (100.2% of A - patched)
-> System time (seconds): avg: 263.47 (101.8 of A - patched)
-> Elapsed (wall clock) time (h:mm:ss or m:ss): avg: 09:47.75 (109.9% of A - patched)
+> When I am looking at the code, I was wonder about the logic of GHZP(aka,
+> get_huge_zero_page) reference handling. The logic depends on that page
+> allocator never alocate PFN 0.
 > 
-> B:
-> User time (seconds): avg: 1136.94 (100.2% of A - patched)
-> System time (seconds): avg: 261.97  (100% of A - patched)
-> Elapsed (wall clock) time (h:mm:ss or m:ss): avg: 09:47.75 (109.1% of A - patched)
-
-Same test again with 300M soft limit instead (for A).
-* Patched:
-A:
-User time (seconds): 1143.68, 1137.85, 1137.47
-		avg:1139.67
-System time (seconds): 264.73, 265.50, 262.44
-		avg:264.22
-Elapsed (wall clock) time (h:mm:ss or m:ss): 9:54.07, 9:48.23, 9:39.35
-		avg:09:47.22
-
-B:
-User time (seconds): 1139.10, 1135.94, 1138.13
-		avg:1137.72 (99.8% of A)
-System time (seconds): 260.94, 262.37, 263.56
-		avg:262.29 (99.2% of A)
-Elapsed (wall clock) time (h:mm:ss or m:ss): 9:53.04, 9:48.17, 9:51.34
-		avg:09:50.85 (100.6% of A)
-
-Both groups are comparable now as both of them are reclaimed (see bellow
-for the reclaim statistics).
-So we are 1min slower (in Elapsed time) than with 700M soft limit for
-both groups.
-
-* Base:
-A:
-User time (seconds): 1148.50, 1145.96, 1144.60
-		avg:1146.35 (100.5% of A patched)
-System time (seconds): 265.00, 262.31, 264.98
-		avg:264.10 (100% of A patched)
-Elapsed (wall clock) time (h:mm:ss or m:ss): 10:44.57, 10:14.74, 10:32.28
-		avg:10:30.53 (107.4% of A patched)
-
-B:
-User time (seconds): 1137.01, 1131.44, 1136.86
-		avg:1135.10 (99.6% of A patched)
-System time (seconds): 259.72, 259.05, 262.62
-		avg:260.46 (98.6% of A patched)
-Elapsed (wall clock) time (h:mm:ss or m:ss): 9:33.82, 9:25.39, 9:38.35
-		avg:09:32.52 (97.5% of A patched)
-
-A is hammered by soft reclaim much more than with 700M soft limit which
-is expected.
-If we sum A+B Elapsed time, though, then the workload is faster by ~2%
-with the patched kernel (same as with the 700M limit). This confirms
-that the soft limit is too harsh with the base kernel.
-Just for completness, if we compare A+B to 700M soft limited runs then
-we get ~3% slowdown for both patched and unpatched kernels with smaller
-softlimit.
-
-> * Patched:
-> pgscan_direct_dma32 	252408
-> pgscan_kswapd_dma32 	988928
-> pgsteal_direct_dma32 	63565
-> pgsteal_kswapd_dma32	905223
+> Who makes sure it? What happens if allocator allocates PFN 0?
+> I don't know all of architecture makes sure it.
+> You investigated it for all arches?
 > 
-> * Base:
-> pgscan_direct_dma32 	97310	(38% of patched)
-> pgscan_kswapd_dma32 	1702971	(172%)
-> pgsteal_direct_dma32 	83377	(131%)
-> pgsteal_kswapd_dma32 	1534616	(169.5%)
+> If not, 
+> CPU 1                   CPU 2                                   CPU 3
+> 
+> shrink_huge_zero_page
+> huge_zero_refcount = 0;
+>                         GHZP
+>                         pfn_0_zero_page = alloc_pages 
+>                                                          GHZP
+>                                                          pfn_some_zero_page = alloc_page
+> huge_zero_pfn = 0
+>                         huge_zero_pfn = pfn_0
+>                         huge_zero_refcount = 2
+>                                                         huge_zero_pfn = pfn_some
+>                                                         huge_zero_refcount = 2
+> 
+> So, if you want to stick this logic, at least, don't we need BUG_ON to check
+> pfn 0 allocation in get_huge_zero_page?
 
-* Patched:
-pgscan_direct_dma32 153455 	(60.8% Patched 700M limit)
-pgscan_kswapd_dma32 1670779 	(168.9% Patched 700M limit)
-pgsteal_direct_dma32 109624	(172.5% Patched 700M limit)
-pgsteal_kswapd_dma32 1512120	(167% Patched 700M limit)
+I don't think it's related to oops in the thread (I was not able to
+reproduce it), but nice catch anyway.
 
-* Base:
-pgscan_direct_dma32 492381	(320% of A)
-pgscan_kswapd_dma32 1373732	(82.2% of A)
-pgsteal_direct_dma32 339563	(309.8 of A)
-pgsteal_kswapd_dma32 1108240	(73.3% of A)
+What about the patch below?
 
-And this shows it nicely. We scan and reclaim 3 times more in direct
-reclaim context while we scan ~20% resp. reclaim ~30% less in the
-background.
-
-We scan and reclaim ~70% more in kswapd context than with 700M soft
-limit but the direct reclaim is reduced which is nice.
-
-Same graphs as for the 700M:
-http://labs.suse.cz/mhocko/soft_limit_rework/kbuild/300-softlimit/base-usage.png
-http://labs.suse.cz/mhocko/soft_limit_rework/kbuild/300-softlimit/patched-usage.png
-
-charges over time. We can see that the patched kernel bahaves much more
-just to both groups than the base kernel.
-
-http://labs.suse.cz/mhocko/soft_limit_rework/kbuild/300-softlimit/base-usage-histogram.png
-http://labs.suse.cz/mhocko/soft_limit_rework/kbuild/300-softlimit/patched-usage-histogram.png
-
-Same can be seen in the histogram.
-
-http://labs.suse.cz/mhocko/soft_limit_rework/kbuild/300-softlimit/pgscan.png
-http://labs.suse.cz/mhocko/soft_limit_rework/kbuild/300-softlimit/pgsteal.png
-
-And the scanning/reclaiming data over time.
--- 
-Michal Hocko
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+=====
