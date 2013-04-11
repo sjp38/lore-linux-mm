@@ -1,88 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id C53866B0005
-	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 23:37:43 -0400 (EDT)
-Received: by mail-qe0-f41.google.com with SMTP id b10so675933qen.0
-        for <linux-mm@kvack.org>; Wed, 10 Apr 2013 20:37:42 -0700 (PDT)
-Message-ID: <51662FFF.10103@gmail.com>
-Date: Thu, 11 Apr 2013 11:37:35 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id E166A6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Apr 2013 23:42:03 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dwg@au1.ibm.com>;
+	Thu, 11 Apr 2013 13:35:04 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 89B1F2BB0055
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:41:55 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3B3fn9p53084298
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:41:50 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3B3fsaW032051
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:41:54 +1000
+Date: Thu, 11 Apr 2013 13:24:47 +1000
+From: David Gibson <dwg@au1.ibm.com>
+Subject: Re: [PATCH -V5 12/25] powerpc: Return all the valid pte ecndoing in
+ KVM_PPC_GET_SMMU_INFO ioctl
+Message-ID: <20130411032447.GU8165@truffula.fritz.box>
+References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1365055083-31956-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
- hardware access to the CPU page tables of user processes
-References: <5114DF05.7070702@mellanox.com> <CANN689Ff6vSu4ZvHek4J4EMzFG7EjF-Ej48hJKV_4SrLoj+mCA@mail.gmail.com> <CAH3drwaACy5KFv_2ozEe35u1Jpxs0f6msKoW=3_0nrWZpJnO4w@mail.gmail.com> <5164C6EE.7020502@gmail.com> <20130410205557.GB3958@gmail.com>
-In-Reply-To: <20130410205557.GB3958@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="qa1NXTiqN6KSzHv0"
+Content-Disposition: inline
+In-Reply-To: <1365055083-31956-13-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>, Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-Hi Jerome,
-On 04/11/2013 04:55 AM, Jerome Glisse wrote:
-> On Wed, Apr 10, 2013 at 09:57:02AM +0800, Simon Jeons wrote:
->> Hi Jerome,
->> On 02/10/2013 12:29 AM, Jerome Glisse wrote:
->>> On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse <walken@google.com> wrote:
->>>> On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel <raindel@mellanox.com> wrote:
->>>>> Hi,
->>>>>
->>>>> We would like to present a reference implementation for safely sharing
->>>>> memory pages from user space with the hardware, without pinning.
->>>>>
->>>>> We will be happy to hear the community feedback on our prototype
->>>>> implementation, and suggestions for future improvements.
->>>>>
->>>>> We would also like to discuss adding features to the core MM subsystem to
->>>>> assist hardware access to user memory without pinning.
->>>> This sounds kinda scary TBH; however I do understand the need for such
->>>> technology.
->>>>
->>>> I think one issue is that many MM developers are insufficiently aware
->>>> of such developments; having a technology presentation would probably
->>>> help there; but traditionally LSF/MM sessions are more interactive
->>>> between developers who are already quite familiar with the technology.
->>>> I think it would help if you could send in advance a detailed
->>>> presentation of the problem and the proposed solutions (and then what
->>>> they require of the MM layer) so people can be better prepared.
->>>>
->>>> And first I'd like to ask, aren't IOMMUs supposed to already largely
->>>> solve this problem ? (probably a dumb question, but that just tells
->>>> you how much you need to explain :)
->>> For GPU the motivation is three fold. With the advance of GPU compute
->>> and also with newer graphic program we see a massive increase in GPU
->>> memory consumption. We easily can reach buffer that are bigger than
->>> 1gbytes. So the first motivation is to directly use the memory the
->>> user allocated through malloc in the GPU this avoid copying 1gbytes of
->>> data with the cpu to the gpu buffer. The second and mostly important
->>> to GPU compute is the use of GPU seamlessly with the CPU, in order to
->>> achieve this you want the programmer to have a single address space on
->>> the CPU and GPU. So that the same address point to the same object on
->>> GPU as on the CPU. This would also be a tremendous cleaner design from
->>> driver point of view toward memory management.
->> When GPU will comsume memory?
->>
->> The userspace process like mplayer will have video datas and GPU
->> will play this datas and use memory of mplayer since these video
->> datas load in mplayer process's address space? So GPU codes will
->> call gup to take a reference of memory? Please correct me if my
->> understanding is wrong. ;-)
-> First target is not thing such as video decompression, however they could
-> too benefit from it given updated driver kernel API. In case of using
-> iommu hardware page fault we don't call get_user_pages (gup) those we
-> don't take a reference on the page. That's the whole point of the hardware
-> pagefault, not taking reference on the page.
+--qa1NXTiqN6KSzHv0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-mplayer process is running on normal CPU or GPU?
-chipset_integrated graphics will use normal memory and discrete graphics 
-will use its own memory, correct? So the memory used by discrete 
-graphics won't need gup, correct?
+On Thu, Apr 04, 2013 at 11:27:50AM +0530, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
+Surely this can't be correct until the KVM H_ENTER implementation is
+updated to cope with the MPSS page sizes.
 
->
-> Cheers,
-> Jerome Glisse
+--=20
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
+
+--qa1NXTiqN6KSzHv0
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iEUEARECAAYFAlFmLP8ACgkQaILKxv3ab8YlVwCWIhJXZSJXrFW7757E9EqrYOcP
+9QCghxCXvtNQPjEjS5gNVm5QvXmIIcA=
+=6LtF
+-----END PGP SIGNATURE-----
+
+--qa1NXTiqN6KSzHv0--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
