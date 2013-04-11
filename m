@@ -1,61 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id C5E706B0006
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 08:48:09 -0400 (EDT)
-Date: Thu, 11 Apr 2013 13:48:03 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Print the correct method to disable automatic numa
- migration
-Message-ID: <20130411124803.GK3710@suse.de>
-References: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 575046B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 08:51:47 -0400 (EDT)
+Message-ID: <5166B1DF.8070504@hitachi.com>
+Date: Thu, 11 Apr 2013 21:51:43 +0900
+From: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
+Subject: Re: [RFC Patch 0/2] mm: Add parameters to make kernel behavior at
+ memory error on dirty cache selectable
+References: <51662D5B.3050001@hitachi.com> <516633BB.40307@gmail.com>
+In-Reply-To: <516633BB.40307@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Wed, Apr 10, 2013 at 12:35:14PM -0700, Andi Kleen wrote:
-> From: Andi Kleen <ak@linux.intel.com>
+(2013/04/11 12:53), Simon Jeons wrote:
+> One question against mce instead of the patchset. ;-)
 > 
-> When the "default y" CONFIG_NUMA_BALANCING_DEFAULT_ENABLED is enabled,
-> the message it prints refers to a sysctl to disable it again.
-> But that sysctl doesn't exist.
-> 
+> When check memory is bad? Before memory access? Is there a process scan it period?
 
-True.
+Hi Simon-san,
 
-> Document the correct (highly obscure method) through debugfs.
-> 
-> This should be also in Documentation/* but isn't.
-> 
-> Also fix the checkpatch problems.
-> 
-> BTW I think the "default y" is highly dubious for such a
-> experimential feature.
-> 
+Yes, there is a process to scan memory periodically.
 
-As David pointed out, CONFIG_NUMA_BALANCING_DEFAULT_ENABLED only comes
-into play when CONFIG_NUMA_BALANCING is set and CONFIG_NUMA_BALANCING
-will default to N for make oldconfig. I think it's sensible to enable it
-by default if it's configured in.
+At Intel Nehalem-EX and CPUs after Nehalem-EX generation, MCA recovery
+is supported. MCA recovery provides error detection and isolation
+features to work together with OS.
+One of the MCA Recovery features is Memory Scrubbing. It periodically
+checks memory in the background of OS.
 
-David has also already pointed out the problems with NO_NUMA vs -NUMA and
-the fact that the option only exists if CONFIG_SCHED_DEBUG which I agree
-is unfortunate. Ends up with this sort of mess
+If Memory Scrubbing find an uncorrectable error on a memory before
+OS accesses the memory bit, MCA recovery notifies SRAO error into OS 
+and OS handles the SRAO error using hwpoison function.
 
-printk(KERN_INFO "Enabling automatic NUMA balancing. "
-	"Configure with numa_balancing="
-#ifdef CONFIG_SCHED_DEBUG
-	" or echo [NO_]NUMA > /sys/kernel/debug/sched_features"
-#endif
-	".\n");
-
--- 
-Mel Gorman
-SUSE Labs
+Regards,
+Mitsuhiro Tanino
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
