@@ -1,70 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id DBAF06B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:25:13 -0400 (EDT)
-Date: Thu, 11 Apr 2013 18:25:08 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Print the correct method to disable automatic numa
- migration
-Message-ID: <20130411172508.GC11656@suse.de>
-References: <1365622514-26614-1-git-send-email-andi@firstfloor.org>
- <20130411124803.GK3710@suse.de>
- <20130411140425.GJ16732@two.firstfloor.org>
- <20130411141942.GL3710@suse.de>
- <20130411155304.GK22166@tassilo.jf.intel.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 3622A6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:30:35 -0400 (EDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130411155304.GK22166@tassilo.jf.intel.com>
+Message-ID: <1ffcce76-7e25-4ca5-b201-dedfa3e2e2b1@default>
+Date: Thu, 11 Apr 2013 10:30:11 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: zsmalloc defrag (Was: [PATCH] mm: remove compressed copy from
+ zram in-memory)
+References: <1365400862-9041-1-git-send-email-minchan@kernel.org>
+ <f3c8ef05-a880-47db-86dd-156038fc7d0f@default>
+ <20130409012719.GB3467@blaptop> <20130409013606.GC3467@blaptop>
+ <51647F94.6000907@linux.vnet.ibm.com>
+In-Reply-To: <51647F94.6000907@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Bob Liu <bob.liu@oracle.com>, Shuah Khan <shuah@gonehiking.org>
 
-On Thu, Apr 11, 2013 at 08:53:04AM -0700, Andi Kleen wrote:
-> > > > David has also already pointed out the problems with NO_NUMA vs -NUMA and
-> > > > the fact that the option only exists if CONFIG_SCHED_DEBUG which I agree
-> > > > is unfortunate. Ends up with this sort of mess
-> > > 
-> > > We just need the sysctl. Are you adding one or should I send
-> > > another patch with it?
-> > > 
-> > 
-> > I hadn't planned on it in the short term at least. Originally there was
-> 
-> I'll send a patch.
-> 
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Subject: Re: zsmalloc defrag (Was: [PATCH] mm: remove compressed copy fro=
+m zram in-memory)
+>=20
+> On 04/08/2013 08:36 PM, Minchan Kim wrote:
+> > On Tue, Apr 09, 2013 at 10:27:19AM +0900, Minchan Kim wrote:
+> >> Hi Dan,
+> >>
+> >> On Mon, Apr 08, 2013 at 09:32:38AM -0700, Dan Magenheimer wrote:
+> >>>> From: Minchan Kim [mailto:minchan@kernel.org]
+> >>>> Sent: Monday, April 08, 2013 12:01 AM
+> >>>> Subject: [PATCH] mm: remove compressed copy from zram in-memory
+> >>>
+> >>> (patch removed)
+> >>>
+> >>>> Fragment ratio is almost same but memory consumption and compile tim=
+e
+> >>>> is better. I am working to add defragment function of zsmalloc.
+> >>>
+> >>> Hi Minchan --
+> >>>
+> >>> I would be very interested in your design thoughts on
+> >>> how you plan to add defragmentation for zsmalloc.  In
+> >>
+> >> What I can say now about is only just a word "Compaction".
+> >> As you know, zsmalloc has a transparent handle so we can do whatever
+> >> under user. Of course, there is a tradeoff between performance
+> >> and memory efficiency. I'm biased to latter for embedded usecase.
+> >>
+> >> And I might post it because as you know well, zsmalloc
+> >
+> > Incomplete sentense,
+> >
+> > I might not post it until promoting zsmalloc because as you know well,
+> > zsmalloc/zram's all new stuffs are blocked into staging tree.
+> > Even if we could add it into staging, as you know well, staging is wher=
+e
+> > every mm guys ignore so we end up needing another round to promote it. =
+sigh.
+>=20
+> Yes. The lack of compaction/defragmentation support in zsmalloc has not
+> been raised as an obstacle to mainline acceptance so I think we should
+> wait to add new features to a yet-to-be accepted codebase.
 
-Ok.
+Um, I explicitly raised as an obstacle the greatly reduced density for
+zsmalloc on active workloads and on zsize distributions that skew fat.
+Understanding that more deeply and hopefully fixing it is an issue,
+and compaction/defragmentation is a step in that direction.
 
-> But are you taking care of the documentation of all the existing knobs?
-> 
+> Also, I think this feature is more important to zram than it is to
+> zswap/zcache as they can do writeback to free zpages.  In other words,
+> the fragmentation is a transient issue for zswap/zcache since writeback
+> to the swap device is possible.
 
-Which knobs? The sched_features knobs? No, I was not planning on
-documenting them. Some of them are already partially documented in
-kernel/sched/features.h but the consequences of tuning them is heavily
-workload dependant. While this is unsatisfactory, the interface is only
-intended for debugging. For NUMA balancing, the tuning knob is a kernel
-parameter and it is already documented in Documentation/kernel-parameters.txt
+Actually, I think I demonstrated that the zpage-based writeback in
+zswap makes fragmentation worse.  Zcache doesn't use zsmalloc
+in part because it doesn't support pagframe writeback.  If zsmalloc
+can fix this (and it may be easier to fix depending on the design
+and implementation of compaction/defrag, which is why I'm asking
+lots of questions), zcache may be able to make use of zsmalloc.
 
-> I think if you had done that earlier you would have noticed
-> that the current situation is not very satisfying.
-> 
-> Writing documentation is one of the best ways we have
-> to sanitize user interfaces.
-> 
-> > revisited NUMA balancing a long time ago but too many bugs have been
-> > getting in the way.
-> 
-> That will likely make everything even worse.
-> 
+Lots of good discussion fodder for next week!
 
-With one exception, the bugs I've been working on are not related to
-automatic NUMA balancing.
-
--- 
-Mel Gorman
-SUSE Labs
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
