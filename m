@@ -1,76 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 8BECB6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 03:27:41 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Thu, 11 Apr 2013 17:18:50 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id C78022CE804D
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 17:27:34 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3B7E6Ps7078270
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 17:14:06 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3B7RW1V009499
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 17:27:34 +1000
-Date: Thu, 11 Apr 2013 15:27:30 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 02/28] vmscan: take at least one pass with shrinkers
-Message-ID: <20130411072729.GA3605@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <20130408090131.GB21654@lge.com>
- <51628877.5000701@parallels.com>
- <20130409005547.GC21654@lge.com>
- <20130409012931.GE17758@dastard>
- <20130409020505.GA4218@lge.com>
- <20130409123008.GM17758@dastard>
- <20130410025115.GA5872@lge.com>
- <20130410100752.GA10481@dastard>
- <CAAmzW4OMyZ=nVbHK_AiifPK5LVxvhOQUXmsD5NGfo33CBjf=eA@mail.gmail.com>
- <20130411004114.GC10481@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 86DC26B0006
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 03:32:10 -0400 (EDT)
+Date: Thu, 11 Apr 2013 03:32:04 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1365665524-nj0fhwkj-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC Patch 2/2] mm: Add parameters to limit a rate of outputting
+ memory error messages
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20130411004114.GC10481@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: JoonSoo Kim <js1304@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Glauber Costa <glommer@parallels.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, hughd@google.com, yinghan@google.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Thu, Apr 11, 2013 at 10:41:14AM +1000, Dave Chinner wrote:
->On Wed, Apr 10, 2013 at 11:03:39PM +0900, JoonSoo Kim wrote:
->> Another one what I found is that they don't account "nr_reclaimed" precisely.
->> There is no code which check whether "current->reclaim_state" exist or not,
->> except prune_inode().
->
->That's because prune_inode() can free page cache pages when the
->inode mapping is invalidated. Hence it accounts this in addition
->to the slab objects being freed.
->
->IOWs, if you have a shrinker that frees pages from the page cache,
->you need to do this. Last time I checked, only inode cache reclaim
->caused extra page cache reclaim to occur, so most (all?) other
->shrinkers do not need to do this.
->
+On Thu, Apr 11, 2013 at 12:59:38AM -0400, Naoya Horiguchi wrote:
+> Hi Tanino-san,
+> 
+> On Thu, Apr 11, 2013 at 12:27:15PM +0900, Mitsuhiro Tanino wrote:
+> > This patch introduces new sysctl interfaces in order to limit
+> > a rate of outputting memory error messages.
+> > 
+> > - vm.memory_failure_print_ratelimit:
+> >   Specify the minimum length of time between messages.
+> >   By default the rate limiting is disabled.
+> > 
+> > - vm.memory_failure_print_ratelimit_burst:
+> >   Specify the number of messages we can send before rate limiting.
+> > 
+> > Signed-off-by: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>
+...
+> > @@ -78,6 +79,16 @@ EXPORT_SYMBOL_GPL(hwpoison_filter_dev_minor);
+> >  EXPORT_SYMBOL_GPL(hwpoison_filter_flags_mask);
+> >  EXPORT_SYMBOL_GPL(hwpoison_filter_flags_value);
+> >  
+> > +/*
+> > + * This enforces a rate limit for outputting error message.
+> > + * The default interval is set to "0" HZ. This means that
+> > + * outputting error message is not limited by default.
+> > + * The default burst is set to "10". This parameter can control
+> > + * to output number of messages per interval.
+> > + * If interval is set to "0", the burst is ineffective.
+> > + */
+> > +DEFINE_RATELIMIT_STATE(sysctl_memory_failure_print_ratelimit, 0 * HZ, 10);
+> > +
+> >  static int hwpoison_filter_dev(struct page *p)
+> >  {
+> >  	struct address_space *mapping;
+> > @@ -622,13 +633,16 @@ static int me_pagecache_dirty(struct page *p, unsigned long pfn)
+> >  	SetPageError(p);
+> >  	if (mapping) {
+> >  		/* Print more information about the file. */
+> > -		if (mapping->host != NULL && S_ISREG(mapping->host->i_mode))
+> > -			pr_info("MCE %#lx: File was corrupted: Dev:%s Inode:%lu Offset:%lu\n",
+> > -				page_to_pfn(p), mapping->host->i_sb->s_id,
+> > -				mapping->host->i_ino, page_index(p));
+> > -		else
+> > -			pr_info("MCE %#lx: A dirty page cache was corrupted.\n",
+> > -				page_to_pfn(p));
+> > +		if (__ratelimit(&sysctl_memory_failure_print_ratelimit)) {
+> > +			if (mapping->host != NULL &&
+> > +			    S_ISREG(mapping->host->i_mode))
+> > +				pr_info("MCE %#lx: File was corrupted: Dev:%s Inode:%lu Offset:%lu\n",
+> > +				   page_to_pfn(p), mapping->host->i_sb->s_id,
+> > +				   mapping->host->i_ino, page_index(p));
+> > +			else
+> > +				pr_info("MCE %#lx: A dirty page cache was corrupted.\n",
+> > +					page_to_pfn(p));
+> > +		}
+> >  
+> >  		/*
+> >  		 * IO error will be reported by write(), fsync(), etc.
 
-If we should account "nr_reclaimed" against huge zero page? There are 
-large number(512) of pages reclaimed which can throttle direct or 
-kswapd relcaim to avoid reclaim excess pages. I can do this work if 
-you think the idea is needed.
+I don't think it's enough to do ratelimit only for me_pagecache_dirty().
+When tons of memory errors flood, all of printk()s in memory error handler
+can print out tons of messages.
 
-Regards,
-Wanpeng Li 
-
->It's just another wart that we need to clean up....
->
->Cheers,
->
->Dave.
->-- 
->Dave Chinner
->david@fromorbit.com
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
