@@ -1,152 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id D43646B0027
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:48:26 -0400 (EDT)
-Received: by mail-qc0-f201.google.com with SMTP id o22so183868qcr.0
-        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 13:48:25 -0700 (PDT)
-Subject: [folded-merged] mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix.patch removed from -mm tree
-From: akpm@linux-foundation.org
-Date: Thu, 11 Apr 2013 13:48:24 -0700
-Message-Id: <20130411204825.4925F31C27C@corp2gmr1-1.hot.corp.google.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 2034C6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 16:55:16 -0400 (EDT)
+Message-ID: <51672331.6070605@bitsync.net>
+Date: Thu, 11 Apr 2013 22:55:13 +0200
+From: Zlatko Calusic <zcalusic@bitsync.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/10] Reduce system disruption due to kswapd V2
+References: <1365505625-9460-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <1365505625-9460-1-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, agshew@gmail.com, linux-mm@kvack.org, mm-commits@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
+On 09.04.2013 13:06, Mel Gorman wrote:
+> Posting V2 of this series got delayed due to trying to pin down an unrelated
+> regression in 3.9-rc where interactive performance is shot to hell. That
+> problem still has not been identified as it's resisting attempts to be
+> reproducible by a script for the purposes of bisection.
+>
+> For those that looked at V1, the most important difference in this version
+> is how patch 2 preserves the proportional scanning of anon/file LRUs.
+>
+> The series is against 3.9-rc6.
+>
+> Changelog since V1
+> o Rename ZONE_DIRTY to ZONE_TAIL_LRU_DIRTY			(andi)
+> o Reformat comment in shrink_page_list				(andi)
+> o Clarify some comments						(dhillf)
+> o Rework how the proportional scanning is preserved
+> o Add PageReclaim check before kswapd starts writeback
+> o Reset sc.nr_reclaimed on every full zone scan
+>
 
-The patch titled
-     Subject: mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix
-has been removed from the -mm tree.  Its filename was
-     mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix.patch
+I believe this is what you had in your tree as kswapd-v2r9 branch? If 
+I'm right, then I had this series under test for about 2 weeks on two 
+different machines (one server, one desktop). Here's what I've found:
 
-This patch was dropped because it was folded into mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed.patch
+- while the series looks overwhelming, with a lot of intricate changes 
+(at least from my POV), it proved completely stable and robust. I had 
+ZERO issues with it. I'd encourage everybody to test it, even on the 
+production!
 
-------------------------------------------------------
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix
+- I've just sent to you and to the linux-mm list a longish report of the 
+issue I tracked last few months that is unfortunately NOT solved with 
+this patch series (although at first it looked like it would be). 
+Occasionaly I still see large parts of memory freed for no good reason, 
+except I explained in the report how it happens. What I still don't know 
+is what's the real cause of the heavy imbalance in the pagecache 
+utilization between DMA32/NORMAL zones. Seen only on 4GB RAM machines, 
+but I suppose that is a quite popular configuration these days.
 
-init_user_reserve() and init_admin_reserve can no longer be __meminit
+- The only slightly negative thing I observed is that with the patch 
+applied kswapd burns 10x - 20x more CPU. So instead of about 15 seconds, 
+it has now spent more than 4 minutes on one particular machine with a 
+quite steady load (after about 12 days of uptime). Admittedly, that's 
+still nothing too alarming, but...
 
-Cc: <linux-mm@kvack.org>
-Cc: Andrew Shewmaker <agshew@gmail.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+- I like VERY much how you cleaned up the code so it is more readable 
+now. I'd like to see it in the Linus tree as soon as possible. Very good 
+job there!
 
- mm/mmap.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff -puN mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix mm/mmap.c
---- a/mm/mmap.c~mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed-fix-fix
-+++ a/mm/mmap.c
-@@ -3112,7 +3112,7 @@ void __init mmap_init(void)
-  * The default value is min(3% of free memory, 128MB)
-  * 128MB is enough to recover with sshd/login, bash, and top/kill.
-  */
--static int __meminit init_user_reserve(void)
-+static int init_user_reserve(void)
- {
- 	unsigned long free_kbytes;
- 
-@@ -3133,7 +3133,7 @@ module_init(init_user_reserve)
-  * with sshd, bash, and top in OVERCOMMIT_GUESS. Smaller systems will
-  * only reserve 3% of free pages by default.
-  */
--static int __meminit init_admin_reserve(void)
-+static int init_admin_reserve(void)
- {
- 	unsigned long free_kbytes;
- 
-_
-
-Patches currently in -mm which might be from akpm@linux-foundation.org are
-
-linux-next.patch
-arch-alpha-kernel-systblss-remove-debug-check.patch
-i-need-old-gcc.patch
-revert-ipc-dont-allocate-a-copy-larger-than-max.patch
-mips-define-kvm_user_mem_slots.patch
-auditsc-use-kzalloc-instead-of-kmallocmemset-fix.patch
-drivers-video-implement-a-simple-framebuffer-driver-fix.patch
-timer_list-convert-timer-list-to-be-a-proper-seq_file.patch
-posix-timers-correctly-get-dying-task-time-sample-in-posix_cpu_timer_schedule.patch
-mm.patch
-mm-shmemc-remove-an-ifdef.patch
-xen-tmem-enable-xen-tmem-shim-to-be-built-loaded-as-a-module-fix.patch
-memcg-relax-memcg-iter-caching-checkpatch-fixes.patch
-mm-make-snapshotting-pages-for-stable-writes-a-per-bio-operation.patch
-kexec-vmalloc-export-additional-vmalloc-layer-information-fix.patch
-mm-hugetlb-include-hugepages-in-meminfo-checkpatch-fixes.patch
-mm-speedup-in-__early_pfn_to_nid.patch
-mm-speedup-in-__early_pfn_to_nid-fix.patch
-include-linux-memoryh-implement-register_hotmemory_notifier.patch
-ipc-utilc-use-register_hotmemory_notifier.patch
-mm-slubc-use-register_hotmemory_notifier.patch
-drivers-base-nodec-switch-to-register_hotmemory_notifier.patch
-fs-proc-kcorec-use-register_hotmemory_notifier.patch
-kernel-cpusetc-use-register_hotmemory_notifier.patch
-mm-limit-growth-of-3%-hardcoded-other-user-reserve.patch
-mm-replace-hardcoded-3%-with-admin_reserve_pages-knob.patch
-mm-reinititalise-user-and-admin-reserves-if-memory-is-added-or-removed.patch
-resource-add-release_mem_region_adjustable-fix.patch
-resource-add-release_mem_region_adjustable-fix-fix.patch
-mm-madvise-complete-input-validation-before-taking-lock-fix.patch
-include-linux-mmzoneh-cleanups.patch
-include-linux-mmzoneh-cleanups-fix.patch
-drop_caches-add-some-documentation-and-info-messsge.patch
-memcg-debugging-facility-to-access-dangling-memcgs-fix.patch
-genalloc-add-devres-support-allow-to-find-a-managed-pool-by-device-fix.patch
-genalloc-add-devres-support-allow-to-find-a-managed-pool-by-device-fix-fix.patch
-misc-generic-on-chip-sram-allocation-driver-fix.patch
-kernel-smpc-cleanups.patch
-early_printk-consolidate-random-copies-of-identical-code-v3-fix.patch
-include-linux-printkh-include-stdargh.patch
-get_maintainer-use-filename-only-regex-match-for-tegra-fix.patch
-argv_split-teach-it-to-handle-mutable-strings-fix.patch
-kernel-timerc-ove-some-non-timer-related-syscalls-to-kernel-sysc-checkpatch-fixes.patch
-epoll-trim-epitem-by-one-cache-line-on-x86_64-fix.patch
-binfmt_elfc-use-get_random_int-to-fix-entropy-depleting.patch
-init-mainc-convert-to-pr_foo.patch
-rtc-ds1307-long-block-operations-bugfix.patch
-hfsplus-fix-warnings-in-fs-hfsplus-bfindc-in-function-hfs_find_1st_rec_by_cnid-fix.patch
-usermodehelper-export-_exec-and-_setup-functions-fix.patch
-kexec-use-min_t-to-simplify-logic-fix.patch
-ipc-introduce-obtaining-a-lockless-ipc-object-fix.patch
-ipcsem-open-code-and-rename-sem_lock-fix.patch
-ipc-sysv-shared-memory-limited-to-8tib-fix.patch
-kernel-pidc-improve-flow-of-a-loop-inside-alloc_pidmap-fix.patch
-pid_namespacec-h-simplify-defines-fix.patch
-drivers-net-rename-random32-to-prandom_u32-fix.patch
-gadget-remove-only-user-of-aio-retry-checkpatch-fixes.patch
-aio-remove-retry-based-aio-checkpatch-fixes.patch
-aio-add-kiocb_cancel.patch
-aio-make-aio_put_req-lockless-checkpatch-fixes.patch
-aio-refcounting-cleanup-checkpatch-fixes.patch
-wait-add-wait_event_hrtimeout.patch
-aio-make-aio_read_evt-more-efficient-convert-to-hrtimers-checkpatch-fixes.patch
-aio-use-cancellation-list-lazily.patch
-aio-give-shared-kioctx-fields-their-own-cachelines.patch
-generic-dynamic-per-cpu-refcounting.patch
-generic-dynamic-per-cpu-refcounting-checkpatch-fixes.patch
-aio-dont-include-aioh-in-schedh.patch
-aio-dont-include-aioh-in-schedh-fix.patch
-aio-kill-ki_retry.patch
-aio-kill-ki_retry-fix.patch
-aio-kill-ki_retry-checkpatch-fixes.patch
-block-prep-work-for-batch-completion-checkpatch-fixes.patch
-block-prep-work-for-batch-completion-fix-2.patch
-block-prep-work-for-batch-completion-fix-3.patch
-block-prep-work-for-batch-completion-fix-3-fix.patch
-block-aio-batch-completion-for-bios-kiocbs.patch
-block-aio-batch-completion-for-bios-kiocbs-checkpatch-fixes.patch
-block-aio-batch-completion-for-bios-kiocbs-fix.patch
-lib-add-lz4-compressor-module-fix.patch
-crypto-add-lz4-cryptographic-api-fix.patch
-debugging-keep-track-of-page-owners-fix-2-fix.patch
-debugging-keep-track-of-page-owners-fix-2-fix-fix-fix.patch
-journal_add_journal_head-debug.patch
-kernel-forkc-export-kernel_thread-to-modules.patch
-mutex-subsystem-synchro-test-module.patch
-slab-leaks3-default-y.patch
-put_bh-debug.patch
+Regards,
+-- 
+Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
