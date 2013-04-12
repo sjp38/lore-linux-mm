@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 248316B0027
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 22:52:09 -0400 (EDT)
-Message-ID: <516776CD.4070109@redhat.com>
-Date: Thu, 11 Apr 2013 22:51:57 -0400
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id A7F736B0006
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 22:55:01 -0400 (EDT)
+Message-ID: <51677779.8000506@redhat.com>
+Date: Thu, 11 Apr 2013 22:54:49 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/10] mm: vmscan: Have kswapd writeback pages based on
- dirty pages encountered, not priority
-References: <1365505625-9460-1-git-send-email-mgorman@suse.de> <1365505625-9460-7-git-send-email-mgorman@suse.de>
-In-Reply-To: <1365505625-9460-7-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 07/10] mm: vmscan: Block kswapd if it is encountering
+ pages under writeback
+References: <1365505625-9460-1-git-send-email-mgorman@suse.de> <1365505625-9460-8-git-send-email-mgorman@suse.de>
+In-Reply-To: <1365505625-9460-8-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,26 +18,35 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
 On 04/09/2013 07:07 AM, Mel Gorman wrote:
-> Currently kswapd queues dirty pages for writeback if scanning at an elevated
-> priority but the priority kswapd scans at is not related to the number
-> of unqueued dirty encountered.  Since commit "mm: vmscan: Flatten kswapd
-> priority loop", the priority is related to the size of the LRU and the
-> zone watermark which is no indication as to whether kswapd should write
-> pages or not.
+> Historically, kswapd used to congestion_wait() at higher priorities if it
+> was not making forward progress. This made no sense as the failure to make
+> progress could be completely independent of IO. It was later replaced by
+> wait_iff_congested() and removed entirely by commit 258401a6 (mm: don't
+> wait on congested zones in balance_pgdat()) as it was duplicating logic
+> in shrink_inactive_list().
 >
-> This patch tracks if an excessive number of unqueued dirty pages are being
-> encountered at the end of the LRU.  If so, it indicates that dirty pages
-> are being recycled before flusher threads can clean them and flags the
-> zone so that kswapd will start writing pages until the zone is balanced.
+> This is problematic. If kswapd encounters many pages under writeback and
+> it continues to scan until it reaches the high watermark then it will
+> quickly skip over the pages under writeback and reclaim clean young
+> pages or push applications out to swap.
+>
+> The use of wait_iff_congested() is not suited to kswapd as it will only
+> stall if the underlying BDI is really congested or a direct reclaimer was
+> unable to write to the underlying BDI. kswapd bypasses the BDI congestion
+> as it sets PF_SWAPWRITE but even if this was taken into account then it
+> would cause direct reclaimers to stall on writeback which is not desirable.
+>
+> This patch sets a ZONE_WRITEBACK flag if direct reclaim or kswapd is
+> encountering too many pages under writeback. If this flag is set and
+> kswapd encounters a PageReclaim page under writeback then it'll assume
+> that the LRU lists are being recycled too quickly before IO can complete
+> and block waiting for some IO to complete.
 >
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-I like your approach of essentially not writing out from
-kswapd if we manage to reclaim well at DEF_PRIORITY, and
-doing writeout more and more aggressively if we have to
-reduce priority.
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed
