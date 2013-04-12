@@ -1,38 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 1700E6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 19:55:34 -0400 (EDT)
-Message-ID: <1365723793.32127.120.camel@misato.fc.hp.com>
-Subject: Re: [PATCH] resource: Update config option of
- release_mem_region_adjustable()
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 11 Apr 2013 17:43:13 -0600
-In-Reply-To: <51674C30.5060309@jp.fujitsu.com>
-References: <1365719185-4799-1-git-send-email-toshi.kani@hp.com>
-	 <51674C30.5060309@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id A822C6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 20:30:04 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <9f091f23-9314-422c-9f97-525ddefd483b@default>
+Date: Thu, 11 Apr 2013 17:29:58 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [LSF/MM TOPIC] Beyond NUMA
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, linuxram@us.ibm.com, guz.fnst@cn.fujitsu.com, tmac@hp.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: lsf@lists.linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On Fri, 2013-04-12 at 08:50 +0900, Yasuaki Ishimatsu wrote:
-> 2013/04/12 7:26, Toshi Kani wrote:
-> > Changed the config option of release_mem_region_adjustable() from
-> > CONFIG_MEMORY_HOTPLUG to CONFIG_MEMORY_HOTREMOVE since this function
-> > is only used for memory hot-delete.
-> > 
-> > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> 
-> Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+MM developers and all --
 
-Thanks Yasuaki!
--Toshi
+It's a bit late to add a topic, but with such a great group of brains
+together, it seems worthwhile to spend at least some time speculating
+on "farther-out" problems.  So I propose for the MM track:
 
+Beyond NUMA
 
+NUMA now impacts even the smallest servers and soon, perhaps even embedded
+systems, but the performance effects are limited when the number of nodes
+is small (e.g. two).  As the number of nodes grows, along with the number
+of memory controllers, NUMA can have a big performance impact and the MM
+community has invested a huge amount of energy into reducing this problem.
 
+But as the number of memory controllers grows, the cost of the system
+grows faster.  This is classic "scale-up" and certain workloads will
+always benefit from having as many CPUs/cores and nodes as can be
+packed into a single system.  System vendors are happy to oblige because th=
+e
+profit margin on scale-out systems can be proportionally much much
+larger than on smaller commodity systems.  So the NUMA work will always
+be necessary and important.
+
+But as scale-out grows to previously unimaginable levels, an increasing
+fraction of workloads are unable to adequately benefit to compensate
+for the non-linear increase in system cost.  And so more users, especially
+cost-sensitive users, are turning instead to scale-out to optimize
+cost vs benefit for their massive data centers.  Recent examples include
+HP's Moonshot and Facebook's "Group Hug".  And even major data center
+topology changes are being proposed which use super-high-speed links to
+separate CPUs from RAM [1].
+
+While filesystems and storage have long ago adapted to handle large
+numbers of servers effectively, the MM subsystem is still isolated,
+managing its own private set of RAM, independent of and completely
+partitioned from the RAM of other servers.  Perhaps we, the Linux
+MM developers, should start considering how MM can evolve in this
+new world.  In some ways, scale-out is like NUMA, but a step beyond.
+In other ways, scale-out is very different.  The ramster project [2]
+in the staging tree is a step in the direction of "clusterizing" RAM,
+but may or may not be the right step.
+
+Discuss.
+
+[1] http://allthingsd.com/20130410/intel-wants-to-redesign-your-server-rack=
+/=20
+[2] http://lwn.net/Articles/481681/=20
+
+(see y'all next week!)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
