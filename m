@@ -1,56 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 773716B0002
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:19:55 -0400 (EDT)
-Date: Fri, 12 Apr 2013 11:19:52 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-Message-ID: <20130412151952.GA4944@thunk.org>
-References: <20130402142717.GH32241@suse.de>
- <20130402150651.GB31577@thunk.org>
- <20130410105608.GC1910@suse.de>
- <20130410131245.GC4862@thunk.org>
- <20130411170402.GB11656@suse.de>
- <20130411183512.GA12298@thunk.org>
- <20130411213335.GE9379@quack.suse.cz>
- <20130412025708.GB7445@thunk.org>
- <20130412045042.GA30622@dastard>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id C8E4D6B0006
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:22:39 -0400 (EDT)
+Date: Fri, 12 Apr 2013 17:22:37 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 0/6] mm/hugetlb: gigantic hugetlb page pools shrink
+ supporting
+Message-ID: <20130412152237.GM16732@two.firstfloor.org>
+References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130411232907.GC29398@hacker.(null)>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130412045042.GA30622@dastard>
+In-Reply-To: <20130411232907.GC29398@hacker.(null)>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Apr 12, 2013 at 02:50:42PM +1000, Dave Chinner wrote:
-> > If that is the case, one possible solution that comes to mind would be
-> > to mark buffer_heads that contain metadata with a flag, so that the
-> > flusher thread can write them back at the same priority as reads.
-> 
-> Ext4 is already using REQ_META for this purpose.
+On Fri, Apr 12, 2013 at 07:29:07AM +0800, Wanpeng Li wrote:
+> Ping Andi,
+> On Thu, Apr 04, 2013 at 05:09:08PM +0800, Wanpeng Li wrote:
+> >order >= MAX_ORDER pages are only allocated at boot stage using the 
+> >bootmem allocator with the "hugepages=xxx" option. These pages are never 
+> >free after boot by default since it would be a one-way street(>= MAX_ORDER
+> >pages cannot be allocated later), but if administrator confirm not to 
+> >use these gigantic pages any more, these pinned pages will waste memory
+> >since other users can't grab free pages from gigantic hugetlb pool even
+> >if OOM, it's not flexible.  The patchset add hugetlb gigantic page pools
+> >shrink supporting. Administrator can enable knob exported in sysctl to
+> >permit to shrink gigantic hugetlb pool.
 
-We're using REQ_META | REQ_PRIO for reads, not writes.
 
-> I'm surprised that no-one has suggested "change the IO elevator"
-> yet.....
+I originally didn't allow this because it's only one way and it seemed
+dubious.  I've been recently working on a new patchkit to allocate
+GB pages from CMA. With that freeing actually makes sense, as 
+the pages can be reallocated.
 
-Well, testing to see if the stalls go away with the noop schedule is a
-good thing to try just to validate the theory.
-
-The thing is, we do want to make ext4 work well with cfq, and
-prioritizing non-readahead read requests ahead of data writeback does
-make sense.  The issue is with is that metadata writes going through
-the block device could in some cases effectively cause a priority
-inversion when what had previously been an asynchronous writeback
-starts blocking a foreground, user-visible process.
-
-At least, that's the theory; we should confirm that this is indeed
-what is causing the data stalls which Mel is reporting on HDD's before
-we start figuring out how to fix this problem.
-
-   	 	      	     	 - Ted
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
