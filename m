@@ -1,186 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 4D8196B003D
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:42:08 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dwg@au1.ibm.com>;
-	Fri, 12 Apr 2013 11:39:54 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 748173578054
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:42:02 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3C1fQuM4129176
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:41:27 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3C1fVj9029867
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:41:32 +1000
-Date: Fri, 12 Apr 2013 11:41:40 +1000
-From: David Gibson <dwg@au1.ibm.com>
-Subject: Re: [PATCH -V5 22/25] powerpc/THP: get_user_pages_fast changes
-Message-ID: <20130412014140.GE5065@truffula.fritz.box>
-References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1365055083-31956-23-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 718076B0070
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:54:22 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id kq13so1195148pab.15
+        for <linux-mm@kvack.org>; Thu, 11 Apr 2013 18:54:21 -0700 (PDT)
+Message-ID: <51676941.3050802@gmail.com>
+Date: Fri, 12 Apr 2013 09:54:09 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="mR8QP4gmHujQHb1c"
-Content-Disposition: inline
-In-Reply-To: <1365055083-31956-23-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
+ hardware access to the CPU page tables of user processes
+References: <5114DF05.7070702@mellanox.com> <CANN689Ff6vSu4ZvHek4J4EMzFG7EjF-Ej48hJKV_4SrLoj+mCA@mail.gmail.com> <CAH3drwaACy5KFv_2ozEe35u1Jpxs0f6msKoW=3_0nrWZpJnO4w@mail.gmail.com> <5163D119.80603@gmail.com> <20130409142156.GA1909@gmail.com> <5164C365.70302@gmail.com> <20130410204507.GA3958@gmail.com> <5166310D.4020100@gmail.com> <20130411183828.GA6696@gmail.com>
+In-Reply-To: <20130411183828.GA6696@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Michel Lespinasse <walken@google.com>, Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
---mR8QP4gmHujQHb1c
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Hi Jerome,
+On 04/12/2013 02:38 AM, Jerome Glisse wrote:
+> On Thu, Apr 11, 2013 at 11:42:05AM +0800, Simon Jeons wrote:
+>> Hi Jerome,
+>> On 04/11/2013 04:45 AM, Jerome Glisse wrote:
+>>> On Wed, Apr 10, 2013 at 09:41:57AM +0800, Simon Jeons wrote:
+>>>> Hi Jerome,
+>>>> On 04/09/2013 10:21 PM, Jerome Glisse wrote:
+>>>>> On Tue, Apr 09, 2013 at 04:28:09PM +0800, Simon Jeons wrote:
+>>>>>> Hi Jerome,
+>>>>>> On 02/10/2013 12:29 AM, Jerome Glisse wrote:
+>>>>>>> On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse <walken@google.com> wrote:
+>>>>>>>> On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel <raindel@mellanox.com> wrote:
+>>>>>>>>> Hi,
+>>>>>>>>>
+>>>>>>>>> We would like to present a reference implementation for safely sharing
+>>>>>>>>> memory pages from user space with the hardware, without pinning.
+>>>>>>>>>
+>>>>>>>>> We will be happy to hear the community feedback on our prototype
+>>>>>>>>> implementation, and suggestions for future improvements.
+>>>>>>>>>
+>>>>>>>>> We would also like to discuss adding features to the core MM subsystem to
+>>>>>>>>> assist hardware access to user memory without pinning.
+>>>>>>>> This sounds kinda scary TBH; however I do understand the need for such
+>>>>>>>> technology.
+>>>>>>>>
+>>>>>>>> I think one issue is that many MM developers are insufficiently aware
+>>>>>>>> of such developments; having a technology presentation would probably
+>>>>>>>> help there; but traditionally LSF/MM sessions are more interactive
+>>>>>>>> between developers who are already quite familiar with the technology.
+>>>>>>>> I think it would help if you could send in advance a detailed
+>>>>>>>> presentation of the problem and the proposed solutions (and then what
+>>>>>>>> they require of the MM layer) so people can be better prepared.
+>>>>>>>>
+>>>>>>>> And first I'd like to ask, aren't IOMMUs supposed to already largely
+>>>>>>>> solve this problem ? (probably a dumb question, but that just tells
+>>>>>>>> you how much you need to explain :)
+>>>>>>> For GPU the motivation is three fold. With the advance of GPU compute
+>>>>>>> and also with newer graphic program we see a massive increase in GPU
+>>>>>>> memory consumption. We easily can reach buffer that are bigger than
+>>>>>>> 1gbytes. So the first motivation is to directly use the memory the
+>>>>>>> user allocated through malloc in the GPU this avoid copying 1gbytes of
+>>>>>>> data with the cpu to the gpu buffer. The second and mostly important
+>>>>>>> to GPU compute is the use of GPU seamlessly with the CPU, in order to
+>>>>>>> achieve this you want the programmer to have a single address space on
+>>>>>>> the CPU and GPU. So that the same address point to the same object on
+>>>>>>> GPU as on the CPU. This would also be a tremendous cleaner design from
+>>>>>>> driver point of view toward memory management.
+>>>>>>>
+>>>>>>> And last, the most important, with such big buffer (>1gbytes) the
+>>>>>>> memory pinning is becoming way to expensive and also drastically
+>>>>>>> reduce the freedom of the mm to free page for other process. Most of
+>>>>>>> the time a small window (every thing is relative the window can be >
+>>>>>>> 100mbytes not so small :)) of the object will be in use by the
+>>>>>>> hardware. The hardware pagefault support would avoid the necessity to
+>>>>>> What's the meaning of hardware pagefault?
+>>>>> It's a PCIE extension (well it's a combination of extension that allow
+>>>>> that see http://www.pcisig.com/specifications/iov/ats/). Idea is that the
+>>>>> iommu can trigger a regular pagefault inside a process address space on
+>>>>> behalf of the hardware. The only iommu supporting that right now is the
+>>>>> AMD iommu v2 that you find on recent AMD platform.
+>>>> Why need hardware page fault? regular page fault is trigger by cpu
+>>>> mmu, correct?
+>>> Well here i abuse regular page fault term. Idea is that with hardware page
+>>> fault you don't need to pin memory or take reference on page for hardware to
+>>> use it. So that kernel can free as usual page that would otherwise have been
+>> For the case when GPU need to pin memory, why GPU need grap the
+>> memory of normal process instead of allocating for itself?
+> Pin memory is today world where gpu allocate its own memory (GB of memory)
+> that disappear from kernel control ie kernel can no longer reclaim this
+> memory it's lost memory (i had complain about that already from user than
+> saw GB of memory vanish and couldn't understand why the GPU was using so
+> much).
+>
+> Tomorrow world we want gpu to be able to access memory that the application
+> allocated through a simple malloc and we want the kernel to be able to
+> recycly any page at any time because of memory pressure or because kernel
+> decide to do so.
+>
+> That's just what we want to do. To achieve so we are getting hw that can do
+> pagefault. No change to kernel core mm code (some improvement might be made).
 
-On Thu, Apr 04, 2013 at 11:28:00AM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->=20
-> handle large pages for get_user_pages_fast. Also take care of large page =
-splitting.
->=20
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  arch/powerpc/mm/gup.c |   84 +++++++++++++++++++++++++++++++++++++++++++=
-++++--
->  1 file changed, 82 insertions(+), 2 deletions(-)
->=20
-> diff --git a/arch/powerpc/mm/gup.c b/arch/powerpc/mm/gup.c
-> index d7efdbf..835c1ae 100644
-> --- a/arch/powerpc/mm/gup.c
-> +++ b/arch/powerpc/mm/gup.c
-> @@ -55,6 +55,72 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned =
-long addr,
->  	return 1;
->  }
-> =20
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +static inline int gup_huge_pmd(pmd_t *pmdp, unsigned long addr,
-> +			       unsigned long end, int write,
-> +			       struct page **pages, int *nr)
-> +{
-> +	int refs;
-> +	pmd_t pmd;
-> +	unsigned long mask;
-> +	struct page *head, *page, *tail;
-> +
-> +	pmd =3D *pmdp;
-> +	mask =3D PMD_HUGE_PRESENT | PMD_HUGE_USER;
-> +	if (write)
-> +		mask |=3D PMD_HUGE_RW;
-> +
-> +	if ((pmd_val(pmd) & mask) !=3D mask)
-> +		return 0;
-> +
-> +	/* large pages are never "special" */
-> +	VM_BUG_ON(!pfn_valid(pmd_pfn(pmd)));
-> +
-> +	refs =3D 0;
-> +	head =3D pmd_page(pmd);
-> +	page =3D head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> +	tail =3D page;
-> +	do {
-> +		VM_BUG_ON(compound_head(page) !=3D head);
-> +		pages[*nr] =3D page;
-> +		(*nr)++;
-> +		page++;
-> +		refs++;
-> +	} while (addr +=3D PAGE_SIZE, addr !=3D end);
-> +
-> +	if (!page_cache_add_speculative(head, refs)) {
-> +		*nr -=3D refs;
-> +		return 0;
-> +	}
-> +
-> +	if (unlikely(pmd_val(pmd) !=3D pmd_val(*pmdp))) {
-> +		*nr -=3D refs;
-> +		while (refs--)
-> +			put_page(head);
-> +		return 0;
-> +	}
-> +	/*
-> +	 * Any tail page need their mapcount reference taken before we
-> +	 * return.
-> +	 */
-> +	while (refs--) {
-> +		if (PageTail(tail))
-> +			get_huge_page_tail(tail);
-> +		tail++;
+The memory disappear since you have a reference(gup) against it, 
+correct? Tomorrow world you want the page fault trigger through iommu 
+driver that call get_user_pages, it also will take a reference(since gup 
+is called), isn't it? Anyway, assume tomorrow world doesn't take a 
+reference, we don't need care page which used by GPU is reclaimed?
 
-Is it safe to do this accounting this late?
-
-> +	}
-> +
-> +	return 1;
-> +}
-> +#else
-> +
-> +static inline int gup_huge_pmd(pmd_t *pmdp, unsigned long addr,
-> +			       unsigned long end, int write,
-> +			       struct page **pages, int *nr)
-> +{
-> +	return 1;
-
-Should be a BUG() here, since this should never be called if
-!CONFIG_TRANSPARENT_HUGEPAGE.
-
-> +}
-> +#endif
-> +
->  static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long en=
-d,
->  		int write, struct page **pages, int *nr)
->  {
-> @@ -66,9 +132,23 @@ static int gup_pmd_range(pud_t pud, unsigned long add=
-r, unsigned long end,
->  		pmd_t pmd =3D *pmdp;
-> =20
->  		next =3D pmd_addr_end(addr, end);
-> -		if (pmd_none(pmd))
-> +		/*
-> +		 * The pmd_trans_splitting() check below explains why
-> +		 * pmdp_splitting_flush has to flush the tlb, to stop
-> +		 * this gup-fast code from running while we set the
-> +		 * splitting bit in the pmd. Returning zero will take
-> +		 * the slow path that will call wait_split_huge_page()
-> +		 * if the pmd is still in splitting state. gup-fast
-> +		 * can't because it has irq disabled and
-> +		 * wait_split_huge_page() would never return as the
-> +		 * tlb flush IPI wouldn't run.
-> +		 */
-> +		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
->  			return 0;
-> -		if (is_hugepd(pmdp)) {
-> +		if (unlikely(pmd_large(pmd))) {
-> +			if (!gup_huge_pmd(pmdp, addr, next, write, pages, nr))
-> +				return 0;
-> +		} else if (is_hugepd(pmdp)) {
->  			if (!gup_hugepd((hugepd_t *)pmdp, PMD_SHIFT,
->  					addr, next, write, pages, nr))
->  				return 0;
-
---=20
-David Gibson			| I'll have my music baroque, and my code
-david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
-				| _way_ _around_!
-http://www.ozlabs.org/~dgibson
-
---mR8QP4gmHujQHb1c
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iEYEARECAAYFAlFnZlQACgkQaILKxv3ab8YKpQCaA4QUnA7KB1J7hV2r0uDxy3Uq
-Qo0An3BFum+f9Lnj3RfQ8XpK0fd21iQz
-=0DHn
------END PGP SIGNATURE-----
-
---mR8QP4gmHujQHb1c--
+>
+>>> pinned. If GPU is really using them it will trigger a fault through the iommu
+>>> driver that call get_user_pages (which can end up calling handle_mm_fault like
+>>> a regular page fault that happened on the CPU).
+>> This time normal process can't use this page, correct? So GPU and
+>> normal process both have their own pages?
+> No, tomorrow world, gpu and cpu both using same page in same address space at
+> the same time. Just like two cpu core each running a different thread of
+> the same process would. Just consider the gpu as a new cpu core working in same
+> address space using the same memory all at the same time as cpu.
+>
+> Cheers,
+> Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
