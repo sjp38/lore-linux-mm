@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 51C956B0006
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 09:41:09 -0400 (EDT)
-Date: Fri, 12 Apr 2013 15:42:02 +0200
-From: chrubis@suse.cz
-Subject: Re: [PATCH] mm/mmap: Check for RLIMIT_AS before unmapping
-Message-ID: <20130412134202.GA2764@rei.scz.novell.com>
-References: <20130402095402.GA6568@rei>
- <20130411155734.911dc8bf8e555b169191be5a@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 490856B0005
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 09:43:55 -0400 (EDT)
+Message-ID: <51680F97.3020407@hitachi.com>
+Date: Fri, 12 Apr 2013 22:43:51 +0900
+From: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130411155734.911dc8bf8e555b169191be5a@linux-foundation.org>
+Subject: Re: [RFC Patch 0/2] mm: Add parameters to make kernel behavior at
+ memory error on dirty cache selectable
+References: <51662D5B.3050001@hitachi.com> <516633BB.40307@gmail.com> <5166B1DF.8070504@hitachi.com> <5166B3FE.4000002@gmail.com>
+In-Reply-To: <5166B3FE.4000002@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: Simon Jeons <simon.jeons@gmail.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-Hi!
-> > +static unsigned long count_vma_pages_range(struct mm_struct *mm,
-> > +		unsigned long addr, unsigned long end)
-> > +{
-> > +	unsigned long nr_pages = 0;
-> > +	struct vm_area_struct *vma;
-> > +
-> > +	/* Find first overlaping mapping */
-> > +	vma = find_vma_intersection(mm, addr, end);
-> > +	if (!vma)
-> > +		return 0;
-> > +
-> > +	nr_pages = (min(end, vma->vm_end) -
-> > +		max(addr, vma->vm_start)) >> PAGE_SHIFT;
+(2013/04/11 22:00), Ric Mason wrote:
+> Hi Mitsuhiro,
+> On 04/11/2013 08:51 PM, Mitsuhiro Tanino wrote:
+>> (2013/04/11 12:53), Simon Jeons wrote:
+>>> One question against mce instead of the patchset. ;-)
+>>>
+>>> When check memory is bad? Before memory access? Is there a process scan it period?
+>> Hi Simon-san,
+>>
+>> Yes, there is a process to scan memory periodically.
+>>
+>> At Intel Nehalem-EX and CPUs after Nehalem-EX generation, MCA recovery
+>> is supported. MCA recovery provides error detection and isolation
+>> features to work together with OS.
+>> One of the MCA Recovery features is Memory Scrubbing. It periodically
+>> checks memory in the background of OS.
 > 
-> urgh, these things always make my head spin.  Is it guaranteed that
-> end, vm_end, addr and vm_start are all multiples of PAGE_SIZE?  If not,
-> we have a problem don't we?
+> Memory Scrubbing is a kernel thread? Where is the codes of memory scrubbing?
 
-Yes, it takes a little of concentration before one can say what the code
-does, unfortunatelly this is the most readable variant I've came up
-with.
+Hi Ric,
 
-The len is page aligned right at the start of the do_mmap_pgoff() (end
-is addr + len). The addr should be aligned in the get_unmapped_area()
-although the codepath is more complicated to follow, but it seems to end
-up in one of the arch_get_unmapped_area* and these makes sure the
-address is aligned.
+No. One of the MCA Recovery features is Memory Scrubbing.
+And Memory Scrubbing is a hardware feature of Intel CPU.
 
-Moreover mmap() manual page says that the addr passed to mmap() is page
-aligned (although I tend to check the code rather than the docs).
+OS has a hwpoison feature which is included at mm/memory-failure.c.
+A main function is memory_failure().
 
-And for the vmas I belive these are page aligned by definition, correct
-me if I'm wrong.
+If Memory Scrubbing finds a memory error, MCA recovery notifies SRAO error
+into OS and OS handles the SRAO error using hwpoison function.
 
--- 
-Cyril Hrubis
-chrubis@suse.cz
+
+>> If Memory Scrubbing find an uncorrectable error on a memory before
+>> OS accesses the memory bit, MCA recovery notifies SRAO error into OS
+> 
+> It maybe can't find memory error timely since it is sleeping when memory error occur, can this case happened?
+
+Memory Scrubbing seems to be operated periodically but I don't have
+information about how oftern it is executed.
+
+Regards,
+Mitsuhiro Tanino
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
