@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 1DBEE6B009F
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:32:08 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 9E5036B00A2
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:32:23 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 12 Apr 2013 11:24:33 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 981A32CE804A
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:31:36 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3C1VVIP63897696
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:31:31 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3C1VaEY013367
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:31:36 +1000
+	Fri, 12 Apr 2013 11:30:10 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 142BB357804E
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:32:19 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3C1IKmn9765164
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:18:20 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3C1VmIG030908
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:31:48 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH PART2 v2 2/7] staging: ramster: Move debugfs code out of ramster.c file
-Date: Fri, 12 Apr 2013 09:31:22 +0800
-Message-Id: <1365730287-16876-3-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH PART2 v2 7/7] staging: ramster: add how-to for ramster 
+Date: Fri, 12 Apr 2013 09:31:27 +0800
+Message-Id: <1365730287-16876-8-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1365730287-16876-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1365730287-16876-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,326 +26,279 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Note that at this point there is no CONFIG_RAMSTER_DEBUG
-option in the Kconfig. So in effect all of the counters
-are nop until that option gets re-introduced in:
-zcache/ramster/debug: Add RAMSTE_DEBUG Kconfig entry
+Add how-to for ramster.
 
 Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Singed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- drivers/staging/zcache/Makefile          |    1 +
- drivers/staging/zcache/ramster/debug.c   |   70 ++++++++++++++++++
- drivers/staging/zcache/ramster/debug.h   |   76 ++++++++++++++++++++
- drivers/staging/zcache/ramster/ramster.c |  115 ++----------------------------
- 4 files changed, 152 insertions(+), 110 deletions(-)
- create mode 100644 drivers/staging/zcache/ramster/debug.c
- create mode 100644 drivers/staging/zcache/ramster/debug.h
+ drivers/staging/zcache/ramster/HOWTO.txt |  257 ++++++++++++++++++++++++++++++
+ 1 file changed, 257 insertions(+)
+ create mode 100644 drivers/staging/zcache/ramster/HOWTO.txt
 
-diff --git a/drivers/staging/zcache/Makefile b/drivers/staging/zcache/Makefile
-index 24fd6aa..4956fa0 100644
---- a/drivers/staging/zcache/Makefile
-+++ b/drivers/staging/zcache/Makefile
-@@ -1,5 +1,6 @@
- zcache-y	:=		zcache-main.o tmem.o zbud.o
- zcache-$(CONFIG_ZCACHE_DEBUG) += debug.o
-+zcache-$(CONFIG_RAMSTER) += ramster/debug.o
- zcache-$(CONFIG_RAMSTER)	+=	ramster/ramster.o ramster/r2net.o
- zcache-$(CONFIG_RAMSTER)	+=	ramster/nodemanager.o ramster/tcp.o
- zcache-$(CONFIG_RAMSTER)	+=	ramster/heartbeat.o ramster/masklog.o
-diff --git a/drivers/staging/zcache/ramster/debug.c b/drivers/staging/zcache/ramster/debug.c
+diff --git a/drivers/staging/zcache/ramster/HOWTO.txt b/drivers/staging/zcache/ramster/HOWTO.txt
 new file mode 100644
-index 0000000..76861e4
+index 0000000..a4ee979
 --- /dev/null
-+++ b/drivers/staging/zcache/ramster/debug.c
-@@ -0,0 +1,70 @@
-+#include <linux/atomic.h>
-+#include "debug.h"
++++ b/drivers/staging/zcache/ramster/HOWTO.txt
+@@ -0,0 +1,257 @@
++Version: 130309
++ Dan Magenheimer <dan.magenheimer@oracle.com>
 +
-+#ifdef CONFIG_DEBUG_FS
-+#include <linux/debugfs.h>
-+#define zdfs    debugfs_create_size_t
-+#define zdfs64  debugfs_create_u64
++This is a how-to document for RAMster.  It applies to the March 9, 2013
++version of RAMster, re-merged with the new zcache codebase, built and tested
++on the 3.9 tree and submitted for the staging tree for 3.9.
 +
-+ssize_t ramster_eph_pages_remoted;
-+ssize_t ramster_pers_pages_remoted;
-+ssize_t ramster_eph_pages_remote_failed;
-+ssize_t ramster_pers_pages_remote_failed;
-+ssize_t ramster_remote_eph_pages_succ_get;
-+ssize_t ramster_remote_pers_pages_succ_get;
-+ssize_t ramster_remote_eph_pages_unsucc_get;
-+ssize_t ramster_remote_pers_pages_unsucc_get;
-+ssize_t ramster_pers_pages_remote_nomem;
-+ssize_t ramster_remote_objects_flushed;
-+ssize_t ramster_remote_object_flushes_failed;
-+ssize_t ramster_remote_pages_flushed;
-+ssize_t ramster_remote_page_flushes_failed;
++Note that this document was created from notes taken earlier.  I would
++appreciate any feedback from anyone who follows the process as described
++to confirm that it works and to clarify any possible misunderstandings,
++or to report problems.
 +
-+int __init ramster_debugfs_init(void)
-+{
-+	struct dentry *root = debugfs_create_dir("ramster", NULL);
-+	if (root == NULL)
-+		return -ENXIO;
++A. PRELIMINARY
 +
-+	zdfs("eph_pages_remoted", S_IRUGO, root, &ramster_eph_pages_remoted);
-+	zdfs("pers_pages_remoted", S_IRUGO, root, &ramster_pers_pages_remoted);
-+	zdfs("eph_pages_remote_failed", S_IRUGO, root,
-+		&ramster_eph_pages_remote_failed);
-+	zdfs("pers_pages_remote_failed", S_IRUGO, root,
-+		&ramster_pers_pages_remote_failed);
-+	zdfs("remote_eph_pages_succ_get", S_IRUGO, root,
-+		&ramster_remote_eph_pages_succ_get);
-+	zdfs("remote_pers_pages_succ_get", S_IRUGO, root,
-+		&ramster_remote_pers_pages_succ_get);
-+	zdfs("remote_eph_pages_unsucc_get", S_IRUGO, root,
-+		&ramster_remote_eph_pages_unsucc_get);
-+	zdfs("remote_pers_pages_unsucc_get", S_IRUGO, root,
-+		&ramster_remote_pers_pages_unsucc_get);
-+	zdfs("pers_pages_remote_nomem", S_IRUGO, root,
-+		&ramster_pers_pages_remote_nomem);
-+	zdfs("remote_objects_flushed", S_IRUGO, root,
-+		&ramster_remote_objects_flushed);
-+	zdfs("remote_pages_flushed", S_IRUGO, root,
-+		&ramster_remote_pages_flushed);
-+	zdfs("remote_object_flushes_failed", S_IRUGO, root,
-+		&ramster_remote_object_flushes_failed);
-+	zdfs("remote_page_flushes_failed", S_IRUGO, root,
-+		&ramster_remote_page_flushes_failed);
-+	zdfs("foreign_eph_pages", S_IRUGO, root,
-+		&ramster_foreign_eph_pages);
-+	zdfs("foreign_eph_pages_max", S_IRUGO, root,
-+		&ramster_foreign_eph_pages_max);
-+	zdfs("foreign_pers_pages", S_IRUGO, root,
-+		&ramster_foreign_pers_pages);
-+	zdfs("foreign_pers_pages_max", S_IRUGO, root,
-+		&ramster_foreign_pers_pages_max);
-+	return 0;
-+}
-+#undef  zdebugfs
-+#undef  zdfs64
-+#else
-+static inline int ramster_debugfs_init(void)
-+{
-+	return 0;
-+}
-+#endif
-diff --git a/drivers/staging/zcache/ramster/debug.h b/drivers/staging/zcache/ramster/debug.h
-new file mode 100644
-index 0000000..17a8435
---- /dev/null
-+++ b/drivers/staging/zcache/ramster/debug.h
-@@ -0,0 +1,76 @@
-+#ifdef CONFIG_RAMSTER
++1) Install two or more Linux systems that are known to work when upgraded
++   to a recent upstream Linux kernel version (e.g. v3.9).  I used Oracle
++   Linux 6 ("OL6") on two Dell Optiplex 790s.  Note that it should be possible
++   to use ocfs2 as a filesystem on your systems but this hasn't been
++   tested thoroughly, so if you do use ocfs2 and run into problems, please
++   report them.  Up to eight nodes should work, but not much testing has
++   been done with more than three nodes.
 +
-+extern long ramster_flnodes;
-+static atomic_t ramster_flnodes_atomic = ATOMIC_INIT(0);
-+extern unsigned long ramster_flnodes_max;
-+static inline void inc_ramster_flnodes(void)
-+{
-+	ramster_flnodes = atomic_inc_return(&ramster_flnodes_atomic);
-+	if (ramster_flnodes > ramster_flnodes_max)
-+		ramster_flnodes_max = ramster_flnodes;
-+}
-+static inline void dec_ramster_flnodes(void)
-+{
-+	ramster_flnodes = atomic_dec_return(&ramster_flnodes_atomic);
-+}
-+extern ssize_t ramster_foreign_eph_pages;
-+static atomic_t ramster_foreign_eph_pages_atomic = ATOMIC_INIT(0);
-+extern ssize_t ramster_foreign_eph_pages_max;
-+static inline void inc_ramster_foreign_eph_pages(void)
-+{
-+	ramster_foreign_eph_pages = atomic_inc_return(
-+		&ramster_foreign_eph_pages_atomic);
-+	if (ramster_foreign_eph_pages > ramster_foreign_eph_pages_max)
-+		ramster_foreign_eph_pages_max = ramster_foreign_eph_pages;
-+}
-+static inline void dec_ramster_foreign_eph_pages(void)
-+{
-+	ramster_foreign_eph_pages = atomic_dec_return(
-+		&ramster_foreign_eph_pages_atomic);
-+}
-+extern ssize_t ramster_foreign_pers_pages;
-+static atomic_t ramster_foreign_pers_pages_atomic = ATOMIC_INIT(0);
-+extern ssize_t ramster_foreign_pers_pages_max;
-+static inline void inc_ramster_foreign_pers_pages(void)
-+{
-+	ramster_foreign_pers_pages = atomic_inc_return(
-+		&ramster_foreign_pers_pages_atomic);
-+	if (ramster_foreign_pers_pages > ramster_foreign_pers_pages_max)
-+		ramster_foreign_pers_pages_max = ramster_foreign_pers_pages;
-+}
-+static inline void dec_ramster_foreign_pers_pages(void)
-+{
-+	ramster_foreign_pers_pages = atomic_dec_return(
-+		&ramster_foreign_pers_pages_atomic);
-+}
++On each system:
 +
-+extern ssize_t ramster_eph_pages_remoted;
-+extern ssize_t ramster_pers_pages_remoted;
-+extern ssize_t ramster_eph_pages_remote_failed;
-+extern ssize_t ramster_pers_pages_remote_failed;
-+extern ssize_t ramster_remote_eph_pages_succ_get;
-+extern ssize_t ramster_remote_pers_pages_succ_get;
-+extern ssize_t ramster_remote_eph_pages_unsucc_get;
-+extern ssize_t ramster_remote_pers_pages_unsucc_get;
-+extern ssize_t ramster_pers_pages_remote_nomem;
-+extern ssize_t ramster_remote_objects_flushed;
-+extern ssize_t ramster_remote_object_flushes_failed;
-+extern ssize_t ramster_remote_pages_flushed;
-+extern ssize_t ramster_remote_page_flushes_failed;
++2) Configure, build and install then boot Linux (e.g. 3.9), just to ensure it
++   can be done with an unmodified upstream kernel.  Confirm you booted
++   the upstream kernel with "uname -a".
 +
-+int ramster_debugfs_init(void);
++3) Install ramster-tools.  The src.rpm and an OL6 rpm are available
++   in this directory.  I'm not very good at userspace stuff and
++   would welcome any help in turning ramster-tools into more
++   distributable rpms/debs for a wider range of distros.
 +
-+#else
++B. BUILDING RAMSTER INTO THE KERNEL
 +
-+static inline void inc_ramster_flnodes(void) { };
-+static inline void dec_ramster_flnodes(void) { };
-+static inline void inc_ramster_foreign_eph_pages(void) { };
-+static inline void dec_ramster_foreign_eph_pages(void) { };
-+static inline void inc_ramster_foreign_pers_pages(void) { };
-+static inline void dec_ramster_foreign_pers_pages(void) { };
++Do the following on each system:
 +
-+static inline int ramster_debugfs_init(void)
-+{
-+	return 0;
-+}
-+#endif
-diff --git a/drivers/staging/zcache/ramster/ramster.c b/drivers/staging/zcache/ramster/ramster.c
-index 444189e..1d29f5b 100644
---- a/drivers/staging/zcache/ramster/ramster.c
-+++ b/drivers/staging/zcache/ramster/ramster.c
-@@ -42,6 +42,7 @@
- #include "ramster.h"
- #include "ramster_nodemanager.h"
- #include "tcp.h"
-+#include "debug.h"
- 
- #define RAMSTER_TESTING
- 
-@@ -63,118 +64,12 @@ static atomic_t ramster_remote_pers_pages = ATOMIC_INIT(0);
- static bool ramster_nodes_manual_up[MANUAL_NODES] __read_mostly;
- static int ramster_remote_target_nodenum __read_mostly = -1;
- 
--/* these counters are made available via debugfs */
--static long ramster_flnodes;
--static atomic_t ramster_flnodes_atomic = ATOMIC_INIT(0);
--static unsigned long ramster_flnodes_max;
--static inline void inc_ramster_flnodes(void)
--{
--	ramster_flnodes = atomic_inc_return(&ramster_flnodes_atomic);
--	if (ramster_flnodes > ramster_flnodes_max)
--		ramster_flnodes_max = ramster_flnodes;
--}
--static inline void dec_ramster_flnodes(void)
--{
--	ramster_flnodes = atomic_dec_return(&ramster_flnodes_atomic);
--}
--static ssize_t ramster_foreign_eph_pages;
--static atomic_t ramster_foreign_eph_pages_atomic = ATOMIC_INIT(0);
--static ssize_t ramster_foreign_eph_pages_max;
--static inline void inc_ramster_foreign_eph_pages(void)
--{
--	ramster_foreign_eph_pages = atomic_inc_return(
--			&ramster_foreign_eph_pages_atomic);
--	if (ramster_foreign_eph_pages > ramster_foreign_eph_pages_max)
--		ramster_foreign_eph_pages_max = ramster_foreign_eph_pages;
--}
--static inline void dec_ramster_foreign_eph_pages(void)
--{
--	ramster_foreign_eph_pages = atomic_dec_return(
--			&ramster_foreign_eph_pages_atomic);
--}
--static ssize_t ramster_foreign_pers_pages;
--static atomic_t ramster_foreign_pers_pages_atomic = ATOMIC_INIT(0);
--static ssize_t ramster_foreign_pers_pages_max;
--static inline void inc_ramster_foreign_pers_pages(void)
--{
--	ramster_foreign_pers_pages = atomic_inc_return(
--		&ramster_foreign_pers_pages_atomic);
--	if (ramster_foreign_pers_pages > ramster_foreign_pers_pages_max)
--		ramster_foreign_pers_pages_max = ramster_foreign_pers_pages;
--}
--static inline void dec_ramster_foreign_pers_pages(void)
--{
--	ramster_foreign_pers_pages = atomic_dec_return(
--		&ramster_foreign_pers_pages_atomic);
--}
--static ssize_t ramster_eph_pages_remoted;
--static ssize_t ramster_pers_pages_remoted;
--static ssize_t ramster_eph_pages_remote_failed;
--static ssize_t ramster_pers_pages_remote_failed;
--static ssize_t ramster_remote_eph_pages_succ_get;
--static ssize_t ramster_remote_pers_pages_succ_get;
--static ssize_t ramster_remote_eph_pages_unsucc_get;
--static ssize_t ramster_remote_pers_pages_unsucc_get;
--static ssize_t ramster_pers_pages_remote_nomem;
--static ssize_t ramster_remote_objects_flushed;
--static ssize_t ramster_remote_object_flushes_failed;
--static ssize_t ramster_remote_pages_flushed;
--static ssize_t ramster_remote_page_flushes_failed;
-+/* Used by this code. */
-+long ramster_flnodes;
-+ssize_t ramster_foreign_eph_pages;
-+ssize_t ramster_foreign_pers_pages;
- /* FIXME frontswap selfshrinking knobs in debugfs? */
- 
--#ifdef CONFIG_DEBUG_FS
--#include <linux/debugfs.h>
--#define	zdfs	debugfs_create_size_t
--#define	zdfs64	debugfs_create_u64
--static int __init ramster_debugfs_init(void)
--{
--	struct dentry *root = debugfs_create_dir("ramster", NULL);
--	if (root == NULL)
--		return -ENXIO;
--
--	zdfs("eph_pages_remoted", S_IRUGO, root, &ramster_eph_pages_remoted);
--	zdfs("pers_pages_remoted", S_IRUGO, root, &ramster_pers_pages_remoted);
--	zdfs("eph_pages_remote_failed", S_IRUGO, root,
--			&ramster_eph_pages_remote_failed);
--	zdfs("pers_pages_remote_failed", S_IRUGO, root,
--			&ramster_pers_pages_remote_failed);
--	zdfs("remote_eph_pages_succ_get", S_IRUGO, root,
--			&ramster_remote_eph_pages_succ_get);
--	zdfs("remote_pers_pages_succ_get", S_IRUGO, root,
--			&ramster_remote_pers_pages_succ_get);
--	zdfs("remote_eph_pages_unsucc_get", S_IRUGO, root,
--			&ramster_remote_eph_pages_unsucc_get);
--	zdfs("remote_pers_pages_unsucc_get", S_IRUGO, root,
--			&ramster_remote_pers_pages_unsucc_get);
--	zdfs("pers_pages_remote_nomem", S_IRUGO, root,
--			&ramster_pers_pages_remote_nomem);
--	zdfs("remote_objects_flushed", S_IRUGO, root,
--			&ramster_remote_objects_flushed);
--	zdfs("remote_pages_flushed", S_IRUGO, root,
--			&ramster_remote_pages_flushed);
--	zdfs("remote_object_flushes_failed", S_IRUGO, root,
--			&ramster_remote_object_flushes_failed);
--	zdfs("remote_page_flushes_failed", S_IRUGO, root,
--			&ramster_remote_page_flushes_failed);
--	zdfs("foreign_eph_pages", S_IRUGO, root,
--			&ramster_foreign_eph_pages);
--	zdfs("foreign_eph_pages_max", S_IRUGO, root,
--			&ramster_foreign_eph_pages_max);
--	zdfs("foreign_pers_pages", S_IRUGO, root,
--			&ramster_foreign_pers_pages);
--	zdfs("foreign_pers_pages_max", S_IRUGO, root,
--			&ramster_foreign_pers_pages_max);
--	return 0;
--}
--#undef	zdebugfs
--#undef	zdfs64
--#else
--static inline int ramster_debugfs_init(void)
--{
--	return 0;
--}
--#endif
--
- static LIST_HEAD(ramster_rem_op_list);
- static DEFINE_SPINLOCK(ramster_rem_op_list_lock);
- static DEFINE_PER_CPU(struct ramster_preload, ramster_preloads);
++1) Ensure you have the new codebase for drivers/staging/zcache in your source.
++
++2) Change your .config to have:
++
++	CONFIG_CLEANCACHE=y
++	CONFIG_FRONTSWAP=y
++	CONFIG_STAGING=y
++	CONFIG_ZCACHE=y
++	CONFIG_RAMSTER=y
++
++   You may have to reconfigure your kernel multiple times to ensure
++   all of these are set properly.  I use:
++
++	# yes "" | make oldconfig
++
++   and then manually check the .config file to ensure my selections
++   have "taken".
++
++   Do not bother to build the kernel until you are certain all of
++   the above config selections will stick for the build.
++
++3) Build this kernel and "make install" so that you have a new kernel
++   in /etc/grub.conf
++
++4) Add "ramster" to the kernel boot line in /etc/grub.conf.
++
++5) Reboot and check dmesg to ensure there are some messages from ramster
++   and that "ramster_enabled=1" appears.
++
++	# dmesg | grep ramster
++
++   You should also see a lot of files in:
++
++	# ls /sys/kernel/debug/zcache
++	# ls /sys/kernel/debug/ramster
++
++   and a few files in:
++
++	# ls /sys/kernel/mm/ramster
++
++   RAMster now will act as a single-system zcache but doesn't yet
++   know anything about the cluster so can't do anything remotely.
++
++C. BUILDING THE RAMSTER CLUSTER
++
++This is the error prone part unless you are a clustering expert.  We need
++to describe the cluster in /etc/ramster.conf file and the init scripts
++that parse it are extremely picky about the syntax.
++
++1) Create the /etc/ramster.conf file and ensure it is identical
++   on both systems.  There is a good amount of similar documentation
++   for ocfs2 /etc/cluster.conf that can be googled for this, but I use:
++
++	cluster:
++		name = ramster
++		node_count = 2
++	node:
++		name = system1
++		cluster = ramster
++		number = 0
++		ip_address = my.ip.ad.r1
++		ip_port = 7777
++	node:
++		name = system2
++		cluster = ramster
++		number = 0
++		ip_address = my.ip.ad.r2
++		ip_port = 7777
++
++   You must ensure that the "name" field in the file exactly matches
++   the output of "hostname" on each system.  The following assumes
++   you use "ramster" as the name of your cluster.
++
++2) Enable the ramster service and configure it:
++
++	# chkconfig --add ramster
++	# service ramster configure
++
++   Set "load on boot" to "y", cluster to start is "ramster" (or whatever
++   name you chose in ramster.conf), heartbeat dead threshold as "500",
++   network idle timeout as "1000000".  Leave the others as default.
++
++4) Reboot.  After reboot, try:
++
++	# service ramster status
++
++   You should see "Checking ramster cluster ramster: Online".  If you do
++   not, something is wrong and RAMster will not work.  Note that you
++   should also see that the driver for "configfs" is loaded and mounted,
++   the driver for ocfs2_dlmfs is not loaded, and some numbers for network
++   parameters.  You will also see "Checking ramster heartbeat: Not active".
++   That's all OK.
++
++5) Now you need to start the cluster heartbeat; the cluster is not "up"
++   until all nodes detect a heartbeat.  Normally this is done via
++   a cluster filesystem, but you don't have one.  Some hack-y
++   code in RAMster can start it for you though if you tell it what
++   nodes are "up".  To enable it for nodes 0 and 1, do:
++
++	# echo 0 > /sys/kernel/mm/ramster/manual_node_up
++	# echo 1 > /sys/kernel/mm/ramster/manual_node_up
++
++   This must be done on ALL nodes.  I usually put these lines
++   in /etc/rc.local as otherwise I forget.  To confirm that
++   the cluster is now up, on both systems do:
++
++	# dmesg | grep ramster
++
++   You should see "Accepted connection" messages in dmesg after this.
++
++6) You must tell each node the node to which it should "remotify" pages.
++   For example if you have a three-node cluster and you want nodes
++   1 and 2 to be "clients" and node 0 to be the "memory server", then
++   on nodes 1 and 2, you do:
++
++	# echo 0 > /sys/kernel/mm/ramster/remote_target_nodenum
++
++   You should see "ramster: node N set as remotification target"
++   in dmesg.  Again, /etc/rc.local is a good place to put this
++   so you don't forget to do it at each boot.
++
++7) One more step:  By default, the RAMster code does not "remotify" any
++   pages; this is primarily for testing purposes, but sometimes it is
++   useful.  This may change in the future, but for now, you must:
++
++	# echo 1 > /sys/kernel/mm/ramster/pers_remotify_enable
++	# echo 1 > /sys/kernel/mm/ramster/eph_remotify_enable
++
++   The first enables remotifying swap (persistent, aka frontswap) pages,
++   the second enables remotifying of page cache (ephemeral, cleancache)
++   pages.
++
++   These lines can also be put in /etc/rc.local (AFTER the node_up
++   lines), or I often just put them at the beginning of my script that
++   runs a workload.
++
++8) Most testing has been done with both/all machines booted roughly
++   simultaneously.  Ideally, you should do this too unless you are
++   trying to break RAMster rather than just use it. ;-)
++
++D. TESTING RAMSTER
++
++1) Note that RAMster has no value unless pages get "remotified".  For
++   swap/frontswap/persistent pages, this doesn't happen unless/until
++   the workload would cause swapping to occur, at which point pages
++   are put into frontswap/zcache, and the remotification thread starts
++   working.  To get to the point where the system swaps, you either
++   need a workload for which the working set exceeds the RAM in the
++   system; or you need to somehow reduce the amount of RAM one of
++   the system sees.  This latter is easy when testing in a VM, but
++   harder on physical systems.  In some cases, "mem=xxxM" on the
++   kernel command line restricts memory, but for some values of xxx
++   my kernel fails to boot.  I may also try creating a fixed RAMdisk,
++   doing nothing with it, but ensuring that it eats up a fixed
++   amount of RAM.
++2) To see if RAMster is working, on the remote system, I do:
++
++	# watch -d 'cat /sys/kernel/debug/ramster/foreign_*'
++
++   to monitor the number (and max) ephemeral and persistent pages
++   that RAMster has sent.  If these stay at 0, RAMster is not working
++   either because the workload isn't creating enough memory pressure
++   or because "remotifying" isn't working.  On the system with the
++   workload, you can watch lots of useful information also, but beware
++   that you may be affecting the workload and performance.  I use
++	# watch ./watchme
++   where the watchme file contains:
++
++	for i in /sys/kernel/debug/zcache/evicted_buddied_pages \
++		/sys/kernel/debug/zcache/evicted_raw_pages \
++		/sys/kernel/debug/zcache/evicted_unbuddied_pages \
++		/sys/kernel/debug/zcache/zbud_curr_raw_pages \
++		/sys/kernel/debug/zcache/zbud_curr_zbytes \
++		/sys/kernel/debug/zcache/zbud_curr_zpages \
++		/sys/kernel/debug/ramster/eph_pages_remoted \
++		/sys/kernel/debug/ramster/remote_eph_pages_succ_get \
++		/sys/kernel/debug/ramster/remote_pers_pages_succ_get \
++		/sys/kernel/debug/frontswap/succ_puts
++	do
++		echo $i ": " $(cat $i)
++	done
++   And if you have debugfs mounted (as /sys/kernel/debug), you can
++   add to the watchme script some interesting counters in
++   /sys/kernel/debug/cleancache/* and /sys/kernel/debug/frontswap/*
++
++3) In v4, there are known issues in counting certain values.  As a result
++   you may see periodic warnings from the kernel.  Almost always you
++   will see "ramster: bad accounting for XXX".  There are also "WARN_ONCE"
++   messages.  If you see kernel warnings with a tombstone, please report
++   them.  They are harmless but reflect bugs that need to be eventually fixed.
++
++AUTOMATIC SWAP REPATRIATION
++
++You may notice that while the systems are idle, the foreign persistent
++page count on the remote machine slowly decreases.  This is because
++RAMster implements "frontswap selfshrinking":  When possible, swap
++pages that have been remotified are slowly repatriated to the local
++machine.  This is so that local RAM can be used when possible and
++so that, in case of remote machine crash, the probability of loss
++of data is reduced.
++
++REBOOTING / POWEROFF
++
++If a system is shut down while some of its swap pages still reside
++on a remote system, the system may lock up partially through the shutdown
++sequence.  This is because the network is shut down before the
++swap mechansim is shut down.  To avoid this annoying problem, simply
++shut off the swap subsystem before starting the shutdown sequence, e.g.:
++
++	# swapoff -a
++	# reboot
++
++
++CHANGELOG:
++v5-120214->120817: updated for merge into new zcache codebase
++v4-120126->v5-120214: updated for V5
++111227->v4-120126: added info on selfshrinking and rebooting
++111227->v4-120126: added more info for tracking RAMster stats
++111227->v4-120126: CONFIG_PREEMPT_NONE no longer necessary
++111227->v4-120126: cleancache now works completely so no need to disable it
 -- 
 1.7.10.4
 
