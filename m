@@ -1,76 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 2EF6F6B0006
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:31:40 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 0F9586B0038
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:31:43 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Fri, 12 Apr 2013 06:57:06 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id EDAB3E002D
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 07:03:23 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3C1VRki7012786
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 07:01:27 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3C1VW8n021446
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:31:32 +1000
+	Fri, 12 Apr 2013 06:58:26 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id DA5A5E004A
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 07:03:29 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3C1VYEP10223950
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 07:01:34 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3C1VbGb018745
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 01:31:38 GMT
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH PART2 v2 0/7] staging: zcache/ramster: fix and ramster/debugfs improvement
-Date: Fri, 12 Apr 2013 09:31:20 +0800
-Message-Id: <1365730287-16876-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH PART2 v2 3/7] staging: ramster/debug: Use an array to initialize/use debugfs attributes
+Date: Fri, 12 Apr 2013 09:31:23 +0800
+Message-Id: <1365730287-16876-4-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1365730287-16876-1-git-send-email-liwanp@linux.vnet.ibm.com>
+References: <1365730287-16876-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Changelog: 
- v1 -> v2:  
- * fix bisect issue 
- * fix issue in patch staging: ramster: Provide accessory functions for counter decrease
- * drop patch staging: zcache: remove zcache_freeze 
- * Add Dan Acked-by
+Use an array to initialize/use debugfs attributes, it makes them 
+neater as zcache/debug.c does.
 
-Fix bugs in zcache and rips out the debug counters out of ramster.c and 
-sticks them in a debug.c file. Introduce accessory functions for counters 
-increase/decrease, they are available when config RAMSTER_DEBUG, otherwise 
-they are empty non-debug functions. Using an array to initialize/use debugfs 
-attributes to make them neater. Dan Magenheimer confirm these works 
-are needed. http://marc.info/?l=linux-mm&m=136535713106882&w=2
+Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+---
+ drivers/staging/zcache/ramster/debug.c |   68 +++++++++++++++-----------------
+ 1 file changed, 32 insertions(+), 36 deletions(-)
 
-Patch 1~2 fix bugs in zcache
-
-Patch 3~8 rips out the debug counters out of ramster.c and sticks them 
-		  in a debug.c file 
-
-Patch 9 fix coding style issue introduced in zcache2 cleanups 
-        (s/int/bool + debugfs movement) patchset 
-
-Patch 10 add how-to for ramster 
-
-Dan Magenheimer (1):
-	staging: ramster: add how-to for ramster
-	
-Wanpeng Li (6):
-	staging: ramster: decrease foregin pers pages when count < 0
-	staging: ramster: Move debugfs code out of ramster.c files
-	staging: ramster/debug: Use an array to initialize/use debugfs attributes
-	staging: ramster/debug: Add RAMSTER_DEBUG Kconfig entry
-	staging: ramster: Add incremental accessory counters
-	staging: zcache/debug: fix coding style
-
- drivers/staging/zcache/Kconfig           |    8 +
- drivers/staging/zcache/Makefile          |    1 +
- drivers/staging/zcache/debug.h           |   95 ++++++++---
- drivers/staging/zcache/ramster/HOWTO.txt |  257 ++++++++++++++++++++++++++++++
- drivers/staging/zcache/ramster/debug.c   |   66 ++++++++
- drivers/staging/zcache/ramster/debug.h   |  143 +++++++++++++++++
- drivers/staging/zcache/ramster/ramster.c |  148 +++--------------
- 7 files changed, 573 insertions(+), 145 deletions(-)
- create mode 100644 drivers/staging/zcache/ramster/HOWTO.txt
- create mode 100644 drivers/staging/zcache/ramster/debug.c
- create mode 100644 drivers/staging/zcache/ramster/debug.h
-
+diff --git a/drivers/staging/zcache/ramster/debug.c b/drivers/staging/zcache/ramster/debug.c
+index 76861e4..bf34133 100644
+--- a/drivers/staging/zcache/ramster/debug.c
++++ b/drivers/staging/zcache/ramster/debug.c
+@@ -3,8 +3,6 @@
+ 
+ #ifdef CONFIG_DEBUG_FS
+ #include <linux/debugfs.h>
+-#define zdfs    debugfs_create_size_t
+-#define zdfs64  debugfs_create_u64
+ 
+ ssize_t ramster_eph_pages_remoted;
+ ssize_t ramster_pers_pages_remoted;
+@@ -20,48 +18,46 @@ ssize_t ramster_remote_object_flushes_failed;
+ ssize_t ramster_remote_pages_flushed;
+ ssize_t ramster_remote_page_flushes_failed;
+ 
++#define ATTR(x)  { .name = #x, .val = &ramster_##x, }
++static struct debug_entry {
++	const char *name;
++	ssize_t *val;
++} attrs[] = {
++	ATTR(eph_pages_remoted),
++	ATTR(pers_pages_remoted),
++	ATTR(eph_pages_remote_failed),
++	ATTR(pers_pages_remote_failed),
++	ATTR(remote_eph_pages_succ_get),
++	ATTR(remote_pers_pages_succ_get),
++	ATTR(remote_eph_pages_unsucc_get),
++	ATTR(remote_pers_pages_unsucc_get),
++	ATTR(pers_pages_remote_nomem),
++	ATTR(remote_objects_flushed),
++	ATTR(remote_pages_flushed),
++	ATTR(remote_object_flushes_failed),
++	ATTR(remote_page_flushes_failed),
++	ATTR(foreign_eph_pages),
++	ATTR(foreign_eph_pages_max),
++	ATTR(foreign_pers_pages),
++	ATTR(foreign_pers_pages_max),
++};
++#undef ATTR
++
+ int __init ramster_debugfs_init(void)
+ {
++	int i;
+ 	struct dentry *root = debugfs_create_dir("ramster", NULL);
+ 	if (root == NULL)
+ 		return -ENXIO;
+ 
+-	zdfs("eph_pages_remoted", S_IRUGO, root, &ramster_eph_pages_remoted);
+-	zdfs("pers_pages_remoted", S_IRUGO, root, &ramster_pers_pages_remoted);
+-	zdfs("eph_pages_remote_failed", S_IRUGO, root,
+-		&ramster_eph_pages_remote_failed);
+-	zdfs("pers_pages_remote_failed", S_IRUGO, root,
+-		&ramster_pers_pages_remote_failed);
+-	zdfs("remote_eph_pages_succ_get", S_IRUGO, root,
+-		&ramster_remote_eph_pages_succ_get);
+-	zdfs("remote_pers_pages_succ_get", S_IRUGO, root,
+-		&ramster_remote_pers_pages_succ_get);
+-	zdfs("remote_eph_pages_unsucc_get", S_IRUGO, root,
+-		&ramster_remote_eph_pages_unsucc_get);
+-	zdfs("remote_pers_pages_unsucc_get", S_IRUGO, root,
+-		&ramster_remote_pers_pages_unsucc_get);
+-	zdfs("pers_pages_remote_nomem", S_IRUGO, root,
+-		&ramster_pers_pages_remote_nomem);
+-	zdfs("remote_objects_flushed", S_IRUGO, root,
+-		&ramster_remote_objects_flushed);
+-	zdfs("remote_pages_flushed", S_IRUGO, root,
+-		&ramster_remote_pages_flushed);
+-	zdfs("remote_object_flushes_failed", S_IRUGO, root,
+-		&ramster_remote_object_flushes_failed);
+-	zdfs("remote_page_flushes_failed", S_IRUGO, root,
+-		&ramster_remote_page_flushes_failed);
+-	zdfs("foreign_eph_pages", S_IRUGO, root,
+-		&ramster_foreign_eph_pages);
+-	zdfs("foreign_eph_pages_max", S_IRUGO, root,
+-		&ramster_foreign_eph_pages_max);
+-	zdfs("foreign_pers_pages", S_IRUGO, root,
+-		&ramster_foreign_pers_pages);
+-	zdfs("foreign_pers_pages_max", S_IRUGO, root,
+-		&ramster_foreign_pers_pages_max);
++	for (i = 0; i < ARRAY_SIZE(attrs); i++)
++		if (!debugfs_create_size_t(attrs[i].name,
++				S_IRUGO, root, attrs[i].val))
++			goto out;
+ 	return 0;
++out:
++	return -ENODEV;
+ }
+-#undef  zdebugfs
+-#undef  zdfs64
+ #else
+ static inline int ramster_debugfs_init(void)
+ {
 -- 
 1.7.10.4
 
