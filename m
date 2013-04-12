@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 6808C6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:10:23 -0400 (EDT)
-Message-ID: <51675FA1.9000203@cn.fujitsu.com>
-Date: Fri, 12 Apr 2013 09:13:05 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] mm: vmemmap: add vmemmap_verify check for hot-add
- node/memory case
-References: <1365415000-10389-1-git-send-email-linfeng@cn.fujitsu.com> <CAE9FiQVaByGOTjLVthRkEze_ekXm5LAKgKdHzrD+q1iYmjgZFQ@mail.gmail.com> <51666930.6090702@cn.fujitsu.com> <CAE9FiQU-zqFdSz-7yq5EgV1YCzyNH_BY36Ym3tdHVEHHY6cdNg@mail.gmail.com>
-In-Reply-To: <CAE9FiQU-zqFdSz-7yq5EgV1YCzyNH_BY36Ym3tdHVEHHY6cdNg@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id B66BD6B0006
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:11:30 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Thu, 11 Apr 2013 21:11:29 -0400
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 12B5138C8029
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:11:27 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3C1BRpf26214410
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:11:27 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3C1BQ2E019189
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:11:26 -0400
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Subject: [PATCH] mm/vmstat: add note on safety of drain_zonestat
+Date: Thu, 11 Apr 2013 18:10:58 -0700
+Message-Id: <1365729058-29514-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Lin Feng <linfeng@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Catalin Marinas <catalin.marinas@arm.com>, will.deacon@arm.com, Arnd Bergmann <arnd@arndb.de>, tony@atomide.com, Ben Hutchings <ben@decadent.org.uk>, linux-arm-kernel@lists.infradead.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On 04/11/2013 11:10 PM, Yinghai Lu wrote:
-> On Thu, Apr 11, 2013 at 12:41 AM, Tang Chen<tangchen@cn.fujitsu.com>  wro=
-te:
->>
->> 3. If we add flag to memblock, we can mark different memory. And I remem=
-ber
->>     you mentioned before that we can use memblock to reserve local node =
-data
->>     for node-life-cycle data, like vmemmap, pagetable.
->>
->>     So are you doing the similar work now ?
->
-> No, i did not start it yet.
->
->>
->>     If not, I think I can merge it into mine, and push a new patch-set w=
-ith
->>     hot-add, hot-remove code modified to support putting vmemmap, pageta=
-ble,
->>     pgdat, page=5Fcgroup, ..., on local node.
->
-> Need to have it separated with moving=5Fzone.
->
-> 1. rework memblock to keep alive all the way for hotplug usage.
-> 2. put pagetable and vmemap on the local node range with help of memblock.
->
+---
+ mm/vmstat.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-OK=EF=BC=8Cthanks for the comments. I'll merge it into my work and post an =
-RFC=20
-patch-set soon.
-
-Thanks. :)
-=
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index e1d8ed1..2b93877 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -495,6 +495,10 @@ void refresh_cpu_vm_stats(int cpu)
+ 			atomic_long_add(global_diff[i], &vm_stat[i]);
+ }
+ 
++/*
++ * this is only called if !populated_zone(zone), which implies no other users of
++ * pset->vm_stat_diff[] exsist.
++ */
+ void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
+ {
+ 	int i;
+-- 
+1.8.2.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
