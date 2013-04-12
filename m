@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id B2ECA6B0006
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 22:47:02 -0400 (EDT)
-Message-ID: <51677599.6030000@redhat.com>
-Date: Thu, 11 Apr 2013 22:46:49 -0400
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 248316B0027
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 22:52:09 -0400 (EDT)
+Message-ID: <516776CD.4070109@redhat.com>
+Date: Thu, 11 Apr 2013 22:51:57 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 04/10] mm: vmscan: Decide whether to compact the pgdat
- based on reclaim progress
-References: <1365505625-9460-1-git-send-email-mgorman@suse.de> <1365505625-9460-5-git-send-email-mgorman@suse.de>
-In-Reply-To: <1365505625-9460-5-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 06/10] mm: vmscan: Have kswapd writeback pages based on
+ dirty pages encountered, not priority
+References: <1365505625-9460-1-git-send-email-mgorman@suse.de> <1365505625-9460-7-git-send-email-mgorman@suse.de>
+In-Reply-To: <1365505625-9460-7-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,25 +17,27 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Satoru Moriya <satoru.moriya@hds.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 04/09/2013 07:06 AM, Mel Gorman wrote:
-> In the past, kswapd makes a decision on whether to compact memory after the
-> pgdat was considered balanced. This more or less worked but it is late to
-> make such a decision and does not fit well now that kswapd makes a decision
-> whether to exit the zone scanning loop depending on reclaim progress.
+On 04/09/2013 07:07 AM, Mel Gorman wrote:
+> Currently kswapd queues dirty pages for writeback if scanning at an elevated
+> priority but the priority kswapd scans at is not related to the number
+> of unqueued dirty encountered.  Since commit "mm: vmscan: Flatten kswapd
+> priority loop", the priority is related to the size of the LRU and the
+> zone watermark which is no indication as to whether kswapd should write
+> pages or not.
 >
-> This patch will compact a pgdat if at least the requested number of pages
-> were reclaimed from unbalanced zones for a given priority. If any zone is
-> currently balanced, kswapd will not call compaction as it is expected the
-> necessary pages are already available.
+> This patch tracks if an excessive number of unqueued dirty pages are being
+> encountered at the end of the LRU.  If so, it indicates that dirty pages
+> are being recycled before flusher threads can clean them and flags the
+> zone so that kswapd will start writing pages until the zone is balanced.
 >
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+I like your approach of essentially not writing out from
+kswapd if we manage to reclaim well at DEF_PRIORITY, and
+doing writeout more and more aggressively if we have to
+reduce priority.
 
-This has the potential to increase kswapd cpu use, but probably at
-the benefit of making reclaim run a little more smoothly. It should
-help that compaction is only called when enough pages have been
-freed.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 -- 
 All rights reversed
