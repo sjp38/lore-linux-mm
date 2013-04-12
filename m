@@ -1,55 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 45D046B0005
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 00:50:52 -0400 (EDT)
-Date: Fri, 12 Apr 2013 14:50:42 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-Message-ID: <20130412045042.GA30622@dastard>
-References: <20130402142717.GH32241@suse.de>
- <20130402150651.GB31577@thunk.org>
- <20130410105608.GC1910@suse.de>
- <20130410131245.GC4862@thunk.org>
- <20130411170402.GB11656@suse.de>
- <20130411183512.GA12298@thunk.org>
- <20130411213335.GE9379@quack.suse.cz>
- <20130412025708.GB7445@thunk.org>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id AD3366B0005
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 01:05:24 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 12 Apr 2013 10:30:48 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 9F0DB125804F
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 10:36:45 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3C55DN649414150
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 10:35:13 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3C55HWC025792
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 15:05:18 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V5 21/25] powerpc: Handle hugepage in perf callchain
+In-Reply-To: <20130412013449.GD5065@truffula.fritz.box>
+References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1365055083-31956-22-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130412013449.GD5065@truffula.fritz.box>
+Date: Fri, 12 Apr 2013 10:35:16 +0530
+Message-ID: <878v4omj8z.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130412025708.GB7445@thunk.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: David Gibson <dwg@au1.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-On Thu, Apr 11, 2013 at 10:57:08PM -0400, Theodore Ts'o wrote:
-> On Thu, Apr 11, 2013 at 11:33:35PM +0200, Jan Kara wrote:
-> >   I think it might be more enlightening if Mel traced which process in
-> > which funclion is holding the buffer lock. I suspect we'll find out that
-> > the flusher thread has submitted the buffer for IO as an async write and
-> > thus it takes a long time to complete in presence of reads which have
-> > higher priority.
-> 
-> That's an interesting theory.  If the workload is one which is very
-> heavy on reads and writes, that could explain the high latency.  That
-> would explain why those of us who are using primarily SSD's are seeing
-> the problems, because would be reads are nice and fast.
-> 
-> If that is the case, one possible solution that comes to mind would be
-> to mark buffer_heads that contain metadata with a flag, so that the
-> flusher thread can write them back at the same priority as reads.
+David Gibson <dwg@au1.ibm.com> writes:
 
-Ext4 is already using REQ_META for this purpose.
+> On Thu, Apr 04, 2013 at 11:27:59AM +0530, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> ---
+>>  arch/powerpc/perf/callchain.c |   32 +++++++++++++++++++++-----------
+>>  1 file changed, 21 insertions(+), 11 deletions(-)
+>> 
+>> diff --git a/arch/powerpc/perf/callchain.c b/arch/powerpc/perf/callchain.c
+>> index 578cac7..99262ce 100644
+>> --- a/arch/powerpc/perf/callchain.c
+>> +++ b/arch/powerpc/perf/callchain.c
+>> @@ -115,7 +115,7 @@ static int read_user_stack_slow(void __user *ptr, void *ret, int nb)
+>>  {
+>>  	pgd_t *pgdir;
+>>  	pte_t *ptep, pte;
+>> -	unsigned shift;
+>> +	unsigned shift, hugepage;
+>>  	unsigned long addr = (unsigned long) ptr;
+>>  	unsigned long offset;
+>>  	unsigned long pfn;
+>> @@ -125,20 +125,30 @@ static int read_user_stack_slow(void __user *ptr, void *ret, int nb)
+>>  	if (!pgdir)
+>>  		return -EFAULT;
+>>  
+>> -	ptep = find_linux_pte_or_hugepte(pgdir, addr, &shift, NULL);
+>> +	ptep = find_linux_pte_or_hugepte(pgdir, addr, &shift, &hugepage);
+>
+> So, this patch pretty much demonstrates that your earlier patch adding
+> the optional hugepage argument and making the existing callers pass
+> NULL was broken.
+>
+> Any code which calls this function and doesn't use and handle the
+> hugepage return value is horribly broken, so permitting the hugepage
+> parameter to be optional is itself broken.
+>
+> I think instead you need to have an early patch that replaces
+> find_linux_pte_or_hugepte with a new, more abstracted interface, so
+> that code using it will remain correct when hugepage PMDs become
+> possible.
 
-I'm surprised that no-one has suggested "change the IO elevator"
-yet.....
 
-Cheers,
+The entire thing could have been simple if we supported only one
+hugepage size (this is what sparc ended up doing). I guess we don't want
+to do that. Also we want to support 16MB and 16GB, which mean we need
+hugepd for 16GB at PGD level. My goal was to keep the hugetlb related
+code for both 16MB and 16GB similar and consider THP huge page in a
+different bucket.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Let me look at again how best I can simplify find_linux_pte_or_hugepte
+
+-aneehs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
