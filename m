@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 66C3F6B0037
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:14:20 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 16A156B003A
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:14:23 -0400 (EDT)
 Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 11 Apr 2013 19:14:19 -0600
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 5B5811FF003C
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 19:09:17 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3C1EHG4135856
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 19:14:17 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3C1EHvF004975
-	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 19:14:17 -0600
+	Thu, 11 Apr 2013 19:14:22 -0600
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id D37B36E8041
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:14:15 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3C1EItn291466
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:14:18 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3C1EIjG029165
+	for <linux-mm@kvack.org>; Thu, 11 Apr 2013 21:14:18 -0400
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v2 03/25] mm/memory_hotplug: factor out zone+pgdat growth.
-Date: Thu, 11 Apr 2013 18:13:35 -0700
-Message-Id: <1365729237-29711-4-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v2 04/25] memory_hotplug: export ensure_zone_is_initialized() in mm/internal.h
+Date: Thu, 11 Apr 2013 18:13:36 -0700
+Message-Id: <1365729237-29711-5-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1365729237-29711-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1365729237-29711-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,70 +26,47 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
-Create a new function grow_pgdat_and_zone() which handles locking +
-growth of a zone & the pgdat which it is associated with.
+Export ensure_zone_is_initialized() so that it can be used to initialize
+new zones within the dynamic numa code.
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- include/linux/memory_hotplug.h |  3 +++
- mm/memory_hotplug.c            | 17 +++++++++++------
- 2 files changed, 14 insertions(+), 6 deletions(-)
+ mm/internal.h       | 8 ++++++++
+ mm/memory_hotplug.c | 2 +-
+ 2 files changed, 9 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index b6a3be7..cd393014 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -78,6 +78,9 @@ static inline void zone_seqlock_init(struct zone *zone)
- {
- 	seqlock_init(&zone->span_seqlock);
- }
-+extern void grow_pgdat_and_zone(struct zone *zone, unsigned long start_pfn,
-+				unsigned long end_pfn);
+diff --git a/mm/internal.h b/mm/internal.h
+index 8562de0..b11e574 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -105,6 +105,14 @@ extern void prep_compound_page(struct page *page, unsigned long order);
+ extern bool is_free_buddy_page(struct page *page);
+ #endif
+ 
++#ifdef CONFIG_MEMORY_HOTPLUG
++/*
++ * in mm/memory_hotplug.c
++ */
++extern int ensure_zone_is_initialized(struct zone *zone,
++			unsigned long start_pfn, unsigned long num_pages);
++#endif
 +
- extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
- extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
- extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+ 
+ /*
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 46de32a..8f4d8d3 100644
+index 8f4d8d3..df04c36 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -390,13 +390,22 @@ static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
- 					pgdat->node_start_pfn;
- }
+@@ -284,7 +284,7 @@ static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
  
-+void grow_pgdat_and_zone(struct zone *zone, unsigned long start_pfn,
-+		unsigned long end_pfn)
-+{
-+	unsigned long flags;
-+	pgdat_resize_lock(zone->zone_pgdat, &flags);
-+	grow_zone_span(zone, start_pfn, end_pfn);
-+	grow_pgdat_span(zone->zone_pgdat, start_pfn, end_pfn);
-+	pgdat_resize_unlock(zone->zone_pgdat, &flags);
-+}
-+
- static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+ /* Can fail with -ENOMEM from allocating a wait table with vmalloc() or
+  * alloc_bootmem_node_nopanic() */
+-static int __ref ensure_zone_is_initialized(struct zone *zone,
++int __ref ensure_zone_is_initialized(struct zone *zone,
+ 			unsigned long start_pfn, unsigned long num_pages)
  {
- 	struct pglist_data *pgdat = zone->zone_pgdat;
- 	int nr_pages = PAGES_PER_SECTION;
- 	int nid = pgdat->node_id;
- 	int zone_type;
--	unsigned long flags;
- 	int ret;
- 
- 	zone_type = zone - pgdat->node_zones;
-@@ -404,11 +413,7 @@ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
- 	if (ret)
- 		return ret;
- 
--	pgdat_resize_lock(zone->zone_pgdat, &flags);
--	grow_zone_span(zone, phys_start_pfn, phys_start_pfn + nr_pages);
--	grow_pgdat_span(zone->zone_pgdat, phys_start_pfn,
--			phys_start_pfn + nr_pages);
--	pgdat_resize_unlock(zone->zone_pgdat, &flags);
-+	grow_pgdat_and_zone(zone, phys_start_pfn, phys_start_pfn + nr_pages);
- 	memmap_init_zone(nr_pages, nid, zone_type,
- 			 phys_start_pfn, MEMMAP_HOTPLUG);
- 	return 0;
+ 	if (!zone_is_initialized(zone))
 -- 
 1.8.2.1
 
