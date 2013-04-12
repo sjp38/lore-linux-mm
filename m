@@ -1,175 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 3FC2F6B0027
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 11:53:49 -0400 (EDT)
-Message-ID: <51682E08.9050107@parallels.com>
-Date: Fri, 12 Apr 2013 19:53:44 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 5F5946B0002
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 14:07:07 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 12 Apr 2013 14:07:05 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 4618438C801C
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 14:07:02 -0400 (EDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3CI6xWx343594
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 14:07:00 -0400
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3CI8OZ5009958
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 12:08:25 -0600
+Date: Fri, 12 Apr 2013 11:05:36 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: prevent mmap_cache race in find_vma()
+Message-ID: <20130412180536.GH29861@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <alpine.LNX.2.00.1304021600420.22412@eggly.anvils>
+ <alpine.DEB.2.02.1304021643260.3217@chino.kir.corp.google.com>
+ <20130403041447.GC4611@cmpxchg.org>
+ <alpine.DEB.2.02.1304022122030.32184@chino.kir.corp.google.com>
+ <20130403045814.GD4611@cmpxchg.org>
+ <CAKOQZ8wPBO7so_b=4RZvUa38FY8kMzJcS5ZDhhS5+-r_krOAYw@mail.gmail.com>
+ <20130403163348.GD28522@linux.vnet.ibm.com>
+ <CAKOQZ8wd24AUCN2c6p9iLFeHMpJy=jRO2xoiKkH93k=+iYQpEA@mail.gmail.com>
+ <20130403221129.GL28522@linux.vnet.ibm.com>
+ <CAKOQZ8yFq5V1mZGrR_n7WqbgJ92WnpKO-ZvYY2n5Rn8+cjk0ew@mail.gmail.com>
 MIME-Version: 1.0
-Subject: [PATCH 6/5] selftest: Add simple test for soft-dirty bit
-References: <51669E5F.4000801@parallels.com> <51669EB8.2020102@parallels.com>
-In-Reply-To: <51669EB8.2020102@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKOQZ8yFq5V1mZGrR_n7WqbgJ92WnpKO-ZvYY2n5Rn8+cjk0ew@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Ian Lance Taylor <iant@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org
 
-It creates a mapping of 3 pages and checks that reads, writes and clear-refs
-result in present and soft-dirt bits reported from pagemap2 set as expected.
+On Wed, Apr 03, 2013 at 03:28:35PM -0700, Ian Lance Taylor wrote:
+> On Wed, Apr 3, 2013 at 3:11 PM, Paul E. McKenney
+> <paulmck@linux.vnet.ibm.com> wrote:
+> >
+> > How about a request for gcc to formally honor the current uses of volatile?
+> 
+> Seems harder to define, but, sure, if it can be made to work.
 
-Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
+Actually, I am instead preparing to take this up with the standards
+committee.  Even those who hate volatile (of which there are many) have
+an interest in a good codification of the defacto definition of volatile.
+After all, without a definition how can they hope to replace it?  ;-)
+And the C committee cares deeply about backwards compatibility, so
+getting a good definition will help there as well.
 
----
-
-diff --git a/tools/testing/selftests/Makefile b/tools/testing/selftests/Makefile
-index 575ef80..827f2c0 100644
---- a/tools/testing/selftests/Makefile
-+++ b/tools/testing/selftests/Makefile
-@@ -6,6 +6,7 @@ TARGETS += cpu-hotplug
- TARGETS += memory-hotplug
- TARGETS += efivarfs
- TARGETS += ptrace
-+TARGETS += soft-dirty
- 
- all:
- 	for TARGET in $(TARGETS); do \
-diff --git a/tools/testing/selftests/soft-dirty/Makefile b/tools/testing/selftests/soft-dirty/Makefile
-new file mode 100644
-index 0000000..a9cdc82
---- /dev/null
-+++ b/tools/testing/selftests/soft-dirty/Makefile
-@@ -0,0 +1,10 @@
-+CFLAGS += -iquote../../../../include/uapi -Wall
-+soft-dirty: soft-dirty.c
-+
-+all: soft-dirty
-+
-+clean:
-+	rm -f soft-dirty
-+
-+run_tests: all
-+	@./soft-dirty || echo "soft-dirty selftests: [FAIL]"
-diff --git a/tools/testing/selftests/soft-dirty/soft-dirty.c b/tools/testing/selftests/soft-dirty/soft-dirty.c
-new file mode 100644
-index 0000000..aba4f87
---- /dev/null
-+++ b/tools/testing/selftests/soft-dirty/soft-dirty.c
-@@ -0,0 +1,114 @@
-+#include <stdlib.h>
-+#include <stdio.h>
-+#include <sys/mman.h>
-+#include <unistd.h>
-+#include <fcntl.h>
-+#include <sys/types.h>
-+
-+typedef unsigned long long u64;
-+
-+#define PME_PRESENT	(1ULL << 63)
-+#define PME_SOFT_DIRTY	(1Ull << 55)
-+
-+#define PAGES_TO_TEST	3
-+#ifndef PAGE_SIZE
-+#define PAGE_SIZE	4096
-+#endif
-+
-+static void get_pagemap2(char *mem, u64 *map)
-+{
-+	int fd;
-+
-+	fd = open("/proc/self/pagemap2", O_RDONLY);
-+	if (fd < 0) {
-+		perror("Can't open pagemap2");
-+		exit(1);
-+	}
-+
-+	lseek(fd, (unsigned long)mem / PAGE_SIZE * sizeof(u64), SEEK_SET);
-+	read(fd, map, sizeof(u64) * PAGES_TO_TEST);
-+	close(fd);
-+}
-+
-+static inline char map_p(u64 map)
-+{
-+	return map & PME_PRESENT ? 'p' : '-';
-+}
-+
-+static inline char map_sd(u64 map)
-+{
-+	return map & PME_SOFT_DIRTY ? 'd' : '-';
-+}
-+
-+static int check_pte(int step, int page, u64 *map, u64 want)
-+{
-+	if ((map[page] & want) != want) {
-+		printf("Step %d Page %d has %c%c, want %c%c\n",
-+				step, page,
-+				map_p(map[page]), map_sd(map[page]),
-+				map_p(want), map_sd(want));
-+		return 1;
-+	}
-+
-+	return 0;
-+}
-+
-+static void clear_refs(void)
-+{
-+	int fd;
-+	char *v = "4";
-+
-+	fd = open("/proc/self/clear_refs", O_WRONLY);
-+	if (write(fd, v, 3) < 3) {
-+		perror("Can't clear soft-dirty bit");
-+		exit(1);
-+	}
-+	close(fd);
-+}
-+
-+int main(void)
-+{
-+	char *mem, x;
-+	u64 map[PAGES_TO_TEST];
-+
-+	mem = mmap(NULL, PAGES_TO_TEST * PAGE_SIZE,
-+			PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, 0, 0);
-+
-+	x = mem[0];
-+	mem[2 * PAGE_SIZE] = 'c';
-+	get_pagemap2(mem, map);
-+
-+	if (check_pte(1, 0, map, PME_PRESENT))
-+		return 1;
-+	if (check_pte(1, 1, map, 0))
-+		return 1;
-+	if (check_pte(1, 2, map, PME_PRESENT | PME_SOFT_DIRTY))
-+		return 1;
-+
-+	clear_refs();
-+	get_pagemap2(mem, map);
-+
-+	if (check_pte(2, 0, map, PME_PRESENT))
-+		return 1;
-+	if (check_pte(2, 1, map, 0))
-+		return 1;
-+	if (check_pte(2, 2, map, PME_PRESENT))
-+		return 1;
-+
-+	mem[0] = 'a';
-+	mem[PAGE_SIZE] = 'b';
-+	x = mem[2 * PAGE_SIZE];
-+	get_pagemap2(mem, map);
-+
-+	if (check_pte(3, 0, map, PME_PRESENT | PME_SOFT_DIRTY))
-+		return 1;
-+	if (check_pte(3, 1, map, PME_PRESENT | PME_SOFT_DIRTY))
-+		return 1;
-+	if (check_pte(3, 2, map, PME_PRESENT))
-+		return 1;
-+
-+	(void)x; /* gcc warn */
-+
-+	printf("PASS\n");
-+	return 0;
-+}
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
