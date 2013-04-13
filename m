@@ -1,71 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 3EA8F6B0002
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 08:52:43 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 1F9CD6B0002
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 09:01:43 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sat, 13 Apr 2013 22:46:36 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 659DD2BB0051
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 22:52:15 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3DCq3sF51904698
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 22:52:10 +1000
-Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3DCq8Ft031280
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 22:52:08 +1000
-Date: Sat, 13 Apr 2013 20:52:06 +0800
+	Sat, 13 Apr 2013 22:59:29 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id B2D502CE8052
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 23:01:38 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3DCm6ts7536688
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 22:48:06 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3DD1auW019164
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 23:01:37 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH PART3 v3 2/6] staging: ramster: Move debugfs code out of
- ramster.c file
-Message-ID: <20130413125206.GA20368@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1365813371-19006-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1365813371-19006-2-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130413030703.GA22129@kroah.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130413030703.GA22129@kroah.com>
+Subject: [PATCH PART3 v4 0/6] staging: zcache/ramster: fix and ramster/debugfs improvement
+Date: Sat, 13 Apr 2013 21:01:26 +0800
+Message-Id: <1365858092-21920-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Fri, Apr 12, 2013 at 08:07:03PM -0700, Greg Kroah-Hartman wrote:
->On Sat, Apr 13, 2013 at 08:36:06AM +0800, Wanpeng Li wrote:
->> Note that at this point there is no CONFIG_RAMSTER_DEBUG
->> option in the Kconfig. So in effect all of the counters
->> are nop until that option gets introduced in patch:
->> ramster/debug: Add CONFIG_RAMSTER_DEBUG Kconfig entry
->
->This patch breaks the build again, so of course, I can't take it:
->
+Changelog: 
+ v3 -> v4:
+  * fix compile issue 
+ v2 -> v3:
+  * update patch description of staging: ramster: Move debugfs code out of ramster.c file 
+  * update patch title of staging: ramster/debug: Add RAMSTER_DEBUG Kconfig entry 
+ v1 -> v2:  
+  * fix bisect issue 
+  * fix issue in patch staging: ramster: Provide accessory functions for counter decrease
+  * drop patch staging: zcache: remove zcache_freeze 
+  * Add Dan Acked-by
 
-Sorry, I don't know why my compiler didn't complain to me. I have
-already fixed and repost the patchset.
+Fix bugs in zcache and rips out the debug counters out of ramster.c and 
+sticks them in a debug.c file. Introduce accessory functions for counters 
+increase/decrease, they are available when config RAMSTER_DEBUG, otherwise 
+they are empty non-debug functions. Using an array to initialize/use debugfs 
+attributes to make them neater. Dan Magenheimer confirm these works 
+are needed. http://marc.info/?l=linux-mm&m=136535713106882&w=2
 
-Regards,
-Wanpeng Li 
+Patch 1~2 fix bugs in zcache
 
->drivers/built-in.o: In function `ramster_flnode_alloc.isra.5':
->ramster.c:(.text+0x1b6a6e): undefined reference to `ramster_flnodes_max'
->ramster.c:(.text+0x1b6a7e): undefined reference to `ramster_flnodes_max'
->drivers/built-in.o: In function `ramster_count_foreign_pages':
->(.text+0x1b7205): undefined reference to `ramster_foreign_pers_pages_max'
->drivers/built-in.o: In function `ramster_count_foreign_pages':
->(.text+0x1b7215): undefined reference to `ramster_foreign_pers_pages_max'
->drivers/built-in.o: In function `ramster_count_foreign_pages':
->(.text+0x1b7235): undefined reference to `ramster_foreign_eph_pages_max'
->drivers/built-in.o: In function `ramster_count_foreign_pages':
->(.text+0x1b7249): undefined reference to `ramster_foreign_eph_pages_max'
->drivers/built-in.o: In function `ramster_debugfs_init':
->(.init.text+0xd620): undefined reference to `ramster_foreign_eph_pages_max'
->drivers/built-in.o: In function `ramster_debugfs_init':
->(.init.text+0xd656): undefined reference to `ramster_foreign_pers_pages_max'
->
->I thought you fixed this :(
+Patch 3~8 rips out the debug counters out of ramster.c and sticks them 
+		  in a debug.c file 
+
+Patch 9 fix coding style issue introduced in zcache2 cleanups 
+        (s/int/bool + debugfs movement) patchset 
+
+Patch 10 add how-to for ramster 
+
+Dan Magenheimer (1):
+	staging: ramster: add how-to for ramster
+	
+Wanpeng Li (5):
+	staging: ramster: Move debugfs code out of ramster.c files
+	staging: ramster/debug: Use an array to initialize/use debugfs attributes
+	staging: ramster/debug: Add RAMSTER_DEBUG Kconfig entry
+	staging: ramster: Add incremental accessory counters
+	staging: zcache/debug: fix coding style
+
+ drivers/staging/zcache/Kconfig           |    8 +
+ drivers/staging/zcache/Makefile          |    1 +
+ drivers/staging/zcache/debug.h           |   95 ++++++++---
+ drivers/staging/zcache/ramster/HOWTO.txt |  257 ++++++++++++++++++++++++++++++
+ drivers/staging/zcache/ramster/debug.c   |   66 ++++++++
+ drivers/staging/zcache/ramster/debug.h   |  145 +++++++++++++++++
+ drivers/staging/zcache/ramster/ramster.c |  147 +++--------------
+ 7 files changed, 574 insertions(+), 145 deletions(-)
+ create mode 100644 drivers/staging/zcache/ramster/HOWTO.txt
+ create mode 100644 drivers/staging/zcache/ramster/debug.c
+ create mode 100644 drivers/staging/zcache/ramster/debug.h
+
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
