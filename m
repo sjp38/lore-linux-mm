@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 50C2F6B0002
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 20:36:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 2F4206B0006
+	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 20:36:30 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sat, 13 Apr 2013 10:29:22 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 548C62CE804C
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 10:36:19 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3D0Mnhq63176822
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 10:22:49 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3D0aIFk026573
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 10:36:18 +1000
+	Sat, 13 Apr 2013 10:27:35 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 594BD2CE804D
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 10:36:25 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3D0N39Z5046736
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 10:23:03 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3D0aNEC019747
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 10:36:23 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH PART3 v3 2/6] staging: ramster: Move debugfs code out of ramster.c file
-Date: Sat, 13 Apr 2013 08:36:06 +0800
-Message-Id: <1365813371-19006-2-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH PART3 v3 4/6] staging: ramster: Add incremental accessory counters
+Date: Sat, 13 Apr 2013 08:36:08 +0800
+Message-Id: <1365813371-19006-4-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1365813371-19006-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1365813371-19006-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,326 +26,206 @@ List-ID: <linux-mm.kvack.org>
 To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Note that at this point there is no CONFIG_RAMSTER_DEBUG
-option in the Kconfig. So in effect all of the counters
-are nop until that option gets introduced in patch:
-ramster/debug: Add CONFIG_RAMSTER_DEBUG Kconfig entry
+Add incremental accessory counters that are going to be used for 
+debug fs entries.
 
 Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- drivers/staging/zcache/Makefile          |    1 +
- drivers/staging/zcache/ramster/debug.c   |   70 ++++++++++++++++++
- drivers/staging/zcache/ramster/debug.h   |   76 ++++++++++++++++++++
- drivers/staging/zcache/ramster/ramster.c |  115 ++----------------------------
- 4 files changed, 152 insertions(+), 110 deletions(-)
- create mode 100644 drivers/staging/zcache/ramster/debug.c
- create mode 100644 drivers/staging/zcache/ramster/debug.h
+ drivers/staging/zcache/ramster/debug.h   |   67 ++++++++++++++++++++++++++++++
+ drivers/staging/zcache/ramster/ramster.c |   32 +++++++-------
+ 2 files changed, 83 insertions(+), 16 deletions(-)
 
-diff --git a/drivers/staging/zcache/Makefile b/drivers/staging/zcache/Makefile
-index 24fd6aa..4956fa0 100644
---- a/drivers/staging/zcache/Makefile
-+++ b/drivers/staging/zcache/Makefile
-@@ -1,5 +1,6 @@
- zcache-y	:=		zcache-main.o tmem.o zbud.o
- zcache-$(CONFIG_ZCACHE_DEBUG) += debug.o
-+zcache-$(CONFIG_RAMSTER) += ramster/debug.o
- zcache-$(CONFIG_RAMSTER)	+=	ramster/ramster.o ramster/r2net.o
- zcache-$(CONFIG_RAMSTER)	+=	ramster/nodemanager.o ramster/tcp.o
- zcache-$(CONFIG_RAMSTER)	+=	ramster/heartbeat.o ramster/masklog.o
-diff --git a/drivers/staging/zcache/ramster/debug.c b/drivers/staging/zcache/ramster/debug.c
-new file mode 100644
-index 0000000..76861e4
---- /dev/null
-+++ b/drivers/staging/zcache/ramster/debug.c
-@@ -0,0 +1,70 @@
-+#include <linux/atomic.h>
-+#include "debug.h"
-+
-+#ifdef CONFIG_DEBUG_FS
-+#include <linux/debugfs.h>
-+#define zdfs    debugfs_create_size_t
-+#define zdfs64  debugfs_create_u64
-+
-+ssize_t ramster_eph_pages_remoted;
-+ssize_t ramster_pers_pages_remoted;
-+ssize_t ramster_eph_pages_remote_failed;
-+ssize_t ramster_pers_pages_remote_failed;
-+ssize_t ramster_remote_eph_pages_succ_get;
-+ssize_t ramster_remote_pers_pages_succ_get;
-+ssize_t ramster_remote_eph_pages_unsucc_get;
-+ssize_t ramster_remote_pers_pages_unsucc_get;
-+ssize_t ramster_pers_pages_remote_nomem;
-+ssize_t ramster_remote_objects_flushed;
-+ssize_t ramster_remote_object_flushes_failed;
-+ssize_t ramster_remote_pages_flushed;
-+ssize_t ramster_remote_page_flushes_failed;
-+
-+int __init ramster_debugfs_init(void)
-+{
-+	struct dentry *root = debugfs_create_dir("ramster", NULL);
-+	if (root == NULL)
-+		return -ENXIO;
-+
-+	zdfs("eph_pages_remoted", S_IRUGO, root, &ramster_eph_pages_remoted);
-+	zdfs("pers_pages_remoted", S_IRUGO, root, &ramster_pers_pages_remoted);
-+	zdfs("eph_pages_remote_failed", S_IRUGO, root,
-+		&ramster_eph_pages_remote_failed);
-+	zdfs("pers_pages_remote_failed", S_IRUGO, root,
-+		&ramster_pers_pages_remote_failed);
-+	zdfs("remote_eph_pages_succ_get", S_IRUGO, root,
-+		&ramster_remote_eph_pages_succ_get);
-+	zdfs("remote_pers_pages_succ_get", S_IRUGO, root,
-+		&ramster_remote_pers_pages_succ_get);
-+	zdfs("remote_eph_pages_unsucc_get", S_IRUGO, root,
-+		&ramster_remote_eph_pages_unsucc_get);
-+	zdfs("remote_pers_pages_unsucc_get", S_IRUGO, root,
-+		&ramster_remote_pers_pages_unsucc_get);
-+	zdfs("pers_pages_remote_nomem", S_IRUGO, root,
-+		&ramster_pers_pages_remote_nomem);
-+	zdfs("remote_objects_flushed", S_IRUGO, root,
-+		&ramster_remote_objects_flushed);
-+	zdfs("remote_pages_flushed", S_IRUGO, root,
-+		&ramster_remote_pages_flushed);
-+	zdfs("remote_object_flushes_failed", S_IRUGO, root,
-+		&ramster_remote_object_flushes_failed);
-+	zdfs("remote_page_flushes_failed", S_IRUGO, root,
-+		&ramster_remote_page_flushes_failed);
-+	zdfs("foreign_eph_pages", S_IRUGO, root,
-+		&ramster_foreign_eph_pages);
-+	zdfs("foreign_eph_pages_max", S_IRUGO, root,
-+		&ramster_foreign_eph_pages_max);
-+	zdfs("foreign_pers_pages", S_IRUGO, root,
-+		&ramster_foreign_pers_pages);
-+	zdfs("foreign_pers_pages_max", S_IRUGO, root,
-+		&ramster_foreign_pers_pages_max);
-+	return 0;
-+}
-+#undef  zdebugfs
-+#undef  zdfs64
-+#else
-+static inline int ramster_debugfs_init(void)
-+{
-+	return 0;
-+}
-+#endif
 diff --git a/drivers/staging/zcache/ramster/debug.h b/drivers/staging/zcache/ramster/debug.h
-new file mode 100644
-index 0000000..17a8435
---- /dev/null
+index 17a8435..7b2deaa 100644
+--- a/drivers/staging/zcache/ramster/debug.h
 +++ b/drivers/staging/zcache/ramster/debug.h
-@@ -0,0 +1,76 @@
-+#ifdef CONFIG_RAMSTER
+@@ -60,6 +60,59 @@ extern ssize_t ramster_remote_page_flushes_failed;
+ 
+ int ramster_debugfs_init(void);
+ 
++static inline void inc_ramster_eph_pages_remoted(void)
++{
++	ramster_eph_pages_remoted++;
++};
++static inline void inc_ramster_pers_pages_remoted(void)
++{
++	ramster_pers_pages_remoted++;
++};
++static inline void inc_ramster_eph_pages_remote_failed(void)
++{
++	ramster_eph_pages_remote_failed++;
++};
++static inline void inc_ramster_pers_pages_remote_failed(void)
++{
++	ramster_pers_pages_remote_failed++;
++};
++static inline void inc_ramster_remote_eph_pages_succ_get(void)
++{
++	ramster_remote_eph_pages_succ_get++;
++};
++static inline void inc_ramster_remote_pers_pages_succ_get(void)
++{
++	ramster_remote_pers_pages_succ_get++;
++};
++static inline void inc_ramster_remote_eph_pages_unsucc_get(void)
++{
++	ramster_remote_eph_pages_unsucc_get++;
++};
++static inline void inc_ramster_remote_pers_pages_unsucc_get(void)
++{
++	ramster_remote_pers_pages_unsucc_get++;
++};
++static inline void inc_ramster_pers_pages_remote_nomem(void)
++{
++	ramster_pers_pages_remote_nomem++;
++};
++static inline void inc_ramster_remote_objects_flushed(void)
++{
++	ramster_remote_objects_flushed++;
++};
++static inline void inc_ramster_remote_object_flushes_failed(void)
++{
++	ramster_remote_object_flushes_failed++;
++};
++static inline void inc_ramster_remote_pages_flushed(void)
++{
++	ramster_remote_pages_flushed++;
++};
++static inline void inc_ramster_remote_page_flushes_failed(void)
++{
++	ramster_remote_page_flushes_failed++;
++};
 +
-+extern long ramster_flnodes;
-+static atomic_t ramster_flnodes_atomic = ATOMIC_INIT(0);
-+extern unsigned long ramster_flnodes_max;
-+static inline void inc_ramster_flnodes(void)
-+{
-+	ramster_flnodes = atomic_inc_return(&ramster_flnodes_atomic);
-+	if (ramster_flnodes > ramster_flnodes_max)
-+		ramster_flnodes_max = ramster_flnodes;
-+}
-+static inline void dec_ramster_flnodes(void)
-+{
-+	ramster_flnodes = atomic_dec_return(&ramster_flnodes_atomic);
-+}
-+extern ssize_t ramster_foreign_eph_pages;
-+static atomic_t ramster_foreign_eph_pages_atomic = ATOMIC_INIT(0);
-+extern ssize_t ramster_foreign_eph_pages_max;
-+static inline void inc_ramster_foreign_eph_pages(void)
-+{
-+	ramster_foreign_eph_pages = atomic_inc_return(
-+		&ramster_foreign_eph_pages_atomic);
-+	if (ramster_foreign_eph_pages > ramster_foreign_eph_pages_max)
-+		ramster_foreign_eph_pages_max = ramster_foreign_eph_pages;
-+}
-+static inline void dec_ramster_foreign_eph_pages(void)
-+{
-+	ramster_foreign_eph_pages = atomic_dec_return(
-+		&ramster_foreign_eph_pages_atomic);
-+}
-+extern ssize_t ramster_foreign_pers_pages;
-+static atomic_t ramster_foreign_pers_pages_atomic = ATOMIC_INIT(0);
-+extern ssize_t ramster_foreign_pers_pages_max;
-+static inline void inc_ramster_foreign_pers_pages(void)
-+{
-+	ramster_foreign_pers_pages = atomic_inc_return(
-+		&ramster_foreign_pers_pages_atomic);
-+	if (ramster_foreign_pers_pages > ramster_foreign_pers_pages_max)
-+		ramster_foreign_pers_pages_max = ramster_foreign_pers_pages;
-+}
-+static inline void dec_ramster_foreign_pers_pages(void)
-+{
-+	ramster_foreign_pers_pages = atomic_dec_return(
-+		&ramster_foreign_pers_pages_atomic);
-+}
+ #else
+ 
+ static inline void inc_ramster_flnodes(void) { };
+@@ -69,6 +122,20 @@ static inline void dec_ramster_foreign_eph_pages(void) { };
+ static inline void inc_ramster_foreign_pers_pages(void) { };
+ static inline void dec_ramster_foreign_pers_pages(void) { };
+ 
++static inline void inc_ramster_eph_pages_remoted(void) { };
++static inline void inc_ramster_pers_pages_remoted(void) { };
++static inline void inc_ramster_eph_pages_remote_failed(void) { };
++static inline void inc_ramster_pers_pages_remote_failed(void) { };
++static inline void inc_ramster_remote_eph_pages_succ_get(void) { };
++static inline void inc_ramster_remote_pers_pages_succ_get(void) { };
++static inline void inc_ramster_remote_eph_pages_unsucc_get(void) { };
++static inline void inc_ramster_remote_pers_pages_unsucc_get(void) { };
++static inline void inc_ramster_pers_pages_remote_nomem(void) { };
++static inline void inc_ramster_remote_objects_flushed(void) { };
++static inline void inc_ramster_remote_object_flushes_failed(void) { };
++static inline void inc_ramster_remote_pages_flushed(void) { };
++static inline void inc_ramster_remote_page_flushes_failed(void) { };
 +
-+extern ssize_t ramster_eph_pages_remoted;
-+extern ssize_t ramster_pers_pages_remoted;
-+extern ssize_t ramster_eph_pages_remote_failed;
-+extern ssize_t ramster_pers_pages_remote_failed;
-+extern ssize_t ramster_remote_eph_pages_succ_get;
-+extern ssize_t ramster_remote_pers_pages_succ_get;
-+extern ssize_t ramster_remote_eph_pages_unsucc_get;
-+extern ssize_t ramster_remote_pers_pages_unsucc_get;
-+extern ssize_t ramster_pers_pages_remote_nomem;
-+extern ssize_t ramster_remote_objects_flushed;
-+extern ssize_t ramster_remote_object_flushes_failed;
-+extern ssize_t ramster_remote_pages_flushed;
-+extern ssize_t ramster_remote_page_flushes_failed;
-+
-+int ramster_debugfs_init(void);
-+
-+#else
-+
-+static inline void inc_ramster_flnodes(void) { };
-+static inline void dec_ramster_flnodes(void) { };
-+static inline void inc_ramster_foreign_eph_pages(void) { };
-+static inline void dec_ramster_foreign_eph_pages(void) { };
-+static inline void inc_ramster_foreign_pers_pages(void) { };
-+static inline void dec_ramster_foreign_pers_pages(void) { };
-+
-+static inline int ramster_debugfs_init(void)
-+{
-+	return 0;
-+}
-+#endif
+ static inline int ramster_debugfs_init(void)
+ {
+ 	return 0;
 diff --git a/drivers/staging/zcache/ramster/ramster.c b/drivers/staging/zcache/ramster/ramster.c
-index 444189e..1d29f5b 100644
+index 1d29f5b..8781627 100644
 --- a/drivers/staging/zcache/ramster/ramster.c
 +++ b/drivers/staging/zcache/ramster/ramster.c
-@@ -42,6 +42,7 @@
- #include "ramster.h"
- #include "ramster_nodemanager.h"
- #include "tcp.h"
-+#include "debug.h"
- 
- #define RAMSTER_TESTING
- 
-@@ -63,118 +64,12 @@ static atomic_t ramster_remote_pers_pages = ATOMIC_INIT(0);
- static bool ramster_nodes_manual_up[MANUAL_NODES] __read_mostly;
- static int ramster_remote_target_nodenum __read_mostly = -1;
- 
--/* these counters are made available via debugfs */
--static long ramster_flnodes;
--static atomic_t ramster_flnodes_atomic = ATOMIC_INIT(0);
--static unsigned long ramster_flnodes_max;
--static inline void inc_ramster_flnodes(void)
--{
--	ramster_flnodes = atomic_inc_return(&ramster_flnodes_atomic);
--	if (ramster_flnodes > ramster_flnodes_max)
--		ramster_flnodes_max = ramster_flnodes;
--}
--static inline void dec_ramster_flnodes(void)
--{
--	ramster_flnodes = atomic_dec_return(&ramster_flnodes_atomic);
--}
--static ssize_t ramster_foreign_eph_pages;
--static atomic_t ramster_foreign_eph_pages_atomic = ATOMIC_INIT(0);
--static ssize_t ramster_foreign_eph_pages_max;
--static inline void inc_ramster_foreign_eph_pages(void)
--{
--	ramster_foreign_eph_pages = atomic_inc_return(
--			&ramster_foreign_eph_pages_atomic);
--	if (ramster_foreign_eph_pages > ramster_foreign_eph_pages_max)
--		ramster_foreign_eph_pages_max = ramster_foreign_eph_pages;
--}
--static inline void dec_ramster_foreign_eph_pages(void)
--{
--	ramster_foreign_eph_pages = atomic_dec_return(
--			&ramster_foreign_eph_pages_atomic);
--}
--static ssize_t ramster_foreign_pers_pages;
--static atomic_t ramster_foreign_pers_pages_atomic = ATOMIC_INIT(0);
--static ssize_t ramster_foreign_pers_pages_max;
--static inline void inc_ramster_foreign_pers_pages(void)
--{
--	ramster_foreign_pers_pages = atomic_inc_return(
--		&ramster_foreign_pers_pages_atomic);
--	if (ramster_foreign_pers_pages > ramster_foreign_pers_pages_max)
--		ramster_foreign_pers_pages_max = ramster_foreign_pers_pages;
--}
--static inline void dec_ramster_foreign_pers_pages(void)
--{
--	ramster_foreign_pers_pages = atomic_dec_return(
--		&ramster_foreign_pers_pages_atomic);
--}
--static ssize_t ramster_eph_pages_remoted;
--static ssize_t ramster_pers_pages_remoted;
--static ssize_t ramster_eph_pages_remote_failed;
--static ssize_t ramster_pers_pages_remote_failed;
--static ssize_t ramster_remote_eph_pages_succ_get;
--static ssize_t ramster_remote_pers_pages_succ_get;
--static ssize_t ramster_remote_eph_pages_unsucc_get;
--static ssize_t ramster_remote_pers_pages_unsucc_get;
--static ssize_t ramster_pers_pages_remote_nomem;
--static ssize_t ramster_remote_objects_flushed;
--static ssize_t ramster_remote_object_flushes_failed;
--static ssize_t ramster_remote_pages_flushed;
--static ssize_t ramster_remote_page_flushes_failed;
-+/* Used by this code. */
-+long ramster_flnodes;
-+ssize_t ramster_foreign_eph_pages;
-+ssize_t ramster_foreign_pers_pages;
- /* FIXME frontswap selfshrinking knobs in debugfs? */
- 
--#ifdef CONFIG_DEBUG_FS
--#include <linux/debugfs.h>
--#define	zdfs	debugfs_create_size_t
--#define	zdfs64	debugfs_create_u64
--static int __init ramster_debugfs_init(void)
--{
--	struct dentry *root = debugfs_create_dir("ramster", NULL);
--	if (root == NULL)
--		return -ENXIO;
--
--	zdfs("eph_pages_remoted", S_IRUGO, root, &ramster_eph_pages_remoted);
--	zdfs("pers_pages_remoted", S_IRUGO, root, &ramster_pers_pages_remoted);
--	zdfs("eph_pages_remote_failed", S_IRUGO, root,
--			&ramster_eph_pages_remote_failed);
--	zdfs("pers_pages_remote_failed", S_IRUGO, root,
--			&ramster_pers_pages_remote_failed);
--	zdfs("remote_eph_pages_succ_get", S_IRUGO, root,
--			&ramster_remote_eph_pages_succ_get);
--	zdfs("remote_pers_pages_succ_get", S_IRUGO, root,
--			&ramster_remote_pers_pages_succ_get);
--	zdfs("remote_eph_pages_unsucc_get", S_IRUGO, root,
--			&ramster_remote_eph_pages_unsucc_get);
--	zdfs("remote_pers_pages_unsucc_get", S_IRUGO, root,
--			&ramster_remote_pers_pages_unsucc_get);
--	zdfs("pers_pages_remote_nomem", S_IRUGO, root,
--			&ramster_pers_pages_remote_nomem);
--	zdfs("remote_objects_flushed", S_IRUGO, root,
--			&ramster_remote_objects_flushed);
--	zdfs("remote_pages_flushed", S_IRUGO, root,
--			&ramster_remote_pages_flushed);
--	zdfs("remote_object_flushes_failed", S_IRUGO, root,
--			&ramster_remote_object_flushes_failed);
--	zdfs("remote_page_flushes_failed", S_IRUGO, root,
--			&ramster_remote_page_flushes_failed);
--	zdfs("foreign_eph_pages", S_IRUGO, root,
--			&ramster_foreign_eph_pages);
--	zdfs("foreign_eph_pages_max", S_IRUGO, root,
--			&ramster_foreign_eph_pages_max);
--	zdfs("foreign_pers_pages", S_IRUGO, root,
--			&ramster_foreign_pers_pages);
--	zdfs("foreign_pers_pages_max", S_IRUGO, root,
--			&ramster_foreign_pers_pages_max);
--	return 0;
--}
--#undef	zdebugfs
--#undef	zdfs64
--#else
--static inline int ramster_debugfs_init(void)
--{
--	return 0;
--}
--#endif
--
- static LIST_HEAD(ramster_rem_op_list);
- static DEFINE_SPINLOCK(ramster_rem_op_list_lock);
- static DEFINE_PER_CPU(struct ramster_preload, ramster_preloads);
+@@ -156,9 +156,9 @@ int ramster_localify(int pool_id, struct tmem_oid *oidp, uint32_t index,
+ 		pr_err("UNTESTED pampd==NULL in ramster_localify\n");
+ #endif
+ 		if (eph)
+-			ramster_remote_eph_pages_unsucc_get++;
++			inc_ramster_remote_eph_pages_unsucc_get();
+ 		else
+-			ramster_remote_pers_pages_unsucc_get++;
++			inc_ramster_remote_pers_pages_unsucc_get();
+ 		obj = NULL;
+ 		goto finish;
+ 	} else if (unlikely(!pampd_is_remote(pampd))) {
+@@ -167,9 +167,9 @@ int ramster_localify(int pool_id, struct tmem_oid *oidp, uint32_t index,
+ 		pr_err("UNTESTED dup while waiting in ramster_localify\n");
+ #endif
+ 		if (eph)
+-			ramster_remote_eph_pages_unsucc_get++;
++			inc_ramster_remote_eph_pages_unsucc_get();
+ 		else
+-			ramster_remote_pers_pages_unsucc_get++;
++			inc_ramster_remote_pers_pages_unsucc_get();
+ 		obj = NULL;
+ 		pampd = NULL;
+ 		ret = -EEXIST;
+@@ -178,7 +178,7 @@ int ramster_localify(int pool_id, struct tmem_oid *oidp, uint32_t index,
+ 		/* no remote data, delete the local is_remote pampd */
+ 		pampd = NULL;
+ 		if (eph)
+-			ramster_remote_eph_pages_unsucc_get++;
++			inc_ramster_remote_eph_pages_unsucc_get();
+ 		else
+ 			BUG();
+ 		delete = true;
+@@ -209,9 +209,9 @@ int ramster_localify(int pool_id, struct tmem_oid *oidp, uint32_t index,
+ 	BUG_ON(extra == NULL);
+ 	zcache_decompress_to_page(data, size, (struct page *)extra);
+ 	if (eph)
+-		ramster_remote_eph_pages_succ_get++;
++		inc_ramster_remote_eph_pages_succ_get();
+ 	else
+-		ramster_remote_pers_pages_succ_get++;
++		inc_ramster_remote_pers_pages_succ_get();
+ 	ret = 0;
+ finish:
+ 	tmem_localify_finish(obj, index, pampd, saved_hb, delete);
+@@ -296,7 +296,7 @@ void *ramster_pampd_repatriate_preload(void *pampd, struct tmem_pool *pool,
+ 		c = atomic_dec_return(&ramster_remote_pers_pages);
+ 		WARN_ON_ONCE(c < 0);
+ 	} else {
+-		ramster_pers_pages_remote_nomem++;
++		inc_ramster_pers_pages_remote_nomem();
+ 	}
+ 	local_irq_restore(flags);
+ out:
+@@ -435,9 +435,9 @@ static void ramster_remote_flush_page(struct flushlist_node *flnode)
+ 	remotenode = flnode->xh.client_id;
+ 	ret = r2net_remote_flush(xh, remotenode);
+ 	if (ret >= 0)
+-		ramster_remote_pages_flushed++;
++		inc_ramster_remote_pages_flushed();
+ 	else
+-		ramster_remote_page_flushes_failed++;
++		inc_ramster_remote_page_flushes_failed();
+ 	preempt_enable_no_resched();
+ 	ramster_flnode_free(flnode, NULL);
+ }
+@@ -452,9 +452,9 @@ static void ramster_remote_flush_object(struct flushlist_node *flnode)
+ 	remotenode = flnode->xh.client_id;
+ 	ret = r2net_remote_flush_object(xh, remotenode);
+ 	if (ret >= 0)
+-		ramster_remote_objects_flushed++;
++		inc_ramster_remote_objects_flushed();
+ 	else
+-		ramster_remote_object_flushes_failed++;
++		inc_ramster_remote_object_flushes_failed();
+ 	preempt_enable_no_resched();
+ 	ramster_flnode_free(flnode, NULL);
+ }
+@@ -505,18 +505,18 @@ int ramster_remotify_pageframe(bool eph)
+ 		 * But count them so we know if it becomes a problem.
+ 		 */
+ 			if (eph)
+-				ramster_eph_pages_remote_failed++;
++				inc_ramster_eph_pages_remote_failed();
+ 			else
+-				ramster_pers_pages_remote_failed++;
++				inc_ramster_pers_pages_remote_failed();
+ 			break;
+ 		} else {
+ 			if (!eph)
+ 				atomic_inc(&ramster_remote_pers_pages);
+ 		}
+ 		if (eph)
+-			ramster_eph_pages_remoted++;
++			inc_ramster_eph_pages_remoted();
+ 		else
+-			ramster_pers_pages_remoted++;
++			inc_ramster_pers_pages_remoted();
+ 		/*
+ 		 * data was successfully remoted so change the local version to
+ 		 * point to the remote node where it landed
 -- 
 1.7.10.4
 
