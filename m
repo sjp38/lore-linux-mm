@@ -1,59 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id BFE426B0002
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 02:20:29 -0400 (EDT)
-Subject: Re: [PATCHv9 4/8] zswap: add to mm/
-Mime-Version: 1.0 (Apple Message framework v1278)
-Content-Type: text/plain; charset=us-ascii
-From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
-In-Reply-To: <1365617940-21623-5-git-send-email-sjenning@linux.vnet.ibm.com>
-Date: Fri, 12 Apr 2013 23:20:27 -0700
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 6AD316B0002
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 08:21:46 -0400 (EDT)
+Received: by mail-ea0-f169.google.com with SMTP id n15so1621395ead.28
+        for <linux-mm@kvack.org>; Sat, 13 Apr 2013 05:21:44 -0700 (PDT)
+Message-ID: <51694C2A.4050906@gmail.com>
+Date: Sat, 13 Apr 2013 14:14:34 +0200
+From: Marco Stornelli <marco.stornelli@gmail.com>
+MIME-Version: 1.0
+Subject: Return value of __mm_populate
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <D33AB581-608A-43DD-B47F-AA93DC9CA432@FreeBSD.org>
-References: <1365617940-21623-1-git-send-email-sjenning@linux.vnet.ibm.com> <1365617940-21623-5-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: linux-mm@kvack.org
+Cc: Linux FS Devel <linux-fsdevel@vger.kernel.org>
 
-Hello,
+Hi,
 
-On Apr 10, 2013, at 11:18 , Seth Jennings wrote:
+I was seeing the code of __mm_populate (in -next) and I've got a doubt 
+about the return value. The function __mlock_posix_error_return should 
+return a proper error for mlock, converting the return value from 
+__get_user_pages. It checks for EFAULT and ENOMEM. Actually 
+__get_user_pages could return, in addition, ERESTARTSYS and EHWPOISON. 
+So it seems to me that we could return to user space not expected value. 
+I can't see them on the man page. In addition we shouldn't ever return 
+ERESTARTSYS to the user space but EINTR. According to the man pages 
+maybe we should return EAGAIN in these cases. Am I missing something?
 
-> +/* invalidates all pages for the given swap type */
-> +static void zswap_frontswap_invalidate_area(unsigned type)
-> +{
-> +	struct zswap_tree *tree = zswap_trees[type];
-> +	struct rb_node *node;
-> +	struct zswap_entry *entry;
-> +
-> +	if (!tree)
-> +		return;
-> +
-> +	/* walk the tree and free everything */
-> +	spin_lock(&tree->lock);
-> +	/*
-> +	 * TODO: Even though this code should not be executed because
-> +	 * the try_to_unuse() in swapoff should have emptied the tree,
-> +	 * it is very wasteful to rebalance the tree after every
-> +	 * removal when we are freeing the whole tree.
-> +	 *
-> +	 * If post-order traversal code is ever added to the rbtree
-> +	 * implementation, it should be used here.
-> +	 */
-> +	while ((node = rb_first(&tree->rbroot))) {
-> +		entry = rb_entry(node, struct zswap_entry, rbnode);
-> +		rb_erase(&entry->rbnode, &tree->rbroot);
-> +		zs_free(tree->pool, entry->handle);
-> +		zswap_entry_cache_free(entry);
-> +	}
-> +	tree->rbroot = RB_ROOT;
-> +	spin_unlock(&tree->lock);
-> +}
+Thanks,
 
-Should both the pool and the tree also be freed, here?
-
--- Suleiman
+Marco
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
