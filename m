@@ -1,50 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id C8A236B0006
-	for <linux-mm@kvack.org>; Fri, 12 Apr 2013 23:07:06 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lb1so1739158pab.5
-        for <linux-mm@kvack.org>; Fri, 12 Apr 2013 20:07:05 -0700 (PDT)
-Date: Fri, 12 Apr 2013 20:07:03 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH PART3 v3 2/6] staging: ramster: Move debugfs code out of
- ramster.c file
-Message-ID: <20130413030703.GA22129@kroah.com>
-References: <1365813371-19006-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <1365813371-19006-2-git-send-email-liwanp@linux.vnet.ibm.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id BFE426B0002
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 02:20:29 -0400 (EDT)
+Subject: Re: [PATCHv9 4/8] zswap: add to mm/
+Mime-Version: 1.0 (Apple Message framework v1278)
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1365813371-19006-2-git-send-email-liwanp@linux.vnet.ibm.com>
+From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+In-Reply-To: <1365617940-21623-5-git-send-email-sjenning@linux.vnet.ibm.com>
+Date: Fri, 12 Apr 2013 23:20:27 -0700
+Content-Transfer-Encoding: 7bit
+Message-Id: <D33AB581-608A-43DD-B47F-AA93DC9CA432@FreeBSD.org>
+References: <1365617940-21623-1-git-send-email-sjenning@linux.vnet.ibm.com> <1365617940-21623-5-git-send-email-sjenning@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Sat, Apr 13, 2013 at 08:36:06AM +0800, Wanpeng Li wrote:
-> Note that at this point there is no CONFIG_RAMSTER_DEBUG
-> option in the Kconfig. So in effect all of the counters
-> are nop until that option gets introduced in patch:
-> ramster/debug: Add CONFIG_RAMSTER_DEBUG Kconfig entry
+Hello,
 
-This patch breaks the build again, so of course, I can't take it:
+On Apr 10, 2013, at 11:18 , Seth Jennings wrote:
 
-drivers/built-in.o: In function `ramster_flnode_alloc.isra.5':
-ramster.c:(.text+0x1b6a6e): undefined reference to `ramster_flnodes_max'
-ramster.c:(.text+0x1b6a7e): undefined reference to `ramster_flnodes_max'
-drivers/built-in.o: In function `ramster_count_foreign_pages':
-(.text+0x1b7205): undefined reference to `ramster_foreign_pers_pages_max'
-drivers/built-in.o: In function `ramster_count_foreign_pages':
-(.text+0x1b7215): undefined reference to `ramster_foreign_pers_pages_max'
-drivers/built-in.o: In function `ramster_count_foreign_pages':
-(.text+0x1b7235): undefined reference to `ramster_foreign_eph_pages_max'
-drivers/built-in.o: In function `ramster_count_foreign_pages':
-(.text+0x1b7249): undefined reference to `ramster_foreign_eph_pages_max'
-drivers/built-in.o: In function `ramster_debugfs_init':
-(.init.text+0xd620): undefined reference to `ramster_foreign_eph_pages_max'
-drivers/built-in.o: In function `ramster_debugfs_init':
-(.init.text+0xd656): undefined reference to `ramster_foreign_pers_pages_max'
+> +/* invalidates all pages for the given swap type */
+> +static void zswap_frontswap_invalidate_area(unsigned type)
+> +{
+> +	struct zswap_tree *tree = zswap_trees[type];
+> +	struct rb_node *node;
+> +	struct zswap_entry *entry;
+> +
+> +	if (!tree)
+> +		return;
+> +
+> +	/* walk the tree and free everything */
+> +	spin_lock(&tree->lock);
+> +	/*
+> +	 * TODO: Even though this code should not be executed because
+> +	 * the try_to_unuse() in swapoff should have emptied the tree,
+> +	 * it is very wasteful to rebalance the tree after every
+> +	 * removal when we are freeing the whole tree.
+> +	 *
+> +	 * If post-order traversal code is ever added to the rbtree
+> +	 * implementation, it should be used here.
+> +	 */
+> +	while ((node = rb_first(&tree->rbroot))) {
+> +		entry = rb_entry(node, struct zswap_entry, rbnode);
+> +		rb_erase(&entry->rbnode, &tree->rbroot);
+> +		zs_free(tree->pool, entry->handle);
+> +		zswap_entry_cache_free(entry);
+> +	}
+> +	tree->rbroot = RB_ROOT;
+> +	spin_unlock(&tree->lock);
+> +}
 
-I thought you fixed this :(
+Should both the pool and the tree also be freed, here?
+
+-- Suleiman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
