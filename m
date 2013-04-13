@@ -1,50 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 5B2BE6B0038
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 11:41:08 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id w4so1523784dam.0
-        for <linux-mm@kvack.org>; Sat, 13 Apr 2013 08:41:07 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 97AAE6B0039
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 11:41:17 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id jt11so1877206pbb.37
+        for <linux-mm@kvack.org>; Sat, 13 Apr 2013 08:41:16 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFC PATCH v1 05/19] mm/m68k: prepare for killing free_all_bootmem_node()
-Date: Sat, 13 Apr 2013 23:36:25 +0800
-Message-Id: <1365867399-21323-6-git-send-email-jiang.liu@huawei.com>
+Subject: [RFC PATCH v1 06/19] mm/metag: prepare for killing free_all_bootmem_node()
+Date: Sat, 13 Apr 2013 23:36:26 +0800
+Message-Id: <1365867399-21323-7-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1365867399-21323-1-git-send-email-jiang.liu@huawei.com>
 References: <1365867399-21323-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Yinghai Lu <yinghai@kernel.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Greg Ungerer <gerg@uclinux.org>, linux-m68k@lists.linux-m68k.org
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, James Hogan <james.hogan@imgtec.com>
 
 Prepare for killing free_all_bootmem_node() by using
 free_all_bootmem().
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Greg Ungerer <gerg@uclinux.org>
-Cc: linux-m68k@lists.linux-m68k.org
+Cc: James Hogan <james.hogan@imgtec.com>
 Cc: linux-kernel@vger.kernel.org
 ---
- arch/m68k/mm/init.c |    4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ arch/metag/mm/init.c |   14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)
 
-diff --git a/arch/m68k/mm/init.c b/arch/m68k/mm/init.c
-index 0723141..20d0ae2 100644
---- a/arch/m68k/mm/init.c
-+++ b/arch/m68k/mm/init.c
-@@ -148,12 +148,10 @@ void __init print_memmap(void)
+diff --git a/arch/metag/mm/init.c b/arch/metag/mm/init.c
+index e00586f..096d022 100644
+--- a/arch/metag/mm/init.c
++++ b/arch/metag/mm/init.c
+@@ -376,31 +376,21 @@ void __init paging_init(unsigned long mem_end)
  
  void __init mem_init(void)
  {
--	pg_data_t *pgdat;
- 	int i;
+-	int nid;
+-
+ #ifdef CONFIG_HIGHMEM
+ 	unsigned long tmp;
  
- 	/* this will put all memory onto the freelists */
--	for_each_online_pgdat(pgdat)
--		free_all_bootmem_node(pgdat);
+ 	/*
+ 	 * Explicitly reset zone->managed_pages because highmem pages are
+-	 * freed before calling free_all_bootmem_node();
++	 * freed before calling free_all_bootmem();
+ 	 */
+ 	reset_all_zones_managed_pages();
+ 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++)
+ 		free_highmem_page(pfn_to_page(tmp));
+ #endif /* CONFIG_HIGHMEM */
+ 
+-	for_each_online_node(nid) {
+-		pg_data_t *pgdat = NODE_DATA(nid);
+-
+-		if (pgdat->node_spanned_pages)
+-			free_all_bootmem_node(pgdat);
+-	}
+-
 +	free_all_bootmem();
+ 	mem_init_print_info(NULL);
+ 	show_mem(0);
+-
+-	return;
+ }
  
- #if defined(CONFIG_MMU) && !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
- 	/* insert pointer tables allocated so far into the tablelist */
+ void free_initmem(void)
 -- 
 1.7.9.5
 
