@@ -1,39 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 821786B0002
-	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 08:48:33 -0400 (EDT)
-Message-ID: <51695273.6080800@alice.it>
-Date: Sat, 13 Apr 2013 14:41:23 +0200
-From: Marco <firefox82@alice.it>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 3EA8F6B0002
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 08:52:43 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Sat, 13 Apr 2013 22:46:36 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 659DD2BB0051
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 22:52:15 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3DCq3sF51904698
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 22:52:10 +1000
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3DCq8Ft031280
+	for <linux-mm@kvack.org>; Sat, 13 Apr 2013 22:52:08 +1000
+Date: Sat, 13 Apr 2013 20:52:06 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH PART3 v3 2/6] staging: ramster: Move debugfs code out of
+ ramster.c file
+Message-ID: <20130413125206.GA20368@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <1365813371-19006-1-git-send-email-liwanp@linux.vnet.ibm.com>
+ <1365813371-19006-2-git-send-email-liwanp@linux.vnet.ibm.com>
+ <20130413030703.GA22129@kroah.com>
 MIME-Version: 1.0
-Subject: Re: Return value of __mm_populate
-References: <51694C2A.4050906@gmail.com>
-In-Reply-To: <51694C2A.4050906@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130413030703.GA22129@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-Adding in cc: lkml
+On Fri, Apr 12, 2013 at 08:07:03PM -0700, Greg Kroah-Hartman wrote:
+>On Sat, Apr 13, 2013 at 08:36:06AM +0800, Wanpeng Li wrote:
+>> Note that at this point there is no CONFIG_RAMSTER_DEBUG
+>> option in the Kconfig. So in effect all of the counters
+>> are nop until that option gets introduced in patch:
+>> ramster/debug: Add CONFIG_RAMSTER_DEBUG Kconfig entry
+>
+>This patch breaks the build again, so of course, I can't take it:
+>
 
-Il 13/04/2013 14:14, Marco Stornelli ha scritto:
-> Hi,
+Sorry, I don't know why my compiler didn't complain to me. I have
+already fixed and repost the patchset.
+
+Regards,
+Wanpeng Li 
+
+>drivers/built-in.o: In function `ramster_flnode_alloc.isra.5':
+>ramster.c:(.text+0x1b6a6e): undefined reference to `ramster_flnodes_max'
+>ramster.c:(.text+0x1b6a7e): undefined reference to `ramster_flnodes_max'
+>drivers/built-in.o: In function `ramster_count_foreign_pages':
+>(.text+0x1b7205): undefined reference to `ramster_foreign_pers_pages_max'
+>drivers/built-in.o: In function `ramster_count_foreign_pages':
+>(.text+0x1b7215): undefined reference to `ramster_foreign_pers_pages_max'
+>drivers/built-in.o: In function `ramster_count_foreign_pages':
+>(.text+0x1b7235): undefined reference to `ramster_foreign_eph_pages_max'
+>drivers/built-in.o: In function `ramster_count_foreign_pages':
+>(.text+0x1b7249): undefined reference to `ramster_foreign_eph_pages_max'
+>drivers/built-in.o: In function `ramster_debugfs_init':
+>(.init.text+0xd620): undefined reference to `ramster_foreign_eph_pages_max'
+>drivers/built-in.o: In function `ramster_debugfs_init':
+>(.init.text+0xd656): undefined reference to `ramster_foreign_pers_pages_max'
 >
-> I was seeing the code of __mm_populate (in -next) and I've got a doubt
-> about the return value. The function __mlock_posix_error_return should
-> return a proper error for mlock, converting the return value from
-> __get_user_pages. It checks for EFAULT and ENOMEM. Actually
-> __get_user_pages could return, in addition, ERESTARTSYS and EHWPOISON.
-> So it seems to me that we could return to user space not expected value.
-> I can't see them on the man page. In addition we shouldn't ever return
-> ERESTARTSYS to the user space but EINTR. According to the man pages
-> maybe we should return EAGAIN in these cases. Am I missing something?
->
-> Thanks,
->
-> Marco
+>I thought you fixed this :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
