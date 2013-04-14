@@ -1,82 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 22AD36B0002
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 10:58:12 -0400 (EDT)
-Date: Sun, 14 Apr 2013 07:58:07 -0700
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id A25BE6B0002
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 11:05:00 -0400 (EDT)
+Date: Sun, 14 Apr 2013 08:04:55 -0700
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: System freezes when RAM is full (64-bit)
-Message-ID: <20130414145807.GC6478@dhcp22.suse.cz>
-References: <20130404070856.GB29911@dhcp22.suse.cz>
- <515D89BE.2040609@gmail.com>
- <20130404151658.GJ29911@dhcp22.suse.cz>
- <515EA3B7.5030308@gmail.com>
- <20130405115914.GD31132@dhcp22.suse.cz>
- <515F3701.1080504@gmail.com>
- <20130412102020.GA20624@dhcp22.suse.cz>
- <5167E6BA.70909@gmail.com>
- <20130412111113.GC20624@dhcp22.suse.cz>
- <51680028.5050600@gmail.com>
+Subject: Re: [RFC 1/3] memcg: integrate soft reclaim tighter with zone
+ shrinking code
+Message-ID: <20130414150455.GE6478@dhcp22.suse.cz>
+References: <1365509595-665-1-git-send-email-mhocko@suse.cz>
+ <1365509595-665-2-git-send-email-mhocko@suse.cz>
+ <20130414004252.GA1330@suse.de>
+ <20130414143420.GA6478@dhcp22.suse.cz>
+ <20130414145532.GB5701@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51680028.5050600@gmail.com>
+In-Reply-To: <20130414145532.GB5701@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ivan Danov <huhavel@gmail.com>
-Cc: Simon Jeons <simon.jeons@gmail.com>, linux-mm@kvack.org, 1162073@bugs.launchpad.net, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Ying Han <yinghan@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>
 
-On Fri 12-04-13 14:38:00, Ivan Danov wrote:
-> On 12/04/13 13:11, Michal Hocko wrote:
-> >On Fri 12-04-13 12:49:30, Ivan Danov wrote:
-> >>$ cat /proc/sys/vm/swappiness
-> >>60
-> >OK, thanks for confirming this. It is really strange that we do not swap
-> >almost at all, then.
-> >>I have increased my swap partition from nearly 2GB to around 16GB,
-> >>but the problem remains.
-> >Increasing the swap partition will not help much as it almost unused
-> >with 2G already (at least last data shown that).
-> >
-> >>Here I attach the logs for the larger swap partition. I use a MATLAB
-> >>script to simulate the problem, but it also works in Octave:
-> >>X = ones(100000,10000);
-> >AFAIU this will create a matrix with 10^9 elements and initialize them
-> >to 1. I am not familiar with octave but do you happen to know what is
-> >the data type used for the element? 8B? It would be also interesting to
-> >know how is the matrix organized and initialized. Does it fit into
-> >memory at all?
-> Yes, 8B each, so it will be almost 8GB and it should fit into the
-> memory.
+On Sun 14-04-13 10:55:32, Johannes Weiner wrote:
+> On Sun, Apr 14, 2013 at 07:34:20AM -0700, Michal Hocko wrote:
+> > On Sun 14-04-13 01:42:52, Mel Gorman wrote:
+> > > On Tue, Apr 09, 2013 at 02:13:13PM +0200, Michal Hocko wrote:
+> > > > @@ -1961,6 +1973,13 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> > > >  		do {
+> > > >  			struct lruvec *lruvec;
+> > > >  
+> > > > +			if (soft_reclaim &&
+> > > > +					!mem_cgroup_soft_reclaim_eligible(memcg)) {
+> > > > +				memcg = mem_cgroup_iter(root, memcg, &reclaim);
+> > > > +				continue;
+> > > > +			}
+> > > > +
+> > > 
+> > > Calling mem_cgroup_soft_reclaim_eligible means we do multiple searches
+> > > of the hierarchy while ascending the hierarchy. It's a stretch but it
+> > > may be a problem for very deep hierarchies.
+> > 
+> > I think it shouldn't be a problem for hundreds of memcgs and I am quite
+> > sceptical about such configurations for other reasons (e.g. charging
+> > overhead). And we are in the reclaim path so this is hardly a hot path
+> > (unlike the chargin). So while this might turn out to be a real problem
+> > we would need to fix other parts as well with higher priority.
+> > 
+> > > Would it be worth having mem_cgroup_soft_reclaim_eligible return what
+> > > the highest parent over its soft limit was and stop the iterator when
+> > > the highest parent is reached?  I think this would avoid calling
+> > > mem_cgroup_soft_reclaim_eligible multiple times.
+> > 
+> > This is basically what the original implementation did and I think it is
+> > not the right way to go. First why should we care who is the most
+> > exceeding group. We should treat them equally if the there is no special
+> > reason to not do so. And I do not see such a special reason. Besides
+> > that keeping a exceed sorted data structure of memcgs turned out quite a
+> > lot of code. Note that the later patch integrate soft reclaim into
+> > targeted reclaim which would mean that we would have to keep such a
+> > list/tree per memcg.
+> 
+> I think what Mel suggests is not to return the highest excessor, but
+> return the highest parent in the hierarchy that is in excess.  Once
+> you have this parent, you know that all children are in excess,
+> without looking them up individually.
 
-It won't fit in because kernel and other processes consume some memory
-as well. So you have to swap.
+OK, I see it now.
 
-> I don't know details how it actually works, but if it cannot
-> create the matrix, MATLAB complains about that. Since it starts
-> complaining even after 2000 more in the second dimension, maybe it
-> needs the RAM to create it all. However on the desktop machine, both
-> RAM and swap are being used (quite a lot of them both).
+> However, that parent is not necessarily the root of the hierarchy that
+> is being reclaimed and you might have multiple of such sub-hierarchies
+> in excess.  To handle all the corner cases, I'd expect the
+> relationship checking to get really complicated.
 
-How much you swap depends on vm.swappiness. I would suggest increasing
-the value if your workload is really so anononymous memory based.
-Otherwise a lot of file pages are reclaimed which can lead to problems
-you are seeing.
+We could always return the leftmost and get to others as the iteration
+continues. I will try to think about it some more. I do not think we
+would save a lot but it looks like a neat idea.
 
-> >>I have tried to simulate the problem on a desktop installation with
-> >>4GB of RAM, 10GB of swap partition, installed Ubuntu Lucid and then
-> >>upgraded to 12.04, the problem isn't there, but the input is still
-> >>quite choppy during the load. After the script finishes, everything
-> >>looks fine. For the desktop installation the hard drive is not an
-> >>SSD hard drive.
-> >What is the kernel version used here?
-> $ uname -a
-> Linux ivan 3.2.0-40-generic #64-Ubuntu SMP Mon Mar 25 21:22:10 UTC
-> 2013 x86_64 x86_64 x86_64 GNU/Linux
-
-Is there any chance you could test with the latest vanilla kernel and 
-Mel's patches from https://lkml.org/lkml/2013/4/11/516 on top?
-
-[...]
 -- 
 Michal Hocko
 SUSE Labs
