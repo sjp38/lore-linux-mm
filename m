@@ -1,119 +1,374 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 8007A6B0002
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 03:42:13 -0400 (EDT)
-Received: by mail-da0-f45.google.com with SMTP id v40so1668573dad.32
-        for <linux-mm@kvack.org>; Sun, 14 Apr 2013 00:42:12 -0700 (PDT)
-Date: Sun, 14 Apr 2013 16:42:04 +0900
-From: Minchan Kim <minchan.kernel.2@gmail.com>
-Subject: Re: [RFC v7 00/11] Support vrange for anonymous page
-Message-ID: <20130414074204.GC8241@blaptop>
-References: <1363073915-25000-1-git-send-email-minchan@kernel.org>
- <5165CA22.6080808@gmail.com>
- <20130411065546.GA10303@blaptop>
- <5166643E.6050704@gmail.com>
- <20130411080243.GA12626@blaptop>
- <5166712C.7040802@gmail.com>
- <20130411083146.GB12626@blaptop>
- <5166D037.6040405@gmail.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 4BB916B0002
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 06:02:26 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sun, 14 Apr 2013 19:53:24 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 0CC9B2BB0051
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 20:02:18 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3E9mso839452746
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 19:48:55 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3EA2G06027312
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 20:02:16 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V5 24/25] powerpc: Optimize hugepage invalidate
+In-Reply-To: <20130412042104.GH5065@truffula.fritz.box>
+References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1365055083-31956-25-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130412042104.GH5065@truffula.fritz.box>
+Date: Sun, 14 Apr 2013 15:32:12 +0530
+Message-ID: <8761zpqvkr.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5166D037.6040405@gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, John Stultz <john.stultz@linaro.org>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jason Evans <je@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: David Gibson <dwg@au1.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-Hi KOSAKI,
+David Gibson <dwg@au1.ibm.com> writes:
 
-On Thu, Apr 11, 2013 at 11:01:11AM -0400, KOSAKI Motohiro wrote:
-> >>>> and adding new syscall invokation is unwelcome.
-> >>>
-> >>> Sure. But one more system call could be cheaper than page-granuarity
-> >>> operation on purged range.
-> >>
-> >> I don't think vrange(VOLATILE) cost is the related of this discusstion.
-> >> Whether sending SIGBUS or just nuke pte, purge should be done on vmscan,
-> >> not vrange() syscall.
-> > 
-> > Again, please see the MADV_FREE. http://lwn.net/Articles/230799/
-> > It does changes pte and page flags on all pages of the range through
-> > zap_pte_range. So it would make vrange(VOLASTILE) expensive and
-> > the bigger cost is, the bigger range is.
-> 
-> This haven't been crossed my mind. now try_to_discard_one() insert vrange
-> for making SIGBUS. then, we can insert pte_none() as the same cost too. Am
-> I missing something?
+> On Thu, Apr 04, 2013 at 11:28:02AM +0530, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> Hugepage invalidate involves invalidating multiple hpte entries.
+>> Optimize the operation using H_BULK_REMOVE on lpar platforms.
+>> On native, reduce the number of tlb flush.
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> ---
+>>  arch/powerpc/include/asm/machdep.h    |    3 +
+>>  arch/powerpc/mm/hash_native_64.c      |   78 ++++++++++++++++++++
+>>  arch/powerpc/mm/pgtable.c             |   13 +++-
+>>  arch/powerpc/platforms/pseries/lpar.c |  126 +++++++++++++++++++++++++++++++--
+>>  4 files changed, 210 insertions(+), 10 deletions(-)
+>> 
+>> diff --git a/arch/powerpc/include/asm/machdep.h b/arch/powerpc/include/asm/machdep.h
+>> index 6cee6e0..3bc7816 100644
+>> --- a/arch/powerpc/include/asm/machdep.h
+>> +++ b/arch/powerpc/include/asm/machdep.h
+>> @@ -56,6 +56,9 @@ struct machdep_calls {
+>>  	void            (*hpte_removebolted)(unsigned long ea,
+>>  					     int psize, int ssize);
+>>  	void		(*flush_hash_range)(unsigned long number, int local);
+>> +	void		(*hugepage_invalidate)(struct mm_struct *mm,
+>> +					       unsigned char *hpte_slot_array,
+>> +					       unsigned long addr, int psize);
+>>  
+>>  	/* special for kexec, to be called in real mode, linear mapping is
+>>  	 * destroyed as well */
+>> diff --git a/arch/powerpc/mm/hash_native_64.c b/arch/powerpc/mm/hash_native_64.c
+>> index ac84fa6..59f29bf 100644
+>> --- a/arch/powerpc/mm/hash_native_64.c
+>> +++ b/arch/powerpc/mm/hash_native_64.c
+>> @@ -450,6 +450,83 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
+>>  	local_irq_restore(flags);
+>>  }
+>>  
+>> +static void native_hugepage_invalidate(struct mm_struct *mm,
+>> +				       unsigned char *hpte_slot_array,
+>> +				       unsigned long addr, int psize)
+>> +{
+>> +	int ssize = 0, i;
+>> +	int lock_tlbie;
+>> +	struct hash_pte *hptep;
+>> +	int actual_psize = MMU_PAGE_16M;
+>> +	unsigned int max_hpte_count, valid;
+>> +	unsigned long flags, s_addr = addr;
+>> +	unsigned long hpte_v, want_v, shift;
+>> +	unsigned long hidx, vpn = 0, vsid, hash, slot;
+>> +
+>> +	shift = mmu_psize_defs[psize].shift;
+>> +	max_hpte_count = HUGE_PAGE_SIZE/(1ul << shift);
+>> +
+>> +	local_irq_save(flags);
+>> +	for (i = 0; i < max_hpte_count; i++) {
+>> +		/*
+>> +		 * 8 bits per each hpte entries
+>> +		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
+>> +		 */
+>> +		valid = hpte_slot_array[i] & 0x1;
+>> +		if (!valid)
+>> +			continue;
+>> +		hidx =  hpte_slot_array[i]  >> 1;
+>> +
+>> +		/* get the vpn */
+>> +		addr = s_addr + (i * (1ul << shift));
+>> +		if (!is_kernel_addr(addr)) {
+>> +			ssize = user_segment_size(addr);
+>> +			vsid = get_vsid(mm->context.id, addr, ssize);
+>> +			WARN_ON(vsid == 0);
+>> +		} else {
+>> +			vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
+>> +			ssize = mmu_kernel_ssize;
+>> +		}
+>> +
+>> +		vpn = hpt_vpn(addr, vsid, ssize);
+>> +		hash = hpt_hash(vpn, shift, ssize);
+>> +		if (hidx & _PTEIDX_SECONDARY)
+>> +			hash = ~hash;
+>> +
+>> +		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+>> +		slot += hidx & _PTEIDX_GROUP_IX;
+>> +
+>> +		hptep = htab_address + slot;
+>> +		want_v = hpte_encode_avpn(vpn, psize, ssize);
+>> +		native_lock_hpte(hptep);
+>> +		hpte_v = hptep->v;
+>> +
+>> +		/* Even if we miss, we need to invalidate the TLB */
+>> +		if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
+>> +			native_unlock_hpte(hptep);
+>> +		else
+>> +			/* Invalidate the hpte. NOTE: this also unlocks it */
+>> +			hptep->v = 0;
+>
+> Shouldn't you be clearing the entry from the slot_array once it is
+> invalidated in the hash table?
 
-For your requirement, we need some tracking model to detect some page is
-using by the process currently before VM discards it *if* we don't give
-vrange(NOVOLATILE) pair system call(Look at below). So the tracking model
-should be formed in vrange(VOLATILE) system call context.
+We don't need to do that. We should be fine even if hptes get
+invalidated under us. Also inorder to update slot_array i will have to
+mark the corresponding hpte busy, so that we can ensure nobody is
+looking at the slot array.
 
-> 
-> I couldn't imazine why pte should be zapping on vrange(VOLATILE).
+>
+>> +	}
+>> +	/*
+>> +	 * Since this is a hugepage, we just need a single tlbie.
+>> +	 * use the last vpn.
+>> +	 */
+>> +	lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
+>> +	if (lock_tlbie)
+>> +		raw_spin_lock(&native_tlbie_lock);
+>> +
+>> +	asm volatile("ptesync":::"memory");
+>> +	__tlbie(vpn, psize, actual_psize, ssize);
+>> +	asm volatile("eieio; tlbsync; ptesync":::"memory");
+>> +
+>> +	if (lock_tlbie)
+>> +		raw_spin_unlock(&native_tlbie_lock);
+>> +
+>> +	local_irq_restore(flags);
+>> +}
+>> +
+>> +
+>>  static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
+>>  			int *psize, int *apsize, int *ssize, unsigned long *vpn)
+>>  {
+>> @@ -678,4 +755,5 @@ void __init hpte_init_native(void)
+>>  	ppc_md.hpte_remove	= native_hpte_remove;
+>>  	ppc_md.hpte_clear_all	= native_hpte_clear;
+>>  	ppc_md.flush_hash_range = native_flush_hash_range;
+>> +	ppc_md.hugepage_invalidate   = native_hugepage_invalidate;
+>>  }
+>> diff --git a/arch/powerpc/mm/pgtable.c b/arch/powerpc/mm/pgtable.c
+>> index fbff062..386cab8 100644
+>> --- a/arch/powerpc/mm/pgtable.c
+>> +++ b/arch/powerpc/mm/pgtable.c
+>> @@ -433,6 +433,7 @@ void hpte_need_hugepage_flush(struct mm_struct *mm, unsigned long addr,
+>>  {
+>>  	int ssize, i;
+>>  	unsigned long s_addr;
+>> +	int max_hpte_count;
+>>  	unsigned int psize, valid;
+>>  	unsigned char *hpte_slot_array;
+>>  	unsigned long hidx, vpn, vsid, hash, shift, slot;
+>> @@ -446,12 +447,18 @@ void hpte_need_hugepage_flush(struct mm_struct *mm, unsigned long addr,
+>>  	 * second half of the PMD
+>>  	 */
+>>  	hpte_slot_array = *(char **)(pmdp + PTRS_PER_PMD);
+>> -
+>>  	/* get the base page size */
+>>  	psize = get_slice_psize(mm, s_addr);
+>> -	shift = mmu_psize_defs[psize].shift;
+>>  
+>> -	for (i = 0; i < HUGE_PAGE_SIZE/(1ul << shift); i++) {
+>> +	if (ppc_md.hugepage_invalidate)
+>> +		return ppc_md.hugepage_invalidate(mm, hpte_slot_array,
+>> +						  s_addr, psize);
+>> +	/*
+>> +	 * No bluk hpte removal support, invalidate each entry
+>> +	 */
+>> +	shift = mmu_psize_defs[psize].shift;
+>> +	max_hpte_count = HUGE_PAGE_SIZE/(1ul << shift);
+>> +	for (i = 0; i < max_hpte_count; i++) {
+>>  		/*
+>>  		 * 8 bits per each hpte entries
+>>  		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
+>> diff --git a/arch/powerpc/platforms/pseries/lpar.c b/arch/powerpc/platforms/pseries/lpar.c
+>> index 3daced3..5fcc621 100644
+>> --- a/arch/powerpc/platforms/pseries/lpar.c
+>> +++ b/arch/powerpc/platforms/pseries/lpar.c
+>> @@ -45,6 +45,13 @@
+>>  #include "plpar_wrappers.h"
+>>  #include "pseries.h"
+>>  
+>> +/* Flag bits for H_BULK_REMOVE */
+>> +#define HBR_REQUEST	0x4000000000000000UL
+>> +#define HBR_RESPONSE	0x8000000000000000UL
+>> +#define HBR_END		0xc000000000000000UL
+>> +#define HBR_AVPN	0x0200000000000000UL
+>> +#define HBR_ANDCOND	0x0100000000000000UL
+>> +
+>>  
+>>  /* in hvCall.S */
+>>  EXPORT_SYMBOL(plpar_hcall);
+>> @@ -339,6 +346,117 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
+>>  	BUG_ON(lpar_rc != H_SUCCESS);
+>>  }
+>>  
+>> +/*
+>> + * Limit iterations holding pSeries_lpar_tlbie_lock to 3. We also need
+>> + * to make sure that we avoid bouncing the hypervisor tlbie lock.
+>> + */
+>> +#define PPC64_HUGE_HPTE_BATCH 12
+>> +
+>> +static void __pSeries_lpar_hugepage_invalidate(unsigned long *slot,
+>> +					     unsigned long *vpn, int count,
+>> +					     int psize, int ssize)
+>> +{
+>> +	unsigned long param[9];
+>> +	int i = 0, pix = 0, rc;
+>> +	unsigned long flags = 0;
+>> +	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
+>> +
+>> +	if (lock_tlbie)
+>> +		spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
+>> +
+>> +	for (i = 0; i < count; i++) {
+>> +
+>> +		if (!firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
+>> +			pSeries_lpar_hpte_invalidate(slot[i], vpn[i], psize,
+>> +						     ssize, 0);
+>> +		} else {
+>> +			param[pix] = HBR_REQUEST | HBR_AVPN | slot[i];
+>> +			param[pix+1] = hpte_encode_avpn(vpn[i], psize, ssize);
+>> +			pix += 2;
+>> +			if (pix == 8) {
+>> +				rc = plpar_hcall9(H_BULK_REMOVE, param,
+>> +						  param[0], param[1], param[2],
+>> +						  param[3], param[4], param[5],
+>> +						  param[6], param[7]);
+>> +				BUG_ON(rc != H_SUCCESS);
+>> +				pix = 0;
+>> +			}
+>> +		}
+>> +	}
+>> +	if (pix) {
+>> +		param[pix] = HBR_END;
+>> +		rc = plpar_hcall9(H_BULK_REMOVE, param, param[0], param[1],
+>> +				  param[2], param[3], param[4], param[5],
+>> +				  param[6], param[7]);
+>> +		BUG_ON(rc != H_SUCCESS);
+>> +	}
+>> +
+>> +	if (lock_tlbie)
+>> +		spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);
+>> +}
+>> +
+>> +static void pSeries_lpar_hugepage_invalidate(struct mm_struct *mm,
+>> +				       unsigned char *hpte_slot_array,
+>> +				       unsigned long addr, int psize)
+>> +{
+>> +	int ssize = 0, i, index = 0;
+>> +	unsigned long s_addr = addr;
+>> +	unsigned int max_hpte_count, valid;
+>> +	unsigned long vpn_array[PPC64_HUGE_HPTE_BATCH];
+>> +	unsigned long slot_array[PPC64_HUGE_HPTE_BATCH];
+>
+> These are really too big to be allocating on the stack.  You'd be
+> better off going direct from the char slot array to the data structure
+> for H_BULK_REMOVE, rather than introducing this intermediate
+> structure.
 
-Sorry, my explanation was too bad to understand.
-I will try again.
+The reason i wanted to do that was to make sure i don't lock/unlock
+pSeries_lpar_tlbie_lock that frequently, ie, for ever H_BULK_REMOVE.
+The total size taken by both the array is only 192 bytes. Is that big
+enough to create trouble ?
 
-First of all, thing you want is almost like MADV_FREE.
-So let's look at it firstly.
+>
+>> +	unsigned long shift, hidx, vpn = 0, vsid, hash, slot;
+>> +
+>> +	shift = mmu_psize_defs[psize].shift;
+>> +	max_hpte_count = HUGE_PAGE_SIZE/(1ul << shift);
+>> +
+>> +	for (i = 0; i < max_hpte_count; i++) {
+>> +		/*
+>> +		 * 8 bits per each hpte entries
+>> +		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
+>> +		 */
+>> +		valid = hpte_slot_array[i] & 0x1;
+>> +		if (!valid)
+>> +			continue;
+>> +		hidx =  hpte_slot_array[i]  >> 1;
+>> +
+>> +		/* get the vpn */
+>> +		addr = s_addr + (i * (1ul << shift));
+>> +		if (!is_kernel_addr(addr)) {
+>> +			ssize = user_segment_size(addr);
+>> +			vsid = get_vsid(mm->context.id, addr, ssize);
+>> +			WARN_ON(vsid == 0);
+>> +		} else {
+>> +			vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
+>> +			ssize = mmu_kernel_ssize;
+>> +		}
+>> +
+>> +		vpn = hpt_vpn(addr, vsid, ssize);
+>> +		hash = hpt_hash(vpn, shift, ssize);
+>> +		if (hidx & _PTEIDX_SECONDARY)
+>> +			hash = ~hash;
+>> +
+>> +		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+>> +		slot += hidx & _PTEIDX_GROUP_IX;
+>> +
+>> +		slot_array[index] = slot;
+>> +		vpn_array[index] = vpn;
+>> +		if (index == PPC64_HUGE_HPTE_BATCH - 1) {
+>> +			/*
+>> +			 * Now do a bluk invalidate
+>> +			 */
+>> +			__pSeries_lpar_hugepage_invalidate(slot_array,
+>> +							   vpn_array,
+>> +							   PPC64_HUGE_HPTE_BATCH,
+>> +							   psize, ssize);
+>> +			index = 0;
+>> +		} else
+>> +			index++;
+>> +	}
+>> +	if (index)
+>> +		__pSeries_lpar_hugepage_invalidate(slot_array, vpn_array,
+>> +						   index, psize, ssize);
+>> +}
+>> +
+>>  static void pSeries_lpar_hpte_removebolted(unsigned long ea,
+>>  					   int psize, int ssize)
+>>  {
+>> @@ -354,13 +472,6 @@ static void pSeries_lpar_hpte_removebolted(unsigned long ea,
+>>  	pSeries_lpar_hpte_invalidate(slot, vpn, psize, ssize, 0);
+>>  }
+>>  
+>> -/* Flag bits for H_BULK_REMOVE */
+>> -#define HBR_REQUEST	0x4000000000000000UL
+>> -#define HBR_RESPONSE	0x8000000000000000UL
+>> -#define HBR_END		0xc000000000000000UL
+>> -#define HBR_AVPN	0x0200000000000000UL
+>> -#define HBR_ANDCOND	0x0100000000000000UL
+>> -
+>>  /*
+>>   * Take a spinlock around flushes to avoid bouncing the hypervisor tlbie
+>>   * lock.
+>> @@ -446,6 +557,7 @@ void __init hpte_init_lpar(void)
+>>  	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
+>>  	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
+>>  	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
+>> +	ppc_md.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
+>>  }
+>>  
+>>  #ifdef CONFIG_PPC_SMLPAR
 
-If you call madvise(range, MADV_FREE), VM should investigate all of
-pages mapped at page table for range(start, start + len) so we need
-page table lookup for the range and mark a flag to all page descriptor
-(ex,PG_lazyfree) to give hint to kernel for discarding the page instead of
-swappint out when reclaim happens. Another thing we need is to clear out
-a dirty bit from PTE to detect the pages is dirtied or not, since we call
-madvise(range, MADV_FREE) because we can't discard them, which are using by
-some process since he called madvise. So if VM find the page has PG_lazyfree
-but the page is dirtied recenlty by peeking PTE, VM can't discard the page.
-So madivse system call's overhead is folloinwg as in madvise(MADV_FREE)
-
-1. look up all pages from page table for the range.
-2. mark some bit(PG_lazyfree) for page descriptors of pages mapped at range
-3. clear dirty bit and TLB flush
-
-So, madvise(MADV_FREE) would be better than madvise(DONTNEED) because it can
-avoid page fault if memory pressure doesn't happen but system call overhead
-could be still huge and expecially the overhead is increased proportionally
-by range size.
-
-Let's talk about vrange(range, VOLATILE)
-The overhead of it is very small, which is just mark a flag into a
-structure which represents the range (ie, struct vrange). When VM want to reclaim
-some pages, VM find a page is mapped at VOLATILE area, so it could discard it
-instead of swapping out. It moves the ovehead from system call itself to
-VM reclaim path which is very slow path in the system and I think it's desirable
-design(And that's why we have rmap).
-But the problem is remained. VM can't detect page using by process after he calls
-vrange(range, VOLATILE) because we didn't do anything in vrange(VOLATILE) so
-VM might discard the page under the process. It didn't happen in madvise(MADV_FREE)
-because it cleared out dirty bit of PTE to detect the page is used or not
-since madvise is called.
-
-Solution in vrange is to make new vrange(range, NOVOLATILE) system call, which give
-the hint to kernel for preventing descarding pages in the range any more.
-The cost of vrange(range, NOVOLATILE) is very small, too.
-It just clear out the flags from a struct vrange which represents a range.
-
-So I think calling of pair system call about volatile would be cheaper than a
-only madvise(MADV_FREE).
-
-I hope it helps your understanding but not sure because I am writing this
-in airport which are very hard to focus my work. :(
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
