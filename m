@@ -1,374 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 4BB916B0002
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 06:02:26 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sun, 14 Apr 2013 19:53:24 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 0CC9B2BB0051
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 20:02:18 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3E9mso839452746
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 19:48:55 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3EA2G06027312
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 20:02:16 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V5 24/25] powerpc: Optimize hugepage invalidate
-In-Reply-To: <20130412042104.GH5065@truffula.fritz.box>
-References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1365055083-31956-25-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130412042104.GH5065@truffula.fritz.box>
-Date: Sun, 14 Apr 2013 15:32:12 +0530
-Message-ID: <8761zpqvkr.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 0889C6B0006
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 10:34:27 -0400 (EDT)
+Date: Sun, 14 Apr 2013 07:34:20 -0700
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 1/3] memcg: integrate soft reclaim tighter with zone
+ shrinking code
+Message-ID: <20130414143420.GA6478@dhcp22.suse.cz>
+References: <1365509595-665-1-git-send-email-mhocko@suse.cz>
+ <1365509595-665-2-git-send-email-mhocko@suse.cz>
+ <20130414004252.GA1330@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130414004252.GA1330@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Gibson <dwg@au1.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, Ying Han <yinghan@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>
 
-David Gibson <dwg@au1.ibm.com> writes:
+On Sun 14-04-13 01:42:52, Mel Gorman wrote:
+> On Tue, Apr 09, 2013 at 02:13:13PM +0200, Michal Hocko wrote:
+> > Memcg soft reclaim has been traditionally triggered from the global
+> > reclaim paths before calling shrink_zone. mem_cgroup_soft_limit_reclaim
+> > then picked up a group which exceeds the soft limit the most and
+> > reclaimed it with 0 priority to reclaim at least SWAP_CLUSTER_MAX pages.
+> > 
+> 
+> I didn't realise it scanned at priority 0 or else I forgot! Priority 0
+> scanning means memcg soft reclaim currently scans anon and file equally
+> with the full LRU of ecah type considered as scan candidates. Consequently,
+> it will reclaim SWAP_CLUSTER_MAX from each evictable LRU before stopping as
+> sc->nr_to_reclaim pages have been scanned. It's only partially related to
+> your series of course this is very blunt behaviour for memcg reclaim. In an
+> ideal world of infinite free time it might be worth checking what happens
+> if that thing scans at priority 1 or at least keep an eye on what happens
+> priority when/if you replace mem_cgroup_shrink_node_zone
 
-> On Thu, Apr 04, 2013 at 11:28:02AM +0530, Aneesh Kumar K.V wrote:
->> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> 
->> Hugepage invalidate involves invalidating multiple hpte entries.
->> Optimize the operation using H_BULK_REMOVE on lpar platforms.
->> On native, reduce the number of tlb flush.
->> 
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->> ---
->>  arch/powerpc/include/asm/machdep.h    |    3 +
->>  arch/powerpc/mm/hash_native_64.c      |   78 ++++++++++++++++++++
->>  arch/powerpc/mm/pgtable.c             |   13 +++-
->>  arch/powerpc/platforms/pseries/lpar.c |  126 +++++++++++++++++++++++++++++++--
->>  4 files changed, 210 insertions(+), 10 deletions(-)
->> 
->> diff --git a/arch/powerpc/include/asm/machdep.h b/arch/powerpc/include/asm/machdep.h
->> index 6cee6e0..3bc7816 100644
->> --- a/arch/powerpc/include/asm/machdep.h
->> +++ b/arch/powerpc/include/asm/machdep.h
->> @@ -56,6 +56,9 @@ struct machdep_calls {
->>  	void            (*hpte_removebolted)(unsigned long ea,
->>  					     int psize, int ssize);
->>  	void		(*flush_hash_range)(unsigned long number, int local);
->> +	void		(*hugepage_invalidate)(struct mm_struct *mm,
->> +					       unsigned char *hpte_slot_array,
->> +					       unsigned long addr, int psize);
->>  
->>  	/* special for kexec, to be called in real mode, linear mapping is
->>  	 * destroyed as well */
->> diff --git a/arch/powerpc/mm/hash_native_64.c b/arch/powerpc/mm/hash_native_64.c
->> index ac84fa6..59f29bf 100644
->> --- a/arch/powerpc/mm/hash_native_64.c
->> +++ b/arch/powerpc/mm/hash_native_64.c
->> @@ -450,6 +450,83 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
->>  	local_irq_restore(flags);
->>  }
->>  
->> +static void native_hugepage_invalidate(struct mm_struct *mm,
->> +				       unsigned char *hpte_slot_array,
->> +				       unsigned long addr, int psize)
->> +{
->> +	int ssize = 0, i;
->> +	int lock_tlbie;
->> +	struct hash_pte *hptep;
->> +	int actual_psize = MMU_PAGE_16M;
->> +	unsigned int max_hpte_count, valid;
->> +	unsigned long flags, s_addr = addr;
->> +	unsigned long hpte_v, want_v, shift;
->> +	unsigned long hidx, vpn = 0, vsid, hash, slot;
->> +
->> +	shift = mmu_psize_defs[psize].shift;
->> +	max_hpte_count = HUGE_PAGE_SIZE/(1ul << shift);
->> +
->> +	local_irq_save(flags);
->> +	for (i = 0; i < max_hpte_count; i++) {
->> +		/*
->> +		 * 8 bits per each hpte entries
->> +		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
->> +		 */
->> +		valid = hpte_slot_array[i] & 0x1;
->> +		if (!valid)
->> +			continue;
->> +		hidx =  hpte_slot_array[i]  >> 1;
->> +
->> +		/* get the vpn */
->> +		addr = s_addr + (i * (1ul << shift));
->> +		if (!is_kernel_addr(addr)) {
->> +			ssize = user_segment_size(addr);
->> +			vsid = get_vsid(mm->context.id, addr, ssize);
->> +			WARN_ON(vsid == 0);
->> +		} else {
->> +			vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
->> +			ssize = mmu_kernel_ssize;
->> +		}
->> +
->> +		vpn = hpt_vpn(addr, vsid, ssize);
->> +		hash = hpt_hash(vpn, shift, ssize);
->> +		if (hidx & _PTEIDX_SECONDARY)
->> +			hash = ~hash;
->> +
->> +		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
->> +		slot += hidx & _PTEIDX_GROUP_IX;
->> +
->> +		hptep = htab_address + slot;
->> +		want_v = hpte_encode_avpn(vpn, psize, ssize);
->> +		native_lock_hpte(hptep);
->> +		hpte_v = hptep->v;
->> +
->> +		/* Even if we miss, we need to invalidate the TLB */
->> +		if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
->> +			native_unlock_hpte(hptep);
->> +		else
->> +			/* Invalidate the hpte. NOTE: this also unlocks it */
->> +			hptep->v = 0;
->
-> Shouldn't you be clearing the entry from the slot_array once it is
-> invalidated in the hash table?
+I do not think experimenting with prio 1 would make any difference. We
+would still reclaim half of LRUs and bail out if at least
+SWAP_CLUSTER_MAX cluster max pagas have been reclaimed after visiting
+all reclaimable LRUs. The whole point of the series is to not do
+anything special for the soft reclaim priority wise.
 
-We don't need to do that. We should be fine even if hptes get
-invalidated under us. Also inorder to update slot_array i will have to
-mark the corresponding hpte busy, so that we can ensure nobody is
-looking at the slot array.
+[...]
+> > Soft reclaim should be applicable also to the targeted reclaim which is
+> > awkward right now without additional hacks.
+> > Last but not least the whole infrastructure eats a lot of code[1].
+> > 
+> > After this patch shrink_zone is done in 2. First it tries to do the
+> 
+> Done in 2 what? Passes I think.
 
->
->> +	}
->> +	/*
->> +	 * Since this is a hugepage, we just need a single tlbie.
->> +	 * use the last vpn.
->> +	 */
->> +	lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
->> +	if (lock_tlbie)
->> +		raw_spin_lock(&native_tlbie_lock);
->> +
->> +	asm volatile("ptesync":::"memory");
->> +	__tlbie(vpn, psize, actual_psize, ssize);
->> +	asm volatile("eieio; tlbsync; ptesync":::"memory");
->> +
->> +	if (lock_tlbie)
->> +		raw_spin_unlock(&native_tlbie_lock);
->> +
->> +	local_irq_restore(flags);
->> +}
->> +
->> +
->>  static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
->>  			int *psize, int *apsize, int *ssize, unsigned long *vpn)
->>  {
->> @@ -678,4 +755,5 @@ void __init hpte_init_native(void)
->>  	ppc_md.hpte_remove	= native_hpte_remove;
->>  	ppc_md.hpte_clear_all	= native_hpte_clear;
->>  	ppc_md.flush_hash_range = native_flush_hash_range;
->> +	ppc_md.hugepage_invalidate   = native_hugepage_invalidate;
->>  }
->> diff --git a/arch/powerpc/mm/pgtable.c b/arch/powerpc/mm/pgtable.c
->> index fbff062..386cab8 100644
->> --- a/arch/powerpc/mm/pgtable.c
->> +++ b/arch/powerpc/mm/pgtable.c
->> @@ -433,6 +433,7 @@ void hpte_need_hugepage_flush(struct mm_struct *mm, unsigned long addr,
->>  {
->>  	int ssize, i;
->>  	unsigned long s_addr;
->> +	int max_hpte_count;
->>  	unsigned int psize, valid;
->>  	unsigned char *hpte_slot_array;
->>  	unsigned long hidx, vpn, vsid, hash, shift, slot;
->> @@ -446,12 +447,18 @@ void hpte_need_hugepage_flush(struct mm_struct *mm, unsigned long addr,
->>  	 * second half of the PMD
->>  	 */
->>  	hpte_slot_array = *(char **)(pmdp + PTRS_PER_PMD);
->> -
->>  	/* get the base page size */
->>  	psize = get_slice_psize(mm, s_addr);
->> -	shift = mmu_psize_defs[psize].shift;
->>  
->> -	for (i = 0; i < HUGE_PAGE_SIZE/(1ul << shift); i++) {
->> +	if (ppc_md.hugepage_invalidate)
->> +		return ppc_md.hugepage_invalidate(mm, hpte_slot_array,
->> +						  s_addr, psize);
->> +	/*
->> +	 * No bluk hpte removal support, invalidate each entry
->> +	 */
->> +	shift = mmu_psize_defs[psize].shift;
->> +	max_hpte_count = HUGE_PAGE_SIZE/(1ul << shift);
->> +	for (i = 0; i < max_hpte_count; i++) {
->>  		/*
->>  		 * 8 bits per each hpte entries
->>  		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
->> diff --git a/arch/powerpc/platforms/pseries/lpar.c b/arch/powerpc/platforms/pseries/lpar.c
->> index 3daced3..5fcc621 100644
->> --- a/arch/powerpc/platforms/pseries/lpar.c
->> +++ b/arch/powerpc/platforms/pseries/lpar.c
->> @@ -45,6 +45,13 @@
->>  #include "plpar_wrappers.h"
->>  #include "pseries.h"
->>  
->> +/* Flag bits for H_BULK_REMOVE */
->> +#define HBR_REQUEST	0x4000000000000000UL
->> +#define HBR_RESPONSE	0x8000000000000000UL
->> +#define HBR_END		0xc000000000000000UL
->> +#define HBR_AVPN	0x0200000000000000UL
->> +#define HBR_ANDCOND	0x0100000000000000UL
->> +
->>  
->>  /* in hvCall.S */
->>  EXPORT_SYMBOL(plpar_hcall);
->> @@ -339,6 +346,117 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
->>  	BUG_ON(lpar_rc != H_SUCCESS);
->>  }
->>  
->> +/*
->> + * Limit iterations holding pSeries_lpar_tlbie_lock to 3. We also need
->> + * to make sure that we avoid bouncing the hypervisor tlbie lock.
->> + */
->> +#define PPC64_HUGE_HPTE_BATCH 12
->> +
->> +static void __pSeries_lpar_hugepage_invalidate(unsigned long *slot,
->> +					     unsigned long *vpn, int count,
->> +					     int psize, int ssize)
->> +{
->> +	unsigned long param[9];
->> +	int i = 0, pix = 0, rc;
->> +	unsigned long flags = 0;
->> +	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
->> +
->> +	if (lock_tlbie)
->> +		spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
->> +
->> +	for (i = 0; i < count; i++) {
->> +
->> +		if (!firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
->> +			pSeries_lpar_hpte_invalidate(slot[i], vpn[i], psize,
->> +						     ssize, 0);
->> +		} else {
->> +			param[pix] = HBR_REQUEST | HBR_AVPN | slot[i];
->> +			param[pix+1] = hpte_encode_avpn(vpn[i], psize, ssize);
->> +			pix += 2;
->> +			if (pix == 8) {
->> +				rc = plpar_hcall9(H_BULK_REMOVE, param,
->> +						  param[0], param[1], param[2],
->> +						  param[3], param[4], param[5],
->> +						  param[6], param[7]);
->> +				BUG_ON(rc != H_SUCCESS);
->> +				pix = 0;
->> +			}
->> +		}
->> +	}
->> +	if (pix) {
->> +		param[pix] = HBR_END;
->> +		rc = plpar_hcall9(H_BULK_REMOVE, param, param[0], param[1],
->> +				  param[2], param[3], param[4], param[5],
->> +				  param[6], param[7]);
->> +		BUG_ON(rc != H_SUCCESS);
->> +	}
->> +
->> +	if (lock_tlbie)
->> +		spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);
->> +}
->> +
->> +static void pSeries_lpar_hugepage_invalidate(struct mm_struct *mm,
->> +				       unsigned char *hpte_slot_array,
->> +				       unsigned long addr, int psize)
->> +{
->> +	int ssize = 0, i, index = 0;
->> +	unsigned long s_addr = addr;
->> +	unsigned int max_hpte_count, valid;
->> +	unsigned long vpn_array[PPC64_HUGE_HPTE_BATCH];
->> +	unsigned long slot_array[PPC64_HUGE_HPTE_BATCH];
->
-> These are really too big to be allocating on the stack.  You'd be
-> better off going direct from the char slot array to the data structure
-> for H_BULK_REMOVE, rather than introducing this intermediate
-> structure.
+Yes. Fixed.
+ 
+[...]
+> > +	if (res_counter_soft_limit_excess(&memcg->res))
+> > +		return true;
+> > +
+> > +	/*
+> > +	 * If any parent up the hierarchy is over its soft limit then we
+> > +	 * have to obey and reclaim from this group as well.
+> > +	 */
+> > +	while((parent = parent_mem_cgroup(parent))) {
+> > +		if (res_counter_soft_limit_excess(&parent->res))
+> > +			return true;
+> 
+> Remove the initial if with this?
+> /*
+>  * If the target memcg or any of its parents are over their soft limit
+>  * then we have to obey and reclaim from this group as well
+>  */
+> do {
+> 	if (res_counter_soft_limit_excess(&memcg->res))
+> 		return true;
+> while ((memcg = parent_mem_cgroup(memcg));
 
-The reason i wanted to do that was to make sure i don't lock/unlock
-pSeries_lpar_tlbie_lock that frequently, ie, for ever H_BULK_REMOVE.
-The total size taken by both the array is only 192 bytes. Is that big
-enough to create trouble ?
+The later patch changes this behavior. Where we treat current memcg and
+parent slightly different based on whether the limit has been set by
+an user or it is the default unlimited value.
 
->
->> +	unsigned long shift, hidx, vpn = 0, vsid, hash, slot;
->> +
->> +	shift = mmu_psize_defs[psize].shift;
->> +	max_hpte_count = HUGE_PAGE_SIZE/(1ul << shift);
->> +
->> +	for (i = 0; i < max_hpte_count; i++) {
->> +		/*
->> +		 * 8 bits per each hpte entries
->> +		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
->> +		 */
->> +		valid = hpte_slot_array[i] & 0x1;
->> +		if (!valid)
->> +			continue;
->> +		hidx =  hpte_slot_array[i]  >> 1;
->> +
->> +		/* get the vpn */
->> +		addr = s_addr + (i * (1ul << shift));
->> +		if (!is_kernel_addr(addr)) {
->> +			ssize = user_segment_size(addr);
->> +			vsid = get_vsid(mm->context.id, addr, ssize);
->> +			WARN_ON(vsid == 0);
->> +		} else {
->> +			vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
->> +			ssize = mmu_kernel_ssize;
->> +		}
->> +
->> +		vpn = hpt_vpn(addr, vsid, ssize);
->> +		hash = hpt_hash(vpn, shift, ssize);
->> +		if (hidx & _PTEIDX_SECONDARY)
->> +			hash = ~hash;
->> +
->> +		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
->> +		slot += hidx & _PTEIDX_GROUP_IX;
->> +
->> +		slot_array[index] = slot;
->> +		vpn_array[index] = vpn;
->> +		if (index == PPC64_HUGE_HPTE_BATCH - 1) {
->> +			/*
->> +			 * Now do a bluk invalidate
->> +			 */
->> +			__pSeries_lpar_hugepage_invalidate(slot_array,
->> +							   vpn_array,
->> +							   PPC64_HUGE_HPTE_BATCH,
->> +							   psize, ssize);
->> +			index = 0;
->> +		} else
->> +			index++;
->> +	}
->> +	if (index)
->> +		__pSeries_lpar_hugepage_invalidate(slot_array, vpn_array,
->> +						   index, psize, ssize);
->> +}
->> +
->>  static void pSeries_lpar_hpte_removebolted(unsigned long ea,
->>  					   int psize, int ssize)
->>  {
->> @@ -354,13 +472,6 @@ static void pSeries_lpar_hpte_removebolted(unsigned long ea,
->>  	pSeries_lpar_hpte_invalidate(slot, vpn, psize, ssize, 0);
->>  }
->>  
->> -/* Flag bits for H_BULK_REMOVE */
->> -#define HBR_REQUEST	0x4000000000000000UL
->> -#define HBR_RESPONSE	0x8000000000000000UL
->> -#define HBR_END		0xc000000000000000UL
->> -#define HBR_AVPN	0x0200000000000000UL
->> -#define HBR_ANDCOND	0x0100000000000000UL
->> -
->>  /*
->>   * Take a spinlock around flushes to avoid bouncing the hypervisor tlbie
->>   * lock.
->> @@ -446,6 +557,7 @@ void __init hpte_init_lpar(void)
->>  	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
->>  	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
->>  	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
->> +	ppc_md.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
->>  }
->>  
->>  #ifdef CONFIG_PPC_SMLPAR
+[...]
+> > -static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> > +static unsigned
+> > +__shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
+> >  {
+> >  	unsigned long nr_reclaimed, nr_scanned;
+> > +	unsigned nr_shrunk = 0;
+> >  
+> >  	do {
+> >  		struct mem_cgroup *root = sc->target_mem_cgroup;
+> > @@ -1961,6 +1973,13 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> >  		do {
+> >  			struct lruvec *lruvec;
+> >  
+> > +			if (soft_reclaim &&
+> > +					!mem_cgroup_soft_reclaim_eligible(memcg)) {
+> > +				memcg = mem_cgroup_iter(root, memcg, &reclaim);
+> > +				continue;
+> > +			}
+> > +
+> 
+> Calling mem_cgroup_soft_reclaim_eligible means we do multiple searches
+> of the hierarchy while ascending the hierarchy. It's a stretch but it
+> may be a problem for very deep hierarchies.
 
--aneesh
+I think it shouldn't be a problem for hundreds of memcgs and I am quite
+sceptical about such configurations for other reasons (e.g. charging
+overhead). And we are in the reclaim path so this is hardly a hot path
+(unlike the chargin). So while this might turn out to be a real problem
+we would need to fix other parts as well with higher priority.
+
+> Would it be worth having mem_cgroup_soft_reclaim_eligible return what
+> the highest parent over its soft limit was and stop the iterator when
+> the highest parent is reached?  I think this would avoid calling
+> mem_cgroup_soft_reclaim_eligible multiple times.
+
+This is basically what the original implementation did and I think it is
+not the right way to go. First why should we care who is the most
+exceeding group. We should treat them equally if the there is no special
+reason to not do so. And I do not see such a special reason. Besides
+that keeping a exceed sorted data structure of memcgs turned out quite a
+lot of code. Note that the later patch integrate soft reclaim into
+targeted reclaim which would mean that we would have to keep such a
+list/tree per memcg.
+
+> > +			nr_shrunk++;
+> >  			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+> >  
+> >  			shrink_lruvec(lruvec, sc);
+> > @@ -1984,6 +2003,27 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> >  		} while (memcg);
+> >  	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+> >  					 sc->nr_scanned - nr_scanned, sc));
+> > +
+> > +	return nr_shrunk;
+> > +}
+> > +
+> > +
+> > +static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> > +{
+> > +	bool do_soft_reclaim = mem_cgroup_should_soft_reclaim(sc);
+> > +	unsigned long nr_scanned = sc->nr_scanned;
+> > +	unsigned nr_shrunk;
+> > +
+> > +	nr_shrunk = __shrink_zone(zone, sc, do_soft_reclaim);
+> > +
+> 
+> The two pass thing is explained in the changelog very well but adding
+> comments on it here would not hurt.
+
+What about merging the comment that is already there with this?
+
+/*
+ * If memcg is enabled we try to reclaim only over-soft limit groups in
+ * the first pass and only fallback to all groups reclaim if no group is
+ * over the soft limit or those that are do not have pages in the zone
+ * we are reclaiming so we have to reclaim everybody.
+ * This will guarantee that groups that are below their soft limit are
+ * not touched unless the memory pressure cannot be handled otherwise
+ * and so the soft limit can be used for the working set preservation.
+ */
+> 
+> Otherwise this patch looks like a great idea and memcg soft reclaim looks
+> a lot less like it's stuck on the side.
+
+Thanks for the review Mel!
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
