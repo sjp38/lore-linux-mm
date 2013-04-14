@@ -1,163 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 729E96B0002
-	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 20:08:08 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id q11so2192379pdj.25
-        for <linux-mm@kvack.org>; Sun, 14 Apr 2013 17:08:07 -0700 (PDT)
-Date: Sun, 14 Apr 2013 17:08:04 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] staging: ramster: add how-to for ramster
-Message-ID: <20130415000804.GA15244@kroah.com>
-References: <1365983816-30204-1-git-send-email-liwanp@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id AE0F56B0002
+	for <linux-mm@kvack.org>; Sun, 14 Apr 2013 20:38:01 -0400 (EDT)
+Date: Mon, 15 Apr 2013 09:49:34 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [Lsf] [LSF/MM TOPIC] Beyond NUMA
+Message-ID: <20130414234934.GB5117@destitution>
+References: <9f091f23-9314-422c-9f97-525ddefd483b@default>
+ <1365975590.2359.22.camel@dabdike>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1365983816-30204-1-git-send-email-liwanp@linux.vnet.ibm.com>
+In-Reply-To: <1365975590.2359.22.camel@dabdike>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, lsf@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Mon, Apr 15, 2013 at 07:56:56AM +0800, Wanpeng Li wrote:
-> +This is a how-to document for RAMster.  It applies to the March 9, 2013
-> +version of RAMster, re-merged with the new zcache codebase, built and tested
-> +on the 3.9 tree and submitted for the staging tree for 3.9.
+On Sun, Apr 14, 2013 at 02:39:50PM -0700, James Bottomley wrote:
+> On Thu, 2013-04-11 at 17:29 -0700, Dan Magenheimer wrote:
+> > MM developers and all --
+> > 
+> > It's a bit late to add a topic, but with such a great group of brains
+> > together, it seems worthwhile to spend at least some time speculating
+> > on "farther-out" problems.  So I propose for the MM track:
+> > 
+> > Beyond NUMA
+> > 
+> > NUMA now impacts even the smallest servers and soon, perhaps even embedded
+> > systems, but the performance effects are limited when the number of nodes
+> > is small (e.g. two).  As the number of nodes grows, along with the number
+> > of memory controllers, NUMA can have a big performance impact and the MM
+> > community has invested a huge amount of energy into reducing this problem.
+> > 
+> > But as the number of memory controllers grows, the cost of the system
+> > grows faster.  This is classic "scale-up" and certain workloads will
+> > always benefit from having as many CPUs/cores and nodes as can be
+> > packed into a single system.  System vendors are happy to oblige because the
+> > profit margin on scale-out systems can be proportionally much much
+> > larger than on smaller commodity systems.  So the NUMA work will always
+> > be necessary and important.
+> > 
+> > But as scale-out grows to previously unimaginable levels, an increasing
+> > fraction of workloads are unable to adequately benefit to compensate
+> > for the non-linear increase in system cost.  And so more users, especially
+> > cost-sensitive users, are turning instead to scale-out to optimize
+> > cost vs benefit for their massive data centers.  Recent examples include
+> > HP's Moonshot and Facebook's "Group Hug".  And even major data center
+> > topology changes are being proposed which use super-high-speed links to
+> > separate CPUs from RAM [1].
+> > 
+> > While filesystems and storage have long ago adapted to handle large
+> > numbers of servers effectively, the MM subsystem is still isolated,
+> > managing its own private set of RAM, independent of and completely
+> > partitioned from the RAM of other servers.  Perhaps we, the Linux
+> > MM developers, should start considering how MM can evolve in this
+> > new world.  In some ways, scale-out is like NUMA, but a step beyond.
+> > In other ways, scale-out is very different.  The ramster project [2]
+> > in the staging tree is a step in the direction of "clusterizing" RAM,
+> > but may or may not be the right step.
+> 
+> I've got to say from a physics, rather than mm perspective, this sounds
+> to be a really badly framed problem.  We seek to eliminate complexity by
+> simplification.  What this often means is that even though the theory
+> allows us to solve a problem in an arbitrary frame, there's usually a
+> nice one where it looks a lot simpler (that's what the whole game of
+> eigenvector mathematics and group characters is all about).
+> 
+> Saying we need to consider remote in-use memory as high numa and manage
+> it from a local node looks a lot like saying we need to consider a
+> problem in an arbitrary frame rather than looking for the simplest one.
+> The fact of the matter is that network remote memory has latency orders
+> of magnitude above local ... the effect is so distinct, it's not even
+> worth calling it NUMA.  It does seem then that the correct frame to
+> consider this in is local + remote separately with a hierarchical
+> management (the massive difference in latencies makes this a simple
+> observation from perturbation theory).  Amazingly this is what current
+> clustering tools tend to do, so I don't really see there's much here to
+> add to the current practice.
 
-This is not needed at all, given that it should just reflect the state
-of the code in the kernel that this file is present in.  Please remove
-it.
+Everyone who wants to talk about this topic should google "vNUMA"
+and read the research papers from a few years ago. It gives pretty
+good insight in the practicality of treating the RAM in a cluster as
+a single virtual NUMA machine with a large distance factor.
 
-> +Note that this document was created from notes taken earlier.  I would
-> +appreciate any feedback from anyone who follows the process as described
-> +to confirm that it works and to clarify any possible misunderstandings,
-> +or to report problems.
+And then there's the crazy guys that have been trying to implement
+DLM (distributed large memory) using kernel based MPI communication
+for cache coherency protocols at page fault level....
 
-Is this needed?
+Cheers,
 
-> +A. PRELIMINARY
-> +
-> +1) Install two or more Linux systems that are known to work when upgraded
-> +   to a recent upstream Linux kernel version (e.g. v3.9).  I used Oracle
-> +   Linux 6 ("OL6") on two Dell Optiplex 790s.  Note that it should be possible
-> +   to use ocfs2 as a filesystem on your systems but this hasn't been
-> +   tested thoroughly, so if you do use ocfs2 and run into problems, please
-> +   report them.  Up to eight nodes should work, but not much testing has
-> +   been done with more than three nodes.
-> +
-> +On each system:
-> +
-> +2) Configure, build and install then boot Linux (e.g. 3.9), just to ensure it
-> +   can be done with an unmodified upstream kernel.  Confirm you booted
-> +   the upstream kernel with "uname -a".
-> +
-> +3) Install ramster-tools.  The src.rpm and an OL6 rpm are available
-> +   in this directory.  I'm not very good at userspace stuff and
-> +   would welcome any help in turning ramster-tools into more
-> +   distributable rpms/debs for a wider range of distros.
-
-This isn't true, the rpms are not here.
-
-> +B. BUILDING RAMSTER INTO THE KERNEL
-> +
-> +Do the following on each system:
-> +
-> +1) Ensure you have the new codebase for drivers/staging/zcache in your source.
-> +
-> +2) Change your .config to have:
-> +
-> +	CONFIG_CLEANCACHE=y
-> +	CONFIG_FRONTSWAP=y
-> +	CONFIG_STAGING=y
-> +	CONFIG_ZCACHE=y
-> +	CONFIG_RAMSTER=y
-> +
-> +   You may have to reconfigure your kernel multiple times to ensure
-> +   all of these are set properly.  I use:
-> +
-> +	# yes "" | make oldconfig
-> +
-> +   and then manually check the .config file to ensure my selections
-> +   have "taken".
-
-This last bit isn't needed at all.  Just stick to the "these are the
-settings you need enabled."
-
-> +   Do not bother to build the kernel until you are certain all of
-> +   the above config selections will stick for the build.
-> +
-> +3) Build this kernel and "make install" so that you have a new kernel
-> +   in /etc/grub.conf
-
-Don't assume 'make install' works for all distros, nor that
-/etc/grub.conf is a grub config file (hint, it usually isn't, and what
-about all the people not even using grub for their bootloader?)
-
-> +4) Add "ramster" to the kernel boot line in /etc/grub.conf.
-
-Again, drop grub.conf reference
-
-> +5) Reboot and check dmesg to ensure there are some messages from ramster
-> +   and that "ramster_enabled=1" appears.
-> +
-> +	# dmesg | grep ramster
-
-Are you sure ramster still spits out messages?  If so, provide an
-example of what it should look like.
-
-> +   You should also see a lot of files in:
-> +
-> +	# ls /sys/kernel/debug/zcache
-> +	# ls /sys/kernel/debug/ramster
-
-You forgot to mention that debugfs needs to be mounted.
-
-> +   and a few files in:
-> +
-> +	# ls /sys/kernel/mm/ramster
-> +
-> +   RAMster now will act as a single-system zcache but doesn't yet
-> +   know anything about the cluster so can't do anything remotely.
-> +
-> +C. BUILDING THE RAMSTER CLUSTER
-> +
-> +This is the error prone part unless you are a clustering expert.  We need
-> +to describe the cluster in /etc/ramster.conf file and the init scripts
-> +that parse it are extremely picky about the syntax.
-> +
-> +1) Create the /etc/ramster.conf file and ensure it is identical
-> +   on both systems.  There is a good amount of similar documentation
-> +   for ocfs2 /etc/cluster.conf that can be googled for this, but I use:
-> +
-> +	cluster:
-> +		name = ramster
-> +		node_count = 2
-> +	node:
-> +		name = system1
-> +		cluster = ramster
-> +		number = 0
-> +		ip_address = my.ip.ad.r1
-> +		ip_port = 7777
-> +	node:
-> +		name = system2
-> +		cluster = ramster
-> +		number = 0
-> +		ip_address = my.ip.ad.r2
-> +		ip_port = 7777
-> +
-> +   You must ensure that the "name" field in the file exactly matches
-> +   the output of "hostname" on each system.  The following assumes
-> +   you use "ramster" as the name of your cluster.
-> +
-> +2) Enable the ramster service and configure it:
-> +
-> +	# chkconfig --add ramster
-> +	# service ramster configure
-
-That's a huge assumption as to how your system config/startup scripts
-work, right?  Not all the world is using old-style system V init
-anymore, what about systemd?  openrc?
-
-greg k-h
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
