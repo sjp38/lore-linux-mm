@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 9AF576B0002
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 08:51:51 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 547886B0006
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 08:51:54 -0400 (EDT)
 From: Libin <huawei.libin@huawei.com>
-Subject: [PATCH 1/6] mm: use vma_pages() to replace (vm_end - vm_start) >> PAGE_SHIFT
-Date: Mon, 15 Apr 2013 20:48:53 +0800
-Message-ID: <1366030138-71292-1-git-send-email-huawei.libin@huawei.com>
+Subject: [PATCH 5/6] drm: use vma_pages() to replace (vm_end - vm_start) >> PAGE_SHIFT
+Date: Mon, 15 Apr 2013 20:48:57 +0800
+Message-ID: <1366030138-71292-5-git-send-email-huawei.libin@huawei.com>
+In-Reply-To: <1366030138-71292-1-git-send-email-huawei.libin@huawei.com>
+References: <1366030138-71292-1-git-send-email-huawei.libin@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -18,36 +20,31 @@ as a inline funcion vma_pages() in linux/mm.h, so using it.
 
 Signed-off-by: Libin <huawei.libin@huawei.com>
 ---
- mm/memory.c | 2 +-
- mm/mmap.c   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ drivers/gpu/drm/ttm/ttm_bo_vm.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 13cbc42..8b8ae1c 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2866,7 +2866,7 @@ static inline void unmap_mapping_range_tree(struct rb_root *root,
- 			details->first_index, details->last_index) {
+diff --git a/drivers/gpu/drm/ttm/ttm_bo_vm.c b/drivers/gpu/drm/ttm/ttm_bo_vm.c
+index 74705f3..3df9f16 100644
+--- a/drivers/gpu/drm/ttm/ttm_bo_vm.c
++++ b/drivers/gpu/drm/ttm/ttm_bo_vm.c
+@@ -147,7 +147,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
  
- 		vba = vma->vm_pgoff;
--		vea = vba + ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) - 1;
-+		vea = vba + vma_pages(vma) - 1;
- 		/* Assume for now that PAGE_CACHE_SHIFT == PAGE_SHIFT */
- 		zba = details->first_index;
- 		if (zba < vba)
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 0db0de1..118bfcb 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -919,7 +919,7 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
- 	if (is_mergeable_vma(vma, file, vm_flags) &&
- 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
- 		pgoff_t vm_pglen;
--		vm_pglen = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-+		vm_pglen = vma_pages(vma);
- 		if (vma->vm_pgoff + vm_pglen == vm_pgoff)
- 			return 1;
- 	}
+ 	page_offset = ((address - vma->vm_start) >> PAGE_SHIFT) +
+ 	    bo->vm_node->start - vma->vm_pgoff;
+-	page_last = ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) +
++	page_last = vma_pages(vma) +
+ 	    bo->vm_node->start - vma->vm_pgoff;
+ 
+ 	if (unlikely(page_offset >= bo->num_pages)) {
+@@ -258,7 +258,7 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
+ 
+ 	read_lock(&bdev->vm_lock);
+ 	bo = ttm_bo_vm_lookup_rb(bdev, vma->vm_pgoff,
+-				 (vma->vm_end - vma->vm_start) >> PAGE_SHIFT);
++				 vma_pages(vma));
+ 	if (likely(bo != NULL) && !kref_get_unless_zero(&bo->kref))
+ 		bo = NULL;
+ 	read_unlock(&bdev->vm_lock);
 -- 
 1.8.2.1
 
