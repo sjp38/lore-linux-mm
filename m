@@ -1,94 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 87D586B0002
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 16:58:07 -0400 (EDT)
-Date: Mon, 15 Apr 2013 13:58:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg: Check more strictly to avoid ULLONG overflow by
- PAGE_ALIGN
-Message-Id: <20130415135805.c552511917b0dbe113388acb@linux-foundation.org>
-In-Reply-To: <20130412171108.d3ef3e2d66e9c1bfcf69467c@mxp.nes.nec.co.jp>
-References: <1365748763-4350-1-git-send-email-handai.szj@taobao.com>
-	<20130412171108.d3ef3e2d66e9c1bfcf69467c@mxp.nes.nec.co.jp>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 97B386B0002
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 17:12:35 -0400 (EDT)
+Message-ID: <1366059610.3824.25.camel@misato.fc.hp.com>
+Subject: Re: [PATCH] firmware, memmap: fix firmware_map_entry leak
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 15 Apr 2013 15:00:10 -0600
+In-Reply-To: <516B94A1.4040603@jp.fujitsu.com>
+References: <516B94A1.4040603@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, jeff.liu@oracle.com, Sha Zhengju <handai.szj@taobao.com>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com
 
-On Fri, 12 Apr 2013 17:11:08 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-
-> > --- a/include/linux/res_counter.h
-> > +++ b/include/linux/res_counter.h
-> > @@ -54,7 +54,7 @@ struct res_counter {
-> >  	struct res_counter *parent;
-> >  };
-> >  
-> > -#define RESOURCE_MAX (unsigned long long)LLONG_MAX
-> > +#define RESOURCE_MAX (unsigned long long)ULLONG_MAX
-> >  
+On Mon, 2013-04-15 at 14:48 +0900, Yasuaki Ishimatsu wrote:
+> When hot removing a memory, a firmware_map_entry which has memory range
+> of the memory is released by release_firmware_map_entry(). If the entry
+> is allocated by bootmem, release_firmware_map_entry() adds the entry to
+> map_entires_bootmem list when firmware_map_find_entry() finds the entry
+> from map_entries list. But firmware_map_find_entry never find the entry
+> sicne map_entires list does not have the entry. So the entry just leaks.
 > 
-> I don't think it's a good idea to change a user-visible value.
-
-The old value was a mistake, surely.
-
-RESOURCE_MAX shouldn't be in this header file - that is far too general
-a name.  I suggest the definition be moved to res_counter.c.  And the
-(unsigned long long) cast is surely unneeded if we're to use
-ULLONG_MAX.
-
-> >  /**
-> >   * Helpers to interact with userspace
-> > diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> > index ff55247..6c35310 100644
-> > --- a/kernel/res_counter.c
-> > +++ b/kernel/res_counter.c
-> > @@ -195,6 +195,12 @@ int res_counter_memparse_write_strategy(const char *buf,
-> >  	if (*end != '\0')
-> >  		return -EINVAL;
-> >  
-> > -	*res = PAGE_ALIGN(*res);
-> > +	/* Since PAGE_ALIGN is aligning up(the next page boundary),
-> > +	 * check the left space to avoid overflow to 0. */
-> > +	if (RESOURCE_MAX - *res < PAGE_SIZE - 1)
-> > +		*res = RESOURCE_MAX;
-> > +	else
-> > +		*res = PAGE_ALIGN(*res);
-> > +
+> Here are steps of leaking firmware_map_entry:
+> firmware_map_remove()
+> -> firmware_map_find_entry()
+>    Find released entry from map_entries list
+> -> firmware_map_remove_entry()
+>    Delete the entry from map_entries list
+> -> remove_sysfs_fw_map_entry()
+>    ...
+>    -> release_firmware_map_entry()
+>       -> firmware_map_find_entry()
+>          Find the entry from map_entries list but the entry has been
+>          deleted from map_entries list. So the entry is not added
+>          to map_entries_bootmem. Thus the entry leaks
 > 
-> Current interface seems strange because we can set a bigger value than
-> the value which means "unlimited".
-
-I'm not sure what you mean by this?
-
-> So, how about some thing like:
+> release_firmware_map_entry() should not call firmware_map_find_entry()
+> since releaed entry has been deleted from map_entries list.
+> So the patch delete firmware_map_find_entry() from releae_firmware_map_entry()
 > 
-> 	if (*res > RESOURCE_MAX)
-> 		return -EINVAL;
-> 	if (*res > PAGE_ALIGN(RESOURCE_MAX) - PAGE_SIZE)
-> 		*res = RESOURCE_MAX;
-> 	else
-> 		*res = PAGE_ALIGN(*res);
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+
+Acked-by: Toshi Kani <toshi.kani@hp.com>
+
+Thanks,
+-Toshi
+
+
+> ---
+>  drivers/firmware/memmap.c |    9 +++------
+>  1 files changed, 3 insertions(+), 6 deletions(-)
+> 
+> diff --git a/drivers/firmware/memmap.c b/drivers/firmware/memmap.c
+> index 0b5b5f6..e2e04b0 100644
+> --- a/drivers/firmware/memmap.c
+> +++ b/drivers/firmware/memmap.c
+> @@ -114,12 +114,9 @@ static void __meminit release_firmware_map_entry(struct kobject *kobj)
+>  		 * map_entries_bootmem here, and deleted from &map_entries in
+>  		 * firmware_map_remove_entry().
+>  		 */
+> -		if (firmware_map_find_entry(entry->start, entry->end,
+> -		    entry->type)) {
+> -			spin_lock(&map_entries_bootmem_lock);
+> -			list_add(&entry->list, &map_entries_bootmem);
+> -			spin_unlock(&map_entries_bootmem_lock);
+> -		}
+> +		spin_lock(&map_entries_bootmem_lock);
+> +		list_add(&entry->list, &map_entries_bootmem);
+> +		spin_unlock(&map_entries_bootmem_lock);
+>  
+>  		return;
+>  	}
 > 
 
-The first thing I'd do to res_counter_memparse_write_strategy() is to
-rename its second arg to `resp' then add a local called `res'.  Because
-that function dereferences res far too often.
-
-Then,
-
--	*res = PAGE_ALIGN(*res);
-	if (PAGE_ALIGN(res) >= res)
-		res = PAGE_ALIGN(res);
-	else
-		res = RESOURCE_MAX;	/* PAGE_ALIGN wrapped to zero */
-
-	*resp = res;
-	return 0;
-	
-	
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
