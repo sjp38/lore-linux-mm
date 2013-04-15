@@ -1,180 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 727EB6B0002
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 10:12:11 -0400 (EDT)
-Date: Mon, 15 Apr 2013 07:12:05 -0700
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: System freezes when RAM is full (64-bit)
-Message-ID: <20130415141205.GA13662@dhcp22.suse.cz>
-References: <20130403121220.GA14388@dhcp22.suse.cz>
- <515CC8E6.3000402@gmail.com>
- <20130404070856.GB29911@dhcp22.suse.cz>
- <515D89BE.2040609@gmail.com>
- <20130404151658.GJ29911@dhcp22.suse.cz>
- <515EA3B7.5030308@gmail.com>
- <20130405115914.GD31132@dhcp22.suse.cz>
- <515F3701.1080504@gmail.com>
- <20130412102020.GA20624@dhcp22.suse.cz>
- <516B8A26.7060402@gmail.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 8BACC6B0002
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 11:28:52 -0400 (EDT)
 MIME-Version: 1.0
+Message-ID: <205ad2fe-50e6-4275-b90d-783e9f6c6984@default>
+Date: Mon, 15 Apr 2013 08:28:46 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [Lsf] [LSF/MM TOPIC] Beyond NUMA
+References: <9f091f23-9314-422c-9f97-525ddefd483b@default>
+ <1365975590.2359.22.camel@dabdike>
+In-Reply-To: <1365975590.2359.22.camel@dabdike>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <516B8A26.7060402@gmail.com>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Ivan Danov <huhavel@gmail.com>, linux-mm@kvack.org, 1162073@bugs.launchpad.net, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: lsf@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Mon 15-04-13 13:03:34, Simon Jeons wrote:
-> Hi Michal,
-> On 04/12/2013 06:20 PM, Michal Hocko wrote:
-> >[CCing Mel and Johannes]
-> >On Fri 05-04-13 22:41:37, Ivan Danov wrote:
-> >>Here you can find attached the script, collecting the logs and the
-> >>logs themselves during the described process of freezing. It
-> >>appeared that the previous logs are corrupted, because both
-> >>/proc/vmstat and /proc/meminfo have been logging to the same file.
-> >Sorry for the late reply:
-> >$ grep MemFree: meminfo.1365194* | awk 'BEGIN{min=9999999}{val=$2; if(val<min)min=val; if(val>max)max=val; sum+=val; n++}END{printf "min:%d max:%d avg:%.2f\n", min, max, sum/n}'
-> >min:165256 max:3254516 avg:1642475.35
+> From: James Bottomley [mailto:James.Bottomley@HansenPartnership.com]
+> Subject: Re: [Lsf] [LSF/MM TOPIC] Beyond NUMA
+>=20
+> On Thu, 2013-04-11 at 17:29 -0700, Dan Magenheimer wrote:
+> > MM developers and all --
 > >
-> >So the free memory dropped down to 165M at minimum. This doesn't sound
-> >terribly low and the average free memory was even above 1.5G. But maybe
-> >the memory consumption peak was very short between 2 measured moments.
+> > It's a bit late to add a topic, but with such a great group of brains
+> > together, it seems worthwhile to spend at least some time speculating
+> > on "farther-out" problems.  So I propose for the MM track:
 > >
-> >The peak seems to be around this time:
-> >meminfo.1365194083:MemFree:          650792 kB
-> >meminfo.1365194085:MemFree:          664920 kB
-> >meminfo.1365194087:MemFree:          165256 kB  <<<
-> >meminfo.1365194089:MemFree:          822968 kB
-> >meminfo.1365194094:MemFree:          666940 kB
+> > Beyond NUMA
 > >
-> >Let's have a look at the memory reclaim activity
-> >vmstat.1365194085:pgscan_kswapd_dma32 760
-> >vmstat.1365194085:pgscan_kswapd_normal 10444
+> > NUMA now impacts even the smallest servers and soon, perhaps even embed=
+ded
+> > systems, but the performance effects are limited when the number of nod=
+es
+> > is small (e.g. two).  As the number of nodes grows, along with the numb=
+er
+> > of memory controllers, NUMA can have a big performance impact and the M=
+M
+> > community has invested a huge amount of energy into reducing this probl=
+em.
 > >
-> >vmstat.1365194087:pgscan_kswapd_dma32 760
-> >vmstat.1365194087:pgscan_kswapd_normal 10444
+> > But as the number of memory controllers grows, the cost of the system
+> > grows faster.  This is classic "scale-up" and certain workloads will
+> > always benefit from having as many CPUs/cores and nodes as can be
+> > packed into a single system.  System vendors are happy to oblige becaus=
+e the
+> > profit margin on scale-out systems can be proportionally much much
+> > larger than on smaller commodity systems.  So the NUMA work will always
+> > be necessary and important.
 > >
-> >vmstat.1365194089:pgscan_kswapd_dma32 5855
-> >vmstat.1365194089:pgscan_kswapd_normal 80621
+> > But as scale-out grows to previously unimaginable levels, an increasing
+> > fraction of workloads are unable to adequately benefit to compensate
+> > for the non-linear increase in system cost.  And so more users, especia=
+lly
+> > cost-sensitive users, are turning instead to scale-out to optimize
+> > cost vs benefit for their massive data centers.  Recent examples includ=
+e
+> > HP's Moonshot and Facebook's "Group Hug".  And even major data center
+> > topology changes are being proposed which use super-high-speed links to
+> > separate CPUs from RAM [1].
 > >
-> >vmstat.1365194094:pgscan_kswapd_dma32 54333
-> >vmstat.1365194094:pgscan_kswapd_normal 285562
-> >
-> >[...]
-> >vmstat.1365194098:pgscan_kswapd_dma32 54333
-> >vmstat.1365194098:pgscan_kswapd_normal 285562
-> >
-> >vmstat.1365194100:pgscan_kswapd_dma32 55760
-> >vmstat.1365194100:pgscan_kswapd_normal 289493
-> >
-> >vmstat.1365194102:pgscan_kswapd_dma32 55760
-> >vmstat.1365194102:pgscan_kswapd_normal 289493
-> >
-> >So the background reclaim was active only twice for a short amount of
-> >time:
-> >- 1365194087 - 1365194094 - 53573 pages in dma32 and 275118 in normal zone
-> >- 1365194098 - 1365194100 - 1427 pages in dma32 and 3931 in normal zone
-> >
-> >The second one looks sane so we can ignore it for now but the first one
-> >scanned 1074M in normal zone and 209M in the dma32 zone. Either kswapd
-> >had hard time to find something to reclaim or it couldn't cope with the
-> >ongoing memory pressure.
-> >
-> >vmstat.1365194087:pgsteal_kswapd_dma32 373
-> >vmstat.1365194087:pgsteal_kswapd_normal 9057
-> >
-> >vmstat.1365194089:pgsteal_kswapd_dma32 3249
-> >vmstat.1365194089:pgsteal_kswapd_normal 56756
-> >
-> >vmstat.1365194094:pgsteal_kswapd_dma32 14731
-> >vmstat.1365194094:pgsteal_kswapd_normal 221733
-> >
-> >...087-...089
-> >	- dma32 scanned 5095, reclaimed 0
-> >	- normal scanned 70177, reclaimed 0
-> 
-> This is not correct.
->     - dma32 scanned 5095, reclaimed 2876, effective = 56%
->     - normal scanned 70177, reclaimed 47699, effective = 68%
+> > While filesystems and storage have long ago adapted to handle large
+> > numbers of servers effectively, the MM subsystem is still isolated,
+> > managing its own private set of RAM, independent of and completely
+> > partitioned from the RAM of other servers.  Perhaps we, the Linux
+> > MM developers, should start considering how MM can evolve in this
+> > new world.  In some ways, scale-out is like NUMA, but a step beyond.
+> > In other ways, scale-out is very different.  The ramster project [2]
+> > in the staging tree is a step in the direction of "clusterizing" RAM,
+> > but may or may not be the right step.
+>=20
+> I've got to say from a physics, rather than mm perspective, this sounds
+> to be a really badly framed problem.  We seek to eliminate complexity by
+> simplification.  What this often means is that even though the theory
+> allows us to solve a problem in an arbitrary frame, there's usually a
+> nice one where it looks a lot simpler (that's what the whole game of
+> eigenvector mathematics and group characters is all about).
+>=20
+> Saying we need to consider remote in-use memory as high numa and manage
+> it from a local node looks a lot like saying we need to consider a
+> problem in an arbitrary frame rather than looking for the simplest one.
+> The fact of the matter is that network remote memory has latency orders
+> of magnitude above local ... the effect is so distinct, it's not even
+> worth calling it NUMA.  It does seem then that the correct frame to
+> consider this in is local + remote separately with a hierarchical
+> management (the massive difference in latencies makes this a simple
+> observation from perturbation theory).  Amazingly this is what current
+> clustering tools tend to do, so I don't really see there's much here to
+> add to the current practice.
 
-Right you are! I've made a mistake compared wrong timestamps.
+Hi James --
 
-> >...089-...094
-> >	-dma32 scanned 48478, reclaimed 2876
-> >	- normal scanned 204941, reclaimed 164977
-> 
->     - dma32 scanned 48478, reclaimed 11482, effective = 23%
->     - normal scanned 204941, reclaimed 164977, effective = 80%
+Key point...
 
-Same here.
-> 
-> >This shows that kswapd was not able to reclaim any page at first and
-> >then it reclaimed a lot (644M in 5s) but still very ineffectively (5% in
-> >dma32 and 80% for normal) although normal zone seems to be doing much
-> >better.
-> >
-> >The direct reclaim was active during that time as well:
-> >vmstat.1365194089:pgscan_direct_dma32 0
-> >vmstat.1365194089:pgscan_direct_normal 0
-> >
-> >vmstat.1365194094:pgscan_direct_dma32 29339
-> >vmstat.1365194094:pgscan_direct_normal 86869
-> >
-> >which scanned 29339 in dma32 and 86869 in normal zone while it reclaimed:
-> >
-> >vmstat.1365194089:pgsteal_direct_dma32 0
-> >vmstat.1365194089:pgsteal_direct_normal 0
-> >
-> >vmstat.1365194094:pgsteal_direct_dma32 6137
-> >vmstat.1365194094:pgsteal_direct_normal 57677
-> >
-> >225M in the normal zone but it was still not effective very much (~20%
-> >for dma32 and 66% for normal).
-> >
-> >vmstat.1365194087:nr_written 9013
-> >vmstat.1365194089:nr_written 9013
-> >vmstat.1365194094:nr_written 15387
-> >
-> >Only around 24M have been written out during the massive scanning.
-> >
-> >So we have two problems here I guess. First is that there is not much
-> >reclaimable memory when the peak consumption starts and then we have
-> >hard times to balance dma32 zone.
-> >
-> >vmstat.1365194087:nr_shmem 103548
-> >vmstat.1365194089:nr_shmem 102227
-> >vmstat.1365194094:nr_shmem 100679
-> >
-> >This tells us that you didn't have that many shmem pages allocated at
-> >the time (only 404M). So the /tmp backed by tmpfs shouldn't be the
-> >primary issue here.
-> >
-> >We still have a lot of anonymous memory though:
-> >vmstat.1365194087:nr_anon_pages 1430922
-> >vmstat.1365194089:nr_anon_pages 1317009
-> >vmstat.1365194094:nr_anon_pages 1540460
-> >
-> >which is around 5.5G. It is interesting that the number of these pages
-> >even drops first and then starts growing again (between 089..094 by 870M
-> >while we reclaimed around the same amount). This would suggest that the
-> >load started trashing on swap but:
-> >
-> >meminfo.1365194087:SwapFree:        1999868 kB
-> >meminfo.1365194089:SwapFree:        1999808 kB
-> >meminfo.1365194094:SwapFree:        1784544 kB
-> >
-> >tells us that we swapped out only 210M after 1365194089. So we had to
-> 
-> How about set vm.swapiness to 200?
+> The fact of the matter is that network remote memory has latency orders
+> of magnitude above local ... the effect is so distinct, it's not even
+> worth calling it NUMA.
 
-swappiness is limited to 0 to 100 values. And it treats anon vs. file
-LRUs equally at 100.
- 
--- 
-Michal Hocko
-SUSE Labs
+I didn't say "network remote memory", though I suppose the underlying
+fabric might support TCP/IP traffic as well.  If there is a "fast
+connection" between the nodes or from nodes to a "memory server", and
+it is NOT cache-coherent, and the addressable unit is much larger
+than a byte (i.e. perhaps a page), the "frame" is not so arbitrary.
+For example "RDMA'ing" a page from one node's RAM to another
+node's RAM might not be much slower than copying a page on
+a large ccNUMA machine, and still orders of magnitude faster
+than paging-in or swapping-in from remote storage.  And just
+as today's kernel NUMA code attempts to anticipate if/when
+data will be needed and copy it from remote NUMA node to local
+NUMA node, this "RDMA-ish" technique could do the same between
+cooperating kernels on different machines.
+
+In other words, I'm positing a nice "correct frame" which, given
+changes in system topology, fits between current ccNUMA machines
+and JBON (just a bunch of nodes, connected via LAN), and proposing
+that maybe the MM subsystem could be not only aware of it but
+actively participate in it.
+
+As I said, ramster is one such possibility... I'm wondering if
+there are more and, if so, better ones.
+
+Does that make more sense?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
