@@ -1,81 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 97B386B0002
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 17:12:35 -0400 (EDT)
-Message-ID: <1366059610.3824.25.camel@misato.fc.hp.com>
-Subject: Re: [PATCH] firmware, memmap: fix firmware_map_entry leak
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 15 Apr 2013 15:00:10 -0600
-In-Reply-To: <516B94A1.4040603@jp.fujitsu.com>
-References: <516B94A1.4040603@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 249C46B0002
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 17:46:22 -0400 (EDT)
+Date: Mon, 15 Apr 2013 14:46:19 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 5/5] mm: Soft-dirty bits for user memory changes
+ tracking
+Message-Id: <20130415144619.645394d8ecdb180d7757a735@linux-foundation.org>
+In-Reply-To: <5168089B.7060305@parallels.com>
+References: <51669E5F.4000801@parallels.com>
+	<51669EB8.2020102@parallels.com>
+	<20130411142417.bb58d519b860d06ab84333c2@linux-foundation.org>
+	<5168089B.7060305@parallels.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, 2013-04-15 at 14:48 +0900, Yasuaki Ishimatsu wrote:
-> When hot removing a memory, a firmware_map_entry which has memory range
-> of the memory is released by release_firmware_map_entry(). If the entry
-> is allocated by bootmem, release_firmware_map_entry() adds the entry to
-> map_entires_bootmem list when firmware_map_find_entry() finds the entry
-> from map_entries list. But firmware_map_find_entry never find the entry
-> sicne map_entires list does not have the entry. So the entry just leaks.
+On Fri, 12 Apr 2013 17:14:03 +0400 Pavel Emelyanov <xemul@parallels.com> wrote:
+
+> On 04/12/2013 01:24 AM, Andrew Morton wrote:
+> > On Thu, 11 Apr 2013 15:30:00 +0400 Pavel Emelyanov <xemul@parallels.com> wrote:
+> > 
+> >> The soft-dirty is a bit on a PTE which helps to track which pages a task
+> >> writes to. In order to do this tracking one should
+> >>
+> >>   1. Clear soft-dirty bits from PTEs ("echo 4 > /proc/PID/clear_refs)
+> >>   2. Wait some time.
+> >>   3. Read soft-dirty bits (55'th in /proc/PID/pagemap2 entries)
+> >>
+> >> To do this tracking, the writable bit is cleared from PTEs when the
+> >> soft-dirty bit is. Thus, after this, when the task tries to modify a page
+> >> at some virtual address the #PF occurs and the kernel sets the soft-dirty
+> >> bit on the respective PTE.
+> >>
+> >> Note, that although all the task's address space is marked as r/o after the
+> >> soft-dirty bits clear, the #PF-s that occur after that are processed fast.
+> >> This is so, since the pages are still mapped to physical memory, and thus
+> >> all the kernel does is finds this fact out and puts back writable, dirty
+> >> and soft-dirty bits on the PTE.
+> >>
+> >> Another thing to note, is that when mremap moves PTEs they are marked with
+> >> soft-dirty as well, since from the user perspective mremap modifies the
+> >> virtual memory at mremap's new address.
+> >>
+> >> ...
+> >>
+> >> +config MEM_SOFT_DIRTY
+> >> +	bool "Track memory changes"
+> >> +	depends on CHECKPOINT_RESTORE && X86
+> > 
+> > I guess we can add the CHECKPOINT_RESTORE dependency for now, but it is
+> > a general facility and I expect others will want to get their hands on
+> > it for unrelated things.
 > 
-> Here are steps of leaking firmware_map_entry:
-> firmware_map_remove()
-> -> firmware_map_find_entry()
->    Find released entry from map_entries list
-> -> firmware_map_remove_entry()
->    Delete the entry from map_entries list
-> -> remove_sysfs_fw_map_entry()
->    ...
->    -> release_firmware_map_entry()
->       -> firmware_map_find_entry()
->          Find the entry from map_entries list but the entry has been
->          deleted from map_entries list. So the entry is not added
->          to map_entries_bootmem. Thus the entry leaks
+> OK. Just tell me when you need the dependency removing patch.
 > 
-> release_firmware_map_entry() should not call firmware_map_find_entry()
-> since releaed entry has been deleted from map_entries list.
-> So the patch delete firmware_map_find_entry() from releae_firmware_map_entry()
+> >>From that perspective, the dependency on X86 is awful.  What's the
+> > problem here and what do other architectures need to do to be able to
+> > support the feature?
 > 
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> The problem here is that I don't know what free bits are available on
+> page table entries on other architectures. I was about to resolve this
+> for ARM very soon, but for the rest of them I need help from other people.
 
-Acked-by: Toshi Kani <toshi.kani@hp.com>
+Well, this is also a thing arch maintainers can do when they feel a
+need to support the feature on their architecture.  To support them at
+that time we should provide them with a) adequate information in an
+easy-to-find place (eg, a nice comment at the site of the reference x86
+implementation) and b) a userspace test app.
 
-Thanks,
--Toshi
-
-
-> ---
->  drivers/firmware/memmap.c |    9 +++------
->  1 files changed, 3 insertions(+), 6 deletions(-)
+> > You have a test application, I assume.  It would be helpful if we could
+> > get that into tools/testing/selftests.
 > 
-> diff --git a/drivers/firmware/memmap.c b/drivers/firmware/memmap.c
-> index 0b5b5f6..e2e04b0 100644
-> --- a/drivers/firmware/memmap.c
-> +++ b/drivers/firmware/memmap.c
-> @@ -114,12 +114,9 @@ static void __meminit release_firmware_map_entry(struct kobject *kobj)
->  		 * map_entries_bootmem here, and deleted from &map_entries in
->  		 * firmware_map_remove_entry().
->  		 */
-> -		if (firmware_map_find_entry(entry->start, entry->end,
-> -		    entry->type)) {
-> -			spin_lock(&map_entries_bootmem_lock);
-> -			list_add(&entry->list, &map_entries_bootmem);
-> -			spin_unlock(&map_entries_bootmem_lock);
-> -		}
-> +		spin_lock(&map_entries_bootmem_lock);
-> +		list_add(&entry->list, &map_entries_bootmem);
-> +		spin_unlock(&map_entries_bootmem_lock);
->  
->  		return;
->  	}
-> 
+> If a very stupid 10-lines test is OK, then I can cook a patch with it.
 
+I think that would be good.  As a low-priority thing, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
