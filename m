@@ -1,146 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id A434E6B0002
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 11:38:13 -0400 (EDT)
-Received: by mail-qa0-f41.google.com with SMTP id hg5so909666qab.0
-        for <linux-mm@kvack.org>; Mon, 15 Apr 2013 08:38:12 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <516BBCB5.7050303@gmail.com>
-References: <5114DF05.7070702@mellanox.com>
-	<CANN689Ff6vSu4ZvHek4J4EMzFG7EjF-Ej48hJKV_4SrLoj+mCA@mail.gmail.com>
-	<CAH3drwaACy5KFv_2ozEe35u1Jpxs0f6msKoW=3_0nrWZpJnO4w@mail.gmail.com>
-	<516BBCB5.7050303@gmail.com>
-Date: Mon, 15 Apr 2013 11:38:12 -0400
-Message-ID: <CAH3drwYfC-pkgeokRB+tVpRmCiMAOk3b-EvL5kVpcxX-hM=kJQ@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
- hardware access to the CPU page tables of user processes
-From: Jerome Glisse <j.glisse@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7bdc853a62ef3a04da680a27
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id ECC5B6B0006
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 12:00:45 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: IOZone with transparent huge page cache
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130415160238.00B2DE0085@blue.fi.intel.com>
+Date: Mon, 15 Apr 2013 19:02:37 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>, Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
---047d7bdc853a62ef3a04da680a27
-Content-Type: text/plain; charset=ISO-8859-1
+Kirill A. Shutemov wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> 
+> Here's third RFC. Thanks everybody for feedback.
+> 
+> The patchset is pretty big already and I want to stop generate new
+> features to keep it reviewable. Next I'll concentrate on benchmarking and
+> tuning.
 
-On Mon, Apr 15, 2013 at 4:39 AM, Simon Jeons <simon.jeons@gmail.com> wrote:
+Okay, here's first test results for the patchset (I did few minor fixes).
 
-> Hi Jerome,
-> On 02/10/2013 12:29 AM, Jerome Glisse wrote:
->
->> On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse <walken@google.com>
->> wrote:
->>
->>> On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel <raindel@mellanox.com>
->>> wrote:
->>>
->>>> Hi,
->>>>
->>>> We would like to present a reference implementation for safely sharing
->>>> memory pages from user space with the hardware, without pinning.
->>>>
->>>> We will be happy to hear the community feedback on our prototype
->>>> implementation, and suggestions for future improvements.
->>>>
->>>> We would also like to discuss adding features to the core MM subsystem
->>>> to
->>>> assist hardware access to user memory without pinning.
->>>>
->>> This sounds kinda scary TBH; however I do understand the need for such
->>> technology.
->>>
->>> I think one issue is that many MM developers are insufficiently aware
->>> of such developments; having a technology presentation would probably
->>> help there; but traditionally LSF/MM sessions are more interactive
->>> between developers who are already quite familiar with the technology.
->>> I think it would help if you could send in advance a detailed
->>> presentation of the problem and the proposed solutions (and then what
->>> they require of the MM layer) so people can be better prepared.
->>>
->>> And first I'd like to ask, aren't IOMMUs supposed to already largely
->>> solve this problem ? (probably a dumb question, but that just tells
->>> you how much you need to explain :)
->>>
->> For GPU the motivation is three fold. With the advance of GPU compute
->> and also with newer graphic program we see a massive increase in GPU
->> memory consumption. We easily can reach buffer that are bigger than
->> 1gbytes. So the first motivation is to directly use the memory the
->> user allocated through malloc in the GPU this avoid copying 1gbytes of
->> data with the cpu to the gpu buffer. The second and mostly important
->>
->
-> The pinned memory you mentioned is the memory user allocated or the memory
-> of gpu buffer?
->
+I run iozone using mmap files (-B) with different number of threads.
+The test machine is 4s Westmere - 4x10 cores + HT.
 
-Memory user allocated, we don't want to pin this memory.
+** Initial writers **
+threads:	        1        2        4        8       16       32       64      128      256
+baseline:	  1103360   912585   500065   260503   128918    62039    34799    18718     9376
+patched:	  2127476  2155029  2345079  1942158  1127109   571899   127090    52939    25950
+speed-up(times):     1.93     2.36     4.69     7.46     8.74     9.22     3.65     2.83     2.77
 
-Cheers,
-Jerome
+** Rewriters **
+threads:	        1        2        4        8       16       32       64      128      256
+baseline:	  1391599  1167340  1040505   484431   225883   108426    53239    28133    15007
+patched:	  2284535  1943774  2245681  1288542   438100   308559   115641    64990    30638
+speed-up(times):     1.64     1.67     2.16     2.66     1.94     2.85     2.17     2.31     2.04
 
---047d7bdc853a62ef3a04da680a27
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+** Readers **
+threads:	        1        2        4        8       16       32       64      128      256
+baseline:	  1344180  1339641  1094513   604079   273020   129403    76666    41785    20111
+patched:	  1790010  1807535  2039022  1884901  1470841   874517   429414   207033    99853
+speed-up(times):     1.33     1.35     1.86     3.12     5.39     6.76     5.60     4.95     4.97
 
-<div class=3D"gmail_quote">On Mon, Apr 15, 2013 at 4:39 AM, Simon Jeons <sp=
-an dir=3D"ltr">&lt;<a href=3D"mailto:simon.jeons@gmail.com" target=3D"_blan=
-k">simon.jeons@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmai=
-l_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left=
-:1ex">
-<div class=3D"im">Hi Jerome,<br>
-On 02/10/2013 12:29 AM, Jerome Glisse wrote:<br>
-</div><div><div class=3D"h5"><blockquote class=3D"gmail_quote" style=3D"mar=
-gin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
-On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse &lt;<a href=3D"mailto:wal=
-ken@google.com" target=3D"_blank">walken@google.com</a>&gt; wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">
-On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel &lt;<a href=3D"mailto:raind=
-el@mellanox.com" target=3D"_blank">raindel@mellanox.com</a>&gt; wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">
-Hi,<br>
-<br>
-We would like to present a reference implementation for safely sharing<br>
-memory pages from user space with the hardware, without pinning.<br>
-<br>
-We will be happy to hear the community feedback on our prototype<br>
-implementation, and suggestions for future improvements.<br>
-<br>
-We would also like to discuss adding features to the core MM subsystem to<b=
-r>
-assist hardware access to user memory without pinning.<br>
-</blockquote>
-This sounds kinda scary TBH; however I do understand the need for such<br>
-technology.<br>
-<br>
-I think one issue is that many MM developers are insufficiently aware<br>
-of such developments; having a technology presentation would probably<br>
-help there; but traditionally LSF/MM sessions are more interactive<br>
-between developers who are already quite familiar with the technology.<br>
-I think it would help if you could send in advance a detailed<br>
-presentation of the problem and the proposed solutions (and then what<br>
-they require of the MM layer) so people can be better prepared.<br>
-<br>
-And first I&#39;d like to ask, aren&#39;t IOMMUs supposed to already largel=
-y<br>
-solve this problem ? (probably a dumb question, but that just tells<br>
-you how much you need to explain :)<br>
-</blockquote>
-For GPU the motivation is three fold. With the advance of GPU compute<br>
-and also with newer graphic program we see a massive increase in GPU<br>
-memory consumption. We easily can reach buffer that are bigger than<br>
-1gbytes. So the first motivation is to directly use the memory the<br>
-user allocated through malloc in the GPU this avoid copying 1gbytes of<br>
-data with the cpu to the gpu buffer. The second and mostly important<br>
-</blockquote>
-<br></div></div>
-The pinned memory you mentioned is the memory user allocated or the memory =
-of gpu buffer?<br></blockquote></div><br>Memory user allocated, we don&#39;=
-t want to pin this memory.<br><br>Cheers,<br>Jerome<br>
+** Re-readers **
+threads:	        1        2        4        8       16       32       64      128      256
+baseline:	  1402398  1239448  1105293   653823   273997   130629    75943    40588    20456
+patched:	  1928768  2076134  1791750  1907793  1494477   876014   432898   207279   102002
+speed-up(times):     1.38     1.68     1.62     2.92     5.45     6.71     5.70     5.11     4.99
 
---047d7bdc853a62ef3a04da680a27--
+** Reverse readers **
+threads:	        1        2        4        8       16       32       64      128      256
+baseline:	  1545930  1443504  1175183   604320   277178   128694    76734    40956    20345
+patched:	  1907933  1827041  1919202  1734568  1497661   862046   429960   208326    93213
+speed-up(times):     1.23     1.27     1.63     2.87     5.40     6.70     5.60     5.09     4.58
+
+** Random_readers **
+threads:	        1        2        4        8       16       32       64      128      256
+baseline:	  1069364   968029   887646   570211   257909   124713    74354    40663    20213
+patched:	  1881762  2144045  1989631  2057963  1560892   867901   424109   205934    98021
+speed-up(times):     1.76     2.21     2.24     3.61     6.05     6.96     5.70     5.06     4.85
+
+** Random_writers **
+threads:	        1        2        4        8       16       32       64      128      256
+baseline:	  1236302  1033694   882697   475439   231973   113590    65675    35458    17890
+patched:	  2778110  2484373  2454243  1329193   706394   353300   173871    86194    42815
+speed-up(times):     2.25     2.40     2.78     2.80     3.05     3.11     2.65     2.43     2.39
+
+Minimal speed up is in 1-thread reverse readers - 23%.
+Maximal is 9.2 times in 32-thread initial writers. It's probably due
+batched radix tree insert - we insert 512 pages a time. It reduces
+mapping->tree_lock contention.
+
+I wounder why rewriters are slower then initial writers. Readers also
+slower then initial writers for low number of threads. It requires further
+investigation.
+
+In overall looks pretty impressive to me. :)
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
