@@ -1,105 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 614436B0002
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 19:38:36 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id EA24F3EE0AE
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 08:38:34 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C969145DE5A
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 08:38:34 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AE97245DE55
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 08:38:34 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id A20391DB804D
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 08:38:34 +0900 (JST)
-Received: from g01jpexchkw32.g01.fujitsu.local (g01jpexchkw32.g01.fujitsu.local [10.0.193.115])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 5B2191DB8046
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 08:38:34 +0900 (JST)
-Message-ID: <516C8F5A.2030900@jp.fujitsu.com>
-Date: Tue, 16 Apr 2013 08:38:02 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] firmware, memmap: fix firmware_map_entry leak
-References: <516B94A1.4040603@jp.fujitsu.com> <1366059610.3824.25.camel@misato.fc.hp.com>
-In-Reply-To: <1366059610.3824.25.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id C2E5D6B0002
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 19:58:04 -0400 (EDT)
+Date: Tue, 16 Apr 2013 09:57:53 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH 5/5] mm: Soft-dirty bits for user memory changes
+ tracking
+Message-Id: <20130416095753.d94fa7d74db6c4293ec7dea9@canb.auug.org.au>
+In-Reply-To: <20130415144619.645394d8ecdb180d7757a735@linux-foundation.org>
+References: <51669E5F.4000801@parallels.com>
+	<51669EB8.2020102@parallels.com>
+	<20130411142417.bb58d519b860d06ab84333c2@linux-foundation.org>
+	<5168089B.7060305@parallels.com>
+	<20130415144619.645394d8ecdb180d7757a735@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Tue__16_Apr_2013_09_57_53_+1000_DzV3xC3VcGJY8=O2"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Pavel Emelyanov <xemul@parallels.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-2013/04/16 6:00, Toshi Kani wrote:
-> On Mon, 2013-04-15 at 14:48 +0900, Yasuaki Ishimatsu wrote:
->> When hot removing a memory, a firmware_map_entry which has memory range
->> of the memory is released by release_firmware_map_entry(). If the entry
->> is allocated by bootmem, release_firmware_map_entry() adds the entry to
->> map_entires_bootmem list when firmware_map_find_entry() finds the entry
->> from map_entries list. But firmware_map_find_entry never find the entry
->> sicne map_entires list does not have the entry. So the entry just leaks.
->>
->> Here are steps of leaking firmware_map_entry:
->> firmware_map_remove()
->> -> firmware_map_find_entry()
->>     Find released entry from map_entries list
->> -> firmware_map_remove_entry()
->>     Delete the entry from map_entries list
->> -> remove_sysfs_fw_map_entry()
->>     ...
->>     -> release_firmware_map_entry()
->>        -> firmware_map_find_entry()
->>           Find the entry from map_entries list but the entry has been
->>           deleted from map_entries list. So the entry is not added
->>           to map_entries_bootmem. Thus the entry leaks
->>
->> release_firmware_map_entry() should not call firmware_map_find_entry()
->> since releaed entry has been deleted from map_entries list.
->> So the patch delete firmware_map_find_entry() from releae_firmware_map_entry()
->>
->> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->
-> Acked-by: Toshi Kani <toshi.kani@hp.com>
+--Signature=_Tue__16_Apr_2013_09_57_53_+1000_DzV3xC3VcGJY8=O2
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Thank you for your review.
+On Mon, 15 Apr 2013 14:46:19 -0700 Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>
+> Well, this is also a thing arch maintainers can do when they feel a
+> need to support the feature on their architecture.  To support them at
+> that time we should provide them with a) adequate information in an
+> easy-to-find place (eg, a nice comment at the site of the reference x86
+> implementation) and b) a userspace test app.
 
-Thanks,
-Yasuaki Ishimatsu
+and c) a CONFIG symbol (maybe CONFIG_HAVE_MEM_SOFT_DIRTY, maybe in
+arch/Kconfig) that they can select to get this feature (so that this
+feature then depend on that CONFIG symbol instead of X86).  That way we
+don't have to go back and tidy this up when 15 or so architectures
+implement it.
 
->
-> Thanks,
-> -Toshi
->
->
->> ---
->>   drivers/firmware/memmap.c |    9 +++------
->>   1 files changed, 3 insertions(+), 6 deletions(-)
->>
->> diff --git a/drivers/firmware/memmap.c b/drivers/firmware/memmap.c
->> index 0b5b5f6..e2e04b0 100644
->> --- a/drivers/firmware/memmap.c
->> +++ b/drivers/firmware/memmap.c
->> @@ -114,12 +114,9 @@ static void __meminit release_firmware_map_entry(struct kobject *kobj)
->>   		 * map_entries_bootmem here, and deleted from &map_entries in
->>   		 * firmware_map_remove_entry().
->>   		 */
->> -		if (firmware_map_find_entry(entry->start, entry->end,
->> -		    entry->type)) {
->> -			spin_lock(&map_entries_bootmem_lock);
->> -			list_add(&entry->list, &map_entries_bootmem);
->> -			spin_unlock(&map_entries_bootmem_lock);
->> -		}
->> +		spin_lock(&map_entries_bootmem_lock);
->> +		list_add(&entry->list, &map_entries_bootmem);
->> +		spin_unlock(&map_entries_bootmem_lock);
->>
->>   		return;
->>   	}
->>
->
->
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
+--Signature=_Tue__16_Apr_2013_09_57_53_+1000_DzV3xC3VcGJY8=O2
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBCAAGBQJRbJQBAAoJEECxmPOUX5FE0vcP/iSlzGF4U0CKadJ9YMkW9x7w
+Yi9cA4ra6t6NS+NTdhRVJZl5ZjzBMSjGj01UeGbVkSjYzGVKpFCtk7FMthYqo+ky
+1iCZVtsGymU7OeJpNho3s8K+q4G5DH+4kV6S00vGJdCZxANUlLqJ8ZEeHwrxSlMS
+YdcRcLdQsVE5bzBflBnNOv4Zye9+z1QiXo3n0nEdpZY1IcfgRqsE0f2nX3DrhLz5
+ZlxS+4LtXaDA7QGgk/SOxNGTAU9Q5dKDpCbcVAwheoyl+A+g7AEaCZKKMN1Fsouh
+xPUOwr6CM3brkmSBjXVFrZv263Tx1i1dScrzz4dmQQ3tWcRFbLvBQwc+me4A5EYA
+Ik6qYqkfqeEJ8EKRjQzA3FT3oWFuFQM4xbOQ9qDwJF/l9Z4jHVzLUuRkbqNcSvgN
+UBdgkV0QbIqFaFTvIYjgBpM0qBsKD3igLoS5zEo531k01ybKxxYfu2tm09nGfg9e
+AExjuB5/dTTmtQBy26SS2A458oSmCqhHNuuWkry38RubXtx1vFTjHnQbbo7HhLNY
+mQ84ocWmsR6WctLTNxpIXXVRmQ8mocLIxQlPgxgLw/ozeW+YW5CZeW359WfgUVBR
+qpcYrs3zPaIVp+MS2/pQ/eMMEeM+GVc/+pLjoJM6YkDA6y8/CVndSmYaiD7Nvl17
+V9LPhgi0ZQpx8S9wxNKJ
+=d5Gx
+-----END PGP SIGNATURE-----
+
+--Signature=_Tue__16_Apr_2013_09_57_53_+1000_DzV3xC3VcGJY8=O2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
