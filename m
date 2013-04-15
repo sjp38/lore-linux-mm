@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 08A8A6B0036
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 08:52:03 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 88B6F6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 08:52:16 -0400 (EDT)
 From: Libin <huawei.libin@huawei.com>
-Subject: [PATCH 3/6] ncpfs: use vma_pages() to replace (vm_end - vm_start) >> PAGE_SHIFT
-Date: Mon, 15 Apr 2013 20:48:55 +0800
-Message-ID: <1366030138-71292-3-git-send-email-huawei.libin@huawei.com>
+Subject: [PATCH 6/6] uio: use vma_pages() to replace (vm_end - vm_start) >> PAGE_SHIFT
+Date: Mon, 15 Apr 2013 20:48:58 +0800
+Message-ID: <1366030138-71292-6-git-send-email-huawei.libin@huawei.com>
 In-Reply-To: <1366030138-71292-1-git-send-email-huawei.libin@huawei.com>
 References: <1366030138-71292-1-git-send-email-huawei.libin@huawei.com>
 MIME-Version: 1.0
@@ -20,22 +20,22 @@ as a inline funcion vma_pages() in linux/mm.h, so using it.
 
 Signed-off-by: Libin <huawei.libin@huawei.com>
 ---
- fs/ncpfs/mmap.c | 2 +-
+ drivers/uio/uio.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
-index ee24df5..3c5dd55 100644
---- a/fs/ncpfs/mmap.c
-+++ b/fs/ncpfs/mmap.c
-@@ -117,7 +117,7 @@ int ncp_mmap(struct file *file, struct vm_area_struct *vma)
+diff --git a/drivers/uio/uio.c b/drivers/uio/uio.c
+index c8b9262..ba5447f 100644
+--- a/drivers/uio/uio.c
++++ b/drivers/uio/uio.c
+@@ -676,7 +676,7 @@ static int uio_mmap(struct file *filep, struct vm_area_struct *vma)
+ 	if (mi < 0)
  		return -EINVAL;
- 	/* we do not support files bigger than 4GB... We eventually 
- 	   supports just 4GB... */
--	if (((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff 
-+	if (vma_pages(vma) + vma->vm_pgoff
- 	   > (1U << (32 - PAGE_SHIFT)))
- 		return -EFBIG;
  
+-	requested_pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
++	requested_pages = vma_pages(vma);
+ 	actual_pages = ((idev->info->mem[mi].addr & ~PAGE_MASK)
+ 			+ idev->info->mem[mi].size + PAGE_SIZE -1) >> PAGE_SHIFT;
+ 	if (requested_pages > actual_pages)
 -- 
 1.8.2.1
 
