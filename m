@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 547886B0006
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 08:51:54 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 08A8A6B0036
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 08:52:03 -0400 (EDT)
 From: Libin <huawei.libin@huawei.com>
-Subject: [PATCH 5/6] drm: use vma_pages() to replace (vm_end - vm_start) >> PAGE_SHIFT
-Date: Mon, 15 Apr 2013 20:48:57 +0800
-Message-ID: <1366030138-71292-5-git-send-email-huawei.libin@huawei.com>
+Subject: [PATCH 3/6] ncpfs: use vma_pages() to replace (vm_end - vm_start) >> PAGE_SHIFT
+Date: Mon, 15 Apr 2013 20:48:55 +0800
+Message-ID: <1366030138-71292-3-git-send-email-huawei.libin@huawei.com>
 In-Reply-To: <1366030138-71292-1-git-send-email-huawei.libin@huawei.com>
 References: <1366030138-71292-1-git-send-email-huawei.libin@huawei.com>
 MIME-Version: 1.0
@@ -20,31 +20,22 @@ as a inline funcion vma_pages() in linux/mm.h, so using it.
 
 Signed-off-by: Libin <huawei.libin@huawei.com>
 ---
- drivers/gpu/drm/ttm/ttm_bo_vm.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ fs/ncpfs/mmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/gpu/drm/ttm/ttm_bo_vm.c b/drivers/gpu/drm/ttm/ttm_bo_vm.c
-index 74705f3..3df9f16 100644
---- a/drivers/gpu/drm/ttm/ttm_bo_vm.c
-+++ b/drivers/gpu/drm/ttm/ttm_bo_vm.c
-@@ -147,7 +147,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+diff --git a/fs/ncpfs/mmap.c b/fs/ncpfs/mmap.c
+index ee24df5..3c5dd55 100644
+--- a/fs/ncpfs/mmap.c
++++ b/fs/ncpfs/mmap.c
+@@ -117,7 +117,7 @@ int ncp_mmap(struct file *file, struct vm_area_struct *vma)
+ 		return -EINVAL;
+ 	/* we do not support files bigger than 4GB... We eventually 
+ 	   supports just 4GB... */
+-	if (((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff 
++	if (vma_pages(vma) + vma->vm_pgoff
+ 	   > (1U << (32 - PAGE_SHIFT)))
+ 		return -EFBIG;
  
- 	page_offset = ((address - vma->vm_start) >> PAGE_SHIFT) +
- 	    bo->vm_node->start - vma->vm_pgoff;
--	page_last = ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) +
-+	page_last = vma_pages(vma) +
- 	    bo->vm_node->start - vma->vm_pgoff;
- 
- 	if (unlikely(page_offset >= bo->num_pages)) {
-@@ -258,7 +258,7 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
- 
- 	read_lock(&bdev->vm_lock);
- 	bo = ttm_bo_vm_lookup_rb(bdev, vma->vm_pgoff,
--				 (vma->vm_end - vma->vm_start) >> PAGE_SHIFT);
-+				 vma_pages(vma));
- 	if (likely(bo != NULL) && !kref_get_unless_zero(&bo->kref))
- 		bo = NULL;
- 	read_unlock(&bdev->vm_lock);
 -- 
 1.8.2.1
 
