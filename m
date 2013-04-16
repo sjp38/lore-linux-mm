@@ -1,158 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id EABCA6B0027
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 13:57:12 -0400 (EDT)
-Message-ID: <516D90F6.3020603@linux.intel.com>
-Date: Tue, 16 Apr 2013 10:57:10 -0700
-From: Darren Hart <dvhart@linux.intel.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 081CC6B0027
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 14:08:37 -0400 (EDT)
+Date: Tue, 16 Apr 2013 13:08:35 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] mm: mmu_notifier: re-fix freed page still mapped in
+ secondary MMU
+Message-ID: <20130416180835.GY3658@sgi.com>
+References: <516CF235.4060103@linux.vnet.ibm.com>
+ <20130416093131.GJ3658@sgi.com>
+ <516D275C.8040406@linux.vnet.ibm.com>
+ <20130416112553.GM3658@sgi.com>
+ <20130416114322.GN3658@sgi.com>
+ <516D4D08.9020602@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] futex: bugfix for futex-key conflict when futex use hugepage
-References: <OF000BBE68.EBB4E92E-ON48257B4F.0010C2E7-48257B4F.0013FB89@zte.com.cn>
-In-Reply-To: <OF000BBE68.EBB4E92E-ON48257B4F.0010C2E7-48257B4F.0013FB89@zte.com.cn>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <516D4D08.9020602@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhang.yi20@zte.com.cn
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>
+To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, Avi Kivity <avi.kivity@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, KVM <kvm@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On 04/15/2013 08:37 PM, zhang.yi20@zte.com.cn wrote:
-> Hello,
->
+On Tue, Apr 16, 2013 at 09:07:20PM +0800, Xiao Guangrong wrote:
+> On 04/16/2013 07:43 PM, Robin Holt wrote:
+> > Argh.  Taking a step back helped clear my head.
+> > 
+> > For the -stable releases, I agree we should just go with your
+> > revert-plus-hlist_del_init_rcu patch.  I will give it a test
+> > when I am in the office.
+> 
+> Okay. Wait for your test report. Thank you in advance.
+> 
+> > 
+> > For the v3.10 release, we should work on making this more
+> > correct and completely documented.
+> 
+> Better document is always welcomed.
+> 
+> Double call ->release is not bad, like i mentioned it in the changelog:
+> 
+> it is really rare (e.g, can not happen on kvm since mmu-notify is unregistered
+> after exit_mmap()) and the later call of multiple ->release should be
+> fast since all the pages have already been released by the first call.
+> 
+> But, of course, it's great if you have a _light_ way to avoid this.
 
-Hi Zhang,
+Getting my test environment set back up took longer than I would have liked.
 
-I've rewrapped your plain text here for legibility, please adjust your
-mail client accordingly.
+Your patch passed.  I got no NULL-pointer derefs.
 
-> The futex-keys of processes share futex determined by page-offset,
-> mapping-host, and mapping-index of the user space address.  User appications
-> using hugepage for futex may lead to futex-key conflict.  Assume there are two
-> or more futexes in diffrent normal pages of the hugepage, and each futex has
-> the same offset in its normal page, causing all the futexes have the same
-> futex-key.  In that case, futex may not work well.
->
-> This patch adds the normal page index in the compound page into the offset of
-> futex-key.
+How would you feel about adding the following to your patch?
 
-It also modifies the mm prep_compound*page() routines to set the page
-compound index. You didn't modify the structure itself, I'm curious why
-this information wasn't set before? Something for the MM folks I guess..
-
->
-> Steps to reproduce the bug:
-> 1. The 1st thread map a file of hugetlbfs, and use the return address as the
->    1st mutex's address, and use the return address with PAGE_SIZE added as the
->    2nd mutex's address;
-> 2. The 1st thread initialize the two mutexes with pshared attribute, and lock
->    the two mutexes.
-> 3. The 1st thread create the 2nd thread, and the 2nd thread block on the 1st
->    mutex.
-> 4. The 1st thread create the 3rd thread, and the 3rd thread block on the 2nd
->    mutex.
-> 5. The 1st thread unlock the 2nd mutex, the 3rd thread can not take the 2nd
->    mutex, and may block forever.
-
-
-Again, a functional testcase in futextest would be a good idea. This
-helps validate the patch and also can be used to identify regressions in
-the future.
-
-
-> Signed-off-by: Zhang Yi <zhang.yi20@zte.com.cn>
-> Tested-by: Ma Chenggong <ma.chenggong@zte.com.cn>
-> Reviewed-by: Liu Dong <liu.dong3@zte.com.cn>
-> Reviewed-by: Cui Yunfeng <cui.yunfeng@zte.com.cn>
-> Reviewed-by: Lu Zhongjun <lu.zhongjun@zte.com.cn>
-> Reviewed-by: Jiang Biao <jiang.biao2@zte.com.cn>
->
-> diff -uprN orig/linux-3.9-rc7/include/linux/mm.h
-> new/linux-3.9-rc7/include/linux/mm.h
-> --- orig/linux-3.9-rc7/include/linux/mm.h       2013-04-15
-> 00:45:16.000000000 +0000
-> +++ new/linux-3.9-rc7/include/linux/mm.h        2013-04-16
-> 11:21:59.573458000 +0000
-> @@ -502,6 +502,20 @@ static inline void set_compound_order(st
->         page[1].lru.prev = (void *)order;
->  }
->
-> +static inline void set_page_compound_index(struct page *page, int index)
-> +{
-> +       if (PageHead(page))
-> +               return;
-> +       page->index = index;
-> +}
-
-I presume the spaces instead of tabs is a result of your mailer mangling
-whitespace?
-
-> +
-> +static inline int get_page_compound_index(struct page *page)
-> +{
-> +       if (PageHead(page))
-> +               return 0;
-> +       return page->index;
-> +}
-> +
->  #ifdef CONFIG_MMU
->  /*
->   * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
-> diff -uprN orig/linux-3.9-rc7/kernel/futex.c
-> new/linux-3.9-rc7/kernel/futex.c
-> --- orig/linux-3.9-rc7/kernel/futex.c   2013-04-15 00:45:16.000000000
-> +0000
-> +++ new/linux-3.9-rc7/kernel/futex.c    2013-04-16 11:13:30.069887000
-> +0000
-> @@ -239,7 +239,7 @@ get_futex_key(u32 __user *uaddr, int fsh
->         unsigned long address = (unsigned long)uaddr;
->         struct mm_struct *mm = current->mm;
->         struct page *page, *page_head;
-> -       int err, ro = 0;
-> +       int err, ro = 0, comp_idx = 0;
->
->         /*
->          * The futex address must be "naturally" aligned.
-> @@ -299,6 +299,7 @@ again:
->                          * freed from under us.
->                          */
->                         if (page != page_head) {
-> +                               comp_idx = get_page_compound_index(page);
->                                 get_page(page_head);
->                                 put_page(page);
->                         }
-> @@ -311,6 +312,7 @@ again:
->  #else
->         page_head = compound_head(page);
->         if (page != page_head) {
-> +               comp_idx = get_page_compound_index(page);
->                 get_page(page_head);
->                 put_page(page);
->         }
-> @@ -363,7 +365,8 @@ again:
->                 key->private.mm = mm;
->                 key->private.address = address;
->         } else {
-> -               key->both.offset |= FUT_OFF_INODE; /* inode-based key */
-> +               key->both.offset |= (comp_idx << PAGE_SHIFT)
-> +                                   | FUT_OFF_INODE; /* inode-based key */
-
-Comments at the end of lines are bad form already, when moving to
-multi-line, please move the comment just above the statements.
-
-What is the max value of comp_idx? Are we at risk of truncating it?
-Looks like not really from my initial look.
-
-This also needs a comment in futex.h describing the usage of the offset
-field in union futex_key as well as above get_futex_key describing the
-key for shared mappings.
-
-
-Thanks,
-
--- 
-Darren Hart
-Intel Open Source Technology Center
-Yocto Project - Technical Lead - Linux Kernel
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index deca874..ff2fd5f 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -157,6 +157,7 @@ struct mmu_notifier_ops {
+ struct mmu_notifier {
+ 	struct hlist_node hlist;
+ 	const struct mmu_notifier_ops *ops;
++	int released;
+ };
+ 
+ static inline int mm_has_notifiers(struct mm_struct *mm)
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 606777a..949704b 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -44,7 +44,8 @@ void __mmu_notifier_release(struct mm_struct *mm)
+ 	 * ->release returns.
+ 	 */
+ 	id = srcu_read_lock(&srcu);
+-	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist)
++	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
++		int released;
+ 		/*
+ 		 * if ->release runs before mmu_notifier_unregister it
+ 		 * must be handled as it's the only way for the driver
+@@ -52,8 +53,10 @@ void __mmu_notifier_release(struct mm_struct *mm)
+ 		 * from establishing any more sptes before all the
+ 		 * pages in the mm are freed.
+ 		 */
+-		if (mn->ops->release)
++		released = xchg(&mn->released, 1);
++		if (mn->ops->release && !released)
+ 			mn->ops->release(mn, mm);
++	}
+ 	srcu_read_unlock(&srcu, id);
+ 
+ 	spin_lock(&mm->mmu_notifier_mm->lock);
+@@ -214,6 +217,7 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+ 		mm->mmu_notifier_mm = mmu_notifier_mm;
+ 		mmu_notifier_mm = NULL;
+ 	}
++	mn->released = 0;
+ 	atomic_inc(&mm->mm_count);
+ 
+ 	/*
+@@ -295,6 +299,7 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
+ 		 * before freeing the pages.
+ 		 */
+ 		int id;
++		int released;
+ 
+ 		id = srcu_read_lock(&srcu);
+ 		/*
+@@ -302,7 +307,8 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
+ 		 * guarantee ->release is called before freeing the
+ 		 * pages.
+ 		 */
+-		if (mn->ops->release)
++		released = xchg(&mn->released, 1);
++		if (mn->ops->release && !released)
+ 			mn->ops->release(mn, mm);
+ 		srcu_read_unlock(&srcu, id);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
