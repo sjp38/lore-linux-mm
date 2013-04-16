@@ -1,139 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 5D64C6B0006
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 03:30:16 -0400 (EDT)
-Received: by mail-bk0-f46.google.com with SMTP id je9so89532bkc.33
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2013 00:30:14 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 500A16B0002
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 03:50:55 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Tue, 16 Apr 2013 08:49:17 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 396212190056
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 08:53:05 +0100 (BST)
+Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3G7oeCZ54788266
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 07:50:40 GMT
+Received: from d06av10.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3G6PORD018764
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 02:25:24 -0400
+Date: Tue, 16 Apr 2013 09:50:47 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: Re: [BUG][s390x] mm: system crashed
+Message-ID: <20130416075047.GA4184@osiris>
+References: <156480624.266924.1365995933797.JavaMail.root@redhat.com>
+ <2068164110.268217.1365996520440.JavaMail.root@redhat.com>
+ <20130415055627.GB4207@osiris>
+ <516B9B57.6050308@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20130416102938.e52fdf864f6991b960b8b055@mxp.nes.nec.co.jp>
-References: <1365748763-4350-1-git-send-email-handai.szj@taobao.com>
-	<20130412171108.d3ef3e2d66e9c1bfcf69467c@mxp.nes.nec.co.jp>
-	<20130415135805.c552511917b0dbe113388acb@linux-foundation.org>
-	<20130416102938.e52fdf864f6991b960b8b055@mxp.nes.nec.co.jp>
-Date: Tue, 16 Apr 2013 15:30:14 +0800
-Message-ID: <CAFj3OHXLw+FAQsdbMDLt5EayGkgs2qsc9VVw16uA_c_-32kqrg@mail.gmail.com>
-Subject: Re: [PATCH] memcg: Check more strictly to avoid ULLONG overflow by PAGE_ALIGN
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <516B9B57.6050308@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jeff.liu@oracle.com, Sha Zhengju <handai.szj@taobao.com>
+To: Zhouping Liu <zliu@redhat.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, caiqian <caiqian@redhat.com>, Caspar Zhang <czhang@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Tue, Apr 16, 2013 at 9:29 AM, Daisuke Nishimura
-<nishimura@mxp.nes.nec.co.jp> wrote:
-> On Mon, 15 Apr 2013 13:58:05 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
->
->> On Fri, 12 Apr 2013 17:11:08 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
->>
->> > > --- a/include/linux/res_counter.h
->> > > +++ b/include/linux/res_counter.h
->> > > @@ -54,7 +54,7 @@ struct res_counter {
->> > >   struct res_counter *parent;
->> > >  };
->> > >
->> > > -#define RESOURCE_MAX (unsigned long long)LLONG_MAX
->> > > +#define RESOURCE_MAX (unsigned long long)ULLONG_MAX
->> > >
->> >
->> > I don't think it's a good idea to change a user-visible value.
->>
->> The old value was a mistake, surely.
->>
->
-> I introduced 'RESOURCE_MAX' in commit:c5b947b2, but I just used the
-> default value of the res_counter.limit. I'm not sure why it had been
-> initialized to (unsigned long long)LLONG_MAX.
+On Mon, Apr 15, 2013 at 02:16:55PM +0800, Zhouping Liu wrote:
+> On 04/15/2013 01:56 PM, Heiko Carstens wrote:
+> >On Sun, Apr 14, 2013 at 11:28:40PM -0400, Zhouping Liu wrote:
+> >>i? 1/2  16109.346170A? Call Trace:
+> >>i? 1/2  16109.346179A? (i? 1/2  <0000000000100920>A? show_trace+0x128/0x12c)
+> >>i? 1/2  16109.346195A?  i? 1/2  <00000000001cd320>A? rcu_check_callbacks+0x458/0xccc
+> >>i? 1/2  16109.346209A?  i? 1/2  <0000000000140f2e>A? update_process_times+0x4a/0x74
+> >>i? 1/2  16109.346222A?  i? 1/2  <0000000000199452>A? tick_sched_handle.isra.12+0x5e/0x70
+> >>i? 1/2  16109.346235A?  i? 1/2  <00000000001995aa>A? tick_sched_timer+0x6a/0x98
+> >>i? 1/2  16109.346247A?  i? 1/2  <000000000015c1ea>A? __run_hrtimer+0x8e/0x200
+> >>i? 1/2  16109.346381A?  i? 1/2  <000000000015d1b2>A? hrtimer_interrupt+0x212/0x2b0
+> >>i? 1/2  16109.346385A?  i? 1/2  <00000000001040f6>A? clock_comparator_work+0x4a/0x54
+> >>i? 1/2  16109.346390A?  i? 1/2  <000000000010d658>A? do_extint+0x158/0x15c
+> >>i? 1/2  16109.346396A?  i? 1/2  <000000000062aa24>A? ext_skip+0x38/0x3c
+> >>i? 1/2  16109.346404A?  i? 1/2  <00000000001153c8>A? smp_yield_cpu+0x44/0x48
+> >>i? 1/2  16109.346412A? (i? 1/2  <000003d10051aec0>A? 0x3d10051aec0)
+> >>i? 1/2  16109.346457A?  i? 1/2  <000000000024206a>A? __page_check_address+0x16a/0x170
+> >>i? 1/2  16109.346466A?  i? 1/2  <00000000002423a2>A? page_referenced_one+0x3e/0xa0
+> >>i? 1/2  16109.346501A?  i? 1/2  <000000000024427c>A? page_referenced+0x32c/0x41c
+> >>i? 1/2  16109.346510A?  i? 1/2  <000000000021b1dc>A? shrink_page_list+0x380/0xb9c
+> >>i? 1/2  16109.346521A?  i? 1/2  <000000000021c0a6>A? shrink_inactive_list+0x1c6/0x56c
+> >>i? 1/2  16109.346532A?  i? 1/2  <000000000021c69e>A? shrink_lruvec+0x252/0x56c
+> >>i? 1/2  16109.346542A?  i? 1/2  <000000000021ca44>A? shrink_zone+0x8c/0x1bc
+> >>i? 1/2  16109.346553A?  i? 1/2  <000000000021d080>A? balance_pgdat+0x50c/0x658
+> >>i? 1/2  16109.346564A?  i? 1/2  <000000000021d318>A? kswapd+0x14c/0x470
+> >>i? 1/2  16109.346576A?  i? 1/2  <0000000000158292>A? kthread+0xda/0xe4
+> >>i? 1/2  16109.346656A?  i? 1/2  <000000000062a5de>A? kernel_thread_starter+0x6/0xc
+> >>i? 1/2  16109.346682A?  i? 1/2  <000000000062a5d8>A? kernel_thread_starter+0x0/0xc
+> >>[-- MARK -- Fri Apr 12 06:15:00 2013]
+> >>i? 1/2  16289.386061A? INFO: rcu_sched self-detected stall on CPU { 0}  (t=42010 jiffies
+> >>  g=89766 c=89765 q=10627)
+> >Did the system really crash or did you just see the rcu related warning(s)?
+> 
+> I just check it again, actually at first the system didn't really
+> crash, but the system is very slow in response.
+> and the reproducer process can't be killed, after I did some common
+> actions such as 'ls' 'vim' etc, the system
+> seemed to be really crashed, no any response.
+> 
+> also in the previous testing, I can remember that the system would
+> be no any response for a long time, just only
+> repeatedly print out the such above 'Call Trace' into console.
 
-Then let's correct it now.
+Ok, thanks.
+Just a couple of more questions: did you see this also on other archs, or just
+s390 (if you tried other platforms at all).
 
->
->> RESOURCE_MAX shouldn't be in this header file - that is far too general
->> a name.  I suggest the definition be moved to res_counter.c.  And the
->> (unsigned long long) cast is surely unneeded if we're to use
->> ULLONG_MAX.
->>
->
-> Hmm, RESOUCE_MAX is now used outside of res_counter.c(e.g. tcp_memcontrol.c).
+If you have some time, could you please repeat your test with the kernel
+command line option " user_mode=home "?
 
-Yeah, and another mm/memcontrol.c used it too.
+As far as I can tell there was only one s390 patch merged that was
+mmap related: 486c0a0bc80d370471b21662bf03f04fbb37cdc6 "s390/mm: Fix crst
+upgrade of mmap with MAP_FIXED".
+Even though I don't think it explains the bug you've seen it might be worth
+to try to revert it.
 
-> Adding Glauber Costa to the cc list.
-> Just changing the name to RES_COUNTER_MAX might be the choice.
->
->> > >  /**
->> > >   * Helpers to interact with userspace
->> > > diff --git a/kernel/res_counter.c b/kernel/res_counter.c
->> > > index ff55247..6c35310 100644
->> > > --- a/kernel/res_counter.c
->> > > +++ b/kernel/res_counter.c
->> > > @@ -195,6 +195,12 @@ int res_counter_memparse_write_strategy(const char *buf,
->> > >   if (*end != '\0')
->> > >           return -EINVAL;
->> > >
->> > > - *res = PAGE_ALIGN(*res);
->> > > + /* Since PAGE_ALIGN is aligning up(the next page boundary),
->> > > +  * check the left space to avoid overflow to 0. */
->> > > + if (RESOURCE_MAX - *res < PAGE_SIZE - 1)
->> > > +         *res = RESOURCE_MAX;
->> > > + else
->> > > +         *res = PAGE_ALIGN(*res);
->> > > +
->> >
->> > Current interface seems strange because we can set a bigger value than
->> > the value which means "unlimited".
->>
->> I'm not sure what you mean by this?
->>
-> 9223372036854775807(LLONG_MAX) means "unlimited" now. But we can set a bigger
-> value than that.
->
-> # cat /cgroup/memory/A/memory.memsw.limit_in_bytes
-> 9223372036854775807
-> # echo 9223372036854775808 >/cgroup/memory/A/memory.memsw.limit_in_bytes
-> # cat /cgroup/memory/A/memory.memsw.limit_in_bytes
-> 9223372036854775808
->
-> I feel "bigger than unlimited" is strange.
->
->> > So, how about some thing like:
->> >
->> >     if (*res > RESOURCE_MAX)
->> >             return -EINVAL;
->> >     if (*res > PAGE_ALIGN(RESOURCE_MAX) - PAGE_SIZE)
->> >             *res = RESOURCE_MAX;
->> >     else
->> >             *res = PAGE_ALIGN(*res);
->> >
->>
->> The first thing I'd do to res_counter_memparse_write_strategy() is to
->> rename its second arg to `resp' then add a local called `res'.  Because
->> that function dereferences res far too often.
->>
->> Then,
->>
->> -     *res = PAGE_ALIGN(*res);
->>       if (PAGE_ALIGN(res) >= res)
->>               res = PAGE_ALIGN(res);
->>       else
->>               res = RESOURCE_MAX;     /* PAGE_ALIGN wrapped to zero */
->>
->>       *resp = res;
->>       return 0;
->>
->>
-> Good idea :)
->
->
-> Thanks,
-> Daisuke Nishimura.
+And at last, can you share your kernel config?
 
-
-
---
 Thanks,
-Sha
+Heiko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
