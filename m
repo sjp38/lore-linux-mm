@@ -1,239 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id D07EE6B0002
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 12:19:35 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id bn16so381969qab.14
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2013 09:19:34 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 2E5076B0036
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 12:27:22 -0400 (EDT)
+Received: by mail-qe0-f48.google.com with SMTP id 2so368259qea.35
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2013 09:27:21 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <516CD19C.6080508@gmail.com>
+In-Reply-To: <516CF7BB.3050301@gmail.com>
 References: <5114DF05.7070702@mellanox.com>
-	<CANN689Ff6vSu4ZvHek4J4EMzFG7EjF-Ej48hJKV_4SrLoj+mCA@mail.gmail.com>
-	<CAH3drwaACy5KFv_2ozEe35u1Jpxs0f6msKoW=3_0nrWZpJnO4w@mail.gmail.com>
-	<516BBCB5.7050303@gmail.com>
-	<CAH3drwYfC-pkgeokRB+tVpRmCiMAOk3b-EvL5kVpcxX-hM=kJQ@mail.gmail.com>
-	<516CD19C.6080508@gmail.com>
-Date: Tue, 16 Apr 2013 12:19:34 -0400
-Message-ID: <CAH3drwbwxWbkWM6fpbE4WgOzk0_mRsvT1iAOW6eutOoY0Roaqg@mail.gmail.com>
+	<CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com>
+	<516CF7BB.3050301@gmail.com>
+Date: Tue, 16 Apr 2013 12:27:21 -0400
+Message-ID: <CAH3drwbx1aiQEA19+zq6t=GPPNZQEkD27sCjL-Ma2aYns7pMXw@mail.gmail.com>
 Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
  hardware access to the CPU page tables of user processes
 From: Jerome Glisse <j.glisse@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7bdc853a2e08ef04da7cbcf0
+Content-Type: multipart/alternative; boundary=047d7b5d617cfa98ab04da7cd72e
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>, Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
+Cc: Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
---047d7bdc853a2e08ef04da7cbcf0
-Content-Type: text/plain; charset=ISO-8859-1
+--047d7b5d617cfa98ab04da7cd72e
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-On Tue, Apr 16, 2013 at 12:20 AM, Simon Jeons <simon.jeons@gmail.com> wrote:
+On Tue, Apr 16, 2013 at 3:03 AM, Simon Jeons <simon.jeons@gmail.com> wrote:
 
->  Hi Jerome,
+> Hi Jerome,
 >
-> On 04/15/2013 11:38 PM, Jerome Glisse wrote:
+> On 02/08/2013 11:21 PM, Jerome Glisse wrote:
 >
-> On Mon, Apr 15, 2013 at 4:39 AM, Simon Jeons <simon.jeons@gmail.com>wrote:
->
->> Hi Jerome,
->> On 02/10/2013 12:29 AM, Jerome Glisse wrote:
+>> On Fri, Feb 8, 2013 at 6:18 AM, Shachar Raindel <raindel@mellanox.com>
+>> wrote:
 >>
->>> On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse <walken@google.com>
->>> wrote:
+>>> Hi,
 >>>
->>>> On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel <raindel@mellanox.com>
->>>> wrote:
->>>>
->>>>> Hi,
->>>>>
->>>>> We would like to present a reference implementation for safely sharing
->>>>> memory pages from user space with the hardware, without pinning.
->>>>>
->>>>> We will be happy to hear the community feedback on our prototype
->>>>> implementation, and suggestions for future improvements.
->>>>>
->>>>> We would also like to discuss adding features to the core MM subsystem
->>>>> to
->>>>> assist hardware access to user memory without pinning.
->>>>>
->>>> This sounds kinda scary TBH; however I do understand the need for such
->>>> technology.
->>>>
->>>> I think one issue is that many MM developers are insufficiently aware
->>>> of such developments; having a technology presentation would probably
->>>> help there; but traditionally LSF/MM sessions are more interactive
->>>> between developers who are already quite familiar with the technology.
->>>> I think it would help if you could send in advance a detailed
->>>> presentation of the problem and the proposed solutions (and then what
->>>> they require of the MM layer) so people can be better prepared.
->>>>
->>>> And first I'd like to ask, aren't IOMMUs supposed to already largely
->>>> solve this problem ? (probably a dumb question, but that just tells
->>>> you how much you need to explain :)
->>>>
->>> For GPU the motivation is three fold. With the advance of GPU compute
->>> and also with newer graphic program we see a massive increase in GPU
->>> memory consumption. We easily can reach buffer that are bigger than
->>> 1gbytes. So the first motivation is to directly use the memory the
->>> user allocated through malloc in the GPU this avoid copying 1gbytes of
->>> data with the cpu to the gpu buffer. The second and mostly important
+>>> We would like to present a reference implementation for safely sharing
+>>> memory pages from user space with the hardware, without pinning.
+>>>
+>>> We will be happy to hear the community feedback on our prototype
+>>> implementation, and suggestions for future improvements.
+>>>
+>>> We would also like to discuss adding features to the core MM subsystem =
+to
+>>> assist hardware access to user memory without pinning.
+>>>
+>>> Following is a longer motivation and explanation on the technology
+>>> presented:
+>>>
+>>> Many application developers would like to be able to be able to
+>>> communicate
+>>> directly with the hardware from the userspace.
+>>>
+>>> Use cases for that includes high performance networking API such as
+>>> InfiniBand, RoCE and iWarp and interfacing with GPUs.
+>>>
+>>> Currently, if the user space application wants to share system memory
+>>> with
+>>> the hardware device, the kernel component must pin the memory pages in
+>>> RAM,
+>>> using get_user_pages.
+>>>
+>>> This is a hurdle, as it usually makes large portions the application
+>>> memory
+>>> unmovable. This pinning also makes the user space development model ver=
+y
+>>> complicated =96 one needs to register memory before using it for
+>>> communication
+>>> with the hardware.
+>>>
+>>> We use the mmu-notifiers [1] mechanism to inform the hardware when the
+>>> mapping of a page is changed. If the hardware tries to access a page
+>>> which
+>>> is not yet mapped for the hardware, it requests a resolution for the pa=
+ge
+>>> address from the kernel.
+>>>
+>>> This mechanism allows the hardware to access the entire address space o=
+f
+>>> the
+>>> user application, without pinning even a single page.
+>>>
+>>> We would like to use the LSF/MM forum opportunity to discuss open issue=
+s
+>>> we
+>>> have for further development, such as:
+>>>
+>>> -Allowing the hardware to perform page table walk, similar to
+>>> get_user_pages_fast to resolve user pages that are already in RAM.
 >>>
 >>
->>  The pinned memory you mentioned is the memory user allocated or the
->> memory of gpu buffer?
->>
->
-> Memory user allocated, we don't want to pin this memory.
->
->
-> After this idea merged, we don't need to allocate memory for integrated
-> GPU buffer and discrete GPU don't need to have its own memory, correct?
+> get_user_pages_fast just get page reference count instead of populate the
+> pte to page table, correct? Then how can GPU driver use iommu to access t=
+he
+> page?
 >
 
-You need to stop considering discret and integrated GPU as different, they
-are not from driver point of view. Integrated GPU will keep stealing a
-chunk of system memory at boot because its a BIOS things and BIOS don't
-change like that.
-
-Both (integrated and discret) will keep allocating system memory in kernel
-for their own buffer because API such as OpenGL or OpenCL needs too. The
-transparent use of same address space on GPU as on CPU will only happen
-with newer API such as OpenCL 2.0 or other API that are schedule down the
-road.
-
-And discrete GPU will keep having its own memory, the whole point is that
-GDDR5 can be more than 10 times faster than the fastest DDR3. You can not
-beat that. GPU is all about bandwidth and that's not gonna change.
+As i said this is for pre-filling already present entry, ie pte that are
+present with a valid page (no special bit set). This is an optimization so
+that the GPU can pre-fill its tlb without having to take any mmap_sem. Hope
+is that in most common case this will be enough, but in some case you will
+have to go through the lengthy non fast gup.
 
 Cheers,
 Jerome
 
---047d7bdc853a2e08ef04da7cbcf0
-Content-Type: text/html; charset=ISO-8859-1
+--047d7b5d617cfa98ab04da7cd72e
+Content-Type: text/html; charset=windows-1252
 Content-Transfer-Encoding: quoted-printable
 
-<div class=3D"gmail_quote">On Tue, Apr 16, 2013 at 12:20 AM, Simon Jeons <s=
-pan dir=3D"ltr">&lt;<a href=3D"mailto:simon.jeons@gmail.com" target=3D"_bla=
-nk">simon.jeons@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gma=
-il_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-lef=
-t:1ex">
-
- =20
-   =20
- =20
-  <div text=3D"#000000" bgcolor=3D"#FFFFFF">
-    <div>Hi Jerome,<div><div class=3D"h5"><br>
-      On 04/15/2013 11:38 PM, Jerome Glisse wrote:<br>
-    </div></div></div><div><div class=3D"h5">
-    <blockquote type=3D"cite">
-      <div class=3D"gmail_quote">On Mon, Apr 15, 2013 at 4:39 AM, Simon
-        Jeons <span dir=3D"ltr">&lt;<a href=3D"mailto:simon.jeons@gmail.com=
-" target=3D"_blank">simon.jeons@gmail.com</a>&gt;</span>
-        wrote:<br>
-        <blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border=
--left:1px #ccc solid;padding-left:1ex">
-          <div>Hi Jerome,<br>
-            On 02/10/2013 12:29 AM, Jerome Glisse wrote:<br>
-          </div>
-          <div>
-            <div>
-              <blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;=
-border-left:1px #ccc solid;padding-left:1ex">
-                On Sat, Feb 9, 2013 at 1:05 AM, Michel Lespinasse &lt;<a hr=
-ef=3D"mailto:walken@google.com" target=3D"_blank">walken@google.com</a>&gt;=
- wrote:<br>
-                <blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8e=
-x;border-left:1px #ccc solid;padding-left:1ex">
-                  On Fri, Feb 8, 2013 at 3:18 AM, Shachar Raindel &lt;<a hr=
-ef=3D"mailto:raindel@mellanox.com" target=3D"_blank">raindel@mellanox.com</=
-a>&gt;
-                  wrote:<br>
-                  <blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .=
-8ex;border-left:1px #ccc solid;padding-left:1ex">
-                    Hi,<br>
-                    <br>
-                    We would like to present a reference implementation
-                    for safely sharing<br>
-                    memory pages from user space with the hardware,
-                    without pinning.<br>
-                    <br>
-                    We will be happy to hear the community feedback on
-                    our prototype<br>
-                    implementation, and suggestions for future
-                    improvements.<br>
-                    <br>
-                    We would also like to discuss adding features to the
-                    core MM subsystem to<br>
-                    assist hardware access to user memory without
-                    pinning.<br>
-                  </blockquote>
-                  This sounds kinda scary TBH; however I do understand
-                  the need for such<br>
-                  technology.<br>
-                  <br>
-                  I think one issue is that many MM developers are
-                  insufficiently aware<br>
-                  of such developments; having a technology presentation
-                  would probably<br>
-                  help there; but traditionally LSF/MM sessions are more
-                  interactive<br>
-                  between developers who are already quite familiar with
-                  the technology.<br>
-                  I think it would help if you could send in advance a
-                  detailed<br>
-                  presentation of the problem and the proposed solutions
-                  (and then what<br>
-                  they require of the MM layer) so people can be better
-                  prepared.<br>
-                  <br>
-                  And first I&#39;d like to ask, aren&#39;t IOMMUs supposed=
- to
-                  already largely<br>
-                  solve this problem ? (probably a dumb question, but
-                  that just tells<br>
-                  you how much you need to explain :)<br>
-                </blockquote>
-                For GPU the motivation is three fold. With the advance
-                of GPU compute<br>
-                and also with newer graphic program we see a massive
-                increase in GPU<br>
-                memory consumption. We easily can reach buffer that are
-                bigger than<br>
-                1gbytes. So the first motivation is to directly use the
-                memory the<br>
-                user allocated through malloc in the GPU this avoid
-                copying 1gbytes of<br>
-                data with the cpu to the gpu buffer. The second and
-                mostly important<br>
-              </blockquote>
-              <br>
-            </div>
-          </div>
-          The pinned memory you mentioned is the memory user allocated
-          or the memory of gpu buffer?<br>
-        </blockquote>
-      </div>
-      <br>
-      Memory user allocated, we don&#39;t want to pin this memory.<br>
-    </blockquote>
-    <br></div></div>
-    After this idea merged, we don&#39;t need to allocate memory for
-    integrated GPU buffer and discrete GPU don&#39;t need to have its own
-    memory, correct?<br></div></blockquote></div><br>You need to stop consi=
-dering discret and integrated GPU as different, they are not from driver po=
-int of view. Integrated GPU will keep stealing a chunk of system memory at =
-boot because its a BIOS things and BIOS don&#39;t change like that.<br>
-<br>Both (integrated and discret) will keep allocating system memory in ker=
-nel for their own buffer because API such as OpenGL or OpenCL needs too. Th=
-e transparent use of same address space on GPU as on CPU will only happen w=
-ith newer API such as OpenCL 2.0 or other API that are schedule down the ro=
-ad.<br>
-<br>And discrete GPU will keep having its own memory, the whole point is th=
-at GDDR5 can be more than 10 times faster than the fastest DDR3. You can no=
-t beat that. GPU is all about bandwidth and that&#39;s not gonna change.<br=
+<div class=3D"gmail_quote">On Tue, Apr 16, 2013 at 3:03 AM, Simon Jeons <sp=
+an dir=3D"ltr">&lt;<a href=3D"mailto:simon.jeons@gmail.com" target=3D"_blan=
+k">simon.jeons@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmai=
+l_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left=
+:1ex">
+Hi Jerome,<div><div class=3D"h5"><br>
+On 02/08/2013 11:21 PM, Jerome Glisse wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+On Fri, Feb 8, 2013 at 6:18 AM, Shachar Raindel &lt;<a href=3D"mailto:raind=
+el@mellanox.com" target=3D"_blank">raindel@mellanox.com</a>&gt; wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+Hi,<br>
+<br>
+We would like to present a reference implementation for safely sharing<br>
+memory pages from user space with the hardware, without pinning.<br>
+<br>
+We will be happy to hear the community feedback on our prototype<br>
+implementation, and suggestions for future improvements.<br>
+<br>
+We would also like to discuss adding features to the core MM subsystem to<b=
+r>
+assist hardware access to user memory without pinning.<br>
+<br>
+Following is a longer motivation and explanation on the technology<br>
+presented:<br>
+<br>
+Many application developers would like to be able to be able to communicate=
+<br>
+directly with the hardware from the userspace.<br>
+<br>
+Use cases for that includes high performance networking API such as<br>
+InfiniBand, RoCE and iWarp and interfacing with GPUs.<br>
+<br>
+Currently, if the user space application wants to share system memory with<=
+br>
+the hardware device, the kernel component must pin the memory pages in RAM,=
+<br>
+using get_user_pages.<br>
+<br>
+This is a hurdle, as it usually makes large portions the application memory=
+<br>
+unmovable. This pinning also makes the user space development model very<br=
 >
-<br>Cheers,<br>Jerome<br>
+complicated =96 one needs to register memory before using it for communicat=
+ion<br>
+with the hardware.<br>
+<br>
+We use the mmu-notifiers [1] mechanism to inform the hardware when the<br>
+mapping of a page is changed. If the hardware tries to access a page which<=
+br>
+is not yet mapped for the hardware, it requests a resolution for the page<b=
+r>
+address from the kernel.<br>
+<br>
+This mechanism allows the hardware to access the entire address space of th=
+e<br>
+user application, without pinning even a single page.<br>
+<br>
+We would like to use the LSF/MM forum opportunity to discuss open issues we=
+<br>
+have for further development, such as:<br>
+<br>
+-Allowing the hardware to perform page table walk, similar to<br>
+get_user_pages_fast to resolve user pages that are already in RAM.<br>
+</blockquote></blockquote>
+<br></div></div>
+get_user_pages_fast just get page reference count instead of populate the p=
+te to page table, correct? Then how can GPU driver use iommu to access the =
+page?<br></blockquote><div><br>As i said this is for pre-filling already pr=
+esent entry, ie pte that are present with a valid page (no special bit set)=
+. This is an optimization so that the GPU can pre-fill its tlb without havi=
+ng to take any mmap_sem. Hope is that in most common case this will be enou=
+gh, but in some case you will have to go through the lengthy non fast gup.<=
+br>
+<br></div></div>Cheers,<br>Jerome<br>
 
---047d7bdc853a2e08ef04da7cbcf0--
+--047d7b5d617cfa98ab04da7cd72e--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
