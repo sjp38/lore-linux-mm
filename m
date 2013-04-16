@@ -1,73 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id C2E5D6B0002
-	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 19:58:04 -0400 (EDT)
-Date: Tue, 16 Apr 2013 09:57:53 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH 5/5] mm: Soft-dirty bits for user memory changes
- tracking
-Message-Id: <20130416095753.d94fa7d74db6c4293ec7dea9@canb.auug.org.au>
-In-Reply-To: <20130415144619.645394d8ecdb180d7757a735@linux-foundation.org>
-References: <51669E5F.4000801@parallels.com>
-	<51669EB8.2020102@parallels.com>
-	<20130411142417.bb58d519b860d06ab84333c2@linux-foundation.org>
-	<5168089B.7060305@parallels.com>
-	<20130415144619.645394d8ecdb180d7757a735@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA256";
- boundary="Signature=_Tue__16_Apr_2013_09_57_53_+1000_DzV3xC3VcGJY8=O2"
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id DE6186B0002
+	for <linux-mm@kvack.org>; Mon, 15 Apr 2013 20:46:19 -0400 (EDT)
+Message-ID: <516C9F00.9020009@huawei.com>
+Date: Tue, 16 Apr 2013 08:44:48 +0800
+From: Xie XiuQi <xiexiuqi@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 4/6] char: use vma_pages() to replace (vm_end - vm_start)
+ >> PAGE_SHIFT
+References: <1366030138-71292-1-git-send-email-huawei.libin@huawei.com> <1366030138-71292-4-git-send-email-huawei.libin@huawei.com>
+In-Reply-To: <1366030138-71292-4-git-send-email-huawei.libin@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pavel Emelyanov <xemul@parallels.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Libin <huawei.libin@huawei.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, David Airlie <airlied@linux.ie>, Bjorn Helgaas <bhelgaas@google.com>, "Hans J. Koch" <hjk@hansjkoch.de>, Petr Vandrovec <petr@vandrovec.name>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Thomas Hellstrom <thellstrom@vmware.com>, Dave Airlie <airlied@redhat.com>, Nadia Yvette Chambers <nyc@holomorphy.com>, Jiri Kosina <jkosina@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Michel Lespinasse <walken@google.com>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, guohanjun@huawei.com, wangyijing@huawei.com
 
---Signature=_Tue__16_Apr_2013_09_57_53_+1000_DzV3xC3VcGJY8=O2
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On 2013/4/15 20:48, Libin wrote:
+> (*->vm_end - *->vm_start) >> PAGE_SHIFT operation is implemented
+> as a inline funcion vma_pages() in linux/mm.h, so using it.
+> 
+> Signed-off-by: Libin <huawei.libin@huawei.com>
+> ---
+>  drivers/char/mspec.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/drivers/char/mspec.c b/drivers/char/mspec.c
+> index e1f60f9..ed0703f 100644
+> --- a/drivers/char/mspec.c
+> +++ b/drivers/char/mspec.c
+> @@ -168,7 +168,7 @@ mspec_close(struct vm_area_struct *vma)
+>  	if (!atomic_dec_and_test(&vdata->refcnt))
+>  		return;
+>  
+> -	last_index = (vdata->vm_end - vdata->vm_start) >> PAGE_SHIFT;
+> +	last_index = vma_pages(vdata);
+>  	for (index = 0; index < last_index; index++) {
+>  		if (vdata->maddr[index] == 0)
+>  			continue;
+> 
 
-On Mon, 15 Apr 2013 14:46:19 -0700 Andrew Morton <akpm@linux-foundation.org=
-> wrote:
->
-> Well, this is also a thing arch maintainers can do when they feel a
-> need to support the feature on their architecture.  To support them at
-> that time we should provide them with a) adequate information in an
-> easy-to-find place (eg, a nice comment at the site of the reference x86
-> implementation) and b) a userspace test app.
+This function mspec_mmap also need modification...
+And you can change int to unsigned long.
 
-and c) a CONFIG symbol (maybe CONFIG_HAVE_MEM_SOFT_DIRTY, maybe in
-arch/Kconfig) that they can select to get this feature (so that this
-feature then depend on that CONFIG symbol instead of X86).  That way we
-don't have to go back and tidy this up when 15 or so architectures
-implement it.
+static int
+mspec_mmap(struct file *file, struct vm_area_struct *vma,
+					enum mspec_page_type type)
+{
+	struct vma_data *vdata;
+	int pages, vdata_size, flags = 0;
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
+	if (vma->vm_pgoff != 0)
+		return -EINVAL;
 
---Signature=_Tue__16_Apr_2013_09_57_53_+1000_DzV3xC3VcGJY8=O2
-Content-Type: application/pgp-signature
+	if ((vma->vm_flags & VM_SHARED) == 0)
+		return -EINVAL;
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
+	if ((vma->vm_flags & VM_WRITE) == 0)
+		return -EPERM;
 
-iQIcBAEBCAAGBQJRbJQBAAoJEECxmPOUX5FE0vcP/iSlzGF4U0CKadJ9YMkW9x7w
-Yi9cA4ra6t6NS+NTdhRVJZl5ZjzBMSjGj01UeGbVkSjYzGVKpFCtk7FMthYqo+ky
-1iCZVtsGymU7OeJpNho3s8K+q4G5DH+4kV6S00vGJdCZxANUlLqJ8ZEeHwrxSlMS
-YdcRcLdQsVE5bzBflBnNOv4Zye9+z1QiXo3n0nEdpZY1IcfgRqsE0f2nX3DrhLz5
-ZlxS+4LtXaDA7QGgk/SOxNGTAU9Q5dKDpCbcVAwheoyl+A+g7AEaCZKKMN1Fsouh
-xPUOwr6CM3brkmSBjXVFrZv263Tx1i1dScrzz4dmQQ3tWcRFbLvBQwc+me4A5EYA
-Ik6qYqkfqeEJ8EKRjQzA3FT3oWFuFQM4xbOQ9qDwJF/l9Z4jHVzLUuRkbqNcSvgN
-UBdgkV0QbIqFaFTvIYjgBpM0qBsKD3igLoS5zEo531k01ybKxxYfu2tm09nGfg9e
-AExjuB5/dTTmtQBy26SS2A458oSmCqhHNuuWkry38RubXtx1vFTjHnQbbo7HhLNY
-mQ84ocWmsR6WctLTNxpIXXVRmQ8mocLIxQlPgxgLw/ozeW+YW5CZeW359WfgUVBR
-qpcYrs3zPaIVp+MS2/pQ/eMMEeM+GVc/+pLjoJM6YkDA6y8/CVndSmYaiD7Nvl17
-V9LPhgi0ZQpx8S9wxNKJ
-=d5Gx
------END PGP SIGNATURE-----
+	pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	vdata_size = sizeof(struct vma_data) + pages * sizeof(long);
+	if (vdata_size <= PAGE_SIZE)
+		vdata = kzalloc(vdata_size, GFP_KERNEL);
+	else {
+		vdata = vzalloc(vdata_size);
+		flags = VMD_VMALLOCED;
+	}
+	if (!vdata)
+		return -ENOMEM;
 
---Signature=_Tue__16_Apr_2013_09_57_53_+1000_DzV3xC3VcGJY8=O2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
