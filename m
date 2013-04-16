@@ -1,34 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 04CE16B0002
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 17:37:35 -0400 (EDT)
-Received: by mail-oa0-f45.google.com with SMTP id o17so847661oag.4
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2013 14:37:35 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130416182601.27773.46395.stgit@warthog.procyon.org.uk>
-References: <20130416182550.27773.89310.stgit@warthog.procyon.org.uk> <20130416182601.27773.46395.stgit@warthog.procyon.org.uk>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Tue, 16 Apr 2013 14:37:14 -0700
-Message-ID: <CAHGf_=r+qoL8_J+z8Y1uPt_NK1Ef4cLuapAvVd-7qF8+_oSjJw@mail.gmail.com>
-Subject: Re: [PATCH 03/28] proc: Split kcore bits from linux/procfs.h into
- linux/kcore.h [RFC]
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 14F546B0002
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 18:07:42 -0400 (EDT)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <CAHGf_=r+qoL8_J+z8Y1uPt_NK1Ef4cLuapAvVd-7qF8+_oSjJw@mail.gmail.com>
+References: <CAHGf_=r+qoL8_J+z8Y1uPt_NK1Ef4cLuapAvVd-7qF8+_oSjJw@mail.gmail.com> <20130416182550.27773.89310.stgit@warthog.procyon.org.uk> <20130416182601.27773.46395.stgit@warthog.procyon.org.uk>
+Subject: Re: [PATCH 03/28] proc: Split kcore bits from linux/procfs.h into linux/kcore.h [RFC]
+Date: Tue, 16 Apr 2013 23:07:37 +0100
+Message-ID: <30949.1366150057@warthog.procyon.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mips@linux-mips.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, x86@kernel.org, sparclinux@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: dhowells@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mips@linux-mips.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, x86@kernel.org, sparclinux@vger.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-On Tue, Apr 16, 2013 at 11:26 AM, David Howells <dhowells@redhat.com> wrote:
-> Split kcore bits from linux/procfs.h into linux/kcore.h.
->
-> Signed-off-by: David Howells <dhowells@redhat.com>
-> cc: linux-mips@linux-mips.org
-> cc: sparclinux@vger.kernel.org
-> cc: x86@kernel.org
-> cc: linux-mm@kvack.org
 
-I have no seen any issue in this change. but why? Is there any
-motivation rather than cleanup?
+KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
+
+> I have no seen any issue in this change. but why? Is there any
+> motivation rather than cleanup?
+
+Stopping stuff mucking about with the internals of procfs incorrectly
+(sometimes because the internals of procfs have changed, but the drivers
+haven't).
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
