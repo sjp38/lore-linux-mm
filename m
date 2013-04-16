@@ -1,76 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 6BBAE6B0002
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 10:11:03 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Wed, 17 Apr 2013 00:01:58 +1000
-Received: from d23relay01.au.ibm.com (d23relay01.au.ibm.com [9.190.234.17])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 55EA12CE8053
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 00:10:55 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay01.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3GAQiY58847694
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 20:26:44 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3GAQgHp012304
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 20:26:43 +1000
-Message-ID: <516D275C.8040406@linux.vnet.ibm.com>
-Date: Tue, 16 Apr 2013 18:26:36 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id BEBBB6B0002
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 10:43:54 -0400 (EDT)
+Message-ID: <516D639D.6@parallels.com>
+Date: Tue, 16 Apr 2013 07:43:41 -0700
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: mmu_notifier: re-fix freed page still mapped in secondary
- MMU
-References: <516CF235.4060103@linux.vnet.ibm.com> <20130416093131.GJ3658@sgi.com>
-In-Reply-To: <20130416093131.GJ3658@sgi.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v3 08/32] list: add a new LRU list type
+References: <1365429659-22108-1-git-send-email-glommer@parallels.com> <1365429659-22108-9-git-send-email-glommer@parallels.com> <xr93r4ic8ify.fsf@gthelen.mtv.corp.google.com> <xr93mwsz4qza.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <xr93mwsz4qza.fsf@gthelen.mtv.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, Avi Kivity <avi.kivity@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, KVM <kvm@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Greg Thelen <gthelen@google.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Serge Hallyn <serge.hallyn@canonical.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, linux-fsdevel@vger.kernel.org, containers@lists.linux-foundation.org, Dave Chinner <dchinner@redhat.com>
 
-On 04/16/2013 05:31 PM, Robin Holt wrote:
-> On Tue, Apr 16, 2013 at 02:39:49PM +0800, Xiao Guangrong wrote:
->> The commit 751efd8610d3 (mmu_notifier_unregister NULL Pointer deref
->> and multiple ->release()) breaks the fix:
->>     3ad3d901bbcfb15a5e4690e55350db0899095a68
->>     (mm: mmu_notifier: fix freed page still mapped in secondary MMU)
-> 
-> Can you describe how the page is still mapped?  I thought I had all
-> cases covered.  Whichever call hits first, I thought we had one callout
-> to the registered notifiers.  Are you saying we need multiple callouts?
+On 04/15/2013 10:56 AM, Greg Thelen wrote:
+> On Sun, Apr 14 2013, Greg Thelen wrote:
+>
+>> On Mon, Apr 08 2013, Glauber Costa wrote:
+>>
+>>> From: Dave Chinner <dchinner@redhat.com>
+>>>
+>>> Several subsystems use the same construct for LRU lists - a list
+>>> head, a spin lock and and item count. They also use exactly the same
+>>> code for adding and removing items from the LRU. Create a generic
+>>> type for these LRU lists.
+>>>
+>>> This is the beginning of generic, node aware LRUs for shrinkers to
+>>> work with.
+>>>
+>>> [ glommer: enum defined constants for lru. Suggested by gthelen ]
+>>> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+>>> Signed-off-by: Glauber Costa <glommer@parallels.com>
+>>
+>> Optional nit pick below:
+>>
+>> Reviewed-by: Greg Thelen <gthelen@google.com>
+>>
+>>
+>>> ---
+>>>   include/linux/list_lru.h |  44 ++++++++++++++++++
+>>>   lib/Makefile             |   2 +-
+>>>   lib/list_lru.c           | 117 +++++++++++++++++++++++++++++++++++++++++++++++
+>>>   3 files changed, 162 insertions(+), 1 deletion(-)
+>>>   create mode 100644 include/linux/list_lru.h
+>>>   create mode 100644 lib/list_lru.c
+>>>
+>>> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+>>> new file mode 100644
+>>> index 0000000..394c28c
+>>> --- /dev/null
+>>> +++ b/include/linux/list_lru.h
+>>> @@ -0,0 +1,44 @@
+>>> +/*
+>>> + * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
+>>> + * Author: David Chinner
+>>> + *
+>>> + * Generic LRU infrastructure
+>>> + */
+>>> +#ifndef _LRU_LIST_H
+>>> +#define _LRU_LIST_H
+>>> +
+>>> +#include <linux/list.h>
+>>> +
+>>> +enum lru_status {
+>>> +	LRU_REMOVED,		/* item removed from list */
+>>> +	LRU_ROTATE,		/* item referenced, give another pass */
+>>> +	LRU_SKIP,		/* item cannot be locked, skip */
+>>> +	LRU_RETRY,		/* item not freeable, lock dropped */
+>>> +};
+>>> +
+>>> +struct list_lru {
+>>> +	spinlock_t		lock;
+>>> +	struct list_head	list;
+>>> +	long			nr_items;
+>>> +};
+>>> +
+>>> +int list_lru_init(struct list_lru *lru);
+>>> +int list_lru_add(struct list_lru *lru, struct list_head *item);
+>>> +int list_lru_del(struct list_lru *lru, struct list_head *item);
+>>> +
+>>> +static inline long list_lru_count(struct list_lru *lru)
+>>> +{
+>>> +	return lru->nr_items;
+>>> +}
+>>> +
+>>> +typedef enum lru_status
+>>> +(*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock, void *cb_arg);
+>>> +
+>>> +typedef void (*list_lru_dispose_cb)(struct list_head *dispose_list);
+>>> +
+>>> +long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
+>>> +		   void *cb_arg, long nr_to_walk);
+>>> +
+>>> +long list_lru_dispose_all(struct list_lru *lru, list_lru_dispose_cb dispose);
+>>> +
+>>> +#endif /* _LRU_LIST_H */
+>>> diff --git a/lib/Makefile b/lib/Makefile
+>>> index d7946ff..f14abd9 100644
+>>> --- a/lib/Makefile
+>>> +++ b/lib/Makefile
+>>> @@ -13,7 +13,7 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
+>>>   	 sha1.o md5.o irq_regs.o reciprocal_div.o argv_split.o \
+>>>   	 proportions.o flex_proportions.o prio_heap.o ratelimit.o show_mem.o \
+>>>   	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
+>>> -	 earlycpio.o
+>>> +	 earlycpio.o list_lru.o
+>>>
+>>>   lib-$(CONFIG_MMU) += ioremap.o
+>>>   lib-$(CONFIG_SMP) += cpumask.o
+>>> diff --git a/lib/list_lru.c b/lib/list_lru.c
+>>> new file mode 100644
+>>> index 0000000..03bd984
+>>> --- /dev/null
+>>> +++ b/lib/list_lru.c
+>>> @@ -0,0 +1,117 @@
+>>> +/*
+>>> + * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
+>>> + * Author: David Chinner
+>>> + *
+>>> + * Generic LRU infrastructure
+>>> + */
+>>> +#include <linux/kernel.h>
+>>> +#include <linux/module.h>
+>>> +#include <linux/list_lru.h>
+>>> +
+>>> +int
+>>> +list_lru_add(
+>>> +	struct list_lru	*lru,
+>>> +	struct list_head *item)
+>>> +{
+>>> +	spin_lock(&lru->lock);
+>>> +	if (list_empty(item)) {
+>>> +		list_add_tail(item, &lru->list);
+>>> +		lru->nr_items++;
+>>> +		spin_unlock(&lru->lock);
+>>> +		return 1;
+>>> +	}
+>>> +	spin_unlock(&lru->lock);
+>>> +	return 0;
+>>> +}
+>>> +EXPORT_SYMBOL_GPL(list_lru_add);
+>>> +
+>>> +int
+>>> +list_lru_del(
+>>> +	struct list_lru	*lru,
+>>> +	struct list_head *item)
+>>> +{
+>>> +	spin_lock(&lru->lock);
+>>> +	if (!list_empty(item)) {
+>>> +		list_del_init(item);
+>>> +		lru->nr_items--;
+>>> +		spin_unlock(&lru->lock);
+>>> +		return 1;
+>>> +	}
+>>> +	spin_unlock(&lru->lock);
+>>> +	return 0;
+>>> +}
+>>> +EXPORT_SYMBOL_GPL(list_lru_del);
+>>> +
+>>> +long
+>>> +list_lru_walk(
+>>> +	struct list_lru *lru,
+>>> +	list_lru_walk_cb isolate,
+>>> +	void		*cb_arg,
+>>> +	long		nr_to_walk)
+>>> +{
+>>> +	struct list_head *item, *n;
+>>> +	long removed = 0;
+>>> +restart:
+>>> +	spin_lock(&lru->lock);
+>
+> Sometimes isolate() drops the lru locks (when it returns LRU_RETRY) and
+> sparse complains thus complains here:
+>
+>    lib/list_lru.c:55:18: warning: context imbalance in 'list_lru_walk' - different lock contexts for basic block
+>
+> It looks like other dcache code suffers similar sparse warnings.  Is
+> there any way to annotate this warning away?  Or is this just something
+> we live with?
 
-No.
+The code is correct. If we return 3 (now LRU_RETRY), we drop the lock 
+in the callback. This is documented in the comment about LRU_RETRY. When 
+we loop again, we don't reacquire the lock
 
-You patch did this:
+However, I think this can be changed to avoid the warning. If we change 
+the semantics to always return with the lock taken, we can drop it in 
+LRU_RETRY (we really have to), then re lock it, and return in the 
+callback with it locked. They we just move the restart: label below the 
+spin_lock acquisition instead of after.
 
-                hlist_del_init_rcu(&mn->hlist);    1 <======
-+               spin_unlock(&mm->mmu_notifier_mm->lock);
-+
-+               /*
-+                * Clear sptes. (see 'release' description in mmu_notifier.h)
-+                */
-+               if (mn->ops->release)
-+                       mn->ops->release(mn, mm);    2 <======
-+
-+               spin_lock(&mm->mmu_notifier_mm->lock);
-
-At point 1, you delete the notify, but the page is still on LRU. Other
-cpu can reclaim the page but without call ->invalid_page().
-
-At point 2, you call ->release(), the secondary MMU make page Accessed/Dirty
-but that page has already been on the free-list of page-alloctor.
-
-> 
-> Also, shouldn't you be asking for a revert commit and then supply a
-> subsequent commit for the real fix?  I thought that was the process for
-> doing a revert.
-
-Can not do that pure reversion since your patch moved hlist_for_each_entry_rcu
-which has been modified now.
-
-Should i do pure-eversion + hlist_for_each_entry_rcu update first?
+It should work, and with clearer semantics.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
