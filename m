@@ -1,118 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id BDA786B0002
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 03:03:31 -0400 (EDT)
-Received: by mail-qc0-f170.google.com with SMTP id d42so78975qca.15
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2013 00:03:30 -0700 (PDT)
-Message-ID: <516CF7BB.3050301@gmail.com>
-Date: Tue, 16 Apr 2013 15:03:23 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 0FE936B0002
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 03:29:26 -0400 (EDT)
+Received: by mail-bk0-f50.google.com with SMTP id jg1so88440bkc.9
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2013 00:29:25 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
- hardware access to the CPU page tables of user processes
-References: <5114DF05.7070702@mellanox.com> <CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com>
-In-Reply-To: <CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130415135805.c552511917b0dbe113388acb@linux-foundation.org>
+References: <1365748763-4350-1-git-send-email-handai.szj@taobao.com>
+	<20130412171108.d3ef3e2d66e9c1bfcf69467c@mxp.nes.nec.co.jp>
+	<20130415135805.c552511917b0dbe113388acb@linux-foundation.org>
+Date: Tue, 16 Apr 2013 15:29:25 +0800
+Message-ID: <CAFj3OHX3XZf85F7161jp8KT30fCLFmpAYCx7J-PHx7cKOkTrQA@mail.gmail.com>
+Subject: Re: [PATCH] memcg: Check more strictly to avoid ULLONG overflow by PAGE_ALIGN
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, jeff.liu@oracle.com, Sha Zhengju <handai.szj@taobao.com>
 
-Hi Jerome,
-On 02/08/2013 11:21 PM, Jerome Glisse wrote:
-> On Fri, Feb 8, 2013 at 6:18 AM, Shachar Raindel <raindel@mellanox.com> wrote:
->> Hi,
+On Tue, Apr 16, 2013 at 4:58 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, 12 Apr 2013 17:11:08 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+>
+>> > --- a/include/linux/res_counter.h
+>> > +++ b/include/linux/res_counter.h
+>> > @@ -54,7 +54,7 @@ struct res_counter {
+>> >     struct res_counter *parent;
+>> >  };
+>> >
+>> > -#define RESOURCE_MAX (unsigned long long)LLONG_MAX
+>> > +#define RESOURCE_MAX (unsigned long long)ULLONG_MAX
+>> >
 >>
->> We would like to present a reference implementation for safely sharing
->> memory pages from user space with the hardware, without pinning.
+>> I don't think it's a good idea to change a user-visible value.
+>
+> The old value was a mistake, surely.
+>
+> RESOURCE_MAX shouldn't be in this header file - that is far too general
+> a name.  I suggest the definition be moved to res_counter.c.  And the
+> (unsigned long long) cast is surely unneeded if we're to use
+> ULLONG_MAX.
+>
+>> >  /**
+>> >   * Helpers to interact with userspace
+>> > diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+>> > index ff55247..6c35310 100644
+>> > --- a/kernel/res_counter.c
+>> > +++ b/kernel/res_counter.c
+>> > @@ -195,6 +195,12 @@ int res_counter_memparse_write_strategy(const char *buf,
+>> >     if (*end != '\0')
+>> >             return -EINVAL;
+>> >
+>> > -   *res = PAGE_ALIGN(*res);
+>> > +   /* Since PAGE_ALIGN is aligning up(the next page boundary),
+>> > +    * check the left space to avoid overflow to 0. */
+>> > +   if (RESOURCE_MAX - *res < PAGE_SIZE - 1)
+>> > +           *res = RESOURCE_MAX;
+>> > +   else
+>> > +           *res = PAGE_ALIGN(*res);
+>> > +
 >>
->> We will be happy to hear the community feedback on our prototype
->> implementation, and suggestions for future improvements.
+>> Current interface seems strange because we can set a bigger value than
+>> the value which means "unlimited".
+>
+> I'm not sure what you mean by this?
+>
+>> So, how about some thing like:
 >>
->> We would also like to discuss adding features to the core MM subsystem to
->> assist hardware access to user memory without pinning.
+>>       if (*res > RESOURCE_MAX)
+>>               return -EINVAL;
+>>       if (*res > PAGE_ALIGN(RESOURCE_MAX) - PAGE_SIZE)
+>>               *res = RESOURCE_MAX;
+>>       else
+>>               *res = PAGE_ALIGN(*res);
 >>
->> Following is a longer motivation and explanation on the technology
->> presented:
->>
->> Many application developers would like to be able to be able to communicate
->> directly with the hardware from the userspace.
->>
->> Use cases for that includes high performance networking API such as
->> InfiniBand, RoCE and iWarp and interfacing with GPUs.
->>
->> Currently, if the user space application wants to share system memory with
->> the hardware device, the kernel component must pin the memory pages in RAM,
->> using get_user_pages.
->>
->> This is a hurdle, as it usually makes large portions the application memory
->> unmovable. This pinning also makes the user space development model very
->> complicated ? one needs to register memory before using it for communication
->> with the hardware.
->>
->> We use the mmu-notifiers [1] mechanism to inform the hardware when the
->> mapping of a page is changed. If the hardware tries to access a page which
->> is not yet mapped for the hardware, it requests a resolution for the page
->> address from the kernel.
->>
->> This mechanism allows the hardware to access the entire address space of the
->> user application, without pinning even a single page.
->>
->> We would like to use the LSF/MM forum opportunity to discuss open issues we
->> have for further development, such as:
->>
->> -Allowing the hardware to perform page table walk, similar to
->> get_user_pages_fast to resolve user pages that are already in RAM.
+>
+> The first thing I'd do to res_counter_memparse_write_strategy() is to
+> rename its second arg to `resp' then add a local called `res'.  Because
+> that function dereferences res far too often.
+>
+> Then,
+>
+> -       *res = PAGE_ALIGN(*res);
+>         if (PAGE_ALIGN(res) >= res)
+>                 res = PAGE_ALIGN(res);
+>         else
+>                 res = RESOURCE_MAX;     /* PAGE_ALIGN wrapped to zero */
+>
+>         *resp = res;
+>         return 0;
+>
 
-get_user_pages_fast just get page reference count instead of populate 
-the pte to page table, correct? Then how can GPU driver use iommu to 
-access the page?
+Okay, this one is better.
 
->>
->> -Batching page eviction by various kernel subsystems (swapper, page-cache)
->> to reduce the amount of communication needed with the hardware in such
->> events
->>
->> -Hinting from the hardware to the MM regarding page fetches which are
->> speculative, similarly to prefetching done by the page-cache
->>
->> -Page-in notifications from the kernel to the driver, such that we can keep
->> our secondary TLB in sync with the kernel page table without incurring page
->> faults.
->>
->> -Allowed and banned actions while in an MMU notifier callback. We have
->> already done some work on making the MMU notifiers sleepable [2], but there
->> might be additional limitations, which we would like to discuss.
->>
->> -Hinting from the MMU notifiers as for the reason for the notification - for
->> example we would like to react differently if a page was moved by NUMA
->> migration vs. page being swapped out.
->>
->> [1] http://lwn.net/Articles/266320/
->>
->> [2] http://comments.gmane.org/gmane.linux.kernel.mm/85002
->>
->> Thanks,
->>
->> --Shachar
-> As a GPU driver developer i can say that this is something we want to
-> do in a very near future. Also i think we would like another
-> capabilities :
->
-> - hint to mm on memory range that are best not to evict (easier for
-> driver to know what is hot and gonna see activities)
->
-> Dunno how big the change to the page eviction path would need to be.
->
-> Cheers,
-> Jerome
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
+
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
