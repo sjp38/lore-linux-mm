@@ -1,199 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 573376B0002
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 02:45:49 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Tue, 16 Apr 2013 16:36:45 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3G6fdCi11731294
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 16:41:45 +1000
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3G6eBT6016743
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 16:40:11 +1000
-Message-ID: <516CF235.4060103@linux.vnet.ibm.com>
-Date: Tue, 16 Apr 2013 14:39:49 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id BDA786B0002
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 03:03:31 -0400 (EDT)
+Received: by mail-qc0-f170.google.com with SMTP id d42so78975qca.15
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2013 00:03:30 -0700 (PDT)
+Message-ID: <516CF7BB.3050301@gmail.com>
+Date: Tue, 16 Apr 2013 15:03:23 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: [PATCH] mm: mmu_notifier: re-fix freed page still mapped in secondary
- MMU
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
+ hardware access to the CPU page tables of user processes
+References: <5114DF05.7070702@mellanox.com> <CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com>
+In-Reply-To: <CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, Avi Kivity <avi.kivity@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Robin Holt <holt@sgi.com>, LKML <linux-kernel@vger.kernel.org>, KVM <kvm@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-The commit 751efd8610d3 (mmu_notifier_unregister NULL Pointer deref
-and multiple ->release()) breaks the fix:
-    3ad3d901bbcfb15a5e4690e55350db0899095a68
-    (mm: mmu_notifier: fix freed page still mapped in secondary MMU)
+Hi Jerome,
+On 02/08/2013 11:21 PM, Jerome Glisse wrote:
+> On Fri, Feb 8, 2013 at 6:18 AM, Shachar Raindel <raindel@mellanox.com> wrote:
+>> Hi,
+>>
+>> We would like to present a reference implementation for safely sharing
+>> memory pages from user space with the hardware, without pinning.
+>>
+>> We will be happy to hear the community feedback on our prototype
+>> implementation, and suggestions for future improvements.
+>>
+>> We would also like to discuss adding features to the core MM subsystem to
+>> assist hardware access to user memory without pinning.
+>>
+>> Following is a longer motivation and explanation on the technology
+>> presented:
+>>
+>> Many application developers would like to be able to be able to communicate
+>> directly with the hardware from the userspace.
+>>
+>> Use cases for that includes high performance networking API such as
+>> InfiniBand, RoCE and iWarp and interfacing with GPUs.
+>>
+>> Currently, if the user space application wants to share system memory with
+>> the hardware device, the kernel component must pin the memory pages in RAM,
+>> using get_user_pages.
+>>
+>> This is a hurdle, as it usually makes large portions the application memory
+>> unmovable. This pinning also makes the user space development model very
+>> complicated ? one needs to register memory before using it for communication
+>> with the hardware.
+>>
+>> We use the mmu-notifiers [1] mechanism to inform the hardware when the
+>> mapping of a page is changed. If the hardware tries to access a page which
+>> is not yet mapped for the hardware, it requests a resolution for the page
+>> address from the kernel.
+>>
+>> This mechanism allows the hardware to access the entire address space of the
+>> user application, without pinning even a single page.
+>>
+>> We would like to use the LSF/MM forum opportunity to discuss open issues we
+>> have for further development, such as:
+>>
+>> -Allowing the hardware to perform page table walk, similar to
+>> get_user_pages_fast to resolve user pages that are already in RAM.
 
-This patch reverts the commit and simply fix the bug spotted
-by that patch
+get_user_pages_fast just get page reference count instead of populate 
+the pte to page table, correct? Then how can GPU driver use iommu to 
+access the page?
 
-This bug is spotted by commit 751efd8610d3:
-======
-There is a race condition between mmu_notifier_unregister() and
-__mmu_notifier_release().
-
-Assume two tasks, one calling mmu_notifier_unregister() as a result of a
-filp_close() ->flush() callout (task A), and the other calling
-mmu_notifier_release() from an mmput() (task B).
-
-                    A                               B
-t1                                              srcu_read_lock()
-t2              if (!hlist_unhashed())
-t3                                              srcu_read_unlock()
-t4              srcu_read_lock()
-t5                                              hlist_del_init_rcu()
-t6                                              synchronize_srcu()
-t7              srcu_read_unlock()
-t8              hlist_del_rcu()  <--- NULL pointer deref.
-======
-
-This can be fixed by using hlist_del_init_rcu instead of hlist_del_rcu.
-
-The another issue spotted in the commit is
-"multiple ->release() callouts", we needn't care it too much because
-it is really rare (e.g, can not happen on kvm since mmu-notify is unregistered
-after exit_mmap()) and the later call of multiple ->release should be
-fast since all the pages have already been released by the first call.
-
-Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
----
- mm/mmu_notifier.c |   81 +++++++++++++++++++++++++++--------------------------
- 1 files changed, 41 insertions(+), 40 deletions(-)
-
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index be04122..606777a 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -40,48 +40,45 @@ void __mmu_notifier_release(struct mm_struct *mm)
- 	int id;
-
- 	/*
--	 * srcu_read_lock() here will block synchronize_srcu() in
--	 * mmu_notifier_unregister() until all registered
--	 * ->release() callouts this function makes have
--	 * returned.
-+	 * SRCU here will block mmu_notifier_unregister until
-+	 * ->release returns.
- 	 */
- 	id = srcu_read_lock(&srcu);
-+	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist)
-+		/*
-+		 * if ->release runs before mmu_notifier_unregister it
-+		 * must be handled as it's the only way for the driver
-+		 * to flush all existing sptes and stop the driver
-+		 * from establishing any more sptes before all the
-+		 * pages in the mm are freed.
-+		 */
-+		if (mn->ops->release)
-+			mn->ops->release(mn, mm);
-+	srcu_read_unlock(&srcu, id);
-+
- 	spin_lock(&mm->mmu_notifier_mm->lock);
- 	while (unlikely(!hlist_empty(&mm->mmu_notifier_mm->list))) {
- 		mn = hlist_entry(mm->mmu_notifier_mm->list.first,
- 				 struct mmu_notifier,
- 				 hlist);
--
- 		/*
--		 * Unlink.  This will prevent mmu_notifier_unregister()
--		 * from also making the ->release() callout.
-+		 * We arrived before mmu_notifier_unregister so
-+		 * mmu_notifier_unregister will do nothing other than
-+		 * to wait ->release to finish and
-+		 * mmu_notifier_unregister to return.
- 		 */
- 		hlist_del_init_rcu(&mn->hlist);
--		spin_unlock(&mm->mmu_notifier_mm->lock);
--
--		/*
--		 * Clear sptes. (see 'release' description in mmu_notifier.h)
--		 */
--		if (mn->ops->release)
--			mn->ops->release(mn, mm);
--
--		spin_lock(&mm->mmu_notifier_mm->lock);
- 	}
- 	spin_unlock(&mm->mmu_notifier_mm->lock);
-
- 	/*
--	 * All callouts to ->release() which we have done are complete.
--	 * Allow synchronize_srcu() in mmu_notifier_unregister() to complete
--	 */
--	srcu_read_unlock(&srcu, id);
--
--	/*
--	 * mmu_notifier_unregister() may have unlinked a notifier and may
--	 * still be calling out to it.	Additionally, other notifiers
--	 * may have been active via vmtruncate() et. al. Block here
--	 * to ensure that all notifier callouts for this mm have been
--	 * completed and the sptes are really cleaned up before returning
--	 * to exit_mmap().
-+	 * synchronize_srcu here prevents mmu_notifier_release to
-+	 * return to exit_mmap (which would proceed freeing all pages
-+	 * in the mm) until the ->release method returns, if it was
-+	 * invoked by mmu_notifier_unregister.
-+	 *
-+	 * The mmu_notifier_mm can't go away from under us because one
-+	 * mm_count is hold by exit_mmap.
- 	 */
- 	synchronize_srcu(&srcu);
- }
-@@ -292,31 +289,35 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
- {
- 	BUG_ON(atomic_read(&mm->mm_count) <= 0);
-
--	spin_lock(&mm->mmu_notifier_mm->lock);
- 	if (!hlist_unhashed(&mn->hlist)) {
-+		/*
-+		 * SRCU here will force exit_mmap to wait ->release to finish
-+		 * before freeing the pages.
-+		 */
- 		int id;
-
-+		id = srcu_read_lock(&srcu);
- 		/*
--		 * Ensure we synchronize up with __mmu_notifier_release().
-+		 * exit_mmap will block in mmu_notifier_release to
-+		 * guarantee ->release is called before freeing the
-+		 * pages.
- 		 */
--		id = srcu_read_lock(&srcu);
--
--		hlist_del_rcu(&mn->hlist);
--		spin_unlock(&mm->mmu_notifier_mm->lock);
--
- 		if (mn->ops->release)
- 			mn->ops->release(mn, mm);
-+		srcu_read_unlock(&srcu, id);
-
-+		spin_lock(&mm->mmu_notifier_mm->lock);
- 		/*
--		 * Allow __mmu_notifier_release() to complete.
-+		 * Can not use list_del_rcu() since __mmu_notifier_release
-+		 * can delete it before we hold the lock.
- 		 */
--		srcu_read_unlock(&srcu, id);
--	} else
-+		hlist_del_init_rcu(&mn->hlist);
- 		spin_unlock(&mm->mmu_notifier_mm->lock);
-+	}
-
- 	/*
--	 * Wait for any running method to finish, including ->release() if it
--	 * was run by __mmu_notifier_release() instead of us.
-+	 * Wait any running method to finish, of course including
-+	 * ->release if it was run by mmu_notifier_relase instead of us.
- 	 */
- 	synchronize_srcu(&srcu);
-
--- 
-1.7.7.6
+>>
+>> -Batching page eviction by various kernel subsystems (swapper, page-cache)
+>> to reduce the amount of communication needed with the hardware in such
+>> events
+>>
+>> -Hinting from the hardware to the MM regarding page fetches which are
+>> speculative, similarly to prefetching done by the page-cache
+>>
+>> -Page-in notifications from the kernel to the driver, such that we can keep
+>> our secondary TLB in sync with the kernel page table without incurring page
+>> faults.
+>>
+>> -Allowed and banned actions while in an MMU notifier callback. We have
+>> already done some work on making the MMU notifiers sleepable [2], but there
+>> might be additional limitations, which we would like to discuss.
+>>
+>> -Hinting from the MMU notifiers as for the reason for the notification - for
+>> example we would like to react differently if a page was moved by NUMA
+>> migration vs. page being swapped out.
+>>
+>> [1] http://lwn.net/Articles/266320/
+>>
+>> [2] http://comments.gmane.org/gmane.linux.kernel.mm/85002
+>>
+>> Thanks,
+>>
+>> --Shachar
+> As a GPU driver developer i can say that this is something we want to
+> do in a very near future. Also i think we would like another
+> capabilities :
+>
+> - hint to mm on memory range that are best not to evict (easier for
+> driver to know what is hot and gonna see activities)
+>
+> Dunno how big the change to the page eviction path would need to be.
+>
+> Cheers,
+> Jerome
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=ilto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
