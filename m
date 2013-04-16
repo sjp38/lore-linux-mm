@@ -1,72 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 920826B0002
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 19:25:11 -0400 (EDT)
-Date: Wed, 17 Apr 2013 09:24:59 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH 7/5] mem-soft-dirty: Reshuffle CONFIG_ options to be
- more Arch-friendly
-Message-Id: <20130417092459.a574ebb81a734973ff7081f9@canb.auug.org.au>
-In-Reply-To: <516DABC8.1040606@parallels.com>
-References: <51669E5F.4000801@parallels.com>
-	<516DABC8.1040606@parallels.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA256";
- boundary="Signature=_Wed__17_Apr_2013_09_24_59_+1000_3u_Bxfn+37=1Py.I"
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 3266C6B0027
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 19:50:48 -0400 (EDT)
+Received: by mail-ia0-f172.google.com with SMTP id k38so936085iah.31
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2013 16:50:47 -0700 (PDT)
+Message-ID: <516DE3D1.7030800@gmail.com>
+Date: Wed, 17 Apr 2013 07:50:41 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
+ hardware access to the CPU page tables of user processes
+References: <5114DF05.7070702@mellanox.com> <CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com> <516CF7BB.3050301@gmail.com> <CAH3drwbx1aiQEA19+zq6t=GPPNZQEkD27sCjL-Ma2aYns7pMXw@mail.gmail.com>
+In-Reply-To: <CAH3drwbx1aiQEA19+zq6t=GPPNZQEkD27sCjL-Ma2aYns7pMXw@mail.gmail.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
---Signature=_Wed__17_Apr_2013_09_24_59_+1000_3u_Bxfn+37=1Py.I
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On 04/17/2013 12:27 AM, Jerome Glisse wrote:
 
-Hi Pavel,
-
-On Tue, 16 Apr 2013 23:51:36 +0400 Pavel Emelyanov <xemul@parallels.com> wr=
-ote:
+[snip]
 >
-> As Stephen Rothwell pointed out, config options, that depend on
-> architecture support, are better to be wrapped into a select +
-> depends on scheme.
->=20
-> Do this for CONFIG_MEM_SOFT_DIRTY, as it currently works only
-> for X86.
->=20
-> Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
-> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+>
+> As i said this is for pre-filling already present entry, ie pte that 
+> are present with a valid page (no special bit set). This is an 
+> optimization so that the GPU can pre-fill its tlb without having to 
+> take any mmap_sem. Hope is that in most common case this will be 
+> enough, but in some case you will have to go through the lengthy non 
+> fast gup.
 
-Acked-by: Stephen Rothwell <sfr@canb.auug.org.au>
+I know this. What I concern is the pte you mentioned is for normal cpu, 
+correct? How can you pre-fill pte and tlb of GPU?
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-
---Signature=_Wed__17_Apr_2013_09_24_59_+1000_3u_Bxfn+37=1Py.I
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBCAAGBQJRbd3LAAoJEECxmPOUX5FEPV0P/jUT5wL3rPRxphjllQCmkem1
-wXZNWrurjURGK3mAC/ChCBaRyUgqyqR+CnuQaKb9YLSDpGohVaLfhLjDlN+ElRuZ
-a+XCdZg1NBCQOayNGaL2nt3AepiI+vlbs/QmodkOMz/uT/xzIOQl3F4XoIW2Nvh4
-s1tu5By9awUhH5F5p4dFiOjsFl2yv2X/O4y+6uZkcwk3e6h9Dzp58WY465SdYSIo
-E/heCwqwCFai7plmzbFmEyWnpHL0VN6Y/S9WoRo2YEWk2D2+PdLdCChv/fgJxCw3
-QtD7rHpUSNGY3ZOr9a8IiNd6dPQj+T72xkGC+oaDcf5u8YvOryC2R2RQCyHmZUTs
-5aOOJkdUdtXufECGp5T1dR9Ii4pOB8q7SAsz9oGmzXTyBqXGF7FjuaK4rej2ZMcg
-U9FfRDVFsWz+QrTQlMR7IfGCvMsoORyp7JcvUai9bzbLfSexkxwCnaqbbeAD/C8H
-vuCKcfHTXDu3Zp/HzN6W1AFVxbx5DH+32te5izZhruKIhJPxAoCVjzM1k4FEa+H7
-+2JyucLISZiSXqSU7QoGzvu8cK5kXXEjt06ccCzJ7ns9W9qMHfl7yjYdTAL89MP6
-gz8rEVD1gbFgUxqI9/r4GmW8isgXOcckhE275zjyV6yCJ8FOdQGPqod5GiwTHrep
-M/MOVZCd3bknOmRUzXWk
-=cYpe
------END PGP SIGNATURE-----
-
---Signature=_Wed__17_Apr_2013_09_24_59_+1000_3u_Bxfn+37=1Py.I--
+>
+> Cheers,
+> Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
