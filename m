@@ -1,112 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 91EE96B0002
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 18:30:39 -0400 (EDT)
-Date: Tue, 16 Apr 2013 15:30:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] memcg: Check more strictly to avoid ULLONG overflow by
- PAGE_ALIGN
-Message-Id: <20130416153036.23090c28485e52ba76cd5348@linux-foundation.org>
-In-Reply-To: <20130416102938.e52fdf864f6991b960b8b055@mxp.nes.nec.co.jp>
-References: <1365748763-4350-1-git-send-email-handai.szj@taobao.com>
-	<20130412171108.d3ef3e2d66e9c1bfcf69467c@mxp.nes.nec.co.jp>
-	<20130415135805.c552511917b0dbe113388acb@linux-foundation.org>
-	<20130416102938.e52fdf864f6991b960b8b055@mxp.nes.nec.co.jp>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 920826B0002
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 19:25:11 -0400 (EDT)
+Date: Wed, 17 Apr 2013 09:24:59 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH 7/5] mem-soft-dirty: Reshuffle CONFIG_ options to be
+ more Arch-friendly
+Message-Id: <20130417092459.a574ebb81a734973ff7081f9@canb.auug.org.au>
+In-Reply-To: <516DABC8.1040606@parallels.com>
+References: <51669E5F.4000801@parallels.com>
+	<516DABC8.1040606@parallels.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Wed__17_Apr_2013_09_24_59_+1000_3u_Bxfn+37=1Py.I"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
-Cc: glommer@parallels.com, Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, jeff.liu@oracle.com, Sha Zhengju <handai.szj@taobao.com>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, 16 Apr 2013 10:29:38 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
+--Signature=_Wed__17_Apr_2013_09_24_59_+1000_3u_Bxfn+37=1Py.I
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> On Mon, 15 Apr 2013 13:58:05 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > On Fri, 12 Apr 2013 17:11:08 +0900 Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp> wrote:
-> > 
-> > > > --- a/include/linux/res_counter.h
-> > > > +++ b/include/linux/res_counter.h
-> > > > @@ -54,7 +54,7 @@ struct res_counter {
-> > > >  	struct res_counter *parent;
-> > > >  };
-> > > >  
-> > > > -#define RESOURCE_MAX (unsigned long long)LLONG_MAX
-> > > > +#define RESOURCE_MAX (unsigned long long)ULLONG_MAX
-> > > >  
-> > > 
-> > > I don't think it's a good idea to change a user-visible value.
-> > 
-> > The old value was a mistake, surely.
-> > 
-> 
-> I introduced 'RESOURCE_MAX' in commit:c5b947b2, but I just used the
-> default value of the res_counter.limit. I'm not sure why it had been
-> initialized to (unsigned long long)LLONG_MAX.
-> 
-> > RESOURCE_MAX shouldn't be in this header file - that is far too general
-> > a name.  I suggest the definition be moved to res_counter.c.  And the
-> > (unsigned long long) cast is surely unneeded if we're to use
-> > ULLONG_MAX.
-> > 
-> 
-> Hmm, RESOUCE_MAX is now used outside of res_counter.c(e.g. tcp_memcontrol.c).
-> Adding Glauber Costa to the cc list.
-> Just changing the name to RES_COUNTER_MAX might be the choice.
+Hi Pavel,
 
-That sounds a lot better.
+On Tue, 16 Apr 2013 23:51:36 +0400 Pavel Emelyanov <xemul@parallels.com> wr=
+ote:
+>
+> As Stephen Rothwell pointed out, config options, that depend on
+> architecture support, are better to be wrapped into a select +
+> depends on scheme.
+>=20
+> Do this for CONFIG_MEM_SOFT_DIRTY, as it currently works only
+> for X86.
+>=20
+> Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
+> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
 
-> > > >  /**
-> > > >   * Helpers to interact with userspace
-> > > > diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> > > > index ff55247..6c35310 100644
-> > > > --- a/kernel/res_counter.c
-> > > > +++ b/kernel/res_counter.c
-> > > > @@ -195,6 +195,12 @@ int res_counter_memparse_write_strategy(const char *buf,
-> > > >  	if (*end != '\0')
-> > > >  		return -EINVAL;
-> > > >  
-> > > > -	*res = PAGE_ALIGN(*res);
-> > > > +	/* Since PAGE_ALIGN is aligning up(the next page boundary),
-> > > > +	 * check the left space to avoid overflow to 0. */
-> > > > +	if (RESOURCE_MAX - *res < PAGE_SIZE - 1)
-> > > > +		*res = RESOURCE_MAX;
-> > > > +	else
-> > > > +		*res = PAGE_ALIGN(*res);
-> > > > +
-> > > 
-> > > Current interface seems strange because we can set a bigger value than
-> > > the value which means "unlimited".
-> > 
-> > I'm not sure what you mean by this?
-> > 
-> 9223372036854775807(LLONG_MAX) means "unlimited" now. But we can set a bigger
-> value than that.
+Acked-by: Stephen Rothwell <sfr@canb.auug.org.au>
 
-Ah, hm, OK, that's pretty random.  I suggest we switch it to ~0ULL,
-which is apparently what was intended.  I don't think that will alter
-the API in terms of input - we still do "echo -1 > ...".
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
-> # cat /cgroup/memory/A/memory.memsw.limit_in_bytes
-> 9223372036854775807
-> # echo 9223372036854775808 >/cgroup/memory/A/memory.memsw.limit_in_bytes
-> # cat /cgroup/memory/A/memory.memsw.limit_in_bytes
-> 9223372036854775808
+--Signature=_Wed__17_Apr_2013_09_24_59_+1000_3u_Bxfn+37=1Py.I
+Content-Type: application/pgp-signature
 
-But it affects the user *output*.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
 
-> I feel "bigger than unlimited" is strange.
+iQIcBAEBCAAGBQJRbd3LAAoJEECxmPOUX5FEPV0P/jUT5wL3rPRxphjllQCmkem1
+wXZNWrurjURGK3mAC/ChCBaRyUgqyqR+CnuQaKb9YLSDpGohVaLfhLjDlN+ElRuZ
+a+XCdZg1NBCQOayNGaL2nt3AepiI+vlbs/QmodkOMz/uT/xzIOQl3F4XoIW2Nvh4
+s1tu5By9awUhH5F5p4dFiOjsFl2yv2X/O4y+6uZkcwk3e6h9Dzp58WY465SdYSIo
+E/heCwqwCFai7plmzbFmEyWnpHL0VN6Y/S9WoRo2YEWk2D2+PdLdCChv/fgJxCw3
+QtD7rHpUSNGY3ZOr9a8IiNd6dPQj+T72xkGC+oaDcf5u8YvOryC2R2RQCyHmZUTs
+5aOOJkdUdtXufECGp5T1dR9Ii4pOB8q7SAsz9oGmzXTyBqXGF7FjuaK4rej2ZMcg
+U9FfRDVFsWz+QrTQlMR7IfGCvMsoORyp7JcvUai9bzbLfSexkxwCnaqbbeAD/C8H
+vuCKcfHTXDu3Zp/HzN6W1AFVxbx5DH+32te5izZhruKIhJPxAoCVjzM1k4FEa+H7
++2JyucLISZiSXqSU7QoGzvu8cK5kXXEjt06ccCzJ7ns9W9qMHfl7yjYdTAL89MP6
+gz8rEVD1gbFgUxqI9/r4GmW8isgXOcckhE275zjyV6yCJ8FOdQGPqod5GiwTHrep
+M/MOVZCd3bknOmRUzXWk
+=cYpe
+-----END PGP SIGNATURE-----
 
-Yes.  Let's just straighten it all out - I doubt if the small
-compatibility changes will hurt anyone.  But please do spell out the
-interface changes in full detail in the changelog so we can make the
-correct decision here.
-
-I suspect we're looking at two patches here: one to fix/change the
-control interface, one to clean up random/misc things we noticed on
-the way.
+--Signature=_Wed__17_Apr_2013_09_24_59_+1000_3u_Bxfn+37=1Py.I--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
