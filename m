@@ -1,193 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 2E5076B0036
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 12:27:22 -0400 (EDT)
-Received: by mail-qe0-f48.google.com with SMTP id 2so368259qea.35
-        for <linux-mm@kvack.org>; Tue, 16 Apr 2013 09:27:21 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id EABCA6B0027
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 13:57:12 -0400 (EDT)
+Message-ID: <516D90F6.3020603@linux.intel.com>
+Date: Tue, 16 Apr 2013 10:57:10 -0700
+From: Darren Hart <dvhart@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <516CF7BB.3050301@gmail.com>
-References: <5114DF05.7070702@mellanox.com>
-	<CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com>
-	<516CF7BB.3050301@gmail.com>
-Date: Tue, 16 Apr 2013 12:27:21 -0400
-Message-ID: <CAH3drwbx1aiQEA19+zq6t=GPPNZQEkD27sCjL-Ma2aYns7pMXw@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
- hardware access to the CPU page tables of user processes
-From: Jerome Glisse <j.glisse@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7b5d617cfa98ab04da7cd72e
+Subject: Re: [PATCH] futex: bugfix for futex-key conflict when futex use hugepage
+References: <OF000BBE68.EBB4E92E-ON48257B4F.0010C2E7-48257B4F.0013FB89@zte.com.cn>
+In-Reply-To: <OF000BBE68.EBB4E92E-ON48257B4F.0010C2E7-48257B4F.0013FB89@zte.com.cn>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
+To: zhang.yi20@zte.com.cn
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>
 
---047d7b5d617cfa98ab04da7cd72e
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
-
-On Tue, Apr 16, 2013 at 3:03 AM, Simon Jeons <simon.jeons@gmail.com> wrote:
-
-> Hi Jerome,
->
-> On 02/08/2013 11:21 PM, Jerome Glisse wrote:
->
->> On Fri, Feb 8, 2013 at 6:18 AM, Shachar Raindel <raindel@mellanox.com>
->> wrote:
->>
->>> Hi,
->>>
->>> We would like to present a reference implementation for safely sharing
->>> memory pages from user space with the hardware, without pinning.
->>>
->>> We will be happy to hear the community feedback on our prototype
->>> implementation, and suggestions for future improvements.
->>>
->>> We would also like to discuss adding features to the core MM subsystem =
-to
->>> assist hardware access to user memory without pinning.
->>>
->>> Following is a longer motivation and explanation on the technology
->>> presented:
->>>
->>> Many application developers would like to be able to be able to
->>> communicate
->>> directly with the hardware from the userspace.
->>>
->>> Use cases for that includes high performance networking API such as
->>> InfiniBand, RoCE and iWarp and interfacing with GPUs.
->>>
->>> Currently, if the user space application wants to share system memory
->>> with
->>> the hardware device, the kernel component must pin the memory pages in
->>> RAM,
->>> using get_user_pages.
->>>
->>> This is a hurdle, as it usually makes large portions the application
->>> memory
->>> unmovable. This pinning also makes the user space development model ver=
-y
->>> complicated =96 one needs to register memory before using it for
->>> communication
->>> with the hardware.
->>>
->>> We use the mmu-notifiers [1] mechanism to inform the hardware when the
->>> mapping of a page is changed. If the hardware tries to access a page
->>> which
->>> is not yet mapped for the hardware, it requests a resolution for the pa=
-ge
->>> address from the kernel.
->>>
->>> This mechanism allows the hardware to access the entire address space o=
-f
->>> the
->>> user application, without pinning even a single page.
->>>
->>> We would like to use the LSF/MM forum opportunity to discuss open issue=
-s
->>> we
->>> have for further development, such as:
->>>
->>> -Allowing the hardware to perform page table walk, similar to
->>> get_user_pages_fast to resolve user pages that are already in RAM.
->>>
->>
-> get_user_pages_fast just get page reference count instead of populate the
-> pte to page table, correct? Then how can GPU driver use iommu to access t=
-he
-> page?
+On 04/15/2013 08:37 PM, zhang.yi20@zte.com.cn wrote:
+> Hello,
 >
 
-As i said this is for pre-filling already present entry, ie pte that are
-present with a valid page (no special bit set). This is an optimization so
-that the GPU can pre-fill its tlb without having to take any mmap_sem. Hope
-is that in most common case this will be enough, but in some case you will
-have to go through the lengthy non fast gup.
+Hi Zhang,
 
-Cheers,
-Jerome
+I've rewrapped your plain text here for legibility, please adjust your
+mail client accordingly.
 
---047d7b5d617cfa98ab04da7cd72e
-Content-Type: text/html; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
-
-<div class=3D"gmail_quote">On Tue, Apr 16, 2013 at 3:03 AM, Simon Jeons <sp=
-an dir=3D"ltr">&lt;<a href=3D"mailto:simon.jeons@gmail.com" target=3D"_blan=
-k">simon.jeons@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmai=
-l_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left=
-:1ex">
-Hi Jerome,<div><div class=3D"h5"><br>
-On 02/08/2013 11:21 PM, Jerome Glisse wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">
-On Fri, Feb 8, 2013 at 6:18 AM, Shachar Raindel &lt;<a href=3D"mailto:raind=
-el@mellanox.com" target=3D"_blank">raindel@mellanox.com</a>&gt; wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">
-Hi,<br>
-<br>
-We would like to present a reference implementation for safely sharing<br>
-memory pages from user space with the hardware, without pinning.<br>
-<br>
-We will be happy to hear the community feedback on our prototype<br>
-implementation, and suggestions for future improvements.<br>
-<br>
-We would also like to discuss adding features to the core MM subsystem to<b=
-r>
-assist hardware access to user memory without pinning.<br>
-<br>
-Following is a longer motivation and explanation on the technology<br>
-presented:<br>
-<br>
-Many application developers would like to be able to be able to communicate=
-<br>
-directly with the hardware from the userspace.<br>
-<br>
-Use cases for that includes high performance networking API such as<br>
-InfiniBand, RoCE and iWarp and interfacing with GPUs.<br>
-<br>
-Currently, if the user space application wants to share system memory with<=
-br>
-the hardware device, the kernel component must pin the memory pages in RAM,=
-<br>
-using get_user_pages.<br>
-<br>
-This is a hurdle, as it usually makes large portions the application memory=
-<br>
-unmovable. This pinning also makes the user space development model very<br=
+> The futex-keys of processes share futex determined by page-offset,
+> mapping-host, and mapping-index of the user space address.  User appications
+> using hugepage for futex may lead to futex-key conflict.  Assume there are two
+> or more futexes in diffrent normal pages of the hugepage, and each futex has
+> the same offset in its normal page, causing all the futexes have the same
+> futex-key.  In that case, futex may not work well.
 >
-complicated =96 one needs to register memory before using it for communicat=
-ion<br>
-with the hardware.<br>
-<br>
-We use the mmu-notifiers [1] mechanism to inform the hardware when the<br>
-mapping of a page is changed. If the hardware tries to access a page which<=
-br>
-is not yet mapped for the hardware, it requests a resolution for the page<b=
-r>
-address from the kernel.<br>
-<br>
-This mechanism allows the hardware to access the entire address space of th=
-e<br>
-user application, without pinning even a single page.<br>
-<br>
-We would like to use the LSF/MM forum opportunity to discuss open issues we=
-<br>
-have for further development, such as:<br>
-<br>
--Allowing the hardware to perform page table walk, similar to<br>
-get_user_pages_fast to resolve user pages that are already in RAM.<br>
-</blockquote></blockquote>
-<br></div></div>
-get_user_pages_fast just get page reference count instead of populate the p=
-te to page table, correct? Then how can GPU driver use iommu to access the =
-page?<br></blockquote><div><br>As i said this is for pre-filling already pr=
-esent entry, ie pte that are present with a valid page (no special bit set)=
-. This is an optimization so that the GPU can pre-fill its tlb without havi=
-ng to take any mmap_sem. Hope is that in most common case this will be enou=
-gh, but in some case you will have to go through the lengthy non fast gup.<=
-br>
-<br></div></div>Cheers,<br>Jerome<br>
+> This patch adds the normal page index in the compound page into the offset of
+> futex-key.
 
---047d7b5d617cfa98ab04da7cd72e--
+It also modifies the mm prep_compound*page() routines to set the page
+compound index. You didn't modify the structure itself, I'm curious why
+this information wasn't set before? Something for the MM folks I guess..
+
+>
+> Steps to reproduce the bug:
+> 1. The 1st thread map a file of hugetlbfs, and use the return address as the
+>    1st mutex's address, and use the return address with PAGE_SIZE added as the
+>    2nd mutex's address;
+> 2. The 1st thread initialize the two mutexes with pshared attribute, and lock
+>    the two mutexes.
+> 3. The 1st thread create the 2nd thread, and the 2nd thread block on the 1st
+>    mutex.
+> 4. The 1st thread create the 3rd thread, and the 3rd thread block on the 2nd
+>    mutex.
+> 5. The 1st thread unlock the 2nd mutex, the 3rd thread can not take the 2nd
+>    mutex, and may block forever.
+
+
+Again, a functional testcase in futextest would be a good idea. This
+helps validate the patch and also can be used to identify regressions in
+the future.
+
+
+> Signed-off-by: Zhang Yi <zhang.yi20@zte.com.cn>
+> Tested-by: Ma Chenggong <ma.chenggong@zte.com.cn>
+> Reviewed-by: Liu Dong <liu.dong3@zte.com.cn>
+> Reviewed-by: Cui Yunfeng <cui.yunfeng@zte.com.cn>
+> Reviewed-by: Lu Zhongjun <lu.zhongjun@zte.com.cn>
+> Reviewed-by: Jiang Biao <jiang.biao2@zte.com.cn>
+>
+> diff -uprN orig/linux-3.9-rc7/include/linux/mm.h
+> new/linux-3.9-rc7/include/linux/mm.h
+> --- orig/linux-3.9-rc7/include/linux/mm.h       2013-04-15
+> 00:45:16.000000000 +0000
+> +++ new/linux-3.9-rc7/include/linux/mm.h        2013-04-16
+> 11:21:59.573458000 +0000
+> @@ -502,6 +502,20 @@ static inline void set_compound_order(st
+>         page[1].lru.prev = (void *)order;
+>  }
+>
+> +static inline void set_page_compound_index(struct page *page, int index)
+> +{
+> +       if (PageHead(page))
+> +               return;
+> +       page->index = index;
+> +}
+
+I presume the spaces instead of tabs is a result of your mailer mangling
+whitespace?
+
+> +
+> +static inline int get_page_compound_index(struct page *page)
+> +{
+> +       if (PageHead(page))
+> +               return 0;
+> +       return page->index;
+> +}
+> +
+>  #ifdef CONFIG_MMU
+>  /*
+>   * Do pte_mkwrite, but only if the vma says VM_WRITE.  We do this when
+> diff -uprN orig/linux-3.9-rc7/kernel/futex.c
+> new/linux-3.9-rc7/kernel/futex.c
+> --- orig/linux-3.9-rc7/kernel/futex.c   2013-04-15 00:45:16.000000000
+> +0000
+> +++ new/linux-3.9-rc7/kernel/futex.c    2013-04-16 11:13:30.069887000
+> +0000
+> @@ -239,7 +239,7 @@ get_futex_key(u32 __user *uaddr, int fsh
+>         unsigned long address = (unsigned long)uaddr;
+>         struct mm_struct *mm = current->mm;
+>         struct page *page, *page_head;
+> -       int err, ro = 0;
+> +       int err, ro = 0, comp_idx = 0;
+>
+>         /*
+>          * The futex address must be "naturally" aligned.
+> @@ -299,6 +299,7 @@ again:
+>                          * freed from under us.
+>                          */
+>                         if (page != page_head) {
+> +                               comp_idx = get_page_compound_index(page);
+>                                 get_page(page_head);
+>                                 put_page(page);
+>                         }
+> @@ -311,6 +312,7 @@ again:
+>  #else
+>         page_head = compound_head(page);
+>         if (page != page_head) {
+> +               comp_idx = get_page_compound_index(page);
+>                 get_page(page_head);
+>                 put_page(page);
+>         }
+> @@ -363,7 +365,8 @@ again:
+>                 key->private.mm = mm;
+>                 key->private.address = address;
+>         } else {
+> -               key->both.offset |= FUT_OFF_INODE; /* inode-based key */
+> +               key->both.offset |= (comp_idx << PAGE_SHIFT)
+> +                                   | FUT_OFF_INODE; /* inode-based key */
+
+Comments at the end of lines are bad form already, when moving to
+multi-line, please move the comment just above the statements.
+
+What is the max value of comp_idx? Are we at risk of truncating it?
+Looks like not really from my initial look.
+
+This also needs a comment in futex.h describing the usage of the offset
+field in union futex_key as well as above get_futex_key describing the
+key for shared mappings.
+
+
+Thanks,
+
+-- 
+Darren Hart
+Intel Open Source Technology Center
+Yocto Project - Technical Lead - Linux Kernel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
