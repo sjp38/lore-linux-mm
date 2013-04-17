@@ -1,947 +1,429 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id A913D6B00AF
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 13:46:27 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Wed, 17 Apr 2013 13:46:26 -0400
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id EB53FC9001E
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 13:46:21 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3HHkLSS63963184
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 13:46:21 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3HHkKxN025960
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 13:46:20 -0400
-Date: Wed, 17 Apr 2013 10:46:17 -0700
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [PATCHv9 4/8] zswap: add to mm/
-Message-ID: <20130417174617.GB29947@medulla>
-References: <1365617940-21623-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1365617940-21623-5-git-send-email-sjenning@linux.vnet.ibm.com>
- <20130414004506.GD1330@suse.de>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id BFEE06B00B1
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 13:56:42 -0400 (EDT)
+Received: by mail-da0-f54.google.com with SMTP id p1so890472dad.41
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:56:42 -0700 (PDT)
+Message-ID: <516EE256.2070303@linaro.org>
+Date: Wed, 17 Apr 2013 10:56:38 -0700
+From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130414004506.GD1330@suse.de>
+Subject: LSF-MM Volatile Ranges Discussion Plans
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@linux.vnet.ibm.com>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: lsf@lists.linux-foundation.org, linux-mm@kvack.org
+Cc: Minchan Kim <minchan@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Paul Turner <pjt@google.com>, Robert Love <rlove@google.com>, Dave Hansen <dave@sr71.net>, Taras Glek <tglek@mozilla.com>, Mike Hommey <mh@glandium.org>, Kostya Serebryany <kcc@google.com>
 
-On Sun, Apr 14, 2013 at 01:45:06AM +0100, Mel Gorman wrote:
-> On Wed, Apr 10, 2013 at 01:18:56PM -0500, Seth Jennings wrote:
-> > zswap is a thin compression backend for frontswap. It receives
-> > pages from frontswap and attempts to store them in a compressed
-> > memory pool, resulting in an effective partial memory reclaim and
-> > dramatically reduced swap device I/O.
-> > 
-> > Additionally, in most cases, pages can be retrieved from this
-> > compressed store much more quickly than reading from tradition
-> > swap devices resulting in faster performance for many workloads.
-> > 
-> 
-> Except in the case where the zswap pool is externally fragmented, occupies
-> its maximum configured size and a workload that would otherwise have fit
-> in memory gets pushed to swap.
-> 
-> Yes, it's a corner case but the changelog portrays zswap as an unconditional
-> win and while it certainly is going to help some cases, it won't help
-> them all.
+LSF-MM Volatile Ranges Discussion Plans
+=======================================
 
-Yes, and I (and others) are already working on improvements to the allocator to
-make this corner case even smaller.
+Just wanted to send this out to hopefully prime the discussion at
+lsf-mm tomorrow (should the schedule hold). Much of it is background
+material we won't have time to cover.
 
-> 
-> > This patch adds the zswap driver to mm/
-> > 
-> > Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-> > ---
-> >  mm/Kconfig  |  15 ++
-> >  mm/Makefile |   1 +
-> >  mm/zswap.c  | 665 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> >  3 files changed, 681 insertions(+)
-> >  create mode 100644 mm/zswap.c
-> > 
-> > diff --git a/mm/Kconfig b/mm/Kconfig
-> > index aa054fc..36d93b0 100644
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -495,3 +495,18 @@ config PGTABLE_MAPPING
-> >  
-> >  	  You can check speed with zsmalloc benchmark[1].
-> >  	  [1] https://github.com/spartacus06/zsmalloc
-> > +
-> > +config ZSWAP
-> > +	bool "In-kernel swap page compression"
-> > +	depends on FRONTSWAP && CRYPTO
-> > +	select CRYPTO_LZO
-> > +	select ZSMALLOC
-> > +	default n
-> > +	help
-> > +	  Zswap is a backend for the frontswap mechanism in the VMM.
-> > +	  It receives pages from frontswap and attempts to store them
-> > +	  in a compressed memory pool, resulting in an effective
-> > +	  partial memory reclaim.  In addition, pages and be retrieved
-> > +	  from this compressed store much faster than most tradition
-> > +	  swap devices resulting in reduced I/O and faster performance
-> > +	  for many workloads.
-> > diff --git a/mm/Makefile b/mm/Makefile
-> > index 0f6ef0a..1e0198f 100644
-> > --- a/mm/Makefile
-> > +++ b/mm/Makefile
-> > @@ -32,6 +32,7 @@ obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
-> >  obj-$(CONFIG_BOUNCE)	+= bounce.o
-> >  obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
-> >  obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
-> > +obj-$(CONFIG_ZSWAP)	+= zswap.o
-> >  obj-$(CONFIG_HAS_DMA)	+= dmapool.o
-> >  obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
-> >  obj-$(CONFIG_NUMA) 	+= mempolicy.o
-> > diff --git a/mm/zswap.c b/mm/zswap.c
-> > new file mode 100644
-> > index 0000000..db283c4
-> > --- /dev/null
-> > +++ b/mm/zswap.c
-> > @@ -0,0 +1,665 @@
-> > +/*
-> > + * zswap.c - zswap driver file
-> > + *
-> > + * zswap is a backend for frontswap that takes pages that are in the
-> > + * process of being swapped out and attempts to compress them and store
-> > + * them in a RAM-based memory pool.  This results in a significant I/O
-> > + * reduction on the real swap device and, in the case of a slow swap
-> > + * device, can also improve workload performance.
-> > + *
-> > + * Copyright (C) 2012  Seth Jennings <sjenning@linux.vnet.ibm.com>
-> > + *
-> > + * This program is free software; you can redistribute it and/or
-> > + * modify it under the terms of the GNU General Public License
-> > + * as published by the Free Software Foundation; either version 2
-> > + * of the License, or (at your option) any later version.
-> > + *
-> > + * This program is distributed in the hope that it will be useful,
-> > + * but WITHOUT ANY WARRANTY; without even the implied warranty of
-> > + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-> > + * GNU General Public License for more details.
-> > +*/
-> > +
-> > +#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-> > +
-> > +#include <linux/module.h>
-> > +#include <linux/cpu.h>
-> > +#include <linux/highmem.h>
-> > +#include <linux/slab.h>
-> > +#include <linux/spinlock.h>
-> > +#include <linux/types.h>
-> > +#include <linux/atomic.h>
-> > +#include <linux/frontswap.h>
-> > +#include <linux/rbtree.h>
-> > +#include <linux/swap.h>
-> > +#include <linux/crypto.h>
-> > +#include <linux/mempool.h>
-> > +#include <linux/zsmalloc.h>
-> > +
-> > +/*********************************
-> > +* statistics
-> > +**********************************/
-> > +/* Number of memory pages used by the compressed pool */
-> > +static atomic_t zswap_pool_pages = ATOMIC_INIT(0);
-> > +/* The number of compressed pages currently stored in zswap */
-> > +static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
-> > +
-> > +/*
-> > + * The statistics below are not protected from concurrent access for
-> > + * performance reasons so they may not be a 100% accurate.  However,
-> > + * they do provide useful information on roughly how many times a
-> > + * certain event is occurring.
-> > +*/
-> > +static u64 zswap_pool_limit_hit;
-> > +static u64 zswap_reject_compress_poor;
-> > +static u64 zswap_reject_zsmalloc_fail;
-> > +static u64 zswap_reject_kmemcache_fail;
-> > +static u64 zswap_duplicate_entry;
-> > +
-> 
-> Ok. Initially I thought "vmstat" but it would be overkill in this case
-> and the fact zswap can be a module would be a problem.
+First of all, this is my (John's) perspective here, Minchan may
+disagree with me on specifics here, but I think it covers the desired
+behavior fairly well, and I've tried to call out the places where
+we currently don't yet agree.
 
-Agreed.
 
-> 
-> > +/*********************************
-> > +* tunables
-> > +**********************************/
-> > +/* Enable/disable zswap (disabled by default, fixed at boot for now) */
-> > +static bool zswap_enabled;
-> > +module_param_named(enabled, zswap_enabled, bool, 0);
-> > +
-> > +/* Compressor to be used by zswap (fixed at boot for now) */
-> > +#define ZSWAP_COMPRESSOR_DEFAULT "lzo"
-> > +static char *zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
-> > +module_param_named(compressor, zswap_compressor, charp, 0);
-> > +
-> > +/* The maximum percentage of memory that the compressed pool can occupy */
-> > +static unsigned int zswap_max_pool_percent = 20;
-> > +module_param_named(max_pool_percent,
-> > +			zswap_max_pool_percent, uint, 0644);
-> > +
-> 
-> This has some potentially interesting NUMA characteristics.
-> The location of the allocated pages will depend on the process that first
-> allocated the page. As the pages can then be used by remote processes,
-> there may be increased remote accesses when accessing zswap.
-> Furthermore, if zone_reclaim_mode is enabled and allowed to swap it
-> could setup a weird situation whereby a process pushes itself fully into
-> zswap trying to reclaim local memory and instead pushing itself into
-> zswap on the local node.
+Volatile Ranges:
+----------------
 
-Yes, there are some NUMA ramifications to flush out here. None of them
-completely detrimental I don't think, but sub-optimal yes.
+Idea is from Android's ashmem feature (originally by Robert Love),
+which allows for unpinned ranges.
 
-> 
-> If this is every reported as a problem then a workaround is to always
-> allocate zswap pages round-robin between online nodes.
+I've been told other OSes support similar functionality
+(VM_FLAGS_PURGABLE and  MEM_RESET/MEM_RESET_UNDO).
 
-Even the round-robin approach could have a caveat if the nodes are not
-identically sized.  I guess you could do a weighted round-robin proportional to
-node size in that case.
+Been slow going last 6-mo on my part, due to lots of adorable
+SIGBABY interruptions & other work.
 
-> 
-> > +/*
-> > + * Maximum compression ratio, as as percentage, for an acceptable
-> 
-> s/as as/as a/
 
-Yes.
+Concept in general:
+-------------------
 
-> 
-> > + * compressed page. Any pages that do not compress by at least
-> > + * this ratio will be rejected.
-> > +*/
-> > +static unsigned int zswap_max_compression_ratio = 80;
-> > +module_param_named(max_compression_ratio,
-> > +			zswap_max_compression_ratio, uint, 0644);
-> > +
-> > +/*********************************
-> > +* compression functions
-> > +**********************************/
-> > +/* per-cpu compression transforms */
-> > +static struct crypto_comp * __percpu *zswap_comp_pcpu_tfms;
-> > +
-> > +enum comp_op {
-> > +	ZSWAP_COMPOP_COMPRESS,
-> > +	ZSWAP_COMPOP_DECOMPRESS
-> > +};
-> > +
-> > +static int zswap_comp_op(enum comp_op op, const u8 *src, unsigned int slen,
-> > +				u8 *dst, unsigned int *dlen)
-> > +{
-> > +	struct crypto_comp *tfm;
-> > +	int ret;
-> > +
-> > +	tfm = *per_cpu_ptr(zswap_comp_pcpu_tfms, get_cpu());
-> 
-> It's always the local CPU so why not get_cpu_var()?
+Applications marks memory as volatile, allowing kernel to purge
+that memory if and when its needed. Applications can mark memory as
+non-volatile, and kernel will return a value to notify them if memory
+was purged while it was volatile.
 
-Hmm... I'm not sure :)  Let me take another look.
 
-> 
-> > +	switch (op) {
-> > +	case ZSWAP_COMPOP_COMPRESS:
-> > +		ret = crypto_comp_compress(tfm, src, slen, dst, dlen);
-> > +		break;
-> > +	case ZSWAP_COMPOP_DECOMPRESS:
-> > +		ret = crypto_comp_decompress(tfm, src, slen, dst, dlen);
-> > +		break;
-> > +	default:
-> > +		ret = -EINVAL;
-> > +	}
-> > +
-> > +	put_cpu();
-> > +	return ret;
-> > +}
-> > +
-> > +static int __init zswap_comp_init(void)
-> > +{
-> > +	if (!crypto_has_comp(zswap_compressor, 0, 0)) {
-> > +		pr_info("%s compressor not available\n", zswap_compressor);
-> > +		/* fall back to default compressor */
-> > +		zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
-> > +		if (!crypto_has_comp(zswap_compressor, 0, 0))
-> > +			/* can't even load the default compressor */
-> > +			return -ENODEV;
-> > +	}
-> > +	pr_info("using %s compressor\n", zswap_compressor);
-> > +
-> > +	/* alloc percpu transforms */
-> > +	zswap_comp_pcpu_tfms = alloc_percpu(struct crypto_comp *);
-> > +	if (!zswap_comp_pcpu_tfms)
-> > +		return -ENOMEM;
-> > +	return 0;
-> > +}
-> > +
-> > +static void zswap_comp_exit(void)
-> > +{
-> > +	/* free percpu transforms */
-> > +	if (zswap_comp_pcpu_tfms)
-> > +		free_percpu(zswap_comp_pcpu_tfms);
-> > +}
-> > +
-> > +/*********************************
-> > +* data structures
-> > +**********************************/
-> > +struct zswap_entry {
-> > +	struct rb_node rbnode;
-> > +	unsigned type;
-> > +	pgoff_t offset;
-> > +	unsigned long handle;
-> > +	unsigned int length;
-> > +};
-> 
-> Document that the types and offset are from frontswap and the handle is
-> an opaque type from zsmalloc. This indicates that zswap is hard-coded
-> against zsmalloc but so far I do not believe I have seen anything that
-> forces it to be and allow either zbud or zsmalloc to be pluggable.
+Use cases:
+----------
 
-Ok.
+Allows for eviction of userspace cache by the kernel, which is nice
+as applications don't have to tinker with optimizing cache sizes,
+as the kernel which has the global view will optimize it for them.
 
-> 
-> > +
-> > +struct zswap_tree {
-> > +	struct rb_root rbroot;
-> > +	spinlock_t lock;
-> > +	struct zs_pool *pool;
-> > +};
-> > +
-> > +static struct zswap_tree *zswap_trees[MAX_SWAPFILES];
-> > +
-> > +/*********************************
-> > +* zswap entry functions
-> > +**********************************/
-> > +#define ZSWAP_KMEM_CACHE_NAME "zswap_entry_cache"
-> 
-> heh, it's only used once and it's not exactly a magic number. Seems
-> overkill for a #define
+Marking  obscured bitmaps of rendered image data volatile. Ie: Keep
+compressed jpeg around, but mark volatile off-screen rendered bitmaps.
 
-Yes.
+Marking non-visible web-browser tabs as volatile.
 
-> 
-> > +static struct kmem_cache *zswap_entry_cache;
-> > +
-> > +static inline int zswap_entry_cache_create(void)
-> > +{
-> 
-> No need to declare it inline, compiler will figure it out. Also should
-> return bool.
+Lazy freeing of heap in malloc/free implementations.
 
-Yes. 
 
-> 
-> > +	zswap_entry_cache =
-> > +		kmem_cache_create(ZSWAP_KMEM_CACHE_NAME,
-> > +			sizeof(struct zswap_entry), 0, 0, NULL);
-> > +	return (zswap_entry_cache == NULL);
-> > +}
-> > +
-> > +static inline void zswap_entry_cache_destory(void)
-> > +{
-> > +	kmem_cache_destroy(zswap_entry_cache);
-> > +}
-> > +
-> > +static inline struct zswap_entry *zswap_entry_cache_alloc(gfp_t gfp)
-> > +{
-> > +	struct zswap_entry *entry;
-> > +	entry = kmem_cache_alloc(zswap_entry_cache, gfp);
-> > +	if (!entry)
-> > +		return NULL;
-> 
-> No need to check !entry, just return it.
+Parallel ways of thinking about it:
+-----------------------------------
 
-Yes.
+Also similar to MADV_DONTNEED, but eviction is needs based, not
+instantaneous. Also applications can cancel eviction if it hasn't
+happened (by setting non-volatile).  So sort of delayed and cancel-able
+MADV_DONTNEED.
 
-> 
-> > +	return entry;
-> > +}
-> > +
-> > +static inline void zswap_entry_cache_free(struct zswap_entry *entry)
-> > +{
-> > +	kmem_cache_free(zswap_entry_cache, entry);
-> > +}
-> > +
-> > +/*********************************
-> > +* rbtree functions
-> > +**********************************/
-> > +static struct zswap_entry *zswap_rb_search(struct rb_root *root, pgoff_t offset)
-> > +{
-> > +	struct rb_node *node = root->rb_node;
-> > +	struct zswap_entry *entry;
-> > +
-> > +	while (node) {
-> > +		entry = rb_entry(node, struct zswap_entry, rbnode);
-> > +		if (entry->offset > offset)
-> > +			node = node->rb_left;
-> > +		else if (entry->offset < offset)
-> > +			node = node->rb_right;
-> > +		else
-> > +			return entry;
-> > +	}
-> > +	return NULL;
-> > +}
-> > +
-> > +/*
-> > + * In the case that a entry with the same offset is found, it a pointer to
-> > + * the existing entry is stored in dupentry and the function returns -EEXIST
-> > +*/
-> > +static int zswap_rb_insert(struct rb_root *root, struct zswap_entry *entry,
-> > +			struct zswap_entry **dupentry)
-> > +{
-> > +	struct rb_node **link = &root->rb_node, *parent = NULL;
-> > +	struct zswap_entry *myentry;
-> > +
-> > +	while (*link) {
-> > +		parent = *link;
-> > +		myentry = rb_entry(parent, struct zswap_entry, rbnode);
-> > +		if (myentry->offset > entry->offset)
-> > +			link = &(*link)->rb_left;
-> > +		else if (myentry->offset < entry->offset)
-> > +			link = &(*link)->rb_right;
-> > +		else {
-> > +			*dupentry = myentry;
-> > +			return -EEXIST;
-> > +		}
-> > +	}
-> > +	rb_link_node(&entry->rbnode, parent, link);
-> > +	rb_insert_color(&entry->rbnode, root);
-> > +	return 0;
-> > +}
-> > +
-> > +/*********************************
-> > +* per-cpu code
-> > +**********************************/
-> > +static DEFINE_PER_CPU(u8 *, zswap_dstmem);
-> > +
-> 
-> That deserves a comment. It per-cpu buffers for compressing or
-> decompressing data.
+Can consider it like swapping some pages to /dev/null ?
 
-Will do.
+Rik's MADV_FREE was vary similar, but with implicit NON_VOLATILE
+marking on page-dirtying.
 
-> 
-> 
-> > +static int __zswap_cpu_notifier(unsigned long action, unsigned long cpu)
-> > +{
-> > +	struct crypto_comp *tfm;
-> > +	u8 *dst;
-> > +
-> > +	switch (action) {
-> > +	case CPU_UP_PREPARE:
-> > +		tfm = crypto_alloc_comp(zswap_compressor, 0, 0);
-> > +		if (IS_ERR(tfm)) {
-> > +			pr_err("can't allocate compressor transform\n");
-> > +			return NOTIFY_BAD;
-> > +		}
-> > +		*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = tfm;
-> > +		dst = kmalloc(PAGE_SIZE * 2, GFP_KERNEL);
-> > +		if (!dst) {
-> > +			pr_err("can't allocate compressor buffer\n");
-> > +			crypto_free_comp(tfm);
-> > +			*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = NULL;
-> > +			return NOTIFY_BAD;
-> > +		}
-> > +		per_cpu(zswap_dstmem, cpu) = dst;
-> > +		break;
-> > +	case CPU_DEAD:
-> > +	case CPU_UP_CANCELED:
-> > +		tfm = *per_cpu_ptr(zswap_comp_pcpu_tfms, cpu);
-> > +		if (tfm) {
-> > +			crypto_free_comp(tfm);
-> > +			*per_cpu_ptr(zswap_comp_pcpu_tfms, cpu) = NULL;
-> > +		}
-> > +		dst = per_cpu(zswap_dstmem, cpu);
-> > +		if (dst) {
-> > +			kfree(dst);
-> > +			per_cpu(zswap_dstmem, cpu) = NULL;
-> > +		}
-> > +		break;
-> > +	default:
-> > +		break;
-> > +	}
-> > +	return NOTIFY_OK;
-> > +}
-> > +
-> > +static int zswap_cpu_notifier(struct notifier_block *nb,
-> > +				unsigned long action, void *pcpu)
-> > +{
-> > +	unsigned long cpu = (unsigned long)pcpu;
-> > +	return __zswap_cpu_notifier(action, cpu);
-> > +}
-> > +
-> > +static struct notifier_block zswap_cpu_notifier_block = {
-> > +	.notifier_call = zswap_cpu_notifier
-> > +};
-> > +
-> > +static int zswap_cpu_init(void)
-> > +{
-> > +	unsigned long cpu;
-> > +
-> > +	get_online_cpus();
-> > +	for_each_online_cpu(cpu)
-> > +		if (__zswap_cpu_notifier(CPU_UP_PREPARE, cpu) != NOTIFY_OK)
-> > +			goto cleanup;
-> > +	register_cpu_notifier(&zswap_cpu_notifier_block);
-> > +	put_online_cpus();
-> > +	return 0;
-> > +
-> > +cleanup:
-> > +	for_each_online_cpu(cpu)
-> > +		__zswap_cpu_notifier(CPU_UP_CANCELED, cpu);
-> > +	put_online_cpus();
-> > +	return -ENOMEM;
-> > +}
-> > +
-> > +/*********************************
-> > +* zsmalloc callbacks
-> > +**********************************/
-> > +static mempool_t *zswap_page_pool;
-> > +
-> > +static inline unsigned int zswap_max_pool_pages(void)
-> > +{
-> > +	return zswap_max_pool_percent * totalram_pages / 100;
-> > +}
-> > +
-> > +static inline int zswap_page_pool_create(void)
-> > +{
-> > +	/* TODO: dynamically size mempool */
-> > +	zswap_page_pool = mempool_create_page_pool(256, 0);
-> > +	if (!zswap_page_pool)
-> > +		return -ENOMEM;
-> > +	return 0;
-> > +}
-> > +
-> > +static inline void zswap_page_pool_destroy(void)
-> > +{
-> > +	mempool_destroy(zswap_page_pool);
-> > +}
-> > +
-> > +static struct page *zswap_alloc_page(gfp_t flags)
-> > +{
-> > +	struct page *page;
-> > +
-> > +	if (atomic_read(&zswap_pool_pages) >= zswap_max_pool_pages()) {
-> > +		zswap_pool_limit_hit++;
-> > +		return NULL;
-> > +	}
-> > +	page = mempool_alloc(zswap_page_pool, flags);
-> > +	if (page)
-> > +		atomic_inc(&zswap_pool_pages);
-> > +	return page;
-> > +}
-> > +
-> > +static void zswap_free_page(struct page *page)
-> > +{
-> > +	if (!page)
-> > +		return;
-> > +	mempool_free(page, zswap_page_pool);
-> > +	atomic_dec(&zswap_pool_pages);
-> > +}
-> 
-> Again I find it odd that the mempool is here instead of within zsmalloc
-> itself. It's also not superclear why you used mempool instead of just
-> alloc_page/free_page
 
-I am reexamining this approach since the removal of __GFP_NOMEMALLOC from the
-mask has bascially done away with the issue of zsmalloc being able to allocate
-pages for the pool.
+Two basic usage-modes:
+----------------------
 
-This could potentially be done away with.
+1)  Application explicitly unmarks memory as volatile whenever it
+uses it, never touching memory marked volatile.
 
-> 
-> 
-> > +
-> > +static struct zs_ops zswap_zs_ops = {
-> > +	.alloc = zswap_alloc_page,
-> > +	.free = zswap_free_page
-> > +};
-> > +
-> > +/*********************************
-> > +* frontswap hooks
-> > +**********************************/
-> > +/* attempts to compress and store an single page */
-> > +static int zswap_frontswap_store(unsigned type, pgoff_t offset,
-> > +				struct page *page)
-> > +{
-> > +	struct zswap_tree *tree = zswap_trees[type];
-> > +	struct zswap_entry *entry, *dupentry;
-> > +	int ret;
-> > +	unsigned int dlen = PAGE_SIZE;
-> > +	unsigned long handle;
-> > +	char *buf;
-> > +	u8 *src, *dst;
-> > +
-> > +	if (!tree) {
-> > +		ret = -ENODEV;
-> > +		goto reject;
-> > +	}
-> > +
-> > +	/* allocate entry */
-> > +	entry = zswap_entry_cache_alloc(GFP_KERNEL);
-> > +	if (!entry) {
-> > +		zswap_reject_kmemcache_fail++;
-> > +		ret = -ENOMEM;
-> > +		goto reject;
-> > +	}
-> > +
-> > +	/* compress */
-> > +	dst = get_cpu_var(zswap_dstmem);
-> > +	src = kmap_atomic(page);
-> 
-> Why kmap_atomic? We do not appear to be in an atomic context here and
-> you've already disabled preempt for the compression op.
+     If memory is purged, applications is notified when it marks the
+     area as non-volatile.
 
-To support swapping out highmem pages in 32-bit systems.  Is this not needed
-for that?
+2) Applications may access memory marked volatile, but should it
+access memory that was purged, it will receive SIGBUS
 
-> 
-> > +	ret = zswap_comp_op(ZSWAP_COMPOP_COMPRESS, src, PAGE_SIZE, dst, &dlen);
-> > +	kunmap_atomic(src);
-> > +	if (ret) {
-> > +		ret = -EINVAL;
-> > +		goto putcpu;
-> > +	}
-> > +	if ((dlen * 100 / PAGE_SIZE) > zswap_max_compression_ratio) {
-> > +		zswap_reject_compress_poor++;
-> > +		ret = -E2BIG;
-> > +		goto putcpu;
-> > +	}
-> > +
-> > +	/* store */
-> > +	handle = zs_malloc(tree->pool, dlen,
-> > +		__GFP_NORETRY | __GFP_HIGHMEM | __GFP_NOMEMALLOC |
-> > +			__GFP_NOWARN);
-> > +	if (!handle) {
-> > +		zswap_reject_zsmalloc_fail++;
-> > +		ret = -ENOMEM;
-> > +		goto putcpu;
-> > +	}
-> > +
-> 
-> This is an aging inversion problem. Once zswap is full, the newest pages
-> are written to swap instead of old zswap pages and freeing up some
-> space. This means two things
+     On SIGBUS, application has to mark needed range as non-volatile,
+     regenerate or re-fetch the data, and then can continue.
 
-Regarding the age inversion, this is addressed, except in the case where zswap
-is full, by writeback.
+     This is a little more optimistic, but applications need to be
+     able to handle getting a SIGBUS and fixing things up.
 
-> 
-> 1. Once zswap is full, it's performance degrades immediately to just
->    being even worst than traditional swap except we're doing all the
->    swapping but have 20% (by default) less physical memory to work with.
+     This second optimistic method is desired by Mozilla folks.
 
-zswap can still help in this case but yes, the performance will converge on the
-normal off-the-cliff thrashing performance.
 
-> 
-> 2. zswap is vunerable to a DOS by a process starting, allocating a
->    buffer that is RAM + max zswap size to fill zswap, freeing its remaining
->    in-core pages and then sleeping forever
+Important Goals:
+----------------
 
-I think writeback addresses this issue.  If it doesn't let me know.
+Applications using this likely to mark and unmark ranges
+frequently (ideally only marking the data they immediately need as
+nonvolatile). This makes it necessary for these operations to be cheap,
+since applications won't volunteer their currently unused memory to
+the kernel if it adds dramatic overhead.  Although this concerned is
+lessened with the optimistic/SIGBUS usage-mode.
 
-Additionally, I'm working on code to introduce "periodic writeback" where, if
-zpages are not accessed in zswap within a certain time, they are written back
-to free up memory.  This prevents zswap from occupying memory forever on
-systems that use swap in the perferred manner: to contain pages that are
-unlikely to swapped back in any time soon.
+Overall, we try to push costs from the mark/unmark paths to the page
+eviction side.
 
-> 
-> zswap pages should also be maintained on a LRU with old zswap pages written
-> to backing storage when it's full. A logical follow-on then would be that
-> the size of the zswap pool can be dynamically shrunk to free physical RAM
-> if the refault rate between zswap and normal RAM is low.
 
-I think this is fully addressed by the writeback patch.
 
-> 
-> > +	buf = zs_map_object(tree->pool, handle, ZS_MM_WO);
-> > +	memcpy(buf, dst, dlen);
-> > +	zs_unmap_object(tree->pool, handle);
-> > +	put_cpu_var(zswap_dstmem);
-> > +
-> > +	/* populate entry */
-> > +	entry->type = type;
-> > +	entry->offset = offset;
-> > +	entry->handle = handle;
-> > +	entry->length = dlen;
-> > +
-> > +	/* map */
-> > +	spin_lock(&tree->lock);
-> > +	do {
-> > +		ret = zswap_rb_insert(&tree->rbroot, entry, &dupentry);
-> > +		if (ret == -EEXIST) {
-> > +			zswap_duplicate_entry++;
-> > +
-> > +			/* remove from rbtree */
-> > +			rb_erase(&dupentry->rbnode, &tree->rbroot);
-> > +
-> > +			/* free */
-> > +			zs_free(tree->pool, dupentry->handle);
-> > +			zswap_entry_cache_free(dupentry);
-> > +			atomic_dec(&zswap_stored_pages);
-> > +		}
-> > +	} while (ret == -EEXIST);
-> > +	spin_unlock(&tree->lock);
-> > +
-> > +	/* update stats */
-> > +	atomic_inc(&zswap_stored_pages);
-> > +
-> > +	return 0;
-> > +
-> > +putcpu:
-> > +	put_cpu_var(zswap_dstmem);
-> > +	zswap_entry_cache_free(entry);
-> > +reject:
-> > +	return ret;
-> > +}
-> > +
-> > +/*
-> > + * returns 0 if the page was successfully decompressed
-> > + * return -1 on entry not found or error
-> > +*/
-> > +static int zswap_frontswap_load(unsigned type, pgoff_t offset,
-> > +				struct page *page)
-> > +{
-> > +	struct zswap_tree *tree = zswap_trees[type];
-> > +	struct zswap_entry *entry;
-> > +	u8 *src, *dst;
-> > +	unsigned int dlen;
-> > +
-> > +	/* find */
-> > +	spin_lock(&tree->lock);
-> > +	entry = zswap_rb_search(&tree->rbroot, offset);
-> > +	spin_unlock(&tree->lock);
-> > +
-> > +	/* decompress */
-> > +	dlen = PAGE_SIZE;
-> > +	src = zs_map_object(tree->pool, entry->handle, ZS_MM_RO);
-> > +	dst = kmap_atomic(page);
-> > +	zswap_comp_op(ZSWAP_COMPOP_DECOMPRESS, src, entry->length,
-> > +		dst, &dlen);
-> > +	kunmap_atomic(dst);
-> > +	zs_unmap_object(tree->pool, entry->handle);
-> > +
-> > +	return 0;
-> > +}
-> > +
-> > +/* invalidates a single page */
-> > +static void zswap_frontswap_invalidate_page(unsigned type, pgoff_t offset)
-> > +{
-> > +	struct zswap_tree *tree = zswap_trees[type];
-> > +	struct zswap_entry *entry;
-> > +
-> > +	/* find */
-> > +	spin_lock(&tree->lock);
-> > +	entry = zswap_rb_search(&tree->rbroot, offset);
-> > +
-> > +	/* remove from rbtree */
-> > +	rb_erase(&entry->rbnode, &tree->rbroot);
-> > +	spin_unlock(&tree->lock);
-> > +
-> > +	/* free */
-> > +	zs_free(tree->pool, entry->handle);
-> > +	zswap_entry_cache_free(entry);
-> > +	atomic_dec(&zswap_stored_pages);
-> > +}
-> > +
-> > +/* invalidates all pages for the given swap type */
-> > +static void zswap_frontswap_invalidate_area(unsigned type)
-> > +{
-> > +	struct zswap_tree *tree = zswap_trees[type];
-> > +	struct rb_node *node;
-> > +	struct zswap_entry *entry;
-> > +
-> > +	if (!tree)
-> > +		return;
-> > +
-> > +	/* walk the tree and free everything */
-> > +	spin_lock(&tree->lock);
-> > +	/*
-> > +	 * TODO: Even though this code should not be executed because
-> > +	 * the try_to_unuse() in swapoff should have emptied the tree,
-> > +	 * it is very wasteful to rebalance the tree after every
-> > +	 * removal when we are freeing the whole tree.
-> > +	 *
-> > +	 * If post-order traversal code is ever added to the rbtree
-> > +	 * implementation, it should be used here.
-> > +	 */
-> > +	while ((node = rb_first(&tree->rbroot))) {
-> > +		entry = rb_entry(node, struct zswap_entry, rbnode);
-> > +		rb_erase(&entry->rbnode, &tree->rbroot);
-> > +		zs_free(tree->pool, entry->handle);
-> > +		zswap_entry_cache_free(entry);
-> > +	}
-> > +	tree->rbroot = RB_ROOT;
-> > +	spin_unlock(&tree->lock);
-> > +}
-> > +
-> > +/* NOTE: this is called in atomic context from swapon and must not sleep */
-> > +static void zswap_frontswap_init(unsigned type)
-> > +{
-> > +	struct zswap_tree *tree;
-> > +
-> > +	tree = kzalloc(sizeof(struct zswap_tree), GFP_ATOMIC);
-> > +	if (!tree)
-> > +		goto err;
-> > +	tree->pool = zs_create_pool(GFP_NOWAIT, &zswap_zs_ops);
-> > +	if (!tree->pool)
-> > +		goto freetree;
-> > +	tree->rbroot = RB_ROOT;
-> > +	spin_lock_init(&tree->lock);
-> > +	zswap_trees[type] = tree;
-> > +	return;
-> > +
-> 
-> Ok I think. I didn't read this as carefully because I assumed that it
-> would either work or blow up spectacularly and there was little scope
-> for being clever.
-> 
-> > +freetree:
-> > +	kfree(tree);
-> > +err:
-> > +	pr_err("alloc failed, zswap disabled for swap type %d\n", type);
-> > +}
-> > +
-> > +static struct frontswap_ops zswap_frontswap_ops = {
-> > +	.store = zswap_frontswap_store,
-> > +	.load = zswap_frontswap_load,
-> > +	.invalidate_page = zswap_frontswap_invalidate_page,
-> > +	.invalidate_area = zswap_frontswap_invalidate_area,
-> > +	.init = zswap_frontswap_init
-> > +};
-> > +
-> > +/*********************************
-> > +* debugfs functions
-> > +**********************************/
-> > +#ifdef CONFIG_DEBUG_FS
-> > +#include <linux/debugfs.h>
-> > +
-> > +static struct dentry *zswap_debugfs_root;
-> > +
-> > +static int __init zswap_debugfs_init(void)
-> > +{
-> > +	if (!debugfs_initialized())
-> > +		return -ENODEV;
-> > +
-> > +	zswap_debugfs_root = debugfs_create_dir("zswap", NULL);
-> > +	if (!zswap_debugfs_root)
-> > +		return -ENOMEM;
-> > +
-> > +	debugfs_create_u64("pool_limit_hit", S_IRUGO,
-> > +			zswap_debugfs_root, &zswap_pool_limit_hit);
-> > +	debugfs_create_u64("reject_zsmalloc_fail", S_IRUGO,
-> > +			zswap_debugfs_root, &zswap_reject_zsmalloc_fail);
-> > +	debugfs_create_u64("reject_kmemcache_fail", S_IRUGO,
-> > +			zswap_debugfs_root, &zswap_reject_kmemcache_fail);
-> > +	debugfs_create_u64("reject_compress_poor", S_IRUGO,
-> > +			zswap_debugfs_root, &zswap_reject_compress_poor);
-> > +	debugfs_create_u64("duplicate_entry", S_IRUGO,
-> > +			zswap_debugfs_root, &zswap_duplicate_entry);
-> > +	debugfs_create_atomic_t("pool_pages", S_IRUGO,
-> > +			zswap_debugfs_root, &zswap_pool_pages);
-> > +	debugfs_create_atomic_t("stored_pages", S_IRUGO,
-> > +			zswap_debugfs_root, &zswap_stored_pages);
-> > +
-> > +	return 0;
-> > +}
-> > +
-> > +static void __exit zswap_debugfs_exit(void)
-> > +{
-> > +	debugfs_remove_recursive(zswap_debugfs_root);
-> > +}
-> > +#else
-> > +static inline int __init zswap_debugfs_init(void)
-> > +{
-> > +	return 0;
-> > +}
-> > +
-> > +static inline void __exit zswap_debugfs_exit(void) { }
-> > +#endif
-> > +
-> > +/*********************************
-> > +* module init and exit
-> > +**********************************/
-> > +static int __init init_zswap(void)
-> > +{
-> > +	if (!zswap_enabled)
-> > +		return 0;
-> > +
-> > +	pr_info("loading zswap\n");
-> > +	if (zswap_entry_cache_create()) {
-> > +		pr_err("entry cache creation failed\n");
-> > +		goto error;
-> > +	}
-> > +	if (zswap_page_pool_create()) {
-> > +		pr_err("page pool initialization failed\n");
-> > +		goto pagepoolfail;
-> > +	}
-> > +	if (zswap_comp_init()) {
-> > +		pr_err("compressor initialization failed\n");
-> > +		goto compfail;
-> > +	}
-> > +	if (zswap_cpu_init()) {
-> > +		pr_err("per-cpu initialization failed\n");
-> > +		goto pcpufail;
-> > +	}
-> > +	frontswap_register_ops(&zswap_frontswap_ops);
-> > +	if (zswap_debugfs_init())
-> > +		pr_warn("debugfs initialization failed\n");
-> > +	return 0;
-> > +pcpufail:
-> > +	zswap_comp_exit();
-> > +compfail:
-> > +	zswap_page_pool_destroy();
-> > +pagepoolfail:
-> > +	zswap_entry_cache_destory();
-> > +error:
-> > +	return -ENOMEM;
-> > +}
-> > +/* must be late so crypto has time to come up */
-> > +late_initcall(init_zswap);
-> > +
-> > +MODULE_LICENSE("GPL");
-> > +MODULE_AUTHOR("Seth Jennings <sjenning@linux.vnet.ibm.com>");
-> > +MODULE_DESCRIPTION("Compressed cache for swap pages");
-> 
-> Ok, so there are some problems in there.  For me, the zsmalloc fragmentation
-> issues are potentially the far scarier problem because unpredictable
-> performance characteristics tend to generate really painful bug reports
-> with difficult (if not impossible) to replicate problems. Those reports
-> are so painful in fact that I'm inclined to dig my heels in and make loud
-> noises unless an allocator with predictable performance characteritics
-> can also be used (presumably zbud) -- as a comparison point if nothing
-> else but also to have as a workaround for performance problems in zsmalloc.
+Two basic types of volatile memory:
+-----------------------------------
 
-Yes, that allocator continues to be a point of discussion, which I find
-unfortunate since it is just a means to an end; that end being compressed swap.
-However, it is important to get somewhat right from the beginning to avoid
-throwing large amounts of code out of the mm/ later.
+1) File based memory
 
-> 
-> It also looks like performance will fall off a cliff when zswap is full
-> but at least that's a predictable problem and easily explained to a
-> user. An LRU for zswap pages could always be implemented later with
-> bonus points if it uses refault rates to judge when the pool can be
-> shrunk more agressively to free physical RAM.
+2) Anonymous memory
 
-Hopefully addressed by writeback patch.
 
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
-> 
+Volatile ranges on file memory:
+-------------------------------
+
+This allows for using volatile ranges on shared memory between
+processes.
+
+Very similar to ashmem's unpinned pages.
+
+One example: Two processes can create a large circular buffer, where
+any unused memory in that buffer is volatile. Producer marks memory
+as non-volatile, writes to it. The consumer would read the data,
+then mark it volatile.
+
+An important distinction here is that the volatility is shared,
+in the same way the file's data is shared. Its a property of the
+file's pages, not a property of the process that marked the range as
+volatile. Thus one application can mark file data as volatile, and
+the pages could be purged from all applications mapping that data.
+And a different application could mark it as non-volatile, and that
+would keep it from being purged from all applications.
+
+For this reason, the volatility is likely best to be stored on
+address_space (or otherwise connected to the address_space/inode).
+
+Another important semantic: Volatility is cleared when all fd's to
+a file are closed.
+
+     There's no really good way for volatility to persist when no one
+     is using a file.
+
+     It could cause confusion if an application died leaving some
+     file data volatile, and then had that data disappear as it was
+     starting up again.
+
+     No volatility across reboots!
+
+
+[TBD]: For the most-part, volatile ranges really only makes sense to
+me on tmpfs files. Mostly due to semantics of purging data on files
+is similar to hole punching, and I suspect having the resulting hole
+punched pushed out to disk would cause additional io and load. Partial
+range purging could have strange effects on resulting file.
+
+[TBD]: Minchan disagrees and thinks fadvise(DONTNEED) has problems,
+as it causes immediate writeout when there's plenty of free memory
+(possibly unnecessary). Although we may defer so long that the hole
+is never punched, which may be problematic.
+
+
+
+Volatile ranges on anonymous/process memory:
+--------------------------------------------
+
+For anonymous memory, its mostly un-shared between processes (except
+copy-on-write pages).
+
+The only way to address anonymous memory is really relative to the
+process address space (its anonymous: there's no named handle to it).
+
+Same semantics as described above. Mark region of process memory
+volatile, or non-volatile.
+
+Volatility is a per-proecess (well mm_struct) state.
+
+Kernel will only purge a memory page, if *all* the processes that
+map that page in consider the page volatile.
+
+Important semantics: Preserve volatility over a fork, but clear child
+volatility on exec.
+
+     So if a process marks a range as volatile then forks. Both
+     the child and parent should see the same range as volatile.
+     On memory pressure, kernel could purge those pages, since all of
+     the processes that map that page consider it volatile.
+
+     If the child writes to the pages, the COW links are broken, but
+     both ranges ares still volatile, and can be purged until they
+     are marked non-volatile or cleared.
+
+     Then like mappings and the rest of memory, volatile ranges are
+     cleared on exec.
+
+
+Implementation history:
+-----------------------
+
+File-focused (John): Interval tree connected to address_space w/ global
+LRU of unpurged volatile ranges. Used shrinker to trigger purging
+off the lru. Numa folks complained that shrinker is numa-unaware and
+would cause purging on nodes not under pressure.
+
+File-focused (John): Checking volatility at page eviction time. Caused
+problems on swap-free systems, since tmpfs pages are anonymous and
+aren't aged/shrunk off lrus. In order to handle that we moved the
+pages to a volatile lru list, but that causes volatile/non-volatile
+operations to be very expensive O(n) for number of pages in the range.
+
+Anon-focused (Minchan): Store volatility in VMA. Worked well for
+anonymous ranges, but was problematic to extend to file ranges as
+we need volatility state to be connected with the file, not the
+process. Iterating across and splitting VMAs was somewhat costly.
+
+Anon-focused (Minchan): Store anonymous volatility in interval tree
+off of the mm_struct. Use global LRU of volatile ranges to use when
+purging ranges via a shrinker. Also hooks into normal eviction to
+make sure evicted pages are purged instead of swapped out. Very fast,
+due to quick manipulations to a single interval tree.  File pages in
+ranges are ignored.
+
+Both (John): Same as above, but mostly extended so interval tree
+of ranges can be hung off of the mm_struct OR an address_space.
+Currently functionality is partitioned so volatile ranges on files and
+on anonymous memory are created via separate syscalls (fvrange(fd,
+start, len, ...) vs mvrange(start_addr, len,...)).  Roughly merges
+the original first approach with the previous one.
+
+Both (John): Currently working on above, further extending mvrange()
+so it can also be used to set volatility on MAP_SHARED file mappings
+in an address space. Has the problem that handling both file and
+anonymous memory types in a single call requires iterating over vmas,
+which makes the operation more expensive.
+
+[TBD]: Cost impact of mvrange() supporting mapped file pages vs dev
+confusion of it not supporting file pages
+
+
+
+Current interfaces:
+-------------------
+
+Two current interfaces:
+     fvrange(fd, start_off, length, mode, flags, &purged)
+
+     mvrange(start_addr, length, mode, flags, &purged)
+
+
+fd/start/length:
+     Hopefully obvious :)
+
+mode:
+     VOLATILE: Sets range as volatile. Returns number of bytes marked
+     volatile.
+
+     NON_VOLATILE: Marks range as non-volatile. Returns number of bytes
+     marked non-volatile, sets purged value to 1 if any memory in the
+     bytes marked non-volatile were purged.
+
+flags:
+     VRANGE_FULL: On eviction, the entire range specified will be purged
+
+     VRANGE_PARTIAL: On eviction, we may purge only part of the
+     specified range.
+
+     In earlier discussions, it was deemed that if any page in
+     a volatile range was purged, we might as well purge the entire
+     range, since if we mark any portion of that range as non-volatile,
+     the application would have to regenerate the entire range. Thus
+     we might as well reduce memory pressure by puring the entire range.
+
+     However, with the SIGBUS semantics, applications may be able to
+     continue accessing pages in a volatile range where one unused
+     page is purged, so we may want to avoid purging the entire range
+     to allow for optimistic continued use.
+
+     Additionally partial purging is helpful so that we don't over-react
+     when we have slight memory pressure. An example, if we have a
+     64M vrange, and the kernel only needs 8M, its much cheaper to
+     free 8M now and then later when the range is marked non-volatile,
+     re-allocate only 8M (fault + allocation + zero-clearing) instead
+     of the entire 64M.
+
+     [TBD]: May consider merging flags w/ mode: ie: VOLATILE_FULL,
+     VOLATILE_PARTIAL, NON_VOLATILE
+
+     [TBD]: Might be able to simplify and go with VRANGE_PARTIAL all
+     the time?
+
+purged:
+     Flag that returns 1 if any pages in the range marked
+     NON_VOLATILE were purged. Is set to zero otherwise. Can be null
+     if mode==VOLATILE.
+
+     [TBD]: Might consider value passed to it will be |'ed with 1?.
+
+     [TBD]: Might consider purged to be more of a status bitflag,
+     allowing vrange(VOLATILE) calls to get some meaningful data like
+     if memory pressure is currently going on.
+
+
+Return value:
+     Number of bytes marked VOLATILE or NON_VOLATILE. This is necessary
+     as if we are to deal with setting ranges that cross anonymous and
+     file backed pages, we have to split the operations up into multiple
+     operations against the respective mm_struct or addess_space, and
+     there's a possibility that we could run out of memory mid-way
+     through an operation.  If we do run out of memory mid way, we
+     simply return the number of bytes successfully marked, and we
+     can return an error on the next invocation if we hit the ENOMEM
+     right away.
+
+     [TBD]: If mvrange() doesn't affect mapped file pages, then the
+     return value can be simpler.
+
+
+
+Current TODOs:
+--------------
+
+Add proper SIGBUS signaling when accessing purged file ranges.
+
+Working on handling mvrange() ranges that cross anonymous and mapped
+file regions.
+
+Handle errors mid-way through operations.
+
+Cleanups and better function names.
+
+
+
+[TBD] Contentious interface issues:
+-----------------------------------
+
+Does handling mvrange() calls that cross anonymous & file pages
+increase costs too much for ebizzy workload Minchan likes?
+
+     Have to take mmap_sem and traverse vmas.
+
+     Could mvrange() on file pages not be shared in the same way as
+     in fvrange()
+
+     Sane interface vs Speed?
+
+Minchan's idea of mvrange(VOLATILE_FILE|VOLATILE_ANON|VOLATILE_BOTH):
+
+     Avoid traversing vmas on VOLATILE_ANON flag, regardless of if
+     range covers mapped file pages
+
+     Not sure we can throw sane errors without checking vmas?
+
+Do we really need a new syscall interface?
+
+     Can we maybe go back to using madvise?
+
+     Should mvrange be prioritized over fvrange, if mvrange can create
+     volatile ranges on files.
+
+Some folks still don't like SIGBUS on accessing a purged volatile page,
+instead want standard zero-fill fault.
+
+     Need some way to know page was dropped (zero is a valid data value)
+
+     After marking non-volatile, it can be zero-fill fault.
+
+
+[TBD] Contentious implementation issues:
+----------------------------------------
+
+Still using shrinker for purging, got early complaints from NUMA folks
+
+     Can make sure we check first page in each range and purge only
+     ranges where some page is in the zone being shrinked?
+
+     Still use shrinker, but also use normal page shrinking path,
+     but check for volatility. (swapless still needs shrinker)
+
+Probably don't want to actually hang vrange interval tree (vrange_root)
+off of address_space and struct_mm.
+
+     In earlier attempts I used a hashtable to avoid this
+         http://thread.gmane.org/gmane.linux.kernel/1278541/focus=1278542
+
+     I assume this is still a concern?
+
+
+Older non-contentious points:
+-----------------------------
+
+Coalescing of ranges: Don't do it unless the ranges overlaps
+
+Range granular vs page granular purging: Resolved with _FULL/_PARTIAL
+flags
+
+
+Other ideas/use-cases proposed:
+-------------------------------
+
+PTurner: Marking deep user-stack-frames as volatile to return that
+memory?
+
+Dmitry Vyukov: 20-80TB allocation, marked volatile right away. Never
+marking non-volatile.
+
+     Wants zero-fill and doesn't want SIGBUG
+
+     https://code.google.com/p/thread-sanitizer/wiki/VolatileRanges
+
+
+Misc:
+----
+Previous discussion: https://lwn.net/Articles/518130/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
