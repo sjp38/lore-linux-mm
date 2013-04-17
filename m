@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id AF2086B0081
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 05:56:16 -0400 (EDT)
-In-Reply-To: <516D90F6.3020603@linux.intel.com>
-Subject: Re: Re: [PATCH] futex: bugfix for futex-key conflict when futex use
- hugepage
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 509BE6B0087
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 08:11:59 -0400 (EDT)
+Message-ID: <516E918B.3050309@redhat.com>
+Date: Wed, 17 Apr 2013 14:11:55 +0200
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Message-ID: <OF79A40956.94F46B9C-ON48257B50.00320F73-48257B50.0036925D@zte.com.cn>
-From: zhang.yi20@zte.com.cn
-Date: Wed, 17 Apr 2013 17:55:29 +0800
-Content-Type: text/plain; charset="US-ASCII"
+Subject: [PATCH] swap: redirty page if page write fails on swap file
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Darren Hart <dvhart@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Darren Hart <dvhart@linux.intel.com> wrote on 2013/04/17 01:57:10:
 
-> Again, a functional testcase in futextest would be a good idea. This
-> helps validate the patch and also can be used to identify regressions in
-> the future.
+Since commit 62c230b, swap_writepage() calls direct_IO on swap files.
+However, in that case page isn't redirtied if I/O fails, and is therefore
+handled afterwards as if it has been successfully written to the swap
+file, leading to memory corruption when the page is eventually swapped
+back in.
+This patch sets the page dirty when direct_IO() fails. It fixes a memory
+corruption that happened while using swap-over-NFS.
 
-I will post the testcase code later.
+Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+---
+ mm/page_io.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-> 
-> What is the max value of comp_idx? Are we at risk of truncating it?
-> Looks like not really from my initial look.
-> 
-> This also needs a comment in futex.h describing the usage of the offset
-> field in union futex_key as well as above get_futex_key describing the
-> key for shared mappings.
-> 
-> 
-
-As far as I know , the max size of one hugepage is 1 GBytes for x86 cpu.
-Can some other cpus support greater hugepage even more than 4 GBytes? If 
-so, we can change the type of 'offset' from int to long to avoid 
-truncating.
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 78eee32..04ca00d 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -222,6 +222,8 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
+ 		if (ret == PAGE_SIZE) {
+ 			count_vm_event(PSWPOUT);
+ 			ret = 0;
++		} else {
++			set_page_dirty(page);
+ 		}
+ 		return ret;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
