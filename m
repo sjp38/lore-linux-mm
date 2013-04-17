@@ -1,73 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id B7FCF6B0092
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:10:37 -0400 (EDT)
-Date: Wed, 17 Apr 2013 09:10:35 -0500
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH] mm: mmu_notifier: re-fix freed page still mapped in
- secondary MMU
-Message-ID: <20130417141035.GA29872@sgi.com>
-References: <516CF235.4060103@linux.vnet.ibm.com>
- <20130416093131.GJ3658@sgi.com>
- <516D275C.8040406@linux.vnet.ibm.com>
- <20130416112553.GM3658@sgi.com>
- <20130416114322.GN3658@sgi.com>
- <516D4D08.9020602@linux.vnet.ibm.com>
- <20130416180835.GY3658@sgi.com>
- <516E0F1E.5090805@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 738346B0096
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:16:54 -0400 (EDT)
+Date: Wed, 17 Apr 2013 10:16:39 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1366208199-50vqp1rm-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <516E446B.5060006@gmail.com>
+References: <51662D5B.3050001@hitachi.com>
+ <20130411134915.GH16732@two.firstfloor.org>
+ <1365693788-djsd2ymu-mutt-n-horiguchi@ah.jp.nec.com>
+ <516E446B.5060006@gmail.com>
+Subject: Re: [RFC Patch 0/2] mm: Add parameters to make kernel behavior at
+ memory error on dirty cache selectable
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <516E0F1E.5090805@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, Avi Kivity <avi.kivity@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, KVM <kvm@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Wed, Apr 17, 2013 at 10:55:26AM +0800, Xiao Guangrong wrote:
-> On 04/17/2013 02:08 AM, Robin Holt wrote:
-> > On Tue, Apr 16, 2013 at 09:07:20PM +0800, Xiao Guangrong wrote:
-> >> On 04/16/2013 07:43 PM, Robin Holt wrote:
-> >>> Argh.  Taking a step back helped clear my head.
-> >>>
-> >>> For the -stable releases, I agree we should just go with your
-> >>> revert-plus-hlist_del_init_rcu patch.  I will give it a test
-> >>> when I am in the office.
+On Wed, Apr 17, 2013 at 02:42:51PM +0800, Simon Jeons wrote:
+> Hi Naoya,
+> On 04/11/2013 11:23 PM, Naoya Horiguchi wrote:
+> > On Thu, Apr 11, 2013 at 03:49:16PM +0200, Andi Kleen wrote:
+> >>> As a result, if the dirty cache includes user data, the data is lost,
+> >>> and data corruption occurs if an application uses old data.
+> >> The application cannot use old data, the kernel code kills it if it
+> >> would do that. And if it's IO data there is an EIO triggered.
 > >>
-> >> Okay. Wait for your test report. Thank you in advance.
+> >> iirc the only concern in the past was that the application may miss
+> >> the asynchronous EIO because it's cleared on any fd access. 
 > >>
-> >>>
-> >>> For the v3.10 release, we should work on making this more
-> >>> correct and completely documented.
+> >> This is a general problem not specific to memory error handling, 
+> >> as these asynchronous IO errors can happen due to other reason
+> >> (bad disk etc.) 
 > >>
-> >> Better document is always welcomed.
-> >>
-> >> Double call ->release is not bad, like i mentioned it in the changelog:
-> >>
-> >> it is really rare (e.g, can not happen on kvm since mmu-notify is unregistered
-> >> after exit_mmap()) and the later call of multiple ->release should be
-> >> fast since all the pages have already been released by the first call.
-> >>
-> >> But, of course, it's great if you have a _light_ way to avoid this.
-> > 
-> > Getting my test environment set back up took longer than I would have liked.
-> > 
-> > Your patch passed.  I got no NULL-pointer derefs.
+> >> If you're really concerned about this case I think the solution
+> >> is to make the EIO more sticky so that there is a higher chance
+> >> than it gets returned.  This will make your data much more safe,
+> >> as it will cover all kinds of IO errors, not just the obscure memory
+> >> errors.
+> > I'm interested in this topic, and in previous discussion, what I was said
+> > is that we can't expect user applications to change their behaviors when
+> > they get EIO, so globally changing EIO's stickiness is not a great approach.
 > 
-> Thanks for your test again.
-> 
-> > 
-> > How would you feel about adding the following to your patch?
-> 
-> I prefer to make these changes as a separate patch, this change is the
-> improvement, please do not mix it with bugfix.
+> The user applications will get EIO firstly or get SIG_KILL firstly?
 
-I think your "improvement" classification is a bit deceiving.  My previous
-patch fixed the bug in calling release multiple times.  Your patch without
-this will reintroduce that buggy behavior.  Just because the bug is already
-worked around by KVM does not mean it is not a bug.
+That depends on how the process accesses to the error page, so I can't
+say which one comes first.
 
-Robin
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
