@@ -1,82 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 2D4B56B0072
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 03:25:48 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 17 Apr 2013 12:51:04 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 4A1021258055
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 12:57:10 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3H7PWRY7733732
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 12:55:33 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3H7PcXj026884
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 17:25:38 +1000
-Date: Wed, 17 Apr 2013 15:22:14 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: fix build warning about
- kernel_physical_mapping_remove()
-Message-ID: <20130417072214.GA25283@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1366182958-21892-1-git-send-email-wangyijing@huawei.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id B60076B0073
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 03:26:10 -0400 (EDT)
+In-Reply-To: <516D9A74.8030109@linux.intel.com>
+Subject: =?GB2312?B?tPC4tDogUmU6IFtQQVRDSF0gZnV0ZXg6IGJ1Z2ZpeCBmb3IgZnV0ZXgta2V5?=
+ =?GB2312?B?IGNvbmZsaWN0IHdoZW4gZnV0ZXggdXNlIGh1Z2VwYWdl?=
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1366182958-21892-1-git-send-email-wangyijing@huawei.com>
+Message-ID: <OF70EE3A18.189A18D4-ON48257B50.002812BC-48257B50.0028D956@zte.com.cn>
+From: zhang.yi20@zte.com.cn
+Date: Wed, 17 Apr 2013 15:25:35 +0800
+Content-Type: text/plain; charset="US-ASCII"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yijing Wang <wangyijing@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, jiang.liu@huawei.com, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Darren Hart <dvhart@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On Wed, Apr 17, 2013 at 03:15:58PM +0800, Yijing Wang wrote:
->If CONFIG_MEMORY_HOTREMOVE is not set, a build warning about
->"warning: a??kernel_physical_mapping_removea?? defined but not used"
->report.
->
+Dave Hansen <dave.hansen@linux.intel.com> wrote on 2013/04/17 02:37:40:
 
-This has already been fixed by Tang Chen. 
-http://marc.info/?l=linux-mm&m=136614697618243&w=2
+> Instead of bothering to store the index, why not just calculate it, 
+like:
+> 
+> On 04/15/2013 08:37 PM, zhang.yi20@zte.com.cn wrote:
+> > +static inline int get_page_compound_index(struct page *page)
+> > +{
+> > +       if (PageHead(page))
+> > +               return 0;
+> > +       return compound_head(page) - page;
+> > +}
+> 
+> BTW, you've really got to get your mail client fixed.  Your patch is
+> still line-wrapped.
 
->Signed-off-by: Yijing Wang <wangyijing@huawei.com>
->Cc: Tang Chen <tangchen@cn.fujitsu.com>
->Cc: Wen Congyang <wency@cn.fujitsu.com>
->---
-> arch/x86/mm/init_64.c |    2 +-
-> 1 files changed, 1 insertions(+), 1 deletions(-)
->
->diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
->index 474e28f..dafdeb2 100644
->--- a/arch/x86/mm/init_64.c
->+++ b/arch/x86/mm/init_64.c
->@@ -1019,6 +1019,7 @@ void __ref vmemmap_free(struct page *memmap, unsigned long nr_pages)
-> 	remove_pagetable(start, end, false);
-> }
->
->+#ifdef CONFIG_MEMORY_HOTREMOVE
-> static void __meminit
-> kernel_physical_mapping_remove(unsigned long start, unsigned long end)
-> {
->@@ -1028,7 +1029,6 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
-> 	remove_pagetable(start, end, true);
-> }
->
->-#ifdef CONFIG_MEMORY_HOTREMOVE
-> int __ref arch_remove_memory(u64 start, u64 size)
-> {
-> 	unsigned long start_pfn = start >> PAGE_SHIFT;
->-- 
->1.7.1
->
->
->--
->To unsubscribe, send a message with 'unsubscribe linux-mm' in
->the body to majordomo@kvack.org.  For more info on Linux MM,
->see: http://www.linux-mm.org/ .
->Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I agree that I should calculate the compound index, but refer to 
+prep_compound_gigantic_page, I think it may like this:
+
++static inline int get_page_compound_index(struct page *page)
++{
++       struct page *head_page;
++       if (PageHead(page))
++               return 0;
++
++       head_page = compound_head(page);
++       if (compound_order(head_page) >= MAX_ORDER)
++               return page_to_pfn(page) - page_to_pfn(head_page);
++       else
++               return page - compound_head(page);
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
