@@ -1,186 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 84D006B009C
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:55:34 -0400 (EDT)
-Date: Wed, 17 Apr 2013 10:55:25 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1366210525-yv9sg53o-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <516E4BDC.9080903@gmail.com>
-References: <51662D5B.3050001@hitachi.com>
- <1365664306-rvrpdnsl-mutt-n-horiguchi@ah.jp.nec.com>
- <516E4BDC.9080903@gmail.com>
-Subject: Re: [RFC Patch 0/2] mm: Add parameters to make kernel behavior at
- memory error on dirty cache selectable
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 11CB66B009E
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 11:05:38 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] thp: fix huge zero page logic for page with pfn == 0
+Date: Wed, 17 Apr 2013 18:07:33 +0300
+Message-Id: <1366211253-14325-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Apr 17, 2013 at 03:14:36PM +0800, Simon Jeons wrote:
-> Hi Naoya,
-> On 04/11/2013 03:11 PM, Naoya Horiguchi wrote:
-> > Hi Tanino-san,
-> >
-> > On Thu, Apr 11, 2013 at 12:26:19PM +0900, Mitsuhiro Tanino wrote:
-> > ...
-> >> Solution
-> >> ---------
-> >> The patch proposes a new sysctl interface, vm.memory_failure_dirty_panic,
-> >> in order to prevent data corruption comes from data lost problem.
-> >> Also this patch displays information of affected file such as device name,
-> >> inode number, file offset and file type if the file is mapped on a memory
-> >> and the page is dirty cache.
-> >>
-> >> When SRAO machine check occurs on a dirty page cache, corresponding
-> >> data cannot be recovered any more. Therefore, the patch proposes a kernel
-> >> option to keep a system running or force system panic in order
-> >> to avoid further trouble such as data corruption problem of application.
-> >>
-> >> System administrator can select an error action using this option
-> >> according to characteristics of target system.
-> > Can we do this in userspace?
-> > mcelog can trigger scripts when a MCE which matches the user-configurable
-> > conditions happens, so I think that we can trigger a kernel panic by
-> > chekcing kernel messages from the triggered script.
-> > For that purpose, I recently fixed the dirty/clean messaging in commit
-> > ff604cf6d4 "mm: hwpoison: fix action_result() to print out dirty/clean".
-> 
-> In your commit ff604cf6d4, you mentioned that "because when we check
-> PageDirty in action_result() it was cleared after page isolation even if
-> it's dirty before error handling." Could you point out where page
-> isolation and clear PageDirty? I don't think is isolate_lru_pages.
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Here is the result of ftracing of memory_failure().
-cancel_dirty_page() is called inside me_pagecache_dirty(), that's it.
+Current implementation of huge zero page uses pfn value 0 to indicate
+that the page hasn't allocated yet. It assumes that buddy page allocator
+can't return page with pfn == 0.
 
-       mceinj.sh-7662  [000] 154195.857024: funcgraph_entry:                   |            memory_failure() {
-       mceinj.sh-7662  [000] 154195.857024: funcgraph_entry:        0.283 us   |              PageHuge();
-       mceinj.sh-7662  [000] 154195.857025: funcgraph_entry:        0.321 us   |              _cond_resched();
-       mceinj.sh-7662  [000] 154195.857025: funcgraph_entry:        0.348 us   |              hwpoison_filter();
-       mceinj.sh-7662  [000] 154195.857026: funcgraph_entry:        0.323 us   |              PageHuge();
-       mceinj.sh-7662  [000] 154195.857027: funcgraph_entry:        0.264 us   |              PageHuge();
-       mceinj.sh-7662  [000] 154195.857027: funcgraph_entry:                   |              kmem_cache_alloc_trace() {
-       mceinj.sh-7662  [000] 154195.857028: funcgraph_entry:        0.254 us   |                _cond_resched();
-       mceinj.sh-7662  [000] 154195.857028: funcgraph_exit:         0.905 us   |              }
-       mceinj.sh-7662  [000] 154195.857029: funcgraph_entry:        0.308 us   |              _read_lock();
-       mceinj.sh-7662  [000] 154195.857029: funcgraph_entry:        0.326 us   |              _spin_lock();
-       mceinj.sh-7662  [000] 154195.857057: funcgraph_entry:                   |              kfree() {
-       mceinj.sh-7662  [000] 154195.857057: funcgraph_entry:        0.252 us   |                __phys_addr();
-       mceinj.sh-7662  [000] 154195.857058: funcgraph_exit:         1.000 us   |              }
-       mceinj.sh-7662  [000] 154195.857058: funcgraph_entry:                   |              try_to_unmap() {
-       mceinj.sh-7662  [000] 154195.857058: funcgraph_entry:                   |                try_to_unmap_file() {
-       mceinj.sh-7662  [000] 154195.857059: funcgraph_entry:        0.430 us   |                  _spin_lock();
-       mceinj.sh-7662  [000] 154195.857060: funcgraph_entry:        0.719 us   |                  vma_prio_tree_next();
-       mceinj.sh-7662  [000] 154195.857061: funcgraph_entry:                   |                  try_to_unmap_one() {
-       mceinj.sh-7662  [000] 154195.857061: funcgraph_entry:                   |                    page_check_address() {
-       mceinj.sh-7662  [000] 154195.857061: funcgraph_entry:        0.256 us   |                      PageHuge();
-       mceinj.sh-7662  [000] 154195.857062: funcgraph_entry:        0.419 us   |                      _spin_lock();
-       mceinj.sh-7662  [000] 154195.857063: funcgraph_exit:         1.812 us   |                    }
-       mceinj.sh-7662  [000] 154195.857063: funcgraph_entry:                   |                    flush_tlb_page() {
-       mceinj.sh-7662  [000] 154195.857064: funcgraph_entry:                   |                      native_flush_tlb_others() {
-       mceinj.sh-7662  [000] 154195.857064: funcgraph_entry:        0.286 us   |                        is_uv_system();
-       mceinj.sh-7662  [000] 154195.857065: funcgraph_entry:                   |                        flush_tlb_others_ipi() {
-       mceinj.sh-7662  [000] 154195.857065: funcgraph_entry:        0.336 us   |                          _spin_lock();
-       mceinj.sh-7662  [000] 154195.857066: funcgraph_entry:                   |                          physflat_send_IPI_mask() {
-       mceinj.sh-7662  [000] 154195.857066: funcgraph_entry:        0.405 us   |                            default_send_IPI_mask_sequence_phys();
-       mceinj.sh-7662  [000] 154195.857067: funcgraph_exit:         1.032 us   |                          }
-       mceinj.sh-7662  [000] 154195.857068: funcgraph_exit:         3.704 us   |                        }
-       mceinj.sh-7662  [000] 154195.857069: funcgraph_exit:         5.000 us   |                      }
-       mceinj.sh-7662  [000] 154195.857069: funcgraph_exit:         6.060 us   |                    }
-       mceinj.sh-7662  [000] 154195.857070: funcgraph_entry:                   |                    set_page_dirty() {
-       mceinj.sh-7662  [000] 154195.857070: funcgraph_entry:                   |                      __set_page_dirty_buffers() {
-       mceinj.sh-7662  [000] 154195.857070: funcgraph_entry:        0.278 us   |                        _spin_lock();
-       mceinj.sh-7662  [000] 154195.857071: funcgraph_exit:         0.972 us   |                      }
-       mceinj.sh-7662  [000] 154195.857071: funcgraph_exit:         1.636 us   |                    }
-       mceinj.sh-7662  [000] 154195.857072: funcgraph_entry:        0.269 us   |                    native_set_pte_at();
-       mceinj.sh-7662  [000] 154195.857072: funcgraph_entry:                   |                    page_remove_rmap() {
-       mceinj.sh-7662  [000] 154195.857073: funcgraph_entry:        0.281 us   |                      PageHuge();
-       mceinj.sh-7662  [000] 154195.857073: funcgraph_entry:                   |                      __dec_zone_page_state() {
-       mceinj.sh-7662  [000] 154195.857073: funcgraph_entry:        0.330 us   |                        __dec_zone_state();
-       mceinj.sh-7662  [000] 154195.857074: funcgraph_exit:         0.991 us   |                      }
-       mceinj.sh-7662  [000] 154195.857074: funcgraph_entry:                   |                      mem_cgroup_update_file_mapped() {
-       mceinj.sh-7662  [000] 154195.857075: funcgraph_entry:        0.278 us   |                        lookup_page_cgroup();
-       mceinj.sh-7662  [000] 154195.857076: funcgraph_exit:         1.112 us   |                      }
-       mceinj.sh-7662  [000] 154195.857076: funcgraph_exit:         3.668 us   |                    }
-       mceinj.sh-7662  [000] 154195.857076: funcgraph_entry:        0.309 us   |                    put_page();
-       mceinj.sh-7662  [000] 154195.857077: funcgraph_exit:       + 16.206 us  |                  }
-       mceinj.sh-7662  [000] 154195.857077: funcgraph_exit:       + 18.641 us  |                }
-       mceinj.sh-7662  [000] 154195.857077: funcgraph_exit:       + 19.336 us  |              }
-       mceinj.sh-7662  [000] 154195.857078: funcgraph_entry:                   |              me_pagecache_dirty() {
-       mceinj.sh-7662  [000] 154195.857079: funcgraph_entry:                   |                me_pagecache_clean() {
-       mceinj.sh-7662  [000] 154195.857079: funcgraph_entry:                   |                  delete_from_lru_cache() {
-       mceinj.sh-7662  [000] 154195.857080: funcgraph_entry:                   |                    isolate_lru_page() {
-       mceinj.sh-7662  [000] 154195.857080: funcgraph_entry:        0.424 us   |                      _spin_lock_irq();
-       mceinj.sh-7662  [000] 154195.857081: funcgraph_entry:                   |                      mem_cgroup_lru_del_list() {
-       mceinj.sh-7662  [000] 154195.857081: funcgraph_entry:        0.278 us   |                        lookup_page_cgroup();
-       mceinj.sh-7662  [000] 154195.857082: funcgraph_exit:         1.097 us   |                      }
-       mceinj.sh-7662  [000] 154195.857082: funcgraph_entry:        0.381 us   |                      __mod_zone_page_state();
-       mceinj.sh-7662  [000] 154195.857083: funcgraph_exit:         3.660 us   |                    }
-       mceinj.sh-7662  [000] 154195.857084: funcgraph_entry:        0.384 us   |                    put_page();
-       mceinj.sh-7662  [000] 154195.857084: funcgraph_exit:         5.176 us   |                  }
-       mceinj.sh-7662  [000] 154195.857085: funcgraph_entry:                   |                  generic_error_remove_page() {
-       mceinj.sh-7662  [000] 154195.857086: funcgraph_entry:                   |                    truncate_inode_page() {
-       mceinj.sh-7662  [000] 154195.857086: funcgraph_entry:                   |                      do_invalidatepage() {
-       mceinj.sh-7662  [000] 154195.857087: funcgraph_entry:                   |                        ext4_da_invalidatepage() {
-       mceinj.sh-7662  [000] 154195.857087: funcgraph_entry:                   |                          ext4_invalidatepage() {
-       mceinj.sh-7662  [000] 154195.857088: funcgraph_entry:                   |                            jbd2_journal_invalidatepage() {
-       mceinj.sh-7662  [000] 154195.857088: funcgraph_entry:        0.281 us   |                              _cond_resched();
-       mceinj.sh-7662  [000] 154195.857088: funcgraph_entry:                   |                              unlock_buffer() {
-       mceinj.sh-7662  [000] 154195.857089: funcgraph_entry:                   |                                wake_up_bit() {
-       mceinj.sh-7662  [000] 154195.857089: funcgraph_entry:                   |                                  bit_waitqueue() {
-       mceinj.sh-7662  [000] 154195.857089: funcgraph_entry:        0.308 us   |                                    __phys_addr();
-       mceinj.sh-7662  [000] 154195.857090: funcgraph_exit:         1.005 us   |                                  }
-       mceinj.sh-7662  [000] 154195.857091: funcgraph_entry:        0.409 us   |                                  __wake_up_bit();
-       mceinj.sh-7662  [000] 154195.857091: funcgraph_exit:         2.495 us   |                                }
-       mceinj.sh-7662  [000] 154195.857092: funcgraph_exit:         3.240 us   |                              }
-       mceinj.sh-7662  [000] 154195.857092: funcgraph_entry:                   |                              try_to_free_buffers() {
-       mceinj.sh-7662  [000] 154195.857093: funcgraph_entry:        0.377 us   |                                _spin_lock();
-       mceinj.sh-7662  [000] 154195.857093: funcgraph_entry:                   |                                drop_buffers() {
-       mceinj.sh-7662  [000] 154195.857094: funcgraph_entry:        0.427 us   |                                  put_page();
-       mceinj.sh-7662  [000] 154195.857095: funcgraph_exit:         1.378 us   |                                }
-       mceinj.sh-7662  [000] 154195.857095: funcgraph_entry:                   |                                cancel_dirty_page() {
-       mceinj.sh-7662  [000] 154195.857096: funcgraph_entry:                   |                                  dec_zone_page_state() {
-       mceinj.sh-7662  [000] 154195.857096: funcgraph_entry:                   |                                    __dec_zone_page_state() {
-       mceinj.sh-7662  [000] 154195.857097: funcgraph_entry:        0.408 us   |                                      __dec_zone_state();
-       mceinj.sh-7662  [000] 154195.857097: funcgraph_exit:         1.198 us   |                                    }
-       mceinj.sh-7662  [000] 154195.857098: funcgraph_exit:         1.987 us   |                                  }
-       mceinj.sh-7662  [000] 154195.857099: funcgraph_exit:         3.303 us   |                                }
-       mceinj.sh-7662  [000] 154195.857099: funcgraph_entry:                   |                                free_buffer_head() {
-       mceinj.sh-7662  [000] 154195.857099: funcgraph_entry:        0.579 us   |                                  kmem_cache_free();
-       mceinj.sh-7662  [000] 154195.857100: funcgraph_entry:        0.406 us   |                                  recalc_bh_state();
-       mceinj.sh-7662  [000] 154195.857101: funcgraph_exit:         2.269 us   |                                }
-       mceinj.sh-7662  [000] 154195.857102: funcgraph_exit:         9.451 us   |                              }
-       mceinj.sh-7662  [000] 154195.857102: funcgraph_exit:       + 14.532 us  |                            }
-       mceinj.sh-7662  [000] 154195.857102: funcgraph_exit:       + 15.321 us  |                          }
-       mceinj.sh-7662  [000] 154195.857103: funcgraph_exit:       + 16.285 us  |                        }
-       mceinj.sh-7662  [000] 154195.857103: funcgraph_exit:       + 17.133 us  |                      }
-       mceinj.sh-7662  [000] 154195.857104: funcgraph_entry:        0.439 us   |                      cancel_dirty_page();
-       mceinj.sh-7662  [000] 154195.857105: funcgraph_entry:                   |                      remove_from_page_cache() {
-       mceinj.sh-7662  [000] 154195.857105: funcgraph_entry:        0.408 us   |                        _spin_lock_irq();
-       mceinj.sh-7662  [000] 154195.857106: funcgraph_entry:                   |                        __remove_from_page_cache() {
-       mceinj.sh-7662  [000] 154195.857107: funcgraph_entry:                   |                          __dec_zone_page_state() {
-       mceinj.sh-7662  [000] 154195.857107: funcgraph_entry:        0.457 us   |                            __dec_zone_state();
-       mceinj.sh-7662  [000] 154195.857108: funcgraph_exit:         1.224 us   |                          }
-       mceinj.sh-7662  [000] 154195.857109: funcgraph_exit:         2.757 us   |                        }
-       mceinj.sh-7662  [000] 154195.857109: funcgraph_entry:                   |                        mem_cgroup_uncharge_cache_page() {
-       mceinj.sh-7662  [000] 154195.857109: funcgraph_entry:                   |                          __mem_cgroup_uncharge_common() {
-       mceinj.sh-7662  [000] 154195.857110: funcgraph_entry:        0.421 us   |                            lookup_page_cgroup();
-       mceinj.sh-7662  [000] 154195.857111: funcgraph_entry:        0.383 us   |                            bit_spin_lock();
-       mceinj.sh-7662  [000] 154195.857112: funcgraph_exit:         2.119 us   |                          }
-       mceinj.sh-7662  [000] 154195.857112: funcgraph_exit:         2.920 us   |                        }
-       mceinj.sh-7662  [000] 154195.857112: funcgraph_exit:         7.783 us   |                      }
-       mceinj.sh-7662  [000] 154195.857113: funcgraph_entry:        0.393 us   |                      put_page();
-       mceinj.sh-7662  [000] 154195.857113: funcgraph_exit:       + 27.960 us  |                    }
-       mceinj.sh-7662  [000] 154195.857114: funcgraph_exit:       + 29.017 us  |                  }
-       mceinj.sh-7662  [000] 154195.857114: funcgraph_exit:       + 35.595 us  |                }
-       mceinj.sh-7662  [000] 154195.857115: funcgraph_exit:       + 36.476 us  |              }
-       mceinj.sh-7662  [000] 154195.857115: funcgraph_entry:                   |              action_result() {
-       mceinj.sh-7662  [000] 154195.857116: funcgraph_entry:                   |                vprintk() {
+Let's rework the code to store 'struct page *' of huge zero page, not
+its pfn. This way we can avoid the weak assumption.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Minchan Kim <minchan@kernel.org>
+Acked-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/huge_memory.c |   43 +++++++++++++++++++++----------------------
+ 1 file changed, 21 insertions(+), 22 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 45eaae0..bc2a548 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -163,25 +163,24 @@ static int start_khugepaged(void)
+ }
+ 
+ static atomic_t huge_zero_refcount;
+-static unsigned long huge_zero_pfn __read_mostly;
++static struct page *huge_zero_page __read_mostly;
+ 
+-static inline bool is_huge_zero_pfn(unsigned long pfn)
++static inline bool is_huge_zero_page(struct page *page)
+ {
+-	unsigned long zero_pfn = ACCESS_ONCE(huge_zero_pfn);
+-	return zero_pfn && pfn == zero_pfn;
++	return ACCESS_ONCE(huge_zero_page) == page;
+ }
+ 
+ static inline bool is_huge_zero_pmd(pmd_t pmd)
+ {
+-	return is_huge_zero_pfn(pmd_pfn(pmd));
++	return is_huge_zero_page(pmd_page(pmd));
+ }
+ 
+-static unsigned long get_huge_zero_page(void)
++static struct page *get_huge_zero_page(void)
+ {
+ 	struct page *zero_page;
+ retry:
+ 	if (likely(atomic_inc_not_zero(&huge_zero_refcount)))
+-		return ACCESS_ONCE(huge_zero_pfn);
++		return ACCESS_ONCE(huge_zero_page);
+ 
+ 	zero_page = alloc_pages((GFP_TRANSHUGE | __GFP_ZERO) & ~__GFP_MOVABLE,
+ 			HPAGE_PMD_ORDER);
+@@ -191,7 +190,7 @@ retry:
+ 	}
+ 	count_vm_event(THP_ZERO_PAGE_ALLOC);
+ 	preempt_disable();
+-	if (cmpxchg(&huge_zero_pfn, 0, page_to_pfn(zero_page))) {
++	if (cmpxchg(&huge_zero_page, NULL, zero_page)) {
+ 		preempt_enable();
+ 		__free_page(zero_page);
+ 		goto retry;
+@@ -200,7 +199,7 @@ retry:
+ 	/* We take additional reference here. It will be put back by shrinker */
+ 	atomic_set(&huge_zero_refcount, 2);
+ 	preempt_enable();
+-	return ACCESS_ONCE(huge_zero_pfn);
++	return ACCESS_ONCE(huge_zero_page);
+ }
+ 
+ static void put_huge_zero_page(void)
+@@ -220,9 +219,9 @@ static int shrink_huge_zero_page(struct shrinker *shrink,
+ 		return atomic_read(&huge_zero_refcount) == 1 ? HPAGE_PMD_NR : 0;
+ 
+ 	if (atomic_cmpxchg(&huge_zero_refcount, 1, 0) == 1) {
+-		unsigned long zero_pfn = xchg(&huge_zero_pfn, 0);
+-		BUG_ON(zero_pfn == 0);
+-		__free_page(__pfn_to_page(zero_pfn));
++		struct page *zero_page = xchg(&huge_zero_page, NULL);
++		BUG_ON(zero_page == NULL);
++		__free_page(zero_page);
+ 	}
+ 
+ 	return 0;
+@@ -764,12 +763,12 @@ static inline struct page *alloc_hugepage(int defrag)
+ 
+ static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
+ 		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
+-		unsigned long zero_pfn)
++		struct page *zero_page)
+ {
+ 	pmd_t entry;
+ 	if (!pmd_none(*pmd))
+ 		return false;
+-	entry = pfn_pmd(zero_pfn, vma->vm_page_prot);
++	entry = mk_pmd(zero_page, vma->vm_page_prot);
+ 	entry = pmd_wrprotect(entry);
+ 	entry = pmd_mkhuge(entry);
+ 	set_pmd_at(mm, haddr, pmd, entry);
+@@ -794,20 +793,20 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		if (!(flags & FAULT_FLAG_WRITE) &&
+ 				transparent_hugepage_use_zero_page()) {
+ 			pgtable_t pgtable;
+-			unsigned long zero_pfn;
++			struct page *zero_page;
+ 			bool set;
+ 			pgtable = pte_alloc_one(mm, haddr);
+ 			if (unlikely(!pgtable))
+ 				return VM_FAULT_OOM;
+-			zero_pfn = get_huge_zero_page();
+-			if (unlikely(!zero_pfn)) {
++			zero_page = get_huge_zero_page();
++			if (unlikely(!zero_page)) {
+ 				pte_free(mm, pgtable);
+ 				count_vm_event(THP_FAULT_FALLBACK);
+ 				goto out;
+ 			}
+ 			spin_lock(&mm->page_table_lock);
+ 			set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
+-					zero_pfn);
++					zero_page);
+ 			spin_unlock(&mm->page_table_lock);
+ 			if (!set) {
+ 				pte_free(mm, pgtable);
+@@ -886,16 +885,16 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	 * a page table.
+ 	 */
+ 	if (is_huge_zero_pmd(pmd)) {
+-		unsigned long zero_pfn;
++		struct page *zero_page;
+ 		bool set;
+ 		/*
+ 		 * get_huge_zero_page() will never allocate a new page here,
+ 		 * since we already have a zero page to copy. It just takes a
+ 		 * reference.
+ 		 */
+-		zero_pfn = get_huge_zero_page();
++		zero_page = get_huge_zero_page();
+ 		set = set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
+-				zero_pfn);
++				zero_page);
+ 		BUG_ON(!set); /* unexpected !pmd_none(dst_pmd) */
+ 		ret = 0;
+ 		goto out_unlock;
+@@ -1803,7 +1802,7 @@ int split_huge_page(struct page *page)
+ 	struct anon_vma *anon_vma;
+ 	int ret = 1;
+ 
+-	BUG_ON(is_huge_zero_pfn(page_to_pfn(page)));
++	BUG_ON(is_huge_zero_page(page));
+ 	BUG_ON(!PageAnon(page));
+ 
+ 	/*
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
