@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 6B69A6B003D
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 20:36:52 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 6D4C46B003D
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 20:36:54 -0400 (EDT)
 Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 17 Apr 2013 10:31:01 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id D9D5E2CE804D
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:44 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3H0acLd1180150
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:39 +1000
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3H0ah7V031919
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:43 +1000
+	Wed, 17 Apr 2013 10:29:47 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 1AE062BB0050
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:50 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3H0NOrV60686404
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:23:24 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3H0an87028905
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:49 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v2 2/6] mm/hugetlb: update_and_free_page gigantic pages awareness
-Date: Wed, 17 Apr 2013 08:36:30 +0800
-Message-Id: <1366158995-3116-3-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v2 4/6] mm/hugetlb: use already exist huge_page_order() instead of h->order 
+Date: Wed, 17 Apr 2013 08:36:32 +0800
+Message-Id: <1366158995-3116-5-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1366158995-3116-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1366158995-3116-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,101 +26,159 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-order >= MAX_ORDER pages can't be freed to buddy system directly, this patch
-destroy the gigantic hugetlb page to normal order-0 pages and free them one
-by one.
+Use already exist interface huge_page_order() instead of h->order to get 
+huge page order.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- mm/hugetlb.c    |   39 +++++++++++++++++++++++++++++----------
- mm/internal.h   |    1 +
- mm/page_alloc.c |    2 +-
- 3 files changed, 31 insertions(+), 11 deletions(-)
+ mm/hugetlb.c |   36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)
 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 4a0c270..eeaf6f2 100644
+index 328f140..0cae950 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -579,25 +579,44 @@ err:
- 	return NULL;
- }
+@@ -593,7 +593,8 @@ static void update_and_free_page(struct hstate *h, struct page *page)
+ 	struct page *p;
+ 	int order = huge_page_order(h);
  
-+static inline clear_page_flag(struct page *page)
-+{
-+	page->flags &= ~(1 << PG_locked | 1 << PG_error |
-+		1 << PG_referenced | 1 << PG_dirty |
-+		1 << PG_active | 1 << PG_reserved |
-+		1 << PG_private | 1 << PG_writeback);
-+}
-+
- static void update_and_free_page(struct hstate *h, struct page *page)
- {
- 	int i;
-+	struct page *p;
-+	int order = huge_page_order(h);
- 
--	VM_BUG_ON(h->order >= MAX_ORDER);
-+	VM_BUG_ON(!hugetlb_shrink_gigantic_pool && h->order >= MAX_ORDER);
+-	VM_BUG_ON(!hugetlb_shrink_gigantic_pool && h->order >= MAX_ORDER);
++	VM_BUG_ON(!hugetlb_shrink_gigantic_pool &&
++					huge_page_order(h) >= MAX_ORDER);
  
  	h->nr_huge_pages--;
  	h->nr_huge_pages_node[page_to_nid(page)]--;
--	for (i = 0; i < pages_per_huge_page(h); i++) {
--		page[i].flags &= ~(1 << PG_locked | 1 << PG_error |
--				1 << PG_referenced | 1 << PG_dirty |
--				1 << PG_active | 1 << PG_reserved |
--				1 << PG_private | 1 << PG_writeback);
--	}
--	VM_BUG_ON(hugetlb_cgroup_from_page(page));
- 	set_compound_page_dtor(page, NULL);
--	set_page_refcounted(page);
- 	arch_release_hugepage(page);
--	__free_pages(page, huge_page_order(h));
-+	VM_BUG_ON(hugetlb_cgroup_from_page(page));
-+
-+	if (order < MAX_ORDER) {
-+		for (i = 0; i < pages_per_huge_page(h); i++)
-+			clear_page_flag(page+i);
-+		set_page_refcounted(page);
-+		__free_pages(page, huge_page_order(h));
-+	} else {
-+		int nr_pages = 1 << order;
-+		destroy_compound_page(page, order);
-+		set_compound_order(page, 0);
-+		for (i = 0, p = page; i < nr_pages; i++,
-+					p = mem_map_next(p, page, i)) {
-+			clear_page_flag(p);
-+			set_page_refcounted(p);
-+			__free_pages(p, 0);
-+		}
-+	}
- }
+@@ -722,7 +723,7 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
+ {
+ 	struct page *page;
  
- struct hstate *size_to_hstate(unsigned long size)
-diff --git a/mm/internal.h b/mm/internal.h
-index 8562de0..a63a35f 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -101,6 +101,7 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
-  */
- extern void __free_pages_bootmem(struct page *page, unsigned int order);
- extern void prep_compound_page(struct page *page, unsigned long order);
-+extern int destroy_compound_page(struct page *page, unsigned long order);
- #ifdef CONFIG_MEMORY_FAILURE
- extern bool is_free_buddy_page(struct page *page);
+-	if (h->order >= MAX_ORDER)
++	if (huge_page_order(h) >= MAX_ORDER)
+ 		return NULL;
+ 
+ 	page = alloc_pages_exact_node(nid,
+@@ -876,7 +877,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+ 	struct page *page;
+ 	unsigned int r_nid;
+ 
+-	if (h->order >= MAX_ORDER)
++	if (huge_page_order(h) >= MAX_ORDER)
+ 		return NULL;
+ 
+ 	/*
+@@ -1071,7 +1072,7 @@ static void return_unused_surplus_pages(struct hstate *h,
+ 	h->resv_huge_pages -= unused_resv_pages;
+ 
+ 	/* Cannot return gigantic pages currently */
+-	if (h->order >= MAX_ORDER)
++	if (huge_page_order(h) >= MAX_ORDER)
+ 		return;
+ 
+ 	nr_pages = min(unused_resv_pages, h->surplus_huge_pages);
+@@ -1265,7 +1266,7 @@ static void __init gather_bootmem_prealloc(void)
  #endif
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1394c5a..0ea14ba 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -367,7 +367,7 @@ void prep_compound_page(struct page *page, unsigned long order)
+ 		__ClearPageReserved(page);
+ 		WARN_ON(page_count(page) != 1);
+-		prep_compound_huge_page(page, h->order);
++		prep_compound_huge_page(page, huge_page_order(h));
+ 		prep_new_huge_page(h, page, page_to_nid(page));
+ 		/*
+ 		 * If we had gigantic hugepages allocated at boot time, we need
+@@ -1273,8 +1274,8 @@ static void __init gather_bootmem_prealloc(void)
+ 		 * fix confusing memory reports from free(1) and another
+ 		 * side-effects, like CommitLimit going negative.
+ 		 */
+-		if (h->order > (MAX_ORDER - 1))
+-			totalram_pages += 1 << h->order;
++		if (huge_page_order(h) > (MAX_ORDER - 1))
++			totalram_pages += 1 << huge_page_order(h);
+ 	}
  }
  
- /* update __split_huge_page_refcount if you change this function */
--static int destroy_compound_page(struct page *page, unsigned long order)
-+int destroy_compound_page(struct page *page, unsigned long order)
+@@ -1283,7 +1284,7 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+ 	unsigned long i;
+ 
+ 	for (i = 0; i < h->max_huge_pages; ++i) {
+-		if (h->order >= MAX_ORDER) {
++		if (huge_page_order(h) >= MAX_ORDER) {
+ 			if (!alloc_bootmem_huge_page(h))
+ 				break;
+ 		} else if (!alloc_fresh_huge_page(h,
+@@ -1299,7 +1300,7 @@ static void __init hugetlb_init_hstates(void)
+ 
+ 	for_each_hstate(h) {
+ 		/* oversize hugepages were init'ed in early boot */
+-		if (h->order < MAX_ORDER)
++		if (huge_page_order(h) < MAX_ORDER)
+ 			hugetlb_hstate_alloc_pages(h);
+ 	}
+ }
+@@ -1333,7 +1334,7 @@ static void try_to_free_low(struct hstate *h, unsigned long count,
  {
  	int i;
- 	int nr_pages = 1 << order;
+ 
+-	if (h->order >= MAX_ORDER)
++	if (huge_page_order(h) >= MAX_ORDER)
+ 		return;
+ 
+ 	for_each_node_mask(i, *nodes_allowed) {
+@@ -1416,8 +1417,8 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+ {
+ 	unsigned long min_count, ret;
+ 
+-	if (h->order >= MAX_ORDER && (!hugetlb_shrink_gigantic_pool ||
+-				count > persistent_huge_pages(h)))
++	if (huge_page_order(h) >= MAX_ORDER && (!hugetlb_shrink_gigantic_pool
++				|| count > persistent_huge_pages(h)))
+ 		return h->max_huge_pages;
+ 
+ 	/*
+@@ -1543,7 +1544,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+ 		goto out;
+ 
+ 	h = kobj_to_hstate(kobj, &nid);
+-	if (h->order >= MAX_ORDER && !hugetlb_shrink_gigantic_pool) {
++	if (huge_page_order(h) >= MAX_ORDER && !hugetlb_shrink_gigantic_pool) {
+ 		err = -EINVAL;
+ 		goto out;
+ 	}
+@@ -1626,7 +1627,7 @@ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
+ 	unsigned long input;
+ 	struct hstate *h = kobj_to_hstate(kobj, NULL);
+ 
+-	if (h->order >= MAX_ORDER)
++	if (huge_page_order(h) >= MAX_ORDER)
+ 		return -EINVAL;
+ 
+ 	err = strict_strtoul(buf, 10, &input);
+@@ -2037,7 +2038,8 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+ 
+ 	tmp = h->max_huge_pages;
+ 
+-	if (write && h->order >= MAX_ORDER && !hugetlb_shrink_gigantic_pool)
++	if (write && huge_page_order(h) >= MAX_ORDER &&
++						!hugetlb_shrink_gigantic_pool)
+ 		return -EINVAL;
+ 
+ 	table->data = &tmp;
+@@ -2102,7 +2104,7 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
+ 
+ 	tmp = h->nr_overcommit_huge_pages;
+ 
+-	if (write && h->order >= MAX_ORDER)
++	if (write && huge_page_order(h) >= MAX_ORDER)
+ 		return -EINVAL;
+ 
+ 	table->data = &tmp;
+@@ -3093,7 +3095,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+ 	flush_tlb_range(vma, start, end);
+ 	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
+ 
+-	return pages << h->order;
++	return pages << huge_page_order(h);
+ }
+ 
+ int hugetlb_reserve_pages(struct inode *inode,
 -- 
 1.7.10.4
 
