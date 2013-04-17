@@ -1,39 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 0ED726B00A2
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 11:10:45 -0400 (EDT)
-Date: Wed, 17 Apr 2013 17:10:42 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] thp: fix huge zero page logic for page with pfn == 0
-Message-ID: <20130417151041.GA25659@redhat.com>
-References: <1366211253-14325-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 833876B0005
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 11:19:58 -0400 (EDT)
+Date: Wed, 17 Apr 2013 16:08:37 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] swap: redirty page if page write fails on swap file
+Message-ID: <20130417150837.GB1852@suse.de>
+References: <516E918B.3050309@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1366211253-14325-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <516E918B.3050309@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
+To: Jerome Marchand <jmarchan@redhat.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Apr 17, 2013 at 06:07:33PM +0300, Kirill A. Shutemov wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+On Wed, Apr 17, 2013 at 02:11:55PM +0200, Jerome Marchand wrote:
 > 
-> Current implementation of huge zero page uses pfn value 0 to indicate
-> that the page hasn't allocated yet. It assumes that buddy page allocator
-> can't return page with pfn == 0.
+> Since commit 62c230b, swap_writepage() calls direct_IO on swap files.
+> However, in that case page isn't redirtied if I/O fails, and is therefore
+> handled afterwards as if it has been successfully written to the swap
+> file, leading to memory corruption when the page is eventually swapped
+> back in.
+> This patch sets the page dirty when direct_IO() fails. It fixes a memory
+> corruption that happened while using swap-over-NFS.
 > 
-> Let's rework the code to store 'struct page *' of huge zero page, not
-> its pfn. This way we can avoid the weak assumption.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Minchan Kim <minchan@kernel.org>
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/huge_memory.c |   43 +++++++++++++++++++++----------------------
->  1 file changed, 21 insertions(+), 22 deletions(-)
+> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+Thanks Jerome. I've added Andrew to the cc and this should also be
+considered a candidate for 3.8-stable.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
