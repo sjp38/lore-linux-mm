@@ -1,109 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 0811E6B0062
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 03:14:42 -0400 (EDT)
-Received: by mail-gg0-f170.google.com with SMTP id k4so207648ggn.1
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2013 00:14:42 -0700 (PDT)
-Message-ID: <516E4BDC.9080903@gmail.com>
-Date: Wed, 17 Apr 2013 15:14:36 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 89A9F6B006C
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 03:16:29 -0400 (EDT)
+From: Yijing Wang <wangyijing@huawei.com>
+Subject: [PATCH] mm: fix build warning about kernel_physical_mapping_remove()
+Date: Wed, 17 Apr 2013 15:15:58 +0800
+Message-ID: <1366182958-21892-1-git-send-email-wangyijing@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [RFC Patch 0/2] mm: Add parameters to make kernel behavior at
- memory error on dirty cache selectable
-References: <51662D5B.3050001@hitachi.com> <1365664306-rvrpdnsl-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1365664306-rvrpdnsl-mutt-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>, Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, jiang.liu@huawei.com, Yijing Wang <wangyijing@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>
 
-Hi Naoya,
-On 04/11/2013 03:11 PM, Naoya Horiguchi wrote:
-> Hi Tanino-san,
->
-> On Thu, Apr 11, 2013 at 12:26:19PM +0900, Mitsuhiro Tanino wrote:
-> ...
->> Solution
->> ---------
->> The patch proposes a new sysctl interface, vm.memory_failure_dirty_panic,
->> in order to prevent data corruption comes from data lost problem.
->> Also this patch displays information of affected file such as device name,
->> inode number, file offset and file type if the file is mapped on a memory
->> and the page is dirty cache.
->>
->> When SRAO machine check occurs on a dirty page cache, corresponding
->> data cannot be recovered any more. Therefore, the patch proposes a kernel
->> option to keep a system running or force system panic in order
->> to avoid further trouble such as data corruption problem of application.
->>
->> System administrator can select an error action using this option
->> according to characteristics of target system.
-> Can we do this in userspace?
-> mcelog can trigger scripts when a MCE which matches the user-configurable
-> conditions happens, so I think that we can trigger a kernel panic by
-> chekcing kernel messages from the triggered script.
-> For that purpose, I recently fixed the dirty/clean messaging in commit
-> ff604cf6d4 "mm: hwpoison: fix action_result() to print out dirty/clean".
+If CONFIG_MEMORY_HOTREMOVE is not set, a build warning about
+"warning: a??kernel_physical_mapping_removea?? defined but not used"
+report.
 
-In your commit ff604cf6d4, you mentioned that "because when we check
-PageDirty in action_result() it was cleared after page isolation even if
-it's dirty before error handling." Could you point out where page
-isolation and clear PageDirty? I don't think is isolate_lru_pages.
+Signed-off-by: Yijing Wang <wangyijing@huawei.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>
+---
+ arch/x86/mm/init_64.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
->
->> Use Case
->> ---------
->> This option is intended to be adopted in KVM guest because it is
->> supposed that Linux on KVM guest operates customers business and
->> it is big impact to lost or corrupt customers data by memory failure.
->>
->> On the other hand, this option does not recommend to apply KVM host
->> as following reasons.
->>
->> - Making KVM host panic has a big impact because all virtual guests are
->>   affected by their host panic. Affected virtual guests are forced to stop
->>   and have to be restarted on the other hypervisor.
-> In this reasoning, you seem to assume that important data (business data)
-> are only handled on guest OS. That's true in most cases, but not always.
-> I think that the more general approach for this use case is that
-> we trigger kernel panic if memory errors happened on dirty pagecaches
-> used by 'important' processes (for example by adding process flags
-> controlled by prctl(),) and set it on qemu processes.
->
->> - If disk cached model of qemu is set to "none", I/O type of virtual
->>   guests becomes O_DIRECT and KVM host does not cache guest's disk I/O.
->>   Therefore, if SRAO machine check is reported on a dirty page cache
->>   in KVM host, its virtual machines are not affected by the machine check.
->>   So the host is expected to keep operating instead of kernel panic.
-> What to do if there're multiple guests, and some have "none" cache and
-> others have other types?
-> I think that we need more flexible settings for this use case.
->
->> Past discussion
->> --------------------
->> This problem was previously discussed in the kernel community, 
->> (refer: mail threads pertaining to
->> http://marc.info/?l=linux-kernel&m=135187403804934&w=4). 
->>
->>>> - I worry that if a hardware error occurs, it might affect a large
->>>>   amount of memory all at the same time.  For example, if a 4G memory
->>>>   block goes bad, this message will be printed a million times?
->> As Andrew mentioned in the above threads, if 4GB memory blocks goes bad,
->> error messages will be printed a million times and this behavior loses
->> a system reliability.
-> Maybe "4G memory block goes bad" is not a MCE SRAO but a MCE with higher
-> severity, so we have no choice but to make kernel panic.
->
-> Thanks,
-> Naoya Horiguchi
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 474e28f..dafdeb2 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1019,6 +1019,7 @@ void __ref vmemmap_free(struct page *memmap, unsigned long nr_pages)
+ 	remove_pagetable(start, end, false);
+ }
+ 
++#ifdef CONFIG_MEMORY_HOTREMOVE
+ static void __meminit
+ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+ {
+@@ -1028,7 +1029,6 @@ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+ 	remove_pagetable(start, end, true);
+ }
+ 
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ int __ref arch_remove_memory(u64 start, u64 size)
+ {
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+-- 
+1.7.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
