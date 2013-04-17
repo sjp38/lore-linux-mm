@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 9403D6B0044
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 20:36:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id C91416B005A
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 20:36:58 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 17 Apr 2013 06:02:45 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id A299E125804F
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 06:08:21 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3H0amAd11862308
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 06:06:48 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3H0aoqW000906
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:51 +1000
+	Wed, 17 Apr 2013 06:02:12 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B207F1258023
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 06:08:23 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3H0anvL14811616
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 06:06:49 +0530
+Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3H0aqlM023624
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 00:36:53 GMT
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v2 5/6] mm/hugetlb: remove redundant hugetlb_prefault 
-Date: Wed, 17 Apr 2013 08:36:33 +0800
-Message-Id: <1366158995-3116-6-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v2 6/6] mm/hugetlb: use already exist interface huge_page_shift 
+Date: Wed, 17 Apr 2013 08:36:34 +0800
+Message-Id: <1366158995-3116-7-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1366158995-3116-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1366158995-3116-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,34 +26,26 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-hugetlb_prefault is not used by any users. This patch remove redundant 
-hugetlb_prefault.
+Use already exist interface huge_page_shift instead of h->order + PAGE_SHIFT.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- include/linux/hugetlb.h |    2 --
- 1 file changed, 2 deletions(-)
+ mm/hugetlb.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index b7e4106..813b265 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -57,7 +57,6 @@ void __unmap_hugepage_range_final(struct mmu_gather *tlb,
- void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 				unsigned long start, unsigned long end,
- 				struct page *ref_page);
--int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
- void hugetlb_report_meminfo(struct seq_file *);
- int hugetlb_report_node_meminfo(int, char *);
- void hugetlb_show_meminfo(void);
-@@ -113,7 +112,6 @@ static inline unsigned long hugetlb_total_pages(void)
- #define follow_hugetlb_page(m,v,p,vs,a,b,i,w)	({ BUG(); 0; })
- #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
- #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
--#define hugetlb_prefault(mapping, vma)		({ BUG(); 0; })
- static inline void hugetlb_report_meminfo(struct seq_file *m)
- {
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 0cae950..750ed8a 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -320,7 +320,7 @@ unsigned long vma_kernel_pagesize(struct vm_area_struct *vma)
+ 
+ 	hstate = hstate_vma(vma);
+ 
+-	return 1UL << (hstate->order + PAGE_SHIFT);
++	return 1UL << huge_page_shift(hstate);
  }
+ EXPORT_SYMBOL_GPL(vma_kernel_pagesize);
+ 
 -- 
 1.7.10.4
 
