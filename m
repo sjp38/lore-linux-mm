@@ -1,46 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 509BE6B0087
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 08:11:59 -0400 (EDT)
-Message-ID: <516E918B.3050309@redhat.com>
-Date: Wed, 17 Apr 2013 14:11:55 +0200
-From: Jerome Marchand <jmarchan@redhat.com>
-MIME-Version: 1.0
-Subject: [PATCH] swap: redirty page if page write fails on swap file
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 73BC96B0089
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 09:58:27 -0400 (EDT)
+Date: Wed, 17 Apr 2013 09:58:18 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1366207098-f00491sj-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1365779583-o4ykbecv-mutt-n-horiguchi@ah.jp.nec.com>
+References: <51662D5B.3050001@hitachi.com>
+ <20130411134915.GH16732@two.firstfloor.org>
+ <1365693788-djsd2ymu-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130411181004.GK16732@two.firstfloor.org>
+ <51680E63.3070100@hitachi.com>
+ <1365779583-o4ykbecv-mutt-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC Patch 0/2] mm: Add parameters to make kernel behavior at
+ memory error on dirty cache selectable
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Mitsuhiro Tanino <mitsuhiro.tanino.gm@hitachi.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
+On Fri, Apr 12, 2013 at 11:13:03AM -0400, Naoya Horiguchi wrote:
+...
+> > So my proposal is as follows,
+> >   For short term solution to care both memory error and I/O error:
+> >     - I will resend a panic knob to handle data lost related to dirty cache
+> >       which is caused by memory error and I/O error.
+> 
+> Sorry, I still think "panic on dirty pagecache error" is feasible in userspace.
+> This new knob will be completely useless after memory error reporting is
+> fixed in the future, so whenever possible I like the userspace solution
+> even for a short term one.
 
-Since commit 62c230b, swap_writepage() calls direct_IO on swap files.
-However, in that case page isn't redirtied if I/O fails, and is therefore
-handled afterwards as if it has been successfully written to the swap
-file, leading to memory corruption when the page is eventually swapped
-back in.
-This patch sets the page dirty when direct_IO() fails. It fixes a memory
-corruption that happened while using swap-over-NFS.
+My apology, you mentioned both memory error and I/O error.
+So I guess that in your next post, a new sysctl knob will be implemented
+around filemap_fdatawait_range() to make kernel panic immediately
+if a process finds the AS_EIO set.
+It's also effective for the processes which poorly handle EIO, so can
+be useful even after the error reporting is fixed in the future.
 
-Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
----
- mm/page_io.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+Anyway, my previous comment is pointless, so ignore it.
 
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 78eee32..04ca00d 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -222,6 +222,8 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
- 		if (ret == PAGE_SIZE) {
- 			count_vm_event(PSWPOUT);
- 			ret = 0;
-+		} else {
-+			set_page_dirty(page);
- 		}
- 		return ret;
- 	}
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
