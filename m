@@ -1,52 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id AC6BD6B0080
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 03:48:05 -0400 (EDT)
-In-Reply-To: <516D9A74.8030109@linux.intel.com>
-Subject: Re: Re: [PATCH] futex: bugfix for futex-key conflict when futex use
- hugepage
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 249FA6B0083
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 05:13:34 -0400 (EDT)
+Received: from localhost.localdomain ([127.0.0.1]:34160 "EHLO linux-mips.org"
+        rhost-flags-OK-OK-OK-FAIL) by eddie.linux-mips.org with ESMTP
+        id S6823020Ab3DQJNcmpVtF (ORCPT <rfc822;linux-mm@kvack.org>);
+        Wed, 17 Apr 2013 11:13:32 +0200
+Date: Wed, 17 Apr 2013 11:13:08 +0200
+From: Ralf Baechle <ralf@linux-mips.org>
+Subject: Re: [PATCH 03/28] proc: Split kcore bits from linux/procfs.h into
+ linux/kcore.h [RFC]
+Message-ID: <20130417091308.GA9292@linux-mips.org>
+References: <20130416182550.27773.89310.stgit@warthog.procyon.org.uk>
+ <20130416182601.27773.46395.stgit@warthog.procyon.org.uk>
 MIME-Version: 1.0
-Message-ID: <OF137D0ABE.5A739596-ON48257B50.002AB95E-48257B50.002AD807@zte.com.cn>
-From: zhang.yi20@zte.com.cn
-Date: Wed, 17 Apr 2013 15:47:23 +0800
-Content-Type: text/plain; charset="US-ASCII"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130416182601.27773.46395.stgit@warthog.procyon.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Darren Hart <dvhart@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
+To: David Howells <dhowells@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mips@linux-mips.org, linux-mm@kvack.org, x86@kernel.org, sparclinux@vger.kernel.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org
 
-Dave Hansen <dave.hansen@linux.intel.com> wrote on 2013/04/17 02:37:40:
+On Tue, Apr 16, 2013 at 07:26:01PM +0100, David Howells wrote:
 
-> Instead of bothering to store the index, why not just calculate it, 
-like:
-> 
-> On 04/15/2013 08:37 PM, zhang.yi20@zte.com.cn wrote:
-> > +static inline int get_page_compound_index(struct page *page)
-> > +{
-> > +       if (PageHead(page))
-> > +               return 0;
-> > +       return compound_head(page) - page;
-> > +}
-> 
-> BTW, you've really got to get your mail client fixed.  Your patch is
-> still line-wrapped.
+Acked-by: Ralf Baechle <ralf@linux-mips.org>
 
-
-I agree that I should calculate the compound index, but refer to 
-prep_compound_gigantic_page, I think it may like this:
-
-+static inline int get_page_compound_index(struct page *page)
-+{
-+       struct page *head_page;
-+       if (PageHead(page))
-+               return 0;
-+
-+       head_page = compound_head(page);
-+       if (compound_order(head_page) >= MAX_ORDER)
-+               return page_to_pfn(page) - page_to_pfn(head_page);
-+       else
-+               return page - compound_head(page);
-+}
+  Ralf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
