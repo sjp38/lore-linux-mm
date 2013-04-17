@@ -1,136 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id D7EBC6B007D
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 21:32:48 -0400 (EDT)
-Date: Tue, 16 Apr 2013 18:32:43 -0700
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: support hierarchical memory.numa_stats
-Message-ID: <20130417013243.GB20835@dhcp22.suse.cz>
-References: <1365458326-17091-1-git-send-email-yinghan@google.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 7F0FE6B0081
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 21:55:08 -0400 (EDT)
+Received: by mail-da0-f43.google.com with SMTP id u36so522133dak.2
+        for <linux-mm@kvack.org>; Tue, 16 Apr 2013 18:55:07 -0700 (PDT)
+Date: Tue, 16 Apr 2013 18:55:05 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch resend] mm, memcg: give exiting processes access to memory
+ reserves
+Message-ID: <alpine.DEB.2.02.1304161853580.28215@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1365458326-17091-1-git-send-email-yinghan@google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-I am sorry but I didn't get to this sooner.
+A memcg may livelock when oom if the process that grabs the hierarchy's
+oom lock is never the first process with PF_EXITING set in the memcg's
+task iteration.
 
-On Mon 08-04-13 14:58:46, Ying Han wrote:
-> The memory.numa_stat is not currently hierarchical. Memory charged to the
-> children are not shown in parent's numa_stat.
-> 
-> This change adds the "hierarchical_" stats on top of all existing stats, and
-> it includes the sum of all children's values in addition to the value of
-> the memcg.
+The oom killer, both global and memcg, will defer if it finds an eligible
+process that is in the process of exiting and it is not being ptraced.
+The idea is to allow it to exit without using memory reserves before
+needlessly killing another process.
 
-OK, I guess it makes some sense to be consistent with what we have in
-memory.stat file. We are using total_ prefix there for most things
-though (except for the limit which uses hierarchical). I am not sure
-total_total sounds that great... So maybe hierarchical_ wouldn't be that
-bad in the end.
+This normally works fine except in the memcg case with a large number of
+threads attached to the oom memcg.  In this case, the memcg oom killer
+only gets called for the process that grabs the hierarchy's oom lock; all
+others end up blocked on the memcg's oom waitqueue.  Thus, if the process
+that grabs the hierarchy's oom lock is never the first PF_EXITING process
+in the memcg's task iteration, the oom killer is constantly deferred
+without anything making progress.
 
-Few comments bellow but other than that
+The fix is to give PF_EXITING processes access to memory reserves so that
+we've marked them as oom killed without any iteration.  This allows
+__mem_cgroup_try_charge() to succeed so that the process may exit.  This
+makes the memcg oom killer exemption for TIF_MEMDIE tasks, now
+immediately granted for processes with pending SIGKILLs and those in the
+exit path, to be equivalent to what is done for the global oom killer.
+
 Acked-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/memcontrol.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-[...]
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1177,6 +1177,32 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
->  	     iter != NULL;				\
->  	     iter = mem_cgroup_iter(NULL, iter, NULL))
->  
-> +static unsigned long
-> +mem_cgroup_node_hierarchical_nr_lru_pages(struct mem_cgroup *memcg,
-> +				int nid, unsigned int lru_mask)
-> +{
-> +	u64 total = 0;
-> +	struct mem_cgroup *iter;
-> +
-> +	for_each_mem_cgroup_tree(iter, memcg)
-> +		total += mem_cgroup_node_nr_lru_pages(iter, nid, lru_mask);
-> +
-> +	return total;
-> +}
-> +
-> +static unsigned long
-> +mem_cgroup_hierarchical_nr_lru_pages(struct mem_cgroup *memcg,
-> +					unsigned int lru_mask)
-> +{
-> +	u64 total = 0;
-> +	struct mem_cgroup *iter;
-> +
-> +	for_each_mem_cgroup_tree(iter, memcg)
-> +	total += mem_cgroup_nr_lru_pages(iter, lru_mask);
-
-Indentation
-
-> +
-> +	return total;
-> +}
-> +
-
-These do not need to be defined for !CONFIG_NUMA. I do not think this is
-generally usable functionality. Just move it memcg_numa_stat_show
-
->  void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
->  {
->  	struct mem_cgroup *memcg;
-> @@ -5267,6 +5293,45 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
->  		seq_printf(m, " N%d=%lu", nid, node_nr);
->  	}
->  	seq_putc(m, '\n');
-> +
-> +	total_nr = mem_cgroup_hierarchical_nr_lru_pages(memcg, LRU_ALL);
-> +	seq_printf(m, "hierarchical_total=%lu", total_nr);
-> +	for_each_node_state(nid, N_HIGH_MEMORY) {
-> +		node_nr =
-> +			mem_cgroup_node_hierarchical_nr_lru_pages(memcg, nid,
-> +								LRU_ALL);
-> +		seq_printf(m, " N%d=%lu", nid, node_nr);
-> +	}
-> +	seq_putc(m, '\n');
-> +
-> +	file_nr = mem_cgroup_hierarchical_nr_lru_pages(memcg, LRU_ALL_FILE);
-> +	seq_printf(m, "hierarchical_file=%lu", file_nr);
-> +	for_each_node_state(nid, N_HIGH_MEMORY) {
-> +		node_nr = mem_cgroup_node_hierarchical_nr_lru_pages(memcg, nid,
-> +				LRU_ALL_FILE);
-> +		seq_printf(m, " N%d=%lu", nid, node_nr);
-> +	}
-> +	seq_putc(m, '\n');
-> +
-> +	anon_nr = mem_cgroup_hierarchical_nr_lru_pages(memcg, LRU_ALL_ANON);
-> +	seq_printf(m, "hierarchical_anon=%lu", anon_nr);
-> +	for_each_node_state(nid, N_HIGH_MEMORY) {
-> +		node_nr = mem_cgroup_node_hierarchical_nr_lru_pages(memcg, nid,
-> +				LRU_ALL_ANON);
-> +		seq_printf(m, " N%d=%lu", nid, node_nr);
-> +	}
-> +	seq_putc(m, '\n');
-> +
-> +	unevictable_nr = mem_cgroup_hierarchical_nr_lru_pages(memcg,
-> +						BIT(LRU_UNEVICTABLE));
-> +	seq_printf(m, "hierarchical_unevictable=%lu", unevictable_nr);
-> +	for_each_node_state(nid, N_HIGH_MEMORY) {
-> +		node_nr = mem_cgroup_node_hierarchical_nr_lru_pages(memcg, nid,
-> +				BIT(LRU_UNEVICTABLE));
-> +		seq_printf(m, " N%d=%lu", nid, node_nr);
-> +	}
-> +	seq_putc(m, '\n');
-> +
->  	return 0;
->  }
->  #endif /* CONFIG_NUMA */
-> -- 
-> 1.8.1.3
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1686,11 +1686,11 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	struct task_struct *chosen = NULL;
+ 
+ 	/*
+-	 * If current has a pending SIGKILL, then automatically select it.  The
+-	 * goal is to allow it to allocate so that it may quickly exit and free
+-	 * its memory.
++	 * If current has a pending SIGKILL or is exiting, then automatically
++	 * select it.  The goal is to allow it to allocate so that it may
++	 * quickly exit and free its memory.
+ 	 */
+-	if (fatal_signal_pending(current)) {
++	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+ 		set_thread_flag(TIF_MEMDIE);
+ 		return;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
