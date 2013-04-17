@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 431AF6B003C
-	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 20:36:51 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 6B69A6B003D
+	for <linux-mm@kvack.org>; Tue, 16 Apr 2013 20:36:52 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 17 Apr 2013 06:02:36 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 9ED681258051
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 06:08:12 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3H0abSc1638780
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 06:06:38 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3H0aeEt027895
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:41 +1000
+	Wed, 17 Apr 2013 10:31:01 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id D9D5E2CE804D
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:44 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3H0acLd1180150
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:39 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3H0ah7V031919
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:43 +1000
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: [PATCH v2 1/6] mm/hugetlb: introduce new sysctl knob which control gigantic page pools shrinking
-Date: Wed, 17 Apr 2013 08:36:29 +0800
-Message-Id: <1366158995-3116-2-git-send-email-liwanp@linux.vnet.ibm.com>
+Subject: [PATCH v2 2/6] mm/hugetlb: update_and_free_page gigantic pages awareness
+Date: Wed, 17 Apr 2013 08:36:30 +0800
+Message-Id: <1366158995-3116-3-git-send-email-liwanp@linux.vnet.ibm.com>
 In-Reply-To: <1366158995-3116-1-git-send-email-liwanp@linux.vnet.ibm.com>
 References: <1366158995-3116-1-git-send-email-liwanp@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,117 +26,101 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-This patch introduces new sysctl knob to support gigantic hugetlb page
-pools shrinking. The default value is 0 since gigantic page pools
-aren't permitted shrinked by default, administrator can echo 1 to knob
-to enable gigantic page pools shrinking after they confirm they won't
-use them any more.
+order >= MAX_ORDER pages can't be freed to buddy system directly, this patch
+destroy the gigantic hugetlb page to normal order-0 pages and free them one
+by one.
 
 Signed-off-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 ---
- Documentation/sysctl/vm.txt |   13 +++++++++++++
- include/linux/hugetlb.h     |    3 +++
- kernel/sysctl.c             |    7 +++++++
- mm/hugetlb.c                |    9 +++++++++
- 4 files changed, 32 insertions(+)
+ mm/hugetlb.c    |   39 +++++++++++++++++++++++++++++----------
+ mm/internal.h   |    1 +
+ mm/page_alloc.c |    2 +-
+ 3 files changed, 31 insertions(+), 11 deletions(-)
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 21ad181..3baf332 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -30,6 +30,7 @@ Currently, these files are in /proc/sys/vm:
- - extfrag_threshold
- - hugepages_treat_as_movable
- - hugetlb_shm_group
-+- hugetlb_shrink_gigantic_pool
- - laptop_mode
- - legacy_va_layout
- - lowmem_reserve_ratio
-@@ -211,6 +212,18 @@ shared memory segment using hugetlb page.
- 
- ==============================================================
- 
-+hugetlb_shrink_gigantic_pool
-+
-+order >= MAX_ORDER pages are only allocated at boot stage using the bootmem
-+allocator with the "hugepages=xxx" option. These pages are never free'd
-+by default since it would be a one-way street(>= MAX_ORDER pages cannot
-+be allocated later), but if administrator confirm not to use these gigantic
-+pages any more, these pinned pages will waste memory since other users
-+can't grab free pages from gigantic hugetlb pool even OOM. Administrator
-+can enable this parameter to permit to shrink gigantic hugetlb pool
-+
-+==============================================================
-+
- laptop_mode
- 
- laptop_mode is a knob that controls "laptop mode". All the things that are
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 3a62df3..b7e4106 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -36,6 +36,8 @@ void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
- int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
- int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
- int hugetlb_treat_movable_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
-+int hugetlb_shrink_gigantic_pool_handler(struct ctl_table *,
-+				int, void __user *, size_t *, loff_t *);
- 
- #ifdef CONFIG_NUMA
- int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int,
-@@ -73,6 +75,7 @@ extern unsigned long hugepages_treat_as_movable;
- extern const unsigned long hugetlb_zero, hugetlb_infinity;
- extern int sysctl_hugetlb_shm_group;
- extern struct list_head huge_boot_pages;
-+extern int hugetlb_shrink_gigantic_pool;
- 
- /* arch callbacks */
- 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 3dadde5..25eb85f 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1187,6 +1187,13 @@ static struct ctl_table vm_table[] = {
- 		.extra1		= (void *)&hugetlb_zero,
- 		.extra2		= (void *)&hugetlb_infinity,
- 	},
-+	{
-+		.procname       = "hugetlb_shrink_gigantic_pool",
-+		.data           = &hugetlb_shrink_gigantic_pool,
-+		.maxlen         = sizeof(int),
-+		.mode           = 0644,
-+		.proc_handler   = hugetlb_shrink_gigantic_pool_handler,
-+	},
- #ifdef CONFIG_NUMA
- 	{
- 		.procname       = "nr_hugepages_mempolicy",
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index bacdf38..4a0c270 100644
+index 4a0c270..eeaf6f2 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -35,6 +35,7 @@
- const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
- static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
- unsigned long hugepages_treat_as_movable;
-+int hugetlb_shrink_gigantic_pool;
- 
- int hugetlb_max_hstate __read_mostly;
- unsigned int default_hstate_idx;
-@@ -671,6 +672,14 @@ static void prep_compound_gigantic_page(struct page *page, unsigned long order)
- 	}
+@@ -579,25 +579,44 @@ err:
+ 	return NULL;
  }
  
-+int hugetlb_shrink_gigantic_pool_handler(struct ctl_table *table, int write,
-+			void __user *buffer,
-+			size_t *length, loff_t *ppos)
++static inline clear_page_flag(struct page *page)
 +{
-+	proc_dointvec(table, write, buffer, length, ppos);
-+	return 0;
++	page->flags &= ~(1 << PG_locked | 1 << PG_error |
++		1 << PG_referenced | 1 << PG_dirty |
++		1 << PG_active | 1 << PG_reserved |
++		1 << PG_private | 1 << PG_writeback);
 +}
 +
- /*
-  * PageHuge() only returns true for hugetlbfs pages, but not for normal or
-  * transparent huge pages.  See the PageTransHuge() documentation for more
+ static void update_and_free_page(struct hstate *h, struct page *page)
+ {
+ 	int i;
++	struct page *p;
++	int order = huge_page_order(h);
+ 
+-	VM_BUG_ON(h->order >= MAX_ORDER);
++	VM_BUG_ON(!hugetlb_shrink_gigantic_pool && h->order >= MAX_ORDER);
+ 
+ 	h->nr_huge_pages--;
+ 	h->nr_huge_pages_node[page_to_nid(page)]--;
+-	for (i = 0; i < pages_per_huge_page(h); i++) {
+-		page[i].flags &= ~(1 << PG_locked | 1 << PG_error |
+-				1 << PG_referenced | 1 << PG_dirty |
+-				1 << PG_active | 1 << PG_reserved |
+-				1 << PG_private | 1 << PG_writeback);
+-	}
+-	VM_BUG_ON(hugetlb_cgroup_from_page(page));
+ 	set_compound_page_dtor(page, NULL);
+-	set_page_refcounted(page);
+ 	arch_release_hugepage(page);
+-	__free_pages(page, huge_page_order(h));
++	VM_BUG_ON(hugetlb_cgroup_from_page(page));
++
++	if (order < MAX_ORDER) {
++		for (i = 0; i < pages_per_huge_page(h); i++)
++			clear_page_flag(page+i);
++		set_page_refcounted(page);
++		__free_pages(page, huge_page_order(h));
++	} else {
++		int nr_pages = 1 << order;
++		destroy_compound_page(page, order);
++		set_compound_order(page, 0);
++		for (i = 0, p = page; i < nr_pages; i++,
++					p = mem_map_next(p, page, i)) {
++			clear_page_flag(p);
++			set_page_refcounted(p);
++			__free_pages(p, 0);
++		}
++	}
+ }
+ 
+ struct hstate *size_to_hstate(unsigned long size)
+diff --git a/mm/internal.h b/mm/internal.h
+index 8562de0..a63a35f 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -101,6 +101,7 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
+  */
+ extern void __free_pages_bootmem(struct page *page, unsigned int order);
+ extern void prep_compound_page(struct page *page, unsigned long order);
++extern int destroy_compound_page(struct page *page, unsigned long order);
+ #ifdef CONFIG_MEMORY_FAILURE
+ extern bool is_free_buddy_page(struct page *page);
+ #endif
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1394c5a..0ea14ba 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -367,7 +367,7 @@ void prep_compound_page(struct page *page, unsigned long order)
+ }
+ 
+ /* update __split_huge_page_refcount if you change this function */
+-static int destroy_compound_page(struct page *page, unsigned long order)
++int destroy_compound_page(struct page *page, unsigned long order)
+ {
+ 	int i;
+ 	int nr_pages = 1 << order;
 -- 
 1.7.10.4
 
