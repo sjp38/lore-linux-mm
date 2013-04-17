@@ -1,41 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 833876B0005
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 11:19:58 -0400 (EDT)
-Date: Wed, 17 Apr 2013 16:08:37 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] swap: redirty page if page write fails on swap file
-Message-ID: <20130417150837.GB1852@suse.de>
-References: <516E918B.3050309@redhat.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 638286B00A8
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 11:26:29 -0400 (EDT)
+Message-ID: <516EBF23.2090600@sr71.net>
+Date: Wed, 17 Apr 2013 08:26:27 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <516E918B.3050309@redhat.com>
+Subject: Re: [PATCH] futex: bugfix for futex-key conflict when futex use hugepage
+References: <OF79A40956.94F46B9C-ON48257B50.00320F73-48257B50.0036925D@zte.com.cn> <516EAF31.8000107@linux.intel.com>
+In-Reply-To: <516EAF31.8000107@linux.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Darren Hart <dvhart@linux.intel.com>
+Cc: zhang.yi20@zte.com.cn, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Wed, Apr 17, 2013 at 02:11:55PM +0200, Jerome Marchand wrote:
+On 04/17/2013 07:18 AM, Darren Hart wrote:
+>>> This also needs a comment in futex.h describing the usage of the offset
+>>> field in union futex_key as well as above get_futex_key describing the
+>>> key for shared mappings.
+>>>
+>> As far as I know , the max size of one hugepage is 1 GBytes for x86 cpu.
+>> Can some other cpus support greater hugepage even more than 4 GBytes? If 
+>> so, we can change the type of 'offset' from int to long to avoid 
+>> truncating.
 > 
-> Since commit 62c230b, swap_writepage() calls direct_IO on swap files.
-> However, in that case page isn't redirtied if I/O fails, and is therefore
-> handled afterwards as if it has been successfully written to the swap
-> file, leading to memory corruption when the page is eventually swapped
-> back in.
-> This patch sets the page dirty when direct_IO() fails. It fixes a memory
-> corruption that happened while using swap-over-NFS.
-> 
-> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+> I discussed this with Dave Hansen, on CC, and he thought we needed 9
+> bits, so even on x86 32b we should be covered.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+I think the problem is actually on 64-bit since you still only have
+32-bits in an 'int' there.
 
-Thanks Jerome. I've added Andrew to the cc and this should also be
-considered a candidate for 3.8-stable.
+I guess it's remotely possible that we could have some
+mega-super-huge-gigantic pages show up in hardware some day, or that
+somebody would come up with software-only one.  I bet there's a lot more
+code that will break in the kernel than this futex code, though.
 
--- 
-Mel Gorman
-SUSE Labs
+The other option would be to start #defining some build-time constant
+for what the largest possible huge page size is, then BUILD_BUG_ON() it.
+
+Or you can just make it a long ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
