@@ -1,54 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 48F866B0099
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:18:49 -0400 (EDT)
-Message-ID: <516EAF31.8000107@linux.intel.com>
-Date: Wed, 17 Apr 2013 07:18:25 -0700
-From: Darren Hart <dvhart@linux.intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] futex: bugfix for futex-key conflict when futex use hugepage
-References: <OF79A40956.94F46B9C-ON48257B50.00320F73-48257B50.0036925D@zte.com.cn>
-In-Reply-To: <OF79A40956.94F46B9C-ON48257B50.00320F73-48257B50.0036925D@zte.com.cn>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id DAC7E6B009B
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:36:41 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <51631206.3060605@sr71.net>
+References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1365163198-29726-32-git-send-email-kirill.shutemov@linux.intel.com>
+ <51631206.3060605@sr71.net>
+Subject: Re: [PATCHv3, RFC 31/34] thp: initial implementation of
+ do_huge_linear_fault()
 Content-Transfer-Encoding: 7bit
+Message-Id: <20130417143842.1A76CE0085@blue.fi.intel.com>
+Date: Wed, 17 Apr 2013 17:38:42 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhang.yi20@zte.com.cn
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
+Dave Hansen wrote:
+> On 04/05/2013 04:59 AM, Kirill A. Shutemov wrote:
+> > +int do_huge_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> > +		unsigned long address, pmd_t *pmd, unsigned int flags)
+> > +{
+> > +	unsigned long haddr = address & HPAGE_PMD_MASK;
+> > +	struct page *cow_page, *page, *dirty_page = NULL;
+> > +	bool anon = false, fallback = false, page_mkwrite = false;
+> > +	pgtable_t pgtable = NULL;
+> > +	struct vm_fault vmf;
+> > +	int ret;
+> > +
+> > +	/* Fallback if vm_pgoff and vm_start are not suitable */
+> > +	if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
+> > +			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
+> > +		return do_fallback(mm, vma, address, pmd, flags);
+> > +
+> > +	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
+> > +		return do_fallback(mm, vma, address, pmd, flags);
+> > +
+> > +	if (unlikely(khugepaged_enter(vma)))
+> > +		return VM_FAULT_OOM;
+> > +
+> > +	/*
+> > +	 * If we do COW later, allocate page before taking lock_page()
+> > +	 * on the file cache page. This will reduce lock holding time.
+> > +	 */
+> > +	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
+> > +		if (unlikely(anon_vma_prepare(vma)))
+> > +			return VM_FAULT_OOM;
+> > +
+> > +		cow_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+> > +				vma, haddr, numa_node_id(), 0);
+> > +		if (!cow_page) {
+> > +			count_vm_event(THP_FAULT_FALLBACK);
+> > +			return do_fallback(mm, vma, address, pmd, flags);
+> > +		}
+> > +		count_vm_event(THP_FAULT_ALLOC);
+> > +		if (mem_cgroup_newpage_charge(cow_page, mm, GFP_KERNEL)) {
+> > +			page_cache_release(cow_page);
+> > +			return do_fallback(mm, vma, address, pmd, flags);
+> > +		}
+> 
+> Ugh.  This is essentially a copy-n-paste of code in __do_fault(),
+> including the comments.  Is there no way to consolidate the code so that
+> there's less duplication here?
 
+I've looked into it once again and it seems there's not much space for
+consolidation. Code structure looks very similar, but there are many
+special cases for thp: fallback path, pte vs. pmd, etc. I don't see how we
+can consolidate them in them in sane way.
+I think copy is more maintainable :(
 
-On 04/17/2013 02:55 AM, zhang.yi20@zte.com.cn wrote:
-> Darren Hart <dvhart@linux.intel.com> wrote on 2013/04/17 01:57:10:
+> Part of the reason we have so many bugs in hugetlbfs is that it's really
+> a forked set of code that does things its own way.  I really hope we're
+> not going down the road of creating another feature in the same way.
 > 
->> Again, a functional testcase in futextest would be a good idea. This
->> helps validate the patch and also can be used to identify regressions in
->> the future.
-> 
-> I will post the testcase code later.
-> 
->>
->> What is the max value of comp_idx? Are we at risk of truncating it?
->> Looks like not really from my initial look.
->>
->> This also needs a comment in futex.h describing the usage of the offset
->> field in union futex_key as well as above get_futex_key describing the
->> key for shared mappings.
->>
->>
-> 
-> As far as I know , the max size of one hugepage is 1 GBytes for x86 cpu.
-> Can some other cpus support greater hugepage even more than 4 GBytes? If 
-> so, we can change the type of 'offset' from int to long to avoid 
-> truncating.
+> When you copy *this* much code (or any, really), you really need to talk
+> about it in the patch description.  I was looking at other COW code, and
+> just happened to stumble on to the __do_fault() code.
 
-I discussed this with Dave Hansen, on CC, and he thought we needed 9
-bits, so even on x86 32b we should be covered.
+I will document it in commit message and in comments for both functions.
 
 -- 
-Darren Hart
-Intel Open Source Technology Center
-Yocto Project - Technical Lead - Linux Kernel
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
