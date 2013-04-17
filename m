@@ -1,99 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 5E7226B008A
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:01:48 -0400 (EDT)
-Received: by mail-qe0-f53.google.com with SMTP id q19so879887qeb.26
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2013 07:01:47 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id B7FCF6B0092
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 10:10:37 -0400 (EDT)
+Date: Wed, 17 Apr 2013 09:10:35 -0500
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] mm: mmu_notifier: re-fix freed page still mapped in
+ secondary MMU
+Message-ID: <20130417141035.GA29872@sgi.com>
+References: <516CF235.4060103@linux.vnet.ibm.com>
+ <20130416093131.GJ3658@sgi.com>
+ <516D275C.8040406@linux.vnet.ibm.com>
+ <20130416112553.GM3658@sgi.com>
+ <20130416114322.GN3658@sgi.com>
+ <516D4D08.9020602@linux.vnet.ibm.com>
+ <20130416180835.GY3658@sgi.com>
+ <516E0F1E.5090805@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <516DE3D1.7030800@gmail.com>
-References: <5114DF05.7070702@mellanox.com>
-	<CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com>
-	<516CF7BB.3050301@gmail.com>
-	<CAH3drwbx1aiQEA19+zq6t=GPPNZQEkD27sCjL-Ma2aYns7pMXw@mail.gmail.com>
-	<516DE3D1.7030800@gmail.com>
-Date: Wed, 17 Apr 2013 10:01:47 -0400
-Message-ID: <CAH3drwZ=0iXJwXrZdVUngpwddsu9yj5HCdCcWJuXtz8p=sMWpA@mail.gmail.com>
-Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
- hardware access to the CPU page tables of user processes
-From: Jerome Glisse <j.glisse@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7bdc853a3d0f8d04da8eeda4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <516E0F1E.5090805@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
+To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Robin Holt <holt@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, Avi Kivity <avi.kivity@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, LKML <linux-kernel@vger.kernel.org>, KVM <kvm@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
---047d7bdc853a3d0f8d04da8eeda4
-Content-Type: text/plain; charset=ISO-8859-1
+On Wed, Apr 17, 2013 at 10:55:26AM +0800, Xiao Guangrong wrote:
+> On 04/17/2013 02:08 AM, Robin Holt wrote:
+> > On Tue, Apr 16, 2013 at 09:07:20PM +0800, Xiao Guangrong wrote:
+> >> On 04/16/2013 07:43 PM, Robin Holt wrote:
+> >>> Argh.  Taking a step back helped clear my head.
+> >>>
+> >>> For the -stable releases, I agree we should just go with your
+> >>> revert-plus-hlist_del_init_rcu patch.  I will give it a test
+> >>> when I am in the office.
+> >>
+> >> Okay. Wait for your test report. Thank you in advance.
+> >>
+> >>>
+> >>> For the v3.10 release, we should work on making this more
+> >>> correct and completely documented.
+> >>
+> >> Better document is always welcomed.
+> >>
+> >> Double call ->release is not bad, like i mentioned it in the changelog:
+> >>
+> >> it is really rare (e.g, can not happen on kvm since mmu-notify is unregistered
+> >> after exit_mmap()) and the later call of multiple ->release should be
+> >> fast since all the pages have already been released by the first call.
+> >>
+> >> But, of course, it's great if you have a _light_ way to avoid this.
+> > 
+> > Getting my test environment set back up took longer than I would have liked.
+> > 
+> > Your patch passed.  I got no NULL-pointer derefs.
+> 
+> Thanks for your test again.
+> 
+> > 
+> > How would you feel about adding the following to your patch?
+> 
+> I prefer to make these changes as a separate patch, this change is the
+> improvement, please do not mix it with bugfix.
 
-On Tue, Apr 16, 2013 at 7:50 PM, Simon Jeons <simon.jeons@gmail.com> wrote:
+I think your "improvement" classification is a bit deceiving.  My previous
+patch fixed the bug in calling release multiple times.  Your patch without
+this will reintroduce that buggy behavior.  Just because the bug is already
+worked around by KVM does not mean it is not a bug.
 
-> On 04/17/2013 12:27 AM, Jerome Glisse wrote:
->
-> [snip]
->
->
->>
->> As i said this is for pre-filling already present entry, ie pte that are
->> present with a valid page (no special bit set). This is an optimization so
->> that the GPU can pre-fill its tlb without having to take any mmap_sem. Hope
->> is that in most common case this will be enough, but in some case you will
->> have to go through the lengthy non fast gup.
->>
->
-> I know this. What I concern is the pte you mentioned is for normal cpu,
-> correct? How can you pre-fill pte and tlb of GPU?
->
-
-You getting confuse, idea is to look at cpu pte and prefill gpu pte. I do
-not prefill cpu pte, if a cpu pte is valid then i use the page it point to
-prefill the GPU pte.
-
-So i don't pre-fill CPU PTE and TLB GPU, i pre-fill GPU PTE from CPU PTE if
-CPU PTE is valid. Other GPU PTE are marked as invalid and will trigger a
-fault that will be handle using gup that will fill CPU PTE (if fault happen
-at a valid address) at which point GPU PTE is updated or error is reported
-if fault happened at an invalid address.
-
-Cheers,
-Jerome
-
---047d7bdc853a3d0f8d04da8eeda4
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<div class=3D"gmail_quote">On Tue, Apr 16, 2013 at 7:50 PM, Simon Jeons <sp=
-an dir=3D"ltr">&lt;<a href=3D"mailto:simon.jeons@gmail.com" target=3D"_blan=
-k">simon.jeons@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmai=
-l_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left=
-:1ex">
-On 04/17/2013 12:27 AM, Jerome Glisse wrote:<br>
-<br>
-[snip]<div class=3D"im"><br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">
-<br>
-<br>
-As i said this is for pre-filling already present entry, ie pte that are pr=
-esent with a valid page (no special bit set). This is an optimization so th=
-at the GPU can pre-fill its tlb without having to take any mmap_sem. Hope i=
-s that in most common case this will be enough, but in some case you will h=
-ave to go through the lengthy non fast gup.<br>
-
-</blockquote>
-<br></div>
-I know this. What I concern is the pte you mentioned is for normal cpu, cor=
-rect? How can you pre-fill pte and tlb of GPU?<br></blockquote></div><br>Yo=
-u getting confuse, idea is to look at cpu pte and prefill gpu pte. I do not=
- prefill cpu pte, if a cpu pte is valid then i use the page it point to pre=
-fill the GPU pte.<br>
-<br>So i don&#39;t pre-fill CPU PTE and TLB GPU, i pre-fill GPU PTE from CP=
-U PTE if CPU PTE is valid. Other GPU PTE are marked as invalid and will tri=
-gger a fault that will be handle using gup that will fill CPU PTE (if fault=
- happen at a valid address) at which point GPU PTE is updated or error is r=
-eported if fault happened at an invalid address.<br>
-<br>Cheers,<br>Jerome<br>
-
---047d7bdc853a3d0f8d04da8eeda4--
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
