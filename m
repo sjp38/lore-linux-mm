@@ -1,116 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id D6BA26B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 10:35:46 -0400 (EDT)
-Message-ID: <1366295000.3824.47.camel@misato.fc.hp.com>
-Subject: Re: [Bug fix PATCH v4] Reusing a resource structure allocated by
- bootmem
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 18 Apr 2013 08:23:20 -0600
-In-Reply-To: <516FB07C.9010603@jp.fujitsu.com>
-References: <516FB07C.9010603@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 408006B0002
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 11:02:11 -0400 (EDT)
+Date: Thu, 18 Apr 2013 08:01:05 -0700
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 02/10] mm: vmscan: Obey proportional scanning
+ requirements for kswapd
+Message-ID: <20130418150105.GD2018@cmpxchg.org>
+References: <1365710278-6807-1-git-send-email-mgorman@suse.de>
+ <1365710278-6807-3-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1365710278-6807-3-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linuxram@us.ibm.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 2013-04-18 at 17:36 +0900, Yasuaki Ishimatsu wrote:
-> When hot removing memory presented at boot time, following messages are shown:
- :
-> diff --git a/kernel/resource.c b/kernel/resource.c
-> index 4aef886..637e8d2 100644
-> --- a/kernel/resource.c
-> +++ b/kernel/resource.c
-> @@ -21,6 +21,7 @@
->  #include <linux/seq_file.h>
->  #include <linux/device.h>
->  #include <linux/pfn.h>
-> +#include <linux/mm.h>
->  #include <asm/io.h>
->  
-> 
-> @@ -50,6 +51,16 @@ struct resource_constraint {
->  
->  static DEFINE_RWLOCK(resource_lock);
->  
-> +/*
-> + * For memory hotplug, there is no way to free resource entries allocated
-> + * by boot mem after the system is up. So for reusing the resource entry
-> + * we need to remember the resource.
-> + */
-> +struct resource bootmem_resource = {
-> +	.sibling = NULL,
-> +};
-
-This should be a pointer of struct resource and declared as static, such
-as:
-
-static struct resource *bootmem_resource_free;
-
-> +static DEFINE_SPINLOCK(bootmem_resource_lock);
+On Thu, Apr 11, 2013 at 08:57:50PM +0100, Mel Gorman wrote:
+> @@ -1841,17 +1848,58 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  							    lruvec, sc);
+>  			}
+>  		}
 > +
->  static void *r_next(struct seq_file *m, void *v, loff_t *pos)
->  {
->  	struct resource *p = v;
-> @@ -151,6 +162,39 @@ __initcall(ioresources_init);
->  
->  #endif /* CONFIG_PROC_FS */
->  
-> +static void free_resource(struct resource *res)
-> +{
-> +	if (!res)
-> +		return;
+> +		if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
+> +			continue;
 > +
-> +	if (PageSlab(virt_to_head_page(res))) {
-> +		spin_lock(&bootmem_resource_lock);
-> +		res->sibling = bootmem_resource.sibling;
-> +		bootmem_resource.sibling = res;
-> +		spin_unlock(&bootmem_resource_lock);
-> +	} else {
-> +		kfree(res);
-> +	}
-> +}
-
-I second with Johannes.
-
-> +static struct resource *get_resource(gfp_t flags)
-> +{
-> +	struct resource *res = NULL;
+>  		/*
+> -		 * On large memory systems, scan >> priority can become
+> -		 * really large. This is fine for the starting priority;
+> -		 * we want to put equal scanning pressure on each zone.
+> -		 * However, if the VM has a harder time of freeing pages,
+> -		 * with multiple processes reclaiming pages, the total
+> -		 * freeing target can get unreasonably large.
+> +		 * For global direct reclaim, reclaim only the number of pages
+> +		 * requested. Less care is taken to scan proportionally as it
+> +		 * is more important to minimise direct reclaim stall latency
+> +		 * than it is to properly age the LRU lists.
+>  		 */
+> -		if (nr_reclaimed >= nr_to_reclaim &&
+> -		    sc->priority < DEF_PRIORITY)
+> +		if (global_reclaim(sc) && !current_is_kswapd())
+>  			break;
 > +
-> +	spin_lock(&bootmem_resource_lock);
-> +	if (bootmem_resource.sibling) {
-> +		res = bootmem_resource.sibling;
-> +		bootmem_resource.sibling = res->sibling;
-> +		memset(res, 0, sizeof(struct resource));
-> +	}
-> +	spin_unlock(&bootmem_resource_lock);
-
-I prefer to keep memset() outside of the spin lock.
-
-spin_lock(&bootmem_resource_lock);
-if (..) {
-	:
-	spin_unlock(&bootmem_resource_lock);
-	memset(res, 0, sizeof(struct resource));
-} else {
-	spin_unlock(&bootmem_resource_lock);
-	res = kzalloc(sizeof(struct resource), flags);
-}
-
-Thanks,
--Toshi
-
+> +		/*
+> +		 * For kswapd and memcg, reclaim at least the number of pages
+> +		 * requested. Ensure that the anon and file LRUs shrink
+> +		 * proportionally what was requested by get_scan_count(). We
+> +		 * stop reclaiming one LRU and reduce the amount scanning
+> +		 * proportional to the original scan target.
+> +		 */
+> +		nr_file = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE];
+> +		nr_anon = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON];
 > +
-> +	if (!res)
-> +		res = kzalloc(sizeof(struct resource), flags);
+> +		if (nr_file > nr_anon) {
+> +			unsigned long scan_target = targets[LRU_INACTIVE_ANON] +
+> +						targets[LRU_ACTIVE_ANON] + 1;
+> +			lru = LRU_BASE;
+> +			percentage = nr_anon * 100 / scan_target;
+> +		} else {
+> +			unsigned long scan_target = targets[LRU_INACTIVE_FILE] +
+> +						targets[LRU_ACTIVE_FILE] + 1;
+> +			lru = LRU_FILE;
+> +			percentage = nr_file * 100 / scan_target;
+> +		}
 > +
-> +	return res;
-> +}
+> +		/* Stop scanning the smaller of the LRU */
+> +		nr[lru] = 0;
+> +		nr[lru + LRU_ACTIVE] = 0;
 > +
+> +		/*
+> +		 * Recalculate the other LRU scan count based on its original
+> +		 * scan target and the percentage scanning already complete
+> +		 */
+> +		lru = (lru == LRU_FILE) ? LRU_BASE : LRU_FILE;
+> +		nr[lru] = targets[lru] * (100 - percentage) / 100;
+> +		nr[lru] -= min(nr[lru], (targets[lru] - nr[lru]));
 
+This doesn't seem right.  Say percentage is 60, then
+
+    nr[lru] = targets[lru] * (100 - percentage) / 100;
+
+sets nr[lru] to 40% of targets[lru], and so in
+
+    nr[lru] -= min(nr[lru], (targets[lru] - nr[lru]));
+
+targets[lru] - nr[lru] is 60% of targets[lru], making it bigger than
+nr[lru], which is in turn subtracted from itself, i.e. it leaves the
+remaining type at 0 if >= 50% of the other type were scanned, and at
+half of the inverted scan percentage if less than 50% were scanned.
+
+Would this be more sensible?
+
+    already_scanned = targets[lru] - nr[lru];
+    nr[lru] = targets[lru] * percentage / 100; /* adjusted original target */
+    nr[lru] -= min(nr[lru], already_scanned);  /* minus work already done */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
