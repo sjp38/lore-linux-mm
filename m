@@ -1,73 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id CA5E26B00CA
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 20:03:24 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id u11so1103452pdi.8
-        for <linux-mm@kvack.org>; Wed, 17 Apr 2013 17:03:24 -0700 (PDT)
-Date: Wed, 17 Apr 2013 17:03:21 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slab: Remove unnecessary __builtin_constant_p()
-In-Reply-To: <1366225776.8817.28.camel@pippen.local.home>
-Message-ID: <alpine.DEB.2.02.1304171702380.24494@chino.kir.corp.google.com>
-References: <1366225776.8817.28.camel@pippen.local.home>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id A10EB6B00CC
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 20:13:33 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id lj1so1167646pab.7
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2013 17:13:32 -0700 (PDT)
+Message-ID: <516F3AA7.1000908@gmail.com>
+Date: Thu, 18 Apr 2013 08:13:27 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] swap: redirty page if page write fails on swap file
+References: <516E918B.3050309@redhat.com>
+In-Reply-To: <516E918B.3050309@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>, Pekka Enberg <penberg@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Behan Webster <behanw@converseincode.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Jerome Marchand <jmarchan@redhat.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Wed, 17 Apr 2013, Steven Rostedt wrote:
+Hi Jerome,
+On 04/17/2013 08:11 PM, Jerome Marchand wrote:
+> Since commit 62c230b, swap_writepage() calls direct_IO on swap files.
+> However, in that case page isn't redirtied if I/O fails, and is therefore
+> handled afterwards as if it has been successfully written to the swap
+> file, leading to memory corruption when the page is eventually swapped
+> back in.
+> This patch sets the page dirty when direct_IO() fails. It fixes a memory
 
-> The slab.c code has a size check macro that checks the size of the
-> following structs:
-> 
-> struct arraycache_init
-> struct kmem_list3
-> 
-> The index_of() function that takes the sizeof() of the above two structs
-> and does an unnecessary __builtin_constant_p() on that. As sizeof() will
-> always end up being a constant making this always be true. The code is
-> not incorrect, but it just adds added complexity, and confuses users and
-> wastes the time of reviewers of the code, who spends time trying to
-> figure out why the builtin_constant_p() was used.
-> 
-> This patch is just a clean up that makes the index_of() code a little
-> bit less complex.
-> 
-> Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
+If swapfile has related page cache which cached swapfile in memory? It 
+is not necessary, correct?
 
-Acked-by: David Rientjes <rientjes@google.com>
-
-Adding Pekka to the cc.
-
-> 
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 856e4a1..6047900 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -325,9 +325,7 @@ static void cache_reap(struct work_struct *unused);
->  static __always_inline int index_of(const size_t size)
->  {
->  	extern void __bad_size(void);
-> -
-> -	if (__builtin_constant_p(size)) {
-> -		int i = 0;
-> +	int i = 0;
->  
->  #define CACHE(x) \
->  	if (size <=x) \
-> @@ -336,9 +334,7 @@ static __always_inline int index_of(const size_t size)
->  		i++;
->  #include <linux/kmalloc_sizes.h>
->  #undef CACHE
-> -		__bad_size();
-> -	} else
-> -		__bad_size();
-> +	__bad_size();
->  	return 0;
->  }
->  
+> corruption that happened while using swap-over-NFS.
+>
+> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+> ---
+>   mm/page_io.c |    2 ++
+>   1 files changed, 2 insertions(+), 0 deletions(-)
+>
+> diff --git a/mm/page_io.c b/mm/page_io.c
+> index 78eee32..04ca00d 100644
+> --- a/mm/page_io.c
+> +++ b/mm/page_io.c
+> @@ -222,6 +222,8 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
+>   		if (ret == PAGE_SIZE) {
+>   			count_vm_event(PSWPOUT);
+>   			ret = 0;
+> +		} else {
+> +			set_page_dirty(page);
+>   		}
+>   		return ret;
+>   	}
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
