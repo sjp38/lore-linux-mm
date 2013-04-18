@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 45A716B0002
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 09:42:38 -0400 (EDT)
-Date: Thu, 18 Apr 2013 06:42:06 -0700
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [Bug fix PATCH v4] Reusing a resource structure allocated by
- bootmem
-Message-ID: <20130418134206.GB21444@cmpxchg.org>
-References: <516FB07C.9010603@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <516FB07C.9010603@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 56DDB6B0002
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 09:55:14 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id u11so1546831pdi.8
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2013 06:55:13 -0700 (PDT)
+From: Jonghwan Choi <jhbird.choi@gmail.com>
+Subject: 
+Date: Thu, 18 Apr 2013 22:54:00 +0900
+Message-Id: <1366293240-4699-1-git-send-email-jhbird.choi@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, toshi.kani@hp.com, linuxram@us.ibm.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Gavin Shan <shangw@linux.vnet.ibm.com>, Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: stable@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Jonghwan Choi <jhbird.choi@samsung.com>
 
-On Thu, Apr 18, 2013 at 05:36:12PM +0900, Yasuaki Ishimatsu wrote:
-> @@ -151,6 +162,39 @@ __initcall(ioresources_init);
->  
->  #endif /* CONFIG_PROC_FS */
->  
-> +static void free_resource(struct resource *res)
-> +{
-> +	if (!res)
-> +		return;
-> +
-> +	if (PageSlab(virt_to_head_page(res))) {
-> +		spin_lock(&bootmem_resource_lock);
-> +		res->sibling = bootmem_resource.sibling;
-> +		bootmem_resource.sibling = res;
-> +		spin_unlock(&bootmem_resource_lock);
-> +	} else {
-> +		kfree(res);
-> +	}
+From: Gavin Shan <shangw@linux.vnet.ibm.com>
 
-The branch is mixed up, you are collecting slab objects in
-bootmem_resource and kfreeing bootmem.
+Date: Thu, 18 Apr 2013 22:23:27 +0900
+Subject: [PATCH 3.8-stable] mm/vmscan: fix error return in kswapd_run()
 
-> +static struct resource *get_resource(gfp_t flags)
-> +{
-> +	struct resource *res = NULL;
-> +
-> +	spin_lock(&bootmem_resource_lock);
-> +	if (bootmem_resource.sibling) {
-> +		res = bootmem_resource.sibling;
-> +		bootmem_resource.sibling = res->sibling;
-> +		memset(res, 0, sizeof(struct resource));
-> +	}
-> +	spin_unlock(&bootmem_resource_lock);
-> +
-> +	if (!res)
-> +		res = kzalloc(sizeof(struct resource), flags);
-> +
-> +	return res;
-> +}
-> +
->  /* Return the conflict entry if you can't request it */
->  static struct resource * __request_resource(struct resource *root, struct resource *new)
->  {
+This patch looks like it should be in the 3.8-stable tree, should we apply
+it?
+
+------------------
+
+From: "Gavin Shan <shangw@linux.vnet.ibm.com>"
+
+commit d5dc0ad928fb9e972001e552597fd0b794863f34 upstream
+
+Fix the error return value in kswapd_run().  The bug was introduced by
+commit d5dc0ad928fb ("mm/vmscan: fix error number for failed kthread").
+
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Reported-by: Wu Fengguang <fengguang.wu@intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Jonghwan Choi <jhbird.choi@samsung.com>
+---
+ mm/vmscan.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 196709f..8226b41 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3158,9 +3158,9 @@ int kswapd_run(int nid)
+ 	if (IS_ERR(pgdat->kswapd)) {
+ 		/* failure at boot is fatal */
+ 		BUG_ON(system_state == SYSTEM_BOOTING);
+-		pgdat->kswapd = NULL;
+ 		pr_err("Failed to start kswapd on node %d\n", nid);
+ 		ret = PTR_ERR(pgdat->kswapd);
++		pgdat->kswapd = NULL;
+ 	}
+ 	return ret;
+ }
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
