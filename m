@@ -1,58 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 2010C6B0002
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 03:13:14 -0400 (EDT)
-Received: from /spool/local
-	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Thu, 18 Apr 2013 08:10:34 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 90D6E1B0805F
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 08:13:04 +0100 (BST)
-Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3I7CsJM41156774
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 07:12:54 GMT
-Received: from d06av09.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3I7D3Ya001826
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 01:13:03 -0600
-Date: Thu, 18 Apr 2013 09:13:03 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [BUG][s390x] mm: system crashed
-Message-ID: <20130418071303.GB4203@osiris>
-References: <156480624.266924.1365995933797.JavaMail.root@redhat.com>
- <2068164110.268217.1365996520440.JavaMail.root@redhat.com>
- <20130415055627.GB4207@osiris>
- <516B9B57.6050308@redhat.com>
- <20130416075047.GA4184@osiris>
- <1638103518.2400447.1366266465689.JavaMail.root@redhat.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 484C86B0002
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 03:29:38 -0400 (EDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 455813EE0B6
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 16:29:36 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 21D9045DE53
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 16:29:36 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F1DD445DE4D
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 16:29:35 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DB6CA1DB8047
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 16:29:35 +0900 (JST)
+Received: from g01jpexchyt38.g01.fujitsu.local (g01jpexchyt38.g01.fujitsu.local [10.128.193.68])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7E84C1DB8042
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 16:29:35 +0900 (JST)
+Message-ID: <516FA0B9.8080308@jp.fujitsu.com>
+Date: Thu, 18 Apr 2013 16:28:57 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1638103518.2400447.1366266465689.JavaMail.root@redhat.com>
+Subject: [Bug fix PATCH] numa, cpu hotplug: Change links of CPU and node when
+ changing node number by onlining CPU
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouping Liu <zliu@redhat.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, caiqian <caiqian@redhat.com>, Caspar Zhang <czhang@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: mingo@kernel.org, hpa@zytor.com, srivatsa.bhat@linux.vnet.ibm.com, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-On Thu, Apr 18, 2013 at 02:27:45AM -0400, Zhouping Liu wrote:
-> Hello Heiko,
-> > If you have some time, could you please repeat your test with the kernel
-> > command line option " user_mode=home "?
-> 
-> I tested the system with the kernel parameter, but the issue still appeared,
-> I just to say it takes longer time to reproduce the issue than the before.
-> 
-> > 
-> > As far as I can tell there was only one s390 patch merged that was
-> > mmap related: 486c0a0bc80d370471b21662bf03f04fbb37cdc6 "s390/mm: Fix crst
-> > upgrade of mmap with MAP_FIXED".
-> 
-> also I tested the revert commit, unluckily, the same issue as the before.
+When booting x86 system contains memoryless node, node numbers of CPUs
+on memoryless node were changed to nearest online node number by
+init_cpu_to_node() because the node is not online.
 
-Ok, thanks for verifying! I'll look into it; hopefully I can reproduce it
-here as well.
+In my system, node numbers of cpu#30-44 and 75-89 were changed from 2 to 0
+as follows:
 
-Thanks!
+$ numactl --hardware
+available: 2 nodes (0-1)
+node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 30 31 32 33 34 35 36 37 38 39 40
+41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 75 76 77 78 79 80 81 82
+83 84 85 86 87 88 89
+node 0 size: 32394 MB
+node 0 free: 27898 MB
+node 1 cpus: 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 60 61 62 63 64 65 66
+67 68 69 70 71 72 73 74
+node 1 size: 32768 MB
+node 1 free: 30335 MB
+
+If we hot add memory to memoryless node and offine/online all CPUs on
+the node, node numbers of these CPUs are changed to correct node numbers
+by srat_detect_node() because the node become online.
+
+In this case, node numbers of cpu#30-44 and 75-89 were changed from 0 to 2
+in my system as follows:
+
+$ numactl --hardware
+available: 3 nodes (0-2)
+node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 45 46 47 48 49 50 51 52 53 54 55
+56 57 58 59
+node 0 size: 32394 MB
+node 0 free: 27218 MB
+node 1 cpus: 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 60 61 62 63 64 65 66
+67 68 69 70 71 72 73 74
+node 1 size: 32768 MB
+node 1 free: 30014 MB
+node 2 cpus: 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 75 76 77 78 79 80 81
+82 83 84 85 86 87 88 89
+node 2 size: 16384 MB
+node 2 free: 16384 MB
+
+But "cpu to node" and "node to cpu" links were not changed.
+
+This patch changes "cpu to node" and "node to cpu" links when node number
+changed by onlining CPU.
+
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+---
+ drivers/base/cpu.c |   19 +++++++++++++++++--
+ 1 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/base/cpu.c b/drivers/base/cpu.c
+index fb10728..e9fac4d 100644
+--- a/drivers/base/cpu.c
++++ b/drivers/base/cpu.c
+@@ -25,6 +25,15 @@ EXPORT_SYMBOL_GPL(cpu_subsys);
+ static DEFINE_PER_CPU(struct device *, cpu_sys_devices);
+ 
+ #ifdef CONFIG_HOTPLUG_CPU
++static void change_cpu_under_node(struct cpu *cpu,
++			unsigned int from_nid, unsigned int to_nid)
++{
++	int cpuid = cpu->dev.id;
++	unregister_cpu_under_node(cpuid, from_nid);
++	register_cpu_under_node(cpuid, to_nid);
++	cpu->node_id = to_nid;
++}
++
+ static ssize_t show_online(struct device *dev,
+ 			   struct device_attribute *attr,
+ 			   char *buf)
+@@ -39,17 +48,23 @@ static ssize_t __ref store_online(struct device *dev,
+ 				  const char *buf, size_t count)
+ {
+ 	struct cpu *cpu = container_of(dev, struct cpu, dev);
++	int num = cpu->dev.id;
++	int from_nid, to_nid;
+ 	ssize_t ret;
+ 
+ 	cpu_hotplug_driver_lock();
+ 	switch (buf[0]) {
+ 	case '0':
+-		ret = cpu_down(cpu->dev.id);
++		ret = cpu_down(num);
+ 		if (!ret)
+ 			kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
+ 		break;
+ 	case '1':
+-		ret = cpu_up(cpu->dev.id);
++		from_nid = cpu_to_node(num);
++		ret = cpu_up(num);
++		to_nid = cpu_to_node(num);
++		if (from_nid != to_nid)
++			change_cpu_under_node(cpu, from_nid, to_nid);
+ 		if (!ret)
+ 			kobject_uevent(&dev->kobj, KOBJ_ONLINE);
+ 		break;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
