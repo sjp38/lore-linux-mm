@@ -1,69 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 074016B00D5
-	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 20:59:42 -0400 (EDT)
-Message-ID: <516F456E.9060003@infradead.org>
-Date: Wed, 17 Apr 2013 17:59:26 -0700
-From: Randy Dunlap <rdunlap@infradead.org>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id A98026B00D6
+	for <linux-mm@kvack.org>; Wed, 17 Apr 2013 21:02:37 -0400 (EDT)
+Received: by mail-qe0-f50.google.com with SMTP id a11so1302693qen.9
+        for <linux-mm@kvack.org>; Wed, 17 Apr 2013 18:02:36 -0700 (PDT)
 MIME-Version: 1.0
-Subject: [PATCH] mm: fix memory_hotplug.c printk format warning
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <516F34CA.8050902@gmail.com>
+References: <5114DF05.7070702@mellanox.com>
+	<CAH3drwbjQa2Xms30b8J_oEUw7Eikcno-7Xqf=7=da3LHWXvkKA@mail.gmail.com>
+	<516CF7BB.3050301@gmail.com>
+	<CAH3drwbx1aiQEA19+zq6t=GPPNZQEkD27sCjL-Ma2aYns7pMXw@mail.gmail.com>
+	<516DE3D1.7030800@gmail.com>
+	<CAH3drwZ=0iXJwXrZdVUngpwddsu9yj5HCdCcWJuXtz8p=sMWpA@mail.gmail.com>
+	<516F34CA.8050902@gmail.com>
+Date: Wed, 17 Apr 2013 21:02:36 -0400
+Message-ID: <CAH3drwaYz8+LZu_qd81HM=d6f3t_K1_NgOG+Awyjc1v1jpiLKA@mail.gmail.com>
+Subject: Re: [LSF/MM TOPIC] Hardware initiated paging of user process pages,
+ hardware access to the CPU page tables of user processes
+From: Jerome Glisse <j.glisse@gmail.com>
+Content-Type: multipart/alternative; boundary=14dae9399b6f8733f104da982855
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Shachar Raindel <raindel@mellanox.com>, lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Roland Dreier <roland@purestorage.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-From: Randy Dunlap <rdunlap@infradead.org>
+--14dae9399b6f8733f104da982855
+Content-Type: text/plain; charset=ISO-8859-1
 
-PFN_PHYS() is a phys_addr_t, which can be u32 or u64.
-Fix the build warning when phys_addr_t is u32.
+On Wed, Apr 17, 2013 at 7:48 PM, Simon Jeons <simon.jeons@gmail.com> wrote:
 
-mm/memory_hotplug.c: warning: format '%llx' expects argument of type 'long long unsigned int', but argument 2 has type 'unsigned int' [-Wformat]:  => 1685:3
-mm/memory_hotplug.c: warning: format '%llx' expects argument of type 'long long unsigned int', but argument 3 has type 'unsigned int' [-Wformat]:  => 1685:3
+>  Hi Jerome,
+>
+> On 04/17/2013 10:01 PM, Jerome Glisse wrote:
+>
+> On Tue, Apr 16, 2013 at 7:50 PM, Simon Jeons <simon.jeons@gmail.com>wrote:
+>
+>> On 04/17/2013 12:27 AM, Jerome Glisse wrote:
+>>
+>> [snip]
+>>
+>>
+>>>
+>>> As i said this is for pre-filling already present entry, ie pte that are
+>>> present with a valid page (no special bit set). This is an optimization so
+>>> that the GPU can pre-fill its tlb without having to take any mmap_sem. Hope
+>>> is that in most common case this will be enough, but in some case you will
+>>> have to go through the lengthy non fast gup.
+>>>
+>>
+>>  I know this. What I concern is the pte you mentioned is for normal cpu,
+>> correct? How can you pre-fill pte and tlb of GPU?
+>>
+>
+> You getting confuse, idea is to look at cpu pte and prefill gpu pte. I do
+> not prefill cpu pte, if a cpu pte is valid then i use the page it point to
+> prefill the GPU pte.
+>
+>
+> Yes, confused!
+>
+>
+>
+> So i don't pre-fill CPU PTE and TLB GPU, i pre-fill GPU PTE from CPU PTE
+> if CPU PTE is valid. Other GPU PTE are marked as invalid and will trigger a
+> fault that will be handle using gup that will fill CPU PTE (if fault happen
+> at a valid address) at which point GPU PTE is updated or error is reported
+> if fault happened at an invalid address.
+>
+>
+> gup is used to fill CPU PTE, could you point out to me which codes will
+> re-fill GPU PTE? gup fast?
+> GPU page table is different from CPU?
+>
+>
+The GPU interrupt handler will schedule a work thread that will call gup
+and then update gpu page table.
 
-Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
-Reported-by: Geert Uytterhoeven <geert@linux-m68k.org>
----
- mm/memory_hotplug.c |   12 ++++++++----
- 1 file changed, 8 insertions(+), 4 deletions(-)
+Cheers,
+Jerome
 
-I guess this modern "%pa" is preferred over casting to (u64),
-but just casting seems a simpler fix to me.  I.e.:
+--14dae9399b6f8733f104da982855
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
- 	if (unlikely(ret))
- 		pr_warn("removing memory fails, because memory "
- 			"[%#010llx-%#010llx] is onlined\n",
--			PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
--			PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1);
-+			(u64)PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
-+			(u64)PFN_PHYS(section_nr_to_pfn(
-+					mem->end_section_nr + 1))-1);
- 
- 	return ret;
- }
+On Wed, Apr 17, 2013 at 7:48 PM, Simon Jeons <span dir=3D"ltr">&lt;<a href=
+=3D"mailto:simon.jeons@gmail.com" target=3D"_blank">simon.jeons@gmail.com</=
+a>&gt;</span> wrote:<br><div class=3D"gmail_quote"><blockquote class=3D"gma=
+il_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-lef=
+t:1ex">
 
---- lnx-39-rc7.orig/mm/memory_hotplug.c
-+++ lnx-39-rc7/mm/memory_hotplug.c
-@@ -1681,11 +1681,15 @@ static int is_memblock_offlined_cb(struc
- {
- 	int ret = !is_memblock_offlined(mem);
- 
--	if (unlikely(ret))
-+	if (unlikely(ret)) {
-+		phys_addr_t beginpa, endpa;
-+
-+		beginpa = PFN_PHYS(section_nr_to_pfn(mem->start_section_nr));
-+		endpa = PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1;
- 		pr_warn("removing memory fails, because memory "
--			"[%#010llx-%#010llx] is onlined\n",
--			PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
--			PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1);
-+			"[%pa-%pa] is onlined\n",
-+			&beginpa, &endpa);
-+	}
- 
- 	return ret;
- }
+ =20
+   =20
+ =20
+  <div text=3D"#000000" bgcolor=3D"#FFFFFF">
+    <div>Hi Jerome,<div class=3D"im"><br>
+      On 04/17/2013 10:01 PM, Jerome Glisse wrote:<br>
+    </div></div><div class=3D"im">
+    <blockquote type=3D"cite">
+      <div class=3D"gmail_quote">On Tue, Apr 16, 2013 at 7:50 PM, Simon
+        Jeons <span dir=3D"ltr">&lt;<a href=3D"mailto:simon.jeons@gmail.com=
+" target=3D"_blank">simon.jeons@gmail.com</a>&gt;</span>
+        wrote:<br>
+        <blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border=
+-left:1px #ccc solid;padding-left:1ex">
+          On 04/17/2013 12:27 AM, Jerome Glisse wrote:<br>
+          <br>
+          [snip]
+          <div><br>
+            <blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;bo=
+rder-left:1px #ccc solid;padding-left:1ex">
+              <br>
+              <br>
+              As i said this is for pre-filling already present entry,
+              ie pte that are present with a valid page (no special bit
+              set). This is an optimization so that the GPU can pre-fill
+              its tlb without having to take any mmap_sem. Hope is that
+              in most common case this will be enough, but in some case
+              you will have to go through the lengthy non fast gup.<br>
+            </blockquote>
+            <br>
+          </div>
+          I know this. What I concern is the pte you mentioned is for
+          normal cpu, correct? How can you pre-fill pte and tlb of GPU?<br>
+        </blockquote>
+      </div>
+      <br>
+      You getting confuse, idea is to look at cpu pte and prefill gpu
+      pte. I do not prefill cpu pte, if a cpu pte is valid then i use
+      the page it point to prefill the GPU pte.<br>
+    </blockquote>
+    <br></div>
+    Yes, confused!<div class=3D"im"><br>
+    <br>
+    <blockquote type=3D"cite">
+      <br>
+      So i don&#39;t pre-fill CPU PTE and TLB GPU, i pre-fill GPU PTE from
+      CPU PTE if CPU PTE is valid. Other GPU PTE are marked as invalid
+      and will trigger a fault that will be handle using gup that will
+      fill CPU PTE (if fault happen at a valid address) at which point
+      GPU PTE is updated or error is reported if fault happened at an
+      invalid address.<br>
+    </blockquote>
+    <br></div>
+    gup is used to fill CPU PTE, could you point out to me which codes
+    will re-fill GPU PTE? gup fast? <br>
+    GPU page table is different from CPU? <br>
+    <br></div></blockquote><div><br>The GPU interrupt handler will schedule=
+ a work thread that will call gup and then update gpu page table.<br><br>Ch=
+eers,<br>Jerome<br></div></div>
+
+--14dae9399b6f8733f104da982855--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
