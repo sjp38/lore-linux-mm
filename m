@@ -1,44 +1,317 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id C50056B0005
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 11:02:56 -0400 (EDT)
-Date: Thu, 18 Apr 2013 08:02:02 -0700
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 03/10] mm: vmscan: Flatten kswapd priority loop
-Message-ID: <20130418150202.GE2018@cmpxchg.org>
-References: <1365710278-6807-1-git-send-email-mgorman@suse.de>
- <1365710278-6807-4-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id C04896B0002
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 11:08:58 -0400 (EDT)
+Message-ID: <51700DB2.5090506@linux.intel.com>
+Date: Thu, 18 Apr 2013 08:13:54 -0700
+From: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1365710278-6807-4-git-send-email-mgorman@suse.de>
+Subject: Re: [RFC PATCH v2 00/15][Sorted-buddy] mm: Memory Power Management
+References: <20130409214443.4500.44168.stgit@srivatsabhat.in.ibm.com> <516ED378.2000406@linux.intel.com> <516FC2D1.9020809@linux.vnet.ibm.com>
+In-Reply-To: <516FC2D1.9020809@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, dormando <dormando@rydia.net>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, matthew.garrett@nebula.com, dave@sr71.net, rientjes@google.com, riel@redhat.com, arjan@linux.intel.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, wujianguo@huawei.com, kmpark@infradead.org, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Apr 11, 2013 at 08:57:51PM +0100, Mel Gorman wrote:
-> kswapd stops raising the scanning priority when at least SWAP_CLUSTER_MAX
-> pages have been reclaimed or the pgdat is considered balanced. It then
-> rechecks if it needs to restart at DEF_PRIORITY and whether high-order
-> reclaim needs to be reset. This is not wrong per-se but it is confusing
-> to follow and forcing kswapd to stay at DEF_PRIORITY may require several
-> restarts before it has scanned enough pages to meet the high watermark even
-> at 100% efficiency. This patch irons out the logic a bit by controlling
-> when priority is raised and removing the "goto loop_again".
-> 
-> This patch has kswapd raise the scanning priority until it is scanning
-> enough pages that it could meet the high watermark in one shrink of the
-> LRU lists if it is able to reclaim at 100% efficiency. It will not raise
-> the scanning prioirty higher unless it is failing to reclaim any pages.
-> 
-> To avoid infinite looping for high-order allocation requests kswapd will
-> not reclaim for high-order allocations when it has reclaimed at least
-> twice the number of pages as the allocation request.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+On 04/18/2013 02:54 AM, Srivatsa S. Bhat wrote:
+> On 04/17/2013 10:23 PM, Srinivas Pandruvada wrote:
+>> On 04/09/2013 02:45 PM, Srivatsa S. Bhat wrote:
+>>> [I know, this cover letter is a little too long, but I wanted to clearly
+>>> explain the overall goals and the high-level design of this patchset in
+>>> detail. I hope this helps more than it annoys, and makes it easier for
+>>> reviewers to relate to the background and the goals of this patchset.]
+>>>
+>>>
+>>> Overview of Memory Power Management and its implications to the Linux MM
+>>> ========================================================================
+>>>
+> [...]
+>> One thing you need to prevent is boot time allocation. You have to make
+>> sure that frequently accessed per node data stored at the end of memory
+>> will keep all ranks of memory active.
+>>
+When I was experimenting I did something like this.
+/////////////////////////////////
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
++/*
++ * Experimental MPST implemenentation
++ * Copyright (c) 2012, Intel Corporation.
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public 
+License for
++ * more details.
++ *
++ * You should have received a copy of the GNU General Public License 
+along with
++ * this program; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
++ *
++ */
++#include <linux/kernel.h>
++#include <linux/types.h>
++#include <linux/init.h>
++#include <linux/kthread.h>
++#include <linux/acpi.h>
++#include <linux/export.h>
++#include <linux/bootmem.h>
++#include <linux/delay.h>
++#include <linux/pfn.h>
++#include <linux/suspend.h>
++#include <linux/acpi.h>
++#include <linux/memblock.h>
++#include <linux/mm.h>
++#include <linux/mmzone.h>
++#include <linux/migrate.h>
++#include <linux/mm_inline.h>
++#include <linux/page-isolation.h>
++#include <linux/vmalloc.h>
++#include <linux/compaction.h>
++#include "internal.h"
++
++#define phys_to_pfn(p) ((p) >> PAGE_SHIFT)
++#define pfn_to_phys(p) ((p) << PAGE_SHIFT)
++#define MAX_MPST_ZONES 16
++/* Atleast 4G of non MPST memory. */
++#define MINIMAL_NON_MPST_MEMORY_PFN (0x100000000 >> PAGE_SHIFT)
++
++struct mpst_mem_zone {
++       phys_addr_t start_addr;
++       phys_addr_t end_addr;
++};
++
++static struct mpst_mem_zone mpst_zones[MAX_MPST_ZONES];
++static int mpst_zone_cnt;
++static unsigned long mpst_start_pfn;
++static unsigned long mpst_end_pfn;
++static bool mpst_enabled;
++
++/* Minimal parsing for just getting node ranges */
++static int __init acpi_parse_mpst_table(struct acpi_table_header *table)
++{
++       struct acpi_table_mpst *mpst;
++       struct acpi_mpst_power_node *node;
++       u16 node_count;
++       int i;
++
++       mpst = (struct acpi_table_mpst *)table;
++       if (!mpst) {
++               pr_warn("Unable to map MPST\n");
++               return -ENODEV;
++       }
++       node_count = mpst->power_node_count;
++       node = (struct acpi_mpst_power_node *)((u8 *)mpst + sizeof(*mpst));
++
++       for (i = mpst_zone_cnt; (i < node_count) && (i < MAX_MPST_ZONES);
++ ++i) {
++               if ((node->flags & ACPI_MPST_ENABLED) &&
++                       (node->flags & ACPI_MPST_POWER_MANAGED)) {
++                       mpst_zones[mpst_zone_cnt].start_addr =
++                               node->range_address;
++                       mpst_zones[mpst_zone_cnt].end_addr =
++                               node->range_address + node->range_length;
++                       ++mpst_zone_cnt;
++               }
++               ++node;
++       }
++
++       return 0;
++}
++
++static unsigned long local_ahex_to_long(const char *name)
++{
++       unsigned long val = 0;
++
++       for (;; name++) {
++               switch (*name) {
++               case '0' ... '9':
++                       val = 16*val+(*name-'0');
++                       break;
++               case 'A' ... 'F':
++                       val = 16*val+(*name-'A'+10);
++                       break;
++               case 'a' ... 'f':
++                       val = 16*val+(*name-'a'+10);
++                       break;
++               default:
++                       return val;
++               }
++       }
++
++       return val;
++}
++
++/* Specify MPST range by command line for test till ACPI - MPST is 
+available */
++static int __init parse_mpst_opt(char *str)
++{
++       char *ptr;
++       phys_addr_t start_at = 0, end_at = 0;
++       u64  mem_size = 0;
++
++       if (!str)
++               return -EINVAL;
++       ptr = str;
++       while (1) {
++               if (*str == '-') {
++                       *str = '\0';
++                       start_at = local_ahex_to_long(ptr);
++                       ++str;
++                       ptr = str;
++               }
++               if (start_at && (*str == '\0' || *str == ',' || *str == 
+' ')) {
++                       *str = '\0';
++                       end_at = local_ahex_to_long(ptr);
++                       mem_size = end_at-start_at;
++                       ++str;
++                       ptr = str;
++                       pr_info("-mpst[%#018Lx-%#018Lx size: %#018Lx]\n",
++                                               start_at, end_at, mem_size);
++                       if (IS_ALIGNED(phys_to_pfn(start_at),
++                                       pageblock_nr_pages) &&
++ IS_ALIGNED(phys_to_pfn(end_at),
++                                       pageblock_nr_pages)) {
++                               mpst_zones[mpst_zone_cnt].start_addr =
++ start_at;
++                               mpst_zones[mpst_zone_cnt].end_addr =
++ end_at;
++                       } else {
++                               pr_err("mpst invalid range\n");
++                               return -EINVAL;
++                       }
++                       mpst_zone_cnt++;
++                       start_at = mem_size = end_at = 0;
++               }
++               if (*str == '\0')
++                       break;
++               else
++                       ++str;
++       }
++
++       return 0;
++}
++early_param("mpst_range", parse_mpst_opt);
++
++/* Specify MPST range by command line for test till ACPI - MPST is 
+available */
++static int __init parse_mpst_enable_opt(char *str)
++{
++       long value;
++       if (kstrtol(str, 10, &value))
++               return -EINVAL;
++       mpst_enabled = value ? true : false;
++
++       return 0;
++}
++early_param("mpst_enable", parse_mpst_enable_opt);
++
++/* Set the minimum and maximum PFN */
++static void mpst_set_min_max_pfn(void)
++{
++       int i;
++
++       if (!mpst_zone_cnt)
++               return;
++
++       mpst_start_pfn = phys_to_pfn(mpst_zones[0].start_addr);
++       mpst_end_pfn = phys_to_pfn(mpst_zones[0].end_addr);
++
++       for (i = 1; i < mpst_zone_cnt; ++i) {
++               if (mpst_start_pfn > phys_to_pfn(mpst_zones[i].start_addr))
++                       mpst_start_pfn = 
+phys_to_pfn(mpst_zones[i].start_addr);
++               if (mpst_end_pfn < phys_to_pfn(mpst_zones[i].end_addr))
++                       mpst_end_pfn = phys_to_pfn(mpst_zones[i].end_addr);
++       }
++}
++
++/* Change migrate type for the MPST ranges */
++int mpst_set_migrate_type(void)
++{
++       int i;
++       struct page *page;
++       unsigned long start_pfn, end_pfn;
++
++       if (!mpst_start_pfn || !mpst_end_pfn)
++               return -EINVAL;
++       if (!IS_ALIGNED(mpst_start_pfn, pageblock_nr_pages))
++               return -EINVAL;
++       if (!IS_ALIGNED(mpst_end_pfn, pageblock_nr_pages))
++               return -EINVAL;
++       memblock_free(pfn_to_phys(mpst_start_pfn),
++               pfn_to_phys(mpst_end_pfn) - pfn_to_phys(mpst_start_pfn));
++       for (i = 0; i < mpst_zone_cnt; ++i) {
++               start_pfn = phys_to_pfn(mpst_zones[i].start_addr);
++               end_pfn = phys_to_pfn(mpst_zones[i].end_addr);
++               for (; start_pfn < end_pfn; ++start_pfn) {
++                       page = pfn_to_page(start_pfn);
++                       if (page)
++                               set_pageblock_migratetype(page,
++                                               MIGRATE_LP_MEMORY);
++               }
++       }
++
++       return 0;
++}
++
++/* Parse ACPI table and find start and end of MPST zone.
++Assuming zones are contiguous */
++int mpst_init(void)
++{
++       if (!mpst_enabled) {
++               pr_info("mpst not enabled in command line\n");
++               return 0;
++       }
++
++       acpi_table_parse(ACPI_SIG_MPST, acpi_parse_mpst_table);
++       mpst_set_min_max_pfn();
++       if (mpst_zone_cnt) {
++
++               if (mpst_start_pfn < MINIMAL_NON_MPST_MEMORY_PFN) {
++                       pr_err("Not enough memory: Ignore MPST\n");
++                       mpst_start_pfn = mpst_end_pfn = 0;
++                       return -EINVAL;
++               }
++               memblock_reserve(pfn_to_phys(mpst_start_pfn),
++                                       pfn_to_phys(mpst_end_pfn) -
++ pfn_to_phys(mpst_start_pfn));
++               pr_info("mpst_init memblock limit set to pfn %lu 
+0x%#018lx\n",
++                       mpst_start_pfn, pfn_to_phys(mpst_start_pfn));
++       }
++
++       return 0;
++}
+
+
+
+
+
+/////////////////////////////
+> I think you meant to say "... stored at the end of memory will NOT keep all
+> ranks of memory active".
+>
+> Yep, that's a good point! I'll think about how to achieve that. Thanks!
+>
+> Regards,
+> Srivatsa S. Bhat
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
