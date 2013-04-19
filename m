@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id F3C786B00AA
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id E38B46B00A9
 	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 05:29:28 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v1 08/12] x86, numa, memblock: Introduce MEMBLK_LOCAL_NODE to mark and reserve node-life-cycle data.
-Date: Fri, 19 Apr 2013 17:31:45 +0800
-Message-Id: <1366363909-12771-9-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v1 09/12] x86, acpi, numa, mem-hotplug: Introduce MEMBLK_HOTPLUGGABLE to mark and reserve hotpluggable memory.
+Date: Fri, 19 Apr 2013 17:31:46 +0800
+Message-Id: <1366363909-12771-10-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1366363909-12771-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1366363909-12771-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,90 +13,134 @@ List-ID: <linux-mm.kvack.org>
 To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, paulmck@linux.vnet.ibm.com, dhowells@redhat.com, davej@redhat.com, agordeev@redhat.com, suresh.b.siddha@intel.com, mst@redhat.com, yinghai@kernel.org, penberg@kernel.org, jacob.shin@amd.com, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, rientjes@google.com, tj@kernel.org, laijs@cn.fujitsu.com, hannes@cmpxchg.org, davem@davemloft.net, mgorman@suse.de, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-node-life-cycle data (whose life cycle is the same as a node)
-allocated by memblock should be marked so that when we free usable
-memory to buddy system, we can skip them.
+We mark out movable memory ranges and reserve them with MEMBLK_HOTPLUGGABLE flag in
+memblock.reserved. This should be done after the memory mapping is initialized
+because the kernel now supports allocate pagetable pages on local node, which
+are kernel pages.
 
-This patch introduces a flag MEMBLK_LOCAL_NODE for memblock to reserve
-node-life-cycle data. For now, it is only kernel direct mapping pagetable
-pages, based on Yinghai's patch.
+The reserved hotpluggable will be freed to buddy when memory initialization
+is done.
 
+This idea is from Wen Congyang <wency@cn.fujitsu.com> and Jiang Liu <jiang.liu@huawei.com>.
+
+Suggested-by: Jiang Liu <jiang.liu@huawei.com>
+Suggested-by: Wen Congyang <wency@cn.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/mm/init.c       |   16 ++++++++++++----
- include/linux/memblock.h |    2 ++
- mm/memblock.c            |    7 +++++++
- 3 files changed, 21 insertions(+), 4 deletions(-)
+ arch/x86/mm/numa.c       |   26 ++++++++++++++++++++++++++
+ include/linux/memblock.h |    3 +++
+ mm/memblock.c            |   19 +++++++++++++++++++
+ 3 files changed, 48 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-index 8d0007a..1261e2e 100644
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -62,14 +62,22 @@ __ref void *alloc_low_pages(unsigned int num)
- 					low_min_pfn_mapped << PAGE_SHIFT,
- 					low_max_pfn_mapped << PAGE_SHIFT,
- 					PAGE_SIZE * num , PAGE_SIZE);
--		} else
-+			if (!ret)
-+				panic("alloc_low_page: can not alloc memory");
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 105b092..6f61691 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -731,6 +731,30 @@ static void __init early_x86_numa_init_mapping(void)
+ }
+ #endif
+ 
++#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
++static void __init early_mem_hotplug_init()
++{
++	int i, nid;
++	phys_addr_t start, end;
 +
-+			memblock_reserve(ret, PAGE_SIZE * num);
-+		} else {
- 			ret = memblock_find_in_range(
- 					local_min_pfn_mapped << PAGE_SHIFT,
- 					local_max_pfn_mapped << PAGE_SHIFT,
- 					PAGE_SIZE * num , PAGE_SIZE);
--		if (!ret)
--			panic("alloc_low_page: can not alloc memory");
--		memblock_reserve(ret, PAGE_SIZE * num);
-+			if (!ret)
-+				panic("alloc_low_page: can not alloc memory");
++	if (!movablecore_enable_srat)
++		return;
 +
-+			memblock_reserve_local_node(ret, PAGE_SIZE * num,
-+						    MAX_NUMNODES);
-+		}
++	for (i = 0; i < numa_meminfo.nr_blks; i++) {
++		if (!numa_meminfo.blk[i].hotpluggable)
++			continue;
 +
- 		pfn = ret >> PAGE_SHIFT;
- 	} else {
- 		pfn = pgt_buf_end;
++		nid = numa_meminfo.blk[i].nid;
++
++		memblock_reserve_hotpluggable(start, end - start, nid);
++	}
++}
++#else		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
++static inline void early_mem_hotplug_init()
++{
++}
++#endif		/* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
++
+ void __init early_initmem_init(void)
+ {
+ 	early_x86_numa_init();
+@@ -740,6 +764,8 @@ void __init early_initmem_init(void)
+ 	load_cr3(swapper_pg_dir);
+ 	__flush_tlb_all();
+ 
++	early_mem_hotplug_init();
++
+ 	early_memtest(0, max_pfn_mapped<<PAGE_SHIFT);
+ }
+ 
 diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 5064eed..3b2d1c4 100644
+index 3b2d1c4..0f01930 100644
 --- a/include/linux/memblock.h
 +++ b/include/linux/memblock.h
-@@ -23,6 +23,7 @@
- 
+@@ -24,6 +24,7 @@
  /* Definition of memblock flags. */
  enum memblock_flags {
-+	MEMBLK_LOCAL_NODE,	/* node-life-cycle data */
+ 	MEMBLK_LOCAL_NODE,	/* node-life-cycle data */
++	MEMBLK_HOTPLUGGABLE,	/* hotpluggable region */
  	__NR_MEMBLK_FLAGS,	/* number of flags */
  };
  
-@@ -65,6 +66,7 @@ int memblock_add(phys_addr_t base, phys_addr_t size);
- int memblock_remove(phys_addr_t base, phys_addr_t size);
+@@ -67,8 +68,10 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
  int memblock_free(phys_addr_t base, phys_addr_t size);
  int memblock_reserve(phys_addr_t base, phys_addr_t size);
-+int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
+ int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
++int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
  void memblock_trim_memory(phys_addr_t align);
  void memblock_mark_kernel_nodes(void);
++bool memblock_is_kernel_node(int nid);
  
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 1b93a5d..edde4c2 100644
+index edde4c2..0c55588 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -589,6 +589,13 @@ int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
- 				       MEMBLK_FLAGS_DEFAULT);
+@@ -596,6 +596,13 @@ int __init_memblock memblock_reserve_local_node(phys_addr_t base,
+ 	return memblock_reserve_region(base, size, nid, flags);
  }
  
-+int __init_memblock memblock_reserve_local_node(phys_addr_t base,
++int __init_memblock memblock_reserve_hotpluggable(phys_addr_t base,
 +					phys_addr_t size, int nid)
 +{
-+	unsigned long flags = 1 << MEMBLK_LOCAL_NODE;
++	unsigned long flags = 1 << MEMBLK_HOTPLUGGABLE;
 +	return memblock_reserve_region(base, size, nid, flags);
 +}
 +
  /**
   * __next_free_mem_range - next function for for_each_free_mem_range()
   * @idx: pointer to u64 loop variable
+@@ -809,11 +816,23 @@ void __init_memblock memblock_mark_kernel_nodes()
+ 			node_set(nid, memblock_kernel_nodemask);
+ 		}
+ }
++
++bool __init_memblock memblock_is_kernel_node(int nid)
++{
++	if (node_isset(nid, memblock_kernel_nodemask))
++		return true;
++	return false;
++}
+ #else
+ void __init_memblock memblock_mark_kernel_nodes()
+ {
+ 	node_set(0, memblock_kernel_nodemask);
+ }
++
++bool __init_memblock memblock_is_kernel_node(int nid)
++{
++	return true;
++}
+ #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ 
+ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
 -- 
 1.7.1
 
