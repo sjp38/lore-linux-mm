@@ -1,100 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 94C9E6B004D
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 21:17:49 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CC7683EE0C2
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 10:17:47 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 107F245DE5A
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 10:17:44 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D84CE45DE5D
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 10:17:43 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id CA2F41DB8051
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 10:17:43 +0900 (JST)
-Received: from g01jpexchkw36.g01.fujitsu.local (g01jpexchkw36.g01.fujitsu.local [10.0.193.54])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 87FE21DB804D
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 10:17:43 +0900 (JST)
-Message-ID: <51709B0D.9000900@jp.fujitsu.com>
-Date: Fri, 19 Apr 2013 10:17:01 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 2DF906B005A
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 21:55:58 -0400 (EDT)
+Received: by mail-yh0-f46.google.com with SMTP id l109so575184yhq.5
+        for <linux-mm@kvack.org>; Thu, 18 Apr 2013 18:55:57 -0700 (PDT)
+Message-ID: <5170A426.4060807@gmail.com>
+Date: Fri, 19 Apr 2013 09:55:50 +0800
+From: Simon Jeons <simon.jeons@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [Bug fix PATCH] numa, cpu hotplug: Change links of CPU and node
- when changing node number by onlining CPU
-References: <516FA0B9.8080308@jp.fujitsu.com> <CAHGf_=qcV=R_O5fpjpRQh5Tu9=nz1jVR9r=55fYODds8TQm7vw@mail.gmail.com>
-In-Reply-To: <CAHGf_=qcV=R_O5fpjpRQh5Tu9=nz1jVR9r=55fYODds8TQm7vw@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH -V5 00/25] THP support for PPC64
+References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, x86@kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-2013/04/19 1:32, KOSAKI Motohiro wrote:
->>   #ifdef CONFIG_HOTPLUG_CPU
->> +static void change_cpu_under_node(struct cpu *cpu,
->> +                       unsigned int from_nid, unsigned int to_nid)
->> +{
->> +       int cpuid = cpu->dev.id;
->> +       unregister_cpu_under_node(cpuid, from_nid);
->> +       register_cpu_under_node(cpuid, to_nid);
->> +       cpu->node_id = to_nid;
->> +}
->> +
+Hi Aneesh,
+On 04/04/2013 01:57 PM, Aneesh Kumar K.V wrote:
+> Hi,
 >
-
-> Where is stub for !CONFIG_HOTPLUG_CPU?
-
-This function is called by only store_online(). And the store_online() is
-defined only when CONFIG_HOTPLUG_CPU enables. Thus change_cpu_under_node()
-is not necessary for !CONFIG_HOTPLUG_CPU.
-
+> This patchset adds transparent hugepage support for PPC64.
+>
+> TODO:
+> * hash preload support in update_mmu_cache_pmd (we don't do that for hugetlb)
+>
+> Some numbers:
+>
+> The latency measurements code from Anton  found at
+> http://ozlabs.org/~anton/junkcode/latency2001.c
+>
+> THP disabled 64K page size
+> ------------------------
+> [root@llmp24l02 ~]# ./latency2001 8G
+>   8589934592    731.73 cycles    205.77 ns
+> [root@llmp24l02 ~]# ./latency2001 8G
+>   8589934592    743.39 cycles    209.05 ns
+> [root@llmp24l02 ~]#
+>
+> THP disabled large page via hugetlbfs
+> -------------------------------------
+> [root@llmp24l02 ~]# ./latency2001  -l 8G
+>   8589934592    416.09 cycles    117.01 ns
+> [root@llmp24l02 ~]# ./latency2001  -l 8G
+>   8589934592    415.74 cycles    116.91 ns
+>
+> THP enabled 64K page size.
+> ----------------
+> [root@llmp24l02 ~]# ./latency2001 8G
+>   8589934592    405.07 cycles    113.91 ns
+> [root@llmp24l02 ~]# ./latency2001 8G
+>   8589934592    411.82 cycles    115.81 ns
+> [root@llmp24l02 ~]#
+>
+> We are close to hugetlbfs in latency and we can achieve this with zero
+> config/page reservation. Most of the allocations above are fault allocated.
+>
+> Another test that does 50000000 random access over 1GB area goes from
+> 2.65 seconds to 1.07 seconds with this patchset.
+>
+> split_huge_page impact:
+> ---------------------
+> To look at the performance impact of large page invalidate, I tried the below
+> experiment. The test involved, accessing a large contiguous region of memory
+> location as below
+>
+>      for (i = 0; i < size; i += PAGE_SIZE)
+> 	data[i] = i;
+>
+> We wanted to access the data in sequential order so that we look at the
+> worst case THP performance. Accesing the data in sequential order implies
+> we have the Page table cached and overhead of TLB miss is as minimal as
+> possible. We also don't touch the entire page, because that can result in
+> cache evict.
+>
+> After we touched the full range as above, we now call mprotect on each
+> of that page. A mprotect will result in a hugepage split. This should
+> allow us to measure the impact of hugepage split.
+>
+>      for (i = 0; i < size; i += PAGE_SIZE)
+> 	 mprotect(&data[i], PAGE_SIZE, PROT_READ);
+>
+> Split hugepage impact:
+> ---------------------
+> THP enabled: 2.851561705 seconds for test completion
+> THP disable: 3.599146098 seconds for test completion
+>
+> We are 20.7% better than non THP case even when we have all the large pages split.
+>
+> Detailed output:
+>
+> THP enabled:
+> ---------------------------------------
+> [root@llmp24l02 ~]# cat /proc/vmstat  | grep thp
+> thp_fault_alloc 0
+> thp_fault_fallback 0
+> thp_collapse_alloc 0
+> thp_collapse_alloc_failed 0
+> thp_split 0
+> thp_zero_page_alloc 0
+> thp_zero_page_alloc_failed 0
+> [root@llmp24l02 ~]# /root/thp/tools/perf/perf stat -e page-faults,dTLB-load-misses ./split-huge-page-mpro 20G
+> time taken to touch all the data in ns: 2763096913
+>
+>   Performance counter stats for './split-huge-page-mpro 20G':
+>
+>               1,581 page-faults
+>               3,159 dTLB-load-misses
+>
+>         2.851561705 seconds time elapsed
+>
+> [root@llmp24l02 ~]#
+> [root@llmp24l02 ~]# cat /proc/vmstat  | grep thp
+> thp_fault_alloc 1279
+> thp_fault_fallback 0
+> thp_collapse_alloc 0
+> thp_collapse_alloc_failed 0
+> thp_split 1279
+> thp_zero_page_alloc 0
+> thp_zero_page_alloc_failed 0
+> [root@llmp24l02 ~]#
+>
+>      77.05%  split-huge-page  [kernel.kallsyms]     [k] .clear_user_page
+>       7.10%  split-huge-page  [kernel.kallsyms]     [k] .perf_event_mmap_ctx
+>       1.51%  split-huge-page  split-huge-page-mpro  [.] 0x0000000000000a70
+>       0.96%  split-huge-page  [unknown]             [H] 0x000000000157e3bc
+>       0.81%  split-huge-page  [kernel.kallsyms]     [k] .up_write
+>       0.76%  split-huge-page  [kernel.kallsyms]     [k] .perf_event_mmap
+>       0.76%  split-huge-page  [kernel.kallsyms]     [k] .down_write
+>       0.74%  split-huge-page  [kernel.kallsyms]     [k] .lru_add_page_tail
+>       0.61%  split-huge-page  [kernel.kallsyms]     [k] .split_huge_page
+>       0.59%  split-huge-page  [kernel.kallsyms]     [k] .change_protection
+>       0.51%  split-huge-page  [kernel.kallsyms]     [k] .release_pages
 >
 >
->>   static ssize_t show_online(struct device *dev,
->>                             struct device_attribute *attr,
->>                             char *buf)
->> @@ -39,17 +48,23 @@ static ssize_t __ref store_online(struct device *dev,
->>                                    const char *buf, size_t count)
->>   {
->>          struct cpu *cpu = container_of(dev, struct cpu, dev);
->> +       int num = cpu->dev.id;
+>       0.96%  split-huge-page  [unknown]             [H] 0x000000000157e3bc
+>              |
+>              |--79.44%-- reloc_start
+>              |          |
+>              |          |--86.54%-- .__pSeries_lpar_hugepage_invalidate
+>              |          |          .pSeries_lpar_hugepage_invalidate
+>              |          |          .hpte_need_hugepage_flush
+>              |          |          .split_huge_page
+>              |          |          .__split_huge_page_pmd
+>              |          |          .vma_adjust
+>              |          |          .vma_merge
+>              |          |          .mprotect_fixup
+>              |          |          .SyS_mprotect
 >
+>
+> THP disabled:
+> ---------------
+> [root@llmp24l02 ~]# echo never > /sys/kernel/mm/transparent_hugepage/enabled
+> [root@llmp24l02 ~]# /root/thp/tools/perf/perf stat -e page-faults,dTLB-load-misses ./split-huge-page-mpro 20G
+> time taken to touch all the data in ns: 3513767220
+>
+>   Performance counter stats for './split-huge-page-mpro 20G':
+>
+>            3,27,726 page-faults
+>            3,29,654 dTLB-load-misses
+>
+>         3.599146098 seconds time elapsed
+>
+> [root@llmp24l02 ~]#
 
-> "num" is wrong name. cpuid may be better.
-
-I'll update it.
+Thanks for your great work. One question about page table of ppc64:
+Why x86 use tree based page table and ppc64 use hash based page table?
 
 >
+> Changes from V4:
+> * Fix bad page error in page_table_alloc
+>    BUG: Bad page state in process stream  pfn:f1a59
+>    page:f0000000034dc378 count:1 mapcount:0 mapping:          (null) index:0x0
+>    [c000000f322c77d0] [c00000000015e198] .bad_page+0xe8/0x140
+>    [c000000f322c7860] [c00000000015e3c4] .free_pages_prepare+0x1d4/0x1e0
+>    [c000000f322c7910] [c000000000160450] .free_hot_cold_page+0x50/0x230
+>    [c000000f322c79c0] [c00000000003ad18] .page_table_alloc+0x168/0x1c0
 >
->> +       int from_nid, to_nid;
->>          ssize_t ret;
->>
->>          cpu_hotplug_driver_lock();
->>          switch (buf[0]) {
->>          case '0':
->> -               ret = cpu_down(cpu->dev.id);
->> +               ret = cpu_down(num);
->>                  if (!ret)
->>                          kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
->>                  break;
->>          case '1':
->> -               ret = cpu_up(cpu->dev.id);
->> +               from_nid = cpu_to_node(num);
->> +               ret = cpu_up(num);
->> +               to_nid = cpu_to_node(num);
->> +               if (from_nid != to_nid)
->> +                       change_cpu_under_node(cpu, from_nid, to_nid);
+> Changes from V3:
+> * PowerNV boot fixes
 >
-> You need to add several comments. this code is not straightforward.
-
-O.K. I'll update it.
-
-Thanks,
-Yasuaki Ishimatsu
-
+> Change from V2:
+> * Change patch "powerpc: Reduce PTE table memory wastage" to use much simpler approach
+>    for PTE page sharing.
+> * Changes to handle huge pages in KVM code.
+> * Address other review comments
+>
+> Changes from V1
+> * Address review comments
+> * More patch split
+> * Add batch hpte invalidate for hugepages.
+>
+> Changes from RFC V2:
+> * Address review comments
+> * More code cleanup and patch split
+>
+> Changes from RFC V1:
+> * HugeTLB fs now works
+> * Compile issues fixed
+> * rebased to v3.8
+> * Patch series reorded so that ppc64 cleanups and MM THP changes are moved
+>    early in the series. This should help in picking those patches early.
+>
+> Thanks,
+> -aneesh
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
