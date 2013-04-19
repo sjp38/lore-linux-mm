@@ -1,217 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 2DF906B005A
-	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 21:55:58 -0400 (EDT)
-Received: by mail-yh0-f46.google.com with SMTP id l109so575184yhq.5
-        for <linux-mm@kvack.org>; Thu, 18 Apr 2013 18:55:57 -0700 (PDT)
-Message-ID: <5170A426.4060807@gmail.com>
-Date: Fri, 19 Apr 2013 09:55:50 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id B9BAA6B0068
+	for <linux-mm@kvack.org>; Thu, 18 Apr 2013 22:21:03 -0400 (EDT)
+In-Reply-To: <51700475.7050102@linux.intel.com>
+References: <OF79A40956.94F46B9C-ON48257B50.00320F73-48257B50.0036925D@zte.com.cn> <516EAF31.8000107@linux.intel.com> <516EBF23.2090600@sr71.net> <516EC508.6070200@linux.intel.com> <OF7B3DF162.973A9AD7-ON48257B51.00299512-48257B51.002C7D65@zte.com.cn> <51700475.7050102@linux.intel.com>
+Subject: Re: Re: [PATCH] futex: bugfix for futex-key conflict when futex use
+ hugepage
 MIME-Version: 1.0
-Subject: Re: [PATCH -V5 00/25] THP support for PPC64
-References: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1365055083-31956-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <OFD8FA3C9D.ACFCFB28-ON48257B52.0008A691-48257B52.000C4DFB@zte.com.cn>
+From: zhang.yi20@zte.com.cn
+Date: Fri, 19 Apr 2013 10:13:43 +0800
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Darren Hart <dvhart@linux.intel.com>
+Cc: Dave Hansen <dave@sr71.net>, Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 
-Hi Aneesh,
-On 04/04/2013 01:57 PM, Aneesh Kumar K.V wrote:
-> Hi,
->
-> This patchset adds transparent hugepage support for PPC64.
->
-> TODO:
-> * hash preload support in update_mmu_cache_pmd (we don't do that for hugetlb)
->
-> Some numbers:
->
-> The latency measurements code from Anton  found at
-> http://ozlabs.org/~anton/junkcode/latency2001.c
->
-> THP disabled 64K page size
-> ------------------------
-> [root@llmp24l02 ~]# ./latency2001 8G
->   8589934592    731.73 cycles    205.77 ns
-> [root@llmp24l02 ~]# ./latency2001 8G
->   8589934592    743.39 cycles    209.05 ns
-> [root@llmp24l02 ~]#
->
-> THP disabled large page via hugetlbfs
-> -------------------------------------
-> [root@llmp24l02 ~]# ./latency2001  -l 8G
->   8589934592    416.09 cycles    117.01 ns
-> [root@llmp24l02 ~]# ./latency2001  -l 8G
->   8589934592    415.74 cycles    116.91 ns
->
-> THP enabled 64K page size.
-> ----------------
-> [root@llmp24l02 ~]# ./latency2001 8G
->   8589934592    405.07 cycles    113.91 ns
-> [root@llmp24l02 ~]# ./latency2001 8G
->   8589934592    411.82 cycles    115.81 ns
-> [root@llmp24l02 ~]#
->
-> We are close to hugetlbfs in latency and we can achieve this with zero
-> config/page reservation. Most of the allocations above are fault allocated.
->
-> Another test that does 50000000 random access over 1GB area goes from
-> 2.65 seconds to 1.07 seconds with this patchset.
->
-> split_huge_page impact:
-> ---------------------
-> To look at the performance impact of large page invalidate, I tried the below
-> experiment. The test involved, accessing a large contiguous region of memory
-> location as below
->
->      for (i = 0; i < size; i += PAGE_SIZE)
-> 	data[i] = i;
->
-> We wanted to access the data in sequential order so that we look at the
-> worst case THP performance. Accesing the data in sequential order implies
-> we have the Page table cached and overhead of TLB miss is as minimal as
-> possible. We also don't touch the entire page, because that can result in
-> cache evict.
->
-> After we touched the full range as above, we now call mprotect on each
-> of that page. A mprotect will result in a hugepage split. This should
-> allow us to measure the impact of hugepage split.
->
->      for (i = 0; i < size; i += PAGE_SIZE)
-> 	 mprotect(&data[i], PAGE_SIZE, PROT_READ);
->
-> Split hugepage impact:
-> ---------------------
-> THP enabled: 2.851561705 seconds for test completion
-> THP disable: 3.599146098 seconds for test completion
->
-> We are 20.7% better than non THP case even when we have all the large pages split.
->
-> Detailed output:
->
-> THP enabled:
-> ---------------------------------------
-> [root@llmp24l02 ~]# cat /proc/vmstat  | grep thp
-> thp_fault_alloc 0
-> thp_fault_fallback 0
-> thp_collapse_alloc 0
-> thp_collapse_alloc_failed 0
-> thp_split 0
-> thp_zero_page_alloc 0
-> thp_zero_page_alloc_failed 0
-> [root@llmp24l02 ~]# /root/thp/tools/perf/perf stat -e page-faults,dTLB-load-misses ./split-huge-page-mpro 20G
-> time taken to touch all the data in ns: 2763096913
->
->   Performance counter stats for './split-huge-page-mpro 20G':
->
->               1,581 page-faults
->               3,159 dTLB-load-misses
->
->         2.851561705 seconds time elapsed
->
-> [root@llmp24l02 ~]#
-> [root@llmp24l02 ~]# cat /proc/vmstat  | grep thp
-> thp_fault_alloc 1279
-> thp_fault_fallback 0
-> thp_collapse_alloc 0
-> thp_collapse_alloc_failed 0
-> thp_split 1279
-> thp_zero_page_alloc 0
-> thp_zero_page_alloc_failed 0
-> [root@llmp24l02 ~]#
->
->      77.05%  split-huge-page  [kernel.kallsyms]     [k] .clear_user_page
->       7.10%  split-huge-page  [kernel.kallsyms]     [k] .perf_event_mmap_ctx
->       1.51%  split-huge-page  split-huge-page-mpro  [.] 0x0000000000000a70
->       0.96%  split-huge-page  [unknown]             [H] 0x000000000157e3bc
->       0.81%  split-huge-page  [kernel.kallsyms]     [k] .up_write
->       0.76%  split-huge-page  [kernel.kallsyms]     [k] .perf_event_mmap
->       0.76%  split-huge-page  [kernel.kallsyms]     [k] .down_write
->       0.74%  split-huge-page  [kernel.kallsyms]     [k] .lru_add_page_tail
->       0.61%  split-huge-page  [kernel.kallsyms]     [k] .split_huge_page
->       0.59%  split-huge-page  [kernel.kallsyms]     [k] .change_protection
->       0.51%  split-huge-page  [kernel.kallsyms]     [k] .release_pages
->
->
->       0.96%  split-huge-page  [unknown]             [H] 0x000000000157e3bc
->              |
->              |--79.44%-- reloc_start
->              |          |
->              |          |--86.54%-- .__pSeries_lpar_hugepage_invalidate
->              |          |          .pSeries_lpar_hugepage_invalidate
->              |          |          .hpte_need_hugepage_flush
->              |          |          .split_huge_page
->              |          |          .__split_huge_page_pmd
->              |          |          .vma_adjust
->              |          |          .vma_merge
->              |          |          .mprotect_fixup
->              |          |          .SyS_mprotect
->
->
-> THP disabled:
-> ---------------
-> [root@llmp24l02 ~]# echo never > /sys/kernel/mm/transparent_hugepage/enabled
-> [root@llmp24l02 ~]# /root/thp/tools/perf/perf stat -e page-faults,dTLB-load-misses ./split-huge-page-mpro 20G
-> time taken to touch all the data in ns: 3513767220
->
->   Performance counter stats for './split-huge-page-mpro 20G':
->
->            3,27,726 page-faults
->            3,29,654 dTLB-load-misses
->
->         3.599146098 seconds time elapsed
->
-> [root@llmp24l02 ~]#
-
-Thanks for your great work. One question about page table of ppc64:
-Why x86 use tree based page table and ppc64 use hash based page table?
-
->
-> Changes from V4:
-> * Fix bad page error in page_table_alloc
->    BUG: Bad page state in process stream  pfn:f1a59
->    page:f0000000034dc378 count:1 mapcount:0 mapping:          (null) index:0x0
->    [c000000f322c77d0] [c00000000015e198] .bad_page+0xe8/0x140
->    [c000000f322c7860] [c00000000015e3c4] .free_pages_prepare+0x1d4/0x1e0
->    [c000000f322c7910] [c000000000160450] .free_hot_cold_page+0x50/0x230
->    [c000000f322c79c0] [c00000000003ad18] .page_table_alloc+0x168/0x1c0
->
-> Changes from V3:
-> * PowerNV boot fixes
->
-> Change from V2:
-> * Change patch "powerpc: Reduce PTE table memory wastage" to use much simpler approach
->    for PTE page sharing.
-> * Changes to handle huge pages in KVM code.
-> * Address other review comments
->
-> Changes from V1
-> * Address review comments
-> * More patch split
-> * Add batch hpte invalidate for hugepages.
->
-> Changes from RFC V2:
-> * Address review comments
-> * More code cleanup and patch split
->
-> Changes from RFC V1:
-> * HugeTLB fs now works
-> * Compile issues fixed
-> * rebased to v3.8
-> * Patch series reorded so that ppc64 cleanups and MM THP changes are moved
->    early in the series. This should help in picking those patches early.
->
-> Thanks,
-> -aneesh
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+RGFycmVuIEhhcnQgPGR2aGFydEBsaW51eC5pbnRlbC5jb20+IHdyb3RlIG9uIDIwMTMvMDQvMTgg
+MjI6MzQ6Mjk6DQoNCj4gT24gMDQvMTgvMjAxMyAwMTowNSBBTSwgemhhbmcueWkyMEB6dGUuY29t
+LmNuIHdyb3RlOg0KPiA+IA0KPiA+IEkgaGF2ZSBydW4gZnV0ZXh0ZXN0L3BlcmZvcm1hbmNlL2Z1
+dGV4X3dhaXQgZm9yIHRlc3RpbmcsIA0KPiA+ICA1IHRpbWVzIGJlZm9yZSBtYWtlIGl0IGxvbmc6
+DQo+ID4gZnV0ZXhfd2FpdDogTWVhc3VyZSBGVVRFWF9XQUlUIG9wZXJhdGlvbnMgcGVyIHNlY29u
+ZA0KPiA+ICAgICAgICAgQXJndW1lbnRzOiBpdGVyYXRpb25zPTEwMDAwMDAwMCB0aHJlYWRzPTI1
+Ng0KPiA+IFJlc3VsdDogMTAyMTUgS2l0ZXIvcw0KPiA+IA0KPiA+IGZ1dGV4X3dhaXQ6IE1lYXN1
+cmUgRlVURVhfV0FJVCBvcGVyYXRpb25zIHBlciBzZWNvbmQNCj4gPiAgICAgICAgIEFyZ3VtZW50
+czogaXRlcmF0aW9ucz0xMDAwMDAwMDAgdGhyZWFkcz0yNTYNCj4gPiBSZXN1bHQ6IDk4NjIgS2l0
+ZXIvcw0KPiA+IA0KPiA+IGZ1dGV4X3dhaXQ6IE1lYXN1cmUgRlVURVhfV0FJVCBvcGVyYXRpb25z
+IHBlciBzZWNvbmQNCj4gPiAgICAgICAgIEFyZ3VtZW50czogaXRlcmF0aW9ucz0xMDAwMDAwMDAg
+dGhyZWFkcz0yNTYNCj4gPiBSZXN1bHQ6IDEwMDgxIEtpdGVyL3MNCj4gPiANCj4gPiBmdXRleF93
+YWl0OiBNZWFzdXJlIEZVVEVYX1dBSVQgb3BlcmF0aW9ucyBwZXIgc2Vjb25kDQo+ID4gICAgICAg
+ICBBcmd1bWVudHM6IGl0ZXJhdGlvbnM9MTAwMDAwMDAwIHRocmVhZHM9MjU2DQo+ID4gUmVzdWx0
+OiAxMDA2MCBLaXRlci9zDQo+ID4gDQo+ID4gZnV0ZXhfd2FpdDogTWVhc3VyZSBGVVRFWF9XQUlU
+IG9wZXJhdGlvbnMgcGVyIHNlY29uZA0KPiA+ICAgICAgICAgQXJndW1lbnRzOiBpdGVyYXRpb25z
+PTEwMDAwMDAwMCB0aHJlYWRzPTI1Ng0KPiA+IFJlc3VsdDogMTAwODEgS2l0ZXIvcw0KPiA+IA0K
+PiA+IA0KPiA+IEFuZCA1IHRpbWVzIGFmdGVyIG1ha2UgaXQgbG9uZzoNCj4gPiBmdXRleF93YWl0
+OiBNZWFzdXJlIEZVVEVYX1dBSVQgb3BlcmF0aW9ucyBwZXIgc2Vjb25kDQo+ID4gICAgICAgICBB
+cmd1bWVudHM6IGl0ZXJhdGlvbnM9MTAwMDAwMDAwIHRocmVhZHM9MjU2DQo+ID4gUmVzdWx0OiA5
+OTQwIEtpdGVyL3MNCj4gPiANCj4gPiBmdXRleF93YWl0OiBNZWFzdXJlIEZVVEVYX1dBSVQgb3Bl
+cmF0aW9ucyBwZXIgc2Vjb25kDQo+ID4gICAgICAgICBBcmd1bWVudHM6IGl0ZXJhdGlvbnM9MTAw
+MDAwMDAwIHRocmVhZHM9MjU2DQo+ID4gUmVzdWx0OiAxMDIwNCBLaXRlci9zDQo+ID4gDQo+ID4g
+ZnV0ZXhfd2FpdDogTWVhc3VyZSBGVVRFWF9XQUlUIG9wZXJhdGlvbnMgcGVyIHNlY29uZA0KPiA+
+ICAgICAgICAgQXJndW1lbnRzOiBpdGVyYXRpb25zPTEwMDAwMDAwMCB0aHJlYWRzPTI1Ng0KPiA+
+IFJlc3VsdDogOTkwMSBLaXRlci9zDQo+ID4gDQo+ID4gZnV0ZXhfd2FpdDogTWVhc3VyZSBGVVRF
+WF9XQUlUIG9wZXJhdGlvbnMgcGVyIHNlY29uZA0KPiA+ICAgICAgICAgQXJndW1lbnRzOiBpdGVy
+YXRpb25zPTEwMDAwMDAwMCB0aHJlYWRzPTI1Ng0KPiA+IFJlc3VsdDogMTAxNTIgS2l0ZXIvcw0K
+PiA+IA0KPiA+IGZ1dGV4X3dhaXQ6IE1lYXN1cmUgRlVURVhfV0FJVCBvcGVyYXRpb25zIHBlciBz
+ZWNvbmQNCj4gPiAgICAgICAgIEFyZ3VtZW50czogaXRlcmF0aW9ucz0xMDAwMDAwMDAgdGhyZWFk
+cz0yNTYNCj4gPiBSZXN1bHQ6IDEwMDYwIEtpdGVyL3MNCj4gPiANCj4gPiANCj4gPiBTZWVtcyBP
+SywgaXMgaXQ/DQo+ID4gDQo+IA0KPiBDaGFuZ2VzIGFwcGVhciB0byBiZSBpbiB0aGUgbm9pc2Us
+IG5vIGltcGFjdCB3aXRoIHRoaXMgbG9hZCANCj4gYW55d2F5Lg0KPiBIb3cgbWFueSBDUFVzIG9u
+IHlvdXIgdGVzdCBtYWNoaW5lPyBJIHByZXN1bWUgbm90IDI1Nj8NCj4gDQo+IC0tIA0KDQpUaGVy
+ZSBhcmUgMTYgQ1BVc6OsIGFuZCBtb2RlIGlzOg0KSW50ZWwoUikgWGVvbihSKSBDUFUgICAgICAg
+ICAgIEM1NTI4ICBAIDIuMTNHSHoNCg0KU2hhbGwgSSBtYWtlIHRoZSBudW1iZXIgb2YgdGhyZWFk
+cyBhcyB0aGUgQ1BVUz8gSSB0ZXN0IGFnYWluIHdpdGggYXJndW1lbnQgDQonLW4gMTYnLCB0aGUg
+cmVzdWx0IGlzIHNpbWlsYXIuDQoNCkJUVywgaGF2ZSB5b3Ugc2VlbiB0aGUgdGVzdGNhc2UgaW4g
+bXkgb3RoZXIgbWFpbD8gIEl0IHNlZW1zIHRvIGJlIHJlamVjdGVkIA0KYnkgTEtNTC4NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
