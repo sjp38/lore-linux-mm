@@ -1,42 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 132906B00B3
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 08:42:20 -0400 (EDT)
-Received: by mail-oa0-f54.google.com with SMTP id l20so3772285oag.27
-        for <linux-mm@kvack.org>; Fri, 19 Apr 2013 05:42:19 -0700 (PDT)
-MIME-Version: 1.0
-Date: Fri, 19 Apr 2013 13:42:19 +0100
-Message-ID: <CAG1Ri1bR=BarsRz0Bocp_hHaAb8R6buULAqYdA4+V=AfHEShRw@mail.gmail.com>
-Subject: raspberrypi kernel
-From: Derek Low <dereklow.uk@gmail.com>
-Content-Type: multipart/alternative; boundary=047d7b5d49ceb93b5604dab60c24
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 5A0F46B0092
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 10:43:06 -0400 (EDT)
+Message-ID: <1366381837.3824.71.camel@misato.fc.hp.com>
+Subject: Re: [Bug fix PATCH v4] Reusing a resource structure allocated by
+ bootmem
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 19 Apr 2013 08:30:37 -0600
+In-Reply-To: <5170FBD7.8060605@jp.fujitsu.com>
+References: <516FB07C.9010603@jp.fujitsu.com>
+	 <1366295000.3824.47.camel@misato.fc.hp.com>
+	 <517082B9.7050708@jp.fujitsu.com> <5170FBD7.8060605@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, linuxram@us.ibm.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
---047d7b5d49ceb93b5604dab60c24
-Content-Type: text/plain; charset=ISO-8859-1
+On Fri, 2013-04-19 at 17:09 +0900, Yasuaki Ishimatsu wrote:
+> Hi Toshi,
+> 
+> 2013/04/19 8:33, Yasuaki Ishimatsu wrote:
+> > Hi Toshi,
+> >
+> > 2013/04/18 23:23, Toshi Kani wrote:
+> >> On Thu, 2013-04-18 at 17:36 +0900, Yasuaki Ishimatsu wrote:
+> >>> When hot removing memory presented at boot time, following messages are shown:
+> >>   :
+> >>> diff --git a/kernel/resource.c b/kernel/resource.c
+> >>> index 4aef886..637e8d2 100644
+> >>> --- a/kernel/resource.c
+> >>> +++ b/kernel/resource.c
+> >>> @@ -21,6 +21,7 @@
+> >>>   #include <linux/seq_file.h>
+> >>>   #include <linux/device.h>
+> >>>   #include <linux/pfn.h>
+> >>> +#include <linux/mm.h>
+> >>>   #include <asm/io.h>
+> >>>
+> >>>
+> >>> @@ -50,6 +51,16 @@ struct resource_constraint {
+> >>>
+> >>>   static DEFINE_RWLOCK(resource_lock);
+> >>>
+> >>> +/*
+> >>> + * For memory hotplug, there is no way to free resource entries allocated
+> >>> + * by boot mem after the system is up. So for reusing the resource entry
+> >>> + * we need to remember the resource.
+> >>> + */
+> >>> +struct resource bootmem_resource = {
+> >>> +    .sibling = NULL,
+> >>> +};
+> >>
+> >
+> 
+> >> This should be a pointer of struct resource and declared as static, such
+> >> as:
+> >>
+> >> static struct resource *bootmem_resource_free;
+> >
+> > O.K. I'll update it.
+> 
+> Oh, I missed "should be pointer of struct resource" part.
+> Please teach me your detailed idea. If this is defined as pointer,
+> how do we initialize this and manage bootmem resources?
+> 
+> I'm thinking it but have no idea.
 
-Apr 19 13:37:14 raspberrypi kernel: [  290.774807] nr_pdflush_threads
-exported in /proc is scheduled for removal
-Apr 19 13:37:14 raspberrypi kernel: [  290.777457] sysctl: The
-scan_unevictable_pages sysctl/node-interface has been disabled for lack of
-a legitimate use case.  If you have one, please send an email to
-linux-mm@kvack.org.
+Sure.  It's quite simple.  Since only bootmem_resource.sibling is used,
+it can be replaced with a pointer, such as bootmem_resource_free.  This
+avoids allocating a struct resource table as this code is supposed to
+save memory.
 
---047d7b5d49ceb93b5604dab60c24
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+So, first, declare the pointer below, which is initialized to NULL as
+BSS (checkpatch.pl complains if you set it to NULL explicitly).
 
-<div dir=3D"ltr">Apr 19 13:37:14 raspberrypi kernel: [=A0 290.774807] nr_pd=
-flush_threads exported in /proc is scheduled for removal<br>Apr 19 13:37:14=
- raspberrypi kernel: [=A0 290.777457] sysctl: The scan_unevictable_pages sy=
-sctl/node-interface has been disabled for lack of a legitimate use case.=A0=
- If you have one, please send an email to <a href=3D"mailto:linux-mm@kvack.=
-org">linux-mm@kvack.org</a>.<br>
-<br><br></div>
+  static struct resource *bootmem_resource_free;
 
---047d7b5d49ceb93b5604dab60c24--
+Then, in free_resource(), this pointer replaces bootmem_resource.sibling
+as follows.
+
+  res->sibling = bootmem_resource_free;
+  bootmem_resource_free = res;
+
+Similarly, in get_resource().
+
+  if (bootmem_resource_free) {
+      res = bootmem_resource_free;
+      bootmem_resource_free = res->sibling;
+  }
+
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
