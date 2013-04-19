@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 5B8AA6B00A5
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 05:29:26 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 302F66B00AB
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 05:29:29 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v1 07/12] x86, numa, mem-hotplug: Mark nodes which the kernel resides in.
-Date: Fri, 19 Apr 2013 17:31:44 +0800
-Message-Id: <1366363909-12771-8-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v1 10/12] x86, memblock, mem-hotplug: Free hotpluggable memory reserved by memblock.
+Date: Fri, 19 Apr 2013 17:31:47 +0800
+Message-Id: <1366363909-12771-11-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1366363909-12771-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1366363909-12771-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,88 +13,75 @@ List-ID: <linux-mm.kvack.org>
 To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, paulmck@linux.vnet.ibm.com, dhowells@redhat.com, davej@redhat.com, agordeev@redhat.com, suresh.b.siddha@intel.com, mst@redhat.com, yinghai@kernel.org, penberg@kernel.org, jacob.shin@amd.com, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, rientjes@google.com, tj@kernel.org, laijs@cn.fujitsu.com, hannes@cmpxchg.org, davem@davemloft.net, mgorman@suse.de, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-If all the memory ranges in SRAT are hotpluggable, we should not
-arrange them all in ZONE_MOVABLE. Otherwise the kernel won't have
-enough memory to boot.
+We reserved hotpluggable memory in memblock. And when memory initialization
+is done, we have to free it to buddy system.
 
-This patch introduce a global variable kernel_nodemask to mark
-all the nodes the kernel resides in. And no matter if they are
-hotpluggable, we arrange them as un-hotpluggable.
+This patch free memory reserved by memblock with flag MEMBLK_HOTPLUGGABLE.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/mm/numa.c       |    6 ++++++
  include/linux/memblock.h |    1 +
  mm/memblock.c            |   20 ++++++++++++++++++++
- 3 files changed, 27 insertions(+), 0 deletions(-)
+ mm/nobootmem.c           |    3 +++
+ 3 files changed, 24 insertions(+), 0 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 26d1800..105b092 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -658,6 +658,12 @@ static bool srat_used __initdata;
-  */
- static void __init early_x86_numa_init(void)
- {
-+	/*
-+	 * Need to find out which nodes the kernel resides in, and arrange
-+	 * them as un-hotpluggable when parsing SRAT.
-+	 */
-+	memblock_mark_kernel_nodes();
-+
- 	if (!numa_off) {
- #ifdef CONFIG_X86_NUMAQ
- 		if (!numa_init(numaq_numa_init))
 diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index c63a66e..5064eed 100644
+index 0f01930..08c761d 100644
 --- a/include/linux/memblock.h
 +++ b/include/linux/memblock.h
-@@ -66,6 +66,7 @@ int memblock_remove(phys_addr_t base, phys_addr_t size);
- int memblock_free(phys_addr_t base, phys_addr_t size);
+@@ -69,6 +69,7 @@ int memblock_free(phys_addr_t base, phys_addr_t size);
  int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
+ int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
++void memblock_free_hotpluggable(void);
  void memblock_trim_memory(phys_addr_t align);
-+void memblock_mark_kernel_nodes(void);
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- void __next_mem_pfn_range(int *idx, int nid, unsigned long *out_start_pfn,
+ void memblock_mark_kernel_nodes(void);
+ bool memblock_is_kernel_node(int nid);
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 63924ae..1b93a5d 100644
+index 0c55588..54de398 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -35,6 +35,9 @@ struct memblock memblock __initdata_memblock = {
- 	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
- };
- 
-+/* Mark which nodes the kernel resides in. */
-+static nodemask_t memblock_kernel_nodemask __initdata_memblock;
-+
- int memblock_debug __initdata_memblock;
- static int memblock_can_resize __initdata_memblock;
- static int memblock_memory_in_slab __initdata_memblock = 0;
-@@ -787,6 +790,23 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
- 	memblock_merge_regions(type);
- 	return 0;
+@@ -568,6 +568,26 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
+ 	return __memblock_remove(&memblock.reserved, base, size);
  }
-+
-+void __init_memblock memblock_mark_kernel_nodes()
+ 
++static void __init_memblock memblock_free_flags(unsigned long flags)
 +{
-+	int i, nid;
++	int i;
 +	struct memblock_type *reserved = &memblock.reserved;
 +
-+	for (i = 0; i < reserved->cnt; i++)
-+		if (reserved->regions[i].flags == MEMBLK_FLAGS_DEFAULT) {
-+			nid = memblock_get_region_node(&reserved->regions[i]);
-+			node_set(nid, memblock_kernel_nodemask);
-+		}
++	for (i = 0; i < reserved->cnt; i++) {
++		if (reserved->regions[i].flags == flags)
++			memblock_remove_region(reserved, i);
++	}
 +}
-+#else
-+void __init_memblock memblock_mark_kernel_nodes()
++
++void __init_memblock memblock_free_hotpluggable()
 +{
-+	node_set(0, memblock_kernel_nodemask);
++	unsigned long flags = 1 << MEMBLK_HOTPLUGGABLE;
++
++	memblock_dbg("memblock: free all hotpluggable memory");
++
++	memblock_free_flags(flags);
 +}
- #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
++
+ static int __init_memblock memblock_reserve_region(phys_addr_t base,
+ 						   phys_addr_t size,
+ 						   int nid,
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 5e07d36..cd85604 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -165,6 +165,9 @@ unsigned long __init free_all_bootmem(void)
+ 	for_each_online_pgdat(pgdat)
+ 		reset_node_lowmem_managed_pages(pgdat);
  
- static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
++	/* Hotpluggable memory reserved by memblock should also be freed. */
++	memblock_free_hotpluggable();
++
+ 	/*
+ 	 * We need to use MAX_NUMNODES instead of NODE_DATA(0)->node_id
+ 	 *  because in some case like Node0 doesn't have RAM installed
 -- 
 1.7.1
 
