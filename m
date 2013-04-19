@@ -1,144 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 6C7CE6B0087
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 02:54:08 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Fri, 19 Apr 2013 16:46:11 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 4FBD22CE804D
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 16:53:32 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3J6e1gM60227670
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 16:40:03 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3J6rRTm010542
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 16:53:29 +1000
-Message-ID: <5170E93B.5090902@linux.vnet.ibm.com>
-Date: Fri, 19 Apr 2013 12:20:35 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 639966B0089
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 03:04:20 -0400 (EDT)
+In-Reply-To: <5170AFAC.9050602@linux.intel.com>
+References: <OF79A40956.94F46B9C-ON48257B50.00320F73-48257B50.0036925D@zte.com.cn> <516EAF31.8000107@linux.intel.com> <516EBF23.2090600@sr71.net> <516EC508.6070200@linux.intel.com> <OF7B3DF162.973A9AD7-ON48257B51.00299512-48257B51.002C7D65@zte.com.cn> <51700475.7050102@linux.intel.com> <OFD8FA3C9D.ACFCFB28-ON48257B52.0008A691-48257B52.000C4DFB@zte.com.cn> <5170AFAC.9050602@linux.intel.com>
+Subject: Re: Re: [PATCH] futex: bugfix for futex-key conflict when futex use
+ hugepage
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v2 00/15][Sorted-buddy] mm: Memory Power Management
-References: <20130409214443.4500.44168.stgit@srivatsabhat.in.ibm.com> <517028F1.6000002@sr71.net>
-In-Reply-To: <517028F1.6000002@sr71.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Message-ID: <OFB0184060.7A1CE1DA-ON48257B52.0020A880-48257B52.0026D4EA@zte.com.cn>
+From: zhang.yi20@zte.com.cn
+Date: Fri, 19 Apr 2013 15:03:28 +0800
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: base64
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, matthew.garrett@nebula.com, rientjes@google.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, wujianguo@huawei.com, kmpark@infradead.org, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Darren Hart <dvhart@linux.intel.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On 04/18/2013 10:40 PM, Dave Hansen wrote:
-> On 04/09/2013 02:45 PM, Srivatsa S. Bhat wrote:
->> 2. Performance overhead is expected to be low: Since we retain the simplicity
->>    of the algorithm in the page allocation path, page allocation can
->>    potentially remain as fast as it would be without memory regions. The
->>    overhead is pushed to the page-freeing paths which are not that critical.
-> 
-> Numbers, please.  The problem with pushing the overhead to frees is that
-> they, believe it or not, actually average out to the same as the number
-> of allocs.  Think kernel compile, or a large dd.  Both of those churn
-> through a lot of memory, and both do an awful lot of allocs _and_ frees.
->  We need to know both the overhead on a system that does *no* memory
-> power management, and the overhead on a system which is carved and
-> actually using this code.
-> 
->> Kernbench results didn't show any noticeable performance degradation with
->> this patchset as compared to vanilla 3.9-rc5.
-> 
-> Surely this code isn't magical and there's overhead _somewhere_, and
-> such overhead can be quantified _somehow_.  Have you made an effort to
-> find those cases, even with microbenchmarks?
->
-
-Sorry for not posting the numbers explicitly. It really shows no difference in
-kernbench, see below.
-
-[For the following run, I reverted patch 14, since it seems to be intermittently
-causing kernel-instability at high loads. So the numbers below show the effect
-of only the sorted-buddy part of the patchset, and not the compaction part.]
-
-Kernbench was run on a 2 socket 8 core machine (HT disabled) with 128 GB RAM,
-with allyesconfig on 3.9-rc5 kernel source. 
-
-Vanilla 3.9-rc5:
----------------
-Fri Apr 19 08:30:12 IST 2013
-3.9.0-rc5
-Average Optimal load -j 16 Run (std deviation):
-Elapsed Time 574.66 (2.31846)
-User Time 3919.12 (3.71256)
-System Time 339.296 (0.73694)
-Percent CPU 740.4 (2.50998)
-Context Switches 1.2183e+06 (4019.47)
-Sleeps 1.61239e+06 (2657.33)
-
-This patchset (minus patch 14): [Region size = 512 MB]
-------------------------------
-Fri Apr 19 09:42:38 IST 2013
-3.9.0-rc5-mpmv2-nowq
-Average Optimal load -j 16 Run (std deviation):
-Elapsed Time 575.668 (2.01583)
-User Time 3916.77 (3.48345)
-System Time 337.406 (0.701591)
-Percent CPU 738.4 (3.36155)
-Context Switches 1.21683e+06 (6980.13)
-Sleeps 1.61474e+06 (4906.23)
-
-
-So, that shows almost no degradation due to the sorted-buddy logic (considering
-the elapsed time).
- 
-> I still also want to see some hard numbers on:
->> However, memory consumes a significant amount of power, potentially upto
->> more than a third of total system power on server systems.
-> and
->> It had been demonstrated on a Samsung Exynos board
->> (with 2 GB RAM) that upto 6 percent of total system power can be saved by
->> making the Linux kernel MM subsystem power-aware[4]. 
-> 
-> That was *NOT* with this code, and it's nearing being two years old.
-> What can *this* *patch* do?
-> 
-
-Please let me clarify that. My intention behind quoting that 6% power-savings
-number was _not_ to trick reviewers into believing that _this_ patchset provides
-that much power-savings. It was only to show that this whole effort of doing memory
-power management is not worthless, and we do have some valuable/tangible
-benefits to gain from it. IOW, it was only meant to show an _estimate_ of how
-much we can potentially save and thus justify the effort behind managing memory
-power-efficiently.
-
-As I had mentioned in the cover-letter, I don't have the the exact power-savings
-number for this particular patchset yet. I'll definitely work towards getting
-those numbers soon.
-
-> I think there are three scenarios to look at.  Let's say you have an 8GB
-> system with 1GB regions:
-> 1. Normal unpatched kernel, booted with  mem=1G...8G (in 1GB increments
->    perhaps) running some benchmark which sees performance scale with
->    the amount of memory present in the system.
-> 2. Kernel patched with this set, running the same test, but with single
->    memory regions.
-> 3. Kernel patched with this set.  But, instead of using mem=, you run
->    it trying to evacuate equivalent amount of memory to the amounts you
->    removed using mem=.
-> 
-> That will tell us both what the overhead is, and how effective it is.
-> I'd much rather see actual numbers and a description of the test than
-> some hand waving that it "didn't show any noticeable performance
-> degradation".
-> 
-
-Sure, I'll perform more extensive tests to evaluate the performance overhead
-more thoroughly. I'll first fix the compaction logic that seems to be buggy
-and run benchmarks again.
-
-Thanks a lot for your all invaluable inputs, Dave!
-
-Regards,
-Srivatsa S. Bhat
+RGFycmVuIEhhcnQgPGR2aGFydEBsaW51eC5pbnRlbC5jb20+IHdyb3RlIG9uIDIwMTMvMDQvMTkg
+MTA6NDU6MDA6DQoNCj4gPiANCj4gPiBCVFcsIGhhdmUgeW91IHNlZW4gdGhlIHRlc3RjYXNlIGlu
+IG15IG90aGVyIG1haWw/ICBJdCBzZWVtcyB0byBiZSANCj4gPiByZWplY3RlZCBieSBMS01MLg0K
+PiA+IA0KPiANCj4gSSBkaWQgbm90IHJlY2VpdmUgaXQsIGRpZCB5b3UgYWxzbyBDQyBtZT8NCj4g
+DQo+IC0tIA0KPiBEYXJyZW4gSGFydA0KPiBJbnRlbCBPcGVuIFNvdXJjZSBUZWNobm9sb2d5IENl
+bnRlcg0KPiBZb2N0byBQcm9qZWN0IC0gVGVjaG5pY2FsIExlYWQgLSBMaW51eCBLZXJuZWwNCg0K
+DQpPa6OsIEkgZm91bmQgdGhhdCB0aGUgcHJldmlvdXMgbWFpbCB3YXMgcmVqZWN0ZWQgYmVjYXVz
+ZSBpdCBoYWQgQ2hpbmVzZSANCmNoYXJhY3RlcnMuDQpJIHBhc3RlIGl0IGJlbG93Og0KDQpkaWZm
+IC11cHJOIGZ1bmN0aW9uYWwvZnV0ZXhfaHVnZXBhZ2UuYyBmdW5jdGlvbmFsL2Z1dGV4X2h1Z2Vw
+YWdlLmMNCi0tLSBmdW5jdGlvbmFsL2Z1dGV4X2h1Z2VwYWdlLmMgMTk3MC0wMS0wMSAwMDowMDow
+MC4wMDAwMDAwMDAgKzAwMDANCisrKyBmdW5jdGlvbmFsL2Z1dGV4X2h1Z2VwYWdlLmMgMjAxMy0w
+NC0xOCAxNjo1NTo0NC4xMTkyMzk0MDQgKzAwMDANCkBAIC0wLDAgKzEsMTg4IEBADQorLyoqKioq
+KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioq
+KioqKioqKg0KKyAqICAgVGhpcyBwcm9ncmFtIGlzIGZyZWUgc29mdHdhcmU7ICB5b3UgY2FuIHJl
+ZGlzdHJpYnV0ZSBpdCBhbmQvb3IgDQorICogICBtb2RpZnkgaXQgdW5kZXIgdGhlIHRlcm1zIG9m
+IHRoZSBHTlUgR2VuZXJhbCBQdWJsaWMgTGljZW5zZSBhcyANCisgKiAgIHB1Ymxpc2hlZCBieSB0
+aGUgRnJlZSBTb2Z0d2FyZSBGb3VuZGF0aW9uOyBlaXRoZXIgdmVyc2lvbiAyIG9mIA0KKyAqICAg
+dGhlIExpY2Vuc2UsIG9yIChhdCB5b3VyIG9wdGlvbikgYW55IGxhdGVyIHZlcnNpb24uDQorICoN
+CisgKiAgIFRoaXMgcHJvZ3JhbSBpcyBkaXN0cmlidXRlZCBpbiB0aGUgaG9wZSB0aGF0IGl0IHdp
+bGwgYmUgdXNlZnVsLA0KKyAqICAgYnV0IFdJVEhPVVQgQU5ZIFdBUlJBTlRZOyAgd2l0aG91dCBl
+dmVuIHRoZSBpbXBsaWVkIHdhcnJhbnR5IG9mDQorICogICBNRVJDSEFOVEFCSUxJVFkgb3IgRklU
+TkVTUyBGT1IgQSBQQVJUSUNVTEFSIFBVUlBPU0UuICBTZWUNCisgKiAgIHRoZSBHTlUgR2VuZXJh
+bCBQdWJsaWMgTGljZW5zZSBmb3IgbW9yZSBkZXRhaWxzLg0KKyAqDQorICogICBZb3Ugc2hvdWxk
+IGhhdmUgcmVjZWl2ZWQgYSBjb3B5IG9mIHRoZSBHTlUgR2VuZXJhbCBQdWJsaWMgTGljZW5zZQ0K
+KyAqICAgYWxvbmcgd2l0aCB0aGlzIHByb2dyYW07ICBpZiBub3QsIHdyaXRlIHRvIHRoZSBGcmVl
+IFNvZnR3YXJlDQorICogICBGb3VuZGF0aW9uLCBJbmMuLCA1OSBUZW1wbGUgUGxhY2UsIFN1aXRl
+IDMzMCwgQm9zdG9uLA0KKyAqICAgTUEgMDIxMTEtMTMwNyBVU0ENCisgKiBOQU1FDQorICogICAg
+ICBmdXRleF9odWdlcGFnZS5jDQorICoNCisgKiBERVNDUklQVElPTg0KKyAqICAgICAgVGVzdGlu
+ZyBmdXRleCB3aGVuIHVzaW5nIGh1Z2UgcGFnZQ0KKyAqDQorICogQVVUSE9SDQorICogICAgICBa
+aGFuZyBZaSA8emhhbmcueWkyMEB6dGUuY29tLmNuPg0KKyAqDQorICogSElTVE9SWQ0KKyAqICAg
+ICAgMjAxMy00LTE4OiBJbml0aWFsIHZlcnNpb24gYnkgWmhhbmcgWWkgPHpoYW5nLnlpMjBAenRl
+LmNvbS5jbj4NCisgKg0KKyAqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioq
+KioqKioqKioqKioqKioqKioqKioqKioqKioqKi8NCisjaW5jbHVkZSA8c3RkbGliLmg+DQorI2lu
+Y2x1ZGUgPHN0ZGlvLmg+DQorI2luY2x1ZGUgPHVuaXN0ZC5oPg0KKyNpbmNsdWRlIDxzeXMvc3lz
+Y2FsbC5oPg0KKyNpbmNsdWRlIDxzeXMvbW1hbi5oPg0KKyNpbmNsdWRlIDxzeXMvdHlwZXMuaD4N
+CisjaW5jbHVkZSA8ZmNudGwuaD4NCisjaW5jbHVkZSA8cHRocmVhZC5oPg0KKyNpbmNsdWRlIDxl
+cnJuby5oPg0KKyNpbmNsdWRlIDxzeXMvdGltZS5oPg0KKyNpbmNsdWRlIDxzaWduYWwuaD4NCisN
+CisjaW5jbHVkZSAiZnV0ZXh0ZXN0LmgiDQorI2luY2x1ZGUgImxvZ2dpbmcuaCINCisNCisjZGVm
+aW5lIERFRkFVTFRfRklMRV9OQU1FICIvbW50L2h1Z2VwYWdlZmlsZSINCisjZGVmaW5lIE1BWF9G
+SUxFTkFNRV9MRU4gMTI4DQorDQorI2RlZmluZSBERUZBVUxUX0hVR0VfU0laRSAoMiAqIDEwMjQg
+KiAxMDI0KQ0KKw0KKyNkZWZpbmUgUFJPVEVDVElPTiAoUFJPVF9SRUFEIHwgUFJPVF9XUklURSkN
+CisNCisvKiBPbmx5IGlhNjQgcmVxdWlyZXMgdGhpcyAqLw0KKyNpZmRlZiBfX2lhNjRfXw0KKyNk
+ZWZpbmUgQUREUiAodm9pZCAqKSgweDgwMDAwMDAwMDAwMDAwMDBVTCkNCisjZGVmaW5lIEZMQUdT
+IChNQVBfU0hBUkVEIHwgTUFQX0ZJWEVEKQ0KKyNlbHNlDQorI2RlZmluZSBBRERSICh2b2lkICop
+KDB4MFVMKQ0KKyNkZWZpbmUgRkxBR1MgKE1BUF9TSEFSRUQpDQorI2VuZGlmDQorDQorDQorZnV0
+ZXhfdCAqZnV0ZXgxLCAqZnV0ZXgyOw0KKw0KK3Vuc2lnbmVkIGxvbmcgdGgyX3dhaXRfdGltZTsN
+CitpbnQgdGgyX3dhaXRfZG9uZTsNCisNCit2b2lkIHVzYWdlKGNoYXIgKnByb2cpDQorew0KKyAg
+ICAgICBwcmludGYoIlVzYWdlOiAlc1xuIiwgcHJvZyk7DQorICAgICAgIHByaW50ZigiICAtZiAg
+ICBodWdldGxiZnMgZmlsZSBwYXRoXG4iKTsNCisgICAgICAgcHJpbnRmKCIgIC1sICAgIGh1Z2Vw
+YWdlIHNpemVcbiIpOw0KK30NCisNCitpbnQgZ2V0dGlkKHZvaWQpDQorew0KKyAgICAgICByZXR1
+cm4gc3lzY2FsbChTWVNfZ2V0dGlkKTsNCit9DQorDQordm9pZCAqd2FpdF90aHJlYWQxKHZvaWQg
+KmFyZykNCit7DQorICAgICAgIGZ1dGV4X3dhaXQoZnV0ZXgxLCAqZnV0ZXgxLCBOVUxMLCAwKTsN
+CisgICAgICAgcmV0dXJuIE5VTEw7DQorfQ0KKw0KKw0KK3ZvaWQgKndhaXRfdGhyZWFkMih2b2lk
+ICphcmcpDQorew0KKyAgICAgICBzdHJ1Y3QgdGltZXZhbCB0djsNCisNCisgICAgICAgZ2V0dGlt
+ZW9mZGF5KCZ0diwgTlVMTCk7DQorICAgICAgIHRoMl93YWl0X3RpbWUgPSB0di50dl9zZWM7DQor
+ICAgICAgIGZ1dGV4X3dhaXQoZnV0ZXgyLCAqZnV0ZXgyLCBOVUxMLCAwKTs7DQorICAgICAgIHRo
+Ml93YWl0X2RvbmUgPSAxOw0KKw0KKyAgICAgICByZXR1cm4gTlVMTDsNCit9DQorDQoraW50IGh1
+Z2VfZnV0ZXhfdGVzdChjaGFyICpmaWxlX3BhdGgsIHVuc2lnbmVkIGxvbmcgaHVnZV9zaXplKQ0K
+K3sNCisgICAgICAgdm9pZCAqYWRkcjsNCisgICAgICAgaW50IGZkLCBwZ3N6LCB3YWl0X21heF90
+aW1lID0gMzA7DQorICAgICAgIGludCByZXQgPSBSRVRfUEFTUzsNCisgICAgICAgcHRocmVhZF90
+IHRoMSwgdGgyOw0KKyAgICAgICBzdHJ1Y3QgdGltZXZhbCB0djsNCisgDQorICAgICAgIGZkID0g
+b3BlbihmaWxlX3BhdGgsIE9fQ1JFQVQgfCBPX1JEV1IsIDA3NTUpOw0KKyAgICAgICBpZiAoZmQg
+PCAwKSB7DQorICAgICAgICAgICAgICAgcGVycm9yKCJPcGVuIGZhaWxlZCIpOw0KKyAgICAgICAg
+ICAgICAgIGV4aXQoMSk7DQorICAgICAgIH0NCisgDQorICAgICAgIC8qbWFwIGh1Z2V0bGJmcyBm
+aWxlKi8NCisgICAgICAgYWRkciA9IG1tYXAoQUREUiwgaHVnZV9zaXplLCBQUk9URUNUSU9OLCBG
+TEFHUywgZmQsIDApOw0KKyAgICAgICBpZiAoYWRkciA9PSBNQVBfRkFJTEVEKSB7DQorICAgICAg
+ICAgICAgICAgcGVycm9yKCJtbWFwIik7DQorICAgICAgICAgICAgICAgdW5saW5rKGZpbGVfcGF0
+aCk7DQorICAgICAgICAgICAgICAgZXhpdCgxKTsNCisgICAgICAgfQ0KKw0KKyAgICAgICBwZ3N6
+ID0gZ2V0cGFnZXNpemUoKTsNCisgICAgICAgcHJpbnRmKCJwYWdlIHNpemUgaXMgJWRcbiIsIHBn
+c3opOw0KKyANCisgICAgICAgLyphcHBseSB0aGUgZmlyc3Qgc3VicGFnZSB0byBmdXRleDEqLw0K
+KyAgICAgICBmdXRleDEgPSBhZGRyOw0KKyAgICAgICAqZnV0ZXgxID0gRlVURVhfSU5JVElBTEla
+RVIgOw0KKyAgICAgICAvKmFwcGx5IHRoZSBzZWNvbmQgc3VicGFnZSB0byBmdXRleDIqLw0KKyAg
+ICAgICBmdXRleDIgPSBhZGRyICsgcGdzejsNCisgICAgICAgKmZ1dGV4MiA9IEZVVEVYX0lOSVRJ
+QUxJWkVSIDsNCisgDQorDQorICAgICAgIC8qdGhyZWFkMSBibG9jayBvbiBmdXRleDEgZmlyc3Qs
+dGhlbiB0aHJlYWQyIGJsb2NrIG9uIGZ1dGV4MiovDQorICAgICAgIHB0aHJlYWRfY3JlYXRlKCZ0
+aDEsIE5VTEwsIHdhaXRfdGhyZWFkMSwgTlVMTCk7DQorICAgICAgIHNsZWVwKDIpOw0KKyAgICAg
+ICBwdGhyZWFkX2NyZWF0ZSgmdGgyLCBOVUxMLCB3YWl0X3RocmVhZDIsIE5VTEwpOw0KKyAgICAg
+ICBzbGVlcCgyKTsNCisNCisgICAgICAgLyp0cnkgdG8gd2FrZSB1cCB0aHJlYWQyKi8NCisgICAg
+ICAgZnV0ZXhfd2FrZShmdXRleDIsIDEsIDApOw0KKw0KKyAgICAgICAvKnNlZSBpZiB0aHJlYWQy
+IGNhbiBiZSB3b2tlIHVwKi8NCisgICAgICAgd2hpbGUoIXRoMl93YWl0X2RvbmUpIHsNCisgICAg
+ICAgICAgICAgICBnZXR0aW1lb2ZkYXkoJnR2LCBOVUxMKTsNCisgICAgICAgICAgICAgICAvKnRo
+cmVhZDIgYmxvY2sgb3ZlciAzMCBzZWNzLCB0ZXN0IGZhaWwqLw0KKyAgICAgICAgICAgICAgIGlm
+KHR2LnR2X3NlYyA+ICh0aDJfd2FpdF90aW1lICsgd2FpdF9tYXhfdGltZSkpIHsNCisgICAgICAg
+ICAgICAgICAgICAgICAgIHByaW50Zigid2FpdF90aHJlYWQyIHdhaXQgZm9yICVsZCBzZWNzXG4i
+LCANCisgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHR2LnR2X3NlYyAtIHRoMl93
+YWl0X3RpbWUpOw0KKyAgICAgICAgICAgICAgICAgICAgICAgcmV0ID0gUkVUX0ZBSUw7DQorICAg
+ICAgICAgICAgICAgICAgICAgICBicmVhazsNCisgICAgICAgICAgICAgICB9DQorICAgICAgICAg
+ICAgICAgc2xlZXAoMik7DQorICAgICAgIH0NCisNCisgICAgICAgbXVubWFwKGFkZHIsIGh1Z2Vf
+c2l6ZSk7DQorICAgICAgIGNsb3NlKGZkKTsNCisgICAgICAgdW5saW5rKGZpbGVfcGF0aCk7DQor
+DQorICAgICAgIHJldHVybiByZXQ7DQorfQ0KKw0KK2ludCBtYWluKGludCBhcmdjLCBjaGFyICph
+cmd2W10pDQorew0KKyAgICAgICB1bnNpZ25lZCBsb25nIGh1Z2Vfc2l6ZSA9IERFRkFVTFRfSFVH
+RV9TSVpFOw0KKyAgICAgICBjaGFyIGZpbGVfcGF0aFtNQVhfRklMRU5BTUVfTEVOXTsNCisgICAg
+ICAgaW50IHJldCwgYzsNCisNCisgICAgICAgc3RyY3B5KGZpbGVfcGF0aCwgREVGQVVMVF9GSUxF
+X05BTUUpOw0KKw0KKyAgICAgICB3aGlsZSAoKGMgPSBnZXRvcHQoYXJnYywgYXJndiwgImNmOmw6
+IikpICE9IC0xKSB7DQorICAgICAgICAgICAgICAgc3dpdGNoKGMpIHsNCisgICAgICAgICAgICAg
+ICBjYXNlICdjJzoNCisgICAgICAgICAgICAgICAgICAgICAgIGxvZ19jb2xvcigxKTsNCisgICAg
+ICAgICAgICAgICBjYXNlICdmJzoNCisgICAgICAgICAgICAgICAgICAgICAgIHN0cmNweShmaWxl
+X3BhdGgsIG9wdGFyZyk7DQorICAgICAgICAgICAgICAgICAgICAgICBicmVhazsNCisgICAgICAg
+ICAgICAgICBjYXNlICdsJzoNCisgICAgICAgICAgICAgICAgICAgICAgIGh1Z2Vfc2l6ZSA9IGF0
+b2kob3B0YXJnKSAqIDEwMjQgKiAxMDI0Ow0KKyAgICAgICAgICAgICAgICAgICAgICAgYnJlYWs7
+DQorICAgICAgICAgICAgICAgZGVmYXVsdDoNCisgICAgICAgICAgICAgICAgICAgICAgIHVzYWdl
+KGJhc2VuYW1lKGFyZ3ZbMF0pKTsNCisgICAgICAgICAgICAgICAgICAgICAgIGV4aXQoMSk7DQor
+ICAgICAgICAgICAgICAgfQ0KKyAgICAgICB9DQorIA0KKyAgICAgICByZXQgPSBodWdlX2Z1dGV4
+X3Rlc3QoZmlsZV9wYXRoLCBodWdlX3NpemUpOw0KKw0KKyAgICAgICBwcmludF9yZXN1bHQocmV0
+KTsNCisNCisgICAgICAgcmV0dXJuIHJldDsNCit9DQorDQpkaWZmIC11cHJOIGZ1bmN0aW9uYWwv
+cnVuLnNoIGZ1bmN0aW9uYWwvcnVuLnNoDQotLS0gZnVuY3Rpb25hbC9ydW4uc2ggICAyMDEzLTA0
+LTE4IDA2OjM5OjU2LjAwMDAwMDAwMCArMDAwMA0KKysrIGZ1bmN0aW9uYWwvcnVuLnNoICAgMjAx
+My0wNC0xOCAxNjo1NTo1OS40NDcyNDAyODYgKzAwMDANCkBAIC04OSwzICs4OSw2IEBAIGVjaG8N
+CiBlY2hvDQogLi9mdXRleF93YWl0X3VuaW5pdGlhbGl6ZWRfaGVhcCAkQ09MT1INCiAuL2Z1dGV4
+X3dhaXRfcHJpdmF0ZV9tYXBwZWRfZmlsZSAkQ09MT1INCisNCitlY2hvDQorLi9mdXRleF9odWdl
+cGFnZSAkQ09MT1INCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
