@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 69F846B009E
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id EA0B06B009A
 	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 05:29:24 -0400 (EDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v1 01/12] x86: get pg_data_t's memory from other node
-Date: Fri, 19 Apr 2013 17:31:38 +0800
-Message-Id: <1366363909-12771-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v1 11/12] x86, numa, acpi, memory-hotplug: Make movablecore=acpi have higher priority.
+Date: Fri, 19 Apr 2013 17:31:48 +0800
+Message-Id: <1366363909-12771-12-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1366363909-12771-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1366363909-12771-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,39 +13,90 @@ List-ID: <linux-mm.kvack.org>
 To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, paulmck@linux.vnet.ibm.com, dhowells@redhat.com, davej@redhat.com, agordeev@redhat.com, suresh.b.siddha@intel.com, mst@redhat.com, yinghai@kernel.org, penberg@kernel.org, jacob.shin@amd.com, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, rientjes@google.com, tj@kernel.org, laijs@cn.fujitsu.com, hannes@cmpxchg.org, davem@davemloft.net, mgorman@suse.de, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com
 Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Arrange hotpluggable memory as ZONE_MOVABLE will cause NUMA performance decreased
+because the kernel cannot use movable memory.
 
-If system can create movable node which all memory of the
-node is allocated as ZONE_MOVABLE, setup_node_data() cannot
-allocate memory for the node's pg_data_t.
-So, use memblock_alloc_try_nid() instead of memblock_alloc_nid()
-to retry when the first allocation fails.
+For users who don't use memory hotplug and who don't want to lose their NUMA
+performance, they need a way to disable this functionality.
 
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+So, if users specify "movablecore=acpi" in kernel commandline, the kernel will
+use SRAT to arrange ZONE_MOVABLE, and it has higher priority then original
+movablecore and kernelcore boot option.
+
+For those who don't want this, just specify nothing.
+
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
 ---
- arch/x86/mm/numa.c |    5 ++---
- 1 files changed, 2 insertions(+), 3 deletions(-)
+ include/linux/memblock.h |    1 +
+ mm/memblock.c            |    5 +++++
+ mm/page_alloc.c          |   24 +++++++++++++++++++++++-
+ 3 files changed, 29 insertions(+), 1 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 11acdf6..4f754e6 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -214,10 +214,9 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 	 * Allocate node data.  Try node-local memory and then any node.
- 	 * Never allocate in DMA zone.
- 	 */
--	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
-+	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
- 	if (!nd_pa) {
--		pr_err("Cannot find %zu bytes in node %d\n",
--		       nd_size, nid);
-+		pr_err("Cannot find %zu bytes in any node\n", nd_size);
- 		return;
- 	}
- 	nd = __va(nd_pa);
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index 08c761d..5528e8f 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -69,6 +69,7 @@ int memblock_free(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve(phys_addr_t base, phys_addr_t size);
+ int memblock_reserve_local_node(phys_addr_t base, phys_addr_t size, int nid);
+ int memblock_reserve_hotpluggable(phys_addr_t base, phys_addr_t size, int nid);
++bool memblock_is_hotpluggable(struct memblock_region *region);
+ void memblock_free_hotpluggable(void);
+ void memblock_trim_memory(phys_addr_t align);
+ void memblock_mark_kernel_nodes(void);
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 54de398..8b9a13c 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -623,6 +623,11 @@ int __init_memblock memblock_reserve_hotpluggable(phys_addr_t base,
+ 	return memblock_reserve_region(base, size, nid, flags);
+ }
+ 
++bool __init_memblock memblock_is_hotpluggable(struct memblock_region *region)
++{
++	return region->flags & (1 << MEMBLK_HOTPLUGGABLE);
++}
++
+ /**
+  * __next_free_mem_range - next function for for_each_free_mem_range()
+  * @idx: pointer to u64 loop variable
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b9ea143..2fe9ebf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4793,9 +4793,31 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 	nodemask_t saved_node_state = node_states[N_MEMORY];
+ 	unsigned long totalpages = early_calculate_totalpages();
+ 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
++	struct memblock_type *reserved = &memblock.reserved;
+ 
+ 	/*
+-	 * If movablecore was specified, calculate what size of
++	 * If movablecore=acpi was specified, then zone_movable_pfn[] has been
++	 * initialized, and no more work needs to do.
++	 * NOTE: In this case, we ignore kernelcore option.
++	 */
++	if (movablecore_enable_srat) {
++		for (i = 0; i < reserved->cnt; i++) {
++			if (!memblock_is_hotpluggable(&reserved->regions[i]))
++				continue;
++
++			nid = reserved->regions[i].nid;
++
++			usable_startpfn = reserved->regions[i].base;
++			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
++				min(usable_startpfn, zone_movable_pfn[nid]) :
++				usable_startpfn;
++		}
++
++		goto out;
++	}
++
++	/*
++	 * If movablecore=nn[KMG] was specified, calculate what size of
+ 	 * kernelcore that corresponds so that memory usable for
+ 	 * any allocation type is evenly spread. If both kernelcore
+ 	 * and movablecore are specified, then the value of kernelcore
 -- 
 1.7.1
 
