@@ -1,327 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 6099F6B0096
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 04:14:58 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Fri, 19 Apr 2013 13:39:02 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 0EC93125804F
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 13:46:16 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3J8Ec8x7864730
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 13:44:39 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3J8EfwD031006
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 18:14:42 +1000
-Message-ID: <5170FC47.9050001@linux.vnet.ibm.com>
-Date: Fri, 19 Apr 2013 13:41:51 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH v2 00/15][Sorted-buddy] mm: Memory Power Management
-References: <20130409214443.4500.44168.stgit@srivatsabhat.in.ibm.com> <516ED378.2000406@linux.intel.com> <516FC2D1.9020809@linux.vnet.ibm.com> <51700DB2.5090506@linux.intel.com>
-In-Reply-To: <51700DB2.5090506@linux.intel.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 0FE516B0099
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 05:29:19 -0400 (EDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH v1 06/12] memblock, numa: Introduce flag into memblock.
+Date: Fri, 19 Apr 2013 17:31:43 +0800
+Message-Id: <1366363909-12771-7-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1366363909-12771-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1366363909-12771-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, matthew.garrett@nebula.com, dave@sr71.net, rientjes@google.com, riel@redhat.com, arjan@linux.intel.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, wujianguo@huawei.com, kmpark@infradead.org, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: rob@landley.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, paulmck@linux.vnet.ibm.com, dhowells@redhat.com, davej@redhat.com, agordeev@redhat.com, suresh.b.siddha@intel.com, mst@redhat.com, yinghai@kernel.org, penberg@kernel.org, jacob.shin@amd.com, wency@cn.fujitsu.com, trenn@suse.de, liwanp@linux.vnet.ibm.com, isimatu.yasuaki@jp.fujitsu.com, rientjes@google.com, tj@kernel.org, laijs@cn.fujitsu.com, hannes@cmpxchg.org, davem@davemloft.net, mgorman@suse.de, minchan@kernel.org, m.szyprowski@samsung.com, mina86@mina86.com
+Cc: x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 04/18/2013 08:43 PM, Srinivas Pandruvada wrote:
-> On 04/18/2013 02:54 AM, Srivatsa S. Bhat wrote:
->> On 04/17/2013 10:23 PM, Srinivas Pandruvada wrote:
->>> On 04/09/2013 02:45 PM, Srivatsa S. Bhat wrote:
->>>> [I know, this cover letter is a little too long, but I wanted to
->>>> clearly
->>>> explain the overall goals and the high-level design of this patchset in
->>>> detail. I hope this helps more than it annoys, and makes it easier for
->>>> reviewers to relate to the background and the goals of this patchset.]
->>>>
->>>>
->>>> Overview of Memory Power Management and its implications to the
->>>> Linux MM
->>>> ========================================================================
->>>>
->>>>
->> [...]
->>> One thing you need to prevent is boot time allocation. You have to make
->>> sure that frequently accessed per node data stored at the end of memory
->>> will keep all ranks of memory active.
->>>
-> When I was experimenting I did something like this.
+There is no flag in memblock to discribe what type the memory is.
+Sometimes, we may use memblock to reserve some memory for special usage.
+For example, as Yinghai did in his patch, allocate pagetables on local
+node before all the memory on the node is mapped.
+Please refer to Yinghai's patch:
+v1: https://lkml.org/lkml/2013/3/7/642
+v2: https://lkml.org/lkml/2013/3/10/47
+v3: https://lkml.org/lkml/2013/4/4/639
+v4: https://lkml.org/lkml/2013/4/11/829
 
-Thanks a lot for sharing this, Srinivas!
+In hotplug environment, there could be some problems when we hot-remove
+memory if we do so. Pagetable pages are kernel memory, which we cannot
+migrate. But we can put them in local node because their life-cycle is
+the same as the node.  So we need to free them all before memory hot-removing.
 
-Regards,
-Srivatsa S. Bhat
+Actually, data whose life cycle is the same as a node, such as pagetable
+pages, vmemmap pages, page_cgroup pages, all could be put on local node.
+They can be freed when we hot-removing a whole node.
 
-> /////////////////////////////////
-> 
-> 
-> +/*
-> + * Experimental MPST implemenentation
-> + * Copyright (c) 2012, Intel Corporation.
-> + *
-> + * This program is free software; you can redistribute it and/or modify it
-> + * under the terms and conditions of the GNU General Public License,
-> + * version 2, as published by the Free Software Foundation.
-> + *
-> + * This program is distributed in the hope it will be useful, but WITHOUT
-> + * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-> + * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-> License for
-> + * more details.
-> + *
-> + * You should have received a copy of the GNU General Public License
-> along with
-> + * this program; if not, write to the Free Software Foundation, Inc.,
-> + * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-> + *
-> + */
-> +#include <linux/kernel.h>
-> +#include <linux/types.h>
-> +#include <linux/init.h>
-> +#include <linux/kthread.h>
-> +#include <linux/acpi.h>
-> +#include <linux/export.h>
-> +#include <linux/bootmem.h>
-> +#include <linux/delay.h>
-> +#include <linux/pfn.h>
-> +#include <linux/suspend.h>
-> +#include <linux/acpi.h>
-> +#include <linux/memblock.h>
-> +#include <linux/mm.h>
-> +#include <linux/mmzone.h>
-> +#include <linux/migrate.h>
-> +#include <linux/mm_inline.h>
-> +#include <linux/page-isolation.h>
-> +#include <linux/vmalloc.h>
-> +#include <linux/compaction.h>
-> +#include "internal.h"
-> +
-> +#define phys_to_pfn(p) ((p) >> PAGE_SHIFT)
-> +#define pfn_to_phys(p) ((p) << PAGE_SHIFT)
-> +#define MAX_MPST_ZONES 16
-> +/* Atleast 4G of non MPST memory. */
-> +#define MINIMAL_NON_MPST_MEMORY_PFN (0x100000000 >> PAGE_SHIFT)
-> +
-> +struct mpst_mem_zone {
-> +       phys_addr_t start_addr;
-> +       phys_addr_t end_addr;
-> +};
-> +
-> +static struct mpst_mem_zone mpst_zones[MAX_MPST_ZONES];
-> +static int mpst_zone_cnt;
-> +static unsigned long mpst_start_pfn;
-> +static unsigned long mpst_end_pfn;
-> +static bool mpst_enabled;
-> +
-> +/* Minimal parsing for just getting node ranges */
-> +static int __init acpi_parse_mpst_table(struct acpi_table_header *table)
-> +{
-> +       struct acpi_table_mpst *mpst;
-> +       struct acpi_mpst_power_node *node;
-> +       u16 node_count;
-> +       int i;
-> +
-> +       mpst = (struct acpi_table_mpst *)table;
-> +       if (!mpst) {
-> +               pr_warn("Unable to map MPST\n");
-> +               return -ENODEV;
-> +       }
-> +       node_count = mpst->power_node_count;
-> +       node = (struct acpi_mpst_power_node *)((u8 *)mpst + sizeof(*mpst));
-> +
-> +       for (i = mpst_zone_cnt; (i < node_count) && (i < MAX_MPST_ZONES);
-> + ++i) {
-> +               if ((node->flags & ACPI_MPST_ENABLED) &&
-> +                       (node->flags & ACPI_MPST_POWER_MANAGED)) {
-> +                       mpst_zones[mpst_zone_cnt].start_addr =
-> +                               node->range_address;
-> +                       mpst_zones[mpst_zone_cnt].end_addr =
-> +                               node->range_address + node->range_length;
-> +                       ++mpst_zone_cnt;
-> +               }
-> +               ++node;
-> +       }
-> +
-> +       return 0;
-> +}
-> +
-> +static unsigned long local_ahex_to_long(const char *name)
-> +{
-> +       unsigned long val = 0;
-> +
-> +       for (;; name++) {
-> +               switch (*name) {
-> +               case '0' ... '9':
-> +                       val = 16*val+(*name-'0');
-> +                       break;
-> +               case 'A' ... 'F':
-> +                       val = 16*val+(*name-'A'+10);
-> +                       break;
-> +               case 'a' ... 'f':
-> +                       val = 16*val+(*name-'a'+10);
-> +                       break;
-> +               default:
-> +                       return val;
-> +               }
-> +       }
-> +
-> +       return val;
-> +}
-> +
-> +/* Specify MPST range by command line for test till ACPI - MPST is
-> available */
-> +static int __init parse_mpst_opt(char *str)
-> +{
-> +       char *ptr;
-> +       phys_addr_t start_at = 0, end_at = 0;
-> +       u64  mem_size = 0;
-> +
-> +       if (!str)
-> +               return -EINVAL;
-> +       ptr = str;
-> +       while (1) {
-> +               if (*str == '-') {
-> +                       *str = '\0';
-> +                       start_at = local_ahex_to_long(ptr);
-> +                       ++str;
-> +                       ptr = str;
-> +               }
-> +               if (start_at && (*str == '\0' || *str == ',' || *str ==
-> ' ')) {
-> +                       *str = '\0';
-> +                       end_at = local_ahex_to_long(ptr);
-> +                       mem_size = end_at-start_at;
-> +                       ++str;
-> +                       ptr = str;
-> +                       pr_info("-mpst[%#018Lx-%#018Lx size: %#018Lx]\n",
-> +                                               start_at, end_at,
-> mem_size);
-> +                       if (IS_ALIGNED(phys_to_pfn(start_at),
-> +                                       pageblock_nr_pages) &&
-> + IS_ALIGNED(phys_to_pfn(end_at),
-> +                                       pageblock_nr_pages)) {
-> +                               mpst_zones[mpst_zone_cnt].start_addr =
-> + start_at;
-> +                               mpst_zones[mpst_zone_cnt].end_addr =
-> + end_at;
-> +                       } else {
-> +                               pr_err("mpst invalid range\n");
-> +                               return -EINVAL;
-> +                       }
-> +                       mpst_zone_cnt++;
-> +                       start_at = mem_size = end_at = 0;
-> +               }
-> +               if (*str == '\0')
-> +                       break;
-> +               else
-> +                       ++str;
-> +       }
-> +
-> +       return 0;
-> +}
-> +early_param("mpst_range", parse_mpst_opt);
-> +
-> +/* Specify MPST range by command line for test till ACPI - MPST is
-> available */
-> +static int __init parse_mpst_enable_opt(char *str)
-> +{
-> +       long value;
-> +       if (kstrtol(str, 10, &value))
-> +               return -EINVAL;
-> +       mpst_enabled = value ? true : false;
-> +
-> +       return 0;
-> +}
-> +early_param("mpst_enable", parse_mpst_enable_opt);
-> +
-> +/* Set the minimum and maximum PFN */
-> +static void mpst_set_min_max_pfn(void)
-> +{
-> +       int i;
-> +
-> +       if (!mpst_zone_cnt)
-> +               return;
-> +
-> +       mpst_start_pfn = phys_to_pfn(mpst_zones[0].start_addr);
-> +       mpst_end_pfn = phys_to_pfn(mpst_zones[0].end_addr);
-> +
-> +       for (i = 1; i < mpst_zone_cnt; ++i) {
-> +               if (mpst_start_pfn > phys_to_pfn(mpst_zones[i].start_addr))
-> +                       mpst_start_pfn =
-> phys_to_pfn(mpst_zones[i].start_addr);
-> +               if (mpst_end_pfn < phys_to_pfn(mpst_zones[i].end_addr))
-> +                       mpst_end_pfn = phys_to_pfn(mpst_zones[i].end_addr);
-> +       }
-> +}
-> +
-> +/* Change migrate type for the MPST ranges */
-> +int mpst_set_migrate_type(void)
-> +{
-> +       int i;
-> +       struct page *page;
-> +       unsigned long start_pfn, end_pfn;
-> +
-> +       if (!mpst_start_pfn || !mpst_end_pfn)
-> +               return -EINVAL;
-> +       if (!IS_ALIGNED(mpst_start_pfn, pageblock_nr_pages))
-> +               return -EINVAL;
-> +       if (!IS_ALIGNED(mpst_end_pfn, pageblock_nr_pages))
-> +               return -EINVAL;
-> +       memblock_free(pfn_to_phys(mpst_start_pfn),
-> +               pfn_to_phys(mpst_end_pfn) - pfn_to_phys(mpst_start_pfn));
-> +       for (i = 0; i < mpst_zone_cnt; ++i) {
-> +               start_pfn = phys_to_pfn(mpst_zones[i].start_addr);
-> +               end_pfn = phys_to_pfn(mpst_zones[i].end_addr);
-> +               for (; start_pfn < end_pfn; ++start_pfn) {
-> +                       page = pfn_to_page(start_pfn);
-> +                       if (page)
-> +                               set_pageblock_migratetype(page,
-> +                                               MIGRATE_LP_MEMORY);
-> +               }
-> +       }
-> +
-> +       return 0;
-> +}
-> +
-> +/* Parse ACPI table and find start and end of MPST zone.
-> +Assuming zones are contiguous */
-> +int mpst_init(void)
-> +{
-> +       if (!mpst_enabled) {
-> +               pr_info("mpst not enabled in command line\n");
-> +               return 0;
-> +       }
-> +
-> +       acpi_table_parse(ACPI_SIG_MPST, acpi_parse_mpst_table);
-> +       mpst_set_min_max_pfn();
-> +       if (mpst_zone_cnt) {
-> +
-> +               if (mpst_start_pfn < MINIMAL_NON_MPST_MEMORY_PFN) {
-> +                       pr_err("Not enough memory: Ignore MPST\n");
-> +                       mpst_start_pfn = mpst_end_pfn = 0;
-> +                       return -EINVAL;
-> +               }
-> +               memblock_reserve(pfn_to_phys(mpst_start_pfn),
-> +                                       pfn_to_phys(mpst_end_pfn) -
-> + pfn_to_phys(mpst_start_pfn));
-> +               pr_info("mpst_init memblock limit set to pfn %lu
-> 0x%#018lx\n",
-> +                       mpst_start_pfn, pfn_to_phys(mpst_start_pfn));
-> +       }
-> +
-> +       return 0;
-> +}
-> 
-> 
-> 
-> 
-> 
-> /////////////////////////////
+In order to do so, we need to mark out these special pages in memblock.
+In this patch, we introduce a new "flags" member into memblock_region:
+   struct memblock_region {
+           phys_addr_t base;
+           phys_addr_t size;
+           unsigned long flags;
+   #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+           int nid;
+   #endif
+   };
+
+This patch does the following things:
+1) Add "flags" member to memblock_region, and MEMBLK_ANY flag for common usage.
+2) Modify the following APIs' prototype:
+	memblock_add_region()
+	memblock_insert_region()
+3) Add memblock_reserve_region() to support reserve memory with flags, and keep
+   memblock_reserve()'s prototype unmodified.
+4) Modify other APIs to support flags, but keep their prototype unmodified.
+
+The idea is from Wen Congyang <wency@cn.fujitsu.com> and Liu Jiang <jiang.liu@huawei.com>.
+
+Suggested-by: Wen Congyang <wency@cn.fujitsu.com>
+Suggested-by: Liu Jiang <jiang.liu@huawei.com>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+---
+ include/linux/memblock.h |    8 ++++++
+ mm/memblock.c            |   56 +++++++++++++++++++++++++++++++++------------
+ 2 files changed, 49 insertions(+), 15 deletions(-)
+
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index f388203..c63a66e 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -19,9 +19,17 @@
+ 
+ #define INIT_MEMBLOCK_REGIONS	128
+ 
++#define MEMBLK_FLAGS_DEFAULT	0
++
++/* Definition of memblock flags. */
++enum memblock_flags {
++	__NR_MEMBLK_FLAGS,	/* number of flags */
++};
++
+ struct memblock_region {
+ 	phys_addr_t base;
+ 	phys_addr_t size;
++	unsigned long flags;
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 	int nid;
+ #endif
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 16eda3d..63924ae 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -157,6 +157,7 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
+ 		type->cnt = 1;
+ 		type->regions[0].base = 0;
+ 		type->regions[0].size = 0;
++		type->regions[0].flags = 0;
+ 		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
+ 	}
+ }
+@@ -307,7 +308,8 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
+ 
+ 		if (this->base + this->size != next->base ||
+ 		    memblock_get_region_node(this) !=
+-		    memblock_get_region_node(next)) {
++		    memblock_get_region_node(next) ||
++		    this->flags != next->flags) {
+ 			BUG_ON(this->base + this->size > next->base);
+ 			i++;
+ 			continue;
+@@ -327,13 +329,15 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
+  * @base:	base address of the new region
+  * @size:	size of the new region
+  * @nid:	node id of the new region
++ * @flags:	flags of the new region
+  *
+  * Insert new memblock region [@base,@base+@size) into @type at @idx.
+  * @type must already have extra room to accomodate the new region.
+  */
+ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+ 						   int idx, phys_addr_t base,
+-						   phys_addr_t size, int nid)
++						   phys_addr_t size,
++						   int nid, unsigned long flags)
+ {
+ 	struct memblock_region *rgn = &type->regions[idx];
+ 
+@@ -341,6 +345,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+ 	memmove(rgn + 1, rgn, (type->cnt - idx) * sizeof(*rgn));
+ 	rgn->base = base;
+ 	rgn->size = size;
++	rgn->flags = flags;
+ 	memblock_set_region_node(rgn, nid);
+ 	type->cnt++;
+ 	type->total_size += size;
+@@ -352,6 +357,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+  * @base: base address of the new region
+  * @size: size of the new region
+  * @nid: nid of the new region
++ * @flags: flags of the new region
+  *
+  * Add new memblock region [@base,@base+@size) into @type.  The new region
+  * is allowed to overlap with existing ones - overlaps don't affect already
+@@ -362,7 +368,8 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
+  * 0 on success, -errno on failure.
+  */
+ static int __init_memblock memblock_add_region(struct memblock_type *type,
+-				phys_addr_t base, phys_addr_t size, int nid)
++				phys_addr_t base, phys_addr_t size,
++				int nid, unsigned long flags)
+ {
+ 	bool insert = false;
+ 	phys_addr_t obase = base;
+@@ -377,6 +384,7 @@ static int __init_memblock memblock_add_region(struct memblock_type *type,
+ 		WARN_ON(type->cnt != 1 || type->total_size);
+ 		type->regions[0].base = base;
+ 		type->regions[0].size = size;
++		type->regions[0].flags = flags;
+ 		memblock_set_region_node(&type->regions[0], nid);
+ 		type->total_size = size;
+ 		return 0;
+@@ -407,7 +415,8 @@ repeat:
+ 			nr_new++;
+ 			if (insert)
+ 				memblock_insert_region(type, i++, base,
+-						       rbase - base, nid);
++						       rbase - base, nid,
++						       flags);
+ 		}
+ 		/* area below @rend is dealt with, forget about it */
+ 		base = min(rend, end);
+@@ -417,7 +426,8 @@ repeat:
+ 	if (base < end) {
+ 		nr_new++;
+ 		if (insert)
+-			memblock_insert_region(type, i, base, end - base, nid);
++			memblock_insert_region(type, i, base, end - base,
++					       nid, flags);
+ 	}
+ 
+ 	/*
+@@ -439,12 +449,14 @@ repeat:
+ int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
+ 				       int nid)
+ {
+-	return memblock_add_region(&memblock.memory, base, size, nid);
++	return memblock_add_region(&memblock.memory, base, size,
++				   nid, MEMBLK_FLAGS_DEFAULT);
+ }
+ 
+ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
+ {
+-	return memblock_add_region(&memblock.memory, base, size, MAX_NUMNODES);
++	return memblock_add_region(&memblock.memory, base, size,
++				   MAX_NUMNODES, MEMBLK_FLAGS_DEFAULT);
+ }
+ 
+ /**
+@@ -499,7 +511,8 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 			rgn->size -= base - rbase;
+ 			type->total_size -= base - rbase;
+ 			memblock_insert_region(type, i, rbase, base - rbase,
+-					       memblock_get_region_node(rgn));
++					       memblock_get_region_node(rgn),
++					       rgn->flags);
+ 		} else if (rend > end) {
+ 			/*
+ 			 * @rgn intersects from above.  Split and redo the
+@@ -509,7 +522,8 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
+ 			rgn->size -= end - rbase;
+ 			type->total_size -= end - rbase;
+ 			memblock_insert_region(type, i--, rbase, end - rbase,
+-					       memblock_get_region_node(rgn));
++					       memblock_get_region_node(rgn),
++					       rgn->flags);
+ 		} else {
+ 			/* @rgn is fully contained, record it */
+ 			if (!*end_rgn)
+@@ -551,16 +565,25 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
+ 	return __memblock_remove(&memblock.reserved, base, size);
+ }
+ 
+-int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
++static int __init_memblock memblock_reserve_region(phys_addr_t base,
++						   phys_addr_t size,
++						   int nid,
++						   unsigned long flags)
+ {
+ 	struct memblock_type *_rgn = &memblock.reserved;
+ 
+-	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] %pF\n",
++	memblock_dbg("memblock_reserve: [%#016llx-%#016llx] with flags %#016lx %pF\n",
+ 		     (unsigned long long)base,
+ 		     (unsigned long long)base + size,
+-		     (void *)_RET_IP_);
++		     flags, (void *)_RET_IP_);
++
++	return memblock_add_region(_rgn, base, size, nid, flags);
++}
+ 
+-	return memblock_add_region(_rgn, base, size, MAX_NUMNODES);
++int __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
++{
++	return memblock_reserve_region(base, size, MAX_NUMNODES,
++				       MEMBLK_FLAGS_DEFAULT);
+ }
+ 
+ /**
+@@ -982,6 +1005,7 @@ void __init_memblock memblock_set_current_limit(phys_addr_t limit)
+ static void __init_memblock memblock_dump(struct memblock_type *type, char *name)
+ {
+ 	unsigned long long base, size;
++	unsigned long flags;
+ 	int i;
+ 
+ 	pr_info(" %s.cnt  = 0x%lx\n", name, type->cnt);
+@@ -992,13 +1016,15 @@ static void __init_memblock memblock_dump(struct memblock_type *type, char *name
+ 
+ 		base = rgn->base;
+ 		size = rgn->size;
++		flags = rgn->flags;
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
+ 			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
+ 				 memblock_get_region_node(rgn));
+ #endif
+-		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s\n",
+-			name, i, base, base + size - 1, size, nid_buf);
++		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s "
++			"flags: %#lx\n",
++			name, i, base, base + size - 1, size, nid_buf, flags);
+ 	}
+ }
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
