@@ -1,104 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 54F776B00B4
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 12:56:31 -0400 (EDT)
-Date: Fri, 19 Apr 2013 17:54:29 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH v4, part3 13/41] mm/ARM: prepare for removing
-	num_physpages and simplify mem_init()
-Message-ID: <20130419165429.GA14496@n2100.arm.linux.org.uk>
-References: <1365258760-30821-1-git-send-email-jiang.liu@huawei.com> <1365258760-30821-14-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 3DFC76B0002
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 20:26:28 -0400 (EDT)
+Received: by mail-ia0-f175.google.com with SMTP id e16so3949789iaa.34
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2013 17:26:27 -0700 (PDT)
+Date: Fri, 19 Apr 2013 17:26:20 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: memcg: softlimit on internal nodes
+Message-ID: <20130420002620.GA17179@mtj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1365258760-30821-14-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>
 
-On Sat, Apr 06, 2013 at 10:32:12PM +0800, Jiang Liu wrote:
-> Prepare for removing num_physpages and simplify mem_init().
-> 
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Cc: Russell King <linux@arm.linux.org.uk>
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: linux-arm-kernel@lists.infradead.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
->  arch/arm/mm/init.c |   47 ++---------------------------------------------
->  1 file changed, 2 insertions(+), 45 deletions(-)
-> 
-> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-> index add4fcb..7a911d1 100644
-> --- a/arch/arm/mm/init.c
-> +++ b/arch/arm/mm/init.c
-> @@ -582,9 +582,6 @@ static void __init free_highpages(void)
->   */
->  void __init mem_init(void)
->  {
-> -	unsigned long reserved_pages, free_pages;
-> -	struct memblock_region *reg;
-> -	int i;
->  #ifdef CONFIG_HAVE_TCM
->  	/* These pointers are filled in on TCM detection */
->  	extern u32 dtcm_end;
-> @@ -605,47 +602,7 @@ void __init mem_init(void)
->  
->  	free_highpages();
->  
-> -	reserved_pages = free_pages = 0;
-> -
-> -	for_each_bank(i, &meminfo) {
-> -		struct membank *bank = &meminfo.bank[i];
-> -		unsigned int pfn1, pfn2;
-> -		struct page *page, *end;
-> -
-> -		pfn1 = bank_pfn_start(bank);
-> -		pfn2 = bank_pfn_end(bank);
-> -
-> -		page = pfn_to_page(pfn1);
-> -		end  = pfn_to_page(pfn2 - 1) + 1;
-> -
-> -		do {
-> -			if (PageReserved(page))
-> -				reserved_pages++;
-> -			else if (!page_count(page))
-> -				free_pages++;
-> -			page++;
-> -		} while (page < end);
-> -	}
-> -
-> -	/*
-> -	 * Since our memory may not be contiguous, calculate the
-> -	 * real number of pages we have in this system
-> -	 */
-> -	printk(KERN_INFO "Memory:");
-> -	num_physpages = 0;
-> -	for_each_memblock(memory, reg) {
-> -		unsigned long pages = memblock_region_memory_end_pfn(reg) -
-> -			memblock_region_memory_base_pfn(reg);
-> -		num_physpages += pages;
-> -		printk(" %ldMB", pages >> (20 - PAGE_SHIFT));
-> -	}
-> -	printk(" = %luMB total\n", num_physpages >> (20 - PAGE_SHIFT));
-> -
-> -	printk(KERN_NOTICE "Memory: %luk/%luk available, %luk reserved, %luK highmem\n",
-> -		nr_free_pages() << (PAGE_SHIFT-10),
-> -		free_pages << (PAGE_SHIFT-10),
-> -		reserved_pages << (PAGE_SHIFT-10),
-> -		totalhigh_pages << (PAGE_SHIFT-10));
-> +	mem_init_print_info(NULL);
+Hello, Michal and all.
 
-I'm concerned about this.  We explicitly do not use the memblock information
-when walking the memory above for the reserved/free pages because memblock
-merges the various banks of memory together - and those may cross sparsemem
-boundaries.  Any crossing of the sparsemem boundaries needs the struct page
-pointer to be re-evaluated because it can be part of a different array of
-such things.
+Sorry about asking silly questions and leaving in the middle.  I had a
+plane to catch which I just barely made.  I thought about it on the
+way here and your proposal seems confused.
 
-Where's the rest of the patches?
+I think the crux of the confusion comes from the fact that you're
+essentially proposing flipping the meaning of the knob for internal
+nodes - it means minmum guaranteed allocation - that is, the shrinker
+won't bother the cgroup if the memory consumption is under the
+softlimit - and your proposal is to reverse that for cgroups with
+children so that it actually means "soft" limit - creating pressure if
+above the limit (IIUC, it isn't entirely that either as the pressure
+is created iff the whole system is under memory pressure, right?).
+
+Regardless of the direction of a configuration, a parent cgroup should
+gate that configuration in the same direction.  ie. If it's a limit
+for a leaf node when reached, it also is an limit for the whole
+subtree for an internal cgroup.  If it's a configuration which
+guarantees allocation (in the sense that it'll be excluded in memory
+reclaim if under limit), the same, if the subtree is under limit,
+reclaim shouldn't trigger.
+
+For example, please consider the following hierarchy where s denotes
+the "softlimit" and h hardlimit.
+
+      A (h:8G s:4G)
+     /            \
+    /              \
+ B (h:5G s:1G)    C (h:5G s:1G)
+
+For hard limit, nobody seems confused how the internal limit should
+apply - If either B or C goes over 5G, the one going over that limit
+will be on the receiving end of OOM killer.  Also, even if both B and
+C are individually under 5G, if the sum of the two goes over A's limit
+- 8G, OOM killer will be activated on the subtree.  It'd be a policy
+decision whether to kill tasks from A, B or C, but the no matter what
+the parent's limit will be enforced in the subtree.  Note that this is
+a perfectly valid configuration.  It is *not* an invalid
+configuration.  It is exactly what the hierarchical configuration is
+supposed to do.
+
+It must not be any different for "softlimit".  If B or C are
+individually under 1G, they won't be targeted by the reclaimer and
+even if B and C are over 1G, let's say 2G, as long as the sum is under
+A's "softlimit" - 4G, reclaimer won't look at them.  It is exactly the
+same as hardlimit, just the opposite direction.
+
+Now, let's consider the following hierarchy just to be sure.  Let's
+assume that A itself doesn't have any tasks for simplicity.
+
+      A (h:16G s:4G)
+     /            \
+    /              \
+ B (h:7G s:5G)    C (h:7G s:5G)
+
+For hardlimit, it is clear that A's limit won't do anything.  No
+matter what B and C do.  In exactly the same way, A's "softlimit"
+doesn't do anything regardless of what B and C do.  Just like A's
+hardlimit doesn't impose any further restrictions on B and C, A's
+softlimit doesn't give any further guarantee to B and C.  There's no
+difference at all.
+
+Now, it's completely silly that "softlimit" is actually allocation
+guarantee rather than an actual limit.  I guess it's born out of
+similar confusion?  Maybe originally the operation was a confused mix
+of the two and it moved closer to guaranteeing behavior over time?
+
+Anyways, it's apparent why actual soft limit - that is something which
+creates reclaim pressure even when the system as whole isn't under
+memory pressure - would be useful, and I'm actually kinda surprised
+that it doesn't already exist.  It isn't difficult to imagine use
+cases where the user doesn't want certain services/applications (say
+backup, torrent or static http server serving large files) to not
+consume huge amount of memory without triggering OOM killer.  It is
+something which is fundamentally useful and I think is why people are
+confused and pulling the current "softlimit" towards something like
+that.
+
+If such actual soft limit is desired (I don't know, it just seems like
+a very fundamental / logical feature to me), please don't try to
+somehow overload "softlimit".  They are two fundamentally different
+knobs, both make sense in their own ways, and when you stop confusing
+the two, there's nothing ambiguous about what what each knob means in
+hierarchical situations.  This goes the same for the "untrusted" flag
+Ying told me, which seems like another confused way to overload two
+meanings onto "softlimit".  Don't overload!
+
+Now let's see if this gogo thing actually works.
+
+Thanks.
+
+--
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
