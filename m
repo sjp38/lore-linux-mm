@@ -1,176 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id CF1B36B0033
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 04:21:48 -0400 (EDT)
-From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH 1/2] vmpressure: in-kernel notifications
-Date: Tue, 23 Apr 2013 12:22:08 +0400
-Message-Id: <1366705329-9426-2-git-send-email-glommer@openvz.org>
-In-Reply-To: <1366705329-9426-1-git-send-email-glommer@openvz.org>
-References: <1366705329-9426-1-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 779236B0002
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 04:36:47 -0400 (EDT)
+Date: Sat, 20 Apr 2013 15:43:16 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 18/18] ext4: Allow punch hole with bigalloc enabled
+Message-ID: <20130420134316.GB2461@quack.suse.cz>
+References: <1365498867-27782-1-git-send-email-lczerner@redhat.com>
+ <1365498867-27782-19-git-send-email-lczerner@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1365498867-27782-19-git-send-email-lczerner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@openvz.org>, Dave Chinner <david@fromorbit.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Lukas Czerner <lczerner@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-From: Glauber Costa <glommer@parallels.com>
+On Tue 09-04-13 11:14:27, Lukas Czerner wrote:
+> In commits 5f95d21fb6f2aaa52830e5b7fb405f6c71d3ab85 and
+> 30bc2ec9598a1b156ad75217f2e7d4560efdeeab we've reworked punch_hole
+> implementation and there is noting holding us back from using punch hole
+> on file system with bigalloc feature enabled.
+> 
+> This has been tested with fsx and xfstests.
+  Looks good. You can add:
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-During the past weeks, it became clear to us that the shrinker interface
-we have right now works very well for some particular types of users,
-but not that well for others. The later are usually people interested in
-one-shot notifications, that were forced to adapt themselves to the
-count+scan behavior of shrinkers. To do so, they had no choice than to
-greatly abuse the shrinker interface producing little monsters all over.
+									Honza
 
-During LSF/MM, one of the proposals that popped out during our session
-was to reuse Anton Voronstsov's vmpressure for this. They are designed
-for userspace consumption, but also provide a well-stablished,
-cgroup-aware entry point for notifications.
-
-This patch extends that to also support in-kernel users. Events that
-should be generated for in-kernel consumption will be marked as such,
-and for those, we will call a registered function instead of triggering
-an eventfd notification.
-
-Please note that due to my lack of understanding of each shrinker user,
-I will stay away from converting the actual users, you are all welcome
-to do so.
-
-Signed-off-by: Glauber Costa <glommer@openvz.org>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: John Stultz <john.stultz@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <js1304@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/vmpressure.h |  6 ++++++
- mm/vmpressure.c            | 48 ++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 50 insertions(+), 4 deletions(-)
-
-diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
-index 76be077..1862012 100644
---- a/include/linux/vmpressure.h
-+++ b/include/linux/vmpressure.h
-@@ -19,6 +19,9 @@ struct vmpressure {
- 	/* Have to grab the lock on events traversal or modifications. */
- 	struct mutex events_lock;
- 
-+	/* false if only kernel users want to be notified, true otherwise */
-+	bool notify_userspace;
-+
- 	struct work_struct work;
- };
- 
-@@ -36,6 +39,9 @@ extern struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css);
- extern int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
- 				     struct eventfd_ctx *eventfd,
- 				     const char *args);
-+
-+extern int vmpressure_register_kernel_event(struct cgroup *cg,
-+					    void (*fn)(void));
- extern void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
- 					struct eventfd_ctx *eventfd);
- #else
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 736a601..8d77ad0 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -135,8 +135,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
- }
- 
- struct vmpressure_event {
--	struct eventfd_ctx *efd;
-+	union {
-+		struct eventfd_ctx *efd;
-+		void (*fn)(void);
-+	};
- 	enum vmpressure_levels level;
-+	bool kernel_event;
- 	struct list_head node;
- };
- 
-@@ -152,7 +156,9 @@ static bool vmpressure_event(struct vmpressure *vmpr,
- 	mutex_lock(&vmpr->events_lock);
- 
- 	list_for_each_entry(ev, &vmpr->events, node) {
--		if (level >= ev->level) {
-+		if (ev->kernel_event)
-+			ev->fn();
-+		else if (vmpr->notify_userspace && (level >= ev->level)) {
- 			eventfd_signal(ev->efd, 1);
- 			signalled = true;
- 		}
-@@ -227,7 +233,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
- 	 * we account it too.
- 	 */
- 	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
--		return;
-+		goto schedule;
- 
- 	/*
- 	 * If we got here with no pages scanned, then that is an indicator
-@@ -238,14 +244,16 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
- 	 * through vmpressure_prio(). But so far, keep calm.
- 	 */
- 	if (!scanned)
--		return;
-+		goto schedule;
- 
- 	mutex_lock(&vmpr->sr_lock);
- 	vmpr->scanned += scanned;
- 	vmpr->reclaimed += reclaimed;
-+	vmpr->notify_userspace = true;
- 	scanned = vmpr->scanned;
- 	mutex_unlock(&vmpr->sr_lock);
- 
-+schedule:
- 	if (scanned < vmpressure_win || work_pending(&vmpr->work))
- 		return;
- 	schedule_work(&vmpr->work);
-@@ -328,6 +336,38 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
- }
- 
- /**
-+ * vmpressure_register_kernel_event() - Register kernel-side notification
-+ * @cg:		cgroup that is interested in vmpressure notifications
-+ * @fn:		function to be called when pressure happens
-+ *
-+ * This function register in-kernel users interested in receiving notifications
-+ * about pressure conditions. Pressure notifications will be triggered at the
-+ * same time as userspace notifications (with no particular ordering relative
-+ * to it).
-+ *
-+ * Pressure notifications are a alternative method to shrinkers and will serve
-+ * well users that are interested in a one-shot notification, with a
-+ * well-defined cgroup aware interface.
-+ */
-+int vmpressure_register_kernel_event(struct cgroup *cg, void (*fn)(void))
-+{
-+	struct vmpressure *vmpr = cg_to_vmpressure(cg);
-+	struct vmpressure_event *ev;
-+
-+	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-+	if (!ev)
-+		return -ENOMEM;
-+
-+	ev->kernel_event = true;
-+	ev->fn = fn;
-+
-+	mutex_lock(&vmpr->events_lock);
-+	list_add(&ev->node, &vmpr->events);
-+	mutex_unlock(&vmpr->events_lock);
-+	return 0;
-+}
-+
-+/**
-  * vmpressure_unregister_event() - Unbind eventfd from vmpressure
-  * @cg:		cgroup handle
-  * @cft:	cgroup control files handle
+> 
+> Signed-off-by: Lukas Czerner <lczerner@redhat.com>
+> ---
+>  fs/ext4/inode.c |    5 -----
+>  1 files changed, 0 insertions(+), 5 deletions(-)
+> 
+> diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+> index 0d452c1..87d6171 100644
+> --- a/fs/ext4/inode.c
+> +++ b/fs/ext4/inode.c
+> @@ -3536,11 +3536,6 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
+>  	if (!S_ISREG(inode->i_mode))
+>  		return -EOPNOTSUPP;
+>  
+> -	if (EXT4_SB(sb)->s_cluster_ratio > 1) {
+> -		/* TODO: Add support for bigalloc file systems */
+> -		return -EOPNOTSUPP;
+> -	}
+> -
+>  	trace_ext4_punch_hole(inode, offset, length);
+>  
+>  	/*
+> -- 
+> 1.7.7.6
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 -- 
-1.8.1.4
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
