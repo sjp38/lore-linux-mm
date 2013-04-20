@@ -1,86 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 461D36B0002
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 23:22:06 -0400 (EDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <shangw@linux.vnet.ibm.com>;
-	Fri, 19 Apr 2013 21:22:05 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 3F8351FF0026
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 21:17:01 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3K3M2EB380170
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 21:22:02 -0600
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3K3M2So021369
-	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 21:22:02 -0600
-Date: Sat, 20 Apr 2013 11:22:01 +0800
-From: Gavin Shan <shangw@linux.vnet.ibm.com>
-Subject: Re: [RESEND PATCH 3.8-stable] mm/vmscan: fix error return in
- kswapd_run()
-Message-ID: <20130420032201.GA3922@shangw.(null)>
-Reply-To: Gavin Shan <shangw@linux.vnet.ibm.com>
-References: <1366383130-2500-1-git-send-email-jhbird.choi@samsung.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 9BBEE6B0006
+	for <linux-mm@kvack.org>; Fri, 19 Apr 2013 23:35:33 -0400 (EDT)
+Received: by mail-vc0-f175.google.com with SMTP id lf11so2373183vcb.34
+        for <linux-mm@kvack.org>; Fri, 19 Apr 2013 20:35:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1366383130-2500-1-git-send-email-jhbird.choi@samsung.com>
+In-Reply-To: <20130420004221.GB17179@mtj.dyndns.org>
+References: <20130420002620.GA17179@mtj.dyndns.org> <20130420004221.GB17179@mtj.dyndns.org>
+From: Greg Thelen <gthelen@google.com>
+Date: Fri, 19 Apr 2013 20:35:12 -0700
+Message-ID: <CAHH2K0aeNke1NzcnyeeyHH1XvGLGxFG0_fXKAi3JH+HMtYjV=Q@mail.gmail.com>
+Subject: Re: memcg: softlimit on internal nodes
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonghwan Choi <jhbird.choi@gmail.com>
-Cc: Gavin Shan <shangw@linux.vnet.ibm.com>, Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Jonghwan Choi <jhbird.choi@samsung.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>
 
-On Fri, Apr 19, 2013 at 11:52:10PM +0900, Jonghwan Choi wrote:
->From: Gavin Shan <shangw@linux.vnet.ibm.com>
+On Fri, Apr 19, 2013 at 5:42 PM, Tejun Heo <tj@kernel.org> wrote:
+> On Fri, Apr 19, 2013 at 05:26:20PM -0700, Tejun Heo wrote:
+>> If such actual soft limit is desired (I don't know, it just seems like
+>> a very fundamental / logical feature to me), please don't try to
+>> somehow overload "softlimit".  They are two fundamentally different
+>> knobs, both make sense in their own ways, and when you stop confusing
+>> the two, there's nothing ambiguous about what what each knob means in
+>> hierarchical situations.  This goes the same for the "untrusted" flag
+>> Ying told me, which seems like another confused way to overload two
+>> meanings onto "softlimit".  Don't overload!
 >
->This patch looks like it should be in the 3.8-stable tree, should we apply
->it?
->
+> As for how actually to clean up this yet another mess in memcg, I
+> don't know.  Maybe introduce completely new knobs - say,
+> oom_threshold, reclaim_threshold, and reclaim_trigger - and alias
+> hardlimit to oom_threshold and softlimit to recalim_trigger?  BTW,
+> "softlimit" should default to 0.  Nothing else makes any sense.
 
-Yes, I think so. If possible, please apply to 3.8-stable.
+I agree that the hard limit could be called the oom_threshold.
 
-Thanks,
-Gavin
-
->------------------
->
->From: "Gavin Shan <shangw@linux.vnet.ibm.com>"
->
->commit d5dc0ad928fb9e972001e552597fd0b794863f34 upstream
->
->Fix the error return value in kswapd_run().  The bug was introduced by
->commit d5dc0ad928fb ("mm/vmscan: fix error number for failed kthread").
->
->Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
->Reviewed-by: Rik van Riel <riel@redhat.com>
->Reported-by: Wu Fengguang <fengguang.wu@intel.com>
->Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
->Signed-off-by: Jonghwan Choi <jhbird.choi@samsung.com>
->---
-> mm/vmscan.c |    2 +-
-> 1 file changed, 1 insertion(+), 1 deletion(-)
->
->diff --git a/mm/vmscan.c b/mm/vmscan.c
->index 196709f..8226b41 100644
->--- a/mm/vmscan.c
->+++ b/mm/vmscan.c
->@@ -3158,9 +3158,9 @@ int kswapd_run(int nid)
-> 	if (IS_ERR(pgdat->kswapd)) {
-> 		/* failure at boot is fatal */
-> 		BUG_ON(system_state == SYSTEM_BOOTING);
->-		pgdat->kswapd = NULL;
-> 		pr_err("Failed to start kswapd on node %d\n", nid);
-> 		ret = PTR_ERR(pgdat->kswapd);
->+		pgdat->kswapd = NULL;
-> 	}
-> 	return ret;
-> }
->-- 
->1.7.10.4
->
+The meaning of the term reclaim_threshold is not obvious to me.  I'd
+prefer to call the soft limit a reclaim_target.  System global
+pressure can steal memory from a cgroup until its usage drops to the
+soft limit (aka reclaim_target).  Pressure will try to avoid stealing
+memory below the reclaim target.  The soft limit (reclaim_target) is
+not checked until global pressure exists.  Currently we do not have a
+knob to set a reclaim_threshold, such that when usage exceeds the
+reclaim_threshold async reclaim is queued.  We are not discussing
+triggering anything when soft limit is exceeded.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
