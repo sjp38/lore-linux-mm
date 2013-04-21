@@ -1,43 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id DE70E6B0005
-	for <linux-mm@kvack.org>; Sat, 20 Apr 2013 19:57:36 -0400 (EDT)
-Date: Sat, 20 Apr 2013 19:57:18 -0400
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 6B3B26B0005
+	for <linux-mm@kvack.org>; Sat, 20 Apr 2013 20:05:28 -0400 (EDT)
+Date: Sat, 20 Apr 2013 20:05:22 -0400
 From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: page eviction from the buddy cache
-Message-ID: <20130420235718.GA28789@thunk.org>
-References: <51504A40.6020604@ya.ru>
- <20130327150743.GC14900@thunk.org>
- <alpine.LNX.2.00.1303271135420.29687@eggly.anvils>
- <3C8EEEF8-C1EB-4E3D-8DE6-198AB1BEA8C0@gmail.com>
- <515CD665.9000300@gmail.com>
- <239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com>
- <51730619.3030204@fastmail.fm>
+Subject: Re: Excessive stall times on ext4 in 3.9-rc2
+Message-ID: <20130421000522.GA5054@thunk.org>
+References: <20130402142717.GH32241@suse.de>
+ <20130402150651.GB31577@thunk.org>
+ <20130410105608.GC1910@suse.de>
+ <20130410131245.GC4862@thunk.org>
+ <20130411170402.GB11656@suse.de>
+ <20130411183512.GA12298@thunk.org>
+ <20130411213335.GE9379@quack.suse.cz>
+ <20130412025708.GB7445@thunk.org>
+ <20130412094731.GI11656@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <51730619.3030204@fastmail.fm>
+In-Reply-To: <20130412094731.GI11656@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bernd Schubert <bernd.schubert@fastmail.fm>
-Cc: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Will Huck <will.huckk@gmail.com>, Hugh Dickins <hughd@google.com>, Andrew Perepechko <anserper@ya.ru>, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de
+To: Mel Gorman <mgorman@suse.de>
+Cc: Jan Kara <jack@suse.cz>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
 
-On Sat, Apr 20, 2013 at 11:18:17PM +0200, Bernd Schubert wrote:
-> Alex, Andrew,
-> 
-> did you notice the patch Ted just sent?
-> ("ext4: mark all metadata I/O with REQ_META")
+As an update to this thread, we brought up this issue at LSF/MM, and
+there is a thought that we should be able to solve this problem by
+having lock_buffer() check to see if the buffer is locked due to a
+write being queued, to have the priority of the write bumped up in the
+write queues to resolve the priority inversion.  I believe Jeff Moyer
+was going to look into this, if I remember correctly.
 
-This patch was sent to fix another issue that was brought up at Linux
-Storage, Filesystem, and MM workshop.  I did bring up this issue with
-Mel Gorman while at LSF/MM, and as a result, tThe mm folks are going
-to look into making mark_page_accessed() do the right thing, or
-perhaps provide us with new interface.  The problem with forcing the
-page to be marked as activated is this would cause a TLB flush, which
-would be pointless since this these buddy bitmap pages aren't actually
-mapped in anywhere.
+An alternate solution which I've been playing around adds buffer_head
+flags so we can indicate that a buffer contains metadata and/or should
+have I/O submitted with the REQ_PRIO flag set.
 
-						- Ted
+Adding a buffer_head flag for at least BH_Meta is probably a good
+thing, since that way the blktrace will be properly annotated.
+Whether we should keep the BH_Prio flag or rely on lock_buffer()
+automatically raising the priority is, my feeling is that if
+lock_buffer() can do the right thing, we should probably do it via
+lock_buffer().  I have a feeling this might be decidedly non-trivial,
+though, so perhaps we should just doing via BH flags?
+
+	   	      	     	  	- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
