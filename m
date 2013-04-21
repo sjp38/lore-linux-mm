@@ -1,63 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 985B76B0006
-	for <linux-mm@kvack.org>; Sat, 20 Apr 2013 20:07:27 -0400 (EDT)
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: [PATCH 3/3] ext4: mark metadata blocks using bh flags
-Date: Sat, 20 Apr 2013 20:07:08 -0400
-Message-Id: <1366502828-7793-3-git-send-email-tytso@mit.edu>
-In-Reply-To: <1366502828-7793-1-git-send-email-tytso@mit.edu>
-References: <20130421000522.GA5054@thunk.org>
- <1366502828-7793-1-git-send-email-tytso@mit.edu>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 496D56B0005
+	for <linux-mm@kvack.org>; Sat, 20 Apr 2013 21:53:18 -0400 (EDT)
+Received: by mail-da0-f52.google.com with SMTP id j17so206849dan.25
+        for <linux-mm@kvack.org>; Sat, 20 Apr 2013 18:53:17 -0700 (PDT)
+Date: Sat, 20 Apr 2013 18:53:12 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: memcg: softlimit on internal nodes
+Message-ID: <20130421015312.GD19097@mtj.dyndns.org>
+References: <20130420002620.GA17179@mtj.dyndns.org>
+ <20130420004221.GB17179@mtj.dyndns.org>
+ <CAHH2K0aeNke1NzcnyeeyHH1XvGLGxFG0_fXKAi3JH+HMtYjV=Q@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHH2K0aeNke1NzcnyeeyHH1XvGLGxFG0_fXKAi3JH+HMtYjV=Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ext4 Developers List <linux-ext4@vger.kernel.org>
-Cc: linux-mm@kvack.org, Linux Kernel Developers List <linux-kernel@vger.kernel.org>, mgorman@suse.de, Theodore Ts'o <tytso@mit.edu>
+To: Greg Thelen <gthelen@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>
 
-This allows metadata writebacks which are issued via block device
-writeback to be sent with the current write request flags.
+Hey, Greg.
 
-Signed-off-by: "Theodore Ts'o" <tytso@mit.edu>
----
- fs/ext4/ext4_jbd2.c | 2 ++
- fs/ext4/inode.c     | 6 +++++-
- 2 files changed, 7 insertions(+), 1 deletion(-)
+On Fri, Apr 19, 2013 at 08:35:12PM -0700, Greg Thelen wrote:
+> > As for how actually to clean up this yet another mess in memcg, I
+> > don't know.  Maybe introduce completely new knobs - say,
+> > oom_threshold, reclaim_threshold, and reclaim_trigger - and alias
+> > hardlimit to oom_threshold and softlimit to recalim_trigger?  BTW,
+> > "softlimit" should default to 0.  Nothing else makes any sense.
+> 
+> I agree that the hard limit could be called the oom_threshold.
+> 
+> The meaning of the term reclaim_threshold is not obvious to me.  I'd
+> prefer to call the soft limit a reclaim_target.  System global
+> pressure can steal memory from a cgroup until its usage drops to the
+> soft limit (aka reclaim_target).  Pressure will try to avoid stealing
+> memory below the reclaim target.  The soft limit (reclaim_target) is
+> not checked until global pressure exists.  Currently we do not have a
+> knob to set a reclaim_threshold, such that when usage exceeds the
+> reclaim_threshold async reclaim is queued.  We are not discussing
+> triggering anything when soft limit is exceeded.
 
-diff --git a/fs/ext4/ext4_jbd2.c b/fs/ext4/ext4_jbd2.c
-index 0e1dc9e..fd97b81 100644
---- a/fs/ext4/ext4_jbd2.c
-+++ b/fs/ext4/ext4_jbd2.c
-@@ -215,6 +215,8 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
- 
- 	might_sleep();
- 
-+	mark_buffer_meta(bh);
-+	mark_buffer_prio(bh);
- 	if (ext4_handle_valid(handle)) {
- 		err = jbd2_journal_dirty_metadata(handle, bh);
- 		if (err) {
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 62492e9..d7518e2 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -1080,10 +1080,14 @@ retry_journal:
- /* For write_end() in data=journal mode */
- static int write_end_fn(handle_t *handle, struct buffer_head *bh)
- {
-+	int ret;
- 	if (!buffer_mapped(bh) || buffer_freed(bh))
- 		return 0;
- 	set_buffer_uptodate(bh);
--	return ext4_handle_dirty_metadata(handle, NULL, bh);
-+	ret = ext4_handle_dirty_metadata(handle, NULL, bh);
-+	clear_buffer_meta(bh);
-+	clear_buffer_prio(bh);
-+	return ret;
- }
- 
- /*
+Yeah, reclaim_target seems like a better name for it.
+
+Thanks.
+
 -- 
-1.7.12.rc0.22.gcdd159b
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
