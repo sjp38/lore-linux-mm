@@ -1,67 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 242576B0005
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 336756B0006
 	for <linux-mm@kvack.org>; Sat, 20 Apr 2013 20:07:23 -0400 (EDT)
 From: Theodore Ts'o <tytso@mit.edu>
-Subject: [PATCH 2/3] buffer: add BH_Prio and BH_Meta flags
-Date: Sat, 20 Apr 2013 20:07:07 -0400
-Message-Id: <1366502828-7793-2-git-send-email-tytso@mit.edu>
-In-Reply-To: <1366502828-7793-1-git-send-email-tytso@mit.edu>
+Subject: [PATCH 1/3] ext4: mark all metadata I/O with REQ_META
+Date: Sat, 20 Apr 2013 20:07:06 -0400
+Message-Id: <1366502828-7793-1-git-send-email-tytso@mit.edu>
+In-Reply-To: <20130421000522.GA5054@thunk.org>
 References: <20130421000522.GA5054@thunk.org>
- <1366502828-7793-1-git-send-email-tytso@mit.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ext4 Developers List <linux-ext4@vger.kernel.org>
 Cc: linux-mm@kvack.org, Linux Kernel Developers List <linux-kernel@vger.kernel.org>, mgorman@suse.de, Theodore Ts'o <tytso@mit.edu>
 
-Add buffer_head flags so that buffer cache writebacks can be marked
-with the the appropriate request flags, so that metadata blocks can be
-marked appropriately in blktrace.
+As Dave Chinner pointed out at the 2013 LSF/MM workshop, it's
+important that metadata I/O requests are marked as such to avoid
+priority inversions caused by I/O bandwidth throttling.
 
 Signed-off-by: "Theodore Ts'o" <tytso@mit.edu>
 ---
- fs/buffer.c                 | 5 +++++
- include/linux/buffer_head.h | 4 ++++
- 2 files changed, 9 insertions(+)
+ fs/ext4/balloc.c | 2 +-
+ fs/ext4/ialloc.c | 2 +-
+ fs/ext4/mmp.c    | 4 ++--
+ fs/ext4/super.c  | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index b4dcb34..a15575c 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -2988,6 +2988,11 @@ int submit_bh(int rw, struct buffer_head * bh)
- 	/* Take care of bh's that straddle the end of the device */
- 	guard_bh_eod(rw, bio, bh);
- 
-+	if (buffer_meta(bh))
-+		rw |= REQ_META;
-+	if (buffer_prio(bh))
-+		rw |= REQ_PRIO;
-+
- 	bio_get(bio);
- 	submit_bio(rw, bio);
- 
-diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
-index 5afc4f9..33c0f81 100644
---- a/include/linux/buffer_head.h
-+++ b/include/linux/buffer_head.h
-@@ -34,6 +34,8 @@ enum bh_state_bits {
- 	BH_Write_EIO,	/* I/O error on write */
- 	BH_Unwritten,	/* Buffer is allocated on disk but not written */
- 	BH_Quiet,	/* Buffer Error Prinks to be quiet */
-+	BH_Meta,	/* Buffer contains metadata */
-+	BH_Prio,	/* Buffer should be submitted with REQ_PRIO */
- 
- 	BH_PrivateStart,/* not a state bit, but the first bit available
- 			 * for private allocation by other entities
-@@ -124,6 +126,8 @@ BUFFER_FNS(Delay, delay)
- BUFFER_FNS(Boundary, boundary)
- BUFFER_FNS(Write_EIO, write_io_error)
- BUFFER_FNS(Unwritten, unwritten)
-+BUFFER_FNS(Meta, meta)
-+BUFFER_FNS(Prio, prio)
- 
- #define bh_offset(bh)		((unsigned long)(bh)->b_data & ~PAGE_MASK)
- 
+diff --git a/fs/ext4/balloc.c b/fs/ext4/balloc.c
+index 8dcaea6..d0f13ea 100644
+--- a/fs/ext4/balloc.c
++++ b/fs/ext4/balloc.c
+@@ -441,7 +441,7 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
+ 	trace_ext4_read_block_bitmap_load(sb, block_group);
+ 	bh->b_end_io = ext4_end_bitmap_read;
+ 	get_bh(bh);
+-	submit_bh(READ, bh);
++	submit_bh(READ | REQ_META | REQ_PRIO, bh);
+ 	return bh;
+ verify:
+ 	ext4_validate_block_bitmap(sb, desc, block_group, bh);
+diff --git a/fs/ext4/ialloc.c b/fs/ext4/ialloc.c
+index 18d36d8..00a818d 100644
+--- a/fs/ext4/ialloc.c
++++ b/fs/ext4/ialloc.c
+@@ -166,7 +166,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
+ 	trace_ext4_load_inode_bitmap(sb, block_group);
+ 	bh->b_end_io = ext4_end_bitmap_read;
+ 	get_bh(bh);
+-	submit_bh(READ, bh);
++	submit_bh(READ | REQ_META | REQ_PRIO, bh);
+ 	wait_on_buffer(bh);
+ 	if (!buffer_uptodate(bh)) {
+ 		put_bh(bh);
+diff --git a/fs/ext4/mmp.c b/fs/ext4/mmp.c
+index b3b1f7d..214461e 100644
+--- a/fs/ext4/mmp.c
++++ b/fs/ext4/mmp.c
+@@ -54,7 +54,7 @@ static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
+ 	lock_buffer(bh);
+ 	bh->b_end_io = end_buffer_write_sync;
+ 	get_bh(bh);
+-	submit_bh(WRITE_SYNC, bh);
++	submit_bh(WRITE_SYNC | REQ_META | REQ_PRIO, bh);
+ 	wait_on_buffer(bh);
+ 	sb_end_write(sb);
+ 	if (unlikely(!buffer_uptodate(bh)))
+@@ -86,7 +86,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
+ 		get_bh(*bh);
+ 		lock_buffer(*bh);
+ 		(*bh)->b_end_io = end_buffer_read_sync;
+-		submit_bh(READ_SYNC, *bh);
++		submit_bh(READ_SYNC | REQ_META | REQ_PRIO, *bh);
+ 		wait_on_buffer(*bh);
+ 		if (!buffer_uptodate(*bh)) {
+ 			brelse(*bh);
+diff --git a/fs/ext4/super.c b/fs/ext4/super.c
+index bfa29ec..dbc7c09 100644
+--- a/fs/ext4/super.c
++++ b/fs/ext4/super.c
+@@ -4252,7 +4252,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
+ 		goto out_bdev;
+ 	}
+ 	journal->j_private = sb;
+-	ll_rw_block(READ, 1, &journal->j_sb_buffer);
++	ll_rw_block(READ | REQ_META | REQ_PRIO, 1, &journal->j_sb_buffer);
+ 	wait_on_buffer(journal->j_sb_buffer);
+ 	if (!buffer_uptodate(journal->j_sb_buffer)) {
+ 		ext4_msg(sb, KERN_ERR, "I/O error on journal device");
 -- 
 1.7.12.rc0.22.gcdd159b
 
