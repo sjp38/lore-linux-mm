@@ -1,105 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 493226B0002
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 10:48:32 -0400 (EDT)
-Received: by mail-da0-f45.google.com with SMTP id v40so3172095dad.4
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2013 07:48:31 -0700 (PDT)
-Date: Mon, 22 Apr 2013 07:48:26 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: memcg: softlimit on internal nodes
-Message-ID: <20130422144826.GA12543@htj.dyndns.org>
-References: <20130420002620.GA17179@mtj.dyndns.org>
- <20130420031611.GA4695@dhcp22.suse.cz>
- <20130421022321.GE19097@mtj.dyndns.org>
- <CANN689GuN_5QdgPBjr7h6paVmPeCvLHYfLWNLsJMWib9V9G_Fw@mail.gmail.com>
- <20130422042445.GA25089@mtj.dyndns.org>
- <CANN689F7X1X4i1M=nteGan0POdVbBMu0xviuWN70f_BTv==3eA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CANN689F7X1X4i1M=nteGan0POdVbBMu0xviuWN70f_BTv==3eA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id F282F6B0002
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 11:07:52 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id el20so5452720lab.23
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2013 08:07:51 -0700 (PDT)
+From: Sergey Dyasly <dserrg@gmail.com>
+Subject: [PATCH] oom: add pending SIGKILL check for chosen victim
+Date: Mon, 22 Apr 2013 19:06:24 +0400
+Message-Id: <1366643184-3627-1-git-send-email-dserrg@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Greg Thelen <gthelen@google.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sha Zhengju <handai.szj@taobao.com>, Sergey Dyasly <dserrg@gmail.com>
 
-Hello, again.
+Currently, fatal_signal_pending() check is issued only for task that invoked
+oom killer. Add the same check for oom killer's chosen victim.
 
-On Mon, Apr 22, 2013 at 12:14:53AM -0700, Michel Lespinasse wrote:
-> > I think I stayed until near the end of the hierarchy discussion and
-> > yeap I heard you saying that.
-> 
-> All right. Too bad you had to leave - I think this is a discussion we
-> really need to have, so it would have been the perfect occasion.
+This eliminates regression with killing multithreaded processes which was
+introduced by commit 6b0c81b3be114a93f79bd4c5639ade5107d77c21
+(mm, oom: reduce dependency on tasklist_lock). When one of threads
+was oom-killed, other threads could also become victims of oom killer, which
+can cause an infinite loop.
 
-Eh well, it would have been better if I stayed but I think it served
-its purpose.  Conferences are great for raising awareness.  I usually
-find actual follow-up discussions done better in mailing lists.
+There is a race with task->thread_group RCU protected list deletion/iteration:
+now only a reference to a chosen thread of dying threadgroup is held, so when
+the thread doesn't have PF_EXITING flag yet and dump_header() is called
+to print info, it already has SIGKILL and can call do_exit(), which removes
+the thread from the thread_group list. After printing info, oom killer
+is doing while_each_thread() on this thread and it still has next reference
+to some other thread, but no other thread has next reference to this one.
+This causes the infinite loop with tasklist_lock read held.
 
-> > Cgroup doesn't and will not support delegation of subtrees to
-> > different security domains.  Please refer to the following thread.
-> >
-> >   http://thread.gmane.org/gmane.linux.kernel.cgroups/6638
-> 
-> Ah, good. This is news to me. To be clear, I don't care much for the
-> delegation scenario myself, but it's always been mentioned as the
-> reason I couldn't get what I want when we've talked about hierarchical
-> soft limit behavior in the past. If the decision not to have subtree
-> delegation sticks, I am perfectly happy with your proposal.
+When SIGKILL is sent to a task, it's also sent to all tasks in the same
+threadgroup. This information can be used to prevent triggering further
+oom killers for this threadgroup and avoid the infinite loop.
 
-Oh, it's sticking. :)
+Signed-off-by: Sergey Dyasly <dserrg@gmail.com>
+---
+ mm/oom_kill.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
-> > And I don't even get the delegation argument.  Isn't that already
-> > covered by hardlimit?  Sure, reclaimer won't look at it but if you
-> > don't trust a cgroup it of course will be put under certain hardlimit
-> > from parent and smacked when it misbehaves.  Hardlimit of course
-> > should have priority over allocation guarantee and the system wouldn't
-> > be in jeopardy due to a delegated cgroup misbehaving.  If each knob is
-> > given a clear meaning, these things should come naturally.  You just
-> > need a sane pecking order among the controls.  It almost feels surreal
-> > that this is suggested as a rationale for creating this chimera of a
-> > knob.  What the hell is going on here?
-> 
-> People often overcommit the cgroup hard limits so that one cgroup can
-> make use of a larger share of the machine when the other cgroups are
-> idle.
-> This works well only if you can depend on soft limits to steer reclaim
-> when the other cgroups get active again.
-
-And that's fine too.  If you take a step back, it shouldn't be
-difficult to recognize that what you want is an actual soft limit at
-the parent level overriding the allocation guarantee (for the lack of
-a better name).  Don't overload "alloc guarantee" with that extra
-meaning messing up its fundamental properties.  Create a separate
-plane of control which is consistent within itself and give it
-priority over "alloc guarantee".  You sure can discuss the details of
-the override - should it be round-robin or proportional to whatever or
-what, but that's a separate discussion and can be firmly labeled as
-implementation details rather than this twisting of the fundamental
-semantics of "softlimit".
-
-I really am not saying any of the use cases that have been described
-are invalid.  They all sound pretty useful, but, to me, what seems to
-be recurring is that people want two separate features - actual soft
-limit and allocation guarantee, and for some reason that I can't
-understand, fail to recognize they're two very different controls and
-try to put both into this one poor knob.
-
-It's like trying to combine accelerator and (flipped) clutch on a
-manual car.  Sure, it'll work fine while you're accelerating.  Good
-luck while cruising or on a long downhill.  You can try to tweak it
-all you want but things of course will get "interesting" and
-"questionable" as soon as the conditions change from the specific use
-cases which the specific tuning is made for.
-
-While car analogies can often be misleading, really, please stop
-trying to combine two completely separate controls into one knob.  It
-won't and can't work and is totally stupid.
-
-Thanks.
-
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 79e451a..5c42dd3 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -413,10 +413,11 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+ 					      DEFAULT_RATELIMIT_BURST);
+ 
+ 	/*
+-	 * If the task is already exiting, don't alarm the sysadmin or kill
+-	 * its children or threads, just set TIF_MEMDIE so it can die quickly
++	 * If the task already has a pending SIGKILL or is exiting, don't alarm
++	 * the sysadmin or kill its children or threads, just set TIF_MEMDIE
++	 * so it can die quickly
+ 	 */
+-	if (p->flags & PF_EXITING) {
++	if (fatal_signal_pending(p) || p->flags & PF_EXITING) {
+ 		set_tsk_thread_flag(p, TIF_MEMDIE);
+ 		put_task_struct(p);
+ 		return;
 -- 
-tejun
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
