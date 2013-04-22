@@ -1,96 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id E65C86B0002
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 14:30:25 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id bh4so3811786pad.12
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2013 11:30:25 -0700 (PDT)
-Date: Mon, 22 Apr 2013 11:30:20 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: memcg: softlimit on internal nodes
-Message-ID: <20130422183020.GF12543@htj.dyndns.org>
-References: <20130420002620.GA17179@mtj.dyndns.org>
- <20130420031611.GA4695@dhcp22.suse.cz>
- <20130421022321.GE19097@mtj.dyndns.org>
- <20130421124554.GA8473@dhcp22.suse.cz>
- <20130422043939.GB25089@mtj.dyndns.org>
- <20130422151908.GF18286@dhcp22.suse.cz>
- <20130422155703.GC12543@htj.dyndns.org>
- <20130422162012.GI18286@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 186746B0002
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 15:51:43 -0400 (EDT)
+Received: by mail-we0-f175.google.com with SMTP id t11so7041304wey.34
+        for <linux-mm@kvack.org>; Mon, 22 Apr 2013 12:51:41 -0700 (PDT)
+Date: Mon, 22 Apr 2013 21:51:38 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom: add pending SIGKILL check for chosen victim
+Message-ID: <20130422195138.GB31098@dhcp22.suse.cz>
+References: <1366643184-3627-1-git-send-email-dserrg@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130422162012.GI18286@dhcp22.suse.cz>
+In-Reply-To: <1366643184-3627-1-git-send-email-dserrg@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>
+To: Sergey Dyasly <dserrg@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sha Zhengju <handai.szj@taobao.com>
 
-Hey,
-
-On Mon, Apr 22, 2013 at 06:20:12PM +0200, Michal Hocko wrote:
-> Although the default limit is correct it is impractical for use
-> because it doesn't allow for "I behave do not reclaim me if you can"
-> cases. And we can implement such a behavior really easily with backward
-> compatibility and new interfaces (aka reuse the soft limit for that).
-
-Okay, now we're back to square one and I'm reinstating all the mean
-things I said in this thread. :P No wonder everyone is so confused
-about this.  Michal, you can't overload two controls which exert
-pressure on the opposite direction onto a single knob and define a
-sane hierarchical behavior for it.  You're making it a point control
-rather than range one.  Maybe you can define some twisted rules
-serving certain specific use case, but it's gonna be confusing /
-broken for different use cases.
-
-You're so confused that you don't even know you're confused.
-
-> I am approaching this from a simple perspective. Reclaim from everybody
-
-No, you're just thinking about two immediate problems you're given and
-trying to jam them into something you already have not realizing those
-two can't be expressed with a single knob.
-
-> who doesn't care about the soft limit (it hasn't been set for that
-> group) or who is above the soft limit. If that is sufficient to meet the
-> reclaim target then there is no reason to touch groups that _do_ care
-> about soft limit and they are under. Although this doesn't give you
-> any guarantee it can give a certain prioritization for groups in the
-> overcommit situations and that is what soft limit was intended for from
-> the very beginning.
-
-For $DEITY's sake, soft limit should exert reclaim pressure.  That's
-it.  If a group is over limit, it'll feel *extra* pressure until it's
-back to the limit.  Once under the limit, it should be treated equally
-to any other tasks which are under the limit including the ones
-without any softlimit configured.  It is not different from hardlimit.
-There's nothing "interesting" about it.
-
-Even for flat hierarchy, with your interpretation of the knob, it is
-impossible to say "I don't really care about this thing, if it goes
-over 30M, hammer on it", which is a completely reasonable thing to
-want.
-
-> > And, if people want a mechanism for isolation / lessening of pressure,
-> > which looks like a valid use case to me, add another knob for that
-> > which is prioritized under both hard and soft limits.  That is the
-> > only sensible way to do it.
+On Mon 22-04-13 19:06:24, Sergey Dyasly wrote:
+> Currently, fatal_signal_pending() check is issued only for task that invoked
+> oom killer. Add the same check for oom killer's chosen victim.
 > 
-> No, please no yet another knob. We have too many of them already. And
-> even those that are here for a long time can be confusing as one can
-> see.
+> This eliminates regression with killing multithreaded processes which was
+> introduced by commit 6b0c81b3be114a93f79bd4c5639ade5107d77c21
+> (mm, oom: reduce dependency on tasklist_lock). When one of threads
+> was oom-killed, other threads could also become victims of oom killer, which
+> can cause an infinite loop.
+> 
+> There is a race with task->thread_group RCU protected list deletion/iteration:
+> now only a reference to a chosen thread of dying threadgroup is held, so when
+> the thread doesn't have PF_EXITING flag yet and dump_header() is called
+> to print info, it already has SIGKILL and can call do_exit(), which removes
+> the thread from the thread_group list. After printing info, oom killer
+> is doing while_each_thread() on this thread and it still has next reference
+> to some other thread, but no other thread has next reference to this one.
+> This causes the infinite loop with tasklist_lock read held.
 
-Yes, sure, knobs are hard, let's combine two controls in the opposite
-directions into one.
-
-That is the crux of the confusion - trying to combine two things which
-can't and shouldn't be combined.  Just forget about the other thing or
-separate it out.  Please take a step back and look at it again.
-You're really epitomizing the confusion on this subject.
-
-Thanks.
+I am not sure I understand the race you are describing here.
+release_task calls __exit_signal with tasklist_lock held for write. And
+we are holding the very same lock for reading around while_each_thread
+in oom_kill_process.
+ 
+> When SIGKILL is sent to a task, it's also sent to all tasks in the same
+> threadgroup. This information can be used to prevent triggering further
+> oom killers for this threadgroup and avoid the infinite loop.
+> 
+> Signed-off-by: Sergey Dyasly <dserrg@gmail.com>
+> ---
+>  mm/oom_kill.c | 7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 79e451a..5c42dd3 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -413,10 +413,11 @@ void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
+>  					      DEFAULT_RATELIMIT_BURST);
+>  
+>  	/*
+> -	 * If the task is already exiting, don't alarm the sysadmin or kill
+> -	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+> +	 * If the task already has a pending SIGKILL or is exiting, don't alarm
+> +	 * the sysadmin or kill its children or threads, just set TIF_MEMDIE
+> +	 * so it can die quickly
+>  	 */
+> -	if (p->flags & PF_EXITING) {
+> +	if (fatal_signal_pending(p) || p->flags & PF_EXITING) {
+>  		set_tsk_thread_flag(p, TIF_MEMDIE);
+>  		put_task_struct(p);
+>  		return;
+> -- 
+> 1.8.1.2
+> 
 
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
