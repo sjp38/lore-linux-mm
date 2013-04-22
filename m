@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id C3F806B0033
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 04:31:54 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id DF1846B0034
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 04:31:56 -0400 (EDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [RFC PATCH 2/3] mm, page_alloc: change __rmqueue_fallback() to drain_fallback()
-Date: Mon, 22 Apr 2013 17:33:09 +0900
-Message-Id: <1366619590-31526-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [RFC PATCH 3/3] mm, page_alloc: optimize batch count in free_pcppages_bulk()
+Date: Mon, 22 Apr 2013 17:33:10 +0900
+Message-Id: <1366619590-31526-3-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1366619590-31526-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1366619590-31526-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,138 +13,123 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-If we run move_freepages_block() in __rmqueue_fallback(), it is possible
-that there is smaller order page than current_order in migratetype area.
-If we use it, we can reduce to break large order page as much as possible.
-For this purpose, we just move pages from fallback to target area. And
-then do retry __rmqueue_smallest(). This ensure that smallest page in area
-is returned, so that we can achieve our goal.
+If we use a division operation, we can compute a batch count more closed
+to ideal value. With this value, we can remove at least one list in each
+iteration. So we end the logic within MIGRATE_PCPTYPES iteration.
 
-In addition, this makes smaller code because we can remove wrongly inlined
-code in __rmqueue_fallback().
-
-Below is result of "size mm/page_alloc.o"
-
-* Before *
-   text	   data	    bss	    dec	    hex	filename
-  34729	   1309	    640	  36678	   8f46	mm/page_alloc.o
-
-* After *
-   text	   data	    bss	    dec	    hex	filename
-  34315	   1285	    640	  36240	   8d90	mm/page_alloc.o
+This makes logic more simple and understandable. In addition,
+batching to free more pages may be helpful to cache usage.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a822389..b212554 100644
+index b212554..2632131 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1009,14 +1009,15 @@ static void change_pageblock_range(struct page *pageblock_page,
+@@ -633,53 +633,71 @@ static inline int free_pages_check(struct page *page)
+ static void free_pcppages_bulk(struct zone *zone, int count,
+ 					struct per_cpu_pages *pcp)
+ {
+-	int migratetype = 0;
+-	int batch_free = 0;
++	struct page *page;
++	struct list_head *list;
+ 	int to_free = count;
++	int batch_free;
++	int mt, page_mt;
++	int nr_list;
++	int i;
++	bool all = false;
++
++	if (pcp->count == to_free)
++		all = true;
+ 
+ 	spin_lock(&zone->lock);
+ 	zone->all_unreclaimable = 0;
+ 	zone->pages_scanned = 0;
+ 
+-	while (to_free) {
+-		struct page *page;
+-		struct list_head *list;
++redo:
++	/* Count non-empty list */
++	nr_list = 0;
++	for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
++		list = &pcp->lists[mt];
++		if (!list_empty(list))
++			nr_list++;
++	}
+ 
+-		/*
+-		 * Remove pages from lists in a round-robin fashion. A
+-		 * batch_free count is maintained that is incremented when an
+-		 * empty list is encountered.  This is so more pages are freed
+-		 * off fuller lists instead of spinning excessively around empty
+-		 * lists
+-		 */
+-		do {
+-			batch_free++;
+-			if (++migratetype == MIGRATE_PCPTYPES)
+-				migratetype = 0;
+-			list = &pcp->lists[migratetype];
+-		} while (list_empty(list));
++	/*
++	 * If there is only one non-empty list, free them all.
++	 * Otherwise, remove pages from lists in a round-robin fashion.
++	 * batch_free is set to remove at least one list.
++	 */
++	if (all || nr_list == 1)
++		batch_free = to_free;
++	else
++		batch_free = to_free / nr_list;
+ 
+-		/* This is the only non-empty list. Free them all. */
+-		if (batch_free == MIGRATE_PCPTYPES)
+-			batch_free = to_free;
++	for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
++		list = &pcp->lists[mt];
+ 
+-		do {
+-			int mt;	/* migratetype of the to-be-freed page */
++		for (i = 0; i < batch_free; i++) {
++			if (list_empty(list))
++				break;
+ 
++			to_free--;
+ 			page = list_entry(list->prev, struct page, lru);
++
+ 			/* must delete as __free_one_page list manipulates */
+ 			list_del(&page->lru);
+-			mt = get_freepage_migratetype(page);
++			page_mt = get_freepage_migratetype(page);
+ 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+-			__free_one_page(page, zone, 0, mt);
+-			trace_mm_page_pcpu_drain(page, 0, mt);
+-			if (likely(!is_migrate_isolate_page(page))) {
+-				__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
+-				if (is_migrate_cma(mt))
+-					__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
+-			}
+-		} while (--to_free && --batch_free && !list_empty(list));
++			__free_one_page(page, zone, 0, page_mt);
++			trace_mm_page_pcpu_drain(page, 0, page_mt);
++
++			if (unlikely(is_migrate_isolate_page(page)))
++				continue;
++
++			__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
++			if (is_migrate_cma(page_mt))
++				__mod_zone_page_state(zone,
++						NR_FREE_CMA_PAGES, 1);
++		}
  	}
++
++	if (to_free)
++		goto redo;
++
+ 	spin_unlock(&zone->lock);
  }
  
--/* Remove an element from the buddy allocator from the fallback list */
--static inline struct page *
--__rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
-+/* Drain elements from the buddy allocator from the fallback list */
-+static inline bool
-+drain_fallback(struct zone *zone, int order, int start_migratetype)
- {
- 	struct free_area *area = NULL;
- 	int current_order;
- 	struct page *page;
- 	int migratetype = 0, i;
-+	bool moved = false;
- 
- 	/* Find the largest possible block of pages in the other list */
- 	for (current_order = MAX_ORDER-1; current_order >= order;
-@@ -1034,14 +1035,13 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
- 		}
- 	}
- 
--	return NULL;
-+	return false;
- 
- found:
- 	page = list_entry(area->free_list[migratetype].next, struct page, lru);
--	area->nr_free--;
- 
- 	/*
--	 * If breaking a large block of pages, move all free pages to the
-+	 * If draining a large block of pages, move all free pages to the
- 	 * preferred allocation list. If falling back for a reclaimable
- 	 * kernel allocation, be more aggressive about taking ownership
- 	 * of free pages
-@@ -1055,33 +1055,26 @@ found:
- 			 start_migratetype == MIGRATE_RECLAIMABLE ||
- 			 page_group_by_mobility_disabled)) {
- 		int pages;
-+
- 		pages = move_freepages_block(zone, page, start_migratetype);
-+		if (likely(pages))
-+			moved = true;
- 
- 		/* Claim the whole block if over half of it is free */
- 		if (pages >= (1 << (pageblock_order-1)) ||
- 				page_group_by_mobility_disabled)
- 			set_pageblock_migratetype(page, start_migratetype);
--
--		migratetype = start_migratetype;
- 	}
- 
--	/* Remove the page from the freelists */
--	list_del(&page->lru);
--	rmv_page_order(page);
--
- 	/* Take ownership for orders >= pageblock_order */
- 	if (current_order >= pageblock_order &&
--			!is_migrate_cma(migratetype))
-+			!is_migrate_cma(start_migratetype))
- 		change_pageblock_range(page, current_order, start_migratetype);
- 
--	expand(zone, page, order, current_order, area,
--			is_migrate_cma(migratetype)
--			? migratetype : start_migratetype);
-+	if (!moved)
-+		move_freepages(zone, page, page, start_migratetype);
- 
--	trace_mm_page_alloc_extfrag(page, order, current_order,
--			start_migratetype, migratetype);
--
--	return page;
-+	return true;
- }
- 
- /*
-@@ -1092,22 +1085,23 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
- 						int migratetype)
- {
- 	struct page *page;
-+	bool drained;
- 
--retry_reserve:
-+retry:
- 	page = __rmqueue_smallest(zone, order, migratetype);
- 
- 	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
--		page = __rmqueue_fallback(zone, order, migratetype);
-+		drained = drain_fallback(zone, order, migratetype);
- 
- 		/*
- 		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
- 		 * is used because __rmqueue_smallest is an inline function
- 		 * and we want just one call site
- 		 */
--		if (!page) {
-+		if (!drained)
- 			migratetype = MIGRATE_RESERVE;
--			goto retry_reserve;
--		}
-+
-+		goto retry;
- 	}
- 
- 	trace_mm_page_alloc_zone_locked(page, order, migratetype);
 -- 
 1.7.9.5
 
