@@ -1,60 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id CFCDD6B0002
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 16:37:48 -0400 (EDT)
-Date: Mon, 22 Apr 2013 13:37:46 -0700
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id AADC16B0034
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 16:44:17 -0400 (EDT)
+Date: Mon, 22 Apr 2013 13:44:15 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] swap: redirty page if page write fails on swap file
-Message-Id: <20130422133746.ffbbb70c0394fdbf1096c7ee@linux-foundation.org>
-In-Reply-To: <516E918B.3050309@redhat.com>
-References: <516E918B.3050309@redhat.com>
+Subject: Re: [PATCH] slab: Remove unnecessary __builtin_constant_p()
+Message-Id: <20130422134415.32c7f2cac07c924bff3017a4@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.02.1304171702380.24494@chino.kir.corp.google.com>
+References: <1366225776.8817.28.camel@pippen.local.home>
+	<alpine.DEB.2.02.1304171702380.24494@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Behan Webster <behanw@converseincode.com>
 
-On Wed, 17 Apr 2013 14:11:55 +0200 Jerome Marchand <jmarchan@redhat.com> wrote:
+On Wed, 17 Apr 2013 17:03:21 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
+> On Wed, 17 Apr 2013, Steven Rostedt wrote:
 > 
-> Since commit 62c230b, swap_writepage() calls direct_IO on swap files.
-> However, in that case page isn't redirtied if I/O fails, and is therefore
-> handled afterwards as if it has been successfully written to the swap
-> file, leading to memory corruption when the page is eventually swapped
-> back in.
-> This patch sets the page dirty when direct_IO() fails. It fixes a memory
-> corruption that happened while using swap-over-NFS.
+> > The slab.c code has a size check macro that checks the size of the
+> > following structs:
+> > 
+> > struct arraycache_init
+> > struct kmem_list3
+> > 
+> > The index_of() function that takes the sizeof() of the above two structs
+> > and does an unnecessary __builtin_constant_p() on that. As sizeof() will
+> > always end up being a constant making this always be true. The code is
+> > not incorrect, but it just adds added complexity, and confuses users and
+> > wastes the time of reviewers of the code, who spends time trying to
+> > figure out why the builtin_constant_p() was used.
+> > 
+> > This patch is just a clean up that makes the index_of() code a little
+> > bit less complex.
+> > 
+> > Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
 > 
-> ...
->
-> --- a/mm/page_io.c
-> +++ b/mm/page_io.c
-> @@ -222,6 +222,8 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
->  		if (ret == PAGE_SIZE) {
->  			count_vm_event(PSWPOUT);
->  			ret = 0;
-> +		} else {
-> +			set_page_dirty(page);
->  		}
->  		return ret;
->  	}
+> Acked-by: David Rientjes <rientjes@google.com>
+> 
+> Adding Pekka to the cc.
 
-So what happens to the page now?  It remains dirty and the kernel later
-tries to write it again?  And if that write also fails, the page is
-effectively leaked until process exit?
-
-
-Aside: Mel, __swap_writepage() is fairly hair-raising.  It unlocks the
-page before doing the IO and doesn't set PageWriteback().  Why such an
-exception from normal handling?
-
-Also, what is protecting the page from concurrent reclaim or exit()
-during the above swap_writepage()?
-
-Seems that the code needs a bunch of fixes or a bunch of comments
-explaining why it is safe and why it has to be this way.
+I ducked this patch because it seemed rather pointless - but a little
+birdie told me that there is a secret motivation which seems pretty
+reasonable to me.  So I shall await chirp-the-second, which hopefully
+will have a fuller and franker changelog ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
