@@ -1,113 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 948A66B0002
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 17:16:23 -0400 (EDT)
-Date: Mon, 22 Apr 2013 14:16:21 -0700
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 0A7B06B0002
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 18:35:43 -0400 (EDT)
+Date: Mon, 22 Apr 2013 15:35:41 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] slab: Remove unnecessary __builtin_constant_p()
-Message-Id: <20130422141621.384eb93a6a8f3d441cd1a991@linux-foundation.org>
-In-Reply-To: <1366664301.9609.140.camel@gandalf.local.home>
-References: <1366225776.8817.28.camel@pippen.local.home>
-	<alpine.DEB.2.02.1304171702380.24494@chino.kir.corp.google.com>
-	<20130422134415.32c7f2cac07c924bff3017a4@linux-foundation.org>
-	<1366664301.9609.140.camel@gandalf.local.home>
+Subject: Re: [Bug fix PATCH v2] numa, cpu hotplug: Change links of CPU and
+ node when changing node number by onlining CPU
+Message-Id: <20130422153541.04ba682f13910cfede0d2ff7@linux-foundation.org>
+In-Reply-To: <5170D4CB.20900@jp.fujitsu.com>
+References: <5170D4CB.20900@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Behan Webster <behanw@converseincode.com>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: kosaki.motohiro@gmail.com, mingo@kernel.org, hpa@zytor.com, srivatsa.bhat@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-On Mon, 22 Apr 2013 16:58:21 -0400 Steven Rostedt <rostedt@goodmis.org> wrote:
+On Fri, 19 Apr 2013 14:23:23 +0900 Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
 
-> On Mon, 2013-04-22 at 13:44 -0700, Andrew Morton wrote:
-> > On Wed, 17 Apr 2013 17:03:21 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-> > 
-> > > On Wed, 17 Apr 2013, Steven Rostedt wrote:
-> > > 
-> > > > The slab.c code has a size check macro that checks the size of the
-> > > > following structs:
-> > > > 
-> > > > struct arraycache_init
-> > > > struct kmem_list3
-> > > > 
-> > > > The index_of() function that takes the sizeof() of the above two structs
-> > > > and does an unnecessary __builtin_constant_p() on that. As sizeof() will
-> > > > always end up being a constant making this always be true. The code is
-> > > > not incorrect, but it just adds added complexity, and confuses users and
-> > > > wastes the time of reviewers of the code, who spends time trying to
-> > > > figure out why the builtin_constant_p() was used.
-> > > > 
-> > > > This patch is just a clean up that makes the index_of() code a little
-> > > > bit less complex.
-> > > > 
-> > > > Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
-> > > 
-> > > Acked-by: David Rientjes <rientjes@google.com>
-> > > 
-> > > Adding Pekka to the cc.
-> > 
-> > I ducked this patch because it seemed rather pointless - but a little
-> > birdie told me that there is a secret motivation which seems pretty
-> > reasonable to me.  So I shall await chirp-the-second, which hopefully
-> > will have a fuller and franker changelog ;)
+> When booting x86 system contains memoryless node, node numbers of CPUs
+> on memoryless node were changed to nearest online node number by
+> init_cpu_to_node() because the node is not online.
 > 
-> <little birdie voice>
-> The real motivation behind this patch was it prevents LLVM (Clang) from
-> compiling the kernel. There's currently a bug in Clang where it can't
-> determine if a variable is constant or not, so instead, when
-> __builtin_constant_p() is used, it just treats it like it isn't a
-> constant (always taking the slow *safe* path).
-> 
-> Unfortunately, the "confusing" code of slub.c that unnecessarily uses
-> the __builtin_constant_p() will fail to compile if the variable passed
-> in is not constant. As Clang will say constants are not constant at this
-> point, the compile fails.
-> 
-> When looking into this, we found the only two users of the index_of()
-> static function that has this issue, passes in size_of(), which will
-> always be a constant, making the check redundant.
+> ...
+>
+> If we hot add memory to memoryless node and offine/online all CPUs on
+> the node, node numbers of these CPUs are changed to correct node numbers
+> by srat_detect_node() because the node become online.
 
-Looking at the current callers is cheating.  What happens if someone
-adds another caller which doesn't use sizeof?
+OK, here's a dumb question.
 
-> Note, this is a bug in Clang that will hopefully be fixed soon. But for
-> now, this strange redundant compile time check is preventing Clang from
-> even testing the Linux kernel build.
-> </little birdie voice>
-> 
-> And I still think the original change log has rational for the change,
-> as it does make it rather confusing to what is happening there.
+At boot time the CPUs are assigned to the "nearest online node" rather
+than to their real memoryless node.  The patch arranges for those CPUs
+to still be assigned to the "nearest online node" _after_ some memory
+is hot-added to their real node.  Correct?
 
-The patch made index_of() weaker!
-
-It's probably all a bit academic, given that linux-next does
-
--/*
-- * This function must be completely optimized away if a constant is passed to
-- * it.  Mostly the same as what is in linux/slab.h except it returns an index.
-- */
--static __always_inline int index_of(const size_t size)
--{
--	extern void __bad_size(void);
--
--	if (__builtin_constant_p(size)) {
--		int i = 0;
--
--#define CACHE(x) \
--	if (size <=x) \
--		return i; \
--	else \
--		i++;
--#include <linux/kmalloc_sizes.h>
--#undef CACHE
--		__bad_size();
--	} else
--		__bad_size();
--	return 0;
--}
--
+Would it not be better to fix this by assigning those CPUs to their real,
+memoryless node right at the initial boot?  Or is there something in
+the kernel which makes cpus-on-a-memoryless-node not work correctly?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
