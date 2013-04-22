@@ -1,60 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 7E8276B0033
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 12:01:17 -0400 (EDT)
-Received: by mail-da0-f46.google.com with SMTP id y19so3204616dan.19
-        for <linux-mm@kvack.org>; Mon, 22 Apr 2013 09:01:16 -0700 (PDT)
-Date: Mon, 22 Apr 2013 09:01:12 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: memcg: softlimit on internal nodes
-Message-ID: <20130422160112.GE12543@htj.dyndns.org>
-References: <20130420002620.GA17179@mtj.dyndns.org>
- <20130420031611.GA4695@dhcp22.suse.cz>
- <20130421022321.GE19097@mtj.dyndns.org>
- <CANN689GuN_5QdgPBjr7h6paVmPeCvLHYfLWNLsJMWib9V9G_Fw@mail.gmail.com>
- <20130422042445.GA25089@mtj.dyndns.org>
- <20130422153730.GG18286@dhcp22.suse.cz>
- <20130422154620.GB12543@htj.dyndns.org>
- <20130422155454.GH18286@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 201FC6B0002
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 12:17:20 -0400 (EDT)
+Message-ID: <51756286.4020704@intel.com>
+Date: Mon, 22 Apr 2013 09:17:10 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130422155454.GH18286@dhcp22.suse.cz>
+Subject: Re: [PATCH 6/6] add documentation on proc.txt
+References: <1366620306-30940-1-git-send-email-minchan@kernel.org> <1366620306-30940-6-git-send-email-minchan@kernel.org>
+In-Reply-To: <1366620306-30940-6-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Michel Lespinasse <walken@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Greg Thelen <gthelen@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Rik van Riel <riel@redhat.com>, Rob Landley <rob@landley.net>
 
-Hey,
+On 04/22/2013 01:45 AM, Minchan Kim wrote:
+> +The /proc/PID/reclaim is used to reclaim pages in this process.
+> +To reclaim file-backed pages,
+> +    > echo 1 > /proc/PID/reclaim
+> +
+> +To reclaim anonymous pages,
+> +    > echo 2 > /proc/PID/reclaim
+> +
+> +To reclaim both pages,
+> +    > echo 3 > /proc/PID/reclaim
 
-On Mon, Apr 22, 2013 at 05:54:54PM +0200, Michal Hocko wrote:
-> > Oh, if so, I'm happy.  Sorry about being brash on the thread; however,
-> > please talk with google memcg people.  They have very different
-> > interpretation of what "softlimit" is and are using it according to
-> > that interpretation.  If it *is* an actual soft limit, there is no
-> > inherent isolation coming from it and that should be clear to
-> > everyone.
-> 
-> We have discussed that for a long time. I will not speak for Greg & Ying
-> but from my POV we have agreed that the current implementation will work
-> for them with some (minor) changes in their layout.
-> As I have said already with a careful configuration (e.i. setting the
-> soft limit only where it matters - where it protects an important
-> memory which is usually in the leaf nodes) you can actually achieve
-> _high_ probability for not being reclaimed after the rework which was not
-> possible before because of the implementation which was ugly and
-> smelled.
+This seems to be in the same spirit as /proc/sys/vm/drop_caches.  That's
+not a sin in and of itself.  But, why use numbers here?
 
-I don't know.  I'm not sure this is a good idea.  It's still
-encouraging abuse of the knob even if that's not the intention and
-once the usage sticks you end up with something you can't revert
-afterwards.  I think it'd be better to make it *very* clear that
-"softlimit" can't be used for isolation in any reliable way.
+Any chance I could talk you in to using some strings, say like:
 
-Thanks.
+	echo 'anonymous' > /proc/PID/reclaim
+	echo 'anonymous|file' > /proc/PID/reclaim
 
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
