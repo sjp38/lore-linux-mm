@@ -1,145 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id E37736B0002
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 18:26:39 -0400 (EDT)
-Date: Tue, 23 Apr 2013 18:26:35 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1366755995-no3omuhl-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20130423132522.042fa8d27668bbca6a410a92@linux-foundation.org>
-References: <bug-56881-27@https.bugzilla.kernel.org/>
- <20130423132522.042fa8d27668bbca6a410a92@linux-foundation.org>
-Subject: Re: [Bug 56881] New: MAP_HUGETLB mmap fails for certain sizes
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id A9C846B0002
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 18:31:03 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id ro2so271560pbb.32
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 15:31:02 -0700 (PDT)
+Date: Tue, 23 Apr 2013 15:31:02 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: page eviction from the buddy cache
+In-Reply-To: <20130423150008.046ee9351da4681128db0bf3@linux-foundation.org>
+Message-ID: <alpine.LNX.2.00.1304231518430.14137@eggly.anvils>
+References: <51504A40.6020604@ya.ru> <20130327150743.GC14900@thunk.org> <alpine.LNX.2.00.1303271135420.29687@eggly.anvils> <3C8EEEF8-C1EB-4E3D-8DE6-198AB1BEA8C0@gmail.com> <515CD665.9000300@gmail.com> <239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com>
+ <51730619.3030204@fastmail.fm> <20130420235718.GA28789@thunk.org> <5176785D.5030707@fastmail.fm> <20130423122708.GA31170@thunk.org> <alpine.LNX.2.00.1304231230340.12850@eggly.anvils> <20130423150008.046ee9351da4681128db0bf3@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, iceman_dvd@yahoo.com
+Cc: Theodore Ts'o <tytso@mit.edu>, Bernd Schubert <bernd.schubert@fastmail.fm>, Alexey Lyahkov <alexey.lyashkov@gmail.com>, Will Huck <will.huckk@gmail.com>, Andrew Perepechko <anserper@ya.ru>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
 
-On Tue, Apr 23, 2013 at 01:25:22PM -0700, Andrew Morton wrote:
+On Tue, 23 Apr 2013, Andrew Morton wrote:
+> On Tue, 23 Apr 2013 12:57:45 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
 > 
-> (switched to email.  Please respond via emailed reply-to-all, not via the
-> bugzilla web interface).
+> I do agree that we should be able to set both PageReferenced and
+> PageActive on a lru_add_pvecs page and have those hints honoured when
+> lru_add_pvecs is spilled onto the LRU.
 > 
-> On Sat, 20 Apr 2013 03:00:30 +0000 (UTC) bugzilla-daemon@bugzilla.kernel.org wrote:
-> 
-> > https://bugzilla.kernel.org/show_bug.cgi?id=56881
-> > 
-> >            Summary: MAP_HUGETLB mmap fails for certain sizes
-> >            Product: Memory Management
-> >            Version: 2.5
-> >     Kernel Version: 3.5.0-27
-> 
-> Thanks.
-> 
-> It's a post-3.4 regression, testcase included.  Does someone want to
-> take a look, please?
+> At present the code decides up-front which LRU the lru_add_pvecs page
+> will eventually be spilled onto.  That's a bit strange and I wonder why
+> we did it that way.  Why not just have a single (per-cpu) magazine of
+> pages which are to go onto the LRUs, and decide *which* LRU that will
+> be at the last possible moment?
 
-Let me try it.
+Yes, it is strange, and I'm wanting to get away from that: though I
+won't be surprised if we discover that it's actually important for
+avoiding races in the current scheme - which won't cope well with a
+page being marked PageActive at the wrong moment (an instant after
+it has been placed on the Inactive list).
 
-  static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
-  {                                                                            
-          struct inode *inode = file->f_path.dentry->d_inode;
-          loff_t len, vma_len;                               
-          int ret;                                           
-          struct hstate *h = hstate_file(file);              
-          ...                                                                               
-          if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))              
-                  return -EINVAL;                                              
+What I want is for pages on the the per-cpu lru_add_pvecs to be already
+marked PageLRU, and without raised page count, so that they are eligible
+for isolation and migration without needing a drain.  (But I may be too
+ambitious in trying to avoid the raised page count for lru_rotate_pvecs
+and the others too.)
 
-This code checks only whether a given hugetlb vma covers (1 << order)
-pages, not whether it's exactly hugepage aligned.
-Before 2b37c35e6552 "fs/hugetlbfs/inode.c: fix pgoff alignment
-checking on 32-bit", it was
-
-  if (vma->vm_pgoff & ~(huge_page_mask(h) >> PAGE_SHIFT))
-
-, but this made no sense because ~(huge_page_mask(h) >> PAGE_SHIFT) is
-0xff for 2M hugepage.
-I think the reported problem is not a bug because the behavior before
-this change was wrong or not as expected.
-
-If we want to make sure that a given address range fits hugepage size,
-something like below can be useful.
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 78bde32..a98304b 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -113,11 +113,11 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
- 	vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND | VM_DONTDUMP;
- 	vma->vm_ops = &hugetlb_vm_ops;
- 
--	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
--		return -EINVAL;
--
- 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
- 
-+	if (vma->len & ~huge_page_mask(h))
-+		return -EINVAL;
-+
- 	mutex_lock(&inode->i_mutex);
- 	file_accessed(file);
- 
-
-Thanks,
-Naoya Horiguchi
-
-> >           Platform: All
-> >         OS/Version: Linux
-> >               Tree: Mainline
-> >             Status: NEW
-> >           Severity: high
-> >           Priority: P1
-> >          Component: Other
-> >         AssignedTo: akpm@linux-foundation.org
-> >         ReportedBy: iceman_dvd@yahoo.com
-> >         Regression: No
-> > 
-> > 
-> > This is on an Ubuntu 12.10 desktop, but the same issue has been found on 12.04
-> > with 3.5.0 kernel.
-> > See the sample program. An allocation with MAP_HUGETLB consistently fails with
-> > certain sizes, while it succeeds with others.
-> > The allocation sizes are well below the number of free huge pages.
-> > 
-> > $ uname -a Linux davide-lnx2 3.5.0-27-generic #46-Ubuntu SMP Mon Mar 25
-> > 19:58:17 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
-> > 
-> > 
-> > # echo 100 > /proc/sys/vm/nr_hugepages
-> > 
-> > # cat /proc/meminfo
-> > ...
-> > AnonHugePages:         0 kB
-> > HugePages_Total:     100
-> > HugePages_Free:      100
-> > HugePages_Rsvd:        0
-> > HugePages_Surp:        0
-> > Hugepagesize:       2048 kB
-> > 
-> > 
-> > $ ./mmappu $((5 * 2 * 1024 * 1024 - 4096))
-> > size=10481664    0x9ff000
-> > hugepage mmap: Invalid argument
-> > 
-> > 
-> > $ ./mmappu $((5 * 2 * 1024 * 1024 - 4095))
-> > size=10481665    0x9ff001
-> > OK!
-> > 
-> > 
-> > It seems the trigger point is a normal page size.
-> > The same binary works flawlessly in previous kernels.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
