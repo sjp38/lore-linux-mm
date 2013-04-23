@@ -1,84 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 217B16B0002
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 09:29:02 -0400 (EDT)
-Date: Tue, 23 Apr 2013 15:28:58 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: memcg: softlimit on internal nodes
-Message-ID: <20130423132858.GI8001@dhcp22.suse.cz>
-References: <20130422042445.GA25089@mtj.dyndns.org>
- <20130422153730.GG18286@dhcp22.suse.cz>
- <20130422154620.GB12543@htj.dyndns.org>
- <20130422155454.GH18286@dhcp22.suse.cz>
- <CANN689Hz5A+iMM3T76-8RCh8YDnoGrYBvtjL_+cXaYRR0OkGRQ@mail.gmail.com>
- <51765FB2.3070506@parallels.com>
- <20130423114020.GC8001@dhcp22.suse.cz>
- <CANN689FaGBi+LmdoSGBf3D9HmLD8Emma1_M3T1dARSD6=75B0w@mail.gmail.com>
- <20130423130627.GG8001@dhcp22.suse.cz>
- <517688F0.7010407@parallels.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id D2F126B0033
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 09:32:13 -0400 (EDT)
+Received: by mail-da0-f47.google.com with SMTP id p1so344456dad.20
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 06:32:13 -0700 (PDT)
+Date: Tue, 23 Apr 2013 21:49:35 +0800
+From: Zheng Liu <gnehzuil.liu@gmail.com>
+Subject: Re: [question] call mark_page_accessed() in minor fault
+Message-ID: <20130423134935.GA10138@gmail.com>
+References: <20130423122542.GA5638@gmail.com>
+ <5176866A.2060400@openvz.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <517688F0.7010407@parallels.com>
+In-Reply-To: <5176866A.2060400@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, muming.wq@taobao.com
 
-On Tue 23-04-13 17:13:20, Glauber Costa wrote:
-> On 04/23/2013 05:06 PM, Michal Hocko wrote:
-> > On Tue 23-04-13 05:51:36, Michel Lespinasse wrote:
-> > [...]
-> >> The issue I see is that even when people configure soft limits B+C <
-> >> A, your current proposal still doesn't "leave the other alone" as
-> >> Glauber and I think we should.
-> > 
-> > If B+C < A then B resp. C get reclaimed only if A is over the limit
-> > which means that it couldn't reclaimed enough to get bellow the limit
-> > when we bang on it before B and C. We can update the implementation
-> > later to be more clever in situations like this but this is not that
-> > easy because once we get away from the round robin over the tree then we
-> > might end up having other issues - like unfairness etc... That's why I
-> > wanted to have this as simple as possible.
-> > 
-> Nobody is opposing this, Michal.
+Hi Konstantin,
+
+On Tue, Apr 23, 2013 at 05:02:34PM +0400, Konstantin Khlebnikov wrote:
+> Zheng Liu wrote:
+> >Hi all,
+> >
+> >Recently we meet a performance regression about mmaped page.  When we upgrade
+> >our product system from 2.6.18 kernel to a latest kernel, such as 2.6.32 kernel,
+> >we will find that mmaped pages are reclaimed very quickly.  We found that when
+> >we hit a minor fault mark_page_accessed() is called in 2.6.18 kernel, but in
+> >2.6.32 kernel we don't call mark_page_accesed().  This means that mmaped pages
+> >in 2.6.18 kernel are activated and moved into active list.  While in 2.6.32
+> >kernel mmaped pages are still kept in inactive list.
+> >
+> >So my question is why we call mark_page_accessed() in 2.6.18 kernel, but don't
+> >call it in 2.6.32 kernel.  Has any reason here?
 > 
-> What people are opposing is you saying that the children should be
-> reclaimed *regardless* of their softlimit when the parent is over their
-> soft limit. Someone, specially you, saying this, highly threatens
-> further development in this direction.
+> Behavior was changed in commit
+> v2.6.28-6130-gbf3f3bc "mm: don't mark_page_accessed in fault path"
 
-OK, I am feeling like repeating myself. Anyway once more. I am _all_ for
-protecting children that are under their limit if that is _possible_[1].
-We are not yet there though for generic configuration. That's why I was
-so careful about the wording and careful configuration at this stage.
-Is this sufficient for your concerns?
+Thanks for pointing it out.
 
-I do not see any giant obstacles in the current implementation to allow
-this behavior. 
-
-> It doesn't really matter if your current set is doing this, simply
-> everybody already agreed that you are moving in a good direction.
 > 
-> If you believe that it is desired to protect the children from reclaim
-> in situation in which the offender is only one of the children and that
-> can be easily identified, please state that clearly.
+> Please see also commits
+> v3.2-4876-g34dbc67 "vmscan: promote shared file mapped pages" and
 
-Clearly yes.
+Yes, I will give it try.  If I understand correctly, this commit is
+useful for multi-processes program that access a shared mmaped page,
+but that could not be useful for us because our program is multi-thread.
 
----
-[1] and to be even more clear there are cases where this will never be
-possible. For an example:
-	A (soft:0)
-	|
-	B (soft:MAX)
+> v3.2-4877-gc909e99 "vmscan: activate executable pages after first usage".
 
-where B smart ass thinks that his group never gets reclaim although he
-is the only source of the pressure. This is what I call untrusted
-environment.
--- 
-Michal Hocko
-SUSE Labs
+We have backported this patch, but it is useless.  This commit only
+tries to activate a executable page, but our mmaped pages aren't with
+this flag.
+
+Additional question is that currently mmaped page is reclaimed too
+quickly.  I think maybe we need to adjust our page reclaim strategy to
+balance number of pages between mmaped page and file page cache.  Now
+every time we access a page using read(2)/write(2), this page will be
+touched.  But after first time we touch a mmaped page, we never touch it
+again except that this page is evicted.
+
+Regards,
+                                                - Zheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
