@@ -1,68 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 7B9216B0002
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 15:57:47 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id t12so650652pdi.30
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 12:57:46 -0700 (PDT)
-Date: Tue, 23 Apr 2013 12:57:45 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: page eviction from the buddy cache
-In-Reply-To: <20130423122708.GA31170@thunk.org>
-Message-ID: <alpine.LNX.2.00.1304231230340.12850@eggly.anvils>
-References: <51504A40.6020604@ya.ru> <20130327150743.GC14900@thunk.org> <alpine.LNX.2.00.1303271135420.29687@eggly.anvils> <3C8EEEF8-C1EB-4E3D-8DE6-198AB1BEA8C0@gmail.com> <515CD665.9000300@gmail.com> <239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com>
- <51730619.3030204@fastmail.fm> <20130420235718.GA28789@thunk.org> <5176785D.5030707@fastmail.fm> <20130423122708.GA31170@thunk.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id C43B16B0033
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 16:25:24 -0400 (EDT)
+Date: Tue, 23 Apr 2013 13:25:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 56881] New: MAP_HUGETLB mmap fails for certain sizes
+Message-Id: <20130423132522.042fa8d27668bbca6a410a92@linux-foundation.org>
+In-Reply-To: <bug-56881-27@https.bugzilla.kernel.org/>
+References: <bug-56881-27@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: Bernd Schubert <bernd.schubert@fastmail.fm>, Alexey Lyahkov <alexey.lyashkov@gmail.com>, Will Huck <will.huckk@gmail.com>, Andrew Perepechko <anserper@ya.ru>, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de
+To: linux-mm@kvack.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, iceman_dvd@yahoo.com
 
-On Tue, 23 Apr 2013, Theodore Ts'o wrote:
-> On Tue, Apr 23, 2013 at 02:02:37PM +0200, Bernd Schubert wrote:
-> > 
-> > I just thought we can (mis)use that flag and and add another
-> > information to the page that it holds meta data. The mm system then
-> > could use that flag and evict those pages with a lower priority
-> > compared to other pages.
+
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
+
+On Sat, 20 Apr 2013 03:00:30 +0000 (UTC) bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=56881
 > 
-> Well, the flag I added was to the buffer_head, not to the page, and my
-> understanding is that the mm folks are very hesitant to add new page
-> flags, since they are bumping up against the 32 bit limit (on the i386
-> platform), and they are trying to keep the struct page structure trim
-> and svelte.  :-)
+>            Summary: MAP_HUGETLB mmap fails for certain sizes
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 3.5.0-27
 
-Yes indeed.  But luckily this issue seems not to need another page flag.
+Thanks.
 
-If metadata is useful, it gets used: so mark_page_accessed when it's used
-should generally do the job; perhaps it's already called on that path,
-perhaps calls need to be added.
+It's a post-3.4 regression, testcase included.  Does someone want to
+take a look, please?
 
-Rarely used but nonetheless useful metadata might get pushed out by data.
-But I don't think we want another page flag, and yet more complicated
-reclaim policy in mm for that case.  If the filesystem knows of such
-cases, I hope it can find a way to use mark_page_accessed more often
-on such pages than they are actually accessed, to help retain them.
-
-What this thread did bring up was the failure of mark_page_accessed
-to be fully effective until the page is flushed from pagevec to lru.
-That remains a good point: something that several would like to fix.
-
-For now I stand by what I said before (if you find it effective
-in practice - I haven't heard back): at the moment you need to
-
-	mark_page_accessed(page);	/* to SetPageReferenced */
-	lru_add_drain();		/* to SetPageLRU */
-	mark_page_accessed(page);	/* to SetPageActive */
-
-when such a metadata page is first brought in.
-
-We all hate that lru_add_drain in the middle, which will exacerbate
-lru_lock contention.  We would love to eliminate the need for most
-lru_add_drains: I have some ideas which I'm pursuing in odd moments,
-but I promise nothing.
-
-Hugh
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: high
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: akpm@linux-foundation.org
+>         ReportedBy: iceman_dvd@yahoo.com
+>         Regression: No
+> 
+> 
+> This is on an Ubuntu 12.10 desktop, but the same issue has been found on 12.04
+> with 3.5.0 kernel.
+> See the sample program. An allocation with MAP_HUGETLB consistently fails with
+> certain sizes, while it succeeds with others.
+> The allocation sizes are well below the number of free huge pages.
+> 
+> $ uname -a Linux davide-lnx2 3.5.0-27-generic #46-Ubuntu SMP Mon Mar 25
+> 19:58:17 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
+> 
+> 
+> # echo 100 > /proc/sys/vm/nr_hugepages
+> 
+> # cat /proc/meminfo
+> ...
+> AnonHugePages:         0 kB
+> HugePages_Total:     100
+> HugePages_Free:      100
+> HugePages_Rsvd:        0
+> HugePages_Surp:        0
+> Hugepagesize:       2048 kB
+> 
+> 
+> $ ./mmappu $((5 * 2 * 1024 * 1024 - 4096))
+> size=10481664    0x9ff000
+> hugepage mmap: Invalid argument
+> 
+> 
+> $ ./mmappu $((5 * 2 * 1024 * 1024 - 4095))
+> size=10481665    0x9ff001
+> OK!
+> 
+> 
+> It seems the trigger point is a normal page size.
+> The same binary works flawlessly in previous kernels.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
