@@ -1,99 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id D78C06B0033
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 05:58:20 -0400 (EDT)
-Received: by mail-qe0-f46.google.com with SMTP id x7so78595qeu.5
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 02:58:19 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id E01FF6B0002
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 06:16:36 -0400 (EDT)
+Message-ID: <51765FB2.3070506@parallels.com>
+Date: Tue, 23 Apr 2013 14:17:22 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20130422155454.GH18286@dhcp22.suse.cz>
-References: <20130420002620.GA17179@mtj.dyndns.org>
-	<20130420031611.GA4695@dhcp22.suse.cz>
-	<20130421022321.GE19097@mtj.dyndns.org>
-	<CANN689GuN_5QdgPBjr7h6paVmPeCvLHYfLWNLsJMWib9V9G_Fw@mail.gmail.com>
-	<20130422042445.GA25089@mtj.dyndns.org>
-	<20130422153730.GG18286@dhcp22.suse.cz>
-	<20130422154620.GB12543@htj.dyndns.org>
-	<20130422155454.GH18286@dhcp22.suse.cz>
-Date: Tue, 23 Apr 2013 02:58:19 -0700
-Message-ID: <CANN689Hz5A+iMM3T76-8RCh8YDnoGrYBvtjL_+cXaYRR0OkGRQ@mail.gmail.com>
 Subject: Re: memcg: softlimit on internal nodes
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <20130420002620.GA17179@mtj.dyndns.org> <20130420031611.GA4695@dhcp22.suse.cz> <20130421022321.GE19097@mtj.dyndns.org> <CANN689GuN_5QdgPBjr7h6paVmPeCvLHYfLWNLsJMWib9V9G_Fw@mail.gmail.com> <20130422042445.GA25089@mtj.dyndns.org> <20130422153730.GG18286@dhcp22.suse.cz> <20130422154620.GB12543@htj.dyndns.org> <20130422155454.GH18286@dhcp22.suse.cz> <CANN689Hz5A+iMM3T76-8RCh8YDnoGrYBvtjL_+cXaYRR0OkGRQ@mail.gmail.com>
+In-Reply-To: <CANN689Hz5A+iMM3T76-8RCh8YDnoGrYBvtjL_+cXaYRR0OkGRQ@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Greg Thelen <gthelen@google.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Greg Thelen <gthelen@google.com>
 
-On Mon, Apr 22, 2013 at 8:54 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Mon 22-04-13 08:46:20, Tejun Heo wrote:
->> Oh, if so, I'm happy.  Sorry about being brash on the thread; however,
->> please talk with google memcg people.  They have very different
->> interpretation of what "softlimit" is and are using it according to
->> that interpretation.  If it *is* an actual soft limit, there is no
->> inherent isolation coming from it and that should be clear to
->> everyone.
->
-> We have discussed that for a long time. I will not speak for Greg & Ying
-> but from my POV we have agreed that the current implementation will work
-> for them with some (minor) changes in their layout.
-> As I have said already with a careful configuration (e.i. setting the
-> soft limit only where it matters - where it protects an important
-> memory which is usually in the leaf nodes)
+On 04/23/2013 01:58 PM, Michel Lespinasse wrote:
+> On Mon, Apr 22, 2013 at 8:54 AM, Michal Hocko <mhocko@suse.cz> wrote:
+>> On Mon 22-04-13 08:46:20, Tejun Heo wrote:
+>>> Oh, if so, I'm happy.  Sorry about being brash on the thread; however,
+>>> please talk with google memcg people.  They have very different
+>>> interpretation of what "softlimit" is and are using it according to
+>>> that interpretation.  If it *is* an actual soft limit, there is no
+>>> inherent isolation coming from it and that should be clear to
+>>> everyone.
+>>
+>> We have discussed that for a long time. I will not speak for Greg & Ying
+>> but from my POV we have agreed that the current implementation will work
+>> for them with some (minor) changes in their layout.
+>> As I have said already with a careful configuration (e.i. setting the
+>> soft limit only where it matters - where it protects an important
+>> memory which is usually in the leaf nodes)
+> 
+> I don't like your argument that soft limits work if you only set them
+> on leaves. To me this is just a fancy way of saying that hierarchical
+> soft limits don't work.
+> 
+> Also it is somewhat problematic to assume that important memory can
+> easily be placed in leaves. This is difficult to ensure when
+> subcontainer destruction, for example, moves the memory back into the
+> parent.
+> 
 
-I don't like your argument that soft limits work if you only set them
-on leaves. To me this is just a fancy way of saying that hierarchical
-soft limits don't work.
+Michal,
 
-Also it is somewhat problematic to assume that important memory can
-easily be placed in leaves. This is difficult to ensure when
-subcontainer destruction, for example, moves the memory back into the
-parent.
+For the most part, I am siding with you in this discussion.
+But with this only-in-leaves thing, I am forced to flip (at least for this).
 
-> you can actually achieve
-> _high_ probability for not being reclaimed after the rework which was not
-> possible before because of the implementation which was ugly and
-> smelled.
+You are right when you say that in a configuration with A being parent
+of B and C, A being over its hard limit will affect reclaim in B and C,
+and soft limits should work the same.
 
-So, to be clear, what we (google MM people) want from soft limits is
-some form of protection against being reclaimed from when your cgroup
-(or its parent) is below the soft limit.
+However, "will affect reclaim" is a big vague. More specifically, if the
+sum of B and C's hard limit is smaller or equal A's hard limit, the only
+way of either B or C to trigger A's hard limit is for them, themselves,
+to go over their hard limit.
 
-I don't like to call it a guarantee either, because we understand that
-it comes with some limitations - for example, if all user pages on a
-given node are yours then allocations from that node might cause some
-of your pages to be reclaimed, even when you're under your soft limit.
-But we want some form of (weak) guarantee that can be made to work
-good enough in practice.
+*This* is the case you you are breaking when you try to establish a
+comparison between soft and hard limits - which is, per se, sane.
 
-Before your change, soft limits didn't actually provide any such form
-of guarantee, weak or not, since global reclaim would ignore soft
-limits.
+Translating this to the soft limit speech, if the sum of B and C's soft
+limit is smaller or equal A's soft limit, and one of them is over the
+soft limit, that one should be reclaimed. The other should be left alone.
 
-With your proposal, soft limits at least do provide the weak guarantee
-that we want, when not using hierarchies. We see this as a very clear
-improvement over the previous situation, so we're very happy about
-your patchset !
+I understand perfectly fine that soft limit is a best effort, not a
+guarantee. But if we don't do that, I understand that we are doing
+effort, not best effort.
 
-However, your proposal takes that weak guarantee away as soon as one
-tries to use cgroup hierarchies with it, because it reclaims from
-every child cgroup as soon as the parent hits its soft limit. This is
-disappointing and also, I have not heard of why you want things to
-work that way ? Is this an ease of implementation issue or do you
-consider that requirement as a bad idea ? And if it's the later,
-what's your counterpoint, is it related to delegation or is it
-something else that I haven't heard of ?
+This would only be attempted in our first pass. In the second pass, we
+reclaim from whoever.
 
-I don't think referring to the existing memcg documentation makes a
-strong point - the documentation never said that soft limits were not
-obeyed by global reclaim and yet we both agree that it'd be preferable
-if they were. So I would like to hear of your reasons (apart from
-referring to the existing documentation) for not allowing a parent
-cgroup to protect its children from reclaim when the total charge from
-that parent is under the parent's soft limit.
+It is also not that hard to do it: Flatten the tree in a list, with the
+leaves always being placed before the inner nodes. Start reclaiming from
+nodes over the soft limit, hierarchically. This means that whenever we
+reach an inner node and it is *still* over the soft limit, we are
+guaranteed to have scanned their children already. In the case I
+described, the children over its soft limit would have been reclaimed,
+without the well behaving children being touched. Now all three are okay.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+If we reached an inner node and we still have a soft limit problem, then
+we are effectively talking about the case you have been describing.
+Reclaim from whoever you want.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
