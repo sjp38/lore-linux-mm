@@ -1,80 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 3103A6B0033
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 05:02:09 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id 10so304871pdc.28
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 02:02:08 -0700 (PDT)
-Date: Tue, 23 Apr 2013 17:19:28 +0800
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Subject: Re: [PATCH v3 17/18] ext4: make punch hole code path work with
- bigalloc
-Message-ID: <20130423091928.GA5321@gmail.com>
-References: <1365498867-27782-1-git-send-email-lczerner@redhat.com>
- <1365498867-27782-18-git-send-email-lczerner@redhat.com>
- <20130420134241.GA2461@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 2CA176B0002
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 05:30:01 -0400 (EDT)
+Date: Tue, 23 Apr 2013 11:29:56 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: memcg: softlimit on internal nodes
+Message-ID: <20130423092944.GA8001@dhcp22.suse.cz>
+References: <20130420002620.GA17179@mtj.dyndns.org>
+ <20130420031611.GA4695@dhcp22.suse.cz>
+ <20130421022321.GE19097@mtj.dyndns.org>
+ <20130421124554.GA8473@dhcp22.suse.cz>
+ <20130422043939.GB25089@mtj.dyndns.org>
+ <20130422151908.GF18286@dhcp22.suse.cz>
+ <20130422155703.GC12543@htj.dyndns.org>
+ <20130422162012.GI18286@dhcp22.suse.cz>
+ <20130422183020.GF12543@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130420134241.GA2461@quack.suse.cz>
+In-Reply-To: <20130422183020.GF12543@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Lukas Czerner <lczerner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>
 
-On Sat, Apr 20, 2013 at 03:42:41PM +0200, Jan Kara wrote:
-> On Tue 09-04-13 11:14:26, Lukas Czerner wrote:
-> > Currently punch hole is disabled in file systems with bigalloc
-> > feature enabled. However the recent changes in punch hole patch should
-> > make it easier to support punching holes on bigalloc enabled file
-> > systems.
-> > 
-> > This commit changes partial_cluster handling in ext4_remove_blocks(),
-> > ext4_ext_rm_leaf() and ext4_ext_remove_space(). Currently
-> > partial_cluster is unsigned long long type and it makes sure that we
-> > will free the partial cluster if all extents has been released from that
-> > cluster. However it has been specifically designed only for truncate.
-> > 
-> > With punch hole we can be freeing just some extents in the cluster
-> > leaving the rest untouched. So we have to make sure that we will notice
-> > cluster which still has some extents. To do this I've changed
-> > partial_cluster to be signed long long type. The only scenario where
-> > this could be a problem is when cluster_size == block size, however in
-> > that case there would not be any partial clusters so we're safe. For
-> > bigger clusters the signed type is enough. Now we use the negative value
-> > in partial_cluster to mark such cluster used, hence we know that we must
-> > not free it even if all other extents has been freed from such cluster.
-> > 
-> > This scenario can be described in simple diagram:
-> > 
-> > |FFF...FF..FF.UUU|
-> >  ^----------^
-> >   punch hole
-> > 
-> > . - free space
-> > | - cluster boundary
-> > F - freed extent
-> > U - used extent
-> > 
-> > Also update respective tracepoints to use signed long long type for
-> > partial_cluster.
->   The patch looks OK. You can add:
-> Reviewed-by: Jan Kara <jack@suse.cz>
+On Mon 22-04-13 11:30:20, Tejun Heo wrote:
+> Hey,
 > 
->   Just a minor nit - sometimes you use 'signed long long', sometimes 'long
-> long int', sometimes just 'long long'. In kernel we tend to always use just
-> 'long long' so it would be good to clean that up.
+> On Mon, Apr 22, 2013 at 06:20:12PM +0200, Michal Hocko wrote:
+> > Although the default limit is correct it is impractical for use
+> > because it doesn't allow for "I behave do not reclaim me if you can"
+> > cases. And we can implement such a behavior really easily with backward
+> > compatibility and new interfaces (aka reuse the soft limit for that).
+> 
+> Okay, now we're back to square one and I'm reinstating all the mean
+> things I said in this thread. :P No wonder everyone is so confused
+> about this.  Michal, you can't overload two controls which exert
+> pressure on the opposite direction onto a single knob and define a
+> sane hierarchical behavior for it.
 
-Another question is that in patch 01/18 invalidatepage signature is
-changed from
-  int (*invalidatepage) (struct page *, unsigned long);
-to
-  void (*invalidatepage) (struct page *, unsigned int, unsigned int);
+Ohh, well and we are back in the circle again. Nobody is proposing
+overloading soft reclaim for any bottom-up (if that is what you mean by
+your opposite direction) pressure handling.
 
-The argument type is changed from 'unsigned long' to 'unsigned int'.  My
-question is why we need to change it.
+> You're making it a point control rather than range one.
 
-Thanks,
-                                                - Zheng
+Be more specific here, please?
+
+> Maybe you can define some twisted rules serving certain specific use
+> case, but it's gonna be confusing / broken for different use cases.
+
+Tejun, your argumentation is really hand wavy here. Which use cases will
+be broken and which one will be confusing. Name one for an illustration.
+
+> You're so confused that you don't even know you're confused.
+
+Yes, you keep repeating that. But you haven't pointed out any single
+confusing use case so far. Please please stop this, it is not productive.
+We are still talking about using soft limit to control overcommit
+situation as gracefully as possible. I hope we are on the same page
+about that at least.
+
+I will post my series as a reply to this email so that we can get to
+a more specific discussion because this "you are so confused because
+something, something, something, dark..." is not funny, nor productive.
+
+> > I am approaching this from a simple perspective. Reclaim from everybody
+> 
+> No, you're just thinking about two immediate problems you're given and
+> trying to jam them into something you already have not realizing those
+> two can't be expressed with a single knob.
+
+Yes, I am thinking in context of several use cases, all right. One
+of them is memory isolation via soft limit prioritization. Something
+that is possible already but it is major PITA to do right. What we
+have currently is optimized for "let's hammer something". Although
+useful, not a primary usecase according to my experiences. The primary
+motivation for the soft limit was to have something to control
+overcommit situations gracefully AFAIR and let's hammer something and
+hope it will work doesn't sound gracefully to me.
+
+> > who doesn't care about the soft limit (it hasn't been set for that
+> > group) or who is above the soft limit. If that is sufficient to meet the
+> > reclaim target then there is no reason to touch groups that _do_ care
+> > about soft limit and they are under. Although this doesn't give you
+> > any guarantee it can give a certain prioritization for groups in the
+> > overcommit situations and that is what soft limit was intended for from
+> > the very beginning.
+> 
+> For $DEITY's sake, soft limit should exert reclaim pressure.  That's
+> it.  If a group is over limit, it'll feel *extra* pressure until it's
+> back to the limit.  Once under the limit, it should be treated equally
+> to any other tasks which are under the limit
+
+And yet again agreed and nobody is claiming otherwise. Except that
+
+> including the ones without any softlimit configured.
+
+I haven't seen any specific argument why the default limit shouldn't
+allow to always reclaim.
+Having soft unreclaimable groups by default makes it hard to use soft
+limit reclaim for something more interesting. See the last patch
+in the series ("memcg: Ignore soft limit until it is explicitly
+specified"). With this approach you end up setting soft limit for every
+single group (even those you do not care about) just to make balancing
+work reasonably for all hierarchies.
+
+Anyway, this is just one part of the series and it doesn't make sense to
+postpone the whole work just for this. If _more people_ really think that
+the default limit change is really _so_ confusing and unusable then I
+will not push it over dead bodies of course.
+
+> It is not different from hardlimit. There's nothing "interesting"
+> about it.
+> 
+> Even for flat hierarchy, with your interpretation of the knob, it is
+> impossible to say "I don't really care about this thing, if it goes
+> over 30M, hammer on it", which is a completely reasonable thing to
+> want.
+
+Nothing prevents from this setting. I am just claiming that this is not
+the most interesting use case for the soft limit and I would like to
+optimize for more interesting use cases.
+
+The patch set will follow
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
