@@ -1,80 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id AF1DC6B0002
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 19:15:20 -0400 (EDT)
-Message-ID: <1366672518.9609.142.camel@gandalf.local.home>
-Subject: Re: [PATCH] slab: Remove unnecessary __builtin_constant_p()
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Mon, 22 Apr 2013 19:15:18 -0400
-In-Reply-To: <20130422141621.384eb93a6a8f3d441cd1a991@linux-foundation.org>
-References: <1366225776.8817.28.camel@pippen.local.home>
-	 <alpine.DEB.2.02.1304171702380.24494@chino.kir.corp.google.com>
-	 <20130422134415.32c7f2cac07c924bff3017a4@linux-foundation.org>
-	 <1366664301.9609.140.camel@gandalf.local.home>
-	 <20130422141621.384eb93a6a8f3d441cd1a991@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 4EA076B0002
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 20:02:52 -0400 (EDT)
+Date: Mon, 22 Apr 2013 20:02:47 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: Excessive stall times on ext4 in 3.9-rc2
+Message-ID: <20130423000247.GA17566@thunk.org>
+References: <20130410105608.GC1910@suse.de>
+ <20130410131245.GC4862@thunk.org>
+ <20130411170402.GB11656@suse.de>
+ <20130411183512.GA12298@thunk.org>
+ <20130411213335.GE9379@quack.suse.cz>
+ <20130412025708.GB7445@thunk.org>
+ <20130412045042.GA30622@dastard>
+ <20130412151952.GA4944@thunk.org>
+ <20130422143846.GA2675@suse.de>
+ <x49a9oqmblc.fsf@segfault.boston.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49a9oqmblc.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Behan Webster <behanw@converseincode.com>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
 
-On Mon, 2013-04-22 at 14:16 -0700, Andrew Morton wrote:
-> On Mon, 22 Apr 2013 16:58:21 -0400 Steven Rostedt <rostedt@goodmis.org> wrote:
-
-> > When looking into this, we found the only two users of the index_of()
-> > static function that has this issue, passes in size_of(), which will
-> > always be a constant, making the check redundant.
+On Mon, Apr 22, 2013 at 06:42:23PM -0400, Jeff Moyer wrote:
 > 
-> Looking at the current callers is cheating.  What happens if someone
-> adds another caller which doesn't use sizeof?
+> Jan, if I were to come up with a way of promoting a particular async
+> queue to the front of the line, where would I put such a call in the
+> ext4/jbd2 code to be effective?
 
-Well, as it required a size of something, if it was dynamic then what
-would the size be of?
+Well, I thought we had discussed trying to bump a pending I/O
+automatically when there was an attempt to call lock_buffer() on the
+bh?  That would be ideal, because we could keep the async writeback
+low priority until someone is trying to wait upon it, at which point
+obviously it should no longer be considered an async write call.
 
-> 
-> > Note, this is a bug in Clang that will hopefully be fixed soon. But for
-> > now, this strange redundant compile time check is preventing Clang from
-> > even testing the Linux kernel build.
-> > </little birdie voice>
-> > 
-> > And I still think the original change log has rational for the change,
-> > as it does make it rather confusing to what is happening there.
-> 
-> The patch made index_of() weaker!
-> 
-> It's probably all a bit academic, given that linux-next does
-> 
-> -/*
-> - * This function must be completely optimized away if a constant is passed to
-> - * it.  Mostly the same as what is in linux/slab.h except it returns an index.
-> - */
-> -static __always_inline int index_of(const size_t size)
-> -{
-> -	extern void __bad_size(void);
-> -
-> -	if (__builtin_constant_p(size)) {
-> -		int i = 0;
-> -
-> -#define CACHE(x) \
-> -	if (size <=x) \
-> -		return i; \
-> -	else \
-> -		i++;
-> -#include <linux/kmalloc_sizes.h>
-> -#undef CACHE
-> -		__bad_size();
-> -	} else
-> -		__bad_size();
-> -	return 0;
-> -}
-> -
+Failing that, this is something I've been toying with.... what do you
+think?
 
-Looks like someone just ate the bird.
+http://patchwork.ozlabs.org/patch/238192/
+http://patchwork.ozlabs.org/patch/238257/
 
--- Steve
+(The first patch in the series just makes sure that allocation bitmap
+reads are marked with the META/PRIO flags.  It's not strictly speaking
+related to the problem discussed here, but for completeness:
+http://patchwork.ozlabs.org/patch/238193/)
 
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
