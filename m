@@ -1,52 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 0CAFD6B0032
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 14:17:33 -0400 (EDT)
-Message-ID: <5176D024.5090007@parallels.com>
-Date: Tue, 23 Apr 2013 11:17:08 -0700
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id F0C466B0002
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 15:13:44 -0400 (EDT)
+Received: by mail-we0-f171.google.com with SMTP id i48so949681wef.30
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 12:13:43 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <1366705329-9426-2-git-send-email-glommer@openvz.org>
+References: <1366705329-9426-1-git-send-email-glommer@openvz.org>
+	<1366705329-9426-2-git-send-email-glommer@openvz.org>
+Date: Tue, 23 Apr 2013 22:13:42 +0300
+Message-ID: <CAOJsxLHHvcHZHTKO9WTOOJvNW21NgNsUkreQnzwk3Wp=6XCgPg@mail.gmail.com>
 Subject: Re: [PATCH 1/2] vmpressure: in-kernel notifications
-References: <1366705329-9426-1-git-send-email-glommer@openvz.org> <1366705329-9426-2-git-send-email-glommer@openvz.org> <20130423171122.GA29983@teo>
-In-Reply-To: <20130423171122.GA29983@teo>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton@enomsg.org>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Glauber Costa <glommer@openvz.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "<cgroups@vger.kernel.org>" <cgroups@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 04/23/2013 10:11 AM, Anton Vorontsov wrote:
-> On Tue, Apr 23, 2013 at 12:22:08PM +0400, Glauber Costa wrote:
->> From: Glauber Costa <glommer@parallels.com>
-> [...]
->> This patch extends that to also support in-kernel users.
+On Tue, Apr 23, 2013 at 11:22 AM, Glauber Costa <glommer@openvz.org> wrote:
+> From: Glauber Costa <glommer@parallels.com>
 >
-> Yup, that is the next logical step. ;-) The patches look good to me, just
-> one question...
+> During the past weeks, it became clear to us that the shrinker interface
+> we have right now works very well for some particular types of users,
+> but not that well for others. The later are usually people interested in
+> one-shot notifications, that were forced to adapt themselves to the
+> count+scan behavior of shrinkers. To do so, they had no choice than to
+> greatly abuse the shrinker interface producing little monsters all over.
 >
->> @@ -227,7 +233,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
->>   	 * we account it too.
->>   	 */
->>   	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
+> During LSF/MM, one of the proposals that popped out during our session
+> was to reuse Anton Voronstsov's vmpressure for this. They are designed
+> for userspace consumption, but also provide a well-stablished,
+> cgroup-aware entry point for notifications.
 >
-> I wonder if we want to let kernel users to specify the gfp mask here? The
-> current mask is good for userspace notifications, but in-kernel users
-> might be interested in including (or excluding) different types of
-> allocations, e.g. watch only for DMA allocations pressure?
+> This patch extends that to also support in-kernel users. Events that
+> should be generated for in-kernel consumption will be marked as such,
+> and for those, we will call a registered function instead of triggering
+> an eventfd notification.
 >
+> Please note that due to my lack of understanding of each shrinker user,
+> I will stay away from converting the actual users, you are all welcome
+> to do so.
+>
+> Signed-off-by: Glauber Costa <glommer@openvz.org>
 
-That is outside of the scope of this patch anyway. For this one, if you 
-believe it is good, could I have your tag? =)
+Looks good to me.
 
-But answering your question regardless of the scope, I believe the 
-context of the allocation is an implementation detail of the kernel - 
-regardless of how widely understood it is. The thing I like the most 
-about your work, is precisely the fact that is hides the implementation 
-details so well.
-
-So unless there is a strong use case that would benefit from it, I am 
-inclined to say this is not wanted.
+Acked-by: Pekka Enberg <penberg@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
