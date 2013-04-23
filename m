@@ -1,85 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id C43B16B0033
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 16:25:24 -0400 (EDT)
-Date: Tue, 23 Apr 2013 13:25:22 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 56881] New: MAP_HUGETLB mmap fails for certain sizes
-Message-Id: <20130423132522.042fa8d27668bbca6a410a92@linux-foundation.org>
-In-Reply-To: <bug-56881-27@https.bugzilla.kernel.org/>
-References: <bug-56881-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 80BBC6B0002
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 17:06:55 -0400 (EDT)
+Date: Tue, 23 Apr 2013 16:06:50 -0500
+From: Ben Myers <bpm@sgi.com>
+Subject: Re: [PATCH v3 05/18] xfs: use ->invalidatepage() length argument
+Message-ID: <20130423210650.GA2408@sgi.com>
+References: <1365498867-27782-1-git-send-email-lczerner@redhat.com>
+ <1365498867-27782-6-git-send-email-lczerner@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1365498867-27782-6-git-send-email-lczerner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: bugzilla-daemon@bugzilla.kernel.org, iceman_dvd@yahoo.com
+To: Lukas Czerner <lczerner@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, xfs@oss.sgi.com
+
+Hey Lukas,
+
+On Tue, Apr 09, 2013 at 11:14:14AM +0200, Lukas Czerner wrote:
+> ->invalidatepage() aop now accepts range to invalidate so we can make
+> use of it in xfs_vm_invalidatepage()
+> 
+> Signed-off-by: Lukas Czerner <lczerner@redhat.com>
+> Cc: xfs@oss.sgi.com
+> ---
+>  fs/xfs/xfs_aops.c  |    5 +++--
+>  fs/xfs/xfs_trace.h |   41 ++++++++++++++++++++++++++++++++++++++++-
+>  2 files changed, 43 insertions(+), 3 deletions(-)
+> 
+> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+> index e426796..e8018d3 100644
+> --- a/fs/xfs/xfs_aops.c
+> +++ b/fs/xfs/xfs_aops.c
+> @@ -826,8 +826,9 @@ xfs_vm_invalidatepage(
+>  	unsigned int		offset,
+>  	unsigned int		length)
+>  {
+> -	trace_xfs_invalidatepage(page->mapping->host, page, offset);
+> -	block_invalidatepage(page, offset, PAGE_CACHE_SIZE - offset);
+> +	trace_xfs_invalidatepage(page->mapping->host, page, offset,
+> +				 length);
+> +	block_invalidatepage(page, offset, length);
+>  }
+>  
+>  /*
+> diff --git a/fs/xfs/xfs_trace.h b/fs/xfs/xfs_trace.h
+> index 16a8129..91d6434 100644
+> --- a/fs/xfs/xfs_trace.h
+> +++ b/fs/xfs/xfs_trace.h
+> @@ -991,7 +991,46 @@ DEFINE_EVENT(xfs_page_class, name,	\
+>  	TP_ARGS(inode, page, off))
+>  DEFINE_PAGE_EVENT(xfs_writepage);
+>  DEFINE_PAGE_EVENT(xfs_releasepage);
+> -DEFINE_PAGE_EVENT(xfs_invalidatepage);
+
+I think it might be better if we continue using the xfs_invalidatepage trace
+point as part of the xfs_page_class rather than as a separate trace point, like below.
+
+Else this looks great.
+
+Reviewed-by: Ben Myers <bpm@sgi.com>
+
+Regards,
+Ben
 
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
 
-On Sat, 20 Apr 2013 03:00:30 +0000 (UTC) bugzilla-daemon@bugzilla.kernel.org wrote:
-
-> https://bugzilla.kernel.org/show_bug.cgi?id=56881
-> 
->            Summary: MAP_HUGETLB mmap fails for certain sizes
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 3.5.0-27
-
-Thanks.
-
-It's a post-3.4 regression, testcase included.  Does someone want to
-take a look, please?
-
->           Platform: All
->         OS/Version: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: high
->           Priority: P1
->          Component: Other
->         AssignedTo: akpm@linux-foundation.org
->         ReportedBy: iceman_dvd@yahoo.com
->         Regression: No
-> 
-> 
-> This is on an Ubuntu 12.10 desktop, but the same issue has been found on 12.04
-> with 3.5.0 kernel.
-> See the sample program. An allocation with MAP_HUGETLB consistently fails with
-> certain sizes, while it succeeds with others.
-> The allocation sizes are well below the number of free huge pages.
-> 
-> $ uname -a Linux davide-lnx2 3.5.0-27-generic #46-Ubuntu SMP Mon Mar 25
-> 19:58:17 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
-> 
-> 
-> # echo 100 > /proc/sys/vm/nr_hugepages
-> 
-> # cat /proc/meminfo
-> ...
-> AnonHugePages:         0 kB
-> HugePages_Total:     100
-> HugePages_Free:      100
-> HugePages_Rsvd:        0
-> HugePages_Surp:        0
-> Hugepagesize:       2048 kB
-> 
-> 
-> $ ./mmappu $((5 * 2 * 1024 * 1024 - 4096))
-> size=10481664    0x9ff000
-> hugepage mmap: Invalid argument
-> 
-> 
-> $ ./mmappu $((5 * 2 * 1024 * 1024 - 4095))
-> size=10481665    0x9ff001
-> OK!
-> 
-> 
-> It seems the trigger point is a normal page size.
-> The same binary works flawlessly in previous kernels.
+Index: xfs/fs/xfs/xfs_aops.c
+===================================================================
+--- xfs.orig/fs/xfs/xfs_aops.c
++++ xfs/fs/xfs/xfs_aops.c
+@@ -825,7 +825,7 @@ xfs_vm_invalidatepage(
+ 	struct page		*page,
+ 	unsigned long		offset)
+ {
+-	trace_xfs_invalidatepage(page->mapping->host, page, offset);
++	trace_xfs_invalidatepage(page->mapping->host, page, offset, 0);
+ 	block_invalidatepage(page, offset);
+ }
+ 
+@@ -920,7 +920,7 @@ xfs_vm_writepage(
+ 	int			count = 0;
+ 	int			nonblocking = 0;
+ 
+-	trace_xfs_writepage(inode, page, 0);
++	trace_xfs_writepage(inode, page, 0, 0);
+ 
+ 	ASSERT(page_has_buffers(page));
+ 
+@@ -1151,7 +1151,7 @@ xfs_vm_releasepage(
+ {
+ 	int			delalloc, unwritten;
+ 
+-	trace_xfs_releasepage(page->mapping->host, page, 0);
++	trace_xfs_releasepage(page->mapping->host, page, 0, 0);
+ 
+ 	xfs_count_page_state(page, &delalloc, &unwritten);
+ 
+Index: xfs/fs/xfs/xfs_trace.h
+===================================================================
+--- xfs.orig/fs/xfs/xfs_trace.h
++++ xfs/fs/xfs/xfs_trace.h
+@@ -974,14 +974,16 @@ DEFINE_RW_EVENT(xfs_file_splice_read);
+ DEFINE_RW_EVENT(xfs_file_splice_write);
+ 
+ DECLARE_EVENT_CLASS(xfs_page_class,
+-	TP_PROTO(struct inode *inode, struct page *page, unsigned long off),
+-	TP_ARGS(inode, page, off),
++	TP_PROTO(struct inode *inode, struct page *page, unsigned long off,
++		 unsigned int len),
++	TP_ARGS(inode, page, off, len),
+ 	TP_STRUCT__entry(
+ 		__field(dev_t, dev)
+ 		__field(xfs_ino_t, ino)
+ 		__field(pgoff_t, pgoff)
+ 		__field(loff_t, size)
+ 		__field(unsigned long, offset)
++		__field(unsigned int, length)
+ 		__field(int, delalloc)
+ 		__field(int, unwritten)
+ 	),
+@@ -995,24 +997,27 @@ DECLARE_EVENT_CLASS(xfs_page_class,
+ 		__entry->pgoff = page_offset(page);
+ 		__entry->size = i_size_read(inode);
+ 		__entry->offset = off;
++		__entry->length = len;
+ 		__entry->delalloc = delalloc;
+ 		__entry->unwritten = unwritten;
+ 	),
+ 	TP_printk("dev %d:%d ino 0x%llx pgoff 0x%lx size 0x%llx offset %lx "
+-		  "delalloc %d unwritten %d",
++		  "length %x delalloc %d unwritten %d",
+ 		  MAJOR(__entry->dev), MINOR(__entry->dev),
+ 		  __entry->ino,
+ 		  __entry->pgoff,
+ 		  __entry->size,
+ 		  __entry->offset,
++		  __entry->length,
+ 		  __entry->delalloc,
+ 		  __entry->unwritten)
+ )
+ 
+ #define DEFINE_PAGE_EVENT(name)		\
+ DEFINE_EVENT(xfs_page_class, name,	\
+-	TP_PROTO(struct inode *inode, struct page *page, unsigned long off),	\
+-	TP_ARGS(inode, page, off))
++	TP_PROTO(struct inode *inode, struct page *page, unsigned long off, \
++		 unsigned int len),	\
++	TP_ARGS(inode, page, off, len))
+ DEFINE_PAGE_EVENT(xfs_writepage);
+ DEFINE_PAGE_EVENT(xfs_releasepage);
+ DEFINE_PAGE_EVENT(xfs_invalidatepage);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
