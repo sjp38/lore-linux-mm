@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id F0C466B0002
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 15:13:44 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id i48so949681wef.30
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 12:13:43 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 7B9216B0002
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 15:57:47 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id t12so650652pdi.30
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 12:57:46 -0700 (PDT)
+Date: Tue, 23 Apr 2013 12:57:45 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: page eviction from the buddy cache
+In-Reply-To: <20130423122708.GA31170@thunk.org>
+Message-ID: <alpine.LNX.2.00.1304231230340.12850@eggly.anvils>
+References: <51504A40.6020604@ya.ru> <20130327150743.GC14900@thunk.org> <alpine.LNX.2.00.1303271135420.29687@eggly.anvils> <3C8EEEF8-C1EB-4E3D-8DE6-198AB1BEA8C0@gmail.com> <515CD665.9000300@gmail.com> <239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com>
+ <51730619.3030204@fastmail.fm> <20130420235718.GA28789@thunk.org> <5176785D.5030707@fastmail.fm> <20130423122708.GA31170@thunk.org>
 MIME-Version: 1.0
-In-Reply-To: <1366705329-9426-2-git-send-email-glommer@openvz.org>
-References: <1366705329-9426-1-git-send-email-glommer@openvz.org>
-	<1366705329-9426-2-git-send-email-glommer@openvz.org>
-Date: Tue, 23 Apr 2013 22:13:42 +0300
-Message-ID: <CAOJsxLHHvcHZHTKO9WTOOJvNW21NgNsUkreQnzwk3Wp=6XCgPg@mail.gmail.com>
-Subject: Re: [PATCH 1/2] vmpressure: in-kernel notifications
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@openvz.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "<cgroups@vger.kernel.org>" <cgroups@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Bernd Schubert <bernd.schubert@fastmail.fm>, Alexey Lyahkov <alexey.lyashkov@gmail.com>, Will Huck <will.huckk@gmail.com>, Andrew Perepechko <anserper@ya.ru>, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@suse.de
 
-On Tue, Apr 23, 2013 at 11:22 AM, Glauber Costa <glommer@openvz.org> wrote:
-> From: Glauber Costa <glommer@parallels.com>
->
-> During the past weeks, it became clear to us that the shrinker interface
-> we have right now works very well for some particular types of users,
-> but not that well for others. The later are usually people interested in
-> one-shot notifications, that were forced to adapt themselves to the
-> count+scan behavior of shrinkers. To do so, they had no choice than to
-> greatly abuse the shrinker interface producing little monsters all over.
->
-> During LSF/MM, one of the proposals that popped out during our session
-> was to reuse Anton Voronstsov's vmpressure for this. They are designed
-> for userspace consumption, but also provide a well-stablished,
-> cgroup-aware entry point for notifications.
->
-> This patch extends that to also support in-kernel users. Events that
-> should be generated for in-kernel consumption will be marked as such,
-> and for those, we will call a registered function instead of triggering
-> an eventfd notification.
->
-> Please note that due to my lack of understanding of each shrinker user,
-> I will stay away from converting the actual users, you are all welcome
-> to do so.
->
-> Signed-off-by: Glauber Costa <glommer@openvz.org>
+On Tue, 23 Apr 2013, Theodore Ts'o wrote:
+> On Tue, Apr 23, 2013 at 02:02:37PM +0200, Bernd Schubert wrote:
+> > 
+> > I just thought we can (mis)use that flag and and add another
+> > information to the page that it holds meta data. The mm system then
+> > could use that flag and evict those pages with a lower priority
+> > compared to other pages.
+> 
+> Well, the flag I added was to the buffer_head, not to the page, and my
+> understanding is that the mm folks are very hesitant to add new page
+> flags, since they are bumping up against the 32 bit limit (on the i386
+> platform), and they are trying to keep the struct page structure trim
+> and svelte.  :-)
 
-Looks good to me.
+Yes indeed.  But luckily this issue seems not to need another page flag.
 
-Acked-by: Pekka Enberg <penberg@kernel.org>
+If metadata is useful, it gets used: so mark_page_accessed when it's used
+should generally do the job; perhaps it's already called on that path,
+perhaps calls need to be added.
+
+Rarely used but nonetheless useful metadata might get pushed out by data.
+But I don't think we want another page flag, and yet more complicated
+reclaim policy in mm for that case.  If the filesystem knows of such
+cases, I hope it can find a way to use mark_page_accessed more often
+on such pages than they are actually accessed, to help retain them.
+
+What this thread did bring up was the failure of mark_page_accessed
+to be fully effective until the page is flushed from pagevec to lru.
+That remains a good point: something that several would like to fix.
+
+For now I stand by what I said before (if you find it effective
+in practice - I haven't heard back): at the moment you need to
+
+	mark_page_accessed(page);	/* to SetPageReferenced */
+	lru_add_drain();		/* to SetPageLRU */
+	mark_page_accessed(page);	/* to SetPageActive */
+
+when such a metadata page is first brought in.
+
+We all hate that lru_add_drain in the middle, which will exacerbate
+lru_lock contention.  We would love to eliminate the need for most
+lru_add_drains: I have some ideas which I'm pursuing in odd moments,
+but I promise nothing.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
