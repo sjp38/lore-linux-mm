@@ -1,95 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id F0BF06B0002
-	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 21:24:59 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 4E79F3EE0C0
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 10:24:58 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 3579E45DE50
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 10:24:58 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D9C645DE4D
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 10:24:58 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BE37E08003
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 10:24:58 +0900 (JST)
-Received: from G01JPEXCHYT16.g01.fujitsu.local (G01JPEXCHYT16.g01.fujitsu.local [10.128.194.55])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id ACD8A1DB802F
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 10:24:57 +0900 (JST)
-Message-ID: <5175E2D4.5030004@jp.fujitsu.com>
-Date: Tue, 23 Apr 2013 10:24:36 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 04D406B0002
+	for <linux-mm@kvack.org>; Mon, 22 Apr 2013 21:26:44 -0400 (EDT)
+Date: Tue, 23 Apr 2013 10:26:38 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 6/6] add documentation on proc.txt
+Message-ID: <20130423012638.GB2603@blaptop>
+References: <1366620306-30940-1-git-send-email-minchan@kernel.org>
+ <1366620306-30940-6-git-send-email-minchan@kernel.org>
+ <1366645719.18069.147@driftwood>
 MIME-Version: 1.0
-Subject: Re: [Bug fix PATCH v2] numa, cpu hotplug: Change links of CPU and
- node when changing node number by onlining CPU
-References: <5170D4CB.20900@jp.fujitsu.com> <20130422153541.04ba682f13910cfede0d2ff7@linux-foundation.org> <5175D01E.5000302@jp.fujitsu.com> <20130422173459.487fa3e6.akpm@linux-foundation.org>
-In-Reply-To: <20130422173459.487fa3e6.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1366645719.18069.147@driftwood>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kosaki.motohiro@gmail.com, mingo@kernel.org, hpa@zytor.com, srivatsa.bhat@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
+To: Rob Landley <rob@landley.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Rik van Riel <riel@redhat.com>
 
-2013/04/23 9:34, Andrew Morton wrote:
-> On Tue, 23 Apr 2013 09:04:46 +0900 Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
->
->> 2013/04/23 7:35, Andrew Morton wrote:
->>> On Fri, 19 Apr 2013 14:23:23 +0900 Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
->>>
->>>> When booting x86 system contains memoryless node, node numbers of CPUs
->>>> on memoryless node were changed to nearest online node number by
->>>> init_cpu_to_node() because the node is not online.
->>>>
->>>> ...
->>>>
->>>> If we hot add memory to memoryless node and offine/online all CPUs on
->>>> the node, node numbers of these CPUs are changed to correct node numbers
->>>> by srat_detect_node() because the node become online.
->>>
->>> OK, here's a dumb question.
->>>
->>> At boot time the CPUs are assigned to the "nearest online node" rather
->>> than to their real memoryless node.  The patch arranges for those CPUs
->>> to still be assigned to the "nearest online node" _after_ some memory
->>> is hot-added to their real node.  Correct?
->>
->> Yes. For changing node number of CPUs safely, we should offline CPUs.
->>
->>>
->>> Would it not be better to fix this by assigning those CPUs to their real,
->>> memoryless node right at the initial boot?  Or is there something in
->>> the kernel which makes cpus-on-a-memoryless-node not work correctly?
->>>
->>
->> I think assigning CPUs to real node is better. But current Linux's node
->> strongly depend on memory. Thus if we just create cpus-on-a-memoryless-node,
->> the kernel cannot work correctly.
->
-> hm, why.  I'd have thought that if we tell the kernel something like
-> "this node has one zone, the size of which is zero bytes" then a
-> surprising amount of the existing code will Just Work.
->
-> What goes wrong?
+Hello Rob,
 
-Sorry I forgot detailed issue.
-When I saw following issue, I tried to fix it and found that current
-Linux's node strongly depend on memory.
-https://lkml.org/lkml/2012/9/12/20
+On Mon, Apr 22, 2013 at 10:48:39AM -0500, Rob Landley wrote:
+> On 04/22/2013 03:45:06 AM, Minchan Kim wrote:
+> >This patch adds documentation about new reclaim field in proc.txt
+> >
+> >Cc: Rob Landley <rob@landley.net>
+> >Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >---
+> > Documentation/filesystems/proc.txt | 24 ++++++++++++++++++++++++
+> > 1 file changed, 24 insertions(+)
+> >
+> >diff --git a/Documentation/filesystems/proc.txt
+> >b/Documentation/filesystems/proc.txt
+> >index 488c094..c1f5ee4 100644
+> >--- a/Documentation/filesystems/proc.txt
+> >+++ b/Documentation/filesystems/proc.txt
+> >@@ -136,6 +136,7 @@ Table 1-1: Process specific entries in /proc
+> >  maps		Memory maps to executables and library files	(2.4)
+> >  mem		Memory held by this process
+> >  root		Link to the root directory of this process
+> >+ reclaim	Reclaim pages in this process
+> >  stat		Process status
+> >  statm		Process memory status information
+> >  status		Process status in human readable form
+> >@@ -489,6 +490,29 @@ To clear the soft-dirty bit
+> >
+> > Any other value written to /proc/PID/clear_refs will have no effect.
+> >
+> >+The /proc/PID/reclaim is used to reclaim pages in this process.
+> 
+> Trivial nitpick: Either start with "The file" or just /proc/PID/reclaim
 
-I'll try to fix it again.
+I prefer "The file".
 
-Thanks,
-Yasuaki Ishimatsu
+> 
+> >+To reclaim file-backed pages,
+> >+    > echo 1 > /proc/PID/reclaim
+> >+
+> >+To reclaim anonymous pages,
+> >+    > echo 2 > /proc/PID/reclaim
+> >+
+> >+To reclaim both pages,
+> >+    > echo 3 > /proc/PID/reclaim
+> >+
+> >+Also, you can specify address range of process so part of address
+> >space
+> >+will be reclaimed. The format is following as
+> >+    > echo 4 addr size > /proc/PID/reclaim
+> 
+> Size is in bytes or pages? (I'm guessing bytes. It must be a
+> multiple of pages?)
 
+Hmm, current implementation doesn't force it but it sounds good.
+I will do it in next spin. addr should be page-aligned but not necessary
+to be for size.
+
+
+> 
+> So the following examples are telling it to reclaim a specific page?
+
+Right.
+
+> 
+> >+To reclaim file-backed pages in address range,
+> >+    > echo 4 $((1<<20) 4096 > /proc/PID/reclaim
+> >+
+> >+To reclaim anonymous pages in address range,
+> >+    > echo 5 $((1<<20) 4096 > /proc/PID/reclaim
+> >+
+> >+To reclaim both pages in address range,
+> >+    > echo 6 $((1<<20) 4096 > /proc/PID/reclaim
+> >+
+> > The /proc/pid/pagemap gives the PFN, which can be used to find
+> >the pageflags
+> > using /proc/kpageflags and number of times a page is mapped using
+> > /proc/kpagecount. For detailed explanation, see
+> >Documentation/vm/pagemap.txt.
+> 
+> Otherwise, if the series goes in I'm fine with this going in with it.
+> 
+> Acked-by: Rob Landley <rob@landley.net>
+
+Thanks for the review!
+
+> 
+> Rob
 > --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
->
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
