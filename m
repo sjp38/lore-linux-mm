@@ -1,56 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id DE67A6B0032
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 17:18:18 -0400 (EDT)
-Message-ID: <1366751135.6660.3.camel@misato.fc.hp.com>
-Subject: Re: [Bug fix PATCH v5] Reusing a resource structure allocated by
- bootmem
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 23 Apr 2013 15:05:35 -0600
-In-Reply-To: <5175E5E8.3010003@jp.fujitsu.com>
-References: <5175E5E8.3010003@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 19E9A6B0002
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 17:55:06 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id jh10so752006pab.38
+        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 14:55:05 -0700 (PDT)
+Date: Tue, 23 Apr 2013 17:01:49 -0400
+From: Anton Vorontsov <anton@enomsg.org>
+Subject: Re: [PATCH 1/2] vmpressure: in-kernel notifications
+Message-ID: <20130423210149.GA9019@teo>
+References: <1366705329-9426-1-git-send-email-glommer@openvz.org>
+ <1366705329-9426-2-git-send-email-glommer@openvz.org>
+ <20130423202446.GA2484@teo>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20130423202446.GA2484@teo>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, linuxram@us.ibm.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@openvz.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, 2013-04-23 at 10:37 +0900, Yasuaki Ishimatsu wrote:
- :
-> The reason why the messages are shown is to release a resource structure,
-> allocated by bootmem, by kfree(). So when we release a resource structure,
-> we should check whether it is allocated by bootmem or not.
+On Tue, Apr 23, 2013 at 04:24:46PM -0400, Anton Vorontsov wrote:
+[...]
+> >  /**
+> > + * vmpressure_register_kernel_event() - Register kernel-side notification
 > 
-> But even if we know a resource structure is allocated by bootmem, we cannot
-> release it since SLxB cannot treat it. So for reusing a resource structure,
-> this patch remembers it by using bootmem_resource as follows:
-> 
-> When releasing a resource structure by free_resource(), free_resource() checks
-> whether the resource structure is allocated by bootmem or not. If it is
-> allocated by bootmem, free_resource() adds it to bootmem_resource. If it is
-> not allocated by bootmem, free_resource() release it by kfree().
-> 
-> And when getting a new resource structure by get_resource(), get_resource()
-> checks whether bootmem_resource has released resource structures or not. If
-> there is a released resource structure, get_resource() returns it. If there is
-> not a releaed resource structure, get_resource() returns new resource structure
-> allocated by kzalloc().
-> ---
-> v5:
-> Define bootmem_resource_free as static and poiner for saving memory
-> Fix slab check in free_resource()
-> Move memset outside of spin lock in get_resource()
+> Why don't we need the unregister function? I see that the memcg portion
+> deals with dangling memcgs, but do they dangle forver?
 
-Please add your "Signed-off-by".  Otherwise the changes look good.
+Oh, I got it. vmpressure_unregister_event() will unregister all the events
+anyway. Cool.
 
-Reviewed-by: Toshi Kani <toshi.kani@hp.com>
+Thanks!
 
-Thanks,
--Toshi
-
-
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
