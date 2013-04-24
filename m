@@ -1,127 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id F08A66B0032
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 16:37:21 -0400 (EDT)
-Date: Wed, 24 Apr 2013 13:37:19 -0700
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id E5A396B0032
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 17:41:32 -0400 (EDT)
+Date: Wed, 24 Apr 2013 14:41:30 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Resend][Bug fix PATCH v5] Reusing a resource structure
- allocated by bootmem
-Message-Id: <20130424133719.94c7d301df844c4bcc987a53@linux-foundation.org>
-In-Reply-To: <51771E3D.6060203@jp.fujitsu.com>
-References: <5175E5E8.3010003@jp.fujitsu.com>
-	<51771E3D.6060203@jp.fujitsu.com>
+Subject: Re: page eviction from the buddy cache
+Message-Id: <20130424144130.0d28b94b229b915d7f9c7840@linux-foundation.org>
+In-Reply-To: <20130424142650.GA29097@thunk.org>
+References: <alpine.LNX.2.00.1303271135420.29687@eggly.anvils>
+	<3C8EEEF8-C1EB-4E3D-8DE6-198AB1BEA8C0@gmail.com>
+	<515CD665.9000300@gmail.com>
+	<239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com>
+	<51730619.3030204@fastmail.fm>
+	<20130420235718.GA28789@thunk.org>
+	<5176785D.5030707@fastmail.fm>
+	<20130423122708.GA31170@thunk.org>
+	<alpine.LNX.2.00.1304231230340.12850@eggly.anvils>
+	<20130423150008.046ee9351da4681128db0bf3@linux-foundation.org>
+	<20130424142650.GA29097@thunk.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: hannes@cmpxchg.org, toshi.kani@hp.com, linuxram@us.ibm.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Hugh Dickins <hughd@google.com>, Bernd Schubert <bernd.schubert@fastmail.fm>, Alexey Lyahkov <alexey.lyashkov@gmail.com>, Will Huck <will.huckk@gmail.com>, Andrew Perepechko <anserper@ya.ru>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
 
-On Wed, 24 Apr 2013 08:50:21 +0900 Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
+On Wed, 24 Apr 2013 10:26:50 -0400 "Theodore Ts'o" <tytso@mit.edu> wrote:
 
-> When hot removing memory presented at boot time, following messages are shown:
+> On Tue, Apr 23, 2013 at 03:00:08PM -0700, Andrew Morton wrote:
+> > That should fix things for now.  Although it might be better to just do
+> > 
+> >  	mark_page_accessed(page);	/* to SetPageReferenced */
+> >  	lru_add_drain();		/* to SetPageLRU */
+> > 
+> > Because a) this was too early to decide that the page is
+> > super-important and b) the second touch of this page should have a
+> > mark_page_accessed() in it already.
 > 
-> [  296.867031] ------------[ cut here ]------------
-> [  296.922273] kernel BUG at mm/slub.c:3409!
->
-> ...
->
-> The reason why the messages are shown is to release a resource structure,
-> allocated by bootmem, by kfree(). So when we release a resource structure,
-> we should check whether it is allocated by bootmem or not.
-> 
-> But even if we know a resource structure is allocated by bootmem, we cannot
-> release it since SLxB cannot treat it. So for reusing a resource structure,
-> this patch remembers it by using bootmem_resource as follows:
-> 
-> When releasing a resource structure by free_resource(), free_resource() checks
-> whether the resource structure is allocated by bootmem or not. If it is
-> allocated by bootmem, free_resource() adds it to bootmem_resource. If it is
-> not allocated by bootmem, free_resource() release it by kfree().
-> 
-> And when getting a new resource structure by get_resource(), get_resource()
-> checks whether bootmem_resource has released resource structures or not. If
-> there is a released resource structure, get_resource() returns it. If there is
-> not a releaed resource structure, get_resource() returns new resource structure
-> allocated by kzalloc().
-> 
-> ...
->
+> The question is do we really want to put lru_add_drain() into the ext4
+> file system code?  That seems to pushing some fairly mm-specific
+> knowledge into file system code.  I'll do this if I have to do, but
+> wouldn't be better if this was pushed into mark_page_accessed(), or
+> some other new API was exported by the mm subsystem?
 
-Looks good to me.
-
-> --- a/kernel/resource.c
-> +++ b/kernel/resource.c
-> @@ -21,6 +21,7 @@
->  #include <linux/seq_file.h>
->  #include <linux/device.h>
->  #include <linux/pfn.h>
-> +#include <linux/mm.h>
->  #include <asm/io.h>
->  
->  
-> @@ -50,6 +51,14 @@ struct resource_constraint {
->  
->  static DEFINE_RWLOCK(resource_lock);
->  
-> +/*
-> + * For memory hotplug, there is no way to free resource entries allocated
-> + * by boot mem after the system is up. So for reusing the resource entry
-> + * we need to remember the resource.
-> + */
-> +static struct resource *bootmem_resource_free;
-> +static DEFINE_SPINLOCK(bootmem_resource_lock);
-> +
->  static void *r_next(struct seq_file *m, void *v, loff_t *pos)
->  {
->  	struct resource *p = v;
-> @@ -151,6 +160,40 @@ __initcall(ioresources_init);
->  
->  #endif /* CONFIG_PROC_FS */
->  
-> +static void free_resource(struct resource *res)
-> +{
-> +	if (!res)
-> +		return;
-> +
-> +	if (!PageSlab(virt_to_head_page(res))) {
-
-Did you consider using a bit in resource.flags?  There appear to be
-four free ones left.  The VM trickery will work OK I guess, but isn't
-very "nice".
-
-> +		spin_lock(&bootmem_resource_lock);
-> +		res->sibling = bootmem_resource_free;
-> +		bootmem_resource_free = res;
-> +		spin_unlock(&bootmem_resource_lock);
-> +	} else {
-> +		kfree(res);
-> +	}
-> +}
-> +
-> +static struct resource *get_resource(gfp_t flags)
-> +{
-> +	struct resource *res = NULL;
-> +
-> +	spin_lock(&bootmem_resource_lock);
-> +	if (bootmem_resource_free) {
-> +		res = bootmem_resource_free;
-> +		bootmem_resource_free = res->sibling;
-> +	}
-> +	spin_unlock(&bootmem_resource_lock);
-> +
-> +	if (res)
-> +		memset(res, 0, sizeof(struct resource));
-> +	else
-> +		res = kzalloc(sizeof(struct resource), flags);
-> +
-> +	return res;
-> +}
-
-I think I'll rename this to alloc_resource().  In Linux "get" often
-(but not always) means "take a reference on".  So "get" pairs with
-"put" and "alloc" pairs with "free".
+Sure, that would be daft.  We'd add a new
+mark_page_accessed_right_now_dont_use_this() to mm/swap.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
