@@ -1,134 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id DF9496B0002
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 04:42:46 -0400 (EDT)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Wed, 24 Apr 2013 02:42:41 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 3026F19D8042
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:42:33 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3O8gcnE357870
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:42:38 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3O8gadt006078
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:42:38 -0600
-Date: Wed, 24 Apr 2013 16:42:29 +0800
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH v3 2/3] resource: Add release_mem_region_adjustable()
-Message-ID: <20130424084229.GB29191@ram.oc3035372033.ibm.com>
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1365614221-685-1-git-send-email-toshi.kani@hp.com>
- <1365614221-685-3-git-send-email-toshi.kani@hp.com>
- <20130410144412.395bf9f2fb8192920175e30a@linux-foundation.org>
- <1365630585.32127.110.camel@misato.fc.hp.com>
- <alpine.DEB.2.02.1304101505250.1526@chino.kir.corp.google.com>
- <20130410152404.e0836af597ba3545b9846672@linux-foundation.org>
- <1365697802.32127.117.camel@misato.fc.hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1365697802.32127.117.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 90C206B0002
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 05:02:13 -0400 (EDT)
+Received: by mail-yh0-f74.google.com with SMTP id z12so30219yhz.3
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:02:12 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH 1/2] memcg: refactor mem_control_numa_stat_show()
+Date: Wed, 24 Apr 2013 02:02:07 -0700
+Message-Id: <1366794128-28731-1-git-send-email-gthelen@google.com>
+In-Reply-To: <1365458326-17091-1-git-send-email-yinghan@google.com>
+References: <1365458326-17091-1-git-send-email-yinghan@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, Greg Thelen <gthelen@google.com>
 
-On Thu, Apr 11, 2013 at 10:30:02AM -0600, Toshi Kani wrote:
-> On Wed, 2013-04-10 at 15:24 -0700, Andrew Morton wrote:
-> > On Wed, 10 Apr 2013 15:08:29 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-> > 
-> > > On Wed, 10 Apr 2013, Toshi Kani wrote:
-> > > 
-> > > > > I'll switch it to GFP_ATOMIC.  Which is horridly lame but the
-> > > > > allocation is small and alternatives are unobvious.
-> > > > 
-> > > > Great!  Again, thanks for the update!
-> > > 
-> > > release_mem_region_adjustable() allocates at most one struct resource, so 
-> > > why not do kmalloc(sizeof(struct resource), GFP_KERNEL) before taking 
-> > > resource_lock and then testing whether it's NULL or not when splitting?  
-> > > It unnecessarily allocates memory when there's no split, but 
-> > > __remove_pages() shouldn't be a hotpath.
-> > 
-> > yup.
-> > 
-> > --- a/kernel/resource.c~resource-add-release_mem_region_adjustable-fix-fix
-> > +++ a/kernel/resource.c
-> > @@ -1046,7 +1046,8 @@ int release_mem_region_adjustable(struct
-> >  			resource_size_t start, resource_size_t size)
-> >  {
-> >  	struct resource **p;
-> > -	struct resource *res, *new;
-> > +	struct resource *res;
-> > +	struct resource *new_res;
-> >  	resource_size_t end;
-> >  	int ret = -EINVAL;
-> >  
-> > @@ -1054,6 +1055,9 @@ int release_mem_region_adjustable(struct
-> >  	if ((start < parent->start) || (end > parent->end))
-> >  		return ret;
-> >  
-> > +	/* The kzalloc() result gets checked later */
-> > +	new_res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-> > +
-> >  	p = &parent->child;
-> >  	write_lock(&resource_lock);
-> >  
-> > @@ -1091,32 +1095,33 @@ int release_mem_region_adjustable(struct
-> >  						start - res->start);
-> >  		} else {
-> >  			/* split into two entries */
-> > -			new = kzalloc(sizeof(struct resource), GFP_ATOMIC);
-> > -			if (!new) {
-> > +			if (!new_res) {
-> >  				ret = -ENOMEM;
-> >  				break;
-> >  			}
-> > -			new->name = res->name;
-> > -			new->start = end + 1;
-> > -			new->end = res->end;
-> > -			new->flags = res->flags;
-> > -			new->parent = res->parent;
-> > -			new->sibling = res->sibling;
-> > -			new->child = NULL;
-> > +			new_res->name = res->name;
-> > +			new_res->start = end + 1;
-> > +			new_res->end = res->end;
-> > +			new_res->flags = res->flags;
-> > +			new_res->parent = res->parent;
-> > +			new_res->sibling = res->sibling;
-> > +			new_res->child = NULL;
-> >  
-> >  			ret = __adjust_resource(res, res->start,
-> >  						start - res->start);
-> >  			if (ret) {
-> > -				kfree(new);
-> > +				kfree(new_res);
-> >  				break;
-> >  			}
-> 
-> The kfree() in the if-statement above is not necessary since kfree() is
-> called before the return at the end.  That is, the if-statement needs to
-> be:
-> 	if (ret)
-> 		break;
-> 
-> With this change, I confirmed that all my test cases passed (with all
-> the config debug options this time :).  With the change:
-> 
-> Reviewed-by: Toshi Kani <toshi.kani@hp.com>
+Refactor mem_control_numa_stat_show() to use a new new stats structure
+for smaller and simpler code.  This consolidates nearly identical
+code.
 
-I am not confortable witht the assumption, that when a split takes
-place, the children are assumed to be in the lower entry. Probably a
-warning to that effect,  would help quickly
-nail down the problem, if such a case does encounter ?
+          text      rodata     data       bss
+before  5,913,438  1,695,438  756,608  1,712,128
+after   5,912,734  1,695,502  756,608  1,712,128
 
-Otherwise this looks fine. Sorry for the delayed reply. Was out.
+Signed-off-by: Greg Thelen <gthelen@google.com>
+Signed-off-by: Ying Han <yinghan@google.com>
+---
+ mm/memcontrol.c | 57 +++++++++++++++++++++++----------------------------------
+ 1 file changed, 23 insertions(+), 34 deletions(-)
 
-Reviewed-by: Ram Pai <linuxram@us.ibm.com>
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 2b55222..e73526e 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5228,45 +5228,34 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
+ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+ 				      struct seq_file *m)
+ {
++	struct numa_stat {
++		const char *name;
++		unsigned int lru_mask;
++	};
++
++	static const struct numa_stat stats[] = {
++		{ "total", LRU_ALL },
++		{ "file", LRU_ALL_FILE },
++		{ "anon", LRU_ALL_ANON },
++		{ "unevictable", BIT(LRU_UNEVICTABLE) },
++		{ NULL, 0 }  /* terminator */
++	};
++	const struct numa_stat *stat;
+ 	int nid;
+-	unsigned long total_nr, file_nr, anon_nr, unevictable_nr;
+-	unsigned long node_nr;
++	unsigned long nr;
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+ 
+-	total_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL);
+-	seq_printf(m, "total=%lu", total_nr);
+-	for_each_node_state(nid, N_MEMORY) {
+-		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid, LRU_ALL);
+-		seq_printf(m, " N%d=%lu", nid, node_nr);
+-	}
+-	seq_putc(m, '\n');
+-
+-	file_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_FILE);
+-	seq_printf(m, "file=%lu", file_nr);
+-	for_each_node_state(nid, N_MEMORY) {
+-		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
+-				LRU_ALL_FILE);
+-		seq_printf(m, " N%d=%lu", nid, node_nr);
+-	}
+-	seq_putc(m, '\n');
+-
+-	anon_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_ANON);
+-	seq_printf(m, "anon=%lu", anon_nr);
+-	for_each_node_state(nid, N_MEMORY) {
+-		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
+-				LRU_ALL_ANON);
+-		seq_printf(m, " N%d=%lu", nid, node_nr);
++	for (stat = stats; stat->name; stat++) {
++		nr = mem_cgroup_nr_lru_pages(memcg, stat->lru_mask);
++		seq_printf(m, "%s=%lu", stat->name, nr);
++		for_each_node_state(nid, N_MEMORY) {
++			nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
++							  stat->lru_mask);
++			seq_printf(m, " N%d=%lu", nid, nr);
++		}
++		seq_putc(m, '\n');
+ 	}
+-	seq_putc(m, '\n');
+ 
+-	unevictable_nr = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_UNEVICTABLE));
+-	seq_printf(m, "unevictable=%lu", unevictable_nr);
+-	for_each_node_state(nid, N_MEMORY) {
+-		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
+-				BIT(LRU_UNEVICTABLE));
+-		seq_printf(m, " N%d=%lu", nid, node_nr);
+-	}
+-	seq_putc(m, '\n');
+ 	return 0;
+ }
+ #endif /* CONFIG_NUMA */
+-- 
+1.8.2.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
