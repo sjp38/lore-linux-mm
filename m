@@ -1,50 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id F32B26B0002
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 20:26:53 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so235614pde.23
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 17:26:53 -0700 (PDT)
-Message-ID: <517726C8.4030207@linaro.org>
-Date: Tue, 23 Apr 2013 17:26:48 -0700
-From: John Stultz <john.stultz@linaro.org>
-MIME-Version: 1.0
-Subject: Re: Summary of LSF-MM Volatile Ranges Discussion
-References: <516EE256.2070303@linaro.org> <5175FBEB.4020809@linaro.org> <CACT4Y+a+r8LqiiGfq3rTiwGbacLJ0P+tWVba+G5vVyrikkr+gw@mail.gmail.com>
-In-Reply-To: <CACT4Y+a+r8LqiiGfq3rTiwGbacLJ0P+tWVba+G5vVyrikkr+gw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 328396B0002
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 21:41:36 -0400 (EDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v2 0/6] Per process reclaim
+Date: Wed, 24 Apr 2013 10:40:58 +0900
+Message-Id: <1366767664-17541-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: lsf@lists.linux-foundation.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Paul Turner <pjt@google.com>, Robert Love <rlove@google.com>, Dave Hansen <dave@sr71.net>, Taras Glek <tglek@mozilla.com>, Mike Hommey <mh@glandium.org>, Kostya Serebryany <kcc@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, gthelen@google.com, Rik van Riel <riel@redhat.com>, glommer@parallels.com, mhocko@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
 
-On 04/22/2013 11:51 PM, Dmitry Vyukov wrote:
-> Just want to make sure our case does not fall out of the discussion:
-> https://code.google.com/p/thread-sanitizer/wiki/VolatileRanges
+These day, there are many platforms avaiable in the embedded market
+and they are smarter than kernel which has very limited information
+about working set so they want to involve memory management more heavily
+like android's lowmemory killer and ashmem or recent many lowmemory
+notifier(there was several trial for various company NOKIA, SAMSUNG,
+Linaro, Google ChromeOS, Redhat).
 
-Yes, while I forgot to mention it in the summary, I did bring it up 
-briefly, but I cannot claim to have done it justice.
+One of the simple imagine scenario about userspace's intelligence is that
+platform can manage tasks as forground and backgroud so it would be
+better to reclaim background's task pages for end-user's *responsibility*
+although it has frequent referenced pages.
 
-Personally, while I suspect we might be able to support your desired 
-semantics (ie: mark once volatile, always zero-fill, no sigbus) via a 
-mode flag
+The patch[1] adds new knob "reclaim under proc/<pid>/" so task manager
+can reclaim any target process anytime, anywhere. It could give another
+method to platform for using memory efficiently.
 
-> While reading your email, I remembered that we actually have some
-> pages mapped from a file inside the range. So it's like 70TB of ANON
-> mapping + few pages in the middle mapped from FILE. The file is mapped
-> with MAP_PRIVATE + PROT_READ, it's read-only and not shared.
-> But we want to mark the volatile range only once on startup, so
-> performance is not a serious concern (while the function in executed
-> in say no more than 10ms).
-> If the mixed ANON+FILE ranges becomes a serious problem, we are ready
-> to remove FILE mappings, because it's only an optimization. I.e. we
-> can make it pure ANON mapping.
-Well, in my mind, the MAP_PRIVATE mappings are semantically the same as 
-anonymous memory with regards to volatility. So I hope this wouldn't be 
-an issue.
+It can avoid process killing for getting free memory, which was really
+terrible experience because I lost my best score of game I had ever
+after I switch the phone call while I enjoyed the game.
 
-thanks
--john
+Reclaim file-backed pages only.
+	echo file > /proc/PID/reclaim
+Reclaim anonymous pages only.
+	echo anon > /proc/PID/reclaim
+Reclaim all pages
+	echo all > /proc/PID/reclaim
+
+Some pages could be shared by several processes. (ex, libc)
+In case of that, it's too bad to reclaim them from the beginnig.
+The patch[4] causes VM to keep them on memory until last task
+try to reclaim them so shared pages will be reclaimed only if
+all of task has gone swapping out.
+
+Another requirement is per address space reclaim.(By Michael Kerrisk)
+In case of Webkit1, it uses a address space for handling multi tabs.
+IOW, it uses *one* process model so all tabs shares address space
+of the process. In such scenario, per-process reclaim is rather
+coarse-grained so patch[5] supports more fine-grained reclaim
+for being able to reclaim target address range of the process.
+For reclaim target range, you should use following format.
+
+	echo [addr] [size-byte] > /proc/pid/reclaim
+
+* Changelog from v1
+  * Change reclaim knob interface - Dave Hansen
+  * proc.txt document change - Rob Landley
+
+Minchan Kim (6):
+  [1] mm: Per process reclaim
+  [2] mm: make shrink_page_list with pages work from multiple zones
+  [3] mm: Remove shrink_page
+  [4] mm: Enhance per process reclaim to consider shared pages
+  [5] mm: Support address range reclaim
+  [6] add documentation on proc.txt
+
+ Documentation/filesystems/proc.txt |  22 +++++
+ fs/proc/base.c                     |   3 +
+ fs/proc/internal.h                 |   1 +
+ fs/proc/task_mmu.c                 | 179 +++++++++++++++++++++++++++++++++++++
+ include/linux/ksm.h                |   6 +-
+ include/linux/rmap.h               |  10 ++-
+ mm/Kconfig                         |   8 ++
+ mm/internal.h                      |   4 +-
+ mm/ksm.c                           |   9 +-
+ mm/memory-failure.c                |   2 +-
+ mm/migrate.c                       |   6 +-
+ mm/rmap.c                          |  57 ++++++++----
+ mm/vmscan.c                        |  57 +++++++++++-
+ 13 files changed, 334 insertions(+), 30 deletions(-)
+
+-- 
+1.8.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
