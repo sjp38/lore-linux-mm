@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 7F5226B0002
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:11:20 -0400 (EDT)
-Received: by mail-ie0-f177.google.com with SMTP id 9so1610193iec.8
-        for <linux-mm@kvack.org>; Tue, 23 Apr 2013 23:11:19 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id B521E6B0032
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:27:00 -0400 (EDT)
+Message-ID: <51777B1E.5010901@parallels.com>
+Date: Wed, 24 Apr 2013 10:26:38 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <517726C8.4030207@linaro.org>
-References: <516EE256.2070303@linaro.org>
-	<5175FBEB.4020809@linaro.org>
-	<CACT4Y+a+r8LqiiGfq3rTiwGbacLJ0P+tWVba+G5vVyrikkr+gw@mail.gmail.com>
-	<517726C8.4030207@linaro.org>
-Date: Wed, 24 Apr 2013 10:11:19 +0400
-Message-ID: <CACT4Y+YBkgXKSYEHfBs4ayrhJbG68tzMG6i9_c3n+S=Z0+1QXA@mail.gmail.com>
-Subject: Re: Summary of LSF-MM Volatile Ranges Discussion
-From: Dmitry Vyukov <dvyukov@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 1/2] vmpressure: in-kernel notifications
+References: <1366705329-9426-1-git-send-email-glommer@openvz.org> <1366705329-9426-2-git-send-email-glommer@openvz.org> <20130423202446.GA2484@teo>
+In-Reply-To: <20130423202446.GA2484@teo>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: lsf@lists.linux-foundation.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Paul Turner <pjt@google.com>, Robert Love <rlove@google.com>, Dave Hansen <dave@sr71.net>, Taras Glek <tglek@mozilla.com>, Mike Hommey <mh@glandium.org>, Kostya Serebryany <kcc@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Rik van Riel <riel@redhat.com>, glommer@parallels.com, mhocko@suse.de
+To: Anton Vorontsov <anton@enomsg.org>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Apr 24, 2013 at 4:26 AM, John Stultz <john.stultz@linaro.org> wrote:
-> On 04/22/2013 11:51 PM, Dmitry Vyukov wrote:
+On 04/24/2013 12:24 AM, Anton Vorontsov wrote:
+> On Tue, Apr 23, 2013 at 12:22:08PM +0400, Glauber Costa wrote:
+>> From: Glauber Costa <glommer@parallels.com>
 >>
->> Just want to make sure our case does not fall out of the discussion:
->> https://code.google.com/p/thread-sanitizer/wiki/VolatileRanges
+>> This patch extends that to also support in-kernel users. Events that
+>> should be generated for in-kernel consumption will be marked as such,
+>> and for those, we will call a registered function instead of triggering
+>> an eventfd notification.
 >
+> Just a couple more questions... :-)
 >
-> Yes, while I forgot to mention it in the summary, I did bring it up briefly,
-> but I cannot claim to have done it justice.
+> [...]
+>> @@ -238,14 +244,16 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+>>   	 * through vmpressure_prio(). But so far, keep calm.
+>>   	 */
+>>   	if (!scanned)
+>> -		return;
+>> +		goto schedule;
+>>
+>>   	mutex_lock(&vmpr->sr_lock);
+>>   	vmpr->scanned += scanned;
+>>   	vmpr->reclaimed += reclaimed;
+>> +	vmpr->notify_userspace = true;
+>
+> Setting the variable on every event seems a bit wasteful... does it make
+> sense to set it in vmpressure_register_event()? We'll have to make it a
+> counter, but the good thing is that we won't need any additional locks for
+> the counter.
+>
+Yes, vmpressure_register_event would be a better place for it. I will 
+change and keep the acks, since it does not change the spirit of the 
+patch too much.
 
-Thanks!
-
-> Personally, while I suspect we might be able to support your desired
-> semantics (ie: mark once volatile, always zero-fill, no sigbus) via a mode
-> flag
->
->
->> While reading your email, I remembered that we actually have some
->> pages mapped from a file inside the range. So it's like 70TB of ANON
->> mapping + few pages in the middle mapped from FILE. The file is mapped
->> with MAP_PRIVATE + PROT_READ, it's read-only and not shared.
->> But we want to mark the volatile range only once on startup, so
->> performance is not a serious concern (while the function in executed
->> in say no more than 10ms).
->> If the mixed ANON+FILE ranges becomes a serious problem, we are ready
->> to remove FILE mappings, because it's only an optimization. I.e. we
->> can make it pure ANON mapping.
->
-> Well, in my mind, the MAP_PRIVATE mappings are semantically the same as
-> anonymous memory with regards to volatility. So I hope this wouldn't be an
-> issue.
-
-Ah, I see, so you more concerned about SHARED rather than FILE. We do
-NOT have any SHARED regions.
+I will also apply the cosmetics you attached. Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
