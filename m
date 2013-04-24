@@ -1,209 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id CA1CC6B0002
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 04:21:57 -0400 (EDT)
-Message-ID: <517795E2.6070404@huawei.com>
-Date: Wed, 24 Apr 2013 16:20:50 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 9DD066B0002
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 04:35:28 -0400 (EDT)
+Message-ID: <51779970.4010101@parallels.com>
+Date: Wed, 24 Apr 2013 12:36:00 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [Bug 56881] New: MAP_HUGETLB mmap fails for certain sizes
-References: <bug-56881-27@https.bugzilla.kernel.org/> <20130423132522.042fa8d27668bbca6a410a92@linux-foundation.org> <1366755995-no3omuhl-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1366755995-no3omuhl-mutt-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset="UTF-8"
+Subject: Re: [PATCH 1/2] vmpressure: in-kernel notifications
+References: <1366705329-9426-1-git-send-email-glommer@openvz.org> <1366705329-9426-2-git-send-email-glommer@openvz.org> <xr93vc7cgzs0.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <xr93vc7cgzs0.fsf@gthelen.mtv.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, iceman_dvd@yahoo.com
+To: Greg Thelen <gthelen@google.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 2013/4/24 6:26, Naoya Horiguchi wrote:
-
-> On Tue, Apr 23, 2013 at 01:25:22PM -0700, Andrew Morton wrote:
+On 04/24/2013 11:21 AM, Greg Thelen wrote:
+> On Tue, Apr 23 2013, Glauber Costa wrote:
+> 
+>> From: Glauber Costa <glommer@parallels.com>
 >>
->> (switched to email.  Please respond via emailed reply-to-all, not via the
->> bugzilla web interface).
+>> During the past weeks, it became clear to us that the shrinker interface
+>> we have right now works very well for some particular types of users,
+>> but not that well for others. The later are usually people interested in
+>> one-shot notifications, that were forced to adapt themselves to the
+>> count+scan behavior of shrinkers. To do so, they had no choice than to
+>> greatly abuse the shrinker interface producing little monsters all over.
 >>
->> On Sat, 20 Apr 2013 03:00:30 +0000 (UTC) bugzilla-daemon@bugzilla.kernel.org wrote:
+>> During LSF/MM, one of the proposals that popped out during our session
+>> was to reuse Anton Voronstsov's vmpressure for this. They are designed
+>> for userspace consumption, but also provide a well-stablished,
+>> cgroup-aware entry point for notifications.
 >>
->>> https://bugzilla.kernel.org/show_bug.cgi?id=56881
->>>
->>>            Summary: MAP_HUGETLB mmap fails for certain sizes
->>>            Product: Memory Management
->>>            Version: 2.5
->>>     Kernel Version: 3.5.0-27
+>> This patch extends that to also support in-kernel users. Events that
+>> should be generated for in-kernel consumption will be marked as such,
+>> and for those, we will call a registered function instead of triggering
+>> an eventfd notification.
 >>
->> Thanks.
+>> Please note that due to my lack of understanding of each shrinker user,
+>> I will stay away from converting the actual users, you are all welcome
+>> to do so.
 >>
->> It's a post-3.4 regression, testcase included.  Does someone want to
->> take a look, please?
-> 
-> Let me try it.
-> 
->   static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
->   {                                                                            
->           struct inode *inode = file->f_path.dentry->d_inode;
->           loff_t len, vma_len;                               
->           int ret;                                           
->           struct hstate *h = hstate_file(file);              
->           ...                                                                               
->           if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))              
->                   return -EINVAL;                                              
-> 
-> This code checks only whether a given hugetlb vma covers (1 << order)
-> pages, not whether it's exactly hugepage aligned.
-> Before 2b37c35e6552 "fs/hugetlbfs/inode.c: fix pgoff alignment
-> checking on 32-bit", it was
-> 
->   if (vma->vm_pgoff & ~(huge_page_mask(h) >> PAGE_SHIFT))
-> 
-> , but this made no sense because ~(huge_page_mask(h) >> PAGE_SHIFT) is
-> 0xff for 2M hugepage.
-> I think the reported problem is not a bug because the behavior before
-> this change was wrong or not as expected.
-> 
-> If we want to make sure that a given address range fits hugepage size,
-> something like below can be useful.
-> 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 78bde32..a98304b 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -113,11 +113,11 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
->  	vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND | VM_DONTDUMP;
->  	vma->vm_ops = &hugetlb_vm_ops;
->  
-> -	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
-> -		return -EINVAL;
-> -
->  	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
->  
-> +	if (vma->len & ~huge_page_mask(h))
-> +		return -EINVAL;
-> +
->  	mutex_lock(&inode->i_mutex);
->  	file_accessed(file);
->  
-> 
-> Thanks,
-> Naoya Horiguchi
-> 
-
-Hi Naoya,
-
-I think the -EINVAL is returned from hugetlb_get_unmapped_area(),
-for the two testcases:
-1) $ ./mmappu $((5 * 2 * 1024 * 1024 - 4096))	//len1 = 0x9ff000
-2) $ ./mmappu $((5 * 2 * 1024 * 1024 - 4095))	//len2 = 0x9ff001
-
-In do_mmap_pgoff(), after "len = PAGE_ALIGN(len);", len1 = 0x9ff000,
-len2 = 0xa00000, so len2 will pass "if (len & ~huge_page_mask(h))" check in
-hugetlb_get_unmapped_area(), and len1 will return -EINVAL. As follow:
-
-do_mmap_pgoff()
-{
-	...
-	/* Careful about overflows.. */
-	len = PAGE_ALIGN(len);
-	...
-	get_unmapped_area()
-		-->hugetlb_get_unmapped_area()
-		   {
-			...
-			if (len & ~huge_page_mask(h))
-				return -EINVAL;
-			...
-		   }
-}
-
-do we need to align len to hugepage size if it's hugetlbfs mmap? something like below:
-
----
- mm/mmap.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 0db0de1..bd42be24 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1188,7 +1188,10 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
- 		addr = round_hint_to_min(addr);
- 
- 	/* Careful about overflows.. */
--	len = PAGE_ALIGN(len);
-+	if (file && is_file_hugepages(file))
-+		len = ALIGN(len, huge_page_size(hstate_file(file)));
-+	else
-+		len = PAGE_ALIGN(len);
- 	if (!len)
- 		return -ENOMEM;
- 
--- 
-
-Thanks,
-Jianguo Wu
-
->>>           Platform: All
->>>         OS/Version: Linux
->>>               Tree: Mainline
->>>             Status: NEW
->>>           Severity: high
->>>           Priority: P1
->>>          Component: Other
->>>         AssignedTo: akpm@linux-foundation.org
->>>         ReportedBy: iceman_dvd@yahoo.com
->>>         Regression: No
->>>
->>>
->>> This is on an Ubuntu 12.10 desktop, but the same issue has been found on 12.04
->>> with 3.5.0 kernel.
->>> See the sample program. An allocation with MAP_HUGETLB consistently fails with
->>> certain sizes, while it succeeds with others.
->>> The allocation sizes are well below the number of free huge pages.
->>>
->>> $ uname -a Linux davide-lnx2 3.5.0-27-generic #46-Ubuntu SMP Mon Mar 25
->>> 19:58:17 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
->>>
->>>
->>> # echo 100 > /proc/sys/vm/nr_hugepages
->>>
->>> # cat /proc/meminfo
->>> ...
->>> AnonHugePages:         0 kB
->>> HugePages_Total:     100
->>> HugePages_Free:      100
->>> HugePages_Rsvd:        0
->>> HugePages_Surp:        0
->>> Hugepagesize:       2048 kB
->>>
->>>
->>> $ ./mmappu $((5 * 2 * 1024 * 1024 - 4096))
->>> size=10481664    0x9ff000
->>> hugepage mmap: Invalid argument
->>>
->>>
->>> $ ./mmappu $((5 * 2 * 1024 * 1024 - 4095))
->>> size=10481665    0x9ff001
->>> OK!
->>>
->>>
->>> It seems the trigger point is a normal page size.
->>> The same binary works flawlessly in previous kernels.
+>> Signed-off-by: Glauber Costa <glommer@openvz.org>
+>> Cc: Dave Chinner <david@fromorbit.com>
+>> Cc: Anton Vorontsov <anton.vorontsov@linaro.org>
+>> Cc: John Stultz <john.stultz@linaro.org>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Joonsoo Kim <js1304@gmail.com>
+>> Cc: Michal Hocko <mhocko@suse.cz>
+>> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> ---
+>>  include/linux/vmpressure.h |  6 ++++++
+>>  mm/vmpressure.c            | 48 ++++++++++++++++++++++++++++++++++++++++++----
+>>  2 files changed, 50 insertions(+), 4 deletions(-)
 >>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
+>> index 76be077..1862012 100644
+>> --- a/include/linux/vmpressure.h
+>> +++ b/include/linux/vmpressure.h
+>> @@ -19,6 +19,9 @@ struct vmpressure {
+>>  	/* Have to grab the lock on events traversal or modifications. */
+>>  	struct mutex events_lock;
+>>  
+>> +	/* false if only kernel users want to be notified, true otherwise */
+>> +	bool notify_userspace;
+>> +
+>>  	struct work_struct work;
+>>  };
+>>  
+>> @@ -36,6 +39,9 @@ extern struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css);
+>>  extern int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+>>  				     struct eventfd_ctx *eventfd,
+>>  				     const char *args);
+>> +
+>> +extern int vmpressure_register_kernel_event(struct cgroup *cg,
+>> +					    void (*fn)(void));
+>>  extern void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
+>>  					struct eventfd_ctx *eventfd);
+>>  #else
+>> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+>> index 736a601..8d77ad0 100644
+>> --- a/mm/vmpressure.c
+>> +++ b/mm/vmpressure.c
+>> @@ -135,8 +135,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
+>>  }
+>>  
+>>  struct vmpressure_event {
+>> -	struct eventfd_ctx *efd;
+>> +	union {
+>> +		struct eventfd_ctx *efd;
+>> +		void (*fn)(void);
+>> +	};
+>>  	enum vmpressure_levels level;
+>> +	bool kernel_event;
+>>  	struct list_head node;
+>>  };
+>>  
+>> @@ -152,7 +156,9 @@ static bool vmpressure_event(struct vmpressure *vmpr,
+>>  	mutex_lock(&vmpr->events_lock);
+>>  
+>>  	list_for_each_entry(ev, &vmpr->events, node) {
+>> -		if (level >= ev->level) {
+>> +		if (ev->kernel_event)
+>> +			ev->fn();
+>> +		else if (vmpr->notify_userspace && (level >= ev->level)) {
+>>  			eventfd_signal(ev->efd, 1);
+>>  			signalled = true;
+>>  		}
+>> @@ -227,7 +233,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+>>  	 * we account it too.
+>>  	 */
+>>  	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
+>> -		return;
+>> +		goto schedule;
+>>  
+>>  	/*
+>>  	 * If we got here with no pages scanned, then that is an indicator
+>> @@ -238,14 +244,16 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+>>  	 * through vmpressure_prio(). But so far, keep calm.
+>>  	 */
+>>  	if (!scanned)
+>> -		return;
+>> +		goto schedule;
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> If goto schedule is taken here then scanned==0.  Then
+> scanned<vmpressure_win (below), so this function would always simply
+> return.  So this change seems like a no-op.  Should the schedule: below
+> be just before schedule_work(&vmpr->work)?  But this wouldn't do much
+> either because vmpressure_work_fn() would immediately return if
+> vmpr->scanned==0.  Presumable the idea is to avoid notifying user space
+> or kernel callbacks if lru pages are not scanned - at least until
+> vmpressure_prio() is called with a priority more desperate than
+> vmpressure_level_critical_prio at which time this function's scanned!=0.
 > 
 
+Yes, the idea is to avoid calling the callbacks. I can just return at
+this point if you prefer. I figured that jumping to the common entry
+point would be more consistent, only that. I don't care either way.
 
+>>  
+>>  	mutex_lock(&vmpr->sr_lock);
+>>  	vmpr->scanned += scanned;
+>>  	vmpr->reclaimed += reclaimed;
+>> +	vmpr->notify_userspace = true;
+>>  	scanned = vmpr->scanned;
+>>  	mutex_unlock(&vmpr->sr_lock);
+>>  
+>> +schedule:
+>>  	if (scanned < vmpressure_win || work_pending(&vmpr->work))
+>>  		return;
+>>  	schedule_work(&vmpr->work);
+>> @@ -328,6 +336,38 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
+>>  }
+>>  
+>>  /**
+>> + * vmpressure_register_kernel_event() - Register kernel-side notification
+>> + * @cg:		cgroup that is interested in vmpressure notifications
+>> + * @fn:		function to be called when pressure happens
+>> + *
+>> + * This function register in-kernel users interested in receiving notifications
+>> + * about pressure conditions. Pressure notifications will be triggered at the
+>> + * same time as userspace notifications (with no particular ordering relative
+>> + * to it).
+>> + *
+>> + * Pressure notifications are a alternative method to shrinkers and will serve
+>> + * well users that are interested in a one-shot notification, with a
+>> + * well-defined cgroup aware interface.
+>> + */
+>> +int vmpressure_register_kernel_event(struct cgroup *cg, void (*fn)(void))
+> 
+> It seems useful to include the "struct cgroup *" as a parameter to fn.
+> This would allow for fn to shrink objects it's caching in the cgroup.
+> 
+> Also, why not allow level specification for kernel events?
+> 
+Because I don't want to overdesign. This is a in-kernel API, so we can
+change it if we want to. There is only one user, and that is called from
+the root cgroup, without level distinction.
+
+The cgroup argument makes sense, but I would rather leave it as is for
+now. As for levels, it might make sense as well, but I would much rather
+leave the implementation to someone actually using them - specially
+since this is not a simple parameter passing.
+
+> It might be neat if vmpressure_register_event() used
+> vmpressure_register_kernel_event() with a callback function calls
+> eventfd_signal().  This would allow for a uniform event notification
+> type which is agnostic of user vs kernel.  However, as proposed there
+> are different signaling conditions.  So I'm not sure it's worth the time
+> to combine the even types.  So feel free to ignore this paragraph.
+> 
+
+I don't think it is worth it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
