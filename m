@@ -1,138 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id BF8846B0032
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 15:09:24 -0400 (EDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: Excessive stall times on ext4 in 3.9-rc2
-References: <20130410105608.GC1910@suse.de> <20130410131245.GC4862@thunk.org>
-	<20130411170402.GB11656@suse.de> <20130411183512.GA12298@thunk.org>
-	<20130411213335.GE9379@quack.suse.cz>
-	<20130412025708.GB7445@thunk.org> <20130412045042.GA30622@dastard>
-	<20130412151952.GA4944@thunk.org> <20130422143846.GA2675@suse.de>
-	<x49a9oqmblc.fsf@segfault.boston.devel.redhat.com>
-	<20130423140134.GA2108@suse.de>
-Date: Wed, 24 Apr 2013 15:09:13 -0400
-In-Reply-To: <20130423140134.GA2108@suse.de> (Mel Gorman's message of "Tue, 23
-	Apr 2013 15:01:34 +0100")
-Message-ID: <x49ppxjeofa.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 0E3E86B0002
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 15:23:15 -0400 (EDT)
+Date: Wed, 24 Apr 2013 12:23:13 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: swap: Mark swap pages writeback before queueing for
+ direct IO
+Message-Id: <20130424122313.381167c5ad702fc991844bc7@linux-foundation.org>
+In-Reply-To: <20130424185744.GB2144@suse.de>
+References: <516E918B.3050309@redhat.com>
+	<20130422133746.ffbbb70c0394fdbf1096c7ee@linux-foundation.org>
+	<20130424185744.GB2144@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, linux-ext4@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+Cc: Jerome Marchand <jmarchan@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
 
-Mel Gorman <mgorman@suse.de> writes:
+On Wed, 24 Apr 2013 19:57:44 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
->> I'll also note that even though your I/O is going all over the place
->> (D2C is pretty bad, 14ms), most of the time is spent waiting for a
->> struct request allocation or between Queue and Merge:
->> 
->> ==================== All Devices ====================
->> 
->>             ALL           MIN           AVG           MAX           N
->> --------------- ------------- ------------- ------------- -----------
->> 
->> Q2Q               0.000000001   0.000992259   8.898375882     2300861
->> Q2G               0.000000843  10.193261239 2064.079501935     1016463 <====
+> As pointed out by Andrew Morton, the swap-over-NFS writeback is not setting
+> PageWriteback before it is queued for direct IO. While swap pages do not
+> participate in BDI or process dirty accounting and the IO is synchronous,
+> the writeback bit is still required and not setting it in this case was
+> an oversight.  swapoff depends on the page writeback to synchronoise all
+> pending writes on a swap page before it is reused. Swapcache freeing and
+> reuse depend on checking the PageWriteback under lock to ensure the page
+> is safe to reuse.
+> 
+> Direct IO handlers and the direct IO handler for NFS do not deal with
+> PageWriteback as they are synchronous writes. In the case of NFS, it
+> schedules pages (or a page in the case of swap) for IO and then waits
+> synchronously for IO to complete in nfs_direct_write(). It is recognised
+> that this is a slowdown from normal swap handling which is asynchronous
+> and uses a completion handler. Shoving PageWriteback handling down into
+> direct IO handlers looks like a bad fit to handle the swap case although
+> it may have to be dealt with some day if swap is converted to use direct
+> IO in general and bmap is finally done away with. At that point it will
+> be necessary to refit asynchronous direct IO with completion handlers onto
+> the swap subsystem.
+> 
+> As swapcache currently depends on PageWriteback to protect against races,
+> this patch sets PageWriteback under the page lock before queueing it for
+> direct IO. It is cleared when the direct IO handler returns. IO errors
+> are treated similarly to the direct-to-bio case except PageError is not
+> set as in the case of swap-over-NFS, it is likely to be a transient error.
+> 
+> It was asked what prevents such a page being reclaimed in parallel.
+> With this patch applied, such a page will now be skipped (most of the time)
+> or blocked until the writeback completes.  Reclaim checks PageWriteback
+> under the page lock before calling try_to_free_swap and the page lock
+> should prevent the page being requeued for IO before it is freed.
+> 
+> This and Jerome's related patch should considered for -stable as far
+> back as 3.6 when swap-over-NFS was introduced.
+
+Fair enough - PageWriteback should protect the page during the redirty.
+
+> --- a/mm/page_io.c
+> +++ b/mm/page_io.c
 >
-> This is not normally my sandbox so do you mind spelling this out?
+> ...
 >
-> IIUC, the time to allocate the struct request from the slab cache is just a
-> small portion of this time. The bulk of the time is spent in get_request()
-> waiting for congestion to clear on the request list for either the sync or
-> async queue. Once a process goes to sleep on that waitqueue, it has to wait
-> until enough requests on that queue have been serviced before it gets woken
-> again at which point it gets priority access to prevent further starvation.
-> This is the Queue To Get Reqiest (Q2G) delay. What we may be seeing here
-> is that the async queue was congested and on average, we are waiting for
-> 10 seconds for it to clear. The maximum value may be bogus for reasons
-> explained later.
->
-> Is that accurate?
+> @@ -223,8 +224,24 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
+>  			count_vm_event(PSWPOUT);
+>  			ret = 0;
+>  		} else {
+> +			/*
+> +			 * In the case of swap-over-nfs, this can be a
+> +			 * temporary failure if the system has limited
+> +			 * memory for allocating transmit buffers.
+> +			 * Mark the page dirty and avoid
+> +			 * rotate_reclaimable_page but rate-limit the
+> +			 * messages but do not flag PageError like
+> +			 * the normal direct-to-bio case as it could
+> +			 * be temporary.
+> +			 */
+>  			set_page_dirty(page);
+> +			ClearPageReclaim(page);
+> +			if (printk_ratelimit()) {
+> +				pr_err("Write-error on dio swapfile (%Lu)\n",
+> +					(unsigned long long)page_file_offset(page));
+> +			}
+>  		}
+> +		end_page_writeback(page);
 
-Yes, without getting into excruciating detail.
+A pox upon printk_ratelimit()!  Both its code comment and the
+checkpatch warning explain why.
 
->> G2I               0.000000461   0.000044702   3.237065090     1015803
->> Q2M               0.000000101   8.203147238 2064.079367557     1311662
->> I2D               0.000002012   1.476824812 2064.089774419     1014890
->> M2D               0.000003283   6.994306138 283.573348664     1284872
->> D2C               0.000061889   0.014438316   0.857811758     2291996
->> Q2C               0.000072284  13.363007244 2064.092228625     2292191
->> 
->> ==================== Device Overhead ====================
->> 
->>        DEV |       Q2G       G2I       Q2M       I2D       D2C
->> ---------- | --------- --------- --------- --------- ---------
->>  (  8,  0) |  33.8259%   0.0001%  35.1275%   4.8932%   0.1080%
->> ---------- | --------- --------- --------- --------- ---------
->>    Overall |  33.8259%   0.0001%  35.1275%   4.8932%   0.1080%
->> 
->> I'm not sure I believe that max value.  2064 seconds seems a bit high.
->
-> It is so I looked closer at the timestamps and there is an one hour
-> correction about 4400 seconds into the test.  Daylight savings time kicked
-> in on March 31st and the machine is rarely rebooted until this test case
-> came along. It looks like there is a timezone or time misconfiguration
-> on the laptop that starts the machine with the wrong time. NTP must have
-> corrected the time which skewed the readings in that window severely :(
+--- a/mm/page_io.c~mm-swap-mark-swap-pages-writeback-before-queueing-for-direct-io-fix
++++ a/mm/page_io.c
+@@ -244,10 +244,8 @@ int __swap_writepage(struct page *page,
+ 			 */
+ 			set_page_dirty(page);
+ 			ClearPageReclaim(page);
+-			if (printk_ratelimit()) {
+-				pr_err("Write-error on dio swapfile (%Lu)\n",
+-					(unsigned long long)page_file_offset(page));
+-			}
++			pr_err_ratelimited("Write error on dio swapfile (%Lu)\n",
++				(unsigned long long)page_file_offset(page));
+ 		}
+ 		end_page_writeback(page);
+ 		return ret;
 
-Not sure I'm buying that argument, as there are no gaps in the blkparse
-output.  The logging is not done using wallclock time.  I still haven't
-had sufficient time to dig into these numbers.
+Do we need to cast the loff_t?  afaict all architectures use long long.
+I didn't get a warning from sparc64 with the cast removed, and sparc64
+is the one which likes to use different underlying types.
 
->> Also, Q2M should not be anywhere near that big, so more investigation is
->> required there.  A quick look over the data doesn't show any such delays
->> (making me question the tools), but I'll write some code tomorrow to
->> verify the btt output.
->> 
->
-> It might be a single set of readings during a time correction that
-> screwed it.
+I think I'll remove it and wait for Fengguang's nastygram.
 
-Again, I don't think so.
-
-> I can reproduce it at will. Due to the nature of the test, the test
-> results are variable and unfortunately it is one of the tricker mmtest
-> configurations to setup.
->
-> 1. Get access to a webserver
-> 2. Close mmtests to your test machine
->    git clone https://github.com/gormanm/mmtests.git
-> 3. Edit shellpacks/common-config.sh and set WEBROOT to a webserver path
-> 4. Create a tar.gz of a large git tree and place it at $WEBROOT/linux-2.6.tar.gz
->    Alternatively place a compressed git tree anywhere and edit
->    configs/config-global-dhp__io-multiple-source-latency
->    and update GITCHECKOUT_SOURCETAR
-> 5. Create a tar.gz of a large maildir directory and place it at
->    $WEBROOT/$WEBROOT/maildir.tar.gz
->    Alternatively, use an existing maildir folder and set
->    MONITOR_INBOX_OPEN_MAILDIR in
->    configs/config-global-dhp__io-multiple-source-latency
->
-> It's awkward but it's not like there are standard benchmarks lying around
-> and it seemed the best way to reproduce the problems I typically see early
-> in the lifetime of a system or when running a git checkout when the tree
-> has not been used in a few hours. Run the actual test with
->
-> ./run-mmtests.sh --config configs/config-global-dhp__io-multiple-source-latency --run-monitor test-name-of-your-choice
->
-> Results will be in work/log. You'll need to run this as root so it
-> can run blktrace and so it can drop_caches between git checkouts
-> (to force disk IO). If systemtap craps out on you, then edit
-> configs/config-global-dhp__io-multiple-source-latency and remove dstate
-> from MONITORS_GZIP
-
-And how do I determine whether I've hit the problem?
-
-> If you have trouble getting this running, ping me on IRC.
-
-Yes, I'm having issues getting things to go, but you didn't provide me a
-time zone, an irc server or a nick to help me find you.  Was that
-intentional?  ;-)
-
-Cheers,
-Jeff
+--- a/mm/page_io.c~mm-swap-mark-swap-pages-writeback-before-queueing-for-direct-io-fix-fix
++++ a/mm/page_io.c
+@@ -245,7 +245,7 @@ int __swap_writepage(struct page *page,
+ 			set_page_dirty(page);
+ 			ClearPageReclaim(page);
+ 			pr_err_ratelimited("Write error on dio swapfile (%Lu)\n",
+-				(unsigned long long)page_file_offset(page));
++				page_file_offset(page));
+ 		}
+ 		end_page_writeback(page);
+ 		return ret;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
