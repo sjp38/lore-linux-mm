@@ -1,16 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id DB4E46B0032
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 05:02:25 -0400 (EDT)
-Received: by mail-ye0-f202.google.com with SMTP id l8so164180yen.5
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:02:25 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id C66A86B0002
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 05:22:48 -0400 (EDT)
+Received: by mail-ye0-f201.google.com with SMTP id m2so165967yen.2
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:22:47 -0700 (PDT)
 From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH 2/2] memcg: support hierarchical memory.numa_stats
-Date: Wed, 24 Apr 2013 02:02:08 -0700
-Message-Id: <1366794128-28731-2-git-send-email-gthelen@google.com>
-In-Reply-To: <1366794128-28731-1-git-send-email-gthelen@google.com>
-References: <1365458326-17091-1-git-send-email-yinghan@google.com>
- <1366794128-28731-1-git-send-email-gthelen@google.com>
+Subject: [PATCH 2/2 v2] memcg: support hierarchical memory.numa_stats
+Date: Wed, 24 Apr 2013 02:22:44 -0700
+Message-Id: <1366795365-30808-1-git-send-email-gthelen@google.com>
+In-Reply-To: <1366794128-28731-2-git-send-email-gthelen@google.com>
+References: <1366794128-28731-2-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>
@@ -51,9 +50,29 @@ hierarchical_unevictable=0 N0=0 N1=0 N2=0 N3=0
 Signed-off-by: Ying Han <yinghan@google.com>
 Signed-off-by: Greg Thelen <gthelen@google.com>
 ---
- mm/memcontrol.c | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+Changelog:
+- v2: add documentation
 
+ Documentation/cgroups/memory.txt |  5 ++++-
+ mm/memcontrol.c                  | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 8b8c28b..b519e74 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -568,7 +568,10 @@ node.  One of the use cases is evaluating application performance by
+ combining this information with the application's CPU allocation.
+ 
+ We export "total", "file", "anon" and "unevictable" pages per-node for
+-each memcg.  The ouput format of memory.numa_stat is:
++each memcg and "hierarchical_" for sum of all hierarchical children's values
++in addition to the memcg's own value.
++
++The ouput format of memory.numa_stat is:
+ 
+ total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+ file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
 index e73526e..f0ec99d 100644
 --- a/mm/memcontrol.c
