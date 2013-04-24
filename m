@@ -1,34 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 70A0D6B0002
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 11:44:03 -0400 (EDT)
-Date: Wed, 24 Apr 2013 15:43:58 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Infiniband use of get_user_pages()
-In-Reply-To: <20130424153810.GA25958@quack.suse.cz>
-Message-ID: <0000013e3cb72e66-58330751-246a-4ac4-94d7-897754e59b3d-000000@email.amazonses.com>
-References: <20130424153810.GA25958@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 127886B0032
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 11:45:15 -0400 (EDT)
+Date: Wed, 24 Apr 2013 17:42:16 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] oom: add pending SIGKILL check for chosen victim
+Message-ID: <20130424154216.GA27929@redhat.com>
+References: <1366643184-3627-1-git-send-email-dserrg@gmail.com> <20130422195138.GB31098@dhcp22.suse.cz> <20130423192614.c8621a7fe1b5b3e0a2ebf74a@gmail.com> <20130423155638.GJ8001@dhcp22.suse.cz> <20130424145514.GA24997@redhat.com> <20130424152236.GB7600@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130424152236.GB7600@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Roland Dreier <roland@kernel.org>, linux-rdma@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: dserrg <dserrg@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sha Zhengju <handai.szj@taobao.com>
 
-On Wed, 24 Apr 2013, Jan Kara wrote:
-
->   Hello,
+On 04/24, Michal Hocko wrote:
 >
->   when checking users of get_user_pages() (I'm doing some cleanups in that
-> area to fix filesystem's issues with mmap_sem locking) I've noticed that
-> infiniband drivers add number of pages obtained from get_user_pages() to
-> mm->pinned_vm counter. Although this makes some sence, it doesn't match
-> with any other user of get_user_pages() (e.g. direct IO) so has infiniband
-> some special reason why it does so?
+> On Wed 24-04-13 16:55:14, Oleg Nesterov wrote:
+> >
+> > But I can't understand how this patch can fix the problem, I think it
+> > can't.
+> >
+> > From the changelog:
+> >
+> > 	When SIGKILL is sent to a task, it's also sent to all tasks in the same
+> > 	threadgroup. This information can be used to prevent triggering further
+> > 	oom killers for this threadgroup and avoid the infinite loop.
+> >                                              ^^^^^^^^^^^^^^^^^^^^^^^
+> >
+> > How??
+>
+> I guess it assumes that fatal_signal_pending() is still true even when
+> the process is unhashed already.
 
-get_user_pages typically is used to temporarily increase the refcount. The
-Infiniband layer needs to permanently pin the pages for memory
-registration.
+No, it is not (in general). The task can dequeue this SIGKIL and then
+exit. But this doesn't matter.
+
+> Which sounds like a workaround to me.
+
+The task can do everything after we check PF_EXITING or whatever else.
+Just suppose it is alive and running, but before we take tasklist_lock
+it exits and removes itself from list.
+
+But wait, I forgot that "p" is not necessarily the main thread, so
+the patch I sent is not enough...
+
+Oh, and this reminds me again but we can race with exec... but this
+is mostly theoretical. should be fixed anyway.
+
+I'll try to think more tomorrow. I need to recall the previous discussion
+at least.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
