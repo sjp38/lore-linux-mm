@@ -1,199 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 9DD066B0002
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 04:35:28 -0400 (EDT)
-Message-ID: <51779970.4010101@parallels.com>
-Date: Wed, 24 Apr 2013 12:36:00 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id DF9496B0002
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 04:42:46 -0400 (EDT)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Wed, 24 Apr 2013 02:42:41 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 3026F19D8042
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:42:33 -0600 (MDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3O8gcnE357870
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:42:38 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3O8gadt006078
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 02:42:38 -0600
+Date: Wed, 24 Apr 2013 16:42:29 +0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v3 2/3] resource: Add release_mem_region_adjustable()
+Message-ID: <20130424084229.GB29191@ram.oc3035372033.ibm.com>
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1365614221-685-1-git-send-email-toshi.kani@hp.com>
+ <1365614221-685-3-git-send-email-toshi.kani@hp.com>
+ <20130410144412.395bf9f2fb8192920175e30a@linux-foundation.org>
+ <1365630585.32127.110.camel@misato.fc.hp.com>
+ <alpine.DEB.2.02.1304101505250.1526@chino.kir.corp.google.com>
+ <20130410152404.e0836af597ba3545b9846672@linux-foundation.org>
+ <1365697802.32127.117.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] vmpressure: in-kernel notifications
-References: <1366705329-9426-1-git-send-email-glommer@openvz.org> <1366705329-9426-2-git-send-email-glommer@openvz.org> <xr93vc7cgzs0.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr93vc7cgzs0.fsf@gthelen.mtv.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1365697802.32127.117.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
-On 04/24/2013 11:21 AM, Greg Thelen wrote:
-> On Tue, Apr 23 2013, Glauber Costa wrote:
+On Thu, Apr 11, 2013 at 10:30:02AM -0600, Toshi Kani wrote:
+> On Wed, 2013-04-10 at 15:24 -0700, Andrew Morton wrote:
+> > On Wed, 10 Apr 2013 15:08:29 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+> > 
+> > > On Wed, 10 Apr 2013, Toshi Kani wrote:
+> > > 
+> > > > > I'll switch it to GFP_ATOMIC.  Which is horridly lame but the
+> > > > > allocation is small and alternatives are unobvious.
+> > > > 
+> > > > Great!  Again, thanks for the update!
+> > > 
+> > > release_mem_region_adjustable() allocates at most one struct resource, so 
+> > > why not do kmalloc(sizeof(struct resource), GFP_KERNEL) before taking 
+> > > resource_lock and then testing whether it's NULL or not when splitting?  
+> > > It unnecessarily allocates memory when there's no split, but 
+> > > __remove_pages() shouldn't be a hotpath.
+> > 
+> > yup.
+> > 
+> > --- a/kernel/resource.c~resource-add-release_mem_region_adjustable-fix-fix
+> > +++ a/kernel/resource.c
+> > @@ -1046,7 +1046,8 @@ int release_mem_region_adjustable(struct
+> >  			resource_size_t start, resource_size_t size)
+> >  {
+> >  	struct resource **p;
+> > -	struct resource *res, *new;
+> > +	struct resource *res;
+> > +	struct resource *new_res;
+> >  	resource_size_t end;
+> >  	int ret = -EINVAL;
+> >  
+> > @@ -1054,6 +1055,9 @@ int release_mem_region_adjustable(struct
+> >  	if ((start < parent->start) || (end > parent->end))
+> >  		return ret;
+> >  
+> > +	/* The kzalloc() result gets checked later */
+> > +	new_res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> > +
+> >  	p = &parent->child;
+> >  	write_lock(&resource_lock);
+> >  
+> > @@ -1091,32 +1095,33 @@ int release_mem_region_adjustable(struct
+> >  						start - res->start);
+> >  		} else {
+> >  			/* split into two entries */
+> > -			new = kzalloc(sizeof(struct resource), GFP_ATOMIC);
+> > -			if (!new) {
+> > +			if (!new_res) {
+> >  				ret = -ENOMEM;
+> >  				break;
+> >  			}
+> > -			new->name = res->name;
+> > -			new->start = end + 1;
+> > -			new->end = res->end;
+> > -			new->flags = res->flags;
+> > -			new->parent = res->parent;
+> > -			new->sibling = res->sibling;
+> > -			new->child = NULL;
+> > +			new_res->name = res->name;
+> > +			new_res->start = end + 1;
+> > +			new_res->end = res->end;
+> > +			new_res->flags = res->flags;
+> > +			new_res->parent = res->parent;
+> > +			new_res->sibling = res->sibling;
+> > +			new_res->child = NULL;
+> >  
+> >  			ret = __adjust_resource(res, res->start,
+> >  						start - res->start);
+> >  			if (ret) {
+> > -				kfree(new);
+> > +				kfree(new_res);
+> >  				break;
+> >  			}
 > 
->> From: Glauber Costa <glommer@parallels.com>
->>
->> During the past weeks, it became clear to us that the shrinker interface
->> we have right now works very well for some particular types of users,
->> but not that well for others. The later are usually people interested in
->> one-shot notifications, that were forced to adapt themselves to the
->> count+scan behavior of shrinkers. To do so, they had no choice than to
->> greatly abuse the shrinker interface producing little monsters all over.
->>
->> During LSF/MM, one of the proposals that popped out during our session
->> was to reuse Anton Voronstsov's vmpressure for this. They are designed
->> for userspace consumption, but also provide a well-stablished,
->> cgroup-aware entry point for notifications.
->>
->> This patch extends that to also support in-kernel users. Events that
->> should be generated for in-kernel consumption will be marked as such,
->> and for those, we will call a registered function instead of triggering
->> an eventfd notification.
->>
->> Please note that due to my lack of understanding of each shrinker user,
->> I will stay away from converting the actual users, you are all welcome
->> to do so.
->>
->> Signed-off-by: Glauber Costa <glommer@openvz.org>
->> Cc: Dave Chinner <david@fromorbit.com>
->> Cc: Anton Vorontsov <anton.vorontsov@linaro.org>
->> Cc: John Stultz <john.stultz@linaro.org>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Joonsoo Kim <js1304@gmail.com>
->> Cc: Michal Hocko <mhocko@suse.cz>
->> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> ---
->>  include/linux/vmpressure.h |  6 ++++++
->>  mm/vmpressure.c            | 48 ++++++++++++++++++++++++++++++++++++++++++----
->>  2 files changed, 50 insertions(+), 4 deletions(-)
->>
->> diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
->> index 76be077..1862012 100644
->> --- a/include/linux/vmpressure.h
->> +++ b/include/linux/vmpressure.h
->> @@ -19,6 +19,9 @@ struct vmpressure {
->>  	/* Have to grab the lock on events traversal or modifications. */
->>  	struct mutex events_lock;
->>  
->> +	/* false if only kernel users want to be notified, true otherwise */
->> +	bool notify_userspace;
->> +
->>  	struct work_struct work;
->>  };
->>  
->> @@ -36,6 +39,9 @@ extern struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css);
->>  extern int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
->>  				     struct eventfd_ctx *eventfd,
->>  				     const char *args);
->> +
->> +extern int vmpressure_register_kernel_event(struct cgroup *cg,
->> +					    void (*fn)(void));
->>  extern void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
->>  					struct eventfd_ctx *eventfd);
->>  #else
->> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
->> index 736a601..8d77ad0 100644
->> --- a/mm/vmpressure.c
->> +++ b/mm/vmpressure.c
->> @@ -135,8 +135,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
->>  }
->>  
->>  struct vmpressure_event {
->> -	struct eventfd_ctx *efd;
->> +	union {
->> +		struct eventfd_ctx *efd;
->> +		void (*fn)(void);
->> +	};
->>  	enum vmpressure_levels level;
->> +	bool kernel_event;
->>  	struct list_head node;
->>  };
->>  
->> @@ -152,7 +156,9 @@ static bool vmpressure_event(struct vmpressure *vmpr,
->>  	mutex_lock(&vmpr->events_lock);
->>  
->>  	list_for_each_entry(ev, &vmpr->events, node) {
->> -		if (level >= ev->level) {
->> +		if (ev->kernel_event)
->> +			ev->fn();
->> +		else if (vmpr->notify_userspace && (level >= ev->level)) {
->>  			eventfd_signal(ev->efd, 1);
->>  			signalled = true;
->>  		}
->> @@ -227,7 +233,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
->>  	 * we account it too.
->>  	 */
->>  	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
->> -		return;
->> +		goto schedule;
->>  
->>  	/*
->>  	 * If we got here with no pages scanned, then that is an indicator
->> @@ -238,14 +244,16 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
->>  	 * through vmpressure_prio(). But so far, keep calm.
->>  	 */
->>  	if (!scanned)
->> -		return;
->> +		goto schedule;
+> The kfree() in the if-statement above is not necessary since kfree() is
+> called before the return at the end.  That is, the if-statement needs to
+> be:
+> 	if (ret)
+> 		break;
 > 
-> If goto schedule is taken here then scanned==0.  Then
-> scanned<vmpressure_win (below), so this function would always simply
-> return.  So this change seems like a no-op.  Should the schedule: below
-> be just before schedule_work(&vmpr->work)?  But this wouldn't do much
-> either because vmpressure_work_fn() would immediately return if
-> vmpr->scanned==0.  Presumable the idea is to avoid notifying user space
-> or kernel callbacks if lru pages are not scanned - at least until
-> vmpressure_prio() is called with a priority more desperate than
-> vmpressure_level_critical_prio at which time this function's scanned!=0.
+> With this change, I confirmed that all my test cases passed (with all
+> the config debug options this time :).  With the change:
 > 
+> Reviewed-by: Toshi Kani <toshi.kani@hp.com>
 
-Yes, the idea is to avoid calling the callbacks. I can just return at
-this point if you prefer. I figured that jumping to the common entry
-point would be more consistent, only that. I don't care either way.
+I am not confortable witht the assumption, that when a split takes
+place, the children are assumed to be in the lower entry. Probably a
+warning to that effect,  would help quickly
+nail down the problem, if such a case does encounter ?
 
->>  
->>  	mutex_lock(&vmpr->sr_lock);
->>  	vmpr->scanned += scanned;
->>  	vmpr->reclaimed += reclaimed;
->> +	vmpr->notify_userspace = true;
->>  	scanned = vmpr->scanned;
->>  	mutex_unlock(&vmpr->sr_lock);
->>  
->> +schedule:
->>  	if (scanned < vmpressure_win || work_pending(&vmpr->work))
->>  		return;
->>  	schedule_work(&vmpr->work);
->> @@ -328,6 +336,38 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
->>  }
->>  
->>  /**
->> + * vmpressure_register_kernel_event() - Register kernel-side notification
->> + * @cg:		cgroup that is interested in vmpressure notifications
->> + * @fn:		function to be called when pressure happens
->> + *
->> + * This function register in-kernel users interested in receiving notifications
->> + * about pressure conditions. Pressure notifications will be triggered at the
->> + * same time as userspace notifications (with no particular ordering relative
->> + * to it).
->> + *
->> + * Pressure notifications are a alternative method to shrinkers and will serve
->> + * well users that are interested in a one-shot notification, with a
->> + * well-defined cgroup aware interface.
->> + */
->> +int vmpressure_register_kernel_event(struct cgroup *cg, void (*fn)(void))
-> 
-> It seems useful to include the "struct cgroup *" as a parameter to fn.
-> This would allow for fn to shrink objects it's caching in the cgroup.
-> 
-> Also, why not allow level specification for kernel events?
-> 
-Because I don't want to overdesign. This is a in-kernel API, so we can
-change it if we want to. There is only one user, and that is called from
-the root cgroup, without level distinction.
+Otherwise this looks fine. Sorry for the delayed reply. Was out.
 
-The cgroup argument makes sense, but I would rather leave it as is for
-now. As for levels, it might make sense as well, but I would much rather
-leave the implementation to someone actually using them - specially
-since this is not a simple parameter passing.
-
-> It might be neat if vmpressure_register_event() used
-> vmpressure_register_kernel_event() with a callback function calls
-> eventfd_signal().  This would allow for a uniform event notification
-> type which is agnostic of user vs kernel.  However, as proposed there
-> are different signaling conditions.  So I'm not sure it's worth the time
-> to combine the even types.  So feel free to ignore this paragraph.
-> 
-
-I don't think it is worth it.
+Reviewed-by: Ram Pai <linuxram@us.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
