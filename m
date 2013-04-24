@@ -1,89 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 2AC9F6B0002
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 10:17:26 -0400 (EDT)
-Date: Wed, 24 Apr 2013 10:17:19 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <1366813039-3zmj9x71-mutt-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <517795E2.6070404@huawei.com>
-References: <bug-56881-27@https.bugzilla.kernel.org/>
- <20130423132522.042fa8d27668bbca6a410a92@linux-foundation.org>
- <1366755995-no3omuhl-mutt-n-horiguchi@ah.jp.nec.com>
- <517795E2.6070404@huawei.com>
-Subject: Re: [Bug 56881] New: MAP_HUGETLB mmap fails for certain sizes
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id E69FB6B0002
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 10:26:56 -0400 (EDT)
+Date: Wed, 24 Apr 2013 10:26:50 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: page eviction from the buddy cache
+Message-ID: <20130424142650.GA29097@thunk.org>
+References: <alpine.LNX.2.00.1303271135420.29687@eggly.anvils>
+ <3C8EEEF8-C1EB-4E3D-8DE6-198AB1BEA8C0@gmail.com>
+ <515CD665.9000300@gmail.com>
+ <239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com>
+ <51730619.3030204@fastmail.fm>
+ <20130420235718.GA28789@thunk.org>
+ <5176785D.5030707@fastmail.fm>
+ <20130423122708.GA31170@thunk.org>
+ <alpine.LNX.2.00.1304231230340.12850@eggly.anvils>
+ <20130423150008.046ee9351da4681128db0bf3@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20130423150008.046ee9351da4681128db0bf3@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, iceman_dvd@yahoo.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Bernd Schubert <bernd.schubert@fastmail.fm>, Alexey Lyahkov <alexey.lyashkov@gmail.com>, Will Huck <will.huckk@gmail.com>, Andrew Perepechko <anserper@ya.ru>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
 
-On Wed, Apr 24, 2013 at 04:20:50PM +0800, Jianguo Wu wrote:
-...
-> Hi Naoya,
+On Tue, Apr 23, 2013 at 03:00:08PM -0700, Andrew Morton wrote:
+> That should fix things for now.  Although it might be better to just do
 > 
-> I think the -EINVAL is returned from hugetlb_get_unmapped_area(),
-> for the two testcases:
-> 1) $ ./mmappu $((5 * 2 * 1024 * 1024 - 4096))	//len1 = 0x9ff000
-> 2) $ ./mmappu $((5 * 2 * 1024 * 1024 - 4095))	//len2 = 0x9ff001
+>  	mark_page_accessed(page);	/* to SetPageReferenced */
+>  	lru_add_drain();		/* to SetPageLRU */
 > 
-> In do_mmap_pgoff(), after "len = PAGE_ALIGN(len);", len1 = 0x9ff000,
-> len2 = 0xa00000, so len2 will pass "if (len & ~huge_page_mask(h))" check in
-> hugetlb_get_unmapped_area(), and len1 will return -EINVAL. As follow:
-> 
-> do_mmap_pgoff()
-> {
-> 	...
-> 	/* Careful about overflows.. */
-> 	len = PAGE_ALIGN(len);
-> 	...
-> 	get_unmapped_area()
-> 		-->hugetlb_get_unmapped_area()
-> 		   {
-> 			...
-> 			if (len & ~huge_page_mask(h))
-> 				return -EINVAL;
-> 			...
-> 		   }
-> }
+> Because a) this was too early to decide that the page is
+> super-important and b) the second touch of this page should have a
+> mark_page_accessed() in it already.
 
-You are right, Jianguo. Thanks you.
-I totally missed the point.
+The question is do we really want to put lru_add_drain() into the ext4
+file system code?  That seems to pushing some fairly mm-specific
+knowledge into file system code.  I'll do this if I have to do, but
+wouldn't be better if this was pushed into mark_page_accessed(), or
+some other new API was exported by the mm subsystem?
 
-> 
-> do we need to align len to hugepage size if it's hugetlbfs mmap? something like below:
-> 
-> ---
->  mm/mmap.c | 5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 0db0de1..bd42be24 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -1188,7 +1188,10 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
->  		addr = round_hint_to_min(addr);
->  
->  	/* Careful about overflows.. */
-> -	len = PAGE_ALIGN(len);
-> +	if (file && is_file_hugepages(file))
-> +		len = ALIGN(len, huge_page_size(hstate_file(file)));
-> +	else
-> +		len = PAGE_ALIGN(len);
->  	if (!len)
->  		return -ENOMEM;
->  
-> -- 
+> At present the code decides up-front which LRU the lru_add_pvecs page
+> will eventually be spilled onto.  That's a bit strange and I wonder why
+> we did it that way.  Why not just have a single (per-cpu) magazine of
+> pages which are to go onto the LRUs, and decide *which* LRU that will
+> be at the last possible moment?
 
-I like putting this alignment code in if (flags & MAP_HUGETLB) branch in
-SYSCALL_DEFINE6(mmap_pgoff) as Johannes pointed out in another subthread,
-because it adds no impact on mmap calls with !MAP_HUGETLB.
+And this is why it seems strange that fs code should need or should
+want to put something as mm-implementation dependent into their code
+paths.  At minimum, if we do this, we'll want to put some explanatory
+comments so that later, people won't be asking, what the !@#@?!? are
+the ext4 people calling lru_add_drain() here?
 
-Thanks,
-Naoya Horiguchi
+							- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
