@@ -1,147 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id E028C6B0002
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 10:56:17 -0400 (EDT)
-Message-ID: <1366814613.10719.20.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v3 2/3] resource: Add release_mem_region_adjustable()
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 24 Apr 2013 08:43:33 -0600
-In-Reply-To: <20130424084229.GB29191@ram.oc3035372033.ibm.com>
-References: <1365614221-685-1-git-send-email-toshi.kani@hp.com>
-	 <1365614221-685-3-git-send-email-toshi.kani@hp.com>
-	 <20130410144412.395bf9f2fb8192920175e30a@linux-foundation.org>
-	 <1365630585.32127.110.camel@misato.fc.hp.com>
-	 <alpine.DEB.2.02.1304101505250.1526@chino.kir.corp.google.com>
-	 <20130410152404.e0836af597ba3545b9846672@linux-foundation.org>
-	 <1365697802.32127.117.camel@misato.fc.hp.com>
-	 <20130424084229.GB29191@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 50D8B6B0033
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 10:58:13 -0400 (EDT)
+Date: Wed, 24 Apr 2013 16:55:14 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] oom: add pending SIGKILL check for chosen victim
+Message-ID: <20130424145514.GA24997@redhat.com>
+References: <1366643184-3627-1-git-send-email-dserrg@gmail.com> <20130422195138.GB31098@dhcp22.suse.cz> <20130423192614.c8621a7fe1b5b3e0a2ebf74a@gmail.com> <20130423155638.GJ8001@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130423155638.GJ8001@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: dserrg <dserrg@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sha Zhengju <handai.szj@taobao.com>
 
-On Wed, 2013-04-24 at 16:42 +0800, Ram Pai wrote:
-> On Thu, Apr 11, 2013 at 10:30:02AM -0600, Toshi Kani wrote:
-> > On Wed, 2013-04-10 at 15:24 -0700, Andrew Morton wrote:
-> > > On Wed, 10 Apr 2013 15:08:29 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-> > > 
-> > > > On Wed, 10 Apr 2013, Toshi Kani wrote:
-> > > > 
-> > > > > > I'll switch it to GFP_ATOMIC.  Which is horridly lame but the
-> > > > > > allocation is small and alternatives are unobvious.
-> > > > > 
-> > > > > Great!  Again, thanks for the update!
-> > > > 
-> > > > release_mem_region_adjustable() allocates at most one struct resource, so 
-> > > > why not do kmalloc(sizeof(struct resource), GFP_KERNEL) before taking 
-> > > > resource_lock and then testing whether it's NULL or not when splitting?  
-> > > > It unnecessarily allocates memory when there's no split, but 
-> > > > __remove_pages() shouldn't be a hotpath.
-> > > 
-> > > yup.
-> > > 
-> > > --- a/kernel/resource.c~resource-add-release_mem_region_adjustable-fix-fix
-> > > +++ a/kernel/resource.c
-> > > @@ -1046,7 +1046,8 @@ int release_mem_region_adjustable(struct
-> > >  			resource_size_t start, resource_size_t size)
-> > >  {
-> > >  	struct resource **p;
-> > > -	struct resource *res, *new;
-> > > +	struct resource *res;
-> > > +	struct resource *new_res;
-> > >  	resource_size_t end;
-> > >  	int ret = -EINVAL;
-> > >  
-> > > @@ -1054,6 +1055,9 @@ int release_mem_region_adjustable(struct
-> > >  	if ((start < parent->start) || (end > parent->end))
-> > >  		return ret;
-> > >  
-> > > +	/* The kzalloc() result gets checked later */
-> > > +	new_res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-> > > +
-> > >  	p = &parent->child;
-> > >  	write_lock(&resource_lock);
-> > >  
-> > > @@ -1091,32 +1095,33 @@ int release_mem_region_adjustable(struct
-> > >  						start - res->start);
-> > >  		} else {
-> > >  			/* split into two entries */
-> > > -			new = kzalloc(sizeof(struct resource), GFP_ATOMIC);
-> > > -			if (!new) {
-> > > +			if (!new_res) {
-> > >  				ret = -ENOMEM;
-> > >  				break;
-> > >  			}
-> > > -			new->name = res->name;
-> > > -			new->start = end + 1;
-> > > -			new->end = res->end;
-> > > -			new->flags = res->flags;
-> > > -			new->parent = res->parent;
-> > > -			new->sibling = res->sibling;
-> > > -			new->child = NULL;
-> > > +			new_res->name = res->name;
-> > > +			new_res->start = end + 1;
-> > > +			new_res->end = res->end;
-> > > +			new_res->flags = res->flags;
-> > > +			new_res->parent = res->parent;
-> > > +			new_res->sibling = res->sibling;
-> > > +			new_res->child = NULL;
-> > >  
-> > >  			ret = __adjust_resource(res, res->start,
-> > >  						start - res->start);
-> > >  			if (ret) {
-> > > -				kfree(new);
-> > > +				kfree(new_res);
-> > >  				break;
-> > >  			}
-> > 
-> > The kfree() in the if-statement above is not necessary since kfree() is
-> > called before the return at the end.  That is, the if-statement needs to
-> > be:
-> > 	if (ret)
-> > 		break;
-> > 
-> > With this change, I confirmed that all my test cases passed (with all
-> > the config debug options this time :).  With the change:
-> > 
-> > Reviewed-by: Toshi Kani <toshi.kani@hp.com>
-> 
-> I am not confortable witht the assumption, that when a split takes
-> place, the children are assumed to be in the lower entry. Probably a
-> warning to that effect,  would help quickly
-> nail down the problem, if such a case does encounter ?
+On 04/23, Michal Hocko wrote:
+>
+> [CCing Oleg]
+>
+> On Tue 23-04-13 19:26:14, dserrg wrote:
+> > On Mon, 22 Apr 2013 21:51:38 +0200
+> >
+> > Yes, we are holding tasklist_lock when iterating, but the thread can be deleted
+> > from thread_group list _before_ that. In this case, while_each_thread loop exit
+> > condition will never be true.
 
-Yes, __adjust_resource() fails with -EBUSY when such condition happens.
-Hence, release_mem_region_adjustable() returns with -EBUSY, and
-__remove_pages() emits a warning message per patch 3/3.  So, it can be
-quickly nailed down as this restriction is documented in the comment as
-well.
+Yes, while_each_thread() should be only used if know that ->thread_group
+list is valid.
 
-At this point, the children are only used for Kernel code/data/bss as
-follows.  Hot-removable memory ranges are located at higher ranges than
-them.  So, I decided to simplify the implementation for this initial
-version.  We can always enhance it when needed.
+For example, if you do find_task_by_vpid() under rcu_read_lock()
+while_each_thread() is fine _unless_ you drop rcu lock in between.
 
-# cat /proc/iomem
- :
-00100000-defa57ff : System RAM
-  01000000-0162f8d1 : Kernel code
-  0162f8d2-01ce52bf : Kernel data
-  01df1000-01fa5fff : Kernel bss
- :
-100000000-31fffffff : System RAM
+This is the common mistake, people often forget about this.
+
+But I can't understand how this patch can fix the problem, I think it
+can't.
+
+>From the changelog:
+
+	When SIGKILL is sent to a task, it's also sent to all tasks in the same
+	threadgroup. This information can be used to prevent triggering further
+	oom killers for this threadgroup and avoid the infinite loop.
+                                             ^^^^^^^^^^^^^^^^^^^^^^^
+
+How??
 
 
-> Otherwise this looks fine. Sorry for the delayed reply. Was out.
-> 
-> Reviewed-by: Ram Pai <linuxram@us.ibm.com>
+> Oleg, is there anything that would prevent from this race? Maybe we need
+> to call thread_group_empty before?
 
-No problem.  Thanks for reviewing!
--Toshi
+You need to check, say, pid_alive(). Or PF_EXITING.
 
+For example oom_kill_process() looks wrong. It does check PF_EXITING
+before while_each_thread(), but this is racy because it should check
+it under tasklist_lock.
+
+So I think that oom_kill_process() needs something like below, but
+this code really needs the cleanups.
+
+Oleg.
+
+
+--- x/mm/oom_kill.c
++++ x/mm/oom_kill.c
+@@ -436,6 +436,14 @@ void oom_kill_process(struct task_struct
+ 	 * parent.  This attempts to lose the minimal amount of work done while
+ 	 * still freeing memory.
+ 	 */
++	rcu_read_lock();
++	if (!pid_alive(p)) {
++		rcu_read_unlock();
++		set_tsk_thread_flag(p, TIF_MEMDIE);
++		put_task_struct(p);
++		return;
++	}
++
+ 	read_lock(&tasklist_lock);
+ 	do {
+ 		list_for_each_entry(child, &t->children, sibling) {
+@@ -458,7 +466,6 @@ void oom_kill_process(struct task_struct
+ 	} while_each_thread(p, t);
+ 	read_unlock(&tasklist_lock);
+ 
+-	rcu_read_lock();
+ 	p = find_lock_task_mm(victim);
+ 	if (!p) {
+ 		rcu_read_unlock();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
