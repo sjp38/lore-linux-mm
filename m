@@ -1,59 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id E69FB6B0002
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 10:26:56 -0400 (EDT)
-Date: Wed, 24 Apr 2013 10:26:50 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: page eviction from the buddy cache
-Message-ID: <20130424142650.GA29097@thunk.org>
-References: <alpine.LNX.2.00.1303271135420.29687@eggly.anvils>
- <3C8EEEF8-C1EB-4E3D-8DE6-198AB1BEA8C0@gmail.com>
- <515CD665.9000300@gmail.com>
- <239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com>
- <51730619.3030204@fastmail.fm>
- <20130420235718.GA28789@thunk.org>
- <5176785D.5030707@fastmail.fm>
- <20130423122708.GA31170@thunk.org>
- <alpine.LNX.2.00.1304231230340.12850@eggly.anvils>
- <20130423150008.046ee9351da4681128db0bf3@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130423150008.046ee9351da4681128db0bf3@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id E028C6B0002
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 10:56:17 -0400 (EDT)
+Message-ID: <1366814613.10719.20.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v3 2/3] resource: Add release_mem_region_adjustable()
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 24 Apr 2013 08:43:33 -0600
+In-Reply-To: <20130424084229.GB29191@ram.oc3035372033.ibm.com>
+References: <1365614221-685-1-git-send-email-toshi.kani@hp.com>
+	 <1365614221-685-3-git-send-email-toshi.kani@hp.com>
+	 <20130410144412.395bf9f2fb8192920175e30a@linux-foundation.org>
+	 <1365630585.32127.110.camel@misato.fc.hp.com>
+	 <alpine.DEB.2.02.1304101505250.1526@chino.kir.corp.google.com>
+	 <20130410152404.e0836af597ba3545b9846672@linux-foundation.org>
+	 <1365697802.32127.117.camel@misato.fc.hp.com>
+	 <20130424084229.GB29191@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Bernd Schubert <bernd.schubert@fastmail.fm>, Alexey Lyahkov <alexey.lyashkov@gmail.com>, Will Huck <will.huckk@gmail.com>, Andrew Perepechko <anserper@ya.ru>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, guz.fnst@cn.fujitsu.com, tmac@hp.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com
 
-On Tue, Apr 23, 2013 at 03:00:08PM -0700, Andrew Morton wrote:
-> That should fix things for now.  Although it might be better to just do
+On Wed, 2013-04-24 at 16:42 +0800, Ram Pai wrote:
+> On Thu, Apr 11, 2013 at 10:30:02AM -0600, Toshi Kani wrote:
+> > On Wed, 2013-04-10 at 15:24 -0700, Andrew Morton wrote:
+> > > On Wed, 10 Apr 2013 15:08:29 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+> > > 
+> > > > On Wed, 10 Apr 2013, Toshi Kani wrote:
+> > > > 
+> > > > > > I'll switch it to GFP_ATOMIC.  Which is horridly lame but the
+> > > > > > allocation is small and alternatives are unobvious.
+> > > > > 
+> > > > > Great!  Again, thanks for the update!
+> > > > 
+> > > > release_mem_region_adjustable() allocates at most one struct resource, so 
+> > > > why not do kmalloc(sizeof(struct resource), GFP_KERNEL) before taking 
+> > > > resource_lock and then testing whether it's NULL or not when splitting?  
+> > > > It unnecessarily allocates memory when there's no split, but 
+> > > > __remove_pages() shouldn't be a hotpath.
+> > > 
+> > > yup.
+> > > 
+> > > --- a/kernel/resource.c~resource-add-release_mem_region_adjustable-fix-fix
+> > > +++ a/kernel/resource.c
+> > > @@ -1046,7 +1046,8 @@ int release_mem_region_adjustable(struct
+> > >  			resource_size_t start, resource_size_t size)
+> > >  {
+> > >  	struct resource **p;
+> > > -	struct resource *res, *new;
+> > > +	struct resource *res;
+> > > +	struct resource *new_res;
+> > >  	resource_size_t end;
+> > >  	int ret = -EINVAL;
+> > >  
+> > > @@ -1054,6 +1055,9 @@ int release_mem_region_adjustable(struct
+> > >  	if ((start < parent->start) || (end > parent->end))
+> > >  		return ret;
+> > >  
+> > > +	/* The kzalloc() result gets checked later */
+> > > +	new_res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+> > > +
+> > >  	p = &parent->child;
+> > >  	write_lock(&resource_lock);
+> > >  
+> > > @@ -1091,32 +1095,33 @@ int release_mem_region_adjustable(struct
+> > >  						start - res->start);
+> > >  		} else {
+> > >  			/* split into two entries */
+> > > -			new = kzalloc(sizeof(struct resource), GFP_ATOMIC);
+> > > -			if (!new) {
+> > > +			if (!new_res) {
+> > >  				ret = -ENOMEM;
+> > >  				break;
+> > >  			}
+> > > -			new->name = res->name;
+> > > -			new->start = end + 1;
+> > > -			new->end = res->end;
+> > > -			new->flags = res->flags;
+> > > -			new->parent = res->parent;
+> > > -			new->sibling = res->sibling;
+> > > -			new->child = NULL;
+> > > +			new_res->name = res->name;
+> > > +			new_res->start = end + 1;
+> > > +			new_res->end = res->end;
+> > > +			new_res->flags = res->flags;
+> > > +			new_res->parent = res->parent;
+> > > +			new_res->sibling = res->sibling;
+> > > +			new_res->child = NULL;
+> > >  
+> > >  			ret = __adjust_resource(res, res->start,
+> > >  						start - res->start);
+> > >  			if (ret) {
+> > > -				kfree(new);
+> > > +				kfree(new_res);
+> > >  				break;
+> > >  			}
+> > 
+> > The kfree() in the if-statement above is not necessary since kfree() is
+> > called before the return at the end.  That is, the if-statement needs to
+> > be:
+> > 	if (ret)
+> > 		break;
+> > 
+> > With this change, I confirmed that all my test cases passed (with all
+> > the config debug options this time :).  With the change:
+> > 
+> > Reviewed-by: Toshi Kani <toshi.kani@hp.com>
 > 
->  	mark_page_accessed(page);	/* to SetPageReferenced */
->  	lru_add_drain();		/* to SetPageLRU */
+> I am not confortable witht the assumption, that when a split takes
+> place, the children are assumed to be in the lower entry. Probably a
+> warning to that effect,  would help quickly
+> nail down the problem, if such a case does encounter ?
+
+Yes, __adjust_resource() fails with -EBUSY when such condition happens.
+Hence, release_mem_region_adjustable() returns with -EBUSY, and
+__remove_pages() emits a warning message per patch 3/3.  So, it can be
+quickly nailed down as this restriction is documented in the comment as
+well.
+
+At this point, the children are only used for Kernel code/data/bss as
+follows.  Hot-removable memory ranges are located at higher ranges than
+them.  So, I decided to simplify the implementation for this initial
+version.  We can always enhance it when needed.
+
+# cat /proc/iomem
+ :
+00100000-defa57ff : System RAM
+  01000000-0162f8d1 : Kernel code
+  0162f8d2-01ce52bf : Kernel data
+  01df1000-01fa5fff : Kernel bss
+ :
+100000000-31fffffff : System RAM
+
+
+> Otherwise this looks fine. Sorry for the delayed reply. Was out.
 > 
-> Because a) this was too early to decide that the page is
-> super-important and b) the second touch of this page should have a
-> mark_page_accessed() in it already.
+> Reviewed-by: Ram Pai <linuxram@us.ibm.com>
 
-The question is do we really want to put lru_add_drain() into the ext4
-file system code?  That seems to pushing some fairly mm-specific
-knowledge into file system code.  I'll do this if I have to do, but
-wouldn't be better if this was pushed into mark_page_accessed(), or
-some other new API was exported by the mm subsystem?
+No problem.  Thanks for reviewing!
+-Toshi
 
-> At present the code decides up-front which LRU the lru_add_pvecs page
-> will eventually be spilled onto.  That's a bit strange and I wonder why
-> we did it that way.  Why not just have a single (per-cpu) magazine of
-> pages which are to go onto the LRUs, and decide *which* LRU that will
-> be at the last possible moment?
-
-And this is why it seems strange that fs code should need or should
-want to put something as mm-implementation dependent into their code
-paths.  At minimum, if we do this, we'll want to put some explanatory
-comments so that later, people won't be asking, what the !@#@?!? are
-the ext4 people calling lru_add_drain() here?
-
-							- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
