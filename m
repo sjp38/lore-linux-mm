@@ -1,25 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 794CB6B0002
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 23:28:29 -0400 (EDT)
-Date: Tue, 23 Apr 2013 20:28:16 -0700
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id AF7D76B0032
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 23:28:56 -0400 (EDT)
+Date: Tue, 23 Apr 2013 20:28:49 -0700
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] mm, nobootmem: clean-up of
- free_low_memory_core_early()
-Message-ID: <20130424032816.GN2018@cmpxchg.org>
+Subject: Re: [PATCH 2/2] mm, nobootmem: do memset() after memblock_reserve()
+Message-ID: <20130424032849.GO2018@cmpxchg.org>
 References: <1366619113-28017-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1366619113-28017-2-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1366619113-28017-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1366619113-28017-2-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <liuj97@gmail.com>
 
-On Mon, Apr 22, 2013 at 05:25:12PM +0900, Joonsoo Kim wrote:
-> Remove unused argument and make function static,
-> because there is no user outside of nobootmem.c
+On Mon, Apr 22, 2013 at 05:25:13PM +0900, Joonsoo Kim wrote:
+> Currently, we do memset() before reserving the area.
+> This may not cause any problem, but it is somewhat weird.
+> So change execution order.
 > 
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
