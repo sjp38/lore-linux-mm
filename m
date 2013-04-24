@@ -1,143 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id C33786B0002
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 16:04:09 -0400 (EDT)
-Message-ID: <51783AE2.4010402@parallels.com>
-Date: Thu, 25 Apr 2013 00:04:50 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] vmpressure: in-kernel notifications
-References: <1366705329-9426-1-git-send-email-glommer@openvz.org> <1366705329-9426-2-git-send-email-glommer@openvz.org> <xr937gjrhg1f.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr937gjrhg1f.fsf@gthelen.mtv.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id F08A66B0032
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 16:37:21 -0400 (EDT)
+Date: Wed, 24 Apr 2013 13:37:19 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Resend][Bug fix PATCH v5] Reusing a resource structure
+ allocated by bootmem
+Message-Id: <20130424133719.94c7d301df844c4bcc987a53@linux-foundation.org>
+In-Reply-To: <51771E3D.6060203@jp.fujitsu.com>
+References: <5175E5E8.3010003@jp.fujitsu.com>
+	<51771E3D.6060203@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: hannes@cmpxchg.org, toshi.kani@hp.com, linuxram@us.ibm.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 04/24/2013 11:42 PM, Greg Thelen wrote:
-> On Tue, Apr 23 2013, Glauber Costa wrote:
-> 
->> From: Glauber Costa <glommer@parallels.com>
->>
->> During the past weeks, it became clear to us that the shrinker interface
->> we have right now works very well for some particular types of users,
->> but not that well for others. The later are usually people interested in
->> one-shot notifications, that were forced to adapt themselves to the
->> count+scan behavior of shrinkers. To do so, they had no choice than to
->> greatly abuse the shrinker interface producing little monsters all over.
->>
->> During LSF/MM, one of the proposals that popped out during our session
->> was to reuse Anton Voronstsov's vmpressure for this. They are designed
->> for userspace consumption, but also provide a well-stablished,
->> cgroup-aware entry point for notifications.
->>
->> This patch extends that to also support in-kernel users. Events that
->> should be generated for in-kernel consumption will be marked as such,
->> and for those, we will call a registered function instead of triggering
->> an eventfd notification.
->>
->> Please note that due to my lack of understanding of each shrinker user,
->> I will stay away from converting the actual users, you are all welcome
->> to do so.
->>
->> Signed-off-by: Glauber Costa <glommer@openvz.org>
->> Cc: Dave Chinner <david@fromorbit.com>
->> Cc: Anton Vorontsov <anton.vorontsov@linaro.org>
->> Cc: John Stultz <john.stultz@linaro.org>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Joonsoo Kim <js1304@gmail.com>
->> Cc: Michal Hocko <mhocko@suse.cz>
->> Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> ---
->>  include/linux/vmpressure.h |  6 ++++++
->>  mm/vmpressure.c            | 48 ++++++++++++++++++++++++++++++++++++++++++----
->>  2 files changed, 50 insertions(+), 4 deletions(-)
->>
->> diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
->> index 76be077..1862012 100644
->> --- a/include/linux/vmpressure.h
->> +++ b/include/linux/vmpressure.h
->> @@ -19,6 +19,9 @@ struct vmpressure {
->>  	/* Have to grab the lock on events traversal or modifications. */
->>  	struct mutex events_lock;
->>  
->> +	/* false if only kernel users want to be notified, true otherwise */
->> +	bool notify_userspace;
->> +
->>  	struct work_struct work;
->>  };
->>  
->> @@ -36,6 +39,9 @@ extern struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css);
->>  extern int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
->>  				     struct eventfd_ctx *eventfd,
->>  				     const char *args);
->> +
->> +extern int vmpressure_register_kernel_event(struct cgroup *cg,
->> +					    void (*fn)(void));
->>  extern void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
->>  					struct eventfd_ctx *eventfd);
->>  #else
->> diff --git a/mm/vmpressure.c b/mm/vmpressure.c
->> index 736a601..8d77ad0 100644
->> --- a/mm/vmpressure.c
->> +++ b/mm/vmpressure.c
->> @@ -135,8 +135,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
->>  }
->>  
->>  struct vmpressure_event {
->> -	struct eventfd_ctx *efd;
->> +	union {
->> +		struct eventfd_ctx *efd;
->> +		void (*fn)(void);
->> +	};
->>  	enum vmpressure_levels level;
->> +	bool kernel_event;
->>  	struct list_head node;
->>  };
->>  
->> @@ -152,7 +156,9 @@ static bool vmpressure_event(struct vmpressure *vmpr,
->>  	mutex_lock(&vmpr->events_lock);
->>  
->>  	list_for_each_entry(ev, &vmpr->events, node) {
->> -		if (level >= ev->level) {
->> +		if (ev->kernel_event)
->> +			ev->fn();
->> +		else if (vmpr->notify_userspace && (level >= ev->level)) {
->>  			eventfd_signal(ev->efd, 1);
->>  			signalled = true;
->>  		}
->> @@ -227,7 +233,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
->>  	 * we account it too.
->>  	 */
->>  	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
->> -		return;
->> +		goto schedule;
->>  
->>  	/*
->>  	 * If we got here with no pages scanned, then that is an indicator
->> @@ -238,14 +244,16 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
->>  	 * through vmpressure_prio(). But so far, keep calm.
->>  	 */
->>  	if (!scanned)
->> -		return;
->> +		goto schedule;
->>  
->>  	mutex_lock(&vmpr->sr_lock);
->>  	vmpr->scanned += scanned;
->>  	vmpr->reclaimed += reclaimed;
->> +	vmpr->notify_userspace = true;
-> 
-> Should notify_userspace get cleared sometime?  Seems like we might need
-> to clear or decrement notify_userspace in vmpressure_event() when
-> calling eventfd_signal().
-> 
+On Wed, 24 Apr 2013 08:50:21 +0900 Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
 
-Hhummm, I was kind of assuming that it would always reach this point
-zeroed. But looking at the code again, I am wrong, and you are right: it
-should be cleared as soon as the notifications are fired.
+> When hot removing memory presented at boot time, following messages are shown:
+> 
+> [  296.867031] ------------[ cut here ]------------
+> [  296.922273] kernel BUG at mm/slub.c:3409!
+>
+> ...
+>
+> The reason why the messages are shown is to release a resource structure,
+> allocated by bootmem, by kfree(). So when we release a resource structure,
+> we should check whether it is allocated by bootmem or not.
+> 
+> But even if we know a resource structure is allocated by bootmem, we cannot
+> release it since SLxB cannot treat it. So for reusing a resource structure,
+> this patch remembers it by using bootmem_resource as follows:
+> 
+> When releasing a resource structure by free_resource(), free_resource() checks
+> whether the resource structure is allocated by bootmem or not. If it is
+> allocated by bootmem, free_resource() adds it to bootmem_resource. If it is
+> not allocated by bootmem, free_resource() release it by kfree().
+> 
+> And when getting a new resource structure by get_resource(), get_resource()
+> checks whether bootmem_resource has released resource structures or not. If
+> there is a released resource structure, get_resource() returns it. If there is
+> not a releaed resource structure, get_resource() returns new resource structure
+> allocated by kzalloc().
+> 
+> ...
+>
+
+Looks good to me.
+
+> --- a/kernel/resource.c
+> +++ b/kernel/resource.c
+> @@ -21,6 +21,7 @@
+>  #include <linux/seq_file.h>
+>  #include <linux/device.h>
+>  #include <linux/pfn.h>
+> +#include <linux/mm.h>
+>  #include <asm/io.h>
+>  
+>  
+> @@ -50,6 +51,14 @@ struct resource_constraint {
+>  
+>  static DEFINE_RWLOCK(resource_lock);
+>  
+> +/*
+> + * For memory hotplug, there is no way to free resource entries allocated
+> + * by boot mem after the system is up. So for reusing the resource entry
+> + * we need to remember the resource.
+> + */
+> +static struct resource *bootmem_resource_free;
+> +static DEFINE_SPINLOCK(bootmem_resource_lock);
+> +
+>  static void *r_next(struct seq_file *m, void *v, loff_t *pos)
+>  {
+>  	struct resource *p = v;
+> @@ -151,6 +160,40 @@ __initcall(ioresources_init);
+>  
+>  #endif /* CONFIG_PROC_FS */
+>  
+> +static void free_resource(struct resource *res)
+> +{
+> +	if (!res)
+> +		return;
+> +
+> +	if (!PageSlab(virt_to_head_page(res))) {
+
+Did you consider using a bit in resource.flags?  There appear to be
+four free ones left.  The VM trickery will work OK I guess, but isn't
+very "nice".
+
+> +		spin_lock(&bootmem_resource_lock);
+> +		res->sibling = bootmem_resource_free;
+> +		bootmem_resource_free = res;
+> +		spin_unlock(&bootmem_resource_lock);
+> +	} else {
+> +		kfree(res);
+> +	}
+> +}
+> +
+> +static struct resource *get_resource(gfp_t flags)
+> +{
+> +	struct resource *res = NULL;
+> +
+> +	spin_lock(&bootmem_resource_lock);
+> +	if (bootmem_resource_free) {
+> +		res = bootmem_resource_free;
+> +		bootmem_resource_free = res->sibling;
+> +	}
+> +	spin_unlock(&bootmem_resource_lock);
+> +
+> +	if (res)
+> +		memset(res, 0, sizeof(struct resource));
+> +	else
+> +		res = kzalloc(sizeof(struct resource), flags);
+> +
+> +	return res;
+> +}
+
+I think I'll rename this to alloc_resource().  In Linux "get" often
+(but not always) means "take a reference on".  So "get" pairs with
+"put" and "alloc" pairs with "free".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
