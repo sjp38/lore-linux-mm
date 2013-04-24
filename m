@@ -1,119 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 4D8126B0002
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 07:01:50 -0400 (EDT)
-From: Namhyung Kim <namhyung@kernel.org>
-Subject: Re: [PATCH v2 5/6] mm: Support address range reclaim
-References: <1366767664-17541-1-git-send-email-minchan@kernel.org>
-	<1366767664-17541-6-git-send-email-minchan@kernel.org>
-Date: Wed, 24 Apr 2013 20:01:48 +0900
-In-Reply-To: <1366767664-17541-6-git-send-email-minchan@kernel.org> (Minchan
-	Kim's message of "Wed, 24 Apr 2013 10:41:03 +0900")
-Message-ID: <87wqrs9opv.fsf@sejong.aot.lge.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 60F256B0002
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 07:08:24 -0400 (EDT)
+Date: Wed, 24 Apr 2013 13:08:17 +0200 (CEST)
+From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
+Subject: Re: [PATCH v3 17/18] ext4: make punch hole code path work with
+ bigalloc
+In-Reply-To: <20130423091928.GA5321@gmail.com>
+Message-ID: <alpine.LFD.2.00.1304241303560.24669@localhost>
+References: <1365498867-27782-1-git-send-email-lczerner@redhat.com> <1365498867-27782-18-git-send-email-lczerner@redhat.com> <20130420134241.GA2461@quack.suse.cz> <20130423091928.GA5321@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>
+To: Zheng Liu <gnehzuil.liu@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, Lukas Czerner <lczerner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-Hi Minchan,
+On Tue, 23 Apr 2013, Zheng Liu wrote:
 
-On Wed, 24 Apr 2013 10:41:03 +0900, Minchan Kim wrote:
-> This patch adds address range reclaim of a process.
-> The requirement is following as,
->
-> Like webkit1, it uses a address space for handling multi tabs.
-> IOW, it uses *one* process model so all tabs shares address space
-> of the process. In such scenario, per-process reclaim is rather
-> coarse-grained so this patch supports more fine-grained reclaim
-> for being able to reclaim target address range of the process.
-> For reclaim target range, you should use following format.
->
-> 	echo [addr] [size-byte] > /proc/pid/reclaim
->
-> addr should be page-aligned.
->
-> So now reclaim konb's interface is following as.
->
-> echo file > /proc/pid/reclaim
-> 	reclaim file-backed pages only
->
-> echo anon > /proc/pid/reclaim
-> 	reclaim anonymous pages only
->
-> echo all > /proc/pid/reclaim
-> 	reclaim all pages
->
-> echo $((1<<20)) 8192 > /proc/pid/reclaim
-> 	reclaim pages in (0x100000 - 0x102000)
->
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  fs/proc/task_mmu.c | 88 ++++++++++++++++++++++++++++++++++++++++++++----------
->  mm/internal.h      |  3 ++
->  2 files changed, 76 insertions(+), 15 deletions(-)
->
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 79b674e..dff9756 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -12,6 +12,7 @@
->  #include <linux/swap.h>
->  #include <linux/swapops.h>
->  #include <linux/mm_inline.h>
-> +#include <linux/ctype.h>
->  
->  #include <asm/elf.h>
->  #include <asm/uaccess.h>
-> @@ -1239,11 +1240,14 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
->  				size_t count, loff_t *ppos)
->  {
->  	struct task_struct *task;
-> -	char buffer[PROC_NUMBUF];
-> +	char buffer[200];
->  	struct mm_struct *mm;
->  	struct vm_area_struct *vma;
->  	enum reclaim_type type;
->  	char *type_buf;
-> +	struct mm_walk reclaim_walk = {};
-> +	unsigned long start = 0;
-> +	unsigned long end = 0;
->  
->  	memset(buffer, 0, sizeof(buffer));
->  	if (count > sizeof(buffer) - 1)
-> @@ -1259,42 +1263,96 @@ static ssize_t reclaim_write(struct file *file, const char __user *buf,
->  		type = RECLAIM_ANON;
->  	else if (!strcmp(type_buf, "all"))
->  		type = RECLAIM_ALL;
-> +	else if (isdigit(*type_buf))
-> +		type = RECLAIM_RANGE;
->  	else
-> -		return -EINVAL;
-> +		goto out_err;
-> +
-> +	if (type == RECLAIM_RANGE) {
-> +		int ret;
-> +		size_t len;
-> +		unsigned long len_in;
-> +		char *token;
-> +
-> +		token = strsep(&type_buf, " ");
-> +		if (!token)
-> +			goto out_err;
-> +		ret = kstrtoul(token, 10, &start);
+> Date: Tue, 23 Apr 2013 17:19:28 +0800
+> From: Zheng Liu <gnehzuil.liu@gmail.com>
+> To: Jan Kara <jack@suse.cz>
+> Cc: Lukas Czerner <lczerner@redhat.com>, linux-mm@kvack.org,
+>     linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+>     linux-ext4@vger.kernel.org
+> Subject: Re: [PATCH v3 17/18] ext4: make punch hole code path work with
+>     bigalloc
+> 
+> On Sat, Apr 20, 2013 at 03:42:41PM +0200, Jan Kara wrote:
+> > On Tue 09-04-13 11:14:26, Lukas Czerner wrote:
+> > > Currently punch hole is disabled in file systems with bigalloc
+> > > feature enabled. However the recent changes in punch hole patch should
+> > > make it easier to support punching holes on bigalloc enabled file
+> > > systems.
+> > > 
+> > > This commit changes partial_cluster handling in ext4_remove_blocks(),
+> > > ext4_ext_rm_leaf() and ext4_ext_remove_space(). Currently
+> > > partial_cluster is unsigned long long type and it makes sure that we
+> > > will free the partial cluster if all extents has been released from that
+> > > cluster. However it has been specifically designed only for truncate.
+> > > 
+> > > With punch hole we can be freeing just some extents in the cluster
+> > > leaving the rest untouched. So we have to make sure that we will notice
+> > > cluster which still has some extents. To do this I've changed
+> > > partial_cluster to be signed long long type. The only scenario where
+> > > this could be a problem is when cluster_size == block size, however in
+> > > that case there would not be any partial clusters so we're safe. For
+> > > bigger clusters the signed type is enough. Now we use the negative value
+> > > in partial_cluster to mark such cluster used, hence we know that we must
+> > > not free it even if all other extents has been freed from such cluster.
+> > > 
+> > > This scenario can be described in simple diagram:
+> > > 
+> > > |FFF...FF..FF.UUU|
+> > >  ^----------^
+> > >   punch hole
+> > > 
+> > > . - free space
+> > > | - cluster boundary
+> > > F - freed extent
+> > > U - used extent
+> > > 
+> > > Also update respective tracepoints to use signed long long type for
+> > > partial_cluster.
+> >   The patch looks OK. You can add:
+> > Reviewed-by: Jan Kara <jack@suse.cz>
+> > 
+> >   Just a minor nit - sometimes you use 'signed long long', sometimes 'long
+> > long int', sometimes just 'long long'. In kernel we tend to always use just
+> > 'long long' so it would be good to clean that up.
+> 
+> Another question is that in patch 01/18 invalidatepage signature is
+> changed from
+>   int (*invalidatepage) (struct page *, unsigned long);
+> to
+>   void (*invalidatepage) (struct page *, unsigned int, unsigned int);
+> 
+> The argument type is changed from 'unsigned long' to 'unsigned int'.  My
+> question is why we need to change it.
+> 
+> Thanks,
+>                                                 - Zheng
+> 
 
-Why not using
+Hi Zheng,
 
-		start = memparse(token, NULL);
+this was changed on Hugh Dickins request because it makes it clearer
+that those args are indeed intended to be offsets within a page
+(0..PAGE_CACHE_SIZE).
 
-to support something like:
+Even though PAGE_CACHE_SIZE can be defined as unsigned long, this is
+only for convenience. Here is quote from Hugh:
 
-  # echo 0x100000 8K > /proc/pid/reclaim
+  "
+  They would be defined as unsigned long so that they can be used in
+  masks like ~(PAGE_SIZE - 1), and behave as expected on addresses,
+  without needing casts to be added all over.
 
+  We do not (currently!) expect PAGE_SIZE or PAGE_CACHE_SIZE to grow
+  beyond an unsigned int - but indeed they can be larger than what's
+  held in an unsigned short (look no further than ia64 or ppc64).
 
-Thanks,
-Namhyung
+  For more reassurance, see include/linux/highmem.h, which declares
+  zero_user_segments() and others: unsigned int (well, unsigned with
+  the int implicit) for offsets within a page.
+
+  Hugh
+  "
+
+I should probably mention that in the description.
+
+Thanks!
+-Lukas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
