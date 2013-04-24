@@ -1,46 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 085E06B0032
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 11:36:22 -0400 (EDT)
-Date: Wed, 24 Apr 2013 15:36:20 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: OOM-killer and strange RSS value in 3.9-rc7
-In-Reply-To: <20130424094732.GB31960@dhcp22.suse.cz>
-Message-ID: <0000013e3cb0340d-00f360e3-076b-478e-b94c-ddd4476196ce-000000@email.amazonses.com>
-References: <alpine.DEB.2.02.1304161315290.30779@chino.kir.corp.google.com> <20130417094750.GB2672@localhost.localdomain> <20130417141909.GA24912@dhcp22.suse.cz> <20130418101541.GC2672@localhost.localdomain> <20130418175513.GA12581@dhcp22.suse.cz>
- <20130423131558.GH8001@dhcp22.suse.cz> <20130424044848.GI2672@localhost.localdomain> <20130424094732.GB31960@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 7BA246B0032
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 11:38:13 -0400 (EDT)
+Date: Wed, 24 Apr 2013 17:38:10 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Infiniband use of get_user_pages()
+Message-ID: <20130424153810.GA25958@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Roland Dreier <roland@kernel.org>, linux-rdma@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 24 Apr 2013, Michal Hocko wrote:
+  Hello,
 
-> [CCing SL.B people and linux-mm list]
->
-> Just for quick summary. The reporter sees OOM situations with almost
-> whole memory filled with slab memory. This is a powerpc machine with 4G
-> RAM.
+  when checking users of get_user_pages() (I'm doing some cleanups in that
+area to fix filesystem's issues with mmap_sem locking) I've noticed that
+infiniband drivers add number of pages obtained from get_user_pages() to
+mm->pinned_vm counter. Although this makes some sence, it doesn't match
+with any other user of get_user_pages() (e.g. direct IO) so has infiniband
+some special reason why it does so?
 
-Boot with "slub_debug" or enable slab debugging.
+  Also that seems to be the only real reason why mmap_sem has to be grabbed
+in exclusive mode, am I right?
 
-> /proc/slabinfo shows that almost whole slab occupied memory is on
+  Another suspicious thing (at least in drivers/infiniband/core/umem.c:
+ib_umem_get()) is that arguments of get_user_pages() are like:
+                ret = get_user_pages(current, current->mm, cur_base,
+                                     min_t(unsigned long, npages,
+                                           PAGE_SIZE / sizeof (struct page *)),
+                                     1, !umem->writable, page_list, vma_list);
+So we always have write argument set to 1 and force argument is set to
+!umem->writable. Is that really intentional? My naive guess would be that
+arguments should be switched... Although even in that case I fail to see
+why 'force' argument should be set. Can someone please explain?
 
-Please enable debugging and look at where these objects were allocated.
+  Finally (and here I may show my ignorance ;), I'd like to ask whether
+there's any reason why ib_umem_get() checks for is_vm_hugetlb_page() and
+not just whether a page is a huge page?
 
-> It is not clear who consumes that memory and the reporter claims this is
-> vanilla 3.9-rc7 kernel without any third party modules loaded. The issue
-> seems to be present only with CONFIG_SLUB.
 
-cat /sys/kernel/slab/kmalloc-*/alloc_calls
-
-will show where these objects are allocated.
-
-A dump of the other fields in /sys/kernel/slab/kmalloc*/* would also be
-useful.
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
