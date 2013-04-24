@@ -1,89 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 752EA6B0038
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 21:41:42 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id BF59E6B0032
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 21:42:44 -0400 (EDT)
+Date: Wed, 24 Apr 2013 10:42:40 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 6/6] add documentation on proc.txt
-Date: Wed, 24 Apr 2013 10:41:04 +0900
-Message-Id: <1366767664-17541-7-git-send-email-minchan@kernel.org>
-In-Reply-To: <1366767664-17541-1-git-send-email-minchan@kernel.org>
-References: <1366767664-17541-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH 6/6] add documentation on proc.txt
+Message-ID: <20130424014240.GA17222@blaptop>
+References: <1366620306-30940-1-git-send-email-minchan@kernel.org>
+ <1366620306-30940-6-git-send-email-minchan@kernel.org>
+ <51756286.4020704@intel.com>
+ <20130423015349.GC2603@blaptop>
+ <51769BD1.7070002@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <51769BD1.7070002@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>, Rob Landley <rob@landley.net>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Rik van Riel <riel@redhat.com>, Rob Landley <rob@landley.net>, Namhyung Kim <namhyung@kernel.org>
 
-This patch adds stuff about new reclaim field in proc.txt
+Hello Dave,
 
-Cc: Rob Landley <rob@landley.net>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
+On Tue, Apr 23, 2013 at 07:33:53AM -0700, Dave Hansen wrote:
+> On 04/22/2013 06:53 PM, Minchan Kim wrote:
+> > echo 'file' > /proc/PID/reclaim
+> > echo 'anon' > /proc/PID/reclaim
+> > echo 'both' > /proc/PID/reclaim
+> > 
+> > For range reclaim,
+> > 
+> > echo $((1<<20)) 8192 > /proc/PID/reclaim.
+> > 
+> > IOW, we don't need any type for range reclaim because only thing
+> > user takes care is address range which has mapped page regardless
+> > of that it's anon or file.
+> > 
+> > Does it make sense to you?
+> 
+> That looks very nice!  Although, I'd probably use 'all' instead of
+> 'both'.  It leaves you more wiggle room to add more types in the future,
+> like volatile pages.
 
-Rob, I didn't add your Acked-by because interface was slight changed.
-I hope you give Acke-by after review again.
-Thanks.
+Fair enough.
+Thanks for the review.
+I just sent a new. 
 
- Documentation/filesystems/proc.txt | 22 ++++++++++++++++++++++
- mm/Kconfig                         |  7 +------
- 2 files changed, 23 insertions(+), 6 deletions(-)
-
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 488c094..1411ad0 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -136,6 +136,7 @@ Table 1-1: Process specific entries in /proc
-  maps		Memory maps to executables and library files	(2.4)
-  mem		Memory held by this process
-  root		Link to the root directory of this process
-+ reclaim	Reclaim pages in this process
-  stat		Process status
-  statm		Process memory status information
-  status		Process status in human readable form
-@@ -489,6 +490,27 @@ To clear the soft-dirty bit
- 
- Any other value written to /proc/PID/clear_refs will have no effect.
- 
-+The file /proc/PID/reclaim is used to reclaim pages in this process.
-+To reclaim file-backed pages,
-+    > echo file > /proc/PID/reclaim
-+
-+To reclaim anonymous pages,
-+    > echo anon > /proc/PID/reclaim
-+
-+To reclaim all pages,
-+    > echo all > /proc/PID/reclaim
-+
-+Also, you can specify address range of process so part of address space
-+will be reclaimed. The format is following as
-+    > echo addr size-byte > /proc/PID/reclaim
-+
-+NOTE: addr should be page-aligned.
-+
-+Below is example which try to reclaim 2 pages from 0x100000.
-+
-+To reclaim both pages in address range,
-+    > echo $((1<<20) 8192 > /proc/PID/reclaim
-+
- The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
- using /proc/kpageflags and number of times a page is mapped using
- /proc/kpagecount. For detailed explanation, see Documentation/vm/pagemap.txt.
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 314bf49..9d6b306 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -486,9 +486,4 @@ config PROCESS_RECLAIM
- 	default n
- 	help
- 	 It allows to reclaim pages of the process by /proc/pid/reclaim.
--
--	 (echo file > /proc/PID/reclaim) reclaims file-backed pages only.
--	 (echo anon > /proc/PID/reclaim) reclaims anonymous pages only.
--	 (echo all > /proc/PID/reclaim) reclaims all pages.
--
-- 	 Any other vaule is ignored.
-+	 See Documentation/filesystem/proc.txt for more details.
 -- 
-1.8.2
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
