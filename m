@@ -1,140 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 81C596B0032
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 17:45:57 -0400 (EDT)
-Date: Wed, 24 Apr 2013 17:45:31 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: memcg: softlimit on internal nodes
-Message-ID: <20130424214531.GA18686@cmpxchg.org>
-References: <20130420002620.GA17179@mtj.dyndns.org>
- <20130420031611.GA4695@dhcp22.suse.cz>
- <20130421022321.GE19097@mtj.dyndns.org>
- <20130421124554.GA8473@dhcp22.suse.cz>
- <20130422043939.GB25089@mtj.dyndns.org>
- <20130422151908.GF18286@dhcp22.suse.cz>
- <20130422155703.GC12543@htj.dyndns.org>
- <20130422162012.GI18286@dhcp22.suse.cz>
- <20130422183020.GF12543@htj.dyndns.org>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 3E26F6B0032
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 18:25:48 -0400 (EDT)
+Received: by mail-wi0-f197.google.com with SMTP id hj19so3153240wib.4
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2013 15:25:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130422183020.GF12543@htj.dyndns.org>
+In-Reply-To: <20130424153810.GA25958@quack.suse.cz>
+References: <20130424153810.GA25958@quack.suse.cz>
+From: Roland Dreier <roland@kernel.org>
+Date: Wed, 24 Apr 2013 15:25:25 -0700
+Message-ID: <CAL1RGDXqtLPmM0kRofFwTv+jzr2cBGoe9X7oQLO_yoHGErJnxg@mail.gmail.com>
+Subject: Re: Infiniband use of get_user_pages()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>
+To: Jan Kara <jack@suse.cz>
+Cc: "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Apr 22, 2013 at 11:30:20AM -0700, Tejun Heo wrote:
-> Hey,
-> 
-> On Mon, Apr 22, 2013 at 06:20:12PM +0200, Michal Hocko wrote:
-> > Although the default limit is correct it is impractical for use
-> > because it doesn't allow for "I behave do not reclaim me if you can"
-> > cases. And we can implement such a behavior really easily with backward
-> > compatibility and new interfaces (aka reuse the soft limit for that).
-> 
-> Okay, now we're back to square one and I'm reinstating all the mean
-> things I said in this thread. :P No wonder everyone is so confused
-> about this.  Michal, you can't overload two controls which exert
-> pressure on the opposite direction onto a single knob and define a
-> sane hierarchical behavior for it.  You're making it a point control
-> rather than range one.  Maybe you can define some twisted rules
-> serving certain specific use case, but it's gonna be confusing /
-> broken for different use cases.
+On Wed, Apr 24, 2013 at 8:38 AM, Jan Kara <jack@suse.cz> wrote:
+>   when checking users of get_user_pages() (I'm doing some cleanups in that
+> area to fix filesystem's issues with mmap_sem locking) I've noticed that
+> infiniband drivers add number of pages obtained from get_user_pages() to
+> mm->pinned_vm counter. Although this makes some sence, it doesn't match
+> with any other user of get_user_pages() (e.g. direct IO) so has infiniband
+> some special reason why it does so?
 
-Historically soft limit meant prioritizing certain memcgs over others
-and the memcgs over their soft limit should experience relatively more
-reclaim pressure than the ones below their soft limit.
+Direct IO mappings are in some sense ephemeral -- they only need to
+last while the IO is in flight.  In contrast the IB memory pinning is
+controlled by (possibly unprivileged) userspace and might last the
+whole lifetime of a long-lived application.  So we want some
+accounting and resource control.
 
-Now, if we go and say you are only reclaimed when you exceed your soft
-limit we would retain the prioritization aspect.  Groups in excess of
-their soft limits would still experience relatively more reclaim
-pressure than their well-behaved peers.  But it would have the nice
-side effect of acting more or less like a guarantee as well.
+>   Also that seems to be the only real reason why mmap_sem has to be grabbed
+> in exclusive mode, am I right?
 
-I don't think this approach is as unreasonable as you make it out to
-be, but it does make things more complicated.  It could be argued that
-we should add a separate guarantee knob because two simple knobs might
-be better than a complicated one.
+Most likely that is true.
 
-The question is whether this solves Google's problem, though.
+>   Another suspicious thing (at least in drivers/infiniband/core/umem.c:
+> ib_umem_get()) is that arguments of get_user_pages() are like:
+>                 ret = get_user_pages(current, current->mm, cur_base,
+>                                      min_t(unsigned long, npages,
+>                                            PAGE_SIZE / sizeof (struct page *)),
+>                                      1, !umem->writable, page_list, vma_list);
+> So we always have write argument set to 1 and force argument is set to
+> !umem->writable. Is that really intentional? My naive guess would be that
+> arguments should be switched... Although even in that case I fail to see
+> why 'force' argument should be set. Can someone please explain?
 
-Currently, when a memcg is selected for a certain type of reclaim, it
-and all its children are treated as one single leaf entity in the
-overall hierarchy: when a parent node hits its hard limit, we assume
-equal fault of every member in the hierarchy for that situation and,
-consequently, we reclaim all of them equally.  We do the same thing
-for the soft limit: if the parent, whose memory consumption is defined
-as the sum of memory consumed by all members of the hierarchy,
-breaches the soft limit then all members are reclaimed equally because
-no single member is more at fault than the others.  I would expect if
-we added a guarantee knob, this would also mean that no individual
-memcg can be treated as being within their guaranteed memory if the
-hierarchy as a whole is in excess of its guarantee.
+This confused even me recently.  We had a long discussion (read the
+whole thread starting here: https://lkml.org/lkml/2012/1/26/7) but in
+short the current parameters seem to be needed to trigger COW even
+when the kernel/hardware want to read the memory, to avoid problems
+where we get stale data if userspace triggers COW.
 
-The root of the hierarchy represents the whole hierarchy.  Its memory
-usage is the combined memory usage of all members.  The limit set to
-the hierarchy root applies to the combined memory usage of the
-hierarchy.  Breaching that limit has consequences for the hierarchy as
-a whole.  Be it soft limit or guarantee.
+I think I better add a comment explaining this.
 
-This is how hierarchies have always worked and it allows limits to be
-layered and apply depending on the source of pressure:
+>   Finally (and here I may show my ignorance ;), I'd like to ask whether
+> there's any reason why ib_umem_get() checks for is_vm_hugetlb_page() and
+> not just whether a page is a huge page?
 
-       root (physical memory = 32G)
-      /    \
-     A      B (hard limit = 25G, guarantee = 16G)
-    / \    / \
-   A1 A2  /   B2 (guarantee = 10G)
-         /
-        B1 (guarantee = 15G)
+I'm not sure of the history here.  How would one check directly if a
+page is a huge page?  get_user_pages() actually goes to some trouble
+to return all small pages, even when it has to split a single huge
+page into many entries in the page array.  (Which is actually a bit
+unfortunate for our use here)
 
-Remember that hard limits are usually overcommitted, so you allow B to
-use more of the fair share of memory when A does not need it, but you
-want to keep it capped to keep latency reasonable when A ramps up.
-
-As long as B is hitting its own hard limit, you value B1's and B2's
-guarantees in the context of pressure local to the hierarchy; in the
-context of B having 25G worth of memory; in the context of B1
-competing with B2 over the memory allowed by B.
-
-However, as soon as global reclaim kicks in, the context changes and
-the priorities shift.  Now, B does not have 25G anymore but only 16G
-*in its competition with A*.  We absolutely do not want to respect the
-guarantees made to B1 and B2.  Not only can they not be met anyway,
-but they are utterly meaningless at this point.  They were set with
-25G in mind.
-
-[ It may be conceivable that you want different guarantees for B1 and
-  B2 depending on where the pressure comes from.  One setting for when
-  the 25G limit applies, one setting when the 32G physical memory
-  limit applies.  Basically, every group would need a vector of
-  guarantee settings with one setting per ancestor.
-
-  That being said, I absolutely disagree with the idea of trying to
-  adhere to individual memcg guarantees in the first reclaim cycle,
-  regardless of context and then just ignore them on the second pass.
-  It's a horrible way to guess which context the admin had in mind. ]
-
-Now, there is of course the other scenario in which the current
-hierarchical limit application can get in your way: when you give
-intermediate nodes their own memory.  Because then you may see the
-need to apply certain limits to that hierarchy root's local memory
-only instead of all memory in the hierarchy.  But once we open that
-door, you might expect this to be an option for every limit, where
-even the hard limit of a hierarchy root only applies to that group's
-local memory instead of the whole hierarchy.  I certainly do not want
-to apply hierarchy semantics for some limits and not for others.  But
-Google has basically asked for hierarchical hard limits and local soft
-limits / guarantees.
-
-In summary, we are now looking at both local and hierarchical limits
-times number of ancestors PER MEMCG to support all those use cases
-properly.
-
-So I'm asking what I already asked a year ago: are you guys sure you
-can not change your cgroup tree layout and that we have to solve it by
-adding new limit semantics?!
+ - R.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
