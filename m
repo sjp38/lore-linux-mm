@@ -1,86 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 328396B0002
-	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 21:41:36 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id F01C76B0033
+	for <linux-mm@kvack.org>; Tue, 23 Apr 2013 21:41:37 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 0/6] Per process reclaim
-Date: Wed, 24 Apr 2013 10:40:58 +0900
-Message-Id: <1366767664-17541-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v2 2/6] mm: make shrink_page_list with pages work from multiple zones
+Date: Wed, 24 Apr 2013 10:41:00 +0900
+Message-Id: <1366767664-17541-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1366767664-17541-1-git-send-email-minchan@kernel.org>
+References: <1366767664-17541-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Minchan Kim <minchan@kernel.org>
 
-These day, there are many platforms avaiable in the embedded market
-and they are smarter than kernel which has very limited information
-about working set so they want to involve memory management more heavily
-like android's lowmemory killer and ashmem or recent many lowmemory
-notifier(there was several trial for various company NOKIA, SAMSUNG,
-Linaro, Google ChromeOS, Redhat).
+Shrink_page_list expects all pages come from a same zone
+but it's too limited to use.
 
-One of the simple imagine scenario about userspace's intelligence is that
-platform can manage tasks as forground and backgroud so it would be
-better to reclaim background's task pages for end-user's *responsibility*
-although it has frequent referenced pages.
+This patch removes the dependency so next patch can use
+shrink_page_list with pages from multiple zones.
 
-The patch[1] adds new knob "reclaim under proc/<pid>/" so task manager
-can reclaim any target process anytime, anywhere. It could give another
-method to platform for using memory efficiently.
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/vmscan.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-It can avoid process killing for getting free memory, which was really
-terrible experience because I lost my best score of game I had ever
-after I switch the phone call while I enjoyed the game.
-
-Reclaim file-backed pages only.
-	echo file > /proc/PID/reclaim
-Reclaim anonymous pages only.
-	echo anon > /proc/PID/reclaim
-Reclaim all pages
-	echo all > /proc/PID/reclaim
-
-Some pages could be shared by several processes. (ex, libc)
-In case of that, it's too bad to reclaim them from the beginnig.
-The patch[4] causes VM to keep them on memory until last task
-try to reclaim them so shared pages will be reclaimed only if
-all of task has gone swapping out.
-
-Another requirement is per address space reclaim.(By Michael Kerrisk)
-In case of Webkit1, it uses a address space for handling multi tabs.
-IOW, it uses *one* process model so all tabs shares address space
-of the process. In such scenario, per-process reclaim is rather
-coarse-grained so patch[5] supports more fine-grained reclaim
-for being able to reclaim target address range of the process.
-For reclaim target range, you should use following format.
-
-	echo [addr] [size-byte] > /proc/pid/reclaim
-
-* Changelog from v1
-  * Change reclaim knob interface - Dave Hansen
-  * proc.txt document change - Rob Landley
-
-Minchan Kim (6):
-  [1] mm: Per process reclaim
-  [2] mm: make shrink_page_list with pages work from multiple zones
-  [3] mm: Remove shrink_page
-  [4] mm: Enhance per process reclaim to consider shared pages
-  [5] mm: Support address range reclaim
-  [6] add documentation on proc.txt
-
- Documentation/filesystems/proc.txt |  22 +++++
- fs/proc/base.c                     |   3 +
- fs/proc/internal.h                 |   1 +
- fs/proc/task_mmu.c                 | 179 +++++++++++++++++++++++++++++++++++++
- include/linux/ksm.h                |   6 +-
- include/linux/rmap.h               |  10 ++-
- mm/Kconfig                         |   8 ++
- mm/internal.h                      |   4 +-
- mm/ksm.c                           |   9 +-
- mm/memory-failure.c                |   2 +-
- mm/migrate.c                       |   6 +-
- mm/rmap.c                          |  57 ++++++++----
- mm/vmscan.c                        |  57 +++++++++++-
- 13 files changed, 334 insertions(+), 30 deletions(-)
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 6934f5b..82f4d6c 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -706,7 +706,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			goto keep;
+ 
+ 		VM_BUG_ON(PageActive(page));
+-		VM_BUG_ON(page_zone(page) != zone);
++		if (zone)
++			VM_BUG_ON(page_zone(page) != zone);
+ 
+ 		sc->nr_scanned++;
+ 
+@@ -952,7 +953,7 @@ keep:
+ 	 * back off and wait for congestion to clear because further reclaim
+ 	 * will encounter the same problem
+ 	 */
+-	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc))
++	if (nr_dirty && nr_dirty == nr_congested && global_reclaim(sc) && zone)
+ 		zone_set_flag(zone, ZONE_CONGESTED);
+ 
+ 	free_hot_cold_page_list(&free_pages, 1);
 -- 
 1.8.2
 
