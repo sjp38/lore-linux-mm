@@ -1,81 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id AC0336B0032
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2013 09:22:00 -0400 (EDT)
-Date: Thu, 25 Apr 2013 15:21:57 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Infiniband use of get_user_pages()
-Message-ID: <20130425132157.GA32353@quack.suse.cz>
-References: <20130424153810.GA25958@quack.suse.cz>
- <CAL1RGDXqtLPmM0kRofFwTv+jzr2cBGoe9X7oQLO_yoHGErJnxg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 656686B0032
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2013 10:31:02 -0400 (EDT)
+Date: Thu, 25 Apr 2013 15:30:56 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: page eviction from the buddy cache
+Message-ID: <20130425143056.GF2144@suse.de>
+References: <3C8EEEF8-C1EB-4E3D-8DE6-198AB1BEA8C0@gmail.com>
+ <515CD665.9000300@gmail.com>
+ <239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com>
+ <51730619.3030204@fastmail.fm>
+ <20130420235718.GA28789@thunk.org>
+ <5176785D.5030707@fastmail.fm>
+ <20130423122708.GA31170@thunk.org>
+ <alpine.LNX.2.00.1304231230340.12850@eggly.anvils>
+ <20130423150008.046ee9351da4681128db0bf3@linux-foundation.org>
+ <20130424142650.GA29097@thunk.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CAL1RGDXqtLPmM0kRofFwTv+jzr2cBGoe9X7oQLO_yoHGErJnxg@mail.gmail.com>
+In-Reply-To: <20130424142650.GA29097@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roland Dreier <roland@kernel.org>
-Cc: Jan Kara <jack@suse.cz>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, linux-mm@kvack.org
+To: Theodore Ts'o <tytso@mit.edu>, Andrew Perepechko <anserper@ya.ru>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Bernd Schubert <bernd.schubert@fastmail.fm>, Alexey Lyahkov <alexey.lyashkov@gmail.com>, Will Huck <will.huckk@gmail.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 24-04-13 15:25:25, Roland Dreier wrote:
-> On Wed, Apr 24, 2013 at 8:38 AM, Jan Kara <jack@suse.cz> wrote:
-> >   when checking users of get_user_pages() (I'm doing some cleanups in that
-> > area to fix filesystem's issues with mmap_sem locking) I've noticed that
-> > infiniband drivers add number of pages obtained from get_user_pages() to
-> > mm->pinned_vm counter. Although this makes some sence, it doesn't match
-> > with any other user of get_user_pages() (e.g. direct IO) so has infiniband
-> > some special reason why it does so?
+On Wed, Apr 24, 2013 at 10:26:50AM -0400, Theodore Ts'o wrote:
+> On Tue, Apr 23, 2013 at 03:00:08PM -0700, Andrew Morton wrote:
+> > That should fix things for now.  Although it might be better to just do
+> > 
+> >  	mark_page_accessed(page);	/* to SetPageReferenced */
+> >  	lru_add_drain();		/* to SetPageLRU */
+> > 
+> > Because a) this was too early to decide that the page is
+> > super-important and b) the second touch of this page should have a
+> > mark_page_accessed() in it already.
 > 
-> Direct IO mappings are in some sense ephemeral -- they only need to
-> last while the IO is in flight.  In contrast the IB memory pinning is
-> controlled by (possibly unprivileged) userspace and might last the
-> whole lifetime of a long-lived application.  So we want some
-> accounting and resource control.
-  I see, thanks for explanation.
+> The question is do we really want to put lru_add_drain() into the ext4
+> file system code?  That seems to pushing some fairly mm-specific
+> knowledge into file system code.  I'll do this if I have to do, but
+> wouldn't be better if this was pushed into mark_page_accessed(), or
+> some other new API was exported by the mm subsystem?
+> 
 
-> >   Also that seems to be the only real reason why mmap_sem has to be grabbed
-> > in exclusive mode, am I right?
-> 
-> Most likely that is true.
-> 
-> >   Another suspicious thing (at least in drivers/infiniband/core/umem.c:
-> > ib_umem_get()) is that arguments of get_user_pages() are like:
-> >                 ret = get_user_pages(current, current->mm, cur_base,
-> >                                      min_t(unsigned long, npages,
-> >                                            PAGE_SIZE / sizeof (struct page *)),
-> >                                      1, !umem->writable, page_list, vma_list);
-> > So we always have write argument set to 1 and force argument is set to
-> > !umem->writable. Is that really intentional? My naive guess would be that
-> > arguments should be switched... Although even in that case I fail to see
-> > why 'force' argument should be set. Can someone please explain?
-> 
-> This confused even me recently.  We had a long discussion (read the
-> whole thread starting here: https://lkml.org/lkml/2012/1/26/7) but in
-> short the current parameters seem to be needed to trigger COW even
-> when the kernel/hardware want to read the memory, to avoid problems
-> where we get stale data if userspace triggers COW.
-  Thanks for the pointer. That was an interesting read :).
+I don't think we want to push lru_add_drain() into the ext4 code. It's
+too specific of knowledge just to work around pagevecs. Before we rework
+how pagevecs select what LRU to place a page, can we make sure that fixing
+that will fix the problem?
 
-> I think I better add a comment explaining this.
-> 
-> >   Finally (and here I may show my ignorance ;), I'd like to ask whether
-> > there's any reason why ib_umem_get() checks for is_vm_hugetlb_page() and
-> > not just whether a page is a huge page?
-> 
-> I'm not sure of the history here.  How would one check directly if a
-> page is a huge page?
-  PageHuge(page) should do it (see mm/hugetlb.c).
+Andrew, can you try the following patch please? Also, is there any chance
+you can describe in more detail what the workload does? If it fails to boot,
+remove the second that calls lru_add_drain_all() and try again.
 
-> get_user_pages() actually goes to some trouble to return all small pages,
-> even when it has to split a single huge page into many entries in the
-> page array.  (Which is actually a bit unfortunate for our use here)
-  Does it? As far as I'm checking get_user_pages() and the fault path I
-don't see where it would be happening...
+The patch looks deceptively simple, a downside from is is that workloads that
+call mark_page_accessed() frequently will contend more on the zone->lru_lock
+than it did previously. Moving lru_add_drain() to the ext4 could would
+suffer the same contention problem.
 
-								Honza  
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Thanks.
+
+---8<---
+mm: pagevec: Move inactive pages to active lists even if on a pagevec
+
+If a page is on a pagevec aimed at the inactive list then two subsequent
+calls to mark_page_acessed() will still not move it to the active list.
+This can cause a page to be reclaimed sooner than is expected. This
+patch detects if an inactive page is not on the LRU and drains the
+pagevec before promoting it.
+
+Not-signed-off
+
+diff --git a/mm/swap.c b/mm/swap.c
+index 8a529a0..eac64fe 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -437,7 +437,18 @@ void activate_page(struct page *page)
+ void mark_page_accessed(struct page *page)
+ {
+ 	if (!PageActive(page) && !PageUnevictable(page) &&
+-			PageReferenced(page) && PageLRU(page)) {
++			PageReferenced(page)) {
++		/* Page could be in pagevec */
++		if (!PageLRU(page))
++			lru_add_drain();
++
++		/*
++		 * Weeeee, using in_atomic() like this is a hand-grenade.
++		 * Patch is for debugging purposes only, do not merge this.
++		 */
++		if (!PageLRU(page) && !in_atomic())
++			lru_add_drain_all();
++
+ 		activate_page(page);
+ 		ClearPageReferenced(page);
+ 	} else if (!PageReferenced(page)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
