@@ -1,83 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 0AA346B0032
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2013 04:53:54 -0400 (EDT)
-Date: Thu, 25 Apr 2013 09:53:51 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: swap: Mark swap pages writeback before queueing for
- direct IO
-Message-ID: <20130425085350.GC2144@suse.de>
-References: <516E918B.3050309@redhat.com>
- <20130422133746.ffbbb70c0394fdbf1096c7ee@linux-foundation.org>
- <20130424185744.GB2144@suse.de>
- <20130424122313.381167c5ad702fc991844bc7@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id C2E2E6B0032
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2013 06:49:44 -0400 (EDT)
+Message-ID: <51790A73.3030805@parallels.com>
+Date: Thu, 25 Apr 2013 14:50:27 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130424122313.381167c5ad702fc991844bc7@linux-foundation.org>
+Subject: Re: [PATCH 1/2] vmpressure: in-kernel notifications
+References: <1366705329-9426-1-git-send-email-glommer@openvz.org> <1366705329-9426-2-git-send-email-glommer@openvz.org> <xr937gjrhg1f.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <xr937gjrhg1f.fsf@gthelen.mtv.corp.google.com>
+Content-Type: multipart/mixed;
+	boundary="------------000807030105080807080004"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jerome Marchand <jmarchan@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Greg Thelen <gthelen@google.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Apr 24, 2013 at 12:23:13PM -0700, Andrew Morton wrote:
-> >  		} else {
-> > +			/*
-> > +			 * In the case of swap-over-nfs, this can be a
-> > +			 * temporary failure if the system has limited
-> > +			 * memory for allocating transmit buffers.
-> > +			 * Mark the page dirty and avoid
-> > +			 * rotate_reclaimable_page but rate-limit the
-> > +			 * messages but do not flag PageError like
-> > +			 * the normal direct-to-bio case as it could
-> > +			 * be temporary.
-> > +			 */
-> >  			set_page_dirty(page);
-> > +			ClearPageReclaim(page);
-> > +			if (printk_ratelimit()) {
-> > +				pr_err("Write-error on dio swapfile (%Lu)\n",
-> > +					(unsigned long long)page_file_offset(page));
-> > +			}
-> >  		}
-> > +		end_page_writeback(page);
-> 
-> A pox upon printk_ratelimit()!  Both its code comment and the
-> checkpatch warning explain why.
-> 
+--------------000807030105080807080004
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 
-Ok. There were few sensible options around dealing with the write
-errors. swap_writepage() could go to sleep on a waitqueue but it's
-putting IO rate limiting where it doesn't belong. Retrying silently
-forever could be difficult to debug if the error really is permanent.
-
-> --- a/mm/page_io.c~mm-swap-mark-swap-pages-writeback-before-queueing-for-direct-io-fix
-> +++ a/mm/page_io.c
-> @@ -244,10 +244,8 @@ int __swap_writepage(struct page *page,
->  			 */
->  			set_page_dirty(page);
->  			ClearPageReclaim(page);
-> -			if (printk_ratelimit()) {
-> -				pr_err("Write-error on dio swapfile (%Lu)\n",
-> -					(unsigned long long)page_file_offset(page));
-> -			}
-> +			pr_err_ratelimited("Write error on dio swapfile (%Lu)\n",
-> +				(unsigned long long)page_file_offset(page));
->  		}
->  		end_page_writeback(page);
->  		return ret;
+On 04/24/2013 11:42 PM, Greg Thelen wrote:
+>> +	vmpr->notify_userspace = true;
+> Should notify_userspace get cleared sometime?  Seems like we might need
+> to clear or decrement notify_userspace in vmpressure_event() when
+> calling eventfd_signal().
 > 
-> Do we need to cast the loff_t?  afaict all architectures use long long.
-> I didn't get a warning from sparc64 with the cast removed, and sparc64
-> is the one which likes to use different underlying types.
-> 
-> I think I'll remove it and wait for Fengguang's nastygram.
-> 
+I am folding the attached patch and keeping the acks unless the ackers
+oppose.
 
-Sounds reasonable. I'll get cc'd on the same mails.
+Greg, any other problem you spot here? Thanks for the review BTW.
 
--- 
-Mel Gorman
-SUSE Labs
+
+--------------000807030105080807080004
+Content-Type: text/x-patch; name="vmpressure.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="vmpressure.diff"
+
+diff --git a/mm/vmpressure.c b/mm/vmpressure.c
+index 1a082a0..e16256e 100644
+--- a/mm/vmpressure.c
++++ b/mm/vmpressure.c
+@@ -164,6 +164,7 @@ static bool vmpressure_event(struct vmpressure *vmpr,
+ 		}
+ 	}
+ 
++	vmpr->notify_userspace = false;
+ 	mutex_unlock(&vmpr->events_lock);
+ 
+ 	return signalled;
+@@ -249,8 +250,13 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
+ 	mutex_lock(&vmpr->sr_lock);
+ 	vmpr->scanned += scanned;
+ 	vmpr->reclaimed += reclaimed;
+-	vmpr->notify_userspace = true;
+ 	scanned = vmpr->scanned;
++	/*
++	 * If we didn't reach this point, only kernel events will be triggered.
++	 * It is the job of the worker thread to clean this up once the
++	 * notifications are all delivered.
++	 */
++	vmpr->notify_userspace = true;
+ 	mutex_unlock(&vmpr->sr_lock);
+ 
+ schedule:
+
+--------------000807030105080807080004--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
