@@ -1,154 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id DF2996B0032
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 23:50:03 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id fb1so1593621pad.11
-        for <linux-mm@kvack.org>; Wed, 24 Apr 2013 20:50:03 -0700 (PDT)
-Date: Wed, 24 Apr 2013 20:50:01 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 0AA3B6B0032
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 23:57:05 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id ld10so957668pab.33
+        for <linux-mm@kvack.org>; Wed, 24 Apr 2013 20:57:05 -0700 (PDT)
+Date: Wed, 24 Apr 2013 20:57:04 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [v3.9-rc8]: kernel BUG at mm/memcontrol.c:3994! (was: Re:
- [BUG][s390x] mm: system crashed)
-In-Reply-To: <20130424152043.GP2018@cmpxchg.org>
-Message-ID: <alpine.LNX.2.00.1304242022200.16233@eggly.anvils>
-References: <156480624.266924.1365995933797.JavaMail.root@redhat.com> <2068164110.268217.1365996520440.JavaMail.root@redhat.com> <20130415055627.GB4207@osiris> <516B9B57.6050308@redhat.com> <20130416075047.GA4184@osiris> <1638103518.2400447.1366266465689.JavaMail.root@redhat.com>
- <20130418071303.GB4203@osiris> <20130424104255.GC4350@osiris> <20130424131851.GC31960@dhcp22.suse.cz> <20130424152043.GP2018@cmpxchg.org>
+Subject: Re: BUG in __mem_cgroup_uncharge_common
+In-Reply-To: <517885C0.70701@redhat.com>
+Message-ID: <alpine.LNX.2.00.1304242050590.16327@eggly.anvils>
+References: <517885C0.70701@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Heiko Carstens <heiko.carstens@de.ibm.com>, Zhouping Liu <zliu@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, caiqian <caiqian@redhat.com>, Caspar Zhang <czhang@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Lingzhu Xiang <lxiang@redhat.com>
+To: Lingzhu Xiang <lxiang@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, 24 Apr 2013, Johannes Weiner wrote:
-> On Wed, Apr 24, 2013 at 03:18:51PM +0200, Michal Hocko wrote:
-> > On Wed 24-04-13 12:42:55, Heiko Carstens wrote:
-> > > On Thu, Apr 18, 2013 at 09:13:03AM +0200, Heiko Carstens wrote:
-> > > > Ok, thanks for verifying! I'll look into it; hopefully I can reproduce it
-> > > > here as well.
-> > > 
-> > > That seems to be a common code bug. I can easily trigger the VM_BUG_ON()
-> > > below (when I force the system to swap):
-> > > 
-> > > [   48.347963] ------------[ cut here ]------------
-> > > [   48.347972] kernel BUG at mm/memcontrol.c:3994!
-> > > [   48.348012] illegal operation: 0001 [#1] SMP 
-> > > [   48.348015] Modules linked in:
-> > > [   48.348017] CPU: 1 Not tainted 3.9.0-rc8+ #38
-> > > [   48.348020] Process mmap2 (pid: 635, task: 0000000029476100, ksp: 000000002e91b938)
-> > > [   48.348022] Krnl PSW : 0704f00180000000 000000000026552c (__mem_cgroup_uncharge_common+0x2c4/0x33c)
-> > > [   48.348032]            R:0 T:1 IO:1 EX:1 Key:0 M:1 W:0 P:0 AS:3 CC:3 PM:0 EA:3
-> > >                Krnl GPRS: 0000000000000008 0000000000000009 000003d1002a9200 0000000000000000
-> > > [   48.348039]            0000000000000000 00000000006812d8 000003ffdf339000 00000000321a6f98
-> > > [   48.348043]            000003fffce11000 0000000000000000 0000000000000001 000003d1002a9200
-> > > [   48.348046]            0000000000000001 0000000000681b88 000000002e91bc18 000000002e91bbd0
-> > > [   48.348057] Krnl Code: 000000000026551e: c0e5fffaa2a1        brasl   %r14,1b9a60
-> > >                           0000000000265524: a7f4ff7d            brc     15,26541e
-> > >                          #0000000000265528: a7f40001            brc     15,26552a
-> > >                          >000000000026552c: e3c0b8200124        stg     %r12,6176(%r11)
-> > >                           0000000000265532: a7f4ff57            brc     15,2653e0
-> > >                           0000000000265536: e310b8280104        lg      %r1,6184(%r11)
-> > >                           000000000026553c: a71b0001            aghi    %r1,1
-> > >                           0000000000265540: e310b8280124        stg     %r1,6184(%r11)
-> > > [   48.348099] Call Trace:
-> > > [   48.348100] ([<000003d1002a91c0>] 0x3d1002a91c0)
-> > > [   48.348102]  [<00000000002404aa>] page_remove_rmap+0xf2/0x16c
-> > > [   48.348106]  [<0000000000232dc8>] unmap_single_vma+0x494/0x7d8
-> > > [   48.348107]  [<0000000000233ac0>] unmap_vmas+0x50/0x74
-> > > [   48.348109]  [<00000000002396ec>] unmap_region+0x9c/0x110
-> > > [   48.348110]  [<000000000023bd18>] do_munmap+0x284/0x470
-> > > [   48.348111]  [<000000000023bf56>] vm_munmap+0x52/0x70
-> > > [   48.348113]  [<000000000023cf32>] SyS_munmap+0x3a/0x4c
-> > > [   48.348114]  [<0000000000665e14>] sysc_noemu+0x22/0x28
-> > > [   48.348118]  [<000003fffcf187b2>] 0x3fffcf187b2
-> > > [   48.348119] Last Breaking-Event-Address:
-> > > [   48.348120]  [<0000000000265528>] __mem_cgroup_uncharge_common+0x2c0/0x33c
-> > > 
-> > > Looking at the code, the code flow is:
-> > > 
-> > > page_remove_rmap() -> mem_cgroup_uncharge_page() -> __mem_cgroup_uncharge_common()
-> > > 
-> > > Note that in mem_cgroup_uncharge_page() the page in question passed the check:
-> > > 
-> > > [...]
-> > >         if (PageSwapCache(page))
-> > >                 return;
-> > > [...]
-> > > 
-> > > and just a couple of instructions later the VM_BUG_ON() within
-> > > __mem_cgroup_uncharge_common() triggers:
-> > > 
-> > > [...]
-> > >         if (mem_cgroup_disabled())
-> > >                 return NULL;
-> > > 
-> > >         VM_BUG_ON(PageSwapCache(page));
-> > > [...]
-> > > 
-> > > Which means that another cpu changed the pageflags concurrently. In fact,
-> > > looking at the dump a different cpu is indeed busy with running kswapd.
-> > 
-> > Hmm, maybe I am missing something but it really looks like we can race
-> > here. Reclaim path takes the page lock while zap_pte takes page table
-> > lock so nothing prevents them from racing here:
-> > shrink_page_list		zap_pte_range
-> >   trylock_page			  pte_offset_map_lock
-> >   add_to_swap			    page_remove_rmap
-> >     /* Page can be still mapped */
-> >     add_to_swap_cache		      atomic_add_negative(_mapcount)
-> >       __add_to_swap_cache	        mem_cgroup_uncharge_page
-> >       				          (PageSwapCache(page)) && return
-> >         SetPageSwapCache
-> > 				          __mem_cgroup_uncharge_common
-> > 					    VM_BUG_ON(PageSwapCache(page))
-> > 
-> > Maybe not many people run with CONFIG_DEBUG_VM enabled these days so we
-> > do not this more often (even me testing configs are not consistent in
-> > that regards and only few have it on). The only thing that changed in
-> > this area recently is 0c59b89c which made the test VM_BUG_ON rather then
-> > simple return in 3.6
-> > And maybe the BUG_ON is too harsh as CgroupUsed should guarantee that
-> > the uncharge will eventually go away. What do you think Johannes?
-> 
-> Interesting.  We need to ensure there is ordering between setting
-> PG_swapcache and installing swap entries because I think we are the
-> only ones looking at PG_swapcache without the page lock held.  So we
-> don't have a safe way to check for PG_swapcache but if we get it
-> wrong, we may steal an uncharge that uncharge_swapcache() should be
-> doing instead and that means we mess up the swap statistics
-> accounting.
-> 
-> So how can we, without holding the page lock, either safely back off
-> from a page in swapcache or make sure we do the swap statistics
-> accounting when uncharging a swapcache page from the final unmap?
+On Thu, 25 Apr 2013, Lingzhu Xiang wrote:
+> Hit VM_BUG_ON(PageSwapCache(page)) in mm/memcontrol.c twice with 3.9-rc8
+> and 3.7.6 during LTP run on ppc64 machines.
 
-Awkward.
-
-I agree that the actual memcg uncharging should be okay, but the memsw
-swap stats will go wrong (doesn't matter toooo much), and mem_cgroup_put
-get missed (leaking a struct mem_cgroup).
-
-I confess to having seen this myself, just once, on x86_64 3.8-rc6-mm1
-plus some patches I was testing; but I never got back to look into it.
-
-I wonder if something gone into 3.9 has changed the timing to make it
-more easily reproduced now; but the underlying problem has been there
-a long time - long before your VM_BUG_ON was there to expose it.
-
-For now I guess the best is just to remove the VM_BUG_ON, or restore
-it to a (usually redundant) return NULL, and live with the old leak.
-
-But the real fix... I fear it may involve adding another PageCgroup
-flag, just for memsw, to ensure that its counts are kept in balance
-even when SwapCache races cause what's been charged in one way to
-get uncharged in an unexpected way.
-
-All those PageSwapCache and page_mapped tests are suspect: I expect
-most will turn out to be okay, one way or another, but they are
-suspicious and deserve audit.
-
-(But I won't be working on this myself, sorry.)
+Thank you for reporting: yes, Zhouping Liu reported the same on s390x,
+it's under discussion in another thread, [v3.9-rc8]: kernel BUG at
+mm/memcontrol.c:3994! (was: Re: [BUG][s390x] mm: system crashed)
 
 Hugh
+
+> 
+> 
+> [ 9699.793674] ------------[ cut here ]------------ 
+> [ 9699.793719] kernel BUG at mm/memcontrol.c:3994! 
+> [ 9699.793745] Oops: Exception in kernel mode, sig: 5 [#1] 
+> [ 9699.793756] SMP NR_CPUS=1024 NUMA pSeries 
+> [ 9699.793768] Modules linked in: tun(F) scsi_transport_iscsi(F) ipt_ULOG(F) nfc(F) af_key(F) rds(F) af_802154(F) pppoe(F) pppox(F) ppp_generic(F) slhc(F) atm(F) sctp(F) ip6table_filter(F) ip6_tables(F) iptable_filter(F) ip_tables(F) btrfs(F) raid6_pq(F) xor(F) vfat(F) fat(F) nfsv3(F) nfs_acl(F) nfsv2(F) nfs(F) lockd(F) sunrpc(F) fscache(F) nfnetlink_log(F) nfnetlink(F) bluetooth(F) rfkill(F) arc4(F) md4(F) nls_utf8(F) cifs(F) dns_resolver(F) nf_tproxy_core(F) nls_koi8_u(F) nls_cp932(F) ts_kmp(F) fuse(F) sg(F) ehea(F) xfs(F) libcrc32c(F) sd_mod(F) crc_t10dif(F) ibmvscsi(F) scsi_transport_srp(F) scsi_tgt(F) dm_mirror(F) dm_region_hash(F) dm_log(F) dm_mod(F) [last unloaded: ipt_REJECT] 
+> [ 9699.794061] NIP: c000000000201c40 LR: c0000000001cf770 CTR: 0000000000021f84 
+> [ 9699.794082] REGS: c0000000210674e0 TRAP: 0700   Tainted: GF             (3.9.0-rc8) 
+> [ 9699.794091] MSR: 8000000000029032 <SF,EE,ME,IR,DR,RI>  CR: 22824422  XER: 00000000 
+> [ 9699.794141] SOFTE: 1 
+> [ 9699.794151] CFAR: c0000000002076a8 
+> [ 9699.794159] TASK = c000000075c4bfa0[48350] 'msgctl10' THREAD: c000000021064000 CPU: 15 
+> GPR00: c0000000001cf770 c000000021067760 c0000000010f3dc8 c00000007f2236b0  
+> GPR04: 0000000000000001 0000000000000000 0000000000000000 0000000000000000  
+> GPR08: c00000007f2236c8 0000000000000001 0000000000000000 00000000187e8800  
+> GPR12: 0000000022824428 c00000000ede3c00 c00000007f2236b0 ffffffffffffff80  
+> GPR16: 4000000000000000 0000000000000001 00003fffd1f30000 c00000007f041bc8  
+> GPR20: 00003fffd1f20000 c00000010c4ba9a0 0000000000000000 c000000000ae0788  
+> GPR24: c000000000ae0788 0000187e88000393 c000000001163dc8 0000000000000001  
+> GPR28: c000000001160900 c00000007f2236b0 ffffffffffffffff c00000007f2236b0  
+> [ 9699.794381] NIP [c000000000201c40] .__mem_cgroup_uncharge_common+0x50/0x340 
+> [ 9699.794398] LR [c0000000001cf770] .page_remove_rmap+0x120/0x1d0 
+> [ 9699.794414] Call Trace: 
+> [ 9699.794427] [c000000021067760] [c000000000201d00] .__mem_cgroup_uncharge_common+0x110/0x340 (unreliable) 
+> [ 9699.794441] [c000000021067810] [c0000000001cf770] .page_remove_rmap+0x120/0x1d0 
+> [ 9699.794461] [c0000000210678a0] [c0000000001c10f0] .unmap_single_vma+0x5b0/0x8c0 
+> [ 9699.794494] [c0000000210679e0] [c0000000001c1ea4] .unmap_vmas+0x74/0xe0 
+> [ 9699.794515] [c000000021067a80] [c0000000001cbd48] .exit_mmap+0xd8/0x1a0 
+> [ 9699.794542] [c000000021067ba0] [c000000000082e90] .mmput+0xa0/0x170 
+> [ 9699.794575] [c000000021067c30] [c00000000008d4e8] .do_exit+0x308/0xb40 
+> [ 9699.794587] [c000000021067d30] [c00000000008ddc4] .do_group_exit+0x54/0xf0 
+> [ 9699.794612] [c000000021067dc0] [c00000000008de74] .SyS_exit_group+0x14/0x20 
+> [ 9699.794633] [c000000021067e30] [c000000000009e54] syscall_exit+0x0/0x98 
+> [ 9699.794645] Instruction dump: 
+> [ 9699.794663] fba1ffe8 fbc1fff0 fbe1fff8 2f890000 f8010010 91810008 f821ff51 409e019c  
+> [ 9699.794702] e9230000 7c7d1b78 7c9b2378 792987e2 <0b090000> f8a10070 48006959 60000000  
+> [ 9699.794761] ---[ end trace 18332a81b4a27c2d ]--- 
+> 
+> [ 6230.168170] ------------[ cut here ]------------ 
+> [ 6230.168200] kernel BUG at mm/memcontrol.c:3027! 
+> [ 6230.168206] Oops: Exception in kernel mode, sig: 5 [#1] 
+> [ 6230.168210] SMP NR_CPUS=1024 NUMA pSeries 
+> [ 6230.168215] Modules linked in: tun binfmt_misc hidp cmtp kernelcapi rfcomm l2tp_ppp l2tp_netlink l2tp_core bnep nfc af_802154 pppoe pppox ppp_generic slhc rds af_key atm sctp ip6table_filter ip6_tables iptable_filter ip_tables btrfs libcrc32c vfat fat nfsv3 nfs_acl nfsv2 nfs lockd sunrpc fscache nfnetlink_log nfnetlink bluetooth rfkill des_generic md4 nls_utf8 cifs dns_resolver nf_tproxy_core deflate lzo nls_koi8_u nls_cp932 ts_kmp sg ehea xfs sd_mod crc_t10dif ibmvscsi scsi_transport_srp scsi_tgt dm_mirror dm_region_hash dm_log dm_mod [last unloaded: ipt_REJECT] 
+> [ 6230.168322] NIP: c0000000001f4d70 LR: c0000000001c5480 CTR: 0000000000000000 
+> [ 6230.168327] REGS: c000000107c9f2c0 TRAP: 0700   Tainted: G        W     (3.7.6+) 
+> [ 6230.168330] MSR: 8000000002029032 <SF,VEC,EE,ME,IR,DR,RI>  CR: 28004082  XER: 00000001 
+> [ 6230.168341] SOFTE: 1 
+> [ 6230.168343] CFAR: c0000000001f9448 
+> [ 6230.168346] TASK = c000000108ef9a40[27179] 'msgctl10' THREAD: c000000107c9c000 CPU: 49 
+> GPR00: c0000000001c5480 c000000107c9f540 c000000001133ab0 c00000013f2932f8  
+> GPR04: 0000000000000001 0000000000000000 0000000000000c00 0000000000000011  
+> GPR08: c00000013f293310 0000000000000001 0000000000000000 0000000000000060  
+> GPR12: 0000000028004088 c00000000ee0ab80 0000000000000000 0000000000000000  
+> GPR16: 0000000000000000 0000000000000000 0000000000000000 c00000013f1c0378  
+> GPR20: 00003fffb1990000 00003fffb1980000 c00000011b0f0000 c00000000147da80  
+> GPR24: 000045da80000393 c0000000ad960900 0000000000000001 c0000000011a09e0  
+> GPR28: c00000013f2932f8 c0000000adf2cad0 c0000000010b8d58 c00000013f2932f8  
+> [ 6230.168401] NIP [c0000000001f4d70] .__mem_cgroup_uncharge_common+0x50/0x320 
+> [ 6230.168405] LR [c0000000001c5480] .page_remove_rmap+0x140/0x1d0 
+> [ 6230.168408] Call Trace: 
+> [ 6230.168411] [c000000107c9f5f0] [c0000000001c5480] .page_remove_rmap+0x140/0x1d0 
+> [ 6230.168417] [c000000107c9f680] [c0000000001b6c30] .do_wp_page+0x3f0/0xd80 
+> [ 6230.168421] [c000000107c9f780] [c0000000001b92e0] .handle_pte_fault+0x350/0xca0 
+> [ 6230.168428] [c000000107c9f880] [c000000000708440] .do_page_fault+0x420/0x830 
+> [ 6230.168433] [c000000107c9fab0] [c000000000005d68] handle_page_fault+0x10/0x30 
+> [ 6230.168439] --- Exception: 301 at .schedule_tail+0x94/0x120 
+> [ 6230.168439]     LR = .schedule_tail+0x8c/0x120 
+> [ 6230.168444] [c000000107c9fda0] [c0000000000c5b4c] .schedule_tail+0x5c/0x120 (unreliable) 
+> [ 6230.168449] [c000000107c9fe30] [c000000000009a9c] .ret_from_fork+0x4/0x54 
+> [ 6230.168453] Instruction dump: 
+> [ 6230.168455] ebc2bc58 f8010010 91810008 f821ff51 eb7e8000 813b0068 2f890000 409e019c  
+> [ 6230.168463] e9230000 7c7c1b78 7c9a2378 792987e2 <0b090000> f8a10070 48005649 60000000  
+> [ 6230.168476] ---[ end trace 13237c53a86ce213 ]--- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
