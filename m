@@ -1,36 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 07DBD6B0002
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2013 13:17:28 -0400 (EDT)
-Date: Thu, 25 Apr 2013 17:17:27 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: OOM-killer and strange RSS value in 3.9-rc7
-In-Reply-To: <20130425060705.GK2672@localhost.localdomain>
-Message-ID: <0000013e42332267-0b7fb3c0-9150-4058-8850-ae094b455b15-000000@email.amazonses.com>
-References: <alpine.DEB.2.02.1304161315290.30779@chino.kir.corp.google.com> <20130417094750.GB2672@localhost.localdomain> <20130417141909.GA24912@dhcp22.suse.cz> <20130418101541.GC2672@localhost.localdomain> <20130418175513.GA12581@dhcp22.suse.cz>
- <20130423131558.GH8001@dhcp22.suse.cz> <20130424044848.GI2672@localhost.localdomain> <20130424094732.GB31960@dhcp22.suse.cz> <0000013e3cb0340d-00f360e3-076b-478e-b94c-ddd4476196ce-000000@email.amazonses.com> <20130425060705.GK2672@localhost.localdomain>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 957FE6B0002
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2013 14:00:20 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Thu, 25 Apr 2013 23:26:57 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id C238B394005C
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2013 23:30:10 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3PI06Mm11534832
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2013 23:30:06 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3PI083D016478
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 04:00:09 +1000
+Message-ID: <51796E78.20203@linux.vnet.ibm.com>
+Date: Thu, 25 Apr 2013 23:27:12 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <alpine.DEB.2.02.1304251217172.26659@gentwo.org>
-Content-Disposition: INLINE
+Subject: Re: [RFC PATCH v2 00/15][Sorted-buddy] mm: Memory Power Management
+References: <20130409214443.4500.44168.stgit@srivatsabhat.in.ibm.com> <517028F1.6000002@sr71.net>
+In-Reply-To: <517028F1.6000002@sr71.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Han Pingtian <hanpt@linux.vnet.ibm.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, mhocko@suse.cz, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: Dave Hansen <dave@sr71.net>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, matthew.garrett@nebula.com, rientjes@google.com, riel@redhat.com, arjan@linux.intel.com, srinivas.pandruvada@linux.intel.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, paulmck@linux.vnet.ibm.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, andi@firstfloor.org, wujianguo@huawei.com, kmpark@infradead.org, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 25 Apr 2013, Han Pingtian wrote:
+On 04/18/2013 10:40 PM, Dave Hansen wrote:
+> On 04/09/2013 02:45 PM, Srivatsa S. Bhat wrote:
+>> 2. Performance overhead is expected to be low: Since we retain the simplicity
+>>    of the algorithm in the page allocation path, page allocation can
+>>    potentially remain as fast as it would be without memory regions. The
+>>    overhead is pushed to the page-freeing paths which are not that critical.
+> 
 
-> I have enabled "slub_debug" and here is the
-> /sys/kernel/slab/kmalloc-512/alloc_calls contents:
->
->      50 .__alloc_workqueue_key+0x90/0x5d0 age=113630/116957/119419 pid=1-1730 cpus=0,6-8,13,24,26,44,53,57,60,68 nodes=1
->      11 .__alloc_workqueue_key+0x16c/0x5d0 age=113814/116733/119419 pid=1-1730 cpus=0,44,68 nodes=1
->      13 .add_sysfs_param.isra.2+0x80/0x210 age=115175/117994/118779 pid=1-1342 cpus=0,8,12,24,60 nodes=1
->     160 .build_sched_domains+0x108/0xe30 age=119111/119120/119131 pid=1 cpus=0 nodes=1
->    9000 .alloc_fair_sched_group+0xe4/0x220 age=110549/114471/117357 pid=1-2290 cpus=0-1,5,9-11,13,24,29,33,36,38,40-41,45,48-50,53,56-58,60-63,68-69,72-73,76-77,79 nodes=1
->    9000 .alloc_fair_sched_group+0x114/0x220 age=110549/114471/117357 pid=1-2290 cpus=0-1,5,9-11,13,24,29,33,36,38,40-41,45,48-50,53,56-58,60-63,68-69,72-73,76-77,79 nodes=1
+[...]
+ 
+> I still also want to see some hard numbers on:
+>> However, memory consumes a significant amount of power, potentially upto
+>> more than a third of total system power on server systems.
 
-?? Is that normal to have that amount of sched group allocations?
+Please find below, the reference to the publicly available paper I had in
+mind, when I made that statement:
+
+C. Lefurgy, K. Rajamani, F. Rawson, W. Felter, M. Kistler, and Tom Keller.
+Energy management for commercial servers. In IEEE Computer, pages 39a??48,
+Dec 2003.
+
+Here is a quick link to the paper:
+researcher.ibm.com/files/us-lefurgy/computer2003.pdf
+
+On page 40, the paper shows the power-consumption breakdown for an IBM p670
+machine, which shows that as much as 40% of the system energy is consumed by
+the memory sub-system in a mid-range server.
+
+I admit that the paper is a little old (I'll see if I can find anything more
+recent that is publicly available, or perhaps you can verify the same if you
+have data-sheets for other platforms handy), but given the trend of increasing
+memory speeds and increasing memory density/capacity in computer systems, the
+power-consumption of memory is certainly not going to become insignificant all
+of a sudden.
+
+IOW, the above data supports the point I was trying to make - Memory hardware
+contributes to a significant portion of the power consumption of a system. And
+since the hardware is now exposing ways to reduce the power consumption, it
+would be worthwhile to try and exploit it by doing memory power management.
+
+Regards,
+Srivatsa S. Bhat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
