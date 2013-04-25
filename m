@@ -1,95 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 920226B0033
-	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 21:24:27 -0400 (EDT)
-Message-ID: <517885C0.70701@redhat.com>
-Date: Thu, 25 Apr 2013 09:24:16 +0800
-From: Lingzhu Xiang <lxiang@redhat.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 8F7B86B0032
+	for <linux-mm@kvack.org>; Wed, 24 Apr 2013 23:03:27 -0400 (EDT)
+Message-ID: <51789CE3.6020709@huawei.com>
+Date: Thu, 25 Apr 2013 11:02:59 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: BUG in __mem_cgroup_uncharge_common
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [Bug 56881] New: MAP_HUGETLB mmap fails for certain sizes
+References: <bug-56881-27@https.bugzilla.kernel.org/> <20130423132522.042fa8d27668bbca6a410a92@linux-foundation.org> <20130424081454.GA13994@cmpxchg.org> <1366816599-7fr82iw1-mutt-n-horiguchi@ah.jp.nec.com> <20130424153951.GQ2018@cmpxchg.org> <1366844735-kqynvvnu-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1366844735-kqynvvnu-mutt-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: cgroups@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, iceman_dvd@yahoo.com, Steven Truelove <steven.truelove@utoronto.ca>
 
-Hit VM_BUG_ON(PageSwapCache(page)) in mm/memcontrol.c twice with 3.9-rc8
-and 3.7.6 during LTP run on ppc64 machines.
+On 2013/4/25 7:05, Naoya Horiguchi wrote:
+
+> On Wed, Apr 24, 2013 at 11:39:51AM -0400, Johannes Weiner wrote:
+>> On Wed, Apr 24, 2013 at 11:16:39AM -0400, Naoya Horiguchi wrote:
+>>> On Wed, Apr 24, 2013 at 04:14:54AM -0400, Johannes Weiner wrote:
+>>>> @@ -491,10 +491,13 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+>>>>  
+>>>>  	sprintf (name, "SYSV%08x", key);
+>>>>  	if (shmflg & SHM_HUGETLB) {
+>>>> +		unsigned int hugesize;
+>>>> +
+>>>>  		/* hugetlb_file_setup applies strict accounting */
+>>>>  		if (shmflg & SHM_NORESERVE)
+>>>>  			acctflag = VM_NORESERVE;
+>>>> -		file = hugetlb_file_setup(name, 0, size, acctflag,
+>>>> +		hugesize = ALIGN(size, huge_page_size(&default_hstate));
+>>>> +		file = hugetlb_file_setup(name, hugesize, acctflag,
+>>>>  				  &shp->mlock_user, HUGETLB_SHMFS_INODE,
+>>>>  				(shmflg >> SHM_HUGE_SHIFT) & SHM_HUGE_MASK);
+>>>>  	} else {
+>>>
+>>> Would it be better to find proper hstate instead of using default_hstate?
+>>
+>> You are probably right, I guess we can't assume default_hstate anymore
+>> after page_size_log can be passed in.
+>>
+>> Can we have hugetlb_file_setup() return an adjusted length, or an
+>> alignment requirement?
+> 
+> Yes, it's possible if callers pass the pointer of size (length) to
+> hugetlb_file_setup() and make it adjusted inside the function.
+> And as for alignment, I think it's not a hugetlb_file_setup's job,
+> so we don't have to do it in this function.
+> 
+>> Or pull the hstate lookup into the callsites (since they pass in
+>> page_size_log to begin with)?
+> 
+> This is also a possible solution, where we might need to define and
+> export a function converting hugepage order to hstate.
+> 
+> I like the former one, so wrote a patch like below.
+> # I added your Signed-off-by: because this's based on your draft patch.
+> # if you don't like it, please let me know.
+> 
+> Thanks,
+> Naoya Horiguchi
+> ---
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Date: Wed, 24 Apr 2013 16:44:19 -0400
+> Subject: [PATCH] hugetlbfs: fix mmap failure in unaligned size request
+> 
+> As reported in https://bugzilla.kernel.org/show_bug.cgi?id=56881, current
+> kernel returns -EINVAL unless a given mmap length is "almost" hugepage
+> aligned. This is because in sys_mmap_pgoff() the given length is passed to
+> vm_mmap_pgoff() as it is without being aligned with hugepage boundary.
+> 
+> This is a regression introduced in commit 40716e29243d "hugetlbfs: fix
+> alignment of huge page requests", where alignment code is pushed into
+> hugetlb_file_setup() and the variable len in caller side is not changed.
+> 
+> To fix this, this patch partially reverts that commit, and changes
+> the type of parameter size from size_t to (size_t *) in order to
+> align the size in caller side.
+> 
+
+Hi Naoya,
+
+This patch only fix anonymous hugetlb mmap case, should also fix hugetlbfs file mmap case?
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 0db0de1..5ed9561 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1327,6 +1327,8 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+ 		file = fget(fd);
+ 		if (!file)
+ 			goto out;
++		else if (is_file_hugepages(file))
++			len = ALIGN(len, huge_page_size(hstate_file(file)));
+ 	} else if (flags & MAP_HUGETLB) {
+ 		struct user_struct *user = NULL;
+ 		/*
+
+Thanks,
+Jianguo Wu
+
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  fs/hugetlbfs/inode.c    | 20 ++++++++++----------
+>  include/linux/hugetlb.h |  7 +++----
+>  ipc/shm.c               |  2 +-
+>  mm/mmap.c               |  2 +-
+>  4 files changed, 15 insertions(+), 16 deletions(-)
+> 
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 523464e..7adbd7b 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -929,9 +929,8 @@ static struct dentry_operations anon_ops = {
+>  	.d_dname = hugetlb_dname
+>  };
+>  
+> -struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+> -				size_t size, vm_flags_t acctflag,
+> -				struct user_struct **user,
+> +struct file *hugetlb_file_setup(const char *name, size_t *sizeptr,
+> +				vm_flags_t acctflag, struct user_struct **user,
+>  				int creat_flags, int page_size_log)
+>  {
+>  	struct file *file = ERR_PTR(-ENOMEM);
+> @@ -939,9 +938,8 @@ struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+>  	struct path path;
+>  	struct super_block *sb;
+>  	struct qstr quick_string;
+> -	struct hstate *hstate;
+> -	unsigned long num_pages;
+>  	int hstate_idx;
+> +	size_t size;
+>  
+>  	hstate_idx = get_hstate_idx(page_size_log);
+>  	if (hstate_idx < 0)
+> @@ -951,6 +949,10 @@ struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+>  	if (!hugetlbfs_vfsmount[hstate_idx])
+>  		return ERR_PTR(-ENOENT);
+>  
+> +	size = 1 << hstate_index_to_shift(hstate_idx);
+> +	if (sizeptr)
+> +		*sizeptr = ALIGN(*sizeptr, size);
+> +
+>  	if (creat_flags == HUGETLB_SHMFS_INODE && !can_do_hugetlb_shm()) {
+>  		*user = current_user();
+>  		if (user_shm_lock(size, *user)) {
+> @@ -980,12 +982,10 @@ struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+>  	if (!inode)
+>  		goto out_dentry;
+>  
+> -	hstate = hstate_inode(inode);
+> -	size += addr & ~huge_page_mask(hstate);
+> -	num_pages = ALIGN(size, huge_page_size(hstate)) >>
+> -			huge_page_shift(hstate);
+>  	file = ERR_PTR(-ENOMEM);
+> -	if (hugetlb_reserve_pages(inode, 0, num_pages, NULL, acctflag))
+> +	if (hugetlb_reserve_pages(inode, 0,
+> +			size >> huge_page_shift(hstate_inode(inode)), NULL,
+> +			acctflag))
+>  		goto out_inode;
+>  
+>  	d_instantiate(path.dentry, inode);
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 8220a8a..ca67d42 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -193,8 +193,7 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
+>  
+>  extern const struct file_operations hugetlbfs_file_operations;
+>  extern const struct vm_operations_struct hugetlb_vm_ops;
+> -struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+> -				size_t size, vm_flags_t acct,
+> +struct file *hugetlb_file_setup(const char *name, size_t *size, vm_flags_t acct,
+>  				struct user_struct **user, int creat_flags,
+>  				int page_size_log);
+>  
+> @@ -213,8 +212,8 @@ static inline int is_file_hugepages(struct file *file)
+>  
+>  #define is_file_hugepages(file)			0
+>  static inline struct file *
+> -hugetlb_file_setup(const char *name, unsigned long addr, size_t size,
+> -		vm_flags_t acctflag, struct user_struct **user, int creat_flags,
+> +hugetlb_file_setup(const char *name, size_t *size, vm_flags_t acctflag,
+> +		struct user_struct **user, int creat_flags,
+>  		int page_size_log)
+>  {
+>  	return ERR_PTR(-ENOSYS);
+> diff --git a/ipc/shm.c b/ipc/shm.c
+> index cb858df..e2cb809 100644
+> --- a/ipc/shm.c
+> +++ b/ipc/shm.c
+> @@ -494,7 +494,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+>  		/* hugetlb_file_setup applies strict accounting */
+>  		if (shmflg & SHM_NORESERVE)
+>  			acctflag = VM_NORESERVE;
+> -		file = hugetlb_file_setup(name, 0, size, acctflag,
+> +		file = hugetlb_file_setup(name, NULL, acctflag,
+>  				  &shp->mlock_user, HUGETLB_SHMFS_INODE,
+>  				(shmflg >> SHM_HUGE_SHIFT) & SHM_HUGE_MASK);
+>  	} else {
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 2664a47..d03a541 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1333,7 +1333,7 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+>  		 * A dummy user value is used because we are not locking
+>  		 * memory so no accounting is necessary
+>  		 */
+> -		file = hugetlb_file_setup(HUGETLB_ANON_FILE, addr, len,
+> +		file = hugetlb_file_setup(HUGETLB_ANON_FILE, &len,
+>  				VM_NORESERVE,
+>  				&user, HUGETLB_ANONHUGE_INODE,
+>  				(flags >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK);
 
 
-[ 9699.793674] ------------[ cut here ]------------ 
-[ 9699.793719] kernel BUG at mm/memcontrol.c:3994! 
-[ 9699.793745] Oops: Exception in kernel mode, sig: 5 [#1] 
-[ 9699.793756] SMP NR_CPUS=1024 NUMA pSeries 
-[ 9699.793768] Modules linked in: tun(F) scsi_transport_iscsi(F) ipt_ULOG(F) nfc(F) af_key(F) rds(F) af_802154(F) pppoe(F) pppox(F) ppp_generic(F) slhc(F) atm(F) sctp(F) ip6table_filter(F) ip6_tables(F) iptable_filter(F) ip_tables(F) btrfs(F) raid6_pq(F) xor(F) vfat(F) fat(F) nfsv3(F) nfs_acl(F) nfsv2(F) nfs(F) lockd(F) sunrpc(F) fscache(F) nfnetlink_log(F) nfnetlink(F) bluetooth(F) rfkill(F) arc4(F) md4(F) nls_utf8(F) cifs(F) dns_resolver(F) nf_tproxy_core(F) nls_koi8_u(F) nls_cp932(F) ts_kmp(F) fuse(F) sg(F) ehea(F) xfs(F) libcrc32c(F) sd_mod(F) crc_t10dif(F) ibmvscsi(F) scsi_transport_srp(F) scsi_tgt(F) dm_mirror(F) dm_region_hash(F) dm_log(F) dm_mod(F) [last unloaded: ipt_REJECT] 
-[ 9699.794061] NIP: c000000000201c40 LR: c0000000001cf770 CTR: 0000000000021f84 
-[ 9699.794082] REGS: c0000000210674e0 TRAP: 0700   Tainted: GF             (3.9.0-rc8) 
-[ 9699.794091] MSR: 8000000000029032 <SF,EE,ME,IR,DR,RI>  CR: 22824422  XER: 00000000 
-[ 9699.794141] SOFTE: 1 
-[ 9699.794151] CFAR: c0000000002076a8 
-[ 9699.794159] TASK = c000000075c4bfa0[48350] 'msgctl10' THREAD: c000000021064000 CPU: 15 
-GPR00: c0000000001cf770 c000000021067760 c0000000010f3dc8 c00000007f2236b0  
-GPR04: 0000000000000001 0000000000000000 0000000000000000 0000000000000000  
-GPR08: c00000007f2236c8 0000000000000001 0000000000000000 00000000187e8800  
-GPR12: 0000000022824428 c00000000ede3c00 c00000007f2236b0 ffffffffffffff80  
-GPR16: 4000000000000000 0000000000000001 00003fffd1f30000 c00000007f041bc8  
-GPR20: 00003fffd1f20000 c00000010c4ba9a0 0000000000000000 c000000000ae0788  
-GPR24: c000000000ae0788 0000187e88000393 c000000001163dc8 0000000000000001  
-GPR28: c000000001160900 c00000007f2236b0 ffffffffffffffff c00000007f2236b0  
-[ 9699.794381] NIP [c000000000201c40] .__mem_cgroup_uncharge_common+0x50/0x340 
-[ 9699.794398] LR [c0000000001cf770] .page_remove_rmap+0x120/0x1d0 
-[ 9699.794414] Call Trace: 
-[ 9699.794427] [c000000021067760] [c000000000201d00] .__mem_cgroup_uncharge_common+0x110/0x340 (unreliable) 
-[ 9699.794441] [c000000021067810] [c0000000001cf770] .page_remove_rmap+0x120/0x1d0 
-[ 9699.794461] [c0000000210678a0] [c0000000001c10f0] .unmap_single_vma+0x5b0/0x8c0 
-[ 9699.794494] [c0000000210679e0] [c0000000001c1ea4] .unmap_vmas+0x74/0xe0 
-[ 9699.794515] [c000000021067a80] [c0000000001cbd48] .exit_mmap+0xd8/0x1a0 
-[ 9699.794542] [c000000021067ba0] [c000000000082e90] .mmput+0xa0/0x170 
-[ 9699.794575] [c000000021067c30] [c00000000008d4e8] .do_exit+0x308/0xb40 
-[ 9699.794587] [c000000021067d30] [c00000000008ddc4] .do_group_exit+0x54/0xf0 
-[ 9699.794612] [c000000021067dc0] [c00000000008de74] .SyS_exit_group+0x14/0x20 
-[ 9699.794633] [c000000021067e30] [c000000000009e54] syscall_exit+0x0/0x98 
-[ 9699.794645] Instruction dump: 
-[ 9699.794663] fba1ffe8 fbc1fff0 fbe1fff8 2f890000 f8010010 91810008 f821ff51 409e019c  
-[ 9699.794702] e9230000 7c7d1b78 7c9b2378 792987e2 <0b090000> f8a10070 48006959 60000000  
-[ 9699.794761] ---[ end trace 18332a81b4a27c2d ]--- 
-
-[ 6230.168170] ------------[ cut here ]------------ 
-[ 6230.168200] kernel BUG at mm/memcontrol.c:3027! 
-[ 6230.168206] Oops: Exception in kernel mode, sig: 5 [#1] 
-[ 6230.168210] SMP NR_CPUS=1024 NUMA pSeries 
-[ 6230.168215] Modules linked in: tun binfmt_misc hidp cmtp kernelcapi rfcomm l2tp_ppp l2tp_netlink l2tp_core bnep nfc af_802154 pppoe pppox ppp_generic slhc rds af_key atm sctp ip6table_filter ip6_tables iptable_filter ip_tables btrfs libcrc32c vfat fat nfsv3 nfs_acl nfsv2 nfs lockd sunrpc fscache nfnetlink_log nfnetlink bluetooth rfkill des_generic md4 nls_utf8 cifs dns_resolver nf_tproxy_core deflate lzo nls_koi8_u nls_cp932 ts_kmp sg ehea xfs sd_mod crc_t10dif ibmvscsi scsi_transport_srp scsi_tgt dm_mirror dm_region_hash dm_log dm_mod [last unloaded: ipt_REJECT] 
-[ 6230.168322] NIP: c0000000001f4d70 LR: c0000000001c5480 CTR: 0000000000000000 
-[ 6230.168327] REGS: c000000107c9f2c0 TRAP: 0700   Tainted: G        W     (3.7.6+) 
-[ 6230.168330] MSR: 8000000002029032 <SF,VEC,EE,ME,IR,DR,RI>  CR: 28004082  XER: 00000001 
-[ 6230.168341] SOFTE: 1 
-[ 6230.168343] CFAR: c0000000001f9448 
-[ 6230.168346] TASK = c000000108ef9a40[27179] 'msgctl10' THREAD: c000000107c9c000 CPU: 49 
-GPR00: c0000000001c5480 c000000107c9f540 c000000001133ab0 c00000013f2932f8  
-GPR04: 0000000000000001 0000000000000000 0000000000000c00 0000000000000011  
-GPR08: c00000013f293310 0000000000000001 0000000000000000 0000000000000060  
-GPR12: 0000000028004088 c00000000ee0ab80 0000000000000000 0000000000000000  
-GPR16: 0000000000000000 0000000000000000 0000000000000000 c00000013f1c0378  
-GPR20: 00003fffb1990000 00003fffb1980000 c00000011b0f0000 c00000000147da80  
-GPR24: 000045da80000393 c0000000ad960900 0000000000000001 c0000000011a09e0  
-GPR28: c00000013f2932f8 c0000000adf2cad0 c0000000010b8d58 c00000013f2932f8  
-[ 6230.168401] NIP [c0000000001f4d70] .__mem_cgroup_uncharge_common+0x50/0x320 
-[ 6230.168405] LR [c0000000001c5480] .page_remove_rmap+0x140/0x1d0 
-[ 6230.168408] Call Trace: 
-[ 6230.168411] [c000000107c9f5f0] [c0000000001c5480] .page_remove_rmap+0x140/0x1d0 
-[ 6230.168417] [c000000107c9f680] [c0000000001b6c30] .do_wp_page+0x3f0/0xd80 
-[ 6230.168421] [c000000107c9f780] [c0000000001b92e0] .handle_pte_fault+0x350/0xca0 
-[ 6230.168428] [c000000107c9f880] [c000000000708440] .do_page_fault+0x420/0x830 
-[ 6230.168433] [c000000107c9fab0] [c000000000005d68] handle_page_fault+0x10/0x30 
-[ 6230.168439] --- Exception: 301 at .schedule_tail+0x94/0x120 
-[ 6230.168439]     LR = .schedule_tail+0x8c/0x120 
-[ 6230.168444] [c000000107c9fda0] [c0000000000c5b4c] .schedule_tail+0x5c/0x120 (unreliable) 
-[ 6230.168449] [c000000107c9fe30] [c000000000009a9c] .ret_from_fork+0x4/0x54 
-[ 6230.168453] Instruction dump: 
-[ 6230.168455] ebc2bc58 f8010010 91810008 f821ff51 eb7e8000 813b0068 2f890000 409e019c  
-[ 6230.168463] e9230000 7c7c1b78 7c9a2378 792987e2 <0b090000> f8a10070 48005649 60000000  
-[ 6230.168476] ---[ end trace 13237c53a86ce213 ]--- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
