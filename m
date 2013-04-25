@@ -1,196 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 734586B0002
-	for <linux-mm@kvack.org>; Thu, 25 Apr 2013 14:37:19 -0400 (EDT)
-Received: by mail-lb0-f176.google.com with SMTP id y8so3080330lbh.35
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2013 11:37:17 -0700 (PDT)
-Subject: Re: page eviction from the buddy cache
-Mime-Version: 1.0 (Apple Message framework v1283)
-Content-Type: text/plain; charset=us-ascii
-From: Alexey Lyahkov <alexey.lyashkov@gmail.com>
-In-Reply-To: <20130425143056.GF2144@suse.de>
-Date: Thu, 25 Apr 2013 21:37:07 +0300
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <7398CEE9-AF68-4A2A-82E4-940FADF81F97@gmail.com>
-References: <3C8EEEF8-C1EB-4E3D-8DE6-198AB1BEA8C0@gmail.com> <515CD665.9000300@gmail.com> <239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com> <51730619.3030204@fastmail.fm> <20130420235718.GA28789@thunk.org> <5176785D.5030707@fastmail.fm> <20130423122708.GA31170@thunk.org> <alpine.LNX.2.00.1304231230340.12850@eggly.anvils> <20130423150008.046ee9351da4681128db0bf3@linux-foundation.org> <20130424142650.GA29097@thunk.org> <20130425143056.GF2144@suse.de>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 87F256B0002
+	for <linux-mm@kvack.org>; Thu, 25 Apr 2013 17:00:40 -0400 (EDT)
+Date: Thu, 25 Apr 2013 17:00:17 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <1366923617-dvp2vbsx-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20130424232600.GB18686@cmpxchg.org>
+References: <bug-56881-27@https.bugzilla.kernel.org/>
+ <20130423132522.042fa8d27668bbca6a410a92@linux-foundation.org>
+ <20130424081454.GA13994@cmpxchg.org>
+ <1366816599-7fr82iw1-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130424153951.GQ2018@cmpxchg.org>
+ <1366844735-kqynvvnu-mutt-n-horiguchi@ah.jp.nec.com>
+ <20130424232600.GB18686@cmpxchg.org>
+Subject: Re: [Bug 56881] New: MAP_HUGETLB mmap fails for certain sizes
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Theodore Ts'o <tytso@mit.edu>, Andrew Perepechko <anserper@ya.ru>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Bernd Schubert <bernd.schubert@fastmail.fm>, Will Huck <will.huckk@gmail.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, iceman_dvd@yahoo.com, Steven Truelove <steven.truelove@utoronto.ca>
 
-Mel,
+On Wed, Apr 24, 2013 at 07:26:00PM -0400, Johannes Weiner wrote:
+> On Wed, Apr 24, 2013 at 07:05:35PM -0400, Naoya Horiguchi wrote:
+> > On Wed, Apr 24, 2013 at 11:39:51AM -0400, Johannes Weiner wrote:
+> > > On Wed, Apr 24, 2013 at 11:16:39AM -0400, Naoya Horiguchi wrote:
+> > > > On Wed, Apr 24, 2013 at 04:14:54AM -0400, Johannes Weiner wrote:
+> > > > > @@ -491,10 +491,13 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+> > > > >  
+> > > > >  	sprintf (name, "SYSV%08x", key);
+> > > > >  	if (shmflg & SHM_HUGETLB) {
+> > > > > +		unsigned int hugesize;
+> > > > > +
+> > > > >  		/* hugetlb_file_setup applies strict accounting */
+> > > > >  		if (shmflg & SHM_NORESERVE)
+> > > > >  			acctflag = VM_NORESERVE;
+> > > > > -		file = hugetlb_file_setup(name, 0, size, acctflag,
+> > > > > +		hugesize = ALIGN(size, huge_page_size(&default_hstate));
+> > > > > +		file = hugetlb_file_setup(name, hugesize, acctflag,
+> > > > >  				  &shp->mlock_user, HUGETLB_SHMFS_INODE,
+> > > > >  				(shmflg >> SHM_HUGE_SHIFT) & SHM_HUGE_MASK);
+> > > > >  	} else {
+> > > > 
+> > > > Would it be better to find proper hstate instead of using default_hstate?
+> > > 
+> > > You are probably right, I guess we can't assume default_hstate anymore
+> > > after page_size_log can be passed in.
+> > > 
+> > > Can we have hugetlb_file_setup() return an adjusted length, or an
+> > > alignment requirement?
+> > 
+> > Yes, it's possible if callers pass the pointer of size (length) to
+> > hugetlb_file_setup() and make it adjusted inside the function.
+> > And as for alignment, I think it's not a hugetlb_file_setup's job,
+> > so we don't have to do it in this function.
+> > 
+> > > Or pull the hstate lookup into the callsites (since they pass in
+> > > page_size_log to begin with)?
+> > 
+> > This is also a possible solution, where we might need to define and
+> > export a function converting hugepage order to hstate.
+> 
+> After thinking about it some more, I would actually prefer this.  The
+> callsites have all the information and the file setup code should not
+> really care about the alignment requirements of the callers.
+> 
+> I.e. export something like get_hstate_idx() but which returns hstate,
+> then make the callers look it up, do the alignment, pass in the
+> aligned size and hstate instead of page_size_log.  Then they are free
+> to use the aligned size (mmap) or use the original size (shm).
 
+OK. I'll do this.
 
-On Apr 25, 2013, at 17:30, Mel Gorman wrote:
+> > I like the former one, so wrote a patch like below.
+> > # I added your Signed-off-by: because this's based on your draft patch.
+> > # if you don't like it, please let me know.
+> 
+> Thanks, I appreciate it.  But usually if you take and modify a patch
+> add the original From: line to the changelog to give credit, then add
+> your own signoff and only add other people's signoff after they agree.
 
-> On Wed, Apr 24, 2013 at 10:26:50AM -0400, Theodore Ts'o wrote:
->> On Tue, Apr 23, 2013 at 03:00:08PM -0700, Andrew Morton wrote:
->>> That should fix things for now.  Although it might be better to just =
-do
->>>=20
->>> 	mark_page_accessed(page);	/* to SetPageReferenced */
->>> 	lru_add_drain();		/* to SetPageLRU */
->>>=20
->>> Because a) this was too early to decide that the page is
->>> super-important and b) the second touch of this page should have a
->>> mark_page_accessed() in it already.
->>=20
->> The question is do we really want to put lru_add_drain() into the =
-ext4
->> file system code?  That seems to pushing some fairly mm-specific
->> knowledge into file system code.  I'll do this if I have to do, but
->> wouldn't be better if this was pushed into mark_page_accessed(), or
->> some other new API was exported by the mm subsystem?
->>=20
->=20
-> I don't think we want to push lru_add_drain() into the ext4 code. It's
-> too specific of knowledge just to work around pagevecs. Before we =
-rework
-> how pagevecs select what LRU to place a page, can we make sure that =
-fixing
-> that will fix the problem?
->=20
-what is "that"? puting lru_add_drain() in ext4 core? sure that is fixes =
-problem with many small reads during large write.
-originally i have put shake_page() in ext4 code, but that have call =
-lru_add_drain_all() so to exaggerated.
+OK, got it.
 
-Index: linux-stage/fs/ext4/mballoc.c
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
---- linux-stage.orig/fs/ext4/mballoc.c	2013-03-19 10:55:52.000000000 =
-+0200
-+++ linux-stage/fs/ext4/mballoc.c	2013-03-19 10:59:02.000000000 =
-+0200
-@@ -900,8 +900,11 @@ static int ext4_mb_init_cache(struct pag
- 			incore =3D data;
- 		}
- 	}
--	if (likely(err =3D=3D 0))
-+	if (likely(err =3D=3D 0)) {
- 		SetPageUptodate(page);
-+		/* make sure it's in active list */
-+		mark_page_accessed(page);
-+	}
-=20
- out:
- 	if (bh) {
-@@ -957,6 +960,8 @@ int ext4_mb_init_group(struct super_bloc
- 	page =3D find_or_create_page(inode->i_mapping, pnum, GFP_NOFS);
- 	if (page) {
- 		BUG_ON(page->mapping !=3D inode->i_mapping);
-+		/* move to lru - should be lru_add_drain() */
-+		shake_page(page, 0);
- 		ret =3D ext4_mb_init_cache(page, NULL);
- 		if (ret) {
- 			unlock_page(page);
-@@ -986,6 +991,8 @@ int ext4_mb_init_group(struct super_bloc
- 		unlock_page(page);
- 	} else if (page) {
- 		BUG_ON(page->mapping !=3D inode->i_mapping);
-+		/* move to lru - should be lru_add_drain() */
-+		shake_page(page, 0);
- 		ret =3D ext4_mb_init_cache(page, bitmap);
- 		if (ret) {
- 			unlock_page(page);
-@@ -1087,6 +1094,7 @@ repeat_load_buddy:
- 		if (page) {
- 			BUG_ON(page->mapping !=3D inode->i_mapping);
- 			if (!PageUptodate(page)) {
-+				shake_page(page, 0);
- 				ret =3D ext4_mb_init_cache(page, NULL);
- 				if (ret) {
- 					unlock_page(page);
-@@ -1118,6 +1126,7 @@ repeat_load_buddy:
- 		if (page) {
- 			BUG_ON(page->mapping !=3D inode->i_mapping);
- 			if (!PageUptodate(page)) {
-+				shake_page(page, 0);
- 				ret =3D ext4_mb_init_cache(page, =
-e4b->bd_bitmap);
- 				if (ret) {
- 					unlock_page(page);
-@@ -2500,6 +2509,8 @@ static int ext4_mb_init_backend(struct s
- 	 * not in the inode hash, so it should never be found by iget(), =
-but
- 	 * this will avoid confusion if it ever shows up during =
-debugging. */
- 	sbi->s_buddy_cache->i_ino =3D EXT4_BAD_INO;
-+	sbi->s_buddy_cache->i_state =3D I_NEW;
-+//	mapping_set_unevictable(sbi->s_buddy_cache->i_mapping);
- 	EXT4_I(sbi->s_buddy_cache)->i_disksize =3D 0;
- 	for (i =3D 0; i < ngroups; i++) {
- 		desc =3D ext4_get_group_desc(sb, i, NULL);
+> > @@ -929,9 +929,8 @@ static struct dentry_operations anon_ops = {
+> >  	.d_dname = hugetlb_dname
+> >  };
+> >  
+> > -struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+> > -				size_t size, vm_flags_t acctflag,
+> > -				struct user_struct **user,
+> > +struct file *hugetlb_file_setup(const char *name, size_t *sizeptr,
+> > +				vm_flags_t acctflag, struct user_struct **user,
+> >  				int creat_flags, int page_size_log)
+> >  {
+> >  	struct file *file = ERR_PTR(-ENOMEM);
+> > @@ -939,9 +938,8 @@ struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+> >  	struct path path;
+> >  	struct super_block *sb;
+> >  	struct qstr quick_string;
+> > -	struct hstate *hstate;
+> > -	unsigned long num_pages;
+> >  	int hstate_idx;
+> > +	size_t size;
+> >  
+> >  	hstate_idx = get_hstate_idx(page_size_log);
+> >  	if (hstate_idx < 0)
+> > @@ -951,6 +949,10 @@ struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+> >  	if (!hugetlbfs_vfsmount[hstate_idx])
+> >  		return ERR_PTR(-ENOENT);
+> >  
+> > +	size = 1 << hstate_index_to_shift(hstate_idx);
+> > +	if (sizeptr)
+> > +		*sizeptr = ALIGN(*sizeptr, size);
+> 
+> You always assume the file will just be one hugepage in size?
 
-
-additional i_state =3D I_NEW need to prevent kill page cache from sysctl =
--w vm.drop_caches=3D3
-
-> Andrew, can you try the following patch please? Also, is there any =
-chance
-> you can describe in more detail what the workload does?
-lustre OSS node + IOR with file size twice more then OSS memory.
-
-> If it fails to boot,
-> remove the second that calls lru_add_drain_all() and try again.
-well, i will try.
-
->=20
-> The patch looks deceptively simple, a downside from is is that =
-workloads that
-> call mark_page_accessed() frequently will contend more on the =
-zone->lru_lock
-> than it did previously. Moving lru_add_drain() to the ext4 could would
-> suffer the same contention problem.
-NO, isn't. we have call lru_add_drain() in new page allocation case, but =
-mark_page_accessed called without differences - is page in page cache =
-already or it's new allocated - so we have very small zone->lru_lock =
-contention.
-
-
->=20
-> Thanks.
->=20
-> ---8<---
-> mm: pagevec: Move inactive pages to active lists even if on a pagevec
->=20
-> If a page is on a pagevec aimed at the inactive list then two =
-subsequent
-> calls to mark_page_acessed() will still not move it to the active =
-list.
-> This can cause a page to be reclaimed sooner than is expected. This
-> patch detects if an inactive page is not on the LRU and drains the
-> pagevec before promoting it.
->=20
-> Not-signed-off
->=20
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 8a529a0..eac64fe 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -437,7 +437,18 @@ void activate_page(struct page *page)
-> void mark_page_accessed(struct page *page)
-> {
-> 	if (!PageActive(page) && !PageUnevictable(page) &&
-> -			PageReferenced(page) && PageLRU(page)) {
-> +			PageReferenced(page)) {
-> +		/* Page could be in pagevec */
-> +		if (!PageLRU(page))
-> +			lru_add_drain();
-> +
-> +		/*
-> +		 * Weeeee, using in_atomic() like this is a =
-hand-grenade.
-> +		 * Patch is for debugging purposes only, do not merge =
-this.
-> +		 */
-> +		if (!PageLRU(page) && !in_atomic())
-> +			lru_add_drain_all();
-> +
-> 		activate_page(page);
-> 		ClearPageReferenced(page);
-> 	} else if (!PageReferenced(page)) {
+No, this line means that *sizeptr (given by the caller) is round up
+to the multiple of hugepage's size. So assuming size is 2MB, for example,
+if 5MB is given it's round up to 6MB in return (3 hugepages.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
