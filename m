@@ -1,108 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id E1B3C6B0002
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 01:21:42 -0400 (EDT)
-Received: by mail-ia0-f170.google.com with SMTP id k20so319021iak.29
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2013 22:21:42 -0700 (PDT)
-Message-ID: <517A0ED8.6000404@gmail.com>
-Date: Fri, 26 Apr 2013 13:21:28 +0800
-From: Will Huck <will.huckk@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] x86: add phys addr validity check for /dev/mem mmap
-References: <1364905733-23937-1-git-send-email-fhrbata@redhat.com>
-In-Reply-To: <1364905733-23937-1-git-send-email-fhrbata@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id C703C6B0002
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 02:03:12 -0400 (EDT)
+Received: by mail-la0-f44.google.com with SMTP id ed20so3292578lab.17
+        for <linux-mm@kvack.org>; Thu, 25 Apr 2013 23:03:10 -0700 (PDT)
+Subject: Re: page eviction from the buddy cache
+Mime-Version: 1.0 (Apple Message framework v1283)
+Content-Type: multipart/mixed; boundary="Apple-Mail=_D177E9F3-B579-4E0F-9BF5-671E228C36BD"
+From: Alexey Lyahkov <alexey.lyashkov@gmail.com>
+In-Reply-To: <20130425224035.GG2144@suse.de>
+Date: Fri, 26 Apr 2013 09:03:00 +0300
+Message-Id: <DEB7E312-8DF9-4923-B427-CCDE6B2A6298@gmail.com>
+References: <239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com> <51730619.3030204@fastmail.fm> <20130420235718.GA28789@thunk.org> <5176785D.5030707@fastmail.fm> <20130423122708.GA31170@thunk.org> <alpine.LNX.2.00.1304231230340.12850@eggly.anvils> <20130423150008.046ee9351da4681128db0bf3@linux-foundation.org> <20130424142650.GA29097@thunk.org> <20130425143056.GF2144@suse.de> <7398CEE9-AF68-4A2A-82E4-940FADF81F97@gmail.com> <20130425224035.GG2144@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frantisek Hrbata <fhrbata@redhat.com>, hpa@zytor.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Theodore Ts'o <tytso@mit.edu>, Andrew Perepechko <anserper@ya.ru>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Bernd Schubert <bernd.schubert@fastmail.fm>, Will Huck <will.huckk@gmail.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org
 
-Hi Peter,
-On 04/02/2013 08:28 PM, Frantisek Hrbata wrote:
-> When CR4.PAE is set, the 64b PTE's are used(ARCH_PHYS_ADDR_T_64BIT is set for
-> X86_64 || X86_PAE). According to [1] Chapter 4 Paging, some higher bits in 64b
-> PTE are reserved and have to be set to zero. For example, for IA-32e and 4KB
-> page [1] 4.5 IA-32e Paging: Table 4-19, bits 51-M(MAXPHYADDR) are reserved. So
-> for a CPU with e.g. 48bit phys addr width, bits 51-48 have to be zero. If one of
-> the reserved bits is set, [1] 4.7 Page-Fault Exceptions, the #PF is generated
-> with RSVD error code.
->
-> <quote>
-> RSVD flag (bit 3).
-> This flag is 1 if there is no valid translation for the linear address because a
-> reserved bit was set in one of the paging-structure entries used to translate
-> that address. (Because reserved bits are not checked in a paging-structure entry
-> whose P flag is 0, bit 3 of the error code can be set only if bit 0 is also
-> set.)
-> </quote>
->
-> In mmap_mem() the first check is valid_mmap_phys_addr_range(), but it always
-> returns 1 on x86. So it's possible to use any pgoff we want and to set the PTE's
-> reserved bits in remap_pfn_range(). Meaning there is a possibility to use mmap
 
-In this case, remap_pfn_range() setup the map and reserved bits for mmio 
-memory, so the mmio memory is already populated, why trigger #PF?
+--Apple-Mail=_D177E9F3-B579-4E0F-9BF5-671E228C36BD
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=us-ascii
 
-> on /dev/mem and cause system panic. It's probably not that serious, because
-> access to /dev/mem is limited and the system has to have panic_on_oops set, but
-> still I think we should check this and return error.
->
-> This patch adds check for x86 when ARCH_PHYS_ADDR_T_64BIT is set, the same way
-> as it is already done in e.g. ioremap. With this fix mmap returns -EINVAL if the
-> requested phys addr is bigger then the supported phys addr width.
->
-> [1] Intel 64 and IA-32 Architectures Software Developer's Manual, Volume 3A
->
-> Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
-> ---
->   arch/x86/include/asm/io.h |  4 ++++
->   arch/x86/mm/mmap.c        | 13 +++++++++++++
->   2 files changed, 17 insertions(+)
->
-> diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
-> index d8e8eef..39607c6 100644
-> --- a/arch/x86/include/asm/io.h
-> +++ b/arch/x86/include/asm/io.h
-> @@ -242,6 +242,10 @@ static inline void flush_write_buffers(void)
->   #endif
->   }
->   
-> +#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
-> +extern int valid_phys_addr_range(phys_addr_t addr, size_t count);
-> +extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t count);
-> +
->   #endif /* __KERNEL__ */
->   
->   extern void native_io_delay(void);
-> diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
-> index 845df68..92ec31c 100644
-> --- a/arch/x86/mm/mmap.c
-> +++ b/arch/x86/mm/mmap.c
-> @@ -31,6 +31,8 @@
->   #include <linux/sched.h>
->   #include <asm/elf.h>
->   
-> +#include "physaddr.h"
-> +
->   struct __read_mostly va_alignment va_align = {
->   	.flags = -1,
->   };
-> @@ -122,3 +124,14 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
->   		mm->unmap_area = arch_unmap_area_topdown;
->   	}
->   }
-> +
-> +int valid_phys_addr_range(phys_addr_t addr, size_t count)
-> +{
-> +	return addr + count <= __pa(high_memory);
-> +}
-> +
-> +int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
-> +{
-> +	resource_size_t addr = (pfn << PAGE_SHIFT) + count;
-> +	return phys_addr_valid(addr);
-> +}
+
+On Apr 26, 2013, at 01:40, Mel Gorman wrote:
+> No, I would prefer if this was not fixed within ext4. I need =
+confirmation
+> that fixing mark_page_accessed() addresses the performance problem you
+> encounter. The two-line check for PageLRU() followed by a =
+lru_add_drain()
+> is meant to check that. That is still not my preferred fix because =
+even
+> if you do not encounter higher LRU contention, other workloads would =
+be
+> at risk.  The likely fix will involve converting pagevecs to using a =
+single
+> list and then selecting what LRU to put a page on at drain time but I
+> want to know that it's worthwhile.
+>=20
+> Using shake_page() in ext4 is certainly overkill.
+agree, but it's was my prof of concept patch :) just to verify founded
+
+>=20
+>>> Andrew, can you try the following patch please? Also, is there any =
+chance
+>>> you can describe in more detail what the workload does?
+>>=20
+>> lustre OSS node + IOR with file size twice more then OSS memory.
+>>=20
+>=20
+> Ok, no way I'll be reproducing that workload. Thanks.
+>=20
+I think you should be try several processes with DIO (so don't put any =
+pages in lru_pagevec as that is heap), each have a filesize twice or =
+more of available memory.
+Main idea you should be have a read a new pages in budy cache (to =
+allocate) and have large memory allocation in same time.
+DIO chunk should be enough to start streaming allocation.
+
+also you may use attached jprobe module to hit an BUG() if buddy page =
+removed from a memory by shrinker.
+
+--Apple-Mail=_D177E9F3-B579-4E0F-9BF5-671E228C36BD
+Content-Disposition: attachment;
+	filename=jprobe-1.c
+Content-Type: application/octet-stream;
+	x-unix-mode=0644;
+	name="jprobe-1.c"
+Content-Transfer-Encoding: 7bit
+
+#include <linux/kernel.h>
+#include <linux/module.h>
+
+#include <linux/kprobes.h>
+#include <linux/tracepoint.h>
+#include <trace/events/kmem.h>
+
+#include <linux/gfp.h>
+#include <linux/pagemap.h>
+#include <linux/memcontrol.h>
+#include <linux/mm_inline.h>
+#include <linux/swap.h>
+#include <../fs/ext4/ext4.h>
+
+
+struct address_space swapper_space;
+
+int check_page(struct page *page)
+{
+	struct inode *inode;
+	struct address_space *mapping;
+	struct ext4_sb_info *_sb;
+
+
+	mapping = page_mapping(page);
+	if ((mapping == NULL) || (mapping == &swapper_space))
+		goto end;
+
+	inode = mapping->host;
+	if (inode == NULL)
+		goto end;
+
+	if ((inode->i_sb == NULL) || (inode->i_sb->s_type == NULL))
+		goto end;
+	
+	if (strcmp(inode->i_sb->s_type->name, "ldiskfs") != 0)
+//	if (strcmp(inode->i_sb->s_type->name, "ext4") != 0)
+		goto end;
+
+	_sb = EXT4_SB(inode->i_sb);
+	if (inode != _sb->s_buddy_cache)
+		goto end;
+
+	printk(KERN_ERR "found buddy %p %p\n", page, inode);
+	BUG();
+	return 1;
+end:
+	return 0;
+}
+
+/* Proxy routine having the same arguments as actual do_fork() routine */
+static int  my__isolate_lru_page(struct page *page, int mode, int file)
+{
+
+	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode))
+		goto end;
+
+	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
+		goto end;
+
+	check_page(page);
+end:
+	/* Always end with a call to jprobe_return(). */
+	jprobe_return();
+	return 0;
+}
+
+static int my__remove_from_page_cache(struct page *page)
+{
+	check_page(page);
+	jprobe_return();
+	return 0;
+}
+
+static struct jprobe my_jprobe1 = {
+	.entry			= my__isolate_lru_page,
+	.kp = {
+		.symbol_name	= "__isolate_lru_page",
+	},
+};
+
+static struct jprobe my_jprobe2 = {
+	.entry			= my__remove_from_page_cache,
+	.kp = {
+		.symbol_name	= "__remove_from_page_cache",
+	},
+};
+
+static void probe_mark_event(struct page *page)
+{
+	check_page(page);
+}
+
+
+static int __init jprobe_init(void)
+{
+	int ret;
+
+	ret = register_jprobe(&my_jprobe1);
+	if (ret < 0) {
+		printk(KERN_INFO "register_jprobe failed, returned %d\n", ret);
+		return -1;
+	}
+	printk(KERN_INFO "Planted jprobe at %p, handler addr %p\n",
+	       my_jprobe1.kp.addr, my_jprobe1.entry);
+
+	ret = register_jprobe(&my_jprobe2);
+	if (ret < 0) {
+		printk(KERN_INFO "register_jprobe failed, returned %d\n", ret);
+		return -1;
+	}
+	printk(KERN_INFO "Planted jprobe at %p, handler addr %p\n",
+	       my_jprobe2.kp.addr, my_jprobe2.entry);
+
+//	ret = register_trace_mm_vmscan_mark_accessed(probe_mark_event);
+	ret = register_trace_mm_vmscan_lru_move(probe_mark_event);
+	printk("register ret %d\n", ret);
+	WARN_ON(ret);
+
+	return 0;
+}
+
+static void __exit jprobe_exit(void)
+{
+	unregister_jprobe(&my_jprobe1);
+	printk(KERN_INFO "jprobe at %p unregistered\n", my_jprobe1.kp.addr);
+
+	unregister_jprobe(&my_jprobe2);
+	printk(KERN_INFO "jprobe at %p unregistered\n", my_jprobe2.kp.addr);
+
+	unregister_trace_mm_vmscan_lru_move(probe_mark_event);
+}
+
+module_init(jprobe_init)
+module_exit(jprobe_exit)
+MODULE_LICENSE("GPL");
+
+--Apple-Mail=_D177E9F3-B579-4E0F-9BF5-671E228C36BD--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
