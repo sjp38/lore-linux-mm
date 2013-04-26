@@ -1,60 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id B190A6B0032
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 11:15:43 -0400 (EDT)
-From: atomlin@redhat.com
-Subject: [PATCH v3] mm: slab: Verify the nodeid passed to ____cache_alloc_node
-Date: Fri, 26 Apr 2013 16:15:34 +0100
-Message-Id: <1366989334-13293-1-git-send-email-atomlin@redhat.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 2054B6B0032
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 11:29:06 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <5163155D.7030401@sr71.net>
+References: <1365163198-29726-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1365163198-29726-33-git-send-email-kirill.shutemov@linux.intel.com>
+ <5163155D.7030401@sr71.net>
+Subject: Re: [PATCHv3, RFC 32/34] thp: handle write-protect exception to
+ file-backed huge pages
+Content-Transfer-Encoding: 7bit
+Message-Id: <20130426153104.92450E0085@blue.fi.intel.com>
+Date: Fri, 26 Apr 2013 18:31:04 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, cl@linux.com, penberg@kernel.org, riel@redhat.com, aquini@redhat.com, rientjes@google.com, Aaron Tomlin <atomlin@redhat.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Aaron Tomlin <atomlin@redhat.com>
+Dave Hansen wrote:
+> > +			if (!PageAnon(page)) {
+> > +				add_mm_counter(mm, MM_FILEPAGES, -HPAGE_PMD_NR);
+> > +				add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
+> > +			}
+> 
+> This seems like a bit of a hack.  Shouldn't we have just been accounting
+> to MM_FILEPAGES in the first place?
 
-Hi,
+No, it's not.
 
-This patch is in response to BZ#42967 [1].
-Using VM_BUG_ON so it's used only when CONFIG_DEBUG_VM is set,
-given that ____cache_alloc_node() is a hot code path.
+It handles MAP_PRIVATE file mappings. The page was read first and
+accounted to MM_FILEPAGES and then COW'ed by anon page here, so we have to
+adjust counters. do_wp_page() has similar code.
 
-Cheers,
-Aaron
-
-[1]: https://bugzilla.kernel.org/show_bug.cgi?id=42967
-
----8<---
-mm: slab: Verify the nodeid passed to ____cache_alloc_node
-
-If the nodeid is > num_online_nodes() this can cause an
-Oops and a panic(). The purpose of this patch is to assert
-if this condition is true to aid debugging efforts rather
-than some random NULL pointer dereference or page fault.
-
-Signed-off-by: Aaron Tomlin <atomlin@redhat.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Acked-by: Christoph Lameter <cl@linux.com>
-Acked-by: Rafael Aquini <aquini@redhat.com>
-Acked-by: David Rientjes <rientjes@google.com>
----
- mm/slab.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/slab.c b/mm/slab.c
-index 856e4a1..09b4e20 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3412,6 +3412,7 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
- 	void *obj;
- 	int x;
- 
-+	VM_BUG_ON(nodeid > num_online_nodes());
- 	l3 = cachep->nodelists[nodeid];
- 	BUG_ON(!l3);
- 
 -- 
-1.8.1.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
