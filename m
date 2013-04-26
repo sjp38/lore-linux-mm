@@ -1,89 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id C9CD66B0002
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 07:51:24 -0400 (EDT)
-Date: Fri, 26 Apr 2013 13:51:20 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: memcg: softlimit on internal nodes
-Message-ID: <20130426115120.GG31157@dhcp22.suse.cz>
-References: <20130420031611.GA4695@dhcp22.suse.cz>
- <20130421022321.GE19097@mtj.dyndns.org>
- <20130421124554.GA8473@dhcp22.suse.cz>
- <20130422043939.GB25089@mtj.dyndns.org>
- <20130422151908.GF18286@dhcp22.suse.cz>
- <20130422155703.GC12543@htj.dyndns.org>
- <20130422162012.GI18286@dhcp22.suse.cz>
- <20130422183020.GF12543@htj.dyndns.org>
- <20130423092944.GA8001@dhcp22.suse.cz>
- <20130423170900.GH12543@htj.dyndns.org>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id A7D3A6B0002
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 08:05:54 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id x12so2049611wgg.28
+        for <linux-mm@kvack.org>; Fri, 26 Apr 2013 05:05:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130423170900.GH12543@htj.dyndns.org>
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <20130425232702.AF3D831C265@corp2gmr1-1.hot.corp.google.com>
+References: <20130425232702.AF3D831C265@corp2gmr1-1.hot.corp.google.com>
+Date: Fri, 26 Apr 2013 14:05:52 +0200
+Message-ID: <CA+icZUXqmF5QcfVtGpEh5KX4OkgbUncyZB0DKixqSNquUpis1A@mail.gmail.com>
+Subject: Re: mmotm 2013-04-25-16-24 uploaded
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Tue 23-04-13 10:09:00, Tejun Heo wrote:
-> Hello, Michal.
-> 
-> On Tue, Apr 23, 2013 at 11:29:56AM +0200, Michal Hocko wrote:
-> > Ohh, well and we are back in the circle again. Nobody is proposing
-> > overloading soft reclaim for any bottom-up (if that is what you mean by
-> > your opposite direction) pressure handling.
-> > 
-> > > You're making it a point control rather than range one.
-> > 
-> > Be more specific here, please?
-> > 
-> > > Maybe you can define some twisted rules serving certain specific use
-> > > case, but it's gonna be confusing / broken for different use cases.
-> > 
-> > Tejun, your argumentation is really hand wavy here. Which use cases will
-> > be broken and which one will be confusing. Name one for an illustration.
-> > 
-> > > You're so confused that you don't even know you're confused.
-> > 
-> > Yes, you keep repeating that. But you haven't pointed out any single
-> > confusing use case so far. Please please stop this, it is not productive.
-> > We are still talking about using soft limit to control overcommit
-> > situation as gracefully as possible. I hope we are on the same page
-> > about that at least.
-> 
-> Hmmm... I think I was at least somewhat clear on my points.  I'll try
-> again.  Let's see if I can at least make you understand what my point
-> is.  Maybe some diagrams will help.
+On Fri, Apr 26, 2013 at 1:27 AM,  <akpm@linux-foundation.org> wrote:
+> The mm-of-the-moment snapshot 2013-04-25-16-24 has been uploaded to
+>
+>    http://www.ozlabs.org/~akpm/mmotm/
+>
 
-Maybe I should have been more explicit about this but _yes I do agree_
-that a separate limit would work as well. I just do not want to
-introduce yet-another-limit unless it is _really_ necessary. We have up
-to 4 of them depending on the configuration which is a lot already. And
-the new knob would certainly become a guarantee what ever words we use
-with more expectations than soft limit and I am afraid that won't be
-that easy (unless we provide a poison pill for emergency cases).
+Hi Andrew,
 
-My rework was based on the soft limit semantic which we had for quite
-some time and tried to enhance it to be more useful. I do understand
-your concerns about the cleanness of the interface I just objected that
-the new meaning doesn't add any guarantee. The implementation just tries
-to be clever who to reclaim to handle an external pressure (for which
-the soft limit has been introduced in the first place) while using hints
-from the limit as much as possible .
+Nice to see that IPC-SEM is now safe again with Linux-Next (next-20130426).
 
-Anyway, I will think about cons and pros of the new limit. I think we
-shouldn't block the first 3 patches in the series which keep the current
-semantic and just change the internals to do the same thing. Do you
-agree?
+Affected patches...
 
-We can discuss single vs. new knob in the mean time of course.
+ipcsem-fine-grained-locking-for-semtimedop-do-not-call-sem_lock-when-bogus-sma.patch
+ipcsem-fine-grained-locking-for-semtimedop-fix-lockdep-false-positive.patch
+ipcsem-fine-grained-locking-for-semtimedop-fix-locking-in-semctl_main.patch
+ipcsem-fine-grained-locking-for-semtimedop-ipc-make-refcounter-atomic-fix.patch
+ipcsem-fine-grained-locking-for-semtimedop-ipc-make-refcounter-atomic.patch
+ipcsem-fine-grained-locking-for-semtimedop-untangle-rcu-locking-with-find_alloc_undo.patch
 
-[...]
+Just see one patch has my Tested-by (Reported-by) ...
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+All these 6 ipc-sem-next patches were tested several times by me.
+
+It took me approx 2 weeks and XX kernel-builds.
+Please gimme appropriate credits, Thanks.
+
+Have a nice weekend,
+- Sedat -
+
+P.S.: Check for Sedat's credits.
+
+ipcsem-fine-grained-locking-for-semtimedop-fix-lockdep-false-positive.patch:Cc:
+Sedat Dilek <sedat.dilek@gmail.com>
+
+ipcsem-fine-grained-locking-for-semtimedop-ipc-make-refcounter-atomic.patch:Sedat
+reported an issue leading to a NULL dereference in update_queue():
+ipcsem-fine-grained-locking-for-semtimedop-ipc-make-refcounter-atomic.patch:Tested-by:
+Sedat Dilek <sedat.dilek@gmail.com>
+
+ipcsem-fine-grained-locking-for-semtimedop-ipc-make-refcounter-atomic.patch:Reported-by:
+Sedat Dilek <sedat.dilek@gmail.com>
+
+ipcsem-fine-grained-locking-for-semtimedop-ipc-make-refcounter-atomic.patch:Cc:
+Sedat Dilek <sedat.dilek@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
