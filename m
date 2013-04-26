@@ -1,213 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id C703C6B0002
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 02:03:12 -0400 (EDT)
-Received: by mail-la0-f44.google.com with SMTP id ed20so3292578lab.17
-        for <linux-mm@kvack.org>; Thu, 25 Apr 2013 23:03:10 -0700 (PDT)
-Subject: Re: page eviction from the buddy cache
-Mime-Version: 1.0 (Apple Message framework v1283)
-Content-Type: multipart/mixed; boundary="Apple-Mail=_D177E9F3-B579-4E0F-9BF5-671E228C36BD"
-From: Alexey Lyahkov <alexey.lyashkov@gmail.com>
-In-Reply-To: <20130425224035.GG2144@suse.de>
-Date: Fri, 26 Apr 2013 09:03:00 +0300
-Message-Id: <DEB7E312-8DF9-4923-B427-CCDE6B2A6298@gmail.com>
-References: <239AD30A-2A31-4346-A4C7-8A6EB8247990@gmail.com> <51730619.3030204@fastmail.fm> <20130420235718.GA28789@thunk.org> <5176785D.5030707@fastmail.fm> <20130423122708.GA31170@thunk.org> <alpine.LNX.2.00.1304231230340.12850@eggly.anvils> <20130423150008.046ee9351da4681128db0bf3@linux-foundation.org> <20130424142650.GA29097@thunk.org> <20130425143056.GF2144@suse.de> <7398CEE9-AF68-4A2A-82E4-940FADF81F97@gmail.com> <20130425224035.GG2144@suse.de>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id E658B6B0002
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 02:24:45 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
+	Fri, 26 Apr 2013 02:24:44 -0400
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 2EFBC6E803F
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 02:24:38 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3Q6OfDM342570
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 02:24:41 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3Q6Oep1025573
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 02:24:40 -0400
+Date: Fri, 26 Apr 2013 14:24:36 +0800
+From: Han Pingtian <hanpt@linux.vnet.ibm.com>
+Subject: Re: OOM-killer and strange RSS value in 3.9-rc7
+Message-ID: <20130426062436.GB4441@localhost.localdomain>
+References: <20130417094750.GB2672@localhost.localdomain>
+ <20130417141909.GA24912@dhcp22.suse.cz>
+ <20130418101541.GC2672@localhost.localdomain>
+ <20130418175513.GA12581@dhcp22.suse.cz>
+ <20130423131558.GH8001@dhcp22.suse.cz>
+ <20130424044848.GI2672@localhost.localdomain>
+ <20130424094732.GB31960@dhcp22.suse.cz>
+ <0000013e3cb0340d-00f360e3-076b-478e-b94c-ddd4476196ce-000000@email.amazonses.com>
+ <20130425060705.GK2672@localhost.localdomain>
+ <0000013e427023d7-9456c313-8654-420c-b85a-cb79cc3c4ffc-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0000013e427023d7-9456c313-8654-420c-b85a-cb79cc3c4ffc-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Theodore Ts'o <tytso@mit.edu>, Andrew Perepechko <anserper@ya.ru>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Bernd Schubert <bernd.schubert@fastmail.fm>, Will Huck <will.huckk@gmail.com>, linux-ext4@vger.kernel.org, linux-mm@kvack.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, mhocko@suse.cz, penberg@kernel.org, rientjes@google.com, linux-mm@kvack.org
 
+On Thu, Apr 25, 2013 at 06:24:05PM +0000, Christoph Lameter wrote:
+> On Thu, 25 Apr 2013, Han Pingtian wrote:
+> 
+> > > A dump of the other fields in /sys/kernel/slab/kmalloc*/* would also be
+> > > useful.
+> > >
+> > I have dumpped all /sys/kernel/slab/kmalloc*/* in kmalloc.tar.xz and
+> > will attach it to this mail.
+> 
+> Ok that looks like a lot of objects were freed from slab pages but the
+> slab pages were not freed.
+> 
+> looking at kmalloc-8192 we have
+> 
+> Total capacity of the slab cache is 27k objects but only 508 are in use.
+> 
+> Looks like slab pages are not freed when all objects in them have been
+> released.
+> 
+> The relevant portion of code that do the freeing are in
+> 
+> mm/slub.c::unfreeze_partials()
+> 
+> 		if (unlikely(!new.inuse && n->nr_partial > s->min_partial)) {
+>                         page->next = discard_page;
+>                         discard_page = page;
+>                 } else {
+>                         add_partial(n, page, DEACTIVATE_TO_TAIL);
+>                         stat(s, FREE_ADD_PARTIAL);
+>                 }
+> 
+> 
+> ..
+> 
+>        while (discard_page) {
+>                 page = discard_page;
+>                 discard_page = discard_page->next;
+> 
+>                 stat(s, DEACTIVATE_EMPTY);
+>                 discard_slab(s, page);
+>                 stat(s, FREE_SLAB);
+>         }
+> 
+> and mm/slub.c::__slab_free()
+> 
+>      if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
+>                 goto slab_empty;
+> 
+> 
+> Could you verify the values of nr_partial and min_partial and verify that
+> the free paths are actually used?
 
---Apple-Mail=_D177E9F3-B579-4E0F-9BF5-671E228C36BD
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain;
-	charset=us-ascii
+Could you give me some hints about how to verify them? Only I can do is
+adding two printk() statements to print the vaules in those two
+functions:
 
+--------------------------------------------------------------------------------
+diff --git a/mm/slub.c b/mm/slub.c
+index 4aec537..d08d62d 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1915,6 +1915,9 @@ static void unfreeze_partials(struct kmem_cache *s,
+                                new.freelist, new.counters,
+                                "unfreezing slab"));
+ 
++               if (strcmp(s->name, "kmalloc-8192") == 0) {
++                       printk(KERN_INFO "In unfreeze_partials(); kmalloc-8192: n->nr_partial=%lu, s->min_partial
++                }
+                if (unlikely(!new.inuse && n->nr_partial > s->min_partial)) {
+                        page->next = discard_page;
+                        discard_page = page;
+@@ -2536,6 +2539,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+                 return;
+         }
+ 
++       if (strcmp(s->name, "kmalloc-8192") == 0) {
++               printk(KERN_INFO "In __slab_free(); kmalloc-8192: n->nr_partial=%lu, s->min_partial=%lu\n", n->nr
++       }
++
+        if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
+                goto slab_empty;
 
-On Apr 26, 2013, at 01:40, Mel Gorman wrote:
-> No, I would prefer if this was not fixed within ext4. I need =
-confirmation
-> that fixing mark_page_accessed() addresses the performance problem you
-> encounter. The two-line check for PageLRU() followed by a =
-lru_add_drain()
-> is meant to check that. That is still not my preferred fix because =
-even
-> if you do not encounter higher LRU contention, other workloads would =
-be
-> at risk.  The likely fix will involve converting pagevecs to using a =
-single
-> list and then selecting what LRU to put a page on at drain time but I
-> want to know that it's worthwhile.
->=20
-> Using shake_page() in ext4 is certainly overkill.
-agree, but it's was my prof of concept patch :) just to verify founded
+--------------------------------------------------------------------------------
 
->=20
->>> Andrew, can you try the following patch please? Also, is there any =
-chance
->>> you can describe in more detail what the workload does?
->>=20
->> lustre OSS node + IOR with file size twice more then OSS memory.
->>=20
->=20
-> Ok, no way I'll be reproducing that workload. Thanks.
->=20
-I think you should be try several processes with DIO (so don't put any =
-pages in lru_pagevec as that is heap), each have a filesize twice or =
-more of available memory.
-Main idea you should be have a read a new pages in budy cache (to =
-allocate) and have large memory allocation in same time.
-DIO chunk should be enough to start streaming allocation.
+And looks like only printk() in __slab_free() is invoked. I got about 6764 
+lines of something like this:
 
-also you may use attached jprobe module to hit an BUG() if buddy page =
-removed from a memory by shrinker.
+--------------------------------------------------------------------------------
+Apr 26 01:04:05 riblp3 kernel: [    6.969775] In __slab_free(); kmalloc-8192: n->nr_partial=2, s->min_partial=6
+Apr 26 01:04:05 riblp3 kernel: [    6.970154] In __slab_free(); kmalloc-8192: n->nr_partial=3, s->min_partial=6
+Apr 26 01:04:05 riblp3 kernel: [    6.979489] In __slab_free(); kmalloc-8192: n->nr_partial=4, s->min_partial=6
+Apr 26 01:04:05 riblp3 kernel: [    6.979823] In __slab_free(); kmalloc-8192: n->nr_partial=5, s->min_partial=6
+Apr 26 01:04:05 riblp3 kernel: [    9.500383] In __slab_free(); kmalloc-8192: n->nr_partial=7, s->min_partial=6
+Apr 26 01:04:05 riblp3 kernel: [    9.509736] In __slab_free(); kmalloc-8192: n->nr_partial=7, s->min_partial=6
+Apr 26 01:04:08 riblp3 kernel: [   42.314395] In __slab_free(); kmalloc-8192: n->nr_partial=100, s->min_partial=6
+Apr 26 01:04:08 riblp3 kernel: [   42.410333] In __slab_free(); kmalloc-8192: n->nr_partial=100, s->min_partial=6
+Apr 26 01:04:09 riblp3 kernel: [   43.411851] In __slab_free(); kmalloc-8192: n->nr_partial=339, s->min_partial=6
+Apr 26 01:04:09 riblp3 kernel: [   43.411980] In __slab_free(); kmalloc-8192: n->nr_partial=338, s->min_partial=6
+Apr 26 01:04:09 riblp3 kernel: [   43.412083] In __slab_free(); kmalloc-8192: n->nr_partial=337, s->min_partial=6
+--------------------------------------------------------------------------------
+The s->min_partial is always "6" and most of n->nr_partial is bigger than 
+its partner of the same line.
 
---Apple-Mail=_D177E9F3-B579-4E0F-9BF5-671E228C36BD
-Content-Disposition: attachment;
-	filename=jprobe-1.c
-Content-Type: application/octet-stream;
-	x-unix-mode=0644;
-	name="jprobe-1.c"
-Content-Transfer-Encoding: 7bit
-
-#include <linux/kernel.h>
-#include <linux/module.h>
-
-#include <linux/kprobes.h>
-#include <linux/tracepoint.h>
-#include <trace/events/kmem.h>
-
-#include <linux/gfp.h>
-#include <linux/pagemap.h>
-#include <linux/memcontrol.h>
-#include <linux/mm_inline.h>
-#include <linux/swap.h>
-#include <../fs/ext4/ext4.h>
-
-
-struct address_space swapper_space;
-
-int check_page(struct page *page)
-{
-	struct inode *inode;
-	struct address_space *mapping;
-	struct ext4_sb_info *_sb;
-
-
-	mapping = page_mapping(page);
-	if ((mapping == NULL) || (mapping == &swapper_space))
-		goto end;
-
-	inode = mapping->host;
-	if (inode == NULL)
-		goto end;
-
-	if ((inode->i_sb == NULL) || (inode->i_sb->s_type == NULL))
-		goto end;
-	
-	if (strcmp(inode->i_sb->s_type->name, "ldiskfs") != 0)
-//	if (strcmp(inode->i_sb->s_type->name, "ext4") != 0)
-		goto end;
-
-	_sb = EXT4_SB(inode->i_sb);
-	if (inode != _sb->s_buddy_cache)
-		goto end;
-
-	printk(KERN_ERR "found buddy %p %p\n", page, inode);
-	BUG();
-	return 1;
-end:
-	return 0;
-}
-
-/* Proxy routine having the same arguments as actual do_fork() routine */
-static int  my__isolate_lru_page(struct page *page, int mode, int file)
-{
-
-	if (mode != ISOLATE_BOTH && (!PageActive(page) != !mode))
-		goto end;
-
-	if (mode != ISOLATE_BOTH && page_is_file_cache(page) != file)
-		goto end;
-
-	check_page(page);
-end:
-	/* Always end with a call to jprobe_return(). */
-	jprobe_return();
-	return 0;
-}
-
-static int my__remove_from_page_cache(struct page *page)
-{
-	check_page(page);
-	jprobe_return();
-	return 0;
-}
-
-static struct jprobe my_jprobe1 = {
-	.entry			= my__isolate_lru_page,
-	.kp = {
-		.symbol_name	= "__isolate_lru_page",
-	},
-};
-
-static struct jprobe my_jprobe2 = {
-	.entry			= my__remove_from_page_cache,
-	.kp = {
-		.symbol_name	= "__remove_from_page_cache",
-	},
-};
-
-static void probe_mark_event(struct page *page)
-{
-	check_page(page);
-}
-
-
-static int __init jprobe_init(void)
-{
-	int ret;
-
-	ret = register_jprobe(&my_jprobe1);
-	if (ret < 0) {
-		printk(KERN_INFO "register_jprobe failed, returned %d\n", ret);
-		return -1;
-	}
-	printk(KERN_INFO "Planted jprobe at %p, handler addr %p\n",
-	       my_jprobe1.kp.addr, my_jprobe1.entry);
-
-	ret = register_jprobe(&my_jprobe2);
-	if (ret < 0) {
-		printk(KERN_INFO "register_jprobe failed, returned %d\n", ret);
-		return -1;
-	}
-	printk(KERN_INFO "Planted jprobe at %p, handler addr %p\n",
-	       my_jprobe2.kp.addr, my_jprobe2.entry);
-
-//	ret = register_trace_mm_vmscan_mark_accessed(probe_mark_event);
-	ret = register_trace_mm_vmscan_lru_move(probe_mark_event);
-	printk("register ret %d\n", ret);
-	WARN_ON(ret);
-
-	return 0;
-}
-
-static void __exit jprobe_exit(void)
-{
-	unregister_jprobe(&my_jprobe1);
-	printk(KERN_INFO "jprobe at %p unregistered\n", my_jprobe1.kp.addr);
-
-	unregister_jprobe(&my_jprobe2);
-	printk(KERN_INFO "jprobe at %p unregistered\n", my_jprobe2.kp.addr);
-
-	unregister_trace_mm_vmscan_lru_move(probe_mark_event);
-}
-
-module_init(jprobe_init)
-module_exit(jprobe_exit)
-MODULE_LICENSE("GPL");
-
---Apple-Mail=_D177E9F3-B579-4E0F-9BF5-671E228C36BD--
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
