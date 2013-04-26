@@ -1,128 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 157936B0033
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 10:02:46 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id l10so1699946eei.18
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2013 07:02:44 -0700 (PDT)
-Date: Fri, 26 Apr 2013 16:02:40 +0200
-From: Miklos Szeredi <miklos@szeredi.hu>
-Subject: Re: [fuse-devel] [PATCH 14/14] mm: Account for WRITEBACK_TEMP in
- balance_dirty_pages
-Message-ID: <20130426140240.GC16238@tucsk.piliscsaba.szeredi.hu>
-References: <20130401103749.19027.89833.stgit@maximpc.sw.ru>
- <20130401104250.19027.27795.stgit@maximpc.sw.ru>
- <51793DE6.3000503@parallels.com>
- <CAJfpegv1zc4oeE=YXrQd0jmzVXB8jjvXkz-_4Nv_ELcvfsa74Q@mail.gmail.com>
- <517956ED.7060102@parallels.com>
- <20130425204331.GB16238@tucsk.piliscsaba.szeredi.hu>
- <517A3B98.807@parallels.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 4BEC16B0032
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 10:42:34 -0400 (EDT)
+Date: Fri, 26 Apr 2013 14:42:32 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: OOM-killer and strange RSS value in 3.9-rc7
+In-Reply-To: <20130426062436.GB4441@localhost.localdomain>
+Message-ID: <0000013e46cba821-d5c54c99-3b5c-4669-9a54-9fb8f4ee516f-000000@email.amazonses.com>
+References: <20130417094750.GB2672@localhost.localdomain> <20130417141909.GA24912@dhcp22.suse.cz> <20130418101541.GC2672@localhost.localdomain> <20130418175513.GA12581@dhcp22.suse.cz> <20130423131558.GH8001@dhcp22.suse.cz> <20130424044848.GI2672@localhost.localdomain>
+ <20130424094732.GB31960@dhcp22.suse.cz> <0000013e3cb0340d-00f360e3-076b-478e-b94c-ddd4476196ce-000000@email.amazonses.com> <20130425060705.GK2672@localhost.localdomain> <0000013e427023d7-9456c313-8654-420c-b85a-cb79cc3c4ffc-000000@email.amazonses.com>
+ <20130426062436.GB4441@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <517A3B98.807@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Maxim V. Patlasov" <mpatlasov@parallels.com>
-Cc: Kirill Korotaev <dev@parallels.com>, Pavel Emelianov <xemul@parallels.com>, "fuse-devel@lists.sourceforge.net" <fuse-devel@lists.sourceforge.net>, Kernel Mailing List <linux-kernel@vger.kernel.org>, James Bottomley <jbottomley@parallels.com>, Al Viro <viro@zeniv.linux.org.uk>, Linux-Fsdevel <linux-fsdevel@vger.kernel.org>, devel@openvz.org, Andrew Morton <akpm@linux-foundation.org>, fengguang.wu@intel.com, mgorman@suse.de, riel@redhat.com, hughd@google.com, gthelen@google.com, linux-mm@kvack.org
+To: Han Pingtian <hanpt@linux.vnet.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, mhocko@suse.cz, penberg@kernel.org, rientjes@google.com, linux-mm@kvack.org
 
-On Fri, Apr 26, 2013 at 12:32:24PM +0400, Maxim V. Patlasov wrote:
+On Fri, 26 Apr 2013, Han Pingtian wrote:
 
-> > The idea is that fuse filesystems should not go over the bdi limit even if
-> > the global limit hasn't been reached.
-> 
-> This might work, but kicking flusher every time someone write to
-> fuse mount and dives into balance_dirty_pages looks fishy.
+> Could you give me some hints about how to verify them? Only I can do is
+> adding two printk() statements to print the vaules in those two
+> functions:
 
-Yeah.  Fixed patch attached.
+Ok thats good. nr->partial needs to be bigger than min_partial in order
+for frees to occur. So they do occur.
 
-> Let's combine
-> our suggestions: mark fuse inodes with AS_FUSE_WRITEBACK flag and
-> convert what you strongly dislike above to:
-> 
-> if (test_bit(AS_FUSE_WRITEBACK, &mapping->flags))
-> nr_dirty += global_page_state(NR_WRITEBACK_TEMP);
+> And looks like only printk() in __slab_free() is invoked. I got about 6764
+> lines of something like this:
+>
+> --------------------------------------------------------------------------------
+> Apr 26 01:04:05 riblp3 kernel: [    6.969775] In __slab_free(); kmalloc-8192: n->nr_partial=2, s->min_partial=6
+> Apr 26 01:04:05 riblp3 kernel: [    6.970154] In __slab_free(); kmalloc-8192: n->nr_partial=3, s->min_partial=6
+> Apr 26 01:04:05 riblp3 kernel: [    6.979489] In __slab_free(); kmalloc-8192: n->nr_partial=4, s->min_partial=6
+> Apr 26 01:04:05 riblp3 kernel: [    6.979823] In __slab_free(); kmalloc-8192: n->nr_partial=5, s->min_partial=6
+> Apr 26 01:04:05 riblp3 kernel: [    9.500383] In __slab_free(); kmalloc-8192: n->nr_partial=7, s->min_partial=6
+> Apr 26 01:04:05 riblp3 kernel: [    9.509736] In __slab_free(); kmalloc-8192: n->nr_partial=7, s->min_partial=6
+> Apr 26 01:04:08 riblp3 kernel: [   42.314395] In __slab_free(); kmalloc-8192: n->nr_partial=100, s->min_partial=6
+> Apr 26 01:04:08 riblp3 kernel: [   42.410333] In __slab_free(); kmalloc-8192: n->nr_partial=100, s->min_partial=6
+> Apr 26 01:04:09 riblp3 kernel: [   43.411851] In __slab_free(); kmalloc-8192: n->nr_partial=339, s->min_partial=6
+> Apr 26 01:04:09 riblp3 kernel: [   43.411980] In __slab_free(); kmalloc-8192: n->nr_partial=338, s->min_partial=6
+> Apr 26 01:04:09 riblp3 kernel: [   43.412083] In __slab_free(); kmalloc-8192: n->nr_partial=337, s->min_partial=6
+> --------------------------------------------------------------------------------
+> The s->min_partial is always "6" and most of n->nr_partial is bigger than
+> its partner of the same line.
 
-I don't think this is right.  The fuse daemon could itself be writing to another
-fuse filesystem, in which case blocking because of NR_WRITEBACK_TEMP being high
-isn't a smart strategy.
+Thats the way it should be. But the mystery is still there. Why do the
+pages not get freed? Can you add a printk in __free_slab to verify that it
+actually gets called? Print s->name to see which slab is affected by the
+free.
 
-Furthermore it isn't enough.  Becuase the root problem, I think, is that we
-allow fuse filesystems to grow a large number of dirty pages before throttling.
-This was never intended and it may actually have worked properly at a point in
-time but broke by some change to the dirty throttling algorithm.
-
-Thanks,
-Miklos
-
-
-diff --git a/fs/fuse/inode.c b/fs/fuse/inode.c
-index 137185c..195ee45 100644
---- a/fs/fuse/inode.c
-+++ b/fs/fuse/inode.c
-@@ -291,6 +291,7 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
- 		inode->i_flags |= S_NOATIME|S_NOCMTIME;
- 		inode->i_generation = generation;
- 		inode->i_data.backing_dev_info = &fc->bdi;
-+		set_bit(AS_STRICTLIMIT, &inode->i_data.flags);
- 		fuse_init_inode(inode, attr);
- 		unlock_new_inode(inode);
- 	} else if ((inode->i_mode ^ attr->mode) & S_IFMT) {
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 0e38e13..97f6a0c 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -25,6 +25,7 @@ enum mapping_flags {
- 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
- 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
- 	AS_BALLOON_MAP  = __GFP_BITS_SHIFT + 4, /* balloon page special map */
-+	AS_STRICTLIMIT	= __GFP_BITS_SHIFT + 5, /* strict dirty limit */
- };
- 
- static inline void mapping_set_error(struct address_space *mapping, int error)
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index efe6814..b6db421 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1226,6 +1226,7 @@ static void balance_dirty_pages(struct address_space *mapping,
- 	unsigned long dirty_ratelimit;
- 	unsigned long pos_ratio;
- 	struct backing_dev_info *bdi = mapping->backing_dev_info;
-+	int strictlimit = test_bit(AS_STRICTLIMIT, &mapping->flags);
- 	unsigned long start_time = jiffies;
- 
- 	for (;;) {
-@@ -1250,7 +1251,7 @@ static void balance_dirty_pages(struct address_space *mapping,
- 		 */
- 		freerun = dirty_freerun_ceiling(dirty_thresh,
- 						background_thresh);
--		if (nr_dirty <= freerun) {
-+		if (nr_dirty <= freerun && !strictlimit) {
- 			current->dirty_paused_when = now;
- 			current->nr_dirtied = 0;
- 			current->nr_dirtied_pause =
-@@ -1258,7 +1259,7 @@ static void balance_dirty_pages(struct address_space *mapping,
- 			break;
- 		}
- 
--		if (unlikely(!writeback_in_progress(bdi)))
-+		if (unlikely(!writeback_in_progress(bdi)) && !strictlimit)
- 			bdi_start_background_writeback(bdi);
- 
- 		/*
-@@ -1296,8 +1297,12 @@ static void balance_dirty_pages(struct address_space *mapping,
- 				    bdi_stat(bdi, BDI_WRITEBACK);
- 		}
- 
-+		if (unlikely(!writeback_in_progress(bdi)) &&
-+		    bdi_dirty > bdi_thresh / 2)
-+			bdi_start_background_writeback(bdi);
-+
- 		dirty_exceeded = (bdi_dirty > bdi_thresh) &&
--				  (nr_dirty > dirty_thresh);
-+				  ((nr_dirty > dirty_thresh) || strictlimit);
- 		if (dirty_exceeded && !bdi->dirty_exceeded)
- 			bdi->dirty_exceeded = 1;
- 
+Is there any way I can run a powerpc kernel that shows the issue on x86
+with an emulator?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
