@@ -1,99 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 2407A6B0002
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 07:17:43 -0400 (EDT)
-Date: Fri, 26 Apr 2013 13:17:39 +0200
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id C9CD66B0002
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 07:51:24 -0400 (EDT)
+Date: Fri, 26 Apr 2013 13:51:20 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, memcg: add anon_hugepage stat
-Message-ID: <20130426111739.GF31157@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1304251440190.27228@chino.kir.corp.google.com>
+Subject: Re: memcg: softlimit on internal nodes
+Message-ID: <20130426115120.GG31157@dhcp22.suse.cz>
+References: <20130420031611.GA4695@dhcp22.suse.cz>
+ <20130421022321.GE19097@mtj.dyndns.org>
+ <20130421124554.GA8473@dhcp22.suse.cz>
+ <20130422043939.GB25089@mtj.dyndns.org>
+ <20130422151908.GF18286@dhcp22.suse.cz>
+ <20130422155703.GC12543@htj.dyndns.org>
+ <20130422162012.GI18286@dhcp22.suse.cz>
+ <20130422183020.GF12543@htj.dyndns.org>
+ <20130423092944.GA8001@dhcp22.suse.cz>
+ <20130423170900.GH12543@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1304251440190.27228@chino.kir.corp.google.com>
+In-Reply-To: <20130423170900.GH12543@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>
 
-On Thu 25-04-13 14:41:17, David Rientjes wrote:
-> This exports the amount of anonymous transparent hugepages for each memcg
-> via memory.stat in bytes.
+On Tue 23-04-13 10:09:00, Tejun Heo wrote:
+> Hello, Michal.
 > 
-> This is helpful to determine the hugepage utilization for individual jobs
-> on the system in comparison to rss and opportunities where MADV_HUGEPAGE
-> may be helpful.
-
-Yes, useful and I had it on my todo list for quite some time. Never got
-to it though. Thanks!
-
-> Signed-off-by: David Rientjes <rientjes@google.com>
-
-After documentation is update as poited out by Andrew.
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-One minor nit bellow:
-> ---
->  include/linux/memcontrol.h |  3 ++-
->  mm/huge_memory.c           |  2 ++
->  mm/memcontrol.c            | 13 +++++++++----
->  mm/rmap.c                  | 18 +++++++++++++++---
->  4 files changed, 28 insertions(+), 8 deletions(-)
+> On Tue, Apr 23, 2013 at 11:29:56AM +0200, Michal Hocko wrote:
+> > Ohh, well and we are back in the circle again. Nobody is proposing
+> > overloading soft reclaim for any bottom-up (if that is what you mean by
+> > your opposite direction) pressure handling.
+> > 
+> > > You're making it a point control rather than range one.
+> > 
+> > Be more specific here, please?
+> > 
+> > > Maybe you can define some twisted rules serving certain specific use
+> > > case, but it's gonna be confusing / broken for different use cases.
+> > 
+> > Tejun, your argumentation is really hand wavy here. Which use cases will
+> > be broken and which one will be confusing. Name one for an illustration.
+> > 
+> > > You're so confused that you don't even know you're confused.
+> > 
+> > Yes, you keep repeating that. But you haven't pointed out any single
+> > confusing use case so far. Please please stop this, it is not productive.
+> > We are still talking about using soft limit to control overcommit
+> > situation as gracefully as possible. I hope we are on the same page
+> > about that at least.
 > 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -32,7 +32,8 @@ struct kmem_cache;
->  
->  /* Stats that can be updated by kernel. */
->  enum mem_cgroup_page_stat_item {
-> -	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
-> +	MEMCG_NR_FILE_MAPPED,	/* # of pages charged as file rss */
-> +	MEMCG_NR_ANON_HUGEPAGE,	/* # of anon transparent hugepages */
+> Hmmm... I think I was at least somewhat clear on my points.  I'll try
+> again.  Let's see if I can at least make you understand what my point
+> is.  Maybe some diagrams will help.
 
-This is confusing because it would suggest that hpages is the unit but
-you are accounting in regular pages as a unit.
+Maybe I should have been more explicit about this but _yes I do agree_
+that a separate limit would work as well. I just do not want to
+introduce yet-another-limit unless it is _really_ necessary. We have up
+to 4 of them depending on the configuration which is a lot already. And
+the new knob would certainly become a guarantee what ever words we use
+with more expectations than soft limit and I am afraid that won't be
+that easy (unless we provide a poison pill for emergency cases).
 
->  };
->  
->  struct mem_cgroup_reclaim_cookie {
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1651,6 +1651,8 @@ static void __split_huge_page_refcount(struct page *page)
->  	atomic_sub(tail_count, &page->_count);
->  	BUG_ON(atomic_read(&page->_count) <= 0);
->  
-> +	mem_cgroup_update_page_stat(page, MEMCG_NR_ANON_HUGEPAGE,
-> +				    -HPAGE_PMD_NR);
-				^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+My rework was based on the soft limit semantic which we had for quite
+some time and tried to enhance it to be more useful. I do understand
+your concerns about the cleanness of the interface I just objected that
+the new meaning doesn't add any guarantee. The implementation just tries
+to be clever who to reclaim to handle an external pressure (for which
+the soft limit has been introduced in the first place) while using hints
+from the limit as much as possible .
 
->  	__mod_zone_page_state(zone, NR_ANON_TRANSPARENT_HUGEPAGES, -1);
->  	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
->  
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -91,10 +91,11 @@ enum mem_cgroup_stat_index {
->  	/*
->  	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
->  	 */
-> -	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
-> -	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
-> -	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
-> -	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
-> +	MEM_CGROUP_STAT_CACHE,		/* # of pages charged as cache */
-> +	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
-> +	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
-> +	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
-> +	MEM_CGROUP_STAT_ANON_HUGEPAGE,	/* # of anon transparent hugepages */
+Anyway, I will think about cons and pros of the new limit. I think we
+shouldn't block the first 3 patches in the series which keep the current
+semantic and just change the internals to do the same thing. Do you
+agree?
 
-Same here.
+We can discuss single vs. new knob in the mean time of course.
 
->  	MEM_CGROUP_STAT_NSTATS,
->  };
->  
 [...]
+
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
