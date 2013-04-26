@@ -1,172 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 1168F6B006C
-	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 19:19:44 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 7FD976B003B
+	for <linux-mm@kvack.org>; Fri, 26 Apr 2013 19:19:52 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v4 20/31] shrinker: Kill old ->shrink API.
-Date: Sat, 27 Apr 2013 03:19:16 +0400
-Message-Id: <1367018367-11278-21-git-send-email-glommer@openvz.org>
+Subject: [PATCH v4 21/31] vmscan: also shrink slab in memcg pressure
+Date: Sat, 27 Apr 2013 03:19:17 +0400
+Message-Id: <1367018367-11278-22-git-send-email-glommer@openvz.org>
 In-Reply-To: <1367018367-11278-1-git-send-email-glommer@openvz.org>
 References: <1367018367-11278-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>
+Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-From: Dave Chinner <dchinner@redhat.com>
+Without the surrounding infrastructure, this patch is a bit of a hammer:
+it will basically shrink objects from all memcgs under memcg pressure.
+At least, however, we will keep the scan limited to the shrinkers marked
+as per-memcg.
 
-There are no more users of this API, so kill it dead, dead, dead and
-quietly bury the corpse in a shallow, unmarked grave in a dark
-forest deep in the hills...
+Future patches will implement the in-shrinker logic to filter objects
+based on its memcg association.
 
-[ glommer: added flowers to the grave ]
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
 Signed-off-by: Glauber Costa <glommer@openvz.org>
-Reviewed-by: Greg Thelen <gthelen@google.com>
+Cc: Dave Chinner <dchinner@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/shrinker.h      | 15 +++++----------
- include/trace/events/vmscan.h |  4 ++--
- mm/vmscan.c                   | 40 ++++++++--------------------------------
- 3 files changed, 15 insertions(+), 44 deletions(-)
+ include/linux/memcontrol.h | 17 +++++++++++++++++
+ include/linux/shrinker.h   |  4 ++++
+ mm/memcontrol.c            | 16 +++++++++++++++-
+ mm/vmscan.c                | 46 +++++++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 79 insertions(+), 4 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index d6183f0..4c24249 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -199,6 +199,9 @@ void mem_cgroup_split_huge_fixup(struct page *head);
+ bool mem_cgroup_bad_page_check(struct page *page);
+ void mem_cgroup_print_bad_page(struct page *page);
+ #endif
++
++unsigned long
++memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone);
+ #else /* CONFIG_MEMCG */
+ struct mem_cgroup;
+ 
+@@ -377,6 +380,12 @@ static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
+ 				struct page *newpage)
+ {
+ }
++
++static inline unsigned long
++memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
++{
++	return 0;
++}
+ #endif /* CONFIG_MEMCG */
+ 
+ #if !defined(CONFIG_MEMCG) || !defined(CONFIG_DEBUG_VM)
+@@ -429,6 +438,8 @@ static inline bool memcg_kmem_enabled(void)
+ 	return static_key_false(&memcg_kmem_enabled_key);
+ }
+ 
++bool memcg_kmem_is_active(struct mem_cgroup *memcg);
++
+ /*
+  * In general, we'll do everything in our power to not incur in any overhead
+  * for non-memcg users for the kmem functions. Not even a function call, if we
+@@ -562,6 +573,12 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ 	return __memcg_kmem_get_cache(cachep, gfp);
+ }
+ #else
++
++static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
++{
++	return false;
++}
++
+ #define for_each_memcg_cache_index(_idx)	\
+ 	for (; NULL; )
+ 
 diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index e71286f..d4636a0 100644
+index d4636a0..4e9e53b 100644
 --- a/include/linux/shrinker.h
 +++ b/include/linux/shrinker.h
-@@ -7,14 +7,15 @@
-  *
-  * The 'gfpmask' refers to the allocation we are currently trying to
-  * fulfil.
-- *
-- * Note that 'shrink' will be passed nr_to_scan == 0 when the VM is
-- * querying the cache size, so a fastpath for that case is appropriate.
-  */
- struct shrink_control {
- 	gfp_t gfp_mask;
- 
--	/* How many slab objects shrinker() should scan and try to reclaim */
-+	/*
-+	 * How many objects scan_objects should scan and try to reclaim.
-+	 * This is reset before every call, so it is safe for callees
-+	 * to modify.
-+	 */
- 	long nr_to_scan;
+@@ -20,6 +20,9 @@ struct shrink_control {
  
  	/* shrink from these nodes */
-@@ -24,11 +25,6 @@ struct shrink_control {
+ 	nodemask_t nodes_to_scan;
++
++	/* reclaim from this memcg only (if not NULL) */
++	struct mem_cgroup *target_mem_cgroup;
+ };
+ 
  /*
-  * A callback you can register to apply pressure to ageable caches.
-  *
-- * @shrink() should look through the least-recently-used 'nr_to_scan' entries
-- * and attempt to free them up.  It should return the number of objects which
-- * remain in the cache.  If it returns -1, it means it cannot do any scanning at
-- * this time (eg. there is a risk of deadlock).
-- *
-  * @count_objects should return the number of freeable items in the cache. If
-  * there are no objects to free or the number of freeable items cannot be
-  * determined, it should return 0. No deadlock checks should be done during the
-@@ -44,7 +40,6 @@ struct shrink_control {
-  * @scan_objects will be made from the current reclaim context.
-  */
- struct shrinker {
--	int (*shrink)(struct shrinker *, struct shrink_control *sc);
- 	long (*count_objects)(struct shrinker *, struct shrink_control *sc);
- 	long (*scan_objects)(struct shrinker *, struct shrink_control *sc);
+@@ -45,6 +48,7 @@ struct shrinker {
  
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index 63cfccc..132a985 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -202,7 +202,7 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 	int seeks;	/* seeks to recreate an obj */
+ 	long batch;	/* reclaim batch size, 0 = default */
++	bool memcg_shrinker; /* memcg-aware shrinker */
  
- 	TP_fast_assign(
- 		__entry->shr = shr;
--		__entry->shrink = shr->shrink;
-+		__entry->shrink = shr->scan_objects;
- 		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
- 		__entry->gfp_flags = sc->gfp_mask;
- 		__entry->pgs_scanned = pgs_scanned;
-@@ -241,7 +241,7 @@ TRACE_EVENT(mm_shrink_slab_end,
+ 	/* These are for internal use */
+ 	struct list_head list;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a8a69b4..ef420e1 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -397,7 +397,7 @@ static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
+ 	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+ }
  
- 	TP_fast_assign(
- 		__entry->shr = shr;
--		__entry->shrink = shr->shrink;
-+		__entry->shrink = shr->scan_objects;
- 		__entry->unused_scan = unused_scan_cnt;
- 		__entry->new_scan = new_scan_cnt;
- 		__entry->retval = shrinker_retval;
+-static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
++bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+ {
+ 	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+ }
+@@ -971,6 +971,20 @@ mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
+ 	return ret;
+ }
+ 
++unsigned long
++memcg_zone_reclaimable_pages(struct mem_cgroup *memcg, struct zone *zone)
++{
++	int nid = zone_to_nid(zone);
++	int zid = zone_idx(zone);
++	unsigned long val;
++
++	val = mem_cgroup_zone_nr_lru_pages(memcg, nid, zid, LRU_ALL_FILE);
++	if (do_swap_account)
++		val += mem_cgroup_zone_nr_lru_pages(memcg, nid, zid,
++						    LRU_ALL_ANON);
++	return val;
++}
++
+ static unsigned long
+ mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+ 			int nid, unsigned int lru_mask)
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b11a9cc..5d0dfab 100644
+index 5d0dfab..0319dd2 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -177,14 +177,6 @@ void unregister_shrinker(struct shrinker *shrinker)
+@@ -139,11 +139,42 @@ static bool global_reclaim(struct scan_control *sc)
+ {
+ 	return !sc->target_mem_cgroup;
  }
- EXPORT_SYMBOL(unregister_shrinker);
++
++/*
++ * kmem reclaim should usually not be triggered when we are doing targetted
++ * reclaim. It is only valid when global reclaim is triggered, or when the
++ * underlying memcg has kmem objects.
++ */
++static bool has_kmem_reclaim(struct scan_control *sc)
++{
++	return !sc->target_mem_cgroup ||
++		memcg_kmem_is_active(sc->target_mem_cgroup);
++}
++
++static unsigned long
++zone_nr_reclaimable_pages(struct scan_control *sc, struct zone *zone)
++{
++	if (global_reclaim(sc))
++		return zone_reclaimable_pages(zone);
++	return memcg_zone_reclaimable_pages(sc->target_mem_cgroup, zone);
++}
++
+ #else
+ static bool global_reclaim(struct scan_control *sc)
+ {
+ 	return true;
+ }
++
++static bool has_kmem_reclaim(struct scan_control *sc)
++{
++	return true;
++}
++
++static unsigned long
++zone_nr_reclaimable_pages(struct scan_control *sc, struct zone *zone)
++{
++	return zone_reclaimable_pages(zone);
++}
+ #endif
  
--static inline int do_shrinker_shrink(struct shrinker *shrinker,
--				     struct shrink_control *sc,
--				     unsigned long nr_to_scan)
--{
--	sc->nr_to_scan = nr_to_scan;
--	return (*shrinker->shrink)(shrinker, sc);
--}
--
- #define SHRINK_BATCH 128
- /*
-  * Call the shrink functions to age shrinkable caches
-@@ -230,11 +222,8 @@ unsigned long shrink_slab(struct shrink_control *sc,
+ static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+@@ -222,6 +253,14 @@ unsigned long shrink_slab(struct shrink_control *sc,
  		long batch_size = shrinker->batch ? shrinker->batch
  						  : SHRINK_BATCH;
  
--		if (shrinker->scan_objects) {
--			max_pass = shrinker->count_objects(shrinker, sc);
--			WARN_ON(max_pass < 0);
--		} else
--			max_pass = do_shrinker_shrink(shrinker, sc, 0);
-+		max_pass = shrinker->count_objects(shrinker, sc);
-+		WARN_ON(max_pass < 0);
++		/*
++		 * If we don't have a target mem cgroup, we scan them all.
++		 * Otherwise we will limit our scan to shrinkers marked as
++		 * memcg aware
++		 */
++		if (sc->target_mem_cgroup && !shrinker->memcg_shrinker)
++			continue;
++
+ 		max_pass = shrinker->count_objects(shrinker, sc);
+ 		WARN_ON(max_pass < 0);
  		if (max_pass <= 0)
- 			continue;
+@@ -2171,9 +2210,9 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
  
-@@ -253,7 +242,7 @@ unsigned long shrink_slab(struct shrink_control *sc,
- 		if (total_scan < 0) {
- 			printk(KERN_ERR
- 			"shrink_slab: %pF negative objects to delete nr=%ld\n",
--			       shrinker->shrink, total_scan);
-+			       shrinker->scan_objects, total_scan);
- 			total_scan = max_pass;
- 		}
+ 		/*
+ 		 * Don't shrink slabs when reclaiming memory from
+-		 * over limit cgroups
++		 * over limit cgroups, unless we know they have kmem objects
+ 		 */
+-		if (global_reclaim(sc)) {
++		if (has_kmem_reclaim(sc)) {
+ 			unsigned long lru_pages = 0;
  
-@@ -287,24 +276,11 @@ unsigned long shrink_slab(struct shrink_control *sc,
- 		do {
- 			long ret;
+ 			nodes_clear(shrink->nodes_to_scan);
+@@ -2182,7 +2221,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 				if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+ 					continue;
  
--			if (shrinker->scan_objects) {
--				sc->nr_to_scan = batch_size;
--				ret = shrinker->scan_objects(shrinker, sc);
--
--				if (ret == -1)
--					break;
--				freed += ret;
--			} else {
--				int nr_before;
--
--				nr_before = do_shrinker_shrink(shrinker, sc, 0);
--				ret = do_shrinker_shrink(shrinker, sc,
--								batch_size);
--				if (ret == -1)
--					break;
--				if (ret < nr_before)
--					freed += nr_before - ret;
--			}
-+			sc->nr_to_scan = batch_size;
-+			ret = shrinker->scan_objects(shrinker, sc);
-+			if (ret == -1)
-+				break;
-+			freed += ret;
+-				lru_pages += zone_reclaimable_pages(zone);
++				lru_pages += zone_nr_reclaimable_pages(sc, zone);
+ 				node_set(zone_to_nid(zone),
+ 					 shrink->nodes_to_scan);
+ 			}
+@@ -2451,6 +2490,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 	};
+ 	struct shrink_control shrink = {
+ 		.gfp_mask = sc.gfp_mask,
++		.target_mem_cgroup = memcg,
+ 	};
  
- 			count_vm_events(SLABS_SCANNED, batch_size);
- 			total_scan -= batch_size;
+ 	/*
 -- 
 1.8.1.4
 
