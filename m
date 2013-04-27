@@ -1,24 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 1812F6B0032
-	for <linux-mm@kvack.org>; Sat, 27 Apr 2013 02:25:19 -0400 (EDT)
-Received: by mail-ia0-f180.google.com with SMTP id t4so3253827iag.39
-        for <linux-mm@kvack.org>; Fri, 26 Apr 2013 23:25:18 -0700 (PDT)
-Message-ID: <517B6F48.6000201@gmail.com>
-Date: Sat, 27 Apr 2013 14:25:12 +0800
-From: Will Huck <will.huckk@gmail.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 2D9536B0032
+	for <linux-mm@kvack.org>; Sat, 27 Apr 2013 02:27:33 -0400 (EDT)
+Message-ID: <517B6FD6.4030301@windriver.com>
+Date: Sat, 27 Apr 2013 14:27:34 +0800
+From: "tiejun.chen" <tiejun.chen@windriver.com>
 MIME-Version: 1.0
-Subject: KVM Forum 2013 Save the Date
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: KVM Forum 2013 Save the Date
+References: <517B6F48.6000201@gmail.com>
+In-Reply-To: <517B6F48.6000201@gmail.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KVM-Forum-2013-PC@redhat.com
-Cc: KVM <kvm@vger.kernel.org>, libvir-list@redhat.com, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Will Huck <will.huckk@gmail.com>
+Cc: KVM-Forum-2013-PC@redhat.com, KVM <kvm@vger.kernel.org>, libvir-list@redhat.com, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, Linux Memory Management List <linux-mm@kvack.org>
 
-Hi,
+On 04/27/2013 02:25 PM, Will Huck wrote:
+> Hi,
+>
+> Where can get slides in 2012 KVM Forum?
 
-Where can get slides in 2012 KVM Forum?
+http://www.linux-kvm.org/page/KVM_Forum_2012
+
+Tiejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
