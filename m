@@ -1,70 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 9C90B6B0032
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2013 04:12:16 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id ld11so885650pab.19
-        for <linux-mm@kvack.org>; Sun, 28 Apr 2013 01:12:15 -0700 (PDT)
-Message-ID: <517CD9DB.5010702@gmail.com>
-Date: Sun, 28 Apr 2013 16:12:11 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [LSF/MM TOPIC]swap improvements for fast SSD
-References: <20130122065341.GA1850@kernel.org>
-In-Reply-To: <20130122065341.GA1850@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 174356B0034
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2013 15:37:50 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 29 Apr 2013 01:02:01 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 69890125804F
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 01:09:24 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3SJbcwP54722656
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 01:07:38 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3SJbh08002980
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 05:37:44 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V7 01/18] mm/THP: HPAGE_SHIFT is not a #define on some arch
+Date: Mon, 29 Apr 2013 01:07:22 +0530
+Message-Id: <1367177859-7893-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1367177859-7893-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1367177859-7893-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, Shaohua Li <shli@fusionio.com>
+To: benh@kernel.crashing.org, paulus@samba.org, dwg@au1.ibm.com, linux-mm@kvack.org
+Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Hi Shaohua,
-On 01/22/2013 02:53 PM, Shaohua Li wrote:
-> Hi,
->
-> Because of high density, low power and low price, flash storage (SSD) is a good
-> candidate to partially replace DRAM. A quick answer for this is using SSD as
-> swap. But Linux swap is designed for slow hard disk storage. There are a lot of
-> challenges to efficiently use SSD for swap:
->
-> 1. Lock contentions (swap_lock, anon_vma mutex, swap address space lock)
-> 2. TLB flush overhead. To reclaim one page, we need at least 2 TLB flush. This
-> overhead is very high even in a normal 2-socket machine.
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Why at least 2 TLB flush instead of one?
+On archs like powerpc that support different hugepage sizes, HPAGE_SHIFT
+and other derived values like HPAGE_PMD_ORDER are not constants. So move
+that to hugepage_init
 
-> 3. Better swap IO pattern. Both direct and kswapd page reclaim can do swap,
-> which makes swap IO pattern is interleave. Block layer isn't always efficient
-> to do request merge. Such IO pattern also makes swap prefetch hard.
-> 4. Swap map scan overhead. Swap in-memory map scan scans an array, which is
-> very inefficient, especially if swap storage is fast.
-> 5. SSD related optimization, mainly discard support
-> 6. Better swap prefetch algorithm. Besides item 3, sequentially accessed pages
-> aren't always in LRU list adjacently, so page reclaim will not swap such pages
-> in adjacent storage sectors. This makes swap prefetch hard.
-> 7. Alternative page reclaim policy to bias reclaiming anonymous page.
-> Currently reclaim anonymous page is considering harder than reclaim file pages,
-> so we bias reclaiming file pages. If there are high speed swap storage, we are
-> considering doing swap more aggressively.
-> 8. Huge page swap. Huge page swap can solve a lot of problems above, but both
-> THP and hugetlbfs don't support swap.
->
-> I had some progresses in these areas recently:
-> http://marc.info/?l=linux-mm&m=134665691021172&w=2
-> http://marc.info/?l=linux-mm&m=135336039115191&w=2
-> http://marc.info/?l=linux-mm&m=135882182225444&w=2
-> http://marc.info/?l=linux-mm&m=135754636926984&w=2
-> http://marc.info/?l=linux-mm&m=135754634526979&w=2
-> But a lot of problems remain. I'd like to discuss the issues at the meeting.
->
-> Thanks,
-> Shaohua
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ include/linux/huge_mm.h | 3 ---
+ mm/huge_memory.c        | 9 ++++++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index ee1c244..bdc5aef 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -119,9 +119,6 @@ extern void __split_huge_page_pmd(struct vm_area_struct *vma,
+ 	} while (0)
+ extern void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
+ 		pmd_t *pmd);
+-#if HPAGE_PMD_ORDER > MAX_ORDER
+-#error "hugepages can't be allocated by the buddy allocator"
+-#endif
+ extern int hugepage_madvise(struct vm_area_struct *vma,
+ 			    unsigned long *vm_flags, int advice);
+ extern void __vma_adjust_trans_huge(struct vm_area_struct *vma,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index e2f7f5aa..78bd84f 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -45,7 +45,7 @@ unsigned long transparent_hugepage_flags __read_mostly =
+ 	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
+ 
+ /* default scan 8*512 pte (or vmas) every 30 second */
+-static unsigned int khugepaged_pages_to_scan __read_mostly = HPAGE_PMD_NR*8;
++static unsigned int khugepaged_pages_to_scan __read_mostly;
+ static unsigned int khugepaged_pages_collapsed;
+ static unsigned int khugepaged_full_scans;
+ static unsigned int khugepaged_scan_sleep_millisecs __read_mostly = 10000;
+@@ -60,7 +60,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+  * it would have happened if the vma was large enough during page
+  * fault.
+  */
+-static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
++static unsigned int khugepaged_max_ptes_none __read_mostly;
+ 
+ static int khugepaged(void *none);
+ static int khugepaged_slab_init(void);
+@@ -620,11 +620,14 @@ static int __init hugepage_init(void)
+ 	int err;
+ 	struct kobject *hugepage_kobj;
+ 
+-	if (!has_transparent_hugepage()) {
++	if (!has_transparent_hugepage() || (HPAGE_PMD_ORDER > MAX_ORDER)) {
+ 		transparent_hugepage_flags = 0;
+ 		return -EINVAL;
+ 	}
+ 
++	khugepaged_pages_to_scan = HPAGE_PMD_NR*8;
++	khugepaged_max_ptes_none = HPAGE_PMD_NR-1;
++
+ 	err = hugepage_init_sysfs(&hugepage_kobj);
+ 	if (err)
+ 		return err;
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
