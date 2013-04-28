@@ -1,222 +1,383 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id B49136B0036
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2013 15:52:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id AA4076B0081
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2013 15:52:03 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 29 Apr 2013 01:17:27 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 57128125804F
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 01:23:35 +0530 (IST)
+	Mon, 29 Apr 2013 01:15:46 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 8D522394002D
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 01:21:59 +0530 (IST)
 Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3SJpnHm67043562
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 01:21:49 +0530
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3SJpqUh12976616
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 01:21:52 +0530
 Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3SJptUL002223
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 05:51:55 +1000
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3SJpw57002310
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 05:51:58 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V7 00/10] THP support for PPC64 (Patchset 2)
-Date: Mon, 29 Apr 2013 01:21:41 +0530
-Message-Id: <1367178711-8232-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V7 03/10] powerpc: move find_linux_pte_or_hugepte and gup_hugepte to common code
+Date: Mon, 29 Apr 2013 01:21:44 +0530
+Message-Id: <1367178711-8232-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1367178711-8232-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1367178711-8232-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: benh@kernel.crashing.org, paulus@samba.org, dwg@au1.ibm.com, linux-mm@kvack.org
-Cc: linuxppc-dev@lists.ozlabs.org
+Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Hi,
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-This is the second patchset needed to support THP on ppc64. Some of the changes
-included in this series are tricky in that it changes the powerpc linux page table
-walk subtly. We also overload few of the pte flags for ptes at PMD leve (huge
-page PTEs). This patchset require closer review before merging upstream.
+We will use this in the later patch for handling THP pages
 
-I have split the patch series into two patchset, so that we can look at getting
-prerequisite patches upstream in 3.10.
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ arch/powerpc/include/asm/hugetlb.h       |   8 +-
+ arch/powerpc/include/asm/pgtable-ppc64.h |  11 --
+ arch/powerpc/mm/Makefile                 |   2 +-
+ arch/powerpc/mm/hugetlbpage.c            | 251 ++++++++++++++++---------------
+ 4 files changed, 136 insertions(+), 136 deletions(-)
 
-Some numbers:
-
-The latency measurements code from Anton  found at
-http://ozlabs.org/~anton/junkcode/latency2001.c
-
-64K page size (With THP support)
---------------------------
-[root@llmp24l02 test]# ./latency2001 8G
- 8589934592    428.49 cycles    120.50 ns
-[root@llmp24l02 test]# ./latency2001 -l 8G
- 8589934592    471.16 cycles    132.50 ns
-[root@llmp24l02 test]# echo never > /sys/kernel/mm/transparent_hugepage/enabled 
-[root@llmp24l02 test]# ./latency2001 8G
- 8589934592    766.52 cycles    215.56 ns
-[root@llmp24l02 test]# 
-
-4K page size (No THP support for 4K)
-----------------------------
-[root@llmp24l02 test]# ./latency2001 8G
- 8589934592    814.88 cycles    229.16 ns
-[root@llmp24l02 test]# ./latency2001 -l 8G
- 8589934592    463.69 cycles    130.40 ns
-[root@llmp24l02 test]# 
-
-We are close to hugetlbfs in latency and we can achieve this with zero
-config/page reservation. Most of the allocations above are fault allocated.
-
-Another test that does 50000000 random access over 1GB area goes from
-2.65 seconds to 1.07 seconds with this patchset.
-
-split_huge_page impact:
----------------------
-To look at the performance impact of large page invalidate, I tried the below
-experiment. The test involved, accessing a large contiguous region of memory
-location as below
-
-    for (i = 0; i < size; i += PAGE_SIZE)
-	data[i] = i;
-
-We wanted to access the data in sequential order so that we look at the
-worst case THP performance. Accesing the data in sequential order implies
-we have the Page table cached and overhead of TLB miss is as minimal as
-possible. We also don't touch the entire page, because that can result in
-cache evict.
-
-After we touched the full range as above, we now call mprotect on each
-of that page. A mprotect will result in a hugepage split. This should
-allow us to measure the impact of hugepage split.
-
-    for (i = 0; i < size; i += PAGE_SIZE)
-	 mprotect(&data[i], PAGE_SIZE, PROT_READ);
-
-Split hugepage impact: 
----------------------
-THP enabled: 2.851561705 seconds for test completion
-THP disable: 3.599146098 seconds for test completion
-
-We are 20.7% better than non THP case even when we have all the large pages split.
-
-Detailed output:
-
-THP enabled:
----------------------------------------
-[root@llmp24l02 ~]# cat /proc/vmstat  | grep thp
-thp_fault_alloc 0
-thp_fault_fallback 0
-thp_collapse_alloc 0
-thp_collapse_alloc_failed 0
-thp_split 0
-thp_zero_page_alloc 0
-thp_zero_page_alloc_failed 0
-[root@llmp24l02 ~]# /root/thp/tools/perf/perf stat -e page-faults,dTLB-load-misses ./split-huge-page-mpro 20G                                                                      
-time taken to touch all the data in ns: 2763096913 
-
- Performance counter stats for './split-huge-page-mpro 20G':
-
-             1,581 page-faults                                                 
-             3,159 dTLB-load-misses                                            
-
-       2.851561705 seconds time elapsed
-
-[root@llmp24l02 ~]# 
-[root@llmp24l02 ~]# cat /proc/vmstat  | grep thp
-thp_fault_alloc 1279
-thp_fault_fallback 0
-thp_collapse_alloc 0
-thp_collapse_alloc_failed 0
-thp_split 1279
-thp_zero_page_alloc 0
-thp_zero_page_alloc_failed 0
-[root@llmp24l02 ~]# 
-
-    77.05%  split-huge-page  [kernel.kallsyms]     [k] .clear_user_page                        
-     7.10%  split-huge-page  [kernel.kallsyms]     [k] .perf_event_mmap_ctx                    
-     1.51%  split-huge-page  split-huge-page-mpro  [.] 0x0000000000000a70                      
-     0.96%  split-huge-page  [unknown]             [H] 0x000000000157e3bc                      
-     0.81%  split-huge-page  [kernel.kallsyms]     [k] .up_write                               
-     0.76%  split-huge-page  [kernel.kallsyms]     [k] .perf_event_mmap                        
-     0.76%  split-huge-page  [kernel.kallsyms]     [k] .down_write                             
-     0.74%  split-huge-page  [kernel.kallsyms]     [k] .lru_add_page_tail                      
-     0.61%  split-huge-page  [kernel.kallsyms]     [k] .split_huge_page                        
-     0.59%  split-huge-page  [kernel.kallsyms]     [k] .change_protection                      
-     0.51%  split-huge-page  [kernel.kallsyms]     [k] .release_pages                          
-
-
-     0.96%  split-huge-page  [unknown]             [H] 0x000000000157e3bc                      
-            |          
-            |--79.44%-- reloc_start
-            |          |          
-            |          |--86.54%-- .__pSeries_lpar_hugepage_invalidate
-            |          |          .pSeries_lpar_hugepage_invalidate
-            |          |          .hpte_need_hugepage_flush
-            |          |          .split_huge_page
-            |          |          .__split_huge_page_pmd
-            |          |          .vma_adjust
-            |          |          .vma_merge
-            |          |          .mprotect_fixup
-            |          |          .SyS_mprotect
-
-
-THP disabled:
----------------
-[root@llmp24l02 ~]# echo never > /sys/kernel/mm/transparent_hugepage/enabled
-[root@llmp24l02 ~]# /root/thp/tools/perf/perf stat -e page-faults,dTLB-load-misses ./split-huge-page-mpro 20G
-time taken to touch all the data in ns: 3513767220 
-
- Performance counter stats for './split-huge-page-mpro 20G':
-
-          3,27,726 page-faults                                                 
-          3,29,654 dTLB-load-misses                                            
-
-       3.599146098 seconds time elapsed
-
-[root@llmp24l02 ~]#
-
-Changes from V6:
-* split the patch series into two patchset.
-* Address review feedback.
-
-Changes from V5:
-* Address review comments
-* Added new patch to not use hugepd for explcit hugepages. Explicit hugepaes
-  now use PTE format similar to transparent hugepages.
-* We don't use page->_mapcount for tracking free PTE frags in a PTE page.
-* rebased to a86d52667d8eda5de39393ce737794403bdce1eb
-* Tested with libhugetlbfs test suite
-
-Changes from V4:
-* Fix bad page error in page_table_alloc
-  BUG: Bad page state in process stream  pfn:f1a59
-  page:f0000000034dc378 count:1 mapcount:0 mapping:          (null) index:0x0
-  [c000000f322c77d0] [c00000000015e198] .bad_page+0xe8/0x140
-  [c000000f322c7860] [c00000000015e3c4] .free_pages_prepare+0x1d4/0x1e0
-  [c000000f322c7910] [c000000000160450] .free_hot_cold_page+0x50/0x230
-  [c000000f322c79c0] [c00000000003ad18] .page_table_alloc+0x168/0x1c0
-
-Changes from V3:
-* PowerNV boot fixes
-
-Change from V2:
-* Change patch "powerpc: Reduce PTE table memory wastage" to use much simpler approach
-  for PTE page sharing.
-* Changes to handle huge pages in KVM code.
-* Address other review comments
-
-Changes from V1
-* Address review comments
-* More patch split
-* Add batch hpte invalidate for hugepages.
-
-Changes from RFC V2:
-* Address review comments
-* More code cleanup and patch split
-
-Changes from RFC V1:
-* HugeTLB fs now works
-* Compile issues fixed
-* rebased to v3.8
-* Patch series reorded so that ppc64 cleanups and MM THP changes are moved
-  early in the series. This should help in picking those patches early.
-
-Thanks,
--aneesh
+diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
+index 4daf7e6..91aba46 100644
+--- a/arch/powerpc/include/asm/hugetlb.h
++++ b/arch/powerpc/include/asm/hugetlb.h
+@@ -190,8 +190,14 @@ static inline void flush_hugetlb_page(struct vm_area_struct *vma,
+ 				      unsigned long vmaddr)
+ {
+ }
+-#endif /* CONFIG_HUGETLB_PAGE */
+ 
++#define hugepd_shift(x) 0
++static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
++				    unsigned pdshift)
++{
++	return 0;
++}
++#endif /* CONFIG_HUGETLB_PAGE */
+ 
+ /*
+  * FSL Book3E platforms require special gpage handling - the gpages
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index 20133c1..f0effab 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -367,19 +367,8 @@ static inline pte_t *find_linux_pte(pgd_t *pgdir, unsigned long ea)
+ 	return pt;
+ }
+ 
+-#ifdef CONFIG_HUGETLB_PAGE
+ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+ 				 unsigned *shift);
+-#else
+-static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+-					       unsigned *shift)
+-{
+-	if (shift)
+-		*shift = 0;
+-	return find_linux_pte(pgdir, ea);
+-}
+-#endif /* !CONFIG_HUGETLB_PAGE */
+-
+ #endif /* __ASSEMBLY__ */
+ 
+ #ifndef _PAGE_SPLITTING
+diff --git a/arch/powerpc/mm/Makefile b/arch/powerpc/mm/Makefile
+index cf16b57..fde36e6 100644
+--- a/arch/powerpc/mm/Makefile
++++ b/arch/powerpc/mm/Makefile
+@@ -28,8 +28,8 @@ obj-$(CONFIG_44x)		+= 44x_mmu.o
+ obj-$(CONFIG_PPC_FSL_BOOK3E)	+= fsl_booke_mmu.o
+ obj-$(CONFIG_NEED_MULTIPLE_NODES) += numa.o
+ obj-$(CONFIG_PPC_MM_SLICES)	+= slice.o
+-ifeq ($(CONFIG_HUGETLB_PAGE),y)
+ obj-y				+= hugetlbpage.o
++ifeq ($(CONFIG_HUGETLB_PAGE),y)
+ obj-$(CONFIG_PPC_STD_MMU_64)	+= hugetlbpage-hash64.o
+ obj-$(CONFIG_PPC_BOOK3E_MMU)	+= hugetlbpage-book3e.o
+ endif
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index fbe6be7..8601f2d 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -21,6 +21,9 @@
+ #include <asm/pgalloc.h>
+ #include <asm/tlb.h>
+ #include <asm/setup.h>
++#include <asm/hugetlb.h>
++
++#ifdef CONFIG_HUGETLB_PAGE
+ 
+ #define PAGE_SHIFT_64K	16
+ #define PAGE_SHIFT_16M	24
+@@ -100,66 +103,6 @@ int pgd_huge(pgd_t pgd)
+ }
+ #endif
+ 
+-/*
+- * We have 4 cases for pgds and pmds:
+- * (1) invalid (all zeroes)
+- * (2) pointer to next table, as normal; bottom 6 bits == 0
+- * (3) leaf pte for huge page, bottom two bits != 00
+- * (4) hugepd pointer, bottom two bits == 00, next 4 bits indicate size of table
+- */
+-pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift)
+-{
+-	pgd_t *pg;
+-	pud_t *pu;
+-	pmd_t *pm;
+-	pte_t *ret_pte;
+-	hugepd_t *hpdp = NULL;
+-	unsigned pdshift = PGDIR_SHIFT;
+-
+-	if (shift)
+-		*shift = 0;
+-
+-	pg = pgdir + pgd_index(ea);
+-
+-	if (pgd_huge(*pg)) {
+-		ret_pte = (pte_t *) pg;
+-		goto out;
+-	} else if (is_hugepd(pg))
+-		hpdp = (hugepd_t *)pg;
+-	else if (!pgd_none(*pg)) {
+-		pdshift = PUD_SHIFT;
+-		pu = pud_offset(pg, ea);
+-
+-		if (pud_huge(*pu)) {
+-			ret_pte = (pte_t *) pu;
+-			goto out;
+-		} else if (is_hugepd(pu))
+-			hpdp = (hugepd_t *)pu;
+-		else if (!pud_none(*pu)) {
+-			pdshift = PMD_SHIFT;
+-			pm = pmd_offset(pu, ea);
+-
+-			if (pmd_huge(*pm)) {
+-				ret_pte = (pte_t *) pm;
+-				goto out;
+-			} else if (is_hugepd(pm))
+-				hpdp = (hugepd_t *)pm;
+-			else if (!pmd_none(*pm))
+-				return pte_offset_kernel(pm, ea);
+-		}
+-	}
+-	if (!hpdp)
+-		return NULL;
+-
+-	ret_pte = hugepte_offset(hpdp, ea, pdshift);
+-	pdshift = hugepd_shift(*hpdp);
+-out:
+-	if (shift)
+-		*shift = pdshift;
+-	return ret_pte;
+-}
+-EXPORT_SYMBOL_GPL(find_linux_pte_or_hugepte);
+-
+ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+ {
+ 	return find_linux_pte_or_hugepte(mm->pgd, addr, NULL);
+@@ -753,69 +696,6 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 	return NULL;
+ }
+ 
+-int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
+-		unsigned long end, int write, struct page **pages, int *nr)
+-{
+-	unsigned long mask;
+-	unsigned long pte_end;
+-	struct page *head, *page, *tail;
+-	pte_t pte;
+-	int refs;
+-
+-	pte_end = (addr + sz) & ~(sz-1);
+-	if (pte_end < end)
+-		end = pte_end;
+-
+-	pte = *ptep;
+-	mask = _PAGE_PRESENT | _PAGE_USER;
+-	if (write)
+-		mask |= _PAGE_RW;
+-
+-	if ((pte_val(pte) & mask) != mask)
+-		return 0;
+-
+-	/* hugepages are never "special" */
+-	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+-
+-	refs = 0;
+-	head = pte_page(pte);
+-
+-	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
+-	tail = page;
+-	do {
+-		VM_BUG_ON(compound_head(page) != head);
+-		pages[*nr] = page;
+-		(*nr)++;
+-		page++;
+-		refs++;
+-	} while (addr += PAGE_SIZE, addr != end);
+-
+-	if (!page_cache_add_speculative(head, refs)) {
+-		*nr -= refs;
+-		return 0;
+-	}
+-
+-	if (unlikely(pte_val(pte) != pte_val(*ptep))) {
+-		/* Could be optimized better */
+-		*nr -= refs;
+-		while (refs--)
+-			put_page(head);
+-		return 0;
+-	}
+-
+-	/*
+-	 * Any tail page need their mapcount reference taken before we
+-	 * return.
+-	 */
+-	while (refs--) {
+-		if (PageTail(tail))
+-			get_huge_page_tail(tail);
+-		tail++;
+-	}
+-
+-	return 1;
+-}
+-
+ static unsigned long hugepte_addr_end(unsigned long addr, unsigned long end,
+ 				      unsigned long sz)
+ {
+@@ -1032,3 +912,128 @@ void flush_dcache_icache_hugepage(struct page *page)
+ 		}
+ 	}
+ }
++
++#endif /* CONFIG_HUGETLB_PAGE */
++
++/*
++ * We have 4 cases for pgds and pmds:
++ * (1) invalid (all zeroes)
++ * (2) pointer to next table, as normal; bottom 6 bits == 0
++ * (3) leaf pte for huge page, bottom two bits != 00
++ * (4) hugepd pointer, bottom two bits == 00, next 4 bits indicate size of table
++ */
++pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift)
++{
++	pgd_t *pg;
++	pud_t *pu;
++	pmd_t *pm;
++	pte_t *ret_pte;
++	hugepd_t *hpdp = NULL;
++	unsigned pdshift = PGDIR_SHIFT;
++
++	if (shift)
++		*shift = 0;
++
++	pg = pgdir + pgd_index(ea);
++
++	if (pgd_huge(*pg)) {
++		ret_pte = (pte_t *) pg;
++		goto out;
++	} else if (is_hugepd(pg))
++		hpdp = (hugepd_t *)pg;
++	else if (!pgd_none(*pg)) {
++		pdshift = PUD_SHIFT;
++		pu = pud_offset(pg, ea);
++
++		if (pud_huge(*pu)) {
++			ret_pte = (pte_t *) pu;
++			goto out;
++		} else if (is_hugepd(pu))
++			hpdp = (hugepd_t *)pu;
++		else if (!pud_none(*pu)) {
++			pdshift = PMD_SHIFT;
++			pm = pmd_offset(pu, ea);
++
++			if (pmd_huge(*pm)) {
++				ret_pte = (pte_t *) pm;
++				goto out;
++			} else if (is_hugepd(pm))
++				hpdp = (hugepd_t *)pm;
++			else if (!pmd_none(*pm))
++				return pte_offset_kernel(pm, ea);
++		}
++	}
++	if (!hpdp)
++		return NULL;
++
++	ret_pte = hugepte_offset(hpdp, ea, pdshift);
++	pdshift = hugepd_shift(*hpdp);
++out:
++	if (shift)
++		*shift = pdshift;
++	return ret_pte;
++}
++EXPORT_SYMBOL_GPL(find_linux_pte_or_hugepte);
++
++int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
++		unsigned long end, int write, struct page **pages, int *nr)
++{
++	unsigned long mask;
++	unsigned long pte_end;
++	struct page *head, *page, *tail;
++	pte_t pte;
++	int refs;
++
++	pte_end = (addr + sz) & ~(sz-1);
++	if (pte_end < end)
++		end = pte_end;
++
++	pte = *ptep;
++	mask = _PAGE_PRESENT | _PAGE_USER;
++	if (write)
++		mask |= _PAGE_RW;
++
++	if ((pte_val(pte) & mask) != mask)
++		return 0;
++
++	/* hugepages are never "special" */
++	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
++
++	refs = 0;
++	head = pte_page(pte);
++
++	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
++	tail = page;
++	do {
++		VM_BUG_ON(compound_head(page) != head);
++		pages[*nr] = page;
++		(*nr)++;
++		page++;
++		refs++;
++	} while (addr += PAGE_SIZE, addr != end);
++
++	if (!page_cache_add_speculative(head, refs)) {
++		*nr -= refs;
++		return 0;
++	}
++
++	if (unlikely(pte_val(pte) != pte_val(*ptep))) {
++		/* Could be optimized better */
++		*nr -= refs;
++		while (refs--)
++			put_page(head);
++		return 0;
++	}
++
++	/*
++	 * Any tail page need their mapcount reference taken before we
++	 * return.
++	 */
++	while (refs--) {
++		if (PageTail(tail))
++			get_huge_page_tail(tail);
++		tail++;
++	}
++
++	return 1;
++}
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
