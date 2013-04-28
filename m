@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id AD4E16B0095
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 04D1A6B0096
 	for <linux-mm@kvack.org>; Sun, 28 Apr 2013 15:52:09 -0400 (EDT)
 Received: from /spool/local
 	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 29 Apr 2013 01:16:59 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id C501BE0053
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 01:24:08 +0530 (IST)
+	Mon, 29 Apr 2013 01:17:00 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 621743940058
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 01:22:01 +0530 (IST)
 Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3SJpt4Q60555430
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 01:21:55 +0530
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3SJpsNL35651794
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 01:21:54 +0530
 Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3SJpwJm002375
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 05:51:59 +1000
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3SJpxvp002441
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 05:52:00 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH -V7 06/10] powerpc: Update gup_pmd_range to handle transparent hugepages
-Date: Mon, 29 Apr 2013 01:21:47 +0530
-Message-Id: <1367178711-8232-7-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V7 10/10] powerpc: disable assert_pte_locked
+Date: Mon, 29 Apr 2013 01:21:51 +0530
+Message-Id: <1367178711-8232-11-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1367178711-8232-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1367178711-8232-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -28,38 +28,38 @@ Cc: linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.i
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
+With THP we set pmd to none, before we do pte_clear. Hence we can't
+walk page table to get the pte lock ptr and verify whether it is locked.
+THP do take pte lock before calling pte_clear. So we don't change the locking
+rules here. It is that we can't use page table walking to check whether
+pte locks are help with THP.
+
+NOTE: This needs to be re-written. Not to be merged upstream.
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- arch/powerpc/mm/gup.c | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ arch/powerpc/mm/pgtable.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/arch/powerpc/mm/gup.c b/arch/powerpc/mm/gup.c
-index 4b921af..3d36fd7 100644
---- a/arch/powerpc/mm/gup.c
-+++ b/arch/powerpc/mm/gup.c
-@@ -66,9 +66,20 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
- 		pmd_t pmd = *pmdp;
+diff --git a/arch/powerpc/mm/pgtable.c b/arch/powerpc/mm/pgtable.c
+index 214130a..d77f94f 100644
+--- a/arch/powerpc/mm/pgtable.c
++++ b/arch/powerpc/mm/pgtable.c
+@@ -224,6 +224,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
+ #ifdef CONFIG_DEBUG_VM
+ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
+ {
++#if 0
+ 	pgd_t *pgd;
+ 	pud_t *pud;
+ 	pmd_t *pmd;
+@@ -237,6 +238,7 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
+ 	pmd = pmd_offset(pud, addr);
+ 	BUG_ON(!pmd_present(*pmd));
+ 	assert_spin_locked(pte_lockptr(mm, pmd));
++#endif
+ }
+ #endif /* CONFIG_DEBUG_VM */
  
- 		next = pmd_addr_end(addr, end);
--		if (pmd_none(pmd))
-+		/*
-+		 * The pmd_trans_splitting() check below explains why
-+		 * pmdp_splitting_flush has to flush the tlb, to stop
-+		 * this gup-fast code from running while we set the
-+		 * splitting bit in the pmd. Returning zero will take
-+		 * the slow path that will call wait_split_huge_page()
-+		 * if the pmd is still in splitting state. gup-fast
-+		 * can't because it has irq disabled and
-+		 * wait_split_huge_page() would never return as the
-+		 * tlb flush IPI wouldn't run.
-+		 */
-+		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
- 			return 0;
--		if (pmd_huge(pmd)) {
-+		if (pmd_huge(pmd) || pmd_large(pmd)) {
- 			if (!gup_hugepte((pte_t *)pmdp, PMD_SIZE, addr, next,
- 					 write, pages, nr))
- 				return 0;
 -- 
 1.8.1.2
 
