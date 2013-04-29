@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 9F6736B007D
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 12:33:05 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id DC09B6B0081
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 12:33:23 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/3] mm: Ensure that mark_page_accessed moves pages to the active list
-Date: Mon, 29 Apr 2013 17:31:58 +0100
-Message-Id: <1367253119-6461-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 3/3] mm: Remove lru parameter from __pagevec_lru_add and remove parts of pagevec API
+Date: Mon, 29 Apr 2013 17:31:59 +0100
+Message-Id: <1367253119-6461-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1367253119-6461-1-git-send-email-mgorman@suse.de>
 References: <1367253119-6461-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,115 +13,263 @@ List-ID: <linux-mm.kvack.org>
 To: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>
 Cc: Theodore Tso <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>
 
-If a page is on a pagevec then it is !PageLRU and mark_page_accessed()
-may fail to move a page to the active list as expected. Now that the
-LRU is selected at LRU drain time, mark pages PageActive if they are
-on a pagevec so it gets moved to the correct list at LRU drain time.
-Using a debugging patch it was found that for a simple git checkout
-based workload that pages were never added to the active file list in
-practice but with this patch applied they are.
-
-				before   after
-LRU Add Active File                  0  757121
-LRU Add Active Anon            2678833 2633924
-LRU Add Inactive File          8821711 8085543
-LRU Add Inactive Anon              183     200
-
-The question to consider is if this is universally safe. If the page
-was isolated for reclaim and there is a parallel mark_page_accessed()
-then vmscan.c will get upset when it finds an isolated PageActive page.
-Similarly a potential race exists between a per-cpu drain on a pagevec
-list and an activation on a remote CPU.
-
-				lru_add_drain_cpu
-				__pagevec_lru_add
-				  lru = page_lru(page);
-mark_page_accessed
-  if (PageLRU(page))
-    activate_page
-  else
-    SetPageActive
-				  SetPageLRU(page);
-				  add_page_to_lru_list(page, lruvec, lru);
-
-A PageActive page is now added to the inactivate list.
-
-While this looks strange, I think it is sufficiently harmless that additional
-barriers to address the case is not justified.  Unfortunately, while I never
-witnessed it myself, these parallel updates potentially trigger defensive
-DEBUG_VM checks on PageActive and hence they are removed by this patch.
+Now that the LRU to add a page to is decided at LRU-add time, remove the
+misleading lru parameter from __pagevec_lru_add. A consequence of this is
+that the pagevec_lru_add_file, pagevec_lru_add_anon and similar helpers
+are misleading as the caller no longer has direct control over what LRU
+the page is added to. Unused helpers are removed by this patch and existing
+users of pagevec_lru_add_file() are converted to use lru_cache_add_file()
+directly and use the per-cpu pagevecs instead of creating their own pagevec.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/swap.c   | 18 ++++++++++++------
- mm/vmscan.c |  3 ---
- 2 files changed, 12 insertions(+), 9 deletions(-)
+ fs/cachefiles/rdwr.c    | 30 +++++++-----------------------
+ fs/nfs/dir.c            |  7 ++-----
+ include/linux/pagevec.h | 34 +---------------------------------
+ mm/swap.c               | 12 ++++--------
+ 4 files changed, 14 insertions(+), 69 deletions(-)
 
+diff --git a/fs/cachefiles/rdwr.c b/fs/cachefiles/rdwr.c
+index 4809922..d24c13e 100644
+--- a/fs/cachefiles/rdwr.c
++++ b/fs/cachefiles/rdwr.c
+@@ -12,6 +12,7 @@
+ #include <linux/mount.h>
+ #include <linux/slab.h>
+ #include <linux/file.h>
++#include <linux/swap.h>
+ #include "internal.h"
+ 
+ /*
+@@ -227,8 +228,7 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
+  */
+ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
+ 					    struct fscache_retrieval *op,
+-					    struct page *netpage,
+-					    struct pagevec *pagevec)
++					    struct page *netpage)
+ {
+ 	struct cachefiles_one_read *monitor;
+ 	struct address_space *bmapping;
+@@ -237,8 +237,6 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
+ 
+ 	_enter("");
+ 
+-	pagevec_reinit(pagevec);
+-
+ 	_debug("read back %p{%lu,%d}",
+ 	       netpage, netpage->index, page_count(netpage));
+ 
+@@ -283,9 +281,7 @@ installed_new_backing_page:
+ 	backpage = newpage;
+ 	newpage = NULL;
+ 
+-	page_cache_get(backpage);
+-	pagevec_add(pagevec, backpage);
+-	__pagevec_lru_add_file(pagevec);
++	lru_cache_add_file(backpage);
+ 
+ read_backing_page:
+ 	ret = bmapping->a_ops->readpage(NULL, backpage);
+@@ -452,8 +448,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
+ 	if (block) {
+ 		/* submit the apparently valid page to the backing fs to be
+ 		 * read from disk */
+-		ret = cachefiles_read_backing_file_one(object, op, page,
+-						       &pagevec);
++		ret = cachefiles_read_backing_file_one(object, op, page);
+ 	} else if (cachefiles_has_space(cache, 0, 1) == 0) {
+ 		/* there's space in the cache we can use */
+ 		fscache_mark_page_cached(op, page);
+@@ -482,14 +477,11 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ {
+ 	struct cachefiles_one_read *monitor = NULL;
+ 	struct address_space *bmapping = object->backer->d_inode->i_mapping;
+-	struct pagevec lru_pvec;
+ 	struct page *newpage = NULL, *netpage, *_n, *backpage = NULL;
+ 	int ret = 0;
+ 
+ 	_enter("");
+ 
+-	pagevec_init(&lru_pvec, 0);
+-
+ 	list_for_each_entry_safe(netpage, _n, list, lru) {
+ 		list_del(&netpage->lru);
+ 
+@@ -534,9 +526,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 		backpage = newpage;
+ 		newpage = NULL;
+ 
+-		page_cache_get(backpage);
+-		if (!pagevec_add(&lru_pvec, backpage))
+-			__pagevec_lru_add_file(&lru_pvec);
++		lru_cache_add_file(backpage);
+ 
+ 	reread_backing_page:
+ 		ret = bmapping->a_ops->readpage(NULL, backpage);
+@@ -559,9 +549,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 			goto nomem;
+ 		}
+ 
+-		page_cache_get(netpage);
+-		if (!pagevec_add(&lru_pvec, netpage))
+-			__pagevec_lru_add_file(&lru_pvec);
++		lru_cache_add_file(netpage);
+ 
+ 		/* install a monitor */
+ 		page_cache_get(netpage);
+@@ -643,9 +631,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 
+ 		fscache_mark_page_cached(op, netpage);
+ 
+-		page_cache_get(netpage);
+-		if (!pagevec_add(&lru_pvec, netpage))
+-			__pagevec_lru_add_file(&lru_pvec);
++		lru_cache_add_file(netpage);
+ 
+ 		/* the netpage is unlocked and marked up to date here */
+ 		fscache_end_io(op, netpage, 0);
+@@ -661,8 +647,6 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 
+ out:
+ 	/* tidy up */
+-	pagevec_lru_add_file(&lru_pvec);
+-
+ 	if (newpage)
+ 		page_cache_release(newpage);
+ 	if (netpage)
+diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
+index f23f455..787d89c 100644
+--- a/fs/nfs/dir.c
++++ b/fs/nfs/dir.c
+@@ -33,6 +33,7 @@
+ #include <linux/pagevec.h>
+ #include <linux/namei.h>
+ #include <linux/mount.h>
++#include <linux/swap.h>
+ #include <linux/sched.h>
+ #include <linux/kmemleak.h>
+ #include <linux/xattr.h>
+@@ -1757,7 +1758,6 @@ EXPORT_SYMBOL_GPL(nfs_unlink);
+  */
+ int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
+ {
+-	struct pagevec lru_pvec;
+ 	struct page *page;
+ 	char *kaddr;
+ 	struct iattr attr;
+@@ -1797,11 +1797,8 @@ int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
+ 	 * No big deal if we can't add this page to the page cache here.
+ 	 * READLINK will get the missing page from the server if needed.
+ 	 */
+-	pagevec_init(&lru_pvec, 0);
+-	if (!add_to_page_cache(page, dentry->d_inode->i_mapping, 0,
++	if (!add_to_page_cache_lru(page, dentry->d_inode->i_mapping, 0,
+ 							GFP_KERNEL)) {
+-		pagevec_add(&lru_pvec, page);
+-		pagevec_lru_add_file(&lru_pvec);
+ 		SetPageUptodate(page);
+ 		unlock_page(page);
+ 	} else
+diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
+index 2aa12b8..e4dbfab3 100644
+--- a/include/linux/pagevec.h
++++ b/include/linux/pagevec.h
+@@ -21,7 +21,7 @@ struct pagevec {
+ };
+ 
+ void __pagevec_release(struct pagevec *pvec);
+-void __pagevec_lru_add(struct pagevec *pvec, enum lru_list lru);
++void __pagevec_lru_add(struct pagevec *pvec);
+ unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
+ 		pgoff_t start, unsigned nr_pages);
+ unsigned pagevec_lookup_tag(struct pagevec *pvec,
+@@ -64,36 +64,4 @@ static inline void pagevec_release(struct pagevec *pvec)
+ 		__pagevec_release(pvec);
+ }
+ 
+-static inline void __pagevec_lru_add_anon(struct pagevec *pvec)
+-{
+-	__pagevec_lru_add(pvec, LRU_INACTIVE_ANON);
+-}
+-
+-static inline void __pagevec_lru_add_active_anon(struct pagevec *pvec)
+-{
+-	__pagevec_lru_add(pvec, LRU_ACTIVE_ANON);
+-}
+-
+-static inline void __pagevec_lru_add_file(struct pagevec *pvec)
+-{
+-	__pagevec_lru_add(pvec, LRU_INACTIVE_FILE);
+-}
+-
+-static inline void __pagevec_lru_add_active_file(struct pagevec *pvec)
+-{
+-	__pagevec_lru_add(pvec, LRU_ACTIVE_FILE);
+-}
+-
+-static inline void pagevec_lru_add_file(struct pagevec *pvec)
+-{
+-	if (pagevec_count(pvec))
+-		__pagevec_lru_add_file(pvec);
+-}
+-
+-static inline void pagevec_lru_add_anon(struct pagevec *pvec)
+-{
+-	if (pagevec_count(pvec))
+-		__pagevec_lru_add_anon(pvec);
+-}
+-
+ #endif /* _LINUX_PAGEVEC_H */
 diff --git a/mm/swap.c b/mm/swap.c
-index 80fbc37..2a10d08 100644
+index 2a10d08..83eff2f 100644
 --- a/mm/swap.c
 +++ b/mm/swap.c
-@@ -437,8 +437,17 @@ void activate_page(struct page *page)
- void mark_page_accessed(struct page *page)
- {
- 	if (!PageActive(page) && !PageUnevictable(page) &&
--			PageReferenced(page) && PageLRU(page)) {
--		activate_page(page);
-+			PageReferenced(page)) {
-+
-+		/*
-+		 * If the page is on the LRU, promote immediately. Otherwise,
-+		 * assume the page is on a pagevec, mark it active and it'll
-+		 * be moved to the active LRU on the next drain
-+		 */
-+		if (PageLRU(page))
-+			activate_page(page);
-+		else
-+			SetPageActive(page);
- 		ClearPageReferenced(page);
- 	} else if (!PageReferenced(page)) {
- 		SetPageReferenced(page);
-@@ -478,11 +487,8 @@ EXPORT_SYMBOL(__lru_cache_add);
-  */
- void lru_cache_add_lru(struct page *page, enum lru_list lru)
- {
--	if (PageActive(page)) {
-+	if (PageActive(page))
- 		VM_BUG_ON(PageUnevictable(page));
--	} else if (PageUnevictable(page)) {
--		VM_BUG_ON(PageActive(page));
--	}
+@@ -474,7 +474,7 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
  
+ 	page_cache_get(page);
+ 	if (!pagevec_space(pvec))
+-		__pagevec_lru_add(pvec, lru);
++		__pagevec_lru_add(pvec);
+ 	pagevec_add(pvec, page);
+ 	put_cpu_var(lru_add_pvec);
+ }
+@@ -594,7 +594,7 @@ void lru_add_drain_cpu(int cpu)
+ 	struct pagevec *pvec = &per_cpu(lru_add_pvec, cpu);
+ 
+ 	if (pagevec_count(pvec))
+-		__pagevec_lru_add(pvec, NR_LRU_LISTS);
++		__pagevec_lru_add(pvec);
+ 
+ 	pvec = &per_cpu(lru_rotate_pvecs, cpu);
+ 	if (pagevec_count(pvec)) {
+@@ -793,12 +793,10 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+ 				 void *arg)
+ {
+-	enum lru_list requested_lru = (enum lru_list)arg;
+ 	int file = page_is_file_cache(page);
+ 	int active = PageActive(page);
+ 	enum lru_list lru = page_lru(page);
+ 
+-	WARN_ON_ONCE(requested_lru < NR_LRU_LISTS && requested_lru != lru);
+ 	VM_BUG_ON(PageUnevictable(page));
  	VM_BUG_ON(PageLRU(page));
- 	__lru_cache_add(page, lru);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 88c5fed..751b897 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -704,7 +704,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		if (!trylock_page(page))
- 			goto keep;
  
--		VM_BUG_ON(PageActive(page));
- 		VM_BUG_ON(page_zone(page) != zone);
+@@ -811,11 +809,9 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+  * Add the passed pages to the LRU, then drop the caller's refcount
+  * on them.  Reinitialises the caller's pagevec.
+  */
+-void __pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
++void __pagevec_lru_add(struct pagevec *pvec)
+ {
+-	VM_BUG_ON(is_unevictable_lru(lru));
+-
+-	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, (void *)lru);
++	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, NULL);
+ }
+ EXPORT_SYMBOL(__pagevec_lru_add);
  
- 		sc->nr_scanned++;
-@@ -935,7 +934,6 @@ activate_locked:
- 		/* Not a candidate for swapping, so reclaim swap space. */
- 		if (PageSwapCache(page) && vm_swap_full())
- 			try_to_free_swap(page);
--		VM_BUG_ON(PageActive(page));
- 		SetPageActive(page);
- 		pgactivate++;
- keep_locked:
-@@ -3488,7 +3486,6 @@ void check_move_unevictable_pages(struct page **pages, int nr_pages)
- 		if (page_evictable(page)) {
- 			enum lru_list lru = page_lru_base_type(page);
- 
--			VM_BUG_ON(PageActive(page));
- 			ClearPageUnevictable(page);
- 			del_page_from_lru_list(page, lruvec, LRU_UNEVICTABLE);
- 			add_page_to_lru_list(page, lruvec, lru);
 -- 
 1.8.1.4
 
