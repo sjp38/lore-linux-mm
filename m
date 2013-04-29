@@ -1,28 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 7227C6B0039
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 10:50:10 -0400 (EDT)
-Date: Mon, 29 Apr 2013 14:50:08 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: OOM-killer and strange RSS value in 3.9-rc7
-In-Reply-To: <20130427112418.GC4441@localhost.localdomain>
-Message-ID: <0000013e5645b356-09aa6796-0a95-40f1-8ec5-6e2e3d0c434f-000000@email.amazonses.com>
-References: <20130418101541.GC2672@localhost.localdomain> <20130418175513.GA12581@dhcp22.suse.cz> <20130423131558.GH8001@dhcp22.suse.cz> <20130424044848.GI2672@localhost.localdomain> <20130424094732.GB31960@dhcp22.suse.cz>
- <0000013e3cb0340d-00f360e3-076b-478e-b94c-ddd4476196ce-000000@email.amazonses.com> <20130425060705.GK2672@localhost.localdomain> <0000013e427023d7-9456c313-8654-420c-b85a-cb79cc3c4ffc-000000@email.amazonses.com> <20130426062436.GB4441@localhost.localdomain>
- <0000013e46cba821-d5c54c99-3b5c-4669-9a54-9fb8f4ee516f-000000@email.amazonses.com> <20130427112418.GC4441@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id E9CB06B003B
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 10:56:05 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id m1so5365862wea.12
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2013 07:56:04 -0700 (PDT)
+From: Steve Capper <steve.capper@linaro.org>
+Subject: [RFC PATCH 0/2] mm: Promote huge_pmd_share from x86 to mm.
+Date: Mon, 29 Apr 2013 15:55:54 +0100
+Message-Id: <1367247356-11246-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Han Pingtian <hanpt@linux.vnet.ibm.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, mhocko@suse.cz, penberg@kernel.org, rientjes@google.com, linux-mm@kvack.org
+To: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org
+Cc: Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>
 
-On Sat, 27 Apr 2013, Han Pingtian wrote:
+Under x86, multiple puds can be made to reference the same bank of
+huge pmds provided that they represent a full PUD_SIZE of shared
+huge memory that is aligned to a PUD_SIZE boundary.
 
-> and it is called so many times that the boot cannot be finished. So
-> maybe the memory isn't freed even though __free_slab() get called?
+The code to share pmds does not require any architecture specific
+knowledge other than the fact that pmds can be indexed, thus can
+be beneficial to some other architectures.
 
-Ok that suggests an issue with the page allocator then.
+This RFC promotes the huge_pmd_share code (and dependencies) from
+x86 to mm to make it accessible to other architectures.
+
+I am working on ARM64 support for huge pages and rather than
+duplicate the x86 huge_pmd_share code, I thought it would be better
+to promote it to mm.
+
+Comments would be very welcome.
+
+Cheers,
+-- 
+Steve
+
+Steve Capper (2):
+  mm: hugetlb: Copy huge_pmd_share from x86 to mm.
+  x86: mm: Remove x86 version of huge_pmd_share.
+
+ arch/x86/Kconfig          |   3 ++
+ arch/x86/mm/hugetlbpage.c | 120 ---------------------------------------------
+ include/linux/hugetlb.h   |   4 ++
+ mm/hugetlb.c              | 122 ++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 129 insertions(+), 120 deletions(-)
+
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
