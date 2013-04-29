@@ -1,32 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id E6F0B6B0032
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 09:24:49 -0400 (EDT)
-Date: Mon, 29 Apr 2013 15:24:47 +0200 (CEST)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: Re: [TRIVIAL PATCH 23/26] mm: Convert print_symbol to %pSR
-In-Reply-To: <0000013b90bb4f41-3c381041-b26d-4534-b983-a025858bb748-000000@email.amazonses.com>
-Message-ID: <alpine.LNX.2.00.1304291524360.11889@pobox.suse.cz>
-References: <cover.1355335227.git.joe@perches.com> <96a83ddb7f8571afe8b3b3b6e7fc9dc3ff81dda5.1355335228.git.joe@perches.com> <0000013b90bb4f41-3c381041-b26d-4534-b983-a025858bb748-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 9E0436B0037
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 10:49:28 -0400 (EDT)
+Date: Mon, 29 Apr 2013 14:49:27 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: OOM-killer and strange RSS value in 3.9-rc7
+In-Reply-To: <517B8A5D.1030308@gmail.com>
+Message-ID: <0000013e56450fd2-c7a854d1-ff7f-47a7-a235-30721fead5e0-000000@email.amazonses.com>
+References: <alpine.DEB.2.02.1304161315290.30779@chino.kir.corp.google.com> <20130417094750.GB2672@localhost.localdomain> <20130417141909.GA24912@dhcp22.suse.cz> <20130418101541.GC2672@localhost.localdomain> <20130418175513.GA12581@dhcp22.suse.cz>
+ <20130423131558.GH8001@dhcp22.suse.cz> <20130424044848.GI2672@localhost.localdomain> <20130424094732.GB31960@dhcp22.suse.cz> <0000013e3cb0340d-00f360e3-076b-478e-b94c-ddd4476196ce-000000@email.amazonses.com> <20130425060705.GK2672@localhost.localdomain>
+ <0000013e42332267-0b7fb3c0-9150-4058-8850-ae094b455b15-000000@email.amazonses.com> <517B8A5D.1030308@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Joe Perches <joe@perches.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Will Huck <will.huckk@gmail.com>
+Cc: Han Pingtian <hanpt@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, mhocko@suse.cz, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-On Wed, 12 Dec 2012, Christoph Lameter wrote:
+On Sat, 27 Apr 2013, Will Huck wrote:
 
-> > Use the new vsprintf extension to avoid any possible
-> > message interleaving.
-> 
-> Acked-by: Christoph Lameter <cl@linux.com>
+> Hi Christoph,
+> On 04/26/2013 01:17 AM, Christoph Lameter wrote:
+> > On Thu, 25 Apr 2013, Han Pingtian wrote:
+> >
+> > > I have enabled "slub_debug" and here is the
+> > > /sys/kernel/slab/kmalloc-512/alloc_calls contents:
+> > >
+> > >       50 .__alloc_workqueue_key+0x90/0x5d0 age=113630/116957/119419
+> > > pid=1-1730 cpus=0,6-8,13,24,26,44,53,57,60,68 nodes=1
+> > >       11 .__alloc_workqueue_key+0x16c/0x5d0 age=113814/116733/119419
+> > > pid=1-1730 cpus=0,44,68 nodes=1
+> > >       13 .add_sysfs_param.isra.2+0x80/0x210 age=115175/117994/118779
+> > > pid=1-1342 cpus=0,8,12,24,60 nodes=1
+> > >      160 .build_sched_domains+0x108/0xe30 age=119111/119120/119131 pid=1
+> > > cpus=0 nodes=1
+> > >     9000 .alloc_fair_sched_group+0xe4/0x220 age=110549/114471/117357
+> > > pid=1-2290
+> > > cpus=0-1,5,9-11,13,24,29,33,36,38,40-41,45,48-50,53,56-58,60-63,68-69,72-73,76-77,79
+> > > nodes=1
+> > >     9000 .alloc_fair_sched_group+0x114/0x220 age=110549/114471/117357
+> > > pid=1-2290
+> > > cpus=0-1,5,9-11,13,24,29,33,36,38,40-41,45,48-50,53,56-58,60-63,68-69,72-73,76-77,79
+> > > nodes=1
+>
+> Could you explain the meaning of  age=xx/xx/xx  pid=xx-xx cpus=xx here?
+>
 
-Doesn't seem to be in linux-next as of today, I am taking this one.
+Age refers to the mininum / avg / maximum age of the object in ticks.
 
--- 
-Jiri Kosina
-SUSE Labs
+pid refers to the range of pids by processes running when the objects were
+created.
+
+cpus are the processors on which kernel threads where running when these
+objects were allocated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
