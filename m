@@ -1,60 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 060D86B0034
-	for <linux-mm@kvack.org>; Sun, 28 Apr 2013 17:40:40 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id mc17so1499093pbc.39
-        for <linux-mm@kvack.org>; Sun, 28 Apr 2013 14:40:40 -0700 (PDT)
-Date: Sun, 28 Apr 2013 14:40:37 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, memcg: add anon_hugepage stat
-In-Reply-To: <20130426111739.GF31157@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.02.1304281432160.5570@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1304251440190.27228@chino.kir.corp.google.com> <20130426111739.GF31157@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 2FB456B0002
+	for <linux-mm@kvack.org>; Sun, 28 Apr 2013 22:57:25 -0400 (EDT)
+Received: by mail-ie0-f179.google.com with SMTP id 16so6761072iea.24
+        for <linux-mm@kvack.org>; Sun, 28 Apr 2013 19:57:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <201304252120.GII21814.FMJFtHLOOVQFOS@I-love.SAKURA.ne.jp>
+References: <201304242108.FDC35910.VJMHFFFSOLOOQt@I-love.SAKURA.ne.jp> <201304252120.GII21814.FMJFtHLOOVQFOS@I-love.SAKURA.ne.jp>
+From: Zhan Jianyu <nasa4836@gmail.com>
+Date: Mon, 29 Apr 2013 10:56:44 +0800
+Message-ID: <CAHz2CGXXbg8P94uLcN0K6yxLYg__HB75tGrpw9xR1Rqn=6ZhGg@mail.gmail.com>
+Subject: Re: [linux-next-20130422] Bug in SLAB?
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: glommer@parallels.com, cl@linux.com, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 26 Apr 2013, Michal Hocko wrote:
+On Thu, Apr 25, 2013 at 8:20 PM, Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+> Bisection (with a build fix from commit db845067 "slab: Fixup
+> CONFIG_PAGE_ALLOC/DEBUG_SLAB_LEAK sections") reached commit e3366016
+> "slab: Use common kmalloc_index/kmalloc_size functions".
+> Would you have a look at commit e3366016?
 
-> Yes, useful and I had it on my todo list for quite some time. Never got
-> to it though. Thanks!
-> 
 
-I think I'll add an anon_pages counter as well for non-thp for comparison, 
-and probably do it in the same patch.
+Cc:   linux-mm@kvack.org
 
-The problem is that we don't always have the memcg context for the page 
-when calling page_add_anon_rmap() or page_remove_rmap().
 
- [ An example in this patch is in page_remove_rmap() where I was calling 
-   mem_cgroup_update_page_stat() after mem_cgroup_uncharge_page(). ]
 
-For example, in unuse_pte():
+--
 
-	if (page == swapcache)
-		page_add_anon_rmap(page, vma, addr);
-	else /* ksm created a completely new copy */
-		page_add_new_anon_rmap(page, vma, addr);
-	mem_cgroup_commit_charge_swapin(page, memcg);
-
-There are a couple of options to fix this and I really don't have a strong 
-preference for which one we go with:
-
- - pass struct mem_cgroup * to page_add_anon_rmap() and 
-   page_remove_rmap(), such as "memcg" in the above example), or
-
- - separate out the anon page/hugepage ZVC accounting entirely from these 
-   two functions and add a followup call to a new function dedicated for 
-   this purpose once the memcg commit has been done.
-
-I'm leaning toward doing the latter just because it's cleaner, but it 
-means page_remove_rmap() picks up a return value (anon or not?) and 
-page_add_anon_rmap() picks up a return value (_mapcount == 0?).
-
-Comments?
+Regards,
+Zhan Jianyu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
