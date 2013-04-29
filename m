@@ -1,180 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id C49986B004D
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 10:56:10 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id m6so2883188wiv.3
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2013 07:56:09 -0700 (PDT)
-From: Steve Capper <steve.capper@linaro.org>
-Subject: [RFC PATCH 2/2] x86: mm: Remove x86 version of huge_pmd_share.
-Date: Mon, 29 Apr 2013 15:55:56 +0100
-Message-Id: <1367247356-11246-3-git-send-email-steve.capper@linaro.org>
-In-Reply-To: <1367247356-11246-1-git-send-email-steve.capper@linaro.org>
-References: <1367247356-11246-1-git-send-email-steve.capper@linaro.org>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 5B7156B005C
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 10:57:14 -0400 (EDT)
+Date: Mon, 29 Apr 2013 16:57:11 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: OOM-killer and strange RSS value in 3.9-rc7
+Message-ID: <20130429145711.GC1172@dhcp22.suse.cz>
+References: <20130423131558.GH8001@dhcp22.suse.cz>
+ <20130424044848.GI2672@localhost.localdomain>
+ <20130424094732.GB31960@dhcp22.suse.cz>
+ <0000013e3cb0340d-00f360e3-076b-478e-b94c-ddd4476196ce-000000@email.amazonses.com>
+ <20130425060705.GK2672@localhost.localdomain>
+ <0000013e427023d7-9456c313-8654-420c-b85a-cb79cc3c4ffc-000000@email.amazonses.com>
+ <20130426062436.GB4441@localhost.localdomain>
+ <0000013e46cba821-d5c54c99-3b5c-4669-9a54-9fb8f4ee516f-000000@email.amazonses.com>
+ <20130427112418.GC4441@localhost.localdomain>
+ <0000013e5645b356-09aa6796-0a95-40f1-8ec5-6e2e3d0c434f-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0000013e5645b356-09aa6796-0a95-40f1-8ec5-6e2e3d0c434f-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org
-Cc: Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>
+To: Han Pingtian <hanpt@linux.vnet.ibm.com>
+Cc: Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, penberg@kernel.org, rientjes@google.com, linux-mm@kvack.org
 
-The huge_pmd_share code has been copied over to mm/hugetlb.c to
-make it accessible to other architectures.
+On Mon 29-04-13 14:50:08, Christoph Lameter wrote:
+> On Sat, 27 Apr 2013, Han Pingtian wrote:
+> 
+> > and it is called so many times that the boot cannot be finished. So
+> > maybe the memory isn't freed even though __free_slab() get called?
+> 
+> Ok that suggests an issue with the page allocator then.
 
-Remove the x86 copy of the huge_pmd_share code and enable the
-ARCH_WANT_HUGE_PMD_SHARE config flag. That way we reference the
-general one.
+You seem to have CONFIG_MEMCG_KMEM enabled. Do you see the same issue
+when this is disabled? The kmem accounting should be disabled unless a
+specific limit is set but it would be better to know that this is not
+the factor.
 
-Signed-off-by: Steve Capper <steve.capper@linaro.org>
----
- arch/x86/Kconfig          |   3 ++
- arch/x86/mm/hugetlbpage.c | 120 ----------------------------------------------
- 2 files changed, 3 insertions(+), 120 deletions(-)
-
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 70c0f3d..60e3c402 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -212,6 +212,9 @@ config ARCH_HIBERNATION_POSSIBLE
- config ARCH_SUSPEND_POSSIBLE
- 	def_bool y
- 
-+config ARCH_WANT_HUGE_PMD_SHARE
-+	def_bool y
-+
- config ZONE_DMA32
- 	bool
- 	default X86_64
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index ae1aa71..7e522a3 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -16,126 +16,6 @@
- #include <asm/tlbflush.h>
- #include <asm/pgalloc.h>
- 
--static unsigned long page_table_shareable(struct vm_area_struct *svma,
--				struct vm_area_struct *vma,
--				unsigned long addr, pgoff_t idx)
--{
--	unsigned long saddr = ((idx - svma->vm_pgoff) << PAGE_SHIFT) +
--				svma->vm_start;
--	unsigned long sbase = saddr & PUD_MASK;
--	unsigned long s_end = sbase + PUD_SIZE;
--
--	/* Allow segments to share if only one is marked locked */
--	unsigned long vm_flags = vma->vm_flags & ~VM_LOCKED;
--	unsigned long svm_flags = svma->vm_flags & ~VM_LOCKED;
--
--	/*
--	 * match the virtual addresses, permission and the alignment of the
--	 * page table page.
--	 */
--	if (pmd_index(addr) != pmd_index(saddr) ||
--	    vm_flags != svm_flags ||
--	    sbase < svma->vm_start || svma->vm_end < s_end)
--		return 0;
--
--	return saddr;
--}
--
--static int vma_shareable(struct vm_area_struct *vma, unsigned long addr)
--{
--	unsigned long base = addr & PUD_MASK;
--	unsigned long end = base + PUD_SIZE;
--
--	/*
--	 * check on proper vm_flags and page table alignment
--	 */
--	if (vma->vm_flags & VM_MAYSHARE &&
--	    vma->vm_start <= base && end <= vma->vm_end)
--		return 1;
--	return 0;
--}
--
--/*
-- * Search for a shareable pmd page for hugetlb. In any case calls pmd_alloc()
-- * and returns the corresponding pte. While this is not necessary for the
-- * !shared pmd case because we can allocate the pmd later as well, it makes the
-- * code much cleaner. pmd allocation is essential for the shared case because
-- * pud has to be populated inside the same i_mmap_mutex section - otherwise
-- * racing tasks could either miss the sharing (see huge_pte_offset) or select a
-- * bad pmd for sharing.
-- */
--static pte_t *
--huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
--{
--	struct vm_area_struct *vma = find_vma(mm, addr);
--	struct address_space *mapping = vma->vm_file->f_mapping;
--	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
--			vma->vm_pgoff;
--	struct vm_area_struct *svma;
--	unsigned long saddr;
--	pte_t *spte = NULL;
--	pte_t *pte;
--
--	if (!vma_shareable(vma, addr))
--		return (pte_t *)pmd_alloc(mm, pud, addr);
--
--	mutex_lock(&mapping->i_mmap_mutex);
--	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
--		if (svma == vma)
--			continue;
--
--		saddr = page_table_shareable(svma, vma, addr, idx);
--		if (saddr) {
--			spte = huge_pte_offset(svma->vm_mm, saddr);
--			if (spte) {
--				get_page(virt_to_page(spte));
--				break;
--			}
--		}
--	}
--
--	if (!spte)
--		goto out;
--
--	spin_lock(&mm->page_table_lock);
--	if (pud_none(*pud))
--		pud_populate(mm, pud, (pmd_t *)((unsigned long)spte & PAGE_MASK));
--	else
--		put_page(virt_to_page(spte));
--	spin_unlock(&mm->page_table_lock);
--out:
--	pte = (pte_t *)pmd_alloc(mm, pud, addr);
--	mutex_unlock(&mapping->i_mmap_mutex);
--	return pte;
--}
--
--/*
-- * unmap huge page backed by shared pte.
-- *
-- * Hugetlb pte page is ref counted at the time of mapping.  If pte is shared
-- * indicated by page_count > 1, unmap is achieved by clearing pud and
-- * decrementing the ref count. If count == 1, the pte page is not shared.
-- *
-- * called with vma->vm_mm->page_table_lock held.
-- *
-- * returns: 1 successfully unmapped a shared pte page
-- *	    0 the underlying pte page is not shared, or it is the last user
-- */
--int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
--{
--	pgd_t *pgd = pgd_offset(mm, *addr);
--	pud_t *pud = pud_offset(pgd, *addr);
--
--	BUG_ON(page_count(virt_to_page(ptep)) == 0);
--	if (page_count(virt_to_page(ptep)) == 1)
--		return 0;
--
--	pud_clear(pud);
--	put_page(virt_to_page(ptep));
--	*addr = ALIGN(*addr, HPAGE_SIZE * PTRS_PER_PTE) - HPAGE_SIZE;
--	return 1;
--}
--
- pte_t *huge_pte_alloc(struct mm_struct *mm,
- 			unsigned long addr, unsigned long sz)
- {
 -- 
-1.8.1.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
