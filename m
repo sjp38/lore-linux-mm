@@ -1,43 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 2DE066B0096
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 16:22:41 -0400 (EDT)
-Received: by mail-da0-f54.google.com with SMTP id s35so3100774dak.13
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2013 13:22:40 -0700 (PDT)
-Date: Mon, 29 Apr 2013 13:22:38 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id E71C96B0099
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 16:32:20 -0400 (EDT)
+Received: by mail-da0-f51.google.com with SMTP id g27so2047691dan.24
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2013 13:32:20 -0700 (PDT)
+Date: Mon, 29 Apr 2013 13:32:18 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 0/2] mm: Promote huge_pmd_share from x86 to mm.
-In-Reply-To: <1367247356-11246-1-git-send-email-steve.capper@linaro.org>
-Message-ID: <alpine.DEB.2.02.1304291321070.29766@chino.kir.corp.google.com>
-References: <1367247356-11246-1-git-send-email-steve.capper@linaro.org>
+Subject: Re: [PATCH] Add a sysctl for numa_balancing.
+In-Reply-To: <20130429084113.GI2144@suse.de>
+Message-ID: <alpine.DEB.2.02.1304291331570.31525@chino.kir.corp.google.com>
+References: <1366847784-29386-1-git-send-email-andi@firstfloor.org> <20130429084113.GI2144@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>
 
-On Mon, 29 Apr 2013, Steve Capper wrote:
+On Mon, 29 Apr 2013, Mel Gorman wrote:
 
-> Under x86, multiple puds can be made to reference the same bank of
-> huge pmds provided that they represent a full PUD_SIZE of shared
-> huge memory that is aligned to a PUD_SIZE boundary.
+> On Wed, Apr 24, 2013 at 04:56:24PM -0700, Andi Kleen wrote:
+> > From: Andi Kleen <ak@linux.intel.com>
+> > 
+> > As discussed earlier, this adds a working sysctl to enable/disable
+> > automatic numa memory balancing at runtime.
+> > 
+> > This was possible earlier through debugfs, but only with special
+> > debugging options set. Also fix the boot message.
+> > 
+> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
 > 
-> The code to share pmds does not require any architecture specific
-> knowledge other than the fact that pmds can be indexed, thus can
-> be beneficial to some other architectures.
-> 
-> This RFC promotes the huge_pmd_share code (and dependencies) from
-> x86 to mm to make it accessible to other architectures.
-> 
-> I am working on ARM64 support for huge pages and rather than
-> duplicate the x86 huge_pmd_share code, I thought it would be better
-> to promote it to mm.
+> Acked-by: Mel Gorman <mgorman@suse.de>
 > 
 
-No objections to this, but I think you should do it as the first patch in 
-a series that adds the arm support.  There's no need for this to be moved 
-until that support is tested, proposed, reviewed, and merged.
+Acked-by: David Rientjes <rientjes@google.com>
+
+> Would you like to merge the following patch with it to remove the TBD?
+> 
+> ---8<---
+> mm: numa: Document remaining automatic NUMA balancing sysctls
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
