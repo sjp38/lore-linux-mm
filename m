@@ -1,64 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 87A586B009B
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 16:46:21 -0400 (EDT)
-Received: by mail-vc0-f178.google.com with SMTP id ha11so2176752vcb.23
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2013 13:46:20 -0700 (PDT)
-Message-ID: <517EDC19.7020705@gmail.com>
-Date: Mon, 29 Apr 2013 16:46:17 -0400
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 4ED616B009D
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 17:03:53 -0400 (EDT)
+Message-ID: <517EE01B.80109@infradead.org>
+Date: Mon, 29 Apr 2013 14:03:23 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add an option to disable bounce
-References: <1366644180-6140-1-git-send-email-vinayakm.list@gmail.com>
-In-Reply-To: <1366644180-6140-1-git-send-email-vinayakm.list@gmail.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: linux-next: Tree for Apr 29
+References: <20130429191754.8ee71fb814790bf345516ab8@canb.auug.org.au> <517ED2A6.5030200@infradead.org>
+In-Reply-To: <517ED2A6.5030200@infradead.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vinayakm.list@gmail.com
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-(4/22/13 11:23 AM), vinayakm.list@gmail.com wrote:
-> From: Vinayak Menon <vinayakm.list@gmail.com>
+On 04/29/13 13:05, Randy Dunlap wrote:
+> On 04/29/13 02:17, Stephen Rothwell wrote:
+>> Hi all,
+>>
+>> Changes since 20130426:
+>>
 > 
-> There are times when HIGHMEM is enabled, but
-> we don't prefer CONFIG_BOUNCE to be enabled.
-> CONFIG_BOUNCE can reduce the block device
-> throughput, and this is not ideal for machines
-> where we don't gain much by enabling it. So
-> provide an option to deselect CONFIG_BOUNCE. The
-> observation was made while measuring eMMC throughput
-> using iozone on an ARM device with 1GB RAM.
 > 
-> Signed-off-by: Vinayak Menon <vinayakm.list@gmail.com>
-> ---
->  mm/Kconfig |    6 ++++++
->  1 file changed, 6 insertions(+)
+> (who is responsible for MEM_SOFT_DIRTY?)
 > 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 3bea74f..29f9736 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -263,8 +263,14 @@ config ZONE_DMA_FLAG
->  	default "1"
->  
->  config BOUNCE
-> +	bool "Enable bounce buffers"
->  	def_bool y
->  	depends on BLOCK && MMU && (ZONE_DMA || HIGHMEM)
-> +	help
-> +	  Enable bounce buffers for devices that cannot access
-> +	  the full range of memory available to the CPU. Enabled
-> +	  by default when ZONE_DMA or HIGMEM is selected, but you
-> +	  may say n to override this.
+> 
+> on x86_64:
+> 
+> warning: (HWPOISON_INJECT && MEM_SOFT_DIRTY) selects PROC_PAGE_MONITOR which has unmet direct dependencies (PROC_FS && MMU)
+> 
+> because MEM_SOFT_DIRTY selects PROC_PAGE_MONITOR when CONFIG_PROC_FS is not enabled.
+> 
+> 
+> Can MEM_SOFT_DIRTY depend on PROC_FS?
+> 
+> and the help text for MEM_SOFT_DIRTY refers to Documentation/vm/soft-dirty.txt,
+> which does not exist.  Please add the file.
 
-This should depend on CONFIG_EXPERT. Because this makes typically worse result
-on typical desktop machine.
+Oops, sorry, I looked in the wrong place for that file, which DOES exist.
 
 
-
-
-
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
