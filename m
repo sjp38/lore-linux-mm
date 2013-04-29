@@ -1,53 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 7430B6B0068
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 11:26:53 -0400 (EDT)
-Date: Mon, 29 Apr 2013 16:26:41 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC PATCH 1/2] mm: hugetlb: Copy huge_pmd_share from x86 to
- mm.
-Message-ID: <20130429152641.GC12884@arm.com>
-References: <1367247356-11246-1-git-send-email-steve.capper@linaro.org>
- <1367247356-11246-2-git-send-email-steve.capper@linaro.org>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id A4A606B006C
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 11:27:54 -0400 (EDT)
+Date: Mon, 29 Apr 2013 17:27:52 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: memcg: softlimit on internal nodes
+Message-ID: <20130429152752.GD1172@dhcp22.suse.cz>
+References: <20130421124554.GA8473@dhcp22.suse.cz>
+ <20130422043939.GB25089@mtj.dyndns.org>
+ <20130422151908.GF18286@dhcp22.suse.cz>
+ <20130422155703.GC12543@htj.dyndns.org>
+ <20130422162012.GI18286@dhcp22.suse.cz>
+ <20130422183020.GF12543@htj.dyndns.org>
+ <20130423092944.GA8001@dhcp22.suse.cz>
+ <20130423170900.GH12543@htj.dyndns.org>
+ <20130426115120.GG31157@dhcp22.suse.cz>
+ <20130426183741.GA25940@mtj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1367247356-11246-2-git-send-email-steve.capper@linaro.org>
+In-Reply-To: <20130426183741.GA25940@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <Will.Deacon@arm.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>
 
-Steve,
-
-On Mon, Apr 29, 2013 at 03:55:55PM +0100, Steve Capper wrote:
-> Under x86, multiple puds can be made to reference the same bank of
-> huge pmds provided that they represent a full PUD_SIZE of shared
-> huge memory that is aligned to a PUD_SIZE boundary.
+On Fri 26-04-13 11:37:41, Tejun Heo wrote:
+> Hey,
 > 
-> The code to share pmds does not require any architecture specific
-> knowledge other than the fact that pmds can be indexed, thus can
-> be beneficial to some other architectures.
+> On Fri, Apr 26, 2013 at 01:51:20PM +0200, Michal Hocko wrote:
+> > Maybe I should have been more explicit about this but _yes I do agree_
+> > that a separate limit would work as well. I just do not want to
 > 
-> This patch copies the huge pmd sharing (and unsharing) logic from
-> x86/ to mm/ and introduces a new config option to activate it:
-> CONFIG_ARCH_WANTS_HUGE_PMD_SHARE.
+> Heh, the point was more about what we shouldn't be doing, but, yeah,
+> it's good that we at least agree on something.  :)
+> 
+> > Anyway, I will think about cons and pros of the new limit. I think we
+> > shouldn't block the first 3 patches in the series which keep the current
+> > semantic and just change the internals to do the same thing. Do you
+> > agree?
+> 
+> As the merge window is coming right up, if it isn't something super
+> urgent, can we please hold it off until after the merge window?  It
+> would be really great if we can pin down the semantics of the knob
+> before doing anything. 
 
-Just wondering whether more of it could be shared. The following look
-pretty close to what you'd write for arm64:
+I think that merging it into 3.10 would be too ambitious but I think
+this core code cleanup makes sense for future discussions so I would
+like to post it for -mm tree at least. The sooner it will be the better
+IMHO.
 
-- huge_pte_alloc()
-- huge_pte_offset() (there is a pud_large macro on x86 which checks for
-  present & huge, we can replace it with just pud_huge in this function
-  as it already checks for present)
-- follow_huge_pud()
-- follow_huge_pmd()
-
-Of course, arch-specific macros like pud_huge, pmd_huge would have to go
-in a header file.
+> Please.  I'll think / study more about it in the coming weeks.
+> 
+> Thanks.
+> 
+> -- 
+> tejun
 
 -- 
-Catalin
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
