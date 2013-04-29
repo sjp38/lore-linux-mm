@@ -1,48 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id E71C96B0099
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 16:32:20 -0400 (EDT)
-Received: by mail-da0-f51.google.com with SMTP id g27so2047691dan.24
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2013 13:32:20 -0700 (PDT)
-Date: Mon, 29 Apr 2013 13:32:18 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] Add a sysctl for numa_balancing.
-In-Reply-To: <20130429084113.GI2144@suse.de>
-Message-ID: <alpine.DEB.2.02.1304291331570.31525@chino.kir.corp.google.com>
-References: <1366847784-29386-1-git-send-email-andi@firstfloor.org> <20130429084113.GI2144@suse.de>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 87A586B009B
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 16:46:21 -0400 (EDT)
+Received: by mail-vc0-f178.google.com with SMTP id ha11so2176752vcb.23
+        for <linux-mm@kvack.org>; Mon, 29 Apr 2013 13:46:20 -0700 (PDT)
+Message-ID: <517EDC19.7020705@gmail.com>
+Date: Mon, 29 Apr 2013 16:46:17 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: add an option to disable bounce
+References: <1366644180-6140-1-git-send-email-vinayakm.list@gmail.com>
+In-Reply-To: <1366644180-6140-1-git-send-email-vinayakm.list@gmail.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>
+To: vinayakm.list@gmail.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, kosaki.motohiro@gmail.com
 
-On Mon, 29 Apr 2013, Mel Gorman wrote:
-
-> On Wed, Apr 24, 2013 at 04:56:24PM -0700, Andi Kleen wrote:
-> > From: Andi Kleen <ak@linux.intel.com>
-> > 
-> > As discussed earlier, this adds a working sysctl to enable/disable
-> > automatic numa memory balancing at runtime.
-> > 
-> > This was possible earlier through debugfs, but only with special
-> > debugging options set. Also fix the boot message.
-> > 
-> > Signed-off-by: Andi Kleen <ak@linux.intel.com>
+(4/22/13 11:23 AM), vinayakm.list@gmail.com wrote:
+> From: Vinayak Menon <vinayakm.list@gmail.com>
 > 
-> Acked-by: Mel Gorman <mgorman@suse.de>
+> There are times when HIGHMEM is enabled, but
+> we don't prefer CONFIG_BOUNCE to be enabled.
+> CONFIG_BOUNCE can reduce the block device
+> throughput, and this is not ideal for machines
+> where we don't gain much by enabling it. So
+> provide an option to deselect CONFIG_BOUNCE. The
+> observation was made while measuring eMMC throughput
+> using iozone on an ARM device with 1GB RAM.
 > 
-
-Acked-by: David Rientjes <rientjes@google.com>
-
-> Would you like to merge the following patch with it to remove the TBD?
+> Signed-off-by: Vinayak Menon <vinayakm.list@gmail.com>
+> ---
+>  mm/Kconfig |    6 ++++++
+>  1 file changed, 6 insertions(+)
 > 
-> ---8<---
-> mm: numa: Document remaining automatic NUMA balancing sysctls
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 3bea74f..29f9736 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -263,8 +263,14 @@ config ZONE_DMA_FLAG
+>  	default "1"
+>  
+>  config BOUNCE
+> +	bool "Enable bounce buffers"
+>  	def_bool y
+>  	depends on BLOCK && MMU && (ZONE_DMA || HIGHMEM)
+> +	help
+> +	  Enable bounce buffers for devices that cannot access
+> +	  the full range of memory available to the CPU. Enabled
+> +	  by default when ZONE_DMA or HIGMEM is selected, but you
+> +	  may say n to override this.
 
-Acked-by: David Rientjes <rientjes@google.com>
+This should depend on CONFIG_EXPERT. Because this makes typically worse result
+on typical desktop machine.
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
