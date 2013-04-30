@@ -1,47 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 9C3F46B011B
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 12:32:43 -0400 (EDT)
-Date: Tue, 30 Apr 2013 12:32:30 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: Better active/inactive list balancing
-Message-ID: <20130430163230.GB1229@cmpxchg.org>
-References: <517B6DF5.70402@gmail.com>
- <517B6E46.30209@gmail.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 8CCA96B011D
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 12:33:22 -0400 (EDT)
+Date: Tue, 30 Apr 2013 17:33:17 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v4 11/31] list_lru: per-node list infrastructure
+Message-ID: <20130430163317.GK6415@suse.de>
+References: <1367018367-11278-1-git-send-email-glommer@openvz.org>
+ <1367018367-11278-12-git-send-email-glommer@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <517B6E46.30209@gmail.com>
+In-Reply-To: <1367018367-11278-12-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mtrr Patt <mtrr.patt@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+To: Glauber Costa <glommer@openvz.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>
 
-On Sat, Apr 27, 2013 at 02:20:54PM +0800, Mtrr Patt wrote:
-> cc linux-mm
+On Sat, Apr 27, 2013 at 03:19:07AM +0400, Glauber Costa wrote:
+> From: Dave Chinner <dchinner@redhat.com>
 > 
-> On 04/27/2013 02:19 PM, Mtrr Patt wrote:
-> >Hi Johannes,
-> >
-> >http://lwn.net/Articles/495543/
-> >
-> >This link said that "When active pages are considered for
-> >eviction, they are first moved to the inactive list and unmapped
-> >from the address space of the process(es) using them. Thus, once a
-> >page moves to the inactive list, any attempt to reference it will
-> >generate a page fault; this "soft fault" will cause the page to be
-> >removed back to the active list."
-> >
-> >Why I can't find the codes unmap during page moved from active
-> >list to inactive list?
+> Now that we have an LRU list API, we can start to enhance the
+> implementation.  This splits the single LRU list into per-node lists
+> and locks to enhance scalability. Items are placed on lists
+> according to the node the memory belongs to. To make scanning the
+> lists efficient, also track whether the per-node lists have entries
+> in them in a active nodemask.
+> 
+> [ glommer: fixed warnings ]
+> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> Signed-off-by: Glauber Costa <glommer@openvz.org>
+> Reviewed-by: Greg Thelen <gthelen@google.com>
+> ---
+>  include/linux/list_lru.h |  14 ++--
+>  lib/list_lru.c           | 162 +++++++++++++++++++++++++++++++++++------------
+>  2 files changed, 130 insertions(+), 46 deletions(-)
+> 
+> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+> index c0b796d..c422782 100644
+> --- a/include/linux/list_lru.h
+> +++ b/include/linux/list_lru.h
+> @@ -8,6 +8,7 @@
+>  #define _LRU_LIST_H
+>  
+>  #include <linux/list.h>
+> +#include <linux/nodemask.h>
+>  
+>  enum lru_status {
+>  	LRU_REMOVED,		/* item removed from list */
+> @@ -17,20 +18,21 @@ enum lru_status {
+>  				   internally, but has to return locked. */
+>  };
+>  
+> -struct list_lru {
+> +struct list_lru_node {
+>  	spinlock_t		lock;
+>  	struct list_head	list;
+>  	long			nr_items;
+> +} ____cacheline_aligned_in_smp;
+> +
+> +struct list_lru {
+> +	struct list_lru_node	node[MAX_NUMNODES];
+> +	nodemask_t		active_nodes;
+>  };
 
-Most architectures have the hardware track the referenced bit in the
-page tables, but some don't.  For them, page_referenced_one() will
-mark the mapping read-only when clearing the referenced/young bit and
-the page fault handler will set the bit manually.
+struct list_lru is going to be large. 64K just for the list_lru_nodes on a
+distribution configuration that has NODES_SHIFT==10. On most machines it'll
+be mostly unused space. How big is super_block now with two of these things?
+xfs_buftarg? They are rarely allocated structures but it would be a little
+embarassing if we failed to mount a usb stick because kmalloc() of some
+large buffer failed on a laptop.
 
-When mapped pages reach the end of the inactive list and have that bit
-set, they get activated, see page_check_references().
+You may need to convert "list_lru_node node" to be an array of MAX_NUMNODES
+pointers to list_lru_nodes. It'd need a lookup helper for list_lru_add
+and list_lru_del that lazily allocates the list_lru_nodes on first usage
+in case of node hot-add. You could allocate the online nodes at
+list_lru_init.
+
+It'd be awkward but avoid the need for a large kmalloc at runtime just
+because someone plugged in a USB stick.
+
+Otherwise I didn't spot a major problem. There are now per-node lists to
+walk but the overall size of the LRU for walkers should be similar and
+the additional overhead in list_lru_count is hardly going to be
+noticable. I liked the use of active_mask.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
