@@ -1,150 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 849966B0117
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 12:31:22 -0400 (EDT)
-Received: by mail-wg0-f50.google.com with SMTP id m15so642862wgh.17
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2013 09:31:20 -0700 (PDT)
-From: Steve Capper <steve.capper@linaro.org>
-Subject: [RFC PATCH 9/9] ARM64: mm: THP support.
-Date: Tue, 30 Apr 2013 17:30:48 +0100
-Message-Id: <1367339448-21727-10-git-send-email-steve.capper@linaro.org>
-In-Reply-To: <1367339448-21727-1-git-send-email-steve.capper@linaro.org>
-References: <1367339448-21727-1-git-send-email-steve.capper@linaro.org>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 9C3F46B011B
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 12:32:43 -0400 (EDT)
+Date: Tue, 30 Apr 2013 12:32:30 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: Better active/inactive list balancing
+Message-ID: <20130430163230.GB1229@cmpxchg.org>
+References: <517B6DF5.70402@gmail.com>
+ <517B6E46.30209@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <517B6E46.30209@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org
-Cc: Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>
+To: Mtrr Patt <mtrr.patt@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-Bring Transparent HugePage support to ARM. The size of a
-transparent huge page depends on the normal page size. A
-transparent huge page is always represented as a pmd.
+On Sat, Apr 27, 2013 at 02:20:54PM +0800, Mtrr Patt wrote:
+> cc linux-mm
+> 
+> On 04/27/2013 02:19 PM, Mtrr Patt wrote:
+> >Hi Johannes,
+> >
+> >http://lwn.net/Articles/495543/
+> >
+> >This link said that "When active pages are considered for
+> >eviction, they are first moved to the inactive list and unmapped
+> >from the address space of the process(es) using them. Thus, once a
+> >page moves to the inactive list, any attempt to reference it will
+> >generate a page fault; this "soft fault" will cause the page to be
+> >removed back to the active list."
+> >
+> >Why I can't find the codes unmap during page moved from active
+> >list to inactive list?
 
-If PAGE_SIZE is 4K, THPs are 2MB.
-If PAGE_SIZE is 64K, THPs are 512MB.
+Most architectures have the hardware track the referenced bit in the
+page tables, but some don't.  For them, page_referenced_one() will
+mark the mapping read-only when clearing the referenced/young bit and
+the page fault handler will set the bit manually.
 
-Signed-off-by: Steve Capper <steve.capper@linaro.org>
----
- arch/arm64/Kconfig                     |  3 +++
- arch/arm64/include/asm/pgtable-hwdef.h |  1 +
- arch/arm64/include/asm/pgtable.h       | 47 ++++++++++++++++++++++++++++++++++
- arch/arm64/include/asm/tlb.h           |  6 +++++
- arch/arm64/include/asm/tlbflush.h      |  2 ++
- 5 files changed, 59 insertions(+)
-
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 908fd95..9356802 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -194,6 +194,9 @@ config ARCH_WANT_GENERAL_HUGETLB
- config ARCH_WANT_HUGE_PMD_SHARE
- 	def_bool y if !ARM64_64K_PAGES
- 
-+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
-+	def_bool y if MMU
-+
- source "mm/Kconfig"
- 
- config FORCE_MAX_ZONEORDER
-diff --git a/arch/arm64/include/asm/pgtable-hwdef.h b/arch/arm64/include/asm/pgtable-hwdef.h
-index c3cac68..862acf7 100644
---- a/arch/arm64/include/asm/pgtable-hwdef.h
-+++ b/arch/arm64/include/asm/pgtable-hwdef.h
-@@ -35,6 +35,7 @@
- /*
-  * Section
-  */
-+#define PMD_SECT_RDONLY		(_AT(pmdval_t, 1) << 7)		/* AP[2] */
- #define PMD_SECT_S		(_AT(pmdval_t, 3) << 8)
- #define PMD_SECT_AF		(_AT(pmdval_t, 1) << 10)
- #define PMD_SECT_NG		(_AT(pmdval_t, 1) << 11)
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index 4b7a058..06bfbd6 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -188,6 +188,53 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
- #define __HAVE_ARCH_PTE_SPECIAL
- 
- /*
-+ * Software PMD bits for THP
-+ */
-+
-+#define PMD_SECT_DIRTY		(_AT(pmdval_t, 1) << 55)
-+#define PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 57)
-+
-+/*
-+ * THP definitions.
-+ */
-+#define pmd_young(pmd)		(pmd_val(pmd) & PMD_SECT_AF)
-+
-+#define __HAVE_ARCH_PMD_WRITE
-+#define pmd_write(pmd)		(!(pmd_val(pmd) & PMD_SECT_RDONLY))
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmd_trans_huge(pmd)	((pmd_val(pmd) & PMD_TYPE_MASK) == PMD_TYPE_SECT)
-+#define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
-+#endif
-+
-+#define PMD_BIT_FUNC(fn,op) \
-+static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
-+
-+PMD_BIT_FUNC(wrprotect,	|= PMD_SECT_RDONLY);
-+PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
-+PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
-+PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
-+PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
-+PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
-+PMD_BIT_FUNC(mknotpresent, &= ~PMD_TYPE_MASK);
-+
-+#define pmd_mkhuge(pmd)		(__pmd((pmd_val(pmd) & ~PMD_TYPE_MASK) | PMD_TYPE_SECT))
-+
-+#define pmd_pfn(pmd)		(((pmd_val(pmd) & PMD_MASK) & PHYS_MASK) >> PAGE_SHIFT)
-+#define pfn_pmd(pfn,prot)	(__pmd(((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot)))
-+#define mk_pmd(page,prot)	pfn_pmd(page_to_pfn(page),prot)
-+
-+#define pmd_page(pmd)           pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
-+
-+#define pmd_modify(pmd,newprot)	(__pmd(pmd_val(pmd) | pgprot_val(newprot)))
-+#define set_pmd_at(mm, addr, pmdp, pmd)	set_pmd(pmdp, pmd)
-+
-+static inline int has_transparent_hugepage(void)
-+{
-+	return 1;
-+}
-+
-+/*
-  * Mark the prot value as uncacheable and unbufferable.
-  */
- #define pgprot_noncached(prot) \
-diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
-index 654f096..46b3beb 100644
---- a/arch/arm64/include/asm/tlb.h
-+++ b/arch/arm64/include/asm/tlb.h
-@@ -187,4 +187,10 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
- 
- #define tlb_migrate_finish(mm)		do { } while (0)
- 
-+static inline void
-+tlb_remove_pmd_tlb_entry(struct mmu_gather *tlb, pmd_t *pmdp, unsigned long addr)
-+{
-+	tlb_add_flush(tlb, addr);
-+}
-+
- #endif
-diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h
-index 122d632..8b48203 100644
---- a/arch/arm64/include/asm/tlbflush.h
-+++ b/arch/arm64/include/asm/tlbflush.h
-@@ -117,6 +117,8 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
- 	dsb();
- }
- 
-+#define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
-+
- #endif
- 
- #endif
--- 
-1.8.1.4
+When mapped pages reach the end of the inactive list and have that bit
+set, they get activated, see page_check_references().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
