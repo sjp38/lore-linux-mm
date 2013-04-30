@@ -1,38 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 836486B012F
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 13:36:17 -0400 (EDT)
-Date: Tue, 30 Apr 2013 13:36:07 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm, memcg: add rss_huge stat to memory.stat
-Message-ID: <20130430173607.GF1229@cmpxchg.org>
-References: <alpine.DEB.2.02.1304251440190.27228@chino.kir.corp.google.com>
- <20130426111739.GF31157@dhcp22.suse.cz>
- <alpine.DEB.2.02.1304281432160.5570@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1304291721550.4634@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 6439B6B0131
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 13:39:54 -0400 (EDT)
+Date: Tue, 30 Apr 2013 18:39:47 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v4 13/31] fs: convert inode and dentry shrinking to be
+ node aware
+Message-ID: <20130430173947.GM6415@suse.de>
+References: <1367018367-11278-1-git-send-email-glommer@openvz.org>
+ <1367018367-11278-14-git-send-email-glommer@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1304291721550.4634@chino.kir.corp.google.com>
+In-Reply-To: <1367018367-11278-14-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@openvz.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>
 
-On Mon, Apr 29, 2013 at 05:22:52PM -0700, David Rientjes wrote:
-> This exports the amount of anonymous transparent hugepages for each memcg
-> via the new "rss_huge" stat in memory.stat.  The units are in bytes.
+On Sat, Apr 27, 2013 at 03:19:09AM +0400, Glauber Costa wrote:
+> From: Dave Chinner <dchinner@redhat.com>
 > 
-> This is helpful to determine the hugepage utilization for individual jobs
-> on the system in comparison to rss and opportunities where MADV_HUGEPAGE
-> may be helpful.
+> Now that the shrinker is passing a nodemask in the scan control
+> structure, we can pass this to the the generic LRU list code to
+> isolate reclaim to the lists on matching nodes.
 > 
-> The amount of anonymous transparent hugepages is also included in "rss"
-> for backwards compatibility.
+> This requires a small amount of refactoring of the LRU list API,
+> which might be best split out into a separate patch.
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Dave Chinner <dchinner@redhat.com>
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off missing but otherwise
+
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
