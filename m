@@ -1,62 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 5A6966B00E3
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 10:15:02 -0400 (EDT)
-Date: Tue, 30 Apr 2013 15:14:56 +0100
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id F2B596B00E5
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 10:40:37 -0400 (EDT)
+Date: Tue, 30 Apr 2013 15:40:33 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v4 05/31] dcache: remove dentries from LRU before putting
- on dispose list
-Message-ID: <20130430141456.GE6415@suse.de>
+Subject: Re: [PATCH v4 06/31] mm: new shrinker API
+Message-ID: <20130430144033.GF6415@suse.de>
 References: <1367018367-11278-1-git-send-email-glommer@openvz.org>
- <1367018367-11278-6-git-send-email-glommer@openvz.org>
+ <1367018367-11278-7-git-send-email-glommer@openvz.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1367018367-11278-6-git-send-email-glommer@openvz.org>
+In-Reply-To: <1367018367-11278-7-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@openvz.org>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>
 
-On Sat, Apr 27, 2013 at 03:19:01AM +0400, Glauber Costa wrote:
+On Sat, Apr 27, 2013 at 03:19:02AM +0400, Glauber Costa wrote:
 > From: Dave Chinner <dchinner@redhat.com>
 > 
-> One of the big problems with modifying the way the dcache shrinker
-> and LRU implementation works is that the LRU is abused in several
-> ways. One of these is shrink_dentry_list().
+> The current shrinker callout API uses an a single shrinker call for
+> multiple functions. To determine the function, a special magical
+> value is passed in a parameter to change the behaviour. This
+> complicates the implementation and return value specification for
+> the different behaviours.
 > 
-> Basically, we can move a dentry off the LRU onto a different list
-> without doing any accounting changes, and then use dentry_lru_prune()
-> to remove it from what-ever list it is now on to do the LRU
-> accounting at that point.
+> Separate the two different behaviours into separate operations, one
+> to return a count of freeable objects in the cache, and another to
+> scan a certain number of objects in the cache for freeing. In
+> defining these new operations, ensure the return values and
+> resultant behaviours are clearly defined and documented.
 > 
-> This makes it -really hard- to change the LRU implementation. The
-> use of the per-sb LRU lock serialises movement of the dentries
-> between the different lists and the removal of them, and this is the
-> only reason that it works. If we want to break up the dentry LRU
-> lock and lists into, say, per-node lists, we remove the only
-> serialisation that allows this lru list/dispose list abuse to work.
+> Modify shrink_slab() to use the new API and implement the callouts
+> for all the existing shrinkers.
 > 
-> To make this work effectively, the dispose list has to be isolated
-> from the LRU list - dentries have to be removed from the LRU
-> *before* being placed on the dispose list. This means that the LRU
-> accounting and isolation is completed before disposal is started,
-> and that means we can change the LRU implementation freely in
-> future.
-> 
-> This means that dentries *must* be marked with DCACHE_SHRINK_LIST
-> when they are placed on the dispose list so that we don't think that
-> parent dentries found in try_prune_one_dentry() are on the LRU when
-> the are actually on the dispose list. This would result in
-> accounting the dentry to the LRU a second time. Hence
-> dentry_lru_prune() has to handle the DCACHE_SHRINK_LIST case
-> differently because the dentry isn't on the LRU list.
-> 
-> [ v2: don't decrement nr unused twice, spotted by Sha Zhengju ]
 > Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> Signed-off-by: Glauber Costa <glommer@openvz.org>
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Glauber's signed-off appears to be missing.
+
+> ---
+>  include/linux/shrinker.h | 37 +++++++++++++++++++++++++----------
+>  mm/vmscan.c              | 51 +++++++++++++++++++++++++++++++-----------------
+>  2 files changed, 60 insertions(+), 28 deletions(-)
+> 
+> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> index ac6b8ee..4f59615 100644
+> --- a/include/linux/shrinker.h
+> +++ b/include/linux/shrinker.h
+> @@ -4,31 +4,47 @@
+>  /*
+>   * This struct is used to pass information from page reclaim to the shrinkers.
+>   * We consolidate the values for easier extention later.
+> + *
+> + * The 'gfpmask' refers to the allocation we are currently trying to
+> + * fulfil.
+> + *
+> + * Note that 'shrink' will be passed nr_to_scan == 0 when the VM is
+> + * querying the cache size, so a fastpath for that case is appropriate.
+>   */
+>  struct shrink_control {
+>  	gfp_t gfp_mask;
+>  
+>  	/* How many slab objects shrinker() should scan and try to reclaim */
+> -	unsigned long nr_to_scan;
+> +	long nr_to_scan;
+>  };
+>  
+
+As unreasonable as it is, it means that this API can no longer can handle
+more than "long" objects. While we'd never hit the limit in practice
+unless shrinkers are insane or the objects represent something that is
+not stored in memory, it still looks odd to allow an API to potentially
+say it has a negative number of objects and as as far as I can gather,
+it's just so the shrinkers can return -1.
+
+Why not leave this as unsigned long and return SHRINK_UNCOUNTABLE
+count_objects if the number of freeable items cannot be determined and
+SHRINK_UNFREEABLE if scan_objects cannot free without risk of deadlock.
+Underneath, SHRINK_* would be defined as ULONG_MAX.
+
+>  /*
+>   * A callback you can register to apply pressure to ageable caches.
+>   *
+> - * 'sc' is passed shrink_control which includes a count 'nr_to_scan'
+> - * and a 'gfpmask'.  It should look through the least-recently-used
+> - * 'nr_to_scan' entries and attempt to free them up.  It should return
+> - * the number of objects which remain in the cache.  If it returns -1, it means
+> - * it cannot do any scanning at this time (eg. there is a risk of deadlock).
+> + * @shrink() should look through the least-recently-used 'nr_to_scan' entries
+> + * and attempt to free them up.  It should return the number of objects which
+> + * remain in the cache.  If it returns -1, it means it cannot do any scanning at
+> + * this time (eg. there is a risk of deadlock).
+>   *
+> - * The 'gfpmask' refers to the allocation we are currently trying to
+> - * fulfil.
+> + * @count_objects should return the number of freeable items in the cache. If
+> + * there are no objects to free or the number of freeable items cannot be
+> + * determined, it should return 0. No deadlock checks should be done during the
+> + * count callback - the shrinker relies on aggregating scan counts that couldn't
+> + * be executed due to potential deadlocks to be run at a later call when the
+> + * deadlock condition is no longer pending.
+>   *
+> - * Note that 'shrink' will be passed nr_to_scan == 0 when the VM is
+> - * querying the cache size, so a fastpath for that case is appropriate.
+> + * @scan_objects will only be called if @count_objects returned a positive
+> + * value for the number of freeable objects. The callout should scan the cache
+> + * and attemp to free items from the cache. It should then return the number of
+
+s/attemp/attempt/
+
+> + * objects freed during the scan, or -1 if progress cannot be made due to
+> + * potential deadlocks. If -1 is returned, then no further attempts to call the
+> + * @scan_objects will be made from the current reclaim context.
+>   */
+>  struct shrinker {
+>  	int (*shrink)(struct shrinker *, struct shrink_control *sc);
+> +	long (*count_objects)(struct shrinker *, struct shrink_control *sc);
+> +	long (*scan_objects)(struct shrinker *, struct shrink_control *sc);
+> +
+
+Similarly these would return unsigned long
+
+>  	int seeks;	/* seeks to recreate an obj */
+>  	long batch;	/* reclaim batch size, 0 = default */
+>  
+> @@ -36,6 +52,7 @@ struct shrinker {
+>  	struct list_head list;
+>  	atomic_long_t nr_in_batch; /* objs pending delete */
+>  };
+> +
+>  #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
+>  extern void register_shrinker(struct shrinker *);
+>  extern void unregister_shrinker(struct shrinker *);
+
+Just random whitespace change there.
+
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index f9d2fba..ca3f690 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -205,19 +205,19 @@ static inline int do_shrinker_shrink(struct shrinker *shrinker,
+>   *
+>   * Returns the number of slab objects which we shrunk.
+>   */
+> -unsigned long shrink_slab(struct shrink_control *shrink,
+> +unsigned long shrink_slab(struct shrink_control *sc,
+>  			  unsigned long nr_pages_scanned,
+>  			  unsigned long lru_pages)
+>  {
+
+In every other part of vmscan.c, sc is a scan_control but here it is a
+shrink_control. That's an unfortunate reuse of a name that cause me to
+scratch my head later when I looked at the tracepoint modification.
+shrinkc? It's a crappy suggestion but if you think of a better name than
+sc then a rename would be nice.
+
+>  	struct shrinker *shrinker;
+> -	unsigned long ret = 0;
+> +	unsigned long freed = 0;
+>  
+>  	if (nr_pages_scanned == 0)
+>  		nr_pages_scanned = SWAP_CLUSTER_MAX;
+>  
+>  	if (!down_read_trylock(&shrinker_rwsem)) {
+>  		/* Assume we'll be able to shrink next time */
+> -		ret = 1;
+> +		freed = 1;
+>  		goto out;
+>  	}
+>  
+> @@ -225,13 +225,16 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+>  		unsigned long long delta;
+>  		long total_scan;
+>  		long max_pass;
+> -		int shrink_ret = 0;
+>  		long nr;
+>  		long new_nr;
+>  		long batch_size = shrinker->batch ? shrinker->batch
+>  						  : SHRINK_BATCH;
+>  
+> -		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
+> +		if (shrinker->scan_objects) {
+> +			max_pass = shrinker->count_objects(shrinker, sc);
+> +			WARN_ON(max_pass < 0);
+> +		} else
+> +			max_pass = do_shrinker_shrink(shrinker, sc, 0);
+>  		if (max_pass <= 0)
+>  			continue;
+>  
+
+This had me scratching my head but looking ahead you introduce the new API,
+convert everything over and then kick this away. Presumably this is for
+bisect safely and so the patch is not a megapatch of hurt.
+
+Generally I saw no problems, this was mostly on the nit-picking end of
+the spectrum and a count/scan pair of APIs is a lot nicer to look at
+than the current interface.
 
 -- 
 Mel Gorman
