@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 9DF076B0115
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 12:31:20 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id k13so669532wgh.7
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2013 09:31:18 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 849966B0117
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 12:31:22 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id m15so642862wgh.17
+        for <linux-mm@kvack.org>; Tue, 30 Apr 2013 09:31:20 -0700 (PDT)
 From: Steve Capper <steve.capper@linaro.org>
-Subject: [RFC PATCH 8/9] ARM64: mm: Introduce MAX_ZONE_ORDER for 64K and THP.
-Date: Tue, 30 Apr 2013 17:30:47 +0100
-Message-Id: <1367339448-21727-9-git-send-email-steve.capper@linaro.org>
+Subject: [RFC PATCH 9/9] ARM64: mm: THP support.
+Date: Tue, 30 Apr 2013 17:30:48 +0100
+Message-Id: <1367339448-21727-10-git-send-email-steve.capper@linaro.org>
 In-Reply-To: <1367339448-21727-1-git-send-email-steve.capper@linaro.org>
 References: <1367339448-21727-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,48 +15,134 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 Cc: Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>
 
-The buddy allocator has a default order of 11, which is too low to
-allocate enough memory for 512MB Transparent HugePages if our base
-page size is 64K. For any order less than 13, the combination of
-THP with 64K pages will cause a compile error.
+Bring Transparent HugePage support to ARM. The size of a
+transparent huge page depends on the normal page size. A
+transparent huge page is always represented as a pmd.
 
-This patch introduces the MAX_ZONE_ORDER config option that allows
-one to explicitly override the order of the buddy allocator. If
-64K pages and THP are enabled the minimum value is set to 13.
+If PAGE_SIZE is 4K, THPs are 2MB.
+If PAGE_SIZE is 64K, THPs are 512MB.
 
 Signed-off-by: Steve Capper <steve.capper@linaro.org>
 ---
- arch/arm64/Kconfig | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ arch/arm64/Kconfig                     |  3 +++
+ arch/arm64/include/asm/pgtable-hwdef.h |  1 +
+ arch/arm64/include/asm/pgtable.h       | 47 ++++++++++++++++++++++++++++++++++
+ arch/arm64/include/asm/tlb.h           |  6 +++++
+ arch/arm64/include/asm/tlbflush.h      |  2 ++
+ 5 files changed, 59 insertions(+)
 
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 16aa780..908fd95 100644
+index 908fd95..9356802 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -196,6 +196,23 @@ config ARCH_WANT_HUGE_PMD_SHARE
+@@ -194,6 +194,9 @@ config ARCH_WANT_GENERAL_HUGETLB
+ config ARCH_WANT_HUGE_PMD_SHARE
+ 	def_bool y if !ARM64_64K_PAGES
  
++config HAVE_ARCH_TRANSPARENT_HUGEPAGE
++	def_bool y if MMU
++
  source "mm/Kconfig"
  
-+config FORCE_MAX_ZONEORDER
-+	int "Maximum zone order"
-+	range 11 64 if !(ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
-+	range 13 64 if ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE
-+	default "11" if !(ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
-+	default "13" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
-+	help
-+	  The kernel memory allocator divides physically contiguous memory
-+	  blocks into "zones", where each zone is a power of two number of
-+	  pages.  This option selects the largest power of two that the kernel
-+	  keeps in the memory allocator.  If you need to allocate very large
-+	  blocks of physically contiguous memory, then you may need to
-+	  increase this value.
-+
-+	  This config option is actually maximum order plus one. For example,
-+	  a value of 11 means that the largest free memory block is 2^10 pages.
-+
- endmenu
+ config FORCE_MAX_ZONEORDER
+diff --git a/arch/arm64/include/asm/pgtable-hwdef.h b/arch/arm64/include/asm/pgtable-hwdef.h
+index c3cac68..862acf7 100644
+--- a/arch/arm64/include/asm/pgtable-hwdef.h
++++ b/arch/arm64/include/asm/pgtable-hwdef.h
+@@ -35,6 +35,7 @@
+ /*
+  * Section
+  */
++#define PMD_SECT_RDONLY		(_AT(pmdval_t, 1) << 7)		/* AP[2] */
+ #define PMD_SECT_S		(_AT(pmdval_t, 3) << 8)
+ #define PMD_SECT_AF		(_AT(pmdval_t, 1) << 10)
+ #define PMD_SECT_NG		(_AT(pmdval_t, 1) << 11)
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index 4b7a058..06bfbd6 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -188,6 +188,53 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+ #define __HAVE_ARCH_PTE_SPECIAL
  
- menu "Boot options"
+ /*
++ * Software PMD bits for THP
++ */
++
++#define PMD_SECT_DIRTY		(_AT(pmdval_t, 1) << 55)
++#define PMD_SECT_SPLITTING	(_AT(pmdval_t, 1) << 57)
++
++/*
++ * THP definitions.
++ */
++#define pmd_young(pmd)		(pmd_val(pmd) & PMD_SECT_AF)
++
++#define __HAVE_ARCH_PMD_WRITE
++#define pmd_write(pmd)		(!(pmd_val(pmd) & PMD_SECT_RDONLY))
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++#define pmd_trans_huge(pmd)	((pmd_val(pmd) & PMD_TYPE_MASK) == PMD_TYPE_SECT)
++#define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
++#endif
++
++#define PMD_BIT_FUNC(fn,op) \
++static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
++
++PMD_BIT_FUNC(wrprotect,	|= PMD_SECT_RDONLY);
++PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
++PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
++PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
++PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
++PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
++PMD_BIT_FUNC(mknotpresent, &= ~PMD_TYPE_MASK);
++
++#define pmd_mkhuge(pmd)		(__pmd((pmd_val(pmd) & ~PMD_TYPE_MASK) | PMD_TYPE_SECT))
++
++#define pmd_pfn(pmd)		(((pmd_val(pmd) & PMD_MASK) & PHYS_MASK) >> PAGE_SHIFT)
++#define pfn_pmd(pfn,prot)	(__pmd(((phys_addr_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot)))
++#define mk_pmd(page,prot)	pfn_pmd(page_to_pfn(page),prot)
++
++#define pmd_page(pmd)           pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
++
++#define pmd_modify(pmd,newprot)	(__pmd(pmd_val(pmd) | pgprot_val(newprot)))
++#define set_pmd_at(mm, addr, pmdp, pmd)	set_pmd(pmdp, pmd)
++
++static inline int has_transparent_hugepage(void)
++{
++	return 1;
++}
++
++/*
+  * Mark the prot value as uncacheable and unbufferable.
+  */
+ #define pgprot_noncached(prot) \
+diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
+index 654f096..46b3beb 100644
+--- a/arch/arm64/include/asm/tlb.h
++++ b/arch/arm64/include/asm/tlb.h
+@@ -187,4 +187,10 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+ 
+ #define tlb_migrate_finish(mm)		do { } while (0)
+ 
++static inline void
++tlb_remove_pmd_tlb_entry(struct mmu_gather *tlb, pmd_t *pmdp, unsigned long addr)
++{
++	tlb_add_flush(tlb, addr);
++}
++
+ #endif
+diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h
+index 122d632..8b48203 100644
+--- a/arch/arm64/include/asm/tlbflush.h
++++ b/arch/arm64/include/asm/tlbflush.h
+@@ -117,6 +117,8 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
+ 	dsb();
+ }
+ 
++#define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
++
+ #endif
+ 
+ #endif
 -- 
 1.8.1.4
 
