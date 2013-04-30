@@ -1,110 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 082236B00EA
-	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 11:32:22 -0400 (EDT)
-Date: Tue, 30 Apr 2013 16:32:18 +0100
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 4772B6B00EF
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 11:37:12 -0400 (EDT)
+Date: Tue, 30 Apr 2013 16:37:07 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v4 06/31] mm: new shrinker API
-Message-ID: <20130430153218.GC11497@suse.de>
+Subject: Re: [PATCH v4 02/31] vmscan: take at least one pass with shrinkers
+Message-ID: <20130430153707.GD11497@suse.de>
 References: <1367018367-11278-1-git-send-email-glommer@openvz.org>
- <1367018367-11278-7-git-send-email-glommer@openvz.org>
- <20130430144033.GF6415@suse.de>
- <517FDD29.7000600@parallels.com>
+ <1367018367-11278-3-git-send-email-glommer@openvz.org>
+ <20130430132239.GB6415@suse.de>
+ <517FC7B4.5030101@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <517FDD29.7000600@parallels.com>
+In-Reply-To: <517FC7B4.5030101@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Tue, Apr 30, 2013 at 07:03:05PM +0400, Glauber Costa wrote:
-> On 04/30/2013 06:40 PM, Mel Gorman wrote:
-> > On Sat, Apr 27, 2013 at 03:19:02AM +0400, Glauber Costa wrote:
-> >> From: Dave Chinner <dchinner@redhat.com>
+On Tue, Apr 30, 2013 at 05:31:32PM +0400, Glauber Costa wrote:
+> On 04/30/2013 05:22 PM, Mel Gorman wrote:
+> > On Sat, Apr 27, 2013 at 03:18:58AM +0400, Glauber Costa wrote:
+> >> In very low free kernel memory situations, it may be the case that we
+> >> have less objects to free than our initial batch size. If this is the
+> >> case, it is better to shrink those, and open space for the new workload
+> >> then to keep them and fail the new allocations.
 > >>
-> >> The current shrinker callout API uses an a single shrinker call for
-> >> multiple functions. To determine the function, a special magical
-> >> value is passed in a parameter to change the behaviour. This
-> >> complicates the implementation and return value specification for
-> >> the different behaviours.
+> >> More specifically, this happens because we encode this in a loop with
+> >> the condition: "while (total_scan >= batch_size)". So if we are in such
+> >> a case, we'll not even enter the loop.
 > >>
-> >> Separate the two different behaviours into separate operations, one
-> >> to return a count of freeable objects in the cache, and another to
-> >> scan a certain number of objects in the cache for freeing. In
-> >> defining these new operations, ensure the return values and
-> >> resultant behaviours are clearly defined and documented.
+> >> This patch modifies turns it into a do () while {} loop, that will
+> >> guarantee that we scan it at least once, while keeping the behaviour
+> >> exactly the same for the cases in which total_scan > batch_size.
 > >>
-> >> Modify shrink_slab() to use the new API and implement the callouts
-> >> for all the existing shrinkers.
-> >>
-> >> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> >> Signed-off-by: Glauber Costa <glommer@openvz.org>
+> >> Reviewed-by: Dave Chinner <david@fromorbit.com>
+> >> Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
+> >> CC: "Theodore Ts'o" <tytso@mit.edu>
+> >> CC: Al Viro <viro@zeniv.linux.org.uk>
 > > 
-> > Glauber's signed-off appears to be missing.
+> > There are two cases where this *might* cause a problem and worth keeping
+> > an eye out for.
 > > 
-> I didn't sign all patches, just the ones I have changed.
-> Should I sign them all ?
+> 
+> Any test case that you envision that could help bringing those issues
+> forward should they exist ? (aside from getting it into upstream trees
+> early?)
 > 
 
-Yes because you are on the submission path and form part of the chain of
-trust. Andrew does not change every patch he signs off, neither does Greg
-(-stable) or Linus (mainline).
+hmm.
 
-> > 
-> > As unreasonable as it is, it means that this API can no longer can handle
-> > more than "long" objects. While we'd never hit the limit in practice
-> > unless shrinkers are insane or the objects represent something that is
-> > not stored in memory, it still looks odd to allow an API to potentially
-> > say it has a negative number of objects and as as far as I can gather,
-> > it's just so the shrinkers can return -1.
-> > 
-> > Why not leave this as unsigned long and return SHRINK_UNCOUNTABLE
-> > count_objects if the number of freeable items cannot be determined and
-> > SHRINK_UNFREEABLE if scan_objects cannot free without risk of deadlock.
-> > Underneath, SHRINK_* would be defined as ULONG_MAX.
-> > 
->
-> I believe you have already saw the reason for that in the following patch.
-> 
-
-Yes, although it was to match existing behaviour, not because it was
-necessarily a good idea.
-
-> Do you still have a problem with this ?
-> 
-
-Not enough to NAK it but it would be desirable because it does feel strange
-to have the API deal with negative numbers of objects just to have -1.
-
-> > 
-> >> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >> index f9d2fba..ca3f690 100644
-> >> --- a/mm/vmscan.c
-> >> +++ b/mm/vmscan.c
-> >> @@ -205,19 +205,19 @@ static inline int do_shrinker_shrink(struct shrinker *shrinker,
-> >>   *
-> >>   * Returns the number of slab objects which we shrunk.
-> >>   */
-> >> -unsigned long shrink_slab(struct shrink_control *shrink,
-> >> +unsigned long shrink_slab(struct shrink_control *sc,
-> >>  			  unsigned long nr_pages_scanned,
-> >>  			  unsigned long lru_pages)
-> >>  {
-> > 
-> > In every other part of vmscan.c, sc is a scan_control but here it is a
-> > shrink_control. That's an unfortunate reuse of a name that cause me to
-> > scratch my head later when I looked at the tracepoint modification.
-> > shrinkc? It's a crappy suggestion but if you think of a better name than
-> > sc then a rename would be nice.
-> >
-> 
-> 
-> I am all in favor of being explicit. How about we rename sc to...
-> shrink_control ?
-> 
-
-It has the advantage of being impossible to confuse :)
+fsmark multi-threaded in a small-memory machine with a small number of
+very large files greater than the size of physical memory might trigger
+it. There should be a small number of inodes active so less than the 128
+that would have been ignored before the patch. As the files are larger
+than memory, kswapd will be awake and calling shrinkers so if the
+shrinker is really discarding active inodes then the performance will
+degrade.
 
 -- 
 Mel Gorman
