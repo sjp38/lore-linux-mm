@@ -1,172 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id DC4376B00A9
-	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 20:22:54 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa10so30672pad.13
-        for <linux-mm@kvack.org>; Mon, 29 Apr 2013 17:22:54 -0700 (PDT)
-Date: Mon, 29 Apr 2013 17:22:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, memcg: add rss_huge stat to memory.stat
-In-Reply-To: <alpine.DEB.2.02.1304281432160.5570@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1304291721550.4634@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1304251440190.27228@chino.kir.corp.google.com> <20130426111739.GF31157@dhcp22.suse.cz> <alpine.DEB.2.02.1304281432160.5570@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 68ECD6B00AB
+	for <linux-mm@kvack.org>; Mon, 29 Apr 2013 22:22:11 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dwg@au1.ibm.com>;
+	Tue, 30 Apr 2013 12:12:42 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 26E6B2CE804D
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 12:22:04 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r3U28CeZ23986272
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 12:08:13 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r3U2M2Cb016865
+	for <linux-mm@kvack.org>; Tue, 30 Apr 2013 12:22:02 +1000
+Date: Tue, 30 Apr 2013 12:21:49 +1000
+From: David Gibson <dwg@au1.ibm.com>
+Subject: Re: [PATCH -V7 01/18] mm/THP: HPAGE_SHIFT is not a #define on some
+ arch
+Message-ID: <20130430022149.GU20202@truffula.fritz.box>
+References: <1367177859-7893-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1367177859-7893-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="Sh7h4lnU5nPTsIof"
+Content-Disposition: inline
+In-Reply-To: <1367177859-7893-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-This exports the amount of anonymous transparent hugepages for each memcg
-via the new "rss_huge" stat in memory.stat.  The units are in bytes.
+--Sh7h4lnU5nPTsIof
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-This is helpful to determine the hugepage utilization for individual jobs
-on the system in comparison to rss and opportunities where MADV_HUGEPAGE
-may be helpful.
+On Mon, Apr 29, 2013 at 01:07:22AM +0530, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>=20
+> On archs like powerpc that support different hugepage sizes, HPAGE_SHIFT
+> and other derived values like HPAGE_PMD_ORDER are not constants. So move
+> that to hugepage_init
 
-The amount of anonymous transparent hugepages is also included in "rss"
-for backwards compatibility.
+These seems to miss the point.  Those variables may be defined in
+terms of HPAGE_SHIFT right now, but that is of itself kind of broken.
+The transparent hugepage mechanism only works if the hugepage size is
+equal to the PMD size - and PMD_SHIFT remains a compile time constant.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- Documentation/cgroups/memory.txt |  4 +++-
- mm/memcontrol.c                  | 36 ++++++++++++++++++++++++++----------
- 2 files changed, 29 insertions(+), 11 deletions(-)
+There's no reason having transparent hugepage should force the PMD
+size of hugepage to be the default for other purposes - it should be
+possible to do THP as long as PMD-sized is a possible hugepage size.
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -478,7 +478,9 @@ memory.stat file includes following statistics
- 
- # per-memory cgroup local status
- cache		- # of bytes of page cache memory.
--rss		- # of bytes of anonymous and swap cache memory.
-+rss		- # of bytes of anonymous and swap cache memory (includes
-+		transparent hugepages).
-+rss_huge	- # of bytes of anonymous transparent hugepages.
- mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
- pgpgin		- # of charging events to the memory cgroup. The charging
- 		event happens each time a page is accounted as either mapped
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -91,16 +91,18 @@ enum mem_cgroup_stat_index {
- 	/*
- 	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
- 	 */
--	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
--	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
--	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
--	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
-+	MEM_CGROUP_STAT_CACHE,		/* # of pages charged as cache */
-+	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
-+	MEM_CGROUP_STAT_RSS_HUGE,	/* # of pages charged as anon huge */
-+	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
-+	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
- 	MEM_CGROUP_STAT_NSTATS,
- };
- 
- static const char * const mem_cgroup_stat_names[] = {
- 	"cache",
- 	"rss",
-+	"rss_huge",
- 	"mapped_file",
- 	"swap",
- };
-@@ -888,6 +890,7 @@ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
- }
- 
- static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
-+					 struct page *page,
- 					 bool anon, int nr_pages)
- {
- 	preempt_disable();
-@@ -903,6 +906,10 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
- 		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
- 				nr_pages);
- 
-+	if (PageTransHuge(page))
-+		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS_HUGE],
-+				nr_pages);
-+
- 	/* pagein of a big page is an event. So, ignore page size */
- 	if (nr_pages > 0)
- 		__this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGIN]);
-@@ -2813,7 +2820,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
- 	else
- 		anon = false;
- 
--	mem_cgroup_charge_statistics(memcg, anon, nr_pages);
-+	mem_cgroup_charge_statistics(memcg, page, anon, nr_pages);
- 	unlock_page_cgroup(pc);
- 
- 	/*
-@@ -3603,16 +3610,21 @@ void mem_cgroup_split_huge_fixup(struct page *head)
- {
- 	struct page_cgroup *head_pc = lookup_page_cgroup(head);
- 	struct page_cgroup *pc;
-+	struct mem_cgroup *memcg;
- 	int i;
- 
- 	if (mem_cgroup_disabled())
- 		return;
-+
-+	memcg = head_pc->mem_cgroup;
- 	for (i = 1; i < HPAGE_PMD_NR; i++) {
- 		pc = head_pc + i;
--		pc->mem_cgroup = head_pc->mem_cgroup;
-+		pc->mem_cgroup = memcg;
- 		smp_wmb();/* see __commit_charge() */
- 		pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
- 	}
-+	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_RSS_HUGE],
-+		       HPAGE_PMD_NR);
- }
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
-@@ -3668,11 +3680,11 @@ static int mem_cgroup_move_account(struct page *page,
- 		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
- 		preempt_enable();
- 	}
--	mem_cgroup_charge_statistics(from, anon, -nr_pages);
-+	mem_cgroup_charge_statistics(from, page, anon, -nr_pages);
- 
- 	/* caller should have done css_get */
- 	pc->mem_cgroup = to;
--	mem_cgroup_charge_statistics(to, anon, nr_pages);
-+	mem_cgroup_charge_statistics(to, page, anon, nr_pages);
- 	move_unlock_mem_cgroup(from, &flags);
- 	ret = 0;
- unlock:
-@@ -4047,7 +4059,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
- 		break;
- 	}
- 
--	mem_cgroup_charge_statistics(memcg, anon, -nr_pages);
-+	mem_cgroup_charge_statistics(memcg, page, anon, -nr_pages);
- 
- 	ClearPageCgroupUsed(pc);
- 	/*
-@@ -4397,7 +4409,7 @@ void mem_cgroup_replace_page_cache(struct page *oldpage,
- 	lock_page_cgroup(pc);
- 	if (PageCgroupUsed(pc)) {
- 		memcg = pc->mem_cgroup;
--		mem_cgroup_charge_statistics(memcg, false, -1);
-+		mem_cgroup_charge_statistics(memcg, oldpage, false, -1);
- 		ClearPageCgroupUsed(pc);
- 	}
- 	unlock_page_cgroup(pc);
-@@ -4925,6 +4937,10 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
- 			return res_counter_read_u64(&memcg->memsw, RES_USAGE);
- 	}
- 
-+	/*
-+	 * Transparent hugepages are still accounted for in MEM_CGROUP_STAT_RSS
-+	 * as well as in MEM_CGROUP_STAT_RSS_HUGE.
-+	 */
- 	val = mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_CACHE);
- 	val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_RSS);
- 
+--=20
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
+
+--Sh7h4lnU5nPTsIof
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iEYEARECAAYFAlF/Kr0ACgkQaILKxv3ab8YK6ACePQzw/9X5H+l8PCCPLjXKGkKa
+pYoAn2p0muo2mU8ZvptskameU9fEeUY/
+=f8lO
+-----END PGP SIGNATURE-----
+
+--Sh7h4lnU5nPTsIof--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
