@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id C67D96B0208
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 18:51:06 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 7EDE06B0209
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:13 -0400 (EDT)
 Received: from /spool/local
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Wed, 1 May 2013 16:51:05 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id C5CAF19D804E
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 16:50:56 -0600 (MDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41Mp2qF358008
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 16:51:02 -0600
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41Mru5c009920
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 16:53:57 -0600
-Message-ID: <51819C54.3030704@linux.vnet.ibm.com>
-Date: Wed, 01 May 2013 15:51:00 -0700
+	Wed, 1 May 2013 19:32:12 -0400
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id CE48038C8047
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:09 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41NW9C4336816
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 19:32:10 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41NW89I023711
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 20:32:09 -0300
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] memory_hotplug: use pgdat_resize_lock() when updating
- node_present_pages
-References: <1367446635-12856-1-git-send-email-cody@linux.vnet.ibm.com> <1367446635-12856-5-git-send-email-cody@linux.vnet.ibm.com> <alpine.DEB.2.02.1305011530050.8804@chino.kir.corp.google.com> <518199FE.7060908@linux.vnet.ibm.com> <alpine.DEB.2.02.1305011547450.8804@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1305011547450.8804@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH v2 1/4] mm: fix comment referring to non-existent size_seqlock, change to span_seqlock
+Date: Wed,  1 May 2013 16:31:58 -0700
+Message-Id: <1367451121-22725-2-git-send-email-cody@linux.vnet.ibm.com>
+In-Reply-To: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
+References: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On 05/01/2013 03:48 PM, David Rientjes wrote:
-> On Wed, 1 May 2013, Cody P Schafer wrote:
->
->> Guaranteed to be stable means that if I'm a reader and pgdat_resize_lock(),
->> node_present_pages had better not change at all until I pgdat_resize_unlock().
->>
->> If nothing needs this guarantee, we should change the rules of
->> pgdat_resize_lock(). I played it safe and went with following the existing
->> rules.
->>
->
-> __offline_pages() breaks your guarantee.
->
+Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+---
+ include/linux/mmzone.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Thanks for pointing that out. Seems I fixed online_pages() but missed 
-__offline_pages().
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 5c76737..fc859a0c 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -716,7 +716,7 @@ typedef struct pglist_data {
+ 	 * or node_spanned_pages stay constant.  Holding this will also
+ 	 * guarantee that any pfn_valid() stays that way.
+ 	 *
+-	 * Nests above zone->lock and zone->size_seqlock.
++	 * Nests above zone->lock and zone->span_seqlock
+ 	 */
+ 	spinlock_t node_size_lock;
+ #endif
+-- 
+1.8.2.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
