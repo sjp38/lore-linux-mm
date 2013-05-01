@@ -1,77 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id A1A6A6B0191
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 11:57:40 -0400 (EDT)
-Received: by mail-da0-f44.google.com with SMTP id z20so714597dae.31
-        for <linux-mm@kvack.org>; Wed, 01 May 2013 08:57:39 -0700 (PDT)
-Date: Wed, 1 May 2013 08:57:38 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: deadlock on vmap_area_lock
-In-Reply-To: <20130501144341.GA2404@BohrerMBP.rgmadvisors.com>
-Message-ID: <alpine.DEB.2.02.1305010855440.4547@chino.kir.corp.google.com>
-References: <20130501144341.GA2404@BohrerMBP.rgmadvisors.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id E127B6B0085
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 12:07:44 -0400 (EDT)
+Subject: Re: [PATCH 2/2] Make batch size for memory accounting configured
+ according to size of memory
+From: Tim Chen <tim.c.chen@linux.intel.com>
+In-Reply-To: <5180A37E.8010701@gmail.com>
+References: 
+	 <c1f9c476a8bd1f5e7049b8ac79af48be61afd8f3.1367254913.git.tim.c.chen@linux.intel.com>
+	 <8c9bc7d4646d48154604820a3ec5952ba8949de4.1367254913.git.tim.c.chen@linux.intel.com>
+	 <5180A37E.8010701@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Wed, 01 May 2013 09:07:34 -0700
+Message-ID: <1367424454.27102.204.camel@schen9-DESK>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shawn Bohrer <sbohrer@rgmadvisors.com>
-Cc: xfs@oss.sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ric Mason <ric.masonn@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <ak@linux.intel.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Wed, 1 May 2013, Shawn Bohrer wrote:
-
-> I've got two compute clusters with around 350 machines each which are
-> running kernels based off of 3.1.9 (Yes I realize this is ancient by
-> todays standards).  All of the machines run a 'find' command once an
-> hour on one of the mounted XFS filesystems.  Occasionally these find
-> commands get stuck requiring a reboot of the system.  I took a peek
-> today and see this with perf:
+On Wed, 2013-05-01 at 13:09 +0800, Ric Mason wrote:
+> Hi Tim,
+> On 04/30/2013 01:12 AM, Tim Chen wrote:
+> > Currently the per cpu counter's batch size for memory accounting is
+> > configured as twice the number of cpus in the system.  However,
+> > for system with very large memory, it is more appropriate to make it
+> > proportional to the memory size per cpu in the system.
+> >
+> > For example, for a x86_64 system with 64 cpus and 128 GB of memory,
+> > the batch size is only 2*64 pages (0.5 MB).  So any memory accounting
+> > changes of more than 0.5MB will overflow the per cpu counter into
+> > the global counter.  Instead, for the new scheme, the batch size
+> > is configured to be 0.4% of the memory/cpu = 8MB (128 GB/64 /256),
 > 
->     72.22%          find  [kernel.kallsyms]          [k] _raw_spin_lock
->                     |
->                     --- _raw_spin_lock
->                        |          
->                        |--98.84%-- vm_map_ram
->                        |          _xfs_buf_map_pages
->                        |          xfs_buf_get
->                        |          xfs_buf_read
->                        |          xfs_trans_read_buf
->                        |          xfs_da_do_buf
->                        |          xfs_da_read_buf
->                        |          xfs_dir2_block_getdents
->                        |          xfs_readdir
->                        |          xfs_file_readdir
->                        |          vfs_readdir
->                        |          sys_getdents
->                        |          system_call_fastpath
->                        |          __getdents64
->                        |          
->                        |--1.12%-- _xfs_buf_map_pages
->                        |          xfs_buf_get
->                        |          xfs_buf_read
->                        |          xfs_trans_read_buf
->                        |          xfs_da_do_buf
->                        |          xfs_da_read_buf
->                        |          xfs_dir2_block_getdents
->                        |          xfs_readdir
->                        |          xfs_file_readdir
->                        |          vfs_readdir
->                        |          sys_getdents
->                        |          system_call_fastpath
->                        |          __getdents64
->                         --0.04%-- [...]
-> 
-> Looking at the code my best guess is that we are spinning on
-> vmap_area_lock, but I could be wrong.  This is the only process
-> spinning on the machine so I'm assuming either another process has
-> blocked while holding the lock, or perhaps this find process has tried
-> to acquire the vmap_area_lock twice?
+> If large batch size will lead to global counter more inaccurate?
 > 
 
-Significant spinlock contention doesn't necessarily mean that there's a 
-deadlock, but it also doesn't mean the opposite.  Depending on your 
-definition of "occassionally", would it be possible to run with 
-CONFIG_PROVE_LOCKING and CONFIG_LOCKDEP to see if it uncovers any real 
-deadlock potential?
+I've kept the error tolerance fairly small (0.4%), so it should not be
+an issue.
+
+If this is a concern, we can switch to percpu_counter_compare that will
+use the global counter quick compare and switch to accurate compare if
+needed (like the following).
+
+index d1e4124..c78be36 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -187,7 +187,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+        if (mm)
+                allowed -= mm->total_vm / 32;
+ 
+-       if (percpu_counter_read_positive(&vm_committed_as) < allowed)
++       if (percpu_counter_compare(&vm_committed_as, allowed) < 0)
+                return 0;
+ error:
+        vm_unacct_memory(pages);
+
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
