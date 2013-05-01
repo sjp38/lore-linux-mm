@@ -1,56 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id BACF76B0192
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 13:01:44 -0400 (EDT)
-Received: by mail-da0-f52.google.com with SMTP id j17so736460dan.39
-        for <linux-mm@kvack.org>; Wed, 01 May 2013 10:01:43 -0700 (PDT)
-Date: Wed, 1 May 2013 10:01:41 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: deadlock on vmap_area_lock
-In-Reply-To: <20130501164406.GC2404@BohrerMBP.rgmadvisors.com>
-Message-ID: <alpine.DEB.2.02.1305010959070.16591@chino.kir.corp.google.com>
-References: <20130501144341.GA2404@BohrerMBP.rgmadvisors.com> <alpine.DEB.2.02.1305010855440.4547@chino.kir.corp.google.com> <20130501164406.GC2404@BohrerMBP.rgmadvisors.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 8EE456B0199
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 14:19:32 -0400 (EDT)
+Message-ID: <51815CA3.4090807@intel.com>
+Date: Wed, 01 May 2013 11:19:15 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] x86: add phys addr validity check for /dev/mem mmap
+References: <1364905733-23937-1-git-send-email-fhrbata@redhat.com> <517A0ED8.6000404@gmail.com> <20130426153502.GC3510@dhcp-26-164.brq.redhat.com> <517B777B.5020303@gmail.com> <20130427191349.GA3372@dhcp-26-164.brq.redhat.com> <517C94DA.9070002@gmail.com>
+In-Reply-To: <517C94DA.9070002@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shawn Bohrer <sbohrer@rgmadvisors.com>
-Cc: xfs@oss.sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Will Huck <will.huckk@gmail.com>
+Cc: Frantisek Hrbata <fhrbata@redhat.com>, hpa@zytor.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com
 
-On Wed, 1 May 2013, Shawn Bohrer wrote:
-
-> Correct it doesn't and I can't prove the find command is not making
-> progress, however these finds normally complete in under 15 min and
-> we've let the stuck ones run for days.  Additionally if this was just
-> contention I'd expect to see multiple threads/CPUs contending and I
-> only have a single CPU pegged running find at 99%. I should clarify
-> that the perf snippet above was for the entire system.  Profiling just
-> the find command shows:
+On 04/27/2013 08:17 PM, Will Huck wrote:
+>>     PTE bits 51 - M are reserved, where M is physical address width
+>> found 2)
+>>     Note: step 2) is actually not needed, we can always set just the
+>> 51th bit
+>>     (0x8000000000000)
 > 
->     82.56%     find  [kernel.kallsyms]  [k] _raw_spin_lock
+> What's the meaning here? You trigger oops since the address is beyond
+> max address cpu supported or access to a reserved page? If the answer is
+> the latter, I'm think it's not right. For example, the kernel code/data
+> section is reserved in memory, kernel access it will trigger oops? I
+> don't think so.
 
-Couple of options to figure out what spinlock this is: use lockstat (see 
-Documentation/lockstat.txt), which will also require a kernel rebuild, 
-some human intervention to collect the stats, and the accompanying 
-performance degradation, or you could try collecting
-/proc/$(pidof find)/stack at regular intervals and figure out which 
-spinlock it is.
+I think you're confusing the original problem here with how we would
+implement the solution.
 
-> > Depending on your 
-> > definition of "occassionally", would it be possible to run with 
-> > CONFIG_PROVE_LOCKING and CONFIG_LOCKDEP to see if it uncovers any real 
-> > deadlock potential?
-> 
-> Yeah, I can probably enable these on a few machines and hope I get
-> lucky.  These machines are used for real work so I'll have to gauge
-> what how significant the performance impact is to determine how many
-> machines I can sacrifice to the cause.
-> 
+/dev/mem essentially lets you create ptes with as large of a value as
+you like.  You just mmap() it, and the kernel will build you a pte to
+access whatever crazy offset you choose.
 
-You'll probably only need to enable it on one machine, if a deadlock 
-possibility exists here then lockdep will find it even without hitting it, 
-it simply has to exercise the path that leads to it.  It does have a 
-performance degradation for that one machine, though.
+The problem is that on _some_ systems, you won't just get a bus error,
+the kernel actually sets up some ptes which the hardware objects to (the
+reserved bits in the pte), and we'll panic when the hardware sees the
+ptes.  We're trying to avoid these panics by ensuring that we never
+create these nasty ptes.
+
+Those "nasty" PTEs point to memory which can not even possibly be
+*addressed* on the CPUs where they upset the hardware.  In other words,
+if we limit /dev/mem to *possible* memory on the system (which is sane
+all by itself) we will also fix this particular problem.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
