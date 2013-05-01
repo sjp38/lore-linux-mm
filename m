@@ -1,108 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 7F7BB6B0165
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 03:52:36 -0400 (EDT)
-Received: by mail-ia0-f176.google.com with SMTP id l27so1167876iae.21
-        for <linux-mm@kvack.org>; Wed, 01 May 2013 00:52:35 -0700 (PDT)
-Message-ID: <5180C9BE.5040002@gmail.com>
-Date: Wed, 01 May 2013 15:52:30 +0800
-From: Simon Jeons <simon.jeons@gmail.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 9DCA46B0167
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 04:00:44 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id g10so728923pdj.20
+        for <linux-mm@kvack.org>; Wed, 01 May 2013 01:00:43 -0700 (PDT)
+Message-ID: <5180CBA4.2010000@gmail.com>
+Date: Wed, 01 May 2013 16:00:36 +0800
+From: Sam Ben <sam.bennn@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -V7 18/18] powerpc: Update tlbie/tlbiel as per ISA doc
-References: <1367177859-7893-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1367177859-7893-19-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130430061522.GC20202@truffula.fritz.box> <87ppxc9bpf.fsf@linux.vnet.ibm.com> <20130501052625.GC14106@truffula.fritz.box> <87hain9m5e.fsf@linux.vnet.ibm.com>
-In-Reply-To: <87hain9m5e.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH v3] hugetlbfs: fix mmap failure in unaligned size request
+References: <bug-56881-27@https.bugzilla.kernel.org/> <20130423132522.042fa8d27668bbca6a410a92@linux-foundation.org> <20130424081454.GA13994@cmpxchg.org> <1366816599-7fr82iw1-mutt-n-horiguchi@ah.jp.nec.com> <20130424153951.GQ2018@cmpxchg.org> <1366844735-kqynvvnu-mutt-n-horiguchi@ah.jp.nec.com> <20130424232600.GB18686@cmpxchg.org> <1366923617-dvp2vbsx-mutt-n-horiguchi@ah.jp.nec.com> <1366950912-u5c1huyl-mutt-n-horiguchi@ah.jp.nec.com> <20130430164502.GD1229@cmpxchg.org> <1367341336-cjbgpcy-mutt-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1367341336-cjbgpcy-mutt-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: David Gibson <dwg@au1.ibm.com>, paulus@samba.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org, iceman_dvd@yahoo.com, Steven Truelove <steven.truelove@utoronto.ca>, Jianguo Wu <wujianguo@huawei.com>
 
-On 05/01/2013 03:47 PM, Aneesh Kumar K.V wrote:
-> David Gibson <dwg@au1.ibm.com> writes:
->
->> On Tue, Apr 30, 2013 at 10:51:00PM +0530, Aneesh Kumar K.V wrote:
->>> David Gibson <dwg@au1.ibm.com> writes:
->>>
->>>> On Mon, Apr 29, 2013 at 01:07:39AM +0530, Aneesh Kumar K.V wrote:
->>>>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->>>>>
->>>>> Encode the actual page correctly in tlbie/tlbiel. This make sure we handle
->>>>> multiple page size segment correctly.
->>>> As mentioned in previous comments, this commit message needs to give
->>>> much more detail about what precisely the existing implementation is
->>>> doing wrong.
->>>>
->>>>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->>>>> ---
->>>>>   arch/powerpc/mm/hash_native_64.c | 32 ++++++++++++++++++++++++++++++--
->>>>>   1 file changed, 30 insertions(+), 2 deletions(-)
->>>>>
->>>>> diff --git a/arch/powerpc/mm/hash_native_64.c b/arch/powerpc/mm/hash_native_64.c
->>>>> index bb920ee..6a2aead 100644
->>>>> --- a/arch/powerpc/mm/hash_native_64.c
->>>>> +++ b/arch/powerpc/mm/hash_native_64.c
->>>>> @@ -61,7 +61,10 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
->>>>>   
->>>>>   	switch (psize) {
->>>>>   	case MMU_PAGE_4K:
->>>>> +		/* clear out bits after (52) [0....52.....63] */
->>>>> +		va &= ~((1ul << (64 - 52)) - 1);
->>>>>   		va |= ssize << 8;
->>>>> +		va |= mmu_psize_defs[apsize].sllp << 6;
->>>>>   		asm volatile(ASM_FTR_IFCLR("tlbie %0,0", PPC_TLBIE(%1,%0), %2)
->>>>>   			     : : "r" (va), "r"(0), "i" (CPU_FTR_ARCH_206)
->>>>>   			     : "memory");
->>>>> @@ -69,9 +72,20 @@ static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
->>>>>   	default:
->>>>>   		/* We need 14 to 14 + i bits of va */
->>>>>   		penc = mmu_psize_defs[psize].penc[apsize];
->>>>> -		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
->>>>> +		va &= ~((1ul << mmu_psize_defs[apsize].shift) - 1);
->>>>>   		va |= penc << 12;
->>>>>   		va |= ssize << 8;
->>>>> +		/* Add AVAL part */
->>>>> +		if (psize != apsize) {
->>>>> +			/*
->>>>> +			 * MPSS, 64K base page size and 16MB parge page size
->>>>> +			 * We don't need all the bits, but rest of the bits
->>>>> +			 * must be ignored by the processor.
->>>>> +			 * vpn cover upto 65 bits of va. (0...65) and we need
->>>>> +			 * 58..64 bits of va.
->>>> I can't understand what this comment is saying.  Why do we need to do
->>>> something different in the psize != apsize case?
->>>>
->>>>> +			 */
->>>>> +			va |= (vpn & 0xfe);
->>>>> +		}
->>> That is as per ISA doc. It says if base page size == actual page size,
->>> (RB)56:62 must be zeros, which must be ignored by the processor.
->>> Otherwise it should be filled with the selected bits of VA as explained above.
->> What you've just said here makes much more sense than what's written
->> in the comment in the code.
+On 05/01/2013 01:02 AM, Naoya Horiguchi wrote:
+> On Tue, Apr 30, 2013 at 12:45:03PM -0400, Johannes Weiner wrote:
+>> On Fri, Apr 26, 2013 at 12:35:12AM -0400, Naoya Horiguchi wrote:
+>>> Here is a revised patch.
+>>> Thank you for the nice feedback, Johannes, Jianguo.
+>> FWIW, this looks good to me.  Could you include
 >>
->>> We only support MPSS with base page size = 64K and actual page size = 16MB.
->> Is that actually relevant to this code though?
-> In a way yes. The number of bits we we select out of VA depends on the
-> base page size and actual page size. We have a math around that
-> documented in ISA. Now since we support only 64K and 16MB we can make it
-> simpler by only selecting required bits and not making it a
-> function. But then it is also not relevant to the code in that ISA also
-> state other bits in (RB)56:62 must be zero. I wanted to capture both the
-> details in the comment.
-
-What's the benefit of ppc use hash-based page table instead of 
-tree-based page table? If you said that hash is faster, could x86 change 
-to it?
-
+>> Reported-by: iceman_dvd@yahoo.com
+> OK, added.
+> And thank you for the report, iceman_dvd :)
 >
-> -aneesh
+>> and resend it to Andrew?  Unless Andrew sees and picks it directly
+>> from this thread.  Hi, Andrew!
+> Andrew, could you review and merge this into your tree?
 >
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Thanks,
+> Naoya Horiguchi
+> ---
+> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Date: Fri, 26 Apr 2013 00:31:18 -0400
+> Subject: [PATCH v3] hugetlbfs: fix mmap failure in unaligned size request
+>
+> As reported in https://bugzilla.kernel.org/show_bug.cgi?id=56881, current
+> kernel returns -EINVAL unless a given mmap length is "almost" hugepage
+> aligned. This is because in sys_mmap_pgoff() the given length is passed to
+
+Hi all,
+
+When I use mmap in userspcae, when will call old_mmap and when will call
+sys_mmap_pgoff()?
+
+> vm_mmap_pgoff() as it is without being aligned with hugepage boundary.
+>
+> This is a regression introduced in commit 40716e29243d "hugetlbfs: fix
+> alignment of huge page requests", where alignment code is pushed into
+> hugetlb_file_setup() and the variable len in caller side is not changed.
+>
+> To fix this, this patch partially reverts that commit, and adds alignment
+> code in caller side. And it also introduces hstate_sizelog() in order to
+> get proper hstate to specified hugepage size.
+>
+> ChangeLog v3:
+>  - add Reported-by
+>
+> ChangeLog v2:
+>  - introduce hstate_sizelog to calculate alignment in caller side
+>  - add ALIGN also in file mmap path.
+>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reported-by: iceman_dvd@yahoo.com
+> ---
+>  fs/hugetlbfs/inode.c    | 24 ++++++++++--------------
+>  include/linux/hugetlb.h | 19 +++++++++++++------
+>  ipc/shm.c               |  6 +++++-
+>  mm/mmap.c               |  7 ++++++-
+>  4 files changed, 34 insertions(+), 22 deletions(-)
+>
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index 523464e..a3f868a 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -909,11 +909,8 @@ static int can_do_hugetlb_shm(void)
+>  
+>  static int get_hstate_idx(int page_size_log)
+>  {
+> -	struct hstate *h;
+> +	struct hstate *h = hstate_sizelog(page_size_log);
+>  
+> -	if (!page_size_log)
+> -		return default_hstate_idx;
+> -	h = size_to_hstate(1 << page_size_log);
+>  	if (!h)
+>  		return -1;
+>  	return h - hstates;
+> @@ -929,9 +926,12 @@ static struct dentry_operations anon_ops = {
+>  	.d_dname = hugetlb_dname
+>  };
+>  
+> -struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+> -				size_t size, vm_flags_t acctflag,
+> -				struct user_struct **user,
+> +/*
+> + * Note that size should be aligned to proper hugepage size in caller side,
+> + * otherwise hugetlb_reserve_pages reserves one less hugepages than intended.
+> + */
+> +struct file *hugetlb_file_setup(const char *name, size_t size,
+> +				vm_flags_t acctflag, struct user_struct **user,
+>  				int creat_flags, int page_size_log)
+>  {
+>  	struct file *file = ERR_PTR(-ENOMEM);
+> @@ -939,8 +939,6 @@ struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+>  	struct path path;
+>  	struct super_block *sb;
+>  	struct qstr quick_string;
+> -	struct hstate *hstate;
+> -	unsigned long num_pages;
+>  	int hstate_idx;
+>  
+>  	hstate_idx = get_hstate_idx(page_size_log);
+> @@ -980,12 +978,10 @@ struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+>  	if (!inode)
+>  		goto out_dentry;
+>  
+> -	hstate = hstate_inode(inode);
+> -	size += addr & ~huge_page_mask(hstate);
+> -	num_pages = ALIGN(size, huge_page_size(hstate)) >>
+> -			huge_page_shift(hstate);
+>  	file = ERR_PTR(-ENOMEM);
+> -	if (hugetlb_reserve_pages(inode, 0, num_pages, NULL, acctflag))
+> +	if (hugetlb_reserve_pages(inode, 0,
+> +			size >> huge_page_shift(hstate_inode(inode)), NULL,
+> +			acctflag))
+>  		goto out_inode;
+>  
+>  	d_instantiate(path.dentry, inode);
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 8220a8a..c78f5a2 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -193,8 +193,7 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
+>  
+>  extern const struct file_operations hugetlbfs_file_operations;
+>  extern const struct vm_operations_struct hugetlb_vm_ops;
+> -struct file *hugetlb_file_setup(const char *name, unsigned long addr,
+> -				size_t size, vm_flags_t acct,
+> +struct file *hugetlb_file_setup(const char *name, size_t size, vm_flags_t acct,
+>  				struct user_struct **user, int creat_flags,
+>  				int page_size_log);
+>  
+> @@ -213,8 +212,8 @@ static inline int is_file_hugepages(struct file *file)
+>  
+>  #define is_file_hugepages(file)			0
+>  static inline struct file *
+> -hugetlb_file_setup(const char *name, unsigned long addr, size_t size,
+> -		vm_flags_t acctflag, struct user_struct **user, int creat_flags,
+> +hugetlb_file_setup(const char *name, size_t size, vm_flags_t acctflag,
+> +		struct user_struct **user, int creat_flags,
+>  		int page_size_log)
+>  {
+>  	return ERR_PTR(-ENOSYS);
+> @@ -294,6 +293,13 @@ static inline struct hstate *hstate_file(struct file *f)
+>  	return hstate_inode(file_inode(f));
+>  }
+>  
+> +static inline struct hstate *hstate_sizelog(int page_size_log)
+> +{
+> +	if (!page_size_log)
+> +		return &default_hstate;
+> +	return size_to_hstate(1 << page_size_log);
+> +}
+> +
+>  static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
+>  {
+>  	return hstate_file(vma->vm_file);
+> @@ -361,12 +367,13 @@ static inline int hstate_index(struct hstate *h)
+>  extern void dissolve_free_huge_pages(unsigned long start_pfn,
+>  				     unsigned long end_pfn);
+>  
+> -#else
+> +#else /* !CONFIG_HUGETLB_PAGE */
+>  struct hstate {};
+>  #define alloc_huge_page(v, a, r) NULL
+>  #define alloc_huge_page_node(h, nid) NULL
+>  #define alloc_bootmem_huge_page(h) NULL
+>  #define hstate_file(f) NULL
+> +#define hstate_sizelog(s) NULL
+>  #define hstate_vma(v) NULL
+>  #define hstate_inode(i) NULL
+>  #define huge_page_size(h) PAGE_SIZE
+> @@ -382,6 +389,6 @@ static inline unsigned int pages_per_huge_page(struct hstate *h)
+>  #define hstate_index_to_shift(index) 0
+>  #define hstate_index(h) 0
+>  #define dissolve_free_huge_pages(s, e) 0
+> -#endif
+> +#endif /* !CONFIG_HUGETLB_PAGE */
+>  
+>  #endif /* _LINUX_HUGETLB_H */
+> diff --git a/ipc/shm.c b/ipc/shm.c
+> index cb858df..e316cb9 100644
+> --- a/ipc/shm.c
+> +++ b/ipc/shm.c
+> @@ -491,10 +491,14 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+>  
+>  	sprintf (name, "SYSV%08x", key);
+>  	if (shmflg & SHM_HUGETLB) {
+> +		struct hstate *hs = hstate_sizelog((shmflg >> SHM_HUGE_SHIFT)
+> +						& SHM_HUGE_MASK);
+> +		size_t hugesize = ALIGN(size, huge_page_size(hs));
+> +
+>  		/* hugetlb_file_setup applies strict accounting */
+>  		if (shmflg & SHM_NORESERVE)
+>  			acctflag = VM_NORESERVE;
+> -		file = hugetlb_file_setup(name, 0, size, acctflag,
+> +		file = hugetlb_file_setup(name, hugesize, acctflag,
+>  				  &shp->mlock_user, HUGETLB_SHMFS_INODE,
+>  				(shmflg >> SHM_HUGE_SHIFT) & SHM_HUGE_MASK);
+>  	} else {
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 2664a47..212721f 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1325,15 +1325,20 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+>  		file = fget(fd);
+>  		if (!file)
+>  			goto out;
+> +		if (is_file_hugepages(file))
+> +			len = ALIGN(len, huge_page_size(hstate_file(file)));
+>  	} else if (flags & MAP_HUGETLB) {
+>  		struct user_struct *user = NULL;
+> +		struct hstate *hs = hstate_sizelog((flags >> MAP_HUGE_SHIFT)
+> +						& MAP_HUGE_MASK);
+> +		len = ALIGN(len, huge_page_size(hs));
+>  		/*
+>  		 * VM_NORESERVE is used because the reservations will be
+>  		 * taken when vm_ops->mmap() is called
+>  		 * A dummy user value is used because we are not locking
+>  		 * memory so no accounting is necessary
+>  		 */
+> -		file = hugetlb_file_setup(HUGETLB_ANON_FILE, addr, len,
+> +		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len,
+>  				VM_NORESERVE,
+>  				&user, HUGETLB_ANONHUGE_INODE,
+>  				(flags >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
