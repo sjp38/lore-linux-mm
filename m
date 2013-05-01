@@ -1,184 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 07E3C6B018B
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 11:26:39 -0400 (EDT)
-Received: by mail-ie0-f171.google.com with SMTP id e11so2026086iej.16
-        for <linux-mm@kvack.org>; Wed, 01 May 2013 08:26:39 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id E60C16B018D
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 11:28:31 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id ro2so782069pbb.4
+        for <linux-mm@kvack.org>; Wed, 01 May 2013 08:28:31 -0700 (PDT)
+Date: Wed, 1 May 2013 08:28:30 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [v3.9-rc8]: kernel BUG at mm/memcontrol.c:3994! (was: Re:
+ [BUG][s390x] mm: system crashed)
+In-Reply-To: <20130430172711.GE1229@cmpxchg.org>
+Message-ID: <alpine.LNX.2.00.1305010758090.12051@eggly.anvils>
+References: <2068164110.268217.1365996520440.JavaMail.root@redhat.com> <20130415055627.GB4207@osiris> <516B9B57.6050308@redhat.com> <20130416075047.GA4184@osiris> <1638103518.2400447.1366266465689.JavaMail.root@redhat.com> <20130418071303.GB4203@osiris>
+ <20130424104255.GC4350@osiris> <20130424131851.GC31960@dhcp22.suse.cz> <20130424152043.GP2018@cmpxchg.org> <alpine.LNX.2.00.1304242022200.16233@eggly.anvils> <20130430172711.GE1229@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20130430215355.GN6415@suse.de>
-References: <1367018367-11278-1-git-send-email-glommer@openvz.org>
-	<1367018367-11278-18-git-send-email-glommer@openvz.org>
-	<20130430215355.GN6415@suse.de>
-Date: Wed, 1 May 2013 17:26:38 +0200
-Message-ID: <CAKMK7uEkZ8nYZgB4pGiqJx+PAt6xL10FN3R5nFRgCAHVvPW8iQ@mail.gmail.com>
-Subject: Re: [PATCH v4 17/31] drivers: convert shrinkers to new count/scan API
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, intel-gfx <intel-gfx@lists.freedesktop.org>, dri-devel <dri-devel@lists.freedesktop.org>, Kent Overstreet <koverstreet@google.com>, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Heiko Carstens <heiko.carstens@de.ibm.com>, Zhouping Liu <zliu@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, caiqian <caiqian@redhat.com>, Caspar Zhang <czhang@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Lingzhu Xiang <lxiang@redhat.com>
 
-On Tue, Apr 30, 2013 at 11:53 PM, Mel Gorman <mgorman@suse.de> wrote:
-> On Sat, Apr 27, 2013 at 03:19:13AM +0400, Glauber Costa wrote:
->> diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
->> index 6be940e..2e44733 100644
->> --- a/drivers/gpu/drm/i915/i915_gem.c
->> +++ b/drivers/gpu/drm/i915/i915_gem.c
->> @@ -1729,15 +1731,20 @@ i915_gem_purge(struct drm_i915_private *dev_priv, long target)
->>       return __i915_gem_shrink(dev_priv, target, true);
->>  }
->>
->> -static void
->> +static long
->>  i915_gem_shrink_all(struct drm_i915_private *dev_priv)
->>  {
->>       struct drm_i915_gem_object *obj, *next;
->> +     long freed = 0;
->>
->> -     i915_gem_evict_everything(dev_priv->dev);
->> +     freed += i915_gem_evict_everything(dev_priv->dev);
->>
->> -     list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list, gtt_list)
->> +     list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list, gtt_list) {
->> +             if (obj->pages_pin_count == 0)
->> +                     freed += obj->base.size >> PAGE_SHIFT;
->>               i915_gem_object_put_pages(obj);
->> +     }
->> +     return freed;
->>  }
->>
->
-> i915_gem_shrink_all is a sledge hammer! That i915_gem_evict_everything
-> looks like it switches to every GPU context, waits for everything to
-> complete and then retire it all. I don't know the details of what it's
-> doing but it's sounds very heavy handed and is called from shrinker
-> context if it fails to shrink 128 objects. Those shrinker callsback can
-> be very frequently called even from kswapd.
+On Tue, 30 Apr 2013, Johannes Weiner wrote:
+> On Wed, Apr 24, 2013 at 08:50:01PM -0700, Hugh Dickins wrote:
+> > On Wed, 24 Apr 2013, Johannes Weiner wrote:
+> > > On Wed, Apr 24, 2013 at 03:18:51PM +0200, Michal Hocko wrote:
+> > > > On Wed 24-04-13 12:42:55, Heiko Carstens wrote:
+> > > > > On Thu, Apr 18, 2013 at 09:13:03AM +0200, Heiko Carstens wrote:
+> > > > > 
+> > > > > [   48.347963] ------------[ cut here ]------------
+> > > > > [   48.347972] kernel BUG at mm/memcontrol.c:3994!
+> > > > > __mem_cgroup_uncharge_common() triggers:
+> > > > > 
+> > > > > [...]
+> > > > >         if (mem_cgroup_disabled())
+> > > > >                 return NULL;
+> > > > > 
+> > > > >         VM_BUG_ON(PageSwapCache(page));
+> > > > > [...]
+> > 
+> > I agree that the actual memcg uncharging should be okay, but the memsw
+> > swap stats will go wrong (doesn't matter toooo much), and mem_cgroup_put
+> > get missed (leaking a struct mem_cgroup).
+> 
+> Ok, so I just went over this again.  For the swapout path the memsw
+> uncharge is deferred, but if we "steal" this uncharge from the swap
+> code, we actually do uncharge memsw in mem_cgroup_do_uncharge(), so we
+> may prematurely unaccount the swap page, but we never leak a charge.
+> Good.
+> 
+> Because of this stealing, we also don't do the following:
+> 
+> 	if (do_swap_account && ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
+> 		mem_cgroup_swap_statistics(memcg, true);
+> 		mem_cgroup_get(memcg);
+> 	}
+> 
+> I.e. it does not matter that mem_cgroup_uncharge_swap() doesn't do the
+> put, we are also not doing the get.  We should not leak references.
+> 
+> So the only thing that I can see go wrong is that we may have a
+> swapped out page that is not charged to memsw and not accounted as
+> MEM_CGROUP_STAT_SWAP.  But I don't know how likely that is, because we
+> check for PG_swapcache in this uncharge path after the last pte is
+> torn down, so even though the page is put on swap cache, it probably
+> won't be swapped.  It would require that the PG_swapcache setting
+> would become visible only after the page has been added to the swap
+> cache AND rmap has established at least one swap pte for us to
+> uncharge a page that actually continues to be used.  And that's a bit
+> of a stretch, I think.
 
-i915_gem_shrink_all is our escape hatch, we only use it as a
-last-ditch effort when all else fails. Imo there's no point in passing
-the number of freed objects around from it since it really never
-should get called (as long as we don't get called with more objects to
-shrink than our counter counted beforehand at least). Also, the above
-hunk is broken since i915_gem_evict_everything only unbinds object
-from the gpu address space and puts them onto the unbound list, i.e.
-those objects will be double-counted.
+Sorry, our minds seem to work in different ways,
+I understood very little of what you wrote above :-(
 
->>  static int
->> @@ -4205,7 +4212,8 @@ i915_gem_load(struct drm_device *dev)
->>
->>       dev_priv->mm.interruptible = true;
->>
->> -     dev_priv->mm.inactive_shrinker.shrink = i915_gem_inactive_shrink;
->> +     dev_priv->mm.inactive_shrinker.scan_objects = i915_gem_inactive_scan;
->> +     dev_priv->mm.inactive_shrinker.count_objects = i915_gem_inactive_count;
->>       dev_priv->mm.inactive_shrinker.seeks = DEFAULT_SEEKS;
->>       register_shrinker(&dev_priv->mm.inactive_shrinker);
->>  }
->> @@ -4428,8 +4436,8 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
->>  #endif
->>  }
->>
->> -static int
->> -i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
->> +static long
->> +i915_gem_inactive_count(struct shrinker *shrinker, struct shrink_control *sc)
->>  {
->>       struct drm_i915_private *dev_priv =
->>               container_of(shrinker,
->> @@ -4437,9 +4445,8 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
->>                            mm.inactive_shrinker);
->>       struct drm_device *dev = dev_priv->dev;
->>       struct drm_i915_gem_object *obj;
->> -     int nr_to_scan = sc->nr_to_scan;
->>       bool unlock = true;
->> -     int cnt;
->> +     long cnt;
->>
->>       if (!mutex_trylock(&dev->struct_mutex)) {
->>               if (!mutex_is_locked_by(&dev->struct_mutex, current))
->> @@ -4451,15 +4458,6 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
->>               unlock = false;
->>       }
->>
->> -     if (nr_to_scan) {
->> -             nr_to_scan -= i915_gem_purge(dev_priv, nr_to_scan);
->> -             if (nr_to_scan > 0)
->> -                     nr_to_scan -= __i915_gem_shrink(dev_priv, nr_to_scan,
->> -                                                     false);
->> -             if (nr_to_scan > 0)
->> -                     i915_gem_shrink_all(dev_priv);
->> -     }
->> -
->>       cnt = 0;
->>       list_for_each_entry(obj, &dev_priv->mm.unbound_list, gtt_list)
->>               if (obj->pages_pin_count == 0)
->> @@ -4472,3 +4470,36 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
->>               mutex_unlock(&dev->struct_mutex);
->>       return cnt;
->>  }
->> +static long
->> +i915_gem_inactive_scan(struct shrinker *shrinker, struct shrink_control *sc)
->> +{
->> +     struct drm_i915_private *dev_priv =
->> +             container_of(shrinker,
->> +                          struct drm_i915_private,
->> +                          mm.inactive_shrinker);
->> +     struct drm_device *dev = dev_priv->dev;
->> +     int nr_to_scan = sc->nr_to_scan;
->> +     long freed;
->> +     bool unlock = true;
->> +
->> +     if (!mutex_trylock(&dev->struct_mutex)) {
->> +             if (!mutex_is_locked_by(&dev->struct_mutex, current))
->> +                     return 0;
->> +
->
-> return -1 if it's about preventing potential deadlocks?
->
->> +             if (dev_priv->mm.shrinker_no_lock_stealing)
->> +                     return 0;
->> +
->
-> same?
+But once I try to disprove you with a counter-example, I seem to
+arrive at the same conclusion as you have (well, I haven't quite
+arrived there yet, but cannot give it any more time).
 
-No idea. Aside, the aggressive shrinking with shrink_all and the lock
-stealing madness here are to paper our current "one lock for
-everything" approach we have for i915 gem stuff. We've papered over
-the worst offenders through lock-dropping tricks while waiting, the
-lock stealing above plus aggressively calling shrink_all.
+Looking at it from my point of view, I concentrate on the racy
+	if (PageSwapCache(page))
+		return;
+	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_ANON, false);
+in mem_cgroup_uncharge_page().
 
-Still it's pretty trivial to (spuriously) OOM if you compete a gpu
-workload with something else. Real fix is per-object locking plus some
-watermark limits on how many pages are locked down this way, but
-that's long term (and currently stalling for the wait/wound mutexes
-from Maarten Lankhorst to get in).
+Now, that may or may not catch the case where last reference to page
+is unmapped at the same time as the page is added to swap: but being
+a MEM_CGROUP_CHARGE_TYPE_ANON call, it does not interfere with the
+memsw stats and get/put at all, those remain in balance.
 
->
->> +             unlock = false;
->> +     }
->> +
->> +     freed = i915_gem_purge(dev_priv, nr_to_scan);
->> +     if (freed < nr_to_scan)
->> +             freed += __i915_gem_shrink(dev_priv, nr_to_scan,
->> +                                                     false);
->> +     if (freed < nr_to_scan)
->> +             freed += i915_gem_shrink_all(dev_priv);
->> +
->
-> Do we *really* want to call i915_gem_shrink_all from the slab shrinker?
-> Are there any bug reports where i915 rendering jitters in low memory
-> situations while shrinkers might be active? Maybe it's really fast.
+And mem_cgroup_uncharge_swap() has all along been prepared to get
+a zero id from swap_cgroup_record(), if a SwapCache page should be
+uncharged when it was never quite charged as such.
 
-It's terrible for interactivity in X, but we need it :( See above for
-how we plan to eventually fix this mess.
+Yes, we may occasionally fail to charge a SwapCache page as such
+if its final unmap from userspace races with its being added to swap;
+but it's heading towards swap_writepage()'s try_to_free_swap() anyway,
+so I don't think that's anything to worry about.
 
-Cheers, Daniel
---
-Daniel Vetter
-Software Engineer, Intel Corporation
-+41 (0) 79 365 57 48 - http://blog.ffwll.ch
+(If I had time to stop and read through that, I'd probably find it
+just as hard to understand as what you wrote!)
+
+> 
+> Did I miss something?  If not, I'll just send a patch that removes the
+> VM_BUG_ON() and adds a comment describing the scenarios and a note
+> that we may want to fix this in the future.
+
+I don't think you missed something.  Yes, please just send Linus and
+Andrew a patch to remove the VM_BUG_ON() (with Cc stable tag), I now
+agree that's all that's really needed - thanks.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
