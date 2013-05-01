@@ -1,156 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id C48116B019F
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 15:10:45 -0400 (EDT)
-Date: Wed, 1 May 2013 15:10:33 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [v3.9-rc8]: kernel BUG at mm/memcontrol.c:3994! (was: Re:
- [BUG][s390x] mm: system crashed)
-Message-ID: <20130501191033.GG1229@cmpxchg.org>
-References: <516B9B57.6050308@redhat.com>
- <20130416075047.GA4184@osiris>
- <1638103518.2400447.1366266465689.JavaMail.root@redhat.com>
- <20130418071303.GB4203@osiris>
- <20130424104255.GC4350@osiris>
- <20130424131851.GC31960@dhcp22.suse.cz>
- <20130424152043.GP2018@cmpxchg.org>
- <alpine.LNX.2.00.1304242022200.16233@eggly.anvils>
- <20130430172711.GE1229@cmpxchg.org>
- <alpine.LNX.2.00.1305010758090.12051@eggly.anvils>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 3F7DB6B01A1
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 18:03:09 -0400 (EDT)
+Date: Thu, 2 May 2013 08:03:04 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: deadlock on vmap_area_lock
+Message-ID: <20130501220303.GO10481@dastard>
+References: <20130501144341.GA2404@BohrerMBP.rgmadvisors.com>
+ <alpine.DEB.2.02.1305010855440.4547@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1305010758090.12051@eggly.anvils>
+In-Reply-To: <alpine.DEB.2.02.1305010855440.4547@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Heiko Carstens <heiko.carstens@de.ibm.com>, Zhouping Liu <zliu@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, caiqian <caiqian@redhat.com>, Caspar Zhang <czhang@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Lingzhu Xiang <lxiang@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Shawn Bohrer <sbohrer@rgmadvisors.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xfs@oss.sgi.com
 
-On Wed, May 01, 2013 at 08:28:30AM -0700, Hugh Dickins wrote:
-> On Tue, 30 Apr 2013, Johannes Weiner wrote:
-> > On Wed, Apr 24, 2013 at 08:50:01PM -0700, Hugh Dickins wrote:
-> > > On Wed, 24 Apr 2013, Johannes Weiner wrote:
-> > > > On Wed, Apr 24, 2013 at 03:18:51PM +0200, Michal Hocko wrote:
-> > > > > On Wed 24-04-13 12:42:55, Heiko Carstens wrote:
-> > > > > > On Thu, Apr 18, 2013 at 09:13:03AM +0200, Heiko Carstens wrote:
-> > > > > > 
-> > > > > > [   48.347963] ------------[ cut here ]------------
-> > > > > > [   48.347972] kernel BUG at mm/memcontrol.c:3994!
-> > > > > > __mem_cgroup_uncharge_common() triggers:
-> > > > > > 
-> > > > > > [...]
-> > > > > >         if (mem_cgroup_disabled())
-> > > > > >                 return NULL;
-> > > > > > 
-> > > > > >         VM_BUG_ON(PageSwapCache(page));
-> > > > > > [...]
-> > > 
-> > > I agree that the actual memcg uncharging should be okay, but the memsw
-> > > swap stats will go wrong (doesn't matter toooo much), and mem_cgroup_put
-> > > get missed (leaking a struct mem_cgroup).
-> > 
-> > Ok, so I just went over this again.  For the swapout path the memsw
-> > uncharge is deferred, but if we "steal" this uncharge from the swap
-> > code, we actually do uncharge memsw in mem_cgroup_do_uncharge(), so we
-> > may prematurely unaccount the swap page, but we never leak a charge.
-> > Good.
-> > 
-> > Because of this stealing, we also don't do the following:
-> > 
-> > 	if (do_swap_account && ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
-> > 		mem_cgroup_swap_statistics(memcg, true);
-> > 		mem_cgroup_get(memcg);
-> > 	}
-> > 
-> > I.e. it does not matter that mem_cgroup_uncharge_swap() doesn't do the
-> > put, we are also not doing the get.  We should not leak references.
-> > 
-> > So the only thing that I can see go wrong is that we may have a
-> > swapped out page that is not charged to memsw and not accounted as
-> > MEM_CGROUP_STAT_SWAP.  But I don't know how likely that is, because we
-> > check for PG_swapcache in this uncharge path after the last pte is
-> > torn down, so even though the page is put on swap cache, it probably
-> > won't be swapped.  It would require that the PG_swapcache setting
-> > would become visible only after the page has been added to the swap
-> > cache AND rmap has established at least one swap pte for us to
-> > uncharge a page that actually continues to be used.  And that's a bit
-> > of a stretch, I think.
+On Wed, May 01, 2013 at 08:57:38AM -0700, David Rientjes wrote:
+> On Wed, 1 May 2013, Shawn Bohrer wrote:
 > 
-> Sorry, our minds seem to work in different ways,
-> I understood very little of what you wrote above :-(
-> 
-> But once I try to disprove you with a counter-example, I seem to
-> arrive at the same conclusion as you have (well, I haven't quite
-> arrived there yet, but cannot give it any more time).
+> > I've got two compute clusters with around 350 machines each which are
+> > running kernels based off of 3.1.9 (Yes I realize this is ancient by
+> > todays standards).
 
-I might be losing my mind.  But since you are reaching the same
-conclusion, and I see the same mental milestones in your thought
-process described below, it's more likely that I suck at describing my
-train of thought coherently.  Or the third possibility: we're both
-losing it!
+xfs_info output of one of those filesystems? What platform are you
+running (32 or 64 bit)?
 
-> Looking at it from my point of view, I concentrate on the racy
-> 	if (PageSwapCache(page))
-> 		return;
-> 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_ANON, false);
-> in mem_cgroup_uncharge_page().
-> 
-> Now, that may or may not catch the case where last reference to page
-> is unmapped at the same time as the page is added to swap: but being
-> a MEM_CGROUP_CHARGE_TYPE_ANON call, it does not interfere with the
-> memsw stats and get/put at all, those remain in balance.
-
-Yes, exactly.
-
-> And mem_cgroup_uncharge_swap() has all along been prepared to get
-> a zero id from swap_cgroup_record(), if a SwapCache page should be
-> uncharged when it was never quite charged as such.
-> 
-> Yes, we may occasionally fail to charge a SwapCache page as such
-> if its final unmap from userspace races with its being added to swap;
-> but it's heading towards swap_writepage()'s try_to_free_swap() anyway,
-> so I don't think that's anything to worry about.
-
-Agreed as well.  If there are no pte references to the swap slot, it
-will be freed either way.  I didn't even think of the
-try_to_free_swap() in the writeout call, but was looking at the
-__remove_mapping later on in reclaim that will do a swapcache_free().
-
-The only case I was worried about is the following:
-
-#0                                      #1
-page_remove_rmap()                      shrink_page_list()
-  if --page->mapcount == 0:               add_to_swap()
-    mem_cgroup_uncharge_page()              __add_to_swap_cache()
-      if PageSwapCache:                       SetPageSwapCache()
-        return                            try_to_unmap()
-      __mem_cgroup_uncharge_common()        for each pte:
-                                              install swp_entry_t
-                                              page->mapcount--
-
-Looking at #1, I don't see anything that would force concurrent
-threads to observe SetSwapCache ordered against the page->mapcount--.
-My concern was that if those get reordered, #0 may see page->mapcount
-== 1 AND !PageSwapcache, and then go ahead and uncharge the page while
-there is actually a swp_entry_t pointing to it.  The page will be a
-proper long-term swap page without being charged as such.
-
-> (If I had time to stop and read through that, I'd probably find it
-> just as hard to understand as what you wrote!)
-> 
+> > All of the machines run a 'find' command once an
+> > hour on one of the mounted XFS filesystems.  Occasionally these find
+> > commands get stuck requiring a reboot of the system.  I took a peek
+> > today and see this with perf:
 > > 
-> > Did I miss something?  If not, I'll just send a patch that removes the
-> > VM_BUG_ON() and adds a comment describing the scenarios and a note
-> > that we may want to fix this in the future.
+> >     72.22%          find  [kernel.kallsyms]          [k] _raw_spin_lock
+> >                     |
+> >                     --- _raw_spin_lock
+> >                        |          
+> >                        |--98.84%-- vm_map_ram
+> >                        |          _xfs_buf_map_pages
+> >                        |          xfs_buf_get
+> >                        |          xfs_buf_read
+> >                        |          xfs_trans_read_buf
+> >                        |          xfs_da_do_buf
+> >                        |          xfs_da_read_buf
+> >                        |          xfs_dir2_block_getdents
+> >                        |          xfs_readdir
+> >                        |          xfs_file_readdir
+> >                        |          vfs_readdir
+> >                        |          sys_getdents
+> >                        |          system_call_fastpath
+> >                        |          __getdents64
+> >                        |          
+> >                        |--1.12%-- _xfs_buf_map_pages
+> >                        |          xfs_buf_get
+> >                        |          xfs_buf_read
+> >                        |          xfs_trans_read_buf
+> >                        |          xfs_da_do_buf
+> >                        |          xfs_da_read_buf
+> >                        |          xfs_dir2_block_getdents
+> >                        |          xfs_readdir
+> >                        |          xfs_file_readdir
+> >                        |          vfs_readdir
+> >                        |          sys_getdents
+> >                        |          system_call_fastpath
+> >                        |          __getdents64
+> >                         --0.04%-- [...]
+> > 
+> > Looking at the code my best guess is that we are spinning on
+> > vmap_area_lock, but I could be wrong.  This is the only process
+> > spinning on the machine so I'm assuming either another process has
+> > blocked while holding the lock, or perhaps this find process has tried
+> > to acquire the vmap_area_lock twice?
+> > 
 > 
-> I don't think you missed something.  Yes, please just send Linus and
-> Andrew a patch to remove the VM_BUG_ON() (with Cc stable tag), I now
-> agree that's all that's really needed - thanks.
+> Significant spinlock contention doesn't necessarily mean that there's a 
+> deadlock, but it also doesn't mean the opposite.  Depending on your 
+> definition of "occassionally", would it be possible to run with 
+> CONFIG_PROVE_LOCKING and CONFIG_LOCKDEP to see if it uncovers any real 
+> deadlock potential?
 
-Will do, thanks for taking them time to think through it again, even
-after failing to decipher my ramblings...
+It sure will. We've been reporting that vm_map_ram is doing
+GFP_KERNEL allocations from GFP_NOFS context for years, and have
+reported plenty of lockdep dumps as a result of it.
 
-Johannes
+But that's not the problem that is occurring above - lockstat is
+probably a good thing to look at here to determine exactly what
+locks are being contended on....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
