@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 7EDE06B0209
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:13 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 039126B020A
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:14 -0400 (EDT)
 Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Wed, 1 May 2013 19:32:12 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id CE48038C8047
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:09 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41NW9C4336816
+	Wed, 1 May 2013 17:32:14 -0600
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 6D16CC90028
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:10 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41NWAJH64421904
 	for <linux-mm@kvack.org>; Wed, 1 May 2013 19:32:10 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41NW89I023711
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 20:32:09 -0300
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41NW9VW026769
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 19:32:10 -0400
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH v2 1/4] mm: fix comment referring to non-existent size_seqlock, change to span_seqlock
-Date: Wed,  1 May 2013 16:31:58 -0700
-Message-Id: <1367451121-22725-2-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [PATCH v2 2/4] mmzone: note that node_size_lock should be manipulated via pgdat_resize_lock()
+Date: Wed,  1 May 2013 16:31:59 -0700
+Message-Id: <1367451121-22725-3-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -28,22 +28,23 @@ Cc: David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <l
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- include/linux/mmzone.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/mmzone.h | 3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 5c76737..fc859a0c 100644
+index fc859a0c..41557be 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -716,7 +716,7 @@ typedef struct pglist_data {
+@@ -716,6 +716,9 @@ typedef struct pglist_data {
  	 * or node_spanned_pages stay constant.  Holding this will also
  	 * guarantee that any pfn_valid() stays that way.
  	 *
--	 * Nests above zone->lock and zone->size_seqlock.
-+	 * Nests above zone->lock and zone->span_seqlock
++	 * pgdat_resize_lock() and pgdat_resize_unlock() are provided to
++	 * manipulate node_size_lock without checking for CONFIG_MEMORY_HOTPLUG.
++	 *
+ 	 * Nests above zone->lock and zone->span_seqlock
  	 */
  	spinlock_t node_size_lock;
- #endif
 -- 
 1.8.2.2
 
