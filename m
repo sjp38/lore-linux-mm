@@ -1,51 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 422496B01AA
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 18:17:37 -0400 (EDT)
-Received: from /spool/local
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Wed, 1 May 2013 16:17:36 -0600
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id DF10D3E4003F
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 16:17:18 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41MHWxp105876
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 16:17:32 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41MHW2D006857
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 16:17:32 -0600
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH 3/4] mmzone: note that node_size_lock should be manipulated via pgdat_resize_lock()
-Date: Wed,  1 May 2013 15:17:14 -0700
-Message-Id: <1367446635-12856-4-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <1367446635-12856-1-git-send-email-cody@linux.vnet.ibm.com>
-References: <1367446635-12856-1-git-send-email-cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id E4DAB6B01AE
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 18:26:39 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id v14so1025555pde.32
+        for <linux-mm@kvack.org>; Wed, 01 May 2013 15:26:39 -0700 (PDT)
+Date: Wed, 1 May 2013 15:26:37 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 1/4] mmzone: make holding lock_memory_hotplug() a
+ requirement for updating pgdat size
+In-Reply-To: <1367446635-12856-2-git-send-email-cody@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.02.1305011525580.8804@chino.kir.corp.google.com>
+References: <1367446635-12856-1-git-send-email-cody@linux.vnet.ibm.com> <1367446635-12856-2-git-send-email-cody@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
----
- include/linux/mmzone.h | 2 ++
- 1 file changed, 2 insertions(+)
+On Wed, 1 May 2013, Cody P Schafer wrote:
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index afd0aa5..45be383 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -716,6 +716,8 @@ typedef struct pglist_data {
- 	 * or node_spanned_pages stay constant.  Holding this will also
- 	 * guarantee that any pfn_valid() stays that way.
- 	 *
-+	 * Use pgdat_resize_lock() and pgdat_resize_unlock() to manipulate.
-+	 *
- 	 * Updaters of any of these fields also must hold
- 	 * lock_memory_hotplug().
- 	 *
--- 
-1.8.2.2
+> All updaters of pgdat size (spanned_pages, start_pfn, and
+> present_pages) currently also hold lock_memory_hotplug() (in addition
+> to pgdat_resize_lock()).
+> 
+> Document this and make holding of that lock a requirement on the update
+> side for now, but keep the pgdat_resize_lock() around for readers that
+> can't lock a mutex.
+> 
+> Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+
+Nack, these fields are initialized at boot without lock_memory_hotplug(), 
+so you're statement is wrong, and all you need is pgdat_resize_lock().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
