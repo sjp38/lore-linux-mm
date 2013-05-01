@@ -1,97 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id C02516B0187
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 10:43:48 -0400 (EDT)
-Received: by mail-oa0-f70.google.com with SMTP id n9so9807701oag.5
-        for <linux-mm@kvack.org>; Wed, 01 May 2013 07:43:47 -0700 (PDT)
-Date: Wed, 1 May 2013 09:43:41 -0500
-From: Shawn Bohrer <sbohrer@rgmadvisors.com>
-Subject: deadlock on vmap_area_lock
-Message-ID: <20130501144341.GA2404@BohrerMBP.rgmadvisors.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id C8F176B0189
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 11:21:18 -0400 (EDT)
+Date: Wed, 1 May 2013 11:21:05 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: Better active/inactive list balancing
+Message-ID: <20130501152105.GB8083@cmpxchg.org>
+References: <517B6DF5.70402@gmail.com>
+ <517B6E46.30209@gmail.com>
+ <20130430163230.GB1229@cmpxchg.org>
+ <5180BC79.8080101@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <5180BC79.8080101@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xfs@oss.sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mtrr Patt <mtrr.patt@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-I've got two compute clusters with around 350 machines each which are
-running kernels based off of 3.1.9 (Yes I realize this is ancient by
-todays standards).  All of the machines run a 'find' command once an
-hour on one of the mounted XFS filesystems.  Occasionally these find
-commands get stuck requiring a reboot of the system.  I took a peek
-today and see this with perf:
+Hi Wanpeng Li / Ni zhan Chen / Jaegeuk Hanse / Simon Jeons / Will Huck
+/ Ric Mason / Sam Ben / Mtrr Patt!
 
-    72.22%          find  [kernel.kallsyms]          [k] _raw_spin_lock
-                    |
-                    --- _raw_spin_lock
-                       |          
-                       |--98.84%-- vm_map_ram
-                       |          _xfs_buf_map_pages
-                       |          xfs_buf_get
-                       |          xfs_buf_read
-                       |          xfs_trans_read_buf
-                       |          xfs_da_do_buf
-                       |          xfs_da_read_buf
-                       |          xfs_dir2_block_getdents
-                       |          xfs_readdir
-                       |          xfs_file_readdir
-                       |          vfs_readdir
-                       |          sys_getdents
-                       |          system_call_fastpath
-                       |          __getdents64
-                       |          
-                       |--1.12%-- _xfs_buf_map_pages
-                       |          xfs_buf_get
-                       |          xfs_buf_read
-                       |          xfs_trans_read_buf
-                       |          xfs_da_do_buf
-                       |          xfs_da_read_buf
-                       |          xfs_dir2_block_getdents
-                       |          xfs_readdir
-                       |          xfs_file_readdir
-                       |          vfs_readdir
-                       |          sys_getdents
-                       |          system_call_fastpath
-                       |          __getdents64
-                        --0.04%-- [...]
+On Wed, May 01, 2013 at 02:55:53PM +0800, Mtrr Patt wrote:
+> Hi Johannes,
+> On 05/01/2013 12:32 AM, Johannes Weiner wrote:
+> >On Sat, Apr 27, 2013 at 02:20:54PM +0800, Mtrr Patt wrote:
+> >>cc linux-mm
+> >>
+> >>On 04/27/2013 02:19 PM, Mtrr Patt wrote:
+> >>>Hi Johannes,
+> >>>
+> >>>http://lwn.net/Articles/495543/
+> >>>
+> >>>This link said that "When active pages are considered for
+> >>>eviction, they are first moved to the inactive list and unmapped
+> >>>from the address space of the process(es) using them. Thus, once a
+> >>>page moves to the inactive list, any attempt to reference it will
+> >>>generate a page fault; this "soft fault" will cause the page to be
+> >>>removed back to the active list."
+> >>>
+> >>>Why I can't find the codes unmap during page moved from active
+> >>>list to inactive list?
+> >Most architectures have the hardware track the referenced bit in the
+> >page tables, but some don't.  For them, page_referenced_one() will
+> >mark the mapping read-only when clearing the referenced/young bit and
+> >the page fault handler will set the bit manually.
+> 
+> Thanks for your response. ;-) So the article is not against more
+> common case, isn't it?
 
-Looking at the code my best guess is that we are spinning on
-vmap_area_lock, but I could be wrong.  This is the only process
-spinning on the machine so I'm assuming either another process has
-blocked while holding the lock, or perhaps this find process has tried
-to acquire the vmap_area_lock twice?
+It's about the generic/theoretic case I guess, not the optimized
+implementation.
 
-I've skimmed through the change logs between 3.1 and 3.9 but nothing
-stood out as fix for this bug.  Does this ring a bell with anyone?  If
-I have a machine that is currently in one of these stuck states does
-anyone have any tips to identifying the processes currently holding
-the lock?
+> >When mapped pages reach the end of the inactive list and have that bit
+> >set, they get activated, see page_check_references().
+> 
+> It seems that the page should trigger page fault twice and
+> page_check_references can active it.
 
-Additionally as I mentioned before I have two clusters of roughly
-equal size though one cluster hits this issue more frequently.  On
-that cluster with approximately 350 machines we get about 10 stuck
-machines a month.  The other cluster has about 450 machines but we
-only get about 1 or 2 stuck machines a month.  Both clusters run the
-same find command every hour, but the workloads on the machines are
-different.  The cluster that hits the issue more frequently tends to
-run more memory intensive jobs.
+The first one brings it into memory (major fault), the second one sets
+the referenced bit (minor fault or set by mmu).  Then it gets
+activated.  That is the case for mmap accessed pages.
 
-I'm open to building some debug kernels to help track this down,
-though I can't upgrade all of the machines in one shot so it may take
-a while to reproduce.  I'm happy to provide any other information if
-people have questions.
-
-Thanks,
-Shawn
-
--- 
-
----------------------------------------------------------------
-This email, along with any attachments, is confidential. If you 
-believe you received this message in error, please contact the 
-sender immediately and delete all copies of the message.  
-Thank you.
+Buffered IO (read/write syscalls) enters the kernel anyway, so we
+activate the pages right then and there with mark_page_accessed().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
