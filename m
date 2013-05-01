@@ -1,69 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 94A116B0249
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:36:07 -0400 (EDT)
-Received: by mail-ve0-f176.google.com with SMTP id b10so25796vea.7
-        for <linux-mm@kvack.org>; Wed, 01 May 2013 16:36:06 -0700 (PDT)
-Message-ID: <5181A6DE.7000400@gmail.com>
-Date: Thu, 02 May 2013 07:35:58 +0800
-From: Mtrr Patt <mtrr.patt@gmail.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 2E72C6B024B
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:53:48 -0400 (EDT)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Wed, 1 May 2013 17:53:46 -0600
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id EDFE119D803E
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 17:53:38 -0600 (MDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41NriHV116228
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 17:53:44 -0600
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41NudVS013248
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 17:56:39 -0600
+Message-ID: <5181AB06.5080805@linux.vnet.ibm.com>
+Date: Wed, 01 May 2013 16:53:42 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: Better active/inactive list balancing
-References: <517B6DF5.70402@gmail.com> <517B6E46.30209@gmail.com> <20130430163230.GB1229@cmpxchg.org> <5180BC79.8080101@gmail.com> <20130501152105.GB8083@cmpxchg.org>
-In-Reply-To: <20130501152105.GB8083@cmpxchg.org>
+Subject: Re: [PATCH v3 00/11] mm: fixup changers of per cpu pageset's ->high
+ and ->batch
+References: <1365618219-17154-1-git-send-email-cody@linux.vnet.ibm.com> <20130410142354.6044338fd68ff2ad165b1bc8@linux-foundation.org> <5165D8DE.5090801@linux.vnet.ibm.com>
+In-Reply-To: <5165D8DE.5090801@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Simon Jeons <simon.jeons@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Johannes,
-On 05/01/2013 11:21 PM, Johannes Weiner wrote:
-> Hi Wanpeng Li / Ni zhan Chen / Jaegeuk Hanse / Simon Jeons / Will Huck
-> / Ric Mason / Sam Ben / Mtrr Patt!
+On 04/10/2013 02:25 PM, Cody P Schafer wrote:
+> On 04/10/2013 02:23 PM, Andrew Morton wrote:
+>> On Wed, 10 Apr 2013 11:23:28 -0700 Cody P Schafer
+>> <cody@linux.vnet.ibm.com> wrote:
+>>
+>>> "Problems" with the current code:
+>>>   1. there is a lack of synchronization in setting ->high and ->batch in
+>>>      percpu_pagelist_fraction_sysctl_handler()
+>>>   2. stop_machine() in zone_pcp_update() is unnecissary.
+>>>   3. zone_pcp_update() does not consider the case where
+>>> percpu_pagelist_fraction is non-zero
+>>>
+>>> To fix:
+>>>   1. add memory barriers, a safe ->batch value, an update side mutex
+>>> when
+>>>      updating ->high and ->batch, and use ACCESS_ONCE() for ->batch
+>>> users that
+>>>      expect a stable value.
+>>>   2. avoid draining pages in zone_pcp_update(), rely upon the memory
+>>> barriers added to fix #1
+>>>   3. factor out quite a few functions, and then call the appropriate
+>>> one.
+>>>
+>>> Note that it results in a change to the behavior of
+>>> zone_pcp_update(), which is
+>>> used by memory_hotplug. I'm rather certain that I've diserned (and
+>>> preserved)
+>>> the essential behavior (changing ->high and ->batch), and only
+>>> eliminated
+>>> unneeded actions (draining the per cpu pages), but this may not be
+>>> the case.
+>>>
+>>> Further note that the draining of pages that previously took place in
+>>> zone_pcp_update() occured after repeated draining when attempting to
+>>> offline a
+>>> page, and after the offline has "succeeded". It appears that the
+>>> draining was
+>>> added to zone_pcp_update() to avoid refactoring setup_pageset() into 2
+>>> funtions.
+>>
+>> There hasn't been a ton of review activity for this patchset :(
+>>
+>> I'm inclined to duck it until after 3.9.  Do the patches fix any
+>> noticeably bad userspace behavior?
 >
-> On Wed, May 01, 2013 at 02:55:53PM +0800, Mtrr Patt wrote:
->> Hi Johannes,
->> On 05/01/2013 12:32 AM, Johannes Weiner wrote:
->>> On Sat, Apr 27, 2013 at 02:20:54PM +0800, Mtrr Patt wrote:
->>>> cc linux-mm
->>>>
->>>> On 04/27/2013 02:19 PM, Mtrr Patt wrote:
->>>>> Hi Johannes,
->>>>>
->>>>> http://lwn.net/Articles/495543/
->>>>>
->>>>> This link said that "When active pages are considered for
->>>>> eviction, they are first moved to the inactive list and unmapped
->>>> >from the address space of the process(es) using them. Thus, once a
->>>>> page moves to the inactive list, any attempt to reference it will
->>>>> generate a page fault; this "soft fault" will cause the page to be
->>>>> removed back to the active list."
->>>>>
->>>>> Why I can't find the codes unmap during page moved from active
->>>>> list to inactive list?
->>> Most architectures have the hardware track the referenced bit in the
->>> page tables, but some don't.  For them, page_referenced_one() will
->>> mark the mapping read-only when clearing the referenced/young bit and
->>> the page fault handler will set the bit manually.
->> Thanks for your response. ;-) So the article is not against more
->> common case, isn't it?
-> It's about the generic/theoretic case I guess, not the optimized
-> implementation.
+> No, all the bugs are theoretical. Waiting should be fine.
 >
->>> When mapped pages reach the end of the inactive list and have that bit
->>> set, they get activated, see page_check_references().
->> It seems that the page should trigger page fault twice and
->> page_check_references can active it.
-> The first one brings it into memory (major fault), the second one sets
-> the referenced bit (minor fault or set by mmu).  Then it gets
-> activated.  That is the case for mmap accessed pages.
->
-> Buffered IO (read/write syscalls) enters the kernel anyway, so we
-> activate the pages right then and there with mark_page_accessed().
 
-Thanks for your explaination. Why you say hi to other guys, confuse me! ;-)
+Andrew, do you want me to resend this patch set in the hope of obtaining 
+more review? If so, when?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
