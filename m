@@ -1,50 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 039126B020A
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:14 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 7F6AC6B020A
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:15 -0400 (EDT)
 Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Wed, 1 May 2013 17:32:14 -0600
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 6D16CC90028
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:10 -0400 (EDT)
+	Wed, 1 May 2013 19:32:14 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 9247038C8045
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:07 -0400 (EDT)
 Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41NWAJH64421904
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 19:32:10 -0400
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41NW7h5304130
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 19:32:07 -0400
 Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41NW9VW026769
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 19:32:10 -0400
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41NW6dK026581
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 19:32:07 -0400
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH v2 2/4] mmzone: note that node_size_lock should be manipulated via pgdat_resize_lock()
-Date: Wed,  1 May 2013 16:31:59 -0700
-Message-Id: <1367451121-22725-3-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
-References: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [PATCH v2 0/4] misc patches related to resizing nodes & zones
+Date: Wed,  1 May 2013 16:31:57 -0700
+Message-Id: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
----
- include/linux/mmzone.h | 3 +++
- 1 file changed, 3 insertions(+)
+First 2 are comment fixes.
+Second 2 add pgdat_resize_lock()/unlock() usage per existing documentation.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index fc859a0c..41557be 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -716,6 +716,9 @@ typedef struct pglist_data {
- 	 * or node_spanned_pages stay constant.  Holding this will also
- 	 * guarantee that any pfn_valid() stays that way.
- 	 *
-+	 * pgdat_resize_lock() and pgdat_resize_unlock() are provided to
-+	 * manipulate node_size_lock without checking for CONFIG_MEMORY_HOTPLUG.
-+	 *
- 	 * Nests above zone->lock and zone->span_seqlock
- 	 */
- 	spinlock_t node_size_lock;
+--
+
+Since v1 (http://thread.gmane.org/gmane.linux.kernel.mm/99297):
+  - drop making lock_memory_hotplug() required (old patch #1)
+  - fix __offline_pages() in the same manner as online_pages() (rientjes)
+  - make comment regarding pgdat_resize_lock()/unlock() usage more clear (rientjes)
+
+--
+
+Cody P Schafer (4):
+  mm: fix comment referring to non-existent size_seqlock, change to
+    span_seqlock
+  mmzone: note that node_size_lock should be manipulated via
+    pgdat_resize_lock()
+  memory_hotplug: use pgdat_resize_lock() in online_pages()
+  memory_hotplug: use pgdat_resize_lock() in __offline_pages()
+
+ include/linux/mmzone.h | 5 ++++-
+ mm/memory_hotplug.c    | 9 +++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)
+
 -- 
 1.8.2.2
 
