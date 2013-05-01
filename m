@@ -1,58 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id A9ADB6B020F
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:18 -0400 (EDT)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Wed, 1 May 2013 17:32:17 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 67AA73E4003F
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 17:32:00 -0600 (MDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41NWEsH041186
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 17:32:14 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41NWDj9017564
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 17:32:13 -0600
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH v2 4/4] memory_hotplug: use pgdat_resize_lock() in __offline_pages()
-Date: Wed,  1 May 2013 16:32:01 -0700
-Message-Id: <1367451121-22725-5-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
-References: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 94A116B0249
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:36:07 -0400 (EDT)
+Received: by mail-ve0-f176.google.com with SMTP id b10so25796vea.7
+        for <linux-mm@kvack.org>; Wed, 01 May 2013 16:36:06 -0700 (PDT)
+Message-ID: <5181A6DE.7000400@gmail.com>
+Date: Thu, 02 May 2013 07:35:58 +0800
+From: Mtrr Patt <mtrr.patt@gmail.com>
+MIME-Version: 1.0
+Subject: Re: Better active/inactive list balancing
+References: <517B6DF5.70402@gmail.com> <517B6E46.30209@gmail.com> <20130430163230.GB1229@cmpxchg.org> <5180BC79.8080101@gmail.com> <20130501152105.GB8083@cmpxchg.org>
+In-Reply-To: <20130501152105.GB8083@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-mmzone.h documents node_size_lock (which pgdat_resize_lock() locks) as
-guarding against changes to node_present_pages, so actually lock it when
-we update node_present_pages to keep that promise.
+Hi Johannes,
+On 05/01/2013 11:21 PM, Johannes Weiner wrote:
+> Hi Wanpeng Li / Ni zhan Chen / Jaegeuk Hanse / Simon Jeons / Will Huck
+> / Ric Mason / Sam Ben / Mtrr Patt!
+>
+> On Wed, May 01, 2013 at 02:55:53PM +0800, Mtrr Patt wrote:
+>> Hi Johannes,
+>> On 05/01/2013 12:32 AM, Johannes Weiner wrote:
+>>> On Sat, Apr 27, 2013 at 02:20:54PM +0800, Mtrr Patt wrote:
+>>>> cc linux-mm
+>>>>
+>>>> On 04/27/2013 02:19 PM, Mtrr Patt wrote:
+>>>>> Hi Johannes,
+>>>>>
+>>>>> http://lwn.net/Articles/495543/
+>>>>>
+>>>>> This link said that "When active pages are considered for
+>>>>> eviction, they are first moved to the inactive list and unmapped
+>>>> >from the address space of the process(es) using them. Thus, once a
+>>>>> page moves to the inactive list, any attempt to reference it will
+>>>>> generate a page fault; this "soft fault" will cause the page to be
+>>>>> removed back to the active list."
+>>>>>
+>>>>> Why I can't find the codes unmap during page moved from active
+>>>>> list to inactive list?
+>>> Most architectures have the hardware track the referenced bit in the
+>>> page tables, but some don't.  For them, page_referenced_one() will
+>>> mark the mapping read-only when clearing the referenced/young bit and
+>>> the page fault handler will set the bit manually.
+>> Thanks for your response. ;-) So the article is not against more
+>> common case, isn't it?
+> It's about the generic/theoretic case I guess, not the optimized
+> implementation.
+>
+>>> When mapped pages reach the end of the inactive list and have that bit
+>>> set, they get activated, see page_check_references().
+>> It seems that the page should trigger page fault twice and
+>> page_check_references can active it.
+> The first one brings it into memory (major fault), the second one sets
+> the referenced bit (minor fault or set by mmu).  Then it gets
+> activated.  That is the case for mmap accessed pages.
+>
+> Buffered IO (read/write syscalls) enters the kernel anyway, so we
+> activate the pages right then and there with mark_page_accessed().
 
-Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
----
- mm/memory_hotplug.c | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 0bdca10..b59a695 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1582,7 +1582,11 @@ repeat:
- 	/* removal success */
- 	zone->managed_pages -= offlined_pages;
- 	zone->present_pages -= offlined_pages;
-+
-+	pgdat_resize_lock(zone->zone_pgdat, &flags);
- 	zone->zone_pgdat->node_present_pages -= offlined_pages;
-+	pgdat_resize_unlock(zone->zone_pgdat, &flags);
-+
- 	totalram_pages -= offlined_pages;
- 
- 	init_per_zone_wmark_min();
--- 
-1.8.2.2
+Thanks for your explaination. Why you say hi to other guys, confuse me! ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
