@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 7D2BC6B01F4
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 18:30:55 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id 15so1022660pdi.29
-        for <linux-mm@kvack.org>; Wed, 01 May 2013 15:30:54 -0700 (PDT)
-Date: Wed, 1 May 2013 15:30:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/4] memory_hotplug: use pgdat_resize_lock() when updating
- node_present_pages
-In-Reply-To: <1367446635-12856-5-git-send-email-cody@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.02.1305011530050.8804@chino.kir.corp.google.com>
-References: <1367446635-12856-1-git-send-email-cody@linux.vnet.ibm.com> <1367446635-12856-5-git-send-email-cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 1C6826B01F6
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 18:32:12 -0400 (EDT)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Wed, 1 May 2013 16:32:11 -0600
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 1E88019D8048
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 16:32:02 -0600 (MDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41MW7Hc108744
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 16:32:07 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41MW7Of018385
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 16:32:07 -0600
+Message-ID: <518197E2.7050004@linux.vnet.ibm.com>
+Date: Wed, 01 May 2013 15:32:02 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 1/4] mmzone: make holding lock_memory_hotplug() a requirement
+ for updating pgdat size
+References: <1367446635-12856-1-git-send-email-cody@linux.vnet.ibm.com> <1367446635-12856-2-git-send-email-cody@linux.vnet.ibm.com> <alpine.DEB.2.02.1305011525580.8804@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1305011525580.8804@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cody P Schafer <cody@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 1 May 2013, Cody P Schafer wrote:
+On 05/01/2013 03:26 PM, David Rientjes wrote:
+> On Wed, 1 May 2013, Cody P Schafer wrote:
+>
+>> All updaters of pgdat size (spanned_pages, start_pfn, and
+>> present_pages) currently also hold lock_memory_hotplug() (in addition
+>> to pgdat_resize_lock()).
+>>
+>> Document this and make holding of that lock a requirement on the update
+>> side for now, but keep the pgdat_resize_lock() around for readers that
+>> can't lock a mutex.
+>>
+>> Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+>
+> Nack, these fields are initialized at boot without lock_memory_hotplug(),
+> so you're statement is wrong, and all you need is pgdat_resize_lock().
 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index a221fac..0bdca10 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -915,6 +915,7 @@ static void node_states_set_node(int node, struct memory_notify *arg)
->  
->  int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_type)
->  {
-> +	unsigned long flags;
->  	unsigned long onlined_pages = 0;
->  	struct zone *zone;
->  	int need_zonelists_rebuild = 0;
-> @@ -993,7 +994,11 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
->  
->  	zone->managed_pages += onlined_pages;
->  	zone->present_pages += onlined_pages;
-> +
-> +	pgdat_resize_lock(zone->zone_pgdat, &flags);
->  	zone->zone_pgdat->node_present_pages += onlined_pages;
-> +	pgdat_resize_unlock(zone->zone_pgdat, &flags);
-> +
->  	if (onlined_pages) {
->  		node_states_set_node(zone_to_nid(zone), &arg);
->  		if (need_zonelists_rebuild)
+They are also initialized at boot without pgdat_resize_lock(), if we 
+consider boot time, quite a few of the statements on when locking is 
+required are wrong.
 
-Why?  You can't get a partial read of a word-sized data structure.
+That said, you are correct that it is not strictly required to hold 
+lock_memory_hotplug() when updating the fields in question because 
+pgdat_resize_lock() is used.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
