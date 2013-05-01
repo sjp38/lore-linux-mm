@@ -1,54 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 268C26B0158
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 02:28:26 -0400 (EDT)
-Received: by mail-ia0-f169.google.com with SMTP id l29so1162354iag.0
-        for <linux-mm@kvack.org>; Tue, 30 Apr 2013 23:28:25 -0700 (PDT)
-Message-ID: <5180B601.8080005@gmail.com>
-Date: Wed, 01 May 2013 14:28:17 +0800
-From: Will Huck <will.huckk@gmail.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id AD5F36B015B
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 02:56:02 -0400 (EDT)
+Received: by mail-yh0-f41.google.com with SMTP id i57so246286yha.28
+        for <linux-mm@kvack.org>; Tue, 30 Apr 2013 23:56:01 -0700 (PDT)
+Message-ID: <5180BC79.8080101@gmail.com>
+Date: Wed, 01 May 2013 14:55:53 +0800
+From: Mtrr Patt <mtrr.patt@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/3] Obey mark_page_accessed hint given by filesystems
-References: <1367253119-6461-1-git-send-email-mgorman@suse.de>
-In-Reply-To: <1367253119-6461-1-git-send-email-mgorman@suse.de>
+Subject: Re: Better active/inactive list balancing
+References: <517B6DF5.70402@gmail.com> <517B6E46.30209@gmail.com> <20130430163230.GB1229@cmpxchg.org>
+In-Reply-To: <20130430163230.GB1229@cmpxchg.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>, Theodore Tso <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-Hi Mel,
-On 04/30/2013 12:31 AM, Mel Gorman wrote:
-> Andrew Perepechko reported a problem whereby pages are being prematurely
-> evicted as the mark_page_accessed() hint is ignored for pages that are
-> currently on a pagevec -- http://www.spinics.net/lists/linux-ext4/msg37340.html .
-> Alexey Lyahkov and Robin Dong have also reported problems recently that
-> could be due to hot pages reaching the end of the inactive list too quickly
-> and be reclaimed.
+Hi Johannes,
+On 05/01/2013 12:32 AM, Johannes Weiner wrote:
+> On Sat, Apr 27, 2013 at 02:20:54PM +0800, Mtrr Patt wrote:
+>> cc linux-mm
+>>
+>> On 04/27/2013 02:19 PM, Mtrr Patt wrote:
+>>> Hi Johannes,
+>>>
+>>> http://lwn.net/Articles/495543/
+>>>
+>>> This link said that "When active pages are considered for
+>>> eviction, they are first moved to the inactive list and unmapped
+>> >from the address space of the process(es) using them. Thus, once a
+>>> page moves to the inactive list, any attempt to reference it will
+>>> generate a page fault; this "soft fault" will cause the page to be
+>>> removed back to the active list."
+>>>
+>>> Why I can't find the codes unmap during page moved from active
+>>> list to inactive list?
+> Most architectures have the hardware track the referenced bit in the
+> page tables, but some don't.  For them, page_referenced_one() will
+> mark the mapping read-only when clearing the referenced/young bit and
+> the page fault handler will set the bit manually.
 
-Both shrink_active_list and shrink_inactive_list can call 
-lru_add_drain(), why the hot pages can't be mark Actived during this time?
+Thanks for your response. ;-) So the article is not against more common 
+case, isn't it?
 
-> Rather than addressing this on a per-filesystem basis, this series aims
-> to fix the mark_page_accessed() interface by deferring what LRU a page
-> is added to pagevec drain time and allowing mark_page_accessed() to call
-> SetPageActive on a pagevec page. This opens some important races that
-> I think should be harmless but needs double checking. The races and the
-> VM_BUG_ON checks that are removed are all described in patch 2.
->
-> This series received only very light testing but it did not immediately
-> blow up and a debugging patch confirmed that pages are now getting added
-> to the active file LRU list that would previously have been added to the
-> inactive list.
->
->   fs/cachefiles/rdwr.c    | 30 ++++++------------------
->   fs/nfs/dir.c            |  7 ++----
->   include/linux/pagevec.h | 34 +--------------------------
->   mm/swap.c               | 61 ++++++++++++++++++++++++-------------------------
->   mm/vmscan.c             |  3 ---
->   5 files changed, 40 insertions(+), 95 deletions(-)
->
+> When mapped pages reach the end of the inactive list and have that bit
+> set, they get activated, see page_check_references().
+
+It seems that the page should trigger page fault twice and 
+page_check_references can active it.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
