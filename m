@@ -1,53 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 7F6AC6B020A
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:15 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 23D386B020A
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:16 -0400 (EDT)
 Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Wed, 1 May 2013 19:32:14 -0400
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 9247038C8045
-	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:07 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41NW7h5304130
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 19:32:07 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41NW6dK026581
-	for <linux-mm@kvack.org>; Wed, 1 May 2013 19:32:07 -0400
+	Wed, 1 May 2013 19:32:15 -0400
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id DEB1F38C801A
+	for <linux-mm@kvack.org>; Wed,  1 May 2013 19:32:12 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r41NWDa5270368
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 19:32:13 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r41NWBvU023931
+	for <linux-mm@kvack.org>; Wed, 1 May 2013 20:32:12 -0300
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH v2 0/4] misc patches related to resizing nodes & zones
-Date: Wed,  1 May 2013 16:31:57 -0700
-Message-Id: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [PATCH v2 3/4] memory_hotplug: use pgdat_resize_lock() in online_pages()
+Date: Wed,  1 May 2013 16:32:00 -0700
+Message-Id: <1367451121-22725-4-git-send-email-cody@linux.vnet.ibm.com>
+In-Reply-To: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
+References: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-First 2 are comment fixes.
-Second 2 add pgdat_resize_lock()/unlock() usage per existing documentation.
+mmzone.h documents node_size_lock (which pgdat_resize_lock() locks) as
+guarding against changes to node_present_pages, so actually lock it when
+we update node_present_pages to keep that promise.
 
---
+Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+---
+ mm/memory_hotplug.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-Since v1 (http://thread.gmane.org/gmane.linux.kernel.mm/99297):
-  - drop making lock_memory_hotplug() required (old patch #1)
-  - fix __offline_pages() in the same manner as online_pages() (rientjes)
-  - make comment regarding pgdat_resize_lock()/unlock() usage more clear (rientjes)
-
---
-
-Cody P Schafer (4):
-  mm: fix comment referring to non-existent size_seqlock, change to
-    span_seqlock
-  mmzone: note that node_size_lock should be manipulated via
-    pgdat_resize_lock()
-  memory_hotplug: use pgdat_resize_lock() in online_pages()
-  memory_hotplug: use pgdat_resize_lock() in __offline_pages()
-
- include/linux/mmzone.h | 5 ++++-
- mm/memory_hotplug.c    | 9 +++++++++
- 2 files changed, 13 insertions(+), 1 deletion(-)
-
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index a221fac..0bdca10 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -915,6 +915,7 @@ static void node_states_set_node(int node, struct memory_notify *arg)
+ 
+ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_type)
+ {
++	unsigned long flags;
+ 	unsigned long onlined_pages = 0;
+ 	struct zone *zone;
+ 	int need_zonelists_rebuild = 0;
+@@ -993,7 +994,11 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 
+ 	zone->managed_pages += onlined_pages;
+ 	zone->present_pages += onlined_pages;
++
++	pgdat_resize_lock(zone->zone_pgdat, &flags);
+ 	zone->zone_pgdat->node_present_pages += onlined_pages;
++	pgdat_resize_unlock(zone->zone_pgdat, &flags);
++
+ 	if (onlined_pages) {
+ 		node_states_set_node(zone_to_nid(zone), &arg);
+ 		if (need_zonelists_rebuild)
 -- 
 1.8.2.2
 
