@@ -1,126 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id B0A696B0266
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 12:21:18 -0400 (EDT)
-Received: by mail-oa0-f69.google.com with SMTP id k14so4790906oag.0
-        for <linux-mm@kvack.org>; Thu, 02 May 2013 09:21:18 -0700 (PDT)
-Date: Thu, 2 May 2013 11:21:10 -0500
-From: Shawn Bohrer <sbohrer@rgmadvisors.com>
-Subject: Re: deadlock on vmap_area_lock
-Message-ID: <20130502162110.GA2970@BohrerMBP.rgmadvisors.com>
-References: <20130501144341.GA2404@BohrerMBP.rgmadvisors.com>
- <alpine.DEB.2.02.1305010855440.4547@chino.kir.corp.google.com>
- <20130501220303.GO10481@dastard>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 306FF6B0269
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 13:23:33 -0400 (EDT)
+Date: Thu, 2 May 2013 19:20:22 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH] oom: add pending SIGKILL check for chosen victim
+Message-ID: <20130502172022.GA8557@redhat.com>
+References: <20130422195138.GB31098@dhcp22.suse.cz> <20130423192614.c8621a7fe1b5b3e0a2ebf74a@gmail.com> <20130423155638.GJ8001@dhcp22.suse.cz> <20130424145514.GA24997@redhat.com> <20130424152236.GB7600@dhcp22.suse.cz> <20130424154216.GA27929@redhat.com> <20130424123311.79614649c6a7951d9f8a39fe@linux-foundation.org> <20130425144955.GA26368@redhat.com> <20130425194118.51996d11baa4ed6b18e40e71@gmail.com> <20130425162237.GA31671@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20130501220303.GO10481@dastard>
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20130425162237.GA31671@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xfs@oss.sgi.com
+To: Sergey Dyasly <dserrg@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu, May 02, 2013 at 08:03:04AM +1000, Dave Chinner wrote:
-> On Wed, May 01, 2013 at 08:57:38AM -0700, David Rientjes wrote:
-> > On Wed, 1 May 2013, Shawn Bohrer wrote:
-> > 
-> > > I've got two compute clusters with around 350 machines each which are
-> > > running kernels based off of 3.1.9 (Yes I realize this is ancient by
-> > > todays standards).
-> 
-> xfs_info output of one of those filesystems? What platform are you
-> running (32 or 64 bit)?
+Just to let you know that this time I didn't forget about this problem ;)
 
-# cat /proc/mounts | grep data-cache
-/dev/sdb1 /data-cache xfs rw,nodiratime,relatime,attr2,delaylog,noquota 0 0
-# xfs_info /data-cache 
-meta-data=/dev/sdb1              isize=256    agcount=4, agsize=66705344 blks
-         =                       sectsz=512   attr=2
-data     =                       bsize=4096   blocks=266821376, imaxpct=25
-         =                       sunit=0      swidth=0 blks
-naming   =version 2              bsize=4096   ascii-ci=0
-log      =internal               bsize=4096   blocks=130283, version=2
-         =                       sectsz=512   sunit=0 blks, lazy-count=1
-realtime =none                   extsz=4096   blocks=0, rtextents=0
+On 04/25, Oleg Nesterov wrote:
+>
+> On 04/25, Sergey Dyasly wrote:
+> >
+> > But in general case there is still a race,
+>
+> Yes. Every while_each_thread() in oom-kill is wrong, and I am still not
+> sure what should/can we do. Will try to think more.
 
-These are 64-bit systems.  The ones that hit the issue more frequently
-have 96 GB of RAM.
+And I still can't find a simple/clean solution.
 
-> > > All of the machines run a 'find' command once an
-> > > hour on one of the mounted XFS filesystems.  Occasionally these find
-> > > commands get stuck requiring a reboot of the system.  I took a peek
-> > > today and see this with perf:
-> > > 
-> > >     72.22%          find  [kernel.kallsyms]          [k] _raw_spin_lock
-> > >                     |
-> > >                     --- _raw_spin_lock
-> > >                        |          
-> > >                        |--98.84%-- vm_map_ram
-> > >                        |          _xfs_buf_map_pages
-> > >                        |          xfs_buf_get
-> > >                        |          xfs_buf_read
-> > >                        |          xfs_trans_read_buf
-> > >                        |          xfs_da_do_buf
-> > >                        |          xfs_da_read_buf
-> > >                        |          xfs_dir2_block_getdents
-> > >                        |          xfs_readdir
-> > >                        |          xfs_file_readdir
-> > >                        |          vfs_readdir
-> > >                        |          sys_getdents
-> > >                        |          system_call_fastpath
-> > >                        |          __getdents64
-> > >                        |          
-> > >                        |--1.12%-- _xfs_buf_map_pages
-> > >                        |          xfs_buf_get
-> > >                        |          xfs_buf_read
-> > >                        |          xfs_trans_read_buf
-> > >                        |          xfs_da_do_buf
-> > >                        |          xfs_da_read_buf
-> > >                        |          xfs_dir2_block_getdents
-> > >                        |          xfs_readdir
-> > >                        |          xfs_file_readdir
-> > >                        |          vfs_readdir
-> > >                        |          sys_getdents
-> > >                        |          system_call_fastpath
-> > >                        |          __getdents64
-> > >                         --0.04%-- [...]
-> > > 
-> > > Looking at the code my best guess is that we are spinning on
-> > > vmap_area_lock, but I could be wrong.  This is the only process
-> > > spinning on the machine so I'm assuming either another process has
-> > > blocked while holding the lock, or perhaps this find process has tried
-> > > to acquire the vmap_area_lock twice?
-> > > 
-> > 
-> > Significant spinlock contention doesn't necessarily mean that there's a 
-> > deadlock, but it also doesn't mean the opposite.  Depending on your 
-> > definition of "occassionally", would it be possible to run with 
-> > CONFIG_PROVE_LOCKING and CONFIG_LOCKDEP to see if it uncovers any real 
-> > deadlock potential?
-> 
-> It sure will. We've been reporting that vm_map_ram is doing
-> GFP_KERNEL allocations from GFP_NOFS context for years, and have
-> reported plenty of lockdep dumps as a result of it.
-> 
-> But that's not the problem that is occurring above - lockstat is
-> probably a good thing to look at here to determine exactly what
-> locks are being contended on....
+OK. I am starting to think we should probably switch to Plan B. We can add
+thread_head into task_struct->signal and convert while_each_thread() into
+list_for_each_rcu(). This should work, but this is really painful and I was
+going to avoid this as much as possible...
 
-I've built a kernel with lock_stat, CONFIG_PROVE_LOCKING,
-CONFIG_LOCKDEP and have one machine running with that kernel.  We'll
-probably put machines on this debug kernel when we reboot them and
-hopefully one will trigger the issue.
+I'll try to do something once I return from vacation (May 9). Heh, See also
+http://marc.info/?l=linux-kernel&m=127688978121665 and the whole thread.
 
-Thanks,
-Shawn
-
--- 
-
----------------------------------------------------------------
-This email, along with any attachments, is confidential. If you 
-believe you received this message in error, please contact the 
-sender immediately and delete all copies of the message.  
-Thank you.
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
