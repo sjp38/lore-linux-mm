@@ -1,72 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 0C9E36B0253
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 05:37:48 -0400 (EDT)
-Date: Thu, 2 May 2013 10:37:44 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v4 17/31] drivers: convert shrinkers to new count/scan API
-Message-ID: <20130502093744.GJ11497@suse.de>
-References: <1367018367-11278-1-git-send-email-glommer@openvz.org>
- <1367018367-11278-18-git-send-email-glommer@openvz.org>
- <20130430215355.GN6415@suse.de>
- <20130430220050.GK9931@google.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id B743C6B0255
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 06:00:12 -0400 (EDT)
+Date: Thu, 2 May 2013 11:00:00 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC PATCH 8/9] ARM64: mm: Introduce MAX_ZONE_ORDER for 64K
+ and THP.
+Message-ID: <20130502100000.GB20730@arm.com>
+References: <1367339448-21727-1-git-send-email-steve.capper@linaro.org>
+ <1367339448-21727-9-git-send-email-steve.capper@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130430220050.GK9931@google.com>
+In-Reply-To: <1367339448-21727-9-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kent Overstreet <koverstreet@google.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, intel-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, devel@driverdev.osuosl.org, Dan Magenheimer <dan.magenheimer@oracle.com>
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <Will.Deacon@arm.com>
 
-On Tue, Apr 30, 2013 at 03:00:50PM -0700, Kent Overstreet wrote:
-> On Tue, Apr 30, 2013 at 10:53:55PM +0100, Mel Gorman wrote:
-> > On Sat, Apr 27, 2013 at 03:19:13AM +0400, Glauber Costa wrote:
-> > > diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
-> > > index 03e44c1..8b9c1a6 100644
-> > > --- a/drivers/md/bcache/btree.c
-> > > +++ b/drivers/md/bcache/btree.c
-> > > @@ -599,11 +599,12 @@ static int mca_reap(struct btree *b, struct closure *cl, unsigned min_order)
-> > >  	return 0;
-> > >  }
-> > >  
-> > > -static int bch_mca_shrink(struct shrinker *shrink, struct shrink_control *sc)
-> > > +static long bch_mca_scan(struct shrinker *shrink, struct shrink_control *sc)
-> > >  {
-> > >  	struct cache_set *c = container_of(shrink, struct cache_set, shrink);
-> > >  	struct btree *b, *t;
-> > >  	unsigned long i, nr = sc->nr_to_scan;
-> > > +	long freed = 0;
-> > >  
-> > >  	if (c->shrinker_disabled)
-> > >  		return 0;
-> > 
-> > -1 if shrinker disabled?
-> > 
-> > Otherwise if the shrinker is disabled we ultimately hit this loop in
-> > shrink_slab_one()
+On Tue, Apr 30, 2013 at 05:30:47PM +0100, Steve Capper wrote:
+> The buddy allocator has a default order of 11, which is too low to
+> allocate enough memory for 512MB Transparent HugePages if our base
+> page size is 64K. For any order less than 13, the combination of
+> THP with 64K pages will cause a compile error.
 > 
-> My memory is very hazy on this stuff, but I recall there being another
-> loop that'd just spin if we always returned -1.
+> This patch introduces the MAX_ZONE_ORDER config option that allows
+> one to explicitly override the order of the buddy allocator. If
+> 64K pages and THP are enabled the minimum value is set to 13.
 > 
-> (It might've been /proc/sys/vm/drop_caches, or maybe that was another
-> bug..)
+> Signed-off-by: Steve Capper <steve.capper@linaro.org>
+> ---
+>  arch/arm64/Kconfig | 17 +++++++++++++++++
+>  1 file changed, 17 insertions(+)
 > 
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 16aa780..908fd95 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -196,6 +196,23 @@ config ARCH_WANT_HUGE_PMD_SHARE
+>  
+>  source "mm/Kconfig"
+>  
+> +config FORCE_MAX_ZONEORDER
+> +	int "Maximum zone order"
+> +	range 11 64 if !(ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
+> +	range 13 64 if ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE
+> +	default "11" if !(ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
+> +	default "13" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
 
-It might be worth chasing down what that bug was and fixing it.
+Can we just keep some sane defaults here without giving too much choice
+to the user? Something like:
 
-> But 0 should certainly be safe - if we're always returning 0, then we're
-> claiming we don't have anything to shrink.
-> 
+config FORCE_MAX_ZONEORDER
+	int
+	default "13" if (ARM64_64K_PAGES && TRANSPARENT_HUGEPAGE)
+	default "11"
 
-It won't crash, but in Glauber's current code, it'll call you a few more
-times uselessly and the scanned statistics become misleading. I think
-Glauber/Dave's series is a big improvement over what we currently have
-and it would be nice to get it ironed out.
+We can extend it later if people need this but I'm aiming for a single
+config on a multitude of boards.
 
 -- 
-Mel Gorman
-SUSE Labs
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
