@@ -1,235 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 11E796B025B
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 09:37:59 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: Re: [PATCH v4 17/31] drivers: convert shrinkers to new count/scan
- API
-Date: Thu, 2 May 2013 13:37:54 +0000
-Message-ID: <xm7djq7r1xfsf4uo0hohgyxj.1367501887374@email.android.com>
-References: <1367018367-11278-1-git-send-email-glommer@openvz.org>
- <1367018367-11278-18-git-send-email-glommer@openvz.org>
- <20130430215355.GN6415@suse.de>
- <20130430220050.GK9931@google.com>,<20130502093744.GJ11497@suse.de>
-In-Reply-To: <20130502093744.GJ11497@suse.de>
-Reply-To: Glauber Costa <glommer@parallels.com>
-Content-Language: en-US
-Content-Type: multipart/alternative;
-	boundary="_000_xm7djq7r1xfsf4uo0hohgyxj1367501887374emailandroidcom_"
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 1844B6B025F
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 09:56:15 -0400 (EDT)
+Date: Thu, 2 May 2013 15:56:10 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: + mm-memcg-add-rss_huge-stat-to-memorystat.patch added to -mm
+ tree
+Message-ID: <20130502135610.GJ1950@dhcp22.suse.cz>
+References: <20130430193350.7B94131C2B9@corp2gmr1-1.hot.corp.google.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130430193350.7B94131C2B9@corp2gmr1-1.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "mgorman@suse.de" <mgorman@suse.de>, "koverstreet@google.com" <koverstreet@google.com>
-Cc: "glommer@openvz.org" <glommer@openvz.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "gthelen@google.com" <gthelen@google.com>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "mhocko@suse.cz" <mhocko@suse.cz>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "dchinner@redhat.com" <dchinner@redhat.com>, "intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>, "dan.magenheimer@oracle.com" <dan.magenheimer@oracle.com>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, rientjes@google.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
 
---_000_xm7djq7r1xfsf4uo0hohgyxj1367501887374emailandroidcom_
-Content-Type: text/plain; charset="iso-8859-15"
-Content-Transfer-Encoding: quoted-printable
+On Tue 30-04-13 12:33:50, Andrew Morton wrote:
+> 
+> The patch titled
+>      Subject: mm, memcg: add rss_huge stat to memory.stat
+> has been added to the -mm tree.  Its filename is
+>      mm-memcg-add-rss_huge-stat-to-memorystat.patch
+> 
+> Before you just go and hit "reply", please:
+>    a) Consider who else should be cc'ed
+>    b) Prefer to cc a suitable mailing list as well
+>    c) Ideally: find the original patch on the mailing list and do a
+>       reply-to-all to that, adding suitable additional cc's
+> 
+> *** Remember to use Documentation/SubmitChecklist when testing your code ***
+> 
+> The -mm tree is included into linux-next and is updated
+> there every 3-4 working days
+> 
+> ------------------------------------------------------
+> From: David Rientjes <rientjes@google.com>
+> Subject: mm, memcg: add rss_huge stat to memory.stat
+> 
+> This exports the amount of anonymous transparent hugepages for each memcg
+> via the new "rss_huge" stat in memory.stat.  The units are in bytes.
+> 
+> This is helpful to determine the hugepage utilization for individual jobs
+> on the system in comparison to rss and opportunities where MADV_HUGEPAGE
+> may be helpful.
+> 
+> The amount of anonymous transparent hugepages is also included in "rss"
+> for backwards compatibility.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-Sorry for the following crappy message. I came travelling without my laptop=
-.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Please note that one of my patches implement one shot shrinkers onto of vmp=
-ressure mechanism. It can still be called frequently, because right now it =
-is called every time userspace would get an event. But at least it won't it=
-erate.
+> ---
+> 
+>  Documentation/cgroups/memory.txt |    4 ++-
+>  mm/memcontrol.c                  |   36 ++++++++++++++++++++---------
+>  2 files changed, 29 insertions(+), 11 deletions(-)
+> 
+> diff -puN Documentation/cgroups/memory.txt~mm-memcg-add-rss_huge-stat-to-memorystat Documentation/cgroups/memory.txt
+> --- a/Documentation/cgroups/memory.txt~mm-memcg-add-rss_huge-stat-to-memorystat
+> +++ a/Documentation/cgroups/memory.txt
+> @@ -480,7 +480,9 @@ memory.stat file includes following stat
+>  
+>  # per-memory cgroup local status
+>  cache		- # of bytes of page cache memory.
+> -rss		- # of bytes of anonymous and swap cache memory.
+> +rss		- # of bytes of anonymous and swap cache memory (includes
+> +		transparent hugepages).
+> +rss_huge	- # of bytes of anonymous transparent hugepages.
+>  mapped_file	- # of bytes of mapped file (includes tmpfs/shmem)
+>  pgpgin		- # of charging events to the memory cgroup. The charging
+>  		event happens each time a page is accounted as either mapped
+> diff -puN mm/memcontrol.c~mm-memcg-add-rss_huge-stat-to-memorystat mm/memcontrol.c
+> --- a/mm/memcontrol.c~mm-memcg-add-rss_huge-stat-to-memorystat
+> +++ a/mm/memcontrol.c
+> @@ -92,16 +92,18 @@ enum mem_cgroup_stat_index {
+>  	/*
+>  	 * For MEM_CONTAINER_TYPE_ALL, usage = pagecache + rss.
+>  	 */
+> -	MEM_CGROUP_STAT_CACHE, 	   /* # of pages charged as cache */
+> -	MEM_CGROUP_STAT_RSS,	   /* # of pages charged as anon rss */
+> -	MEM_CGROUP_STAT_FILE_MAPPED,  /* # of pages charged as file rss */
+> -	MEM_CGROUP_STAT_SWAP, /* # of pages, swapped out */
+> +	MEM_CGROUP_STAT_CACHE,		/* # of pages charged as cache */
+> +	MEM_CGROUP_STAT_RSS,		/* # of pages charged as anon rss */
+> +	MEM_CGROUP_STAT_RSS_HUGE,	/* # of pages charged as anon huge */
+> +	MEM_CGROUP_STAT_FILE_MAPPED,	/* # of pages charged as file rss */
+> +	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
+>  	MEM_CGROUP_STAT_NSTATS,
+>  };
+>  
+>  static const char * const mem_cgroup_stat_names[] = {
+>  	"cache",
+>  	"rss",
+> +	"rss_huge",
+>  	"mapped_file",
+>  	"swap",
+>  };
+> @@ -917,6 +919,7 @@ static unsigned long mem_cgroup_read_eve
+>  }
+>  
+>  static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+> +					 struct page *page,
+>  					 bool anon, int nr_pages)
+>  {
+>  	preempt_disable();
+> @@ -932,6 +935,10 @@ static void mem_cgroup_charge_statistics
+>  		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
+>  				nr_pages);
+>  
+> +	if (PageTransHuge(page))
+> +		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS_HUGE],
+> +				nr_pages);
+> +
+>  	/* pagein of a big page is an event. So, ignore page size */
+>  	if (nr_pages > 0)
+>  		__this_cpu_inc(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGIN]);
+> @@ -2914,7 +2921,7 @@ static void __mem_cgroup_commit_charge(s
+>  	else
+>  		anon = false;
+>  
+> -	mem_cgroup_charge_statistics(memcg, anon, nr_pages);
+> +	mem_cgroup_charge_statistics(memcg, page, anon, nr_pages);
+>  	unlock_page_cgroup(pc);
+>  
+>  	/*
+> @@ -3708,16 +3715,21 @@ void mem_cgroup_split_huge_fixup(struct
+>  {
+>  	struct page_cgroup *head_pc = lookup_page_cgroup(head);
+>  	struct page_cgroup *pc;
+> +	struct mem_cgroup *memcg;
+>  	int i;
+>  
+>  	if (mem_cgroup_disabled())
+>  		return;
+> +
+> +	memcg = head_pc->mem_cgroup;
+>  	for (i = 1; i < HPAGE_PMD_NR; i++) {
+>  		pc = head_pc + i;
+> -		pc->mem_cgroup = head_pc->mem_cgroup;
+> +		pc->mem_cgroup = memcg;
+>  		smp_wmb();/* see __commit_charge() */
+>  		pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
+>  	}
+> +	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_RSS_HUGE],
+> +		       HPAGE_PMD_NR);
+>  }
+>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+>  
+> @@ -3773,11 +3785,11 @@ static int mem_cgroup_move_account(struc
+>  		__this_cpu_inc(to->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
+>  		preempt_enable();
+>  	}
+> -	mem_cgroup_charge_statistics(from, anon, -nr_pages);
+> +	mem_cgroup_charge_statistics(from, page, anon, -nr_pages);
+>  
+>  	/* caller should have done css_get */
+>  	pc->mem_cgroup = to;
+> -	mem_cgroup_charge_statistics(to, anon, nr_pages);
+> +	mem_cgroup_charge_statistics(to, page, anon, nr_pages);
+>  	move_unlock_mem_cgroup(from, &flags);
+>  	ret = 0;
+>  unlock:
+> @@ -4152,7 +4164,7 @@ __mem_cgroup_uncharge_common(struct page
+>  		break;
+>  	}
+>  
+> -	mem_cgroup_charge_statistics(memcg, anon, -nr_pages);
+> +	mem_cgroup_charge_statistics(memcg, page, anon, -nr_pages);
+>  
+>  	ClearPageCgroupUsed(pc);
+>  	/*
+> @@ -4502,7 +4514,7 @@ void mem_cgroup_replace_page_cache(struc
+>  	lock_page_cgroup(pc);
+>  	if (PageCgroupUsed(pc)) {
+>  		memcg = pc->mem_cgroup;
+> -		mem_cgroup_charge_statistics(memcg, false, -1);
+> +		mem_cgroup_charge_statistics(memcg, oldpage, false, -1);
+>  		ClearPageCgroupUsed(pc);
+>  	}
+>  	unlock_page_cgroup(pc);
+> @@ -5030,6 +5042,10 @@ static inline u64 mem_cgroup_usage(struc
+>  			return res_counter_read_u64(&memcg->memsw, RES_USAGE);
+>  	}
+>  
+> +	/*
+> +	 * Transparent hugepages are still accounted for in MEM_CGROUP_STAT_RSS
+> +	 * as well as in MEM_CGROUP_STAT_RSS_HUGE.
+> +	 */
+>  	val = mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_CACHE);
+>  	val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_RSS);
+>  
+> _
+> 
+> Patches currently in -mm which might be from rientjes@google.com are
+> 
+> origin.patch
+> memory-hotplug-fix-warnings.patch
+> linux-next.patch
+> drivers-usb-storage-realtek_crc-fix-build.patch
+> mm-memcg-add-rss_huge-stat-to-memorystat.patch
+> mm-dmapoolc-fix-null-dev-in-dma_pool_create.patch
+> fs-proc-truncate-proc-pid-comm-writes-to-first-task_comm_len-bytes.patch
+> 
 
-You can try investigating if that interface suits your i915 needs better
-
-
-Sent by Samsung Mobile
-
-
-
--------- Original message --------
-From: Mel Gorman <mgorman@suse.de>
-Date:
-To: Kent Overstreet <koverstreet@google.com>
-Cc: Glauber Costa <glommer@openvz.org>,linux-mm@kvack.org,cgroups@vger.kern=
-el.org,Andrew Morton <akpm@linux-foundation.org>,Greg Thelen <gthelen@googl=
-e.com>,kamezawa.hiroyu@jp.fujitsu.com,Michal Hocko <mhocko@suse.cz>,Johanne=
-s Weiner <hannes@cmpxchg.org>,Dave Chinner <dchinner@redhat.com>,intel-gfx@=
-lists.freedesktop.org,dri-devel@lists.freedesktop.org,devel@driverdev.osuos=
-l.org,Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: Re: [PATCH v4 17/31] drivers: convert shrinkers to new count/scan =
-API
-
-
-On Tue, Apr 30, 2013 at 03:00:50PM -0700, Kent Overstreet wrote:
-> On Tue, Apr 30, 2013 at 10:53:55PM +0100, Mel Gorman wrote:
-> > On Sat, Apr 27, 2013 at 03:19:13AM +0400, Glauber Costa wrote:
-> > > diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
-> > > index 03e44c1..8b9c1a6 100644
-> > > --- a/drivers/md/bcache/btree.c
-> > > +++ b/drivers/md/bcache/btree.c
-> > > @@ -599,11 +599,12 @@ static int mca_reap(struct btree *b, struct clo=
-sure *cl, unsigned min_order)
-> > >    return 0;
-> > >  }
-> > >
-> > > -static int bch_mca_shrink(struct shrinker *shrink, struct shrink_con=
-trol *sc)
-> > > +static long bch_mca_scan(struct shrinker *shrink, struct shrink_cont=
-rol *sc)
-> > >  {
-> > >    struct cache_set *c =3D container_of(shrink, struct cache_set, shr=
-ink);
-> > >    struct btree *b, *t;
-> > >    unsigned long i, nr =3D sc->nr_to_scan;
-> > > + long freed =3D 0;
-> > >
-> > >    if (c->shrinker_disabled)
-> > >            return 0;
-> >
-> > -1 if shrinker disabled?
-> >
-> > Otherwise if the shrinker is disabled we ultimately hit this loop in
-> > shrink_slab_one()
->
-> My memory is very hazy on this stuff, but I recall there being another
-> loop that'd just spin if we always returned -1.
->
-> (It might've been /proc/sys/vm/drop_caches, or maybe that was another
-> bug..)
->
-
-It might be worth chasing down what that bug was and fixing it.
-
-> But 0 should certainly be safe - if we're always returning 0, then we're
-> claiming we don't have anything to shrink.
->
-
-It won't crash, but in Glauber's current code, it'll call you a few more
-times uselessly and the scanned statistics become misleading. I think
-Glauber/Dave's series is a big improvement over what we currently have
-and it would be nice to get it ironed out.
-
---
-Mel Gorman
+-- 
+Michal Hocko
 SUSE Labs
-
---_000_xm7djq7r1xfsf4uo0hohgyxj1367501887374emailandroidcom_
-Content-Type: text/html; charset="iso-8859-15"
-Content-Transfer-Encoding: quoted-printable
-
-<html>
-<head>
-<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso-8859-=
-15">
-<meta name=3D"Generator" content=3D"Microsoft Exchange Server">
-<!-- converted from text --><style><!-- .EmailQuote { margin-left: 1pt; pad=
-ding-left: 4pt; border-left: #800000 2px solid; } --></style>
-</head>
-<body>
-<div>
-<div>Sorry for the following crappy message. I came travelling without my l=
-aptop.</div>
-<div><br>
-</div>
-<div>Please note that one of my patches implement one shot shrinkers onto o=
-f vmpressure mechanism. It can still be called frequently, because right no=
-w it is called every time userspace would get an event. But at least it won=
-'t iterate.</div>
-<div><br>
-</div>
-<div>You can try investigating if that interface suits your i915 needs bett=
-er</div>
-<div><br>
-</div>
-<div><br>
-</div>
-<div>
-<div style=3D"font-size:75%; color:#575757">Sent by Samsung Mobile</div>
-</div>
-<br>
-<br>
-<br>
--------- Original message --------<br>
-From: Mel Gorman &lt;mgorman@suse.de&gt; <br>
-Date: <br>
-To: Kent Overstreet &lt;koverstreet@google.com&gt; <br>
-Cc: Glauber Costa &lt;glommer@openvz.org&gt;,linux-mm@kvack.org,cgroups@vge=
-r.kernel.org,Andrew Morton &lt;akpm@linux-foundation.org&gt;,Greg Thelen &l=
-t;gthelen@google.com&gt;,kamezawa.hiroyu@jp.fujitsu.com,Michal Hocko &lt;mh=
-ocko@suse.cz&gt;,Johannes Weiner &lt;hannes@cmpxchg.org&gt;,Dave
- Chinner &lt;dchinner@redhat.com&gt;,intel-gfx@lists.freedesktop.org,dri-de=
-vel@lists.freedesktop.org,devel@driverdev.osuosl.org,Dan Magenheimer &lt;da=
-n.magenheimer@oracle.com&gt;
-<br>
-Subject: Re: [PATCH v4 17/31] drivers: convert shrinkers to new count/scan =
-API <br>
-<br>
-<br>
-</div>
-<font size=3D"2"><span style=3D"font-size:10pt;">
-<div class=3D"PlainText">On Tue, Apr 30, 2013 at 03:00:50PM -0700, Kent Ove=
-rstreet wrote:<br>
-&gt; On Tue, Apr 30, 2013 at 10:53:55PM &#43;0100, Mel Gorman wrote:<br>
-&gt; &gt; On Sat, Apr 27, 2013 at 03:19:13AM &#43;0400, Glauber Costa wrote=
-:<br>
-&gt; &gt; &gt; diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/b=
-tree.c<br>
-&gt; &gt; &gt; index 03e44c1..8b9c1a6 100644<br>
-&gt; &gt; &gt; --- a/drivers/md/bcache/btree.c<br>
-&gt; &gt; &gt; &#43;&#43;&#43; b/drivers/md/bcache/btree.c<br>
-&gt; &gt; &gt; @@ -599,11 &#43;599,12 @@ static int mca_reap(struct btree *=
-b, struct closure *cl, unsigned min_order)<br>
-&gt; &gt; &gt;&nbsp;&nbsp;&nbsp; return 0;<br>
-&gt; &gt; &gt;&nbsp; }<br>
-&gt; &gt; &gt;&nbsp; <br>
-&gt; &gt; &gt; -static int bch_mca_shrink(struct shrinker *shrink, struct s=
-hrink_control *sc)<br>
-&gt; &gt; &gt; &#43;static long bch_mca_scan(struct shrinker *shrink, struc=
-t shrink_control *sc)<br>
-&gt; &gt; &gt;&nbsp; {<br>
-&gt; &gt; &gt;&nbsp;&nbsp;&nbsp; struct cache_set *c =3D container_of(shrin=
-k, struct cache_set, shrink);<br>
-&gt; &gt; &gt;&nbsp;&nbsp;&nbsp; struct btree *b, *t;<br>
-&gt; &gt; &gt;&nbsp;&nbsp;&nbsp; unsigned long i, nr =3D sc-&gt;nr_to_scan;=
-<br>
-&gt; &gt; &gt; &#43; long freed =3D 0;<br>
-&gt; &gt; &gt;&nbsp; <br>
-&gt; &gt; &gt;&nbsp;&nbsp;&nbsp; if (c-&gt;shrinker_disabled)<br>
-&gt; &gt; &gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
-nbsp; return 0;<br>
-&gt; &gt; <br>
-&gt; &gt; -1 if shrinker disabled?<br>
-&gt; &gt; <br>
-&gt; &gt; Otherwise if the shrinker is disabled we ultimately hit this loop=
- in<br>
-&gt; &gt; shrink_slab_one()<br>
-&gt; <br>
-&gt; My memory is very hazy on this stuff, but I recall there being another=
-<br>
-&gt; loop that'd just spin if we always returned -1.<br>
-&gt; <br>
-&gt; (It might've been /proc/sys/vm/drop_caches, or maybe that was another<=
-br>
-&gt; bug..)<br>
-&gt; <br>
-<br>
-It might be worth chasing down what that bug was and fixing it.<br>
-<br>
-&gt; But 0 should certainly be safe - if we're always returning 0, then we'=
-re<br>
-&gt; claiming we don't have anything to shrink.<br>
-&gt; <br>
-<br>
-It won't crash, but in Glauber's current code, it'll call you a few more<br=
->
-times uselessly and the scanned statistics become misleading. I think<br>
-Glauber/Dave's series is a big improvement over what we currently have<br>
-and it would be nice to get it ironed out.<br>
-<br>
--- <br>
-Mel Gorman<br>
-SUSE Labs<br>
-</div>
-</span></font>
-</body>
-</html>
-
---_000_xm7djq7r1xfsf4uo0hohgyxj1367501887374emailandroidcom_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
