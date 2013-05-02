@@ -1,398 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 548D26B024C
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 00:57:52 -0400 (EDT)
-Received: by mail-qc0-f170.google.com with SMTP id i13so107935qcs.1
-        for <linux-mm@kvack.org>; Wed, 01 May 2013 21:57:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 35D6E6B024F
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 01:24:07 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dwg@au1.ibm.com>;
+	Thu, 2 May 2013 15:18:54 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 12BFD3578050
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 15:24:00 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r425Nq9g22347794
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 15:23:53 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r425NwSq029764
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 15:23:58 +1000
+Date: Thu, 2 May 2013 15:23:48 +1000
+From: David Gibson <dwg@au1.ibm.com>
+Subject: Re: [PATCH -V7 18/18] powerpc: Update tlbie/tlbiel as per ISA doc
+Message-ID: <20130502052348.GI13041@truffula.fritz.box>
+References: <1367177859-7893-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1367177859-7893-19-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20130430061522.GC20202@truffula.fritz.box>
+ <87ppxc9bpf.fsf@linux.vnet.ibm.com>
+ <20130501052625.GC14106@truffula.fritz.box>
+ <87hain9m5e.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <20130501191033.GG1229@cmpxchg.org>
-References: <516B9B57.6050308@redhat.com>
-	<20130416075047.GA4184@osiris>
-	<1638103518.2400447.1366266465689.JavaMail.root@redhat.com>
-	<20130418071303.GB4203@osiris>
-	<20130424104255.GC4350@osiris>
-	<20130424131851.GC31960@dhcp22.suse.cz>
-	<20130424152043.GP2018@cmpxchg.org>
-	<alpine.LNX.2.00.1304242022200.16233@eggly.anvils>
-	<20130430172711.GE1229@cmpxchg.org>
-	<alpine.LNX.2.00.1305010758090.12051@eggly.anvils>
-	<20130501191033.GG1229@cmpxchg.org>
-Date: Wed, 1 May 2013 21:57:50 -0700
-Message-ID: <CANsGZ6YoqrcOGJGJtLjccJ5S8-ObN=VRYP4OK_NgW0bGeqCt3A@mail.gmail.com>
-Subject: Re: [v3.9-rc8]: kernel BUG at mm/memcontrol.c:3994! (was: Re:
- [BUG][s390x] mm: system crashed)
-From: Hugh Dickins <hughd@google.com>
-Content-Type: multipart/alternative; boundary=e89a8f64753f971e9e04dbb5131a
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="AXxEqdD4tcVTjWte"
+Content-Disposition: inline
+In-Reply-To: <87hain9m5e.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Heiko Carstens <heiko.carstens@de.ibm.com>, Zhouping Liu <zliu@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, caiqian <caiqian@redhat.com>, Caspar Zhang <czhang@redhat.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Lingzhu Xiang <lxiang@redhat.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, paulus@samba.org, linux-mm@kvack.org
 
---e89a8f64753f971e9e04dbb5131a
-Content-Type: text/plain; charset=UTF-8
-
-On Wed, May 1, 2013 at 12:10 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-
-> On Wed, May 01, 2013 at 08:28:30AM -0700, Hugh Dickins wrote:
-> > On Tue, 30 Apr 2013, Johannes Weiner wrote:
-> > > On Wed, Apr 24, 2013 at 08:50:01PM -0700, Hugh Dickins wrote:
-> > > > On Wed, 24 Apr 2013, Johannes Weiner wrote:
-> > > > > On Wed, Apr 24, 2013 at 03:18:51PM +0200, Michal Hocko wrote:
-> > > > > > On Wed 24-04-13 12:42:55, Heiko Carstens wrote:
-> > > > > > > On Thu, Apr 18, 2013 at 09:13:03AM +0200, Heiko Carstens wrote:
-> > > > > > >
-> > > > > > > [   48.347963] ------------[ cut here ]------------
-> > > > > > > [   48.347972] kernel BUG at mm/memcontrol.c:3994!
-> > > > > > > __mem_cgroup_uncharge_common() triggers:
-> > > > > > >
-> > > > > > > [...]
-> > > > > > >         if (mem_cgroup_disabled())
-> > > > > > >                 return NULL;
-> > > > > > >
-> > > > > > >         VM_BUG_ON(PageSwapCache(page));
-> > > > > > > [...]
-> > > >
-> > > > I agree that the actual memcg uncharging should be okay, but the
-> memsw
-> > > > swap stats will go wrong (doesn't matter toooo much), and
-> mem_cgroup_put
-> > > > get missed (leaking a struct mem_cgroup).
-> > >
-> > > Ok, so I just went over this again.  For the swapout path the memsw
-> > > uncharge is deferred, but if we "steal" this uncharge from the swap
-> > > code, we actually do uncharge memsw in mem_cgroup_do_uncharge(), so we
-> > > may prematurely unaccount the swap page, but we never leak a charge.
-> > > Good.
-> > >
-> > > Because of this stealing, we also don't do the following:
-> > >
-> > >     if (do_swap_account && ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
-> > >             mem_cgroup_swap_statistics(memcg, true);
-> > >             mem_cgroup_get(memcg);
-> > >     }
-> > >
-> > > I.e. it does not matter that mem_cgroup_uncharge_swap() doesn't do the
-> > > put, we are also not doing the get.  We should not leak references.
-> > >
-> > > So the only thing that I can see go wrong is that we may have a
-> > > swapped out page that is not charged to memsw and not accounted as
-> > > MEM_CGROUP_STAT_SWAP.  But I don't know how likely that is, because we
-> > > check for PG_swapcache in this uncharge path after the last pte is
-> > > torn down, so even though the page is put on swap cache, it probably
-> > > won't be swapped.  It would require that the PG_swapcache setting
-> > > would become visible only after the page has been added to the swap
-> > > cache AND rmap has established at least one swap pte for us to
-> > > uncharge a page that actually continues to be used.  And that's a bit
-> > > of a stretch, I think.
-> >
-> > Sorry, our minds seem to work in different ways,
-> > I understood very little of what you wrote above :-(
-> >
-> > But once I try to disprove you with a counter-example, I seem to
-> > arrive at the same conclusion as you have (well, I haven't quite
-> > arrived there yet, but cannot give it any more time).
->
-> I might be losing my mind.  But since you are reaching the same
-> conclusion, and I see the same mental milestones in your thought
-> process described below, it's more likely that I suck at describing my
-> train of thought coherently.  Or the third possibility: we're both
-> losing it!
->
-> > Looking at it from my point of view, I concentrate on the racy
-> >       if (PageSwapCache(page))
-> >               return;
-> >       __mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_ANON,
-> false);
-> > in mem_cgroup_uncharge_page().
-> >
-> > Now, that may or may not catch the case where last reference to page
-> > is unmapped at the same time as the page is added to swap: but being
-> > a MEM_CGROUP_CHARGE_TYPE_ANON call, it does not interfere with the
-> > memsw stats and get/put at all, those remain in balance.
->
-> Yes, exactly.
->
-> > And mem_cgroup_uncharge_swap() has all along been prepared to get
-> > a zero id from swap_cgroup_record(), if a SwapCache page should be
-> > uncharged when it was never quite charged as such.
-> >
-> > Yes, we may occasionally fail to charge a SwapCache page as such
-> > if its final unmap from userspace races with its being added to swap;
-> > but it's heading towards swap_writepage()'s try_to_free_swap() anyway,
-> > so I don't think that's anything to worry about.
->
-> Agreed as well.  If there are no pte references to the swap slot, it
-> will be freed either way.  I didn't even think of the
-> try_to_free_swap() in the writeout call, but was looking at the
-> __remove_mapping later on in reclaim that will do a swapcache_free().
->
-> The only case I was worried about is the following:
->
-> #0                                      #1
-> page_remove_rmap()                      shrink_page_list()
->   if --page->mapcount == 0:               add_to_swap()
->     mem_cgroup_uncharge_page()              __add_to_swap_cache()
->       if PageSwapCache:                       SetPageSwapCache()
->         return                            try_to_unmap()
->       __mem_cgroup_uncharge_common()        for each pte:
->                                               install swp_entry_t
->                                               page->mapcount--
->
-
-Thanks for spelling it out for me in more detail, this time I think I do
-grasp your concern.
-
-
->
-> Looking at #1, I don't see anything that would force concurrent
-> threads to observe SetSwapCache ordered against the page->mapcount--.
-> My concern was that if those get reordered, #0 may see page->mapcount
-> == 1 AND !PageSwapcache, and then go ahead and uncharge the page while
-> there is actually a swp_entry_t pointing to it.  The page will be a
-> proper long-term swap page without being charged as such.
->
-
-But I don't see any problem with ordering here.  #0 is using an atomic
-operation which returns a result on page->mapcount, so that amounts to
-(more than) an smp_rmb ensuring it reads mapcount before reading
-PageSwapCache flag.  And in #1, there's at least an unlock of the
-radix_tree lock (after adding to swap tree) and a lock of the page table
-lock (before unmapping the page), and that pairing amounts to (more than)
-an smp_wmb.
-
-Hugh
-
-
-> > (If I had time to stop and read through that, I'd probably find it
-> > just as hard to understand as what you wrote!)
-> >
-> > >
-> > > Did I miss something?  If not, I'll just send a patch that removes the
-> > > VM_BUG_ON() and adds a comment describing the scenarios and a note
-> > > that we may want to fix this in the future.
-> >
-> > I don't think you missed something.  Yes, please just send Linus and
-> > Andrew a patch to remove the VM_BUG_ON() (with Cc stable tag), I now
-> > agree that's all that's really needed - thanks.
->
-> Will do, thanks for taking them time to think through it again, even
-> after failing to decipher my ramblings...
->
-> Johannes
->
-
---e89a8f64753f971e9e04dbb5131a
-Content-Type: text/html; charset=UTF-8
+--AXxEqdD4tcVTjWte
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Content-Transfer-Encoding: quoted-printable
 
-<div dir=3D"ltr">On Wed, May 1, 2013 at 12:10 PM, Johannes Weiner <span dir=
-=3D"ltr">&lt;<a href=3D"mailto:hannes@cmpxchg.org" target=3D"_blank">hannes=
-@cmpxchg.org</a>&gt;</span> wrote:<br><div class=3D"gmail_extra"><div class=
-=3D"gmail_quote">
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex"><div class=3D"HOEnZb"><div class=3D"h5">On W=
-ed, May 01, 2013 at 08:28:30AM -0700, Hugh Dickins wrote:<br>
-&gt; On Tue, 30 Apr 2013, Johannes Weiner wrote:<br>
-&gt; &gt; On Wed, Apr 24, 2013 at 08:50:01PM -0700, Hugh Dickins wrote:<br>
-&gt; &gt; &gt; On Wed, 24 Apr 2013, Johannes Weiner wrote:<br>
-&gt; &gt; &gt; &gt; On Wed, Apr 24, 2013 at 03:18:51PM +0200, Michal Hocko =
-wrote:<br>
-&gt; &gt; &gt; &gt; &gt; On Wed 24-04-13 12:42:55, Heiko Carstens wrote:<br=
->
-&gt; &gt; &gt; &gt; &gt; &gt; On Thu, Apr 18, 2013 at 09:13:03AM +0200, Hei=
-ko Carstens wrote:<br>
-&gt; &gt; &gt; &gt; &gt; &gt;<br>
-&gt; &gt; &gt; &gt; &gt; &gt; [ =C2=A0 48.347963] ------------[ cut here ]-=
------------<br>
-&gt; &gt; &gt; &gt; &gt; &gt; [ =C2=A0 48.347972] kernel BUG at mm/memcontr=
-ol.c:3994!<br>
-&gt; &gt; &gt; &gt; &gt; &gt; __mem_cgroup_uncharge_common() triggers:<br>
-&gt; &gt; &gt; &gt; &gt; &gt;<br>
-&gt; &gt; &gt; &gt; &gt; &gt; [...]<br>
-&gt; &gt; &gt; &gt; &gt; &gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 if (mem_cgroup_di=
-sabled())<br>
-&gt; &gt; &gt; &gt; &gt; &gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 return NULL;<br>
-&gt; &gt; &gt; &gt; &gt; &gt;<br>
-&gt; &gt; &gt; &gt; &gt; &gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 VM_BUG_ON(PageSwa=
-pCache(page));<br>
-&gt; &gt; &gt; &gt; &gt; &gt; [...]<br>
-&gt; &gt; &gt;<br>
-&gt; &gt; &gt; I agree that the actual memcg uncharging should be okay, but=
- the memsw<br>
-&gt; &gt; &gt; swap stats will go wrong (doesn&#39;t matter toooo much), an=
-d mem_cgroup_put<br>
-&gt; &gt; &gt; get missed (leaking a struct mem_cgroup).<br>
-&gt; &gt;<br>
-&gt; &gt; Ok, so I just went over this again. =C2=A0For the swapout path th=
-e memsw<br>
-&gt; &gt; uncharge is deferred, but if we &quot;steal&quot; this uncharge f=
-rom the swap<br>
-&gt; &gt; code, we actually do uncharge memsw in mem_cgroup_do_uncharge(), =
-so we<br>
-&gt; &gt; may prematurely unaccount the swap page, but we never leak a char=
-ge.<br>
-&gt; &gt; Good.<br>
-&gt; &gt;<br>
-&gt; &gt; Because of this stealing, we also don&#39;t do the following:<br>
-&gt; &gt;<br>
-&gt; &gt; =C2=A0 =C2=A0 if (do_swap_account &amp;&amp; ctype =3D=3D MEM_CGR=
-OUP_CHARGE_TYPE_SWAPOUT) {<br>
-&gt; &gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_swap_statist=
-ics(memcg, true);<br>
-&gt; &gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mem_cgroup_get(memcg);<=
-br>
-&gt; &gt; =C2=A0 =C2=A0 }<br>
-&gt; &gt;<br>
-&gt; &gt; I.e. it does not matter that mem_cgroup_uncharge_swap() doesn&#39=
-;t do the<br>
-&gt; &gt; put, we are also not doing the get. =C2=A0We should not leak refe=
-rences.<br>
-&gt; &gt;<br>
-&gt; &gt; So the only thing that I can see go wrong is that we may have a<b=
-r>
-&gt; &gt; swapped out page that is not charged to memsw and not accounted a=
-s<br>
-&gt; &gt; MEM_CGROUP_STAT_SWAP. =C2=A0But I don&#39;t know how likely that =
-is, because we<br>
-&gt; &gt; check for PG_swapcache in this uncharge path after the last pte i=
-s<br>
-&gt; &gt; torn down, so even though the page is put on swap cache, it proba=
-bly<br>
-&gt; &gt; won&#39;t be swapped. =C2=A0It would require that the PG_swapcach=
-e setting<br>
-&gt; &gt; would become visible only after the page has been added to the sw=
-ap<br>
-&gt; &gt; cache AND rmap has established at least one swap pte for us to<br=
->
-&gt; &gt; uncharge a page that actually continues to be used. =C2=A0And tha=
-t&#39;s a bit<br>
-&gt; &gt; of a stretch, I think.<br>
-&gt;<br>
-&gt; Sorry, our minds seem to work in different ways,<br>
-&gt; I understood very little of what you wrote above :-(<br>
-&gt;<br>
-&gt; But once I try to disprove you with a counter-example, I seem to<br>
-&gt; arrive at the same conclusion as you have (well, I haven&#39;t quite<b=
-r>
-&gt; arrived there yet, but cannot give it any more time).<br>
-<br>
-</div></div>I might be losing my mind. =C2=A0But since you are reaching the=
- same<br>
-conclusion, and I see the same mental milestones in your thought<br>
-process described below, it&#39;s more likely that I suck at describing my<=
-br>
-train of thought coherently. =C2=A0Or the third possibility: we&#39;re both=
-<br>
-losing it!<br>
-<div class=3D"im"><br>
-&gt; Looking at it from my point of view, I concentrate on the racy<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 if (PageSwapCache(page))<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return;<br>
-&gt; =C2=A0 =C2=A0 =C2=A0 __mem_cgroup_uncharge_common(page, MEM_CGROUP_CHA=
-RGE_TYPE_ANON, false);<br>
-&gt; in mem_cgroup_uncharge_page().<br>
-&gt;<br>
-&gt; Now, that may or may not catch the case where last reference to page<b=
-r>
-&gt; is unmapped at the same time as the page is added to swap: but being<b=
-r>
-&gt; a MEM_CGROUP_CHARGE_TYPE_ANON call, it does not interfere with the<br>
-&gt; memsw stats and get/put at all, those remain in balance.<br>
-<br>
-</div>Yes, exactly.<br>
-<div class=3D"im"><br>
-&gt; And mem_cgroup_uncharge_swap() has all along been prepared to get<br>
-&gt; a zero id from swap_cgroup_record(), if a SwapCache page should be<br>
-&gt; uncharged when it was never quite charged as such.<br>
-&gt;<br>
-&gt; Yes, we may occasionally fail to charge a SwapCache page as such<br>
-&gt; if its final unmap from userspace races with its being added to swap;<=
-br>
-&gt; but it&#39;s heading towards swap_writepage()&#39;s try_to_free_swap()=
- anyway,<br>
-&gt; so I don&#39;t think that&#39;s anything to worry about.<br>
-<br>
-</div>Agreed as well. =C2=A0If there are no pte references to the swap slot=
-, it<br>
-will be freed either way. =C2=A0I didn&#39;t even think of the<br>
-try_to_free_swap() in the writeout call, but was looking at the<br>
-__remove_mapping later on in reclaim that will do a swapcache_free().<br>
-<br>
-The only case I was worried about is the following:<br>
-<br>
-#0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0#1<br>
-page_remove_rmap() =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0shrink_page_list()<br>
-=C2=A0 if --page-&gt;mapcount =3D=3D 0: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 add_to_swap()<br>
-=C2=A0 =C2=A0 mem_cgroup_uncharge_page() =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0__add_to_swap_cache()<br>
-=C2=A0 =C2=A0 =C2=A0 if PageSwapCache: =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 SetPageSwapCache()<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 return =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0try_to_unmap()<b=
-r>
-=C2=A0 =C2=A0 =C2=A0 __mem_cgroup_uncharge_common() =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0for each pte:<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 install swp_entry_t<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
-=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 page-&gt;mapcount--<br></blockquote><div><br></div><div style=
->Thanks for spelling it out for me in more detail, this time I think I do g=
-rasp your concern.</div><div style>=C2=A0</div>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">
-<br>
-Looking at #1, I don&#39;t see anything that would force concurrent<br>
-threads to observe SetSwapCache ordered against the page-&gt;mapcount--.<br=
->
-My concern was that if those get reordered, #0 may see page-&gt;mapcount<br=
->
-=3D=3D 1 AND !PageSwapcache, and then go ahead and uncharge the page while<=
-br>
-there is actually a swp_entry_t pointing to it. =C2=A0The page will be a<br=
->
-proper long-term swap page without being charged as such.<br></blockquote><=
-div><br></div><div style>But I don&#39;t see any problem with ordering here=
-. =C2=A0#0 is using an atomic operation which returns a result on page-&gt;=
-mapcount, so that amounts to (more than) an smp_rmb ensuring it reads mapco=
-unt before reading PageSwapCache flag. =C2=A0And in #1, there&#39;s at leas=
-t an unlock of the radix_tree lock (after adding to swap tree) and a lock o=
-f the page table lock (before unmapping the page), and that pairing amounts=
- to (more than) an smp_wmb.</div>
-<div style><br></div><div style>Hugh</div><div style><br></div><blockquote =
-class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid=
-;padding-left:1ex">
-<div class=3D"im"><br>
-&gt; (If I had time to stop and read through that, I&#39;d probably find it=
-<br>
-&gt; just as hard to understand as what you wrote!)<br>
-&gt;<br>
-&gt; &gt;<br>
-&gt; &gt; Did I miss something? =C2=A0If not, I&#39;ll just send a patch th=
-at removes the<br>
-&gt; &gt; VM_BUG_ON() and adds a comment describing the scenarios and a not=
-e<br>
-&gt; &gt; that we may want to fix this in the future.<br>
-&gt;<br>
-&gt; I don&#39;t think you missed something. =C2=A0Yes, please just send Li=
-nus and<br>
-&gt; Andrew a patch to remove the VM_BUG_ON() (with Cc stable tag), I now<b=
-r>
-&gt; agree that&#39;s all that&#39;s really needed - thanks.<br>
-<br>
-</div>Will do, thanks for taking them time to think through it again, even<=
-br>
-after failing to decipher my ramblings...<br>
-<span class=3D"HOEnZb"><font color=3D"#888888"><br>
-Johannes<br>
-</font></span></blockquote></div><br></div></div>
+On Wed, May 01, 2013 at 01:17:41PM +0530, Aneesh Kumar K.V wrote:
+> David Gibson <dwg@au1.ibm.com> writes:
+>=20
+> > On Tue, Apr 30, 2013 at 10:51:00PM +0530, Aneesh Kumar K.V wrote:
+> >> David Gibson <dwg@au1.ibm.com> writes:
+> >>=20
+> >> > On Mon, Apr 29, 2013 at 01:07:39AM +0530, Aneesh Kumar K.V wrote:
+> >> >> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> >> >>=20
+> >> >> Encode the actual page correctly in tlbie/tlbiel. This make sure we=
+ handle
+> >> >> multiple page size segment correctly.
+> >> >
+> >> > As mentioned in previous comments, this commit message needs to give
+> >> > much more detail about what precisely the existing implementation is
+> >> > doing wrong.
+> >> >
+> >> >>=20
+> >> >> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> >> >> ---
+> >> >>  arch/powerpc/mm/hash_native_64.c | 32 ++++++++++++++++++++++++++++=
+++--
+> >> >>  1 file changed, 30 insertions(+), 2 deletions(-)
+> >> >>=20
+> >> >> diff --git a/arch/powerpc/mm/hash_native_64.c b/arch/powerpc/mm/has=
+h_native_64.c
+> >> >> index bb920ee..6a2aead 100644
+> >> >> --- a/arch/powerpc/mm/hash_native_64.c
+> >> >> +++ b/arch/powerpc/mm/hash_native_64.c
+> >> >> @@ -61,7 +61,10 @@ static inline void __tlbie(unsigned long vpn, in=
+t psize, int apsize, int ssize)
+> >> >> =20
+> >> >>  	switch (psize) {
+> >> >>  	case MMU_PAGE_4K:
+> >> >> +		/* clear out bits after (52) [0....52.....63] */
+> >> >> +		va &=3D ~((1ul << (64 - 52)) - 1);
+> >> >>  		va |=3D ssize << 8;
+> >> >> +		va |=3D mmu_psize_defs[apsize].sllp << 6;
+> >> >>  		asm volatile(ASM_FTR_IFCLR("tlbie %0,0", PPC_TLBIE(%1,%0), %2)
+> >> >>  			     : : "r" (va), "r"(0), "i" (CPU_FTR_ARCH_206)
+> >> >>  			     : "memory");
+> >> >> @@ -69,9 +72,20 @@ static inline void __tlbie(unsigned long vpn, in=
+t psize, int apsize, int ssize)
+> >> >>  	default:
+> >> >>  		/* We need 14 to 14 + i bits of va */
+> >> >>  		penc =3D mmu_psize_defs[psize].penc[apsize];
+> >> >> -		va &=3D ~((1ul << mmu_psize_defs[psize].shift) - 1);
+> >> >> +		va &=3D ~((1ul << mmu_psize_defs[apsize].shift) - 1);
+> >> >>  		va |=3D penc << 12;
+> >> >>  		va |=3D ssize << 8;
+> >> >> +		/* Add AVAL part */
+> >> >> +		if (psize !=3D apsize) {
+> >> >> +			/*
+> >> >> +			 * MPSS, 64K base page size and 16MB parge page size
+> >> >> +			 * We don't need all the bits, but rest of the bits
+> >> >> +			 * must be ignored by the processor.
+> >> >> +			 * vpn cover upto 65 bits of va. (0...65) and we need
+> >> >> +			 * 58..64 bits of va.
+> >> >
+> >> > I can't understand what this comment is saying.  Why do we need to do
+> >> > something different in the psize !=3D apsize case?
+> >> >
+> >> >> +			 */
+> >> >> +			va |=3D (vpn & 0xfe);
+> >> >> +		}
+> >>=20
+> >> That is as per ISA doc. It says if base page size =3D=3D actual page s=
+ize,
+> >> (RB)56:62 must be zeros, which must be ignored by the processor.
+> >> Otherwise it should be filled with the selected bits of VA as explaine=
+d above.
+> >
+> > What you've just said here makes much more sense than what's written
+> > in the comment in the code.
+> >
+> >> We only support MPSS with base page size =3D 64K and actual page size =
+=3D 16MB.
+> >
+> > Is that actually relevant to this code though?
+>=20
+> In a way yes. The number of bits we we select out of VA depends on the
+> base page size and actual page size. We have a math around that
+> documented in ISA. Now since we support only 64K and 16MB we can make it
+> simpler by only selecting required bits and not making it a
+> function. But then it is also not relevant to the code in that ISA also
+> state other bits in (RB)56:62 must be zero. I wanted to capture both the
+> details in the comment.=20
 
---e89a8f64753f971e9e04dbb5131a--
+Urgh, so the code assumings just that combination, but has no
+assertion or check that its actually the case.  Very fragile.
+
+Even though we don't do other MPSS combinations yet, I'd much prefer
+to see the tlbie code get the encoding correct in all cases.
+
+--=20
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
+
+--AXxEqdD4tcVTjWte
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iEYEARECAAYFAlGB+GQACgkQaILKxv3ab8a88ACcD9/PRXTZx/Irt+JzfCULRUbJ
+HMkAoItbgxZXLsaknRMRMAR8z1DdtZpU
+=+NOQ
+-----END PGP SIGNATURE-----
+
+--AXxEqdD4tcVTjWte--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
