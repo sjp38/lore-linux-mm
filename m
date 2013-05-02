@@ -1,43 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 306FF6B0269
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 13:23:33 -0400 (EDT)
-Date: Thu, 2 May 2013 19:20:22 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] oom: add pending SIGKILL check for chosen victim
-Message-ID: <20130502172022.GA8557@redhat.com>
-References: <20130422195138.GB31098@dhcp22.suse.cz> <20130423192614.c8621a7fe1b5b3e0a2ebf74a@gmail.com> <20130423155638.GJ8001@dhcp22.suse.cz> <20130424145514.GA24997@redhat.com> <20130424152236.GB7600@dhcp22.suse.cz> <20130424154216.GA27929@redhat.com> <20130424123311.79614649c6a7951d9f8a39fe@linux-foundation.org> <20130425144955.GA26368@redhat.com> <20130425194118.51996d11baa4ed6b18e40e71@gmail.com> <20130425162237.GA31671@redhat.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 545C56B026A
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 18:00:44 -0400 (EDT)
+Date: Thu, 2 May 2013 15:00:31 -0700
+From: Joel Becker <jlbec@evilplan.org>
+Subject: Re: [PATCH v3 06/18] ocfs2: use ->invalidatepage() length argument
+Message-ID: <20130502220030.GC26770@localhost>
+References: <1365498867-27782-1-git-send-email-lczerner@redhat.com>
+ <1365498867-27782-7-git-send-email-lczerner@redhat.com>
+ <20130423141604.GE31170@thunk.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130425162237.GA31671@redhat.com>
+In-Reply-To: <20130423141604.GE31170@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Dyasly <dserrg@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Sha Zhengju <handai.szj@taobao.com>
+To: Theodore Ts'o <tytso@mit.edu>, Lukas Czerner <lczerner@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, Mark Fasheh <mfasheh@suse.com>, ocfs2-devel@oss.oracle.com
 
-Just to let you know that this time I didn't forget about this problem ;)
+Acked-by: Joel Becker <jlbec@evilplan.org>
 
-On 04/25, Oleg Nesterov wrote:
->
-> On 04/25, Sergey Dyasly wrote:
-> >
-> > But in general case there is still a race,
->
-> Yes. Every while_each_thread() in oom-kill is wrong, and I am still not
-> sure what should/can we do. Will try to think more.
+On Tue, Apr 23, 2013 at 10:16:04AM -0400, Theodore Ts'o wrote:
+> On Tue, Apr 09, 2013 at 11:14:15AM +0200, Lukas Czerner wrote:
+> > ->invalidatepage() aop now accepts range to invalidate so we can make
+> > use of it in ocfs2_invalidatepage().
+> > 
+> > Signed-off-by: Lukas Czerner <lczerner@redhat.com>
+> > Cc: Joel Becker <jlbec@evilplan.org>
+> 
+> +Mark Fasheh, ocfs2-devel
+> 
+> To the ocfs2 development team,
+> 
+> Since half of this patch series modifies ext4 extensively, and changes
+> to the other file systems are relatively small, I plan to carry the
+> invalidatepage patch set in the ext4 tree for the next development
+> cycle (i.e., not the upcoming merge window, but the next one).  To
+> that end, it would be great if you take a look at this patch set and
+> send us an Acked-by signoff.
+> 
+> Thanks!!
+> 
+> 						- Ted
 
-And I still can't find a simple/clean solution.
+-- 
 
-OK. I am starting to think we should probably switch to Plan B. We can add
-thread_head into task_struct->signal and convert while_each_thread() into
-list_for_each_rcu(). This should work, but this is really painful and I was
-going to avoid this as much as possible...
+"Ninety feet between bases is perhaps as close as man has ever come
+ to perfection."
+	- Red Smith
 
-I'll try to do something once I return from vacation (May 9). Heh, See also
-http://marc.info/?l=linux-kernel&m=127688978121665 and the whole thread.
-
-Oleg.
+			http://www.jlbec.org/
+			jlbec@evilplan.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
