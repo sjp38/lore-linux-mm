@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 10BFB6B0297
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:50 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 135316B029A
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:51 -0400 (EDT)
 Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 18:01:50 -0600
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 38372C9001A
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:46 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301kZu283074
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:46 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301jxr013126
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:46 -0400
+	Thu, 2 May 2013 20:01:49 -0400
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 205BF6E8044
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:45 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301m0x306432
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:48 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301lZf006499
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:47 -0300
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 30/31] mm/page_alloc: use manage_pages instead of present pages when calculating default_zonelist_order()
-Date: Thu,  2 May 2013 17:01:02 -0700
-Message-Id: <1367539263-19999-31-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 31/31] mm: add a early_param "extra_nr_node_ids" to increase nr_node_ids above the minimum by a percentage.
+Date: Thu,  2 May 2013 17:01:03 -0700
+Message-Id: <1367539263-19999-32-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,37 +26,82 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
+For dynamic numa, sometimes the hypervisor we're running under will want
+to split a single NUMA node into multiple NUMA nodes. If the number of
+numa nodes is limited to the number avaliable when the system booted (as
+it is on x86), we may not be able to fully adopt the new memory layout
+provided by the hypervisor.
+
+This option allows reserving some extra node ids as a percentage of the
+boot time node ids. While not perfect (idealy nr_node_ids would be fully
+dynamic), this allows decent functionality without invasive changes to
+the SL{U,A}B allocators.
+
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- mm/page_alloc.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ Documentation/kernel-parameters.txt |  6 ++++++
+ mm/page_alloc.c                     | 24 ++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)
 
+diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+index 9653cf2..c606371 100644
+--- a/Documentation/kernel-parameters.txt
++++ b/Documentation/kernel-parameters.txt
+@@ -2082,6 +2082,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+ 			use hotplug cpu feature to put more cpu back to online.
+ 			just like you compile the kernel NR_CPUS=n
+ 
++	extra_nr_node_ids= [NUMA] Increase the maximum number of NUMA nodes
++			above the number detected at boot by the specified
++			percentage (rounded up). For example:
++			extra_nr_node_ids=100 would double the number of
++			node_ids avaliable (up to a max of MAX_NUMNODES).
++
+ 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
+ 
+ 	numa_balancing=	[KNL,X86] Enable or disable automatic NUMA balancing.
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4fe35b24..cc7b332 100644
+index cc7b332..1fd2f2f 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3514,8 +3514,8 @@ static int default_zonelist_order(void)
- 			z = &NODE_DATA(nid)->node_zones[zone_type];
- 			if (populated_zone(z)) {
- 				if (zone_type < ZONE_NORMAL)
--					low_kmem_size += z->present_pages;
--				total_size += z->present_pages;
-+					low_kmem_size += z->managed_pages;
-+				total_size += z->managed_pages;
- 			} else if (zone_type == ZONE_NORMAL) {
- 				/*
- 				 * If any node has only lowmem, then node order
-@@ -3545,8 +3545,8 @@ static int default_zonelist_order(void)
- 			z = &NODE_DATA(nid)->node_zones[zone_type];
- 			if (populated_zone(z)) {
- 				if (zone_type < ZONE_NORMAL)
--					low_kmem_size += z->present_pages;
--				total_size += z->present_pages;
-+					low_kmem_size += z->managed_pages;
-+				total_size += z->managed_pages;
- 			}
- 		}
- 		if (low_kmem_size &&
+@@ -4837,6 +4837,17 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 
+ #if MAX_NUMNODES > 1
++
++static unsigned nr_node_ids_mod_percent;
++static int __init setup_extra_nr_node_ids(char *arg)
++{
++	int r = kstrtouint(arg, 10, &nr_node_ids_mod_percent);
++	if (r)
++		pr_err("invalid param value extra_nr_node_ids=\"%s\"\n", arg);
++	return 0;
++}
++early_param("extra_nr_node_ids", setup_extra_nr_node_ids);
++
+ /*
+  * Figure out the number of possible node ids.
+  */
+@@ -4848,6 +4859,19 @@ void __init setup_nr_node_ids(void)
+ 	for_each_node_mask(node, node_possible_map)
+ 		highest = node;
+ 	nr_node_ids = highest + 1;
++
++	/*
++	 * expand nr_node_ids and node_possible_map so more can be onlined
++	 * later
++	 */
++	nr_node_ids +=
++		DIV_ROUND_UP(nr_node_ids * nr_node_ids_mod_percent, 100);
++
++	if (nr_node_ids > MAX_NUMNODES)
++		nr_node_ids = MAX_NUMNODES;
++
++	for (node = highest + 1; node < nr_node_ids; node++)
++		node_set(node, node_possible_map);
+ }
+ #endif
+ 
 -- 
 1.8.2.2
 
