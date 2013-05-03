@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id A9C4C6B0291
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:48 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 70F9E6B0294
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:49 -0400 (EDT)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 20:01:47 -0400
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id F23796E803F
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:40 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301heV262444
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:43 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301h1e014386
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:43 -0300
+	Thu, 2 May 2013 18:01:48 -0600
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 878F33E40040
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 18:01:03 -0600 (MDT)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301BIj064464
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:13 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301BXi029473
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:11 -0600
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 28/31] mm/page_alloc: in page_outside_zone_boundaries(), avoid premature decisions.
-Date: Thu,  2 May 2013 17:01:00 -0700
-Message-Id: <1367539263-19999-29-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 03/31] mm/memory_hotplug: factor out zone+pgdat growth.
+Date: Thu,  2 May 2013 17:00:35 -0700
+Message-Id: <1367539263-19999-4-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,48 +26,70 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
-With some code that expands the zone boundaries, VM_BUG_ON(bad_range()) was being triggered.
-
-Previously, page_outside_zone_boundaries() decided that once it detected
-a page outside the boundaries, it was certainly outside even if the
-seqlock indicated the data was invalid & needed to be reread. This
-methodology _almost_ works because zones are only ever grown. However,
-becase the zone span is stored as a start and a length, some expantions
-momentarily appear as shifts to the left (when the zone_start_pfn is
-assigned prior to zone_spanned_pages).
-
-If we want to remove the seqlock around zone_start_pfn & zone
-spanned_pages, always writing the spanned_pages first, issuing a memory
-barrier, and then writing the new zone_start_pfn _may_ work. The concern
-there is that we could be seen as shrinking the span when zone_start_pfn
-is written (the entire span would shift to the left). As there will be
-no pages in the exsess span that actually belong to the zone being
-manipulated, I don't expect there to be issues.
+Create a new function grow_pgdat_and_zone() which handles locking +
+growth of a zone & the pgdat which it is associated with.
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- mm/page_alloc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ include/linux/memory_hotplug.h |  3 +++
+ mm/memory_hotplug.c            | 17 +++++++++++------
+ 2 files changed, 14 insertions(+), 6 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 879ab9d..3695ca5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -239,12 +239,13 @@ bool oom_killer_disabled __read_mostly;
- #ifdef CONFIG_DEBUG_VM
- static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 3e622c6..501e9f0 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -78,6 +78,9 @@ static inline void zone_seqlock_init(struct zone *zone)
  {
--	int ret = 0;
-+	int ret;
- 	unsigned seq;
- 	unsigned long pfn = page_to_pfn(page);
- 	unsigned long sp, start_pfn;
+ 	seqlock_init(&zone->span_seqlock);
+ }
++extern void grow_pgdat_and_zone(struct zone *zone, unsigned long start_pfn,
++				unsigned long end_pfn);
++
+ extern int zone_grow_free_lists(struct zone *zone, unsigned long new_nr_pages);
+ extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
+ extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index a221fac..fafeaae 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -390,13 +390,22 @@ static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
+ 					pgdat->node_start_pfn;
+ }
  
- 	do {
-+		ret = 0;
- 		seq = zone_span_seqbegin(zone);
- 		start_pfn = zone->zone_start_pfn;
- 		sp = zone->spanned_pages;
++void grow_pgdat_and_zone(struct zone *zone, unsigned long start_pfn,
++		unsigned long end_pfn)
++{
++	unsigned long flags;
++	pgdat_resize_lock(zone->zone_pgdat, &flags);
++	grow_zone_span(zone, start_pfn, end_pfn);
++	grow_pgdat_span(zone->zone_pgdat, start_pfn, end_pfn);
++	pgdat_resize_unlock(zone->zone_pgdat, &flags);
++}
++
+ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+ {
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
+ 	int nr_pages = PAGES_PER_SECTION;
+ 	int nid = pgdat->node_id;
+ 	int zone_type;
+-	unsigned long flags;
+ 	int ret;
+ 
+ 	zone_type = zone - pgdat->node_zones;
+@@ -404,11 +413,7 @@ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+ 	if (ret)
+ 		return ret;
+ 
+-	pgdat_resize_lock(zone->zone_pgdat, &flags);
+-	grow_zone_span(zone, phys_start_pfn, phys_start_pfn + nr_pages);
+-	grow_pgdat_span(zone->zone_pgdat, phys_start_pfn,
+-			phys_start_pfn + nr_pages);
+-	pgdat_resize_unlock(zone->zone_pgdat, &flags);
++	grow_pgdat_and_zone(zone, phys_start_pfn, phys_start_pfn + nr_pages);
+ 	memmap_init_zone(nr_pages, nid, zone_type,
+ 			 phys_start_pfn, MEMMAP_HOTPLUG);
+ 	return 0;
 -- 
 1.8.2.2
 
