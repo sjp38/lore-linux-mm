@@ -1,64 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 99E066B02C9
-	for <linux-mm@kvack.org>; Fri,  3 May 2013 05:11:53 -0400 (EDT)
-Date: Fri, 3 May 2013 11:11:49 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V3 4/8] memcg: add per cgroup dirty pages accounting
-Message-ID: <20130503091149.GA17496@dhcp22.suse.cz>
-References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
- <1356456367-14660-1-git-send-email-handai.szj@taobao.com>
- <20130102104421.GC22160@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id D25706B02CC
+	for <linux-mm@kvack.org>; Fri,  3 May 2013 05:12:48 -0400 (EDT)
+Message-ID: <51837F8C.4080801@redhat.com>
+Date: Fri, 03 May 2013 11:12:44 +0200
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130102104421.GC22160@dhcp22.suse.cz>
+Subject: Re: [PATCH] swap: redirty page if page write fails on swap file
+References: <516E918B.3050309@redhat.com> <516F3AA7.1000908@gmail.com> <5180C6C1.6010000@gmail.com>
+In-Reply-To: <5180C6C1.6010000@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, dchinner@redhat.com, Sha Zhengju <handai.szj@taobao.com>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Wed 02-01-13 11:44:21, Michal Hocko wrote:
-> On Wed 26-12-12 01:26:07, Sha Zhengju wrote:
-> > From: Sha Zhengju <handai.szj@taobao.com>
-> > 
-> > This patch adds memcg routines to count dirty pages, which allows memory controller
-> > to maintain an accurate view of the amount of its dirty memory and can provide some
-> > info for users while cgroup's direct reclaim is working.
-> 
-> I guess you meant targeted resp. (hard/soft) limit reclaim here,
-> right? It is true that this is direct reclaim but it is not clear to me
-> why the usefulnes should be limitted to the reclaim for users. I would
-> understand this if the users was in fact in-kernel users.
-> 
-> [...]
-> > To prevent AB/BA deadlock mentioned by Greg Thelen in previous version
-> > (https://lkml.org/lkml/2012/7/30/227), we adjust the lock order:
-> > ->private_lock --> mapping->tree_lock --> memcg->move_lock.
-> > So we need to make mapping->tree_lock ahead of TestSetPageDirty in __set_page_dirty()
-> > and __set_page_dirty_nobuffers(). But in order to avoiding useless spinlock contention,
-> > a prepare PageDirty() checking is added.
-> 
-> But there is another AA deadlock here I believe.
-> page_remove_rmap
->   mem_cgroup_begin_update_page_stat		<<< 1
->   set_page_dirty
->     __set_page_dirty_buffers
->       __set_page_dirty
->         mem_cgroup_begin_update_page_stat	<<< 2
-> 	  move_lock_mem_cgroup
-> 	    spin_lock_irqsave(&memcg->move_lock, *flags);
+On 05/01/2013 09:39 AM, Simon Jeons wrote:
+> Ping, ;-)
+> On 04/18/2013 08:13 AM, Simon Jeons wrote:
+>> Hi Jerome,
+>> On 04/17/2013 08:11 PM, Jerome Marchand wrote:
+>>> Since commit 62c230b, swap_writepage() calls direct_IO on swap files.
+>>> However, in that case page isn't redirtied if I/O fails, and is 
+>>> therefore
+>>> handled afterwards as if it has been successfully written to the swap
+>>> file, leading to memory corruption when the page is eventually swapped
+>>> back in.
+>>> This patch sets the page dirty when direct_IO() fails. It fixes a memory
+>>
+>> If swapfile has related page cache which cached swapfile in memory? It 
+>> is not necessary, correct?
 
-JFYI since abf09bed (s390/mm: implement software dirty bits) this is no
-longer possible. I haven't checked wheter there are other cases like
-this one and it should be better if mem_cgroup_begin_update_page_stat
-was recursive safe if that can be done without too many hacks.
-I will have a look at this (hopefully) sometimes next week.
+I'm not sure I understand the question. What I can tell you is that it is 
+necessary if the swapfile is located on a fs that uses swap_activate (only
+NFS so far). Other swap file hasn't been impacted by commit 62c230b.
 
-[...]
--- 
-Michal Hocko
-SUSE Labs
+>>
+>>> corruption that happened while using swap-over-NFS.
+>>>
+>>> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+>>> ---
+>>>   mm/page_io.c |    2 ++
+>>>   1 files changed, 2 insertions(+), 0 deletions(-)
+>>>
+>>> diff --git a/mm/page_io.c b/mm/page_io.c
+>>> index 78eee32..04ca00d 100644
+>>> --- a/mm/page_io.c
+>>> +++ b/mm/page_io.c
+>>> @@ -222,6 +222,8 @@ int swap_writepage(struct page *page, struct 
+>>> writeback_control *wbc)
+>>>           if (ret == PAGE_SIZE) {
+>>>               count_vm_event(PSWPOUT);
+>>>               ret = 0;
+>>> +        } else {
+>>> +            set_page_dirty(page);
+>>>           }
+>>>           return ret;
+>>>       }
+>>>
+>>> -- 
+>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>> see: http://www.linux-mm.org/ .
+>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
