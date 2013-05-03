@@ -1,53 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id CD8376B02D3
-	for <linux-mm@kvack.org>; Fri,  3 May 2013 07:36:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id A35116B02D5
+	for <linux-mm@kvack.org>; Fri,  3 May 2013 08:02:24 -0400 (EDT)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Fri, 3 May 2013 17:01:14 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 35E86E0053
-	for <linux-mm@kvack.org>; Fri,  3 May 2013 17:08:42 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r43BaNXr9109970
-	for <linux-mm@kvack.org>; Fri, 3 May 2013 17:06:23 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r43BaQaX001433
-	for <linux-mm@kvack.org>; Fri, 3 May 2013 21:36:27 +1000
-Message-ID: <5183A137.4060808@linux.vnet.ibm.com>
-Date: Fri, 03 May 2013 19:36:23 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dwg@au1.ibm.com>;
+	Fri, 3 May 2013 21:50:06 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 940F5357804E
+	for <linux-mm@kvack.org>; Fri,  3 May 2013 22:02:18 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r43BmN9G23789678
+	for <linux-mm@kvack.org>; Fri, 3 May 2013 21:48:24 +1000
+Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r43C2HTe028762
+	for <linux-mm@kvack.org>; Fri, 3 May 2013 22:02:17 +1000
+Date: Fri, 3 May 2013 21:54:28 +1000
+From: David Gibson <dwg@au1.ibm.com>
+Subject: Re: [PATCH -V7 02/10] powerpc/THP: Implement transparent hugepages
+ for ppc64
+Message-ID: <20130503115428.GW13041@truffula.fritz.box>
+References: <1367178711-8232-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1367178711-8232-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <20130503045201.GO13041@truffula.fritz.box>
+ <1367569143.4389.56.camel@pasglop>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] mm: soft-dirty bits for user memory changes tracking
-References: <517FED13.8090806@parallels.com> <517FED64.4020400@parallels.com>
-In-Reply-To: <517FED64.4020400@parallels.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="LvnU4bbuCGLV8PtK"
+Content-Disposition: inline
+In-Reply-To: <1367569143.4389.56.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Matt Mackall <mpm@selenic.com>, Marcelo Tosatti <mtosatti@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, paulus@samba.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On 05/01/2013 12:12 AM, Pavel Emelyanov wrote:
+--LvnU4bbuCGLV8PtK
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> +static inline void clear_soft_dirty(struct vm_area_struct *vma,
-> +		unsigned long addr, pte_t *pte)
-> +{
-> +#ifdef CONFIG_MEM_SOFT_DIRTY
-> +	/*
-> +	 * The soft-dirty tracker uses #PF-s to catch writes
-> +	 * to pages, so write-protect the pte as well. See the
-> +	 * Documentation/vm/soft-dirty.txt for full description
-> +	 * of how soft-dirty works.
-> +	 */
-> +	pte_t ptent = *pte;
-> +	ptent = pte_wrprotect(ptent);
-> +	ptent = pte_clear_flags(ptent, _PAGE_SOFT_DIRTY);
-> +	set_pte_at(vma->vm_mm, addr, pte, ptent);
-> +#endif
+On Fri, May 03, 2013 at 06:19:03PM +1000, Benjamin Herrenschmidt wrote:
+> On Fri, 2013-05-03 at 14:52 +1000, David Gibson wrote:
+> > Here, specifically, the fact that PAGE_BUSY is in PAGE_THP_HPTEFLAGS
+> > is likely to be bad.  If the page is busy, it's in the middle of
+> > update so can't stably be considered the same as anything.
+>=20
+> _PAGE_BUSY is more like a read lock. It means it's being hashed, so what
+> is not stable is _PAGE_HASHPTE, slot index, _ACCESSED and _DIRTY. The
+> rest is stable and usually is what pmd_same looks at (though I have a
+> small doubt vs. _ACCESSED and _DIRTY but at least x86 doesn't care since
+> they are updated by HW).
 
-It seems that TLBs are not flushed and mmu-notification is not called?
+Ok.  It still seems very odd to me that _PAGE_BUSY would be in the THP
+version of _PAGE_HASHPTE, but not the normal one.
+
+--=20
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
+
+--LvnU4bbuCGLV8PtK
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iEYEARECAAYFAlGDpXQACgkQaILKxv3ab8a7/gCdHO5XO3PKrvuxj1xHqileGtEd
+nzQAmwSHLCB4TPuaZf2HAq7JjiFYwtvX
+=NaVi
+-----END PGP SIGNATURE-----
+
+--LvnU4bbuCGLV8PtK--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
