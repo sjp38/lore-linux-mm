@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 135316B029A
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:51 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 4A1FC6B02A1
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:02:09 -0400 (EDT)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 20:01:49 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 205BF6E8044
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:45 -0400 (EDT)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301m0x306432
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:48 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301lZf006499
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:47 -0300
+	Thu, 2 May 2013 18:02:08 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 97FA33E4003F
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 18:01:25 -0600 (MDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301e7X385278
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:40 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301dpi009126
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:39 -0600
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 31/31] mm: add a early_param "extra_nr_node_ids" to increase nr_node_ids above the minimum by a percentage.
-Date: Thu,  2 May 2013 17:01:03 -0700
-Message-Id: <1367539263-19999-32-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 25/31] dnuma: memlayout: add memory_add_physaddr_to_nid() for memory_hotplug
+Date: Thu,  2 May 2013 17:00:57 -0700
+Message-Id: <1367539263-19999-26-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,82 +26,35 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
-For dynamic numa, sometimes the hypervisor we're running under will want
-to split a single NUMA node into multiple NUMA nodes. If the number of
-numa nodes is limited to the number avaliable when the system booted (as
-it is on x86), we may not be able to fully adopt the new memory layout
-provided by the hypervisor.
-
-This option allows reserving some extra node ids as a percentage of the
-boot time node ids. While not perfect (idealy nr_node_ids would be fully
-dynamic), this allows decent functionality without invasive changes to
-the SL{U,A}B allocators.
-
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- Documentation/kernel-parameters.txt |  6 ++++++
- mm/page_alloc.c                     | 24 ++++++++++++++++++++++++
- 2 files changed, 30 insertions(+)
+ mm/memlayout.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 9653cf2..c606371 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2082,6 +2082,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			use hotplug cpu feature to put more cpu back to online.
- 			just like you compile the kernel NR_CPUS=n
+diff --git a/mm/memlayout.c b/mm/memlayout.c
+index 8b9ba9a..3e89482 100644
+--- a/mm/memlayout.c
++++ b/mm/memlayout.c
+@@ -336,3 +336,19 @@ void memlayout_global_init(void)
  
-+	extra_nr_node_ids= [NUMA] Increase the maximum number of NUMA nodes
-+			above the number detected at boot by the specified
-+			percentage (rounded up). For example:
-+			extra_nr_node_ids=100 would double the number of
-+			node_ids avaliable (up to a max of MAX_NUMNODES).
-+
- 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
- 
- 	numa_balancing=	[KNL,X86] Enable or disable automatic NUMA balancing.
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index cc7b332..1fd2f2f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4837,6 +4837,17 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 
- #if MAX_NUMNODES > 1
-+
-+static unsigned nr_node_ids_mod_percent;
-+static int __init setup_extra_nr_node_ids(char *arg)
-+{
-+	int r = kstrtouint(arg, 10, &nr_node_ids_mod_percent);
-+	if (r)
-+		pr_err("invalid param value extra_nr_node_ids=\"%s\"\n", arg);
-+	return 0;
-+}
-+early_param("extra_nr_node_ids", setup_extra_nr_node_ids);
-+
- /*
-  * Figure out the number of possible node ids.
-  */
-@@ -4848,6 +4859,19 @@ void __init setup_nr_node_ids(void)
- 	for_each_node_mask(node, node_possible_map)
- 		highest = node;
- 	nr_node_ids = highest + 1;
-+
-+	/*
-+	 * expand nr_node_ids and node_possible_map so more can be onlined
-+	 * later
-+	 */
-+	nr_node_ids +=
-+		DIV_ROUND_UP(nr_node_ids * nr_node_ids_mod_percent, 100);
-+
-+	if (nr_node_ids > MAX_NUMNODES)
-+		nr_node_ids = MAX_NUMNODES;
-+
-+	for (node = highest + 1; node < nr_node_ids; node++)
-+		node_set(node, node_possible_map);
+ 	memlayout_commit(ml);
  }
- #endif
- 
++
++#ifdef CONFIG_MEMORY_HOTPLUG
++/*
++ * Provides a default memory_add_physaddr_to_nid() for memory hotplug, unless
++ * overridden by the arch.
++ */
++__weak
++int memory_add_physaddr_to_nid(u64 start)
++{
++	int nid = memlayout_pfn_to_nid(PFN_DOWN(start));
++	if (nid == NUMA_NO_NODE)
++		return 0;
++	return nid;
++}
++EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
++#endif
 -- 
 1.8.2.2
 
