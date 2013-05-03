@@ -1,57 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 3FD566B02AA
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 23:03:52 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 3D6946B02AD
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 23:45:33 -0400 (EDT)
 Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 21:03:51 -0600
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 1F42E38C8042
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 23:03:49 -0400 (EDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4333miK256320
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 23:03:49 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4333mfv032022
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:03:48 -0600
-Date: Fri, 3 May 2013 11:03:45 +0800
-From: Han Pingtian <hanpt@linux.vnet.ibm.com>
-Subject: Re: OOM-killer and strange RSS value in 3.9-rc7
-Message-ID: <20130503030345.GE4441@localhost.localdomain>
-References: <0000013e3cb0340d-00f360e3-076b-478e-b94c-ddd4476196ce-000000@email.amazonses.com>
- <20130425060705.GK2672@localhost.localdomain>
- <0000013e427023d7-9456c313-8654-420c-b85a-cb79cc3c4ffc-000000@email.amazonses.com>
- <20130426062436.GB4441@localhost.localdomain>
- <0000013e46cba821-d5c54c99-3b5c-4669-9a54-9fb8f4ee516f-000000@email.amazonses.com>
- <20130427112418.GC4441@localhost.localdomain>
- <0000013e5645b356-09aa6796-0a95-40f1-8ec5-6e2e3d0c434f-000000@email.amazonses.com>
- <20130429145711.GC1172@dhcp22.suse.cz>
- <20130502105637.GD4441@localhost.localdomain>
- <0000013e65cb32b3-047cd2d6-dfc8-41d2-a792-9b398f9a1baf-000000@email.amazonses.com>
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dwg@au1.ibm.com>;
+	Fri, 3 May 2013 13:37:31 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 5AA572BB004F
+	for <linux-mm@kvack.org>; Fri,  3 May 2013 13:45:25 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r433VUWs20906036
+	for <linux-mm@kvack.org>; Fri, 3 May 2013 13:31:30 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r433jO45019719
+	for <linux-mm@kvack.org>; Fri, 3 May 2013 13:45:24 +1000
+Date: Fri, 3 May 2013 13:21:36 +1000
+From: David Gibson <dwg@au1.ibm.com>
+Subject: Re: [PATCH -V7 01/10] powerpc/THP: Double the PMD table size for THP
+Message-ID: <20130503032136.GN13041@truffula.fritz.box>
+References: <1367178711-8232-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1367178711-8232-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="rQ7Ovc9/RBrrr0/1"
 Content-Disposition: inline
-In-Reply-To: <0000013e65cb32b3-047cd2d6-dfc8-41d2-a792-9b398f9a1baf-000000@email.amazonses.com>
+In-Reply-To: <1367178711-8232-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, penberg@kernel.org, rientjes@google.com, linux-mm@kvack.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-On Thu, May 02, 2013 at 03:10:15PM +0000, Christoph Lameter wrote:
-> On Thu, 2 May 2013, Han Pingtian wrote:
-> 
-> > Looks like "ibmvscsi" + "slub" can trigger this problem.
-> 
-> And the next merge of the slab-next tree will also cause SLAB to trigger
-> this issue. I would like to have this fixes. The slab allocator purpose is
-> to servr objects that are a fraction of a page and not objects that are
-> larger than the maximum allowed sizes of the page allocator.
+--rQ7Ovc9/RBrrr0/1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-So the problem is in memory management code, not in ibmvscis? And looks
-like there is a fix already?
+On Mon, Apr 29, 2013 at 01:21:42AM +0530, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>=20
+> THP code does PTE page allocation along with large page request and depos=
+it them
+> for later use. This is to ensure that we won't have any failures when we =
+split
+> hugepages to regular pages.
+>=20
+> On powerpc we want to use the deposited PTE page for storing hash pte slo=
+t and
+> secondary bit information for the HPTEs. We use the second half
+> of the pmd table to save the deposted PTE page.
+>=20
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Thanks.
+So far so good.
+
+Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
+
+--=20
+David Gibson			| I'll have my music baroque, and my code
+david AT gibson.dropbear.id.au	| minimalist, thank you.  NOT _the_ _other_
+				| _way_ _around_!
+http://www.ozlabs.org/~dgibson
+
+--rQ7Ovc9/RBrrr0/1
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iEYEARECAAYFAlGDLUAACgkQaILKxv3ab8Y4/gCbBGS54h8FzpwDUcxBIZiVJA77
+TSEAn16EgojWQZwLhiFEaI69hD+5Dzjs
+=qMQ1
+-----END PGP SIGNATURE-----
+
+--rQ7Ovc9/RBrrr0/1--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
