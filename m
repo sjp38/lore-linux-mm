@@ -1,48 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 2ECA36B02F1
-	for <linux-mm@kvack.org>; Fri,  3 May 2013 14:58:28 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 4 May 2013 00:23:53 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id DA20AE004A
-	for <linux-mm@kvack.org>; Sat,  4 May 2013 00:30:35 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r43IwHPL58392790
-	for <linux-mm@kvack.org>; Sat, 4 May 2013 00:28:17 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r43IwLC8016576
-	for <linux-mm@kvack.org>; Sat, 4 May 2013 04:58:21 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V7 04/10] powerpc: Update find_linux_pte_or_hugepte to handle transparent hugepages
-In-Reply-To: <20130503045323.GP13041@truffula.fritz.box>
-References: <1367178711-8232-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1367178711-8232-5-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130503045323.GP13041@truffula.fritz.box>
-Date: Sat, 04 May 2013 00:28:20 +0530
-Message-ID: <87ip2z51rn.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 457836B02F3
+	for <linux-mm@kvack.org>; Fri,  3 May 2013 14:58:58 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id ro12so1051470pbb.4
+        for <linux-mm@kvack.org>; Fri, 03 May 2013 11:58:57 -0700 (PDT)
+Date: Fri, 3 May 2013 11:58:55 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2 1/4] mm: fix comment referring to non-existent
+ size_seqlock, change to span_seqlock
+In-Reply-To: <1367451121-22725-2-git-send-email-cody@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.02.1305031157280.7526@chino.kir.corp.google.com>
+References: <1367451121-22725-1-git-send-email-cody@linux.vnet.ibm.com> <1367451121-22725-2-git-send-email-cody@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Gibson <dwg@au1.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-David Gibson <dwg@au1.ibm.com> writes:
+On Wed, 1 May 2013, Cody P Schafer wrote:
 
-> On Mon, Apr 29, 2013 at 01:21:45AM +0530, Aneesh Kumar K.V wrote:
->> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->
-> What's the difference in meaning between pmd_huge() and pmd_large()?
->
+> Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 
-#ifndef CONFIG_HUGETLB_PAGE
-#define pmd_huge(x)	0
-#endif
+Acked-by: David Rientjes <rientjes@google.com>
 
-Also pmd_large do check for THP PTE flag, and _PAGE_PRESENT.
-
--aneesh
+Others in this series aren't needed, in my opinion, but everybody has 
+their own tastes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
