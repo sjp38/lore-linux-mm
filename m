@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 009496B0278
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:25 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 4E86C6B0279
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:26 -0400 (EDT)
 Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 20:01:24 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id A23746E8040
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:11 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301EDZ316358
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:14 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301EbX012378
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:14 -0300
+	Thu, 2 May 2013 20:01:25 -0400
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id A7C2C6E804B
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:20 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301N8966388198
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:23 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301M0n011871
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:23 -0400
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 05/31] mm/memory_hotplug: use {pgdat,zone}_is_empty() when resizing zones & pgdats
-Date: Thu,  2 May 2013 17:00:37 -0700
-Message-Id: <1367539263-19999-6-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 12/31] memory_hotplug: factor out locks in mem_online_cpu()
+Date: Thu,  2 May 2013 17:00:44 -0700
+Message-Id: <1367539263-19999-13-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,36 +26,77 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
-Use the *_is_empty() helpers to be more clear about what we're actually
-checking for.
+In dynamic numa, when onlining nodes, lock_memory_hotplug() is already
+held when mem_online_node()'s functionality is needed.
+
+Factor out the locking and create a new function __mem_online_node() to
+allow reuse.
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- mm/memory_hotplug.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ include/linux/memory_hotplug.h |  1 +
+ mm/memory_hotplug.c            | 29 ++++++++++++++++-------------
+ 2 files changed, 17 insertions(+), 13 deletions(-)
 
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 501e9f0..1ad85c6 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -248,6 +248,7 @@ static inline int is_mem_section_removable(unsigned long pfn,
+ static inline void try_offline_node(int nid) {}
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
++extern int __mem_online_node(int nid);
+ extern int mem_online_node(int nid);
+ extern int add_memory(int nid, u64 start, u64 size);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index f4cb01a..a65235f 100644
+index a65235f..8e6658d 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -242,7 +242,7 @@ static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
- 	zone_span_writelock(zone);
+@@ -1066,26 +1066,29 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
+ 	return;
+ }
  
- 	old_zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
--	if (!zone->spanned_pages || start_pfn < zone->zone_start_pfn)
-+	if (zone_is_empty(zone) || start_pfn < zone->zone_start_pfn)
- 		zone->zone_start_pfn = start_pfn;
+-
+-/*
+- * called by cpu_up() to online a node without onlined memory.
+- */
+-int mem_online_node(int nid)
++int __mem_online_node(int nid)
+ {
+-	pg_data_t	*pgdat;
+-	int	ret;
++	pg_data_t *pgdat;
++	int ret;
  
- 	zone->spanned_pages = max(old_zone_end_pfn, end_pfn) -
-@@ -383,7 +383,7 @@ static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
- 	unsigned long old_pgdat_end_pfn =
- 		pgdat->node_start_pfn + pgdat->node_spanned_pages;
+-	lock_memory_hotplug();
+ 	pgdat = hotadd_new_pgdat(nid, 0);
+-	if (!pgdat) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
++	if (!pgdat)
++		return -ENOMEM;
++
+ 	node_set_online(nid);
+ 	ret = register_one_node(nid);
+ 	BUG_ON(ret);
++	return ret;
++}
  
--	if (!pgdat->node_spanned_pages || start_pfn < pgdat->node_start_pfn)
-+	if (pgdat_is_empty(pgdat) || start_pfn < pgdat->node_start_pfn)
- 		pgdat->node_start_pfn = start_pfn;
- 
- 	pgdat->node_spanned_pages = max(old_pgdat_end_pfn, end_pfn) -
+-out:
++/*
++ * called by cpu_up() to online a node without onlined memory.
++ */
++int mem_online_node(int nid)
++{
++	int ret;
++	lock_memory_hotplug();
++	ret = __mem_online_node(nid);
+ 	unlock_memory_hotplug();
+ 	return ret;
+ }
 -- 
 1.8.2.2
 
