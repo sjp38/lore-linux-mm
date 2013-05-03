@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 04D8F6B0284
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:35 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 677636B0283
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:36 -0400 (EDT)
 Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 18:01:35 -0600
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 644EAC9001A
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:32 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301WDE40173760
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:32 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301WXw026209
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:32 -0400
+	Thu, 2 May 2013 20:01:35 -0400
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 6DF8D38C8056
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:29 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301TjR285386
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:29 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301T1g013496
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:29 -0300
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 19/31] mm: memory,memlayout: add refresh_memory_blocks() for Dynamic NUMA.
-Date: Thu,  2 May 2013 17:00:51 -0700
-Message-Id: <1367539263-19999-20-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 17/31] drivers/base/node: rename unregister_mem_blk_under_nodes() to be more acurate
+Date: Thu,  2 May 2013 17:00:49 -0700
+Message-Id: <1367539263-19999-18-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,108 +26,86 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
-Properly update the sysfs info when memory blocks move between nodes
-due to a Dynamic NUMA reconfiguration.
+unregister_mem_block_under_nodes() only unregisters a single section in
+the mem block under all nodes, not the entire mem block. Rename it to
+unregister_mem_block_section_under_nodes(). Also rename the phys_index
+param to indicate that it is a section number.
 ---
- drivers/base/memory.c  | 39 +++++++++++++++++++++++++++++++++++++++
- include/linux/memory.h |  5 +++++
- mm/memlayout.c         |  3 +++
- 3 files changed, 47 insertions(+)
+ drivers/base/memory.c |  2 +-
+ drivers/base/node.c   | 11 +++++++----
+ include/linux/node.h  | 10 ++++++----
+ 3 files changed, 14 insertions(+), 9 deletions(-)
 
 diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 90e387c..db1b034 100644
+index b6e3f26..90e387c 100644
 --- a/drivers/base/memory.c
 +++ b/drivers/base/memory.c
-@@ -15,6 +15,7 @@
- #include <linux/device.h>
- #include <linux/init.h>
- #include <linux/kobject.h>
-+#include <linux/memlayout.h>
- #include <linux/memory.h>
- #include <linux/memory_hotplug.h>
- #include <linux/mm.h>
-@@ -700,6 +701,44 @@ bool is_memblock_offlined(struct memory_block *mem)
- 	return mem->state == MEM_OFFLINE;
+@@ -653,7 +653,7 @@ static int remove_memory_block(unsigned long node_id,
+ 
+ 	mutex_lock(&mem_sysfs_mutex);
+ 	mem = find_memory_block(section);
+-	unregister_mem_block_under_nodes(mem, __section_nr(section));
++	unregister_mem_block_section_under_nodes(mem, __section_nr(section));
+ 
+ 	mem->section_count--;
+ 	if (mem->section_count == 0) {
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index ad45b59..d3f981e 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -424,9 +424,12 @@ int register_mem_block_under_node(struct memory_block *mem_blk, int nid)
+ 	return 0;
  }
  
-+#if defined(CONFIG_DYNAMIC_NUMA)
-+int refresh_memory_blocks(struct memlayout *ml)
-+{
-+	struct subsys_dev_iter iter;
-+	struct device *dev;
-+	/* XXX: 4th arg is (struct device_type *), can we spec one? */
-+	mutex_lock(&mem_sysfs_mutex);
-+	subsys_dev_iter_init(&iter, &memory_subsys, NULL, NULL);
-+
-+	while ((dev = subsys_dev_iter_next(&iter))) {
-+		struct memory_block *mem_blk = container_of(dev, struct memory_block, dev);
-+		unsigned long start_pfn = section_nr_to_pfn(mem_blk->start_section_nr);
-+		unsigned long end_pfn   = section_nr_to_pfn(mem_blk->end_section_nr + 1);
-+		struct rangemap_entry *rme = memlayout_pfn_to_rme_higher(ml, start_pfn);
-+		unsigned long pfn = start_pfn;
-+
-+		if (!rme || !rme_bounds_pfn(rme, pfn)) {
-+			pr_warn("memory block %s {sec %lx-%lx}, {pfn %05lx-%05lx} is not bounded by the memlayout %pK\n",
-+					dev_name(dev),
-+					mem_blk->start_section_nr, mem_blk->end_section_nr,
-+					start_pfn, end_pfn, ml);
-+			continue;
-+		}
-+
-+		unregister_mem_block_under_nodes(mem_blk);
-+
-+		for (; pfn < end_pfn && rme; rme = rme_next(rme)) {
-+			register_mem_block_under_node(mem_blk, rme->nid);
-+			pfn = rme->pfn_end + 1;
-+		}
-+	}
-+
-+	subsys_dev_iter_exit(&iter);
-+	mutex_unlock(&mem_sysfs_mutex);
-+	return 0;
-+}
-+#endif
-+
- /*
-  * Initialize the sysfs support for memory devices...
-  */
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index 85c31a8..8f1dc43 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -143,6 +143,11 @@ enum mem_add_context { BOOT, HOTPLUG };
- #define unregister_hotmemory_notifier(nb)  ({ (void)(nb); })
- #endif
+-/* unregister memory block under all nodes that it spans */
+-int unregister_mem_block_under_nodes(struct memory_block *mem_blk,
+-				    unsigned long phys_index)
++/*
++ * unregister memory block under all nodes that a particular section it
++ * contains spans spans
++ */
++int unregister_mem_block_section_under_nodes(struct memory_block *mem_blk,
++				    unsigned long sec_num)
+ {
+ 	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
+ 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+@@ -439,7 +442,7 @@ int unregister_mem_block_under_nodes(struct memory_block *mem_blk,
+ 		return -ENOMEM;
+ 	nodes_clear(*unlinked_nodes);
  
-+#ifdef CONFIG_DYNAMIC_NUMA
-+struct memlayout;
-+extern int refresh_memory_blocks(struct memlayout *ml);
-+#endif
-+
- /*
-  * 'struct memory_accessor' is a generic interface to provide
-  * in-kernel access to persistent memory such as i2c or SPI EEPROMs
-diff --git a/mm/memlayout.c b/mm/memlayout.c
-index 0a1a602..8b9ba9a 100644
---- a/mm/memlayout.c
-+++ b/mm/memlayout.c
-@@ -9,6 +9,7 @@
- #include <linux/dnuma.h>
- #include <linux/export.h>
- #include <linux/memblock.h>
-+#include <linux/memory.h>
- #include <linux/printk.h>
- #include <linux/rbtree.h>
- #include <linux/rcupdate.h>
-@@ -300,6 +301,8 @@ void memlayout_commit(struct memlayout *ml)
- 	drain_all_pages();
- 	/* All new page allocations now match the memlayout */
+-	sect_start_pfn = section_nr_to_pfn(phys_index);
++	sect_start_pfn = section_nr_to_pfn(sec_num);
+ 	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+ 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+ 		int nid;
+diff --git a/include/linux/node.h b/include/linux/node.h
+index e20a203..f438c45 100644
+--- a/include/linux/node.h
++++ b/include/linux/node.h
+@@ -38,8 +38,9 @@ extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
+ extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
+ extern int register_mem_block_under_node(struct memory_block *mem_blk,
+ 						int nid);
+-extern int unregister_mem_block_under_nodes(struct memory_block *mem_blk,
+-					   unsigned long phys_index);
++extern int unregister_mem_block_section_under_nodes(
++					struct memory_block *mem_blk,
++					unsigned long sec_nr);
  
-+	refresh_memory_blocks(ml);
-+
- 	mutex_unlock(&memlayout_lock);
+ #ifdef CONFIG_HUGETLBFS
+ extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
+@@ -67,8 +68,9 @@ static inline int register_mem_block_under_node(struct memory_block *mem_blk,
+ {
+ 	return 0;
  }
- 
+-static inline int unregister_mem_block_under_nodes(struct memory_block *mem_blk,
+-						  unsigned long phys_index)
++static inline int unregister_mem_block_section_under_nodes(
++						struct memory_block *mem_blk,
++						unsigned long sec_nr)
+ {
+ 	return 0;
+ }
 -- 
 1.8.2.2
 
