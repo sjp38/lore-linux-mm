@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id BB3306B0277
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 9CD7B6B0276
 	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:24 -0400 (EDT)
 Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 18:01:23 -0600
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id C175619D8046
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 18:01:15 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301Lag119564
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:21 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301KEh003538
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:21 -0600
+	Thu, 2 May 2013 20:01:23 -0400
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 0D8246E804B
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:18 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301KKq274048
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:20 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301I54012718
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:20 -0300
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 09/31] page_alloc: in move_freepages(), skip pages instead of VM_BUG on node differences.
-Date: Thu,  2 May 2013 17:00:41 -0700
-Message-Id: <1367539263-19999-10-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 08/31] page_alloc: add return_pages_to_zone() when DYNAMIC_NUMA is enabled.
+Date: Thu,  2 May 2013 17:00:40 -0700
+Message-Id: <1367539263-19999-9-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,61 +26,74 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
-With dynamic numa, pages are going to be gradully moved from one node to
-another, causing the page ranges that move_freepages() examines to
-contain pages that actually belong to another node.
-
-When dynamic numa is enabled, we skip these pages instead of VM_BUGing
-out on them.
-
-This additionally moves the VM_BUG_ON() (which detects a change in node)
-so that it follows the pfn_valid_within() check.
+Add return_pages_to_zone(), which uses return_page_to_zone().
+It is a minimized version of __free_pages_ok() which handles adding
+pages which have been removed from another zone into a new zone.
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- mm/page_alloc.c | 17 ++++++++++++++---
- 1 file changed, 14 insertions(+), 3 deletions(-)
+ mm/internal.h   |  5 ++++-
+ mm/page_alloc.c | 17 +++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 739b405..657f773 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -958,6 +958,7 @@ int move_freepages(struct zone *zone,
- 	struct page *page;
- 	unsigned long order;
- 	int pages_moved = 0;
-+	int zone_nid = zone_to_nid(zone);
+diff --git a/mm/internal.h b/mm/internal.h
+index b11e574..a70c77b 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -104,6 +104,10 @@ extern void prep_compound_page(struct page *page, unsigned long order);
+ #ifdef CONFIG_MEMORY_FAILURE
+ extern bool is_free_buddy_page(struct page *page);
+ #endif
++#ifdef CONFIG_DYNAMIC_NUMA
++void return_pages_to_zone(struct page *page, unsigned int order,
++			  struct zone *zone);
++#endif
  
- #ifndef CONFIG_HOLES_IN_ZONE
- 	/*
-@@ -971,14 +972,24 @@ int move_freepages(struct zone *zone,
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ /*
+@@ -114,7 +118,6 @@ extern int ensure_zone_is_initialized(struct zone *zone,
  #endif
  
- 	for (page = start_page; page <= end_page;) {
--		/* Make sure we are not inadvertently changing nodes */
--		VM_BUG_ON(page_to_nid(page) != zone_to_nid(zone));
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
 -
- 		if (!pfn_valid_within(page_to_pfn(page))) {
- 			page++;
- 			continue;
- 		}
+ /*
+  * in mm/compaction.c
+  */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 98cbdf6..739b405 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -443,6 +443,12 @@ static inline void set_page_order(struct page *page, int order)
+ 	__SetPageBuddy(page);
+ }
  
-+		if (page_to_nid(page) != zone_nid) {
-+#ifndef CONFIG_DYNAMIC_NUMA
-+			/*
-+			 * In the normal case (without Dynamic NUMA), all pages
-+			 * in a pageblock should belong to the same zone (and
-+			 * as a result all have the same nid).
-+			 */
-+			VM_BUG_ON(page_to_nid(page) != zone_nid);
-+#endif
-+			page++;
-+			continue;
-+		}
++static inline void set_free_page_order(struct page *page, int order)
++{
++	set_page_private(page, order);
++	VM_BUG_ON(!PageBuddy(page));
++}
 +
- 		if (!PageBuddy(page)) {
- 			page++;
- 			continue;
+ static inline void rmv_page_order(struct page *page)
+ {
+ 	__ClearPageBuddy(page);
+@@ -739,6 +745,17 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	local_irq_restore(flags);
+ }
+ 
++#ifdef CONFIG_DYNAMIC_NUMA
++void return_pages_to_zone(struct page *page, unsigned int order,
++			  struct zone *zone)
++{
++	unsigned long flags;
++	local_irq_save(flags);
++	free_one_page(zone, page, order, get_freepage_migratetype(page));
++	local_irq_restore(flags);
++}
++#endif
++
+ /*
+  * Read access to zone->managed_pages is safe because it's unsigned long,
+  * but we still need to serialize writers. Currently all callers of
 -- 
 1.8.2.2
 
