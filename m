@@ -1,58 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 96E6D6B02C6
-	for <linux-mm@kvack.org>; Fri,  3 May 2013 04:37:55 -0400 (EDT)
-Date: Fri, 3 May 2013 09:37:49 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/3] mm: pagevec: Defer deciding what LRU to add a page
- to until pagevec drain time
-Message-ID: <20130503083749.GL11497@suse.de>
-References: <1367253119-6461-1-git-send-email-mgorman@suse.de>
- <1367253119-6461-2-git-send-email-mgorman@suse.de>
- <20130503075158.GB10633@quack.suse.cz>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 99E066B02C9
+	for <linux-mm@kvack.org>; Fri,  3 May 2013 05:11:53 -0400 (EDT)
+Date: Fri, 3 May 2013 11:11:49 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V3 4/8] memcg: add per cgroup dirty pages accounting
+Message-ID: <20130503091149.GA17496@dhcp22.suse.cz>
+References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
+ <1356456367-14660-1-git-send-email-handai.szj@taobao.com>
+ <20130102104421.GC22160@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130503075158.GB10633@quack.suse.cz>
+In-Reply-To: <20130102104421.GC22160@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>, Theodore Tso <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, dchinner@redhat.com, Sha Zhengju <handai.szj@taobao.com>
 
-On Fri, May 03, 2013 at 09:51:58AM +0200, Jan Kara wrote:
-> > @@ -789,17 +787,16 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
-> >  static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
-> >  				 void *arg)
-> >  {
-> > -	enum lru_list lru = (enum lru_list)arg;
-> > -	int file = is_file_lru(lru);
-> > -	int active = is_active_lru(lru);
-> > +	enum lru_list requested_lru = (enum lru_list)arg;
-> > +	int file = page_is_file_cache(page);
-> > +	int active = PageActive(page);
-> > +	enum lru_list lru = page_lru(page);
-> >  
-> > -	VM_BUG_ON(PageActive(page));
-> > +	WARN_ON_ONCE(requested_lru < NR_LRU_LISTS && requested_lru != lru);
->   Hum, so __lru_cache_add() calls this with 'requested_lru' set to whatever
-> LRU we currently want to add a page. How should this always be equal to the
-> LRU of all the pages we have cached in the pagevec?
+On Wed 02-01-13 11:44:21, Michal Hocko wrote:
+> On Wed 26-12-12 01:26:07, Sha Zhengju wrote:
+> > From: Sha Zhengju <handai.szj@taobao.com>
+> > 
+> > This patch adds memcg routines to count dirty pages, which allows memory controller
+> > to maintain an accurate view of the amount of its dirty memory and can provide some
+> > info for users while cgroup's direct reclaim is working.
 > 
-
-It wouldn't necessarily be and and for a pagevec drain, it's ignored
-completely.
-
-> And if I'm right, there doesn't seem to be a reason to pass requested_lru
-> to this function at all, does it?
+> I guess you meant targeted resp. (hard/soft) limit reclaim here,
+> right? It is true that this is direct reclaim but it is not clear to me
+> why the usefulnes should be limitted to the reclaim for users. I would
+> understand this if the users was in fact in-kernel users.
 > 
+> [...]
+> > To prevent AB/BA deadlock mentioned by Greg Thelen in previous version
+> > (https://lkml.org/lkml/2012/7/30/227), we adjust the lock order:
+> > ->private_lock --> mapping->tree_lock --> memcg->move_lock.
+> > So we need to make mapping->tree_lock ahead of TestSetPageDirty in __set_page_dirty()
+> > and __set_page_dirty_nobuffers(). But in order to avoiding useless spinlock contention,
+> > a prepare PageDirty() checking is added.
+> 
+> But there is another AA deadlock here I believe.
+> page_remove_rmap
+>   mem_cgroup_begin_update_page_stat		<<< 1
+>   set_page_dirty
+>     __set_page_dirty_buffers
+>       __set_page_dirty
+>         mem_cgroup_begin_update_page_stat	<<< 2
+> 	  move_lock_mem_cgroup
+> 	    spin_lock_irqsave(&memcg->move_lock, *flags);
 
-You've already noticed that it gets thrown away later in the third
-patch. It was left in this patch as a debugging aid in case there was a
-direct pagevec user that expected to place pages on an LRU that was at
-odds with the page flags.
+JFYI since abf09bed (s390/mm: implement software dirty bits) this is no
+longer possible. I haven't checked wheter there are other cases like
+this one and it should be better if mem_cgroup_begin_update_page_stat
+was recursive safe if that can be done without too many hacks.
+I will have a look at this (hopefully) sometimes next week.
 
+[...]
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
