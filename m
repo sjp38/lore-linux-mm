@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 4A1FC6B02A1
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:02:09 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 9A3C36B02A4
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:02:10 -0400 (EDT)
 Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 18:02:08 -0600
+	Thu, 2 May 2013 18:02:09 -0600
 Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 97FA33E4003F
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 18:01:25 -0600 (MDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301e7X385278
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:40 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301dpi009126
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:39 -0600
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 99FDC3E40044
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 18:00:58 -0600 (MDT)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301CNh358652
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:12 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301Chm029527
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:12 -0600
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 25/31] dnuma: memlayout: add memory_add_physaddr_to_nid() for memory_hotplug
-Date: Thu,  2 May 2013 17:00:57 -0700
-Message-Id: <1367539263-19999-26-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 04/31] memory_hotplug: export ensure_zone_is_initialized() in mm/internal.h
+Date: Thu,  2 May 2013 17:00:36 -0700
+Message-Id: <1367539263-19999-5-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,35 +26,47 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
+Export ensure_zone_is_initialized() so that it can be used to initialize
+new zones within the dynamic numa code.
+
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- mm/memlayout.c | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ mm/internal.h       | 8 ++++++++
+ mm/memory_hotplug.c | 2 +-
+ 2 files changed, 9 insertions(+), 1 deletion(-)
 
-diff --git a/mm/memlayout.c b/mm/memlayout.c
-index 8b9ba9a..3e89482 100644
---- a/mm/memlayout.c
-+++ b/mm/memlayout.c
-@@ -336,3 +336,19 @@ void memlayout_global_init(void)
+diff --git a/mm/internal.h b/mm/internal.h
+index 8562de0..b11e574 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -105,6 +105,14 @@ extern void prep_compound_page(struct page *page, unsigned long order);
+ extern bool is_free_buddy_page(struct page *page);
+ #endif
  
- 	memlayout_commit(ml);
- }
-+
 +#ifdef CONFIG_MEMORY_HOTPLUG
 +/*
-+ * Provides a default memory_add_physaddr_to_nid() for memory hotplug, unless
-+ * overridden by the arch.
++ * in mm/memory_hotplug.c
 + */
-+__weak
-+int memory_add_physaddr_to_nid(u64 start)
-+{
-+	int nid = memlayout_pfn_to_nid(PFN_DOWN(start));
-+	if (nid == NUMA_NO_NODE)
-+		return 0;
-+	return nid;
-+}
-+EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
++extern int ensure_zone_is_initialized(struct zone *zone,
++			unsigned long start_pfn, unsigned long num_pages);
 +#endif
++
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+ 
+ /*
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index fafeaae..f4cb01a 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -284,7 +284,7 @@ static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
+ 
+ /* Can fail with -ENOMEM from allocating a wait table with vmalloc() or
+  * alloc_bootmem_node_nopanic() */
+-static int __ref ensure_zone_is_initialized(struct zone *zone,
++int __ref ensure_zone_is_initialized(struct zone *zone,
+ 			unsigned long start_pfn, unsigned long num_pages)
+ {
+ 	if (!zone_is_initialized(zone))
 -- 
 1.8.2.2
 
