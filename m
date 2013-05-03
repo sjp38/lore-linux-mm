@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id A352C6B028C
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:43 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 5E1A86B028D
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:45 -0400 (EDT)
 Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 18:01:43 -0600
+	Thu, 2 May 2013 20:01:44 -0400
 Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id B5B36C90046
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:38 -0400 (EDT)
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 075B638C805E
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:41 -0400 (EDT)
 Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301c8L346910
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:38 -0400
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301fEh325786
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:41 -0400
 Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301c8R006008
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:38 -0300
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301ewZ006135
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:40 -0300
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 24/31] init/main: call memlayout_global_init() in start_kernel().
-Date: Thu,  2 May 2013 17:00:56 -0700
-Message-Id: <1367539263-19999-25-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 26/31] x86/mm/numa: when dnuma is enabled, use memlayout to handle memory hotplug's physaddr_to_nid.
+Date: Thu,  2 May 2013 17:00:58 -0700
+Message-Id: <1367539263-19999-27-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,37 +26,36 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
-memlayout_global_init() initializes the first memlayout, which is
-assumed to match the initial page-flag nid settings.
-
-This is done in start_kernel() as the initdata used to populate the
-memlayout is purged from memory early in the boot process (XXX: When?).
+When a memlayout is tracked (ie: CONFIG_DYNAMIC_NUMA is enabled), rather
+than iterate over numa_meminfo, a lookup can be done using memlayout.
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- init/main.c | 2 ++
- 1 file changed, 2 insertions(+)
+ arch/x86/mm/numa.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/init/main.c b/init/main.c
-index ceed17a..8ed5209 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -74,6 +74,7 @@
- #include <linux/ptrace.h>
- #include <linux/blkdev.h>
- #include <linux/elevator.h>
-+#include <linux/memlayout.h>
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 75819ef..f1609c0 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -28,7 +28,7 @@ struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
+ EXPORT_SYMBOL(node_data);
  
- #include <asm/io.h>
- #include <asm/bugs.h>
-@@ -613,6 +614,7 @@ asmlinkage void __init start_kernel(void)
- 	security_init();
- 	dbg_late_init();
- 	vfs_caches_init(totalram_pages);
-+	memlayout_global_init();
- 	signals_init();
- 	/* rootfs populating might need page-writeback */
- 	page_writeback_init();
+ static struct numa_meminfo numa_meminfo
+-#ifndef CONFIG_MEMORY_HOTPLUG
++#if !defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DYNAMIC_NUMA)
+ __initdata
+ #endif
+ ;
+@@ -832,7 +832,7 @@ EXPORT_SYMBOL(cpumask_of_node);
+ 
+ #endif	/* !CONFIG_DEBUG_PER_CPU_MAPS */
+ 
+-#ifdef CONFIG_MEMORY_HOTPLUG
++#if defined(CONFIG_MEMORY_HOTPLUG) && !defined(CONFIG_DYNAMIC_NUMA)
+ int memory_add_physaddr_to_nid(u64 start)
+ {
+ 	struct numa_meminfo *mi = &numa_meminfo;
 -- 
 1.8.2.2
 
