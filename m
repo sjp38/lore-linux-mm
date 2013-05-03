@@ -1,83 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id A95466B02D7
-	for <linux-mm@kvack.org>; Fri,  3 May 2013 10:07:28 -0400 (EDT)
-Message-ID: <5183C49D.1010000@bitsync.net>
-Date: Fri, 03 May 2013 16:07:25 +0200
-From: Zlatko Calusic <zcalusic@bitsync.net>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 0A2216B02DA
+	for <linux-mm@kvack.org>; Fri,  3 May 2013 11:01:48 -0400 (EDT)
+Date: Fri, 3 May 2013 16:01:45 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: PROBLEM: kernel oops on page fault
+Message-ID: <20130503150145.GA17260@suse.de>
+References: <CAEN0ZYDaHDhNZoJuRn3ZRUCYQyaP4DLwKheh2VFO00bo==0bLg@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] mm: lru milestones, timestamps and ages
-References: <20130430110214.22179.26139.stgit@zurg>
-In-Reply-To: <20130430110214.22179.26139.stgit@zurg>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAEN0ZYDaHDhNZoJuRn3ZRUCYQyaP4DLwKheh2VFO00bo==0bLg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Alexander H <1zeeky@gmail.com>
 Cc: linux-mm@kvack.org
 
-On 30.04.2013 13:02, Konstantin Khlebnikov wrote:
-> This patch adds engine for estimating rotation time for pages in lru lists.
->
-> This adds bunch of 'milestones' into each struct lruvec and inserts them into
-> lru lists periodically. Milestone flows in lru together with pages and brings
-> timestamp to the end of lru. Because milestones are embedded into lruvec they
-> can be easily distinguished from pages by comparing pointers.
-> Only few functions should care about that.
->
-> This machinery provides discrete-time estimation for age of pages from the end
-> of each lru and average age of each kind of evictable lrus in each zone.
+On Fri, May 03, 2013 at 11:28:22AM +0200, Alexander H wrote:
+> [ 2103.689560] Pid: 7640, comm: cc1plus Not tainted 3.8.11-1-ck #1
+> SAMSUNG ELECTRONICS CO., LTD. N150P/N210P/N220P
+> /N150P/N210P/N220P
 
-Great stuff!
+This looks like a vendor kernel of some description. Is it reproducible
+with the mainline 3.8.11 kernel?
 
-Believe it or not, I had an idea of writing something similar to this, 
-but of course having an idea and actually implementing it are two very 
-different things. Thank you for your work!
-
-I will use this to prove (or not) that file pages in the normal zone on 
-a 4GB RAM machine are reused waaaay too soon. Actually, I already have 
-the patch applied and running on the desktop, but it should be much more 
-useful on server workloads. Desktops have erratic load and can go for a 
-long time with very little I/O activity. But, here are the current 
-numbers anyway:
-
-Node 0, zone    DMA32
-   pages free     5371
-     nr_inactive_anon 4257
-     nr_active_anon 139719
-     nr_inactive_file 617537
-     nr_active_file 51671
-   inactive_ratio:    5
-   avg_age_inactive_anon: 2514752
-   avg_age_active_anon:   2514752
-   avg_age_inactive_file: 876416
-   avg_age_active_file:   2514752
-Node 0, zone   Normal
-   pages free     424
-     nr_inactive_anon 253
-     nr_active_anon 54480
-     nr_inactive_file 63274
-     nr_active_file 44116
-   inactive_ratio:    1
-   avg_age_inactive_anon: 2531712
-   avg_age_active_anon:   2531712
-   avg_age_inactive_file: 901120
-   avg_age_active_file:   2531712
-
-> In our kernel we use similar engine as source of statistics for scheduler in
-> memory reclaimer. This is O(1) scheduler which shifts vmscan priorities for lru
-> vectors depending on their sizes, limits and ages. It tries to balance memory
-> pressure among containers. I'll try to rework it for the mainline kernel soon.
->
-> Seems like these ages also can be used for optimal memory pressure distribution
-> between file and anon pages, and probably for balancing pressure among zones.
-
-This all sounds very promising. Especially because I currently observe 
-quite some imbalance among zones.
-
-Regards,
 -- 
-Zlatko
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
