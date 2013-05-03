@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 3B4C96B028B
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:42 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id A352C6B028C
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:43 -0400 (EDT)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 20:01:41 -0400
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id F29606E8048
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:34 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301b9b63569984
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:37 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301a9o026484
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:37 -0400
+	Thu, 2 May 2013 18:01:43 -0600
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id B5B36C90046
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:38 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301c8L346910
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:38 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301c8R006008
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:38 -0300
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 23/31] x86: memlayout: add a arch specific inital memlayout setter.
-Date: Thu,  2 May 2013 17:00:55 -0700
-Message-Id: <1367539263-19999-24-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 24/31] init/main: call memlayout_global_init() in start_kernel().
+Date: Thu,  2 May 2013 17:00:56 -0700
+Message-Id: <1367539263-19999-25-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,61 +26,37 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
-On x86, we have numa_info specifically to track the numa layout, which
-is precisely the data memlayout needs, so use it to create an initial
-memlayout.
+memlayout_global_init() initializes the first memlayout, which is
+assumed to match the initial page-flag nid settings.
+
+This is done in start_kernel() as the initdata used to populate the
+memlayout is purged from memory early in the boot process (XXX: When?).
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- arch/x86/mm/numa.c | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ init/main.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index a71c4e2..75819ef 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -11,6 +11,7 @@
- #include <linux/nodemask.h>
- #include <linux/sched.h>
- #include <linux/topology.h>
-+#include <linux/dnuma.h>
+diff --git a/init/main.c b/init/main.c
+index ceed17a..8ed5209 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -74,6 +74,7 @@
+ #include <linux/ptrace.h>
+ #include <linux/blkdev.h>
+ #include <linux/elevator.h>
++#include <linux/memlayout.h>
  
- #include <asm/e820.h>
- #include <asm/proto.h>
-@@ -32,6 +33,33 @@ __initdata
- #endif
- ;
- 
-+#ifdef CONFIG_DYNAMIC_NUMA
-+void __init memlayout_global_init(void)
-+{
-+	struct numa_meminfo *mi = &numa_meminfo;
-+	int i;
-+	struct numa_memblk *blk;
-+	struct memlayout *ml = memlayout_create(ML_INITIAL);
-+	if (WARN_ON(!ml))
-+		return;
-+
-+	pr_devel("x86/memlayout: adding ranges from numa_meminfo\n");
-+	for (i = 0; i < mi->nr_blks; i++) {
-+		blk = mi->blk + i;
-+		pr_devel("  adding range {%LX[%LX]-%LX[%LX]}:%d\n",
-+			 PFN_DOWN(blk->start), blk->start,
-+			 PFN_DOWN(blk->end - PAGE_SIZE / 2 - 1),
-+			 blk->end - 1, blk->nid);
-+		memlayout_new_range(ml, PFN_DOWN(blk->start),
-+				PFN_DOWN(blk->end - PAGE_SIZE / 2 - 1),
-+				blk->nid);
-+	}
-+	pr_devel("  done adding ranges from numa_meminfo\n");
-+
-+	memlayout_commit(ml);
-+}
-+#endif
-+
- static int numa_distance_cnt;
- static u8 *numa_distance;
- 
+ #include <asm/io.h>
+ #include <asm/bugs.h>
+@@ -613,6 +614,7 @@ asmlinkage void __init start_kernel(void)
+ 	security_init();
+ 	dbg_late_init();
+ 	vfs_caches_init(totalram_pages);
++	memlayout_global_init();
+ 	signals_init();
+ 	/* rootfs populating might need page-writeback */
+ 	page_writeback_init();
 -- 
 1.8.2.2
 
