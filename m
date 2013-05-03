@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 677636B0283
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 855DF6B0288
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:39 -0400 (EDT)
 Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 20:01:35 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 6DF8D38C8056
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:29 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301TjR285386
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:29 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301T1g013496
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:29 -0300
+	Thu, 2 May 2013 18:01:38 -0600
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id CF27EC90046
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:01:34 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301Z3Q253028
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 20:01:35 -0400
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301YDt005870
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:01:34 -0300
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 17/31] drivers/base/node: rename unregister_mem_blk_under_nodes() to be more acurate
-Date: Thu,  2 May 2013 17:00:49 -0700
-Message-Id: <1367539263-19999-18-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 21/31] page_alloc: use dnuma to transplant newly freed pages in free_hot_cold_page()
+Date: Thu,  2 May 2013 17:00:53 -0700
+Message-Id: <1367539263-19999-22-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,86 +26,47 @@ List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
 
-unregister_mem_block_under_nodes() only unregisters a single section in
-the mem block under all nodes, not the entire mem block. Rename it to
-unregister_mem_block_section_under_nodes(). Also rename the phys_index
-param to indicate that it is a section number.
----
- drivers/base/memory.c |  2 +-
- drivers/base/node.c   | 11 +++++++----
- include/linux/node.h  | 10 ++++++----
- 3 files changed, 14 insertions(+), 9 deletions(-)
+free_hot_cold_page() is used for order == 0 pages, and is where the
+page's zone is decided.
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index b6e3f26..90e387c 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -653,7 +653,7 @@ static int remove_memory_block(unsigned long node_id,
- 
- 	mutex_lock(&mem_sysfs_mutex);
- 	mem = find_memory_block(section);
--	unregister_mem_block_under_nodes(mem, __section_nr(section));
-+	unregister_mem_block_section_under_nodes(mem, __section_nr(section));
- 
- 	mem->section_count--;
- 	if (mem->section_count == 0) {
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index ad45b59..d3f981e 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -424,9 +424,12 @@ int register_mem_block_under_node(struct memory_block *mem_blk, int nid)
- 	return 0;
- }
- 
--/* unregister memory block under all nodes that it spans */
--int unregister_mem_block_under_nodes(struct memory_block *mem_blk,
--				    unsigned long phys_index)
-+/*
-+ * unregister memory block under all nodes that a particular section it
-+ * contains spans spans
-+ */
-+int unregister_mem_block_section_under_nodes(struct memory_block *mem_blk,
-+				    unsigned long sec_num)
+In the normal case, these pages are freed to the per-cpu lists. When a
+page needs transplanting (ie: the actual node it belongs to has changed,
+and it needs to be moved to another zone), the pcp lists are skipped &
+the page is freed via free_one_page().
+
+Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+---
+ mm/page_alloc.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f33f1bf..38a2161 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1358,6 +1358,7 @@ void mark_free_pages(struct zone *zone)
+  */
+ void free_hot_cold_page(struct page *page, int cold)
  {
- 	NODEMASK_ALLOC(nodemask_t, unlinked_nodes, GFP_KERNEL);
- 	unsigned long pfn, sect_start_pfn, sect_end_pfn;
-@@ -439,7 +442,7 @@ int unregister_mem_block_under_nodes(struct memory_block *mem_blk,
- 		return -ENOMEM;
- 	nodes_clear(*unlinked_nodes);
++	int dest_nid;
+ 	struct zone *zone = page_zone(page);
+ 	struct per_cpu_pages *pcp;
+ 	unsigned long flags;
+@@ -1371,6 +1372,15 @@ void free_hot_cold_page(struct page *page, int cold)
+ 	local_irq_save(flags);
+ 	__count_vm_event(PGFREE);
  
--	sect_start_pfn = section_nr_to_pfn(phys_index);
-+	sect_start_pfn = section_nr_to_pfn(sec_num);
- 	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
- 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
- 		int nid;
-diff --git a/include/linux/node.h b/include/linux/node.h
-index e20a203..f438c45 100644
---- a/include/linux/node.h
-+++ b/include/linux/node.h
-@@ -38,8 +38,9 @@ extern int register_cpu_under_node(unsigned int cpu, unsigned int nid);
- extern int unregister_cpu_under_node(unsigned int cpu, unsigned int nid);
- extern int register_mem_block_under_node(struct memory_block *mem_blk,
- 						int nid);
--extern int unregister_mem_block_under_nodes(struct memory_block *mem_blk,
--					   unsigned long phys_index);
-+extern int unregister_mem_block_section_under_nodes(
-+					struct memory_block *mem_blk,
-+					unsigned long sec_nr);
- 
- #ifdef CONFIG_HUGETLBFS
- extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
-@@ -67,8 +68,9 @@ static inline int register_mem_block_under_node(struct memory_block *mem_blk,
- {
- 	return 0;
- }
--static inline int unregister_mem_block_under_nodes(struct memory_block *mem_blk,
--						  unsigned long phys_index)
-+static inline int unregister_mem_block_section_under_nodes(
-+						struct memory_block *mem_blk,
-+						unsigned long sec_nr)
- {
- 	return 0;
- }
++	dest_nid = dnuma_page_needs_move(page);
++	if (dest_nid != NUMA_NO_NODE) {
++		struct zone *dest_zone = nid_zone(dest_nid, page_zonenum(page));
++		dnuma_prior_free_to_new_zone(page, 0, dest_zone, dest_nid);
++		free_one_page(dest_zone, page, 0, migratetype);
++		dnuma_post_free_to_new_zone(0);
++		goto out;
++	}
++
+ 	/*
+ 	 * We only track unmovable, reclaimable and movable on pcp lists.
+ 	 * Free ISOLATE pages back to the allocator because they are being
 -- 
 1.8.2.2
 
