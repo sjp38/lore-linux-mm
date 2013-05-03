@@ -1,113 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 789F06B027E
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 20:03:38 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 3FD566B02AA
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 23:03:52 -0400 (EDT)
 Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 2 May 2013 18:03:37 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 6038D19D805E
-	for <linux-mm@kvack.org>; Thu,  2 May 2013 18:01:31 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4301bdH317228
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:37 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4301aBY004559
-	for <linux-mm@kvack.org>; Thu, 2 May 2013 18:01:36 -0600
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [RFC PATCH v3 22/31] page_alloc: transplant pages that are being flushed from the per-cpu lists
-Date: Thu,  2 May 2013 17:00:54 -0700
-Message-Id: <1367539263-19999-23-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
-References: <1367539263-19999-1-git-send-email-cody@linux.vnet.ibm.com>
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <hanpt@linux.vnet.ibm.com>;
+	Thu, 2 May 2013 21:03:51 -0600
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 1F42E38C8042
+	for <linux-mm@kvack.org>; Thu,  2 May 2013 23:03:49 -0400 (EDT)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4333miK256320
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 23:03:49 -0400
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4333mfv032022
+	for <linux-mm@kvack.org>; Thu, 2 May 2013 21:03:48 -0600
+Date: Fri, 3 May 2013 11:03:45 +0800
+From: Han Pingtian <hanpt@linux.vnet.ibm.com>
+Subject: Re: OOM-killer and strange RSS value in 3.9-rc7
+Message-ID: <20130503030345.GE4441@localhost.localdomain>
+References: <0000013e3cb0340d-00f360e3-076b-478e-b94c-ddd4476196ce-000000@email.amazonses.com>
+ <20130425060705.GK2672@localhost.localdomain>
+ <0000013e427023d7-9456c313-8654-420c-b85a-cb79cc3c4ffc-000000@email.amazonses.com>
+ <20130426062436.GB4441@localhost.localdomain>
+ <0000013e46cba821-d5c54c99-3b5c-4669-9a54-9fb8f4ee516f-000000@email.amazonses.com>
+ <20130427112418.GC4441@localhost.localdomain>
+ <0000013e5645b356-09aa6796-0a95-40f1-8ec5-6e2e3d0c434f-000000@email.amazonses.com>
+ <20130429145711.GC1172@dhcp22.suse.cz>
+ <20130502105637.GD4441@localhost.localdomain>
+ <0000013e65cb32b3-047cd2d6-dfc8-41d2-a792-9b398f9a1baf-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0000013e65cb32b3-047cd2d6-dfc8-41d2-a792-9b398f9a1baf-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, penberg@kernel.org, rientjes@google.com, linux-mm@kvack.org
 
-In free_pcppages_bulk(), check if a page needs to be moved to a new
-node/zone & then perform the transplant (in a slightly defered manner).
+On Thu, May 02, 2013 at 03:10:15PM +0000, Christoph Lameter wrote:
+> On Thu, 2 May 2013, Han Pingtian wrote:
+> 
+> > Looks like "ibmvscsi" + "slub" can trigger this problem.
+> 
+> And the next merge of the slab-next tree will also cause SLAB to trigger
+> this issue. I would like to have this fixes. The slab allocator purpose is
+> to servr objects that are a fraction of a page and not objects that are
+> larger than the maximum allowed sizes of the page allocator.
 
-Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
----
- mm/page_alloc.c | 36 +++++++++++++++++++++++++++++++++++-
- 1 file changed, 35 insertions(+), 1 deletion(-)
+So the problem is in memory management code, not in ibmvscis? And looks
+like there is a fix already?
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 38a2161..879ab9d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -644,13 +644,14 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 	int migratetype = 0;
- 	int batch_free = 0;
- 	int to_free = count;
-+	struct page *pos, *page;
-+	LIST_HEAD(need_move);
- 
- 	spin_lock(&zone->lock);
- 	zone->all_unreclaimable = 0;
- 	zone->pages_scanned = 0;
- 
- 	while (to_free) {
--		struct page *page;
- 		struct list_head *list;
- 
- 		/*
-@@ -673,11 +674,23 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 
- 		do {
- 			int mt;	/* migratetype of the to-be-freed page */
-+			int dest_nid;
- 
- 			page = list_entry(list->prev, struct page, lru);
- 			/* must delete as __free_one_page list manipulates */
- 			list_del(&page->lru);
- 			mt = get_freepage_migratetype(page);
-+
-+			dest_nid = dnuma_page_needs_move(page);
-+			if (dest_nid != NUMA_NO_NODE) {
-+				dnuma_prior_free_to_new_zone(page, 0,
-+						nid_zone(dest_nid,
-+							page_zonenum(page)),
-+						dest_nid);
-+				list_add(&page->lru, &need_move);
-+				continue;
-+			}
-+
- 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
- 			__free_one_page(page, zone, 0, mt);
- 			trace_mm_page_pcpu_drain(page, 0, mt);
-@@ -689,6 +702,27 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 		} while (--to_free && --batch_free && !list_empty(list));
- 	}
- 	spin_unlock(&zone->lock);
-+
-+	list_for_each_entry_safe(page, pos, &need_move, lru) {
-+		struct zone *dest_zone = page_zone(page);
-+		int mt;
-+
-+		spin_lock(&dest_zone->lock);
-+
-+		VM_BUG_ON(dest_zone != page_zone(page));
-+		pr_devel("freeing pcp page %pK with changed node\n", page);
-+		list_del(&page->lru);
-+		mt = get_freepage_migratetype(page);
-+		__free_one_page(page, dest_zone, 0, mt);
-+		trace_mm_page_pcpu_drain(page, 0, mt);
-+
-+		/* XXX: fold into "post_free_to_new_zone()" ? */
-+		if (is_migrate_cma(mt))
-+			__mod_zone_page_state(dest_zone, NR_FREE_CMA_PAGES, 1);
-+		dnuma_post_free_to_new_zone(0);
-+
-+		spin_unlock(&dest_zone->lock);
-+	}
- }
- 
- static void free_one_page(struct zone *zone, struct page *page, int order,
--- 
-1.8.2.2
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
