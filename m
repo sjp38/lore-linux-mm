@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id AC5696B030D
-	for <linux-mm@kvack.org>; Sat,  4 May 2013 07:13:11 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 4E01D6B030E
+	for <linux-mm@kvack.org>; Sat,  4 May 2013 07:13:12 -0400 (EDT)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [PATCH 2/2 v2, RFC] Driver core: Introduce offline/online callbacks for memory blocks
-Date: Sat, 04 May 2013 13:21:16 +0200
-Message-ID: <19540491.PRsM4lKIYM@vostro.rjw.lan>
+Subject: [PATCH 1/2 v2, RFC] ACPI / memhotplug: Bind removable memory blocks to ACPI device nodes
+Date: Sat, 04 May 2013 13:12:55 +0200
+Message-ID: <11495390.fLTYR4Utem@vostro.rjw.lan>
 In-Reply-To: <2376818.CRj1BTLk0Y@vostro.rjw.lan>
 References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <1583356.7oqZ7gBy2q@vostro.rjw.lan> <2376818.CRj1BTLk0Y@vostro.rjw.lan>
 MIME-Version: 1.0
@@ -18,214 +18,180 @@ Cc: Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kern
 
 From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
-Introduce .offline() and .online() callbacks for memory_subsys
-that will allow the generic device_offline() and device_online()
-to be used with device objects representing memory blocks.  That,
-in turn, allows the ACPI subsystem to use device_offline() to put
-removable memory blocks offline, if possible, before removing
-memory modules holding them.
+During ACPI memory hotplug configuration bind memory blocks residing
+in modules removable through the standard ACPI mechanism to struct
+acpi_device objects associated with ACPI namespace objects
+representing those modules.  Accordingly, unbind those memory blocks
+from the struct acpi_device objects when the memory modules in
+question are being removed.
 
-The 'online' sysfs attribute of memory block devices will attempt to
-put them offline if 0 is written to it and will attempt to apply the
-previously used online type when onlining them (i.e. when 1 is
-written to it).
+When "offline" operation for devices representing memory blocks is
+introduced, this will allow the ACPI core's device hot-remove code to
+use it to carry out remove_memory() for those memory blocks and check
+the results of that before it actually removes the modules holding
+them from the system.
+
+Since walk_memory_range() is used for accessing all memory blocks
+corresponding to a given ACPI namespace object, it is exported from
+memory_hotplug.c so that the code in acpi_memhotplug.c can use it.
 
 Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 ---
- drivers/base/memory.c  |  105 +++++++++++++++++++++++++++++++++++++------------
- include/linux/memory.h |    1 
- 2 files changed, 81 insertions(+), 25 deletions(-)
+ drivers/acpi/acpi_memhotplug.c |   53 ++++++++++++++++++++++++++++++++++++++---
+ include/linux/memory_hotplug.h |    2 +
+ mm/memory_hotplug.c            |    4 ++-
+ 3 files changed, 55 insertions(+), 4 deletions(-)
 
-Index: linux-pm/drivers/base/memory.c
+Index: linux-pm/mm/memory_hotplug.c
 ===================================================================
---- linux-pm.orig/drivers/base/memory.c
-+++ linux-pm/drivers/base/memory.c
-@@ -37,9 +37,14 @@ static inline int base_memory_block_id(i
- 	return section_nr / sections_per_block;
+--- linux-pm.orig/mm/memory_hotplug.c
++++ linux-pm/mm/memory_hotplug.c
+@@ -1618,6 +1618,7 @@ int offline_pages(unsigned long start_pf
+ {
+ 	return __offline_pages(start_pfn, start_pfn + nr_pages, 120 * HZ);
+ }
++#endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ /**
+  * walk_memory_range - walks through all mem sections in [start_pfn, end_pfn)
+@@ -1631,7 +1632,7 @@ int offline_pages(unsigned long start_pf
+  *
+  * Returns the return value of func.
+  */
+-static int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
++int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+ 		void *arg, int (*func)(struct memory_block *, void *))
+ {
+ 	struct memory_block *mem = NULL;
+@@ -1668,6 +1669,7 @@ static int walk_memory_range(unsigned lo
+ 	return 0;
  }
  
-+static int memory_subsys_online(struct device *dev);
-+static int memory_subsys_offline(struct device *dev);
-+
- static struct bus_type memory_subsys = {
- 	.name = MEMORY_CLASS_NAME,
- 	.dev_name = MEMORY_CLASS_NAME,
-+	.online = memory_subsys_online,
-+	.offline = memory_subsys_offline,
- };
- 
- static BLOCKING_NOTIFIER_HEAD(memory_chain);
-@@ -278,33 +283,64 @@ static int __memory_block_change_state(s
- {
- 	int ret = 0;
- 
--	if (mem->state != from_state_req) {
--		ret = -EINVAL;
--		goto out;
--	}
-+	if (mem->state != from_state_req)
-+		return -EINVAL;
- 
- 	if (to_state == MEM_OFFLINE)
- 		mem->state = MEM_GOING_OFFLINE;
- 
- 	ret = memory_block_action(mem->start_section_nr, to_state, online_type);
--
- 	if (ret) {
- 		mem->state = from_state_req;
--		goto out;
-+	} else {
-+		mem->state = to_state;
-+		if (to_state == MEM_ONLINE)
-+			mem->last_online = online_type;
- 	}
-+	return ret;
-+}
- 
--	mem->state = to_state;
--	switch (mem->state) {
--	case MEM_OFFLINE:
--		kobject_uevent(&mem->dev.kobj, KOBJ_OFFLINE);
--		break;
--	case MEM_ONLINE:
--		kobject_uevent(&mem->dev.kobj, KOBJ_ONLINE);
--		break;
--	default:
--		break;
-+static int memory_subsys_online(struct device *dev)
-+{
-+	struct memory_block *mem = container_of(dev, struct memory_block, dev);
-+	int ret;
-+
-+	mutex_lock(&mem->state_mutex);
-+	ret = __memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE,
-+					  mem->last_online);
-+	mutex_unlock(&mem->state_mutex);
-+	return ret;
-+}
-+
-+static int memory_subsys_offline(struct device *dev)
-+{
-+	struct memory_block *mem = container_of(dev, struct memory_block, dev);
-+	int ret;
-+
-+	mutex_lock(&mem->state_mutex);
-+	ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
-+	mutex_unlock(&mem->state_mutex);
-+	return ret;
-+}
-+
-+static int __memory_block_change_state_uevent(struct memory_block *mem,
-+		unsigned long to_state, unsigned long from_state_req,
-+		int online_type)
-+{
-+	int ret = __memory_block_change_state(mem, to_state, from_state_req,
-+					      online_type);
-+	if (!ret) {
-+		switch (mem->state) {
-+		case MEM_OFFLINE:
-+			kobject_uevent(&mem->dev.kobj, KOBJ_OFFLINE);
-+			break;
-+		case MEM_ONLINE:
-+			kobject_uevent(&mem->dev.kobj, KOBJ_ONLINE);
-+			break;
-+		default:
-+			break;
-+		}
- 	}
--out:
- 	return ret;
- }
- 
-@@ -315,8 +351,8 @@ static int memory_block_change_state(str
- 	int ret;
- 
- 	mutex_lock(&mem->state_mutex);
--	ret = __memory_block_change_state(mem, to_state, from_state_req,
--					  online_type);
-+	ret = __memory_block_change_state_uevent(mem, to_state, from_state_req,
-+						 online_type);
- 	mutex_unlock(&mem->state_mutex);
- 
- 	return ret;
-@@ -326,22 +362,34 @@ store_mem_state(struct device *dev,
- 		struct device_attribute *attr, const char *buf, size_t count)
- {
- 	struct memory_block *mem;
-+	bool offline;
- 	int ret = -EINVAL;
- 
- 	mem = container_of(dev, struct memory_block, dev);
- 
--	if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
-+	lock_device_hotplug();
-+
-+	if (!strncmp(buf, "online_kernel", min_t(int, count, 13))) {
-+		offline = false;
- 		ret = memory_block_change_state(mem, MEM_ONLINE,
- 						MEM_OFFLINE, ONLINE_KERNEL);
--	else if (!strncmp(buf, "online_movable", min_t(int, count, 14)))
-+	} else if (!strncmp(buf, "online_movable", min_t(int, count, 14))) {
-+		offline = false;
- 		ret = memory_block_change_state(mem, MEM_ONLINE,
- 						MEM_OFFLINE, ONLINE_MOVABLE);
--	else if (!strncmp(buf, "online", min_t(int, count, 6)))
-+	} else if (!strncmp(buf, "online", min_t(int, count, 6))) {
-+		offline = false;
- 		ret = memory_block_change_state(mem, MEM_ONLINE,
- 						MEM_OFFLINE, ONLINE_KEEP);
--	else if(!strncmp(buf, "offline", min_t(int, count, 7)))
-+	} else if(!strncmp(buf, "offline", min_t(int, count, 7))) {
-+		offline = true;
- 		ret = memory_block_change_state(mem, MEM_OFFLINE,
- 						MEM_ONLINE, -1);
-+	}
-+	if (!ret)
-+		dev->offline = offline;
-+
-+	unlock_device_hotplug();
- 
- 	if (ret)
- 		return ret;
-@@ -563,6 +611,7 @@ static int init_memory_block(struct memo
- 			base_memory_block_id(scn_nr) * sections_per_block;
- 	mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
- 	mem->state = state;
-+	mem->last_online = ONLINE_KEEP;
- 	mem->section_count++;
- 	mutex_init(&mem->state_mutex);
- 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
-@@ -686,10 +735,16 @@ int offline_memory_block(struct memory_b
- {
- 	int ret = 0;
- 
-+	lock_device_hotplug();
- 	mutex_lock(&mem->state_mutex);
--	if (mem->state != MEM_OFFLINE)
--		ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
-+	if (mem->state != MEM_OFFLINE) {
-+		ret = __memory_block_change_state_uevent(mem, MEM_OFFLINE,
-+							 MEM_ONLINE, -1);
-+		if (!ret)
-+			mem->dev.offline = true;
-+	}
- 	mutex_unlock(&mem->state_mutex);
-+	unlock_device_hotplug();
- 
- 	return ret;
- }
-Index: linux-pm/include/linux/memory.h
++#ifdef CONFIG_MEMORY_HOTREMOVE
+ /**
+  * offline_memory_block_cb - callback function for offlining memory block
+  * @mem: the memory block to be offlined
+Index: linux-pm/include/linux/memory_hotplug.h
 ===================================================================
---- linux-pm.orig/include/linux/memory.h
-+++ linux-pm/include/linux/memory.h
-@@ -26,6 +26,7 @@ struct memory_block {
- 	unsigned long start_section_nr;
- 	unsigned long end_section_nr;
- 	unsigned long state;
-+	int last_online;
- 	int section_count;
+--- linux-pm.orig/include/linux/memory_hotplug.h
++++ linux-pm/include/linux/memory_hotplug.h
+@@ -245,6 +245,8 @@ static inline int is_mem_section_removab
+ static inline void try_offline_node(int nid) {}
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
  
++extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
++		void *arg, int (*func)(struct memory_block *, void *));
+ extern int mem_online_node(int nid);
+ extern int add_memory(int nid, u64 start, u64 size);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
+Index: linux-pm/drivers/acpi/acpi_memhotplug.c
+===================================================================
+--- linux-pm.orig/drivers/acpi/acpi_memhotplug.c
++++ linux-pm/drivers/acpi/acpi_memhotplug.c
+@@ -28,6 +28,7 @@
+  */
+ 
+ #include <linux/acpi.h>
++#include <linux/memory.h>
+ #include <linux/memory_hotplug.h>
+ 
+ #include "internal.h"
+@@ -166,13 +167,50 @@ static int acpi_memory_check_device(stru
+ 	return 0;
+ }
+ 
++static unsigned long acpi_meminfo_start_pfn(struct acpi_memory_info *info)
++{
++	return PFN_DOWN(info->start_addr);
++}
++
++static unsigned long acpi_meminfo_end_pfn(struct acpi_memory_info *info)
++{
++	return PFN_UP(info->start_addr + info->length-1);
++}
++
++static int acpi_bind_memblk(struct memory_block *mem, void *arg)
++{
++	return acpi_bind_one(&mem->dev, (acpi_handle)arg);
++}
++
++static int acpi_bind_memory_blocks(struct acpi_memory_info *info,
++				   acpi_handle handle)
++{
++	return walk_memory_range(acpi_meminfo_start_pfn(info),
++				 acpi_meminfo_end_pfn(info), (void *)handle,
++				 acpi_bind_memblk);
++}
++
++static int acpi_unbind_memblk(struct memory_block *mem, void *arg)
++{
++	acpi_unbind_one(&mem->dev);
++	return 0;
++}
++
++static void acpi_unbind_memory_blocks(struct acpi_memory_info *info,
++				      acpi_handle handle)
++{
++	walk_memory_range(acpi_meminfo_start_pfn(info),
++			  acpi_meminfo_end_pfn(info), NULL, acpi_unbind_memblk);
++}
++
+ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+ {
++	acpi_handle handle = mem_device->device->handle;
+ 	int result, num_enabled = 0;
+ 	struct acpi_memory_info *info;
+ 	int node;
+ 
+-	node = acpi_get_node(mem_device->device->handle);
++	node = acpi_get_node(handle);
  	/*
+ 	 * Tell the VM there is more memory here...
+ 	 * Note: Assume that this function returns zero on success
+@@ -203,6 +241,12 @@ static int acpi_memory_enable_device(str
+ 		if (result && result != -EEXIST)
+ 			continue;
+ 
++		result = acpi_bind_memory_blocks(info, handle);
++		if (result) {
++			acpi_unbind_memory_blocks(info, handle);
++			return -ENODEV;
++		}
++
+ 		info->enabled = 1;
+ 
+ 		/*
+@@ -229,10 +273,11 @@ static int acpi_memory_enable_device(str
+ 
+ static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+ {
++	acpi_handle handle = mem_device->device->handle;
+ 	int result = 0, nid;
+ 	struct acpi_memory_info *info, *n;
+ 
+-	nid = acpi_get_node(mem_device->device->handle);
++	nid = acpi_get_node(handle);
+ 
+ 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+ 		if (!info->enabled)
+@@ -240,6 +285,8 @@ static int acpi_memory_remove_memory(str
+ 
+ 		if (nid < 0)
+ 			nid = memory_add_physaddr_to_nid(info->start_addr);
++
++		acpi_unbind_memory_blocks(info, handle);
+ 		result = remove_memory(nid, info->start_addr, info->length);
+ 		if (result)
+ 			return result;
+@@ -300,7 +347,7 @@ static int acpi_memory_device_add(struct
+ 	if (result) {
+ 		dev_err(&device->dev, "acpi_memory_enable_device() error\n");
+ 		acpi_memory_device_free(mem_device);
+-		return -ENODEV;
++		return result;
+ 	}
+ 
+ 	dev_dbg(&device->dev, "Memory device configured by ACPI\n");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
