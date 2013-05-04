@@ -1,73 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id E815D6B030B
-	for <linux-mm@kvack.org>; Sat,  4 May 2013 05:47:48 -0400 (EDT)
-Message-ID: <5184D93C.7000806@parallels.com>
-Date: Sat, 04 May 2013 13:47:40 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id AC5696B030D
+	for <linux-mm@kvack.org>; Sat,  4 May 2013 07:13:11 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: [PATCH 2/2 v2, RFC] Driver core: Introduce offline/online callbacks for memory blocks
+Date: Sat, 04 May 2013 13:21:16 +0200
+Message-ID: <19540491.PRsM4lKIYM@vostro.rjw.lan>
+In-Reply-To: <2376818.CRj1BTLk0Y@vostro.rjw.lan>
+References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <1583356.7oqZ7gBy2q@vostro.rjw.lan> <2376818.CRj1BTLk0Y@vostro.rjw.lan>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] pagemap: Introduce the /proc/PID/pagemap2 file
-References: <51669E5F.4000801@parallels.com> <51669EA5.20209@parallels.com> <20130502170857.GB24627@us.ibm.com>
-In-Reply-To: <20130502170857.GB24627@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Helsley <matthltc@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
 
-On 05/02/2013 09:08 PM, Matt Helsley wrote:
-> On Thu, Apr 11, 2013 at 03:29:41PM +0400, Pavel Emelyanov wrote:
->> This file is the same as the pagemap one, but shows entries with bits
->> 55-60 being zero (reserved for future use). Next patch will occupy one
->> of them.
-> 
-> This approach doesn't scale as well as it could. As best I can see
-> CRIU would do:
-> 
-> for each vma in /proc/<pid>/smaps
-> 	for each page in /proc/<pid>/pagemap2
-> 		if soft dirty bit
-> 			copy page
-> 
-> (possibly with pfn checks to avoid copying the same page mapped in
-> multiple locations..)
+From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
-Comparing pfns got from two subsequent pagemap reads doesn't help at all.
-If they are equal, this can mean that either page is shared or (less likely,
-but still) that the page, that used to be at the 1st pagemap was reclaimed
-and mapped to the 2nd between two reads. If they differ, it can again mean
-either not-shared (most likely) or shared (pfns were equal, but got reclaimed
-and swapped in back).
+Introduce .offline() and .online() callbacks for memory_subsys
+that will allow the generic device_offline() and device_online()
+to be used with device objects representing memory blocks.  That,
+in turn, allows the ACPI subsystem to use device_offline() to put
+removable memory blocks offline, if possible, before removing
+memory modules holding them.
 
-Some better API for pages sharing would be nice, probably such API could be
-also re-used for the user-space KSM :)
+The 'online' sysfs attribute of memory block devices will attempt to
+put them offline if 0 is written to it and will attempt to apply the
+previously used online type when onlining them (i.e. when 1 is
+written to it).
 
-> However, if soft dirty bit changes could be queued up (from say the
-> fault handler and page table ops that map/unmap pages) and accumulated
-> in something like an interval tree it could be something like:
-> 
-> for each range of changed pages
-> 	for each page in range
-> 		copy page
-> 
-> IOW something that scales with the number of changed pages rather
-> than the number of mapped pages.
-> 
-> So I wonder if CRIU would abandon pagemap2 in the future for something
-> like this.
+Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+---
+ drivers/base/memory.c  |  105 +++++++++++++++++++++++++++++++++++++------------
+ include/linux/memory.h |    1 
+ 2 files changed, 81 insertions(+), 25 deletions(-)
 
-We'd surely adopt such APIs is one exists. One thing to note about one is that
-we'd also appreciate if this API would be able to batch "present" bits as well
-as "swapped" and "page-file" ones. We use these three in CRIU as well, and
-these bits scanning can also be optimized.
-
-> Cheers,
-> 	-Matt Helsley
-> 
-
-Thanks,
-Pavel
+Index: linux-pm/drivers/base/memory.c
+===================================================================
+--- linux-pm.orig/drivers/base/memory.c
++++ linux-pm/drivers/base/memory.c
+@@ -37,9 +37,14 @@ static inline int base_memory_block_id(i
+ 	return section_nr / sections_per_block;
+ }
+ 
++static int memory_subsys_online(struct device *dev);
++static int memory_subsys_offline(struct device *dev);
++
+ static struct bus_type memory_subsys = {
+ 	.name = MEMORY_CLASS_NAME,
+ 	.dev_name = MEMORY_CLASS_NAME,
++	.online = memory_subsys_online,
++	.offline = memory_subsys_offline,
+ };
+ 
+ static BLOCKING_NOTIFIER_HEAD(memory_chain);
+@@ -278,33 +283,64 @@ static int __memory_block_change_state(s
+ {
+ 	int ret = 0;
+ 
+-	if (mem->state != from_state_req) {
+-		ret = -EINVAL;
+-		goto out;
+-	}
++	if (mem->state != from_state_req)
++		return -EINVAL;
+ 
+ 	if (to_state == MEM_OFFLINE)
+ 		mem->state = MEM_GOING_OFFLINE;
+ 
+ 	ret = memory_block_action(mem->start_section_nr, to_state, online_type);
+-
+ 	if (ret) {
+ 		mem->state = from_state_req;
+-		goto out;
++	} else {
++		mem->state = to_state;
++		if (to_state == MEM_ONLINE)
++			mem->last_online = online_type;
+ 	}
++	return ret;
++}
+ 
+-	mem->state = to_state;
+-	switch (mem->state) {
+-	case MEM_OFFLINE:
+-		kobject_uevent(&mem->dev.kobj, KOBJ_OFFLINE);
+-		break;
+-	case MEM_ONLINE:
+-		kobject_uevent(&mem->dev.kobj, KOBJ_ONLINE);
+-		break;
+-	default:
+-		break;
++static int memory_subsys_online(struct device *dev)
++{
++	struct memory_block *mem = container_of(dev, struct memory_block, dev);
++	int ret;
++
++	mutex_lock(&mem->state_mutex);
++	ret = __memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE,
++					  mem->last_online);
++	mutex_unlock(&mem->state_mutex);
++	return ret;
++}
++
++static int memory_subsys_offline(struct device *dev)
++{
++	struct memory_block *mem = container_of(dev, struct memory_block, dev);
++	int ret;
++
++	mutex_lock(&mem->state_mutex);
++	ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
++	mutex_unlock(&mem->state_mutex);
++	return ret;
++}
++
++static int __memory_block_change_state_uevent(struct memory_block *mem,
++		unsigned long to_state, unsigned long from_state_req,
++		int online_type)
++{
++	int ret = __memory_block_change_state(mem, to_state, from_state_req,
++					      online_type);
++	if (!ret) {
++		switch (mem->state) {
++		case MEM_OFFLINE:
++			kobject_uevent(&mem->dev.kobj, KOBJ_OFFLINE);
++			break;
++		case MEM_ONLINE:
++			kobject_uevent(&mem->dev.kobj, KOBJ_ONLINE);
++			break;
++		default:
++			break;
++		}
+ 	}
+-out:
+ 	return ret;
+ }
+ 
+@@ -315,8 +351,8 @@ static int memory_block_change_state(str
+ 	int ret;
+ 
+ 	mutex_lock(&mem->state_mutex);
+-	ret = __memory_block_change_state(mem, to_state, from_state_req,
+-					  online_type);
++	ret = __memory_block_change_state_uevent(mem, to_state, from_state_req,
++						 online_type);
+ 	mutex_unlock(&mem->state_mutex);
+ 
+ 	return ret;
+@@ -326,22 +362,34 @@ store_mem_state(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t count)
+ {
+ 	struct memory_block *mem;
++	bool offline;
+ 	int ret = -EINVAL;
+ 
+ 	mem = container_of(dev, struct memory_block, dev);
+ 
+-	if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
++	lock_device_hotplug();
++
++	if (!strncmp(buf, "online_kernel", min_t(int, count, 13))) {
++		offline = false;
+ 		ret = memory_block_change_state(mem, MEM_ONLINE,
+ 						MEM_OFFLINE, ONLINE_KERNEL);
+-	else if (!strncmp(buf, "online_movable", min_t(int, count, 14)))
++	} else if (!strncmp(buf, "online_movable", min_t(int, count, 14))) {
++		offline = false;
+ 		ret = memory_block_change_state(mem, MEM_ONLINE,
+ 						MEM_OFFLINE, ONLINE_MOVABLE);
+-	else if (!strncmp(buf, "online", min_t(int, count, 6)))
++	} else if (!strncmp(buf, "online", min_t(int, count, 6))) {
++		offline = false;
+ 		ret = memory_block_change_state(mem, MEM_ONLINE,
+ 						MEM_OFFLINE, ONLINE_KEEP);
+-	else if(!strncmp(buf, "offline", min_t(int, count, 7)))
++	} else if(!strncmp(buf, "offline", min_t(int, count, 7))) {
++		offline = true;
+ 		ret = memory_block_change_state(mem, MEM_OFFLINE,
+ 						MEM_ONLINE, -1);
++	}
++	if (!ret)
++		dev->offline = offline;
++
++	unlock_device_hotplug();
+ 
+ 	if (ret)
+ 		return ret;
+@@ -563,6 +611,7 @@ static int init_memory_block(struct memo
+ 			base_memory_block_id(scn_nr) * sections_per_block;
+ 	mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
+ 	mem->state = state;
++	mem->last_online = ONLINE_KEEP;
+ 	mem->section_count++;
+ 	mutex_init(&mem->state_mutex);
+ 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
+@@ -686,10 +735,16 @@ int offline_memory_block(struct memory_b
+ {
+ 	int ret = 0;
+ 
++	lock_device_hotplug();
+ 	mutex_lock(&mem->state_mutex);
+-	if (mem->state != MEM_OFFLINE)
+-		ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
++	if (mem->state != MEM_OFFLINE) {
++		ret = __memory_block_change_state_uevent(mem, MEM_OFFLINE,
++							 MEM_ONLINE, -1);
++		if (!ret)
++			mem->dev.offline = true;
++	}
+ 	mutex_unlock(&mem->state_mutex);
++	unlock_device_hotplug();
+ 
+ 	return ret;
+ }
+Index: linux-pm/include/linux/memory.h
+===================================================================
+--- linux-pm.orig/include/linux/memory.h
++++ linux-pm/include/linux/memory.h
+@@ -26,6 +26,7 @@ struct memory_block {
+ 	unsigned long start_section_nr;
+ 	unsigned long end_section_nr;
+ 	unsigned long state;
++	int last_online;
+ 	int section_count;
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
