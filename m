@@ -1,67 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 0E3806B02FF
-	for <linux-mm@kvack.org>; Fri,  3 May 2013 18:58:27 -0400 (EDT)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <matthltc@linux.vnet.ibm.com>;
-	Fri, 3 May 2013 18:58:26 -0400
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 4EA006E803A
-	for <linux-mm@kvack.org>; Fri,  3 May 2013 18:58:16 -0400 (EDT)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r43MwJAx330972
-	for <linux-mm@kvack.org>; Fri, 3 May 2013 18:58:19 -0400
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r43MwIJE010229
-	for <linux-mm@kvack.org>; Fri, 3 May 2013 19:58:18 -0300
-Date: Thu, 2 May 2013 10:08:57 -0700
-From: Matt Helsley <matthltc@linux.vnet.ibm.com>
-Subject: Re: [PATCH 4/5] pagemap: Introduce the /proc/PID/pagemap2 file
-Message-ID: <20130502170857.GB24627@us.ibm.com>
-References: <51669E5F.4000801@parallels.com>
- <51669EA5.20209@parallels.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 3DB6C6B0300
+	for <linux-mm@kvack.org>; Fri,  3 May 2013 20:58:57 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: [PATCH 3/3 RFC] Driver core: Introduce offline/online callbacks for memory blocks
+Date: Sat, 04 May 2013 03:06:24 +0200
+Message-ID: <3831347.P78I4u6NFE@vostro.rjw.lan>
+In-Reply-To: <1583356.7oqZ7gBy2q@vostro.rjw.lan>
+References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <3166726.elbgrUIZ0L@vostro.rjw.lan> <1583356.7oqZ7gBy2q@vostro.rjw.lan>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51669EA5.20209@parallels.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
 
-On Thu, Apr 11, 2013 at 03:29:41PM +0400, Pavel Emelyanov wrote:
-> This file is the same as the pagemap one, but shows entries with bits
-> 55-60 being zero (reserved for future use). Next patch will occupy one
-> of them.
+From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
-This approach doesn't scale as well as it could. As best I can see
-CRIU would do:
+Introduce .offline() and .online() callbacks for memory_subsys
+that will allow the generic device_offline() and device_online()
+to be used with device objects representing memory blocks.  That,
+in turn, allows the ACPI subsystem to use device_offline() to put
+removable memory blocks offline, if possible, before removing
+memory modules holding them.
 
-for each vma in /proc/<pid>/smaps
-	for each page in /proc/<pid>/pagemap2
-		if soft dirty bit
-			copy page
+Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+---
+ drivers/base/memory.c          |   84 ++++++++++++++++++++++++++++++-----------
+ include/linux/memory_hotplug.h |    2 
+ 2 files changed, 64 insertions(+), 22 deletions(-)
 
-(possibly with pfn checks to avoid copying the same page mapped in
-multiple locations..)
-
-However, if soft dirty bit changes could be queued up (from say the
-fault handler and page table ops that map/unmap pages) and accumulated
-in something like an interval tree it could be something like:
-
-for each range of changed pages
-	for each page in range
-		copy page
-
-IOW something that scales with the number of changed pages rather
-than the number of mapped pages.
-
-So I wonder if CRIU would abandon pagemap2 in the future for something
-like this.
-
-Cheers,
-	-Matt Helsley
+Index: linux-pm/drivers/base/memory.c
+===================================================================
+--- linux-pm.orig/drivers/base/memory.c
++++ linux-pm/drivers/base/memory.c
+@@ -37,9 +37,14 @@ static inline int base_memory_block_id(i
+ 	return section_nr / sections_per_block;
+ }
+ 
++static int memory_subsys_online(struct device *dev, unsigned int type);
++static int memory_subsys_offline(struct device *dev);
++
+ static struct bus_type memory_subsys = {
+ 	.name = MEMORY_CLASS_NAME,
+ 	.dev_name = MEMORY_CLASS_NAME,
++	.online = memory_subsys_online,
++	.offline = memory_subsys_offline,
+ };
+ 
+ static BLOCKING_NOTIFIER_HEAD(memory_chain);
+@@ -294,16 +299,7 @@ static int __memory_block_change_state(s
+ 	}
+ 
+ 	mem->state = to_state;
+-	switch (mem->state) {
+-	case MEM_OFFLINE:
+-		kobject_uevent(&mem->dev.kobj, KOBJ_OFFLINE);
+-		break;
+-	case MEM_ONLINE:
+-		kobject_uevent(&mem->dev.kobj, KOBJ_ONLINE);
+-		break;
+-	default:
+-		break;
+-	}
++
+ out:
+ 	return ret;
+ }
+@@ -321,27 +317,66 @@ static int memory_block_change_state(str
+ 
+ 	return ret;
+ }
++
++static int memory_subsys_online(struct device *dev, unsigned int type)
++{
++	struct memory_block *mem = container_of(dev, struct memory_block, dev);
++
++	if (type < ONLINE_KEEP || type > ONLINE_KERNEL)
++		return -EINVAL;
++
++	return memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE, type);
++}
++
++static int memory_block_online(struct device *dev, unsigned int type)
++{
++	int ret = memory_subsys_online(dev, type);
++
++	if (!ret) {
++		dev->online_type = type;
++		kobject_uevent(&dev->kobj, KOBJ_ONLINE);
++	}
++
++	return ret;
++}
++
++static int memory_subsys_offline(struct device *dev)
++{
++	struct memory_block *mem = container_of(dev, struct memory_block, dev);
++
++	return memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
++}
++
++static int memory_block_offline(struct device *dev)
++{
++	int ret = memory_subsys_offline(dev);
++
++	if (!ret) {
++		dev->online_type = 0;
++		kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
++	}
++
++	return ret;
++}
++
+ static ssize_t
+ store_mem_state(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t count)
+ {
+-	struct memory_block *mem;
+ 	int ret = -EINVAL;
+ 
+-	mem = container_of(dev, struct memory_block, dev);
++	lock_device_hotplug();
+ 
+ 	if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
+-		ret = memory_block_change_state(mem, MEM_ONLINE,
+-						MEM_OFFLINE, ONLINE_KERNEL);
++		ret = memory_block_online(dev, ONLINE_KERNEL);
+ 	else if (!strncmp(buf, "online_movable", min_t(int, count, 14)))
+-		ret = memory_block_change_state(mem, MEM_ONLINE,
+-						MEM_OFFLINE, ONLINE_MOVABLE);
++		ret = memory_block_online(dev, ONLINE_MOVABLE);
+ 	else if (!strncmp(buf, "online", min_t(int, count, 6)))
+-		ret = memory_block_change_state(mem, MEM_ONLINE,
+-						MEM_OFFLINE, ONLINE_KEEP);
++		ret = memory_block_online(dev, ONLINE_KEEP);
+ 	else if(!strncmp(buf, "offline", min_t(int, count, 7)))
+-		ret = memory_block_change_state(mem, MEM_OFFLINE,
+-						MEM_ONLINE, -1);
++		ret = memory_block_offline(dev);
++
++	unlock_device_hotplug();
+ 
+ 	if (ret)
+ 		return ret;
+@@ -686,10 +721,17 @@ int offline_memory_block(struct memory_b
+ {
+ 	int ret = 0;
+ 
++	lock_device_hotplug();
+ 	mutex_lock(&mem->state_mutex);
+-	if (mem->state != MEM_OFFLINE)
++	if (mem->state != MEM_OFFLINE) {
+ 		ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
++		if (!ret) {
++			mem->dev.online_type = 0;
++			kobject_uevent(&mem->dev.kobj, KOBJ_OFFLINE);
++		}
++	}
+ 	mutex_unlock(&mem->state_mutex);
++	unlock_device_hotplug();
+ 
+ 	return ret;
+ }
+Index: linux-pm/include/linux/memory_hotplug.h
+===================================================================
+--- linux-pm.orig/include/linux/memory_hotplug.h
++++ linux-pm/include/linux/memory_hotplug.h
+@@ -28,7 +28,7 @@ enum {
+ 
+ /* Types for control the zone type of onlined memory */
+ enum {
+-	ONLINE_KEEP,
++	ONLINE_KEEP = 1,
+ 	ONLINE_KERNEL,
+ 	ONLINE_MOVABLE,
+ };
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
