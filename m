@@ -1,81 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id E8F6F6B0315
-	for <linux-mm@kvack.org>; Sat,  4 May 2013 08:29:36 -0400 (EDT)
-Received: from localhost (zurbahan.serbestinternet.com [50.7.18.146])
-	by zurbahan.serbestinternet.com (Postfix) with ESMTP id 00C9C3E826B
-	for <linux-mm@kvack.org>; Sat,  4 May 2013 20:29:36 +0800 (HKT)
-Received: from zurbahan.serbestinternet.com ([IPv6:::ffff:50.7.18.146])
-	by localhost (zurbahan.serbestinternet.com [::ffff:127.0.0.1]) (amavisd-new, port 10024)
-	with ESMTP id iitt7fB3jxnv for <linux-mm@kvack.org>;
-	Sat,  4 May 2013 20:29:00 +0800 (HKT)
-Received: from mail.serbestinternet.com (zurbahan.serbestinternet.com [50.7.18.146])
-	(Authenticated sender: remzi@serbestinternet.com)
-	by zurbahan.serbestinternet.com (Postfix) with ESMTPSA id E7E963E826A
-	for <linux-mm@kvack.org>; Sat,  4 May 2013 20:28:59 +0800 (HKT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id E642A6B0317
+	for <linux-mm@kvack.org>; Sat,  4 May 2013 09:01:19 -0400 (EDT)
+Received: by mail-lb0-f170.google.com with SMTP id t11so2282310lbd.29
+        for <linux-mm@kvack.org>; Sat, 04 May 2013 06:01:18 -0700 (PDT)
+Message-ID: <5185069A.1080306@openvz.org>
+Date: Sat, 04 May 2013 17:01:14 +0400
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
- boundary="=_4efd6f4f57723ca8d7f6e6e8256067db"
-Date: Sat, 04 May 2013 20:28:59 +0800
-From: remzi@serbestinternet.com
-Subject: The =?UTF-8?Q?scan=5Funevictable=5Fpages=20sysctl/node-interface?=
- =?UTF-8?Q?=20has=20been=20disabled=20for=20lack=20of=20a=20legitimate=20u?=
- =?UTF-8?Q?se=20case=2E=20If=20you=20have=20one=2C=20please=20send=20an=20?=
- =?UTF-8?Q?email=20to=20linux-mm=40kvack=2Eo?=
-Message-ID: <e7a8f6493785bcd7662abb866227b94e@serbestinternet.com>
+Subject: Re: [PATCH RFC] mm: lru milestones, timestamps and ages
+References: <20130430110214.22179.26139.stgit@zurg> <5183C49D.1010000@bitsync.net> <5184F6C9.4060506@openvz.org>
+In-Reply-To: <5184F6C9.4060506@openvz.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Zlatko Calusic <zcalusic@bitsync.net>
+Cc: linux-mm@kvack.org
 
---=_4efd6f4f57723ca8d7f6e6e8256067db
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Konstantin Khlebnikov wrote:
+> Zlatko Calusic wrote:
+>> On 30.04.2013 13:02, Konstantin Khlebnikov wrote:
+>>> This patch adds engine for estimating rotation time for pages in lru lists.
+>>>
+>>> This adds bunch of 'milestones' into each struct lruvec and inserts them into
+>>> lru lists periodically. Milestone flows in lru together with pages and brings
+>>> timestamp to the end of lru. Because milestones are embedded into lruvec they
+>>> can be easily distinguished from pages by comparing pointers.
+>>> Only few functions should care about that.
+>>>
+>>> This machinery provides discrete-time estimation for age of pages from the end
+>>> of each lru and average age of each kind of evictable lrus in each zone.
+>>
+>> Great stuff!
+>
+> Thanks!
+>
+>>
+>> Believe it or not, I had an idea of writing something similar to this, but of course having an idea and actually
+>> implementing it are two very different things. Thank you for your work!
+>>
+>> I will use this to prove (or not) that file pages in the normal zone on a 4GB RAM machine are reused waaaay too soon.
+>> Actually, I already have the patch applied and running on the desktop, but it should be much more useful on server
+>> workloads. Desktops have erratic load and can go for a long time with very little I/O activity. But, here are the
+>> current numbers anyway:
+>>
+>> Node 0, zone DMA32
+>> pages free 5371
+>> nr_inactive_anon 4257
+>> nr_active_anon 139719
+>> nr_inactive_file 617537
+>> nr_active_file 51671
+>> inactive_ratio: 5
+>> avg_age_inactive_anon: 2514752
+>> avg_age_active_anon: 2514752
+>> avg_age_inactive_file: 876416
+>> avg_age_active_file: 2514752
+>> Node 0, zone Normal
+>> pages free 424
+>> nr_inactive_anon 253
+>> nr_active_anon 54480
+>> nr_inactive_file 63274
+>> nr_active_file 44116
+>> inactive_ratio: 1
+>> avg_age_inactive_anon: 2531712
+>> avg_age_active_anon: 2531712
+>> avg_age_inactive_file: 901120
+>> avg_age_active_file: 2531712
+>>
+>>> In our kernel we use similar engine as source of statistics for scheduler in
+>>> memory reclaimer. This is O(1) scheduler which shifts vmscan priorities for lru
+>>> vectors depending on their sizes, limits and ages. It tries to balance memory
+>>> pressure among containers. I'll try to rework it for the mainline kernel soon.
+>>>
+>>> Seems like these ages also can be used for optimal memory pressure distribution
+>>> between file and anon pages, and probably for balancing pressure among zones.
+>>
+>> This all sounds very promising. Especially because I currently observe quite some imbalance among zones.
+>
+> As I see, most likely reason of such imbalances is 'break' condition inside of shrink_lruvec().
+> So can try to disable it see what will happen.
+>
+> But these numbers from your desktop actually doesn't proves this problem. Seems like difference
+> between zones is within the precision of this method. I don't know how to describe this precisely.
+> Probably irregularity between milestones also should be taken into the account to describe current
+> situation and quality of measurement.
+>
+> Here current numbers from my 8Gb node. Main workload is a torrent client.
+>
+> Node 0, zone DMA32
+> nr_inactive_anon 1
+> nr_active_anon 1494
+> nr_inactive_file 404028
+> nr_active_file 365525
+> nr_dirtied 855068
+> nr_written 854991
+> avg_age_inactive_anon: 64942528
+> avg_age_active_anon: 64942528
+> avg_age_inactive_file: 1281317
+> avg_age_active_file: 15813376
+> Node 0, zone Normal
+> nr_inactive_anon 376
+> nr_active_anon 13793
+> nr_inactive_file 542605
+> nr_active_file 542247
+> nr_dirtied 2746747
+> nr_written 2746266
+> avg_age_inactive_anon: 65064192
+> avg_age_active_anon: 65064192
+> avg_age_inactive_file: 1260611
+> avg_age_active_file: 8765240
+>
+> So, here noticeable imbalance in ages of active file lru and nr_dirtied/nr_written.
+> I have no idea why, but torrent client uses syscall fadvise() which messes whole picture.
 
- 
+Hey! I can reproduce this:
 
-Hi, 
+Node 0, zone    DMA32
+     nr_inactive_anon 1
+     nr_active_anon 2368
+     nr_inactive_file 373642
+     nr_active_file 375462
+     nr_dirtied   2887369
+     nr_written   2887291
+   inactive_ratio:    5
+   avg_age_inactive_anon: 64942528
+   avg_age_active_anon:   64942528
+   avg_age_inactive_file: 389824
+   avg_age_active_file:   1330368
+Node 0, zone   Normal
+     nr_inactive_anon 376
+     nr_active_anon 17768
+     nr_inactive_file 534695
+     nr_active_file 533685
+     nr_dirtied   12071397
+     nr_written   11940007
+   inactive_ratio:    6
+   avg_age_inactive_anon: 65064192
+   avg_age_active_anon:   65064192
+   avg_age_inactive_file: 28074
+   avg_age_active_file:   1304800
 
-I saw at my system 
+I'm just copying huge files from one disk to another by rsync.
 
-"[19387.629676] eth2: ax88772b - Link
-status is: 1 
-
-[20800.746321] The scan_unevictable_pages
-sysctl/node-interface has been disabled for lack of a legitimate use
-case. If you have one, please send an email to linux-mm@kvack.org." 
-
-I
-could not understand this messages mean? 
-
-Thanks for your information.
-
-
-Remzi 
-
- 
---=_4efd6f4f57723ca8d7f6e6e8256067db
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/html; charset=UTF-8
-
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN">
-<html><body>
-<p>Hi,</p>
-<p>&nbsp;</p>
-<p>I saw at my system&nbsp;</p>
-<p>"[19387.629676] eth2: ax88772b - Link status is: 1</p>
-<p>[20800.746321] The scan_unevictable_pages sysctl/node-interface has been=
- disabled for lack of a legitimate use case. If you have one, please send a=
-n email to linux-mm@kvack.org."</p>
-<p>I could not understand this messages mean?</p>
-<p>&nbsp;</p>
-<p>Thanks for your information.</p>
-<p>&nbsp;</p>
-<p>Remzi</p>
-<p>&nbsp;</p>
-<div>&nbsp;</div>
-</body></html>
-
---=_4efd6f4f57723ca8d7f6e6e8256067db--
+In /proc/vmstat pgsteal_kswapd_normal and pgscan_kswapd_normal are rising rapidly,
+other pgscan_* pgsteal_* are standing still. So, bug is somewhere in the kswapd.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
