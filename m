@@ -1,12 +1,10 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id E642A6B0317
-	for <linux-mm@kvack.org>; Sat,  4 May 2013 09:01:19 -0400 (EDT)
-Received: by mail-lb0-f170.google.com with SMTP id t11so2282310lbd.29
-        for <linux-mm@kvack.org>; Sat, 04 May 2013 06:01:18 -0700 (PDT)
-Message-ID: <5185069A.1080306@openvz.org>
-Date: Sat, 04 May 2013 17:01:14 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id B25DA6B0319
+	for <linux-mm@kvack.org>; Sat,  4 May 2013 09:33:01 -0400 (EDT)
+Message-ID: <51850E0A.5010803@bitsync.net>
+Date: Sat, 04 May 2013 15:32:58 +0200
+From: Zlatko Calusic <zcalusic@bitsync.net>
 MIME-Version: 1.0
 Subject: Re: [PATCH RFC] mm: lru milestones, timestamps and ages
 References: <20130430110214.22179.26139.stgit@zurg> <5183C49D.1010000@bitsync.net> <5184F6C9.4060506@openvz.org>
@@ -15,21 +13,26 @@ Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zcalusic@bitsync.net>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
 Cc: linux-mm@kvack.org
 
-Konstantin Khlebnikov wrote:
+On 04.05.2013 13:53, Konstantin Khlebnikov wrote:
 > Zlatko Calusic wrote:
 >> On 30.04.2013 13:02, Konstantin Khlebnikov wrote:
->>> This patch adds engine for estimating rotation time for pages in lru lists.
+>>> This patch adds engine for estimating rotation time for pages in lru
+>>> lists.
 >>>
->>> This adds bunch of 'milestones' into each struct lruvec and inserts them into
->>> lru lists periodically. Milestone flows in lru together with pages and brings
->>> timestamp to the end of lru. Because milestones are embedded into lruvec they
+>>> This adds bunch of 'milestones' into each struct lruvec and inserts
+>>> them into
+>>> lru lists periodically. Milestone flows in lru together with pages
+>>> and brings
+>>> timestamp to the end of lru. Because milestones are embedded into
+>>> lruvec they
 >>> can be easily distinguished from pages by comparing pointers.
 >>> Only few functions should care about that.
 >>>
->>> This machinery provides discrete-time estimation for age of pages from the end
+>>> This machinery provides discrete-time estimation for age of pages
+>>> from the end
 >>> of each lru and average age of each kind of evictable lrus in each zone.
 >>
 >> Great stuff!
@@ -37,13 +40,16 @@ Konstantin Khlebnikov wrote:
 > Thanks!
 >
 >>
->> Believe it or not, I had an idea of writing something similar to this, but of course having an idea and actually
->> implementing it are two very different things. Thank you for your work!
+>> Believe it or not, I had an idea of writing something similar to this,
+>> but of course having an idea and actually implementing it are two very
+>> different things. Thank you for your work!
 >>
->> I will use this to prove (or not) that file pages in the normal zone on a 4GB RAM machine are reused waaaay too soon.
->> Actually, I already have the patch applied and running on the desktop, but it should be much more useful on server
->> workloads. Desktops have erratic load and can go for a long time with very little I/O activity. But, here are the
->> current numbers anyway:
+>> I will use this to prove (or not) that file pages in the normal zone
+>> on a 4GB RAM machine are reused waaaay too soon. Actually, I already
+>> have the patch applied and running on the desktop, but it should be
+>> much more useful on server workloads. Desktops have erratic load and
+>> can go for a long time with very little I/O activity. But, here are
+>> the current numbers anyway:
 >>
 >> Node 0, zone DMA32
 >> pages free 5371
@@ -68,83 +74,57 @@ Konstantin Khlebnikov wrote:
 >> avg_age_inactive_file: 901120
 >> avg_age_active_file: 2531712
 >>
->>> In our kernel we use similar engine as source of statistics for scheduler in
->>> memory reclaimer. This is O(1) scheduler which shifts vmscan priorities for lru
->>> vectors depending on their sizes, limits and ages. It tries to balance memory
->>> pressure among containers. I'll try to rework it for the mainline kernel soon.
+>>> In our kernel we use similar engine as source of statistics for
+>>> scheduler in
+>>> memory reclaimer. This is O(1) scheduler which shifts vmscan
+>>> priorities for lru
+>>> vectors depending on their sizes, limits and ages. It tries to
+>>> balance memory
+>>> pressure among containers. I'll try to rework it for the mainline
+>>> kernel soon.
 >>>
->>> Seems like these ages also can be used for optimal memory pressure distribution
->>> between file and anon pages, and probably for balancing pressure among zones.
+>>> Seems like these ages also can be used for optimal memory pressure
+>>> distribution
+>>> between file and anon pages, and probably for balancing pressure
+>>> among zones.
 >>
->> This all sounds very promising. Especially because I currently observe quite some imbalance among zones.
+>> This all sounds very promising. Especially because I currently observe
+>> quite some imbalance among zones.
 >
-> As I see, most likely reason of such imbalances is 'break' condition inside of shrink_lruvec().
+> As I see, most likely reason of such imbalances is 'break' condition
+> inside of shrink_lruvec().
 > So can try to disable it see what will happen.
+
+Thanks for the hint. I will pay some more attention to this function 
+next time I investigate code.
+
 >
-> But these numbers from your desktop actually doesn't proves this problem. Seems like difference
-> between zones is within the precision of this method. I don't know how to describe this precisely.
-> Probably irregularity between milestones also should be taken into the account to describe current
+> But these numbers from your desktop actually doesn't proves this
+> problem. Seems like difference
+> between zones is within the precision of this method. I don't know how
+> to describe this precisely.
+> Probably irregularity between milestones also should be taken into the
+> account to describe current
 > situation and quality of measurement.
 >
-> Here current numbers from my 8Gb node. Main workload is a torrent client.
->
-> Node 0, zone DMA32
-> nr_inactive_anon 1
-> nr_active_anon 1494
-> nr_inactive_file 404028
-> nr_active_file 365525
-> nr_dirtied 855068
-> nr_written 854991
-> avg_age_inactive_anon: 64942528
-> avg_age_active_anon: 64942528
-> avg_age_inactive_file: 1281317
-> avg_age_active_file: 15813376
-> Node 0, zone Normal
-> nr_inactive_anon 376
-> nr_active_anon 13793
-> nr_inactive_file 542605
-> nr_active_file 542247
-> nr_dirtied 2746747
-> nr_written 2746266
-> avg_age_inactive_anon: 65064192
-> avg_age_active_anon: 65064192
-> avg_age_inactive_file: 1260611
-> avg_age_active_file: 8765240
->
-> So, here noticeable imbalance in ages of active file lru and nr_dirtied/nr_written.
-> I have no idea why, but torrent client uses syscall fadvise() which messes whole picture.
 
-Hey! I can reproduce this:
+Ah, no, the numbers were more like a proof that your patch is running 
+fine, nothing specific about them. I was just making a quick check that 
+your patch is stable enough before I run it in production, and it seems 
+it's working just fine.
 
-Node 0, zone    DMA32
-     nr_inactive_anon 1
-     nr_active_anon 2368
-     nr_inactive_file 373642
-     nr_active_file 375462
-     nr_dirtied   2887369
-     nr_written   2887291
-   inactive_ratio:    5
-   avg_age_inactive_anon: 64942528
-   avg_age_active_anon:   64942528
-   avg_age_inactive_file: 389824
-   avg_age_active_file:   1330368
-Node 0, zone   Normal
-     nr_inactive_anon 376
-     nr_active_anon 17768
-     nr_inactive_file 534695
-     nr_active_file 533685
-     nr_dirtied   12071397
-     nr_written   11940007
-   inactive_ratio:    6
-   avg_age_inactive_anon: 65064192
-   avg_age_active_anon:   65064192
-   avg_age_inactive_file: 28074
-   avg_age_active_file:   1304800
-
-I'm just copying huge files from one disk to another by rsync.
-
-In /proc/vmstat pgsteal_kswapd_normal and pgscan_kswapd_normal are rising rapidly,
-other pgscan_* pgsteal_* are standing still. So, bug is somewhere in the kswapd.
+In the next hour or so I will patch the kernel on the server where I 
+intend to do much more analysis. I also prepared a set of graphs based 
+on the numbers your code provides. Based on the preliminary tests, I 
+believe that I'll be interested only in the aging of the inactive file 
+lists. What I'm after is the bug explained here 
+http://marc.info/?l=linux-mm&m=136571221426984 and if I'm right, your 
+patch will help to better reveal extreme disbalance observed between 
+dma32 and normal zone file LRU aging. But only on a 4GB nodes. I haven't 
+seen anything similar on a 8GB nodes, where dma32 and normal zones are 
+approximately the same sizes.
+-- 
+Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
