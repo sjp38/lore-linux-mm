@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 096DA6B0302
-	for <linux-mm@kvack.org>; Fri,  3 May 2013 20:58:57 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 8718E6B0303
+	for <linux-mm@kvack.org>; Fri,  3 May 2013 20:58:58 -0400 (EDT)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: [PATCH 2/3 RFC] Driver core: Introduce types of device "online"
-Date: Sat, 04 May 2013 03:04:35 +0200
-Message-ID: <2676830.j8c3BgZaWj@vostro.rjw.lan>
+Subject: [PATCH 1/3 RFC] ACPI / memhotplug: Bind removable memory blocks to ACPI device nodes
+Date: Sat, 04 May 2013 03:03:22 +0200
+Message-ID: <2075762.5ZqhFms9cx@vostro.rjw.lan>
 In-Reply-To: <1583356.7oqZ7gBy2q@vostro.rjw.lan>
 References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <3166726.elbgrUIZ0L@vostro.rjw.lan> <1583356.7oqZ7gBy2q@vostro.rjw.lan>
 MIME-Version: 1.0
@@ -18,258 +18,180 @@ Cc: Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kern
 
 From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
-For memory blocks there are multiple ways in which they can be
-"online" that determine what can be done with the given block.
+During ACPI memory hotplug configuration bind memory blocks residing
+in modules removable through the standard ACPI mechanism to struct
+acpi_device objects associated with ACPI namespace objects
+representing those modules.  Accordingly, unbind those memory blocks
+from the struct acpi_device objects when the memory modules in
+question are being removed.
 
-For this reason, to allow the generic device_offline() and
-device_online() to be used for devices representing memory
-blocks, introduce a second "online type" argument for
-device_online() that will be interpreted by the bus type whose
-.online() callback is executed by device_online().
+When "offline" operation for devices representing memory blocks is
+introduced, this will allow the ACPI core's device hot-remove code to
+use it to carry out remove_memory() for those memory blocks and check
+the results of that before it actually removes the modules holding
+them from the system.
 
-Of course, that requires some changes to be made in struct device
-and struct bus_type, and the code related to device_online()
-and device_offline() needs to be changed as well.
+Since walk_memory_range() is used for accessing all memory blocks
+corresponding to a given ACPI namespace object, it is exported from
+memory_hotplug.c so that the code in acpi_memhotplug.c can use it.
 
 Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 ---
- drivers/acpi/acpi_processor.c |    2 +-
- drivers/acpi/scan.c           |   14 ++++++++------
- drivers/base/core.c           |   36 ++++++++++++++++++++----------------
- drivers/base/cpu.c            |    5 ++++-
- include/acpi/acpi_bus.h       |    2 +-
- include/linux/device.h        |    8 ++++----
- 6 files changed, 38 insertions(+), 29 deletions(-)
+ drivers/acpi/acpi_memhotplug.c |   53 ++++++++++++++++++++++++++++++++++++++---
+ include/linux/memory_hotplug.h |    2 +
+ mm/memory_hotplug.c            |    4 ++-
+ 3 files changed, 55 insertions(+), 4 deletions(-)
 
-Index: linux-pm/include/linux/device.h
+Index: linux-pm/mm/memory_hotplug.c
 ===================================================================
---- linux-pm.orig/include/linux/device.h
-+++ linux-pm/include/linux/device.h
-@@ -108,7 +108,7 @@ struct bus_type {
- 	int (*remove)(struct device *dev);
- 	void (*shutdown)(struct device *dev);
- 
--	int (*online)(struct device *dev);
-+	int (*online)(struct device *dev, unsigned int type);
- 	int (*offline)(struct device *dev);
- 
- 	int (*suspend)(struct device *dev, pm_message_t state);
-@@ -656,7 +656,7 @@ struct acpi_dev_node {
-  * 		gone away. This should be set by the allocator of the
-  * 		device (i.e. the bus driver that discovered the device).
-  * @offline_disabled: If set, the device is permanently online.
-- * @offline:	Set after successful invocation of bus type's .offline().
-+ * @online_type: 0 if the device is offline, otherwise bus type dependent.
-  *
-  * At the lowest level, every device in a Linux system is represented by an
-  * instance of struct device. The device structure contains the information
-@@ -730,8 +730,8 @@ struct device {
- 	void	(*release)(struct device *dev);
- 	struct iommu_group	*iommu_group;
- 
-+	unsigned int 		online_type;
- 	bool			offline_disabled:1;
--	bool			offline:1;
- };
- 
- static inline struct device *kobj_to_dev(struct kobject *kobj)
-@@ -876,7 +876,7 @@ static inline bool device_supports_offli
- extern void lock_device_hotplug(void);
- extern void unlock_device_hotplug(void);
- extern int device_offline(struct device *dev);
--extern int device_online(struct device *dev);
-+extern int device_online(struct device *dev, unsigned int type);
- /*
-  * Root device objects for grouping under /sys/devices
-  */
-Index: linux-pm/drivers/base/core.c
-===================================================================
---- linux-pm.orig/drivers/base/core.c
-+++ linux-pm/drivers/base/core.c
-@@ -406,10 +406,10 @@ static struct device_attribute uevent_at
- static ssize_t show_online(struct device *dev, struct device_attribute *attr,
- 			   char *buf)
+--- linux-pm.orig/mm/memory_hotplug.c
++++ linux-pm/mm/memory_hotplug.c
+@@ -1618,6 +1618,7 @@ int offline_pages(unsigned long start_pf
  {
--	bool val;
-+	unsigned int val;
- 
- 	lock_device_hotplug();
--	val = !dev->offline;
-+	val = dev->online_type;
- 	unlock_device_hotplug();
- 	return sprintf(buf, "%u\n", val);
+ 	return __offline_pages(start_pfn, start_pfn + nr_pages, 120 * HZ);
  }
-@@ -417,15 +417,15 @@ static ssize_t show_online(struct device
- static ssize_t store_online(struct device *dev, struct device_attribute *attr,
- 			    const char *buf, size_t count)
- {
--	bool val;
-+	unsigned int val;
- 	int ret;
- 
--	ret = strtobool(buf, &val);
-+	ret = kstrtouint(buf, 10, &val);
- 	if (ret < 0)
- 		return ret;
- 
- 	lock_device_hotplug();
--	ret = val ? device_online(dev) : device_offline(dev);
-+	ret = val ? device_online(dev, val) : device_offline(dev);
- 	unlock_device_hotplug();
- 	return ret < 0 ? ret : count;
- }
-@@ -1488,7 +1488,7 @@ static int device_check_offline(struct d
- 	if (ret)
- 		return ret;
- 
--	return device_supports_offline(dev) && !dev->offline ? -EBUSY : 0;
-+	return device_supports_offline(dev) && !!dev->online_type ? -EBUSY : 0;
- }
++#endif /* CONFIG_MEMORY_HOTREMOVE */
  
  /**
-@@ -1515,14 +1515,14 @@ int device_offline(struct device *dev)
- 
- 	device_lock(dev);
- 	if (device_supports_offline(dev)) {
--		if (dev->offline) {
--			ret = 1;
--		} else {
-+		if (dev->online_type) {
- 			ret = dev->bus->offline(dev);
- 			if (!ret) {
- 				kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
--				dev->offline = true;
-+				dev->online_type = 0;
- 			}
-+		} else {
-+			ret = 1;
- 		}
- 	}
- 	device_unlock(dev);
-@@ -1533,6 +1533,7 @@ int device_offline(struct device *dev)
- /**
-  * device_online - Put the device back online after successful device_offline().
-  * @dev: Device to be put back online.
-+ * @type: Interpreted by the bus type, must be nonzero.
+  * walk_memory_range - walks through all mem sections in [start_pfn, end_pfn)
+@@ -1631,7 +1632,7 @@ int offline_pages(unsigned long start_pf
   *
-  * If device_offline() has been successfully executed for @dev, but the device
-  * has not been removed subsequently, execute its bus type's .online() callback
-@@ -1540,20 +1541,23 @@ int device_offline(struct device *dev)
-  *
-  * Call under device_hotplug_lock.
+  * Returns the return value of func.
   */
--int device_online(struct device *dev)
-+int device_online(struct device *dev, unsigned int type)
+-static int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
++int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+ 		void *arg, int (*func)(struct memory_block *, void *))
  {
- 	int ret = 0;
+ 	struct memory_block *mem = NULL;
+@@ -1668,6 +1669,7 @@ static int walk_memory_range(unsigned lo
+ 	return 0;
+ }
  
-+	if (!type)
-+		return -EINVAL;
++#ifdef CONFIG_MEMORY_HOTREMOVE
+ /**
+  * offline_memory_block_cb - callback function for offlining memory block
+  * @mem: the memory block to be offlined
+Index: linux-pm/include/linux/memory_hotplug.h
+===================================================================
+--- linux-pm.orig/include/linux/memory_hotplug.h
++++ linux-pm/include/linux/memory_hotplug.h
+@@ -245,6 +245,8 @@ static inline int is_mem_section_removab
+ static inline void try_offline_node(int nid) {}
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
++extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
++		void *arg, int (*func)(struct memory_block *, void *));
+ extern int mem_online_node(int nid);
+ extern int add_memory(int nid, u64 start, u64 size);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
+Index: linux-pm/drivers/acpi/acpi_memhotplug.c
+===================================================================
+--- linux-pm.orig/drivers/acpi/acpi_memhotplug.c
++++ linux-pm/drivers/acpi/acpi_memhotplug.c
+@@ -28,6 +28,7 @@
+  */
+ 
+ #include <linux/acpi.h>
++#include <linux/memory.h>
+ #include <linux/memory_hotplug.h>
+ 
+ #include "internal.h"
+@@ -166,13 +167,50 @@ static int acpi_memory_check_device(stru
+ 	return 0;
+ }
+ 
++static unsigned long acpi_meminfo_start_pfn(struct acpi_memory_info *info)
++{
++	return PFN_DOWN(info->start_addr);
++}
 +
- 	device_lock(dev);
- 	if (device_supports_offline(dev)) {
--		if (dev->offline) {
--			ret = dev->bus->online(dev);
-+		if (dev->online_type) {
-+			ret = 1;
-+		} else {
-+			ret = dev->bus->online(dev, type);
- 			if (!ret) {
- 				kobject_uevent(&dev->kobj, KOBJ_ONLINE);
--				dev->offline = false;
-+				dev->online_type = type;
- 			}
--		} else {
--			ret = 1;
- 		}
- 	}
- 	device_unlock(dev);
-Index: linux-pm/include/acpi/acpi_bus.h
-===================================================================
---- linux-pm.orig/include/acpi/acpi_bus.h
-+++ linux-pm/include/acpi/acpi_bus.h
-@@ -286,7 +286,7 @@ struct acpi_device_physical_node {
- 	u8 node_id;
- 	struct list_head node;
- 	struct device *dev;
--	bool put_online:1;
-+	unsigned int online_type;
- };
++static unsigned long acpi_meminfo_end_pfn(struct acpi_memory_info *info)
++{
++	return PFN_UP(info->start_addr + info->length-1);
++}
++
++static int acpi_bind_memblk(struct memory_block *mem, void *arg)
++{
++	return acpi_bind_one(&mem->dev, (acpi_handle)arg);
++}
++
++static int acpi_bind_memory_blocks(struct acpi_memory_info *info,
++				   acpi_handle handle)
++{
++	return walk_memory_range(acpi_meminfo_start_pfn(info),
++				 acpi_meminfo_end_pfn(info), (void *)handle,
++				 acpi_bind_memblk);
++}
++
++static int acpi_unbind_memblk(struct memory_block *mem, void *arg)
++{
++	acpi_unbind_one(&mem->dev);
++	return 0;
++}
++
++static void acpi_unbind_memory_blocks(struct acpi_memory_info *info,
++				      acpi_handle handle)
++{
++	walk_memory_range(acpi_meminfo_start_pfn(info),
++			  acpi_meminfo_end_pfn(info), NULL, acpi_unbind_memblk);
++}
++
+ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+ {
++	acpi_handle handle = mem_device->device->handle;
+ 	int result, num_enabled = 0;
+ 	struct acpi_memory_info *info;
+ 	int node;
  
- /* set maximum of physical nodes to 32 for expansibility */
-Index: linux-pm/drivers/acpi/scan.c
-===================================================================
---- linux-pm.orig/drivers/acpi/scan.c
-+++ linux-pm/drivers/acpi/scan.c
-@@ -141,15 +141,17 @@ static acpi_status acpi_bus_offline_comp
- 	list_for_each_entry(pn, &device->physical_node_list, node) {
- 		int ret;
- 
-+		pn->online_type = pn->dev->online_type;
- 		ret = device_offline(pn->dev);
--		if (acpi_force_hot_remove)
-+		if (acpi_force_hot_remove) {
-+			pn->online_type = 0;
+-	node = acpi_get_node(mem_device->device->handle);
++	node = acpi_get_node(handle);
+ 	/*
+ 	 * Tell the VM there is more memory here...
+ 	 * Note: Assume that this function returns zero on success
+@@ -203,6 +241,12 @@ static int acpi_memory_enable_device(str
+ 		if (result && result != -EEXIST)
  			continue;
--
+ 
++		result = acpi_bind_memory_blocks(info, handle);
++		if (result) {
++			acpi_unbind_memory_blocks(info, handle);
++			return -ENODEV;
 +		}
- 		if (ret < 0) {
-+			pn->online_type = 0;
- 			status = AE_ERROR;
- 			break;
- 		}
--		pn->put_online = !ret;
++
+ 		info->enabled = 1;
+ 
+ 		/*
+@@ -229,10 +273,11 @@ static int acpi_memory_enable_device(str
+ 
+ static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+ {
++	acpi_handle handle = mem_device->device->handle;
+ 	int result = 0, nid;
+ 	struct acpi_memory_info *info, *n;
+ 
+-	nid = acpi_get_node(mem_device->device->handle);
++	nid = acpi_get_node(handle);
+ 
+ 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+ 		if (!info->enabled)
+@@ -240,6 +285,8 @@ static int acpi_memory_remove_memory(str
+ 
+ 		if (nid < 0)
+ 			nid = memory_add_physaddr_to_nid(info->start_addr);
++
++		acpi_unbind_memory_blocks(info, handle);
+ 		result = remove_memory(nid, info->start_addr, info->length);
+ 		if (result)
+ 			return result;
+@@ -300,7 +347,7 @@ static int acpi_memory_device_add(struct
+ 	if (result) {
+ 		dev_err(&device->dev, "acpi_memory_enable_device() error\n");
+ 		acpi_memory_device_free(mem_device);
+-		return -ENODEV;
++		return result;
  	}
  
- 	mutex_unlock(&device->physical_node_lock);
-@@ -169,9 +171,9 @@ static acpi_status acpi_bus_online_compa
- 	mutex_lock(&device->physical_node_lock);
- 
- 	list_for_each_entry(pn, &device->physical_node_list, node)
--		if (pn->put_online) {
--			device_online(pn->dev);
--			pn->put_online = false;
-+		if (pn->online_type) {
-+			device_online(pn->dev, pn->online_type);
-+			pn->online_type = 0;
- 		}
- 
- 	mutex_unlock(&device->physical_node_lock);
-Index: linux-pm/drivers/acpi/acpi_processor.c
-===================================================================
---- linux-pm.orig/drivers/acpi/acpi_processor.c
-+++ linux-pm/drivers/acpi/acpi_processor.c
-@@ -395,7 +395,7 @@ static int __cpuinit acpi_processor_add(
- 		goto err;
- 
- 	pr->dev = dev;
--	dev->offline = pr->flags.need_hotplug_init;
-+	dev->online_type = !pr->flags.need_hotplug_init;
- 
- 	/* Trigger the processor driver's .probe() if present. */
- 	if (device_attach(dev) >= 0)
-Index: linux-pm/drivers/base/cpu.c
-===================================================================
---- linux-pm.orig/drivers/base/cpu.c
-+++ linux-pm/drivers/base/cpu.c
-@@ -38,13 +38,16 @@ static void change_cpu_under_node(struct
- 	cpu->node_id = to_nid;
- }
- 
--static int __ref cpu_subsys_online(struct device *dev)
-+static int __ref cpu_subsys_online(struct device *dev, unsigned int type)
- {
- 	struct cpu *cpu = container_of(dev, struct cpu, dev);
- 	int cpuid = dev->id;
- 	int from_nid, to_nid;
- 	int ret;
- 
-+	if (type > 1)
-+		return -EINVAL;
-+
- 	cpu_hotplug_driver_lock();
- 
- 	from_nid = cpu_to_node(cpuid);
+ 	dev_dbg(&device->dev, "Memory device configured by ACPI\n");
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
