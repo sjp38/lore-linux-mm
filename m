@@ -1,130 +1,917 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id B25DA6B0319
-	for <linux-mm@kvack.org>; Sat,  4 May 2013 09:33:01 -0400 (EDT)
-Message-ID: <51850E0A.5010803@bitsync.net>
-Date: Sat, 04 May 2013 15:32:58 +0200
-From: Zlatko Calusic <zcalusic@bitsync.net>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id B4B2D6B02D8
+	for <linux-mm@kvack.org>; Sat,  4 May 2013 15:14:49 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sun, 5 May 2013 05:06:33 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 4DCD3357804E
+	for <linux-mm@kvack.org>; Sun,  5 May 2013 05:14:39 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r44J0gdm8519788
+	for <linux-mm@kvack.org>; Sun, 5 May 2013 05:00:43 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r44JEcIr032693
+	for <linux-mm@kvack.org>; Sun, 5 May 2013 05:14:38 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V7 02/10] powerpc/THP: Implement transparent hugepages for ppc64
+In-Reply-To: <20130503045201.GO13041@truffula.fritz.box>
+References: <1367178711-8232-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1367178711-8232-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130503045201.GO13041@truffula.fritz.box>
+Date: Sun, 05 May 2013 00:44:35 +0530
+Message-ID: <87a9oa4kx0.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] mm: lru milestones, timestamps and ages
-References: <20130430110214.22179.26139.stgit@zurg> <5183C49D.1010000@bitsync.net> <5184F6C9.4060506@openvz.org>
-In-Reply-To: <5184F6C9.4060506@openvz.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org
+To: David Gibson <dwg@au1.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-On 04.05.2013 13:53, Konstantin Khlebnikov wrote:
-> Zlatko Calusic wrote:
->> On 30.04.2013 13:02, Konstantin Khlebnikov wrote:
->>> This patch adds engine for estimating rotation time for pages in lru
->>> lists.
->>>
->>> This adds bunch of 'milestones' into each struct lruvec and inserts
->>> them into
->>> lru lists periodically. Milestone flows in lru together with pages
->>> and brings
->>> timestamp to the end of lru. Because milestones are embedded into
->>> lruvec they
->>> can be easily distinguished from pages by comparing pointers.
->>> Only few functions should care about that.
->>>
->>> This machinery provides discrete-time estimation for age of pages
->>> from the end
->>> of each lru and average age of each kind of evictable lrus in each zone.
->>
->> Great stuff!
->
-> Thanks!
->
->>
->> Believe it or not, I had an idea of writing something similar to this,
->> but of course having an idea and actually implementing it are two very
->> different things. Thank you for your work!
->>
->> I will use this to prove (or not) that file pages in the normal zone
->> on a 4GB RAM machine are reused waaaay too soon. Actually, I already
->> have the patch applied and running on the desktop, but it should be
->> much more useful on server workloads. Desktops have erratic load and
->> can go for a long time with very little I/O activity. But, here are
->> the current numbers anyway:
->>
->> Node 0, zone DMA32
->> pages free 5371
->> nr_inactive_anon 4257
->> nr_active_anon 139719
->> nr_inactive_file 617537
->> nr_active_file 51671
->> inactive_ratio: 5
->> avg_age_inactive_anon: 2514752
->> avg_age_active_anon: 2514752
->> avg_age_inactive_file: 876416
->> avg_age_active_file: 2514752
->> Node 0, zone Normal
->> pages free 424
->> nr_inactive_anon 253
->> nr_active_anon 54480
->> nr_inactive_file 63274
->> nr_active_file 44116
->> inactive_ratio: 1
->> avg_age_inactive_anon: 2531712
->> avg_age_active_anon: 2531712
->> avg_age_inactive_file: 901120
->> avg_age_active_file: 2531712
->>
->>> In our kernel we use similar engine as source of statistics for
->>> scheduler in
->>> memory reclaimer. This is O(1) scheduler which shifts vmscan
->>> priorities for lru
->>> vectors depending on their sizes, limits and ages. It tries to
->>> balance memory
->>> pressure among containers. I'll try to rework it for the mainline
->>> kernel soon.
->>>
->>> Seems like these ages also can be used for optimal memory pressure
->>> distribution
->>> between file and anon pages, and probably for balancing pressure
->>> among zones.
->>
->> This all sounds very promising. Especially because I currently observe
->> quite some imbalance among zones.
->
-> As I see, most likely reason of such imbalances is 'break' condition
-> inside of shrink_lruvec().
-> So can try to disable it see what will happen.
+David Gibson <dwg@au1.ibm.com> writes:
 
-Thanks for the hint. I will pay some more attention to this function 
-next time I investigate code.
+> On Mon, Apr 29, 2013 at 01:21:43AM +0530, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> We now have pmd entries covering 16MB range and the PMD table double its original size.
+>> We use the second half of the PMD table to deposit the pgtable (PTE page).
+>> The depoisted PTE page is further used to track the HPTE information. The information
+>> include [ secondary group | 3 bit hidx | valid ]. We use one byte per each HPTE entry.
+>> With 16MB hugepage and 64K HPTE we need 256 entries and with 4K HPTE we need
+>> 4096 entries. Both will fit in a 4K PTE page. On hugepage invalidate we need to walk
+>> the PTE page and invalidate all valid HPTEs.
+>> 
+>> This patch implements necessary arch specific functions for THP support and also
+>> hugepage invalidate logic. These PMD related functions are intentionally kept
+>> similar to their PTE counter-part.
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> ---
+>>  arch/powerpc/include/asm/page.h              |  11 +-
+>>  arch/powerpc/include/asm/pgtable-ppc64-64k.h |   3 +-
+>>  arch/powerpc/include/asm/pgtable-ppc64.h     | 259 +++++++++++++++++++++-
+>>  arch/powerpc/include/asm/pgtable.h           |   5 +
+>>  arch/powerpc/include/asm/pte-hash64-64k.h    |  17 ++
+>>  arch/powerpc/mm/pgtable_64.c                 | 318 +++++++++++++++++++++++++++
+>>  arch/powerpc/platforms/Kconfig.cputype       |   1 +
+>>  7 files changed, 611 insertions(+), 3 deletions(-)
+>> 
+>> diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
+>> index 988c812..cbf4be7 100644
+>> --- a/arch/powerpc/include/asm/page.h
+>> +++ b/arch/powerpc/include/asm/page.h
+>> @@ -37,8 +37,17 @@
+>>  #define PAGE_SIZE		(ASM_CONST(1) << PAGE_SHIFT)
+>>  
+>>  #ifndef __ASSEMBLY__
+>> -#ifdef CONFIG_HUGETLB_PAGE
+>> +/*
+>> + * With hugetlbfs enabled we allow the HPAGE_SHIFT to run time
+>> + * configurable. But we enable THP only with 16MB hugepage.
+>> + * With only THP configured, we force hugepage size to 16MB.
+>> + * This should ensure that all subarchs that doesn't support
+>> + * THP continue to work fine with HPAGE_SHIFT usage.
+>> + */
+>> +#if defined(CONFIG_HUGETLB_PAGE)
+>>  extern unsigned int HPAGE_SHIFT;
+>> +#elif defined(CONFIG_TRANSPARENT_HUGEPAGE)
+>> +#define HPAGE_SHIFT PMD_SHIFT
+>
+> As I said in comments on the first patch series, this messing around
+> with HPAGE_SHIFT for THP is missing the point.  On ppc HPAGE_SHIFT is
+> nothing more than the _default_ hugepage size for explicit hugepages.
+> THP should not be dependent on it in any way.
+
+fixed. 
 
 >
-> But these numbers from your desktop actually doesn't proves this
-> problem. Seems like difference
-> between zones is within the precision of this method. I don't know how
-> to describe this precisely.
-> Probably irregularity between milestones also should be taken into the
-> account to describe current
-> situation and quality of measurement.
+>>  #else
+>>  #define HPAGE_SHIFT PAGE_SHIFT
+>>  #endif
+>> diff --git a/arch/powerpc/include/asm/pgtable-ppc64-64k.h b/arch/powerpc/include/asm/pgtable-ppc64-64k.h
+>> index 45142d6..a56b82f 100644
+>> --- a/arch/powerpc/include/asm/pgtable-ppc64-64k.h
+>> +++ b/arch/powerpc/include/asm/pgtable-ppc64-64k.h
+>> @@ -33,7 +33,8 @@
+>>  #define PGDIR_MASK	(~(PGDIR_SIZE-1))
+>>  
+>>  /* Bits to mask out from a PMD to get to the PTE page */
+>> -#define PMD_MASKED_BITS		0x1ff
+>> +/* PMDs point to PTE table fragments which are 4K aligned.  */
+>> +#define PMD_MASKED_BITS		0xfff
+>
+> Hrm.  AFAICT this is related to the change in size of PTE tables, and
+> hence the page sharing stuff, so this belongs in the patch which
+> implements that, rather than the THP support itself.
 >
 
-Ah, no, the numbers were more like a proof that your patch is running 
-fine, nothing specific about them. I was just making a quick check that 
-your patch is stable enough before I run it in production, and it seems 
-it's working just fine.
+fixed
 
-In the next hour or so I will patch the kernel on the server where I 
-intend to do much more analysis. I also prepared a set of graphs based 
-on the numbers your code provides. Based on the preliminary tests, I 
-believe that I'll be interested only in the aging of the inactive file 
-lists. What I'm after is the bug explained here 
-http://marc.info/?l=linux-mm&m=136571221426984 and if I'm right, your 
-patch will help to better reveal extreme disbalance observed between 
-dma32 and normal zone file LRU aging. But only on a 4GB nodes. I haven't 
-seen anything similar on a 8GB nodes, where dma32 and normal zones are 
-approximately the same sizes.
--- 
-Zlatko
+>>  /* Bits to mask out from a PGD/PUD to get to the PMD page */
+>>  #define PUD_MASKED_BITS		0x1ff
+>>  
+>> diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+>> index ab84332..20133c1 100644
+>> --- a/arch/powerpc/include/asm/pgtable-ppc64.h
+>> +++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+>> @@ -154,7 +154,7 @@
+>>  #define	pmd_present(pmd)	(pmd_val(pmd) != 0)
+>>  #define	pmd_clear(pmdp)		(pmd_val(*(pmdp)) = 0)
+>>  #define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
+>> -#define pmd_page(pmd)		virt_to_page(pmd_page_vaddr(pmd))
+>> +extern struct page *pmd_page(pmd_t pmd);
+>>  
+>>  #define pud_set(pudp, pudval)	(pud_val(*(pudp)) = (pudval))
+>>  #define pud_none(pud)		(!pud_val(pud))
+>> @@ -382,4 +382,261 @@ static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
+>>  
+>>  #endif /* __ASSEMBLY__ */
+>>  
+>> +#ifndef _PAGE_SPLITTING
+>> +/*
+>> + * THP pages can't be special. So use the _PAGE_SPECIAL
+>> + */
+>> +#define _PAGE_SPLITTING _PAGE_SPECIAL
+>> +#endif
+>> +
+>> +#ifndef _PAGE_THP_HUGE
+>> +/*
+>> + * We need to differentiate between explicit huge page and THP huge
+>> + * page, since THP huge page also need to track real subpage details
+>> + * We use the _PAGE_COMBO bits here as dummy for platform that doesn't
+>> + * support THP.
+>> + */
+>> +#define _PAGE_THP_HUGE  0x10000000
+>
+> So if it's _PAGE_COMBO, use _PAGE_COMBO, instead of the actual number.
+>
+
+We define _PAGE_THP_HUGE value in pte-hash64-64k.h. Now the functions
+below which depends on _PAGE_THP_HUGE are in pgtable-ppc64.h. The above
+#define takes care of compile errors on subarch that doesn't include
+pte-hash64-64k.h We really won't be using these functions at run time,
+because we will not find a transparent huge page on those subarchs.
+
+
+
+>> +#endif
+>> +
+>> +/*
+>> + * PTE flags to conserve for HPTE identification for THP page.
+>> + */
+>> +#ifndef _PAGE_THP_HPTEFLAGS
+>> +#define _PAGE_THP_HPTEFLAGS	(_PAGE_BUSY | _PAGE_HASHPTE)
+>
+> You have this definition both here and in pte-hash64-64k.h.  More
+> importantly including _PAGE_BUSY seems like an extremely bad idea -
+> did you mean _PAGE_THP_HUGE == _PAGE_COMBO?
+>
+
+We have the same defition for _PAGE_HPTEFLAGS. But since i moved
+_PAGE_THP_HUGE to _PAGE_4K_PFN in the new series, I will be dropping
+this. 
+
+>> +#endif
+>> +
+>> +#define HUGE_PAGE_SIZE		(ASM_CONST(1) << 24)
+>> +#define HUGE_PAGE_MASK		(~(HUGE_PAGE_SIZE - 1))
+>
+> These constants should be named so its clear they're THP specific.
+> They should also be defined in terms of PMD_SHIFT, instead of
+> directly.
+>
+
+I was not able to use HPAGE_PMD_SIZE because we have that BUILD_BUG_ON
+when THP is not enabled. I will switch them to PMD_SIZE and PMD_MASK ?
+
+
+>> +/*
+>> + * set of bits not changed in pmd_modify.
+>> + */
+>> +#define _HPAGE_CHG_MASK (PTE_RPN_MASK | _PAGE_THP_HPTEFLAGS | \
+>> +			 _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_THP_HUGE)
+>> +
+>> +#ifndef __ASSEMBLY__
+>> +extern void hpte_need_hugepage_flush(struct mm_struct *mm, unsigned long addr,
+>> +				     pmd_t *pmdp);
+>
+> This should maybe be called "hpge_do_hugepage_flush()".  The current
+> name suggests it returns a boolean, rather than performing the actual
+> flush.
+>
+
+done
+
+
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> +extern pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot);
+>> +extern pmd_t mk_pmd(struct page *page, pgprot_t pgprot);
+>> +extern pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot);
+>> +extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+>> +		       pmd_t *pmdp, pmd_t pmd);
+>> +extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
+>> +				 pmd_t *pmd);
+>> +
+>> +static inline int pmd_trans_huge(pmd_t pmd)
+>> +{
+>> +	/*
+>> +	 * leaf pte for huge page, bottom two bits != 00
+>> +	 */
+>> +	return (pmd_val(pmd) & 0x3) && (pmd_val(pmd) & _PAGE_THP_HUGE);
+>> +}
+>> +
+>> +static inline int pmd_large(pmd_t pmd)
+>> +{
+>> +	/*
+>> +	 * leaf pte for huge page, bottom two bits != 00
+>> +	 */
+>> +	if (pmd_trans_huge(pmd))
+>> +		return pmd_val(pmd) & _PAGE_PRESENT;
+>> +	return 0;
+>> +}
+>> +
+>> +static inline int pmd_trans_splitting(pmd_t pmd)
+>> +{
+>> +	if (pmd_trans_huge(pmd))
+>> +		return pmd_val(pmd) & _PAGE_SPLITTING;
+>> +	return 0;
+>> +}
+>> +
+>> +
+>> +static inline unsigned long pmd_pfn(pmd_t pmd)
+>> +{
+>> +	/*
+>> +	 * Only called for hugepage pmd
+>> +	 */
+>> +	return pmd_val(pmd) >> PTE_RPN_SHIFT;
+>> +}
+>> +
+>> +/* We will enable it in the last patch */
+>> +#define has_transparent_hugepage() 0
+>> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+>> +
+>> +static inline int pmd_young(pmd_t pmd)
+>> +{
+>> +	return pmd_val(pmd) & _PAGE_ACCESSED;
+>> +}
+>
+> It would be clearer to define this function as well as various others
+> that operate on PMDs as PTEs to just cast the parameter and call the
+> corresponding pte_XXX(),
+
+I did what tile arch is done. How about 
+
++#define pmd_pte(pmd)		(pmd)
++#define pte_pmd(pte)		(pte)
++#define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
++#define pmd_young(pmd)		pte_young(pmd_pte(pmd))
++#define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
++#define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
++#define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
++#define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
++#define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
+ 
+
+>
+>> +
+>> +static inline pmd_t pmd_mkhuge(pmd_t pmd)
+>> +{
+>> +	/* Do nothing, mk_pmd() does this part.  */
+>> +	return pmd;
+>> +}
+>> +
+>> +#define __HAVE_ARCH_PMD_WRITE
+>> +static inline int pmd_write(pmd_t pmd)
+>> +{
+>> +	return pmd_val(pmd) & _PAGE_RW;
+>> +}
+>> +
+>> +static inline pmd_t pmd_mkold(pmd_t pmd)
+>> +{
+>> +	pmd_val(pmd) &= ~_PAGE_ACCESSED;
+>> +	return pmd;
+>> +}
+>> +
+>> +static inline pmd_t pmd_wrprotect(pmd_t pmd)
+>> +{
+>> +	pmd_val(pmd) &= ~_PAGE_RW;
+>> +	return pmd;
+>> +}
+>> +
+>> +static inline pmd_t pmd_mkdirty(pmd_t pmd)
+>> +{
+>> +	pmd_val(pmd) |= _PAGE_DIRTY;
+>> +	return pmd;
+>> +}
+>> +
+>> +static inline pmd_t pmd_mkyoung(pmd_t pmd)
+>> +{
+>> +	pmd_val(pmd) |= _PAGE_ACCESSED;
+>> +	return pmd;
+>> +}
+>> +
+>> +static inline pmd_t pmd_mkwrite(pmd_t pmd)
+>> +{
+>> +	pmd_val(pmd) |= _PAGE_RW;
+>> +	return pmd;
+>> +}
+>> +
+>> +static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+>> +{
+>> +	pmd_val(pmd) &= ~_PAGE_PRESENT;
+>> +	return pmd;
+>> +}
+>> +
+>> +static inline pmd_t pmd_mksplitting(pmd_t pmd)
+>> +{
+>> +	pmd_val(pmd) |= _PAGE_SPLITTING;
+>> +	return pmd;
+>> +}
+>> +
+>> +/*
+>> + * Set the dirty and/or accessed bits atomically in a linux hugepage PMD, this
+>> + * function doesn't need to flush the hash entry
+>> + */
+>> +static inline void __pmdp_set_access_flags(pmd_t *pmdp, pmd_t entry)
+>> +{
+>> +	unsigned long bits = pmd_val(entry) & (_PAGE_DIRTY |
+>> +					       _PAGE_ACCESSED |
+>> +					       _PAGE_RW | _PAGE_EXEC);
+>> +#ifdef PTE_ATOMIC_UPDATES
+>> +	unsigned long old, tmp;
+>> +
+>> +	__asm__ __volatile__(
+>> +	"1:	ldarx	%0,0,%4\n\
+>> +		andi.	%1,%0,%6\n\
+>> +		bne-	1b \n\
+>> +		or	%0,%3,%0\n\
+>> +		stdcx.	%0,0,%4\n\
+>> +		bne-	1b"
+>> +	:"=&r" (old), "=&r" (tmp), "=m" (*pmdp)
+>> +	:"r" (bits), "r" (pmdp), "m" (*pmdp), "i" (_PAGE_BUSY)
+>> +	:"cc");
+>> +#else
+>> +	unsigned long old = pmd_val(*pmdp);
+>> +	*pmdp = __pmd(old | bits);
+>> +#endif
+>
+> Using parameter casts on the corresponding pte_update() function would
+> be even more valuable for these more complex functions with asm.
+
+
+We may want to retain some of these because of the assert we want to add
+for locking. PTE related functions expect ptl to be locked. PMD related
+functions expect mm->page_table_lock to be locked.
+
+>
+>> +}
+>> +
+>> +#define __HAVE_ARCH_PMD_SAME
+>> +static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+>> +{
+>> +	return (((pmd_val(pmd_a) ^ pmd_val(pmd_b)) & ~_PAGE_THP_HPTEFLAGS) == 0);
+>
+> Here, specifically, the fact that PAGE_BUSY is in PAGE_THP_HPTEFLAGS
+> is likely to be bad.  If the page is busy, it's in the middle of
+> update so can't stably be considered the same as anything.
+>
+
+
+pte_same have the above definition. We use _PAGE_BUSY to indicate that
+we are using the entry to satisfy a hpte hash insert. That is used to
+prevent a parallel update. So why should pmd_same consider the
+_PAGE_BUSY ? 
+
+
+>> +}
+>> +
+>> +#define __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
+>> +extern int pmdp_set_access_flags(struct vm_area_struct *vma,
+>> +				 unsigned long address, pmd_t *pmdp,
+>> +				 pmd_t entry, int dirty);
+>> +
+>> +static inline unsigned long pmd_hugepage_update(struct mm_struct *mm,
+>> +						unsigned long addr,
+>> +						pmd_t *pmdp, unsigned long clr)
+>> +{
+>> +#ifdef PTE_ATOMIC_UPDATES
+>> +	unsigned long old, tmp;
+>> +
+>> +	__asm__ __volatile__(
+>> +	"1:	ldarx	%0,0,%3\n\
+>> +		andi.	%1,%0,%6\n\
+>> +		bne-	1b \n\
+>> +		andc	%1,%0,%4 \n\
+>> +		stdcx.	%1,0,%3 \n\
+>> +		bne-	1b"
+>> +	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
+>> +	: "r" (pmdp), "r" (clr), "m" (*pmdp), "i" (_PAGE_BUSY)
+>> +	: "cc" );
+>> +#else
+>> +	unsigned long old = pmd_val(*pmdp);
+>> +	*pmdp = __pmd(old & ~clr);
+>> +#endif
+>> +
+>> +#ifdef CONFIG_PPC_STD_MMU_64
+>
+> THP only works with the standard hash MMU, so this #if seems a bit
+> pointless.
+
+done
+
+
+>
+>> +	if (old & _PAGE_HASHPTE)
+>> +		hpte_need_hugepage_flush(mm, addr, pmdp);
+>> +#endif
+>> +	return old;
+>> +}
+>> +
+>> +static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
+>> +					      unsigned long addr, pmd_t *pmdp)
+>> +{
+>> +	unsigned long old;
+>> +
+>> +	if ((pmd_val(*pmdp) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
+>> +		return 0;
+>> +	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED);
+>> +	return ((old & _PAGE_ACCESSED) != 0);
+>> +}
+>> +
+>> +#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
+>> +extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+>> +				     unsigned long address, pmd_t *pmdp);
+>> +#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
+>> +extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+>> +				  unsigned long address, pmd_t *pmdp);
+>> +
+>> +#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+>> +extern pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+>> +				unsigned long addr, pmd_t *pmdp);
+>> +
+>> +#define __HAVE_ARCH_PMDP_SET_WRPROTECT
+>
+> Now that the PTE format is the same at bottom or PMD level, do you
+> still need this?
+
+Some of them we can drop. Others we need to, because we want to have
+different asserts as i explained above.  For example below wrprotect we
+want to call pmd_hugepage_update. 
+
+>
+>> +static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
+>> +				      pmd_t *pmdp)
+>> +{
+>> +
+>> +	if ((pmd_val(*pmdp) & _PAGE_RW) == 0)
+>> +		return;
+>> +
+>> +	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW);
+>> +}
+>> +
+>> +#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
+>> +extern void pmdp_splitting_flush(struct vm_area_struct *vma,
+>> +				 unsigned long address, pmd_t *pmdp);
+>> +
+>> +#define __HAVE_ARCH_PGTABLE_DEPOSIT
+>> +extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+>> +				       pgtable_t pgtable);
+>> +#define __HAVE_ARCH_PGTABLE_WITHDRAW
+>> +extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
+>> +
+>> +#define __HAVE_ARCH_PMDP_INVALIDATE
+>> +extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+>> +			    pmd_t *pmdp);
+>> +#endif /* __ASSEMBLY__ */
+>>  #endif /* _ASM_POWERPC_PGTABLE_PPC64_H_ */
+>> diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
+>> index 7aeb955..283198e 100644
+>> --- a/arch/powerpc/include/asm/pgtable.h
+>> +++ b/arch/powerpc/include/asm/pgtable.h
+>> @@ -222,5 +222,10 @@ extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
+>>  		       unsigned long end, int write, struct page **pages, int *nr);
+>>  #endif /* __ASSEMBLY__ */
+>>  
+>> +#ifndef CONFIG_TRANSPARENT_HUGEPAGE
+>> +#define pmd_large(pmd)		0
+>> +#define has_transparent_hugepage() 0
+>> +#endif
+>> +
+>>  #endif /* __KERNEL__ */
+>>  #endif /* _ASM_POWERPC_PGTABLE_H */
+>> diff --git a/arch/powerpc/include/asm/pte-hash64-64k.h b/arch/powerpc/include/asm/pte-hash64-64k.h
+>> index 3e13e23..6be70be 100644
+>> --- a/arch/powerpc/include/asm/pte-hash64-64k.h
+>> +++ b/arch/powerpc/include/asm/pte-hash64-64k.h
+>> @@ -38,6 +38,23 @@
+>>   */
+>>  #define PTE_RPN_SHIFT	(30)
+>>  
+>> +/*
+>> + * THP pages can't be special. So use the _PAGE_SPECIAL
+>> + */
+>> +#define _PAGE_SPLITTING _PAGE_SPECIAL
+>> +
+>> +/*
+>> + * PTE flags to conserve for HPTE identification for THP page.
+>> + * We drop _PAGE_COMBO here, because we overload that with _PAGE_TH_HUGE.
+>> + */
+>> +#define _PAGE_THP_HPTEFLAGS	(_PAGE_BUSY | _PAGE_HASHPTE)
+>> +
+>> +/*
+>> + * We need to differentiate between explicit huge page and THP huge
+>> + * page, since THP huge page also need to track real subpage details
+>> + */
+>> +#define _PAGE_THP_HUGE  _PAGE_COMBO
+>
+> All 3 of these definitions also appeared elsewhere.
+
+These are the actual values used. The pgtable-ppc64.h is to take care of
+compliation issues on arch that doesn't support THP.
+
+>
+>> +
+>>  #ifndef __ASSEMBLY__
+>>  
+>>  /*
+>> diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
+>> index a854096..54216c1 100644
+>> --- a/arch/powerpc/mm/pgtable_64.c
+>> +++ b/arch/powerpc/mm/pgtable_64.c
+>> @@ -338,6 +338,19 @@ EXPORT_SYMBOL(iounmap);
+>>  EXPORT_SYMBOL(__iounmap);
+>>  EXPORT_SYMBOL(__iounmap_at);
+>>  
+>> +/*
+>> + * For hugepage we have pfn in the pmd, we use PTE_RPN_SHIFT bits for flags
+>> + * For PTE page, we have a PTE_FRAG_SIZE (4K) aligned virtual address.
+>> + */
+>> +struct page *pmd_page(pmd_t pmd)
+>> +{
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> +	if (pmd_trans_huge(pmd))
+>> +		return pfn_to_page(pmd_pfn(pmd));
+>
+> In this case you should be able to define this in terms of pte_pfn().
+
+We now have pmd_pfn done in term of pte_pfn. So will retain pmd_pfn 
+
+>
+>> +#endif
+>> +	return virt_to_page(pmd_page_vaddr(pmd));
+>> +}
+>> +
+>>  #ifdef CONFIG_PPC_64K_PAGES
+>>  static pte_t *get_from_cache(struct mm_struct *mm)
+>>  {
+>> @@ -455,3 +468,308 @@ void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
+>>  }
+>>  #endif
+>>  #endif /* CONFIG_PPC_64K_PAGES */
+>> +
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> +static pmd_t set_hugepage_access_flags_filter(pmd_t pmd,
+>> +					      struct vm_area_struct *vma,
+>> +					      int dirty)
+>> +{
+>> +	return pmd;
+>> +}
+>
+> This identity function is only used immediately before.  Why does it
+> exist?
+>
+
+removed
+
+>> +/*
+>> + * This is called when relaxing access to a hugepage. It's also called in the page
+>> + * fault path when we don't hit any of the major fault cases, ie, a minor
+>> + * update of _PAGE_ACCESSED, _PAGE_DIRTY, etc... The generic code will have
+>> + * handled those two for us, we additionally deal with missing execute
+>> + * permission here on some processors
+>> + */
+>> +int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
+>> +			  pmd_t *pmdp, pmd_t entry, int dirty)
+>> +{
+>> +	int changed;
+>> +	entry = set_hugepage_access_flags_filter(entry, vma, dirty);
+>> +	changed = !pmd_same(*(pmdp), entry);
+>> +	if (changed) {
+>> +		__pmdp_set_access_flags(pmdp, entry);
+>> +		/*
+>> +		 * Since we are not supporting SW TLB systems, we don't
+>> +		 * have any thing similar to flush_tlb_page_nohash()
+>> +		 */
+>> +	}
+>> +	return changed;
+>> +}
+>> +
+>> +int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+>> +			      unsigned long address, pmd_t *pmdp)
+>> +{
+>> +	return __pmdp_test_and_clear_young(vma->vm_mm, address, pmdp);
+>> +}
+>> +
+>> +/*
+>> + * We currently remove entries from the hashtable regardless of whether
+>> + * the entry was young or dirty. The generic routines only flush if the
+>> + * entry was young or dirty which is not good enough.
+>> + *
+>> + * We should be more intelligent about this but for the moment we override
+>> + * these functions and force a tlb flush unconditionally
+>> + */
+>> +int pmdp_clear_flush_young(struct vm_area_struct *vma,
+>> +				  unsigned long address, pmd_t *pmdp)
+>> +{
+>> +	return __pmdp_test_and_clear_young(vma->vm_mm, address, pmdp);
+>> +}
+>> +
+>> +/*
+>> + * We mark the pmd splitting and invalidate all the hpte
+>> + * entries for this hugepage.
+>> + */
+>> +void pmdp_splitting_flush(struct vm_area_struct *vma,
+>> +			  unsigned long address, pmd_t *pmdp)
+>> +{
+>> +	unsigned long old, tmp;
+>> +
+>> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+>> +#ifdef PTE_ATOMIC_UPDATES
+>> +
+>> +	__asm__ __volatile__(
+>> +	"1:	ldarx	%0,0,%3\n\
+>> +		andi.	%1,%0,%6\n\
+>> +		bne-	1b \n\
+>> +		ori	%1,%0,%4 \n\
+>> +		stdcx.	%1,0,%3 \n\
+>> +		bne-	1b"
+>> +	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
+>> +	: "r" (pmdp), "i" (_PAGE_SPLITTING), "m" (*pmdp), "i" (_PAGE_BUSY)
+>> +	: "cc" );
+>> +#else
+>> +	old = pmd_val(*pmdp);
+>> +	*pmdp = __pmd(old | _PAGE_SPLITTING);
+>> +#endif
+>> +	/*
+>> +	 * If we didn't had the splitting flag set, go and flush the
+>> +	 * HPTE entries and serialize against gup fast.
+>> +	 */
+>> +	if (!(old & _PAGE_SPLITTING)) {
+>> +#ifdef CONFIG_PPC_STD_MMU_64
+>> +		/* We need to flush the hpte */
+>> +		if (old & _PAGE_HASHPTE)
+>> +			hpte_need_hugepage_flush(vma->vm_mm, address, pmdp);
+>> +#endif
+>> +		/* need tlb flush only to serialize against gup-fast */
+>> +		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+>> +	}
+>> +}
+>> +
+>> +/*
+>> + * We want to put the pgtable in pmd and use pgtable for tracking
+>> + * the base page size hptes
+>> + */
+>> +void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
+>> +				pgtable_t pgtable)
+>> +{
+>> +	unsigned long *pgtable_slot;
+>> +	assert_spin_locked(&mm->page_table_lock);
+>> +	/*
+>> +	 * we store the pgtable in the second half of PMD
+>> +	 */
+>> +	pgtable_slot = pmdp + PTRS_PER_PMD;
+>> +	*pgtable_slot = (unsigned long)pgtable;
+>
+> Why not just make pgtable_slot have type (pgtable_t *) and avoid the
+> case.
+>
+
+done. But we would have cast in the above line. 
+
+
+>> +}
+>> +
+>> +pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
+>> +{
+>> +	pgtable_t pgtable;
+>> +	unsigned long *pgtable_slot;
+>> +
+>> +	assert_spin_locked(&mm->page_table_lock);
+>> +	pgtable_slot = pmdp + PTRS_PER_PMD;
+>> +	pgtable = (pgtable_t) *pgtable_slot;
+>> +	/*
+>> +	 * We store HPTE information in the deposited PTE fragment.
+>> +	 * zero out the content on withdraw.
+>> +	 */
+>> +	memset(pgtable, 0, PTE_FRAG_SIZE);
+>> +	return pgtable;
+>> +}
+>> +
+>> +/*
+>> + * Since we are looking at latest ppc64, we don't need to worry about
+>> + * i/d cache coherency on exec fault
+>> + */
+>> +static pmd_t set_pmd_filter(pmd_t pmd, unsigned long addr)
+>> +{
+>> +	pmd = __pmd(pmd_val(pmd) & ~_PAGE_THP_HPTEFLAGS);
+>> +	return pmd;
+>> +}
+>> +
+>> +/*
+>> + * We can make it less convoluted than __set_pte_at, because
+>> + * we can ignore lot of hardware here, because this is only for
+>> + * MPSS
+>> + */
+>> +static inline void __set_pmd_at(struct mm_struct *mm, unsigned long addr,
+>> +				pmd_t *pmdp, pmd_t pmd, int percpu)
+>> +{
+>> +	/*
+>> +	 * There is nothing in hash page table now, so nothing to
+>> +	 * invalidate, set_pte_at is used for adding new entry.
+>> +	 * For updating we should use update_hugepage_pmd()
+>> +	 */
+>> +	*pmdp = pmd;
+>> +}
+>
+> Again you should be able to define this in terms of the set_pte_at()
+> functions.
+>
+
+done 
+
+
+>> +/*
+>> + * set a new huge pmd. We should not be called for updating
+>> + * an existing pmd entry. That should go via pmd_hugepage_update.
+>> + */
+>> +void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+>> +		pmd_t *pmdp, pmd_t pmd)
+>> +{
+>> +	/*
+>> +	 * Note: mm->context.id might not yet have been assigned as
+>> +	 * this context might not have been activated yet when this
+>> +	 * is called.
+>
+> And the relevance of this comment here is...?
+>
+>> +	 */
+>> +	pmd = set_pmd_filter(pmd, addr);
+>> +
+>> +	__set_pmd_at(mm, addr, pmdp, pmd, 0);
+>> +
+>> +}
+>> +
+>> +void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+>> +		     pmd_t *pmdp)
+>> +{
+>> +	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT);
+>> +	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+>> +}
+>> +
+>> +/*
+>> + * A linux hugepage PMD was changed and the corresponding hash table entries
+>> + * neesd to be flushed.
+>> + *
+>> + * The linux hugepage PMD now include the pmd entries followed by the address
+>> + * to the stashed pgtable_t. The stashed pgtable_t contains the hpte bits.
+>> + * [ secondary group | 3 bit hidx | valid ]. We use one byte per each HPTE entry.
+>> + * With 16MB hugepage and 64K HPTE we need 256 entries and with 4K HPTE we need
+>> + * 4096 entries. Both will fit in a 4K pgtable_t.
+>> + */
+>> +void hpte_need_hugepage_flush(struct mm_struct *mm, unsigned long addr,
+>> +			      pmd_t *pmdp)
+>> +{
+>> +	int ssize, i;
+>> +	unsigned long s_addr;
+>> +	unsigned int psize, valid;
+>> +	unsigned char *hpte_slot_array;
+>> +	unsigned long hidx, vpn, vsid, hash, shift, slot;
+>> +
+>> +	/*
+>> +	 * Flush all the hptes mapping this hugepage
+>> +	 */
+>> +	s_addr = addr & HUGE_PAGE_MASK;
+>> +	/*
+>> +	 * The hpte hindex are stored in the pgtable whose address is in the
+>> +	 * second half of the PMD
+>> +	 */
+>> +	hpte_slot_array = *(char **)(pmdp + PTRS_PER_PMD);
+>> +
+>> +	/* get the base page size */
+>> +	psize = get_slice_psize(mm, s_addr);
+>> +	shift = mmu_psize_defs[psize].shift;
+>> +
+>> +	for (i = 0; i < (HUGE_PAGE_SIZE >> shift); i++) {
+>> +		/*
+>> +		 * 8 bits per each hpte entries
+>> +		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
+>> +		 */
+>> +		valid = hpte_slot_array[i] & 0x1;
+>> +		if (!valid)
+>> +			continue;
+>> +		hidx =  hpte_slot_array[i]  >> 1;
+>> +
+>> +		/* get the vpn */
+>> +		addr = s_addr + (i * (1ul << shift));
+>> +		if (!is_kernel_addr(addr)) {
+>> +			ssize = user_segment_size(addr);
+>> +			vsid = get_vsid(mm->context.id, addr, ssize);
+>> +			WARN_ON(vsid == 0);
+>> +		} else {
+>> +			vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
+>> +			ssize = mmu_kernel_ssize;
+>> +		}
+>> +
+>> +		vpn = hpt_vpn(addr, vsid, ssize);
+>> +		hash = hpt_hash(vpn, shift, ssize);
+>> +		if (hidx & _PTEIDX_SECONDARY)
+>> +			hash = ~hash;
+>> +
+>> +		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
+>> +		slot += hidx & _PTEIDX_GROUP_IX;
+>> +		ppc_md.hpte_invalidate(slot, vpn, psize, ssize, 0);
+>> +	}
+>> +}
+>> +
+>> +static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
+>> +{
+>> +	pmd_val(pmd) |= pgprot_val(pgprot);
+>> +	return pmd;
+>> +}
+>> +
+>> +pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
+>> +{
+>> +	pmd_t pmd;
+>> +	/*
+>> +	 * For a valid pte, we would have _PAGE_PRESENT or _PAGE_FILE always
+>> +	 * set. We use this to check THP page at pmd level.
+>> +	 * leaf pte for huge page, bottom two bits != 00
+>> +	 */
+>> +	pmd_val(pmd) = pfn << PTE_RPN_SHIFT;
+>> +	pmd_val(pmd) |= _PAGE_THP_HUGE;
+>> +	pmd = pmd_set_protbits(pmd, pgprot);
+>> +	return pmd;
+>> +}
+>> +
+>> +pmd_t mk_pmd(struct page *page, pgprot_t pgprot)
+>> +{
+>> +	return pfn_pmd(page_to_pfn(page), pgprot);
+>> +}
+>> +
+>> +pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+>> +{
+>> +
+>> +	pmd_val(pmd) &= _HPAGE_CHG_MASK;
+>> +	pmd = pmd_set_protbits(pmd, newprot);
+>> +	return pmd;
+>> +}
+>> +
+>> +/*
+>> + * This is called at the end of handling a user page fault, when the
+>> + * fault has been handled by updating a HUGE PMD entry in the linux page tables.
+>> + * We use it to preload an HPTE into the hash table corresponding to
+>> + * the updated linux HUGE PMD entry.
+>> + */
+>> +void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
+>> +			  pmd_t *pmd)
+>> +{
+>> +	return;
+>> +}
+>> +
+>> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+>> +
+>> +pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+>> +			 unsigned long addr, pmd_t *pmdp)
+>> +{
+>> +	pmd_t old_pmd;
+>> +	unsigned long old;
+>> +	/*
+>> +	 * khugepaged calls this for normal pmd also
+>> +	 */
+>> +	if (pmd_trans_huge(*pmdp)) {
+>> +		old = pmd_hugepage_update(mm, addr, pmdp, ~0UL);
+>> +		old_pmd = __pmd(old);
+>> +	} else {
+>> +		old_pmd = *pmdp;
+>> +		pmd_clear(pmdp);
+>> +	}
+>> +	return old_pmd;
+>> +}
+>> diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
+>> index 18e3b76..a526144 100644
+>> --- a/arch/powerpc/platforms/Kconfig.cputype
+>> +++ b/arch/powerpc/platforms/Kconfig.cputype
+>> @@ -71,6 +71,7 @@ config PPC_BOOK3S_64
+>>  	select PPC_FPU
+>>  	select PPC_HAVE_PMU_SUPPORT
+>>  	select SYS_SUPPORTS_HUGETLBFS
+>> +	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if PPC_64K_PAGES
+>>  
+>>  config PPC_BOOK3E_64
+>>  	bool "Embedded processors"
+>
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
