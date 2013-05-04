@@ -1,917 +1,431 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id B4B2D6B02D8
-	for <linux-mm@kvack.org>; Sat,  4 May 2013 15:14:49 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sun, 5 May 2013 05:06:33 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 4DCD3357804E
-	for <linux-mm@kvack.org>; Sun,  5 May 2013 05:14:39 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r44J0gdm8519788
-	for <linux-mm@kvack.org>; Sun, 5 May 2013 05:00:43 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r44JEcIr032693
-	for <linux-mm@kvack.org>; Sun, 5 May 2013 05:14:38 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V7 02/10] powerpc/THP: Implement transparent hugepages for ppc64
-In-Reply-To: <20130503045201.GO13041@truffula.fritz.box>
-References: <1367178711-8232-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <1367178711-8232-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130503045201.GO13041@truffula.fritz.box>
-Date: Sun, 05 May 2013 00:44:35 +0530
-Message-ID: <87a9oa4kx0.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id C74AE6B0289
+	for <linux-mm@kvack.org>; Sat,  4 May 2013 17:36:35 -0400 (EDT)
+Message-ID: <51857F60.8000209@bitsync.net>
+Date: Sat, 04 May 2013 23:36:32 +0200
+From: Zlatko Calusic <zcalusic@bitsync.net>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH RFC] mm: lru milestones, timestamps and ages
+References: <20130430110214.22179.26139.stgit@zurg> <5183C49D.1010000@bitsync.net> <5184F6C9.4060506@openvz.org> <5185069A.1080306@openvz.org>
+In-Reply-To: <5185069A.1080306@openvz.org>
+Content-Type: multipart/mixed;
+ boundary="------------090204050809060404080601"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Gibson <dwg@au1.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org
 
-David Gibson <dwg@au1.ibm.com> writes:
+This is a multi-part message in MIME format.
+--------------090204050809060404080601
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 
-> On Mon, Apr 29, 2013 at 01:21:43AM +0530, Aneesh Kumar K.V wrote:
->> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> 
->> We now have pmd entries covering 16MB range and the PMD table double its original size.
->> We use the second half of the PMD table to deposit the pgtable (PTE page).
->> The depoisted PTE page is further used to track the HPTE information. The information
->> include [ secondary group | 3 bit hidx | valid ]. We use one byte per each HPTE entry.
->> With 16MB hugepage and 64K HPTE we need 256 entries and with 4K HPTE we need
->> 4096 entries. Both will fit in a 4K PTE page. On hugepage invalidate we need to walk
->> the PTE page and invalidate all valid HPTEs.
->> 
->> This patch implements necessary arch specific functions for THP support and also
->> hugepage invalidate logic. These PMD related functions are intentionally kept
->> similar to their PTE counter-part.
->> 
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->> ---
->>  arch/powerpc/include/asm/page.h              |  11 +-
->>  arch/powerpc/include/asm/pgtable-ppc64-64k.h |   3 +-
->>  arch/powerpc/include/asm/pgtable-ppc64.h     | 259 +++++++++++++++++++++-
->>  arch/powerpc/include/asm/pgtable.h           |   5 +
->>  arch/powerpc/include/asm/pte-hash64-64k.h    |  17 ++
->>  arch/powerpc/mm/pgtable_64.c                 | 318 +++++++++++++++++++++++++++
->>  arch/powerpc/platforms/Kconfig.cputype       |   1 +
->>  7 files changed, 611 insertions(+), 3 deletions(-)
->> 
->> diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
->> index 988c812..cbf4be7 100644
->> --- a/arch/powerpc/include/asm/page.h
->> +++ b/arch/powerpc/include/asm/page.h
->> @@ -37,8 +37,17 @@
->>  #define PAGE_SIZE		(ASM_CONST(1) << PAGE_SHIFT)
->>  
->>  #ifndef __ASSEMBLY__
->> -#ifdef CONFIG_HUGETLB_PAGE
->> +/*
->> + * With hugetlbfs enabled we allow the HPAGE_SHIFT to run time
->> + * configurable. But we enable THP only with 16MB hugepage.
->> + * With only THP configured, we force hugepage size to 16MB.
->> + * This should ensure that all subarchs that doesn't support
->> + * THP continue to work fine with HPAGE_SHIFT usage.
->> + */
->> +#if defined(CONFIG_HUGETLB_PAGE)
->>  extern unsigned int HPAGE_SHIFT;
->> +#elif defined(CONFIG_TRANSPARENT_HUGEPAGE)
->> +#define HPAGE_SHIFT PMD_SHIFT
+On 04.05.2013 15:01, Konstantin Khlebnikov wrote:
+> Konstantin Khlebnikov wrote:
+>> Zlatko Calusic wrote:
+>>> On 30.04.2013 13:02, Konstantin Khlebnikov wrote:
+>>>> This patch adds engine for estimating rotation time for pages in lru
+>>>> lists.
+>>>>
+>>>> This adds bunch of 'milestones' into each struct lruvec and inserts
+>>>> them into
+>>>> lru lists periodically. Milestone flows in lru together with pages
+>>>> and brings
+>>>> timestamp to the end of lru. Because milestones are embedded into
+>>>> lruvec they
+>>>> can be easily distinguished from pages by comparing pointers.
+>>>> Only few functions should care about that.
+>>>>
+>>>> This machinery provides discrete-time estimation for age of pages
+>>>> from the end
+>>>> of each lru and average age of each kind of evictable lrus in each
+>>>> zone.
+>>>
+>>> Great stuff!
+>>
+>> Thanks!
+>>
+>>>
+>>> Believe it or not, I had an idea of writing something similar to
+>>> this, but of course having an idea and actually
+>>> implementing it are two very different things. Thank you for your work!
+>>>
+>>> I will use this to prove (or not) that file pages in the normal zone
+>>> on a 4GB RAM machine are reused waaaay too soon.
+>>> Actually, I already have the patch applied and running on the
+>>> desktop, but it should be much more useful on server
+>>> workloads. Desktops have erratic load and can go for a long time with
+>>> very little I/O activity. But, here are the
+>>> current numbers anyway:
+>>>
+>>> Node 0, zone DMA32
+>>> pages free 5371
+>>> nr_inactive_anon 4257
+>>> nr_active_anon 139719
+>>> nr_inactive_file 617537
+>>> nr_active_file 51671
+>>> inactive_ratio: 5
+>>> avg_age_inactive_anon: 2514752
+>>> avg_age_active_anon: 2514752
+>>> avg_age_inactive_file: 876416
+>>> avg_age_active_file: 2514752
+>>> Node 0, zone Normal
+>>> pages free 424
+>>> nr_inactive_anon 253
+>>> nr_active_anon 54480
+>>> nr_inactive_file 63274
+>>> nr_active_file 44116
+>>> inactive_ratio: 1
+>>> avg_age_inactive_anon: 2531712
+>>> avg_age_active_anon: 2531712
+>>> avg_age_inactive_file: 901120
+>>> avg_age_active_file: 2531712
+>>>
+>>>> In our kernel we use similar engine as source of statistics for
+>>>> scheduler in
+>>>> memory reclaimer. This is O(1) scheduler which shifts vmscan
+>>>> priorities for lru
+>>>> vectors depending on their sizes, limits and ages. It tries to
+>>>> balance memory
+>>>> pressure among containers. I'll try to rework it for the mainline
+>>>> kernel soon.
+>>>>
+>>>> Seems like these ages also can be used for optimal memory pressure
+>>>> distribution
+>>>> between file and anon pages, and probably for balancing pressure
+>>>> among zones.
+>>>
+>>> This all sounds very promising. Especially because I currently
+>>> observe quite some imbalance among zones.
+>>
+>> As I see, most likely reason of such imbalances is 'break' condition
+>> inside of shrink_lruvec().
+>> So can try to disable it see what will happen.
+>>
+>> But these numbers from your desktop actually doesn't proves this
+>> problem. Seems like difference
+>> between zones is within the precision of this method. I don't know how
+>> to describe this precisely.
+>> Probably irregularity between milestones also should be taken into the
+>> account to describe current
+>> situation and quality of measurement.
+>>
+>> Here current numbers from my 8Gb node. Main workload is a torrent client.
+>>
+>> Node 0, zone DMA32
+>> nr_inactive_anon 1
+>> nr_active_anon 1494
+>> nr_inactive_file 404028
+>> nr_active_file 365525
+>> nr_dirtied 855068
+>> nr_written 854991
+>> avg_age_inactive_anon: 64942528
+>> avg_age_active_anon: 64942528
+>> avg_age_inactive_file: 1281317
+>> avg_age_active_file: 15813376
+>> Node 0, zone Normal
+>> nr_inactive_anon 376
+>> nr_active_anon 13793
+>> nr_inactive_file 542605
+>> nr_active_file 542247
+>> nr_dirtied 2746747
+>> nr_written 2746266
+>> avg_age_inactive_anon: 65064192
+>> avg_age_active_anon: 65064192
+>> avg_age_inactive_file: 1260611
+>> avg_age_active_file: 8765240
+>>
+>> So, here noticeable imbalance in ages of active file lru and
+>> nr_dirtied/nr_written.
+>> I have no idea why, but torrent client uses syscall fadvise() which
+>> messes whole picture.
 >
-> As I said in comments on the first patch series, this messing around
-> with HPAGE_SHIFT for THP is missing the point.  On ppc HPAGE_SHIFT is
-> nothing more than the _default_ hugepage size for explicit hugepages.
-> THP should not be dependent on it in any way.
-
-fixed. 
-
+> Hey! I can reproduce this:
 >
->>  #else
->>  #define HPAGE_SHIFT PAGE_SHIFT
->>  #endif
->> diff --git a/arch/powerpc/include/asm/pgtable-ppc64-64k.h b/arch/powerpc/include/asm/pgtable-ppc64-64k.h
->> index 45142d6..a56b82f 100644
->> --- a/arch/powerpc/include/asm/pgtable-ppc64-64k.h
->> +++ b/arch/powerpc/include/asm/pgtable-ppc64-64k.h
->> @@ -33,7 +33,8 @@
->>  #define PGDIR_MASK	(~(PGDIR_SIZE-1))
->>  
->>  /* Bits to mask out from a PMD to get to the PTE page */
->> -#define PMD_MASKED_BITS		0x1ff
->> +/* PMDs point to PTE table fragments which are 4K aligned.  */
->> +#define PMD_MASKED_BITS		0xfff
+> Node 0, zone    DMA32
+>      nr_inactive_anon 1
+>      nr_active_anon 2368
+>      nr_inactive_file 373642
+>      nr_active_file 375462
+>      nr_dirtied   2887369
+>      nr_written   2887291
+>    inactive_ratio:    5
+>    avg_age_inactive_anon: 64942528
+>    avg_age_active_anon:   64942528
+>    avg_age_inactive_file: 389824
+>    avg_age_active_file:   1330368
+> Node 0, zone   Normal
+>      nr_inactive_anon 376
+>      nr_active_anon 17768
+>      nr_inactive_file 534695
+>      nr_active_file 533685
+>      nr_dirtied   12071397
+>      nr_written   11940007
+>    inactive_ratio:    6
+>    avg_age_inactive_anon: 65064192
+>    avg_age_active_anon:   65064192
+>    avg_age_inactive_file: 28074
+>    avg_age_active_file:   1304800
 >
-> Hrm.  AFAICT this is related to the change in size of PTE tables, and
-> hence the page sharing stuff, so this belongs in the patch which
-> implements that, rather than the THP support itself.
+> I'm just copying huge files from one disk to another by rsync.
 >
-
-fixed
-
->>  /* Bits to mask out from a PGD/PUD to get to the PMD page */
->>  #define PUD_MASKED_BITS		0x1ff
->>  
->> diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
->> index ab84332..20133c1 100644
->> --- a/arch/powerpc/include/asm/pgtable-ppc64.h
->> +++ b/arch/powerpc/include/asm/pgtable-ppc64.h
->> @@ -154,7 +154,7 @@
->>  #define	pmd_present(pmd)	(pmd_val(pmd) != 0)
->>  #define	pmd_clear(pmdp)		(pmd_val(*(pmdp)) = 0)
->>  #define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
->> -#define pmd_page(pmd)		virt_to_page(pmd_page_vaddr(pmd))
->> +extern struct page *pmd_page(pmd_t pmd);
->>  
->>  #define pud_set(pudp, pudval)	(pud_val(*(pudp)) = (pudval))
->>  #define pud_none(pud)		(!pud_val(pud))
->> @@ -382,4 +382,261 @@ static inline pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea,
->>  
->>  #endif /* __ASSEMBLY__ */
->>  
->> +#ifndef _PAGE_SPLITTING
->> +/*
->> + * THP pages can't be special. So use the _PAGE_SPECIAL
->> + */
->> +#define _PAGE_SPLITTING _PAGE_SPECIAL
->> +#endif
->> +
->> +#ifndef _PAGE_THP_HUGE
->> +/*
->> + * We need to differentiate between explicit huge page and THP huge
->> + * page, since THP huge page also need to track real subpage details
->> + * We use the _PAGE_COMBO bits here as dummy for platform that doesn't
->> + * support THP.
->> + */
->> +#define _PAGE_THP_HUGE  0x10000000
->
-> So if it's _PAGE_COMBO, use _PAGE_COMBO, instead of the actual number.
->
-
-We define _PAGE_THP_HUGE value in pte-hash64-64k.h. Now the functions
-below which depends on _PAGE_THP_HUGE are in pgtable-ppc64.h. The above
-#define takes care of compile errors on subarch that doesn't include
-pte-hash64-64k.h We really won't be using these functions at run time,
-because we will not find a transparent huge page on those subarchs.
-
-
-
->> +#endif
->> +
->> +/*
->> + * PTE flags to conserve for HPTE identification for THP page.
->> + */
->> +#ifndef _PAGE_THP_HPTEFLAGS
->> +#define _PAGE_THP_HPTEFLAGS	(_PAGE_BUSY | _PAGE_HASHPTE)
->
-> You have this definition both here and in pte-hash64-64k.h.  More
-> importantly including _PAGE_BUSY seems like an extremely bad idea -
-> did you mean _PAGE_THP_HUGE == _PAGE_COMBO?
->
-
-We have the same defition for _PAGE_HPTEFLAGS. But since i moved
-_PAGE_THP_HUGE to _PAGE_4K_PFN in the new series, I will be dropping
-this. 
-
->> +#endif
->> +
->> +#define HUGE_PAGE_SIZE		(ASM_CONST(1) << 24)
->> +#define HUGE_PAGE_MASK		(~(HUGE_PAGE_SIZE - 1))
->
-> These constants should be named so its clear they're THP specific.
-> They should also be defined in terms of PMD_SHIFT, instead of
-> directly.
->
-
-I was not able to use HPAGE_PMD_SIZE because we have that BUILD_BUG_ON
-when THP is not enabled. I will switch them to PMD_SIZE and PMD_MASK ?
-
-
->> +/*
->> + * set of bits not changed in pmd_modify.
->> + */
->> +#define _HPAGE_CHG_MASK (PTE_RPN_MASK | _PAGE_THP_HPTEFLAGS | \
->> +			 _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_THP_HUGE)
->> +
->> +#ifndef __ASSEMBLY__
->> +extern void hpte_need_hugepage_flush(struct mm_struct *mm, unsigned long addr,
->> +				     pmd_t *pmdp);
->
-> This should maybe be called "hpge_do_hugepage_flush()".  The current
-> name suggests it returns a boolean, rather than performing the actual
-> flush.
+> In /proc/vmstat pgsteal_kswapd_normal and pgscan_kswapd_normal are
+> rising rapidly,
+> other pgscan_* pgsteal_* are standing still. So, bug is somewhere in the
+> kswapd.
 >
 
-done
+Not necessarily, because processes also do a direct reclaim. Also, if 
+you continued the copying, I bet you would see that DMA32 zone also gets 
+to play. Just a bit later.
 
+I can now see that effect nicely on the graphs I prepared. Attached is 
+one from the desktop. Where the red line suddenly drops, I copied 2GB 
+file from the network to the machine. Half an hour later I copied 
+another 1.6GB file. That's when the blue line dropped. Though, it all 
+makes sense, about 3GB of I/O was needed to expunge all old inactive 
+pages from both zones, the first 2GB wasn't enough to push old pages 
+from the DMA32 zone.
 
->> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> +extern pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot);
->> +extern pmd_t mk_pmd(struct page *page, pgprot_t pgprot);
->> +extern pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot);
->> +extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
->> +		       pmd_t *pmdp, pmd_t pmd);
->> +extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
->> +				 pmd_t *pmd);
->> +
->> +static inline int pmd_trans_huge(pmd_t pmd)
->> +{
->> +	/*
->> +	 * leaf pte for huge page, bottom two bits != 00
->> +	 */
->> +	return (pmd_val(pmd) & 0x3) && (pmd_val(pmd) & _PAGE_THP_HUGE);
->> +}
->> +
->> +static inline int pmd_large(pmd_t pmd)
->> +{
->> +	/*
->> +	 * leaf pte for huge page, bottom two bits != 00
->> +	 */
->> +	if (pmd_trans_huge(pmd))
->> +		return pmd_val(pmd) & _PAGE_PRESENT;
->> +	return 0;
->> +}
->> +
->> +static inline int pmd_trans_splitting(pmd_t pmd)
->> +{
->> +	if (pmd_trans_huge(pmd))
->> +		return pmd_val(pmd) & _PAGE_SPLITTING;
->> +	return 0;
->> +}
->> +
->> +
->> +static inline unsigned long pmd_pfn(pmd_t pmd)
->> +{
->> +	/*
->> +	 * Only called for hugepage pmd
->> +	 */
->> +	return pmd_val(pmd) >> PTE_RPN_SHIFT;
->> +}
->> +
->> +/* We will enable it in the last patch */
->> +#define has_transparent_hugepage() 0
->> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->> +
->> +static inline int pmd_young(pmd_t pmd)
->> +{
->> +	return pmd_val(pmd) & _PAGE_ACCESSED;
->> +}
->
-> It would be clearer to define this function as well as various others
-> that operate on PMDs as PTEs to just cast the parameter and call the
-> corresponding pte_XXX(),
+I'm of the opinion that your instrumentation will be of use only when 
+there's a constant reclaim goin' on. Otherwise pages stay in memory for 
+a long long time, and then it doesn't matter much if it's one hour or 
+two hours before some of them are reclaimed. For the same reason I will 
+limit graphs like these to some useful value, so to get precision for 
+the important time periods when the reclaim is really active.
+-- 
+Zlatko
 
-I did what tile arch is done. How about 
+--------------090204050809060404080601
+Content-Type: image/png;
+ name="memage-hourly.png"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename="memage-hourly.png"
 
-+#define pmd_pte(pmd)		(pmd)
-+#define pte_pmd(pte)		(pte)
-+#define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
-+#define pmd_young(pmd)		pte_young(pmd_pte(pmd))
-+#define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
-+#define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
-+#define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
-+#define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
-+#define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
- 
-
->
->> +
->> +static inline pmd_t pmd_mkhuge(pmd_t pmd)
->> +{
->> +	/* Do nothing, mk_pmd() does this part.  */
->> +	return pmd;
->> +}
->> +
->> +#define __HAVE_ARCH_PMD_WRITE
->> +static inline int pmd_write(pmd_t pmd)
->> +{
->> +	return pmd_val(pmd) & _PAGE_RW;
->> +}
->> +
->> +static inline pmd_t pmd_mkold(pmd_t pmd)
->> +{
->> +	pmd_val(pmd) &= ~_PAGE_ACCESSED;
->> +	return pmd;
->> +}
->> +
->> +static inline pmd_t pmd_wrprotect(pmd_t pmd)
->> +{
->> +	pmd_val(pmd) &= ~_PAGE_RW;
->> +	return pmd;
->> +}
->> +
->> +static inline pmd_t pmd_mkdirty(pmd_t pmd)
->> +{
->> +	pmd_val(pmd) |= _PAGE_DIRTY;
->> +	return pmd;
->> +}
->> +
->> +static inline pmd_t pmd_mkyoung(pmd_t pmd)
->> +{
->> +	pmd_val(pmd) |= _PAGE_ACCESSED;
->> +	return pmd;
->> +}
->> +
->> +static inline pmd_t pmd_mkwrite(pmd_t pmd)
->> +{
->> +	pmd_val(pmd) |= _PAGE_RW;
->> +	return pmd;
->> +}
->> +
->> +static inline pmd_t pmd_mknotpresent(pmd_t pmd)
->> +{
->> +	pmd_val(pmd) &= ~_PAGE_PRESENT;
->> +	return pmd;
->> +}
->> +
->> +static inline pmd_t pmd_mksplitting(pmd_t pmd)
->> +{
->> +	pmd_val(pmd) |= _PAGE_SPLITTING;
->> +	return pmd;
->> +}
->> +
->> +/*
->> + * Set the dirty and/or accessed bits atomically in a linux hugepage PMD, this
->> + * function doesn't need to flush the hash entry
->> + */
->> +static inline void __pmdp_set_access_flags(pmd_t *pmdp, pmd_t entry)
->> +{
->> +	unsigned long bits = pmd_val(entry) & (_PAGE_DIRTY |
->> +					       _PAGE_ACCESSED |
->> +					       _PAGE_RW | _PAGE_EXEC);
->> +#ifdef PTE_ATOMIC_UPDATES
->> +	unsigned long old, tmp;
->> +
->> +	__asm__ __volatile__(
->> +	"1:	ldarx	%0,0,%4\n\
->> +		andi.	%1,%0,%6\n\
->> +		bne-	1b \n\
->> +		or	%0,%3,%0\n\
->> +		stdcx.	%0,0,%4\n\
->> +		bne-	1b"
->> +	:"=&r" (old), "=&r" (tmp), "=m" (*pmdp)
->> +	:"r" (bits), "r" (pmdp), "m" (*pmdp), "i" (_PAGE_BUSY)
->> +	:"cc");
->> +#else
->> +	unsigned long old = pmd_val(*pmdp);
->> +	*pmdp = __pmd(old | bits);
->> +#endif
->
-> Using parameter casts on the corresponding pte_update() function would
-> be even more valuable for these more complex functions with asm.
-
-
-We may want to retain some of these because of the assert we want to add
-for locking. PTE related functions expect ptl to be locked. PMD related
-functions expect mm->page_table_lock to be locked.
-
->
->> +}
->> +
->> +#define __HAVE_ARCH_PMD_SAME
->> +static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
->> +{
->> +	return (((pmd_val(pmd_a) ^ pmd_val(pmd_b)) & ~_PAGE_THP_HPTEFLAGS) == 0);
->
-> Here, specifically, the fact that PAGE_BUSY is in PAGE_THP_HPTEFLAGS
-> is likely to be bad.  If the page is busy, it's in the middle of
-> update so can't stably be considered the same as anything.
->
-
-
-pte_same have the above definition. We use _PAGE_BUSY to indicate that
-we are using the entry to satisfy a hpte hash insert. That is used to
-prevent a parallel update. So why should pmd_same consider the
-_PAGE_BUSY ? 
-
-
->> +}
->> +
->> +#define __HAVE_ARCH_PMDP_SET_ACCESS_FLAGS
->> +extern int pmdp_set_access_flags(struct vm_area_struct *vma,
->> +				 unsigned long address, pmd_t *pmdp,
->> +				 pmd_t entry, int dirty);
->> +
->> +static inline unsigned long pmd_hugepage_update(struct mm_struct *mm,
->> +						unsigned long addr,
->> +						pmd_t *pmdp, unsigned long clr)
->> +{
->> +#ifdef PTE_ATOMIC_UPDATES
->> +	unsigned long old, tmp;
->> +
->> +	__asm__ __volatile__(
->> +	"1:	ldarx	%0,0,%3\n\
->> +		andi.	%1,%0,%6\n\
->> +		bne-	1b \n\
->> +		andc	%1,%0,%4 \n\
->> +		stdcx.	%1,0,%3 \n\
->> +		bne-	1b"
->> +	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
->> +	: "r" (pmdp), "r" (clr), "m" (*pmdp), "i" (_PAGE_BUSY)
->> +	: "cc" );
->> +#else
->> +	unsigned long old = pmd_val(*pmdp);
->> +	*pmdp = __pmd(old & ~clr);
->> +#endif
->> +
->> +#ifdef CONFIG_PPC_STD_MMU_64
->
-> THP only works with the standard hash MMU, so this #if seems a bit
-> pointless.
-
-done
-
-
->
->> +	if (old & _PAGE_HASHPTE)
->> +		hpte_need_hugepage_flush(mm, addr, pmdp);
->> +#endif
->> +	return old;
->> +}
->> +
->> +static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
->> +					      unsigned long addr, pmd_t *pmdp)
->> +{
->> +	unsigned long old;
->> +
->> +	if ((pmd_val(*pmdp) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
->> +		return 0;
->> +	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED);
->> +	return ((old & _PAGE_ACCESSED) != 0);
->> +}
->> +
->> +#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
->> +extern int pmdp_test_and_clear_young(struct vm_area_struct *vma,
->> +				     unsigned long address, pmd_t *pmdp);
->> +#define __HAVE_ARCH_PMDP_CLEAR_YOUNG_FLUSH
->> +extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
->> +				  unsigned long address, pmd_t *pmdp);
->> +
->> +#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
->> +extern pmd_t pmdp_get_and_clear(struct mm_struct *mm,
->> +				unsigned long addr, pmd_t *pmdp);
->> +
->> +#define __HAVE_ARCH_PMDP_SET_WRPROTECT
->
-> Now that the PTE format is the same at bottom or PMD level, do you
-> still need this?
-
-Some of them we can drop. Others we need to, because we want to have
-different asserts as i explained above.  For example below wrprotect we
-want to call pmd_hugepage_update. 
-
->
->> +static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
->> +				      pmd_t *pmdp)
->> +{
->> +
->> +	if ((pmd_val(*pmdp) & _PAGE_RW) == 0)
->> +		return;
->> +
->> +	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW);
->> +}
->> +
->> +#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
->> +extern void pmdp_splitting_flush(struct vm_area_struct *vma,
->> +				 unsigned long address, pmd_t *pmdp);
->> +
->> +#define __HAVE_ARCH_PGTABLE_DEPOSIT
->> +extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
->> +				       pgtable_t pgtable);
->> +#define __HAVE_ARCH_PGTABLE_WITHDRAW
->> +extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
->> +
->> +#define __HAVE_ARCH_PMDP_INVALIDATE
->> +extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
->> +			    pmd_t *pmdp);
->> +#endif /* __ASSEMBLY__ */
->>  #endif /* _ASM_POWERPC_PGTABLE_PPC64_H_ */
->> diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
->> index 7aeb955..283198e 100644
->> --- a/arch/powerpc/include/asm/pgtable.h
->> +++ b/arch/powerpc/include/asm/pgtable.h
->> @@ -222,5 +222,10 @@ extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
->>  		       unsigned long end, int write, struct page **pages, int *nr);
->>  #endif /* __ASSEMBLY__ */
->>  
->> +#ifndef CONFIG_TRANSPARENT_HUGEPAGE
->> +#define pmd_large(pmd)		0
->> +#define has_transparent_hugepage() 0
->> +#endif
->> +
->>  #endif /* __KERNEL__ */
->>  #endif /* _ASM_POWERPC_PGTABLE_H */
->> diff --git a/arch/powerpc/include/asm/pte-hash64-64k.h b/arch/powerpc/include/asm/pte-hash64-64k.h
->> index 3e13e23..6be70be 100644
->> --- a/arch/powerpc/include/asm/pte-hash64-64k.h
->> +++ b/arch/powerpc/include/asm/pte-hash64-64k.h
->> @@ -38,6 +38,23 @@
->>   */
->>  #define PTE_RPN_SHIFT	(30)
->>  
->> +/*
->> + * THP pages can't be special. So use the _PAGE_SPECIAL
->> + */
->> +#define _PAGE_SPLITTING _PAGE_SPECIAL
->> +
->> +/*
->> + * PTE flags to conserve for HPTE identification for THP page.
->> + * We drop _PAGE_COMBO here, because we overload that with _PAGE_TH_HUGE.
->> + */
->> +#define _PAGE_THP_HPTEFLAGS	(_PAGE_BUSY | _PAGE_HASHPTE)
->> +
->> +/*
->> + * We need to differentiate between explicit huge page and THP huge
->> + * page, since THP huge page also need to track real subpage details
->> + */
->> +#define _PAGE_THP_HUGE  _PAGE_COMBO
->
-> All 3 of these definitions also appeared elsewhere.
-
-These are the actual values used. The pgtable-ppc64.h is to take care of
-compliation issues on arch that doesn't support THP.
-
->
->> +
->>  #ifndef __ASSEMBLY__
->>  
->>  /*
->> diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
->> index a854096..54216c1 100644
->> --- a/arch/powerpc/mm/pgtable_64.c
->> +++ b/arch/powerpc/mm/pgtable_64.c
->> @@ -338,6 +338,19 @@ EXPORT_SYMBOL(iounmap);
->>  EXPORT_SYMBOL(__iounmap);
->>  EXPORT_SYMBOL(__iounmap_at);
->>  
->> +/*
->> + * For hugepage we have pfn in the pmd, we use PTE_RPN_SHIFT bits for flags
->> + * For PTE page, we have a PTE_FRAG_SIZE (4K) aligned virtual address.
->> + */
->> +struct page *pmd_page(pmd_t pmd)
->> +{
->> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> +	if (pmd_trans_huge(pmd))
->> +		return pfn_to_page(pmd_pfn(pmd));
->
-> In this case you should be able to define this in terms of pte_pfn().
-
-We now have pmd_pfn done in term of pte_pfn. So will retain pmd_pfn 
-
->
->> +#endif
->> +	return virt_to_page(pmd_page_vaddr(pmd));
->> +}
->> +
->>  #ifdef CONFIG_PPC_64K_PAGES
->>  static pte_t *get_from_cache(struct mm_struct *mm)
->>  {
->> @@ -455,3 +468,308 @@ void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
->>  }
->>  #endif
->>  #endif /* CONFIG_PPC_64K_PAGES */
->> +
->> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> +static pmd_t set_hugepage_access_flags_filter(pmd_t pmd,
->> +					      struct vm_area_struct *vma,
->> +					      int dirty)
->> +{
->> +	return pmd;
->> +}
->
-> This identity function is only used immediately before.  Why does it
-> exist?
->
-
-removed
-
->> +/*
->> + * This is called when relaxing access to a hugepage. It's also called in the page
->> + * fault path when we don't hit any of the major fault cases, ie, a minor
->> + * update of _PAGE_ACCESSED, _PAGE_DIRTY, etc... The generic code will have
->> + * handled those two for us, we additionally deal with missing execute
->> + * permission here on some processors
->> + */
->> +int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
->> +			  pmd_t *pmdp, pmd_t entry, int dirty)
->> +{
->> +	int changed;
->> +	entry = set_hugepage_access_flags_filter(entry, vma, dirty);
->> +	changed = !pmd_same(*(pmdp), entry);
->> +	if (changed) {
->> +		__pmdp_set_access_flags(pmdp, entry);
->> +		/*
->> +		 * Since we are not supporting SW TLB systems, we don't
->> +		 * have any thing similar to flush_tlb_page_nohash()
->> +		 */
->> +	}
->> +	return changed;
->> +}
->> +
->> +int pmdp_test_and_clear_young(struct vm_area_struct *vma,
->> +			      unsigned long address, pmd_t *pmdp)
->> +{
->> +	return __pmdp_test_and_clear_young(vma->vm_mm, address, pmdp);
->> +}
->> +
->> +/*
->> + * We currently remove entries from the hashtable regardless of whether
->> + * the entry was young or dirty. The generic routines only flush if the
->> + * entry was young or dirty which is not good enough.
->> + *
->> + * We should be more intelligent about this but for the moment we override
->> + * these functions and force a tlb flush unconditionally
->> + */
->> +int pmdp_clear_flush_young(struct vm_area_struct *vma,
->> +				  unsigned long address, pmd_t *pmdp)
->> +{
->> +	return __pmdp_test_and_clear_young(vma->vm_mm, address, pmdp);
->> +}
->> +
->> +/*
->> + * We mark the pmd splitting and invalidate all the hpte
->> + * entries for this hugepage.
->> + */
->> +void pmdp_splitting_flush(struct vm_area_struct *vma,
->> +			  unsigned long address, pmd_t *pmdp)
->> +{
->> +	unsigned long old, tmp;
->> +
->> +	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
->> +#ifdef PTE_ATOMIC_UPDATES
->> +
->> +	__asm__ __volatile__(
->> +	"1:	ldarx	%0,0,%3\n\
->> +		andi.	%1,%0,%6\n\
->> +		bne-	1b \n\
->> +		ori	%1,%0,%4 \n\
->> +		stdcx.	%1,0,%3 \n\
->> +		bne-	1b"
->> +	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
->> +	: "r" (pmdp), "i" (_PAGE_SPLITTING), "m" (*pmdp), "i" (_PAGE_BUSY)
->> +	: "cc" );
->> +#else
->> +	old = pmd_val(*pmdp);
->> +	*pmdp = __pmd(old | _PAGE_SPLITTING);
->> +#endif
->> +	/*
->> +	 * If we didn't had the splitting flag set, go and flush the
->> +	 * HPTE entries and serialize against gup fast.
->> +	 */
->> +	if (!(old & _PAGE_SPLITTING)) {
->> +#ifdef CONFIG_PPC_STD_MMU_64
->> +		/* We need to flush the hpte */
->> +		if (old & _PAGE_HASHPTE)
->> +			hpte_need_hugepage_flush(vma->vm_mm, address, pmdp);
->> +#endif
->> +		/* need tlb flush only to serialize against gup-fast */
->> +		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
->> +	}
->> +}
->> +
->> +/*
->> + * We want to put the pgtable in pmd and use pgtable for tracking
->> + * the base page size hptes
->> + */
->> +void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
->> +				pgtable_t pgtable)
->> +{
->> +	unsigned long *pgtable_slot;
->> +	assert_spin_locked(&mm->page_table_lock);
->> +	/*
->> +	 * we store the pgtable in the second half of PMD
->> +	 */
->> +	pgtable_slot = pmdp + PTRS_PER_PMD;
->> +	*pgtable_slot = (unsigned long)pgtable;
->
-> Why not just make pgtable_slot have type (pgtable_t *) and avoid the
-> case.
->
-
-done. But we would have cast in the above line. 
-
-
->> +}
->> +
->> +pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
->> +{
->> +	pgtable_t pgtable;
->> +	unsigned long *pgtable_slot;
->> +
->> +	assert_spin_locked(&mm->page_table_lock);
->> +	pgtable_slot = pmdp + PTRS_PER_PMD;
->> +	pgtable = (pgtable_t) *pgtable_slot;
->> +	/*
->> +	 * We store HPTE information in the deposited PTE fragment.
->> +	 * zero out the content on withdraw.
->> +	 */
->> +	memset(pgtable, 0, PTE_FRAG_SIZE);
->> +	return pgtable;
->> +}
->> +
->> +/*
->> + * Since we are looking at latest ppc64, we don't need to worry about
->> + * i/d cache coherency on exec fault
->> + */
->> +static pmd_t set_pmd_filter(pmd_t pmd, unsigned long addr)
->> +{
->> +	pmd = __pmd(pmd_val(pmd) & ~_PAGE_THP_HPTEFLAGS);
->> +	return pmd;
->> +}
->> +
->> +/*
->> + * We can make it less convoluted than __set_pte_at, because
->> + * we can ignore lot of hardware here, because this is only for
->> + * MPSS
->> + */
->> +static inline void __set_pmd_at(struct mm_struct *mm, unsigned long addr,
->> +				pmd_t *pmdp, pmd_t pmd, int percpu)
->> +{
->> +	/*
->> +	 * There is nothing in hash page table now, so nothing to
->> +	 * invalidate, set_pte_at is used for adding new entry.
->> +	 * For updating we should use update_hugepage_pmd()
->> +	 */
->> +	*pmdp = pmd;
->> +}
->
-> Again you should be able to define this in terms of the set_pte_at()
-> functions.
->
-
-done 
-
-
->> +/*
->> + * set a new huge pmd. We should not be called for updating
->> + * an existing pmd entry. That should go via pmd_hugepage_update.
->> + */
->> +void set_pmd_at(struct mm_struct *mm, unsigned long addr,
->> +		pmd_t *pmdp, pmd_t pmd)
->> +{
->> +	/*
->> +	 * Note: mm->context.id might not yet have been assigned as
->> +	 * this context might not have been activated yet when this
->> +	 * is called.
->
-> And the relevance of this comment here is...?
->
->> +	 */
->> +	pmd = set_pmd_filter(pmd, addr);
->> +
->> +	__set_pmd_at(mm, addr, pmdp, pmd, 0);
->> +
->> +}
->> +
->> +void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
->> +		     pmd_t *pmdp)
->> +{
->> +	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT);
->> +	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
->> +}
->> +
->> +/*
->> + * A linux hugepage PMD was changed and the corresponding hash table entries
->> + * neesd to be flushed.
->> + *
->> + * The linux hugepage PMD now include the pmd entries followed by the address
->> + * to the stashed pgtable_t. The stashed pgtable_t contains the hpte bits.
->> + * [ secondary group | 3 bit hidx | valid ]. We use one byte per each HPTE entry.
->> + * With 16MB hugepage and 64K HPTE we need 256 entries and with 4K HPTE we need
->> + * 4096 entries. Both will fit in a 4K pgtable_t.
->> + */
->> +void hpte_need_hugepage_flush(struct mm_struct *mm, unsigned long addr,
->> +			      pmd_t *pmdp)
->> +{
->> +	int ssize, i;
->> +	unsigned long s_addr;
->> +	unsigned int psize, valid;
->> +	unsigned char *hpte_slot_array;
->> +	unsigned long hidx, vpn, vsid, hash, shift, slot;
->> +
->> +	/*
->> +	 * Flush all the hptes mapping this hugepage
->> +	 */
->> +	s_addr = addr & HUGE_PAGE_MASK;
->> +	/*
->> +	 * The hpte hindex are stored in the pgtable whose address is in the
->> +	 * second half of the PMD
->> +	 */
->> +	hpte_slot_array = *(char **)(pmdp + PTRS_PER_PMD);
->> +
->> +	/* get the base page size */
->> +	psize = get_slice_psize(mm, s_addr);
->> +	shift = mmu_psize_defs[psize].shift;
->> +
->> +	for (i = 0; i < (HUGE_PAGE_SIZE >> shift); i++) {
->> +		/*
->> +		 * 8 bits per each hpte entries
->> +		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
->> +		 */
->> +		valid = hpte_slot_array[i] & 0x1;
->> +		if (!valid)
->> +			continue;
->> +		hidx =  hpte_slot_array[i]  >> 1;
->> +
->> +		/* get the vpn */
->> +		addr = s_addr + (i * (1ul << shift));
->> +		if (!is_kernel_addr(addr)) {
->> +			ssize = user_segment_size(addr);
->> +			vsid = get_vsid(mm->context.id, addr, ssize);
->> +			WARN_ON(vsid == 0);
->> +		} else {
->> +			vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
->> +			ssize = mmu_kernel_ssize;
->> +		}
->> +
->> +		vpn = hpt_vpn(addr, vsid, ssize);
->> +		hash = hpt_hash(vpn, shift, ssize);
->> +		if (hidx & _PTEIDX_SECONDARY)
->> +			hash = ~hash;
->> +
->> +		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
->> +		slot += hidx & _PTEIDX_GROUP_IX;
->> +		ppc_md.hpte_invalidate(slot, vpn, psize, ssize, 0);
->> +	}
->> +}
->> +
->> +static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
->> +{
->> +	pmd_val(pmd) |= pgprot_val(pgprot);
->> +	return pmd;
->> +}
->> +
->> +pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
->> +{
->> +	pmd_t pmd;
->> +	/*
->> +	 * For a valid pte, we would have _PAGE_PRESENT or _PAGE_FILE always
->> +	 * set. We use this to check THP page at pmd level.
->> +	 * leaf pte for huge page, bottom two bits != 00
->> +	 */
->> +	pmd_val(pmd) = pfn << PTE_RPN_SHIFT;
->> +	pmd_val(pmd) |= _PAGE_THP_HUGE;
->> +	pmd = pmd_set_protbits(pmd, pgprot);
->> +	return pmd;
->> +}
->> +
->> +pmd_t mk_pmd(struct page *page, pgprot_t pgprot)
->> +{
->> +	return pfn_pmd(page_to_pfn(page), pgprot);
->> +}
->> +
->> +pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
->> +{
->> +
->> +	pmd_val(pmd) &= _HPAGE_CHG_MASK;
->> +	pmd = pmd_set_protbits(pmd, newprot);
->> +	return pmd;
->> +}
->> +
->> +/*
->> + * This is called at the end of handling a user page fault, when the
->> + * fault has been handled by updating a HUGE PMD entry in the linux page tables.
->> + * We use it to preload an HPTE into the hash table corresponding to
->> + * the updated linux HUGE PMD entry.
->> + */
->> +void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
->> +			  pmd_t *pmd)
->> +{
->> +	return;
->> +}
->> +
->> +#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->> +
->> +pmd_t pmdp_get_and_clear(struct mm_struct *mm,
->> +			 unsigned long addr, pmd_t *pmdp)
->> +{
->> +	pmd_t old_pmd;
->> +	unsigned long old;
->> +	/*
->> +	 * khugepaged calls this for normal pmd also
->> +	 */
->> +	if (pmd_trans_huge(*pmdp)) {
->> +		old = pmd_hugepage_update(mm, addr, pmdp, ~0UL);
->> +		old_pmd = __pmd(old);
->> +	} else {
->> +		old_pmd = *pmdp;
->> +		pmd_clear(pmdp);
->> +	}
->> +	return old_pmd;
->> +}
->> diff --git a/arch/powerpc/platforms/Kconfig.cputype b/arch/powerpc/platforms/Kconfig.cputype
->> index 18e3b76..a526144 100644
->> --- a/arch/powerpc/platforms/Kconfig.cputype
->> +++ b/arch/powerpc/platforms/Kconfig.cputype
->> @@ -71,6 +71,7 @@ config PPC_BOOK3S_64
->>  	select PPC_FPU
->>  	select PPC_HAVE_PMU_SUPPORT
->>  	select SYS_SUPPORTS_HUGETLBFS
->> +	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if PPC_64K_PAGES
->>  
->>  config PPC_BOOK3E_64
->>  	bool "Embedded processors"
->
-
--aneesh
+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
+AABJRU5ErkJggg==
+--------------090204050809060404080601--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
