@@ -1,76 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 74A606B00EC
-	for <linux-mm@kvack.org>; Mon,  6 May 2013 15:08:23 -0400 (EDT)
-Date: Mon, 6 May 2013 15:08:02 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH RFC] mm: lru milestones, timestamps and ages
-Message-ID: <20130506190802.GA16474@cmpxchg.org>
-References: <20130430110214.22179.26139.stgit@zurg>
- <5183C49D.1010000@bitsync.net>
- <5184F6C9.4060506@openvz.org>
- <5185069A.1080306@openvz.org>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 182A46B00EC
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 15:38:38 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH 2/2 v2, RFC] Driver core: Introduce offline/online callbacks for memory blocks
+Date: Mon, 06 May 2013 21:46:59 +0200
+Message-ID: <7557979.vTGLb3exlI@vostro.rjw.lan>
+In-Reply-To: <20130506172044.GA13974@kroah.com>
+References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <19540491.PRsM4lKIYM@vostro.rjw.lan> <20130506172044.GA13974@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5185069A.1080306@openvz.org>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: Zlatko Calusic <zcalusic@bitsync.net>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
 
-Mel: we talked about this issue below in SFO, apparently I'm not the
-only one who noticed :-)
-
-Rik: a fix for the problem below is crucial for the refault
-distance-based page cache sizing.  The unequal LRU aging is a problem
-in itself, but it's compounded when we use the skewed non-resident
-times to base reclaim decisions on
-
-On Sat, May 04, 2013 at 05:01:14PM +0400, Konstantin Khlebnikov wrote:
-> Hey! I can reproduce this:
+On Monday, May 06, 2013 10:20:44 AM Greg Kroah-Hartman wrote:
+> On Sat, May 04, 2013 at 01:21:16PM +0200, Rafael J. Wysocki wrote:
+> > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> > 
+> > Introduce .offline() and .online() callbacks for memory_subsys
+> > that will allow the generic device_offline() and device_online()
+> > to be used with device objects representing memory blocks.  That,
+> > in turn, allows the ACPI subsystem to use device_offline() to put
+> > removable memory blocks offline, if possible, before removing
+> > memory modules holding them.
+> > 
+> > The 'online' sysfs attribute of memory block devices will attempt to
+> > put them offline if 0 is written to it and will attempt to apply the
+> > previously used online type when onlining them (i.e. when 1 is
+> > written to it).
+> > 
+> > Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> > ---
+> >  drivers/base/memory.c  |  105 +++++++++++++++++++++++++++++++++++++------------
+> >  include/linux/memory.h |    1 
+> >  2 files changed, 81 insertions(+), 25 deletions(-)
 > 
-> Node 0, zone    DMA32
->     nr_inactive_anon 1
->     nr_active_anon 2368
->     nr_inactive_file 373642
->     nr_active_file 375462
->     nr_dirtied   2887369
->     nr_written   2887291
->   inactive_ratio:    5
->   avg_age_inactive_anon: 64942528
->   avg_age_active_anon:   64942528
->   avg_age_inactive_file: 389824
->   avg_age_active_file:   1330368
-> Node 0, zone   Normal
->     nr_inactive_anon 376
->     nr_active_anon 17768
->     nr_inactive_file 534695
->     nr_active_file 533685
->     nr_dirtied   12071397
->     nr_written   11940007
->   inactive_ratio:    6
->   avg_age_inactive_anon: 65064192
->   avg_age_active_anon:   65064192
->   avg_age_inactive_file: 28074
->   avg_age_active_file:   1304800
-> 
-> I'm just copying huge files from one disk to another by rsync.
-> 
-> In /proc/vmstat pgsteal_kswapd_normal and pgscan_kswapd_normal are rising rapidly,
-> other pgscan_* pgsteal_* are standing still. So, bug is somewhere in the kswapd.
+> Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-There is a window where a steady stream of allocations and kswapd
-cooperate in perfect unison and keep the Normal zone always between
-the low and high watermarks.  Kswapd does not stop until the high
-watermark is met, the allocator does not go to lower zones until the
-low watermark is breached.  As a result, most allocations happen in
-the Normal zone.
-
-I'm playing around with a round-robin scheme on the page allocator
-side to spread out file pages more evenly, but I'm torn on whether the
-fix should actually be on the kswapd side, to enforce reclaim instead
-of allocation more evenly.  Thoughts?
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
