@@ -1,150 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 384736B0111
-	for <linux-mm@kvack.org>; Mon,  6 May 2013 06:39:55 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH 0/2 v2, RFC] Driver core: Add offline/online callbacks for memory_subsys
-Date: Mon, 06 May 2013 12:48:14 +0200
-Message-ID: <1573930.mCD9JKX0Q1@vostro.rjw.lan>
-In-Reply-To: <2376818.CRj1BTLk0Y@vostro.rjw.lan>
-References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <1583356.7oqZ7gBy2q@vostro.rjw.lan> <2376818.CRj1BTLk0Y@vostro.rjw.lan>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 5E7256B0069
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 12:28:17 -0400 (EDT)
+Received: by mail-bk0-f49.google.com with SMTP id e19so1698729bku.36
+        for <linux-mm@kvack.org>; Mon, 06 May 2013 09:28:15 -0700 (PDT)
+Date: Mon, 6 May 2013 18:28:12 +0200
+From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Subject: Re: [PATCH 2/2 v2, RFC] Driver core: Introduce offline/online
+ callbacks for memory blocks
+Message-ID: <20130506162812.GB4929@dhcp-192-168-178-175.profitbricks.localdomain>
+References: <1576321.HU0tZ4cGWk@vostro.rjw.lan>
+ <1583356.7oqZ7gBy2q@vostro.rjw.lan>
+ <2376818.CRj1BTLk0Y@vostro.rjw.lan>
+ <19540491.PRsM4lKIYM@vostro.rjw.lan>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <19540491.PRsM4lKIYM@vostro.rjw.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
 
-On Saturday, May 04, 2013 01:11:21 PM Rafael J. Wysocki wrote:
-> Hi,
-> 
-> On Saturday, May 04, 2013 03:01:23 AM Rafael J. Wysocki wrote:
-> > Hi,
-> > 
-> > This is a continuation of this patchset: https://lkml.org/lkml/2013/5/2/214
-> > and it applies on top of it or rather on top of the rebased version (with
-> > build problems fixed) in the bleeding-edge branch of the linux-pm.git tree:
-> > 
-> > http://git.kernel.org/cgit/linux/kernel/git/rafael/linux-pm.git/log/?h=bleeding-edge
-> > 
-> > An introduction to the first part of the patchset is below, a description of
-> > the current patches follows.
-> 
-> Actually, I'm withdrawing the previous version of this patchset (or rather
-> patches [2-3/3] from it), because I had a better idea in the meantime.
-> 
-> Patch [1/2] is the same as the previous [1/3] ->
-> 
-> > On Thursday, May 02, 2013 02:26:39 PM Rafael J. Wysocki wrote:
-> > > On Monday, April 29, 2013 02:23:59 PM Rafael J. Wysocki wrote:
-> > > > 
-> > > > It has been argued for a number of times that in some cases, if a device cannot
-> > > > be gracefully removed from the system, it shouldn't be removed from it at all,
-> > > > because that may lead to a kernel crash.  In particular, that will happen if a
-> > > > memory module holding kernel memory is removed, but also removing the last CPU
-> > > > in the system may not be a good idea.  [And I can imagine a few other cases
-> > > > like that.]
-> > > > 
-> > > > The kernel currently only supports "forced" hot-remove which cannot be stopped
-> > > > once started, so users have no choice but to try to hot-remove stuff and see
-> > > > whether or not that crashes the kernel which is kind of unpleasant.  That seems
-> > > > to be based on the "the user knows better" argument according to which users
-> > > > triggering device hot-removal should really know what they are doing, so the
-> > > > kernel doesn't have to worry about that.  However, for instance, this pretty
-> > > > much isn't the case for memory modules, because the users have no way to see
-> > > > whether or not any kernel memory has been allocated from a given module.
-> > > > 
-> > > > There have been a few attempts to address this issue, but none of them has
-> > > > gained broader acceptance.  The following 3 patches are the heart of a new
-> > > > proposal which is based on the idea to introduce device_offline() and
-> > > > device_online() operations along the lines of the existing CPU offline/online
-> > > > mechanism (or, rather, to extend the CPU offline/online so that analogous
-> > > > operations are available for other devices).  The way it is supposed to work is
-> > > > that device_offline() will fail if the given device cannot be gracefully
-> > > > removed from the system (in the kernel's view).  Once it succeeds, though, the
-> > > > device won't be used any more until either it is removed, or device_online() is
-> > > > run for it.  That will allow the ACPI device hot-remove code, for one example,
-> > > > to avoid triggering a non-reversible removal procedure for devices that cannot
-> > > > be removed gracefully.
-> > > > 
-> > > > Patch [1/3] introduces device_offline() and device_online() as outlined above.
-> > > > The .offline() and .online() callbacks are only added at the bus type level for
-> > > > now, because that should be sufficient to cover the memory and CPU use cases.
-> > > 
-> > > That's [1/4] now and the changes from the previous version are:
-> > > - strtobool() is used in store_online().
-> > > - device_offline_lock has been renamed to device_hotplug_lock (and the
-> > >   functions operating it accordingly) following the Toshi's advice.
-> > > 
-> > > > Patch [2/3] modifies the CPU hotplug support code to use device_offline() and
-> > > > device_online() to support the sysfs 'online' attribute for CPUs.
-> > > 
-> > > That is [2/4] now and it takes cpu_hotplug_driver_lock() around cpu_up() and
-> > > cpu_down().
-> > > 
-> > > > Patch [3/3] changes the ACPI device hot-remove code to use device_offline()
-> > > > for checking if graceful removal of devices is possible.  The way it does that
-> > > > is to walk the list of "physical" companion devices for each struct acpi_device
-> > > > involved in the operation and call device_offline() for each of them.  If any
-> > > > of the device_offline() calls fails (and the hot-removal is not "forced", which
-> > > > is an option), the removal procedure (which is not reversible) is simply not
-> > > > carried out.
-> > > 
-> > > That's current [3/4].  It's a bit simpler, because I decided that it would be
-> > > better to have a global 'force_remove' attribute (the semantics of the
-> > > per-profile 'force_remove' wasn't clear and it didn't really add any value over
-> > > a global one).  I also added lock/unlock_device_hotplug() around acpi_bus_scan()
-> > > in acpi_scan_bus_device_check() to allow scan handlers to update dev->offline
-> > > for "physical" companion devices safely (the processor's one added by the next
-> > > patch actually does that).
-> > > 
-> > > > Of some concern is that device_offline() (and possibly device_online()) is
-> > > > called under physical_node_lock of the corresponding struct acpi_device, which
-> > > > introduces ordering dependency between that lock and device locks for the
-> > > > "physical" devices, but I didn't see any cleaner way to do that (I guess it
-> > > > is avoidable at the expense of added complexity, but for now it's just better
-> > > > to make the code as clean as possible IMO).
-> > > 
-> > > Patch [4/4] reworks the ACPI processor driver to use the common hotplug code.
-> > > It basically splits the driver into two parts as described in the changelog,
-> > > where the first part is essentially a scan handler and the second part is
-> > > a driver, but it doesn't bind to struct acpi_device any more.  Instead, it
-> > > binds to processor devices under /sys/devices/system/cpu/ (the driver itself
-> > > has a sysfs directory under /sys/bus/cpu/drivers/ which IMHO makes more sense
-> > > than having it under /sys/bus/acpi/drivers/).
-> > > 
-> > > The patch at https://patchwork.kernel.org/patch/2506371/ is a prerequisite
-> > > for this series, but I'm going to push it for v3.10-rc2 if no one screams
-> > > bloody murder.
-> 
-> -> (this is [1/2] now):
-> 
-> > Patch [1/3] in the current series uses acpi_bind_one() to associate memory
-> > block devices with ACPI namespace objects representing memory modules that hold
-> > them.  With patch [3/3] that will allow the ACPI core's device hot-remove code
-> > to attempt to offline the memory blocks, if possible, before removing the
-> > modules holding them from the system (and if the offlining fails, the removal
-> > will not be carried out).
-> 
-> Patch [2/2] adds .online() and .offline() callbacks to memory_subsys
-> that are used by the common "online" sysfs attribute and by the ACPI core's
-> hot-remove code, through device_online() and device_offline().
-> 
-> The way it is supposed to work is that device_offline() will attempt to put
-> memory blocks offline and device_online() will online them and attempt to
-> apply the last online type previously used to them.
+Hi,
 
-I forgot to mention that patch [2/2] was (lightly) tested.  Unfortunately,
-I don't have the hardware (or an emulator) allowing me to test patch [1/2].
+On Sat, May 04, 2013 at 01:21:16PM +0200, Rafael J. Wysocki wrote:
+> From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> 
+> Introduce .offline() and .online() callbacks for memory_subsys
+> that will allow the generic device_offline() and device_online()
+> to be used with device objects representing memory blocks.  That,
+> in turn, allows the ACPI subsystem to use device_offline() to put
+> removable memory blocks offline, if possible, before removing
+> memory modules holding them.
+> 
+> The 'online' sysfs attribute of memory block devices will attempt to
+> put them offline if 0 is written to it and will attempt to apply the
+> previously used online type when onlining them (i.e. when 1 is
+> written to it).
+> 
+> Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> ---
+>  drivers/base/memory.c  |  105 +++++++++++++++++++++++++++++++++++++------------
+>  include/linux/memory.h |    1 
+>  2 files changed, 81 insertions(+), 25 deletions(-)
+>
+[...]
 
-Thanks,
-Rafael
+> @@ -686,10 +735,16 @@ int offline_memory_block(struct memory_b
+>  {
+>  	int ret = 0;
+>  
+> +	lock_device_hotplug();
+>  	mutex_lock(&mem->state_mutex);
+> -	if (mem->state != MEM_OFFLINE)
+> -		ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
+> +	if (mem->state != MEM_OFFLINE) {
+> +		ret = __memory_block_change_state_uevent(mem, MEM_OFFLINE,
+> +							 MEM_ONLINE, -1);
+> +		if (!ret)
+> +			mem->dev.offline = true;
+> +	}
+>  	mutex_unlock(&mem->state_mutex);
+> +	unlock_device_hotplug();
 
+(Testing with qemu...)
+offline_memory_block is called from remove_memory, which in turn is called from
+acpi_memory_device_remove (detach operation) during acpi_bus_trim. We already
+hold the device_hotplug lock when we trim (acpi_scan_hot_remove), so we
+don't need to lock/unlock_device_hotplug in offline_memory_block.
 
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+A more general issue is that there are now two memory offlining efforts:
+
+1) from acpi_bus_offline_companions during device offline
+2) from mm: remove_memory during device detach (offline_memory_block_cb)
+
+The 2nd is only called if the device offline operation was already succesful, so
+it seems ineffective or redundant now, at least for x86_64/acpi_memhotplug machine
+(unless the blocks were re-onlined in between).
+On the other hand, the 2nd effort has some more intelligence in offlining, as it
+tries to offline twice in the precense of memcg, see commits df3e1b91 or
+reworked 0baeab16. Maybe we need to consolidate the logic.
+
+remove_memory is called from device_detach, during trim that can't fail, so it
+should not fail. However this function can still fail in 2 cases:
+- offline_memory_block_cb
+- is_memblock_offlined_cb
+in the case of re-onlined memblocks in between device-offline and device detach.
+This seems possible I think, since we do not hold lock_memory_hotplug for the
+duration of the hot-remove operation.
+
+thanks,
+
+- Vasilis
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
