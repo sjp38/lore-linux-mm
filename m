@@ -1,97 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id D56AC6B0124
-	for <linux-mm@kvack.org>; Sun,  5 May 2013 22:24:54 -0400 (EDT)
-Message-ID: <51871520.6020703@cn.fujitsu.com>
-Date: Mon, 06 May 2013 10:27:44 +0800
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 37C996B0118
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 03:16:32 -0400 (EDT)
+Message-ID: <51875977.4090006@cn.fujitsu.com>
+Date: Mon, 06 May 2013 15:19:19 +0800
 From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 10/13] x86, acpi, numa, mem-hotplug: Introduce MEMBLK_HOTPLUGGABLE
- to mark and reserve hotpluggable memory.
-References: <1367313683-10267-1-git-send-email-tangchen@cn.fujitsu.com> <1367313683-10267-11-git-send-email-tangchen@cn.fujitsu.com> <20130503105037.GA4533@dhcp-192-168-178-175.profitbricks.localdomain>
-In-Reply-To: <20130503105037.GA4533@dhcp-192-168-178-175.profitbricks.localdomain>
+Subject: Re: [RFC/PATCH 3/5] mm: get_user_pages: use NON-MOVABLE pages when
+ FOLL_DURABLE flag is set
+References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com> <1362466679-17111-4-git-send-email-m.szyprowski@samsung.com>
+In-Reply-To: <1362466679-17111-4-git-send-email-m.szyprowski@samsung.com>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, laijs@cn.fujitsu.com, davem@davemloft.net, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-Hi Vasilis,
+Hi Marek,
 
-Sorry for the delay and thank you for reviewing and testing. :)
+It has been a long time since this patch-set was sent.
+And I'm pushing memory hot-remove works. I think I need your
+[patch3/5] to fix a problem I met.
 
-On 05/03/2013 06:50 PM, Vasilis Liaskovitis wrote:
->
-> Should we skip ranges on nodes that the kernel uses? e.g. with
->
->          if (memblock_is_kernel_node(nid))
->              continue;
+We have sent a similar patch before. But I think yours may be better. :)
+https://lkml.org/lkml/2013/2/21/126
 
-Yes. I think I forgot to call it in this patch.
-Will update in the next version.
-
->
->
-> - I am getting a "PANIC: early exception" when rebooting with movablecore=acpi
-> after hotplugging memory on node0 or node1 of a 2-node VM. The guest kernel is
-> based on
-> git://git.kernel.org/pub/scm/linux/kernel/git/yinghai/linux-yinghai.git
-> for-x86-mm (e9058baf) + these v2 patches.
->
-> This happens with or without the above memblock_is_kernel_node(nid) check.
-> Perhaps I am missing something or I need a newer "ACPI, numa: Parse numa info
-> early" patch-set?
-
-I didn't test it on a VM. But on my real box, I haven't got a panic
-when rebooting. I think I can help to test it in a VM, but would you 
-please to
-tell me how to setup a environment as yours ?
-
->
-> A general question: Disabling hot-pluggability/zone-movable eligibility for a
-> whole node sounds a bit inflexible, if the machine only has one node to begin
-> with.  Would it be possible to keep movable information per SRAT entry? I.e
-> if the BIOS presents multiple SRAT entries for one node/PXM (say node 0), and
-> there is no memblock/kernel allocation on one of these SRAT entries, could
-> we still mark this SRAT entry's range as hot-pluggable/movable?  Not sure if
-> many real machine BIOSes would do this, but seabios could.  This implies that
-> SRAT entries are processed for movable-zone eligilibity before they are merged
-> on node/PXM basis entry-granularity (I think numa_cleanup_meminfo currently does
-> this merge).
-
-Yes, this can be done. But in real usage, part of the memory in a node
-is hot-removable makes no sense, I think. We cannot remove the whole node,
-so we cannot remove a real hardware device.
-
-But in virtualization, would you please give a reason why we need this
-entry-granularity ?
-
-
-Another thinking. Assume I didn't understand your question correctly. :)
-
-Now in kernel, we can recognize a node (by PXM in SRAT), but we cannot
-recognize a memory device. Are you saying if we have this 
-entry-granularity,
-we can hotplug a single memory device in a node ? (Perhaps there are more
-than on memory device in a node.)
-
-If so, it makes sense. But I don't the kernel is able to recognize which
-device a memory range belongs to now. And I'm not sure if we can do this.
-
->
-> Of course the kernel should still have enough memory(i.e. non movable zone) to
-> boot. Can we ensure that at least certain amount of memory is non-movable, and
-> then, given more separate SRAT entries for node0 not used by kernel, treat
-> these rest entries as movable?
-
-I tried this idea before. But as HPA said, it seems no way to calculate 
-how much
-memory the kernel needs.
-https://lkml.org/lkml/2012/11/27/29
-
+So would you please update and resend your patch again ?
+Or do you have your own plan to push it ?
 
 Thanks. :)
+
+On 03/05/2013 02:57 PM, Marek Szyprowski wrote:
+> Ensure that newly allocated pages, which are faulted in in FOLL_DURABLE
+> mode comes from non-movalbe pageblocks, to workaround migration failures
+> with Contiguous Memory Allocator.
+>
+> Signed-off-by: Marek Szyprowski<m.szyprowski@samsung.com>
+> Signed-off-by: Kyungmin Park<kyungmin.park@samsung.com>
+> ---
+>   include/linux/highmem.h |   12 ++++++++++--
+>   include/linux/mm.h      |    2 ++
+>   mm/memory.c             |   24 ++++++++++++++++++------
+>   3 files changed, 30 insertions(+), 8 deletions(-)
+>
+> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+> index 7fb31da..cf0b9d8 100644
+> --- a/include/linux/highmem.h
+> +++ b/include/linux/highmem.h
+> @@ -168,7 +168,8 @@ __alloc_zeroed_user_highpage(gfp_t movableflags,
+>   #endif
+>
+>   /**
+> - * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for a VMA that the caller knows can move
+> + * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for
+> + *					a VMA that the caller knows can move
+>    * @vma: The VMA the page is to be allocated for
+>    * @vaddr: The virtual address the page will be inserted into
+>    *
+> @@ -177,11 +178,18 @@ __alloc_zeroed_user_highpage(gfp_t movableflags,
+>    */
+>   static inline struct page *
+>   alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
+> -					unsigned long vaddr)
+> +				   unsigned long vaddr)
+>   {
+>   	return __alloc_zeroed_user_highpage(__GFP_MOVABLE, vma, vaddr);
+>   }
+>
+> +static inline struct page *
+> +alloc_zeroed_user_highpage(gfp_t gfp, struct vm_area_struct *vma,
+> +			   unsigned long vaddr)
+> +{
+> +	return __alloc_zeroed_user_highpage(gfp, vma, vaddr);
+> +}
+> +
+>   static inline void clear_highpage(struct page *page)
+>   {
+>   	void *kaddr = kmap_atomic(page);
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 9806e54..c11f58f 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -165,6 +165,7 @@ extern pgprot_t protection_map[16];
+>   #define FAULT_FLAG_RETRY_NOWAIT	0x10	/* Don't drop mmap_sem and wait when retrying */
+>   #define FAULT_FLAG_KILLABLE	0x20	/* The fault task is in SIGKILL killable region */
+>   #define FAULT_FLAG_TRIED	0x40	/* second try */
+> +#define FAULT_FLAG_NO_CMA	0x80	/* don't use CMA pages */
+>
+>   /*
+>    * vm_fault is filled by the the pagefault handler and passed to the vma's
+> @@ -1633,6 +1634,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
+>   #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
+>   #define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
+>   #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
+> +#define FOLL_DURABLE	0x800	/* get the page reference for a long time */
+>
+>   typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+>   			void *data);
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 42dfd8e..2b9c2dd 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1816,6 +1816,9 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>   				int ret;
+>   				unsigned int fault_flags = 0;
+>
+> +				if (gup_flags&  FOLL_DURABLE)
+> +					fault_flags = FAULT_FLAG_NO_CMA;
+> +
+>   				/* For mlock, just skip the stack guard page. */
+>   				if (foll_flags&  FOLL_MLOCK) {
+>   					if (stack_guard_page(vma, start))
+> @@ -2495,7 +2498,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
+>    */
+>   static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>   		unsigned long address, pte_t *page_table, pmd_t *pmd,
+> -		spinlock_t *ptl, pte_t orig_pte)
+> +		spinlock_t *ptl, pte_t orig_pte, unsigned int flags)
+>   	__releases(ptl)
+>   {
+>   	struct page *old_page, *new_page = NULL;
+> @@ -2505,6 +2508,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>   	struct page *dirty_page = NULL;
+>   	unsigned long mmun_start = 0;	/* For mmu_notifiers */
+>   	unsigned long mmun_end = 0;	/* For mmu_notifiers */
+> +	gfp_t gfp = GFP_HIGHUSER_MOVABLE;
+> +
+> +	if (IS_ENABLED(CONFIG_CMA)&&  (flags&  FAULT_FLAG_NO_CMA))
+> +		gfp&= ~__GFP_MOVABLE;
+>
+>   	old_page = vm_normal_page(vma, address, orig_pte);
+>   	if (!old_page) {
+> @@ -2668,11 +2675,11 @@ gotten:
+>   		goto oom;
+>
+>   	if (is_zero_pfn(pte_pfn(orig_pte))) {
+> -		new_page = alloc_zeroed_user_highpage_movable(vma, address);
+> +		new_page = alloc_zeroed_user_highpage(gfp, vma, address);
+>   		if (!new_page)
+>   			goto oom;
+>   	} else {
+> -		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+> +		new_page = alloc_page_vma(gfp, vma, address);
+>   		if (!new_page)
+>   			goto oom;
+>   		cow_user_page(new_page, old_page, address, vma);
+> @@ -3032,7 +3039,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>   	}
+>
+>   	if (flags&  FAULT_FLAG_WRITE) {
+> -		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte);
+> +		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte, flags);
+>   		if (ret&  VM_FAULT_ERROR)
+>   			ret&= VM_FAULT_ERROR;
+>   		goto out;
+> @@ -3187,6 +3194,11 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>   	struct vm_fault vmf;
+>   	int ret;
+>   	int page_mkwrite = 0;
+> +	gfp_t gfp = GFP_HIGHUSER_MOVABLE;
+> +
+> +	if (IS_ENABLED(CONFIG_CMA)&&  (flags&  FAULT_FLAG_NO_CMA))
+> +		gfp&= ~__GFP_MOVABLE;
+> +
+>
+>   	/*
+>   	 * If we do COW later, allocate page befor taking lock_page()
+> @@ -3197,7 +3209,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>   		if (unlikely(anon_vma_prepare(vma)))
+>   			return VM_FAULT_OOM;
+>
+> -		cow_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
+> +		cow_page = alloc_page_vma(gfp, vma, address);
+>   		if (!cow_page)
+>   			return VM_FAULT_OOM;
+>
+> @@ -3614,7 +3626,7 @@ int handle_pte_fault(struct mm_struct *mm,
+>   	if (flags&  FAULT_FLAG_WRITE) {
+>   		if (!pte_write(entry))
+>   			return do_wp_page(mm, vma, address,
+> -					pte, pmd, ptl, entry);
+> +					pte, pmd, ptl, entry, flags);
+>   		entry = pte_mkdirty(entry);
+>   	}
+>   	entry = pte_mkyoung(entry);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
