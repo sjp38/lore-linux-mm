@@ -1,190 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 37C996B0118
-	for <linux-mm@kvack.org>; Mon,  6 May 2013 03:16:32 -0400 (EDT)
-Message-ID: <51875977.4090006@cn.fujitsu.com>
-Date: Mon, 06 May 2013 15:19:19 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 9322E6B011A
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 03:55:07 -0400 (EDT)
+Date: Mon, 6 May 2013 03:55:06 -0400 (EDT)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <22600323.7586117.1367826906910.JavaMail.root@redhat.com>
+In-Reply-To: <109078046.7585350.1367826730309.JavaMail.root@redhat.com>
+Subject: 3.9.0: panic during boot - kernel BUG at include/linux/gfp.h:323!
 MIME-Version: 1.0
-Subject: Re: [RFC/PATCH 3/5] mm: get_user_pages: use NON-MOVABLE pages when
- FOLL_DURABLE flag is set
-References: <1362466679-17111-1-git-send-email-m.szyprowski@samsung.com> <1362466679-17111-4-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1362466679-17111-4-git-send-email-m.szyprowski@samsung.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>
 
-Hi Marek,
+Never saw any of those in any of 3.9 RC releases, but now saw it on
+multiple systems,
 
-It has been a long time since this patch-set was sent.
-And I'm pushing memory hot-remove works. I think I need your
-[patch3/5] to fix a problem I met.
+[    0.878873] Performance Events: AMD PMU driver. 
+[    0.884837] ... version:                0 
+[    0.890248] ... bit width:              48 
+[    0.895815] ... generic registers:      4 
+[    0.901048] ... value mask:             0000ffffffffffff 
+[    0.908207] ... max period:             00007fffffffffff 
+[    0.915165] ... fixed-purpose events:   0 
+[    0.920620] ... event mask:             000000000000000f 
+[    0.928031] ------------[ cut here ]------------ 
+[    0.934231] kernel BUG at include/linux/gfp.h:323! 
+[    0.940581] invalid opcode: 0000 [#1] SMP  
+[    0.945982] Modules linked in: 
+[    0.950048] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.9.0+ #1 
+[    0.957877] Hardware name: ProLiant BL465c G7, BIOS A19 12/10/2011 
+[    1.066325] task: ffff880234608000 ti: ffff880234602000 task.ti: ffff880234602000 
+[    1.076603] RIP: 0010:[<ffffffff8117495d>]  [<ffffffff8117495d>] new_slab+0x2ad/0x340 
+[    1.087043] RSP: 0000:ffff880234603bf8  EFLAGS: 00010246 
+[    1.094067] RAX: 0000000000000000 RBX: ffff880237404b40 RCX: 00000000000000d0 
+[    1.103565] RDX: 0000000000000001 RSI: 0000000000000003 RDI: 00000000002052d0 
+[    1.113071] RBP: ffff880234603c28 R08: 0000000000000000 R09: 0000000000000001 
+[    1.122461] R10: 0000000000000001 R11: ffffffff812e3aa8 R12: 0000000000000001 
+[    1.132025] R13: ffff8802378161c0 R14: 0000000000030027 R15: 00000000000040d0 
+[    1.141532] FS:  0000000000000000(0000) GS:ffff880237800000(0000) knlGS:0000000000000000 
+[    1.152306] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b 
+[    1.160004] CR2: ffff88043fdff000 CR3: 00000000018d5000 CR4: 00000000000007f0 
+[    1.169519] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000 
+[    1.179009] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400 
+[    1.188383] Stack: 
+[    1.191088]  ffff880234603c28 0000000000000001 00000000000000d0 ffff8802378161c0 
+[    1.200825]  ffff880237404b40 ffff880237404b40 ffff880234603d28 ffffffff815edba1 
+[    1.21ea0008dd0300 ffff880237816140 0000000000000000 ffff88023740e1c0 
+[    1.519233] Call Trace: 
+[    1.522392]  [<ffffffff815edba1>] __slab_alloc+0x330/0x4f2 
+[    1.529758]  [<ffffffff812e3aa8>] ? alloc_cpumask_var_node+0x28/0x90 
+[    1.538126]  [<ffffffff81a0bd6e>] ? wq_numa_init+0xc8/0x1be 
+[    1.545642]  [<ffffffff81174b25>] kmem_cache_alloc_node_trace+0xa5/0x200 
+[    1.554480]  [<ffffffff812e8>] ? alloc_cpumask_var_node+0x28/0x90 
+[    1.662913]  [<ffffffff812e3aa8>] alloc_cpumask_var_node+0x28/0x90 
+[    1.671224]  [<ffffffff81a0bdb3>] wq_numa_init+0x10d/0x1be 
+[    1.678483]  [<ffffffff81a0be64>] ? wq_numa_init+0x1be/0x1be 
+[    1.686085]  [<ffffffff81a0bec8>] init_workqueues+0x64/0x341 
+[    1.693537]  [<ffffffff8107b687>] ? smpboot_register_percpu_thread+0xc7/0xf0 
+[    1.702970]  [<ffffffff81a0ac4a>] ? ftrace_define_fields_softirq+0x32/0x32 
+[    1.712039]  [<ffffffff81a0be64>] ? wq_numa_init+0x1be/0x1be 
+[    1.719683]  [<ffffffff810002ea>] do_one_initcall+0xea/0x1a0 
+[    1.727162]  [<ffffffff819f1f31>] kernel_init_freeable+0xb7/0x1ec 
+[    1.735316]  [<ffffffff815d50d0>] ? rest_init+0x80/0x80 
+[    1.742121]  [<ffffffff815d50de>] kernel_init+0xe/0xf0 
+[    1.748950]  [<ffffffff815ff89c>] ret_from_fork+0x7c/0xb0 
+[    1.756443]  [<ffffffff815d50d0>] ? rest_init+0x80/0x80 
+[    1.763250] Code: 45  84 ac 00 00 00 f0 41 80 4d 00 40 e9 f6 fe ff ff 66 0f 1f 84 00 00 00 00 00 e8 eb 4b ff ff 49 89 c5 e9 05 fe ff ff <0f> 0b 4c 8b 73 38 44 89 ff 81 cf 00 00 20 00 4c 89 f6 48 c1 ee  
+[    2.187072] RIP  [<ffffffff8117495d>] new_slab+0x2ad/0x340 
+[    2.194238]  RSP <ffff880234603bf8> 
+[    2.198982] ---[ end trace 43bf8bb0334e5135 ]--- 
+[    2.205097] Kernel panic - not syncing: Attempted to kill init! exitcode=0x0000000b 
 
-We have sent a similar patch before. But I think yours may be better. :)
-https://lkml.org/lkml/2013/2/21/126
-
-So would you please update and resend your patch again ?
-Or do you have your own plan to push it ?
-
-Thanks. :)
-
-On 03/05/2013 02:57 PM, Marek Szyprowski wrote:
-> Ensure that newly allocated pages, which are faulted in in FOLL_DURABLE
-> mode comes from non-movalbe pageblocks, to workaround migration failures
-> with Contiguous Memory Allocator.
->
-> Signed-off-by: Marek Szyprowski<m.szyprowski@samsung.com>
-> Signed-off-by: Kyungmin Park<kyungmin.park@samsung.com>
-> ---
->   include/linux/highmem.h |   12 ++++++++++--
->   include/linux/mm.h      |    2 ++
->   mm/memory.c             |   24 ++++++++++++++++++------
->   3 files changed, 30 insertions(+), 8 deletions(-)
->
-> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-> index 7fb31da..cf0b9d8 100644
-> --- a/include/linux/highmem.h
-> +++ b/include/linux/highmem.h
-> @@ -168,7 +168,8 @@ __alloc_zeroed_user_highpage(gfp_t movableflags,
->   #endif
->
->   /**
-> - * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for a VMA that the caller knows can move
-> + * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for
-> + *					a VMA that the caller knows can move
->    * @vma: The VMA the page is to be allocated for
->    * @vaddr: The virtual address the page will be inserted into
->    *
-> @@ -177,11 +178,18 @@ __alloc_zeroed_user_highpage(gfp_t movableflags,
->    */
->   static inline struct page *
->   alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
-> -					unsigned long vaddr)
-> +				   unsigned long vaddr)
->   {
->   	return __alloc_zeroed_user_highpage(__GFP_MOVABLE, vma, vaddr);
->   }
->
-> +static inline struct page *
-> +alloc_zeroed_user_highpage(gfp_t gfp, struct vm_area_struct *vma,
-> +			   unsigned long vaddr)
-> +{
-> +	return __alloc_zeroed_user_highpage(gfp, vma, vaddr);
-> +}
-> +
->   static inline void clear_highpage(struct page *page)
->   {
->   	void *kaddr = kmap_atomic(page);
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 9806e54..c11f58f 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -165,6 +165,7 @@ extern pgprot_t protection_map[16];
->   #define FAULT_FLAG_RETRY_NOWAIT	0x10	/* Don't drop mmap_sem and wait when retrying */
->   #define FAULT_FLAG_KILLABLE	0x20	/* The fault task is in SIGKILL killable region */
->   #define FAULT_FLAG_TRIED	0x40	/* second try */
-> +#define FAULT_FLAG_NO_CMA	0x80	/* don't use CMA pages */
->
->   /*
->    * vm_fault is filled by the the pagefault handler and passed to the vma's
-> @@ -1633,6 +1634,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
->   #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
->   #define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
->   #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
-> +#define FOLL_DURABLE	0x800	/* get the page reference for a long time */
->
->   typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
->   			void *data);
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 42dfd8e..2b9c2dd 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1816,6 +1816,9 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->   				int ret;
->   				unsigned int fault_flags = 0;
->
-> +				if (gup_flags&  FOLL_DURABLE)
-> +					fault_flags = FAULT_FLAG_NO_CMA;
-> +
->   				/* For mlock, just skip the stack guard page. */
->   				if (foll_flags&  FOLL_MLOCK) {
->   					if (stack_guard_page(vma, start))
-> @@ -2495,7 +2498,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
->    */
->   static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->   		unsigned long address, pte_t *page_table, pmd_t *pmd,
-> -		spinlock_t *ptl, pte_t orig_pte)
-> +		spinlock_t *ptl, pte_t orig_pte, unsigned int flags)
->   	__releases(ptl)
->   {
->   	struct page *old_page, *new_page = NULL;
-> @@ -2505,6 +2508,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->   	struct page *dirty_page = NULL;
->   	unsigned long mmun_start = 0;	/* For mmu_notifiers */
->   	unsigned long mmun_end = 0;	/* For mmu_notifiers */
-> +	gfp_t gfp = GFP_HIGHUSER_MOVABLE;
-> +
-> +	if (IS_ENABLED(CONFIG_CMA)&&  (flags&  FAULT_FLAG_NO_CMA))
-> +		gfp&= ~__GFP_MOVABLE;
->
->   	old_page = vm_normal_page(vma, address, orig_pte);
->   	if (!old_page) {
-> @@ -2668,11 +2675,11 @@ gotten:
->   		goto oom;
->
->   	if (is_zero_pfn(pte_pfn(orig_pte))) {
-> -		new_page = alloc_zeroed_user_highpage_movable(vma, address);
-> +		new_page = alloc_zeroed_user_highpage(gfp, vma, address);
->   		if (!new_page)
->   			goto oom;
->   	} else {
-> -		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
-> +		new_page = alloc_page_vma(gfp, vma, address);
->   		if (!new_page)
->   			goto oom;
->   		cow_user_page(new_page, old_page, address, vma);
-> @@ -3032,7 +3039,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
->   	}
->
->   	if (flags&  FAULT_FLAG_WRITE) {
-> -		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte);
-> +		ret |= do_wp_page(mm, vma, address, page_table, pmd, ptl, pte, flags);
->   		if (ret&  VM_FAULT_ERROR)
->   			ret&= VM_FAULT_ERROR;
->   		goto out;
-> @@ -3187,6 +3194,11 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->   	struct vm_fault vmf;
->   	int ret;
->   	int page_mkwrite = 0;
-> +	gfp_t gfp = GFP_HIGHUSER_MOVABLE;
-> +
-> +	if (IS_ENABLED(CONFIG_CMA)&&  (flags&  FAULT_FLAG_NO_CMA))
-> +		gfp&= ~__GFP_MOVABLE;
-> +
->
->   	/*
->   	 * If we do COW later, allocate page befor taking lock_page()
-> @@ -3197,7 +3209,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->   		if (unlikely(anon_vma_prepare(vma)))
->   			return VM_FAULT_OOM;
->
-> -		cow_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
-> +		cow_page = alloc_page_vma(gfp, vma, address);
->   		if (!cow_page)
->   			return VM_FAULT_OOM;
->
-> @@ -3614,7 +3626,7 @@ int handle_pte_fault(struct mm_struct *mm,
->   	if (flags&  FAULT_FLAG_WRITE) {
->   		if (!pte_write(entry))
->   			return do_wp_page(mm, vma, address,
-> -					pte, pmd, ptl, entry);
-> +					pte, pmd, ptl, entry, flags);
->   		entry = pte_mkdirty(entry);
->   	}
->   	entry = pte_mkyoung(entry);
+CAI Qian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
