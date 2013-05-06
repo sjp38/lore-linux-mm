@@ -1,80 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 9322E6B011A
-	for <linux-mm@kvack.org>; Mon,  6 May 2013 03:55:07 -0400 (EDT)
-Date: Mon, 6 May 2013 03:55:06 -0400 (EDT)
-From: CAI Qian <caiqian@redhat.com>
-Message-ID: <22600323.7586117.1367826906910.JavaMail.root@redhat.com>
-In-Reply-To: <109078046.7585350.1367826730309.JavaMail.root@redhat.com>
-Subject: 3.9.0: panic during boot - kernel BUG at include/linux/gfp.h:323!
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 24BF86B0119
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 04:09:50 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Mon, 6 May 2013 17:59:18 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 70570368476
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 15:50:24 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r465oHuv13369376
+	for <linux-mm@kvack.org>; Mon, 6 May 2013 15:50:17 +1000
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r465oNu4014615
+	for <linux-mm@kvack.org>; Mon, 6 May 2013 15:50:23 +1000
+Message-ID: <5187449A.1000202@linux.vnet.ibm.com>
+Date: Mon, 06 May 2013 13:50:18 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Subject: [PATCH RESEND] mm: mmu_notifier: re-fix freed page still mapped in
+ secondary MMU
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Robin Holt <holt@sgi.com>, stable@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-Never saw any of those in any of 3.9 RC releases, but now saw it on
-multiple systems,
+The commit 751efd8610d3 (mmu_notifier_unregister NULL Pointer deref
+and multiple ->release()) breaks the fix:
+    3ad3d901bbcfb15a5e4690e55350db0899095a68
+    (mm: mmu_notifier: fix freed page still mapped in secondary MMU)
 
-[    0.878873] Performance Events: AMD PMU driver. 
-[    0.884837] ... version:                0 
-[    0.890248] ... bit width:              48 
-[    0.895815] ... generic registers:      4 
-[    0.901048] ... value mask:             0000ffffffffffff 
-[    0.908207] ... max period:             00007fffffffffff 
-[    0.915165] ... fixed-purpose events:   0 
-[    0.920620] ... event mask:             000000000000000f 
-[    0.928031] ------------[ cut here ]------------ 
-[    0.934231] kernel BUG at include/linux/gfp.h:323! 
-[    0.940581] invalid opcode: 0000 [#1] SMP  
-[    0.945982] Modules linked in: 
-[    0.950048] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.9.0+ #1 
-[    0.957877] Hardware name: ProLiant BL465c G7, BIOS A19 12/10/2011 
-[    1.066325] task: ffff880234608000 ti: ffff880234602000 task.ti: ffff880234602000 
-[    1.076603] RIP: 0010:[<ffffffff8117495d>]  [<ffffffff8117495d>] new_slab+0x2ad/0x340 
-[    1.087043] RSP: 0000:ffff880234603bf8  EFLAGS: 00010246 
-[    1.094067] RAX: 0000000000000000 RBX: ffff880237404b40 RCX: 00000000000000d0 
-[    1.103565] RDX: 0000000000000001 RSI: 0000000000000003 RDI: 00000000002052d0 
-[    1.113071] RBP: ffff880234603c28 R08: 0000000000000000 R09: 0000000000000001 
-[    1.122461] R10: 0000000000000001 R11: ffffffff812e3aa8 R12: 0000000000000001 
-[    1.132025] R13: ffff8802378161c0 R14: 0000000000030027 R15: 00000000000040d0 
-[    1.141532] FS:  0000000000000000(0000) GS:ffff880237800000(0000) knlGS:0000000000000000 
-[    1.152306] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b 
-[    1.160004] CR2: ffff88043fdff000 CR3: 00000000018d5000 CR4: 00000000000007f0 
-[    1.169519] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000 
-[    1.179009] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400 
-[    1.188383] Stack: 
-[    1.191088]  ffff880234603c28 0000000000000001 00000000000000d0 ffff8802378161c0 
-[    1.200825]  ffff880237404b40 ffff880237404b40 ffff880234603d28 ffffffff815edba1 
-[    1.21ea0008dd0300 ffff880237816140 0000000000000000 ffff88023740e1c0 
-[    1.519233] Call Trace: 
-[    1.522392]  [<ffffffff815edba1>] __slab_alloc+0x330/0x4f2 
-[    1.529758]  [<ffffffff812e3aa8>] ? alloc_cpumask_var_node+0x28/0x90 
-[    1.538126]  [<ffffffff81a0bd6e>] ? wq_numa_init+0xc8/0x1be 
-[    1.545642]  [<ffffffff81174b25>] kmem_cache_alloc_node_trace+0xa5/0x200 
-[    1.554480]  [<ffffffff812e8>] ? alloc_cpumask_var_node+0x28/0x90 
-[    1.662913]  [<ffffffff812e3aa8>] alloc_cpumask_var_node+0x28/0x90 
-[    1.671224]  [<ffffffff81a0bdb3>] wq_numa_init+0x10d/0x1be 
-[    1.678483]  [<ffffffff81a0be64>] ? wq_numa_init+0x1be/0x1be 
-[    1.686085]  [<ffffffff81a0bec8>] init_workqueues+0x64/0x341 
-[    1.693537]  [<ffffffff8107b687>] ? smpboot_register_percpu_thread+0xc7/0xf0 
-[    1.702970]  [<ffffffff81a0ac4a>] ? ftrace_define_fields_softirq+0x32/0x32 
-[    1.712039]  [<ffffffff81a0be64>] ? wq_numa_init+0x1be/0x1be 
-[    1.719683]  [<ffffffff810002ea>] do_one_initcall+0xea/0x1a0 
-[    1.727162]  [<ffffffff819f1f31>] kernel_init_freeable+0xb7/0x1ec 
-[    1.735316]  [<ffffffff815d50d0>] ? rest_init+0x80/0x80 
-[    1.742121]  [<ffffffff815d50de>] kernel_init+0xe/0xf0 
-[    1.748950]  [<ffffffff815ff89c>] ret_from_fork+0x7c/0xb0 
-[    1.756443]  [<ffffffff815d50d0>] ? rest_init+0x80/0x80 
-[    1.763250] Code: 45  84 ac 00 00 00 f0 41 80 4d 00 40 e9 f6 fe ff ff 66 0f 1f 84 00 00 00 00 00 e8 eb 4b ff ff 49 89 c5 e9 05 fe ff ff <0f> 0b 4c 8b 73 38 44 89 ff 81 cf 00 00 20 00 4c 89 f6 48 c1 ee  
-[    2.187072] RIP  [<ffffffff8117495d>] new_slab+0x2ad/0x340 
-[    2.194238]  RSP <ffff880234603bf8> 
-[    2.198982] ---[ end trace 43bf8bb0334e5135 ]--- 
-[    2.205097] Kernel panic - not syncing: Attempted to kill init! exitcode=0x0000000b 
+Since hlist_for_each_entry_rcu() is changed now, we can not revert that patch
+directly, so this patch reverts the commit and simply fix the bug spotted
+by that patch
 
-CAI Qian
+This bug spotted by commit 751efd8610d3 is:
+======
+There is a race condition between mmu_notifier_unregister() and
+__mmu_notifier_release().
+
+Assume two tasks, one calling mmu_notifier_unregister() as a result of a
+filp_close() ->flush() callout (task A), and the other calling
+mmu_notifier_release() from an mmput() (task B).
+
+                    A                               B
+t1                                              srcu_read_lock()
+t2              if (!hlist_unhashed())
+t3                                              srcu_read_unlock()
+t4              srcu_read_lock()
+t5                                              hlist_del_init_rcu()
+t6                                              synchronize_srcu()
+t7              srcu_read_unlock()
+t8              hlist_del_rcu()  <--- NULL pointer deref.
+======
+
+This can be fixed by using hlist_del_init_rcu instead of hlist_del_rcu.
+
+The another issue spotted in the commit is
+"multiple ->release() callouts", we needn't care it too much because
+it is really rare (e.g, can not happen on kvm since mmu-notify is unregistered
+after exit_mmap()) and the later call of multiple ->release should be
+fast since all the pages have already been released by the first call.
+Anyway, this issue should be fixed in a separate patch.
+
+-stable suggestions:
+Any version has commit 751efd8610d3 need to be backported. I find the oldest
+version has this commit is 3.0-stable.
+
+Tested-by: Robin Holt <holt@sgi.com>
+Cc: <stable@vger.kernel.org>
+Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+---
+
+Andrew, this patch has been tested by Robin and the test shows that the bug
+of "NULL Pointer deref" bas been fixed. However, we have the argument that
+whether the fix of "multiple ->release" should be merged into this patch.
+(This patch just do fix the bug of "NULL Pointer deref")
+
+Your thought?
+
+ mm/mmu_notifier.c |   81 +++++++++++++++++++++++++++--------------------------
+ 1 files changed, 41 insertions(+), 40 deletions(-)
+
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index be04122..606777a 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -40,48 +40,45 @@ void __mmu_notifier_release(struct mm_struct *mm)
+ 	int id;
+
+ 	/*
+-	 * srcu_read_lock() here will block synchronize_srcu() in
+-	 * mmu_notifier_unregister() until all registered
+-	 * ->release() callouts this function makes have
+-	 * returned.
++	 * SRCU here will block mmu_notifier_unregister until
++	 * ->release returns.
+ 	 */
+ 	id = srcu_read_lock(&srcu);
++	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist)
++		/*
++		 * if ->release runs before mmu_notifier_unregister it
++		 * must be handled as it's the only way for the driver
++		 * to flush all existing sptes and stop the driver
++		 * from establishing any more sptes before all the
++		 * pages in the mm are freed.
++		 */
++		if (mn->ops->release)
++			mn->ops->release(mn, mm);
++	srcu_read_unlock(&srcu, id);
++
+ 	spin_lock(&mm->mmu_notifier_mm->lock);
+ 	while (unlikely(!hlist_empty(&mm->mmu_notifier_mm->list))) {
+ 		mn = hlist_entry(mm->mmu_notifier_mm->list.first,
+ 				 struct mmu_notifier,
+ 				 hlist);
+-
+ 		/*
+-		 * Unlink.  This will prevent mmu_notifier_unregister()
+-		 * from also making the ->release() callout.
++		 * We arrived before mmu_notifier_unregister so
++		 * mmu_notifier_unregister will do nothing other than
++		 * to wait ->release to finish and
++		 * mmu_notifier_unregister to return.
+ 		 */
+ 		hlist_del_init_rcu(&mn->hlist);
+-		spin_unlock(&mm->mmu_notifier_mm->lock);
+-
+-		/*
+-		 * Clear sptes. (see 'release' description in mmu_notifier.h)
+-		 */
+-		if (mn->ops->release)
+-			mn->ops->release(mn, mm);
+-
+-		spin_lock(&mm->mmu_notifier_mm->lock);
+ 	}
+ 	spin_unlock(&mm->mmu_notifier_mm->lock);
+
+ 	/*
+-	 * All callouts to ->release() which we have done are complete.
+-	 * Allow synchronize_srcu() in mmu_notifier_unregister() to complete
+-	 */
+-	srcu_read_unlock(&srcu, id);
+-
+-	/*
+-	 * mmu_notifier_unregister() may have unlinked a notifier and may
+-	 * still be calling out to it.	Additionally, other notifiers
+-	 * may have been active via vmtruncate() et. al. Block here
+-	 * to ensure that all notifier callouts for this mm have been
+-	 * completed and the sptes are really cleaned up before returning
+-	 * to exit_mmap().
++	 * synchronize_srcu here prevents mmu_notifier_release to
++	 * return to exit_mmap (which would proceed freeing all pages
++	 * in the mm) until the ->release method returns, if it was
++	 * invoked by mmu_notifier_unregister.
++	 *
++	 * The mmu_notifier_mm can't go away from under us because one
++	 * mm_count is hold by exit_mmap.
+ 	 */
+ 	synchronize_srcu(&srcu);
+ }
+@@ -292,31 +289,35 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
+ {
+ 	BUG_ON(atomic_read(&mm->mm_count) <= 0);
+
+-	spin_lock(&mm->mmu_notifier_mm->lock);
+ 	if (!hlist_unhashed(&mn->hlist)) {
++		/*
++		 * SRCU here will force exit_mmap to wait ->release to finish
++		 * before freeing the pages.
++		 */
+ 		int id;
+
++		id = srcu_read_lock(&srcu);
+ 		/*
+-		 * Ensure we synchronize up with __mmu_notifier_release().
++		 * exit_mmap will block in mmu_notifier_release to
++		 * guarantee ->release is called before freeing the
++		 * pages.
+ 		 */
+-		id = srcu_read_lock(&srcu);
+-
+-		hlist_del_rcu(&mn->hlist);
+-		spin_unlock(&mm->mmu_notifier_mm->lock);
+-
+ 		if (mn->ops->release)
+ 			mn->ops->release(mn, mm);
++		srcu_read_unlock(&srcu, id);
+
++		spin_lock(&mm->mmu_notifier_mm->lock);
+ 		/*
+-		 * Allow __mmu_notifier_release() to complete.
++		 * Can not use list_del_rcu() since __mmu_notifier_release
++		 * can delete it before we hold the lock.
+ 		 */
+-		srcu_read_unlock(&srcu, id);
+-	} else
++		hlist_del_init_rcu(&mn->hlist);
+ 		spin_unlock(&mm->mmu_notifier_mm->lock);
++	}
+
+ 	/*
+-	 * Wait for any running method to finish, including ->release() if it
+-	 * was run by __mmu_notifier_release() instead of us.
++	 * Wait any running method to finish, of course including
++	 * ->release if it was run by mmu_notifier_relase instead of us.
+ 	 */
+ 	synchronize_srcu(&srcu);
+
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
