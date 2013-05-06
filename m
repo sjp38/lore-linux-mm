@@ -1,160 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 0CDFE6B00FC
-	for <linux-mm@kvack.org>; Mon,  6 May 2013 06:37:48 -0400 (EDT)
-Received: by mail-bk0-f46.google.com with SMTP id w5so1535072bku.33
-        for <linux-mm@kvack.org>; Mon, 06 May 2013 03:37:47 -0700 (PDT)
-Date: Mon, 6 May 2013 12:37:43 +0200
-From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Subject: Re: [PATCH v2 10/13] x86, acpi, numa, mem-hotplug: Introduce
- MEMBLK_HOTPLUGGABLE to mark and reserve hotpluggable memory.
-Message-ID: <20130506103743.GA4929@dhcp-192-168-178-175.profitbricks.localdomain>
-References: <1367313683-10267-1-git-send-email-tangchen@cn.fujitsu.com>
- <1367313683-10267-11-git-send-email-tangchen@cn.fujitsu.com>
- <20130503105037.GA4533@dhcp-192-168-178-175.profitbricks.localdomain>
- <51871520.6020703@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 384736B0111
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 06:39:55 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH 0/2 v2, RFC] Driver core: Add offline/online callbacks for memory_subsys
+Date: Mon, 06 May 2013 12:48:14 +0200
+Message-ID: <1573930.mCD9JKX0Q1@vostro.rjw.lan>
+In-Reply-To: <2376818.CRj1BTLk0Y@vostro.rjw.lan>
+References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <1583356.7oqZ7gBy2q@vostro.rjw.lan> <2376818.CRj1BTLk0Y@vostro.rjw.lan>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51871520.6020703@cn.fujitsu.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, laijs@cn.fujitsu.com, davem@davemloft.net, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, vasilis.liaskovitis@profitbricks.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
 
-Hi Tang,
-
-On Mon, May 06, 2013 at 10:27:44AM +0800, Tang Chen wrote:
-> Hi Vasilis,
+On Saturday, May 04, 2013 01:11:21 PM Rafael J. Wysocki wrote:
+> Hi,
 > 
-> Sorry for the delay and thank you for reviewing and testing. :)
+> On Saturday, May 04, 2013 03:01:23 AM Rafael J. Wysocki wrote:
+> > Hi,
+> > 
+> > This is a continuation of this patchset: https://lkml.org/lkml/2013/5/2/214
+> > and it applies on top of it or rather on top of the rebased version (with
+> > build problems fixed) in the bleeding-edge branch of the linux-pm.git tree:
+> > 
+> > http://git.kernel.org/cgit/linux/kernel/git/rafael/linux-pm.git/log/?h=bleeding-edge
+> > 
+> > An introduction to the first part of the patchset is below, a description of
+> > the current patches follows.
 > 
-> On 05/03/2013 06:50 PM, Vasilis Liaskovitis wrote:
-> >
-> >Should we skip ranges on nodes that the kernel uses? e.g. with
-> >
-> >         if (memblock_is_kernel_node(nid))
-> >             continue;
+> Actually, I'm withdrawing the previous version of this patchset (or rather
+> patches [2-3/3] from it), because I had a better idea in the meantime.
 > 
-> Yes. I think I forgot to call it in this patch.
-> Will update in the next version.
-ok
-
+> Patch [1/2] is the same as the previous [1/3] ->
 > 
-> >
-> >
-> >- I am getting a "PANIC: early exception" when rebooting with movablecore=acpi
-> >after hotplugging memory on node0 or node1 of a 2-node VM. The guest kernel is
-> >based on
-> >git://git.kernel.org/pub/scm/linux/kernel/git/yinghai/linux-yinghai.git
-> >for-x86-mm (e9058baf) + these v2 patches.
-> >
-> >This happens with or without the above memblock_is_kernel_node(nid) check.
-> >Perhaps I am missing something or I need a newer "ACPI, numa: Parse numa info
-> >early" patch-set?
+> > On Thursday, May 02, 2013 02:26:39 PM Rafael J. Wysocki wrote:
+> > > On Monday, April 29, 2013 02:23:59 PM Rafael J. Wysocki wrote:
+> > > > 
+> > > > It has been argued for a number of times that in some cases, if a device cannot
+> > > > be gracefully removed from the system, it shouldn't be removed from it at all,
+> > > > because that may lead to a kernel crash.  In particular, that will happen if a
+> > > > memory module holding kernel memory is removed, but also removing the last CPU
+> > > > in the system may not be a good idea.  [And I can imagine a few other cases
+> > > > like that.]
+> > > > 
+> > > > The kernel currently only supports "forced" hot-remove which cannot be stopped
+> > > > once started, so users have no choice but to try to hot-remove stuff and see
+> > > > whether or not that crashes the kernel which is kind of unpleasant.  That seems
+> > > > to be based on the "the user knows better" argument according to which users
+> > > > triggering device hot-removal should really know what they are doing, so the
+> > > > kernel doesn't have to worry about that.  However, for instance, this pretty
+> > > > much isn't the case for memory modules, because the users have no way to see
+> > > > whether or not any kernel memory has been allocated from a given module.
+> > > > 
+> > > > There have been a few attempts to address this issue, but none of them has
+> > > > gained broader acceptance.  The following 3 patches are the heart of a new
+> > > > proposal which is based on the idea to introduce device_offline() and
+> > > > device_online() operations along the lines of the existing CPU offline/online
+> > > > mechanism (or, rather, to extend the CPU offline/online so that analogous
+> > > > operations are available for other devices).  The way it is supposed to work is
+> > > > that device_offline() will fail if the given device cannot be gracefully
+> > > > removed from the system (in the kernel's view).  Once it succeeds, though, the
+> > > > device won't be used any more until either it is removed, or device_online() is
+> > > > run for it.  That will allow the ACPI device hot-remove code, for one example,
+> > > > to avoid triggering a non-reversible removal procedure for devices that cannot
+> > > > be removed gracefully.
+> > > > 
+> > > > Patch [1/3] introduces device_offline() and device_online() as outlined above.
+> > > > The .offline() and .online() callbacks are only added at the bus type level for
+> > > > now, because that should be sufficient to cover the memory and CPU use cases.
+> > > 
+> > > That's [1/4] now and the changes from the previous version are:
+> > > - strtobool() is used in store_online().
+> > > - device_offline_lock has been renamed to device_hotplug_lock (and the
+> > >   functions operating it accordingly) following the Toshi's advice.
+> > > 
+> > > > Patch [2/3] modifies the CPU hotplug support code to use device_offline() and
+> > > > device_online() to support the sysfs 'online' attribute for CPUs.
+> > > 
+> > > That is [2/4] now and it takes cpu_hotplug_driver_lock() around cpu_up() and
+> > > cpu_down().
+> > > 
+> > > > Patch [3/3] changes the ACPI device hot-remove code to use device_offline()
+> > > > for checking if graceful removal of devices is possible.  The way it does that
+> > > > is to walk the list of "physical" companion devices for each struct acpi_device
+> > > > involved in the operation and call device_offline() for each of them.  If any
+> > > > of the device_offline() calls fails (and the hot-removal is not "forced", which
+> > > > is an option), the removal procedure (which is not reversible) is simply not
+> > > > carried out.
+> > > 
+> > > That's current [3/4].  It's a bit simpler, because I decided that it would be
+> > > better to have a global 'force_remove' attribute (the semantics of the
+> > > per-profile 'force_remove' wasn't clear and it didn't really add any value over
+> > > a global one).  I also added lock/unlock_device_hotplug() around acpi_bus_scan()
+> > > in acpi_scan_bus_device_check() to allow scan handlers to update dev->offline
+> > > for "physical" companion devices safely (the processor's one added by the next
+> > > patch actually does that).
+> > > 
+> > > > Of some concern is that device_offline() (and possibly device_online()) is
+> > > > called under physical_node_lock of the corresponding struct acpi_device, which
+> > > > introduces ordering dependency between that lock and device locks for the
+> > > > "physical" devices, but I didn't see any cleaner way to do that (I guess it
+> > > > is avoidable at the expense of added complexity, but for now it's just better
+> > > > to make the code as clean as possible IMO).
+> > > 
+> > > Patch [4/4] reworks the ACPI processor driver to use the common hotplug code.
+> > > It basically splits the driver into two parts as described in the changelog,
+> > > where the first part is essentially a scan handler and the second part is
+> > > a driver, but it doesn't bind to struct acpi_device any more.  Instead, it
+> > > binds to processor devices under /sys/devices/system/cpu/ (the driver itself
+> > > has a sysfs directory under /sys/bus/cpu/drivers/ which IMHO makes more sense
+> > > than having it under /sys/bus/acpi/drivers/).
+> > > 
+> > > The patch at https://patchwork.kernel.org/patch/2506371/ is a prerequisite
+> > > for this series, but I'm going to push it for v3.10-rc2 if no one screams
+> > > bloody murder.
 > 
-> I didn't test it on a VM. But on my real box, I haven't got a panic
-> when rebooting. I think I can help to test it in a VM, but would you
-> please to
-> tell me how to setup a environment as yours ?
-
-you can use qemu-kvm and seabios from these branches:
-https://github.com/vliaskov/qemu-kvm/commits/memhp-v4
-https://github.com/vliaskov/seabios/commits/memhp-v4
-
-Instructions on how to use the DIMM/memory hotplug are here:
-
-http://lists.gnu.org/archive/html/qemu-devel/2012-12/msg02693.html
-(these patchsets are not in mainline qemu/qemu-kvm and seabios)
-
-e.g. the following creates a VM with 2G initial memory on 2 nodes (1GB on each).
-There is also an extra 1GB DIMM on each node (the last 3 lines below describe
-this):
-
-/opt/qemu/bin/qemu-system-x86_64 -bios /opt/devel/seabios-upstream/out/bios.bin \
--enable-kvm -M pc -smp 4,maxcpus=8 -cpu host -m 2G  \
--drive
-file=/opt/images/debian.img,if=none,id=drive-virtio-disk0,format=raw,cache=none \
--device virtio-blk-pci,bus=pci.0,drive=drive-virtio-disk0,id=virtio-disk0,bootindex=1 \
--netdev type=tap,id=guest0,vhost=on -device virtio-net-pci,netdev=guest0 -vga \
-std -monitor stdio \ 
--numa node,mem=1G,cpus=2,nodeid=0 -numa node,mem=0,cpus=2,nodeid=1 \
--device dimm,id=dimm0,size=1G,node=0,bus=membus.0,populated=off \
--device dimm,id=dimm1,size=1G,node=1,bus=membus.0,populated=off
-
-After startup I hotplug the dimm0 on node0 (or dimm1 on node1, same result)
-(qemu) device_add dimm,id=dimm0,size=1G,node=0,bus=membus.0
-
-than i reboot VM. Kernel works without "movablecore=acpi" but panics with this
-option.
-
-Note this qemu/seabios does not model initial memory (-m 2G) as memory devices.
-Only extra dimms ("device -dimm") are modeled as separate memory devices.
-
+> -> (this is [1/2] now):
 > 
-> >
-> >A general question: Disabling hot-pluggability/zone-movable eligibility for a
-> >whole node sounds a bit inflexible, if the machine only has one node to begin
-> >with.  Would it be possible to keep movable information per SRAT entry? I.e
-> >if the BIOS presents multiple SRAT entries for one node/PXM (say node 0), and
-> >there is no memblock/kernel allocation on one of these SRAT entries, could
-> >we still mark this SRAT entry's range as hot-pluggable/movable?  Not sure if
-> >many real machine BIOSes would do this, but seabios could.  This implies that
-> >SRAT entries are processed for movable-zone eligilibity before they are merged
-> >on node/PXM basis entry-granularity (I think numa_cleanup_meminfo currently does
-> >this merge).
+> > Patch [1/3] in the current series uses acpi_bind_one() to associate memory
+> > block devices with ACPI namespace objects representing memory modules that hold
+> > them.  With patch [3/3] that will allow the ACPI core's device hot-remove code
+> > to attempt to offline the memory blocks, if possible, before removing the
+> > modules holding them from the system (and if the offlining fails, the removal
+> > will not be carried out).
 > 
-> Yes, this can be done. But in real usage, part of the memory in a node
-> is hot-removable makes no sense, I think. We cannot remove the whole node,
-> so we cannot remove a real hardware device.
+> Patch [2/2] adds .online() and .offline() callbacks to memory_subsys
+> that are used by the common "online" sysfs attribute and by the ACPI core's
+> hot-remove code, through device_online() and device_offline().
 > 
-> But in virtualization, would you please give a reason why we need this
-> entry-granularity ?
+> The way it is supposed to work is that device_offline() will attempt to put
+> memory blocks offline and device_online() will online them and attempt to
+> apply the last online type previously used to them.
 
-see below, basically as you suggest we may have multiple memory devices on same
-node.
-> 
-> 
-> Another thinking. Assume I didn't understand your question correctly. :)
-> 
-> Now in kernel, we can recognize a node (by PXM in SRAT), but we cannot
-> recognize a memory device. Are you saying if we have this
-> entry-granularity,
-> we can hotplug a single memory device in a node ? (Perhaps there are more
-> than on memory device in a node.)
+I forgot to mention that patch [2/2] was (lightly) tested.  Unfortunately,
+I don't have the hardware (or an emulator) allowing me to test patch [1/2].
 
-yes, this is what I mean. Multiple memory devices on one node is possible in
-both a real machine and a VM.
-In the VM case, seabios can present different DIMM devices for any number of
-nodes. Each DIMM is also given a separate SRAT entry by seabios. So when the
-kernel initially parses the entries, it sees multiple ones for the same node.
-(these are merged together in numa_cleanup_meminfo though)
+Thanks,
+Rafael
 
-> 
-> If so, it makes sense. But I don't the kernel is able to recognize which
-> device a memory range belongs to now. And I'm not sure if we can do this.
 
-kernel knows which memory ranges belong to each DIMM (with ACPI enabled, each
-DIMM is represented by an acpi memory device, see drivers/acpi/acpi_memhotplug.c)
-
-> 
-> >
-> >Of course the kernel should still have enough memory(i.e. non movable zone) to
-> >boot. Can we ensure that at least certain amount of memory is non-movable, and
-> >then, given more separate SRAT entries for node0 not used by kernel, treat
-> >these rest entries as movable?
-> 
-> I tried this idea before. But as HPA said, it seems no way to
-> calculate how much
-> memory the kernel needs.
-> https://lkml.org/lkml/2012/11/27/29
-
-yes, if we can't guarantee enough non-movable memory for the kernel, I am not
-sure how to do this.
-
-thanks,
-
-- Vasilis
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
