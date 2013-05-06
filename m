@@ -1,218 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 24BF86B0119
-	for <linux-mm@kvack.org>; Mon,  6 May 2013 04:09:50 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
-	Mon, 6 May 2013 17:59:18 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 70570368476
-	for <linux-mm@kvack.org>; Mon,  6 May 2013 15:50:24 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r465oHuv13369376
-	for <linux-mm@kvack.org>; Mon, 6 May 2013 15:50:17 +1000
-Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r465oNu4014615
-	for <linux-mm@kvack.org>; Mon, 6 May 2013 15:50:23 +1000
-Message-ID: <5187449A.1000202@linux.vnet.ibm.com>
-Date: Mon, 06 May 2013 13:50:18 +0800
-From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 5051F6B011D
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 04:11:51 -0400 (EDT)
+Date: Mon, 6 May 2013 04:11:50 -0400 (EDT)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <182191740.7632050.1367827910594.JavaMail.root@redhat.com>
+In-Reply-To: <1229089404.7626676.1367827736964.JavaMail.root@redhat.com>
+Subject: 3.9.0: system deadlock at semctl running selinux testsuite
 MIME-Version: 1.0
-Subject: [PATCH RESEND] mm: mmu_notifier: re-fix freed page still mapped in
- secondary MMU
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Robin Holt <holt@sgi.com>, stable@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>
 
-The commit 751efd8610d3 (mmu_notifier_unregister NULL Pointer deref
-and multiple ->release()) breaks the fix:
-    3ad3d901bbcfb15a5e4690e55350db0899095a68
-    (mm: mmu_notifier: fix freed page still mapped in secondary MMU)
+The serial console was kept flooding by the message below until the system
+was dead entirely running the upstream selinux testsuite. Never saw any of
+those during the previous RC testing.
 
-Since hlist_for_each_entry_rcu() is changed now, we can not revert that patch
-directly, so this patch reverts the commit and simply fix the bug spotted
-by that patch
+[ 3208.133005] BUG: soft lockup - CPU#1 stuck for 22s! [semctl:32186] 
+[ 3208.133005] Modules linked in: nfsv3 nfs_acl nfsv2 nfs lockd sunrpc fscache nfnetlink_log nfnetlink bluetooth rfkill arc4 md4 nls_utf8 cifs dns_resolver nf_tproxy_core nls_koi8_u nls_cp932 ts_kmp sctp nf_conntrack_netbios_ns nf_conntrack_broadcast ipt_MASQUERADE ip6table_mangle ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 iptable_nat nf_nat_ipv4 nf_nat iptable_mangle ipt_REJECT nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_filter ebtables ip6table_filter ip6_tables iptable_filter ip_tables sg pcspkr microcode i2c_piix4 virtio_balloon xfs libcrc32c ata_generic pata_acpi cirrus syscopyarea sysfillrect sysimgblt drm_kms_helper ttm drm virtio_net virtio_blk ata_piix libata i2c_core floppy dm_mirror dm_region_hash dm_log dm_mod [last unloaded: zlib_deflate] 
+[ 3208.133005] CPU: 1 PID: 32186 Comm: semctl Tainted: G    B   W    3.9.0+ #1 
+[ 3208.133005] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011 
+[ 3208.133005] task: ffff880064e40000 ti: ffff88006f68c000 task.ti: ffff88006f68c000 
+[ 3208.133005] RIP: 0010:[<ffffffff815f7632>]  [<ffffffff815f7632>] _raw_spin_lock+0x22/0x30 
+[ 3208.133005] RSP: 0018:ffff88006f68dec8  EFLAGS: 00000202 
+[ 3208.133005] RAX: 0000000000000007 RBX: ffff88003726eca0 RCX: 0000000000000004 
+[ 3208.133005] RDX: 0000000000000005 RSI: ffffffff81951828 RDI: ffff88006f9fc220 
+[ 3208.133005] RBP: ffff88006f68dec8 R08: ffffffff81951820 R09: 0000000000000000 
+[ 3208.133005] R10: 00007fff0f388a40 R11: 0000000000000001 R12: ffffffff815fb02c 
+[ 3208.133005] R13: ffff88006f68df38 R14: ffff88005fae86c0 R15: ffff88006f68df58 
+[ 3208.133005] FS:  00007f7033ca3740(0000) GS:ffff88007fd00000(0000) knlGS:0000000000000000 
+[ 3208.133005] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033 
+[ 3208.133005] CR2: 00007f70337cdfb0 CR3: 000000006ef89000 CR4: 00000000000006e0 
+[ 3208.133005] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000 
+[ 3208.133005] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400 
+[ 3208.133005] Stack: 
+[ 3208.133005]  ffff88006f68df38 ffffffff8126fe85 000003ff64e40000 ffffffff81951820 
+[ 3208.133005]  ffffffff81951830 ffff88006f68df60 ffff88006f68df50 ffffffff81951850 
+[ 3208.133005]  0000000000000002 0000000000000000 00000000004005f0 00007fff0f388e30 
+[ 3208.133005] Call Trace: 
+[ 3208.133005]  [<ffffffff8126fe85>] ipcget+0x105/0x1a0 
+[ 3208.133005]  [<ffffffff81273a1a>] SyS_semget+0x6a/0x80 
+[ 3208.133005]  [<ffffffff81271760>] ? sem_security+0x10/0x10 
+[ 3208.133005]  [<ffffffff81271750>] ? wake_up_sem_queue_do+0x60/0x60 
+[ 3208.133005]  [<ffffffff812716c0>] ? SyS_msgrcv+0x20/0x20 
+[ 3208.133005]  [<ffffffff815ff942>] system_call_fastpath+0x16/0x1b 
+[ 3208.133005] Code: 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 55 48 89 e5 b8 00 00 01 00 f0 0f c1 07 89 c2 c1 ea 10 66 39 c2 74 0e 0f 1f 40 00 f3 90 <0f> b7 07 66 39 d0 75 f6 5d c3 90 90 90 90 0f 1f 44 00 00 55 48  
+[ 3236.133005] BUG: soft lockup - CPU#1 stuck for 22s! [semctl:32186] 
+[ 3236.133005] Modules linked in: nfsv3 nfs_acl nfsv2 nfs lockd sunrpc fscache nfnetlink_log nfnetlink bluetooth rfkill arc4 md4 nls_utf8 cifs dns_resolver nf_tproxy_core nls_koi8_u nls_cp932 ts_kmp sctp nf_conntrack_netbios_ns nf_conntrack_broadcast ipt_MASQUERADE ip6table_mangle ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 iptable_nat nf_nat_ipv4 nf_nat iptable_mangle ipt_REJECT nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_filter ebtables ip6table_filter ip6_tables iptable_filter ip_tables sg pcspkr microcode i2c_piix4 virtio_balloon xfs libcrc32c ata_generic pata_acpi cirrus syscopyarea sysfillrect sysimgblt drm_kms_helper ttm drm virtio_net virtio_blk ata_piix libata i2c_core floppy dm_mirror dm_region_hash dm_log dm_mod [last unloaded: zlib_deflate] 
+[ 3236.133005] CPU: 1 PID: 32186 Comm: semctl Tainted: G    B   W    3.9.0+ #1 
+[ 3236.133005] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011 
+[ 3236.133005] task: ffff880064e40000 ti: ffff88006f68c000 task.ti: ffff88006f68c000 
+[ 3236.133005] RIP: 0010:[<ffffffff815f7632>]  [<ffffffff815f7632>] _raw_spin_lock+0x22/0x30 
+[ 3236.133005] RSP: 0018:ffff88006f68dec8  EFLAGS: 00000202 
+[ 3236.133005] RAX: 0000000000000007 RBX: ffff88003726eca0 RCX: 0000000000000004 
+[ 3236.133005] RDX: 0000000000000005 RSI: ffffffff81951828 RDI: ffff88006f9fc220 
+[ 3236.133005] RBP: ffff88006f68dec8 R08: ffffffff81951820 R09: 0000000000000000 
+[ 3236.133005] R10: 00007fff0f388a40 R11: 0000000000000001 R12: ffffffff815fb02c 
+[ 3236.133005] R13: ffff88006f68df38 R14: ffff88005fae86c0 R15: ffff88006f68df58 
+[ 3236.133005] FS:  00007f7033ca3740(0000) GS:ffff88007fd00000(0000) knlGS:0000000000000000 
+[ 3236.133005] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033 
+[ 3236.133005] CR2: 00007f70337cdfb0 CR3: 000000006ef89000 CR4: 00000000000006e0 
+[ 3236.133005] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000 
+[ 3236.133005] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400 
+[ 3236.133005] Stack: 
+[ 3236.133005]  ffff88006f68df38 ffffffff8126fe85 000003ff64e40000 ffffffff81951820 
+[ 3236.133005]  ffffffff81951830 ffff88006f68df60 ffff88006f68df50 ffffffff81951850 
+[ 3236.133005]  0000000000000002 0000000000000000 00000000004005f0 00007fff0f388e30 
+[ 3236.133005] Call Trace: 
+[ 3236.133005]  [<ffffffff8126fe85>] ipcget+0x105/0x1a0 
+[ 3236.133005]  [<ffffffff81273a1a>] SyS_semget+0x6a/0x80 
+[ 3236.133005]  [<ffffffff81271760>] ? sem_security+0x10/0x10 
+[ 3236.133005]  [<ffffffff81271750>] ? wake_up_sem_queue_do+0x60/0x60 
+[ 3236.133005]  [<ffffffff812716c0>] ? SyS_msgrcv+0x20/0x20 
+[ 3236.133005]  [<ffffffff815ff942>] system_call_fastpath+0x16/0x1b 
+[ 3236.133005] Code: 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 55 48 89 e5 b8 00 00 01 00 f0 0f c1 07 89 c2 c1 ea 10 66 39 c2 74 0e 0f 1f 40 00 f3 90 <0f> b7 07 66 39 d0 75 f6 5d c3 90 90 90 90 0f 1f 44 00 00 55 48  
+[ 3242.673005] INFO: rcu_sched self-detected stall on CPU { 1}  (t=60000 jiffies g=408763 c=408762 q=1690761) 
+[ 3242.673005] sending NMI to all CPUs: 
+[ 3242.673005] NMI backtrace for cpu 1 
+[ 3242.673005] CPU: 1 PID: 32186 Comm: semctl Tainted: G    B   W    3.9.0+ #1 
+[ 3242.673005] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011 
+[ 3242.673005] task: ffff880064e40000 ti: ffff88006f68c000 task.ti: ffff88006f68c000 
+[ 3242.673005] RIP: 0010:[<ffffffff8102c1ef>]  [<ffffffff8102c1ef>] flat_send_IPI_mask+0x5f/0x80 
+[ 3242.673005] RSP: 0018:ffff88007fd03d68  EFLAGS: 00010046 
+[ 3242.673005] RAX: 0000000000000c00 RBX: 0000000000000c00 RCX: 0000000000000006 
+[ 3242.673005] RDX: ffffffff818e7e20 RSI: 0000000000000002 RDI: 0000000000000300 
+[ 3242.673005] RBP: ffff88007fd03d98 R08: ffffffff819cecc0 R09: 000000000001db68 
+[ 3242.673005] R10: 0000000000000000 R11: 000000000001db67 R12: 0000000000000092 
+[ 3242.673005] R13: 0000000000000003 R14: ffff88007fd0dd40 R15: 000000000019cc89 
+[ 3242.673005] FS:  00007f7033ca3740(0000) GS:ffff88007fd00000(0000) knlGS:0000000000000000 
+[ 3242.673005] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033 
+[ 3242.673005] CR2: 00007f70337cdfb0 CR3: 000000006ef89000 CR4: 00000000000006e0 
+[ 3242.673005] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000 
+[ 3242.673005] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400 
+[ 3242.673005] Stack: 
+[ 3242.673005]  ffff88007fd03db8 ffff880000000002 ffff88007fd03db8 0000000000002710 
+[ 3242.673005]  0000000000000001 ffffffff8191f980 ffff88007fd03da8 ffffffff8102c275 
+[ 3242.673005]  ffff88007fd03dc8 ffffffff81027627 0000000000000000 ffffffff8191f980 
+[ 3242.673005] Call Trace: 
+[ 3242.673005]  <IRQ>  
+[ 3242.673005]  [<ffffffff8102c275>] flat_send_IPI_all+0x65/0x70 
+[ 3242.673005]  [<ffffffff81027627>] arch_trigger_all_cpu_backtrace+0x67/0xb0 
+[ 3242.673005]  [<ffffffff810e7fb3>] rcu_check_callbacks+0x303/0x5e0 
+[ 3242.673005]  [<ffffffff8105ef38>] update_process_times+0x48/0x80 
+[ 3242.673005]  [<ffffffff810a834e>] tick_sched_handle.isra.8+0x2e/0x70 
+[ 3242.673005]  [<ffffffff810a84ec>] tick_sched_timer+0x4c/0x80 
+[ 3242.673005]  [<ffffffff81076c5f>] __run_hrtimer+0x6f/0x1b0 
+[ 3242.673005]  [<ffffffff810a84a0>] ? tick_sched_do_timer+0x40/0x40 
+[ 3242.673005]  [<ffffffff81077577>] hrtimer_interrupt+0x107/0x240 
+[ 3242.673005]  [<ffffffff816012e9>] smp_apic_timer_interrupt+0x69/0x99 
+[ 3242.673005]  [<ffffffff8160057a>] apic_timer_interrupt+0x6a/0x70 
+[ 3242.673005]  <EOI>  
+[ 3242.673005]  [<ffffffff815f7632>] ? _raw_spin_lock+0x22/0x30 
+[ 3242.673005]  [<ffffffff8126fe85>] ipcget+0x105/0x1a0 
+[ 3242.673005]  [<ffffffff81273a1a>] SyS_semget+0x6a/0x80 
+[ 3242.673005]  [<ffffffff81271760>] ? sem_security+0x10/0x10 
+[ 3242.673005]  [<ffffffff81271750>] ? wake_up_sem_queue_do+0x60/0x60 
+[ 3242.673005]  [<ffffffff812716c0>] ? SyS_msgrcv+0x20/0x20 
+[ 3242.673005]  [<ffffffff815ff942>] system_call_fastpath+0x16/0x1b 
+[ 3242.673005] Code: 25 00 a3 5f ff f6 c4 10 75 f2 44 89 e8 c1 e0 18 89 04 25 10 a3 5f ff 89 f0 09 d8 80 cf 04 83 fe 02 0f 44 c3 89 04 25 00 a3 5f ff <41> 54 9d 48 83 c4 18 5b 41 5c 41 5d 5d c3 89 75 d8 ff 92 50 01  
+[ 3242.675012] NMI backtrace for cpu 0 
+[ 3242.675012] CPU: 0 PID: 0 Comm: swapper/0 Tainted: G    B   W    3.9.0+ #1 
+[ 3242.675012] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011 
+[ 3242.675012] task: ffffffff818da440 ti: ffffffff818ca000 task.ti: ffffffff818ca000 
+[ 3242.675012] RIP: 0010:[<ffffffff8100a3ac>]  [<ffffffff8100a3ac>] default_idle+0x1c/0xb0 
+[ 3242.675012] RSP: 0018:ffffffff818cbee8  EFLAGS: 00000286 
+[ 3242.675012] RAX: 00000000ffffffed RBX: ffffffff818cbfd8 RCX: 0100000000000000 
+[ 3242.675012] RDX: 0100000000000000 RSI: 0000000000000000 RDI: 0000000000000000 
+[ 3242.675012] RBP: ffffffff818cbef8 R08: 0000000000000000 R09: 0000000000000000 
+[ 3242.675012] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000 
+[ 3242.675012] R13: ffffffff818cbfd8 R14: ffffffff818cbfd8 R15: 0000000000000000 
+[ 3242.675012] FS:  0000000000000000(0000) GS:ffff88007fc00000(0000) knlGS:0000000000000000 
+[ 3242.675012] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b 
+[ 3242.675012] CR2: 00007fbee5878420 CR3: 000000007ab49000 CR4: 00000000000006f0 
+[ 3242.675012] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000 
+[ 3242.675012] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400 
+[ 3242.675012] Stack: 
+[ 3242.675012]  ffffffff818cbfd8 ffffffff818cbfd8 ffffffff818cbf08 ffffffff8100ac1e 
+[ 3242.675012]  ffffffff818cbf58 ffffffff8109eae9 ffffffff818cbfd8 ffffffff81a8e2e0 
+[ 3242.675012]  ffff88007ffa4780 ffffffffffffffff ffffffff81a86020 ffffffff81a8e2e0 
+[ 3242.675012] Call Trace: 
+[ 3242.675012]  [<ffffffff8100ac1e>] arch_cpu_idle+0x1e/0x30 
+[ 3242.675012]  [<ffffffff8109eae9>] cpu_startup_entry+0x89/0x210 
+[ 3242.675012]  [<ffffffff815d50c7>] rest_init+0x77/0x80 
+[ 3242.675012]  [<ffffffff819f1e6d>] start_kernel+0x3f9/0x406 
+[ 3242.675012]  [<ffffffff819f1873>] ? repair_env_string+0x5e/0x5e 
+[ 3242.675012]  [<ffffffff819f15a3>] x86_64_start_reservations+0x2a/0x2c 
+[ 3242.675012]  [<ffffffff819f1673>] x86_64_start_kernel+0xce/0xd2 
+[ 3242.675012] Code: 89 e5 e8 48 eb 06 00 5d c3 66 0f 1f 44 00 00 0f 1f 44 00 00 55 48 89 e5 41 54 65 44 8b 24 25 1c b0 00 00 53 0f 1f 44 00 00 fb f4 <65> 44 8b 24 25 1c b0 00 00 0f 1f 44 00 00 5b 41 5c 5d c3 90 e8 
 
-This bug spotted by commit 751efd8610d3 is:
-======
-There is a race condition between mmu_notifier_unregister() and
-__mmu_notifier_release().
-
-Assume two tasks, one calling mmu_notifier_unregister() as a result of a
-filp_close() ->flush() callout (task A), and the other calling
-mmu_notifier_release() from an mmput() (task B).
-
-                    A                               B
-t1                                              srcu_read_lock()
-t2              if (!hlist_unhashed())
-t3                                              srcu_read_unlock()
-t4              srcu_read_lock()
-t5                                              hlist_del_init_rcu()
-t6                                              synchronize_srcu()
-t7              srcu_read_unlock()
-t8              hlist_del_rcu()  <--- NULL pointer deref.
-======
-
-This can be fixed by using hlist_del_init_rcu instead of hlist_del_rcu.
-
-The another issue spotted in the commit is
-"multiple ->release() callouts", we needn't care it too much because
-it is really rare (e.g, can not happen on kvm since mmu-notify is unregistered
-after exit_mmap()) and the later call of multiple ->release should be
-fast since all the pages have already been released by the first call.
-Anyway, this issue should be fixed in a separate patch.
-
--stable suggestions:
-Any version has commit 751efd8610d3 need to be backported. I find the oldest
-version has this commit is 3.0-stable.
-
-Tested-by: Robin Holt <holt@sgi.com>
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
----
-
-Andrew, this patch has been tested by Robin and the test shows that the bug
-of "NULL Pointer deref" bas been fixed. However, we have the argument that
-whether the fix of "multiple ->release" should be merged into this patch.
-(This patch just do fix the bug of "NULL Pointer deref")
-
-Your thought?
-
- mm/mmu_notifier.c |   81 +++++++++++++++++++++++++++--------------------------
- 1 files changed, 41 insertions(+), 40 deletions(-)
-
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index be04122..606777a 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -40,48 +40,45 @@ void __mmu_notifier_release(struct mm_struct *mm)
- 	int id;
-
- 	/*
--	 * srcu_read_lock() here will block synchronize_srcu() in
--	 * mmu_notifier_unregister() until all registered
--	 * ->release() callouts this function makes have
--	 * returned.
-+	 * SRCU here will block mmu_notifier_unregister until
-+	 * ->release returns.
- 	 */
- 	id = srcu_read_lock(&srcu);
-+	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist)
-+		/*
-+		 * if ->release runs before mmu_notifier_unregister it
-+		 * must be handled as it's the only way for the driver
-+		 * to flush all existing sptes and stop the driver
-+		 * from establishing any more sptes before all the
-+		 * pages in the mm are freed.
-+		 */
-+		if (mn->ops->release)
-+			mn->ops->release(mn, mm);
-+	srcu_read_unlock(&srcu, id);
-+
- 	spin_lock(&mm->mmu_notifier_mm->lock);
- 	while (unlikely(!hlist_empty(&mm->mmu_notifier_mm->list))) {
- 		mn = hlist_entry(mm->mmu_notifier_mm->list.first,
- 				 struct mmu_notifier,
- 				 hlist);
--
- 		/*
--		 * Unlink.  This will prevent mmu_notifier_unregister()
--		 * from also making the ->release() callout.
-+		 * We arrived before mmu_notifier_unregister so
-+		 * mmu_notifier_unregister will do nothing other than
-+		 * to wait ->release to finish and
-+		 * mmu_notifier_unregister to return.
- 		 */
- 		hlist_del_init_rcu(&mn->hlist);
--		spin_unlock(&mm->mmu_notifier_mm->lock);
--
--		/*
--		 * Clear sptes. (see 'release' description in mmu_notifier.h)
--		 */
--		if (mn->ops->release)
--			mn->ops->release(mn, mm);
--
--		spin_lock(&mm->mmu_notifier_mm->lock);
- 	}
- 	spin_unlock(&mm->mmu_notifier_mm->lock);
-
- 	/*
--	 * All callouts to ->release() which we have done are complete.
--	 * Allow synchronize_srcu() in mmu_notifier_unregister() to complete
--	 */
--	srcu_read_unlock(&srcu, id);
--
--	/*
--	 * mmu_notifier_unregister() may have unlinked a notifier and may
--	 * still be calling out to it.	Additionally, other notifiers
--	 * may have been active via vmtruncate() et. al. Block here
--	 * to ensure that all notifier callouts for this mm have been
--	 * completed and the sptes are really cleaned up before returning
--	 * to exit_mmap().
-+	 * synchronize_srcu here prevents mmu_notifier_release to
-+	 * return to exit_mmap (which would proceed freeing all pages
-+	 * in the mm) until the ->release method returns, if it was
-+	 * invoked by mmu_notifier_unregister.
-+	 *
-+	 * The mmu_notifier_mm can't go away from under us because one
-+	 * mm_count is hold by exit_mmap.
- 	 */
- 	synchronize_srcu(&srcu);
- }
-@@ -292,31 +289,35 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
- {
- 	BUG_ON(atomic_read(&mm->mm_count) <= 0);
-
--	spin_lock(&mm->mmu_notifier_mm->lock);
- 	if (!hlist_unhashed(&mn->hlist)) {
-+		/*
-+		 * SRCU here will force exit_mmap to wait ->release to finish
-+		 * before freeing the pages.
-+		 */
- 		int id;
-
-+		id = srcu_read_lock(&srcu);
- 		/*
--		 * Ensure we synchronize up with __mmu_notifier_release().
-+		 * exit_mmap will block in mmu_notifier_release to
-+		 * guarantee ->release is called before freeing the
-+		 * pages.
- 		 */
--		id = srcu_read_lock(&srcu);
--
--		hlist_del_rcu(&mn->hlist);
--		spin_unlock(&mm->mmu_notifier_mm->lock);
--
- 		if (mn->ops->release)
- 			mn->ops->release(mn, mm);
-+		srcu_read_unlock(&srcu, id);
-
-+		spin_lock(&mm->mmu_notifier_mm->lock);
- 		/*
--		 * Allow __mmu_notifier_release() to complete.
-+		 * Can not use list_del_rcu() since __mmu_notifier_release
-+		 * can delete it before we hold the lock.
- 		 */
--		srcu_read_unlock(&srcu, id);
--	} else
-+		hlist_del_init_rcu(&mn->hlist);
- 		spin_unlock(&mm->mmu_notifier_mm->lock);
-+	}
-
- 	/*
--	 * Wait for any running method to finish, including ->release() if it
--	 * was run by __mmu_notifier_release() instead of us.
-+	 * Wait any running method to finish, of course including
-+	 * ->release if it was run by mmu_notifier_relase instead of us.
- 	 */
- 	synchronize_srcu(&srcu);
-
--- 
-1.7.7.6
+CAI Qian 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
