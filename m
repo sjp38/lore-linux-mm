@@ -1,88 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 0817E6B00F6
-	for <linux-mm@kvack.org>; Mon,  6 May 2013 17:33:35 -0400 (EDT)
-Date: Tue, 7 May 2013 01:27:19 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm/THP: Don't use HPAGE_SHIFT in transparent hugepage
- code
-Message-ID: <20130506222719.GA23653@shutemov.name>
-References: <1367873552-12904-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id CA76B6B00D8
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 20:50:43 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH 2/2 v2, RFC] Driver core: Introduce offline/online callbacks for memory blocks
+Date: Tue, 07 May 2013 02:59:05 +0200
+Message-ID: <1809544.1r1JBXrr0i@vostro.rjw.lan>
+In-Reply-To: <20130506162812.GB4929@dhcp-192-168-178-175.profitbricks.localdomain>
+References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <19540491.PRsM4lKIYM@vostro.rjw.lan> <20130506162812.GB4929@dhcp-192-168-178-175.profitbricks.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1367873552-12904-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
 
-On Tue, May 07, 2013 at 02:22:32AM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Monday, May 06, 2013 06:28:12 PM Vasilis Liaskovitis wrote:
+> Hi,
 > 
-> For architectures like powerpc that support multiple explicit hugepage
-> sizes, HPAGE_SHIFT indicate the default explicit hugepage shift. For
-> THP to work the hugepage size should be same as PMD_SIZE. So use
-> PMD_SHIFT directly. So move the define outside CONFIG_TRANSPARENT_HUGEPAGE
-> #ifdef because we want to use these defines in generic code with
-> if (pmd_trans_huge()) conditional.
+> On Sat, May 04, 2013 at 01:21:16PM +0200, Rafael J. Wysocki wrote:
+> > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> > 
+> > Introduce .offline() and .online() callbacks for memory_subsys
+> > that will allow the generic device_offline() and device_online()
+> > to be used with device objects representing memory blocks.  That,
+> > in turn, allows the ACPI subsystem to use device_offline() to put
+> > removable memory blocks offline, if possible, before removing
+> > memory modules holding them.
+> > 
+> > The 'online' sysfs attribute of memory block devices will attempt to
+> > put them offline if 0 is written to it and will attempt to apply the
+> > previously used online type when onlining them (i.e. when 1 is
+> > written to it).
+> > 
+> > Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> > ---
+> >  drivers/base/memory.c  |  105 +++++++++++++++++++++++++++++++++++++------------
+> >  include/linux/memory.h |    1 
+> >  2 files changed, 81 insertions(+), 25 deletions(-)
+> >
+> [...]
 > 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  include/linux/huge_mm.h | 10 +++-------
->  1 file changed, 3 insertions(+), 7 deletions(-)
+> > @@ -686,10 +735,16 @@ int offline_memory_block(struct memory_b
+> >  {
+> >  	int ret = 0;
+> >  
+> > +	lock_device_hotplug();
+> >  	mutex_lock(&mem->state_mutex);
+> > -	if (mem->state != MEM_OFFLINE)
+> > -		ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
+> > +	if (mem->state != MEM_OFFLINE) {
+> > +		ret = __memory_block_change_state_uevent(mem, MEM_OFFLINE,
+> > +							 MEM_ONLINE, -1);
+> > +		if (!ret)
+> > +			mem->dev.offline = true;
+> > +	}
+> >  	mutex_unlock(&mem->state_mutex);
+> > +	unlock_device_hotplug();
 > 
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index 528454c..cc276d2 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -58,12 +58,11 @@ extern pmd_t *page_check_address_pmd(struct page *page,
->  
->  #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
->  #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
-> +#define HPAGE_PMD_SHIFT PMD_SHIFT
+> (Testing with qemu...)
 
-What about:
+Thanks!
 
-#ifndef HPAGE_PMD_SHIFT
-#define HPAGE_PMD_SHIFT HPAGE_SHIFT
-#endif
+> offline_memory_block is called from remove_memory, which in turn is called from
+> acpi_memory_device_remove (detach operation) during acpi_bus_trim. We already
+> hold the device_hotplug lock when we trim (acpi_scan_hot_remove), so we
+> don't need to lock/unlock_device_hotplug in offline_memory_block.
 
-And define HPAGE_PMD_SHIFT in arch code if HPAGE_SHIFT is not suitable?
+Indeed.
 
+First, it looks like offline_memory_block_cb() is the only place calling
+offline_memory_block(), is that right?  I'm wondering if it would make
+sense to use device_offline() in there and remove offline_memory_block()
+entirely?
 
-> +#define HPAGE_PMD_SIZE	((1UL) << HPAGE_PMD_SHIFT)
-> +#define HPAGE_PMD_MASK	(~(HPAGE_PMD_SIZE - 1))
->  
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> -#define HPAGE_PMD_SHIFT HPAGE_SHIFT
-> -#define HPAGE_PMD_MASK HPAGE_MASK
-> -#define HPAGE_PMD_SIZE HPAGE_SIZE
-> -
->  extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
->  
->  #define transparent_hugepage_enabled(__vma)				\
-> @@ -181,9 +180,6 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
->  				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
->  
->  #else /* CONFIG_TRANSPARENT_HUGEPAGE */
-> -#define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
-> -#define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
-> -#define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
->  
->  #define hpage_nr_pages(x) 1
->  
-> -- 
-> 1.8.1.2
+Second, if you ran into this issue during testing, that would mean that patch
+[1/2] actually worked for you, which would be nice. :-)  Was that really the
+case?
+
+> A more general issue is that there are now two memory offlining efforts:
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 1) from acpi_bus_offline_companions during device offline
+> 2) from mm: remove_memory during device detach (offline_memory_block_cb)
+> 
+> The 2nd is only called if the device offline operation was already succesful, so
+> it seems ineffective or redundant now, at least for x86_64/acpi_memhotplug machine
+> (unless the blocks were re-onlined in between).
+
+Sure, and that should be OK for now.  Changing the detach behavior is not
+essential from the patch [2/2] perspective, we can do it later.
+
+> On the other hand, the 2nd effort has some more intelligence in offlining, as it
+> tries to offline twice in the precense of memcg, see commits df3e1b91 or
+> reworked 0baeab16. Maybe we need to consolidate the logic.
+
+Hmm.  Perhaps it would make sense to implement that logic in
+memory_subsys_offline(), then?
+
+> remove_memory is called from device_detach, during trim that can't fail, so it
+> should not fail. However this function can still fail in 2 cases:
+> - offline_memory_block_cb
+> - is_memblock_offlined_cb
+> in the case of re-onlined memblocks in between device-offline and device detach.
+> This seems possible I think, since we do not hold lock_memory_hotplug for the
+> duration of the hot-remove operation.
+
+But we do hold device_hotplug_lock, so every code path that may race with
+acpi_scan_hot_remove() needs to take device_hotplug_lock as well.  Now,
+question is whether or not there are any code paths like that calling one of
+the two functions above without holding device_hotplug_lock?
+
+Rafael
+
 
 -- 
- Kirill A. Shutemov
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
