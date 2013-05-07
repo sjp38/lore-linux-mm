@@ -1,124 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id E7B7B6B00CF
-	for <linux-mm@kvack.org>; Tue,  7 May 2013 11:05:13 -0400 (EDT)
-Message-ID: <51891816.806@oracle.com>
-Date: Tue, 07 May 2013 23:04:54 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id D4CF36B00D6
+	for <linux-mm@kvack.org>; Tue,  7 May 2013 11:10:33 -0400 (EDT)
+Received: by mail-bk0-f52.google.com with SMTP id q16so361371bkw.11
+        for <linux-mm@kvack.org>; Tue, 07 May 2013 08:10:32 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] memcg: replace memparse to avoid input overflow
-References: <1367768681-4451-1-git-send-email-handai.szj@taobao.com> <20130507141208.GD9497@dhcp22.suse.cz>
-In-Reply-To: <20130507141208.GD9497@dhcp22.suse.cz>
+In-Reply-To: <20130507134004.GB9497@dhcp22.suse.cz>
+References: <1367768477-4360-1-git-send-email-handai.szj@taobao.com>
+	<20130507134004.GB9497@dhcp22.suse.cz>
+Date: Tue, 7 May 2013 23:10:31 +0800
+Message-ID: <CAFj3OHVVPLQnOKFFdV6pu7mP=8W6mKUusvaBU8aspRZeUNBaOw@mail.gmail.com>
+Subject: Re: [PATCH 1/3] memcg: correct RESOURCE_MAX to ULLONG_MAX and rename
+ it to a better one
+From: Sha Zhengju <handai.szj@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, nishimura@mxp.nes.nec.co.jp, akpm@linux-foundation.org, Sha Zhengju <handai.szj@taobao.com>
+Cc: Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>, Andrew Morton <akpm@linux-foundation.org>, jeff.liu@oracle.com, Sha Zhengju <handai.szj@taobao.com>
 
-On 05/07/2013 10:12 PM, Michal Hocko wrote:
-> On Sun 05-05-13 23:44:41, Sha Zhengju wrote:
->> memparse() doesn't check if overflow has happens, and it even has no
->> args to inform user that the unexpected situation has occurred. Besides,
->> some of its callers make a little artful use of the current implementation
->> and it also seems to involve too much if changing memparse() interface.
+Hi Michal,
+
+On Tue, May 7, 2013 at 9:40 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Sun 05-05-13 23:41:17, Sha Zhengju wrote:
+>> Current RESOURCE_MAX(unlimited) is ULONG_MAX, but we can set a bigger value
+>
+> You have a typo here. The current limit is LLONG_MAX
+>
+>> than it which is strange. This patch fix it to UULONG_MAX.
+>
+> and the new one is ULLONG_MAX
+
+Oops... It was most thoughtless of me.
+
+>
+>> Notice that this change will affect user output of default *.limit_in_bytes:
+>> before change:
+>> $ cat /memcg/memory.limit_in_bytes
+>> 9223372036854775807
 >>
->> This patch rewrites memcg's internal res_counter_memparse_write_strategy().
->> It doesn't use memparse() any more and replaces simple_strtoull() with
->> kstrtoull() to avoid input overflow.
-> 
-> I do not like this to be honest. I do not think we should be really
-> worried about overflows here. Or where this turned out to be a real
-> issue? 
-Yes. e.g.
-Without this validation, user could specify a big value larger than ULLONG_MAX
-which would result in 0 because of an overflow.  Even worse, all the processes
-belonging to this group will be killed by OOM-Killer in this situation.
- 
-> The new implementation is inherently slower without a good
-> reason.
-In talking about this, I also concerned for the overhead as per an offline
-discussion with Sha when she wrote this fix.  However, can we consider it to be
-a tradeoff as this helper is not being used in any hot path?
-That's why we didn't directly touch memparse(), but extracted those codes for
-parsing memory string out of it to res_counter_memparse_write_strategy() instead.
-
-Thanks,
--Jeff
-> 
+>> after change:
+>> $ cat /memcg/memory.limit_in_bytes
+>> 18446744073709551615
+>>
+>> But it doesn't alter the API in term of input - we can still use
+>> "echo -1 > *.limit_in_bytes" to reset the numbers to "unlimited".
+>>
+>> Thanks the suggestions from Andrew and Daisuke Nishimura!
+>>
 >> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+>
+> For the default change
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Thanks!
+
+>
 >> ---
->>  kernel/res_counter.c |   41 ++++++++++++++++++++++++++++++++++++-----
->>  1 file changed, 36 insertions(+), 5 deletions(-)
+>>  include/linux/res_counter.h |    2 +-
+>>  kernel/res_counter.c        |    8 ++++----
+>>  mm/memcontrol.c             |    4 ++--
+>>  net/ipv4/tcp_memcontrol.c   |   10 +++++-----
+>>  4 files changed, 12 insertions(+), 12 deletions(-)
 >>
->> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
->> index be8ddda..a990e8e0 100644
->> --- a/kernel/res_counter.c
->> +++ b/kernel/res_counter.c
->> @@ -182,19 +182,50 @@ int res_counter_memparse_write_strategy(const char *buf,
->>  {
->>  	char *end;
->>  	unsigned long long res;
->> +	int ret, len, suffix = 0;
->> +	char *ptr;
->>  
->>  	/* return RES_COUNTER_MAX(unlimited) if "-1" is specified */
->>  	if (*buf == '-') {
->> -		res = simple_strtoull(buf + 1, &end, 10);
->> -		if (res != 1 || *end != '\0')
->> +		ret = kstrtoull(buf + 1, 10, &res);
->> +		if (res != 1 || ret)
->>  			return -EINVAL;
->>  		*resp = RES_COUNTER_MAX;
->>  		return 0;
->>  	}
->>  
->> -	res = memparse(buf, &end);
->> -	if (*end != '\0')
->> -		return -EINVAL;
->> +	len = strlen(buf);
->> +	end = buf + len - 1;
->> +	switch (*end) {
->> +	case 'G':
->> +	case 'g':
->> +		suffix ++;
->> +	case 'M':
->> +	case 'm':
->> +		suffix ++;
->> +	case 'K':
->> +	case 'k':
->> +		suffix ++;
->> +		len --;
->> +	default:
->> +		break;
->> +	}
->> +
->> +	ptr = kmalloc(len + 1, GFP_KERNEL);
->> +	if (!ptr) return -ENOMEM;
->> +
->> +	strlcpy(ptr, buf, len + 1);
->> +	ret = kstrtoull(ptr, 0, &res);
->> +	kfree(ptr);
->> +	if (ret) return -EINVAL;
->> +
->> +	while (suffix) {
->> +		/* check for overflow while multiplying suffix number */
->> +		if (unlikely(res & (~0ull << 54)))
->> +			return -EINVAL;
->> +		res <<= 10;
->> +		suffix --;
->> +	}
->>  
->>  	if (PAGE_ALIGN(res) >= res)
->>  		res = PAGE_ALIGN(res);
->> -- 
->> 1.7.9.5
+>> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+>> index c230994..d7e9056 100644
+>> --- a/include/linux/res_counter.h
+>> +++ b/include/linux/res_counter.h
+>> @@ -54,7 +54,7 @@ struct res_counter {
+>>       struct res_counter *parent;
+>>  };
 >>
->> --
->> To unsubscribe from this list: send the line "unsubscribe cgroups" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
+>> -#define RESOURCE_MAX (unsigned long long)LLONG_MAX
+>> +#define RES_COUNTER_MAX ULLONG_MAX
+>
+> I do not think the renaming is worth bothering but if you feel it is a
+> better match then just do it in a separate patch, please.
+
+I've received comments from Andrew that he suggested we had better
+rename it since it is too general. (Sorry, it's my fault that I didn't
+mention the change log from V1, I will take care next time. The
+previous discussion is here:
+http://www.spinics.net/lists/cgroups/msg06788.html). I think we might
+as well do it and I'll separate it in next turn.
+
+--
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
