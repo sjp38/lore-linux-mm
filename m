@@ -1,97 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 7E0576B00CD
-	for <linux-mm@kvack.org>; Tue,  7 May 2013 19:07:46 -0400 (EDT)
-Received: by mail-qc0-f178.google.com with SMTP id l11so650412qcy.9
-        for <linux-mm@kvack.org>; Tue, 07 May 2013 16:07:45 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id E60756B00CF
+	for <linux-mm@kvack.org>; Tue,  7 May 2013 19:09:02 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH 2/2 v2, RFC] Driver core: Introduce offline/online callbacks for memory blocks
+Date: Wed, 08 May 2013 01:17:25 +0200
+Message-ID: <228012439.MgiLXSqjLd@vostro.rjw.lan>
+In-Reply-To: <1367966740.30363.26.camel@misato.fc.hp.com>
+References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <2150698.7rPOtiF0kp@vostro.rjw.lan> <1367966740.30363.26.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-In-Reply-To: <1367967607-vpfj91fc-mutt-n-horiguchi@ah.jp.nec.com>
-References: <1367959554-3218-1-git-send-email-j.glisse@gmail.com>
-	<1367963581-fsskl9vz-mutt-n-horiguchi@ah.jp.nec.com>
-	<CAH3drwbQ91tb=C2D+fNkdPapK75db0yAaWsUrU2A41Rigsuxfg@mail.gmail.com>
-	<1367967607-vpfj91fc-mutt-n-horiguchi@ah.jp.nec.com>
-Date: Tue, 7 May 2013 19:07:45 -0400
-Message-ID: <CAH3drwZ3pNwr3gB5FVXZcDHkQ5iBWqnga0eU1-fHvkZChSq6Hg@mail.gmail.com>
-Subject: Re: [PATCH 1/3] mm: honor FOLL_GET flag in follow_hugetlb_page
-From: Jerome Glisse <j.glisse@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jerome Glisse <jglisse@redhat.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org, wency@cn.fujitsu.com
 
-On Tue, May 7, 2013 at 7:00 PM, Naoya Horiguchi
-<n-horiguchi@ah.jp.nec.com> wrote:
-> On Tue, May 07, 2013 at 06:28:18PM -0400, Jerome Glisse wrote:
->> On Tue, May 7, 2013 at 5:53 PM, Naoya Horiguchi
->> <n-horiguchi@ah.jp.nec.com> wrote:
->> > On Tue, May 07, 2013 at 04:45:54PM -0400, j.glisse@gmail.com wrote:
->> >> From: Jerome Glisse <jglisse@redhat.com>
->> >>
->> >> Do not increase page count if FOLL_GET is not set.
->> >>
->> >> Signed-off-by: Jerome Glisse <jglisse@redhat.com>
->> >> ---
->> >>  mm/hugetlb.c | 4 +++-
->> >>  1 file changed, 3 insertions(+), 1 deletion(-)
->> >>
->> >> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> >> index 1a12f5b..5d1e46b 100644
->> >> --- a/mm/hugetlb.c
->> >> +++ b/mm/hugetlb.c
->> >> @@ -2991,7 +2991,9 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
->> >>  same_page:
->> >>               if (pages) {
->> >>                       pages[i] = mem_map_offset(page, pfn_offset);
->> >> -                     get_page(pages[i]);
->> >> +                     if (flags & FOLL_GET) {
->> >> +                             get_page_foll(pages[i]);
->> >> +                     }
->> >>               }
->> >>
->> >>               if (vmas)
->> >> --
->> >
->> > Hi Jerome,
->> >
->> > I think that we need to be careful in handling tail pages, because
->> > __get_page_tail_foll() uses page->_mapcount as refcount.
->> > When you get refcount on a tail page and free the hugepage without
->> > putting the *mapcount*, you will hit BUG_ON() in free_huge_page().
->> > Yes, this is a very tricky workaround for thp, so to avoid making
->> > things too complicated, I think either of the following is better:
->> >  - to get refcount only for head pages, or
->> >  - to introduce a hugetlbfs variant of get_page_foll().
->>
->> Maybe a simpler variant is to just not take any refcount, ie like
->> current code if FOLL_GET is set then take refcount on all page wether
->> they are head/tail or not. I will resend with that.
->
-> Hmm, I think that FOLL_GET flag means "do get_page on page", so
-> the "not take any refcount" variant seems to make no sense for me.
-> Would it be better just call without FOLL_GET?
->
->> > BTW, who do you expect is the caller of follow_hugetlb_page()
->> > with FOLL_GET (I can't find your subsequent patches 2/3 or 3/3)?
->> > I'm interested in this change because in my project it's necessary
->> > to implement this for hugepage migration
->> > (see https://lkml.org/lkml/2013/3/22/553).
->>
->> I can not talk about the patchset yet (and it's not fully cook) but i
->> need to be able to get the page without taking reference so without
->> the FOLL_GET flag set but i need splitting, well no real splitting, i
->> need pfn for each fake sub page of huge page (interested in physical
->> address not in the page struct).
->
-> If the caller knows the vma is backed by hugetlbfs, we can get pfn of
-> the tail page by adding page offset (which can be calcurated by the virtual
-> address with proper huge page mask) to the head page's pfn.
+On Tuesday, May 07, 2013 04:45:40 PM Toshi Kani wrote:
+> On Wed, 2013-05-08 at 00:10 +0200, Rafael J. Wysocki wrote:
+> > On Tuesday, May 07, 2013 03:03:49 PM Toshi Kani wrote:
+> > > On Tue, 2013-05-07 at 14:11 +0200, Rafael J. Wysocki wrote:
+> > > > On Tuesday, May 07, 2013 12:59:45 PM Vasilis Liaskovitis wrote:
+> > > 
+> > >  :
+> > > 
+> > > > Updated patch is appended for completness.
+> > > 
+> > > Yes, this updated patch solved the locking issue.
+> > > 
+> > > > > > > A more general issue is that there are now two memory offlining efforts:
+> > > > > > > 
+> > > > > > > 1) from acpi_bus_offline_companions during device offline
+> > > > > > > 2) from mm: remove_memory during device detach (offline_memory_block_cb)
+> > > > > > > 
+> > > > > > > The 2nd is only called if the device offline operation was already succesful, so
+> > > > > > > it seems ineffective or redundant now, at least for x86_64/acpi_memhotplug machine
+> > > > > > > (unless the blocks were re-onlined in between).
+> > > > > > 
+> > > > > > Sure, and that should be OK for now.  Changing the detach behavior is not
+> > > > > > essential from the patch [2/2] perspective, we can do it later.
+> > > > > 
+> > > > > yes, ok.
+> > > > > 
+> > > > > > 
+> > > > > > > On the other hand, the 2nd effort has some more intelligence in offlining, as it
+> > > > > > > tries to offline twice in the precense of memcg, see commits df3e1b91 or
+> > > > > > > reworked 0baeab16. Maybe we need to consolidate the logic.
+> > > > > > 
+> > > > > > Hmm.  Perhaps it would make sense to implement that logic in
+> > > > > > memory_subsys_offline(), then?
+> > > > > 
+> > > > > the logic tries to offline the memory blocks of the device twice, because the
+> > > > > first memory block might be storing information for the subsequent memblocks.
+> > > > > 
+> > > > > memory_subsys_offline operates on one memory block at a time. Perhaps we can get
+> > > > > the same effect if we do an acpi_walk of acpi_bus_offline_companions twice in
+> > > > > acpi_scan_hot_remove but it's probably not a good idea, since that would
+> > > > > affect non-memory devices as well. 
+> > > > > 
+> > > > > I am not sure how important this intelligence is in practice (I am not using
+> > > > > mem cgroups in my guest kernel tests yet).  Maybe Wen (original author) has
+> > > > > more details on 2-pass offlining effectiveness.
+> > > > 
+> > > > OK
+> > > > 
+> > > > It may be added in a separate patch in any case.
+> > > 
+> > > I had the same comment as Vasilis.  And, I agree with you that we can
+> > > enhance it in separate patches.
+> > > 
+> > >  :
+> > > 
+> > > > +static int memory_subsys_offline(struct device *dev)
+> > > > +{
+> > > > +	struct memory_block *mem = container_of(dev, struct memory_block, dev);
+> > > > +	int ret;
+> > > > +
+> > > > +	mutex_lock(&mem->state_mutex);
+> > > > +	ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
+> > > 
+> > > This function needs to check mem->state just like
+> > > offline_memory_block().  That is:
+> > > 
+> > > 	int ret = 0;
+> > > 		:
+> > > 	if (mem->state != MEM_OFFLINE)
+> > > 		ret = __memory_block_change_state(...);
+> > > 
+> > > Otherwise, memory hot-delete to an off-lined memory fails in
+> > > __memory_block_change_state() since mem->state is already set to
+> > > MEM_OFFLINE.
+> > > 
+> > > With that change, for the series:
+> > > Reviewed-by: Toshi Kani <toshi.kani@hp.com>
+> > 
+> > OK, one more update, then (appended).
+> > 
+> > That said I thought that the check against dev->offline in device_offline()
+> > would be sufficient to guard agaist that.  Is there any "offline" code path
+> > I didn't take into account?
+> 
+> Oh, you are right about that.  The real problem is that dev->offline is
+> set to false (0) when a new memory is hot-added in off-line state.  So,
+> instead, dev->offline needs to be set properly.  
 
-Yes, i am just lazy in my code on that front. But i probably should do that
-anyway, it will save me some temporary allocation.
+OK, where does that happen?
 
-Cheers,
-Jerome
+Rafael
+
+
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
