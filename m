@@ -1,96 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 5195A6B00DC
-	for <linux-mm@kvack.org>; Mon,  6 May 2013 22:13:53 -0400 (EDT)
-Message-ID: <51886409.9030203@cn.fujitsu.com>
-Date: Tue, 07 May 2013 10:16:41 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 6D8E16B00DC
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 23:28:23 -0400 (EDT)
+Received: from /spool/local
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 7 May 2013 08:52:59 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id F07861258023
+	for <linux-mm@kvack.org>; Tue,  7 May 2013 09:00:01 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r473S8Ad5177722
+	for <linux-mm@kvack.org>; Tue, 7 May 2013 08:58:08 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r473SFBE015214
+	for <linux-mm@kvack.org>; Tue, 7 May 2013 13:28:15 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/THP: Don't use HPAGE_SHIFT in transparent hugepage code
+In-Reply-To: <20130506222719.GA23653@shutemov.name>
+References: <1367873552-12904-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20130506222719.GA23653@shutemov.name>
+Date: Tue, 07 May 2013 08:58:13 +0530
+Message-ID: <87wqrbzcxe.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 10/13] x86, acpi, numa, mem-hotplug: Introduce MEMBLK_HOTPLUGGABLE
- to mark and reserve hotpluggable memory.
-References: <1367313683-10267-1-git-send-email-tangchen@cn.fujitsu.com> <1367313683-10267-11-git-send-email-tangchen@cn.fujitsu.com> <20130503105037.GA4533@dhcp-192-168-178-175.profitbricks.localdomain> <51871520.6020703@cn.fujitsu.com> <20130506103743.GA4929@dhcp-192-168-178-175.profitbricks.localdomain>
-In-Reply-To: <20130506103743.GA4929@dhcp-192-168-178-175.profitbricks.localdomain>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, laijs@cn.fujitsu.com, davem@davemloft.net, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org
 
-Hi Vasilis,
+"Kirill A. Shutemov" <kirill@shutemov.name> writes:
 
-On 05/06/2013 06:37 PM, Vasilis Liaskovitis wrote:
+> On Tue, May 07, 2013 at 02:22:32AM +0530, Aneesh Kumar K.V wrote:
+>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+>> 
+>> For architectures like powerpc that support multiple explicit hugepage
+>> sizes, HPAGE_SHIFT indicate the default explicit hugepage shift. For
+>> THP to work the hugepage size should be same as PMD_SIZE. So use
+>> PMD_SHIFT directly. So move the define outside CONFIG_TRANSPARENT_HUGEPAGE
+>> #ifdef because we want to use these defines in generic code with
+>> if (pmd_trans_huge()) conditional.
+>> 
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>> ---
+>>  include/linux/huge_mm.h | 10 +++-------
+>>  1 file changed, 3 insertions(+), 7 deletions(-)
+>> 
+>> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+>> index 528454c..cc276d2 100644
+>> --- a/include/linux/huge_mm.h
+>> +++ b/include/linux/huge_mm.h
+>> @@ -58,12 +58,11 @@ extern pmd_t *page_check_address_pmd(struct page *page,
+>>  
+>>  #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
+>>  #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+>> +#define HPAGE_PMD_SHIFT PMD_SHIFT
 >
-> you can use qemu-kvm and seabios from these branches:
-> https://github.com/vliaskov/qemu-kvm/commits/memhp-v4
-> https://github.com/vliaskov/seabios/commits/memhp-v4
+> What about:
 >
-> Instructions on how to use the DIMM/memory hotplug are here:
+> #ifndef HPAGE_PMD_SHIFT
+> #define HPAGE_PMD_SHIFT HPAGE_SHIFT
+> #endif
 >
-> http://lists.gnu.org/archive/html/qemu-devel/2012-12/msg02693.html
-> (these patchsets are not in mainline qemu/qemu-kvm and seabios)
->
-> e.g. the following creates a VM with 2G initial memory on 2 nodes (1GB on each).
-> There is also an extra 1GB DIMM on each node (the last 3 lines below describe
-> this):
->
-> /opt/qemu/bin/qemu-system-x86_64 -bios /opt/devel/seabios-upstream/out/bios.bin \
-> -enable-kvm -M pc -smp 4,maxcpus=8 -cpu host -m 2G  \
-> -drive
-> file=/opt/images/debian.img,if=none,id=drive-virtio-disk0,format=raw,cache=none \
-> -device virtio-blk-pci,bus=pci.0,drive=drive-virtio-disk0,id=virtio-disk0,bootindex=1 \
-> -netdev type=tap,id=guest0,vhost=on -device virtio-net-pci,netdev=guest0 -vga \
-> std -monitor stdio \
-> -numa node,mem=1G,cpus=2,nodeid=0 -numa node,mem=0,cpus=2,nodeid=1 \
-> -device dimm,id=dimm0,size=1G,node=0,bus=membus.0,populated=off \
-> -device dimm,id=dimm1,size=1G,node=1,bus=membus.0,populated=off
->
-> After startup I hotplug the dimm0 on node0 (or dimm1 on node1, same result)
-> (qemu) device_add dimm,id=dimm0,size=1G,node=0,bus=membus.0
->
-> than i reboot VM. Kernel works without "movablecore=acpi" but panics with this
-> option.
->
-> Note this qemu/seabios does not model initial memory (-m 2G) as memory devices.
-> Only extra dimms ("device -dimm") are modeled as separate memory devices.
->
-
-OK, I'll try it. Thank you for telling me this.:)
-
->>
->> Now in kernel, we can recognize a node (by PXM in SRAT), but we cannot
->> recognize a memory device. Are you saying if we have this
->> entry-granularity,
->> we can hotplug a single memory device in a node ? (Perhaps there are more
->> than on memory device in a node.)
->
-> yes, this is what I mean. Multiple memory devices on one node is possible in
-> both a real machine and a VM.
-> In the VM case, seabios can present different DIMM devices for any number of
-> nodes. Each DIMM is also given a separate SRAT entry by seabios. So when the
-> kernel initially parses the entries, it sees multiple ones for the same node.
-> (these are merged together in numa_cleanup_meminfo though)
->
->>
->> If so, it makes sense. But I don't the kernel is able to recognize which
->> device a memory range belongs to now. And I'm not sure if we can do this.
->
-> kernel knows which memory ranges belong to each DIMM (with ACPI enabled, each
-> DIMM is represented by an acpi memory device, see drivers/acpi/acpi_memhotplug.c)
->
-
-Oh, I'll check acpi_memhotplug.c and see what we can do.
-
-And BTW, as Yinghai suggested, we'd better put pagetable in local node. 
-But the best
-way is to put pagetable in the local memory device, I think. Otherwise, 
-we are not
-able to hot-remove a memory device.
-
-Thanks. :)
+> And define HPAGE_PMD_SHIFT in arch code if HPAGE_SHIFT is not
+> suitable?
 
 
+That would work for me provided the BUILD_BUG_ON is also taken care.
+But is there a reason why we want to do that ? Will any value other
+than PMD_SHIFT work ?
 
+The below patch shows how we want to use these. To avoid those
+BUILD_BUG_ON I ended up doing HUGE_PAGE_SIZE and HUGE_PAGE_MASK
+
+https://lists.ozlabs.org/pipermail/linuxppc-dev/2013-April/105631.html
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
