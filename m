@@ -1,122 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id CA76B6B00D8
-	for <linux-mm@kvack.org>; Mon,  6 May 2013 20:50:43 -0400 (EDT)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH 2/2 v2, RFC] Driver core: Introduce offline/online callbacks for memory blocks
-Date: Tue, 07 May 2013 02:59:05 +0200
-Message-ID: <1809544.1r1JBXrr0i@vostro.rjw.lan>
-In-Reply-To: <20130506162812.GB4929@dhcp-192-168-178-175.profitbricks.localdomain>
-References: <1576321.HU0tZ4cGWk@vostro.rjw.lan> <19540491.PRsM4lKIYM@vostro.rjw.lan> <20130506162812.GB4929@dhcp-192-168-178-175.profitbricks.localdomain>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 5195A6B00DC
+	for <linux-mm@kvack.org>; Mon,  6 May 2013 22:13:53 -0400 (EDT)
+Message-ID: <51886409.9030203@cn.fujitsu.com>
+Date: Tue, 07 May 2013 10:16:41 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: [PATCH v2 10/13] x86, acpi, numa, mem-hotplug: Introduce MEMBLK_HOTPLUGGABLE
+ to mark and reserve hotpluggable memory.
+References: <1367313683-10267-1-git-send-email-tangchen@cn.fujitsu.com> <1367313683-10267-11-git-send-email-tangchen@cn.fujitsu.com> <20130503105037.GA4533@dhcp-192-168-178-175.profitbricks.localdomain> <51871520.6020703@cn.fujitsu.com> <20130506103743.GA4929@dhcp-192-168-178-175.profitbricks.localdomain>
+In-Reply-To: <20130506103743.GA4929@dhcp-192-168-178-175.profitbricks.localdomain>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Toshi Kani <toshi.kani@hp.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, isimatu.yasuaki@jp.fujitsu.com, Len Brown <lenb@kernel.org>, linux-mm@kvack.org
+Cc: mingo@redhat.com, hpa@zytor.com, akpm@linux-foundation.org, yinghai@kernel.org, jiang.liu@huawei.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, tj@kernel.org, laijs@cn.fujitsu.com, davem@davemloft.net, mgorman@suse.de, minchan@kernel.org, mina86@mina86.com, x86@kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Monday, May 06, 2013 06:28:12 PM Vasilis Liaskovitis wrote:
-> Hi,
-> 
-> On Sat, May 04, 2013 at 01:21:16PM +0200, Rafael J. Wysocki wrote:
-> > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> > 
-> > Introduce .offline() and .online() callbacks for memory_subsys
-> > that will allow the generic device_offline() and device_online()
-> > to be used with device objects representing memory blocks.  That,
-> > in turn, allows the ACPI subsystem to use device_offline() to put
-> > removable memory blocks offline, if possible, before removing
-> > memory modules holding them.
-> > 
-> > The 'online' sysfs attribute of memory block devices will attempt to
-> > put them offline if 0 is written to it and will attempt to apply the
-> > previously used online type when onlining them (i.e. when 1 is
-> > written to it).
-> > 
-> > Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> > ---
-> >  drivers/base/memory.c  |  105 +++++++++++++++++++++++++++++++++++++------------
-> >  include/linux/memory.h |    1 
-> >  2 files changed, 81 insertions(+), 25 deletions(-)
-> >
-> [...]
-> 
-> > @@ -686,10 +735,16 @@ int offline_memory_block(struct memory_b
-> >  {
-> >  	int ret = 0;
-> >  
-> > +	lock_device_hotplug();
-> >  	mutex_lock(&mem->state_mutex);
-> > -	if (mem->state != MEM_OFFLINE)
-> > -		ret = __memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE, -1);
-> > +	if (mem->state != MEM_OFFLINE) {
-> > +		ret = __memory_block_change_state_uevent(mem, MEM_OFFLINE,
-> > +							 MEM_ONLINE, -1);
-> > +		if (!ret)
-> > +			mem->dev.offline = true;
-> > +	}
-> >  	mutex_unlock(&mem->state_mutex);
-> > +	unlock_device_hotplug();
-> 
-> (Testing with qemu...)
+Hi Vasilis,
 
-Thanks!
+On 05/06/2013 06:37 PM, Vasilis Liaskovitis wrote:
+>
+> you can use qemu-kvm and seabios from these branches:
+> https://github.com/vliaskov/qemu-kvm/commits/memhp-v4
+> https://github.com/vliaskov/seabios/commits/memhp-v4
+>
+> Instructions on how to use the DIMM/memory hotplug are here:
+>
+> http://lists.gnu.org/archive/html/qemu-devel/2012-12/msg02693.html
+> (these patchsets are not in mainline qemu/qemu-kvm and seabios)
+>
+> e.g. the following creates a VM with 2G initial memory on 2 nodes (1GB on each).
+> There is also an extra 1GB DIMM on each node (the last 3 lines below describe
+> this):
+>
+> /opt/qemu/bin/qemu-system-x86_64 -bios /opt/devel/seabios-upstream/out/bios.bin \
+> -enable-kvm -M pc -smp 4,maxcpus=8 -cpu host -m 2G  \
+> -drive
+> file=/opt/images/debian.img,if=none,id=drive-virtio-disk0,format=raw,cache=none \
+> -device virtio-blk-pci,bus=pci.0,drive=drive-virtio-disk0,id=virtio-disk0,bootindex=1 \
+> -netdev type=tap,id=guest0,vhost=on -device virtio-net-pci,netdev=guest0 -vga \
+> std -monitor stdio \
+> -numa node,mem=1G,cpus=2,nodeid=0 -numa node,mem=0,cpus=2,nodeid=1 \
+> -device dimm,id=dimm0,size=1G,node=0,bus=membus.0,populated=off \
+> -device dimm,id=dimm1,size=1G,node=1,bus=membus.0,populated=off
+>
+> After startup I hotplug the dimm0 on node0 (or dimm1 on node1, same result)
+> (qemu) device_add dimm,id=dimm0,size=1G,node=0,bus=membus.0
+>
+> than i reboot VM. Kernel works without "movablecore=acpi" but panics with this
+> option.
+>
+> Note this qemu/seabios does not model initial memory (-m 2G) as memory devices.
+> Only extra dimms ("device -dimm") are modeled as separate memory devices.
+>
 
-> offline_memory_block is called from remove_memory, which in turn is called from
-> acpi_memory_device_remove (detach operation) during acpi_bus_trim. We already
-> hold the device_hotplug lock when we trim (acpi_scan_hot_remove), so we
-> don't need to lock/unlock_device_hotplug in offline_memory_block.
+OK, I'll try it. Thank you for telling me this.:)
 
-Indeed.
+>>
+>> Now in kernel, we can recognize a node (by PXM in SRAT), but we cannot
+>> recognize a memory device. Are you saying if we have this
+>> entry-granularity,
+>> we can hotplug a single memory device in a node ? (Perhaps there are more
+>> than on memory device in a node.)
+>
+> yes, this is what I mean. Multiple memory devices on one node is possible in
+> both a real machine and a VM.
+> In the VM case, seabios can present different DIMM devices for any number of
+> nodes. Each DIMM is also given a separate SRAT entry by seabios. So when the
+> kernel initially parses the entries, it sees multiple ones for the same node.
+> (these are merged together in numa_cleanup_meminfo though)
+>
+>>
+>> If so, it makes sense. But I don't the kernel is able to recognize which
+>> device a memory range belongs to now. And I'm not sure if we can do this.
+>
+> kernel knows which memory ranges belong to each DIMM (with ACPI enabled, each
+> DIMM is represented by an acpi memory device, see drivers/acpi/acpi_memhotplug.c)
+>
 
-First, it looks like offline_memory_block_cb() is the only place calling
-offline_memory_block(), is that right?  I'm wondering if it would make
-sense to use device_offline() in there and remove offline_memory_block()
-entirely?
+Oh, I'll check acpi_memhotplug.c and see what we can do.
 
-Second, if you ran into this issue during testing, that would mean that patch
-[1/2] actually worked for you, which would be nice. :-)  Was that really the
-case?
+And BTW, as Yinghai suggested, we'd better put pagetable in local node. 
+But the best
+way is to put pagetable in the local memory device, I think. Otherwise, 
+we are not
+able to hot-remove a memory device.
 
-> A more general issue is that there are now two memory offlining efforts:
-> 
-> 1) from acpi_bus_offline_companions during device offline
-> 2) from mm: remove_memory during device detach (offline_memory_block_cb)
-> 
-> The 2nd is only called if the device offline operation was already succesful, so
-> it seems ineffective or redundant now, at least for x86_64/acpi_memhotplug machine
-> (unless the blocks were re-onlined in between).
-
-Sure, and that should be OK for now.  Changing the detach behavior is not
-essential from the patch [2/2] perspective, we can do it later.
-
-> On the other hand, the 2nd effort has some more intelligence in offlining, as it
-> tries to offline twice in the precense of memcg, see commits df3e1b91 or
-> reworked 0baeab16. Maybe we need to consolidate the logic.
-
-Hmm.  Perhaps it would make sense to implement that logic in
-memory_subsys_offline(), then?
-
-> remove_memory is called from device_detach, during trim that can't fail, so it
-> should not fail. However this function can still fail in 2 cases:
-> - offline_memory_block_cb
-> - is_memblock_offlined_cb
-> in the case of re-onlined memblocks in between device-offline and device detach.
-> This seems possible I think, since we do not hold lock_memory_hotplug for the
-> duration of the hot-remove operation.
-
-But we do hold device_hotplug_lock, so every code path that may race with
-acpi_scan_hot_remove() needs to take device_hotplug_lock as well.  Now,
-question is whether or not there are any code paths like that calling one of
-the two functions above without holding device_hotplug_lock?
-
-Rafael
+Thanks. :)
 
 
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
