@@ -1,108 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id C4FFC6B00DA
-	for <linux-mm@kvack.org>; Tue,  7 May 2013 10:12:13 -0400 (EDT)
-Date: Tue, 7 May 2013 16:12:08 +0200
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 09F6B6B007D
+	for <linux-mm@kvack.org>; Tue,  7 May 2013 10:46:23 -0400 (EDT)
+Date: Tue, 7 May 2013 16:46:19 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/3] memcg: replace memparse to avoid input overflow
-Message-ID: <20130507141208.GD9497@dhcp22.suse.cz>
-References: <1367768681-4451-1-git-send-email-handai.szj@taobao.com>
+Subject: Re: [patch] mm, memcg: don't take task_lock in task_in_mem_cgroup
+Message-ID: <20130507144619.GE9497@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1305030948180.30223@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1367768681-4451-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <alpine.DEB.2.02.1305030948180.30223@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, nishimura@mxp.nes.nec.co.jp, akpm@linux-foundation.org, jeff.liu@oracle.com, Sha Zhengju <handai.szj@taobao.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun 05-05-13 23:44:41, Sha Zhengju wrote:
-> memparse() doesn't check if overflow has happens, and it even has no
-> args to inform user that the unexpected situation has occurred. Besides,
-> some of its callers make a little artful use of the current implementation
-> and it also seems to involve too much if changing memparse() interface.
+On Fri 03-05-13 09:49:49, David Rientjes wrote:
+> For processes that have detached their mm's, task_in_mem_cgroup()
+> unnecessarily takes task_lock() when rcu_read_lock() is all that is
+> necessary to call mem_cgroup_from_task().
 > 
-> This patch rewrites memcg's internal res_counter_memparse_write_strategy().
-> It doesn't use memparse() any more and replaces simple_strtoull() with
-> kstrtoull() to avoid input overflow.
+> While we're here, switch task_in_mem_cgroup() to return bool.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-I do not like this to be honest. I do not think we should be really
-worried about overflows here. Or where this turned out to be a real
-issue? The new implementation is inherently slower without a good
-reason.
+Well spotted!
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+Thanks
+
 > ---
->  kernel/res_counter.c |   41 ++++++++++++++++++++++++++++++++++++-----
->  1 file changed, 36 insertions(+), 5 deletions(-)
+>  include/linux/memcontrol.h |  9 +++++----
+>  mm/memcontrol.c            | 11 ++++++-----
+>  2 files changed, 11 insertions(+), 9 deletions(-)
 > 
-> diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-> index be8ddda..a990e8e0 100644
-> --- a/kernel/res_counter.c
-> +++ b/kernel/res_counter.c
-> @@ -182,19 +182,50 @@ int res_counter_memparse_write_strategy(const char *buf,
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -77,7 +77,8 @@ extern void mem_cgroup_uncharge_cache_page(struct page *page);
+>  
+>  bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+>  				  struct mem_cgroup *memcg);
+> -int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
+> +bool task_in_mem_cgroup(struct task_struct *task,
+> +			const struct mem_cgroup *memcg);
+>  
+>  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+>  extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+> @@ -273,10 +274,10 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
+>  	return true;
+>  }
+>  
+> -static inline int task_in_mem_cgroup(struct task_struct *task,
+> -				     const struct mem_cgroup *memcg)
+> +static inline bool task_in_mem_cgroup(struct task_struct *task,
+> +				      const struct mem_cgroup *memcg)
 >  {
->  	char *end;
->  	unsigned long long res;
-> +	int ret, len, suffix = 0;
-> +	char *ptr;
+> -	return 1;
+> +	return true;
+>  }
 >  
->  	/* return RES_COUNTER_MAX(unlimited) if "-1" is specified */
->  	if (*buf == '-') {
-> -		res = simple_strtoull(buf + 1, &end, 10);
-> -		if (res != 1 || *end != '\0')
-> +		ret = kstrtoull(buf + 1, 10, &res);
-> +		if (res != 1 || ret)
->  			return -EINVAL;
->  		*resp = RES_COUNTER_MAX;
->  		return 0;
+>  static inline struct cgroup_subsys_state
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1443,11 +1443,12 @@ static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+>  	return ret;
+>  }
+>  
+> -int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
+> +bool task_in_mem_cgroup(struct task_struct *task,
+> +			const struct mem_cgroup *memcg)
+>  {
+> -	int ret;
+>  	struct mem_cgroup *curr = NULL;
+>  	struct task_struct *p;
+> +	bool ret;
+>  
+>  	p = find_lock_task_mm(task);
+>  	if (p) {
+> @@ -1459,14 +1460,14 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg)
+>  		 * killer still needs to detect if they have already been oom
+>  		 * killed to prevent needlessly killing additional tasks.
+>  		 */
+> -		task_lock(task);
+> +		rcu_read_lock();
+>  		curr = mem_cgroup_from_task(task);
+>  		if (curr)
+>  			css_get(&curr->css);
+> -		task_unlock(task);
+> +		rcu_read_unlock();
 >  	}
->  
-> -	res = memparse(buf, &end);
-> -	if (*end != '\0')
-> -		return -EINVAL;
-> +	len = strlen(buf);
-> +	end = buf + len - 1;
-> +	switch (*end) {
-> +	case 'G':
-> +	case 'g':
-> +		suffix ++;
-> +	case 'M':
-> +	case 'm':
-> +		suffix ++;
-> +	case 'K':
-> +	case 'k':
-> +		suffix ++;
-> +		len --;
-> +	default:
-> +		break;
-> +	}
-> +
-> +	ptr = kmalloc(len + 1, GFP_KERNEL);
-> +	if (!ptr) return -ENOMEM;
-> +
-> +	strlcpy(ptr, buf, len + 1);
-> +	ret = kstrtoull(ptr, 0, &res);
-> +	kfree(ptr);
-> +	if (ret) return -EINVAL;
-> +
-> +	while (suffix) {
-> +		/* check for overflow while multiplying suffix number */
-> +		if (unlikely(res & (~0ull << 54)))
-> +			return -EINVAL;
-> +		res <<= 10;
-> +		suffix --;
-> +	}
->  
->  	if (PAGE_ALIGN(res) >= res)
->  		res = PAGE_ALIGN(res);
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>  	if (!curr)
+> -		return 0;
+> +		return false;
+>  	/*
+>  	 * We should check use_hierarchy of "memcg" not "curr". Because checking
+>  	 * use_hierarchy of "curr" here make this function true if hierarchy is
 
 -- 
 Michal Hocko
