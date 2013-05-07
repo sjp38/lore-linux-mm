@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 4BAF66B00D3
-	for <linux-mm@kvack.org>; Tue,  7 May 2013 17:19:58 -0400 (EDT)
-Subject: [RFC][PATCH 2/7] make 'struct page' and swp_entry_t variants of swapcache_free().
+	by kanga.kvack.org (Postfix) with SMTP id 5EC766B00D6
+	for <linux-mm@kvack.org>; Tue,  7 May 2013 17:20:01 -0400 (EDT)
+Subject: [RFC][PATCH 4/7] break out mapping "freepage" code
 From: Dave Hansen <dave@sr71.net>
-Date: Tue, 07 May 2013 14:19:57 -0700
+Date: Tue, 07 May 2013 14:20:00 -0700
 References: <20130507211954.9815F9D1@viggo.jf.intel.com>
 In-Reply-To: <20130507211954.9815F9D1@viggo.jf.intel.com>
-Message-Id: <20130507211957.603799B2@viggo.jf.intel.com>
+Message-Id: <20130507212000.59652B69@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -16,174 +16,72 @@ Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, ti
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-swapcache_free() takes two arguments:
+__remove_mapping() only deals with pages with mappings, meaning
+page cache and swap cache.
 
-	void swapcache_free(swp_entry_t entry, struct page *page)
+At this point, the page has been removed from the mapping's radix
+tree, and we need to ensure that any fs-specific (or swap-
+specific) resources are freed up.
 
-Most of its callers (5/7) are from error handling paths haven't even
-instantiated a page, so they pass page=NULL.  Both of the callers
-that call in with a 'struct page' create and pass in a temporary
-swp_entry_t.
-
-Now that we are deferring clearing page_private() until after
-swapcache_free() has been called, we can just create a variant
-that takes a 'struct page' and does the temporary variable in
-the helper.
-
-That leaves all the other callers doing
-
-	swapcache_free(entry, NULL)
-
-so create another helper for them that makes it clear that they
-need only pass in a swp_entry_t.
-
-One downside here is that delete_from_swap_cache() now does
-an extra swap_address_space() call.  But, those are pretty
-cheap (just some array index arithmetic).
+We will be using this function from a second location in a
+following patch.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- linux.git-davehans/drivers/staging/zcache/zcache-main.c |    2 +-
- linux.git-davehans/include/linux/swap.h                 |    3 ++-
- linux.git-davehans/mm/shmem.c                           |    2 +-
- linux.git-davehans/mm/swap_state.c                      |   13 +++++--------
- linux.git-davehans/mm/swapfile.c                        |   13 ++++++++++++-
- linux.git-davehans/mm/vmscan.c                          |    3 +--
- 6 files changed, 22 insertions(+), 14 deletions(-)
+ linux.git-davehans/mm/vmscan.c |   33 ++++++++++++++++++++++-----------
+ 1 file changed, 22 insertions(+), 11 deletions(-)
 
-diff -puN drivers/staging/zcache/zcache-main.c~make-page-and-swp_entry_t-variants drivers/staging/zcache/zcache-main.c
---- linux.git/drivers/staging/zcache/zcache-main.c~make-page-and-swp_entry_t-variants	2013-05-07 13:48:13.963056205 -0700
-+++ linux.git-davehans/drivers/staging/zcache/zcache-main.c	2013-05-07 13:48:13.975056737 -0700
-@@ -961,7 +961,7 @@ static int zcache_get_swap_cache_page(in
- 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
- 		 * clear SWAP_HAS_CACHE flag.
- 		 */
--		swapcache_free(entry, NULL);
-+		swapcache_free_entry(entry);
- 		/* FIXME: is it possible to get here without err==-ENOMEM?
- 		 * If not, we can dispense with the do loop, use goto retry */
- 	} while (err != -ENOMEM);
-diff -puN include/linux/swap.h~make-page-and-swp_entry_t-variants include/linux/swap.h
---- linux.git/include/linux/swap.h~make-page-and-swp_entry_t-variants	2013-05-07 13:48:13.964056249 -0700
-+++ linux.git-davehans/include/linux/swap.h	2013-05-07 13:48:13.975056737 -0700
-@@ -382,7 +382,8 @@ extern void swap_shmem_alloc(swp_entry_t
- extern int swap_duplicate(swp_entry_t);
- extern int swapcache_prepare(swp_entry_t);
- extern void swap_free(swp_entry_t);
--extern void swapcache_free(swp_entry_t, struct page *page);
-+extern void swapcache_free_entry(swp_entry_t entry);
-+extern void swapcache_free_page_entry(struct page *page);
- extern int free_swap_and_cache(swp_entry_t);
- extern int swap_type_of(dev_t, sector_t, struct block_device **);
- extern unsigned int count_swap_pages(int, int);
-diff -puN mm/shmem.c~make-page-and-swp_entry_t-variants mm/shmem.c
---- linux.git/mm/shmem.c~make-page-and-swp_entry_t-variants	2013-05-07 13:48:13.966056339 -0700
-+++ linux.git-davehans/mm/shmem.c	2013-05-07 13:48:13.976056781 -0700
-@@ -871,7 +871,7 @@ static int shmem_writepage(struct page *
- 	}
- 
- 	mutex_unlock(&shmem_swaplist_mutex);
--	swapcache_free(swap, NULL);
-+	swapcache_free_entry(swap);
- redirty:
- 	set_page_dirty(page);
- 	if (wbc->for_reclaim)
-diff -puN mm/swapfile.c~make-page-and-swp_entry_t-variants mm/swapfile.c
---- linux.git/mm/swapfile.c~make-page-and-swp_entry_t-variants	2013-05-07 13:48:13.968056427 -0700
-+++ linux.git-davehans/mm/swapfile.c	2013-05-07 13:48:13.977056825 -0700
-@@ -637,7 +637,7 @@ void swap_free(swp_entry_t entry)
- /*
-  * Called after dropping swapcache to decrease refcnt to swap entries.
-  */
--void swapcache_free(swp_entry_t entry, struct page *page)
-+static void __swapcache_free(swp_entry_t entry, struct page *page)
- {
- 	struct swap_info_struct *p;
- 	unsigned char count;
-@@ -651,6 +651,17 @@ void swapcache_free(swp_entry_t entry, s
- 	}
+diff -puN mm/vmscan.c~free_mapping_page mm/vmscan.c
+--- linux.git/mm/vmscan.c~free_mapping_page	2013-05-07 13:48:14.520080867 -0700
++++ linux.git-davehans/mm/vmscan.c	2013-05-07 13:48:14.524081045 -0700
+@@ -497,6 +497,27 @@ static int __remove_mapping_nolock(struc
+ 	return 1;
  }
  
-+void swapcache_free_entry(swp_entry_t entry)
++/*
++ * maybe this isnt named the best... it just releases
++ * the mapping's reference to the page.  It frees the
++ * page from *the* *mapping* but not necessarily back
++ * in to the allocator
++ */
++static void free_mapping_page(struct address_space *mapping, struct page *page)
 +{
-+	__swapcache_free(entry, NULL);
-+}
-+
-+void swapcache_free_page_entry(struct page *page)
-+{
-+	swp_entry_t entry = { .val = page_private(page) };
-+	__swapcache_free(entry, page);
-+}
-+
- /*
-  * How many references to page are currently swapped out?
-  * This does not give an exact answer when swap count is continued,
-diff -puN mm/swap_state.c~make-page-and-swp_entry_t-variants mm/swap_state.c
---- linux.git/mm/swap_state.c~make-page-and-swp_entry_t-variants	2013-05-07 13:48:13.969056471 -0700
-+++ linux.git-davehans/mm/swap_state.c	2013-05-07 13:48:13.978056869 -0700
-@@ -172,7 +172,7 @@ int add_to_swap(struct page *page, struc
- 
- 	if (unlikely(PageTransHuge(page)))
- 		if (unlikely(split_huge_page_to_list(page, list))) {
--			swapcache_free(entry, NULL);
-+			swapcache_free_entry(entry);
- 			return 0;
- 		}
- 
-@@ -198,7 +198,7 @@ int add_to_swap(struct page *page, struc
- 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
- 		 * clear SWAP_HAS_CACHE flag.
- 		 */
--		swapcache_free(entry, NULL);
-+		swapcache_free_entry(entry);
- 		return 0;
- 	}
- }
-@@ -211,17 +211,14 @@ int add_to_swap(struct page *page, struc
-  */
- void delete_from_swap_cache(struct page *page)
- {
--	swp_entry_t entry;
- 	struct address_space *address_space;
- 
--	entry.val = page_private(page);
--
--	address_space = swap_address_space(entry);
-+	address_space = page_mapping(page);
- 	spin_lock_irq(&address_space->tree_lock);
- 	__delete_from_swap_cache(page);
- 	spin_unlock_irq(&address_space->tree_lock);
- 
--	swapcache_free(entry, page);
-+	swapcache_free_page_entry(page);
- 	set_page_private(page, 0);
- 	ClearPageSwapCache(page);
- 	page_cache_release(page);
-@@ -365,7 +362,7 @@ struct page *read_swap_cache_async(swp_e
- 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
- 		 * clear SWAP_HAS_CACHE flag.
- 		 */
--		swapcache_free(entry, NULL);
-+		swapcache_free_entry(entry);
- 	} while (err != -ENOMEM);
- 
- 	if (new_page)
-diff -puN mm/vmscan.c~make-page-and-swp_entry_t-variants mm/vmscan.c
---- linux.git/mm/vmscan.c~make-page-and-swp_entry_t-variants	2013-05-07 13:48:13.971056559 -0700
-+++ linux.git-davehans/mm/vmscan.c	2013-05-07 13:48:13.979056913 -0700
-@@ -490,10 +490,9 @@ static int __remove_mapping(struct addre
- 	}
- 
- 	if (PageSwapCache(page)) {
--		swp_entry_t swap = { .val = page_private(page) };
- 		__delete_from_swap_cache(page);
- 		spin_unlock_irq(&mapping->tree_lock);
--		swapcache_free(swap, page);
++	if (PageSwapCache(page)) {
 +		swapcache_free_page_entry(page);
- 		set_page_private(page, 0);
- 		ClearPageSwapCache(page);
- 	} else {
++		set_page_private(page, 0);
++		ClearPageSwapCache(page);
++	} else {
++		void (*freepage)(struct page *);
++		freepage = mapping->a_ops->freepage;
++		mem_cgroup_uncharge_cache_page(page);
++		if (freepage != NULL)
++			freepage(page);
++	}
++}
++
+ static int __remove_mapping(struct address_space *mapping, struct page *page)
+ {
+ 	int ret;
+@@ -510,17 +531,7 @@ static int __remove_mapping(struct addre
+ 	if (!ret)
+ 		return 0;
+ 
+-	if (PageSwapCache(page)) {
+-		swapcache_free_page_entry(page);
+-		set_page_private(page, 0);
+-		ClearPageSwapCache(page);
+-	} else {
+-		void (*freepage)(struct page *);
+-		freepage = mapping->a_ops->freepage;
+-		mem_cgroup_uncharge_cache_page(page);
+-		if (freepage != NULL)
+-			freepage(page);
+-	}
++	free_mapping_page(mapping, page);
+ 	return ret;
+ }
+ 
 _
 
 --
