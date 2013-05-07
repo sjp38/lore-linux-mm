@@ -1,73 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 848006B00D6
-	for <linux-mm@kvack.org>; Tue,  7 May 2013 09:40:11 -0400 (EDT)
-Date: Tue, 7 May 2013 15:40:04 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/3] memcg: correct RESOURCE_MAX to ULLONG_MAX and rename
- it to a better one
-Message-ID: <20130507134004.GB9497@dhcp22.suse.cz>
-References: <1367768477-4360-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id B2DD86B00D8
+	for <linux-mm@kvack.org>; Tue,  7 May 2013 09:46:16 -0400 (EDT)
+Message-ID: <518905D4.8080208@parallels.com>
+Date: Tue, 7 May 2013 17:47:00 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1367768477-4360-1-git-send-email-handai.szj@taobao.com>
+Subject: Re: [PATCH v4 09/31] inode: convert inode lru list to generic lru
+ list code.
+References: <1367018367-11278-1-git-send-email-glommer@openvz.org> <1367018367-11278-10-git-send-email-glommer@openvz.org> <20130430154649.GI6415@suse.de>
+In-Reply-To: <20130430154649.GI6415@suse.de>
+Content-Type: text/plain; charset="ISO-8859-15"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, nishimura@mxp.nes.nec.co.jp, akpm@linux-foundation.org, jeff.liu@oracle.com, Sha Zhengju <handai.szj@taobao.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>
 
-On Sun 05-05-13 23:41:17, Sha Zhengju wrote:
-> Current RESOURCE_MAX(unlimited) is ULONG_MAX, but we can set a bigger value
-
-You have a typo here. The current limit is LLONG_MAX
-
-> than it which is strange. This patch fix it to UULONG_MAX.
-
-and the new one is ULLONG_MAX
-
-> Notice that this change will affect user output of default *.limit_in_bytes:
-> before change:
-> $ cat /memcg/memory.limit_in_bytes
-> 9223372036854775807
+On 04/30/2013 07:46 PM, Mel Gorman wrote:
+> On Sat, Apr 27, 2013 at 03:19:05AM +0400, Glauber Costa wrote:
+>> From: Dave Chinner <dchinner@redhat.com>
+>>
+>> [ glommer: adapted for new LRU return codes ]
+>> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+>> Signed-off-by: Glauber Costa <glommer@openvz.org>
 > 
-> after change:
-> $ cat /memcg/memory.limit_in_bytes
-> 18446744073709551615
+> Looks mostly mechanical with the main mess in the conversion of the
+> isolate function.
 > 
-> But it doesn't alter the API in term of input - we can still use
-> "echo -1 > *.limit_in_bytes" to reset the numbers to "unlimited".
+>> +	if (inode_has_buffers(inode) || inode->i_data.nrpages) {
+>> +		__iget(inode);
+>> +		spin_unlock(&inode->i_lock);
+>> +		spin_unlock(lru_lock);
+>> +		if (remove_inode_buffers(inode)) {
+>> +			unsigned long reap;
+>> +			reap = invalidate_mapping_pages(&inode->i_data, 0, -1);
+>> +			if (current_is_kswapd())
+>> +				__count_vm_events(KSWAPD_INODESTEAL, reap);
+>> +			else
+>> +				__count_vm_events(PGINODESTEAL, reap);
+>> +			if (current->reclaim_state)
+>> +				current->reclaim_state->reclaimed_slab += reap;
+>>  		}
+>> +		iput(inode);
+>> +		spin_lock(lru_lock);
+>> +		return LRU_RETRY;
+>> +	}
 > 
-> Thanks the suggestions from Andrew and Daisuke Nishimura!
+> Only concern is this and whether it can cause the lru_list_walk to
+> infinite loop if the inode is being continually used and the LRU list is
+> too small to win the race.
 > 
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+The way I read, this situation only happens when we have pending
+buffers, and before returning LRU_RETRY, we do our best to release it.
+That means that eventually, it will be released.
 
-For the default change
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Now, of course it is hard to determine how long it will going to take,
+and that can take a while in small LRUs. One way to avoid this, would be
+to use a new flag in the inode. Set it before we return LRU_RETRY, and
+don't retry twice.
 
-> ---
->  include/linux/res_counter.h |    2 +-
->  kernel/res_counter.c        |    8 ++++----
->  mm/memcontrol.c             |    4 ++--
->  net/ipv4/tcp_memcontrol.c   |   10 +++++-----
->  4 files changed, 12 insertions(+), 12 deletions(-)
-> 
-> diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-> index c230994..d7e9056 100644
-> --- a/include/linux/res_counter.h
-> +++ b/include/linux/res_counter.h
-> @@ -54,7 +54,7 @@ struct res_counter {
->  	struct res_counter *parent;
->  };
->  
-> -#define RESOURCE_MAX (unsigned long long)LLONG_MAX
-> +#define RES_COUNTER_MAX ULLONG_MAX
+I actually think this is sensible, but I am talking from the top of my
+head. I haven't really measured how many retries does it usually take
+for us to be able to free it.
 
-I do not think the renaming is worth bothering but if you feel it is a
-better match then just do it in a separate patch, please.
--- 
-Michal Hocko
-SUSE Labs
+Another option would be to just return LRU_SKIP and leave it to the next
+shrinking cycle to free it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
