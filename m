@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 924DC6B00A0
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 16:23:49 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id D48686B00A2
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 16:23:52 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v5 23/31] lru: add an element to a memcg list
-Date: Thu,  9 May 2013 00:23:11 +0400
-Message-Id: <1368044599-3383-24-git-send-email-glommer@openvz.org>
+Subject: [PATCH v5 24/31] list_lru: per-memcg walks
+Date: Thu,  9 May 2013 00:23:12 +0400
+Message-Id: <1368044599-3383-25-git-send-email-glommer@openvz.org>
 In-Reply-To: <1368044599-3383-1-git-send-email-glommer@openvz.org>
 References: <1368044599-3383-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,41 +13,11 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
 
-With the infrastructure we now have, we can add an element to a memcg
-LRU list instead of the global list. The memcg lists are still
-per-node.
+This patch extend the list_lru interfaces to allow for a memcg
+parameter. Because most of its users won't need it, instead of
+modifying the function signatures we create a new set of _memcg()
+functions and write the old API ontop of that.
 
-Technically, we will never trigger per-node shrinking in the memcg is
-short of memory. Therefore an alternative to this would be to add the
-element to *both* a single-node memcg array and a per-node global array.
-
-There are two main reasons for this design choice:
-
-1) adding an extra list_head to each of the objects would waste 16-bytes
-per object, always remembering that we are talking about 1 dentry + 1
-inode in the common case. This means a close to 10 % increase in the
-dentry size, and a lower yet significant increase in the inode size. In
-terms of total memory, this design pays 32-byte per-superblock-per-node
-(size of struct list_lru_node), which means that in any scenario where
-we have more than 10 dentries + inodes, we would already be paying more
-memory in the two-list-heads approach than we will here with 1 node x 10
-superblocks. The turning point of course depends on the workload, but I
-hope the figures above would convince you that the memory footprint is
-in my side in any workload that matters.
-
-2) The main drawback of this, namely, that we loose global LRU order, is
-not really seen by me as a disadvantage: if we are using memcg to
-isolate the workloads, global pressure should try to balance the amount
-reclaimed from all memcgs the same way the shrinkers will already
-naturally balance the amount reclaimed from each superblock. (This
-patchset needs some love in this regard, btw).
-
-To help us easily tracking down which nodes have and which nodes doesn't
-have elements in the list, we will count on an auxiliary node bitmap in
-the global level.
-
-[ v2: move memcg_kmem_lru_of_page to list_lru.c and then unpublish the
-  auxiliary functions it uses ]
 Signed-off-by: Glauber Costa <glommer@openvz.org>
 Cc: Dave Chinner <dchinner@redhat.com>
 Cc: Mel Gorman <mgorman@suse.de>
@@ -58,277 +28,246 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/list_lru.h   |  11 +++++
- include/linux/memcontrol.h |   8 ++++
- lib/list_lru.c             | 104 +++++++++++++++++++++++++++++++++++++++++----
- mm/memcontrol.c            |  24 ++++++++++-
- 4 files changed, 137 insertions(+), 10 deletions(-)
+ include/linux/list_lru.h   |  26 +++++++++---
+ include/linux/memcontrol.h |   2 +
+ lib/list_lru.c             | 102 +++++++++++++++++++++++++++++++++++----------
+ 3 files changed, 102 insertions(+), 28 deletions(-)
 
 diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-index 7eb562c..1d2a618 100644
+index 1d2a618..50147c9 100644
 --- a/include/linux/list_lru.h
 +++ b/include/linux/list_lru.h
-@@ -43,12 +43,23 @@ struct list_lru_array {
+@@ -89,22 +89,36 @@ static inline int list_lru_init_memcg(struct list_lru *lru)
  
- struct list_lru {
- 	struct list_lru_node	node[MAX_NUMNODES];
-+	atomic_long_t		node_totals[MAX_NUMNODES];
- 	nodemask_t		active_nodes;
- #ifdef CONFIG_MEMCG_KMEM
- 	/* All memcg-aware LRUs will be chained in the lrus list */
- 	struct list_head	lrus;
- 	/* M x N matrix as described above */
- 	struct list_lru_array	**memcg_lrus;
-+	/*
-+	 * The memcg_lrus is RCU protected, so we need to keep the previous
-+	 * array around when we update it. But we can only do that after
-+	 * synchronize_rcu(). A typical system has many LRUs, which means
-+	 * that if we call synchronize_rcu after each LRU update, this
-+	 * will become very expensive. We add this pointer here, and then
-+	 * after all LRUs are update, we call synchronize_rcu() once, and
-+	 * free all the old_arrays.
-+	 */
-+	void *old_array;
- #endif
- };
+ int list_lru_add(struct list_lru *lru, struct list_head *item);
+ int list_lru_del(struct list_lru *lru, struct list_head *item);
+-unsigned long
+-list_lru_count_nodemask(struct list_lru *lru, nodemask_t *nodes_to_count);
++
++unsigned long list_lru_count_nodemask_memcg(struct list_lru *lru,
++			nodemask_t *nodes_to_count, struct mem_cgroup *memcg);
++
++static inline unsigned long
++list_lru_count_nodemask(struct list_lru *lru, nodemask_t *nodes_to_count)
++{
++	return list_lru_count_nodemask_memcg(lru, nodes_to_count, NULL);
++}
  
+ static inline unsigned long list_lru_count(struct list_lru *lru)
+ {
+ 	return list_lru_count_nodemask(lru, &lru->active_nodes);
+ }
+ 
+-
+ typedef enum lru_status
+ (*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock, void *cb_arg);
+-
+ typedef void (*list_lru_dispose_cb)(struct list_head *dispose_list);
+ 
+-unsigned long list_lru_walk_nodemask(struct list_lru *lru, list_lru_walk_cb isolate,
+-		   void *cb_arg, long nr_to_walk, nodemask_t *nodes_to_walk);
++unsigned long list_lru_walk_nodemask_memcg(struct list_lru *lru,
++	list_lru_walk_cb isolate, void *cb_arg, long nr_to_walk,
++	nodemask_t *nodes_to_walk, struct mem_cgroup *memcg);
++
++static inline unsigned long list_lru_walk_nodemask(struct list_lru *lru,
++	list_lru_walk_cb isolate, void *cb_arg, long nr_to_walk,
++	nodemask_t *nodes_to_walk)
++{
++	return list_lru_walk_nodemask_memcg(lru, isolate, cb_arg, nr_to_walk,
++					    &lru->active_nodes, NULL);
++}
+ 
+ static inline unsigned long
+ list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index ee3199d..1e74610 100644
+index 1e74610..6dc1d7a 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -24,6 +24,7 @@
- #include <linux/hardirq.h>
- #include <linux/jump_label.h>
- #include <linux/list_lru.h>
-+#include <linux/mm.h>
+@@ -592,6 +592,8 @@ static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+ #define for_each_memcg_cache_index(_idx)	\
+ 	for (; NULL; )
  
- struct mem_cgroup;
- struct page_cgroup;
-@@ -473,6 +474,8 @@ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
- int memcg_new_lru(struct list_lru *lru);
- int memcg_init_lru(struct list_lru *lru);
- 
-+struct mem_cgroup *mem_cgroup_from_kmem_page(struct page *page);
++#define memcg_limited_groups_array_size 0
 +
- int memcg_kmem_update_lru_size(struct list_lru *lru, int num_groups,
- 			       bool new_lru);
- 
-@@ -644,6 +647,11 @@ static inline int memcg_init_lru(struct list_lru *lru)
+ static inline bool memcg_kmem_enabled(void)
  {
- 	return 0;
- }
-+
-+static inline struct mem_cgroup *mem_cgroup_from_kmem_page(struct page *page)
-+{
-+	return NULL;
-+}
- #endif /* CONFIG_MEMCG_KMEM */
- #endif /* _LINUX_MEMCONTROL_H */
- 
+ 	return false;
 diff --git a/lib/list_lru.c b/lib/list_lru.c
-index 1cefd6c..b65e48d 100644
+index b65e48d..da9b837 100644
 --- a/lib/list_lru.c
 +++ b/lib/list_lru.c
-@@ -14,19 +14,85 @@
- #include <linux/list_lru.h>
- #include <linux/memcontrol.h>
+@@ -72,6 +72,23 @@ memcg_kmem_lru_of_page(struct list_lru *lru, struct page *page)
+ 	return lru_node_of_index(lru, memcg_id, nid);
+ }
  
 +/*
-+ * lru_node_of_index - returns the node-lru of a specific lru
-+ * @lru: the global lru we are operating at
-+ * @index: if positive, the memcg id. If negative, means global lru.
-+ * @nid: node id of the corresponding node we want to manipulate
++ * This helper will loop through all node-data in the LRU, either global or
++ * per-memcg.  If memcg is either not present or not used,
++ * memcg_limited_groups_array_size will be 0. _idx starts at -1, and it will
++ * still be allowed to execute once.
++ *
++ * We convention that for _idx = -1, the global node info should be used.
++ * After that, we will go through each of the memcgs, starting at 0.
++ *
++ * We don't need any kind of locking for the loop because
++ * memcg_limited_groups_array_size can only grow, gaining new fields at the
++ * end. The old ones are just copied, and any interesting manipulation happen
++ * in the node list itself, and we already lock the list.
 + */
-+struct list_lru_node *
-+lru_node_of_index(struct list_lru *lru, int index, int nid)
-+{
-+#ifdef CONFIG_MEMCG_KMEM
-+	struct list_lru_node *nlru;
-+
-+	if (index < 0)
-+		return &lru->node[nid];
-+
-+	if (!lru->memcg_lrus)
-+		return NULL;
-+
-+	/*
-+	 * because we will only ever free the memcg_lrus after synchronize_rcu,
-+	 * we are safe with the rcu lock here: even if we are operating in the
-+	 * stale version of the array, the data is still valid and we are not
-+	 * risking anything.
-+	 *
-+	 * The read barrier is needed to make sure that we see the pointer
-+	 * assigment for the specific memcg
-+	 */
-+	rcu_read_lock();
-+	rmb();
-+	/* The array exist, but the particular memcg does not */
-+	if (!lru->memcg_lrus[index]) {
-+		nlru = NULL;
-+		goto out;
-+	}
-+	nlru = &lru->memcg_lrus[index]->node[nid];
-+out:
-+	rcu_read_unlock();
-+	return nlru;
-+#else
-+	BUG_ON(index >= 0); /* nobody should be passing index < 0 with !KMEM */
-+	return &lru->node[nid];
-+#endif
-+}
-+
-+struct list_lru_node *
-+memcg_kmem_lru_of_page(struct list_lru *lru, struct page *page)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_kmem_page(page);
-+	int nid = page_to_nid(page);
-+	int memcg_id;
-+
-+	if (!memcg || !memcg_kmem_is_active(memcg))
-+		return &lru->node[nid];
-+
-+	memcg_id = memcg_cache_id(memcg);
-+	return lru_node_of_index(lru, memcg_id, nid);
-+}
++#define for_each_memcg_lru_index(_idx)	\
++	for ((_idx) = -1; ((_idx) < memcg_limited_groups_array_size); (_idx)++)
 +
  int
  list_lru_add(
  	struct list_lru	*lru,
- 	struct list_head *item)
- {
--	int nid = page_to_nid(virt_to_page(item));
--	struct list_lru_node *nlru = &lru->node[nid];
-+	struct page *page = virt_to_page(item);
-+	struct list_lru_node *nlru;
-+	int nid = page_to_nid(page);
-+
-+	nlru = memcg_kmem_lru_of_page(lru, page);
+@@ -131,15 +148,29 @@ list_lru_del(
+ EXPORT_SYMBOL_GPL(list_lru_del);
  
- 	spin_lock(&nlru->lock);
- 	BUG_ON(nlru->nr_items < 0);
- 	if (list_empty(item)) {
- 		list_add_tail(item, &nlru->list);
--		if (nlru->nr_items++ == 0)
-+		nlru->nr_items++;
-+		/*
-+		 * We only consider a node active or inactive based on the
-+		 * total figure for all involved children.
-+		 */
-+		if (atomic_long_add_return(1, &lru->node_totals[nid]) == 1)
- 			node_set(nid, lru->active_nodes);
- 		spin_unlock(&nlru->lock);
- 		return 1;
-@@ -41,14 +107,20 @@ list_lru_del(
- 	struct list_lru	*lru,
- 	struct list_head *item)
+ unsigned long
+-list_lru_count_nodemask(
++list_lru_count_nodemask_memcg(
+ 	struct list_lru *lru,
+-	nodemask_t	*nodes_to_count)
++	nodemask_t	*nodes_to_count,
++	struct mem_cgroup *memcg)
  {
--	int nid = page_to_nid(virt_to_page(item));
--	struct list_lru_node *nlru = &lru->node[nid];
-+	struct page *page = virt_to_page(item);
-+	struct list_lru_node *nlru;
-+	int nid = page_to_nid(page);
-+
-+	nlru = memcg_kmem_lru_of_page(lru, page);
+ 	long count = 0;
+ 	int nid;
++	nodemask_t nodes;
++	int memcg_id = -1;
  
- 	spin_lock(&nlru->lock);
- 	if (!list_empty(item)) {
- 		list_del_init(item);
--		if (--nlru->nr_items == 0)
-+		nlru->nr_items--;
-+
-+		if (atomic_long_dec_and_test(&lru->node_totals[nid]))
- 			node_clear(nid, lru->active_nodes);
-+
- 		BUG_ON(nlru->nr_items < 0);
- 		spin_unlock(&nlru->lock);
- 		return 1;
-@@ -102,9 +174,10 @@ restart:
- 		ret = isolate(item, &nlru->lock, cb_arg);
- 		switch (ret) {
- 		case LRU_REMOVED:
--			if (--nlru->nr_items == 0)
--				node_clear(nid, lru->active_nodes);
-+			nlru->nr_items--;
- 			BUG_ON(nlru->nr_items < 0);
-+			if (atomic_long_dec_and_test(&lru->node_totals[nid]))
-+				node_clear(nid, lru->active_nodes);
- 			isolated++;
- 			break;
- 		case LRU_ROTATE:
-@@ -246,6 +319,17 @@ int memcg_update_all_lrus(unsigned long num)
- 			goto out;
- 	}
- out:
+-	for_each_node_mask(nid, *nodes_to_count) {
+-		struct list_lru_node *nlru = &lru->node[nid];
++	if (memcg && memcg_kmem_is_active(memcg))
++		memcg_id = memcg_cache_id(memcg);
 +	/*
-+	 * Even if we were to use call_rcu, we still have to keep the old array
-+	 * pointer somewhere. It is easier for us to just synchronize rcu here
-+	 * since we are in a fine context. Now we guarantee that there are no
-+	 * more users of old_array, and proceed freeing it for all LRUs
++	 * Conservative code can call this setting nodes with node_setall.
++	 * This will generate an out of bound access for memcg.
 +	 */
-+	synchronize_rcu();
-+	list_for_each_entry(lru, &all_memcg_lrus, lrus) {
-+		kfree(lru->old_array);
-+		lru->old_array = NULL;
-+	}
- 	mutex_unlock(&all_memcg_lrus_mutex);
- 	return ret;
++	nodes_and(nodes, *nodes_to_count, node_online_map);
++
++	for_each_node_mask(nid, nodes) {
++		struct list_lru_node *nlru;
++		nlru = lru_node_of_index(lru, memcg_id, nid);
++		if (!nlru)
++			continue;
+ 
+ 		spin_lock(&nlru->lock);
+ 		BUG_ON(nlru->nr_items < 0);
+@@ -149,17 +180,17 @@ list_lru_count_nodemask(
+ 
+ 	return count;
  }
-@@ -276,8 +360,10 @@ int __list_lru_init(struct list_lru *lru, bool memcg_enabled)
- 	int i;
+-EXPORT_SYMBOL_GPL(list_lru_count_nodemask);
++EXPORT_SYMBOL_GPL(list_lru_count_nodemask_memcg);
  
- 	nodes_clear(lru->active_nodes);
--	for (i = 0; i < MAX_NUMNODES; i++)
-+	for (i = 0; i < MAX_NUMNODES; i++) {
- 		list_lru_init_one(&lru->node[i]);
-+		atomic_long_set(&lru->node_totals[i], 0);
-+	}
- 
- 	if (memcg_enabled)
- 		return memcg_init_lru(lru);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 8a9a898..21e0ace 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3261,9 +3261,15 @@ int memcg_kmem_update_lru_size(struct list_lru *lru, int num_groups,
- 		 * either follow the new array or the old one and they contain
- 		 * exactly the same information. The new space in the end is
- 		 * always empty anyway.
-+		 *
-+		 * We do have to make sure that no more users of the old
-+		 * memcg_lrus array exist before we free, and this is achieved
-+		 * by rcu. Since it would be too slow to synchronize RCU for
-+		 * every LRU, we store the pointer and let the LRU code free
-+		 * all of them when all LRUs are updated.
- 		 */
- 		if (lru->memcg_lrus)
--			kfree(old_array);
-+			lru->old_array = old_array;
- 	}
- 
- 	if (lru->memcg_lrus) {
-@@ -3407,6 +3413,22 @@ static inline void memcg_resume_kmem_account(void)
- 	current->memcg_kmem_skip_account--;
- }
- 
-+struct mem_cgroup *mem_cgroup_from_kmem_page(struct page *page)
-+{
-+	struct page_cgroup *pc;
-+	struct mem_cgroup *memcg = NULL;
-+
-+	pc = lookup_page_cgroup(page);
-+	if (!PageCgroupUsed(pc))
-+		return NULL;
-+
-+	lock_page_cgroup(pc);
-+	if (PageCgroupUsed(pc))
-+		memcg = pc->mem_cgroup;
-+	unlock_page_cgroup(pc);
-+	return memcg;
-+}
-+
- static void kmem_cache_destroy_work_func(struct work_struct *w)
+ static unsigned long
+ list_lru_walk_node(
+ 	struct list_lru		*lru,
++	struct list_lru_node	*nlru,
+ 	int			nid,
+ 	list_lru_walk_cb	isolate,
+ 	void			*cb_arg,
+ 	long			*nr_to_walk)
  {
- 	struct kmem_cache *cachep;
+-	struct list_lru_node	*nlru = &lru->node[nid];
+ 	struct list_head *item, *n;
+ 	unsigned long isolated = 0;
+ 
+@@ -196,25 +227,41 @@ restart:
+ }
+ 
+ unsigned long
+-list_lru_walk_nodemask(
++list_lru_walk_nodemask_memcg(
+ 	struct list_lru	*lru,
+ 	list_lru_walk_cb isolate,
+ 	void		*cb_arg,
+ 	long		nr_to_walk,
+-	nodemask_t	*nodes_to_walk)
++	nodemask_t	*nodes_to_walk,
++	struct mem_cgroup *memcg)
+ {
+ 	long isolated = 0;
+ 	int nid;
++	nodemask_t nodes;
++	int memcg_id = -1;
++	struct list_lru_node *nlru;
++
++	if (memcg && memcg_kmem_is_active(memcg))
++		memcg_id = memcg_cache_id(memcg);
++	/*
++	 * Conservative code can call this setting nodes with node_setall.
++	 * This will generate an out of bound access for memcg.
++	 */
++	nodes_and(nodes, *nodes_to_walk, node_online_map);
++
++	for_each_node_mask(nid, nodes) {
++		nlru = lru_node_of_index(lru, memcg_id, nid);
++		if (!nlru)
++			continue;
+ 
+-	for_each_node_mask(nid, *nodes_to_walk) {
+-		isolated += list_lru_walk_node(lru, nid, isolate,
++		isolated += list_lru_walk_node(lru, nlru, nid, isolate,
+ 					       cb_arg, &nr_to_walk);
+ 		if (nr_to_walk <= 0)
+ 			break;
+ 	}
+ 	return isolated;
+ }
+-EXPORT_SYMBOL_GPL(list_lru_walk_nodemask);
++EXPORT_SYMBOL_GPL(list_lru_walk_nodemask_memcg);
+ 
+ static unsigned long
+ list_lru_dispose_all_node(
+@@ -222,23 +269,34 @@ list_lru_dispose_all_node(
+ 	int			nid,
+ 	list_lru_dispose_cb	dispose)
+ {
+-	struct list_lru_node	*nlru = &lru->node[nid];
++	struct list_lru_node *nlru;
+ 	LIST_HEAD(dispose_list);
+ 	unsigned long disposed = 0;
++	int idx;
+ 
+-	spin_lock(&nlru->lock);
+-	while (!list_empty(&nlru->list)) {
+-		list_splice_init(&nlru->list, &dispose_list);
+-		disposed += nlru->nr_items;
+-		nlru->nr_items = 0;
+-		node_clear(nid, lru->active_nodes);
+-		spin_unlock(&nlru->lock);
+-
+-		dispose(&dispose_list);
++	for_each_memcg_lru_index(idx) {
++		nlru = lru_node_of_index(lru, idx, nid);
++		if (!nlru)
++			continue;
+ 
+ 		spin_lock(&nlru->lock);
++		while (!list_empty(&nlru->list)) {
++			list_splice_init(&nlru->list, &dispose_list);
++
++			if (atomic_long_sub_and_test(nlru->nr_items,
++							&lru->node_totals[nid]))
++				node_clear(nid, lru->active_nodes);
++			disposed += nlru->nr_items;
++			nlru->nr_items = 0;
++			spin_unlock(&nlru->lock);
++
++			dispose(&dispose_list);
++
++			spin_lock(&nlru->lock);
++		}
++		spin_unlock(&nlru->lock);
+ 	}
+-	spin_unlock(&nlru->lock);
++
+ 	return disposed;
+ }
+ 
 -- 
 1.8.1.4
 
