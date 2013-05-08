@@ -1,64 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 0DDB06B015C
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 12:26:39 -0400 (EDT)
-Received: by mail-la0-f48.google.com with SMTP id eg20so1956992lab.35
-        for <linux-mm@kvack.org>; Wed, 08 May 2013 09:26:38 -0700 (PDT)
-Message-ID: <518A7CC0.1010606@cogentembedded.com>
-Date: Wed, 08 May 2013 20:26:40 +0400
-From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id EA6F26B0154
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 12:40:35 -0400 (EDT)
+Date: Wed, 8 May 2013 17:40:19 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [RFC PATCH v2 08/11] ARM64: mm: Swap PTE_FILE and PTE_PROT_NONE
+ bits.
+Message-ID: <20130508164018.GF20820@mudshark.cambridge.arm.com>
+References: <1368006763-30774-1-git-send-email-steve.capper@linaro.org>
+ <1368006763-30774-9-git-send-email-steve.capper@linaro.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5, part4 20/41] mm/h8300: prepare for removing num_physpages
- and simplify mem_init()
-References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com> <1368028298-7401-21-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1368028298-7401-21-git-send-email-jiang.liu@huawei.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1368006763-30774-9-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Geert Uytterhoeven <geert@linux-m68k.org>
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <Catalin.Marinas@arm.com>, "patches@linaro.org" <patches@linaro.org>
 
-Hello.
-
-On 08-05-2013 19:51, Jiang Liu wrote:
-
-> Prepare for removing num_physpages and simplify mem_init().
-
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
-> Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-> Cc: linux-kernel@vger.kernel.org
+On Wed, May 08, 2013 at 10:52:40AM +0100, Steve Capper wrote:
+> Under ARM64, PTEs can be broadly categorised as follows:
+>    - Present and valid: Bit #0 is set. The PTE is valid and memory
+>      access to the region may fault.
+> 
+>    - Present and invalid: Bit #0 is clear and bit #1 is set.
+>      Represents present memory with PROT_NONE protection. The PTE
+>      is an invalid entry, and the user fault handler will raise a
+>      SIGSEGV.
+> 
+>    - Not present (file): Bits #0 and #1 are clear, bit #2 is set.
+>      Memory represented has been paged out. The PTE is an invalid
+>      entry, and the fault handler will try and re-populate the
+>      memory where necessary.
+> 
+> Huge PTEs are block descriptors that have bit #1 clear. If we wish
+> to represent PROT_NONE huge PTEs we then run into a problem as
+> there is no way to distinguish between regular and huge PTEs if we
+> set bit #1.
+> 
+> As huge PTEs are always present, the meaning of bits #1 and #2 can
+> be swapped for invalid PTEs. This patch swaps the PTE_FILE and
+> PTE_PROT_NONE constants, allowing us to represent PROT_NONE huge
+> PTEs.
+> 
+> Signed-off-by: Steve Capper <steve.capper@linaro.org>
 > ---
->   arch/h8300/mm/init.c |   34 ++++++++--------------------------
->   1 file changed, 8 insertions(+), 26 deletions(-)
+>  arch/arm64/include/asm/pgtable.h | 8 ++++----
+>  1 file changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+> index b1a1b59..e245260 100644
+> --- a/arch/arm64/include/asm/pgtable.h
+> +++ b/arch/arm64/include/asm/pgtable.h
+> @@ -25,8 +25,8 @@
+>   * Software defined PTE bits definition.
+>   */
+>  #define PTE_VALID		(_AT(pteval_t, 1) << 0)
+> -#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 1)	/* only when !PTE_VALID */
+> -#define PTE_FILE		(_AT(pteval_t, 1) << 2)	/* only when !pte_present() */
+> +#define PTE_FILE		(_AT(pteval_t, 1) << 1)	/* only when !pte_present() */
+> +#define PTE_PROT_NONE		(_AT(pteval_t, 1) << 2)	/* only when !PTE_VALID */
+>  #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
+>  #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
+>  
+> @@ -306,8 +306,8 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
+>  
+>  /*
+>   * Encode and decode a file entry:
+> - *	bits 0-1:	present (must be zero)
+> - *	bit  2:		PTE_FILE
+> + *	bits 0 & 2:	present (must be zero)
+> + *	bit  1:		PTE_FILE
+>   *	bits 3-63:	file offset / PAGE_SIZE
+>   */
+>  #define pte_file(pte)		(pte_val(pte) & PTE_FILE)
 
-> diff --git a/arch/h8300/mm/init.c b/arch/h8300/mm/init.c
-> index 22fd869..0088f3a 100644
-> --- a/arch/h8300/mm/init.c
-> +++ b/arch/h8300/mm/init.c
-> @@ -121,40 +121,22 @@ void __init paging_init(void)
->
->   void __init mem_init(void)
->   {
-> -	int codek = 0, datak = 0, initk = 0;
-> -	/* DAVIDM look at setup memory map generically with reserved area */
-> -	unsigned long tmp;
-> -	extern unsigned long  _ramend, _ramstart;
-> -	unsigned long len = &_ramend - &_ramstart;
-> -	unsigned long start_mem = memory_start; /* DAVIDM - these must start at end of kernel */
-> -	unsigned long end_mem   = memory_end; /* DAVIDM - this must not include kernel stack at top */
-> +	unsigned long codesize = _etext - _stext;
->
->   #ifdef DEBUG
-> -	printk(KERN_DEBUG "Mem_init: start=%lx, end=%lx\n", start_mem, end_mem);
-> +	pr_debug("Mem_init: start=%lx, end=%lx\n", memory_start, memory_end);
->   #endif
+Can you update the comment describing swp entries too please? I *think* the
+__SWP_* defines can remain untouched, but the comment is now wrong.
 
-     pr_debug() only prints something if DEBUG is #define'd, so you can 
-drop the #ifdef here.
-
-WBR, Sergei
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
