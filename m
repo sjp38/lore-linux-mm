@@ -1,64 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 219356B0078
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 19:39:10 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 6F3896B0070
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 19:42:00 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v4 6/6] add documentation about reclaim knob on proc.txt
-Date: Thu,  9 May 2013 08:39:02 +0900
-Message-Id: <1368056342-30836-7-git-send-email-minchan@kernel.org>
-In-Reply-To: <1368056342-30836-1-git-send-email-minchan@kernel.org>
-References: <1368056342-30836-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v3] mm: remove compressed copy from zram in-memory
+Date: Thu,  9 May 2013 08:41:57 +0900
+Message-Id: <1368056517-31065-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Namhyung Kim <namhyung@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
 
-This patch adds stuff about new reclaim field in proc.txt
+Swap subsystem does lazy swap slot free with expecting the page
+would be swapped out again so we can avoid unnecessary write.
 
-Acked-by: Rob Landley <rob@landley.net>
+But the problem in in-memory swap(ex, zram) is that it consumes
+memory space until vm_swap_full(ie, used half of all of swap device)
+condition meet. It could be bad if we use multiple swap device,
+small in-memory swap and big storage swap or in-memory swap alone.
+
+This patch makes swap subsystem free swap slot as soon as swap-read
+is completed and make the swapcache page dirty so the page should
+be written out the swap device to reclaim it.
+It means we never lose it.
+
+I tested this patch with kernel compile workload.
+
+1. before
+
+compile time : 9882.42
+zram max wasted space by fragmentation: 13471881 byte
+memory space consumed by zram: 174227456 byte
+the number of slot free notify: 206684
+
+2. after
+
+compile time : 9653.90
+zram max wasted space by fragmentation: 11805932 byte
+memory space consumed by zram: 154001408 byte
+the number of slot free notify: 426972
+
+* changelog from v3
+  * Rebased on next-20130508
+
+* changelog from v1
+  * Add more comment
+
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Nitin Gupta <ngupta@vflare.org>
+Cc: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: Shaohua Li <shli@kernel.org>
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- Documentation/filesystems/proc.txt | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ mm/page_io.c | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 488c094..ee4cef1 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -136,6 +136,7 @@ Table 1-1: Process specific entries in /proc
-  maps		Memory maps to executables and library files	(2.4)
-  mem		Memory held by this process
-  root		Link to the root directory of this process
-+ reclaim	Reclaim pages in this process
-  stat		Process status
-  statm		Process memory status information
-  status		Process status in human readable form
-@@ -489,6 +490,25 @@ To clear the soft-dirty bit
+diff --git a/mm/page_io.c b/mm/page_io.c
+index a294076..527db57 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -21,6 +21,7 @@
+ #include <linux/writeback.h>
+ #include <linux/frontswap.h>
+ #include <linux/aio.h>
++#include <linux/blkdev.h>
+ #include <asm/pgtable.h>
  
- Any other value written to /proc/PID/clear_refs will have no effect.
- 
-+The file /proc/PID/reclaim is used to reclaim pages in this process.
-+To reclaim file-backed pages,
-+    > echo file > /proc/PID/reclaim
+ static struct bio *get_swap_bio(gfp_t gfp_flags,
+@@ -82,8 +83,42 @@ void end_swap_bio_read(struct bio *bio, int err, struct batch_complete *batch)
+ 				iminor(bio->bi_bdev->bd_inode),
+ 				(unsigned long long)bio->bi_sector);
+ 	} else {
++		struct swap_info_struct *sis;
 +
-+To reclaim anonymous pages,
-+    > echo anon > /proc/PID/reclaim
+ 		SetPageUptodate(page);
++		sis = page_swap_info(page);
++		if (sis->flags & SWP_BLKDEV) {
++			/*
++			 * Swap subsystem does lazy swap slot free with
++			 * expecting the page would be swapped out again
++			 * so we can avoid unnecessary write if the page
++			 * isn't redirty.
++			 * It's good for real swap storage  because we can
++			 * reduce unnecessary I/O and enhance wear-leveling
++			 * if you use SSD as swap device.
++			 * But if you use in-memory swap device(ex, zram),
++			 * it causes duplicated copy between uncompressed
++			 * data in VM-owned memory and compressed data in
++			 * zram-owned memory. So let's free zram-owned memory
++			 * and make the VM-owned decompressed page *dirty*
++			 * so the page should be swap out somewhere again if
++			 * we want to reclaim it, again.
++			 */
++			struct gendisk *disk = sis->bdev->bd_disk;
++			if (disk->fops->swap_slot_free_notify) {
++				swp_entry_t entry;
++				unsigned long offset;
 +
-+To reclaim all pages,
-+    > echo all > /proc/PID/reclaim
++				entry.val = page_private(page);
++				offset = swp_offset(entry);
 +
-+Also, you can specify address range of process so part of address space
-+will be reclaimed. The format is following as
-+    > echo addr size-byte > /proc/PID/reclaim
++				SetPageDirty(page);
++				disk->fops->swap_slot_free_notify(sis->bdev,
++						offset);
++			}
++		}
+ 	}
 +
-+NOTE: addr should be page-aligned.
-+
-+Below is example which try to reclaim 2M from 0x100000.
-+    > echo 0x100000 2M > /proc/PID/reclaim
-+
- The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
- using /proc/kpageflags and number of times a page is mapped using
- /proc/kpagecount. For detailed explanation, see Documentation/vm/pagemap.txt.
+ 	unlock_page(page);
+ 	bio_put(bio);
+ }
 -- 
 1.8.2.1
 
