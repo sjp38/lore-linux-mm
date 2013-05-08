@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id C3F176B00A4
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 16:23:58 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id E005A6B00A5
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 16:24:03 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v5 26/31] memcg: scan cache objects hierarchically
-Date: Thu,  9 May 2013 00:23:14 +0400
-Message-Id: <1368044599-3383-27-git-send-email-glommer@openvz.org>
+Subject: [PATCH v5 27/31] super: targeted memcg reclaim
+Date: Thu,  9 May 2013 00:23:15 +0400
+Message-Id: <1368044599-3383-28-git-send-email-glommer@openvz.org>
 In-Reply-To: <1368044599-3383-1-git-send-email-glommer@openvz.org>
 References: <1368044599-3383-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,14 +13,18 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Rik van Riel <riel@redhat.com>
 
-When reaching shrink_slab, we should descent in children memcg searching
-for objects that could be shrunk. This is true even if the memcg does
-not have kmem limits on, since the kmem res_counter will also be billed
-against the user res_counter of the parent.
+We now have all our dentries and inodes placed in memcg-specific LRU
+lists. All we have to do is restrict the reclaim to the said lists in
+case of memcg pressure.
 
-It is possible that we will free objects and not free any pages, that
-will just harm the child groups without helping the parent group at all.
-But at this point, we basically are prepared to pay the price.
+That can't be done so easily for the fs_objects part of the equation,
+since this is heavily fs-specific. What we do is pass on the context,
+and let the filesystems decide if they ever chose or want to. At this
+time, we just don't shrink them in memcg pressure (none is supported),
+leaving that for global pressure only.
+
+Marking the superblock shrinker and its LRUs as memcg-aware will
+guarantee that the shrinkers will get invoked during targetted reclaim.
 
 Signed-off-by: Glauber Costa <glommer@openvz.org>
 Cc: Dave Chinner <dchinner@redhat.com>
@@ -32,341 +36,194 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/memcontrol.h |   6 ++
- mm/memcontrol.c            |  13 +++
- mm/vmscan.c                | 239 ++++++++++++++++++++++++++-------------------
- 3 files changed, 155 insertions(+), 103 deletions(-)
+ fs/dcache.c   |  6 +++---
+ fs/inode.c    |  6 +++---
+ fs/internal.h |  5 +++--
+ fs/super.c    | 39 +++++++++++++++++++++++++++------------
+ 4 files changed, 36 insertions(+), 20 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 6dc1d7a..782dcbf 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -440,6 +440,7 @@ static inline bool memcg_kmem_enabled(void)
- 	return static_key_false(&memcg_kmem_enabled_key);
- }
+diff --git a/fs/dcache.c b/fs/dcache.c
+index e83a8c2..919c29f 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -899,13 +899,13 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+  * use.
+  */
+ long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-		     nodemask_t *nodes_to_walk)
++		     nodemask_t *nodes_to_walk, struct mem_cgroup *memcg)
+ {
+ 	LIST_HEAD(dispose);
+ 	long freed;
  
-+bool memcg_kmem_should_reclaim(struct mem_cgroup *memcg);
- bool memcg_kmem_is_active(struct mem_cgroup *memcg);
+-	freed = list_lru_walk_nodemask(&sb->s_dentry_lru, dentry_lru_isolate,
+-				       &dispose, nr_to_scan, nodes_to_walk);
++	freed = list_lru_walk_nodemask_memcg(&sb->s_dentry_lru,
++		dentry_lru_isolate, &dispose, nr_to_scan, nodes_to_walk, memcg);
+ 	shrink_dentry_list(&dispose);
+ 	return freed;
+ }
+diff --git a/fs/inode.c b/fs/inode.c
+index 3cf4cb0..6565d88 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -747,13 +747,13 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+  * then are freed outside inode_lock by dispose_list().
+  */
+ long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-		     nodemask_t *nodes_to_walk)
++			nodemask_t *nodes_to_walk, struct mem_cgroup *memcg)
+ {
+ 	LIST_HEAD(freeable);
+ 	long freed;
+ 
+-	freed = list_lru_walk_nodemask(&sb->s_inode_lru, inode_lru_isolate,
+-				       &freeable, nr_to_scan, nodes_to_walk);
++	freed = list_lru_walk_nodemask_memcg(&sb->s_inode_lru,
++		inode_lru_isolate, &freeable, nr_to_scan, nodes_to_walk, memcg);
+ 	dispose_list(&freeable);
+ 	return freed;
+ }
+diff --git a/fs/internal.h b/fs/internal.h
+index 91900f2..068c7f7 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -16,6 +16,7 @@ struct file_system_type;
+ struct linux_binprm;
+ struct path;
+ struct mount;
++struct mem_cgroup;
  
  /*
-@@ -584,6 +585,11 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
- }
- #else
+  * block_dev.c
+@@ -111,7 +112,7 @@ extern int open_check_o_direct(struct file *f);
+  */
+ extern spinlock_t inode_sb_list_lock;
+ extern long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-			    nodemask_t *nodes_to_scan);
++		    nodemask_t *nodes_to_scan, struct mem_cgroup *memcg);
+ extern void inode_add_lru(struct inode *inode);
  
-+static inline bool memcg_kmem_should_reclaim(struct mem_cgroup *memcg)
-+{
-+	return false;
-+}
-+
- static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
- {
- 	return false;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4159b90..e6a7848 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2969,6 +2969,19 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
- }
- 
- #ifdef CONFIG_MEMCG_KMEM
-+bool memcg_kmem_should_reclaim(struct mem_cgroup *memcg)
-+{
-+	struct mem_cgroup *iter;
-+
-+	for_each_mem_cgroup_tree(iter, memcg) {
-+		if (memcg_kmem_is_active(iter)) {
-+			mem_cgroup_iter_break(memcg, iter);
-+			return true;
-+		}
-+	}
-+	return false;
-+}
-+
- static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
- {
- 	return !mem_cgroup_disabled() && !mem_cgroup_is_root(memcg) &&
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 53f0dbd..f3e5086 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -148,7 +148,7 @@ static bool global_reclaim(struct scan_control *sc)
- static bool has_kmem_reclaim(struct scan_control *sc)
- {
- 	return !sc->target_mem_cgroup ||
--		memcg_kmem_is_active(sc->target_mem_cgroup);
-+		memcg_kmem_should_reclaim(sc->target_mem_cgroup);
- }
- 
- static unsigned long
-@@ -209,6 +209,118 @@ void unregister_shrinker(struct shrinker *shrinker)
- EXPORT_SYMBOL(unregister_shrinker);
- 
- #define SHRINK_BATCH 128
-+unsigned long
-+shrink_slab_one(struct shrinker *shrinker, struct shrink_control *shrinkctl,
-+		unsigned long nr_pages_scanned, unsigned long lru_pages)
-+{
-+	unsigned long freed = 0;
-+	unsigned long long delta;
-+	long total_scan;
-+	long max_pass;
-+	long nr;
-+	long new_nr;
-+	long batch_size = shrinker->batch ? shrinker->batch
-+					  : SHRINK_BATCH;
-+
-+	max_pass = shrinker->count_objects(shrinker, shrinkctl);
-+	WARN_ON(max_pass < 0);
-+	if (max_pass <= 0)
-+		return 0;
-+
-+	/*
-+	 * copy the current shrinker scan count into a local variable
-+	 * and zero it so that other concurrent shrinker invocations
-+	 * don't also do this scanning work.
-+	 */
-+	nr = atomic_long_xchg(&shrinker->nr_in_batch, 0);
-+
-+	total_scan = nr;
-+	delta = (4 * nr_pages_scanned) / shrinker->seeks;
-+	delta *= max_pass;
-+	do_div(delta, lru_pages + 1);
-+	total_scan += delta;
-+	if (total_scan < 0) {
-+		printk(KERN_ERR
-+		"shrink_slab: %pF negative objects to delete nr=%ld\n",
-+		       shrinker->scan_objects, total_scan);
-+		total_scan = max_pass;
-+	}
-+
-+	/*
-+	 * We need to avoid excessive windup on filesystem shrinkers
-+	 * due to large numbers of GFP_NOFS allocations causing the
-+	 * shrinkers to return -1 all the time. This results in a large
-+	 * nr being built up so when a shrink that can do some work
-+	 * comes along it empties the entire cache due to nr >>>
-+	 * max_pass.  This is bad for sustaining a working set in
-+	 * memory.
-+	 *
-+	 * Hence only allow the shrinker to scan the entire cache when
-+	 * a large delta change is calculated directly.
-+	 */
-+	if (delta < max_pass / 4)
-+		total_scan = min(total_scan, max_pass / 2);
-+
-+	/*
-+	 * Avoid risking looping forever due to too large nr value:
-+	 * never try to free more than twice the estimate number of
-+	 * freeable entries.
-+	 */
-+	if (total_scan > max_pass * 2)
-+		total_scan = max_pass * 2;
-+
-+	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
-+				nr_pages_scanned, lru_pages,
-+				max_pass, delta, total_scan);
-+
-+	do {
-+		long ret;
-+		/*
-+		 * When we are kswapd, there is no need for us to go
-+		 * desperate and try to reclaim any number of objects
-+		 * regardless of batch size. Direct reclaim, OTOH, may
-+		 * benefit from freeing objects in any quantities. If
-+		 * the workload is actually stressing those objects,
-+		 * this may be the difference between succeeding or
-+		 * failing an allocation.
-+		 */
-+		if ((total_scan < batch_size) && current_is_kswapd())
-+			break;
-+		/*
-+		 * Differentiate between "few objects" and "no objects"
-+		 * as returned by the count step.
-+		 */
-+		if (!total_scan)
-+			break;
-+
-+		shrinkctl->nr_to_scan = min(batch_size, total_scan);
-+		ret = shrinker->scan_objects(shrinker, shrinkctl);
-+		if (ret == -1)
-+			break;
-+		freed += ret;
-+
-+		count_vm_events(SLABS_SCANNED, batch_size);
-+		total_scan -= batch_size;
-+
-+		cond_resched();
-+	} while (total_scan >= batch_size);
-+
-+	/*
-+	 * move the unused scan count back into the shrinker in a
-+	 * manner that handles concurrent updates. If we exhausted the
-+	 * scan, there is no need to do an update.
-+	 */
-+	if (total_scan > 0)
-+		new_nr = atomic_long_add_return(total_scan,
-+				&shrinker->nr_in_batch);
-+	else
-+		new_nr = atomic_long_read(&shrinker->nr_in_batch);
-+
-+	trace_mm_shrink_slab_end(shrinker, freed, nr, new_nr);
-+
-+	return freed;
-+}
-+
  /*
-  * Call the shrink functions to age shrinkable caches
-  *
-@@ -234,6 +346,7 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
+@@ -128,7 +129,7 @@ extern int invalidate_inodes(struct super_block *, bool);
+  */
+ extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
+ extern long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-			    nodemask_t *nodes_to_scan);
++		    nodemask_t *nodes_to_scan, struct mem_cgroup *memcg);
+ 
+ /*
+  * read_write.c
+diff --git a/fs/super.c b/fs/super.c
+index 5c7b879..e92ebcb 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -34,6 +34,7 @@
+ #include <linux/cleancache.h>
+ #include <linux/fsnotify.h>
+ #include <linux/lockdep.h>
++#include <linux/memcontrol.h>
+ #include "internal.h"
+ 
+ 
+@@ -56,6 +57,7 @@ static char *sb_writers_name[SB_FREEZE_LEVELS] = {
+ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
  {
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
-+	struct mem_cgroup *root = shrinkctl->target_mem_cgroup;
+ 	struct super_block *sb;
++	struct mem_cgroup *memcg = sc->target_mem_cgroup;
+ 	long	fs_objects = 0;
+ 	long	total_objects;
+ 	long	freed = 0;
+@@ -74,11 +76,13 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ 	if (!grab_super_passive(sb))
+ 		return -1;
  
- 	if (nr_pages_scanned == 0)
- 		nr_pages_scanned = SWAP_CLUSTER_MAX;
-@@ -245,119 +358,39 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
- 	}
+-	if (sb->s_op && sb->s_op->nr_cached_objects)
++	if (sb->s_op && sb->s_op->nr_cached_objects && !memcg)
+ 		fs_objects = sb->s_op->nr_cached_objects(sb, &sc->nodes_to_scan);
  
- 	list_for_each_entry(shrinker, &shrinker_list, list) {
--		unsigned long long delta;
--		long total_scan;
--		long max_pass;
--		long nr;
--		long new_nr;
--		long batch_size = shrinker->batch ? shrinker->batch
--						  : SHRINK_BATCH;
--
-+		struct mem_cgroup *memcg;
- 		/*
- 		 * If we don't have a target mem cgroup, we scan them all.
- 		 * Otherwise we will limit our scan to shrinkers marked as
- 		 * memcg aware
- 		 */
--		if (shrinkctl->target_mem_cgroup && !shrinker->memcg_shrinker)
-+		if (root && !shrinker->memcg_shrinker)
- 			continue;
+-	inodes = list_lru_count_nodemask(&sb->s_inode_lru, &sc->nodes_to_scan);
+-	dentries = list_lru_count_nodemask(&sb->s_dentry_lru, &sc->nodes_to_scan);
++	inodes = list_lru_count_nodemask_memcg(&sb->s_inode_lru,
++					 &sc->nodes_to_scan, memcg);
++	dentries = list_lru_count_nodemask_memcg(&sb->s_dentry_lru,
++					   &sc->nodes_to_scan, memcg);
+ 	total_objects = dentries + inodes + fs_objects + 1;
  
--		max_pass = shrinker->count_objects(shrinker, shrinkctl);
--		WARN_ON(max_pass < 0);
--		if (max_pass <= 0)
--			continue;
--
--		/*
--		 * copy the current shrinker scan count into a local variable
--		 * and zero it so that other concurrent shrinker invocations
--		 * don't also do this scanning work.
--		 */
--		nr = atomic_long_xchg(&shrinker->nr_in_batch, 0);
--
--		total_scan = nr;
--		delta = (4 * nr_pages_scanned) / shrinker->seeks;
--		delta *= max_pass;
--		do_div(delta, lru_pages + 1);
--		total_scan += delta;
--		if (total_scan < 0) {
--			printk(KERN_ERR
--			"shrink_slab: %pF negative objects to delete nr=%ld\n",
--			       shrinker->scan_objects, total_scan);
--			total_scan = max_pass;
--		}
--
--		/*
--		 * We need to avoid excessive windup on filesystem shrinkers
--		 * due to large numbers of GFP_NOFS allocations causing the
--		 * shrinkers to return -1 all the time. This results in a large
--		 * nr being built up so when a shrink that can do some work
--		 * comes along it empties the entire cache due to nr >>>
--		 * max_pass.  This is bad for sustaining a working set in
--		 * memory.
--		 *
--		 * Hence only allow the shrinker to scan the entire cache when
--		 * a large delta change is calculated directly.
--		 */
--		if (delta < max_pass / 4)
--			total_scan = min(total_scan, max_pass / 2);
--
--		/*
--		 * Avoid risking looping forever due to too large nr value:
--		 * never try to free more than twice the estimate number of
--		 * freeable entries.
--		 */
--		if (total_scan > max_pass * 2)
--			total_scan = max_pass * 2;
--
--		trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
--					nr_pages_scanned, lru_pages,
--					max_pass, delta, total_scan);
--
-+		memcg = mem_cgroup_iter(root, NULL, NULL);
- 		do {
--			long ret;
--
-+			shrinkctl->target_mem_cgroup = memcg;
- 			/*
--			 * When we are kswapd, there is no need for us to go
--			 * desperate and try to reclaim any number of objects
--			 * regardless of batch size. Direct reclaim, OTOH, may
--			 * benefit from freeing objects in any quantities. If
--			 * the workload is actually stressing those objects,
--			 * this may be the difference between succeeding or
--			 * failing an allocation.
--			 */
--			if ((total_scan < batch_size) && current_is_kswapd())
--				break;
--			/*
--			 * Differentiate between "few objects" and "no objects"
--			 * as returned by the count step.
-+			 * In a hierarchical chain, it might be that not all
-+			 * memcgs are kmem active. kmemcg design mandates that
-+			 * when one memcg is active, its children will be
-+			 * active as well. But it is perfectly possible that
-+			 * its parent is not.
-+			 *
-+			 * We also need to make sure we scan at least once, for
-+			 * the global case. So if we don't have a target memcg
-+			 * (saved in root), we proceed normally and expect to
-+			 * break in the next round.
- 			 */
--			if (!total_scan)
--				break;
--
--			shrinkctl->nr_to_scan = min(batch_size, total_scan);
--			ret = shrinker->scan_objects(shrinker, shrinkctl);
--			if (ret == -1)
--				break;
--			freed += ret;
--
--			count_vm_events(SLABS_SCANNED, batch_size);
--			total_scan -= batch_size;
--
--			cond_resched();
--		} while (total_scan >= batch_size);
--
--		/*
--		 * move the unused scan count back into the shrinker in a
--		 * manner that handles concurrent updates. If we exhausted the
--		 * scan, there is no need to do an update.
--		 */
--		if (total_scan > 0)
--			new_nr = atomic_long_add_return(total_scan,
--					&shrinker->nr_in_batch);
--		else
--			new_nr = atomic_long_read(&shrinker->nr_in_batch);
--
--		trace_mm_shrink_slab_end(shrinker, freed, nr, new_nr);
-+			if (!root || memcg_kmem_is_active(memcg))
-+				freed += shrink_slab_one(shrinker, shrinkctl,
-+						 nr_pages_scanned, lru_pages);
-+			memcg = mem_cgroup_iter(root, memcg, NULL);
-+		} while (memcg);
- 	}
+ 	/* proportion the scan between the caches */
+@@ -89,8 +93,8 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ 	 * prune the dcache first as the icache is pinned by it, then
+ 	 * prune the icache, followed by the filesystem specific caches
+ 	 */
+-	freed = prune_dcache_sb(sb, dentries, &sc->nodes_to_scan);
+-	freed += prune_icache_sb(sb, inodes, &sc->nodes_to_scan);
++	freed = prune_dcache_sb(sb, dentries, &sc->nodes_to_scan, memcg);
++	freed += prune_icache_sb(sb, inodes, &sc->nodes_to_scan, memcg);
+ 
+ 	if (fs_objects) {
+ 		fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
+@@ -107,20 +111,26 @@ static long super_cache_count(struct shrinker *shrink, struct shrink_control *sc
+ {
+ 	struct super_block *sb;
+ 	long	total_objects = 0;
++	struct mem_cgroup *memcg = sc->target_mem_cgroup;
+ 
+ 	sb = container_of(shrink, struct super_block, s_shrink);
+ 
+ 	if (!grab_super_passive(sb))
+ 		return -1;
+ 
+-	if (sb->s_op && sb->s_op->nr_cached_objects)
++	/*
++	 * Ideally we would pass memcg to nr_cached_objects, and
++	 * let the underlying filesystem decide. Most likely the
++	 * path will be if (!memcg) return;, but even then.
++	 */
++	if (sb->s_op && sb->s_op->nr_cached_objects && !memcg)
+ 		total_objects = sb->s_op->nr_cached_objects(sb,
+ 						 &sc->nodes_to_scan);
+ 
+-	total_objects += list_lru_count_nodemask(&sb->s_dentry_lru,
+-						 &sc->nodes_to_scan);
+-	total_objects += list_lru_count_nodemask(&sb->s_inode_lru,
+-						 &sc->nodes_to_scan);
++	total_objects += list_lru_count_nodemask_memcg(&sb->s_dentry_lru,
++					 &sc->nodes_to_scan, memcg);
++	total_objects += list_lru_count_nodemask_memcg(&sb->s_inode_lru,
++					 &sc->nodes_to_scan, memcg);
+ 
+ 	total_objects = vfs_pressure_ratio(total_objects);
+ 	drop_super(sb);
+@@ -199,8 +209,10 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+ 		INIT_HLIST_NODE(&s->s_instances);
+ 		INIT_HLIST_BL_HEAD(&s->s_anon);
+ 		INIT_LIST_HEAD(&s->s_inodes);
+-		list_lru_init(&s->s_dentry_lru);
+-		list_lru_init(&s->s_inode_lru);
 +
-+	/* restore original state */
-+	shrinkctl->target_mem_cgroup = root;
- 	up_read(&shrinker_rwsem);
++		list_lru_init_memcg(&s->s_dentry_lru);
++		list_lru_init_memcg(&s->s_inode_lru);
++
+ 		INIT_LIST_HEAD(&s->s_mounts);
+ 		init_rwsem(&s->s_umount);
+ 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
+@@ -236,6 +248,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
+ 		s->s_shrink.scan_objects = super_cache_scan;
+ 		s->s_shrink.count_objects = super_cache_count;
+ 		s->s_shrink.batch = 1024;
++		s->s_shrink.memcg_shrinker = true;
+ 	}
  out:
- 	cond_resched();
+ 	return s;
+@@ -318,6 +331,8 @@ void deactivate_locked_super(struct super_block *s)
+ 
+ 		/* caches are now gone, we can safely kill the shrinker now */
+ 		unregister_shrinker(&s->s_shrink);
++		list_lru_destroy(&s->s_dentry_lru);
++		list_lru_destroy(&s->s_inode_lru);
+ 		put_filesystem(fs);
+ 		put_super(s);
+ 	} else {
 -- 
 1.8.1.4
 
