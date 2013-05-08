@@ -1,75 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 34ED76B008A
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 15:29:36 -0400 (EDT)
-Received: by mail-la0-f50.google.com with SMTP id fl20so2067541lab.23
-        for <linux-mm@kvack.org>; Wed, 08 May 2013 12:29:34 -0700 (PDT)
-Message-ID: <518AA7A0.1020702@cogentembedded.com>
-Date: Wed, 08 May 2013 23:29:36 +0400
-From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 956E76B005C
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 15:34:24 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id u10so1477857pdi.19
+        for <linux-mm@kvack.org>; Wed, 08 May 2013 12:34:23 -0700 (PDT)
+Date: Wed, 8 May 2013 12:34:24 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [patch] mm: memcg: remove incorrect VM_BUG_ON for swap cache
+ pages in uncharge
+In-Reply-To: <1368019738-5793-1-git-send-email-hannes@cmpxchg.org>
+Message-ID: <alpine.LNX.2.00.1305081222490.8854@eggly.anvils>
+References: <1368019738-5793-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5, part4 20/41] mm/h8300: prepare for removing num_physpages
- and simplify mem_init()
-References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com> <1368028298-7401-21-git-send-email-jiang.liu@huawei.com> <518A7CC0.1010606@cogentembedded.com>
-In-Reply-To: <518A7CC0.1010606@cogentembedded.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Yoshinori Sato <ysato@users.sourceforge.jp>, Geert Uytterhoeven <geert@linux-m68k.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lingzhu Xiang <lxiang@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello.
+On Wed, 8 May 2013, Johannes Weiner wrote:
 
-On 05/08/2013 08:26 PM, Sergei Shtylyov wrote:
+> 0c59b89 "mm: memcg: push down PageSwapCache check into uncharge entry
+> functions" added a VM_BUG_ON() on PageSwapCache in the uncharge path
+> after checking that page flag once, assuming that the state is stable
+> in all paths, but this is not the case and the condition triggers in
+> user environments.  An uncharge after the last page table reference to
+> the page goes away can race with reclaim adding the page to swap
+> cache.
+> 
+> Swap cache pages are usually uncharged when they are freed after
+> swapout, from a path that also handles swap usage accounting and memcg
+> lifetime management.  However, since the last page table reference is
+> gone and thus no references to the swap slot left, the swap slot will
+> be freed shortly when reclaim attempts to write the page to disk.  The
+> whole swap accounting is not even necessary.
+> 
+> So while the race condition for which this VM_BUG_ON was added is real
+> and actually existed all along, there are no negative effects.  Remove
+> the VM_BUG_ON again.
+> 
+> Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+> Reported-by: Lingzhu Xiang <lxiang@redhat.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Hugh Dickins <hughd@google.com>
 
->
->> Prepare for removing num_physpages and simplify mem_init().
->
->> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->> Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
->> Cc: Geert Uytterhoeven <geert@linux-m68k.org>
->> Cc: linux-kernel@vger.kernel.org
->> ---
->>   arch/h8300/mm/init.c |   34 ++++++++--------------------------
->>   1 file changed, 8 insertions(+), 26 deletions(-)
->
->> diff --git a/arch/h8300/mm/init.c b/arch/h8300/mm/init.c
->> index 22fd869..0088f3a 100644
->> --- a/arch/h8300/mm/init.c
->> +++ b/arch/h8300/mm/init.c
->> @@ -121,40 +121,22 @@ void __init paging_init(void)
->>
->>   void __init mem_init(void)
->>   {
->> -    int codek = 0, datak = 0, initk = 0;
->> -    /* DAVIDM look at setup memory map generically with reserved 
->> area */
->> -    unsigned long tmp;
->> -    extern unsigned long  _ramend, _ramstart;
->> -    unsigned long len = &_ramend - &_ramstart;
->> -    unsigned long start_mem = memory_start; /* DAVIDM - these must 
->> start at end of kernel */
->> -    unsigned long end_mem   = memory_end; /* DAVIDM - this must not 
->> include kernel stack at top */
->> +    unsigned long codesize = _etext - _stext;
->>
->>   #ifdef DEBUG
->> -    printk(KERN_DEBUG "Mem_init: start=%lx, end=%lx\n", start_mem, 
->> end_mem);
->> +    pr_debug("Mem_init: start=%lx, end=%lx\n", memory_start, 
->> memory_end);
->>   #endif
->
->     pr_debug() only prints something if DEBUG is #define'd, so you can 
-> drop the #ifdef here.
+Acked-by: Hugh Dickins <hughd@google.com>
 
-     Although, not necessarily: it also supports CONFIG_DYNAMIC_DEBUG -- 
-look at how pr_debug() is defined.
-So this doesn't seem to be an equivalent change, and I suggest not doing 
-it at all.
-
-WBR, Sergei
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: stable@vger.kernel.org
+> ---
+>  mm/memcontrol.c | 14 ++++++++++++--
+>  1 file changed, 12 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index cb1c9de..010d6c1 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4108,8 +4108,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
+>  	if (mem_cgroup_disabled())
+>  		return NULL;
+>  
+> -	VM_BUG_ON(PageSwapCache(page));
+> -
+>  	if (PageTransHuge(page)) {
+>  		nr_pages <<= compound_order(page);
+>  		VM_BUG_ON(!PageTransHuge(page));
+> @@ -4205,6 +4203,18 @@ void mem_cgroup_uncharge_page(struct page *page)
+>  	if (page_mapped(page))
+>  		return;
+>  	VM_BUG_ON(page->mapping && !PageAnon(page));
+> +	/*
+> +	 * If the page is in swap cache, uncharge should be deferred
+> +	 * to the swap path, which also properly accounts swap usage
+> +	 * and handles memcg lifetime.
+> +	 *
+> +	 * Note that this check is not stable and reclaim may add the
+> +	 * page to swap cache at any time after this.  However, if the
+> +	 * page is not in swap cache by the time page->mapcount hits
+> +	 * 0, there won't be any page table references to the swap
+> +	 * slot, and reclaim will free it and not actually write the
+> +	 * page to disk.
+> +	 */
+>  	if (PageSwapCache(page))
+>  		return;
+>  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_ANON, false);
+> -- 
+> 1.7.11.7
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
