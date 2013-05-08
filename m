@@ -1,49 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id EE4826B00B4
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 08:03:20 -0400 (EDT)
-Received: by mail-wi0-f174.google.com with SMTP id m6so4952123wiv.1
-        for <linux-mm@kvack.org>; Wed, 08 May 2013 05:03:19 -0700 (PDT)
-Date: Wed, 8 May 2013 13:03:08 +0100
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [RFC PATCH v2 05/11] mm: thp: Correct the HPAGE_PMD_ORDER
- check.
-Message-ID: <20130508120307.GA1407@linaro.org>
-References: <1368006763-30774-1-git-send-email-steve.capper@linaro.org>
- <1368006763-30774-6-git-send-email-steve.capper@linaro.org>
- <20130508124417.GA29631@shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130508124417.GA29631@shutemov.name>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 1E8BC6B00B0
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 09:29:09 -0400 (EDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: memcg: remove incorrect VM_BUG_ON for swap cache pages in uncharge
+Date: Wed,  8 May 2013 09:28:58 -0400
+Message-Id: <1368019738-5793-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, patches@linaro.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>, Lingzhu Xiang <lxiang@redhat.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, May 08, 2013 at 03:44:17PM +0300, Kirill A. Shutemov wrote:
-> On Wed, May 08, 2013 at 10:52:37AM +0100, Steve Capper wrote:
-> > All Transparent Huge Pages are allocated by the buddy allocator.
-> > 
-> > A compile time check is in place that fails when the order of a
-> > transparent huge page is too large to be allocated by the buddy
-> > allocator. Unfortunately that compile time check passes when:
-> > HPAGE_PMD_ORDER == MAX_ORDER
-> > ( which is incorrect as the buddy allocator can only allocate
-> > memory of order strictly less than MAX_ORDER. )
-> 
-> It looks confusing to me. Shouldn't we fix what MAX_ORDER means instead?
-> 
+0c59b89 "mm: memcg: push down PageSwapCache check into uncharge entry
+functions" added a VM_BUG_ON() on PageSwapCache in the uncharge path
+after checking that page flag once, assuming that the state is stable
+in all paths, but this is not the case and the condition triggers in
+user environments.  An uncharge after the last page table reference to
+the page goes away can race with reclaim adding the page to swap
+cache.
 
-It confused me as I originally had 13 as the order and couldn't
-allocate any 512MB THPs :-).
+Swap cache pages are usually uncharged when they are freed after
+swapout, from a path that also handles swap usage accounting and memcg
+lifetime management.  However, since the last page table reference is
+gone and thus no references to the swap slot left, the swap slot will
+be freed shortly when reclaim attempts to write the page to disk.  The
+whole swap accounting is not even necessary.
 
-MAX_ORDER appears to be used quite a lot so I think it would be
-safer to change the use case here rather than its meaning.
+So while the race condition for which this VM_BUG_ON was added is real
+and actually existed all along, there are no negative effects.  Remove
+the VM_BUG_ON again.
 
-Cheers,
+Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+Reported-by: Lingzhu Xiang <lxiang@redhat.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: stable@vger.kernel.org
+---
+ mm/memcontrol.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index cb1c9de..010d6c1 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4108,8 +4108,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
+ 	if (mem_cgroup_disabled())
+ 		return NULL;
+ 
+-	VM_BUG_ON(PageSwapCache(page));
+-
+ 	if (PageTransHuge(page)) {
+ 		nr_pages <<= compound_order(page);
+ 		VM_BUG_ON(!PageTransHuge(page));
+@@ -4205,6 +4203,18 @@ void mem_cgroup_uncharge_page(struct page *page)
+ 	if (page_mapped(page))
+ 		return;
+ 	VM_BUG_ON(page->mapping && !PageAnon(page));
++	/*
++	 * If the page is in swap cache, uncharge should be deferred
++	 * to the swap path, which also properly accounts swap usage
++	 * and handles memcg lifetime.
++	 *
++	 * Note that this check is not stable and reclaim may add the
++	 * page to swap cache at any time after this.  However, if the
++	 * page is not in swap cache by the time page->mapcount hits
++	 * 0, there won't be any page table references to the swap
++	 * slot, and reclaim will free it and not actually write the
++	 * page to disk.
++	 */
+ 	if (PageSwapCache(page))
+ 		return;
+ 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_ANON, false);
 -- 
-Steve
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
