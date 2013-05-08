@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id B57056B0092
-	for <linux-mm@kvack.org>; Tue,  7 May 2013 20:41:59 -0400 (EDT)
-Subject: Re: [RFC][PATCH 7/7] drain batch list during long operations
-From: Tim Chen <tim.c.chen@linux.intel.com>
-In-Reply-To: <20130507212003.7990B2F5@viggo.jf.intel.com>
-References: <20130507211954.9815F9D1@viggo.jf.intel.com>
-	 <20130507212003.7990B2F5@viggo.jf.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 07 May 2013 17:42:02 -0700
-Message-ID: <1367973722.27102.267.camel@schen9-DESK>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id EBD0E6B0068
+	for <linux-mm@kvack.org>; Tue,  7 May 2013 20:47:29 -0400 (EDT)
+Received: by mail-ob0-f171.google.com with SMTP id v19so1199841obq.2
+        for <linux-mm@kvack.org>; Tue, 07 May 2013 17:47:29 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1367967522-3934-1-git-send-email-j.glisse@gmail.com>
+References: <1367967522-3934-1-git-send-email-j.glisse@gmail.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Tue, 7 May 2013 20:47:08 -0400
+Message-ID: <CAHGf_=ofADKRCgDN5Tanx4PyvoJFF9r=cHYMd+VRc=N3=4FGuA@mail.gmail.com>
+Subject: Re: [PATCH] mm: honor FOLL_GET flag in follow_hugetlb_page v2
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jerome Glisse <jglisse@redhat.com>
 
-On Tue, 2013-05-07 at 14:20 -0700, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> This was a suggestion from Mel:
-> 
-> 	http://lkml.kernel.org/r/20120914085634.GM11157@csn.ul.ie
-> 
-> Any pages we collect on 'batch_for_mapping_removal' will have
-> their lock_page() held during the duration of their stay on the
-> list.  If some other user is trying to get at them during this
-> time, they might end up having to wait for a while, especially if
-> we go off and do pageout() on some other page.
-> 
-> This ensures that we drain the batch if we are about to perform a
-> writeout.
-> 
-> I added some statistics to the __remove_mapping_batch() code to
-> track how large the lists are that we pass in to it.  With this
-> patch, the average list length drops about 10% (from about 4.1 to
-> 3.8).  The workload here was a make -j4 kernel compile on a VM
-> with 200MB of RAM.
-> 
-> I've still got the statistics patch around if anyone is
-> interested.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+On Tue, May 7, 2013 at 6:58 PM,  <j.glisse@gmail.com> wrote:
+> From: Jerome Glisse <jglisse@redhat.com>
+>
+> Do not increase page count if FOLL_GET is not set. None of the
+> current user can trigger the issue because none of the current
+> user call __get_user_pages with both the pages array ptr non
+> NULL and the FOLL_GET flags non set in other word all caller
+> of __get_user_pages that don't set the FOLL_GET flags also call
+> with pages == NULL.
+
+Because, __get_user_pages() doesn't allow pages==NULL and FOLL_GET is on.
 
 
-I like this new patch series. Logic is cleaner than my previous attempt.
-
-Acked.
-
-Tim
+long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+{
+(snip)
+    VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
