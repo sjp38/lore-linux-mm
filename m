@@ -1,47 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 8D3086B015E
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 14:41:59 -0400 (EDT)
-Date: Wed, 8 May 2013 18:41:58 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 09/22] mm: page allocator: Allocate/free order-0 pages
- from a per-zone magazine
-In-Reply-To: <1368028987-8369-10-git-send-email-mgorman@suse.de>
-Message-ID: <0000013e85732d03-05e35c8e-205e-4242-98f5-2ae7bda64c5c-000000@email.amazonses.com>
-References: <1368028987-8369-1-git-send-email-mgorman@suse.de> <1368028987-8369-10-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 454E76B015E
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 14:46:32 -0400 (EDT)
+Date: Wed, 8 May 2013 19:45:55 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCH v5, part3 01/15] mm: fix build warnings caused by
+	free_reserved_area()
+Message-ID: <20130508184555.GR18614@n2100.arm.linux.org.uk>
+References: <1368026235-5976-1-git-send-email-jiang.liu@huawei.com> <1368026235-5976-2-git-send-email-jiang.liu@huawei.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1368026235-5976-2-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave@sr71.net>, LKML <linux-kernel@vger.kernel.org>
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-arch@vger.kernel.org, James Bottomley <James.Bottomley@HansenPartnership.com>, David Howells <dhowells@redhat.com>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Mark Salter <msalter@redhat.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
 
-On Wed, 8 May 2013, Mel Gorman wrote:
+On Wed, May 08, 2013 at 11:17:00PM +0800, Jiang Liu wrote:
+> Fix following build warnings cuased by free_reserved_area():
+> 
+> arch/arm/mm/init.c: In function 'mem_init':
+> arch/arm/mm/init.c:603:2: warning: passing argument 1 of 'free_reserved_area' makes integer from pointer without a cast [enabled by default]
+>   free_reserved_area(__va(PHYS_PFN_OFFSET), swapper_pg_dir, 0, NULL);
+>   ^
+> In file included from include/linux/mman.h:4:0,
+>                  from arch/arm/mm/init.c:15:
+> include/linux/mm.h:1301:22: note: expected 'long unsigned int' but argument is of type 'void *'
+>  extern unsigned long free_reserved_area(unsigned long start, unsigned long end,
+> 
+>    mm/page_alloc.c: In function 'free_reserved_area':
+> >> mm/page_alloc.c:5134:3: warning: passing argument 1 of 'virt_to_phys' makes pointer from integer without a cast [enabled by default]
+>    In file included from arch/mips/include/asm/page.h:49:0,
+>                     from include/linux/mmzone.h:20,
+>                     from include/linux/gfp.h:4,
+>                     from include/linux/mm.h:8,
+>                     from mm/page_alloc.c:18:
+>    arch/mips/include/asm/io.h:119:29: note: expected 'const volatile void *' but argument is of type 'long unsigned int'
+>    mm/page_alloc.c: In function 'free_area_init_nodes':
+>    mm/page_alloc.c:5030:34: warning: array subscript is below array bounds [-Warray-bounds]
+> 
+> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> Reported-by: Arnd Bergmann <arnd@arndb.de>
+> Cc: linux-arm-kernel@lists.infradead.org
+> Cc: linux-kernel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> ---
+>  arch/arm/mm/init.c |    6 ++++--
+>  mm/page_alloc.c    |    2 +-
+>  2 files changed, 5 insertions(+), 3 deletions(-)
+> 
+> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+> index 9a5cdc0..7a82fcd 100644
+> --- a/arch/arm/mm/init.c
+> +++ b/arch/arm/mm/init.c
+> @@ -600,7 +600,8 @@ void __init mem_init(void)
+>  
+>  #ifdef CONFIG_SA1111
+>  	/* now that our DMA memory is actually so designated, we can free it */
+> -	free_reserved_area(__va(PHYS_PFN_OFFSET), swapper_pg_dir, 0, NULL);
+> +	free_reserved_area((unsigned long)__va(PHYS_PFN_OFFSET),
+> +			   (unsigned long)swapper_pg_dir, 0, NULL);
 
-> 1. IRQs do not have to be disabled to access the lists reducing IRQs
->    disabled times.
+*YUCK*.
 
-The per cpu structure access also would not need to disable irq if the
-fast path would be using this_cpu ops.
+As I've said before, fixing the arguments on free_reserved_area() would
+be much better than throwing these horrid casts all over the code.
 
-> 2. As the list is protected by a spinlock, it is not necessary to
->    send IPI to drain the list. As the lists are accessible by multiple CPUs,
->    it is easier to tune.
-
-The lists are a problem since traversing list heads creates a lot of
-pressure on the processor and TLB caches. Could we either move to an array
-of pointers to page structs (like in SLAB) or to a linked list that is
-constrained within physical boundaries like within a PMD? (comparable
-to the SLUB approach)?
-
-> > 3. The magazine_lock is potentially hot but it can be split to have
->    one lock per CPU socket to reduce contention. Draining the lists
->    in this case would acquire multiple locks be acquired.
-
-IMHO the use of per cpu RMV operations would be lower latency than the use
-of spinlocks. There is no "lock" prefix overhead with those. Page
-allocation is a frequent operation that I would think needs to be as fast
-as possible.
+You're casting pointers to integers, and then immediately casting them
+back to pointers in free_reserved_area().  Please fix the function
+argument types to be sane.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
