@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id E27106B0143
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 12:03:19 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id A0C566B0144
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 12:03:20 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 13/22] mm: page allocator: Use list_splice to refill the magazine
-Date: Wed,  8 May 2013 17:02:58 +0100
-Message-Id: <1368028987-8369-14-git-send-email-mgorman@suse.de>
+Subject: [PATCH 14/22] mm: page allocator: Do not disable IRQs just to update stats
+Date: Wed,  8 May 2013 17:02:59 +0100
+Message-Id: <1368028987-8369-15-git-send-email-mgorman@suse.de>
 In-Reply-To: <1368028987-8369-1-git-send-email-mgorman@suse.de>
 References: <1368028987-8369-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,55 +13,66 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave@sr71.net>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-No need to operate on one page at a time.
+The fast path of the allocator disables/enables interrupts to update
+statistics but these statistics are only consumed by userspace. When
+the page allocator always had to disable IRQs it was ok as we already
+took the penalty but now with the IRQ-unsafe magazine it is overkill
+to disable IRQs just to have accurate statistics. This patch does
+not disable IRQs for updating statistics and accepts that the counters
+might be slightly inaccurate.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/page_alloc.c | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ mm/page_alloc.c | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bb2f116..c014b7a 100644
+index c014b7a..3d619e3 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1333,6 +1333,7 @@ struct page *rmqueue_magazine(struct zone *zone, int migratetype)
- 	/* Only acquire the lock if there is a reasonable chance of success */
- 	if (zone->noirq_magazine.nr_free) {
- 		spin_lock(&zone->magazine_lock);
-+retry:
- 		page = __rmqueue_magazine(zone, migratetype);
- 		spin_unlock(&zone->magazine_lock);
- 	}
-@@ -1350,7 +1351,7 @@ struct page *rmqueue_magazine(struct zone *zone, int migratetype)
- 			page = __rmqueue(zone, 0, migratetype);
- 			if (!page)
- 				break;
--			list_add_tail(&page->lru, &alloc_list);
-+			list_add(&page->lru, &alloc_list);
- 			nr_alloced++;
+@@ -1381,7 +1381,6 @@ struct page *rmqueue(struct zone *preferred_zone,
+ 			struct zone *zone, unsigned int order,
+ 			gfp_t gfp_flags, int migratetype)
+ {
+-	unsigned long flags;
+ 	struct page *page = NULL;
+ 
+ 	if (unlikely(gfp_flags & __GFP_NOFAIL)) {
+@@ -1406,11 +1405,9 @@ again:
+ 	if (order == 0 && !in_interrupt() && !irqs_disabled())
+ 		page = rmqueue_magazine(zone, migratetype);
+ 
+-	/* IRQ disabled for buddy list access of updating statistics */
+-	local_irq_save(flags);
+-
+ 	if (!page) {
+-		spin_lock(&zone->lock);
++		unsigned long flags;
++		spin_lock_irqsave(&zone->lock, flags);
+ 		page = __rmqueue(zone, order, migratetype);
+ 		if (!page) {
+ 			spin_unlock_irqrestore(&zone->lock, flags);
+@@ -1418,12 +1415,18 @@ again:
  		}
- 		if (!is_migrate_cma(mt))
-@@ -1358,15 +1359,13 @@ struct page *rmqueue_magazine(struct zone *zone, int migratetype)
- 		else
- 			__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, -nr_alloced);
- 		spin_unlock_irqrestore(&zone->lock, flags);
-+		if (!nr_alloced)
-+			return NULL;
- 
- 		spin_lock(&zone->magazine_lock);
--		while (!list_empty(&alloc_list)) {
--			page = list_entry(alloc_list.next, struct page, lru);
--			list_move_tail(&page->lru, &area->free_list[migratetype]);
--			area->nr_free++;
--		}
--		page = __rmqueue_magazine(zone, migratetype);
--		spin_unlock(&zone->magazine_lock);
-+		list_splice(&alloc_list, &area->free_list[migratetype]);
-+		area->nr_free += nr_alloced;
-+		goto retry;
+ 		__mod_zone_freepage_state(zone, -(1 << order),
+ 					get_freepage_migratetype(page));
+-		spin_unlock(&zone->lock);
++		spin_unlock_irqrestore(&zone->lock, flags);
  	}
  
- 	return page;
++	/*
++	 * NOTE: These are using the non-IRQ safe stats updating which
++	 * means that some updates will be lost. However, these stats
++	 * are not used internally by the VM and collisions are
++	 * expected to be very rare. Disabling/enabling interrupts just
++	 * to have accurate rarely-used counters is overkill.
++	 */
+ 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
+ 	zone_statistics(preferred_zone, zone, gfp_flags);
+-	local_irq_restore(flags);
+ 
+ 	VM_BUG_ON(bad_range(zone, page));
+ 	if (prep_new_page(page, order, gfp_flags))
 -- 
 1.8.1.4
 
