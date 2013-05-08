@@ -1,93 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 956E76B005C
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 15:34:24 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id u10so1477857pdi.19
-        for <linux-mm@kvack.org>; Wed, 08 May 2013 12:34:23 -0700 (PDT)
-Date: Wed, 8 May 2013 12:34:24 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [patch] mm: memcg: remove incorrect VM_BUG_ON for swap cache
- pages in uncharge
-In-Reply-To: <1368019738-5793-1-git-send-email-hannes@cmpxchg.org>
-Message-ID: <alpine.LNX.2.00.1305081222490.8854@eggly.anvils>
-References: <1368019738-5793-1-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 91DDF6B005A
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 15:39:16 -0400 (EDT)
+Date: Wed, 8 May 2013 12:39:07 -0700
+From: Tony Lindgren <tony@atomide.com>
+Subject: Re: [REGRESSION] SLAB allocator (on Zynq)
+Message-ID: <20130508193906.GC32546@atomide.com>
+References: <9d9b2266-e09e-4366-80ef-3df5db775f25@TX2EHSMHS033.ehs.local>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <9d9b2266-e09e-4366-80ef-3df5db775f25@TX2EHSMHS033.ehs.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Lingzhu Xiang <lxiang@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?utf-8?B?U8O2cmVu?= Brinkmann <soren.brinkmann@xilinx.com>
+Cc: Michal Simek <michal.simek@xilinx.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-On Wed, 8 May 2013, Johannes Weiner wrote:
+Hi,
 
-> 0c59b89 "mm: memcg: push down PageSwapCache check into uncharge entry
-> functions" added a VM_BUG_ON() on PageSwapCache in the uncharge path
-> after checking that page flag once, assuming that the state is stable
-> in all paths, but this is not the case and the condition triggers in
-> user environments.  An uncharge after the last page table reference to
-> the page goes away can race with reclaim adding the page to swap
-> cache.
+* SA?ren Brinkmann <soren.brinkmann@xilinx.com> [130508 12:26]:
+> Hi,
 > 
-> Swap cache pages are usually uncharged when they are freed after
-> swapout, from a path that also handles swap usage accounting and memcg
-> lifetime management.  However, since the last page table reference is
-> gone and thus no references to the swap slot left, the swap slot will
-> be freed shortly when reclaim attempts to write the page to disk.  The
-> whole swap accounting is not even necessary.
-> 
-> So while the race condition for which this VM_BUG_ON was added is real
-> and actually existed all along, there are no negative effects.  Remove
-> the VM_BUG_ON again.
-> 
-> Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Reported-by: Lingzhu Xiang <lxiang@redhat.com>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Hugh Dickins <hughd@google.com>
+> I compiled the latest kernel for Zynq and ran into issues when the SLAB
+> allocator is selected. Booting crashes early with a NULL pointer
+> dereference (boot log attached).
+> Switching to the SLUB allocator resolves the issue (boot log attached).
 
-Acked-by: Hugh Dickins <hughd@google.com>
+There's a fix for this now in lkml thread
+"[GIT PULL] SLAB changes for v3.10":
 
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: stable@vger.kernel.org
-> ---
->  mm/memcontrol.c | 14 ++++++++++++--
->  1 file changed, 12 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index cb1c9de..010d6c1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4108,8 +4108,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
->  	if (mem_cgroup_disabled())
->  		return NULL;
->  
-> -	VM_BUG_ON(PageSwapCache(page));
-> -
->  	if (PageTransHuge(page)) {
->  		nr_pages <<= compound_order(page);
->  		VM_BUG_ON(!PageTransHuge(page));
-> @@ -4205,6 +4203,18 @@ void mem_cgroup_uncharge_page(struct page *page)
->  	if (page_mapped(page))
->  		return;
->  	VM_BUG_ON(page->mapping && !PageAnon(page));
-> +	/*
-> +	 * If the page is in swap cache, uncharge should be deferred
-> +	 * to the swap path, which also properly accounts swap usage
-> +	 * and handles memcg lifetime.
-> +	 *
-> +	 * Note that this check is not stable and reclaim may add the
-> +	 * page to swap cache at any time after this.  However, if the
-> +	 * page is not in swap cache by the time page->mapcount hits
-> +	 * 0, there won't be any page table references to the swap
-> +	 * slot, and reclaim will free it and not actually write the
-> +	 * page to disk.
-> +	 */
->  	if (PageSwapCache(page))
->  		return;
->  	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_ANON, false);
-> -- 
-> 1.7.11.7
-> 
-> 
+http://lkml.org/lkml/2013/5/8/374#
+
+Regards,
+
+Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
