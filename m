@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id B38B96B00DD
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 11:53:43 -0400 (EDT)
-Received: by mail-da0-f46.google.com with SMTP id e20so1041420dak.5
-        for <linux-mm@kvack.org>; Wed, 08 May 2013 08:53:42 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 6CB4E6B00DF
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 11:53:49 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id y19so1054630dan.28
+        for <linux-mm@kvack.org>; Wed, 08 May 2013 08:53:48 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v5, part4 03/41] c6x: normalize global variables exported by vmlinux.lds
-Date: Wed,  8 May 2013 23:51:00 +0800
-Message-Id: <1368028298-7401-4-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH v5, part4 04/41] h8300: normalize global variables exported by vmlinux.lds
+Date: Wed,  8 May 2013 23:51:01 +0800
+Message-Id: <1368028298-7401-5-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
 References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Aurelien Jacquiot <a-jacquiot@ti.com>, linux-c6x-dev@linux-c6x.org
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Yoshinori Sato <ysato@users.sourceforge.jp>
 
-Normalize global variables exported by vmlinux.lds to conform usage
-guidelines from include/asm-generic/sections.h.
+Generate mandatory global variables __bss_start/__bss_stop in
+file vmlinux.lds.
 
-Use _text to mark the start of the kernel image including the head text,
-and _stext to mark the start of the .text section.
-
-This patch also fixes possible bugs due to current address layout that
-[__init_begin, __init_end] is a sub-range of [_stext, _etext] and pages
-within range [__init_begin, __init_end] will be freed by free_initmem().
+Also remove one unused declaration of _text.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Mark Salter <msalter@redhat.com>
-Cc: Aurelien Jacquiot <a-jacquiot@ti.com>
-Cc: linux-c6x-dev@linux-c6x.org
+Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
+Cc: Jiang Liu <jiang.liu@huawei.com>
 Cc: linux-kernel@vger.kernel.org
 ---
- arch/c6x/kernel/vmlinux.lds.S |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ arch/h8300/boot/compressed/misc.c |    1 -
+ arch/h8300/kernel/vmlinux.lds.S   |    2 ++
+ 2 files changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/arch/c6x/kernel/vmlinux.lds.S b/arch/c6x/kernel/vmlinux.lds.S
-index 1d81c4c..279d807 100644
---- a/arch/c6x/kernel/vmlinux.lds.S
-+++ b/arch/c6x/kernel/vmlinux.lds.S
-@@ -54,16 +54,15 @@ SECTIONS
- 	}
+diff --git a/arch/h8300/boot/compressed/misc.c b/arch/h8300/boot/compressed/misc.c
+index 51ab6cb..4a1e3dd 100644
+--- a/arch/h8300/boot/compressed/misc.c
++++ b/arch/h8300/boot/compressed/misc.c
+@@ -79,7 +79,6 @@ static void error(char *m);
  
- 	. = ALIGN(PAGE_SIZE);
-+	__init_begin = .;
- 	.init :
- 	{
--		_stext = .;
- 		_sinittext = .;
- 		HEAD_TEXT
- 		INIT_TEXT
- 		_einittext = .;
- 	}
+ int puts(const char *);
  
--	__init_begin = _stext;
- 	INIT_DATA_SECTION(16)
- 
- 	PERCPU_SECTION(128)
-@@ -74,6 +73,7 @@ SECTIONS
- 	.text :
- 	{
- 		_text = .;
-+		_stext = .;
- 		TEXT_TEXT
- 		SCHED_TEXT
- 		LOCK_TEXT
+-extern int _text;		/* Defined in vmlinux.lds.S */
+ extern int _end;
+ static unsigned long free_mem_ptr;
+ static unsigned long free_mem_end_ptr;
+diff --git a/arch/h8300/kernel/vmlinux.lds.S b/arch/h8300/kernel/vmlinux.lds.S
+index 03d356d..3253fed 100644
+--- a/arch/h8300/kernel/vmlinux.lds.S
++++ b/arch/h8300/kernel/vmlinux.lds.S
+@@ -132,10 +132,12 @@ SECTIONS
+         {
+ 	. = ALIGN(0x4) ;
+ 	__sbss = . ;
++	___bss_start = . ;
+ 		*(.bss*)
+ 	. = ALIGN(0x4) ;
+ 		*(COMMON)
+ 	. = ALIGN(0x4) ;
++	___bss_stop = . ;
+ 	__ebss = . ;
+ 	__end = . ;
+ 	__ramstart = .;
 -- 
 1.7.9.5
 
