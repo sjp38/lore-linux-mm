@@ -1,204 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id EFB076B0070
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 16:22:50 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 852F36B0072
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 16:22:56 -0400 (EDT)
 From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v5 05/31] dcache: remove dentries from LRU before putting on dispose list
-Date: Thu,  9 May 2013 00:22:53 +0400
-Message-Id: <1368044599-3383-6-git-send-email-glommer@openvz.org>
+Subject: [PATCH v5 06/31] mm: new shrinker API
+Date: Thu,  9 May 2013 00:22:54 +0400
+Message-Id: <1368044599-3383-7-git-send-email-glommer@openvz.org>
 In-Reply-To: <1368044599-3383-1-git-send-email-glommer@openvz.org>
 References: <1368044599-3383-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@parallels.com>
 
 From: Dave Chinner <dchinner@redhat.com>
 
-One of the big problems with modifying the way the dcache shrinker
-and LRU implementation works is that the LRU is abused in several
-ways. One of these is shrink_dentry_list().
+The current shrinker callout API uses an a single shrinker call for
+multiple functions. To determine the function, a special magical
+value is passed in a parameter to change the behaviour. This
+complicates the implementation and return value specification for
+the different behaviours.
 
-Basically, we can move a dentry off the LRU onto a different list
-without doing any accounting changes, and then use dentry_lru_prune()
-to remove it from what-ever list it is now on to do the LRU
-accounting at that point.
+Separate the two different behaviours into separate operations, one
+to return a count of freeable objects in the cache, and another to
+scan a certain number of objects in the cache for freeing. In
+defining these new operations, ensure the return values and
+resultant behaviours are clearly defined and documented.
 
-This makes it -really hard- to change the LRU implementation. The
-use of the per-sb LRU lock serialises movement of the dentries
-between the different lists and the removal of them, and this is the
-only reason that it works. If we want to break up the dentry LRU
-lock and lists into, say, per-node lists, we remove the only
-serialisation that allows this lru list/dispose list abuse to work.
+Modify shrink_slab() to use the new API and implement the callouts
+for all the existing shrinkers.
 
-To make this work effectively, the dispose list has to be isolated
-from the LRU list - dentries have to be removed from the LRU
-*before* being placed on the dispose list. This means that the LRU
-accounting and isolation is completed before disposal is started,
-and that means we can change the LRU implementation freely in
-future.
-
-This means that dentries *must* be marked with DCACHE_SHRINK_LIST
-when they are placed on the dispose list so that we don't think that
-parent dentries found in try_prune_one_dentry() are on the LRU when
-the are actually on the dispose list. This would result in
-accounting the dentry to the LRU a second time. Hence
-dentry_lru_prune() has to handle the DCACHE_SHRINK_LIST case
-differently because the dentry isn't on the LRU list.
-
-[ v2: don't decrement nr unused twice, spotted by Sha Zhengju ]
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
-Signed-off-by: Glauber Costa <glommer@openvz.org>
-Acked-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Glauber Costa <glommer@parallels.com>
 ---
- fs/dcache.c | 71 ++++++++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 61 insertions(+), 10 deletions(-)
+ include/linux/shrinker.h | 36 ++++++++++++++++++++++++----------
+ mm/vmscan.c              | 50 ++++++++++++++++++++++++++++++++----------------
+ 2 files changed, 59 insertions(+), 27 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 6649764..26fd63d 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -331,7 +331,6 @@ static void dentry_lru_add(struct dentry *dentry)
- static void __dentry_lru_del(struct dentry *dentry)
- {
- 	list_del_init(&dentry->d_lru);
--	dentry->d_flags &= ~DCACHE_SHRINK_LIST;
- 	dentry->d_sb->s_nr_dentry_unused--;
- 	this_cpu_dec(nr_dentry_unused);
- }
-@@ -341,6 +340,8 @@ static void __dentry_lru_del(struct dentry *dentry)
-  */
- static void dentry_lru_del(struct dentry *dentry)
- {
-+	BUG_ON(dentry->d_flags & DCACHE_SHRINK_LIST);
-+
- 	if (!list_empty(&dentry->d_lru)) {
- 		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
- 		__dentry_lru_del(dentry);
-@@ -352,6 +353,12 @@ static void dentry_lru_del(struct dentry *dentry)
-  * Remove a dentry that is unreferenced and about to be pruned
-  * (unhashed and destroyed) from the LRU, and inform the file system.
-  * This wrapper should be called _prior_ to unhashing a victim dentry.
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index ac6b8ee..c277b4e 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -4,31 +4,47 @@
+ /*
+  * This struct is used to pass information from page reclaim to the shrinkers.
+  * We consolidate the values for easier extention later.
 + *
-+ * Check that the dentry really is on the LRU as it may be on a private dispose
-+ * list and in that case we do not want to call the generic LRU removal
-+ * functions. This typically happens when shrink_dcache_sb() clears the LRU in
-+ * one go and then try_prune_one_dentry() walks back up the parent chain finding
-+ * dentries that are also on the dispose list.
++ * The 'gfpmask' refers to the allocation we are currently trying to
++ * fulfil.
++ *
++ * Note that 'shrink' will be passed nr_to_scan == 0 when the VM is
++ * querying the cache size, so a fastpath for that case is appropriate.
   */
- static void dentry_lru_prune(struct dentry *dentry)
- {
-@@ -359,21 +366,28 @@ static void dentry_lru_prune(struct dentry *dentry)
- 		if (dentry->d_flags & DCACHE_OP_PRUNE)
- 			dentry->d_op->d_prune(dentry);
+ struct shrink_control {
+ 	gfp_t gfp_mask;
  
--		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
--		__dentry_lru_del(dentry);
--		spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
-+		if ((dentry->d_flags & DCACHE_SHRINK_LIST))
-+			list_del_init(&dentry->d_lru);
-+		else {
-+			spin_lock(&dentry->d_sb->s_dentry_lru_lock);
-+			__dentry_lru_del(dentry);
-+			spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
-+		}
-+		dentry->d_flags &= ~DCACHE_SHRINK_LIST;
- 	}
- }
+ 	/* How many slab objects shrinker() should scan and try to reclaim */
+-	unsigned long nr_to_scan;
++	long nr_to_scan;
+ };
  
- static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
- {
-+	BUG_ON(dentry->d_flags & DCACHE_SHRINK_LIST);
+ /*
+  * A callback you can register to apply pressure to ageable caches.
+  *
+- * 'sc' is passed shrink_control which includes a count 'nr_to_scan'
+- * and a 'gfpmask'.  It should look through the least-recently-used
+- * 'nr_to_scan' entries and attempt to free them up.  It should return
+- * the number of objects which remain in the cache.  If it returns -1, it means
+- * it cannot do any scanning at this time (eg. there is a risk of deadlock).
++ * @shrink() should look through the least-recently-used 'nr_to_scan' entries
++ * and attempt to free them up.  It should return the number of objects which
++ * remain in the cache.  If it returns -1, it means it cannot do any scanning at
++ * this time (eg. there is a risk of deadlock).
+  *
+- * The 'gfpmask' refers to the allocation we are currently trying to
+- * fulfil.
++ * @count_objects should return the number of freeable items in the cache. If
++ * there are no objects to free or the number of freeable items cannot be
++ * determined, it should return 0. No deadlock checks should be done during the
++ * count callback - the shrinker relies on aggregating scan counts that couldn't
++ * be executed due to potential deadlocks to be run at a later call when the
++ * deadlock condition is no longer pending.
+  *
+- * Note that 'shrink' will be passed nr_to_scan == 0 when the VM is
+- * querying the cache size, so a fastpath for that case is appropriate.
++ * @scan_objects will only be called if @count_objects returned a positive
++ * value for the number of freeable objects. The callout should scan the cache
++ * and attempt to free items from the cache. It should then return the number of
++ * objects freed during the scan, or -1 if progress cannot be made due to
++ * potential deadlocks. If -1 is returned, then no further attempts to call the
++ * @scan_objects will be made from the current reclaim context.
+  */
+ struct shrinker {
+ 	int (*shrink)(struct shrinker *, struct shrink_control *sc);
++	long (*count_objects)(struct shrinker *, struct shrink_control *sc);
++	long (*scan_objects)(struct shrinker *, struct shrink_control *sc);
 +
- 	spin_lock(&dentry->d_sb->s_dentry_lru_lock);
- 	if (list_empty(&dentry->d_lru)) {
- 		list_add_tail(&dentry->d_lru, list);
--		dentry->d_sb->s_nr_dentry_unused++;
--		this_cpu_inc(nr_dentry_unused);
- 	} else {
- 		list_move_tail(&dentry->d_lru, list);
-+		dentry->d_sb->s_nr_dentry_unused--;
-+		this_cpu_dec(nr_dentry_unused);
- 	}
- 	spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
- }
-@@ -815,12 +829,18 @@ static void shrink_dentry_list(struct list_head *list)
- 		}
+ 	int seeks;	/* seeks to recreate an obj */
+ 	long batch;	/* reclaim batch size, 0 = default */
  
- 		/*
-+		 * The dispose list is isolated and dentries are not accounted
-+		 * to the LRU here, so we can simply remove it from the list
-+		 * here regardless of whether it is referenced or not.
-+		 */
-+		list_del_init(&dentry->d_lru);
-+
-+		/*
- 		 * We found an inuse dentry which was not removed from
--		 * the LRU because of laziness during lookup.  Do not free
--		 * it - just keep it off the LRU list.
-+		 * the LRU because of laziness during lookup. Do not free it.
- 		 */
- 		if (dentry->d_count) {
--			dentry_lru_del(dentry);
-+			dentry->d_flags &= ~DCACHE_SHRINK_LIST;
- 			spin_unlock(&dentry->d_lock);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 49691da..be53467 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -205,19 +205,19 @@ static inline int do_shrinker_shrink(struct shrinker *shrinker,
+  *
+  * Returns the number of slab objects which we shrunk.
+  */
+-unsigned long shrink_slab(struct shrink_control *shrink,
++unsigned long shrink_slab(struct shrink_control *shrinkctl,
+ 			  unsigned long nr_pages_scanned,
+ 			  unsigned long lru_pages)
+ {
+ 	struct shrinker *shrinker;
+-	unsigned long ret = 0;
++	unsigned long freed = 0;
+ 
+ 	if (nr_pages_scanned == 0)
+ 		nr_pages_scanned = SWAP_CLUSTER_MAX;
+ 
+ 	if (!down_read_trylock(&shrinker_rwsem)) {
+ 		/* Assume we'll be able to shrink next time */
+-		ret = 1;
++		freed = 1;
+ 		goto out;
+ 	}
+ 
+@@ -225,13 +225,16 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		unsigned long long delta;
+ 		long total_scan;
+ 		long max_pass;
+-		int shrink_ret = 0;
+ 		long nr;
+ 		long new_nr;
+ 		long batch_size = shrinker->batch ? shrinker->batch
+ 						  : SHRINK_BATCH;
+ 
+-		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
++		if (shrinker->scan_objects) {
++			max_pass = shrinker->count_objects(shrinker, shrinkctl);
++			WARN_ON(max_pass < 0);
++		} else
++			max_pass = do_shrinker_shrink(shrinker, shrinkctl, 0);
+ 		if (max_pass <= 0)
  			continue;
+ 
+@@ -248,8 +251,8 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		do_div(delta, lru_pages + 1);
+ 		total_scan += delta;
+ 		if (total_scan < 0) {
+-			printk(KERN_ERR "shrink_slab: %pF negative objects to "
+-			       "delete nr=%ld\n",
++			printk(KERN_ERR
++			"shrink_slab: %pF negative objects to delete nr=%ld\n",
+ 			       shrinker->shrink, total_scan);
+ 			total_scan = max_pass;
  		}
-@@ -872,6 +892,8 @@ relock:
- 		} else {
- 			list_move_tail(&dentry->d_lru, &tmp);
- 			dentry->d_flags |= DCACHE_SHRINK_LIST;
-+			this_cpu_dec(nr_dentry_unused);
-+			sb->s_nr_dentry_unused--;
- 			spin_unlock(&dentry->d_lock);
- 			if (!--count)
+@@ -277,12 +280,12 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		if (total_scan > max_pass * 2)
+ 			total_scan = max_pass * 2;
+ 
+-		trace_mm_shrink_slab_start(shrinker, shrink, nr,
++		trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
+ 					nr_pages_scanned, lru_pages,
+ 					max_pass, delta, total_scan);
+ 
+ 		do {
+-			int nr_before;
++			long ret;
+ 
+ 			/*
+ 			 * When we are kswapd, there is no need for us to go
+@@ -302,13 +305,26 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 			if (!total_scan)
  				break;
-@@ -885,6 +907,27 @@ relock:
- 	shrink_dentry_list(&tmp);
+ 
+-			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
+-			shrink_ret = do_shrinker_shrink(shrinker, shrink,
++			if (shrinker->scan_objects) {
++				shrinkctl->nr_to_scan = min(batch_size, total_scan);
++				ret = shrinker->scan_objects(shrinker, shrinkctl);
++
++				if (ret == -1)
++					break;
++				freed += ret;
++			} else {
++				int nr_before;
++
++				nr_before = do_shrinker_shrink(shrinker,
++						shrinkctl, 0);
++				ret = do_shrinker_shrink(shrinker, shrinkctl,
+ 						min(batch_size, total_scan));
+-			if (shrink_ret == -1)
+-				break;
+-			if (shrink_ret < nr_before)
+-				ret += nr_before - shrink_ret;
++				if (ret == -1)
++					break;
++				if (ret < nr_before)
++					freed += nr_before - ret;
++			}
++
+ 			count_vm_events(SLABS_SCANNED, batch_size);
+ 			total_scan -= batch_size;
+ 
+@@ -326,12 +342,12 @@ unsigned long shrink_slab(struct shrink_control *shrink,
+ 		else
+ 			new_nr = atomic_long_read(&shrinker->nr_in_batch);
+ 
+-		trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
++		trace_mm_shrink_slab_end(shrinker, freed, nr, new_nr);
+ 	}
+ 	up_read(&shrinker_rwsem);
+ out:
+ 	cond_resched();
+-	return ret;
++	return freed;
  }
  
-+/*
-+ * Mark all the dentries as on being the dispose list so we don't think they are
-+ * still on the LRU if we try to kill them from ascending the parent chain in
-+ * try_prune_one_dentry() rather than directly from the dispose list.
-+ */
-+static void
-+shrink_dcache_list(
-+	struct list_head *dispose)
-+{
-+	struct dentry *dentry;
-+
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(dentry, dispose, d_lru) {
-+		spin_lock(&dentry->d_lock);
-+		dentry->d_flags |= DCACHE_SHRINK_LIST;
-+		spin_unlock(&dentry->d_lock);
-+	}
-+	rcu_read_unlock();
-+	shrink_dentry_list(dispose);
-+}
-+
- /**
-  * shrink_dcache_sb - shrink dcache for a superblock
-  * @sb: superblock
-@@ -899,8 +942,16 @@ void shrink_dcache_sb(struct super_block *sb)
- 	spin_lock(&sb->s_dentry_lru_lock);
- 	while (!list_empty(&sb->s_dentry_lru)) {
- 		list_splice_init(&sb->s_dentry_lru, &tmp);
-+
-+		/*
-+		 * account for removal here so we don't need to handle it later
-+		 * even though the dentry is no longer on the lru list.
-+		 */
-+		this_cpu_sub(nr_dentry_unused, sb->s_nr_dentry_unused);
-+		sb->s_nr_dentry_unused = 0;
-+
- 		spin_unlock(&sb->s_dentry_lru_lock);
--		shrink_dentry_list(&tmp);
-+		shrink_dcache_list(&tmp);
- 		spin_lock(&sb->s_dentry_lru_lock);
- 	}
- 	spin_unlock(&sb->s_dentry_lru_lock);
+ static inline int is_page_cache_freeable(struct page *page)
 -- 
 1.8.1.4
 
