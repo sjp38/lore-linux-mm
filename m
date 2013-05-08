@@ -1,68 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 85C496B0159
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 12:43:48 -0400 (EDT)
-Date: Wed, 8 May 2013 17:43:41 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [RFC PATCH v2 07/11] ARM64: mm: Make PAGE_NONE pages read only
- and no-execute.
-Message-ID: <20130508164341.GG20820@mudshark.cambridge.arm.com>
-References: <1368006763-30774-1-git-send-email-steve.capper@linaro.org>
- <1368006763-30774-8-git-send-email-steve.capper@linaro.org>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 8D3086B015E
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 14:41:59 -0400 (EDT)
+Date: Wed, 8 May 2013 18:41:58 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 09/22] mm: page allocator: Allocate/free order-0 pages
+ from a per-zone magazine
+In-Reply-To: <1368028987-8369-10-git-send-email-mgorman@suse.de>
+Message-ID: <0000013e85732d03-05e35c8e-205e-4242-98f5-2ae7bda64c5c-000000@email.amazonses.com>
+References: <1368028987-8369-1-git-send-email-mgorman@suse.de> <1368028987-8369-10-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1368006763-30774-8-git-send-email-steve.capper@linaro.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Catalin Marinas <Catalin.Marinas@arm.com>, "patches@linaro.org" <patches@linaro.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave@sr71.net>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, May 08, 2013 at 10:52:39AM +0100, Steve Capper wrote:
-> If we consider the following code sequence:
-> 
-> 	my_pte = pte_modify(entry, myprot);
-> 	x = pte_write(my_pte);
-> 	y = pte_exec(my_pte);
-> 
-> If myprot comes from a PROT_NONE page, then x and y will both be
-> true which is undesireable behaviour.
-> 
-> This patch sets the no-execute and read-only bits for PAGE_NONE
-> such that the code above will return false for both x and y.
-> 
-> Signed-off-by: Steve Capper <steve.capper@linaro.org>
-> ---
->  arch/arm64/include/asm/pgtable.h | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-> index e333a24..b1a1b59 100644
-> --- a/arch/arm64/include/asm/pgtable.h
-> +++ b/arch/arm64/include/asm/pgtable.h
-> @@ -66,7 +66,7 @@ extern pgprot_t pgprot_default;
->  
->  #define _MOD_PROT(p, b)		__pgprot_modify(p, 0, b)
->  
-> -#define PAGE_NONE		__pgprot_modify(pgprot_default, PTE_TYPE_MASK, PTE_PROT_NONE)
-> +#define PAGE_NONE		__pgprot_modify(pgprot_default, PTE_TYPE_MASK, PTE_PROT_NONE | PTE_RDONLY | PTE_UXN)
->  #define PAGE_SHARED		_MOD_PROT(pgprot_default, PTE_USER | PTE_NG | PTE_PXN | PTE_UXN)
->  #define PAGE_SHARED_EXEC	_MOD_PROT(pgprot_default, PTE_USER | PTE_NG | PTE_PXN)
->  #define PAGE_COPY		_MOD_PROT(pgprot_default, PTE_USER | PTE_NG | PTE_PXN | PTE_UXN | PTE_RDONLY)
-> @@ -76,7 +76,7 @@ extern pgprot_t pgprot_default;
->  #define PAGE_KERNEL		_MOD_PROT(pgprot_default, PTE_PXN | PTE_UXN | PTE_DIRTY)
->  #define PAGE_KERNEL_EXEC	_MOD_PROT(pgprot_default, PTE_UXN | PTE_DIRTY)
->  
-> -#define __PAGE_NONE		__pgprot(((_PAGE_DEFAULT) & ~PTE_TYPE_MASK) | PTE_PROT_NONE)
-> +#define __PAGE_NONE		__pgprot(((_PAGE_DEFAULT) & ~PTE_TYPE_MASK) | PTE_PROT_NONE | PTE_RDONLY | PTE_UXN)
->  #define __PAGE_SHARED		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_UXN)
->  #define __PAGE_SHARED_EXEC	__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN)
->  #define __PAGE_COPY		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_UXN | PTE_RDONLY)
+On Wed, 8 May 2013, Mel Gorman wrote:
 
-Whilst it's not strictly needed for pte_exec to work, I think you should
-include PTE_PXN in the PAGE_NONE definitions as well.
+> 1. IRQs do not have to be disabled to access the lists reducing IRQs
+>    disabled times.
 
-Will
+The per cpu structure access also would not need to disable irq if the
+fast path would be using this_cpu ops.
+
+> 2. As the list is protected by a spinlock, it is not necessary to
+>    send IPI to drain the list. As the lists are accessible by multiple CPUs,
+>    it is easier to tune.
+
+The lists are a problem since traversing list heads creates a lot of
+pressure on the processor and TLB caches. Could we either move to an array
+of pointers to page structs (like in SLAB) or to a linked list that is
+constrained within physical boundaries like within a PMD? (comparable
+to the SLUB approach)?
+
+> > 3. The magazine_lock is potentially hot but it can be split to have
+>    one lock per CPU socket to reduce contention. Draining the lists
+>    in this case would acquire multiple locks be acquired.
+
+IMHO the use of per cpu RMV operations would be lower latency than the use
+of spinlocks. There is no "lock" prefix overhead with those. Page
+allocation is a frequent operation that I would think needs to be as fast
+as possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
