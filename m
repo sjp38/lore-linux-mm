@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 9C9EE6B012A
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 12:03:12 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 70AF76B0132
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 12:03:13 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 03/22] mm: page allocator: Use unsigned int for order in more places
-Date: Wed,  8 May 2013 17:02:48 +0100
-Message-Id: <1368028987-8369-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 04/22] mm: page allocator: Only check migratetype of pages being drained while CMA active
+Date: Wed,  8 May 2013 17:02:49 +0100
+Message-Id: <1368028987-8369-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1368028987-8369-1-git-send-email-mgorman@suse.de>
 References: <1368028987-8369-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,165 +13,142 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave@sr71.net>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-X86 prefers the use of unsigned types for iterators and there is a
-tendency to mix whether a signed or unsigned type if used for page
-order. This converts a number of sites in mm/page_alloc.c to use
-unsigned int for order where possible.
+CMA added a is_migrate_isolate_page in the bulk page free path which
+does a pageblock migratetype lookup for every page being drained. This
+is only necessary when CMA is active so skip the expensive checks in the
+normal case.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/mmzone.h |  8 ++++----
- mm/page_alloc.c        | 35 +++++++++++++++++++----------------
- 2 files changed, 23 insertions(+), 20 deletions(-)
+ include/linux/mmzone.h         |  8 ++++++--
+ include/linux/page-isolation.h |  7 ++++---
+ mm/page_alloc.c                |  2 +-
+ mm/page_isolation.c            | 27 +++++++++++++++++++++++----
+ 4 files changed, 34 insertions(+), 10 deletions(-)
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index c74092e..e71e3a6 100644
+index e71e3a6..57f03b3 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -773,10 +773,10 @@ static inline bool pgdat_is_empty(pg_data_t *pgdat)
- extern struct mutex zonelists_mutex;
- void build_all_zonelists(pg_data_t *pgdat, struct zone *zone);
- void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx);
--bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
--		int classzone_idx, int alloc_flags);
--bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
--		int classzone_idx, int alloc_flags);
-+bool zone_watermark_ok(struct zone *z, unsigned int order,
-+		unsigned long mark, int classzone_idx, int alloc_flags);
-+bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
-+		unsigned long mark, int classzone_idx, int alloc_flags);
- enum memmap_context {
- 	MEMMAP_EARLY,
- 	MEMMAP_HOTPLUG,
+@@ -354,12 +354,16 @@ struct zone {
+ 	spinlock_t		lock;
+ 	int                     all_unreclaimable; /* All pages pinned */
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
++	unsigned long		compact_cached_free_pfn;
++	unsigned long		compact_cached_migrate_pfn;
++
+ 	/* Set to true when the PG_migrate_skip bits should be cleared */
+ 	bool			compact_blockskip_flush;
+ 
+ 	/* pfns where compaction scanners should start */
+-	unsigned long		compact_cached_free_pfn;
+-	unsigned long		compact_cached_migrate_pfn;
++#endif
++#ifdef CONFIG_MEMORY_ISOLATION
++	bool			memory_isolation_active;
+ #endif
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ 	/* see spanned/present_pages for more description */
+diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
+index 3fff8e7..81287bb 100644
+--- a/include/linux/page-isolation.h
++++ b/include/linux/page-isolation.h
+@@ -2,16 +2,17 @@
+ #define __LINUX_PAGEISOLATION_H
+ 
+ #ifdef CONFIG_MEMORY_ISOLATION
+-static inline bool is_migrate_isolate_page(struct page *page)
++static inline bool is_migrate_isolate_page(struct zone *zone, struct page *page)
+ {
+-	return get_pageblock_migratetype(page) == MIGRATE_ISOLATE;
++	return zone->memory_isolation_active &&
++		get_pageblock_migratetype(page) == MIGRATE_ISOLATE;
+ }
+ static inline bool is_migrate_isolate(int migratetype)
+ {
+ 	return migratetype == MIGRATE_ISOLATE;
+ }
+ #else
+-static inline bool is_migrate_isolate_page(struct page *page)
++static inline bool is_migrate_isolate_page(struct zone *zone, struct page *page)
+ {
+ 	return false;
+ }
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 50c9315..4a07771 100644
+index 4a07771..f170260 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -392,7 +392,8 @@ static int destroy_compound_page(struct page *page, unsigned long order)
- 	return bad;
- }
+@@ -674,7 +674,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+ 			__free_one_page(page, zone, 0, mt);
+ 			trace_mm_page_pcpu_drain(page, 0, mt);
+-			if (likely(!is_migrate_isolate_page(page))) {
++			if (likely(!is_migrate_isolate_page(zone, page))) {
+ 				__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
+ 				if (is_migrate_cma(mt))
+ 					__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 383bdbb..9f0c068 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -118,6 +118,8 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+ 	unsigned long pfn;
+ 	unsigned long undo_pfn;
+ 	struct page *page;
++	struct zone *zone = NULL;
++	unsigned long flags;
  
--static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
-+static inline void prep_zero_page(struct page *page, unsigned int order,
-+							gfp_t gfp_flags)
+ 	BUG_ON((start_pfn) & (pageblock_nr_pages - 1));
+ 	BUG_ON((end_pfn) & (pageblock_nr_pages - 1));
+@@ -126,12 +128,20 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+ 	     pfn < end_pfn;
+ 	     pfn += pageblock_nr_pages) {
+ 		page = __first_valid_page(pfn, pageblock_nr_pages);
+-		if (page &&
+-		    set_migratetype_isolate(page, skip_hwpoisoned_pages)) {
+-			undo_pfn = pfn;
+-			goto undo;
++		if (page) {
++			if (!zone)
++				zone = page_zone(page);
++			if (set_migratetype_isolate(page,
++						    skip_hwpoisoned_pages)) {
++				undo_pfn = pfn;
++				goto undo;
++			}
+ 		}
+ 	}
++
++	spin_lock_irqsave(&zone->lock, flags);
++	zone->memory_isolation_active = true;
++	spin_unlock_irqrestore(&zone->lock, flags);
+ 	return 0;
+ undo:
+ 	for (pfn = start_pfn;
+@@ -150,6 +160,9 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
  {
- 	int i;
- 
-@@ -436,7 +437,7 @@ static inline void set_page_guard_flag(struct page *page) { }
- static inline void clear_page_guard_flag(struct page *page) { }
- #endif
- 
--static inline void set_page_order(struct page *page, int order)
-+static inline void set_page_order(struct page *page, unsigned int order)
- {
- 	set_page_private(page, order);
- 	__SetPageBuddy(page);
-@@ -485,7 +486,7 @@ __find_buddy_index(unsigned long page_idx, unsigned int order)
-  * For recording page's order, we use page_private(page).
-  */
- static inline int page_is_buddy(struct page *page, struct page *buddy,
--								int order)
-+							unsigned int order)
- {
- 	if (!pfn_valid_within(page_to_pfn(buddy)))
- 		return 0;
-@@ -683,7 +684,8 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 	spin_unlock(&zone->lock);
- }
- 
--static void free_one_page(struct zone *zone, struct page *page, int order,
-+static void free_one_page(struct zone *zone, struct page *page,
-+				unsigned int order,
- 				int migratetype)
- {
- 	unsigned long flags;
-@@ -853,7 +855,7 @@ static inline int check_new_page(struct page *page)
+ 	unsigned long pfn;
+ 	struct page *page;
++	struct zone *zone = NULL;
++	unsigned long flags;
++
+ 	BUG_ON((start_pfn) & (pageblock_nr_pages - 1));
+ 	BUG_ON((end_pfn) & (pageblock_nr_pages - 1));
+ 	for (pfn = start_pfn;
+@@ -159,7 +172,13 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+ 		if (!page || get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
+ 			continue;
+ 		unset_migratetype_isolate(page, migratetype);
++		if (!zone)
++			zone = page_zone(page);
+ 	}
++
++	spin_lock_irqsave(&zone->lock, flags);
++	zone->memory_isolation_active = true;
++	spin_unlock_irqrestore(&zone->lock, flags);
  	return 0;
  }
- 
--static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
-+static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags)
- {
- 	int i;
- 
-@@ -1278,7 +1280,7 @@ void mark_free_pages(struct zone *zone)
- {
- 	unsigned long pfn, max_zone_pfn;
- 	unsigned long flags;
--	int order, t;
-+	unsigned int order, t;
- 	struct list_head *curr;
- 
- 	if (!zone->spanned_pages)
-@@ -1471,8 +1473,8 @@ int split_free_page(struct page *page)
-  */
- static inline
- struct page *buffered_rmqueue(struct zone *preferred_zone,
--			struct zone *zone, int order, gfp_t gfp_flags,
--			int migratetype)
-+			struct zone *zone, unsigned int order,
-+			gfp_t gfp_flags, int migratetype)
- {
- 	unsigned long flags;
- 	struct page *page;
-@@ -1619,8 +1621,9 @@ static inline bool should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
-  * Return true if free pages are above 'mark'. This takes into account the order
-  * of the allocation.
-  */
--static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
--		      int classzone_idx, int alloc_flags, long free_pages)
-+static bool __zone_watermark_ok(struct zone *z, unsigned int order,
-+			unsigned long mark, int classzone_idx, int alloc_flags,
-+			long free_pages)
- {
- 	/* free_pages my go negative - that's OK */
- 	long min = mark;
-@@ -1652,15 +1655,15 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- 	return true;
- }
- 
--bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-+bool zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
- 		      int classzone_idx, int alloc_flags)
- {
- 	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
- 					zone_page_state(z, NR_FREE_PAGES));
- }
- 
--bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
--		      int classzone_idx, int alloc_flags)
-+bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
-+			unsigned long mark, int classzone_idx, int alloc_flags)
- {
- 	long free_pages = zone_page_state(z, NR_FREE_PAGES);
- 
-@@ -3942,7 +3945,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
- 
- static void __meminit zone_init_free_lists(struct zone *zone)
- {
--	int order, t;
-+	unsigned int order, t;
- 	for_each_migratetype_order(order, t) {
- 		INIT_LIST_HEAD(&zone->free_area[order].free_list[t]);
- 		zone->free_area[order].nr_free = 0;
-@@ -6038,7 +6041,7 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- {
- 	struct page *page;
- 	struct zone *zone;
--	int order, i;
-+	unsigned int order, i;
- 	unsigned long pfn;
- 	unsigned long flags;
- 	/* find the first valid pfn */
-@@ -6090,7 +6093,7 @@ bool is_free_buddy_page(struct page *page)
- 	struct zone *zone = page_zone(page);
- 	unsigned long pfn = page_to_pfn(page);
- 	unsigned long flags;
--	int order;
-+	unsigned int order;
- 
- 	spin_lock_irqsave(&zone->lock, flags);
- 	for (order = 0; order < MAX_ORDER; order++) {
+ /*
 -- 
 1.8.1.4
 
