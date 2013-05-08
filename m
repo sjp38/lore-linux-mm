@@ -1,93 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id CA7D06B0128
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 11:57:46 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id 10so1335154pdi.15
-        for <linux-mm@kvack.org>; Wed, 08 May 2013 08:57:46 -0700 (PDT)
-From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v5, part4 41/41] mm: kill global variable num_physpages
-Date: Wed,  8 May 2013 23:51:38 +0800
-Message-Id: <1368028298-7401-42-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
-References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 6D0366B012C
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 12:03:11 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 01/22] mm: page allocator: Lookup pageblock migratetype with IRQs enabled during free
+Date: Wed,  8 May 2013 17:02:46 +0100
+Message-Id: <1368028987-8369-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1368028987-8369-1-git-send-email-mgorman@suse.de>
+References: <1368028987-8369-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave@sr71.net>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-Now all references to num_physpages have been removed, so kill it.
+get_pageblock_migratetype() is called during free with IRQs disabled.
+This is unnecessary and disables IRQs for longer than necessary.
 
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/mm.h |    1 -
- mm/memory.c        |    2 --
- mm/nommu.c         |    2 --
- 3 files changed, 5 deletions(-)
+ mm/page_alloc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 66e5fb8..f02b34f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -29,7 +29,6 @@ struct writeback_control;
- extern unsigned long max_mapnr;
- #endif
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8fcced7..277ecee 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -730,9 +730,10 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+ 	if (!free_pages_prepare(page, order))
+ 		return;
  
--extern unsigned long num_physpages;
- extern unsigned long totalram_pages;
- extern void * high_memory;
- extern int page_cluster;
-diff --git a/mm/memory.c b/mm/memory.c
-index f7a1fba..0022366 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -82,7 +82,6 @@ EXPORT_SYMBOL(max_mapnr);
- EXPORT_SYMBOL(mem_map);
- #endif
- 
--unsigned long num_physpages;
- /*
-  * A number of key systems in x86 including ioremap() rely on the assumption
-  * that high_memory defines the upper bound on direct map memory, then end
-@@ -92,7 +91,6 @@ unsigned long num_physpages;
-  */
- void * high_memory;
- 
--EXPORT_SYMBOL(num_physpages);
- EXPORT_SYMBOL(high_memory);
- 
- /*
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 247ef84..09cfde8 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -56,7 +56,6 @@
- void *high_memory;
- struct page *mem_map;
- unsigned long max_mapnr;
--unsigned long num_physpages;
- unsigned long highest_memmap_pfn;
- struct percpu_counter vm_committed_as;
- int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
-@@ -85,7 +84,6 @@ unsigned long vm_memory_committed(void)
- EXPORT_SYMBOL_GPL(vm_memory_committed);
- 
- EXPORT_SYMBOL(mem_map);
--EXPORT_SYMBOL(num_physpages);
- 
- /* list of mapped, potentially shareable regions */
- static struct kmem_cache *vm_region_jar;
++	migratetype = get_pageblock_migratetype(page);
++
+ 	local_irq_save(flags);
+ 	__count_vm_events(PGFREE, 1 << order);
+-	migratetype = get_pageblock_migratetype(page);
+ 	set_freepage_migratetype(page, migratetype);
+ 	free_one_page(page_zone(page), page, order, migratetype);
+ 	local_irq_restore(flags);
 -- 
-1.7.9.5
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
