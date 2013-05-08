@@ -1,80 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id F245A6B010E
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 11:56:22 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id bg2so1421267pad.25
-        for <linux-mm@kvack.org>; Wed, 08 May 2013 08:56:22 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 4C4A46B0110
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 11:56:29 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq12so1423901pab.12
+        for <linux-mm@kvack.org>; Wed, 08 May 2013 08:56:28 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v5, part4 28/41] mm/mn10300: prepare for removing num_physpages and simplify mem_init()
-Date: Wed,  8 May 2013 23:51:25 +0800
-Message-Id: <1368028298-7401-29-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH v5, part4 29/41] mm/openrisc: prepare for removing num_physpages and simplify mem_init()
+Date: Wed,  8 May 2013 23:51:26 +0800
+Message-Id: <1368028298-7401-30-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
 References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Koichi Yasutake <yasutake.koichi@jp.panasonic.com>, linux-am33-list@redhat.com
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, linux@lists.openrisc.net
 
 Prepare for removing num_physpages and simplify mem_init().
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+Acked-by: Jonas Bonn <jonas@southpole.se>
 Cc: David Howells <dhowells@redhat.com>
-Cc: Koichi Yasutake <yasutake.koichi@jp.panasonic.com>
-Cc: linux-am33-list@redhat.com
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: linux@lists.openrisc.net
 Cc: linux-kernel@vger.kernel.org
 ---
- arch/mn10300/mm/init.c |   26 ++------------------------
- 1 file changed, 2 insertions(+), 24 deletions(-)
+ arch/openrisc/mm/init.c |   44 ++++----------------------------------------
+ 1 file changed, 4 insertions(+), 40 deletions(-)
 
-diff --git a/arch/mn10300/mm/init.c b/arch/mn10300/mm/init.c
-index d7312aa..f43d993 100644
---- a/arch/mn10300/mm/init.c
-+++ b/arch/mn10300/mm/init.c
-@@ -99,15 +99,12 @@ void __init paging_init(void)
-  */
+diff --git a/arch/openrisc/mm/init.c b/arch/openrisc/mm/init.c
+index da26482..ac438ab 100644
+--- a/arch/openrisc/mm/init.c
++++ b/arch/openrisc/mm/init.c
+@@ -202,56 +202,20 @@ void __init paging_init(void)
+ 
+ /* References to section boundaries */
+ 
+-static int __init free_pages_init(void)
+-{
+-	int reservedpages, pfn;
+-
+-	/* this will put all low memory onto the freelists */
+-	free_all_bootmem();
+-
+-	reservedpages = 0;
+-	for (pfn = 0; pfn < max_low_pfn; pfn++) {
+-		/*
+-		 * Only count reserved RAM pages
+-		 */
+-		if (PageReserved(mem_map + pfn))
+-			reservedpages++;
+-	}
+-
+-	return reservedpages;
+-}
+-
+-static void __init set_max_mapnr_init(void)
+-{
+-	max_mapnr = num_physpages = max_low_pfn;
+-}
+-
  void __init mem_init(void)
  {
 -	int codesize, reservedpages, datasize, initsize;
--	int tmp;
 -
  	BUG_ON(!mem_map);
  
- #define START_PFN	(contig_page_data.bdata->node_min_pfn)
- #define MAX_LOW_PFN	(contig_page_data.bdata->node_low_pfn)
- 
--	max_mapnr = num_physpages = MAX_LOW_PFN - START_PFN;
-+	max_mapnr = MAX_LOW_PFN - START_PFN;
- 	high_memory = (void *) __va(MAX_LOW_PFN * PAGE_SIZE);
+-	set_max_mapnr_init();
+-
++	max_mapnr = max_low_pfn;
+ 	high_memory = (void *)__va(max_low_pfn * PAGE_SIZE);
  
  	/* clear the zero-page */
-@@ -116,26 +113,7 @@ void __init mem_init(void)
- 	/* this will put all low memory onto the freelists */
- 	free_all_bootmem();
+ 	memset((void *)empty_zero_page, 0, PAGE_SIZE);
  
--	reservedpages = 0;
--	for (tmp = 0; tmp < num_physpages; tmp++)
--		if (PageReserved(&mem_map[tmp]))
--			reservedpages++;
+-	reservedpages = free_pages_init();
 -
--	codesize =  (unsigned long) &_etext - (unsigned long) &_stext;
--	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
--	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
--
+-	codesize = (unsigned long)&_etext - (unsigned long)&_stext;
+-	datasize = (unsigned long)&_edata - (unsigned long)&_etext;
+-	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
++	/* this will put all low memory onto the freelists */
++	free_all_bootmem();
+ 
 -	printk(KERN_INFO
--	       "Memory: %luk/%luk available"
--	       " (%dk kernel code, %dk reserved, %dk data, %dk init,"
--	       " %ldk highmem)\n",
--	       nr_free_pages() << (PAGE_SHIFT - 10),
--	       max_mapnr << (PAGE_SHIFT - 10),
--	       codesize >> 10,
--	       reservedpages << (PAGE_SHIFT - 10),
--	       datasize >> 10,
--	       initsize >> 10,
--	       totalhigh_pages << (PAGE_SHIFT - 10));
+-	       "Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init, %ldk highmem)\n",
+-	       (unsigned long)nr_free_pages() << (PAGE_SHIFT - 10),
+-	       max_mapnr << (PAGE_SHIFT - 10), codesize >> 10,
+-	       reservedpages << (PAGE_SHIFT - 10), datasize >> 10,
+-	       initsize >> 10, (unsigned long)(0 << (PAGE_SHIFT - 10))
+-	    );
 +	mem_init_print_info(NULL);
- }
  
- /*
+ 	printk("mem_init_done ...........................................\n");
+ 	mem_init_done = 1;
 -- 
 1.7.9.5
 
