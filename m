@@ -1,94 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id B6F436B00EF
-	for <linux-mm@kvack.org>; Wed,  8 May 2013 11:54:41 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id 10so1330923pdi.1
-        for <linux-mm@kvack.org>; Wed, 08 May 2013 08:54:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 40B716B00F1
+	for <linux-mm@kvack.org>; Wed,  8 May 2013 11:54:48 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id y19so1064975dan.14
+        for <linux-mm@kvack.org>; Wed, 08 May 2013 08:54:47 -0700 (PDT)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [PATCH v5, part4 12/41] mm/ARC: prepare for removing num_physpages and simplify mem_init()
-Date: Wed,  8 May 2013 23:51:09 +0800
-Message-Id: <1368028298-7401-13-git-send-email-jiang.liu@huawei.com>
+Subject: [PATCH v5, part4 13/41] mm/ARM: prepare for removing num_physpages and simplify mem_init()
+Date: Wed,  8 May 2013 23:51:10 +0800
+Message-Id: <1368028298-7401-14-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
 References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Vineet Gupta <vgupta@synopsys.com>, James Hogan <james.hogan@imgtec.com>, Rob Herring <rob.herring@calxeda.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
 
 Prepare for removing num_physpages and simplify mem_init().
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Cc: Vineet Gupta <vgupta@synopsys.com>
-Cc: James Hogan <james.hogan@imgtec.com>
-Cc: Rob Herring <rob.herring@calxeda.com>
+Cc: Russell King <linux@arm.linux.org.uk>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org
 Cc: linux-kernel@vger.kernel.org
 ---
- arch/arc/mm/init.c |   36 +++---------------------------------
- 1 file changed, 3 insertions(+), 33 deletions(-)
+ arch/arm/mm/init.c |   47 ++---------------------------------------------
+ 1 file changed, 2 insertions(+), 45 deletions(-)
 
-diff --git a/arch/arc/mm/init.c b/arch/arc/mm/init.c
-index 78d8c31..8ba6562 100644
---- a/arch/arc/mm/init.c
-+++ b/arch/arc/mm/init.c
-@@ -74,7 +74,7 @@ void __init setup_arch_memory(void)
- 	/* Last usable page of low mem (no HIGHMEM yet for ARC port) */
- 	max_low_pfn = max_pfn = PFN_DOWN(end_mem);
- 
--	max_mapnr = num_physpages = max_low_pfn - min_low_pfn;
-+	max_mapnr = max_low_pfn - min_low_pfn;
- 
- 	/*------------- reserve kernel image -----------------------*/
- 	memblock_reserve(CONFIG_LINUX_LINK_BASE,
-@@ -84,7 +84,7 @@ void __init setup_arch_memory(void)
- 
- 	/*-------------- node setup --------------------------------*/
- 	memset(zones_size, 0, sizeof(zones_size));
--	zones_size[ZONE_NORMAL] = num_physpages;
-+	zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
- 
- 	/*
- 	 * We can't use the helper free_area_init(zones[]) because it uses
-@@ -106,39 +106,9 @@ void __init setup_arch_memory(void)
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index add4fcb..7a911d1 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -582,9 +582,6 @@ static void __init free_highpages(void)
   */
  void __init mem_init(void)
  {
--	int codesize, datasize, initsize, reserved_pages, free_pages;
--	int tmp;
+-	unsigned long reserved_pages, free_pages;
+-	struct memblock_region *reg;
+-	int i;
+ #ifdef CONFIG_HAVE_TCM
+ 	/* These pointers are filled in on TCM detection */
+ 	extern u32 dtcm_end;
+@@ -605,47 +602,7 @@ void __init mem_init(void)
+ 
+ 	free_highpages();
+ 
+-	reserved_pages = free_pages = 0;
 -
- 	high_memory = (void *)(CONFIG_LINUX_LINK_BASE + arc_mem_sz);
+-	for_each_bank(i, &meminfo) {
+-		struct membank *bank = &meminfo.bank[i];
+-		unsigned int pfn1, pfn2;
+-		struct page *page, *end;
 -
- 	free_all_bootmem();
+-		pfn1 = bank_pfn_start(bank);
+-		pfn2 = bank_pfn_end(bank);
 -
--	/* count all reserved pages [kernel code/data/mem_map..] */
--	reserved_pages = 0;
--	for (tmp = 0; tmp < max_mapnr; tmp++)
--		if (PageReserved(mem_map + tmp))
--			reserved_pages++;
+-		page = pfn_to_page(pfn1);
+-		end  = pfn_to_page(pfn2 - 1) + 1;
 -
--	/* XXX: nr_free_pages() is equivalent */
--	free_pages = max_mapnr - reserved_pages;
+-		do {
+-			if (PageReserved(page))
+-				reserved_pages++;
+-			else if (!page_count(page))
+-				free_pages++;
+-			page++;
+-		} while (page < end);
+-	}
 -
 -	/*
--	 * For the purpose of display below, split the "reserve mem"
--	 * kernel code/data is already shown explicitly,
--	 * Show any other reservations (mem_map[ ] et al)
+-	 * Since our memory may not be contiguous, calculate the
+-	 * real number of pages we have in this system
 -	 */
--	reserved_pages -= (((unsigned int)_end - CONFIG_LINUX_LINK_BASE) >>
--								PAGE_SHIFT);
+-	printk(KERN_INFO "Memory:");
+-	num_physpages = 0;
+-	for_each_memblock(memory, reg) {
+-		unsigned long pages = memblock_region_memory_end_pfn(reg) -
+-			memblock_region_memory_base_pfn(reg);
+-		num_physpages += pages;
+-		printk(" %ldMB", pages >> (20 - PAGE_SHIFT));
+-	}
+-	printk(" = %luMB total\n", num_physpages >> (20 - PAGE_SHIFT));
 -
--	codesize = _etext - _text;
--	datasize = _end - _etext;
--	initsize = __init_end - __init_begin;
--
--	pr_info("Memory Available: %dM / %ldM (%dK code, %dK data, %dK init, %dK reserv)\n",
--		PAGES_TO_MB(free_pages),
--		TO_MB(arc_mem_sz),
--		TO_KB(codesize), TO_KB(datasize), TO_KB(initsize),
--		PAGES_TO_KB(reserved_pages));
+-	printk(KERN_NOTICE "Memory: %luk/%luk available, %luk reserved, %luK highmem\n",
+-		nr_free_pages() << (PAGE_SHIFT-10),
+-		free_pages << (PAGE_SHIFT-10),
+-		reserved_pages << (PAGE_SHIFT-10),
+-		totalhigh_pages << (PAGE_SHIFT-10));
 +	mem_init_print_info(NULL);
- }
  
- /*
+ #define MLK(b, t) b, t, ((t) - (b)) >> 10
+ #define MLM(b, t) b, t, ((t) - (b)) >> 20
+@@ -711,7 +668,7 @@ void __init mem_init(void)
+ 	BUG_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE	> PAGE_OFFSET);
+ #endif
+ 
+-	if (PAGE_SIZE >= 16384 && num_physpages <= 128) {
++	if (PAGE_SIZE >= 16384 && get_num_physpages() <= 128) {
+ 		extern int sysctl_overcommit_memory;
+ 		/*
+ 		 * On a machine this small we won't get
 -- 
 1.7.9.5
 
