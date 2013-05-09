@@ -1,81 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 5AC3B6B0039
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 13:33:52 -0400 (EDT)
-Date: Thu, 9 May 2013 18:33:48 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 00/22] Per-cpu page allocator replacement prototype
-Message-ID: <20130509173348.GI11497@suse.de>
-References: <1368028987-8369-1-git-send-email-mgorman@suse.de>
- <518BC3BD.30005@sr71.net>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 2C7C56B0039
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 14:08:37 -0400 (EDT)
+Date: Thu, 9 May 2013 18:08:35 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 09/22] mm: page allocator: Allocate/free order-0 pages
+ from a per-zone magazine
+In-Reply-To: <20130509172721.GG11497@suse.de>
+Message-ID: <0000013e8a7afa80-34067330-12df-4b7e-a2b7-d298c78d3630-000000@email.amazonses.com>
+References: <1368028987-8369-1-git-send-email-mgorman@suse.de> <1368028987-8369-10-git-send-email-mgorman@suse.de> <0000013e85732d03-05e35c8e-205e-4242-98f5-2ae7bda64c5c-000000@email.amazonses.com> <20130509152318.GD11497@suse.de>
+ <0000013e8a189d6a-efcf99b5-c620-4882-8faf-8187ec243b2c-000000@email.amazonses.com> <20130509172721.GG11497@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <518BC3BD.30005@sr71.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave@sr71.net>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, May 09, 2013 at 08:41:49AM -0700, Dave Hansen wrote:
-> On 05/08/2013 09:02 AM, Mel Gorman wrote:
-> > So preliminary testing indicates the results are mixed bag. As long as
-> > locks are not contended, it performs fine but parallel fault testing
-> > hits into spinlock contention on the magazine locks. A greater problem
-> > is that because CPUs share magazines it means that the struct pages are
-> > frequently dirtied cache lines. If CPU A frees a page to a magazine and
-> > CPU B immediately allocates it then the cache line for the page and the
-> > magazine bounces and this costs. It's on the TODO list to research if the
-> > available literature has anything useful to say that does not depend on
-> > per-cpu lists and the associated problems with them.
-> 
-> If we don't want to bounce 'struct page' cache lines around, then we
-> _need_ to make sure that things that don't share caches don't use the
-> same magazine.  I'm not sure there's any other way.  But, that doesn't
-> mean we have to _statically_ assign cores/thread to particular magazines.
-> 
+On Thu, 9 May 2013, Mel Gorman wrote:
 
-We could do something similar to sd_llc_id in kernel/sched/core.c to
-match CPUs to magazines where the data is likely to be at least in the
-last level cache.
+> > I would be useful if the allocator would hand out pages from the
+> > same physical area first. This would reduce fragmentation as well and
+> > since it is likely that numerous pages are allocated for some purpose
+> > (given that that the page sizes of 4k are rather tiny compared to the data
+> > needs these day) would reduce TLB pressure.
+> >
+>
+> It already does this via the buddy allocator and the treatment of
+> migratetypes.
 
-> Say we had a percpu hint which points us to the last magazine we used.
-> We always go to it first, and fall back to round-robin if our preferred
-> one is contended.  That way, if we have a mixture tasks doing heavy and
-> light allocations, the heavy allocators will tend to "own" a magazine,
-> and the lighter ones would gravitate to sharing one.
-> 
+Well it only does if it breaks larger sized pages from the buddy
+allocator. If large page lists aggregate in the per cpu lists then we have
+a LIFO order.
 
-We might not need the percpu hint if the sd_llc_id style hint was good
-enough.
+> > Yes. But we have lots of memory in machines these days. Why would that be
+> > an issue?
+> Because the embedded people will have a fit if the page allocator needs
+> an additional 1K+ of memory just to turn on.
 
-> It might be taking things too far, but we could even raise the number of
-> magazines only when we actually *see* contention on the existing set.
-> 
+Why enlarge the existing per cpu areas? The size could
+be restricted if we reduce the types of pages supported and/or if we do
+not use double linked lists but single linked lists within say a PMD area.
 
-I had considered a similar idea. I think it would be relatively easy to
-grow the number of magazines or even allocate them on a per-process
-basis but it was less clear how it would be shrunk again.
+> With this approach the lock can be made more fine or coarse based on the
+> number of CPUs, the queues can be made arbitrarily large and if necessary,
+> per-process magazines for heavily contended workloads could be added.
 
-> >  24 files changed, 571 insertions(+), 788 deletions(-)
-> 
-> oooooooooooooooooohhhhhhhhhhhhh.
-> 
-> The only question is how much we'll have to bloat it as we try to
-> optimize things. :)
-> 
+Arbitrarily large queues cause references to pointers all over memory. No
+good.
 
-Indeed :/
+> A fixed-size array like you propose would be only marginally better than
+> what is implemented today as far as I can see because it still smacks into
+> the irq-safe zone->lock and pages can be pinned in inaccessible per-cpu
+> queues unless a global IPI is sent.
 
-> BTW, I really like the 'magazine' name.  It's not frequently used in
-> this kind of context and it conjures up a nice mental image whether it
-> be of stacks of periodicals or firearm ammunition clips.
+We do not send global IPIs but IPIs only to processors that have something
+cached.
 
-I remember the term from the papers Christoph cited.
+The fixed size array or constrained single linked list would be better
+since it caches better and it is possible to avoid spin lock operations.
 
--- 
-Mel Gorman
-SUSE Labs
+> > The problem with the page allocator is that it can serve various types of
+> > pages. If one wants to setup caches for all of those then these caches are
+> > replicated for each processor or whatever higher unit we decide to use. I
+> > think one of the first moves need to be to identify which types of pages
+> > are actually useful to serve in a fast way. Higher order pages are already
+> > out but what about the different zone types, migration types etc?
+> >
+>
+> What tpyes of pages are useful to serve in a fast way is workload
+> dependenat and besides the per-cpu allocator as it exists today already
+> has separate queues for migration types.
+>
+> I strongly suspect that your proposal would end up performing roughly the
+> same as what exists today except that it'll be more complex because it'll
+> have to deal with the race-prone array accesses.
+
+The problems of the current scheme are the proliferation of page types,
+the serving of pages in a random mix from all over memory, the heavy high
+latency processing in the "fast" paths (these paths seem to accumulate
+more and more procesing in each kernel version) and the disabling of
+interrupts (which may be the least latency causing issue).
+
+A solution without using locks cannot simply be a modification of the
+existing scheme that you envison. The amount of processing in the fastpaths must be
+significantly reduced and the data layout needs to be more cache friendly.
+Only with these changes will make the use of fast cpu local instructions
+sense.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
