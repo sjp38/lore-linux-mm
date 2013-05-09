@@ -1,180 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 763DD6B0038
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 17:01:24 -0400 (EDT)
-Message-ID: <518C0ECF.8010302@parallels.com>
-Date: Fri, 10 May 2013 01:02:07 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id AE3356B0038
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 17:03:18 -0400 (EDT)
+Date: Thu, 9 May 2013 18:03:09 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [RFC 1/2] virtio_balloon: move balloon_lock mutex to callers
+Message-ID: <20130509210308.GB16446@optiplex.redhat.com>
+References: <1368111229-29847-1-git-send-email-lcapitulino@redhat.com>
+ <1368111229-29847-2-git-send-email-lcapitulino@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 08/31] list: add a new LRU list type
-References: <1368079608-5611-1-git-send-email-glommer@openvz.org> <1368079608-5611-9-git-send-email-glommer@openvz.org> <20130509133742.GW11497@suse.de>
-In-Reply-To: <20130509133742.GW11497@suse.de>
-Content-Type: multipart/mixed;
-	boundary="------------030502060200010009090907"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1368111229-29847-2-git-send-email-lcapitulino@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, riel@redhat.com, mst@redhat.com, amit.shah@redhat.com, anton@enomsg.org
 
---------------030502060200010009090907
-Content-Type: text/plain; charset="ISO-8859-15"
-Content-Transfer-Encoding: 7bit
-
-On 05/09/2013 05:37 PM, Mel Gorman wrote:
-> On Thu, May 09, 2013 at 10:06:25AM +0400, Glauber Costa wrote:
->> From: Dave Chinner <dchinner@redhat.com>
->>
->> Several subsystems use the same construct for LRU lists - a list
->> head, a spin lock and and item count. They also use exactly the same
->> code for adding and removing items from the LRU. Create a generic
->> type for these LRU lists.
->>
->> This is the beginning of generic, node aware LRUs for shrinkers to
->> work with.
->>
->> [ glommer: enum defined constants for lru. Suggested by gthelen,
->>   don't relock over retry ]
->> Signed-off-by: Dave Chinner <dchinner@redhat.com>
->> Signed-off-by: Glauber Costa <glommer@openvz.org>
->> Reviewed-by: Greg Thelen <gthelen@google.com>
->>>
->>> <SNIP>
->>>
->> +
->> +unsigned long
->> +list_lru_walk(
->> +	struct list_lru *lru,
->> +	list_lru_walk_cb isolate,
->> +	void		*cb_arg,
->> +	long		nr_to_walk)
->> +{
->> +	struct list_head *item, *n;
->> +	unsigned long removed = 0;
->> +
->> +	spin_lock(&lru->lock);
->> +restart:
->> +	list_for_each_safe(item, n, &lru->list) {
->> +		enum lru_status ret;
->> +
->> +		if (nr_to_walk-- < 0)
->> +			break;
->> +
->> +		ret = isolate(item, &lru->lock, cb_arg);
->> +		switch (ret) {
->> +		case LRU_REMOVED:
->> +			lru->nr_items--;
->> +			removed++;
->> +			break;
->> +		case LRU_ROTATE:
->> +			list_move_tail(item, &lru->list);
->> +			break;
->> +		case LRU_SKIP:
->> +			break;
->> +		case LRU_RETRY:
->> +			goto restart;
->> +		default:
->> +			BUG();
->> +		}
->> +	}
+On Thu, May 09, 2013 at 10:53:48AM -0400, Luiz Capitulino wrote:
+> This commit moves the balloon_lock mutex out of the fill_balloon()
+> and leak_balloon() functions to their callers.
 > 
-> What happened your suggestion to only retry once for each object to
-> avoid any possibility of infinite looping or stalling for prolonged
-> periods of time waiting on XFS to do something?
+> The reason for this change is that the next commit will introduce
+> a shrinker callback for the balloon driver, which will also call
+> leak_balloon() but will require different locking semantics.
 > 
-Sorry. It wasn't clear for me if you were just trying to make sure we
-had a way out in case it proves to be a problem, or actually wanted a
-change.
+> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> ---
+>  drivers/virtio/virtio_balloon.c | 8 ++++----
+>  1 file changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index bd3ae32..9d5fe2b 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -133,7 +133,6 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+>  	/* We can only do one array worth at a time. */
+>  	num = min(num, ARRAY_SIZE(vb->pfns));
+>  
+> -	mutex_lock(&vb->balloon_lock);
+>  	for (vb->num_pfns = 0; vb->num_pfns < num;
+>  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+>  		struct page *page = balloon_page_enqueue(vb_dev_info);
+> @@ -154,7 +153,6 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+>  	/* Did we get any? */
+>  	if (vb->num_pfns != 0)
+>  		tell_host(vb, vb->inflate_vq);
+> -	mutex_unlock(&vb->balloon_lock);
+>  }
+>  
+>  static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
+> @@ -176,7 +174,6 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+>  	/* We can only do one array worth at a time. */
+>  	num = min(num, ARRAY_SIZE(vb->pfns));
+>  
+> -	mutex_lock(&vb->balloon_lock);
+>  	for (vb->num_pfns = 0; vb->num_pfns < num;
+>  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+>  		page = balloon_page_dequeue(vb_dev_info);
+> @@ -192,7 +189,6 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+>  	 * is true, we *have* to do it in this order
+>  	 */
+>  	tell_host(vb, vb->deflate_vq);
+> -	mutex_unlock(&vb->balloon_lock);
+>  	release_pages_by_pfn(vb->pfns, vb->num_pfns);
+>  }
+>  
+> @@ -305,11 +301,13 @@ static int balloon(void *_vballoon)
+>  					 || freezing(current));
+>  		if (vb->need_stats_update)
+>  			stats_handle_request(vb);
+> +		mutex_lock(&vb->balloon_lock);
+>  		if (diff > 0)
+>  			fill_balloon(vb, diff);
+>  		else if (diff < 0)
+>  			leak_balloon(vb, -diff);
+>  		update_balloon_size(vb);
+> +		mutex_unlock(&vb->balloon_lock);
+>  	}
+>  	return 0;
+>  }
+> @@ -490,9 +488,11 @@ out:
+>  static void remove_common(struct virtio_balloon *vb)
+>  {
+>  	/* There might be pages left in the balloon: free them. */
+> +	mutex_lock(&vb->balloon_lock);
+>  	while (vb->num_pages)
+>  		leak_balloon(vb, vb->num_pages);
+>  	update_balloon_size(vb);
+> +	mutex_unlock(&vb->balloon_lock);
 
-In any case, I cannot claim to be as knowledgeable as Dave in the
-subtleties of such things in the final behavior of the shrinker. Dave,
-can you give us your input here?
+I think you will need to introduce the same change as above to virtballoon_restore()
 
-I also have another recent observation on this:
-
-The main difference between LRU_SKIP and LRU_RETRY is that LRU_RETRY
-will go back to the beginning of the list, and start scanning it again.
-
-This is *not* the same behavior we had before, where we used to read:
-
-        for (nr_scanned = nr_to_scan; nr_scanned >= 0; nr_scanned--) {
-                struct inode *inode;
-                [ ... ]
-
-                if (inode_has_buffers(inode) || inode->i_data.nrpages) {
-                        __iget(inode);
-                        [ ... ]
-                        iput(inode);
-                        spin_lock(&sb->s_inode_lru_lock);
-
-                        if (inode != list_entry(sb->s_inode_lru.next,
-                                                struct inode, i_lru))
-                                continue; <=====
-                        /* avoid lock inversions with trylock */
-                        if (!spin_trylock(&inode->i_lock))
-                                continue; <=====
-                        if (!can_unuse(inode)) {
-                                spin_unlock(&inode->i_lock);
-                                continue; <=====
-                        }
-                }
-
-It is my interpretation that we in here, we won't really reset the
-search, but just skip this inode.
-
-Another problem is that by restarting the search the way we are doing
-now, we actually decrement nr_to_walk twice in case of a retry. By doing
-a retry-once test, we can actually move nr_to_walk to the end of the
-switch statement, which has the good side effect of getting rid of the
-reason we had to allow it to go negative.
-
-How about we fold the following attached patch to this one? (I would
-still have to give it a round of testing)
-
-
---------------030502060200010009090907
-Content-Type: text/x-patch; name="lru.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename="lru.patch"
-
-diff --git a/lib/list_lru.c b/lib/list_lru.c
-index da9b837..4aa069b 100644
---- a/lib/list_lru.c
-+++ b/lib/list_lru.c
-@@ -195,12 +195,10 @@ list_lru_walk_node(
- 	unsigned long isolated = 0;
- 
- 	spin_lock(&nlru->lock);
--restart:
- 	list_for_each_safe(item, n, &nlru->list) {
-+		bool first_pass = true;
- 		enum lru_status ret;
--
--		if ((*nr_to_walk)-- < 0)
--			break;
-+restart:
- 
- 		ret = isolate(item, &nlru->lock, cb_arg);
- 		switch (ret) {
-@@ -217,10 +215,17 @@ restart:
- 		case LRU_SKIP:
- 			break;
- 		case LRU_RETRY:
-+			if (!first_pass)
-+				break;
-+			first_pass = true;
- 			goto restart;
- 		default:
- 			BUG();
- 		}
-+
-+		if ((*nr_to_walk)-- == 0)
-+			break;
-+
- 	}
- 	spin_unlock(&nlru->lock);
- 	return isolated;
-
---------------030502060200010009090907--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
