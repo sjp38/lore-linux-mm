@@ -1,202 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 23C2B6B0038
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 17:15:27 -0400 (EDT)
-Date: Thu, 9 May 2013 18:15:19 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [RFC 2/2] virtio_balloon: auto-ballooning support
-Message-ID: <20130509211516.GC16446@optiplex.redhat.com>
-References: <1368111229-29847-1-git-send-email-lcapitulino@redhat.com>
- <1368111229-29847-3-git-send-email-lcapitulino@redhat.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 372B06B0039
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 17:18:34 -0400 (EDT)
+Message-ID: <518C12D6.4060003@parallels.com>
+Date: Fri, 10 May 2013 01:19:18 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1368111229-29847-3-git-send-email-lcapitulino@redhat.com>
+Subject: Re: [PATCH v5 17/31] drivers: convert shrinkers to new count/scan
+ API
+References: <1368079608-5611-1-git-send-email-glommer@openvz.org> <1368079608-5611-18-git-send-email-glommer@openvz.org> <20130509135209.GZ11497@suse.de>
+In-Reply-To: <20130509135209.GZ11497@suse.de>
+Content-Type: text/plain; charset="ISO-8859-15"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, riel@redhat.com, mst@redhat.com, amit.shah@redhat.com, anton@enomsg.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, Kent Overstreet <koverstreet@google.com>, Arve Hj?nnev?g <arve@android.com>, John Stultz <john.stultz@linaro.org>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Thomas Hellstrom <thellstrom@vmware.com>
 
-On Thu, May 09, 2013 at 10:53:49AM -0400, Luiz Capitulino wrote:
-> Automatic ballooning consists of dynamically adjusting the guest's
-> balloon according to memory pressure in the host and in the guest.
 > 
-> This commit implements the guest side of automatic balloning, which
-> basically consists of registering a shrinker callback with the kernel,
-> which will try to deflate the guest's balloon by the amount of pages
-> being requested. The shrinker callback is only registered if the host
-> supports the VIRTIO_BALLOON_F_AUTO_BALLOON feature bit.
+> Last time I complained about some of the shrinker implementations but
+> I'm not expecting them to be fixed in this series. However I still have
+> questions about where -1 should be returned that I don't think were
+> addressed so I'll repeat them.
 > 
-> Automatic inflate is performed by the host.
-> 
-> Here are some numbers. The test-case is to run 35 VMs (1G of RAM each)
-> in parallel doing a kernel build. Host has 32GB of RAM and 16GB of swap.
-> SWAP IN and SWAP OUT correspond to the number of pages swapped in and
-> swapped out, respectively.
-> 
-> Auto-ballooning disabled:
-> 
-> RUN  TIME(s)  SWAP IN  SWAP OUT
-> 
-> 1    634      930980   1588522
-> 2    610      627422   1362174
-> 3    649      1079847  1616367
-> 4    543      953289   1635379
-> 5    642      913237   1514000
-> 
-> Auto-ballooning enabled:
-> 
-> RUN  TIME(s)  SWAP IN  SWAP OUT
-> 
-> 1    629      901      12537
-> 2    624      981      18506
-> 3    626      573      9085
-> 4    631      2250     42534
-> 5    627      1610     20808
-> 
-> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> ---
 
-Nice work Luiz! Just allow me a silly question, though. Since your shrinker
-doesn't change the balloon target size, as soon as the shrink round finishes the
-balloon will re-inflate again, won't it? Doesn't this cause a sort of "balloon
-thrashing" scenario, if both guest and host are suffering from memory pressure?
+Note that the series try to keep the same behavior as we had before.
+(modulo mistakes, spotting them are mostly welcome)
 
+So if we are changing any of this, maybe better done in a separate patch?
 
-The rest I have for the moment, are only nitpicks :)
-
-
->  drivers/virtio/virtio_balloon.c     | 55 +++++++++++++++++++++++++++++++++++++
->  include/uapi/linux/virtio_balloon.h |  1 +
->  2 files changed, 56 insertions(+)
+>> @@ -4472,3 +4470,36 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
+>>  		mutex_unlock(&dev->struct_mutex);
+>>  	return cnt;
+>>  }
+>> +static long
+>> +i915_gem_inactive_scan(struct shrinker *shrinker, struct shrink_control *sc)
+>> +{
+>> +	struct drm_i915_private *dev_priv =
+>> +		container_of(shrinker,
+>> +			     struct drm_i915_private,
+>> +			     mm.inactive_shrinker);
+>> +	struct drm_device *dev = dev_priv->dev;
+>> +	int nr_to_scan = sc->nr_to_scan;
+>> +	long freed;
+>> +	bool unlock = true;
+>> +
+>> +	if (!mutex_trylock(&dev->struct_mutex)) {
+>> +		if (!mutex_is_locked_by(&dev->struct_mutex, current))
+>> +			return 0;
+>> +
 > 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index 9d5fe2b..f9dcae8 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -71,6 +71,9 @@ struct virtio_balloon
->  	/* Memory statistics */
->  	int need_stats_update;
->  	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
-> +
-> +	/* Memory shrinker */
-> +	struct shrinker shrinker;
->  };
->  
->  static struct virtio_device_id id_table[] = {
-> @@ -126,6 +129,7 @@ static void set_page_pfns(u32 pfns[], struct page *page)
->  		pfns[i] = page_to_balloon_pfn(page) + i;
->  }
->  
-> +/* This function should be called with vb->balloon_mutex held */
->  static void fill_balloon(struct virtio_balloon *vb, size_t num)
->  {
->  	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
-> @@ -166,6 +170,7 @@ static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
->  	}
->  }
->  
-> +/* This function should be called with vb->balloon_mutex held */
->  static void leak_balloon(struct virtio_balloon *vb, size_t num)
->  {
->  	struct page *page;
-> @@ -285,6 +290,45 @@ static void update_balloon_size(struct virtio_balloon *vb)
->  			      &actual, sizeof(actual));
->  }
->  
-> +static unsigned long balloon_get_nr_pages(const struct virtio_balloon *vb)
-> +{
-> +	return vb->num_pages / VIRTIO_BALLOON_PAGES_PER_PAGE;
-> +}
-> +
-> +static int balloon_shrinker(struct shrinker *shrinker,struct shrink_control *sc)
-> +{
-> +	unsigned int nr_pages, new_target;
-> +	struct virtio_balloon *vb;
-> +
-> +	vb = container_of(shrinker, struct virtio_balloon, shrinker);
-> +	if (!mutex_trylock(&vb->balloon_lock)) {
-> +		return -1;
-> +	}
-> +
-> +	nr_pages = balloon_get_nr_pages(vb);
-> +	if (!sc->nr_to_scan || !nr_pages) {
-> +		goto out;
-> +	}
-> +
-> +	/*
-> +	 * If the current balloon size is greater than the number of
-> +	 * pages being reclaimed by the kernel, deflate only the needed
-> +	 * amount. Otherwise deflate everything we have.
-> +	 */
-> +	new_target = 0;
-> +	if (nr_pages > sc->nr_to_scan) {
-> +		new_target = nr_pages - sc->nr_to_scan;
-> +	}
-> +
+> return -1 if it's about preventing potential deadlocks?
+> 
+>> +		if (dev_priv->mm.shrinker_no_lock_stealing)
+>> +			return 0;
+>> +
+> 
+> same?
+> 
 
-CodingStyle: you don't need the curly-braces for all these single staments above
+My general opinion is that this one should not use the shrinker
+interface, but rather the one-shot one. But that is up to the i915 people.
 
+If shrinkers are to be maintained for whatever reason, I agree with you
+-1 would be better. It basically means "give up", while 0 will try to
+keep scanning. It is my understanding that in those situations, we would
+like to give up and let the process already holding the lock to proceed.
 
+>>
+>> diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
+>> index 03e44c1..8b9c1a6 100644
+>> --- a/drivers/md/bcache/btree.c
+>> +++ b/drivers/md/bcache/btree.c
+>> @@ -599,11 +599,12 @@ static int mca_reap(struct btree *b, struct closure *cl, unsigned min_order)
+>>  	return 0;
+>>  }
+>>  
+>> -static int bch_mca_shrink(struct shrinker *shrink, struct shrink_control *sc)
+>> +static long bch_mca_scan(struct shrinker *shrink, struct shrink_control *sc)
+>>  {
+>>  	struct cache_set *c = container_of(shrink, struct cache_set, shrink);
+>>  	struct btree *b, *t;
+>>  	unsigned long i, nr = sc->nr_to_scan;
+>> +	long freed = 0;
+>>  
+>>  	if (c->shrinker_disabled)
+>>  		return 0;
+> 
+> -1 if shrinker disabled?
+> 
+> Otherwise if the shrinker is disabled we ultimately hit this loop in
+> shrink_slab_one()
+>
 
-> +	leak_balloon(vb, new_target);
-> +	update_balloon_size(vb);
-> +	nr_pages = balloon_get_nr_pages(vb);
-> +
-> +out:
-> +	mutex_unlock(&vb->balloon_lock);
-> +	return nr_pages;
-> +}
-> +
->  static int balloon(void *_vballoon)
->  {
->  	struct virtio_balloon *vb = _vballoon;
-> @@ -471,6 +515,13 @@ static int virtballoon_probe(struct virtio_device *vdev)
->  		goto out_del_vqs;
->  	}
->  
-> +	memset(&vb->shrinker, 0, sizeof(vb->shrinker));
-> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_AUTO_BALLOON)) {
-> +		vb->shrinker.shrink = balloon_shrinker;
-> +		vb->shrinker.seeks = DEFAULT_SEEKS;
-> +		register_shrinker(&vb->shrinker);
-> +	}
-> +
->  	return 0;
->  
->  out_del_vqs:
-> @@ -487,6 +538,9 @@ out:
->  
->  static void remove_common(struct virtio_balloon *vb)
->  {
-> +	if (vb->shrinker.shrink)
-> +		unregister_shrinker(&vb->shrinker);
-> +
->  	/* There might be pages left in the balloon: free them. */
->  	mutex_lock(&vb->balloon_lock);
->  	while (vb->num_pages)
-> @@ -543,6 +597,7 @@ static int virtballoon_restore(struct virtio_device *vdev)
->  static unsigned int features[] = {
->  	VIRTIO_BALLOON_F_MUST_TELL_HOST,
->  	VIRTIO_BALLOON_F_STATS_VQ,
-> +	VIRTIO_BALLOON_F_AUTO_BALLOON,
->  };
->  
->  static struct virtio_driver virtio_balloon_driver = {
-> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-> index 5e26f61..bd378a4 100644
-> --- a/include/uapi/linux/virtio_balloon.h
-> +++ b/include/uapi/linux/virtio_balloon.h
-> @@ -31,6 +31,7 @@
->  /* The feature bitmap for virtio balloon */
->  #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
->  #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
-> +#define VIRTIO_BALLOON_F_AUTO_BALLOON	2 /* Automatic ballooning */
->  
->  /* Size of a PFN in the balloon interface. */
->  #define VIRTIO_BALLOON_PFN_SHIFT 12
-> -- 
-> 1.8.1.4
+> do {
+>         ret = shrinker->scan_objects(shrinker, sc);
+>         if (ret == -1)
+>                 break
+>         ....
+>         count_vm_events(SLABS_SCANNED, batch_size);
+>         total_scan -= batch_size;
+> 
+>         cond_resched();
+> } while (total_scan >= batch_size);
+> 
+> which won't break as such but we busy loop until total_scan drops and
+> account for SLABS_SCANNED incorrectly.
+> 
+
+Same thing as above, I believe -1 is a superior return code for this
+situation. That one, however, I may be able to reshuffle myself. That
+test can live in bch_mca_count instead of bch_mca_scan. That way we will
+provide a count of 0, and then not ever reach scan.
+
+>> <SNIP>
+>>
+>> +	if (min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
+>> +		lowmem_print(5, "lowmem_scan %lu, %x, return 0\n",
+>> +			     sc->nr_to_scan, sc->gfp_mask);
+>> +		return 0;
+>>  	}
+>> +
+>>  	selected_oom_score_adj = min_score_adj;
+>>  
+>>  	rcu_read_lock();
+> 
+> I wasn't convinced by Kent's answer on this one at all but the impact of
+> getting it right is a lot less than the other two.
 > 
 
 --
