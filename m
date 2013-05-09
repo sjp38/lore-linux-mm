@@ -1,165 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 16BF36B0037
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 18:07:48 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 57BD66B0039
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 18:13:35 -0400 (EDT)
 Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Thu, 9 May 2013 18:07:46 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id B31D66E803C
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 18:07:40 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r49M7hiH294602
-	for <linux-mm@kvack.org>; Thu, 9 May 2013 18:07:43 -0400
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r49M7hnS007864
-	for <linux-mm@kvack.org>; Thu, 9 May 2013 18:07:43 -0400
-Date: Thu, 9 May 2013 17:07:39 -0500
+	Thu, 9 May 2013 18:13:34 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id CDAE138C804D
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 18:13:31 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r49MDVgp307434
+	for <linux-mm@kvack.org>; Thu, 9 May 2013 18:13:32 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r49MDVjE028816
+	for <linux-mm@kvack.org>; Thu, 9 May 2013 19:13:31 -0300
+Date: Thu, 9 May 2013 17:13:27 -0500
 From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: Re: [RFC][PATCH 1/7] defer clearing of page_private() for swap cache
- pages
-Message-ID: <20130509220739.GA14840@cerebellum>
+Subject: Re: [RFC][PATCH 5/7] create __remove_mapping_batch()
+Message-ID: <20130509221327.GB14840@cerebellum>
 References: <20130507211954.9815F9D1@viggo.jf.intel.com>
- <20130507211955.7DF88A4F@viggo.jf.intel.com>
+ <20130507212001.49F5E197@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130507211955.7DF88A4F@viggo.jf.intel.com>
+In-Reply-To: <20130507212001.49F5E197@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave@sr71.net>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
 
-On Tue, May 07, 2013 at 02:19:55PM -0700, Dave Hansen wrote:
+On Tue, May 07, 2013 at 02:20:01PM -0700, Dave Hansen wrote:
 > 
 > From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> There are only two callers of swapcache_free() which actually
-> pass in a non-NULL 'struct page'.  Both of them
-> (__remove_mapping and delete_from_swap_cache())  create a
-> temporary on-stack 'swp_entry_t' and set entry.val to
-> page_private().
+> __remove_mapping_batch() does logically the same thing as
+> __remove_mapping().
 > 
-> They need to do this since __delete_from_swap_cache() does
-> set_page_private(page, 0) and destroys the information.
+> We batch like this so that several pages can be freed with a
+> single mapping->tree_lock acquisition/release pair.  This reduces
+> the number of atomic operations and ensures that we do not bounce
+> cachelines around.
 > 
-> However, I'd like to batch a few of these operations on several
-> pages together in a new version of __remove_mapping(), and I
-> would prefer not to have to allocate temporary storage for
-> each page.  The code is pretty ugly, and it's a bit silly
-> to create these on-stack 'swp_entry_t's when it is so easy to
-> just keep the information around in 'struct page'.
-> 
-> There should not be any danger in doing this since we are
-> absolutely on the path of freeing these page.  There is no
-> turning back, and no other rerferences can be obtained
-> after it comes out of the radix tree.
-
-I get a BUG on this one:
-
-[   26.114818] ------------[ cut here ]------------
-[   26.115282] kernel BUG at mm/memcontrol.c:4111!
-[   26.115282] invalid opcode: 0000 [#1] PREEMPT SMP 
-[   26.115282] Modules linked in:
-[   26.115282] CPU: 3 PID: 5026 Comm: cc1 Not tainted 3.9.0+ #8
-[   26.115282] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2007
-[   26.115282] task: ffff88007c1cdca0 ti: ffff88001b442000 task.ti: ffff88001b442000
-[   26.115282] RIP: 0010:[<ffffffff810ed425>]  [<ffffffff810ed425>] __mem_cgroup_uncharge_common+0x255/0x2e0
-[   26.115282] RSP: 0000:ffff88001b443708  EFLAGS: 00010206
-[   26.115282] RAX: 4000000000090009 RBX: 0000000000000000 RCX: ffffc90000014001
-[   26.115282] RDX: 0000000000000000 RSI: 0000000000000002 RDI: ffffea00006e5b40
-[   26.115282] RBP: ffff88001b443738 R08: 0000000000000000 R09: 0000000000000000
-[   26.115282] R10: 0000000000000000 R11: 0000000000000000 R12: ffffea00006e5b40
-[   26.115282] R13: 0000000000000000 R14: ffffea00006e5b40 R15: 0000000000000002
-[   26.115282] FS:  00007fabd08ee700(0000) GS:ffff88007fd80000(0000) knlGS:0000000000000000
-[   26.115282] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[   26.115282] CR2: 00007fabce27a000 CR3: 000000001985f000 CR4: 00000000000006a0
-[   26.115282] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[   26.115282] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[   26.115282] Stack:
-[   26.115282]  ffffffff810dcbae ffff880064a0a500 0000000000000001 ffffea00006e5b40
-[   26.115282]  ffffea00006e5b40 0000000000000001 ffff88001b443748 ffffffff810f0d05
-[   26.115282]  ffff88001b443778 ffffffff810ddb3e ffff88001b443778 ffffea00006e5b40
-[   26.115282] Call Trace:
-[   26.115282]  [<ffffffff810dcbae>] ? swap_info_get+0x5e/0xe0
-[   26.115282]  [<ffffffff810f0d05>] mem_cgroup_uncharge_swapcache+0x15/0x20
-[   26.115282]  [<ffffffff810ddb3e>] swapcache_free+0x4e/0x70
-[   26.115282]  [<ffffffff810b6e67>] __remove_mapping+0xd7/0x120
-[   26.115282]  [<ffffffff810b8682>] shrink_page_list+0x5c2/0x920
-[   26.115282]  [<ffffffff810b780e>] ? isolate_lru_pages.isra.37+0xae/0x120
-[   26.115282]  [<ffffffff810b8ecf>] shrink_inactive_list+0x13f/0x380
-[   26.115282]  [<ffffffff810b9350>] shrink_lruvec+0x240/0x4e0
-[   26.115282]  [<ffffffff810b9656>] shrink_zone+0x66/0x1a0
-[   26.115282]  [<ffffffff810ba1fb>] do_try_to_free_pages+0xeb/0x570
-[   26.115282]  [<ffffffff810eb7d9>] ? lookup_page_cgroup_used+0x9/0x20
-[   26.115282]  [<ffffffff810ba7af>] try_to_free_pages+0x9f/0xc0
-[   26.115282]  [<ffffffff810b1357>] __alloc_pages_nodemask+0x5a7/0x970
-[   26.115282]  [<ffffffff810cb2be>] handle_pte_fault+0x65e/0x880
-[   26.115282]  [<ffffffff810cc7d9>] handle_mm_fault+0x139/0x1e0
-[   26.115282]  [<ffffffff81027920>] __do_page_fault+0x160/0x460
-[   26.115282]  [<ffffffff810d176c>] ? do_brk+0x1fc/0x360
-[   26.115282]  [<ffffffff81212979>] ? lockdep_sys_exit_thunk+0x35/0x67
-[   26.115282]  [<ffffffff81027c49>] do_page_fault+0x9/0x10
-[   26.115282]  [<ffffffff813b4a72>] page_fault+0x22/0x30
-[   26.115282] Code: a9 00 00 08 00 0f 85 43 fe ff ff e9 b8 fe ff ff 66 0f 1f 44 00 00 41 8b 44 24 18 85 c0 0f 89 2b fe ff ff 0f 1f 00 e9 9d fe ff ff <0f> 0b 66 0f 1f 84 00 00 00 00 00 49 89 9c 24 48 0f 00 00 e9 0a 
-[   26.115282] RIP  [<ffffffff810ed425>] __mem_cgroup_uncharge_common+0x255/0x2e0
-[   26.115282]  RSP <ffff88001b443708>
-[   26.171597] ---[ end trace 5e49a21e51452c24 ]---
-
-
-mm/memcontrol:4111
-VM_BUG_ON(PageSwapCache(page));
-
-Seems that mem_cgroup_uncharge_swapcache, somewhat ironically expects the
-SwapCache flag to be unset already.
-
-Fix might be a simple as removing that VM_BUG_ON() but there might be more to
-it.  There usually is :)
-
-Seth
-
+> It has shown some substantial performance benefits on
+> microbenchmarks.
 > 
 > Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 > ---
 > 
->  linux.git-davehans/mm/swap_state.c |    4 ++--
->  linux.git-davehans/mm/vmscan.c     |    2 ++
->  2 files changed, 4 insertions(+), 2 deletions(-)
+>  linux.git-davehans/mm/vmscan.c |   50 +++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 50 insertions(+)
 > 
-> diff -puN mm/swap_state.c~__delete_from_swap_cache-dont-clear-page-private mm/swap_state.c
-> --- linux.git/mm/swap_state.c~__delete_from_swap_cache-dont-clear-page-private	2013-05-07 13:48:13.698044473 -0700
-> +++ linux.git-davehans/mm/swap_state.c	2013-05-07 13:48:13.703044693 -0700
-> @@ -146,8 +146,6 @@ void __delete_from_swap_cache(struct pag
->  	entry.val = page_private(page);
->  	address_space = swap_address_space(entry);
->  	radix_tree_delete(&address_space->page_tree, page_private(page));
-> -	set_page_private(page, 0);
-> -	ClearPageSwapCache(page);
->  	address_space->nrpages--;
->  	__dec_zone_page_state(page, NR_FILE_PAGES);
->  	INC_CACHE_INFO(del_total);
-> @@ -224,6 +222,8 @@ void delete_from_swap_cache(struct page
->  	spin_unlock_irq(&address_space->tree_lock);
-> 
->  	swapcache_free(entry, page);
-> +	set_page_private(page, 0);
-> +	ClearPageSwapCache(page);
->  	page_cache_release(page);
+> diff -puN mm/vmscan.c~create-remove_mapping_batch mm/vmscan.c
+> --- linux.git/mm/vmscan.c~create-remove_mapping_batch	2013-05-07 14:00:01.432361260 -0700
+> +++ linux.git-davehans/mm/vmscan.c	2013-05-07 14:19:32.341148892 -0700
+> @@ -555,6 +555,56 @@ int remove_mapping(struct address_space
+>  	return 0;
 >  }
 > 
-> diff -puN mm/vmscan.c~__delete_from_swap_cache-dont-clear-page-private mm/vmscan.c
-> --- linux.git/mm/vmscan.c~__delete_from_swap_cache-dont-clear-page-private	2013-05-07 13:48:13.700044561 -0700
-> +++ linux.git-davehans/mm/vmscan.c	2013-05-07 13:48:13.705044783 -0700
-> @@ -494,6 +494,8 @@ static int __remove_mapping(struct addre
->  		__delete_from_swap_cache(page);
->  		spin_unlock_irq(&mapping->tree_lock);
->  		swapcache_free(swap, page);
-> +		set_page_private(page, 0);
-> +		ClearPageSwapCache(page);
->  	} else {
->  		void (*freepage)(struct page *);
-> 
+> +/*
+> + * pages come in here (via remove_list) locked and leave unlocked
+> + * (on either ret_pages or free_pages)
+> + *
+> + * We do this batching so that we free batches of pages with a
+> + * single mapping->tree_lock acquisition/release.  This optimization
+> + * only makes sense when the pages on remove_list all share a
+> + * page->mapping.  If this is violated you will BUG_ON().
+> + */
+> +static int __remove_mapping_batch(struct list_head *remove_list,
+> +				  struct list_head *ret_pages,
+> +				  struct list_head *free_pages)
+> +{
+> +	int nr_reclaimed = 0;
+> +	struct address_space *mapping;
+> +	struct page *page;
+> +	LIST_HEAD(need_free_mapping);
+> +
+> +	if (list_empty(remove_list))
+> +		return 0;
+> +
+> +	mapping = lru_to_page(remove_list)->mapping;
+
+This doesn't work for pages in the swap cache as mapping is overloaded to
+hold... something else that I can't remember of the top of my head.  Anyway,
+this happens:
+
+[   70.027984] BUG: unable to handle kernel NULL pointer dereference at 0000000000000038
+[   70.028010] IP: [<ffffffff81077de8>] __lock_acquire.isra.24+0x188/0xd10
+[   70.028010] PGD 1ab99067 PUD 671e5067 PMD 0 
+[   70.028010] Oops: 0000 [#1] PREEMPT SMP 
+[   70.028010] Modules linked in:
+[   70.028010] CPU: 1 PID: 11494 Comm: cc1 Not tainted 3.9.0+ #6
+[   70.028010] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2007
+[   70.028010] task: ffff88007c708f70 ti: ffff88001aa28000 task.ti: ffff88001aa28000
+[   70.028010] RIP: 0010:[<ffffffff81077de8>]  [<ffffffff81077de8>] __lock_acquire.isra.24+0x188/0xd10
+[   70.028010] RSP: 0000:ffff88001aa29658  EFLAGS: 00010097
+[   70.028010] RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000000
+[   70.028010] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+[   70.028010] RBP: ffff88001aa296c8 R08: 0000000000000001 R09: 0000000000000000
+[   70.028010] R10: 0000000000000000 R11: 0000000000000000 R12: ffff88007c708f70
+[   70.028010] R13: 0000000000000001 R14: 0000000000000030 R15: ffff88001aa29758
+[   70.028010] FS:  00007fe676f32700(0000) GS:ffff88007fc80000(0000) knlGS:0000000000000000
+[   70.028010] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   70.028010] CR2: 0000000000000038 CR3: 000000001b7ba000 CR4: 00000000000006a0
+[   70.028010] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[   70.028010] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[   70.028010] Stack:
+[   70.028010]  0000000000000001 ffffffff8165d910 ffff88001aa296e8 ffffffff8107e925
+[   70.028010]  ffff88001aa296a8 0000000000000000 0000000000000002 0000000000000046
+[   70.028010]  dead000000200200 ffff88007c708f70 0000000000000046 0000000000000000
+[   70.028010] Call Trace:
+[   70.028010]  [<ffffffff8107e925>] ? smp_call_function_single+0xd5/0x180
+[   70.028010]  [<ffffffff81078ea2>] lock_acquire+0x52/0x70
+[   70.028010]  [<ffffffff810b7468>] ? __remove_mapping_batch+0x48/0x140
+[   70.028010]  [<ffffffff813b3cf7>] _raw_spin_lock_irq+0x37/0x50
+[   70.028010]  [<ffffffff810b7468>] ? __remove_mapping_batch+0x48/0x140
+[   70.028010]  [<ffffffff810b7468>] __remove_mapping_batch+0x48/0x140
+[   70.028010]  [<ffffffff810b88b0>] shrink_page_list+0x680/0x9f0
+[   70.028010]  [<ffffffff810b910f>] shrink_inactive_list+0x13f/0x380
+[   70.028010]  [<ffffffff810b9590>] shrink_lruvec+0x240/0x4e0
+[   70.028010]  [<ffffffff810b9896>] shrink_zone+0x66/0x1a0
+[   70.028010]  [<ffffffff810ba43b>] do_try_to_free_pages+0xeb/0x570
+[   70.028010]  [<ffffffff810eba29>] ? lookup_page_cgroup_used+0x9/0x20
+[   70.028010]  [<ffffffff810ba9ef>] try_to_free_pages+0x9f/0xc0
+[   70.028010]  [<ffffffff810b1357>] __alloc_pages_nodemask+0x5a7/0x970
+[   70.028010]  [<ffffffff810cb4fe>] handle_pte_fault+0x65e/0x880
+[   70.028010]  [<ffffffff810cca19>] handle_mm_fault+0x139/0x1e0
+[   70.028010]  [<ffffffff81027920>] __do_page_fault+0x160/0x460
+[   70.028010]  [<ffffffff811121f1>] ? mntput+0x21/0x30
+[   70.028010]  [<ffffffff810f56c1>] ? __fput+0x191/0x250
+[   70.028010]  [<ffffffff81212bc9>] ? lockdep_sys_exit_thunk+0x35/0x67
+[   70.028010]  [<ffffffff81027c49>] do_page_fault+0x9/0x10
+[   70.028010]  [<ffffffff813b4cb2>] page_fault+0x22/0x30
+[   70.028010] Code: 48 c7 c1 65 1b 50 81 48 c7 c2 3d 07 50 81 31 c0 be fb 0b 00 00 48 c7 c7 a8 58 50 81 e8 62 89 fb ff e9 d7 01 00 00 0f 1f 44 00 00 <4d> 8b 6c c6 08 4d 85 ed 0f 84 cc fe ff ff f0 41 ff 85 98 01 00 
+[   70.028010] RIP  [<ffffffff81077de8>] __lock_acquire.isra.24+0x188/0xd10
+[   70.028010]  RSP <ffff88001aa29658>
+[   70.028010] CR2: 0000000000000038
+[   70.028010] ---[ end trace 94be6276375f6199 ]---
+
+The solution is to use page_mapping() which has logic to handle swap cache page
+mapping.
+
+I got by it with:
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 43b4da8..897eb5f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -576,13 +576,15 @@ static int __remove_mapping_batch(struct list_head *remove_list,
+        if (list_empty(remove_list))
+                return 0;
+ 
+-       mapping = lru_to_page(remove_list)->mapping;
++       page = lru_to_page(remove_list);
++       mapping = page_mapping(page);
++       BUG_ON(mapping == NULL);
+        spin_lock_irq(&mapping->tree_lock);
+        while (!list_empty(remove_list)) {
+                int freed;
+                page = lru_to_page(remove_list);
+                BUG_ON(!PageLocked(page));
+-               BUG_ON(page->mapping != mapping);
++               BUG_ON(page_mapping(page) != mapping);
+                list_del(&page->lru);
+ 
+                freed = __remove_mapping_nolock(mapping, page);
+
+Seth
+
+> +	spin_lock_irq(&mapping->tree_lock);
+> +	while (!list_empty(remove_list)) {
+> +		int freed;
+> +		page = lru_to_page(remove_list);
+> +		BUG_ON(!PageLocked(page));
+> +		BUG_ON(page->mapping != mapping);
+> +		list_del(&page->lru);
+> +
+> +		freed = __remove_mapping_nolock(mapping, page);
+> +		if (freed) {
+> +			list_add(&page->lru, &need_free_mapping);
+> +		} else {
+> +			unlock_page(page);
+> +			list_add(&page->lru, ret_pages);
+> +		}
+> +	}
+> +	spin_unlock_irq(&mapping->tree_lock);
+> +
+> +	while (!list_empty(&need_free_mapping)) {
+> +		page = lru_to_page(&need_free_mapping);
+> +		list_move(&page->list, free_pages);
+> +		free_mapping_page(mapping, page);
+> +		unlock_page(page);
+> +		nr_reclaimed++;
+> +	}
+> +	return nr_reclaimed;
+> +}
+> +
+>  /**
+>   * putback_lru_page - put previously isolated page onto appropriate LRU list
+>   * @page: page to be put back to appropriate lru list
 > _
 > 
 > --
