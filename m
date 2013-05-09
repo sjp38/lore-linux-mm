@@ -1,99 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 978DB6B004D
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 03:51:07 -0400 (EDT)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1UaLd0-0005tA-DI
-	for linux-mm@kvack.org; Thu, 09 May 2013 09:51:02 +0200
-Received: from 217-67-201-162.itsa.net.pl ([217.67.201.162])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 09 May 2013 09:51:02 +0200
-Received: from t.stanislaws by 217-67-201-162.itsa.net.pl with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Thu, 09 May 2013 09:51:02 +0200
-From: Tomasz Stanislawski <t.stanislaws@samsung.com>
-Subject: [PATCH] mm: page_alloc: fix watermark check in __zone_watermark_ok()
-Date: Thu, 09 May 2013 09:50:46 +0200
-Message-ID: <518B5556.4010005@samsung.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 5EB696B0078
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 04:15:13 -0400 (EDT)
+Received: by mail-we0-f170.google.com with SMTP id u54so2761379wes.1
+        for <linux-mm@kvack.org>; Thu, 09 May 2013 01:15:11 -0700 (PDT)
+Date: Thu, 9 May 2013 09:15:05 +0100
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [RFC PATCH v2 08/11] ARM64: mm: Swap PTE_FILE and
+ PTE_PROT_NONE bits.
+Message-ID: <20130509081504.GA28545@linaro.org>
+References: <1368006763-30774-1-git-send-email-steve.capper@linaro.org>
+ <1368006763-30774-9-git-send-email-steve.capper@linaro.org>
+ <518A7A9F.9080105@codeaurora.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <518A7A9F.9080105@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: =?UTF-8?B?J+uwleqyveuvvCc=?= <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, minchan@kernel.org, mgorman@suse.de, 'Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Christopher Covington <cov@codeaurora.org>
+Cc: linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-arm-kernel@lists.infradead.org, patches@linaro.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>
 
-The watermark check consists of two sub-checks.
-The first one is:
+On Wed, May 08, 2013 at 12:17:35PM -0400, Christopher Covington wrote:
+> Hi Steve,
+> 
+> On 05/08/2013 05:52 AM, Steve Capper wrote:
+ 
+ [...]
+> 
+> > diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+> 
+ [...]
+> 
+> > @@ -306,8 +306,8 @@ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
+> >  
+> >  /*
+> >   * Encode and decode a file entry:
+> > - *	bits 0-1:	present (must be zero)
+> > - *	bit  2:		PTE_FILE
+> > + *	bits 0 & 2:	present (must be zero)
+> 
+> Consider using punctuation like "bits 0, 2" here to disambiguate from the
+> binary and operation.
+> 
 
-	if (free_pages <= min + lowmem_reserve)
-		return false;
+Hi Christopher,
+Thanks, I now have:
+       bits 0, 2:      present (must both be zero)
 
-The check assures that there is minimal amount of RAM in the zone.  If CMA is
-used then the free_pages is reduced by the number of free pages in CMA prior
-to the over-mentioned check.
-
-	if (!(alloc_flags & ALLOC_CMA))
-		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
-
-This prevents the zone from being drained from pages available for non-movable
-allocations.
-
-The second check prevents the zone from getting too fragmented.
-
-	for (o = 0; o < order; o++) {
-		free_pages -= z->free_area[o].nr_free << o;
-		min >>= 1;
-		if (free_pages <= min)
-			return false;
-	}
-
-The field z->free_area[o].nr_free is equal to the number of free pages
-including free CMA pages.  Therefore the CMA pages are subtracted twice.  This
-may cause a false positive fail of __zone_watermark_ok() if the CMA area gets
-strongly fragmented.  In such a case there are many 0-order free pages located
-in CMA. Those pages are subtracted twice therefore they will quickly drain
-free_pages during the check against fragmentation.  The test fails even though
-there are many free non-cma pages in the zone.
-
-This patch fixes this issue by subtracting CMA pages only for a purpose of
-(free_pages <= min + lowmem_reserve) check.
-
-Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
- mm/page_alloc.c |    6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8fcced7..0d4fef2 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1626,6 +1626,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- 	long min = mark;
- 	long lowmem_reserve = z->lowmem_reserve[classzone_idx];
- 	int o;
-+	long free_cma = 0;
-
- 	free_pages -= (1 << order) - 1;
- 	if (alloc_flags & ALLOC_HIGH)
-@@ -1635,9 +1636,10 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- #ifdef CONFIG_CMA
- 	/* If allocation can't use CMA areas don't use free CMA pages */
- 	if (!(alloc_flags & ALLOC_CMA))
--		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
-+		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
- #endif
--	if (free_pages <= min + lowmem_reserve)
-+
-+	if (free_pages - free_cma <= min + lowmem_reserve)
- 		return false;
- 	for (o = 0; o < order; o++) {
- 		/* At the next order, this order's pages become unavailable */
+Cheers,
 -- 
-1.7.9.5
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
