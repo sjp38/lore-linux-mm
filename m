@@ -1,93 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 2C7C56B0039
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 14:08:37 -0400 (EDT)
-Date: Thu, 9 May 2013 18:08:35 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 09/22] mm: page allocator: Allocate/free order-0 pages
- from a per-zone magazine
-In-Reply-To: <20130509172721.GG11497@suse.de>
-Message-ID: <0000013e8a7afa80-34067330-12df-4b7e-a2b7-d298c78d3630-000000@email.amazonses.com>
-References: <1368028987-8369-1-git-send-email-mgorman@suse.de> <1368028987-8369-10-git-send-email-mgorman@suse.de> <0000013e85732d03-05e35c8e-205e-4242-98f5-2ae7bda64c5c-000000@email.amazonses.com> <20130509152318.GD11497@suse.de>
- <0000013e8a189d6a-efcf99b5-c620-4882-8faf-8187ec243b2c-000000@email.amazonses.com> <20130509172721.GG11497@suse.de>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id C15746B0039
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 14:58:52 -0400 (EDT)
+Received: by mail-qe0-f74.google.com with SMTP id 1so321554qec.3
+        for <linux-mm@kvack.org>; Thu, 09 May 2013 11:58:51 -0700 (PDT)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCHv10 1/4] debugfs: add get/set for atomic types
+References: <1368052661-27143-1-git-send-email-sjenning@linux.vnet.ibm.com>
+	<1368052661-27143-2-git-send-email-sjenning@linux.vnet.ibm.com>
+Date: Thu, 09 May 2013 11:58:49 -0700
+In-Reply-To: <1368052661-27143-2-git-send-email-sjenning@linux.vnet.ibm.com>
+	(Seth Jennings's message of "Wed, 8 May 2013 17:37:38 -0500")
+Message-ID: <xr934necrndi.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave@sr71.net>, LKML <linux-kernel@vger.kernel.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, Heesub Shin <heesub.shin@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Thu, 9 May 2013, Mel Gorman wrote:
+On Wed, May 08 2013, Seth Jennings wrote:
 
-> > I would be useful if the allocator would hand out pages from the
-> > same physical area first. This would reduce fragmentation as well and
-> > since it is likely that numerous pages are allocated for some purpose
-> > (given that that the page sizes of 4k are rather tiny compared to the data
-> > needs these day) would reduce TLB pressure.
-> >
+> debugfs currently lack the ability to create attributes
+> that set/get atomic_t values.
 >
-> It already does this via the buddy allocator and the treatment of
-> migratetypes.
-
-Well it only does if it breaks larger sized pages from the buddy
-allocator. If large page lists aggregate in the per cpu lists then we have
-a LIFO order.
-
-> > Yes. But we have lots of memory in machines these days. Why would that be
-> > an issue?
-> Because the embedded people will have a fit if the page allocator needs
-> an additional 1K+ of memory just to turn on.
-
-Why enlarge the existing per cpu areas? The size could
-be restricted if we reduce the types of pages supported and/or if we do
-not use double linked lists but single linked lists within say a PMD area.
-
-> With this approach the lock can be made more fine or coarse based on the
-> number of CPUs, the queues can be made arbitrarily large and if necessary,
-> per-process magazines for heavily contended workloads could be added.
-
-Arbitrarily large queues cause references to pointers all over memory. No
-good.
-
-> A fixed-size array like you propose would be only marginally better than
-> what is implemented today as far as I can see because it still smacks into
-> the irq-safe zone->lock and pages can be pinned in inaccessible per-cpu
-> queues unless a global IPI is sent.
-
-We do not send global IPIs but IPIs only to processors that have something
-cached.
-
-The fixed size array or constrained single linked list would be better
-since it caches better and it is possible to avoid spin lock operations.
-
-> > The problem with the page allocator is that it can serve various types of
-> > pages. If one wants to setup caches for all of those then these caches are
-> > replicated for each processor or whatever higher unit we decide to use. I
-> > think one of the first moves need to be to identify which types of pages
-> > are actually useful to serve in a fast way. Higher order pages are already
-> > out but what about the different zone types, migration types etc?
-> >
+> This patch adds support for this through a new
+> debugfs_create_atomic_t() function.
 >
-> What tpyes of pages are useful to serve in a fast way is workload
-> dependenat and besides the per-cpu allocator as it exists today already
-> has separate queues for migration types.
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  fs/debugfs/file.c       | 42 ++++++++++++++++++++++++++++++++++++++++++
+>  include/linux/debugfs.h |  2 ++
+>  2 files changed, 44 insertions(+)
 >
-> I strongly suspect that your proposal would end up performing roughly the
-> same as what exists today except that it'll be more complex because it'll
-> have to deal with the race-prone array accesses.
+> diff --git a/fs/debugfs/file.c b/fs/debugfs/file.c
+> index c5ca6ae..fa26d5b 100644
+> --- a/fs/debugfs/file.c
+> +++ b/fs/debugfs/file.c
+> @@ -21,6 +21,7 @@
+>  #include <linux/debugfs.h>
+>  #include <linux/io.h>
+>  #include <linux/slab.h>
+> +#include <linux/atomic.h>
+>  
+>  static ssize_t default_read_file(struct file *file, char __user *buf,
+>  				 size_t count, loff_t *ppos)
+> @@ -403,6 +404,47 @@ struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
+>  }
+>  EXPORT_SYMBOL_GPL(debugfs_create_size_t);
+>  
+> +static int debugfs_atomic_t_set(void *data, u64 val)
+> +{
+> +	atomic_set((atomic_t *)data, val);
+> +	return 0;
+> +}
+> +static int debugfs_atomic_t_get(void *data, u64 *val)
+> +{
+> +	*val = atomic_read((atomic_t *)data);
+> +	return 0;
+> +}
+> +DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t, debugfs_atomic_t_get,
+> +			debugfs_atomic_t_set, "%llu\n");
+> +DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t_ro, debugfs_atomic_t_get, NULL, "%llu\n");
+> +DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t_wo, NULL, debugfs_atomic_t_set, "%llu\n");
+> +
+> +/**
+> + * debugfs_create_atomic_t - create a debugfs file that is used to read and
+> + * write an atomic_t value
+> + * @name: a pointer to a string containing the name of the file to create.
+> + * @mode: the permission that the file should have
+> + * @parent: a pointer to the parent dentry for this file.  This should be a
+> + *          directory dentry if set.  If this parameter is %NULL, then the
+> + *          file will be created in the root of the debugfs filesystem.
+> + * @value: a pointer to the variable that the file should read to and write
+> + *         from.
+> + */
+> +struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
+> +				 struct dentry *parent, atomic_t *value)
+> +{
+> +	/* if there are no write bits set, make read only */
+> +	if (!(mode & S_IWUGO))
+> +		return debugfs_create_file(name, mode, parent, value,
+> +					&fops_atomic_t_ro);
+> +	/* if there are no read bits set, make write only */
+> +	if (!(mode & S_IRUGO))
+> +		return debugfs_create_file(name, mode, parent, value,
+> +					&fops_atomic_t_wo);
+> +
+> +	return debugfs_create_file(name, mode, parent, value, &fops_atomic_t);
+> +}
+> +EXPORT_SYMBOL_GPL(debugfs_create_atomic_t);
+>  
+>  static ssize_t read_file_bool(struct file *file, char __user *user_buf,
+>  			      size_t count, loff_t *ppos)
+> diff --git a/include/linux/debugfs.h b/include/linux/debugfs.h
+> index 63f2465..d68b4ea 100644
+> --- a/include/linux/debugfs.h
+> +++ b/include/linux/debugfs.h
+> @@ -79,6 +79,8 @@ struct dentry *debugfs_create_x64(const char *name, umode_t mode,
+>  				  struct dentry *parent, u64 *value);
+>  struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
+>  				     struct dentry *parent, size_t *value);
+> +struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
+> +				     struct dentry *parent, atomic_t *value);
+>  struct dentry *debugfs_create_bool(const char *name, umode_t mode,
+>  				  struct dentry *parent, u32 *value);
 
-The problems of the current scheme are the proliferation of page types,
-the serving of pages in a random mix from all over memory, the heavy high
-latency processing in the "fast" paths (these paths seem to accumulate
-more and more procesing in each kernel version) and the disabling of
-interrupts (which may be the least latency causing issue).
+Looking at v3.9 I see a conflicting definition of
+debugfs_create_atomic_t() in lib/fault-inject.c.  A kernel with this
+patch and CONFIG_FAULT_INJECTION=y and CONFIG_FAULT_INJECTION_DEBUG_FS=y
+will not build:
 
-A solution without using locks cannot simply be a modification of the
-existing scheme that you envison. The amount of processing in the fastpaths must be
-significantly reduced and the data layout needs to be more cache friendly.
-Only with these changes will make the use of fast cpu local instructions
-sense.
-
+    lib/fault-inject.c:196:23: error: static declaration of 'debugfs_create_atomic_t' follows non-static declaration
+    include/linux/debugfs.h:87:16: note: previous declaration of 'debugfs_create_atomic_t' was here
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
