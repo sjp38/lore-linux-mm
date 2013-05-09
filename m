@@ -1,66 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 709636B0085
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 03:21:40 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v5 7/7] add documentation about reclaim knob on proc.txt
-Date: Thu,  9 May 2013 16:21:29 +0900
-Message-Id: <1368084089-24576-8-git-send-email-minchan@kernel.org>
-In-Reply-To: <1368084089-24576-1-git-send-email-minchan@kernel.org>
-References: <1368084089-24576-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 978DB6B004D
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 03:51:07 -0400 (EDT)
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1UaLd0-0005tA-DI
+	for linux-mm@kvack.org; Thu, 09 May 2013 09:51:02 +0200
+Received: from 217-67-201-162.itsa.net.pl ([217.67.201.162])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Thu, 09 May 2013 09:51:02 +0200
+Received: from t.stanislaws by 217-67-201-162.itsa.net.pl with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Thu, 09 May 2013 09:51:02 +0200
+From: Tomasz Stanislawski <t.stanislaws@samsung.com>
+Subject: [PATCH] mm: page_alloc: fix watermark check in __zone_watermark_ok()
+Date: Thu, 09 May 2013 09:50:46 +0200
+Message-ID: <518B5556.4010005@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Namhyung Kim <namhyung@kernel.org>, Minkyung Kim <minkyung88@lge.com>, Minchan Kim <minchan@kernel.org>
+To: linux-mm@kvack.org
+Cc: =?UTF-8?B?J+uwleqyveuvvCc=?= <kyungmin.park@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, minchan@kernel.org, mgorman@suse.de, 'Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-This patch adds stuff about new reclaim field in proc.txt
+The watermark check consists of two sub-checks.
+The first one is:
 
-Acked-by: Rob Landley <rob@landley.net>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
+	if (free_pages <= min + lowmem_reserve)
+		return false;
+
+The check assures that there is minimal amount of RAM in the zone.  If CMA is
+used then the free_pages is reduced by the number of free pages in CMA prior
+to the over-mentioned check.
+
+	if (!(alloc_flags & ALLOC_CMA))
+		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+
+This prevents the zone from being drained from pages available for non-movable
+allocations.
+
+The second check prevents the zone from getting too fragmented.
+
+	for (o = 0; o < order; o++) {
+		free_pages -= z->free_area[o].nr_free << o;
+		min >>= 1;
+		if (free_pages <= min)
+			return false;
+	}
+
+The field z->free_area[o].nr_free is equal to the number of free pages
+including free CMA pages.  Therefore the CMA pages are subtracted twice.  This
+may cause a false positive fail of __zone_watermark_ok() if the CMA area gets
+strongly fragmented.  In such a case there are many 0-order free pages located
+in CMA. Those pages are subtracted twice therefore they will quickly drain
+free_pages during the check against fragmentation.  The test fails even though
+there are many free non-cma pages in the zone.
+
+This patch fixes this issue by subtracting CMA pages only for a purpose of
+(free_pages <= min + lowmem_reserve) check.
+
+Signed-off-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
 ---
- Documentation/filesystems/proc.txt | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ mm/page_alloc.c |    6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 488c094..ee4cef1 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -136,6 +136,7 @@ Table 1-1: Process specific entries in /proc
-  maps		Memory maps to executables and library files	(2.4)
-  mem		Memory held by this process
-  root		Link to the root directory of this process
-+ reclaim	Reclaim pages in this process
-  stat		Process status
-  statm		Process memory status information
-  status		Process status in human readable form
-@@ -489,6 +490,25 @@ To clear the soft-dirty bit
- 
- Any other value written to /proc/PID/clear_refs will have no effect.
- 
-+The file /proc/PID/reclaim is used to reclaim pages in this process.
-+To reclaim file-backed pages,
-+    > echo file > /proc/PID/reclaim
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8fcced7..0d4fef2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1626,6 +1626,7 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+ 	long min = mark;
+ 	long lowmem_reserve = z->lowmem_reserve[classzone_idx];
+ 	int o;
++	long free_cma = 0;
+
+ 	free_pages -= (1 << order) - 1;
+ 	if (alloc_flags & ALLOC_HIGH)
+@@ -1635,9 +1636,10 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+ #ifdef CONFIG_CMA
+ 	/* If allocation can't use CMA areas don't use free CMA pages */
+ 	if (!(alloc_flags & ALLOC_CMA))
+-		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
++		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
+ #endif
+-	if (free_pages <= min + lowmem_reserve)
 +
-+To reclaim anonymous pages,
-+    > echo anon > /proc/PID/reclaim
-+
-+To reclaim all pages,
-+    > echo all > /proc/PID/reclaim
-+
-+Also, you can specify address range of process so part of address space
-+will be reclaimed. The format is following as
-+    > echo addr size-byte > /proc/PID/reclaim
-+
-+NOTE: addr should be page-aligned.
-+
-+Below is example which try to reclaim 2M from 0x100000.
-+    > echo 0x100000 2M > /proc/PID/reclaim
-+
- The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
- using /proc/kpageflags and number of times a page is mapped using
- /proc/kpagecount. For detailed explanation, see Documentation/vm/pagemap.txt.
++	if (free_pages - free_cma <= min + lowmem_reserve)
+ 		return false;
+ 	for (o = 0; o < order; o++) {
+ 		/* At the next order, this order's pages become unavailable */
 -- 
-1.8.2.1
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
