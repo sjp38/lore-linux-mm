@@ -1,226 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 65AFE6B006C
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 02:06:31 -0400 (EDT)
-From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v5 06/31] mm: new shrinker API
-Date: Thu,  9 May 2013 10:06:23 +0400
-Message-Id: <1368079608-5611-7-git-send-email-glommer@openvz.org>
-In-Reply-To: <1368079608-5611-1-git-send-email-glommer@openvz.org>
-References: <1368079608-5611-1-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 2AA1D6B0070
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 02:06:32 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id un1so1742602pbc.26
+        for <linux-mm@kvack.org>; Wed, 08 May 2013 23:06:31 -0700 (PDT)
+From: Francis Deslauriers <fdeslaur@gmail.com>
+Subject: [page fault tracepoint 2/2] x86:Instruments page fault trace event
+Date: Thu,  9 May 2013 02:05:20 -0400
+Message-Id: <1368079520-11015-2-git-send-email-fdeslaur@gmail.com>
+In-Reply-To: <1368079520-11015-1-git-send-email-fdeslaur@gmail.com>
+References: <1368079520-11015-1-git-send-email-fdeslaur@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@parallels.com>
+To: linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, rostedt@goodmis.org, fweisbec@gmail.com
+Cc: raphael.beamonte@gmail.com, mathieu.desnoyers@efficios.com, linux-kernel@vger.kernel.org, Francis Deslauriers <fdeslaur@gmail.com>
 
-From: Dave Chinner <dchinner@redhat.com>
-
-The current shrinker callout API uses an a single shrinker call for
-multiple functions. To determine the function, a special magical
-value is passed in a parameter to change the behaviour. This
-complicates the implementation and return value specification for
-the different behaviours.
-
-Separate the two different behaviours into separate operations, one
-to return a count of freeable objects in the cache, and another to
-scan a certain number of objects in the cache for freeing. In
-defining these new operations, ensure the return values and
-resultant behaviours are clearly defined and documented.
-
-Modify shrink_slab() to use the new API and implement the callouts
-for all the existing shrinkers.
-
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
-Signed-off-by: Glauber Costa <glommer@parallels.com>
+Signed-off-by: Francis Deslauriers <fdeslaur@gmail.com>
+Reviewed-by: RaphaA<<l Beamonte <raphael.beamonte@gmail.com>
 ---
- include/linux/shrinker.h | 36 ++++++++++++++++++++++++----------
- mm/vmscan.c              | 50 ++++++++++++++++++++++++++++++++----------------
- 2 files changed, 59 insertions(+), 27 deletions(-)
+ arch/x86/mm/fault.c |   11 +++++++++++
+ mm/memory.c         |    5 +++++
+ 2 files changed, 16 insertions(+)
 
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index ac6b8ee..c277b4e 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -4,31 +4,47 @@
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 654be4a..e227828 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -20,6 +20,9 @@
+ #include <asm/kmemcheck.h>		/* kmemcheck_*(), ...		*/
+ #include <asm/fixmap.h>			/* VSYSCALL_START		*/
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/fault.h>		/* trace_page_fault_*(), ...	*/
++
  /*
-  * This struct is used to pass information from page reclaim to the shrinkers.
-  * We consolidate the values for easier extention later.
-+ *
-+ * The 'gfpmask' refers to the allocation we are currently trying to
-+ * fulfil.
-+ *
-+ * Note that 'shrink' will be passed nr_to_scan == 0 when the VM is
-+ * querying the cache size, so a fastpath for that case is appropriate.
-  */
- struct shrink_control {
- 	gfp_t gfp_mask;
- 
- 	/* How many slab objects shrinker() should scan and try to reclaim */
--	unsigned long nr_to_scan;
-+	long nr_to_scan;
- };
- 
- /*
-  * A callback you can register to apply pressure to ageable caches.
+  * Page fault error code bits:
   *
-- * 'sc' is passed shrink_control which includes a count 'nr_to_scan'
-- * and a 'gfpmask'.  It should look through the least-recently-used
-- * 'nr_to_scan' entries and attempt to free them up.  It should return
-- * the number of objects which remain in the cache.  If it returns -1, it means
-- * it cannot do any scanning at this time (eg. there is a risk of deadlock).
-+ * @shrink() should look through the least-recently-used 'nr_to_scan' entries
-+ * and attempt to free them up.  It should return the number of objects which
-+ * remain in the cache.  If it returns -1, it means it cannot do any scanning at
-+ * this time (eg. there is a risk of deadlock).
-  *
-- * The 'gfpmask' refers to the allocation we are currently trying to
-- * fulfil.
-+ * @count_objects should return the number of freeable items in the cache. If
-+ * there are no objects to free or the number of freeable items cannot be
-+ * determined, it should return 0. No deadlock checks should be done during the
-+ * count callback - the shrinker relies on aggregating scan counts that couldn't
-+ * be executed due to potential deadlocks to be run at a later call when the
-+ * deadlock condition is no longer pending.
-  *
-- * Note that 'shrink' will be passed nr_to_scan == 0 when the VM is
-- * querying the cache size, so a fastpath for that case is appropriate.
-+ * @scan_objects will only be called if @count_objects returned a positive
-+ * value for the number of freeable objects. The callout should scan the cache
-+ * and attempt to free items from the cache. It should then return the number of
-+ * objects freed during the scan, or -1 if progress cannot be made due to
-+ * potential deadlocks. If -1 is returned, then no further attempts to call the
-+ * @scan_objects will be made from the current reclaim context.
-  */
- struct shrinker {
- 	int (*shrink)(struct shrinker *, struct shrink_control *sc);
-+	long (*count_objects)(struct shrinker *, struct shrink_control *sc);
-+	long (*scan_objects)(struct shrinker *, struct shrink_control *sc);
-+
- 	int seeks;	/* seeks to recreate an obj */
- 	long batch;	/* reclaim batch size, 0 = default */
+@@ -756,12 +759,18 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
  
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 49691da..be53467 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -205,19 +205,19 @@ static inline int do_shrinker_shrink(struct shrinker *shrinker,
-  *
-  * Returns the number of slab objects which we shrunk.
-  */
--unsigned long shrink_slab(struct shrink_control *shrink,
-+unsigned long shrink_slab(struct shrink_control *shrinkctl,
- 			  unsigned long nr_pages_scanned,
- 			  unsigned long lru_pages)
- {
- 	struct shrinker *shrinker;
--	unsigned long ret = 0;
-+	unsigned long freed = 0;
+ 		if (likely(show_unhandled_signals))
+ 			show_signal_msg(regs, error_code, address, tsk);
++		trace_page_fault_entry(regs, address, error_code & PF_WRITE);
  
- 	if (nr_pages_scanned == 0)
- 		nr_pages_scanned = SWAP_CLUSTER_MAX;
+ 		tsk->thread.cr2		= address;
+ 		tsk->thread.error_code	= error_code;
+ 		tsk->thread.trap_nr	= X86_TRAP_PF;
  
- 	if (!down_read_trylock(&shrinker_rwsem)) {
- 		/* Assume we'll be able to shrink next time */
--		ret = 1;
-+		freed = 1;
- 		goto out;
+ 		force_sig_info_fault(SIGSEGV, si_code, address, tsk, 0);
++		/*
++		 * Using -1 here, since there is no VM_FAULT flag to identify
++		 * user accesses triggering SIGSEGV.
++		 */
++		trace_page_fault_exit(-1);
+ 
+ 		return;
  	}
+@@ -1185,7 +1194,9 @@ good_area:
+ 	 * make sure we exit gracefully rather than endlessly redo
+ 	 * the fault:
+ 	 */
++	trace_page_fault_entry(regs, address, write);
+ 	fault = handle_mm_fault(mm, vma, address, flags);
++	trace_page_fault_exit(fault);
  
-@@ -225,13 +225,16 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		unsigned long long delta;
- 		long total_scan;
- 		long max_pass;
--		int shrink_ret = 0;
- 		long nr;
- 		long new_nr;
- 		long batch_size = shrinker->batch ? shrinker->batch
- 						  : SHRINK_BATCH;
+ 	if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
+ 		if (mm_fault_error(regs, error_code, address, fault))
+diff --git a/mm/memory.c b/mm/memory.c
+index 6dc1882..0bd86f8 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -67,6 +67,8 @@
+ #include <asm/tlbflush.h>
+ #include <asm/pgtable.h>
  
--		max_pass = do_shrinker_shrink(shrinker, shrink, 0);
-+		if (shrinker->scan_objects) {
-+			max_pass = shrinker->count_objects(shrinker, shrinkctl);
-+			WARN_ON(max_pass < 0);
-+		} else
-+			max_pass = do_shrinker_shrink(shrinker, shrinkctl, 0);
- 		if (max_pass <= 0)
- 			continue;
- 
-@@ -248,8 +251,8 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		do_div(delta, lru_pages + 1);
- 		total_scan += delta;
- 		if (total_scan < 0) {
--			printk(KERN_ERR "shrink_slab: %pF negative objects to "
--			       "delete nr=%ld\n",
-+			printk(KERN_ERR
-+			"shrink_slab: %pF negative objects to delete nr=%ld\n",
- 			       shrinker->shrink, total_scan);
- 			total_scan = max_pass;
- 		}
-@@ -277,12 +280,12 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		if (total_scan > max_pass * 2)
- 			total_scan = max_pass * 2;
- 
--		trace_mm_shrink_slab_start(shrinker, shrink, nr,
-+		trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
- 					nr_pages_scanned, lru_pages,
- 					max_pass, delta, total_scan);
- 
- 		do {
--			int nr_before;
-+			long ret;
- 
- 			/*
- 			 * When we are kswapd, there is no need for us to go
-@@ -302,13 +305,26 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 			if (!total_scan)
- 				break;
- 
--			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
--			shrink_ret = do_shrinker_shrink(shrinker, shrink,
-+			if (shrinker->scan_objects) {
-+				shrinkctl->nr_to_scan = min(batch_size, total_scan);
-+				ret = shrinker->scan_objects(shrinker, shrinkctl);
++#include <trace/events/fault.h>
 +
-+				if (ret == -1)
-+					break;
-+				freed += ret;
-+			} else {
-+				int nr_before;
-+
-+				nr_before = do_shrinker_shrink(shrinker,
-+						shrinkctl, 0);
-+				ret = do_shrinker_shrink(shrinker, shrinkctl,
- 						min(batch_size, total_scan));
--			if (shrink_ret == -1)
--				break;
--			if (shrink_ret < nr_before)
--				ret += nr_before - shrink_ret;
-+				if (ret == -1)
-+					break;
-+				if (ret < nr_before)
-+					freed += nr_before - ret;
-+			}
-+
- 			count_vm_events(SLABS_SCANNED, batch_size);
- 			total_scan -= batch_size;
+ #include "internal.h"
  
-@@ -326,12 +342,12 @@ unsigned long shrink_slab(struct shrink_control *shrink,
- 		else
- 			new_nr = atomic_long_read(&shrinker->nr_in_batch);
+ #ifdef LAST_NID_NOT_IN_PAGE_FLAGS
+@@ -1829,8 +1831,11 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 				if (foll_flags & FOLL_NOWAIT)
+ 					fault_flags |= (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT);
  
--		trace_mm_shrink_slab_end(shrinker, shrink_ret, nr, new_nr);
-+		trace_mm_shrink_slab_end(shrinker, freed, nr, new_nr);
- 	}
- 	up_read(&shrinker_rwsem);
- out:
- 	cond_resched();
--	return ret;
-+	return freed;
- }
++				trace_page_fault_entry(0, start,
++						foll_flags & FOLL_WRITE);
+ 				ret = handle_mm_fault(mm, vma, start,
+ 							fault_flags);
++				trace_page_fault_exit(ret);
  
- static inline int is_page_cache_freeable(struct page *page)
+ 				if (ret & VM_FAULT_ERROR) {
+ 					if (ret & VM_FAULT_OOM)
 -- 
-1.8.1.4
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
