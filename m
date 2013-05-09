@@ -1,40 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id F39D36B003B
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 09:43:46 -0400 (EDT)
-Date: Thu, 9 May 2013 14:43:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v5 14/31] xfs: convert buftarg LRU to generic code
-Message-ID: <20130509134343.GY11497@suse.de>
-References: <1368079608-5611-1-git-send-email-glommer@openvz.org>
- <1368079608-5611-15-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id D24806B0038
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 09:49:24 -0400 (EDT)
+Message-ID: <518BA91E.3080406@zytor.com>
+Date: Thu, 09 May 2013 06:48:14 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1368079608-5611-15-git-send-email-glommer@openvz.org>
+Subject: Re: [page fault tracepoint 1/2] Add page fault trace event definitions
+References: <1368079520-11015-1-git-send-email-fdeslaur@gmail.com> <518B464E.6010208@huawei.com>
+In-Reply-To: <518B464E.6010208@huawei.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
+To: "zhangwei(Jovi)" <jovi.zhangwei@huawei.com>
+Cc: Francis Deslauriers <fdeslaur@gmail.com>, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, rostedt@goodmis.org, fweisbec@gmail.com, raphael.beamonte@gmail.com, mathieu.desnoyers@efficios.com, linux-kernel@vger.kernel.org
 
-On Thu, May 09, 2013 at 10:06:31AM +0400, Glauber Costa wrote:
-> From: Dave Chinner <dchinner@redhat.com>
+On 05/08/2013 11:46 PM, zhangwei(Jovi) wrote:
+> On 2013/5/9 14:05, Francis Deslauriers wrote:
+>> Add page_fault_entry and page_fault_exit event definitions. It will
+>> allow each architecture to instrument their page faults.
 > 
-> Convert the buftarg LRU to use the new generic LRU list and take
-> advantage of the functionality it supplies to make the buffer cache
-> shrinker node aware.
+> I'm wondering if this tracepoint could handle other page faults,
+> like faults in kernel memory(vmalloc, kmmio, etc...)
 > 
-> Signed-off-by: Glauber Costa <glommer@openvz.org>
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> And if we decide to support those faults, add a type annotate in TP_printk
+> would be much helpful for user, to let user know what type of page faults happened.
 > 
-> Conflicts with 3b19034d4f:
-> 	fs/xfs/xfs_buf.c
 
-You can dump this Conflicts message
+The plan for x86 was to switch the IDT so that any exception could get a
+trace event without any overhead in normal operation.  This has been in
+the process for quite some time but looks like it was getting very close.
 
--- 
-Mel Gorman
-SUSE Labs
+	-hpa
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
