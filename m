@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 856736B005C
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 05:50:56 -0400 (EDT)
-Received: by mail-oa0-f53.google.com with SMTP id g12so3156417oah.26
-        for <linux-mm@kvack.org>; Thu, 09 May 2013 02:50:55 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 72CB66B0062
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 05:51:10 -0400 (EDT)
+Received: by mail-oa0-f46.google.com with SMTP id h2so3166511oag.5
+        for <linux-mm@kvack.org>; Thu, 09 May 2013 02:51:09 -0700 (PDT)
 From: wenchaolinux@gmail.com
-Subject: [RFC PATCH V1 1/6] mm: add parameter remove_old in move_huge_pmd()
-Date: Thu,  9 May 2013 17:50:06 +0800
-Message-Id: <1368093011-4867-2-git-send-email-wenchaolinux@gmail.com>
+Subject: [RFC PATCH V1 2/6] mm : allow copy between different addresses for copy_one_pte()
+Date: Thu,  9 May 2013 17:50:07 +0800
+Message-Id: <1368093011-4867-3-git-send-email-wenchaolinux@gmail.com>
 In-Reply-To: <1368093011-4867-1-git-send-email-wenchaolinux@gmail.com>
 References: <1368093011-4867-1-git-send-email-wenchaolinux@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -17,66 +17,104 @@ Cc: akpm@linux-foundation.org, mgorman@suse.de, hughd@google.com, walken@google.
 
 From: Wenchao Xia <wenchaolinux@gmail.com>
 
+This function now can be used in pte copy in same process with
+different addresses. It is also exported.
+
 Signed-off-by: Wenchao Xia <wenchaolinux@gmail.com>
 ---
- include/linux/huge_mm.h |    2 +-
- mm/huge_memory.c        |    6 ++++--
- mm/mremap.c             |    2 +-
- 3 files changed, 6 insertions(+), 4 deletions(-)
+ include/linux/mm.h |    4 ++++
+ mm/memory.c        |   27 ++++++++++++++-------------
+ 2 files changed, 18 insertions(+), 13 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index ee1c244..567dc1e 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -29,7 +29,7 @@ extern int move_huge_pmd(struct vm_area_struct *vma,
- 			 struct vm_area_struct *new_vma,
- 			 unsigned long old_addr,
- 			 unsigned long new_addr, unsigned long old_end,
--			 pmd_t *old_pmd, pmd_t *new_pmd);
-+			 pmd_t *old_pmd, pmd_t *new_pmd, bool remove_old);
- extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			unsigned long addr, pgprot_t newprot,
- 			int prot_numa);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e2f7f5a..f752388 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1402,10 +1402,11 @@ int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 	return ret;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7acc9dc..68f52bc 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -963,6 +963,10 @@ int walk_page_range(unsigned long addr, unsigned long end,
+ 		struct mm_walk *walk);
+ void free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
+ 		unsigned long end, unsigned long floor, unsigned long ceiling);
++unsigned long copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
++			   pte_t *dst_pte, pte_t *src_pte,
++			   unsigned long dst_addr, unsigned long src_addr,
++			   struct vm_area_struct *vma, int *rss);
+ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			struct vm_area_struct *vma);
+ void unmap_mapping_range(struct address_space *mapping,
+diff --git a/mm/memory.c b/mm/memory.c
+index 494526a..0357cf1 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -824,15 +824,15 @@ out:
  }
  
-+/* This function copy or moves pmd in same mm */
- int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
- 		  unsigned long old_addr,
- 		  unsigned long new_addr, unsigned long old_end,
--		  pmd_t *old_pmd, pmd_t *new_pmd)
-+		  pmd_t *old_pmd, pmd_t *new_pmd, bool remove_old)
+ /*
+- * copy one vm_area from one task to the other. Assumes the page tables
+- * already present in the new task to be cleared in the whole range
+- * covered by this vma.
++ * copy one pte from @src_addr to @dst_addr. Assumes the page tables and vma
++ * already present in the @dst_addr, @src_addr and @src_pte is covered by
++ * @vma, @rss is a array of size NR_MM_COUNTERS used by caller to sync. dst_mm
++ * may be equal to src_mm. Return 0 or swap entry value.
+  */
+-
+-static inline unsigned long
+-copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+-		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
+-		unsigned long addr, int *rss)
++unsigned long copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
++			   pte_t *dst_pte, pte_t *src_pte,
++			   unsigned long dst_addr, unsigned long src_addr,
++			   struct vm_area_struct *vma, int *rss)
  {
- 	int ret = 0;
- 	pmd_t pmd;
-@@ -1429,7 +1430,8 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+ 	unsigned long vm_flags = vma->vm_flags;
+ 	pte_t pte = *src_pte;
+@@ -872,7 +872,8 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 					 */
+ 					make_migration_entry_read(&entry);
+ 					pte = swp_entry_to_pte(entry);
+-					set_pte_at(src_mm, addr, src_pte, pte);
++					set_pte_at(src_mm, src_addr,
++						   src_pte, pte);
+ 				}
+ 			}
+ 		}
+@@ -884,7 +885,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	 * in the parent and the child
+ 	 */
+ 	if (is_cow_mapping(vm_flags)) {
+-		ptep_set_wrprotect(src_mm, addr, src_pte);
++		ptep_set_wrprotect(src_mm, src_addr, src_pte);
+ 		pte = pte_wrprotect(pte);
+ 	}
  
- 	ret = __pmd_trans_huge_lock(old_pmd, vma);
- 	if (ret == 1) {
--		pmd = pmdp_get_and_clear(mm, old_addr, old_pmd);
-+		pmd = remove_old ?
-+			pmdp_get_and_clear(mm, old_addr, old_pmd) : *old_pmd;
- 		VM_BUG_ON(!pmd_none(*new_pmd));
- 		set_pmd_at(mm, new_addr, new_pmd, pmd);
- 		spin_unlock(&mm->page_table_lock);
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 463a257..0f3c5be 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -178,7 +178,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
- 			if (extent == HPAGE_PMD_SIZE)
- 				err = move_huge_pmd(vma, new_vma, old_addr,
- 						    new_addr, old_end,
--						    old_pmd, new_pmd);
-+						    old_pmd, new_pmd, true);
- 			if (err > 0) {
- 				need_flush = true;
- 				continue;
+@@ -896,7 +897,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		pte = pte_mkclean(pte);
+ 	pte = pte_mkold(pte);
+ 
+-	page = vm_normal_page(vma, addr, pte);
++	page = vm_normal_page(vma, src_addr, pte);
+ 	if (page) {
+ 		get_page(page);
+ 		page_dup_rmap(page);
+@@ -907,7 +908,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 	}
+ 
+ out_set_pte:
+-	set_pte_at(dst_mm, addr, dst_pte, pte);
++	set_pte_at(dst_mm, dst_addr, dst_pte, pte);
+ 	return 0;
+ }
+ 
+@@ -951,7 +952,7 @@ again:
+ 			continue;
+ 		}
+ 		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
+-							vma, addr, rss);
++						addr, addr, vma, rss);
+ 		if (entry.val)
+ 			break;
+ 		progress += 8;
 -- 
 1.7.1
 
