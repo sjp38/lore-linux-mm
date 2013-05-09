@@ -1,182 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 3FF7A6B003C
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 10:54:35 -0400 (EDT)
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: [RFC 2/2] virtio_balloon: auto-ballooning support
-Date: Thu,  9 May 2013 10:53:49 -0400
-Message-Id: <1368111229-29847-3-git-send-email-lcapitulino@redhat.com>
-In-Reply-To: <1368111229-29847-1-git-send-email-lcapitulino@redhat.com>
-References: <1368111229-29847-1-git-send-email-lcapitulino@redhat.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 98EE36B0032
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 11:21:15 -0400 (EDT)
+Message-ID: <518BBEE9.7060800@sr71.net>
+Date: Thu, 09 May 2013 08:21:13 -0700
+From: Dave Hansen <dave@sr71.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH 18/22] mm: page allocator: Split magazine lock in two
+ to reduce contention
+References: <1368028987-8369-1-git-send-email-mgorman@suse.de> <1368028987-8369-19-git-send-email-mgorman@suse.de>
+In-Reply-To: <1368028987-8369-19-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, riel@redhat.com, aquini@redhat.com, mst@redhat.com, amit.shah@redhat.com, anton@enomsg.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>
 
-Automatic ballooning consists of dynamically adjusting the guest's
-balloon according to memory pressure in the host and in the guest.
+On 05/08/2013 09:03 AM, Mel Gorman wrote:
+> @@ -368,10 +375,9 @@ struct zone {
+>  
+>  	/*
+>  	 * Keep some order-0 pages on a separate free list
+> -	 * protected by an irq-unsafe lock
+> +	 * protected by an irq-unsafe lock.
+>  	 */
+> -	spinlock_t			_magazine_lock;
+> -	struct free_area_magazine	_noirq_magazine;
+> +	struct free_magazine	noirq_magazine[NR_MAGAZINES];
 
-This commit implements the guest side of automatic balloning, which
-basically consists of registering a shrinker callback with the kernel,
-which will try to deflate the guest's balloon by the amount of pages
-being requested. The shrinker callback is only registered if the host
-supports the VIRTIO_BALLOON_F_AUTO_BALLOON feature bit.
+Looks like pretty cool stuff!
 
-Automatic inflate is performed by the host.
+The old per-cpu-pages stuff was all hung off alloc_percpu(), which
+surely wasted lots of memory with many NUMA nodes.  It's nice to see
+this decoupled a bit from the online cpu count.
 
-Here are some numbers. The test-case is to run 35 VMs (1G of RAM each)
-in parallel doing a kernel build. Host has 32GB of RAM and 16GB of swap.
-SWAP IN and SWAP OUT correspond to the number of pages swapped in and
-swapped out, respectively.
+That said, the alloc_percpu() stuff is nice in how much it hides from
+you when doing cpu hotplug.  We'll _probably_ need this to be
+dynamically-sized at some point, right?
 
-Auto-ballooning disabled:
+> -static inline struct free_area_magazine *find_lock_magazine(struct zone *zone)
+> +static inline struct free_magazine *lock_magazine(struct zone *zone)
+>  {
+> -	struct free_area_magazine *area = &zone->_noirq_magazine;
+> -	spin_lock(&zone->_magazine_lock);
+> -	return area;
+> +	int i = (raw_smp_processor_id() >> 1) & (NR_MAGAZINES-1);
+> +	spin_lock(&zone->noirq_magazine[i].lock);
+> +	return &zone->noirq_magazine[i];
+>  }
 
-RUN  TIME(s)  SWAP IN  SWAP OUT
-
-1    634      930980   1588522
-2    610      627422   1362174
-3    649      1079847  1616367
-4    543      953289   1635379
-5    642      913237   1514000
-
-Auto-ballooning enabled:
-
-RUN  TIME(s)  SWAP IN  SWAP OUT
-
-1    629      901      12537
-2    624      981      18506
-3    626      573      9085
-4    631      2250     42534
-5    627      1610     20808
-
-Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
----
- drivers/virtio/virtio_balloon.c     | 55 +++++++++++++++++++++++++++++++++++++
- include/uapi/linux/virtio_balloon.h |  1 +
- 2 files changed, 56 insertions(+)
-
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 9d5fe2b..f9dcae8 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -71,6 +71,9 @@ struct virtio_balloon
- 	/* Memory statistics */
- 	int need_stats_update;
- 	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
-+
-+	/* Memory shrinker */
-+	struct shrinker shrinker;
- };
- 
- static struct virtio_device_id id_table[] = {
-@@ -126,6 +129,7 @@ static void set_page_pfns(u32 pfns[], struct page *page)
- 		pfns[i] = page_to_balloon_pfn(page) + i;
- }
- 
-+/* This function should be called with vb->balloon_mutex held */
- static void fill_balloon(struct virtio_balloon *vb, size_t num)
- {
- 	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
-@@ -166,6 +170,7 @@ static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
- 	}
- }
- 
-+/* This function should be called with vb->balloon_mutex held */
- static void leak_balloon(struct virtio_balloon *vb, size_t num)
- {
- 	struct page *page;
-@@ -285,6 +290,45 @@ static void update_balloon_size(struct virtio_balloon *vb)
- 			      &actual, sizeof(actual));
- }
- 
-+static unsigned long balloon_get_nr_pages(const struct virtio_balloon *vb)
-+{
-+	return vb->num_pages / VIRTIO_BALLOON_PAGES_PER_PAGE;
-+}
-+
-+static int balloon_shrinker(struct shrinker *shrinker,struct shrink_control *sc)
-+{
-+	unsigned int nr_pages, new_target;
-+	struct virtio_balloon *vb;
-+
-+	vb = container_of(shrinker, struct virtio_balloon, shrinker);
-+	if (!mutex_trylock(&vb->balloon_lock)) {
-+		return -1;
-+	}
-+
-+	nr_pages = balloon_get_nr_pages(vb);
-+	if (!sc->nr_to_scan || !nr_pages) {
-+		goto out;
-+	}
-+
-+	/*
-+	 * If the current balloon size is greater than the number of
-+	 * pages being reclaimed by the kernel, deflate only the needed
-+	 * amount. Otherwise deflate everything we have.
-+	 */
-+	new_target = 0;
-+	if (nr_pages > sc->nr_to_scan) {
-+		new_target = nr_pages - sc->nr_to_scan;
-+	}
-+
-+	leak_balloon(vb, new_target);
-+	update_balloon_size(vb);
-+	nr_pages = balloon_get_nr_pages(vb);
-+
-+out:
-+	mutex_unlock(&vb->balloon_lock);
-+	return nr_pages;
-+}
-+
- static int balloon(void *_vballoon)
- {
- 	struct virtio_balloon *vb = _vballoon;
-@@ -471,6 +515,13 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 		goto out_del_vqs;
- 	}
- 
-+	memset(&vb->shrinker, 0, sizeof(vb->shrinker));
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_AUTO_BALLOON)) {
-+		vb->shrinker.shrink = balloon_shrinker;
-+		vb->shrinker.seeks = DEFAULT_SEEKS;
-+		register_shrinker(&vb->shrinker);
-+	}
-+
- 	return 0;
- 
- out_del_vqs:
-@@ -487,6 +538,9 @@ out:
- 
- static void remove_common(struct virtio_balloon *vb)
- {
-+	if (vb->shrinker.shrink)
-+		unregister_shrinker(&vb->shrinker);
-+
- 	/* There might be pages left in the balloon: free them. */
- 	mutex_lock(&vb->balloon_lock);
- 	while (vb->num_pages)
-@@ -543,6 +597,7 @@ static int virtballoon_restore(struct virtio_device *vdev)
- static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
- 	VIRTIO_BALLOON_F_STATS_VQ,
-+	VIRTIO_BALLOON_F_AUTO_BALLOON,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index 5e26f61..bd378a4 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -31,6 +31,7 @@
- /* The feature bitmap for virtio balloon */
- #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
-+#define VIRTIO_BALLOON_F_AUTO_BALLOON	2 /* Automatic ballooning */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
--- 
-1.8.1.4
+I bet this logic will be fun to play with once we have more magazines
+around.  For instance, on my system processors 0/80 are HT twins, so
+they'd always be going after the same magazine.  I guess that's a good
+thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
