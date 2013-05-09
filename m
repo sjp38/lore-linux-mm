@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 6E0956B0068
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 05:51:25 -0400 (EDT)
-Received: by mail-ob0-f180.google.com with SMTP id xk17so570605obc.11
-        for <linux-mm@kvack.org>; Thu, 09 May 2013 02:51:24 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 4F5786B0069
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 05:51:41 -0400 (EDT)
+Received: by mail-ob0-f173.google.com with SMTP id 6so2737231oba.32
+        for <linux-mm@kvack.org>; Thu, 09 May 2013 02:51:40 -0700 (PDT)
 From: wenchaolinux@gmail.com
-Subject: [RFC PATCH V1 3/6] mm : export rss vec helper functions
-Date: Thu,  9 May 2013 17:50:08 +0800
-Message-Id: <1368093011-4867-4-git-send-email-wenchaolinux@gmail.com>
+Subject: [RFC PATCH V1 4/6] mm : export is_cow_mapping()
+Date: Thu,  9 May 2013 17:50:09 +0800
+Message-Id: <1368093011-4867-5-git-send-email-wenchaolinux@gmail.com>
 In-Reply-To: <1368093011-4867-1-git-send-email-wenchaolinux@gmail.com>
 References: <1368093011-4867-1-git-send-email-wenchaolinux@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,42 +19,35 @@ From: Wenchao Xia <wenchaolinux@gmail.com>
 
 Signed-off-by: Wenchao Xia <wenchaolinux@gmail.com>
 ---
- include/linux/mm.h |    2 ++
- mm/memory.c        |    4 ++--
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ include/linux/mm.h |    1 +
+ mm/memory.c        |    2 +-
+ 2 files changed, 2 insertions(+), 1 deletions(-)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 68f52bc..5071a44 100644
+index 5071a44..9bd01f5 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -963,6 +963,8 @@ int walk_page_range(unsigned long addr, unsigned long end,
- 		struct mm_walk *walk);
- void free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
+@@ -965,6 +965,7 @@ void free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
  		unsigned long end, unsigned long floor, unsigned long ceiling);
-+void init_rss_vec(int *rss);
-+void add_mm_rss_vec(struct mm_struct *mm, int *rss);
+ void init_rss_vec(int *rss);
+ void add_mm_rss_vec(struct mm_struct *mm, int *rss);
++bool is_cow_mapping(vm_flags_t flags);
  unsigned long copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
  			   pte_t *dst_pte, pte_t *src_pte,
  			   unsigned long dst_addr, unsigned long src_addr,
 diff --git a/mm/memory.c b/mm/memory.c
-index 0357cf1..add1562 100644
+index add1562..e5456e1 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -643,12 +643,12 @@ int __pte_alloc_kernel(pmd_t *pmd, unsigned long address)
- 	return 0;
+@@ -723,7 +723,7 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
+ 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
  }
  
--static inline void init_rss_vec(int *rss)
-+void init_rss_vec(int *rss)
+-static inline bool is_cow_mapping(vm_flags_t flags)
++bool is_cow_mapping(vm_flags_t flags)
  {
- 	memset(rss, 0, sizeof(int) * NR_MM_COUNTERS);
+ 	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
  }
- 
--static inline void add_mm_rss_vec(struct mm_struct *mm, int *rss)
-+void add_mm_rss_vec(struct mm_struct *mm, int *rss)
- {
- 	int i;
- 
 -- 
 1.7.1
 
