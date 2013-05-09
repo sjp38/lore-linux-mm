@@ -1,182 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id DA37E6B00B5
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 02:07:52 -0400 (EDT)
-From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH v5 29/31] vmpressure: in-kernel notifications
-Date: Thu,  9 May 2013 10:06:46 +0400
-Message-Id: <1368079608-5611-30-git-send-email-glommer@openvz.org>
-In-Reply-To: <1368079608-5611-1-git-send-email-glommer@openvz.org>
-References: <1368079608-5611-1-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id CBA246B0095
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 02:49:38 -0400 (EDT)
+Message-ID: <518B464E.6010208@huawei.com>
+Date: Thu, 9 May 2013 14:46:38 +0800
+From: "zhangwei(Jovi)" <jovi.zhangwei@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [page fault tracepoint 1/2] Add page fault trace event definitions
+References: <1368079520-11015-1-git-send-email-fdeslaur@gmail.com>
+In-Reply-To: <1368079520-11015-1-git-send-email-fdeslaur@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org, Glauber Costa <glommer@openvz.org>, Dave Chinner <david@fromorbit.com>, John Stultz <john.stultz@linaro.org>, Joonsoo Kim <js1304@gmail.com>
+To: Francis Deslauriers <fdeslaur@gmail.com>
+Cc: linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, rostedt@goodmis.org, fweisbec@gmail.com, raphael.beamonte@gmail.com, mathieu.desnoyers@efficios.com, linux-kernel@vger.kernel.org
 
-From: Glauber Costa <glommer@parallels.com>
+On 2013/5/9 14:05, Francis Deslauriers wrote:
+> Add page_fault_entry and page_fault_exit event definitions. It will
+> allow each architecture to instrument their page faults.
 
-During the past weeks, it became clear to us that the shrinker interface
-we have right now works very well for some particular types of users,
-but not that well for others. The later are usually people interested in
-one-shot notifications, that were forced to adapt themselves to the
-count+scan behavior of shrinkers. To do so, they had no choice than to
-greatly abuse the shrinker interface producing little monsters all over.
+I'm wondering if this tracepoint could handle other page faults,
+like faults in kernel memory(vmalloc, kmmio, etc...)
 
-During LSF/MM, one of the proposals that popped out during our session
-was to reuse Anton Voronstsov's vmpressure for this. They are designed
-for userspace consumption, but also provide a well-stablished,
-cgroup-aware entry point for notifications.
+And if we decide to support those faults, add a type annotate in TP_printk
+would be much helpful for user, to let user know what type of page faults happened.
 
-This patch extends that to also support in-kernel users. Events that
-should be generated for in-kernel consumption will be marked as such,
-and for those, we will call a registered function instead of triggering
-an eventfd notification.
+Thanks.
+> 
+> Signed-off-by: Francis Deslauriers <fdeslaur@gmail.com>
+> Reviewed-by: RaphaA<<l Beamonte <raphael.beamonte@gmail.com>
+> Reviewed-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+> ---
+>  include/trace/events/fault.h |   51 ++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 51 insertions(+)
+>  create mode 100644 include/trace/events/fault.h
+> 
+> diff --git a/include/trace/events/fault.h b/include/trace/events/fault.h
+> new file mode 100644
+> index 0000000..522ddee
+> --- /dev/null
+> +++ b/include/trace/events/fault.h
+> @@ -0,0 +1,51 @@
+> +#undef TRACE_SYSTEM
+> +#define TRACE_SYSTEM fault
+> +
+> +#if !defined(_TRACE_FAULT_H) || defined(TRACE_HEADER_MULTI_READ)
+> +#define _TRACE_FAULT_H
+> +
+> +#include <linux/tracepoint.h>
+> +
+> +TRACE_EVENT(page_fault_entry,
+> +
+> +	TP_PROTO(struct pt_regs *regs, unsigned long address,
+> +					int write_access),
+> +
+> +	TP_ARGS(regs, address, write_access),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	unsigned long,	ip	)
+> +		__field(	unsigned long,	addr	)
+> +		__field(	uint8_t,	write	)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->ip	= regs ? instruction_pointer(regs) : 0UL;
+> +		__entry->addr	= address;
+> +		__entry->write	= !!write_access;
+> +	),
+> +
+> +	TP_printk("ip=%lu addr=%lu write_access=%d",
+> +		__entry->ip, __entry->addr, __entry->write)
+> +);
+> +
+> +TRACE_EVENT(page_fault_exit,
+> +
+> +	TP_PROTO(int result),
+> +
+> +	TP_ARGS(result),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(	int,	res	)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->res	= result;
+> +	),
+> +
+> +	TP_printk("result=%d", __entry->res)
+> +);
+> +
+> +#endif /* _TRACE_FAULT_H */
+> +/* This part must be outside protection */
+> +#include <trace/define_trace.h>
+> 
 
-Please note that due to my lack of understanding of each shrinker user,
-I will stay away from converting the actual users, you are all welcome
-to do so.
-
-Signed-off-by: Glauber Costa <glommer@openvz.org>
-Acked-by: Anton Vorontsov <anton@enomsg.org>
-Acked-by: Pekka Enberg <penberg@kernel.org>
-Reviewed-by: Greg Thelen <gthelen@google.com>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: John Stultz <john.stultz@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <js1304@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/vmpressure.h |  6 ++++++
- mm/vmpressure.c            | 52 +++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 55 insertions(+), 3 deletions(-)
-
-diff --git a/include/linux/vmpressure.h b/include/linux/vmpressure.h
-index 76be077..3131e72 100644
---- a/include/linux/vmpressure.h
-+++ b/include/linux/vmpressure.h
-@@ -19,6 +19,9 @@ struct vmpressure {
- 	/* Have to grab the lock on events traversal or modifications. */
- 	struct mutex events_lock;
- 
-+	/* False if only kernel users want to be notified, true otherwise. */
-+	bool notify_userspace;
-+
- 	struct work_struct work;
- };
- 
-@@ -36,6 +39,9 @@ extern struct vmpressure *css_to_vmpressure(struct cgroup_subsys_state *css);
- extern int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
- 				     struct eventfd_ctx *eventfd,
- 				     const char *args);
-+
-+extern int vmpressure_register_kernel_event(struct cgroup *cg,
-+					    void (*fn)(void));
- extern void vmpressure_unregister_event(struct cgroup *cg, struct cftype *cft,
- 					struct eventfd_ctx *eventfd);
- #else
-diff --git a/mm/vmpressure.c b/mm/vmpressure.c
-index 736a601..e16256e 100644
---- a/mm/vmpressure.c
-+++ b/mm/vmpressure.c
-@@ -135,8 +135,12 @@ static enum vmpressure_levels vmpressure_calc_level(unsigned long scanned,
- }
- 
- struct vmpressure_event {
--	struct eventfd_ctx *efd;
-+	union {
-+		struct eventfd_ctx *efd;
-+		void (*fn)(void);
-+	};
- 	enum vmpressure_levels level;
-+	bool kernel_event;
- 	struct list_head node;
- };
- 
-@@ -152,12 +156,15 @@ static bool vmpressure_event(struct vmpressure *vmpr,
- 	mutex_lock(&vmpr->events_lock);
- 
- 	list_for_each_entry(ev, &vmpr->events, node) {
--		if (level >= ev->level) {
-+		if (ev->kernel_event) {
-+			ev->fn();
-+		} else if (vmpr->notify_userspace && level >= ev->level) {
- 			eventfd_signal(ev->efd, 1);
- 			signalled = true;
- 		}
- 	}
- 
-+	vmpr->notify_userspace = false;
- 	mutex_unlock(&vmpr->events_lock);
- 
- 	return signalled;
-@@ -227,7 +234,7 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
- 	 * we account it too.
- 	 */
- 	if (!(gfp & (__GFP_HIGHMEM | __GFP_MOVABLE | __GFP_IO | __GFP_FS)))
--		return;
-+		goto schedule;
- 
- 	/*
- 	 * If we got here with no pages scanned, then that is an indicator
-@@ -244,8 +251,15 @@ void vmpressure(gfp_t gfp, struct mem_cgroup *memcg,
- 	vmpr->scanned += scanned;
- 	vmpr->reclaimed += reclaimed;
- 	scanned = vmpr->scanned;
-+	/*
-+	 * If we didn't reach this point, only kernel events will be triggered.
-+	 * It is the job of the worker thread to clean this up once the
-+	 * notifications are all delivered.
-+	 */
-+	vmpr->notify_userspace = true;
- 	mutex_unlock(&vmpr->sr_lock);
- 
-+schedule:
- 	if (scanned < vmpressure_win || work_pending(&vmpr->work))
- 		return;
- 	schedule_work(&vmpr->work);
-@@ -328,6 +342,38 @@ int vmpressure_register_event(struct cgroup *cg, struct cftype *cft,
- }
- 
- /**
-+ * vmpressure_register_kernel_event() - Register kernel-side notification
-+ * @cg:		cgroup that is interested in vmpressure notifications
-+ * @fn:		function to be called when pressure happens
-+ *
-+ * This function register in-kernel users interested in receiving notifications
-+ * about pressure conditions. Pressure notifications will be triggered at the
-+ * same time as userspace notifications (with no particular ordering relative
-+ * to it).
-+ *
-+ * Pressure notifications are a alternative method to shrinkers and will serve
-+ * well users that are interested in a one-shot notification, with a
-+ * well-defined cgroup aware interface.
-+ */
-+int vmpressure_register_kernel_event(struct cgroup *cg, void (*fn)(void))
-+{
-+	struct vmpressure *vmpr = cg_to_vmpressure(cg);
-+	struct vmpressure_event *ev;
-+
-+	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-+	if (!ev)
-+		return -ENOMEM;
-+
-+	ev->kernel_event = true;
-+	ev->fn = fn;
-+
-+	mutex_lock(&vmpr->events_lock);
-+	list_add(&ev->node, &vmpr->events);
-+	mutex_unlock(&vmpr->events_lock);
-+	return 0;
-+}
-+
-+/**
-  * vmpressure_unregister_event() - Unbind eventfd from vmpressure
-  * @cg:		cgroup handle
-  * @cft:	cgroup control files handle
--- 
-1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
