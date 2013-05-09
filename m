@@ -1,133 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 372B06B0039
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 17:18:34 -0400 (EDT)
-Message-ID: <518C12D6.4060003@parallels.com>
-Date: Fri, 10 May 2013 01:19:18 +0400
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 066AF6B0038
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 17:23:57 -0400 (EDT)
+Message-ID: <518C1419.40705@parallels.com>
+Date: Fri, 10 May 2013 01:24:41 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 17/31] drivers: convert shrinkers to new count/scan
- API
-References: <1368079608-5611-1-git-send-email-glommer@openvz.org> <1368079608-5611-18-git-send-email-glommer@openvz.org> <20130509135209.GZ11497@suse.de>
-In-Reply-To: <20130509135209.GZ11497@suse.de>
+Subject: Re: [PATCH v5 00/31] kmemcg shrinkers
+References: <1368079608-5611-1-git-send-email-glommer@openvz.org> <20130509105519.GQ11497@suse.de> <20130509131823.GP24635@dastard> <20130509140311.GB11497@suse.de>
+In-Reply-To: <20130509140311.GB11497@suse.de>
 Content-Type: text/plain; charset="ISO-8859-15"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, Kent Overstreet <koverstreet@google.com>, Arve Hj?nnev?g <arve@android.com>, John Stultz <john.stultz@linaro.org>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Thomas Hellstrom <thellstrom@vmware.com>
+Cc: Dave Chinner <david@fromorbit.com>, Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org
 
-> 
-> Last time I complained about some of the shrinker implementations but
-> I'm not expecting them to be fixed in this series. However I still have
-> questions about where -1 should be returned that I don't think were
-> addressed so I'll repeat them.
-> 
-
-Note that the series try to keep the same behavior as we had before.
-(modulo mistakes, spotting them are mostly welcome)
-
-So if we are changing any of this, maybe better done in a separate patch?
-
->> @@ -4472,3 +4470,36 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
->>  		mutex_unlock(&dev->struct_mutex);
->>  	return cnt;
->>  }
->> +static long
->> +i915_gem_inactive_scan(struct shrinker *shrinker, struct shrink_control *sc)
->> +{
->> +	struct drm_i915_private *dev_priv =
->> +		container_of(shrinker,
->> +			     struct drm_i915_private,
->> +			     mm.inactive_shrinker);
->> +	struct drm_device *dev = dev_priv->dev;
->> +	int nr_to_scan = sc->nr_to_scan;
->> +	long freed;
->> +	bool unlock = true;
->> +
->> +	if (!mutex_trylock(&dev->struct_mutex)) {
->> +		if (!mutex_is_locked_by(&dev->struct_mutex, current))
->> +			return 0;
->> +
-> 
-> return -1 if it's about preventing potential deadlocks?
-> 
->> +		if (dev_priv->mm.shrinker_no_lock_stealing)
->> +			return 0;
->> +
-> 
-> same?
-> 
-
-My general opinion is that this one should not use the shrinker
-interface, but rather the one-shot one. But that is up to the i915 people.
-
-If shrinkers are to be maintained for whatever reason, I agree with you
--1 would be better. It basically means "give up", while 0 will try to
-keep scanning. It is my understanding that in those situations, we would
-like to give up and let the process already holding the lock to proceed.
-
+On 05/09/2013 06:03 PM, Mel Gorman wrote:
+> On Thu, May 09, 2013 at 11:18:23PM +1000, Dave Chinner wrote:
+>>>> Mel, I have identified the overly aggressive behavior you noticed to be a bug
+>>>> in the at-least-one-pass patch, that would ask the shrinkers to scan the full
+>>>> batch even when total_scan < batch. They would do their best for it, and
+>>>> eventually succeed. I also went further, and made that the behavior of direct
+>>>> reclaim only - The only case that really matter for memcg, and one in which
+>>>> we could argue that we are more or less desperate for small squeezes in memory.
+>>>> Thank you very much for spotting this.
+>>>>
+>>>
+>>> I haven't seen the relevant code yet but in general I do not think it is
+>>> a good idea for direct reclaim to potentially reclaim all of slabs like
+>>> this. Direct reclaim does not necessarily mean the system is desperate
+>>> for small amounts of memory. Lets take a few examples where it would be
+>>> a poor decision to reclaim all the slab pages within direct reclaim.
+>>>
+>>> 1. Direct reclaim triggers because kswapd is stalled writing pages for
+>>>    memcg (see code near comment "memcg doesn't have any dirty pages
+>>>    throttling"). A memcg dirtying its limit of pages may cause a lot of
+>>>    direct reclaim and dumping all the slab pages
+>>>
+>>> 2. Direct reclaim triggers because kswapd is writing pages out to swap.
+>>>    Similar to memcg above, kswapd failing to make forward progress triggers
+>>>    direct reclaim which then potentially reclaims all slab
+>>>
+>>> 3. Direct reclaim triggers because kswapd waits on congestion as there
+>>>    are too many pages under writeback. In this case, a large amounts of
+>>>    writes to slow storage like USB could result in all slab being reclaimed
+>>>
+>>> 4. The system has been up a long time, memory is fragmented and the page
+>>>    allocator enters direct reclaim/compaction to allocate THPs. It would
+>>>    be very unfortunate if allocating a THP reclaimed all the slabs
+>>>
+>>> All that is potentially bad and likely to make Dave put in his cranky
+>>> pants. I would much prefer if direct reclaim and kswapd treated slab
+>>> similarly and not ask the shrinkers to do a full scan unless the alternative
+>>> is OOM kill.
 >>
->> diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
->> index 03e44c1..8b9c1a6 100644
->> --- a/drivers/md/bcache/btree.c
->> +++ b/drivers/md/bcache/btree.c
->> @@ -599,11 +599,12 @@ static int mca_reap(struct btree *b, struct closure *cl, unsigned min_order)
->>  	return 0;
->>  }
->>  
->> -static int bch_mca_shrink(struct shrinker *shrink, struct shrink_control *sc)
->> +static long bch_mca_scan(struct shrinker *shrink, struct shrink_control *sc)
->>  {
->>  	struct cache_set *c = container_of(shrink, struct cache_set, shrink);
->>  	struct btree *b, *t;
->>  	unsigned long i, nr = sc->nr_to_scan;
->> +	long freed = 0;
->>  
->>  	if (c->shrinker_disabled)
->>  		return 0;
-> 
-> -1 if shrinker disabled?
-> 
-> Otherwise if the shrinker is disabled we ultimately hit this loop in
-> shrink_slab_one()
->
-
-> do {
->         ret = shrinker->scan_objects(shrinker, sc);
->         if (ret == -1)
->                 break
->         ....
->         count_vm_events(SLABS_SCANNED, batch_size);
->         total_scan -= batch_size;
-> 
->         cond_resched();
-> } while (total_scan >= batch_size);
-> 
-> which won't break as such but we busy loop until total_scan drops and
-> account for SLABS_SCANNED incorrectly.
-> 
-
-Same thing as above, I believe -1 is a superior return code for this
-situation. That one, however, I may be able to reshuffle myself. That
-test can live in bch_mca_count instead of bch_mca_scan. That way we will
-provide a count of 0, and then not ever reach scan.
-
->> <SNIP>
+>> Just keep in mind that I really don't care about micro-behaviours of
+>> the shrinker algorithm. What I look at is the overall cache balance
+>> under steady state workloads, the response to step changes in
+>> workload and what sort of overhead is seen to maintain system
+>> balance under memory pressure. So unless a micro-behaviour has an
+>> impact at the macro level, I just don't care one way or the other.
 >>
->> +	if (min_score_adj == OOM_SCORE_ADJ_MAX + 1) {
->> +		lowmem_print(5, "lowmem_scan %lu, %x, return 0\n",
->> +			     sc->nr_to_scan, sc->gfp_mask);
->> +		return 0;
->>  	}
->> +
->>  	selected_oom_score_adj = min_score_adj;
->>  
->>  	rcu_read_lock();
 > 
-> I wasn't convinced by Kent's answer on this one at all but the impact of
-> getting it right is a lot less than the other two.
+> Ok, that's fine by me because I think what you are worried about can
+> happen too easily right now.  A system in a steady state of streaming
+> IO can decide to reclaim excessively in direct reclaim becomes active --
+> a macro level change for a steady state workload.
 > 
+> However, Glauber has already said he will either make a priority check in
+> direct reclaim or make it memcg specific. I'm happy with either as either
+> should avoid a large impact at a macro level in response to a small change
+> in the workload pattern.
+> 
+>> But I can put on cranky panks if you want, Mel. :)
+>>
+> 
+> Unjustified cranky pants just isn't the same :)
+> 
+>>>> Running postmark on the final result (at least on my 2-node box) show something
+>>>> a lot saner. We are still stealing more inodes than before, but by a factor of
+>>>> around 15 %. Since the correct balance is somewhat heuristic anyway - I
+>>>> personally think this is acceptable. But I am waiting to hear from you on this
+>>>> matter. Meanwhile, I am investigating further to try to pinpoint where exactly
+>>>> this comes from. It might either be because of the new node-aware behavior, or
+>>>> because of the increased calculation precision in the first patch.
+>>>>
+>>>
+>>> I'm going to defer to Dave as to whether that increased level of slab
+>>> reclaim is acceptable or not.
+>>
+>> Depends on how it changes the balance of the system. I won't know
+>> that until I run some new tests.
+>>
+> 
+> Thanks
+> 
+Ok guys
+
+The "problem" (change of behavior, actually), lies somewhere between
+those two consecutive patches:
+
+    dcache: convert to use new lru list infrastructure
+    list_lru: per-node list infrastructure
+
+I cannot pinpoint it for sure because the results I've got for the first
+one were quite weird, and we have actually stolen *a lot* *less* inodes
+with this patch. I decided to re-run the test just to be sure, but I am
+already back home, so I will grab the results tomorrow.
+
+The fact that the stealing of inodes increases after the list_lru patch
+seems to indicate that this is because we are now able to shrink in
+parallel due to the per node lists. It is only reasonable that we will
+be able to do more work, and it is consistent with expectations.
+
+However, to confirm that, I think it would be beneficial to disable one
+of the nodes in my system and then run it again (which I will have to do
+tomorrow). Meanwhile, of course, other tests and validations from Dave
+are welcome.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
