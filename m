@@ -1,100 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 1EB536B0074
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 03:21:33 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 6E7B96B0078
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 03:21:34 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v5 0/7] Per process reclaim
-Date: Thu,  9 May 2013 16:21:22 +0900
-Message-Id: <1368084089-24576-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v5 1/7] mm: prevent to write out dirty page in CMA by may_writepage
+Date: Thu,  9 May 2013 16:21:23 +0900
+Message-Id: <1368084089-24576-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1368084089-24576-1-git-send-email-minchan@kernel.org>
+References: <1368084089-24576-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Namhyung Kim <namhyung@kernel.org>, Minkyung Kim <minkyung88@lge.com>, Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Namhyung Kim <namhyung@kernel.org>, Minkyung Kim <minkyung88@lge.com>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Mel Gorman <mgorman@suse.de>
 
-These day, there are many platforms avaiable in the embedded market
-and they are smarter than kernel which has very limited information
-about working set so they want to involve memory management more heavily
-like android's lowmemory killer and ashmem or recent many lowmemory
-notifier(there was several trial for various company NOKIA, SAMSUNG,
-Linaro, Google ChromeOS, Redhat).
+Now, local variable references in shrink_page_list is
+PAGEREF_RECLAIM_CLEAN as default. It is for preventing to reclaim
+dirty pages when CMA try to migrate pages.
+Strictly speaking, we don't need it because CMA already didn't allow
+to write out by .may_writepage = 0 in reclaim_clean_pages_from_list.
 
-One of the simple imagine scenario about userspace's intelligence is that
-platform can manage tasks as forground and backgroud so it would be
-better to reclaim background's task pages for end-user's *responsibility*
-although it has frequent referenced pages.
+Morever, it has a problem to prevent anonymous pages's swap out when
+we use force_reclaim = true in shrink_page_list(ex, per process reclaim
+can do it)
 
-The patch[1] prepares that force_reclaim in shrink_page_list can
-handle anonymous pages as well as file-backed pages.
+So this patch makes references's default value to PAGEREF_RECLAIM
+and declare .may_writepage = 0 of scan_control in CMA part to make
+code more clear.
 
-The patch[2] adds new knob "reclaim under proc/<pid>/" so task manager
-can reclaim any target process anytime, anywhere. It could give another
-method to platform for using memory efficiently.
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Reported-by: Minkyung Kim <minkyung88@lge.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/vmscan.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-It can avoid process killing for getting free memory, which was really
-terrible experience because I lost my best score of game I had ever
-after I switch the phone call while I enjoyed the game.
-
-Reclaim file-backed pages only.
-	echo file > /proc/PID/reclaim
-Reclaim anonymous pages only.
-	echo anon > /proc/PID/reclaim
-Reclaim all pages
-	echo all > /proc/PID/reclaim
-
-Some pages could be shared by several processes. (ex, libc)
-In case of that, it's too bad to reclaim them from the beginnig.
-The patch[5] causes VM to keep them on memory until last task
-try to reclaim them so shared pages will be reclaimed only if
-all of task has gone swapping out.
-
-Another requirement is per address space reclaim.(By Michael Kerrisk)
-In case of Webkit1, it uses a address space for handling multi tabs.
-IOW, it uses *one* process model so all tabs shares address space
-of the process. In such scenario, per-process reclaim is rather
-coarse-grained so patch[6] supports more fine-grained reclaim
-for being able to reclaim target address range of the process.
-For reclaim target range, you should use following format.
-
-	echo [addr] [size-byte] > /proc/pid/reclaim
-
-* Changelog from v4
-  * Fix anonymous page write out - Minkyung Kim
-
-* Changelog from v3
-  * Rebased on next-20130508
-  * Minor change
-
-* Changelog from v2
-  * Use memparse - Namhung Kim
-  * Add Acked-by
-
-* Changelog from v1
-  * Change reclaim knob interface - Dave Hansen
-  * proc.txt document change - Rob Landley
-
-Minchan Kim (7):
-  [1] mm: prevent to write out dirty page in CMA by may_writepage
-  [2] mm: Per process reclaim
-  [3] mm: make shrink_page_list with pages work from multiple zones
-  [4] mm: Remove shrink_page
-  [5] mm: Enhance per process reclaim to consider shared pages
-  [6] mm: Support address range reclaim
-  [7] add documentation about reclaim knob on proc.txt
-
- Documentation/filesystems/proc.txt |  20 +++++
- fs/proc/base.c                     |   3 +
- fs/proc/internal.h                 |   1 +
- fs/proc/task_mmu.c                 | 176 +++++++++++++++++++++++++++++++++++++
- include/linux/ksm.h                |   6 +-
- include/linux/rmap.h               |  10 ++-
- mm/Kconfig                         |  16 ++++
- mm/ksm.c                           |   9 +-
- mm/memory-failure.c                |   2 +-
- mm/migrate.c                       |   6 +-
- mm/rmap.c                          |  57 ++++++++----
- mm/vmscan.c                        |  62 ++++++++++++-
- 12 files changed, 340 insertions(+), 28 deletions(-)
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fa6a853..c22f9c1 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -695,7 +695,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		struct address_space *mapping;
+ 		struct page *page;
+ 		int may_enter_fs;
+-		enum page_references references = PAGEREF_RECLAIM_CLEAN;
++		enum page_references references = PAGEREF_RECLAIM;
+ 
+ 		cond_resched();
+ 
+@@ -972,6 +972,8 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ 		.gfp_mask = GFP_KERNEL,
+ 		.priority = DEF_PRIORITY,
+ 		.may_unmap = 1,
++		/* Doesn't allow to write out dirty page */
++		.may_writepage = 0,
+ 	};
+ 	unsigned long ret, dummy1, dummy2;
+ 	struct page *page, *next;
 -- 
 1.8.2.1
 
