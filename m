@@ -1,123 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 066AF6B0038
-	for <linux-mm@kvack.org>; Thu,  9 May 2013 17:23:57 -0400 (EDT)
-Message-ID: <518C1419.40705@parallels.com>
-Date: Fri, 10 May 2013 01:24:41 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 16BF36B0037
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 18:07:48 -0400 (EDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 9 May 2013 18:07:46 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id B31D66E803C
+	for <linux-mm@kvack.org>; Thu,  9 May 2013 18:07:40 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r49M7hiH294602
+	for <linux-mm@kvack.org>; Thu, 9 May 2013 18:07:43 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r49M7hnS007864
+	for <linux-mm@kvack.org>; Thu, 9 May 2013 18:07:43 -0400
+Date: Thu, 9 May 2013 17:07:39 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Subject: Re: [RFC][PATCH 1/7] defer clearing of page_private() for swap cache
+ pages
+Message-ID: <20130509220739.GA14840@cerebellum>
+References: <20130507211954.9815F9D1@viggo.jf.intel.com>
+ <20130507211955.7DF88A4F@viggo.jf.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 00/31] kmemcg shrinkers
-References: <1368079608-5611-1-git-send-email-glommer@openvz.org> <20130509105519.GQ11497@suse.de> <20130509131823.GP24635@dastard> <20130509140311.GB11497@suse.de>
-In-Reply-To: <20130509140311.GB11497@suse.de>
-Content-Type: text/plain; charset="ISO-8859-15"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130507211955.7DF88A4F@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Dave Chinner <david@fromorbit.com>, Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
 
-On 05/09/2013 06:03 PM, Mel Gorman wrote:
-> On Thu, May 09, 2013 at 11:18:23PM +1000, Dave Chinner wrote:
->>>> Mel, I have identified the overly aggressive behavior you noticed to be a bug
->>>> in the at-least-one-pass patch, that would ask the shrinkers to scan the full
->>>> batch even when total_scan < batch. They would do their best for it, and
->>>> eventually succeed. I also went further, and made that the behavior of direct
->>>> reclaim only - The only case that really matter for memcg, and one in which
->>>> we could argue that we are more or less desperate for small squeezes in memory.
->>>> Thank you very much for spotting this.
->>>>
->>>
->>> I haven't seen the relevant code yet but in general I do not think it is
->>> a good idea for direct reclaim to potentially reclaim all of slabs like
->>> this. Direct reclaim does not necessarily mean the system is desperate
->>> for small amounts of memory. Lets take a few examples where it would be
->>> a poor decision to reclaim all the slab pages within direct reclaim.
->>>
->>> 1. Direct reclaim triggers because kswapd is stalled writing pages for
->>>    memcg (see code near comment "memcg doesn't have any dirty pages
->>>    throttling"). A memcg dirtying its limit of pages may cause a lot of
->>>    direct reclaim and dumping all the slab pages
->>>
->>> 2. Direct reclaim triggers because kswapd is writing pages out to swap.
->>>    Similar to memcg above, kswapd failing to make forward progress triggers
->>>    direct reclaim which then potentially reclaims all slab
->>>
->>> 3. Direct reclaim triggers because kswapd waits on congestion as there
->>>    are too many pages under writeback. In this case, a large amounts of
->>>    writes to slow storage like USB could result in all slab being reclaimed
->>>
->>> 4. The system has been up a long time, memory is fragmented and the page
->>>    allocator enters direct reclaim/compaction to allocate THPs. It would
->>>    be very unfortunate if allocating a THP reclaimed all the slabs
->>>
->>> All that is potentially bad and likely to make Dave put in his cranky
->>> pants. I would much prefer if direct reclaim and kswapd treated slab
->>> similarly and not ask the shrinkers to do a full scan unless the alternative
->>> is OOM kill.
->>
->> Just keep in mind that I really don't care about micro-behaviours of
->> the shrinker algorithm. What I look at is the overall cache balance
->> under steady state workloads, the response to step changes in
->> workload and what sort of overhead is seen to maintain system
->> balance under memory pressure. So unless a micro-behaviour has an
->> impact at the macro level, I just don't care one way or the other.
->>
+On Tue, May 07, 2013 at 02:19:55PM -0700, Dave Hansen wrote:
 > 
-> Ok, that's fine by me because I think what you are worried about can
-> happen too easily right now.  A system in a steady state of streaming
-> IO can decide to reclaim excessively in direct reclaim becomes active --
-> a macro level change for a steady state workload.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> However, Glauber has already said he will either make a priority check in
-> direct reclaim or make it memcg specific. I'm happy with either as either
-> should avoid a large impact at a macro level in response to a small change
-> in the workload pattern.
+> There are only two callers of swapcache_free() which actually
+> pass in a non-NULL 'struct page'.  Both of them
+> (__remove_mapping and delete_from_swap_cache())  create a
+> temporary on-stack 'swp_entry_t' and set entry.val to
+> page_private().
 > 
->> But I can put on cranky panks if you want, Mel. :)
->>
+> They need to do this since __delete_from_swap_cache() does
+> set_page_private(page, 0) and destroys the information.
 > 
-> Unjustified cranky pants just isn't the same :)
+> However, I'd like to batch a few of these operations on several
+> pages together in a new version of __remove_mapping(), and I
+> would prefer not to have to allocate temporary storage for
+> each page.  The code is pretty ugly, and it's a bit silly
+> to create these on-stack 'swp_entry_t's when it is so easy to
+> just keep the information around in 'struct page'.
 > 
->>>> Running postmark on the final result (at least on my 2-node box) show something
->>>> a lot saner. We are still stealing more inodes than before, but by a factor of
->>>> around 15 %. Since the correct balance is somewhat heuristic anyway - I
->>>> personally think this is acceptable. But I am waiting to hear from you on this
->>>> matter. Meanwhile, I am investigating further to try to pinpoint where exactly
->>>> this comes from. It might either be because of the new node-aware behavior, or
->>>> because of the increased calculation precision in the first patch.
->>>>
->>>
->>> I'm going to defer to Dave as to whether that increased level of slab
->>> reclaim is acceptable or not.
->>
->> Depends on how it changes the balance of the system. I won't know
->> that until I run some new tests.
->>
-> 
-> Thanks
-> 
-Ok guys
+> There should not be any danger in doing this since we are
+> absolutely on the path of freeing these page.  There is no
+> turning back, and no other rerferences can be obtained
+> after it comes out of the radix tree.
 
-The "problem" (change of behavior, actually), lies somewhere between
-those two consecutive patches:
+I get a BUG on this one:
 
-    dcache: convert to use new lru list infrastructure
-    list_lru: per-node list infrastructure
+[   26.114818] ------------[ cut here ]------------
+[   26.115282] kernel BUG at mm/memcontrol.c:4111!
+[   26.115282] invalid opcode: 0000 [#1] PREEMPT SMP 
+[   26.115282] Modules linked in:
+[   26.115282] CPU: 3 PID: 5026 Comm: cc1 Not tainted 3.9.0+ #8
+[   26.115282] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2007
+[   26.115282] task: ffff88007c1cdca0 ti: ffff88001b442000 task.ti: ffff88001b442000
+[   26.115282] RIP: 0010:[<ffffffff810ed425>]  [<ffffffff810ed425>] __mem_cgroup_uncharge_common+0x255/0x2e0
+[   26.115282] RSP: 0000:ffff88001b443708  EFLAGS: 00010206
+[   26.115282] RAX: 4000000000090009 RBX: 0000000000000000 RCX: ffffc90000014001
+[   26.115282] RDX: 0000000000000000 RSI: 0000000000000002 RDI: ffffea00006e5b40
+[   26.115282] RBP: ffff88001b443738 R08: 0000000000000000 R09: 0000000000000000
+[   26.115282] R10: 0000000000000000 R11: 0000000000000000 R12: ffffea00006e5b40
+[   26.115282] R13: 0000000000000000 R14: ffffea00006e5b40 R15: 0000000000000002
+[   26.115282] FS:  00007fabd08ee700(0000) GS:ffff88007fd80000(0000) knlGS:0000000000000000
+[   26.115282] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   26.115282] CR2: 00007fabce27a000 CR3: 000000001985f000 CR4: 00000000000006a0
+[   26.115282] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[   26.115282] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[   26.115282] Stack:
+[   26.115282]  ffffffff810dcbae ffff880064a0a500 0000000000000001 ffffea00006e5b40
+[   26.115282]  ffffea00006e5b40 0000000000000001 ffff88001b443748 ffffffff810f0d05
+[   26.115282]  ffff88001b443778 ffffffff810ddb3e ffff88001b443778 ffffea00006e5b40
+[   26.115282] Call Trace:
+[   26.115282]  [<ffffffff810dcbae>] ? swap_info_get+0x5e/0xe0
+[   26.115282]  [<ffffffff810f0d05>] mem_cgroup_uncharge_swapcache+0x15/0x20
+[   26.115282]  [<ffffffff810ddb3e>] swapcache_free+0x4e/0x70
+[   26.115282]  [<ffffffff810b6e67>] __remove_mapping+0xd7/0x120
+[   26.115282]  [<ffffffff810b8682>] shrink_page_list+0x5c2/0x920
+[   26.115282]  [<ffffffff810b780e>] ? isolate_lru_pages.isra.37+0xae/0x120
+[   26.115282]  [<ffffffff810b8ecf>] shrink_inactive_list+0x13f/0x380
+[   26.115282]  [<ffffffff810b9350>] shrink_lruvec+0x240/0x4e0
+[   26.115282]  [<ffffffff810b9656>] shrink_zone+0x66/0x1a0
+[   26.115282]  [<ffffffff810ba1fb>] do_try_to_free_pages+0xeb/0x570
+[   26.115282]  [<ffffffff810eb7d9>] ? lookup_page_cgroup_used+0x9/0x20
+[   26.115282]  [<ffffffff810ba7af>] try_to_free_pages+0x9f/0xc0
+[   26.115282]  [<ffffffff810b1357>] __alloc_pages_nodemask+0x5a7/0x970
+[   26.115282]  [<ffffffff810cb2be>] handle_pte_fault+0x65e/0x880
+[   26.115282]  [<ffffffff810cc7d9>] handle_mm_fault+0x139/0x1e0
+[   26.115282]  [<ffffffff81027920>] __do_page_fault+0x160/0x460
+[   26.115282]  [<ffffffff810d176c>] ? do_brk+0x1fc/0x360
+[   26.115282]  [<ffffffff81212979>] ? lockdep_sys_exit_thunk+0x35/0x67
+[   26.115282]  [<ffffffff81027c49>] do_page_fault+0x9/0x10
+[   26.115282]  [<ffffffff813b4a72>] page_fault+0x22/0x30
+[   26.115282] Code: a9 00 00 08 00 0f 85 43 fe ff ff e9 b8 fe ff ff 66 0f 1f 44 00 00 41 8b 44 24 18 85 c0 0f 89 2b fe ff ff 0f 1f 00 e9 9d fe ff ff <0f> 0b 66 0f 1f 84 00 00 00 00 00 49 89 9c 24 48 0f 00 00 e9 0a 
+[   26.115282] RIP  [<ffffffff810ed425>] __mem_cgroup_uncharge_common+0x255/0x2e0
+[   26.115282]  RSP <ffff88001b443708>
+[   26.171597] ---[ end trace 5e49a21e51452c24 ]---
 
-I cannot pinpoint it for sure because the results I've got for the first
-one were quite weird, and we have actually stolen *a lot* *less* inodes
-with this patch. I decided to re-run the test just to be sure, but I am
-already back home, so I will grab the results tomorrow.
 
-The fact that the stealing of inodes increases after the list_lru patch
-seems to indicate that this is because we are now able to shrink in
-parallel due to the per node lists. It is only reasonable that we will
-be able to do more work, and it is consistent with expectations.
+mm/memcontrol:4111
+VM_BUG_ON(PageSwapCache(page));
 
-However, to confirm that, I think it would be beneficial to disable one
-of the nodes in my system and then run it again (which I will have to do
-tomorrow). Meanwhile, of course, other tests and validations from Dave
-are welcome.
+Seems that mem_cgroup_uncharge_swapcache, somewhat ironically expects the
+SwapCache flag to be unset already.
+
+Fix might be a simple as removing that VM_BUG_ON() but there might be more to
+it.  There usually is :)
+
+Seth
+
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> ---
+> 
+>  linux.git-davehans/mm/swap_state.c |    4 ++--
+>  linux.git-davehans/mm/vmscan.c     |    2 ++
+>  2 files changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff -puN mm/swap_state.c~__delete_from_swap_cache-dont-clear-page-private mm/swap_state.c
+> --- linux.git/mm/swap_state.c~__delete_from_swap_cache-dont-clear-page-private	2013-05-07 13:48:13.698044473 -0700
+> +++ linux.git-davehans/mm/swap_state.c	2013-05-07 13:48:13.703044693 -0700
+> @@ -146,8 +146,6 @@ void __delete_from_swap_cache(struct pag
+>  	entry.val = page_private(page);
+>  	address_space = swap_address_space(entry);
+>  	radix_tree_delete(&address_space->page_tree, page_private(page));
+> -	set_page_private(page, 0);
+> -	ClearPageSwapCache(page);
+>  	address_space->nrpages--;
+>  	__dec_zone_page_state(page, NR_FILE_PAGES);
+>  	INC_CACHE_INFO(del_total);
+> @@ -224,6 +222,8 @@ void delete_from_swap_cache(struct page
+>  	spin_unlock_irq(&address_space->tree_lock);
+> 
+>  	swapcache_free(entry, page);
+> +	set_page_private(page, 0);
+> +	ClearPageSwapCache(page);
+>  	page_cache_release(page);
+>  }
+> 
+> diff -puN mm/vmscan.c~__delete_from_swap_cache-dont-clear-page-private mm/vmscan.c
+> --- linux.git/mm/vmscan.c~__delete_from_swap_cache-dont-clear-page-private	2013-05-07 13:48:13.700044561 -0700
+> +++ linux.git-davehans/mm/vmscan.c	2013-05-07 13:48:13.705044783 -0700
+> @@ -494,6 +494,8 @@ static int __remove_mapping(struct addre
+>  		__delete_from_swap_cache(page);
+>  		spin_unlock_irq(&mapping->tree_lock);
+>  		swapcache_free(swap, page);
+> +		set_page_private(page, 0);
+> +		ClearPageSwapCache(page);
+>  	} else {
+>  		void (*freepage)(struct page *);
+> 
+> _
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
