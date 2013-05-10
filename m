@@ -1,68 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 0A29A6B0034
-	for <linux-mm@kvack.org>; Fri, 10 May 2013 04:44:15 -0400 (EDT)
-Date: Fri, 10 May 2013 17:44:13 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3] mm: remove compressed copy from zram in-memory
-Message-ID: <20130510084413.GA2683@blaptop>
-References: <1368056517-31065-1-git-send-email-minchan@kernel.org>
- <20130509201540.GB5273@localhost.localdomain>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 2FBD16B0034
+	for <linux-mm@kvack.org>; Fri, 10 May 2013 05:00:35 -0400 (EDT)
+Date: Fri, 10 May 2013 10:00:26 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v5 17/31] drivers: convert shrinkers to new count/scan API
+Message-ID: <20130510090026.GJ11497@suse.de>
+References: <1368079608-5611-1-git-send-email-glommer@openvz.org>
+ <1368079608-5611-18-git-send-email-glommer@openvz.org>
+ <20130509135209.GZ11497@suse.de>
+ <518C12D6.4060003@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130509201540.GB5273@localhost.localdomain>
+In-Reply-To: <518C12D6.4060003@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Daniel Vetter <daniel.vetter@ffwll.ch>, Kent Overstreet <koverstreet@google.com>, Arve Hj?nnev?g <arve@android.com>, John Stultz <john.stultz@linaro.org>, David Rientjes <rientjes@google.com>, Jerome Glisse <jglisse@redhat.com>, Thomas Hellstrom <thellstrom@vmware.com>
 
-Hi Konrad,
-
-On Thu, May 09, 2013 at 04:15:42PM -0400, Konrad Rzeszutek Wilk wrote:
-> On Thu, May 09, 2013 at 08:41:57AM +0900, Minchan Kim wrote:
-> 
-> Hey Michan,
-        ^-n
-
-It's a only thing I can know better than other native speakers. :)
-
- 
-> Just a couple of syntax corrections. The code comment could also
-> benefit from this.
-> 
-> Otherwise it looks OK to me.
-> 
-> > Swap subsystem does lazy swap slot free with expecting the page
->                      ^-a                       ^- the expectation that
-> > would be swapped out again so we can avoid unnecessary write.
->                                 ^--that it
+On Fri, May 10, 2013 at 01:19:18AM +0400, Glauber Costa wrote:
 > > 
-> > But the problem in in-memory swap(ex, zram) is that it consumes
->                   ^^-with
-> > memory space until vm_swap_full(ie, used half of all of swap device)
-> > condition meet. It could be bad if we use multiple swap device,
->            ^- 'is'   ^^^^^ - 'would'                       ^^^^^-devices                    
-> > small in-memory swap and big storage swap or in-memory swap alone.
->                       ^-,                   ^-,
+> > Last time I complained about some of the shrinker implementations but
+> > I'm not expecting them to be fixed in this series. However I still have
+> > questions about where -1 should be returned that I don't think were
+> > addressed so I'll repeat them.
 > > 
-> > This patch makes swap subsystem free swap slot as soon as swap-read
-> > is completed and make the swapcache page dirty so the page should
->                        ^-makes                      ^-'that the'
-> > be written out the swap device to reclaim it.
-> > It means we never lose it.
-> > 
-> > I tested this patch with kernel compile workload.
->                           ^-a
+> 
+> Note that the series try to keep the same behavior as we had before.
+> (modulo mistakes, spotting them are mostly welcome)
+> 
+> So if we are changing any of this, maybe better done in a separate patch?
+> 
 
-Thanks for the correct whole sentence!
-But Andrew alreay correted it with his style.
-Although he was done, I'm giving a million thanks to you.
-Surely, Thanks Andrew, too.
+Ok, that's fair enough and a separate patch does make sense. I thought
+it was an oversight when the -1 return value was documented but not all
+callers were updated even though it looked appropriate. Slap a comment
+above the highlighted places suggesting that a return value of -1 be used
+instead so it does not get lost maybe?
+
+Whether you do that or not
+
+Acked-by: Mel Gorman <mgorman@suse.de>
 
 -- 
-Kind regards,
-Minchan Kim
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
