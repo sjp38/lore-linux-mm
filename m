@@ -1,130 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id B2EEA6B0034
-	for <linux-mm@kvack.org>; Fri, 10 May 2013 06:01:27 -0400 (EDT)
-Date: Fri, 10 May 2013 11:01:21 +0100
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 797926B0033
+	for <linux-mm@kvack.org>; Fri, 10 May 2013 06:28:13 -0400 (EDT)
+Date: Fri, 10 May 2013 11:28:09 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v5 08/31] list: add a new LRU list type
-Message-ID: <20130510100121.GN11497@suse.de>
-References: <1368079608-5611-1-git-send-email-glommer@openvz.org>
- <1368079608-5611-9-git-send-email-glommer@openvz.org>
- <20130509133742.GW11497@suse.de>
- <518C0ECF.8010302@parallels.com>
- <20130510092105.GK11497@suse.de>
- <518CC44D.1020409@parallels.com>
+Subject: Re: [PATCH RFC] mm: lru milestones, timestamps and ages
+Message-ID: <20130510102809.GA31738@suse.de>
+References: <20130430110214.22179.26139.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <518CC44D.1020409@parallels.com>
+In-Reply-To: <20130430110214.22179.26139.stgit@zurg>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org
 
-On Fri, May 10, 2013 at 01:56:29PM +0400, Glauber Costa wrote:
-> On 05/10/2013 01:21 PM, Mel Gorman wrote:
-> > On Fri, May 10, 2013 at 01:02:07AM +0400, Glauber Costa wrote:
-> >> On 05/09/2013 05:37 PM, Mel Gorman wrote:
-> >>> On Thu, May 09, 2013 at 10:06:25AM +0400, Glauber Costa wrote:
-> >>>> From: Dave Chinner <dchinner@redhat.com>
-> >>>>
-> >>>> Several subsystems use the same construct for LRU lists - a list
-> >>>> head, a spin lock and and item count. They also use exactly the same
-> >>>> code for adding and removing items from the LRU. Create a generic
-> >>>> type for these LRU lists.
-> >>>>
-> >>>> This is the beginning of generic, node aware LRUs for shrinkers to
-> >>>> work with.
-> >>>>
-> >>>> [ glommer: enum defined constants for lru. Suggested by gthelen,
-> >>>>   don't relock over retry ]
-> >>>> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> >>>> Signed-off-by: Glauber Costa <glommer@openvz.org>
-> >>>> Reviewed-by: Greg Thelen <gthelen@google.com>
-> >>>>>
-> >>>>> <SNIP>
-> >>>>>
-> >>>> +
-> >>>> +unsigned long
-> >>>> +list_lru_walk(
-> >>>> +	struct list_lru *lru,
-> >>>> +	list_lru_walk_cb isolate,
-> >>>> +	void		*cb_arg,
-> >>>> +	long		nr_to_walk)
-> >>>> +{
-> >>>> +	struct list_head *item, *n;
-> >>>> +	unsigned long removed = 0;
-> >>>> +
-> >>>> +	spin_lock(&lru->lock);
-> >>>> +restart:
-> >>>> +	list_for_each_safe(item, n, &lru->list) {
-> >>>> +		enum lru_status ret;
-> >>>> +
-> >>>> +		if (nr_to_walk-- < 0)
-> >>>> +			break;
-> >>>> +
-> >>>> +		ret = isolate(item, &lru->lock, cb_arg);
-> >>>> +		switch (ret) {
-> >>>> +		case LRU_REMOVED:
-> >>>> +			lru->nr_items--;
-> >>>> +			removed++;
-> >>>> +			break;
-> >>>> +		case LRU_ROTATE:
-> >>>> +			list_move_tail(item, &lru->list);
-> >>>> +			break;
-> >>>> +		case LRU_SKIP:
-> >>>> +			break;
-> >>>> +		case LRU_RETRY:
-> >>>> +			goto restart;
-> >>>> +		default:
-> >>>> +			BUG();
-> >>>> +		}
-> >>>> +	}
-> >>>
-> >>> What happened your suggestion to only retry once for each object to
-> >>> avoid any possibility of infinite looping or stalling for prolonged
-> >>> periods of time waiting on XFS to do something?
-> >>>
-> >>
-> >> Sorry. It wasn't clear for me if you were just trying to make sure we
-> >> had a way out in case it proves to be a problem, or actually wanted a
-> >> change.
-> >>
-> > 
-> > Either. If you are sure there is a way out for XFS using LRU_RETRY without
-> > prolonged stalls then it's fine. If it is not certain then I would be much
-> > more comfortable with a retry-once and then moving onto the next LRU node.
-> > 
-> >> In any case, I cannot claim to be as knowledgeable as Dave in the
-> >> subtleties of such things in the final behavior of the shrinker. Dave,
-> >> can you give us your input here?
-> >>
-> >> I also have another recent observation on this:
-> >>
-> >> The main difference between LRU_SKIP and LRU_RETRY is that LRU_RETRY
-> >> will go back to the beginning of the list, and start scanning it again.
-> >>
-> > 
-> > Only sortof true. Lets say we had a list of 8 LRU nodes. Nodes 1-3 get
-> > isolated. Node 4 returns LRU_RETRY so we goto restart. The first item on
-> > the list is now potentially LRU_RETRY which it must handle before
-> > reaching Nodes 5-8
-> > 
-> > LRU_SKIP is different. If Node 4 returned LRU_SKIP then Node 5-8 are
-> > ignored entirely. Actually..... why is that? LRU_SKIP is documented to
-> > "item cannot be locked, skip" but what it actually does it "item cannot
-> > be locked, abort the walk". It's documented behaviour LRU_SKIP implies
-> > continue, not break.
-> > 
-> > 	case LRU_SKIP:
-> > 		continue;
-> > 
-> 
-> but we are only breaking the switch statement, so this is a de facto
-> continue.
-> 
+On Tue, Apr 30, 2013 at 03:02:14PM +0400, Konstantin Khlebnikov wrote:
+> +static inline bool
+> +is_lru_milestone(struct lruvec *lruvec, struct list_head *list)
+> +{
+> +	return unlikely(list >= &lruvec->milestones[0][0].lru &&
+> +			list <  &lruvec->milestones[NR_EVICTABLE_LRU_LISTS]
+> +						   [NR_LRU_MILESTONES].lru);
+> +}
+> +
 
-Bah, I'm a tool.
+Not reviewing properly yet, just taking a quick look out of interest but
+this check may be delicate.  32-bit x86 machines start the kernel direct
+mapping at 0xC0000000 so milestones[0][0].lru will have some value betewen
+0xC0000000 and 0xFFFFFFFF. HZ=250 on my distro config so after 0xC0000000
+jiffies or a bit over 149 days of uptime, it looks like there will be a
+window where LRU entries look like milestones. If I'm right, that is
+bound to cause problems.
 
 -- 
 Mel Gorman
