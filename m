@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 754846B0034
-	for <linux-mm@kvack.org>; Fri, 10 May 2013 04:17:09 -0400 (EDT)
-Date: Fri, 10 May 2013 18:16:41 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v5 04/31] dentry: move to per-sb LRU locks
-Message-ID: <20130510081641.GS23072@dastard>
-References: <1368079608-5611-1-git-send-email-glommer@openvz.org>
- <1368079608-5611-5-git-send-email-glommer@openvz.org>
- <20130510052934.GR23072@dastard>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 0A29A6B0034
+	for <linux-mm@kvack.org>; Fri, 10 May 2013 04:44:15 -0400 (EDT)
+Date: Fri, 10 May 2013 17:44:13 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v3] mm: remove compressed copy from zram in-memory
+Message-ID: <20130510084413.GA2683@blaptop>
+References: <1368056517-31065-1-git-send-email-minchan@kernel.org>
+ <20130509201540.GB5273@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130510052934.GR23072@dastard>
+In-Reply-To: <20130509201540.GB5273@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@openvz.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
+To: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
 
-On Fri, May 10, 2013 at 03:29:34PM +1000, Dave Chinner wrote:
-> On Thu, May 09, 2013 at 10:06:21AM +0400, Glauber Costa wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > With the dentry LRUs being per-sb structures, there is no real need
-> > for a global dentry_lru_lock. The locking can be made more
-> > fine-grained by moving to a per-sb LRU lock, isolating the LRU
-> > operations of different filesytsems completely from each other.
-> > 
-> > Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> > Reviewed-by: Christoph Hellwig <hch@lst.de>
-> > Acked-by: Mel Gorman <mgorman@suse.de>
+Hi Konrad,
+
+On Thu, May 09, 2013 at 04:15:42PM -0400, Konrad Rzeszutek Wilk wrote:
+> On Thu, May 09, 2013 at 08:41:57AM +0900, Minchan Kim wrote:
 > 
-> Doesn't apply to a current linus tree. What is this patchset based
+> Hey Michan,
+        ^-n
 
-No, this is too painful. It doesn't apply to a 3.9 tree, and it
-BUG-ONs in the dcache on a current Linus tree, probably because I
-didn't resolve one of the 10 or so patches that didn't apply
-correctly....
+It's a only thing I can know better than other native speakers. :)
 
-So, I'm going to wait until there's a version that applies to the
-current TOT and go from there....
+ 
+> Just a couple of syntax corrections. The code comment could also
+> benefit from this.
+> 
+> Otherwise it looks OK to me.
+> 
+> > Swap subsystem does lazy swap slot free with expecting the page
+>                      ^-a                       ^- the expectation that
+> > would be swapped out again so we can avoid unnecessary write.
+>                                 ^--that it
+> > 
+> > But the problem in in-memory swap(ex, zram) is that it consumes
+>                   ^^-with
+> > memory space until vm_swap_full(ie, used half of all of swap device)
+> > condition meet. It could be bad if we use multiple swap device,
+>            ^- 'is'   ^^^^^ - 'would'                       ^^^^^-devices                    
+> > small in-memory swap and big storage swap or in-memory swap alone.
+>                       ^-,                   ^-,
+> > 
+> > This patch makes swap subsystem free swap slot as soon as swap-read
+> > is completed and make the swapcache page dirty so the page should
+>                        ^-makes                      ^-'that the'
+> > be written out the swap device to reclaim it.
+> > It means we never lose it.
+> > 
+> > I tested this patch with kernel compile workload.
+>                           ^-a
 
-Cheers,
+Thanks for the correct whole sentence!
+But Andrew alreay correted it with his style.
+Although he was done, I'm giving a million thanks to you.
+Surely, Thanks Andrew, too.
 
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
