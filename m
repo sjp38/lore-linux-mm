@@ -1,205 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 9EC2A6B0036
-	for <linux-mm@kvack.org>; Fri, 10 May 2013 05:21:10 -0400 (EDT)
-Date: Fri, 10 May 2013 10:21:05 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v5 08/31] list: add a new LRU list type
-Message-ID: <20130510092105.GK11497@suse.de>
-References: <1368079608-5611-1-git-send-email-glommer@openvz.org>
- <1368079608-5611-9-git-send-email-glommer@openvz.org>
- <20130509133742.GW11497@suse.de>
- <518C0ECF.8010302@parallels.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id B33466B0034
+	for <linux-mm@kvack.org>; Fri, 10 May 2013 05:26:52 -0400 (EDT)
+Date: Fri, 10 May 2013 11:26:49 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC][PATCH 1/7] defer clearing of page_private() for swap cache
+ pages
+Message-ID: <20130510092649.GA14968@dhcp22.suse.cz>
+References: <20130507211954.9815F9D1@viggo.jf.intel.com>
+ <20130507211955.7DF88A4F@viggo.jf.intel.com>
+ <20130509220739.GA14840@cerebellum>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <518C0ECF.8010302@parallels.com>
+In-Reply-To: <20130509220739.GA14840@cerebellum>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, hughd@google.com, Greg Thelen <gthelen@google.com>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com
 
-On Fri, May 10, 2013 at 01:02:07AM +0400, Glauber Costa wrote:
-> On 05/09/2013 05:37 PM, Mel Gorman wrote:
-> > On Thu, May 09, 2013 at 10:06:25AM +0400, Glauber Costa wrote:
-> >> From: Dave Chinner <dchinner@redhat.com>
-> >>
-> >> Several subsystems use the same construct for LRU lists - a list
-> >> head, a spin lock and and item count. They also use exactly the same
-> >> code for adding and removing items from the LRU. Create a generic
-> >> type for these LRU lists.
-> >>
-> >> This is the beginning of generic, node aware LRUs for shrinkers to
-> >> work with.
-> >>
-> >> [ glommer: enum defined constants for lru. Suggested by gthelen,
-> >>   don't relock over retry ]
-> >> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> >> Signed-off-by: Glauber Costa <glommer@openvz.org>
-> >> Reviewed-by: Greg Thelen <gthelen@google.com>
-> >>>
-> >>> <SNIP>
-> >>>
-> >> +
-> >> +unsigned long
-> >> +list_lru_walk(
-> >> +	struct list_lru *lru,
-> >> +	list_lru_walk_cb isolate,
-> >> +	void		*cb_arg,
-> >> +	long		nr_to_walk)
-> >> +{
-> >> +	struct list_head *item, *n;
-> >> +	unsigned long removed = 0;
-> >> +
-> >> +	spin_lock(&lru->lock);
-> >> +restart:
-> >> +	list_for_each_safe(item, n, &lru->list) {
-> >> +		enum lru_status ret;
-> >> +
-> >> +		if (nr_to_walk-- < 0)
-> >> +			break;
-> >> +
-> >> +		ret = isolate(item, &lru->lock, cb_arg);
-> >> +		switch (ret) {
-> >> +		case LRU_REMOVED:
-> >> +			lru->nr_items--;
-> >> +			removed++;
-> >> +			break;
-> >> +		case LRU_ROTATE:
-> >> +			list_move_tail(item, &lru->list);
-> >> +			break;
-> >> +		case LRU_SKIP:
-> >> +			break;
-> >> +		case LRU_RETRY:
-> >> +			goto restart;
-> >> +		default:
-> >> +			BUG();
-> >> +		}
-> >> +	}
+On Thu 09-05-13 17:07:39, Seth Jennings wrote:
+> On Tue, May 07, 2013 at 02:19:55PM -0700, Dave Hansen wrote:
 > > 
-> > What happened your suggestion to only retry once for each object to
-> > avoid any possibility of infinite looping or stalling for prolonged
-> > periods of time waiting on XFS to do something?
+> > From: Dave Hansen <dave.hansen@linux.intel.com>
 > > 
->
-> Sorry. It wasn't clear for me if you were just trying to make sure we
-> had a way out in case it proves to be a problem, or actually wanted a
-> change.
+> > There are only two callers of swapcache_free() which actually
+> > pass in a non-NULL 'struct page'.  Both of them
+> > (__remove_mapping and delete_from_swap_cache())  create a
+> > temporary on-stack 'swp_entry_t' and set entry.val to
+> > page_private().
+> > 
+> > They need to do this since __delete_from_swap_cache() does
+> > set_page_private(page, 0) and destroys the information.
+> > 
+> > However, I'd like to batch a few of these operations on several
+> > pages together in a new version of __remove_mapping(), and I
+> > would prefer not to have to allocate temporary storage for
+> > each page.  The code is pretty ugly, and it's a bit silly
+> > to create these on-stack 'swp_entry_t's when it is so easy to
+> > just keep the information around in 'struct page'.
+> > 
+> > There should not be any danger in doing this since we are
+> > absolutely on the path of freeing these page.  There is no
+> > turning back, and no other rerferences can be obtained
+> > after it comes out of the radix tree.
 > 
-
-Either. If you are sure there is a way out for XFS using LRU_RETRY without
-prolonged stalls then it's fine. If it is not certain then I would be much
-more comfortable with a retry-once and then moving onto the next LRU node.
-
-> In any case, I cannot claim to be as knowledgeable as Dave in the
-> subtleties of such things in the final behavior of the shrinker. Dave,
-> can you give us your input here?
+> I get a BUG on this one:
 > 
-> I also have another recent observation on this:
+> [   26.114818] ------------[ cut here ]------------
+> [   26.115282] kernel BUG at mm/memcontrol.c:4111!
+> [   26.115282] invalid opcode: 0000 [#1] PREEMPT SMP 
+> [   26.115282] Modules linked in:
+> [   26.115282] CPU: 3 PID: 5026 Comm: cc1 Not tainted 3.9.0+ #8
+> [   26.115282] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2007
+> [   26.115282] task: ffff88007c1cdca0 ti: ffff88001b442000 task.ti: ffff88001b442000
+> [   26.115282] RIP: 0010:[<ffffffff810ed425>]  [<ffffffff810ed425>] __mem_cgroup_uncharge_common+0x255/0x2e0
+> [   26.115282] RSP: 0000:ffff88001b443708  EFLAGS: 00010206
+> [   26.115282] RAX: 4000000000090009 RBX: 0000000000000000 RCX: ffffc90000014001
+> [   26.115282] RDX: 0000000000000000 RSI: 0000000000000002 RDI: ffffea00006e5b40
+> [   26.115282] RBP: ffff88001b443738 R08: 0000000000000000 R09: 0000000000000000
+> [   26.115282] R10: 0000000000000000 R11: 0000000000000000 R12: ffffea00006e5b40
+> [   26.115282] R13: 0000000000000000 R14: ffffea00006e5b40 R15: 0000000000000002
+> [   26.115282] FS:  00007fabd08ee700(0000) GS:ffff88007fd80000(0000) knlGS:0000000000000000
+> [   26.115282] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [   26.115282] CR2: 00007fabce27a000 CR3: 000000001985f000 CR4: 00000000000006a0
+> [   26.115282] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> [   26.115282] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> [   26.115282] Stack:
+> [   26.115282]  ffffffff810dcbae ffff880064a0a500 0000000000000001 ffffea00006e5b40
+> [   26.115282]  ffffea00006e5b40 0000000000000001 ffff88001b443748 ffffffff810f0d05
+> [   26.115282]  ffff88001b443778 ffffffff810ddb3e ffff88001b443778 ffffea00006e5b40
+> [   26.115282] Call Trace:
+> [   26.115282]  [<ffffffff810dcbae>] ? swap_info_get+0x5e/0xe0
+> [   26.115282]  [<ffffffff810f0d05>] mem_cgroup_uncharge_swapcache+0x15/0x20
+> [   26.115282]  [<ffffffff810ddb3e>] swapcache_free+0x4e/0x70
+> [   26.115282]  [<ffffffff810b6e67>] __remove_mapping+0xd7/0x120
+> [   26.115282]  [<ffffffff810b8682>] shrink_page_list+0x5c2/0x920
+> [   26.115282]  [<ffffffff810b780e>] ? isolate_lru_pages.isra.37+0xae/0x120
+> [   26.115282]  [<ffffffff810b8ecf>] shrink_inactive_list+0x13f/0x380
+> [   26.115282]  [<ffffffff810b9350>] shrink_lruvec+0x240/0x4e0
+> [   26.115282]  [<ffffffff810b9656>] shrink_zone+0x66/0x1a0
+> [   26.115282]  [<ffffffff810ba1fb>] do_try_to_free_pages+0xeb/0x570
+> [   26.115282]  [<ffffffff810eb7d9>] ? lookup_page_cgroup_used+0x9/0x20
+> [   26.115282]  [<ffffffff810ba7af>] try_to_free_pages+0x9f/0xc0
+> [   26.115282]  [<ffffffff810b1357>] __alloc_pages_nodemask+0x5a7/0x970
+> [   26.115282]  [<ffffffff810cb2be>] handle_pte_fault+0x65e/0x880
+> [   26.115282]  [<ffffffff810cc7d9>] handle_mm_fault+0x139/0x1e0
+> [   26.115282]  [<ffffffff81027920>] __do_page_fault+0x160/0x460
+> [   26.115282]  [<ffffffff810d176c>] ? do_brk+0x1fc/0x360
+> [   26.115282]  [<ffffffff81212979>] ? lockdep_sys_exit_thunk+0x35/0x67
+> [   26.115282]  [<ffffffff81027c49>] do_page_fault+0x9/0x10
+> [   26.115282]  [<ffffffff813b4a72>] page_fault+0x22/0x30
+> [   26.115282] Code: a9 00 00 08 00 0f 85 43 fe ff ff e9 b8 fe ff ff 66 0f 1f 44 00 00 41 8b 44 24 18 85 c0 0f 89 2b fe ff ff 0f 1f 00 e9 9d fe ff ff <0f> 0b 66 0f 1f 84 00 00 00 00 00 49 89 9c 24 48 0f 00 00 e9 0a 
+> [   26.115282] RIP  [<ffffffff810ed425>] __mem_cgroup_uncharge_common+0x255/0x2e0
+> [   26.115282]  RSP <ffff88001b443708>
+> [   26.171597] ---[ end trace 5e49a21e51452c24 ]---
 > 
-> The main difference between LRU_SKIP and LRU_RETRY is that LRU_RETRY
-> will go back to the beginning of the list, and start scanning it again.
 > 
-
-Only sortof true. Lets say we had a list of 8 LRU nodes. Nodes 1-3 get
-isolated. Node 4 returns LRU_RETRY so we goto restart. The first item on
-the list is now potentially LRU_RETRY which it must handle before
-reaching Nodes 5-8
-
-LRU_SKIP is different. If Node 4 returned LRU_SKIP then Node 5-8 are
-ignored entirely. Actually..... why is that? LRU_SKIP is documented to
-"item cannot be locked, skip" but what it actually does it "item cannot
-be locked, abort the walk". It's documented behaviour LRU_SKIP implies
-continue, not break.
-
-	case LRU_SKIP:
-		continue;
-
-> This is *not* the same behavior we had before, where we used to read:
+> mm/memcontrol:4111
+> VM_BUG_ON(PageSwapCache(page));
 > 
->         for (nr_scanned = nr_to_scan; nr_scanned >= 0; nr_scanned--) {
->                 struct inode *inode;
->                 [ ... ]
+> Seems that mem_cgroup_uncharge_swapcache, somewhat ironically expects the
+> SwapCache flag to be unset already.
 > 
->                 if (inode_has_buffers(inode) || inode->i_data.nrpages) {
->                         __iget(inode);
->                         [ ... ]
->                         iput(inode);
->                         spin_lock(&sb->s_inode_lru_lock);
-> 
->                         if (inode != list_entry(sb->s_inode_lru.next,
->                                                 struct inode, i_lru))
->                                 continue; <=====
->                         /* avoid lock inversions with trylock */
->                         if (!spin_trylock(&inode->i_lock))
->                                 continue; <=====
->                         if (!can_unuse(inode)) {
->                                 spin_unlock(&inode->i_lock);
->                                 continue; <=====
->                         }
->                 }
-> 
-> It is my interpretation that we in here, we won't really reset the
-> search, but just skip this inode.
-> 
-> Another problem is that by restarting the search the way we are doing
-> now, we actually decrement nr_to_walk twice in case of a retry. By doing
-> a retry-once test, we can actually move nr_to_walk to the end of the
-> switch statement, which has the good side effect of getting rid of the
-> reason we had to allow it to go negative.
-> 
-> How about we fold the following attached patch to this one? (I would
-> still have to give it a round of testing)
-> 
+> Fix might be a simple as removing that VM_BUG_ON() but there might be more to
+> it.  There usually is :)
 
-> diff --git a/lib/list_lru.c b/lib/list_lru.c
-> index da9b837..4aa069b 100644
-> --- a/lib/list_lru.c
-> +++ b/lib/list_lru.c
-> @@ -195,12 +195,10 @@ list_lru_walk_node(
->  	unsigned long isolated = 0;
->  
->  	spin_lock(&nlru->lock);
-> -restart:
->  	list_for_each_safe(item, n, &nlru->list) {
-> +		bool first_pass = true;
->  		enum lru_status ret;
-> -
-> -		if ((*nr_to_walk)-- < 0)
-> -			break;
-> +restart:
->  
->  		ret = isolate(item, &nlru->lock, cb_arg);
->  		switch (ret) {
-> @@ -217,10 +215,17 @@ restart:
->  		case LRU_SKIP:
->  			break;
->  		case LRU_RETRY:
-> +			if (!first_pass)
-> +				break;
-> +			first_pass = true;
->  			goto restart;
-
-I think this is generally much safer and less likely to report bugs
-about occasional long stalls during slab shrink.
-
-Similar to LRU_SKIP comment above, should this be continue though to
-actually skip the LRU node instead of aborting the LRU walk?
-
->  		default:
->  			BUG();
->  		}
-> +
-> +		if ((*nr_to_walk)-- == 0)
-> +			break;
-> +
->  	}
->  	spin_unlock(&nlru->lock);
->  	return isolated;
-
-
+This has been already fixed in the -mm tree
+(http://git.kernel.org/cgit/linux/kernel/git/mhocko/mm.git/commit/?h=since-3.9&id=b341f7ffa5fe6ae11afa87e2fecc32c6093541f8)
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
