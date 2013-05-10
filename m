@@ -1,46 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 65CFC6B0034
-	for <linux-mm@kvack.org>; Fri, 10 May 2013 10:12:15 -0400 (EDT)
-Received: by mail-la0-f51.google.com with SMTP id ep20so4035303lab.38
-        for <linux-mm@kvack.org>; Fri, 10 May 2013 07:12:13 -0700 (PDT)
-Message-ID: <518D0039.6070006@openvz.org>
-Date: Fri, 10 May 2013 18:12:09 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 852F46B0033
+	for <linux-mm@kvack.org>; Fri, 10 May 2013 11:57:46 -0400 (EDT)
+Received: by mail-ie0-f173.google.com with SMTP id k5so8330102iea.4
+        for <linux-mm@kvack.org>; Fri, 10 May 2013 08:57:45 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC] mm: lru milestones, timestamps and ages
-References: <20130430110214.22179.26139.stgit@zurg> <20130510102809.GA31738@suse.de>
-In-Reply-To: <20130510102809.GA31738@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20130509165717.GA9548@medulla>
+References: <518BB132.5050802@gmail.com>
+	<518BB3B1.8010207@gmail.com>
+	<20130509165717.GA9548@medulla>
+Date: Fri, 10 May 2013 11:57:45 -0400
+Message-ID: <CALS39Muh6-AoGBF0odz4OuMaDojdhJAd6D6y2emuApjQbk8LLw@mail.gmail.com>
+Subject: Re: misunderstanding of the virtual memory
+From: Benjamin Teissier <ben.teissier@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
 Cc: linux-mm@kvack.org
 
-Mel Gorman wrote:
-> On Tue, Apr 30, 2013 at 03:02:14PM +0400, Konstantin Khlebnikov wrote:
->> +static inline bool
->> +is_lru_milestone(struct lruvec *lruvec, struct list_head *list)
->> +{
->> +	return unlikely(list>=&lruvec->milestones[0][0].lru&&
->> +			list<   &lruvec->milestones[NR_EVICTABLE_LRU_LISTS]
->> +						   [NR_LRU_MILESTONES].lru);
->> +}
->> +
+2013/5/9, Seth Jennings <sjenning@linux.vnet.ibm.com>:
+> On Thu, May 09, 2013 at 10:33:21AM -0400, Ben Teissier wrote:
+>>
+>> Hi,
+>>
+>> I'm Benjamin and I'm studying the kernel. I write you this email
+>> because I've a trouble with the mmu and the virtual memory. I try to
+>> understand how a program (user land) can write something into the stack
+>> (push ebp, for example), indeed, the program works with virtual address
+>> (between 0x00000 and 0x8... if my memory is good) but at the hardware
+>> side the address is not the same (that's why mmu was created, if I'm
+>> right).
 >
-> Not reviewing properly yet, just taking a quick look out of interest but
-> this check may be delicate.  32-bit x86 machines start the kernel direct
-> mapping at 0xC0000000 so milestones[0][0].lru will have some value betewen
-> 0xC0000000 and 0xFFFFFFFF. HZ=250 on my distro config so after 0xC0000000
-> jiffies or a bit over 149 days of uptime, it looks like there will be a
-> window where LRU entries look like milestones. If I'm right, that is
-> bound to cause problems.
+> Yes, this is the purpose of pages tables; to map virtual addresses to real
+> memory addresses (more precisely virtual memory _pages_ to real memory
+> pages).
+>
+>>
+>> My problem is the following : how the data is wrote on the physical
+>> memory. When I try a strace (kernel 2.6.32 on a simple program) I have
+>> no hint on the transfer of data. Moreover, according to the wikipedia
+>> web page on syscall (
+>> https://en.wikipedia.org/wiki/System_call#The_library_as_an_intermediary
+>> ), a call is not managed by the kernel. So, how the transfer between
+>> virtual memory and physical memory is possible ?
+>
+> That is because writing to a memory location in userspace isn't an
+> operation
+> that requires a syscall or any kind of kernel intervention at all.  It is
+> an
+> assembly store instruction executed directly on the CPU by the program.
+> The
+> only time the kernel is involved in a store operation is if the virtual
+> address
+> translation doesn't exist in the TLB (or is write-protected, etc..), in
+> which
+> case the hardware generates a fault so the kernel take the required action
+> to
+> populate the TLB with the translation.
+>
+> Hope this answers your question.
+>
+> Seth
+>
 >
 
-Nope. There is no such dangerous magic. This function compares only pointers.
-List heads in page LRU list can be either &page->lru or &lru_milestone->lru.
-Since milestones are embedded into struct lruvec we can separate them in this way.
+Hi,
+
+Your answer is perfect, thanks a lot for your help !
+
+Benjamin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
