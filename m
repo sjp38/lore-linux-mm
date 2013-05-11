@@ -1,78 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 519086B0032
-	for <linux-mm@kvack.org>; Fri, 10 May 2013 21:19:21 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id z12so4477646wgg.11
-        for <linux-mm@kvack.org>; Fri, 10 May 2013 18:19:19 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 82C786B0032
+	for <linux-mm@kvack.org>; Sat, 11 May 2013 04:19:38 -0400 (EDT)
+Received: from mailout-de.gmx.net ([10.1.76.33]) by mrigmx.server.lan
+ (mrigmx002) with ESMTP (Nemesis) id 0MZzWr-1UpZNG0ilz-00LkNA for
+ <linux-mm@kvack.org>; Sat, 11 May 2013 10:19:37 +0200
+Message-ID: <518DFF16.1070408@gmx.de>
+Date: Sat, 11 May 2013 10:19:34 +0200
+From: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
 MIME-Version: 1.0
-Reply-To: konrad@darnok.org
-In-Reply-To: <20130510084413.GA2683@blaptop>
-References: <1368056517-31065-1-git-send-email-minchan@kernel.org>
- <20130509201540.GB5273@localhost.localdomain> <20130510084413.GA2683@blaptop>
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Date: Fri, 10 May 2013 21:18:59 -0400
-Message-ID: <CAPbh3rsVnvEmH+sRoRYjGi3DERMkzFPmOn=a_Gt0uAMnLLmZJg@mail.gmail.com>
-Subject: Re: [PATCH v3] mm: remove compressed copy from zram in-memory
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: WARNING: at mm/slab_common.c:376 kmalloc_slab+0x33/0x80()
+References: <518D6C18.4070607@gmx.de>
+In-Reply-To: <518D6C18.4070607@gmx.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
+To: linux-mm@kvack.org
+Cc: "user-mode-linux-user@lists.sourceforge.net" <user-mode-linux-user@lists.sourceforge.net>
 
-On Fri, May 10, 2013 at 4:44 AM, Minchan Kim <minchan@kernel.org> wrote:
-> Hi Konrad,
->
-> On Thu, May 09, 2013 at 04:15:42PM -0400, Konrad Rzeszutek Wilk wrote:
->> On Thu, May 09, 2013 at 08:41:57AM +0900, Minchan Kim wrote:
->>
->> Hey Michan,
->         ^-n
->
-> It's a only thing I can know better than other native speakers. :)
+On 05/10/2013 11:52 PM, Toralf FA?rster wrote:
+> The bisected commit introduced this WARNING: on a user mode linux guest
+> if the UML guest is fuzz tested with trinity :
 
-I keep on misspelling your name. I am really sorry about that.
+Well, the behaviour is much older, a test with an UML guest kernel 3.7.10 showed a similar thing :
+Sry for the noise.
 
->
->
->> Just a couple of syntax corrections. The code comment could also
->> benefit from this.
->>
->> Otherwise it looks OK to me.
->>
->> > Swap subsystem does lazy swap slot free with expecting the page
->>                      ^-a                       ^- the expectation that
->> > would be swapped out again so we can avoid unnecessary write.
->>                                 ^--that it
->> >
->> > But the problem in in-memory swap(ex, zram) is that it consumes
->>                   ^^-with
->> > memory space until vm_swap_full(ie, used half of all of swap device)
->> > condition meet. It could be bad if we use multiple swap device,
->>            ^- 'is'   ^^^^^ - 'would'                       ^^^^^-devices
->> > small in-memory swap and big storage swap or in-memory swap alone.
->>                       ^-,                   ^-,
->> >
->> > This patch makes swap subsystem free swap slot as soon as swap-read
->> > is completed and make the swapcache page dirty so the page should
->>                        ^-makes                      ^-'that the'
->> > be written out the swap device to reclaim it.
->> > It means we never lose it.
->> >
->> > I tested this patch with kernel compile workload.
->>                           ^-a
->
-> Thanks for the correct whole sentence!
-> But Andrew alreay correted it with his style.
 
-<nods> I saw his email a couple of hours ago.
+2013-05-11T10:16:30.841+02:00 trinity kernel: ------------[ cut here ]------------
+2013-05-11T10:16:30.841+02:00 trinity kernel: WARNING: at mm/page_alloc.c:2384 __alloc_pages_nodemask+0x13c/0x740()
+2013-05-11T10:16:30.841+02:00 trinity kernel: 3fda7d10:  [<08332bd8>] dump_stack+0x22/0x24
+2013-05-11T10:16:30.841+02:00 trinity kernel: 3fda7d28:  [<0807d6ca>] warn_slowpath_common+0x5a/0x80
+2013-05-11T10:16:30.841+02:00 trinity kernel: 3fda7d50:  [<0807d793>] warn_slowpath_null+0x23/0x30
+2013-05-11T10:16:30.841+02:00 trinity kernel: 3fda7d60:  [<080d43ac>] __alloc_pages_nodemask+0x13c/0x740
+2013-05-11T10:16:30.841+02:00 trinity kernel: 3fda7df0:  [<080d49d8>] __get_free_pages+0x28/0x50
+2013-05-11T10:16:30.841+02:00 trinity kernel: 3fda7e08:  [<080fc28d>] __kmalloc_track_caller+0x3d/0x170
+2013-05-11T10:16:30.841+02:00 trinity kernel: 3fda7e30:  [<080dfbe6>] memdup_user+0x26/0x70
+2013-05-11T10:16:30.841+02:00 trinity kernel: 3fda7e4c:  [<080dfdee>] strndup_user+0x3e/0x60
+2013-05-11T10:16:30.856+02:00 trinity kernel: 3fda7e68:  [<0811ae70>] copy_mount_string+0x30/0x50
+2013-05-11T10:16:30.856+02:00 trinity kernel: 3fda7e7c:  [<0811b6ba>] sys_mount+0x1a/0xe0
+2013-05-11T10:16:30.856+02:00 trinity kernel: 3fda7eac:  [<08062c32>] handle_syscall+0x82/0xb0
+2013-05-11T10:16:30.856+02:00 trinity kernel: 3fda7ef4:  [<0807503d>] userspace+0x46d/0x590
+2013-05-11T10:16:30.856+02:00 trinity kernel: 3fda7fec:  [<0805f80c>] fork_handler+0x6c/0x70
+2013-05-11T10:16:30.856+02:00 trinity kernel: 3fda7ffc:  [<00000000>] 0x0
+2013-05-11T10:16:30.856+02:00 trinity kernel:
+2013-05-11T10:16:30.856+02:00 trinity kernel: ---[ end trace db5193a4984ce93f ]---
 
-> Although he was done, I'm giving a million thanks to you.
-> Surely, Thanks Andrew, too.
->
-> --
-> Kind regards,
-> Minchan Kim
->
+-- 
+MfG/Sincerely
+Toralf FA?rster
+pgp finger print: 7B1A 07F4 EC82 0F90 D4C2 8936 872A E508 7DB6 9DA3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
