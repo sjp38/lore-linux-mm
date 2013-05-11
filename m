@@ -1,72 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 11DDD6B0032
-	for <linux-mm@kvack.org>; Fri, 10 May 2013 17:52:30 -0400 (EDT)
-Received: from mailout-de.gmx.net ([10.1.76.4]) by mrigmx.server.lan
- (mrigmx001) with ESMTP (Nemesis) id 0MDjlo-1UlLMo32gY-00H6LP for
- <linux-mm@kvack.org>; Fri, 10 May 2013 23:52:28 +0200
-Message-ID: <518D6C18.4070607@gmx.de>
-Date: Fri, 10 May 2013 23:52:24 +0200
-From: =?UTF-8?B?VG9yYWxmIEbDtnJzdGVy?= <toralf.foerster@gmx.de>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 519086B0032
+	for <linux-mm@kvack.org>; Fri, 10 May 2013 21:19:21 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id z12so4477646wgg.11
+        for <linux-mm@kvack.org>; Fri, 10 May 2013 18:19:19 -0700 (PDT)
 MIME-Version: 1.0
-Subject: WARNING: at mm/slab_common.c:376 kmalloc_slab+0x33/0x80()
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Reply-To: konrad@darnok.org
+In-Reply-To: <20130510084413.GA2683@blaptop>
+References: <1368056517-31065-1-git-send-email-minchan@kernel.org>
+ <20130509201540.GB5273@localhost.localdomain> <20130510084413.GA2683@blaptop>
+From: Konrad Rzeszutek Wilk <konrad@darnok.org>
+Date: Fri, 10 May 2013 21:18:59 -0400
+Message-ID: <CAPbh3rsVnvEmH+sRoRYjGi3DERMkzFPmOn=a_Gt0uAMnLLmZJg@mail.gmail.com>
+Subject: Re: [PATCH v3] mm: remove compressed copy from zram in-memory
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: "user-mode-linux-user@lists.sourceforge.net" <user-mode-linux-user@lists.sourceforge.net>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Nitin Gupta <ngupta@vflare.org>, Shaohua Li <shli@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
 
-The bisected commit introduced this WARNING: on a user mode linux guest
-if the UML guest is fuzz tested with trinity :
+On Fri, May 10, 2013 at 4:44 AM, Minchan Kim <minchan@kernel.org> wrote:
+> Hi Konrad,
+>
+> On Thu, May 09, 2013 at 04:15:42PM -0400, Konrad Rzeszutek Wilk wrote:
+>> On Thu, May 09, 2013 at 08:41:57AM +0900, Minchan Kim wrote:
+>>
+>> Hey Michan,
+>         ^-n
+>
+> It's a only thing I can know better than other native speakers. :)
 
+I keep on misspelling your name. I am really sorry about that.
 
-2013-05-10T22:38:42.191+02:00 trinity kernel: ------------[ cut here ]------------
-2013-05-10T22:38:42.191+02:00 trinity kernel: WARNING: at mm/slab_common.c:376 kmalloc_slab+0x33/0x80()
-2013-05-10T22:38:42.191+02:00 trinity kernel: 40e2fda8:  [<08336928>] dump_stack+0x22/0x24
-2013-05-10T22:38:42.191+02:00 trinity kernel: 40e2fdc0:  [<0807c2da>] warn_slowpath_common+0x5a/0x80
-2013-05-10T22:38:42.191+02:00 trinity kernel: 40e2fde8:  [<0807c3a3>] warn_slowpath_null+0x23/0x30
-2013-05-10T22:38:42.191+02:00 trinity kernel: 40e2fdf8:  [<080dfc93>] kmalloc_slab+0x33/0x80
-2013-05-10T22:38:42.191+02:00 trinity kernel: 40e2fe0c:  [<080f8beb>] __kmalloc_track_caller+0x1b/0x110
-2013-05-10T22:38:42.191+02:00 trinity kernel: 40e2fe30:  [<080dc866>] memdup_user+0x26/0x70
-2013-05-10T22:38:42.191+02:00 trinity kernel: 40e2fe4c:  [<080dca6e>] strndup_user+0x3e/0x60
-2013-05-10T22:38:42.191+02:00 trinity kernel: 40e2fe68:  [<0811ba60>] copy_mount_string+0x30/0x50
-2013-05-10T22:38:42.195+02:00 trinity kernel: 40e2fe7c:  [<0811c46a>] sys_mount+0x1a/0xe0
-2013-05-10T22:38:42.195+02:00 trinity kernel: 40e2feac:  [<08062b32>] handle_syscall+0x82/0xb0
-2013-05-10T22:38:42.195+02:00 trinity kernel: 40e2fef4:  [<0807520d>] userspace+0x46d/0x590
-2013-05-10T22:38:42.195+02:00 trinity kernel: 40e2ffec:  [<0805f7fc>] fork_handler+0x6c/0x70
-2013-05-10T22:38:42.195+02:00 trinity kernel: 40e2fffc:  [<00000000>] 0x0
-2013-05-10T22:38:42.195+02:00 trinity kernel:
-2013-05-10T22:38:42.195+02:00 trinity kernel: ---[ end trace 17e5931469d0697d ]---
+>
+>
+>> Just a couple of syntax corrections. The code comment could also
+>> benefit from this.
+>>
+>> Otherwise it looks OK to me.
+>>
+>> > Swap subsystem does lazy swap slot free with expecting the page
+>>                      ^-a                       ^- the expectation that
+>> > would be swapped out again so we can avoid unnecessary write.
+>>                                 ^--that it
+>> >
+>> > But the problem in in-memory swap(ex, zram) is that it consumes
+>>                   ^^-with
+>> > memory space until vm_swap_full(ie, used half of all of swap device)
+>> > condition meet. It could be bad if we use multiple swap device,
+>>            ^- 'is'   ^^^^^ - 'would'                       ^^^^^-devices
+>> > small in-memory swap and big storage swap or in-memory swap alone.
+>>                       ^-,                   ^-,
+>> >
+>> > This patch makes swap subsystem free swap slot as soon as swap-read
+>> > is completed and make the swapcache page dirty so the page should
+>>                        ^-makes                      ^-'that the'
+>> > be written out the swap device to reclaim it.
+>> > It means we never lose it.
+>> >
+>> > I tested this patch with kernel compile workload.
+>>                           ^-a
+>
+> Thanks for the correct whole sentence!
+> But Andrew alreay correted it with his style.
 
+<nods> I saw his email a couple of hours ago.
 
-Tested with host kernel 3.9.1, host and client were 32bit stable Gentoo Linux.
-
-
-6286ae97d10ea2b5cd90532163797ab217bfdbdf is the first bad commit
-commit 6286ae97d10ea2b5cd90532163797ab217bfdbdf
-Author: Christoph Lameter <cl@linux.com>
-Date:   Fri May 3 15:43:18 2013 +0000
-
-    slab: Return NULL for oversized allocations
-
-    The inline path seems to have changed the SLAB behavior for very large
-    kmalloc allocations with  commit e3366016 ("slab: Use common
-    kmalloc_index/kmalloc_size functions"). This patch restores the old
-    behavior but also adds diagnostics so that we can figure where in the
-    code these large allocations occur.
-
-    Reported-and-tested-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-    Signed-off-by: Christoph Lameter <cl@linux.com>
-    Link: http://lkml.kernel.org/r/201305040348.CIF81716.OStQOHFJMFLOVF@I-love.SAKURA.ne.jp
-    [ penberg@kernel.org: use WARN_ON_ONCE ]
-    Signed-off-by: Pekka Enberg <penberg@kernel.org>
-
-
-
--- MfG/Sincerely
-Toralf FA?rster
-pgp finger print: 7B1A 07F4 EC82 0F90 D4C2 8936 872A E508 7DB6 9DA3
+> Although he was done, I'm giving a million thanks to you.
+> Surely, Thanks Andrew, too.
+>
+> --
+> Kind regards,
+> Minchan Kim
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
