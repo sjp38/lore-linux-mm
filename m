@@ -1,76 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 22B376B0032
-	for <linux-mm@kvack.org>; Sat, 11 May 2013 10:17:32 -0400 (EDT)
-Message-ID: <518E52C8.8080207@parallels.com>
-Date: Sat, 11 May 2013 18:16:40 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH V1 0/6] mm: add a new option MREMAP_DUP to mmrep syscall
-References: <1368093011-4867-1-git-send-email-wenchaolinux@gmail.com> <20130509141329.GC11497@suse.de> <518C5B5E.4010706@gmail.com> <20130510092255.592E1E0085@blue.fi.intel.com>
-In-Reply-To: <20130510092255.592E1E0085@blue.fi.intel.com>
-Content-Type: text/plain; charset=x-mac-cyrillic
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 5EF0B6B0002
+	for <linux-mm@kvack.org>; Sat, 11 May 2013 13:40:02 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id rl6so3683653pac.14
+        for <linux-mm@kvack.org>; Sat, 11 May 2013 10:40:01 -0700 (PDT)
+From: Jiang Liu <liuj97@gmail.com>
+Subject: [PATCH v6, part3 00/16] accurately calculate memory statisitic information
+Date: Sun, 12 May 2013 01:34:33 +0800
+Message-Id: <1368293689-16410-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, wenchao <wenchaolinux@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, walken@google.com, viro@zeniv.linux.org.uk, xiaoguangrong@linux.vnet.ibm.com, anthony@codemonkey.ws, stefanha@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 05/10/2013 01:22 PM, Kirill A. Shutemov wrote:
-> wenchao wrote:
->> ao? 2013-5-9 22:13, Mel Gorman a??e??:
->>> On Thu, May 09, 2013 at 05:50:05PM +0800, wenchaolinux@gmail.com wrote:
->>>> From: Wenchao Xia <wenchaolinux@gmail.com>
->>>>
->>>>    This serial try to enable mremap syscall to cow some private memory region,
->>>> just like what fork() did. As a result, user space application would got a
->>>> mirror of those region, and it can be used as a snapshot for further processing.
->>>>
->>>
->>> What not just fork()? Even if the application was threaded it should be
->>> managable to handle fork just for processing the private memory region
->>> in question. I'm having trouble figuring out what sort of application
->>> would require an interface like this.
->>>
->>    It have some troubles: parent - child communication, sometimes
->> page copy.
->>    I'd like to snapshot qemu guest's RAM, currently solution is:
->> 1) fork()
->> 2) pipe guest RAM data from child to parent.
->> 3) parent write down the contents.
-> 
-> CC Pavel
+The original goal of this patchset is to fix the bug reported by
+https://bugzilla.kernel.org/show_bug.cgi?id=53501
+Now it has also been expanded to reduce common code used by memory
+initializion.
 
-Thank you!
+This is the third part, previous two patch sets have been merged into
+the main stream kernel and could also be accessed at:
+http://marc.info/?l=linux-mm&m=136289696323825&w=2
+http://marc.info/?l=linux-mm&m=136290291524901&w=2
 
-> I wounder if you can reuse the CRIU approach for memory snapshoting.
+This patchset applies to
+git://git.cmpxchg.org/linux-mmotm.git v3.9-rc8-mmotm-2013-04-25-16-24
 
-I doubt it. First of all, we need to have task's memory in existing external process
-which is not its child. With MREMAP_DUP we can't have this. And the most important
-thing is that we don't need pages duplication on modification. It's the waste of
-memory for our case. We just need to know the fact that the page has changed.
+V2->V4:
+1) rebase to git://git.cmpxchg.org/linux-mmotm.git
+2) fix some build warnings and other minor bugs of previous patches
 
-Wenchao, why can't you use existing KVM dirty-tracking for making mem snapshot? As
-per my understanding of how KVM MMU works you can
+V4->V5:
+1) rebase to v3.9-rc8-mmotm-2013-04-25-16-24
+2) address comments from last round of review
 
-1 turn dirty track on
-2 read pages from their original places
-3 pick dirty bitmap and read changed pages several times
-4 freeze guest
-5 repeat step 3
-6 release guest
+V5->V6:
+1) Change signature of free_reserved_area() according to Russell King's
+   suggestion to fix following build warnings.
+2) rebase to v3.9-mmotm-2013-05-09-15-57
 
-Does it work for you?
+We have only tested these patchset on x86 platforms, and have done basic
+compliation tests using cross-compilers from ftp.kernel.org. That means
+some code may not pass compilation on some architectures. So any help
+to test this patchset are welcomed!
 
-This is very very similar to how we do mem snapshot with CRIU (dirty tracking is the
-soft-dirty patches from the link Kirill provided).
+Patch 1-7:
+	Bugfixes and more work for part1 and part2
+Patch 8-9:
+	Fix typo and minor bugs in mm core
+Patch 10-14:
+	Enhance the way to manage totalram_pages, totalhigh_pages and
+	zone->managed_pages.
+Patch 15:
+	Report available pages within the node as "MemTotal" for sysfs
+	interface /sys/.../node/nodex/meminfo
+Patch 16:
+	A minor fix for AVR32 related to HZ
 
-> http://thread.gmane.org/gmane.linux.kernel/1483158/
-> 
+Jiang Liu (16):
+  mm: change signature of free_reserved_area() to fix building warnings
+  mm: enhance free_reserved_area() to support poisoning memory with zero
+  mm/ARM64: kill poison_init_mem()
+  mm/x86: use free_reserved_area() to simplify code
+  mm/tile: use common help functions to free reserved pages
+  mm, powertv: use free_reserved_area() to simplify code
+  mm, acornfb: use free_reserved_area() to simplify code
+  mm: fix some trivial typos in comments
+  mm: use managed_pages to calculate default zonelist order
+  mm: accurately calculate zone->managed_pages for highmem zones
+  mm: use a dedicated lock to protect totalram_pages and
+    zone->managed_pages
+  mm: make __free_pages_bootmem() only available at boot time
+  mm: correctly update zone->mamaged_pages
+  mm: concentrate modification of totalram_pages into the mm core
+  mm: report available pages as "MemTotal" for each NUMA node
+  AVR32: fix building warnings caused by redifinitions of HZ
 
+ arch/alpha/kernel/sys_nautilus.c      |  4 +--
+ arch/alpha/mm/init.c                  |  6 ++--
+ arch/alpha/mm/numa.c                  |  2 +-
+ arch/arc/mm/init.c                    |  6 ++--
+ arch/arm/mm/init.c                    | 11 +++----
+ arch/arm64/mm/init.c                  | 17 ++--------
+ arch/avr32/include/uapi/asm/param.h   |  6 +++-
+ arch/avr32/mm/init.c                  |  6 ++--
+ arch/blackfin/mm/init.c               |  6 ++--
+ arch/c6x/mm/init.c                    |  6 ++--
+ arch/cris/mm/init.c                   |  4 +--
+ arch/frv/mm/init.c                    |  6 ++--
+ arch/h8300/mm/init.c                  |  6 ++--
+ arch/hexagon/mm/init.c                |  2 +-
+ arch/ia64/mm/init.c                   |  7 ++--
+ arch/m32r/mm/init.c                   |  6 ++--
+ arch/m68k/mm/init.c                   |  8 ++---
+ arch/metag/mm/init.c                  | 14 +++++---
+ arch/microblaze/mm/init.c             |  6 ++--
+ arch/mips/mm/init.c                   |  5 +--
+ arch/mips/powertv/asic/asic_devices.c | 13 ++------
+ arch/mips/sgi-ip27/ip27-memory.c      |  2 +-
+ arch/mn10300/mm/init.c                |  5 +--
+ arch/openrisc/mm/init.c               |  6 ++--
+ arch/parisc/mm/init.c                 |  9 ++---
+ arch/powerpc/kernel/kvm.c             |  9 ++---
+ arch/powerpc/mm/mem.c                 |  7 ++--
+ arch/s390/mm/init.c                   |  7 ++--
+ arch/score/mm/init.c                  |  5 +--
+ arch/sh/mm/init.c                     |  6 ++--
+ arch/sparc/mm/init_32.c               |  7 ++--
+ arch/sparc/mm/init_64.c               |  6 ++--
+ arch/tile/mm/init.c                   |  9 ++---
+ arch/um/kernel/mem.c                  |  4 +--
+ arch/unicore32/mm/init.c              |  6 ++--
+ arch/x86/mm/highmem_32.c              |  6 ++++
+ arch/x86/mm/init.c                    | 14 ++------
+ arch/x86/mm/init_32.c                 |  2 +-
+ arch/x86/mm/init_64.c                 | 25 +++-----------
+ arch/xtensa/mm/init.c                 |  6 ++--
+ drivers/video/acornfb.c               | 28 ++--------------
+ drivers/virtio/virtio_balloon.c       |  8 +++--
+ drivers/xen/balloon.c                 | 23 +++----------
+ include/linux/bootmem.h               |  1 +
+ include/linux/mm.h                    | 18 +++++-----
+ include/linux/mmzone.h                | 14 +++++---
+ mm/bootmem.c                          | 41 ++++++++++++++---------
+ mm/hugetlb.c                          |  2 +-
+ mm/memory_hotplug.c                   | 33 ++++---------------
+ mm/nobootmem.c                        | 35 ++++++++++++--------
+ mm/page_alloc.c                       | 62 ++++++++++++++++++++---------------
+ 51 files changed, 246 insertions(+), 307 deletions(-)
 
-Thanks,
-Pavel
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
