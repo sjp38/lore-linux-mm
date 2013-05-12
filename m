@@ -1,261 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 22ECD6B0002
-	for <linux-mm@kvack.org>; Sun, 12 May 2013 05:22:52 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sun, 12 May 2013 14:47:18 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 3EF6DE002D
-	for <linux-mm@kvack.org>; Sun, 12 May 2013 14:55:08 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4C9MbDg9699656
-	for <linux-mm@kvack.org>; Sun, 12 May 2013 14:52:37 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4C9Mjcd015729
-	for <linux-mm@kvack.org>; Sun, 12 May 2013 19:22:45 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH 1/4] mm/THP: Add pmd args to pgtable deposit and withdraw APIs
-Date: Sun, 12 May 2013 14:52:27 +0530
-Message-Id: <1368350550-30722-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1368350550-30722-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1368350550-30722-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id BA3BC6B0002
+	for <linux-mm@kvack.org>; Sun, 12 May 2013 10:31:07 -0400 (EDT)
+Date: Sun, 12 May 2013 17:30:54 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RFC 2/2] virtio_balloon: auto-ballooning support
+Message-ID: <20130512143054.GI10144@redhat.com>
+References: <1368111229-29847-1-git-send-email-lcapitulino@redhat.com>
+ <1368111229-29847-3-git-send-email-lcapitulino@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1368111229-29847-3-git-send-email-lcapitulino@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, riel@redhat.com, aquini@redhat.com, amit.shah@redhat.com, anton@enomsg.org
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Thu, May 09, 2013 at 10:53:49AM -0400, Luiz Capitulino wrote:
+> Automatic ballooning consists of dynamically adjusting the guest's
+> balloon according to memory pressure in the host and in the guest.
+> 
+> This commit implements the guest side of automatic balloning, which
+> basically consists of registering a shrinker callback with the kernel,
+> which will try to deflate the guest's balloon by the amount of pages
+> being requested. The shrinker callback is only registered if the host
+> supports the VIRTIO_BALLOON_F_AUTO_BALLOON feature bit.
 
-This will be later used by powerpc THP support. In powerpc we want to use
-pgtable for storing the hash index values. So instead of adding them to
-mm_context list, we would like to store them in the second half of pmd
+OK so we have a new feature bit, such that:
+- if AUTO_BALLOON is set in host, guest can leak a
+  page from a balloon at any time
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-Reviewed-by: David Gibson <david@gibson.dropbear.id.au>
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/s390/include/asm/pgtable.h     |  5 +++--
- arch/s390/mm/pgtable.c              |  5 +++--
- arch/sparc/include/asm/pgtable_64.h |  5 +++--
- arch/sparc/mm/tlb.c                 |  5 +++--
- include/asm-generic/pgtable.h       |  5 +++--
- mm/huge_memory.c                    | 18 +++++++++---------
- mm/pgtable-generic.c                |  5 +++--
- 7 files changed, 27 insertions(+), 21 deletions(-)
+questions left unanswered
+- what meaning does num_pages have now?
 
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index 4105b82..9fba7a8 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -1351,10 +1351,11 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 
- #define __HAVE_ARCH_PGTABLE_DEPOSIT
--extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
-+extern void pgtable_trans_huge_deposit(struct mm_struct *mm, , pmd_t *pmdp,
-+				       pgtable_t pgtable);
- 
- #define __HAVE_ARCH_PGTABLE_WITHDRAW
--extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm);
-+extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
- 
- static inline int pmd_trans_splitting(pmd_t pmd)
- {
-diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-index 7805ddc..555c11d 100644
---- a/arch/s390/mm/pgtable.c
-+++ b/arch/s390/mm/pgtable.c
-@@ -1118,7 +1118,8 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
- 	}
- }
- 
--void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
-+void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
-+				pgtable_t pgtable)
- {
- 	struct list_head *lh = (struct list_head *) pgtable;
- 
-@@ -1132,7 +1133,7 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
- 	mm->pmd_huge_pte = pgtable;
- }
- 
--pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm)
-+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
- {
- 	struct list_head *lh;
- 	pgtable_t pgtable;
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 7619f2f..d22b92d 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -853,10 +853,11 @@ extern void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
- 				 pmd_t *pmd);
- 
- #define __HAVE_ARCH_PGTABLE_DEPOSIT
--extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
-+extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
-+				       pgtable_t pgtable);
- 
- #define __HAVE_ARCH_PGTABLE_WITHDRAW
--extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm);
-+extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
- #endif
- 
- /* Encode and de-code a swap entry */
-diff --git a/arch/sparc/mm/tlb.c b/arch/sparc/mm/tlb.c
-index 83d89bc..f828dd3 100644
---- a/arch/sparc/mm/tlb.c
-+++ b/arch/sparc/mm/tlb.c
-@@ -188,7 +188,8 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 	}
- }
- 
--void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
-+void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
-+				pgtable_t pgtable)
- {
- 	struct list_head *lh = (struct list_head *) pgtable;
- 
-@@ -202,7 +203,7 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
- 	mm->pmd_huge_pte = pgtable;
- }
- 
--pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm)
-+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
- {
- 	struct list_head *lh;
- 	pgtable_t pgtable;
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index a59ff51..18e27c2 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -173,11 +173,12 @@ extern void pmdp_splitting_flush(struct vm_area_struct *vma,
- #endif
- 
- #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
--extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
-+extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
-+				       pgtable_t pgtable);
- #endif
- 
- #ifndef __HAVE_ARCH_PGTABLE_WITHDRAW
--extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm);
-+extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
- #endif
- 
- #ifndef __HAVE_ARCH_PMDP_INVALIDATE
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index a43d736..69f4153 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -730,7 +730,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
- 		entry = mk_huge_pmd(page, vma);
- 		page_add_new_anon_rmap(page, vma, haddr);
- 		set_pmd_at(mm, haddr, pmd, entry);
--		pgtable_trans_huge_deposit(mm, pgtable);
-+		pgtable_trans_huge_deposit(mm, pmd, pgtable);
- 		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
- 		mm->nr_ptes++;
- 		spin_unlock(&mm->page_table_lock);
-@@ -772,7 +772,7 @@ static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
- 	entry = pmd_wrprotect(entry);
- 	entry = pmd_mkhuge(entry);
- 	set_pmd_at(mm, haddr, pmd, entry);
--	pgtable_trans_huge_deposit(mm, pgtable);
-+	pgtable_trans_huge_deposit(mm, pmd, pgtable);
- 	mm->nr_ptes++;
- 	return true;
- }
-@@ -917,7 +917,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
- 	pmd = pmd_mkold(pmd_wrprotect(pmd));
- 	set_pmd_at(dst_mm, addr, dst_pmd, pmd);
--	pgtable_trans_huge_deposit(dst_mm, pgtable);
-+	pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
- 	dst_mm->nr_ptes++;
- 
- 	ret = 0;
-@@ -987,7 +987,7 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
- 	pmdp_clear_flush(vma, haddr, pmd);
- 	/* leave pmd empty until pte is filled */
- 
--	pgtable = pgtable_trans_huge_withdraw(mm);
-+	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
- 	pmd_populate(mm, &_pmd, pgtable);
- 
- 	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-@@ -1085,7 +1085,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	pmdp_clear_flush(vma, haddr, pmd);
- 	/* leave pmd empty until pte is filled */
- 
--	pgtable = pgtable_trans_huge_withdraw(mm);
-+	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
- 	pmd_populate(mm, &_pmd, pgtable);
- 
- 	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-@@ -1360,7 +1360,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		struct page *page;
- 		pgtable_t pgtable;
- 		pmd_t orig_pmd;
--		pgtable = pgtable_trans_huge_withdraw(tlb->mm);
-+		pgtable = pgtable_trans_huge_withdraw(tlb->mm, pmd);
- 		orig_pmd = pmdp_get_and_clear(tlb->mm, addr, pmd);
- 		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
- 		if (is_huge_zero_pmd(orig_pmd)) {
-@@ -1693,7 +1693,7 @@ static int __split_huge_page_map(struct page *page,
- 	pmd = page_check_address_pmd(page, mm, address,
- 				     PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG);
- 	if (pmd) {
--		pgtable = pgtable_trans_huge_withdraw(mm);
-+		pgtable = pgtable_trans_huge_withdraw(mm, pmd);
- 		pmd_populate(mm, &_pmd, pgtable);
- 
- 		haddr = address;
-@@ -2358,7 +2358,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	page_add_new_anon_rmap(new_page, vma, address);
- 	set_pmd_at(mm, address, pmd, _pmd);
- 	update_mmu_cache_pmd(vma, address, pmd);
--	pgtable_trans_huge_deposit(mm, pgtable);
-+	pgtable_trans_huge_deposit(mm, pmd, pgtable);
- 	spin_unlock(&mm->page_table_lock);
- 
- 	*hpage = NULL;
-@@ -2664,7 +2664,7 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
- 	pmdp_clear_flush(vma, haddr, pmd);
- 	/* leave pmd empty until pte is filled */
- 
--	pgtable = pgtable_trans_huge_withdraw(mm);
-+	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
- 	pmd_populate(mm, &_pmd, pgtable);
- 
- 	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-index 0c8323f..e1a6e4f 100644
---- a/mm/pgtable-generic.c
-+++ b/mm/pgtable-generic.c
-@@ -124,7 +124,8 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
- 
- #ifndef __HAVE_ARCH_PGTABLE_DEPOSIT
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
-+void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
-+				pgtable_t pgtable)
- {
- 	assert_spin_locked(&mm->page_table_lock);
- 
-@@ -141,7 +142,7 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable)
- #ifndef __HAVE_ARCH_PGTABLE_WITHDRAW
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- /* no "address" argument so destroys page coloring of some arch */
--pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm)
-+pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
- {
- 	pgtable_t pgtable;
- 
--- 
-1.8.1.2
+- when will the balloon be re-inflated?
+
+
+I'd like to see a spec patch addressing these questions.
+
+Would we ever want to mix the two types of ballooning?
+If yes possibly when we put a page in the balloon we
+might want to give host a hint "this page might be
+leaked again soon".
+
+
+> Automatic inflate is performed by the host.
+> 
+> Here are some numbers. The test-case is to run 35 VMs (1G of RAM each)
+> in parallel doing a kernel build. Host has 32GB of RAM and 16GB of swap.
+> SWAP IN and SWAP OUT correspond to the number of pages swapped in and
+> swapped out, respectively.
+> 
+> Auto-ballooning disabled:
+> 
+> RUN  TIME(s)  SWAP IN  SWAP OUT
+> 
+> 1    634      930980   1588522
+> 2    610      627422   1362174
+> 3    649      1079847  1616367
+> 4    543      953289   1635379
+> 5    642      913237   1514000
+> 
+> Auto-ballooning enabled:
+> 
+> RUN  TIME(s)  SWAP IN  SWAP OUT
+> 
+> 1    629      901      12537
+> 2    624      981      18506
+> 3    626      573      9085
+> 4    631      2250     42534
+> 5    627      1610     20808
+
+So what exactly happens here?
+Much less swap in/out activity, but no gain
+in total runtime. Doesn't this show there's
+a bottleneck somewhere? Could be a problem in
+the implementation?
+
+Also, what happened with the balloon?
+Did we end up with balloon completely inflated? deflated?
+
+One question to consider: possibly if we are
+going to reuse the page in the balloon soon,
+we might want to bypass notify before use for it?
+Maybe that will help speed things up.
+
+
+> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> ---
+>  drivers/virtio/virtio_balloon.c     | 55 +++++++++++++++++++++++++++++++++++++
+>  include/uapi/linux/virtio_balloon.h |  1 +
+>  2 files changed, 56 insertions(+)
+> 
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index 9d5fe2b..f9dcae8 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -71,6 +71,9 @@ struct virtio_balloon
+>  	/* Memory statistics */
+>  	int need_stats_update;
+>  	struct virtio_balloon_stat stats[VIRTIO_BALLOON_S_NR];
+> +
+> +	/* Memory shrinker */
+> +	struct shrinker shrinker;
+>  };
+>  
+>  static struct virtio_device_id id_table[] = {
+> @@ -126,6 +129,7 @@ static void set_page_pfns(u32 pfns[], struct page *page)
+>  		pfns[i] = page_to_balloon_pfn(page) + i;
+>  }
+>  
+> +/* This function should be called with vb->balloon_mutex held */
+>  static void fill_balloon(struct virtio_balloon *vb, size_t num)
+>  {
+>  	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
+> @@ -166,6 +170,7 @@ static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
+>  	}
+>  }
+>  
+> +/* This function should be called with vb->balloon_mutex held */
+>  static void leak_balloon(struct virtio_balloon *vb, size_t num)
+>  {
+>  	struct page *page;
+> @@ -285,6 +290,45 @@ static void update_balloon_size(struct virtio_balloon *vb)
+>  			      &actual, sizeof(actual));
+>  }
+>  
+> +static unsigned long balloon_get_nr_pages(const struct virtio_balloon *vb)
+> +{
+> +	return vb->num_pages / VIRTIO_BALLOON_PAGES_PER_PAGE;
+> +}
+> +
+> +static int balloon_shrinker(struct shrinker *shrinker,struct shrink_control *sc)
+> +{
+> +	unsigned int nr_pages, new_target;
+> +	struct virtio_balloon *vb;
+> +
+> +	vb = container_of(shrinker, struct virtio_balloon, shrinker);
+> +	if (!mutex_trylock(&vb->balloon_lock)) {
+> +		return -1;
+> +	}
+> +
+> +	nr_pages = balloon_get_nr_pages(vb);
+> +	if (!sc->nr_to_scan || !nr_pages) {
+> +		goto out;
+> +	}
+> +
+> +	/*
+> +	 * If the current balloon size is greater than the number of
+> +	 * pages being reclaimed by the kernel, deflate only the needed
+> +	 * amount. Otherwise deflate everything we have.
+> +	 */
+> +	new_target = 0;
+> +	if (nr_pages > sc->nr_to_scan) {
+> +		new_target = nr_pages - sc->nr_to_scan;
+> +	}
+> +
+> +	leak_balloon(vb, new_target);
+> +	update_balloon_size(vb);
+> +	nr_pages = balloon_get_nr_pages(vb);
+> +
+> +out:
+> +	mutex_unlock(&vb->balloon_lock);
+> +	return nr_pages;
+> +}
+> +
+>  static int balloon(void *_vballoon)
+>  {
+>  	struct virtio_balloon *vb = _vballoon;
+> @@ -471,6 +515,13 @@ static int virtballoon_probe(struct virtio_device *vdev)
+>  		goto out_del_vqs;
+>  	}
+>  
+> +	memset(&vb->shrinker, 0, sizeof(vb->shrinker));
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_AUTO_BALLOON)) {
+> +		vb->shrinker.shrink = balloon_shrinker;
+> +		vb->shrinker.seeks = DEFAULT_SEEKS;
+> +		register_shrinker(&vb->shrinker);
+> +	}
+> +
+>  	return 0;
+>  
+>  out_del_vqs:
+> @@ -487,6 +538,9 @@ out:
+>  
+>  static void remove_common(struct virtio_balloon *vb)
+>  {
+> +	if (vb->shrinker.shrink)
+> +		unregister_shrinker(&vb->shrinker);
+> +
+>  	/* There might be pages left in the balloon: free them. */
+>  	mutex_lock(&vb->balloon_lock);
+>  	while (vb->num_pages)
+> @@ -543,6 +597,7 @@ static int virtballoon_restore(struct virtio_device *vdev)
+>  static unsigned int features[] = {
+>  	VIRTIO_BALLOON_F_MUST_TELL_HOST,
+>  	VIRTIO_BALLOON_F_STATS_VQ,
+> +	VIRTIO_BALLOON_F_AUTO_BALLOON,
+>  };
+>  
+>  static struct virtio_driver virtio_balloon_driver = {
+> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+> index 5e26f61..bd378a4 100644
+> --- a/include/uapi/linux/virtio_balloon.h
+> +++ b/include/uapi/linux/virtio_balloon.h
+> @@ -31,6 +31,7 @@
+>  /* The feature bitmap for virtio balloon */
+>  #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
+>  #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
+> +#define VIRTIO_BALLOON_F_AUTO_BALLOON	2 /* Automatic ballooning */
+>  
+>  /* Size of a PFN in the balloon interface. */
+>  #define VIRTIO_BALLOON_PFN_SHIFT 12
+> -- 
+> 1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
