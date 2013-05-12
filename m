@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 1D7346B0072
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 146BA6B0071
 	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:39 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 24/39] thp, mm: truncate support for transparent huge page cache
-Date: Sun, 12 May 2013 04:23:21 +0300
-Message-Id: <1368321816-17719-25-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 27/39] x86-64, mm: proper alignment mappings with hugepages
+Date: Sun, 12 May 2013 04:23:24 +0300
+Message-Id: <1368321816-17719-28-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,48 +15,58 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-If we starting position of truncation is in tail page we have to spilit
-the huge page page first.
-
-We also have to split if end is within the huge page. Otherwise we can
-truncate whole huge page at once.
+Make arch_get_unmapped_area() return unmapped area aligned to HPAGE_MASK
+if the file mapping can have huge pages.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/truncate.c |   13 +++++++++++++
- 1 file changed, 13 insertions(+)
+ arch/x86/kernel/sys_x86_64.c |   12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index c75b736..0152feb 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -231,6 +231,17 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			if (index > end)
- 				break;
+diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
+index dbded5a..d97ab40 100644
+--- a/arch/x86/kernel/sys_x86_64.c
++++ b/arch/x86/kernel/sys_x86_64.c
+@@ -15,6 +15,7 @@
+ #include <linux/random.h>
+ #include <linux/uaccess.h>
+ #include <linux/elf.h>
++#include <linux/pagemap.h>
  
-+			/* split page if we start from tail page */
-+			if (PageTransTail(page))
-+				split_huge_page(compound_trans_head(page));
-+			if (PageTransHuge(page)) {
-+				/* split if end is within huge page */
-+				if (index == (end & ~HPAGE_CACHE_INDEX_MASK))
-+					split_huge_page(page);
-+				else
-+					/* skip tail pages */
-+					i += HPAGE_CACHE_NR - 1;
-+			}
- 			if (!trylock_page(page))
- 				continue;
- 			WARN_ON(page->index != index);
-@@ -280,6 +291,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
- 			if (index > end)
- 				break;
+ #include <asm/ia32.h>
+ #include <asm/syscalls.h>
+@@ -34,6 +35,13 @@ static unsigned long get_align_mask(void)
+ 	return va_align.mask;
+ }
  
-+			if (PageTransHuge(page))
-+				split_huge_page(page);
- 			lock_page(page);
- 			WARN_ON(page->index != index);
- 			wait_on_page_writeback(page);
++static inline unsigned long mapping_align_mask(struct address_space *mapping)
++{
++	if (mapping_can_have_hugepages(mapping))
++		return PAGE_MASK & ~HPAGE_MASK;
++	return get_align_mask();
++}
++
+ unsigned long align_vdso_addr(unsigned long addr)
+ {
+ 	unsigned long align_mask = get_align_mask();
+@@ -135,7 +143,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
+ 	info.length = len;
+ 	info.low_limit = begin;
+ 	info.high_limit = end;
+-	info.align_mask = filp ? get_align_mask() : 0;
++	info.align_mask = filp ? mapping_align_mask(filp->f_mapping) : 0;
+ 	info.align_offset = pgoff << PAGE_SHIFT;
+ 	return vm_unmapped_area(&info);
+ }
+@@ -174,7 +182,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+ 	info.length = len;
+ 	info.low_limit = PAGE_SIZE;
+ 	info.high_limit = mm->mmap_base;
+-	info.align_mask = filp ? get_align_mask() : 0;
++	info.align_mask = filp ? mapping_align_mask(filp->f_mapping) : 0;
+ 	info.align_offset = pgoff << PAGE_SHIFT;
+ 	addr = vm_unmapped_area(&info);
+ 	if (!(addr & ~PAGE_MASK))
 -- 
 1.7.10.4
 
