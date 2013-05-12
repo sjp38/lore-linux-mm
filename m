@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id AF0606B0089
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id DD6516B0087
 	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:42 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 35/39] mm: decomposite do_wp_page() and get rid of some 'goto' logic
-Date: Sun, 12 May 2013 04:23:32 +0300
-Message-Id: <1368321816-17719-36-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 36/39] mm: do_wp_page(): extract VM_WRITE|VM_SHARED case to separate function
+Date: Sun, 12 May 2013 04:23:33 +0300
+Message-Id: <1368321816-17719-37-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,173 +15,187 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Let's extract some 'reuse' path to separate function and use it instead
-of ugly goto.
+The code will be shared with transhuge pages.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/memory.c |  110 ++++++++++++++++++++++++++++++++---------------------------
- 1 file changed, 59 insertions(+), 51 deletions(-)
+ mm/memory.c |  142 ++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 73 insertions(+), 69 deletions(-)
 
 diff --git a/mm/memory.c b/mm/memory.c
-index 8997cd8..eb99ab1 100644
+index eb99ab1..4685dd1 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2594,6 +2594,52 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
- 		copy_user_highpage(dst, src, va, vma);
+@@ -2641,6 +2641,76 @@ static void mkwrite_pte(struct vm_area_struct *vma, unsigned long address,
  }
  
-+static void dirty_page(struct vm_area_struct *vma, struct page *page,
-+		bool page_mkwrite)
-+{
-+	/*
-+	 * Yes, Virginia, this is actually required to prevent a race
-+	 * with clear_page_dirty_for_io() from clearing the page dirty
-+	 * bit after it clear all dirty ptes, but before a racing
-+	 * do_wp_page installs a dirty pte.
-+	 *
-+	 * __do_fault is protected similarly.
-+	 */
-+	if (!page_mkwrite) {
-+		wait_on_page_locked(page);
-+		set_page_dirty_balance(page, page_mkwrite);
-+		/* file_update_time outside page_lock */
-+		if (vma->vm_file)
-+			file_update_time(vma->vm_file);
-+	}
-+	put_page(page);
-+	if (page_mkwrite) {
-+		struct address_space *mapping = page->mapping;
-+
-+		set_page_dirty(page);
-+		unlock_page(page);
-+		page_cache_release(page);
-+		if (mapping)	{
-+			/*
-+			 * Some device drivers do not set page.mapping
-+			 * but still dirty their pages
-+			 */
-+			balance_dirty_pages_ratelimited(mapping);
-+		}
-+	}
-+}
-+
-+static void mkwrite_pte(struct vm_area_struct *vma, unsigned long address,
-+		pte_t *page_table, pte_t orig_pte)
-+{
-+	pte_t entry;
-+	flush_cache_page(vma, address, pte_pfn(orig_pte));
-+	entry = pte_mkyoung(orig_pte);
-+	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+	if (ptep_set_access_flags(vma, address, page_table, entry, 1))
-+		update_mmu_cache(vma, address, page_table);
-+}
-+
  /*
++ * Only catch write-faults on shared writable pages, read-only shared pages can
++ * get COWed by get_user_pages(.write=1, .force=1).
++ */
++static int do_wp_page_shared(struct mm_struct *mm, struct vm_area_struct *vma,
++		unsigned long address, pte_t *page_table, pmd_t *pmd,
++		spinlock_t *ptl, pte_t orig_pte, struct page *page)
++{
++	struct vm_fault vmf;
++	bool page_mkwrite = false;
++	int tmp, ret = 0;
++
++	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
++		goto mkwrite_done;
++
++	vmf.virtual_address = (void __user *)(address & PAGE_MASK);
++	vmf.pgoff = page->index;
++	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
++	vmf.page = page;
++
++	/*
++	 * Notify the address space that the page is about to
++	 * become writable so that it can prohibit this or wait
++	 * for the page to get into an appropriate state.
++	 *
++	 * We do this without the lock held, so that it can
++	 * sleep if it needs to.
++	 */
++	page_cache_get(page);
++	pte_unmap_unlock(page_table, ptl);
++
++	tmp = vma->vm_ops->page_mkwrite(vma, &vmf);
++	if (unlikely(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
++		ret = tmp;
++		page_cache_release(page);
++		return ret;
++	}
++	if (unlikely(!(tmp & VM_FAULT_LOCKED))) {
++		lock_page(page);
++		if (!page->mapping) {
++			unlock_page(page);
++			page_cache_release(page);
++			return ret;
++		}
++	} else
++		VM_BUG_ON(!PageLocked(page));
++
++	/*
++	 * Since we dropped the lock we need to revalidate
++	 * the PTE as someone else may have changed it.  If
++	 * they did, we just return, as we can count on the
++	 * MMU to tell us if they didn't also make it writable.
++	 */
++	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
++	if (!pte_same(*page_table, orig_pte)) {
++		unlock_page(page);
++		pte_unmap_unlock(page_table, ptl);
++		page_cache_release(page);
++		return ret;
++	}
++
++	page_mkwrite = true;
++mkwrite_done:
++	get_page(page);
++	mkwrite_pte(vma, address, page_table, orig_pte);
++	pte_unmap_unlock(page_table, ptl);
++	dirty_page(vma, page, page_mkwrite);
++	return ret | VM_FAULT_WRITE;
++}
++
++/*
   * This routine handles present pages, when users try to write
   * to a shared page. It is done by copying the page to a new address
-@@ -2618,10 +2664,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	__releases(ptl)
+  * and decrementing the shared-page counter for the old page.
+@@ -2665,7 +2735,6 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
  {
  	struct page *old_page, *new_page = NULL;
--	pte_t entry;
  	int ret = 0;
- 	int page_mkwrite = 0;
--	struct page *dirty_page = NULL;
+-	int page_mkwrite = 0;
  	unsigned long mmun_start = 0;	/* For mmu_notifiers */
  	unsigned long mmun_end = 0;	/* For mmu_notifiers */
  
-@@ -2635,8 +2679,11 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		 * accounting on raw pfn maps.
- 		 */
- 		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
--				     (VM_WRITE|VM_SHARED))
--			goto reuse;
-+				     (VM_WRITE|VM_SHARED)) {
-+			mkwrite_pte(vma, address, page_table, orig_pte);
-+			pte_unmap_unlock(page_table, ptl);
-+			return VM_FAULT_WRITE;
-+		}
- 		goto gotten;
- 	}
- 
-@@ -2665,7 +2712,9 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			 */
- 			page_move_anon_rmap(old_page, vma, address);
- 			unlock_page(old_page);
--			goto reuse;
-+			mkwrite_pte(vma, address, page_table, orig_pte);
-+			pte_unmap_unlock(page_table, ptl);
-+			return VM_FAULT_WRITE;
+@@ -2718,70 +2787,9 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
  		}
  		unlock_page(old_page);
  	} else if (unlikely((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
-@@ -2727,53 +2776,11 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 			page_mkwrite = 1;
- 		}
--		dirty_page = old_page;
--		get_page(dirty_page);
--
--reuse:
--		flush_cache_page(vma, address, pte_pfn(orig_pte));
--		entry = pte_mkyoung(orig_pte);
--		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
--		if (ptep_set_access_flags(vma, address, page_table, entry,1))
--			update_mmu_cache(vma, address, page_table);
-+		get_page(old_page);
-+		mkwrite_pte(vma, address, page_table, orig_pte);
- 		pte_unmap_unlock(page_table, ptl);
--		ret |= VM_FAULT_WRITE;
--
--		if (!dirty_page)
--			return ret;
--
+-					(VM_WRITE|VM_SHARED))) {
 -		/*
--		 * Yes, Virginia, this is actually required to prevent a race
--		 * with clear_page_dirty_for_io() from clearing the page dirty
--		 * bit after it clear all dirty ptes, but before a racing
--		 * do_wp_page installs a dirty pte.
--		 *
--		 * __do_fault is protected similarly.
+-		 * Only catch write-faults on shared writable pages,
+-		 * read-only shared pages can get COWed by
+-		 * get_user_pages(.write=1, .force=1).
 -		 */
--		if (!page_mkwrite) {
--			wait_on_page_locked(dirty_page);
--			set_page_dirty_balance(dirty_page, page_mkwrite);
--			/* file_update_time outside page_lock */
--			if (vma->vm_file)
--				file_update_time(vma->vm_file);
--		}
--		put_page(dirty_page);
--		if (page_mkwrite) {
--			struct address_space *mapping = dirty_page->mapping;
+-		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
+-			struct vm_fault vmf;
+-			int tmp;
 -
--			set_page_dirty(dirty_page);
--			unlock_page(dirty_page);
--			page_cache_release(dirty_page);
--			if (mapping)	{
--				/*
--				 * Some device drivers do not set page.mapping
--				 * but still dirty their pages
--				 */
--				balance_dirty_pages_ratelimited(mapping);
+-			vmf.virtual_address = (void __user *)(address &
+-								PAGE_MASK);
+-			vmf.pgoff = old_page->index;
+-			vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
+-			vmf.page = old_page;
+-
+-			/*
+-			 * Notify the address space that the page is about to
+-			 * become writable so that it can prohibit this or wait
+-			 * for the page to get into an appropriate state.
+-			 *
+-			 * We do this without the lock held, so that it can
+-			 * sleep if it needs to.
+-			 */
+-			page_cache_get(old_page);
+-			pte_unmap_unlock(page_table, ptl);
+-
+-			tmp = vma->vm_ops->page_mkwrite(vma, &vmf);
+-			if (unlikely(tmp &
+-					(VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
+-				ret = tmp;
+-				goto unwritable_page;
 -			}
--		}
+-			if (unlikely(!(tmp & VM_FAULT_LOCKED))) {
+-				lock_page(old_page);
+-				if (!old_page->mapping) {
+-					ret = 0; /* retry the fault */
+-					unlock_page(old_page);
+-					goto unwritable_page;
+-				}
+-			} else
+-				VM_BUG_ON(!PageLocked(old_page));
 -
--		return ret;
-+		dirty_page(vma, old_page, page_mkwrite);
-+		return ret | VM_FAULT_WRITE;
- 	}
+-			/*
+-			 * Since we dropped the lock we need to revalidate
+-			 * the PTE as someone else may have changed it.  If
+-			 * they did, we just return, as we can count on the
+-			 * MMU to tell us if they didn't also make it writable.
+-			 */
+-			page_table = pte_offset_map_lock(mm, pmd, address,
+-							 &ptl);
+-			if (!pte_same(*page_table, orig_pte)) {
+-				unlock_page(old_page);
+-				goto unlock;
+-			}
+-
+-			page_mkwrite = 1;
+-		}
+-		get_page(old_page);
+-		mkwrite_pte(vma, address, page_table, orig_pte);
+-		pte_unmap_unlock(page_table, ptl);
+-		dirty_page(vma, old_page, page_mkwrite);
+-		return ret | VM_FAULT_WRITE;
+-	}
++					(VM_WRITE|VM_SHARED)))
++		return do_wp_page_shared(mm, vma, address, page_table, pmd, ptl,
++				orig_pte, old_page);
  
  	/*
-@@ -2810,6 +2817,7 @@ gotten:
- 	 */
- 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
- 	if (likely(pte_same(*page_table, orig_pte))) {
-+		pte_t entry;
- 		if (old_page) {
- 			if (!PageAnon(old_page)) {
- 				dec_mm_counter_fast(mm, MM_FILEPAGES);
+ 	 * Ok, we need to copy. Oh, well..
+@@ -2900,10 +2908,6 @@ oom:
+ 	if (old_page)
+ 		page_cache_release(old_page);
+ 	return VM_FAULT_OOM;
+-
+-unwritable_page:
+-	page_cache_release(old_page);
+-	return ret;
+ }
+ 
+ static void unmap_mapping_range_vma(struct vm_area_struct *vma,
 -- 
 1.7.10.4
 
