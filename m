@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 2CB636B0039
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 3E6706B004D
 	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:35 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 11/39] thp: represent file thp pages in meminfo and friends
-Date: Sun, 12 May 2013 04:23:08 +0300
-Message-Id: <1368321816-17719-12-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 13/39] mm: trace filemap: dump page order
+Date: Sun, 12 May 2013 04:23:10 +0300
+Message-Id: <1368321816-17719-14-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,86 +15,49 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The patch adds new zone stat to count file transparent huge pages and
-adjust related places.
-
-For now we don't count mapped or dirty file thp pages separately.
+Dump page order to trace to be able to distinguish between small page
+and huge page in page cache.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- drivers/base/node.c    |    4 ++++
- fs/proc/meminfo.c      |    3 +++
- include/linux/mmzone.h |    1 +
- mm/vmstat.c            |    1 +
- 4 files changed, 9 insertions(+)
+ include/trace/events/filemap.h |    7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index bc9f43b..de261f5 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -119,6 +119,7 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       "Node %d SUnreclaim:     %8lu kB\n"
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 		       "Node %d AnonHugePages:  %8lu kB\n"
-+		       "Node %d FileHugePages:  %8lu kB\n"
- #endif
- 			,
- 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
-@@ -140,6 +141,9 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
- 			, nid,
- 			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
-+			HPAGE_PMD_NR)
-+			, nid,
-+			K(node_page_state(nid, NR_FILE_TRANSPARENT_HUGEPAGES) *
- 			HPAGE_PMD_NR));
- #else
- 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 59d85d6..a62952c 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -104,6 +104,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- #endif
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 		"AnonHugePages:  %8lu kB\n"
-+		"FileHugePages:  %8lu kB\n"
- #endif
- 		,
- 		K(i.totalram),
-@@ -158,6 +159,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
- 		   HPAGE_PMD_NR)
-+		,K(global_page_state(NR_FILE_TRANSPARENT_HUGEPAGES) *
-+		   HPAGE_PMD_NR)
- #endif
- 		);
+diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+index 0421f49..7e14b13 100644
+--- a/include/trace/events/filemap.h
++++ b/include/trace/events/filemap.h
+@@ -21,6 +21,7 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
+ 		__field(struct page *, page)
+ 		__field(unsigned long, i_ino)
+ 		__field(unsigned long, index)
++		__field(int, order)
+ 		__field(dev_t, s_dev)
+ 	),
  
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 72e1cb5..33fd258 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -142,6 +142,7 @@ enum zone_stat_item {
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
- 	NR_ANON_TRANSPARENT_HUGEPAGES,
-+	NR_FILE_TRANSPARENT_HUGEPAGES,
- 	NR_FREE_CMA_PAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
+@@ -28,18 +29,20 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
+ 		__entry->page = page;
+ 		__entry->i_ino = page->mapping->host->i_ino;
+ 		__entry->index = page->index;
++		__entry->order = compound_order(page);
+ 		if (page->mapping->host->i_sb)
+ 			__entry->s_dev = page->mapping->host->i_sb->s_dev;
+ 		else
+ 			__entry->s_dev = page->mapping->host->i_rdev;
+ 	),
  
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7a35116..7945285 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -738,6 +738,7 @@ const char * const vmstat_text[] = {
- 	"numa_other",
- #endif
- 	"nr_anon_transparent_hugepages",
-+	"nr_file_transparent_hugepages",
- 	"nr_free_cma",
- 	"nr_dirty_threshold",
- 	"nr_dirty_background_threshold",
+-	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
++	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu order=%d",
+ 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
+ 		__entry->i_ino,
+ 		__entry->page,
+ 		page_to_pfn(__entry->page),
+-		__entry->index << PAGE_SHIFT)
++		__entry->index << PAGE_SHIFT,
++		__entry->order)
+ );
+ 
+ DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_delete_from_page_cache,
 -- 
 1.7.10.4
 
