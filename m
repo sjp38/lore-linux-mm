@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id E8C366B007B
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id E0DBA6B006E
 	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:39 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 30/39] thp: do_huge_pmd_anonymous_page() cleanup
-Date: Sun, 12 May 2013 04:23:27 +0300
-Message-Id: <1368321816-17719-31-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 34/39] thp, mm: handle huge pages in filemap_fault()
+Date: Sun, 12 May 2013 04:23:31 +0300
+Message-Id: <1368321816-17719-35-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,117 +15,145 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Minor cleanup: unindent most code of the fucntion by inverting one
-condition. It's preparation for the next patch.
+If caller asks for huge page (flags & FAULT_FLAG_TRANSHUGE),
+filemap_fault() return it if there's a huge page already by the offset.
 
-No functional changes.
+If the area of page cache required to create huge is empty, we create a
+new huge page and return it.
+
+Otherwise we return VM_FAULT_FALLBACK to indicate that fallback to small
+pages is required.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c |   83 +++++++++++++++++++++++++++---------------------------
- 1 file changed, 41 insertions(+), 42 deletions(-)
+ mm/filemap.c |   52 +++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 43 insertions(+), 9 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 575f29b..ab07f5d 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -804,55 +804,54 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	unsigned long haddr = address & HPAGE_PMD_MASK;
- 	pte_t *pte;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 9877347..1deedd6 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1557,14 +1557,23 @@ EXPORT_SYMBOL(generic_file_aio_read);
+  * This adds the requested page to the page cache if it isn't already there,
+  * and schedules an I/O to read in its contents from disk.
+  */
+-static int page_cache_read(struct file *file, pgoff_t offset)
++static int page_cache_read(struct file *file, pgoff_t offset, bool thp)
+ {
+ 	struct address_space *mapping = file->f_mapping;
+-	struct page *page; 
++	struct page *page;
+ 	int ret;
  
--	if (haddr >= vma->vm_start && haddr + HPAGE_PMD_SIZE <= vma->vm_end) {
--		if (unlikely(anon_vma_prepare(vma)))
--			return VM_FAULT_OOM;
--		if (unlikely(khugepaged_enter(vma)))
-+	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
-+		goto out;
-+	if (unlikely(anon_vma_prepare(vma)))
-+		return VM_FAULT_OOM;
-+	if (unlikely(khugepaged_enter(vma)))
-+		return VM_FAULT_OOM;
-+	if (!(flags & FAULT_FLAG_WRITE) &&
-+			transparent_hugepage_use_zero_page()) {
-+		pgtable_t pgtable;
-+		struct page *zero_page;
-+		bool set;
-+		pgtable = pte_alloc_one(mm, haddr);
-+		if (unlikely(!pgtable))
- 			return VM_FAULT_OOM;
--		if (!(flags & FAULT_FLAG_WRITE) &&
--				transparent_hugepage_use_zero_page()) {
--			pgtable_t pgtable;
--			struct page *zero_page;
--			bool set;
--			pgtable = pte_alloc_one(mm, haddr);
--			if (unlikely(!pgtable))
--				return VM_FAULT_OOM;
--			zero_page = get_huge_zero_page();
--			if (unlikely(!zero_page)) {
--				pte_free(mm, pgtable);
--				count_vm_event(THP_FAULT_FALLBACK);
--				goto out;
--			}
--			spin_lock(&mm->page_table_lock);
--			set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
--					zero_page);
--			spin_unlock(&mm->page_table_lock);
--			if (!set) {
--				pte_free(mm, pgtable);
--				put_huge_zero_page();
--			}
--			return 0;
--		}
--		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
--					  vma, haddr, numa_node_id(), 0);
--		if (unlikely(!page)) {
-+		zero_page = get_huge_zero_page();
-+		if (unlikely(!zero_page)) {
-+			pte_free(mm, pgtable);
- 			count_vm_event(THP_FAULT_FALLBACK);
- 			goto out;
- 		}
--		count_vm_event(THP_FAULT_ALLOC);
--		if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
--			put_page(page);
--			goto out;
--		}
--		if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr, pmd,
--							  page))) {
--			mem_cgroup_uncharge_page(page);
--			put_page(page);
--			goto out;
-+		spin_lock(&mm->page_table_lock);
-+		set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
-+				zero_page);
-+		spin_unlock(&mm->page_table_lock);
-+		if (!set) {
-+			pte_free(mm, pgtable);
-+			put_huge_zero_page();
- 		}
--
- 		return 0;
- 	}
-+	page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
-+			vma, haddr, numa_node_id(), 0);
-+	if (unlikely(!page)) {
-+		count_vm_event(THP_FAULT_FALLBACK);
-+		goto out;
-+	}
-+	count_vm_event(THP_FAULT_ALLOC);
-+	if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-+		put_page(page);
-+		goto out;
-+	}
-+	if (unlikely(__do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page))) {
-+		mem_cgroup_uncharge_page(page);
-+		put_page(page);
-+		goto out;
+ 	do {
+-		page = page_cache_alloc_cold(mapping);
++		if (thp) {
++			gfp_t gfp_mask = mapping_gfp_mask(mapping) | __GFP_COLD;
++			BUG_ON(offset & HPAGE_CACHE_INDEX_MASK);
++			page = alloc_pages(gfp_mask, HPAGE_PMD_ORDER);
++			if (page)
++				count_vm_event(THP_FAULT_ALLOC);
++			else
++				count_vm_event(THP_FAULT_FALLBACK);
++		} else
++			page = page_cache_alloc_cold(mapping);
+ 		if (!page)
+ 			return -ENOMEM;
+ 
+@@ -1573,11 +1582,18 @@ static int page_cache_read(struct file *file, pgoff_t offset)
+ 			ret = mapping->a_ops->readpage(file, page);
+ 		else if (ret == -EEXIST)
+ 			ret = 0; /* losing race to add is OK */
++		else if (ret == -ENOSPC)
++			/*
++			 * No space in page cache to add huge page.
++			 * For caller it's the same as -ENOMEM: fall back to
++			 * small pages is required.
++			 */
++			ret = -ENOMEM;
+ 
+ 		page_cache_release(page);
+ 
+ 	} while (ret == AOP_TRUNCATED_PAGE);
+-		
++
+ 	return ret;
+ }
+ 
+@@ -1669,13 +1685,20 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	struct address_space *mapping = file->f_mapping;
+ 	struct file_ra_state *ra = &file->f_ra;
+ 	struct inode *inode = mapping->host;
++	bool thp = vmf->flags & FAULT_FLAG_TRANSHUGE;
+ 	pgoff_t offset = vmf->pgoff;
++	unsigned long address = (unsigned long)vmf->virtual_address;
+ 	struct page *page;
+ 	pgoff_t size;
+ 	int ret = 0;
+ 
++	if (thp) {
++		BUG_ON(ra->ra_pages);
++		offset = linear_page_index(vma, address & HPAGE_PMD_MASK);
 +	}
 +
-+	return 0;
- out:
+ 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+-	if (offset >= size)
++	if (vmf->pgoff >= size)
+ 		return VM_FAULT_SIGBUS;
+ 
  	/*
- 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
+@@ -1700,7 +1723,8 @@ retry_find:
+ 			goto no_cached_page;
+ 	}
+ 
+-	if (PageTransCompound(page))
++	/* Split huge page if we don't want huge page to be here */
++	if (!thp && PageTransCompound(page))
+ 		split_huge_page(compound_trans_head(page));
+ 	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags)) {
+ 		page_cache_release(page);
+@@ -1722,12 +1746,22 @@ retry_find:
+ 	if (unlikely(!PageUptodate(page)))
+ 		goto page_not_uptodate;
+ 
++	if (thp && !PageTransHuge(page)) {
++		/*
++		 * Caller asked for huge page, but we have small page
++		 * by this offset. Fallback to small pages.
++		 */
++		unlock_page(page);
++		page_cache_release(page);
++		return VM_FAULT_FALLBACK;
++	}
++
+ 	/*
+ 	 * Found the page and have a reference on it.
+ 	 * We must recheck i_size under page lock.
+ 	 */
+ 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+-	if (unlikely(offset >= size)) {
++	if (unlikely(vmf->pgoff >= size)) {
+ 		unlock_page(page);
+ 		page_cache_release(page);
+ 		return VM_FAULT_SIGBUS;
+@@ -1741,7 +1775,7 @@ no_cached_page:
+ 	 * We're only likely to ever get here if MADV_RANDOM is in
+ 	 * effect.
+ 	 */
+-	error = page_cache_read(file, offset);
++	error = page_cache_read(file, offset, thp);
+ 
+ 	/*
+ 	 * The page we want has now been added to the page cache.
+@@ -1757,7 +1791,7 @@ no_cached_page:
+ 	 * to schedule I/O.
+ 	 */
+ 	if (error == -ENOMEM)
+-		return VM_FAULT_OOM;
++		return VM_FAULT_OOM | VM_FAULT_FALLBACK;
+ 	return VM_FAULT_SIGBUS;
+ 
+ page_not_uptodate:
 -- 
 1.7.10.4
 
