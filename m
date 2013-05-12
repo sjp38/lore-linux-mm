@@ -1,56 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 8461A6B0002
-	for <linux-mm@kvack.org>; Sat, 11 May 2013 16:05:41 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id w20so5180539lbh.20
-        for <linux-mm@kvack.org>; Sat, 11 May 2013 13:05:39 -0700 (PDT)
-Message-ID: <518EA49F.50206@cogentembedded.com>
-Date: Sun, 12 May 2013 00:05:51 +0400
-From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v6, part3 15/16] mm: report available pages as "MemTotal"
- for each NUMA node
-References: <1368293689-16410-1-git-send-email-jiang.liu@huawei.com> <1368293689-16410-16-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1368293689-16410-16-git-send-email-jiang.liu@huawei.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id C3EA36B0002
+	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:29 -0400 (EDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 02/39] block: implement add_bdi_stat()
+Date: Sun, 12 May 2013 04:22:59 +0300
+Message-Id: <1368321816-17719-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengguang <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Dave Hansen <dave@sr71.net>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hello.
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 05/11/2013 09:34 PM, Jiang Liu wrote:
+We're going to add/remove a number of page cache entries at once. This
+patch implements add_bdi_stat() which adjusts bdi stats by arbitrary
+amount. It's required for batched page cache manipulations.
 
-    I've noticed a small typo in the changelog.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/backing-dev.h |   10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-> As reported by https://bugzilla.kernel.org/show_bug.cgi?id=53501,
-> "MemTotal" from /proc/meminfo means memory pages managed by the buddy
-> system (managed_pages), but "MemTotal" from /sys/.../node/nodex/meminfo
-> means phsical pages present (present_pages) within the NUMA node.
-
-     s/phsical/physical/
-
-> There's a difference between managed_pages and present_pages due to
-> bootmem allocator and reserved pages.
->
-> And Documentation/filesystems/proc.txt says
->      MemTotal: Total usable ram (i.e. physical ram minus a few reserved
->                bits and the kernel binary code)
->
-> So change /sys/.../node/nodex/meminfo to report available pages within
-> the node as "MemTotal".
->
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Reported-by: sworddragon2@aol.com
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
-
-WBR, Sergei
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 3504599..b05d961 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -167,6 +167,16 @@ static inline void __dec_bdi_stat(struct backing_dev_info *bdi,
+ 	__add_bdi_stat(bdi, item, -1);
+ }
+ 
++static inline void add_bdi_stat(struct backing_dev_info *bdi,
++		enum bdi_stat_item item, s64 amount)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__add_bdi_stat(bdi, item, amount);
++	local_irq_restore(flags);
++}
++
+ static inline void dec_bdi_stat(struct backing_dev_info *bdi,
+ 		enum bdi_stat_item item)
+ {
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
