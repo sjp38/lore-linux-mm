@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 11F286B004D
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 768346B005C
 	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:38 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 18/39] thp, mm: add event counters for huge page alloc on write to a file
-Date: Sun, 12 May 2013 04:23:15 +0300
-Message-Id: <1368321816-17719-19-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 25/39] thp, mm: split huge page on mmap file page
+Date: Sun, 12 May 2013 04:23:22 +0300
+Message-Id: <1368321816-17719-26-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,44 +15,30 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Existing stats specify source of thp page: fault or collapse. We're
-going allocate a new huge page with write(2). It's nither fault nor
-collapse.
+We are not ready to mmap file-backed tranparent huge pages. Let's split
+them on fault attempt.
 
-Let's introduce new events for that.
+Later in the patchset we'll implement mmap() properly and this code path
+be used for fallback cases.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/vm_event_item.h |    2 ++
- mm/vmstat.c                   |    2 ++
- 2 files changed, 4 insertions(+)
+ mm/filemap.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index d4b7a18..584c71c 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -71,6 +71,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_FAULT_FALLBACK,
- 		THP_COLLAPSE_ALLOC,
- 		THP_COLLAPSE_ALLOC_FAILED,
-+		THP_WRITE_ALLOC,
-+		THP_WRITE_ALLOC_FAILED,
- 		THP_SPLIT,
- 		THP_ZERO_PAGE_ALLOC,
- 		THP_ZERO_PAGE_ALLOC_FAILED,
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7945285..df8dcda 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -821,6 +821,8 @@ const char * const vmstat_text[] = {
- 	"thp_fault_fallback",
- 	"thp_collapse_alloc",
- 	"thp_collapse_alloc_failed",
-+	"thp_write_alloc",
-+	"thp_write_alloc_failed",
- 	"thp_split",
- 	"thp_zero_page_alloc",
- 	"thp_zero_page_alloc_failed",
+diff --git a/mm/filemap.c b/mm/filemap.c
+index ebd361a..9877347 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1700,6 +1700,8 @@ retry_find:
+ 			goto no_cached_page;
+ 	}
+ 
++	if (PageTransCompound(page))
++		split_huge_page(compound_trans_head(page));
+ 	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags)) {
+ 		page_cache_release(page);
+ 		return ret | VM_FAULT_RETRY;
 -- 
 1.7.10.4
 
