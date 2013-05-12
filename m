@@ -1,53 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id AB5C76B0002
-	for <linux-mm@kvack.org>; Sun, 12 May 2013 13:53:26 -0400 (EDT)
-Message-ID: <518FD70C.7020608@redhat.com>
-Date: Sun, 12 May 2013 13:53:16 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: The pagecache unloved in zone NORMAL?
-References: <51671D4D.9080003@bitsync.net> <5186D433.3050301@bitsync.net>
-In-Reply-To: <5186D433.3050301@bitsync.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id C7F8F6B0033
+	for <linux-mm@kvack.org>; Sun, 12 May 2013 14:13:25 -0400 (EDT)
+From: Glauber Costa <glommer@openvz.org>
+Subject: [PATCH v6 02/31] dcache: convert dentry_stat.nr_unused to per-cpu counters
+Date: Sun, 12 May 2013 22:13:23 +0400
+Message-Id: <1368382432-25462-3-git-send-email-glommer@openvz.org>
+In-Reply-To: <1368382432-25462-1-git-send-email-glommer@openvz.org>
+References: <1368382432-25462-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zcalusic@bitsync.net>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Dave Chinner <dchinner@redhat.com>
 
-On 05/05/2013 05:50 PM, Zlatko Calusic wrote:
+From: Dave Chinner <dchinner@redhat.com>
 
-> An excellent Konstantin's patch better described here
-> http://marc.info/?l=linux-mm&m=136731974301311 is already giving some
-> useful additional insight into this problem, just as I expected. Here's
-> the data after 31h of server uptime (also see the attached graph):
->
-> Node 0, zone    DMA32
->      nr_inactive_file 443705
->    avg_age_inactive_file: 362800
-> Node 0, zone   Normal
->      nr_inactive_file 32832
->    avg_age_inactive_file: 38760
->
-> I reckon that only aging of the inactive LRU lists is of the interest at
-> the moment, because there's currently a streaming I/O of about 8MB/s
-> that can be seen on the graphs. Here's how I decipher the numbers:
+Before we split up the dcache_lru_lock, the unused dentry counter
+needs to be made independent of the global dcache_lru_lock. Convert
+it to per-cpu counters to do this.
 
-> The only question I have is, is this a design mistake, or a plain bug?
+[ v5: comment about possible cpus ]
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+Acked-by: Mel Gorman <mgorman@suse.de>
+---
+ fs/dcache.c | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)
 
-I believe this is a bug.
-
-> I strongly believe that pages should be reclaimed at speed appropriate
-> to the LRU size.
-
-I agree. Aging the pages in one zone 10x as fast as the pages in
-another zone could throw off all kinds of things, including detecting
-(and preserving) the system working set, page cache readahead thrashing,
-etc...
-
+diff --git a/fs/dcache.c b/fs/dcache.c
+index f09b908..cb304f4 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -118,8 +118,10 @@ struct dentry_stat_t dentry_stat = {
+ };
+ 
+ static DEFINE_PER_CPU(unsigned int, nr_dentry);
++static DEFINE_PER_CPU(unsigned int, nr_dentry_unused);
+ 
+ #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
++/* scan possible cpus instead of online and avoid worrying about CPU hotplug. */
+ static int get_nr_dentry(void)
+ {
+ 	int i;
+@@ -129,10 +131,20 @@ static int get_nr_dentry(void)
+ 	return sum < 0 ? 0 : sum;
+ }
+ 
++static int get_nr_dentry_unused(void)
++{
++	int i;
++	int sum = 0;
++	for_each_possible_cpu(i)
++		sum += per_cpu(nr_dentry_unused, i);
++	return sum < 0 ? 0 : sum;
++}
++
+ int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
+ 		   size_t *lenp, loff_t *ppos)
+ {
+ 	dentry_stat.nr_dentry = get_nr_dentry();
++	dentry_stat.nr_unused = get_nr_dentry_unused();
+ 	return proc_dointvec(table, write, buffer, lenp, ppos);
+ }
+ #endif
+@@ -312,7 +324,7 @@ static void dentry_lru_add(struct dentry *dentry)
+ 		spin_lock(&dcache_lru_lock);
+ 		list_add(&dentry->d_lru, &dentry->d_sb->s_dentry_lru);
+ 		dentry->d_sb->s_nr_dentry_unused++;
+-		dentry_stat.nr_unused++;
++		this_cpu_inc(nr_dentry_unused);
+ 		spin_unlock(&dcache_lru_lock);
+ 	}
+ }
+@@ -322,7 +334,7 @@ static void __dentry_lru_del(struct dentry *dentry)
+ 	list_del_init(&dentry->d_lru);
+ 	dentry->d_flags &= ~DCACHE_SHRINK_LIST;
+ 	dentry->d_sb->s_nr_dentry_unused--;
+-	dentry_stat.nr_unused--;
++	this_cpu_dec(nr_dentry_unused);
+ }
+ 
+ /*
+@@ -343,7 +355,7 @@ static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
+ 	if (list_empty(&dentry->d_lru)) {
+ 		list_add_tail(&dentry->d_lru, list);
+ 		dentry->d_sb->s_nr_dentry_unused++;
+-		dentry_stat.nr_unused++;
++		this_cpu_inc(nr_dentry_unused);
+ 	} else {
+ 		list_move_tail(&dentry->d_lru, list);
+ 	}
 -- 
-All rights reversed
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
