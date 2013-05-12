@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id B8DDC6B0075
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id E07646B0068
 	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:39 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 01/39] mm: drop actor argument of do_generic_file_read()
-Date: Sun, 12 May 2013 04:22:58 +0300
-Message-Id: <1368321816-17719-2-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 20/39] thp, mm: naive support of thp in generic read/write routines
+Date: Sun, 12 May 2013 04:23:17 +0300
+Message-Id: <1368321816-17719-21-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,61 +15,60 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-There's only one caller of do_generic_file_read() and the only actor is
-file_read_actor(). No reason to have a callback parameter.
+For now we still write/read at most PAGE_CACHE_SIZE bytes a time.
+
+This implementation doesn't cover address spaces with backing store.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c |   10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ mm/filemap.c |   19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)
 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index e989fb1..61158ac 100644
+index e086ef0..ebd361a 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -1088,7 +1088,6 @@ static void shrink_readahead_size_eio(struct file *filp,
-  * @filp:	the file to read
-  * @ppos:	current file position
-  * @desc:	read_descriptor
-- * @actor:	read method
-  *
-  * This is a generic file read routine, and uses the
-  * mapping->a_ops->readpage() function for the actual low-level stuff.
-@@ -1097,7 +1096,7 @@ static void shrink_readahead_size_eio(struct file *filp,
-  * of the logic when it comes to error handling etc.
-  */
- static void do_generic_file_read(struct file *filp, loff_t *ppos,
--		read_descriptor_t *desc, read_actor_t actor)
-+		read_descriptor_t *desc)
- {
- 	struct address_space *mapping = filp->f_mapping;
- 	struct inode *inode = mapping->host;
-@@ -1198,13 +1197,14 @@ page_ok:
- 		 * Ok, we have the page, and it's up-to-date, so
- 		 * now we can copy it to user space...
- 		 *
--		 * The actor routine returns how many bytes were actually used..
-+		 * The file_read_actor routine returns how many bytes were
-+		 * actually used..
- 		 * NOTE! This may not be the same as how much of a user buffer
- 		 * we filled up (we may be padding etc), so we can only update
- 		 * "pos" here (the actor routine has to update the user buffer
- 		 * pointers and the remaining count).
- 		 */
--		ret = actor(desc, page, offset, nr);
-+		ret = file_read_actor(desc, page, offset, nr);
- 		offset += ret;
- 		index += offset >> PAGE_CACHE_SHIFT;
- 		offset &= ~PAGE_CACHE_MASK;
-@@ -1477,7 +1477,7 @@ generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
- 		if (desc.count == 0)
- 			continue;
- 		desc.error = 0;
--		do_generic_file_read(filp, ppos, &desc, file_read_actor);
-+		do_generic_file_read(filp, ppos, &desc);
- 		retval += desc.written;
- 		if (desc.error) {
- 			retval = retval ?: desc.error;
+@@ -1177,6 +1177,17 @@ find_page:
+ 			if (unlikely(page == NULL))
+ 				goto no_cached_page;
+ 		}
++		if (PageTransCompound(page)) {
++			struct page *head = compound_trans_head(page);
++			/*
++			 * We don't yet support huge pages in page cache
++			 * for filesystems with backing device, so pages
++			 * should always be up-to-date.
++			 */
++			BUG_ON(ra->ra_pages);
++			BUG_ON(!PageUptodate(head));
++			goto page_ok;
++		}
+ 		if (PageReadahead(page)) {
+ 			page_cache_async_readahead(mapping,
+ 					ra, filp, page,
+@@ -2413,8 +2424,13 @@ again:
+ 		if (mapping_writably_mapped(mapping))
+ 			flush_dcache_page(page);
+ 
++		if (PageTransHuge(page))
++			offset = pos & ~HPAGE_PMD_MASK;
++
+ 		pagefault_disable();
+-		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
++		copied = iov_iter_copy_from_user_atomic(
++				page + (offset >> PAGE_CACHE_SHIFT),
++				i, offset & ~PAGE_CACHE_MASK, bytes);
+ 		pagefault_enable();
+ 		flush_dcache_page(page);
+ 
+@@ -2437,6 +2453,7 @@ again:
+ 			 * because not all segments in the iov can be copied at
+ 			 * once without a pagefault.
+ 			 */
++			offset = pos & ~PAGE_CACHE_MASK;
+ 			bytes = min_t(unsigned long, PAGE_CACHE_SIZE - offset,
+ 						iov_iter_single_seg_count(i));
+ 			goto again;
 -- 
 1.7.10.4
 
