@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 3E6706B004D
-	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:35 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 1E8DA6B003C
+	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:36 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 13/39] mm: trace filemap: dump page order
-Date: Sun, 12 May 2013 04:23:10 +0300
-Message-Id: <1368321816-17719-14-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 12/39] thp, mm: rewrite add_to_page_cache_locked() to support huge pages
+Date: Sun, 12 May 2013 04:23:09 +0300
+Message-Id: <1368321816-17719-13-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,49 +15,106 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Dump page order to trace to be able to distinguish between small page
-and huge page in page cache.
+For huge page we add to radix tree HPAGE_CACHE_NR pages at once: head
+page for the specified index and HPAGE_CACHE_NR-1 tail pages for
+following indexes.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/trace/events/filemap.h |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ mm/filemap.c |   71 ++++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 47 insertions(+), 24 deletions(-)
 
-diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
-index 0421f49..7e14b13 100644
---- a/include/trace/events/filemap.h
-+++ b/include/trace/events/filemap.h
-@@ -21,6 +21,7 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
- 		__field(struct page *, page)
- 		__field(unsigned long, i_ino)
- 		__field(unsigned long, index)
-+		__field(int, order)
- 		__field(dev_t, s_dev)
- 	),
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 61158ac..b0c7c8c 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -460,39 +460,62 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 		pgoff_t offset, gfp_t gfp_mask)
+ {
+ 	int error;
++	int i, nr;
  
-@@ -28,18 +29,20 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
- 		__entry->page = page;
- 		__entry->i_ino = page->mapping->host->i_ino;
- 		__entry->index = page->index;
-+		__entry->order = compound_order(page);
- 		if (page->mapping->host->i_sb)
- 			__entry->s_dev = page->mapping->host->i_sb->s_dev;
- 		else
- 			__entry->s_dev = page->mapping->host->i_rdev;
- 	),
+ 	VM_BUG_ON(!PageLocked(page));
+ 	VM_BUG_ON(PageSwapBacked(page));
  
--	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
-+	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu order=%d",
- 		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
- 		__entry->i_ino,
- 		__entry->page,
- 		page_to_pfn(__entry->page),
--		__entry->index << PAGE_SHIFT)
-+		__entry->index << PAGE_SHIFT,
-+		__entry->order)
- );
++	/* memory cgroup controller handles thp pages on its side */
+ 	error = mem_cgroup_cache_charge(page, current->mm,
+ 					gfp_mask & GFP_RECLAIM_MASK);
+ 	if (error)
+-		goto out;
+-
+-	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+-	if (error == 0) {
+-		page_cache_get(page);
+-		page->mapping = mapping;
+-		page->index = offset;
++		return error;
  
- DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_delete_from_page_cache,
+-		spin_lock_irq(&mapping->tree_lock);
+-		error = radix_tree_insert(&mapping->page_tree, offset, page);
+-		if (likely(!error)) {
+-			mapping->nrpages++;
+-			__inc_zone_page_state(page, NR_FILE_PAGES);
+-			spin_unlock_irq(&mapping->tree_lock);
+-			trace_mm_filemap_add_to_page_cache(page);
+-		} else {
+-			page->mapping = NULL;
+-			/* Leave page->index set: truncation relies upon it */
+-			spin_unlock_irq(&mapping->tree_lock);
+-			mem_cgroup_uncharge_cache_page(page);
+-			page_cache_release(page);
+-		}
+-		radix_tree_preload_end();
+-	} else
++	if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE)) {
++		BUILD_BUG_ON(HPAGE_CACHE_NR > RADIX_TREE_PRELOAD_NR);
++		nr = hpage_nr_pages(page);
++	} else {
++		BUG_ON(PageTransHuge(page));
++		nr = 1;
++	}
++	error = radix_tree_preload_count(nr, gfp_mask & ~__GFP_HIGHMEM);
++	if (error) {
+ 		mem_cgroup_uncharge_cache_page(page);
+-out:
++		return error;
++	}
++
++	spin_lock_irq(&mapping->tree_lock);
++	for (i = 0; i < nr; i++) {
++		page_cache_get(page + i);
++		page[i].index = offset + i;
++		page[i].mapping = mapping;
++		error = radix_tree_insert(&mapping->page_tree,
++				offset + i, page + i);
++		if (error)
++			goto err;
++	}
++	__mod_zone_page_state(page_zone(page), NR_FILE_PAGES, nr);
++	if (PageTransHuge(page))
++		__inc_zone_page_state(page, NR_FILE_TRANSPARENT_HUGEPAGES);
++	mapping->nrpages += nr;
++	spin_unlock_irq(&mapping->tree_lock);
++	radix_tree_preload_end();
++	trace_mm_filemap_add_to_page_cache(page);
++	return 0;
++err:
++	if (i != 0)
++		error = -ENOSPC; /* no space for a huge page */
++	page_cache_release(page + i);
++	page[i].mapping = NULL;
++	for (i--; i >= 0; i--) {
++		/* Leave page->index set: truncation relies upon it */
++		page[i].mapping = NULL;
++		radix_tree_delete(&mapping->page_tree, offset + i);
++		page_cache_release(page + i);
++	}
++	spin_unlock_irq(&mapping->tree_lock);
++	radix_tree_preload_end();
++	mem_cgroup_uncharge_cache_page(page);
+ 	return error;
+ }
+ EXPORT_SYMBOL(add_to_page_cache_locked);
 -- 
 1.7.10.4
 
