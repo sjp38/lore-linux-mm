@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 0C6876B0044
-	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:37 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 11F286B004D
+	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:38 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 16/39] thp, mm: locking tail page is a bug
-Date: Sun, 12 May 2013 04:23:13 +0300
-Message-Id: <1368321816-17719-17-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 18/39] thp, mm: add event counters for huge page alloc on write to a file
+Date: Sun, 12 May 2013 04:23:15 +0300
+Message-Id: <1368321816-17719-19-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,34 +15,44 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Locking head page means locking entire compound page.
-If we try to lock tail page, something went wrong.
+Existing stats specify source of thp page: fault or collapse. We're
+going allocate a new huge page with write(2). It's nither fault nor
+collapse.
+
+Let's introduce new events for that.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c |    2 ++
- 1 file changed, 2 insertions(+)
+ include/linux/vm_event_item.h |    2 ++
+ mm/vmstat.c                   |    2 ++
+ 2 files changed, 4 insertions(+)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 3a03426..9ea46a4 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -681,6 +681,7 @@ void __lock_page(struct page *page)
- {
- 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
- 
-+	VM_BUG_ON(PageTail(page));
- 	__wait_on_bit_lock(page_waitqueue(page), &wait, sleep_on_page,
- 							TASK_UNINTERRUPTIBLE);
- }
-@@ -690,6 +691,7 @@ int __lock_page_killable(struct page *page)
- {
- 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
- 
-+	VM_BUG_ON(PageTail(page));
- 	return __wait_on_bit_lock(page_waitqueue(page), &wait,
- 					sleep_on_page_killable, TASK_KILLABLE);
- }
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index d4b7a18..584c71c 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -71,6 +71,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		THP_FAULT_FALLBACK,
+ 		THP_COLLAPSE_ALLOC,
+ 		THP_COLLAPSE_ALLOC_FAILED,
++		THP_WRITE_ALLOC,
++		THP_WRITE_ALLOC_FAILED,
+ 		THP_SPLIT,
+ 		THP_ZERO_PAGE_ALLOC,
+ 		THP_ZERO_PAGE_ALLOC_FAILED,
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 7945285..df8dcda 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -821,6 +821,8 @@ const char * const vmstat_text[] = {
+ 	"thp_fault_fallback",
+ 	"thp_collapse_alloc",
+ 	"thp_collapse_alloc_failed",
++	"thp_write_alloc",
++	"thp_write_alloc_failed",
+ 	"thp_split",
+ 	"thp_zero_page_alloc",
+ 	"thp_zero_page_alloc_failed",
 -- 
 1.7.10.4
 
