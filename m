@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id F2C316B006E
-	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:38 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 1D7346B0072
+	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:39 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 19/39] thp, mm: allocate huge pages in grab_cache_page_write_begin()
-Date: Sun, 12 May 2013 04:23:16 +0300
-Message-Id: <1368321816-17719-20-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 24/39] thp, mm: truncate support for transparent huge page cache
+Date: Sun, 12 May 2013 04:23:21 +0300
+Message-Id: <1368321816-17719-25-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,129 +15,48 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Try to allocate huge page if flags has AOP_FLAG_TRANSHUGE.
+If we starting position of truncation is in tail page we have to spilit
+the huge page page first.
 
-If, for some reason, it's not possible allocate a huge page at this
-possition, it returns NULL. Caller should take care of fallback to
-small pages.
+We also have to split if end is within the huge page. Otherwise we can
+truncate whole huge page at once.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/fs.h      |    1 +
- include/linux/huge_mm.h |    3 +++
- include/linux/pagemap.h |    9 ++++++++-
- mm/filemap.c            |   29 ++++++++++++++++++++++++-----
- 4 files changed, 36 insertions(+), 6 deletions(-)
+ mm/truncate.c |   13 +++++++++++++
+ 1 file changed, 13 insertions(+)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 2c28271..a70b0ac 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -280,6 +280,7 @@ enum positive_aop_returns {
- #define AOP_FLAG_NOFS			0x0004 /* used by filesystem to direct
- 						* helper code (eg buffer layer)
- 						* to clear GFP_FS from alloc */
-+#define AOP_FLAG_TRANSHUGE		0x0008 /* allocate transhuge page */
+diff --git a/mm/truncate.c b/mm/truncate.c
+index c75b736..0152feb 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -231,6 +231,17 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			if (index > end)
+ 				break;
  
- /*
-  * oh the beauties of C type declarations.
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 88b44e2..74494a2 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -194,6 +194,9 @@ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vm
- #define HPAGE_CACHE_NR         ({ BUILD_BUG(); 0; })
- #define HPAGE_CACHE_INDEX_MASK ({ BUILD_BUG(); 0; })
++			/* split page if we start from tail page */
++			if (PageTransTail(page))
++				split_huge_page(compound_trans_head(page));
++			if (PageTransHuge(page)) {
++				/* split if end is within huge page */
++				if (index == (end & ~HPAGE_CACHE_INDEX_MASK))
++					split_huge_page(page);
++				else
++					/* skip tail pages */
++					i += HPAGE_CACHE_NR - 1;
++			}
+ 			if (!trylock_page(page))
+ 				continue;
+ 			WARN_ON(page->index != index);
+@@ -280,6 +291,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			if (index > end)
+ 				break;
  
-+#define THP_WRITE_ALLOC		({ BUILD_BUG(); 0; })
-+#define THP_WRITE_ALLOC_FAILED	({ BUILD_BUG(); 0; })
-+
- #define hpage_nr_pages(x) 1
- 
- #define transparent_hugepage_enabled(__vma) 0
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 2e86251..8feeecc 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -270,8 +270,15 @@ unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
- unsigned find_get_pages_tag(struct address_space *mapping, pgoff_t *index,
- 			int tag, unsigned int nr_pages, struct page **pages);
- 
--struct page *grab_cache_page_write_begin(struct address_space *mapping,
-+struct page *__grab_cache_page_write_begin(struct address_space *mapping,
- 			pgoff_t index, unsigned flags);
-+static inline struct page *grab_cache_page_write_begin(
-+		struct address_space *mapping, pgoff_t index, unsigned flags)
-+{
-+	if (!transparent_hugepage_pagecache() && (flags & AOP_FLAG_TRANSHUGE))
-+		return NULL;
-+	return __grab_cache_page_write_begin(mapping, index, flags);
-+}
- 
- /*
-  * Returns locked page at given index in given cache, creating it if needed.
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 9ea46a4..e086ef0 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2309,25 +2309,44 @@ EXPORT_SYMBOL(generic_file_direct_write);
-  * Find or create a page at the given pagecache position. Return the locked
-  * page. This function is specifically for buffered writes.
-  */
--struct page *grab_cache_page_write_begin(struct address_space *mapping,
--					pgoff_t index, unsigned flags)
-+struct page *__grab_cache_page_write_begin(struct address_space *mapping,
-+		pgoff_t index, unsigned flags)
- {
- 	int status;
- 	gfp_t gfp_mask;
- 	struct page *page;
- 	gfp_t gfp_notmask = 0;
-+	bool thp = (flags & AOP_FLAG_TRANSHUGE) &&
-+		IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE);
- 
- 	gfp_mask = mapping_gfp_mask(mapping);
- 	if (mapping_cap_account_dirty(mapping))
- 		gfp_mask |= __GFP_WRITE;
- 	if (flags & AOP_FLAG_NOFS)
- 		gfp_notmask = __GFP_FS;
-+	if (thp) {
-+		BUG_ON(index & HPAGE_CACHE_INDEX_MASK);
-+		BUG_ON(!(gfp_mask & __GFP_COMP));
-+	}
- repeat:
- 	page = find_lock_page(mapping, index);
--	if (page)
-+	if (page) {
-+		if (thp && !PageTransHuge(page)) {
-+			unlock_page(page);
-+			page_cache_release(page);
-+			return NULL;
-+		}
- 		goto found;
-+	}
- 
--	page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
-+	if (thp) {
-+		page = alloc_pages(gfp_mask & ~gfp_notmask, HPAGE_PMD_ORDER);
-+		if (page)
-+			count_vm_event(THP_WRITE_ALLOC);
-+		else
-+			count_vm_event(THP_WRITE_ALLOC_FAILED);
-+	} else
-+		page = __page_cache_alloc(gfp_mask & ~gfp_notmask);
- 	if (!page)
- 		return NULL;
- 	status = add_to_page_cache_lru(page, mapping, index,
-@@ -2342,7 +2361,7 @@ found:
- 	wait_for_stable_page(page);
- 	return page;
- }
--EXPORT_SYMBOL(grab_cache_page_write_begin);
-+EXPORT_SYMBOL(__grab_cache_page_write_begin);
- 
- static ssize_t generic_perform_write(struct file *file,
- 				struct iov_iter *i, loff_t pos)
++			if (PageTransHuge(page))
++				split_huge_page(page);
+ 			lock_page(page);
+ 			WARN_ON(page->index != index);
+ 			wait_on_page_writeback(page);
 -- 
 1.7.10.4
 
