@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 288FE6B0037
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 323836B0034
 	for <linux-mm@kvack.org>; Sat, 11 May 2013 21:21:34 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 08/39] thp: compile-time and sysfs knob for thp pagecache
-Date: Sun, 12 May 2013 04:23:05 +0300
-Message-Id: <1368321816-17719-9-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 10/39] thp: account anon transparent huge pages into NR_ANON_PAGES
+Date: Sun, 12 May 2013 04:23:07 +0300
+Message-Id: <1368321816-17719-11-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1368321816-17719-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,103 +15,116 @@ Cc: Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Wu Fengg
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For now, TRANSPARENT_HUGEPAGE_PAGECACHE is only implemented for X86_64.
+We use NR_ANON_PAGES as base for reporting AnonPages to user.
+There's not much sense in not accounting transparent huge pages there, but
+add them on printing to user.
+
+Let's account transparent huge pages in NR_ANON_PAGES in the first place.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/huge_mm.h |    7 +++++++
- mm/Kconfig              |   10 ++++++++++
- mm/huge_memory.c        |   19 +++++++++++++++++++
- 3 files changed, 36 insertions(+)
+ drivers/base/node.c |    6 ------
+ fs/proc/meminfo.c   |    6 ------
+ mm/huge_memory.c    |    1 -
+ mm/rmap.c           |   18 +++++++++---------
+ 4 files changed, 9 insertions(+), 22 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 6b4c9b2..88b44e2 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -40,6 +40,7 @@ enum transparent_hugepage_flag {
- 	TRANSPARENT_HUGEPAGE_DEFRAG_FLAG,
- 	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
- 	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
-+	TRANSPARENT_HUGEPAGE_PAGECACHE,
- 	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
- #ifdef CONFIG_DEBUG_VM
- 	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
-@@ -240,4 +241,10 @@ static inline int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_str
- 
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
-+static inline bool transparent_hugepage_pagecache(void)
-+{
-+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE))
-+		return 0;
-+	return transparent_hugepage_flags & (1<<TRANSPARENT_HUGEPAGE_PAGECACHE);
-+}
- #endif /* _LINUX_HUGE_MM_H */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index e742d06..3a271b7 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -420,6 +420,16 @@ choice
- 	  benefit.
- endchoice
- 
-+config TRANSPARENT_HUGEPAGE_PAGECACHE
-+	bool "Transparent Hugepage Support for page cache"
-+	depends on X86_64 && TRANSPARENT_HUGEPAGE
-+	default y
-+	help
-+	  Enabling the option adds support hugepages for file-backed
-+	  mappings. It requires transparent hugepage support from
-+	  filesystem side. For now, the only filesystem which supports
-+	  hugepages is ramfs.
-+
- config CROSS_MEMORY_ATTACH
- 	bool "Cross Memory Support"
- 	depends on MMU
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 7616a77..bc9f43b 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -125,13 +125,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
+ 		       nid, K(node_page_state(nid, NR_FILE_PAGES)),
+ 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-		       nid, K(node_page_state(nid, NR_ANON_PAGES)
+-			+ node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
+-			HPAGE_PMD_NR),
+-#else
+ 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
+-#endif
+ 		       nid, K(node_page_state(nid, NR_SHMEM)),
+ 		       nid, node_page_state(nid, NR_KERNEL_STACK) *
+ 				THREAD_SIZE / 1024,
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 5aa847a..59d85d6 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -132,13 +132,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		K(i.freeswap),
+ 		K(global_page_state(NR_FILE_DIRTY)),
+ 		K(global_page_state(NR_WRITEBACK)),
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-		K(global_page_state(NR_ANON_PAGES)
+-		  + global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+-		  HPAGE_PMD_NR),
+-#else
+ 		K(global_page_state(NR_ANON_PAGES)),
+-#endif
+ 		K(global_page_state(NR_FILE_MAPPED)),
+ 		K(global_page_state(NR_SHMEM)),
+ 		K(global_page_state(NR_SLAB_RECLAIMABLE) +
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index b39fa01..bd8ef7f 100644
+index bd8ef7f..ed31e90 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -42,6 +42,9 @@ unsigned long transparent_hugepage_flags __read_mostly =
- #endif
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_FLAG)|
- 	(1<<TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG)|
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE_PAGECACHE
-+	(1<<TRANSPARENT_HUGEPAGE_PAGECACHE)|
-+#endif
- 	(1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG);
+@@ -1672,7 +1672,6 @@ static void __split_huge_page_refcount(struct page *page,
+ 	BUG_ON(atomic_read(&page->_count) <= 0);
  
- /* default scan 8*512 pte (or vmas) every 30 second */
-@@ -357,6 +360,21 @@ static ssize_t defrag_store(struct kobject *kobj,
- static struct kobj_attribute defrag_attr =
- 	__ATTR(defrag, 0644, defrag_show, defrag_store);
+ 	__mod_zone_page_state(zone, NR_ANON_TRANSPARENT_HUGEPAGES, -1);
+-	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
  
-+static ssize_t page_cache_show(struct kobject *kobj,
-+		struct kobj_attribute *attr, char *buf)
-+{
-+	return single_flag_show(kobj, attr, buf,
-+				TRANSPARENT_HUGEPAGE_PAGECACHE);
-+}
-+static ssize_t page_cache_store(struct kobject *kobj,
-+		struct kobj_attribute *attr, const char *buf, size_t count)
-+{
-+	return single_flag_store(kobj, attr, buf, count,
-+				 TRANSPARENT_HUGEPAGE_PAGECACHE);
-+}
-+static struct kobj_attribute page_cache_attr =
-+	__ATTR(page_cache, 0644, page_cache_show, page_cache_store);
-+
- static ssize_t use_zero_page_show(struct kobject *kobj,
- 		struct kobj_attribute *attr, char *buf)
+ 	ClearPageCompound(page);
+ 	compound_unlock(page);
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 6280da8..6abf387 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1055,11 +1055,11 @@ void do_page_add_anon_rmap(struct page *page,
  {
-@@ -392,6 +410,7 @@ static struct kobj_attribute debug_cow_attr =
- static struct attribute *hugepage_attr[] = {
- 	&enabled_attr.attr,
- 	&defrag_attr.attr,
-+	&page_cache_attr.attr,
- 	&use_zero_page_attr.attr,
- #ifdef CONFIG_DEBUG_VM
- 	&debug_cow_attr.attr,
+ 	int first = atomic_inc_and_test(&page->_mapcount);
+ 	if (first) {
+-		if (!PageTransHuge(page))
+-			__inc_zone_page_state(page, NR_ANON_PAGES);
+-		else
++		if (PageTransHuge(page))
+ 			__inc_zone_page_state(page,
+ 					      NR_ANON_TRANSPARENT_HUGEPAGES);
++		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
++				hpage_nr_pages(page));
+ 	}
+ 	if (unlikely(PageKsm(page)))
+ 		return;
+@@ -1088,10 +1088,10 @@ void page_add_new_anon_rmap(struct page *page,
+ 	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+ 	SetPageSwapBacked(page);
+ 	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+-	if (!PageTransHuge(page))
+-		__inc_zone_page_state(page, NR_ANON_PAGES);
+-	else
++	if (PageTransHuge(page))
+ 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
++	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
++			hpage_nr_pages(page));
+ 	__page_set_anon_rmap(page, vma, address, 1);
+ 	if (!mlocked_vma_newpage(vma, page))
+ 		lru_cache_add_lru(page, LRU_ACTIVE_ANON);
+@@ -1150,11 +1150,11 @@ void page_remove_rmap(struct page *page)
+ 		goto out;
+ 	if (anon) {
+ 		mem_cgroup_uncharge_page(page);
+-		if (!PageTransHuge(page))
+-			__dec_zone_page_state(page, NR_ANON_PAGES);
+-		else
++		if (PageTransHuge(page))
+ 			__dec_zone_page_state(page,
+ 					      NR_ANON_TRANSPARENT_HUGEPAGES);
++		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
++				hpage_nr_pages(page));
+ 	} else {
+ 		__dec_zone_page_state(page, NR_FILE_MAPPED);
+ 		mem_cgroup_dec_page_stat(page, MEMCG_NR_FILE_MAPPED);
 -- 
 1.7.10.4
 
