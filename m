@@ -1,76 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id BC2356B0002
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 07:21:34 -0400 (EDT)
-Date: Mon, 13 May 2013 07:21:32 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [page fault tracepoint 1/2] Add page fault trace event
-	definitions
-Message-ID: <20130513112132.GA15168@Krystal>
-References: <1368079520-11015-1-git-send-email-fdeslaur@gmail.com> <518B464E.6010208@huawei.com> <518BA91E.3080406@zytor.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 3A7B86B0002
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 08:25:08 -0400 (EDT)
+Date: Mon, 13 May 2013 14:25:04 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V2 2/3] memcg: alter
+ mem_cgroup_{update,inc,dec}_page_stat() args to memcg pointer
+Message-ID: <20130513122504.GA5246@dhcp22.suse.cz>
+References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com>
+ <1368421524-4937-1-git-send-email-handai.szj@taobao.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <518BA91E.3080406@zytor.com>
+In-Reply-To: <1368421524-4937-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: "zhangwei(Jovi)" <jovi.zhangwei@huawei.com>, Francis Deslauriers <fdeslaur@gmail.com>, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, rostedt@goodmis.org, fweisbec@gmail.com, raphael.beamonte@gmail.com, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, hughd@google.com, gthelen@google.com, Sha Zhengju <handai.szj@taobao.com>
 
-* H. Peter Anvin (hpa@zytor.com) wrote:
-> On 05/08/2013 11:46 PM, zhangwei(Jovi) wrote:
-> > On 2013/5/9 14:05, Francis Deslauriers wrote:
-> >> Add page_fault_entry and page_fault_exit event definitions. It will
-> >> allow each architecture to instrument their page faults.
-> > 
-> > I'm wondering if this tracepoint could handle other page faults,
-> > like faults in kernel memory(vmalloc, kmmio, etc...)
-> > 
-> > And if we decide to support those faults, add a type annotate in TP_printk
-> > would be much helpful for user, to let user know what type of page faults happened.
-> > 
+On Mon 13-05-13 13:05:24, Sha Zhengju wrote:
+> From: Sha Zhengju <handai.szj@taobao.com>
 > 
-> The plan for x86 was to switch the IDT so that any exception could get a
-> trace event without any overhead in normal operation.  This has been in
-> the process for quite some time but looks like it was getting very close.
+> Change the first argument of mem_cgroup_{update,inc,dec}_page_stat() from
+> 'struct page *' to 'struct mem_cgroup *', and so move PageCgroupUsed(pc)
+> checking out of mem_cgroup_update_page_stat(). This is a prepare patch for
+> the following memcg page stat lock simplifying.
 
-Hi Peter,
+No, please do not do this because it just spreads memcg specific code
+out of memcontrol.c. Besides that the patch is not correct.
+[...]
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -1109,12 +1109,24 @@ void page_add_file_rmap(struct page *page)
+>  {
+>  	bool locked;
+>  	unsigned long flags;
+> +	struct page_cgroup *pc;
+> +	struct mem_cgroup *memcg = NULL;
+>  
+>  	mem_cgroup_begin_update_page_stat(page, &locked, &flags);
+> +	pc = lookup_page_cgroup(page);
+> +
+> +	rcu_read_lock();
+> +	memcg = pc->mem_cgroup;
 
-Who is leading this IDT instrumentation effort ?
+a) unnecessary RCU take for memcg disabled and b) worse KABOOM in that case
+as page_cgroup is NULL. We really do not want to put
+mem_cgroup_disabled() tests all over the place. The idea behind
+mem_cgroup_begin_update_page_stat was to be almost a noop for !memcg
+(and the real noop for !CONFIG_MEMCG).
 
-Since we have tracepoints in interrupt handlers nowadays, I wonder what
-makes traps so much more special than interrupts to require the
-arch-specific complexity of the IDT switcharoo trick ? If I had to
-guess, the reason for this would be the page fault handler, which is
-called way too frequently for its own good. The number of page faults
-triggered by COW on process fork has been impressively high for the past
-couple of years.
-
-IMHO, this should be one extra reason for quickly allowing people to
-trace those page faults, so they can get an idea of their tremendous
-performance impact. This could speed up the efforts on transparent huge
-pages, which seems to be a viable long-term solution to this page-size
-scalability issue.
-
-By default, my 3.5 Linux kernel (Debian) has:
-
-$ cat /sys/kernel/mm/transparent_hugepage/enabled
-always [madvise] never
-
-I think transparent huge pages will become generally useful when enabled
-by default, and when they will handle the page cache in addition to
-anonymous pages.[1]
-
-Thanks,
-
-Mathieu
-
-[1] Documentation/vm/transhuge.txt
-
+so Nak to this approach
 -- 
-Mathieu Desnoyers
-EfficiOS Inc.
-http://www.efficios.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
