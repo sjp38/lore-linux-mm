@@ -1,42 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of get_user_pages() called get_user_pages_non_movable()
-References: <1360056113-14294-1-git-send-email-linfeng@cn.fujitsu.com>
-	<1360056113-14294-2-git-send-email-linfeng@cn.fujitsu.com>
-	<20130205120137.GG21389@suse.de> <20130206004234.GD11197@blaptop>
-	<20130206095617.GN21389@suse.de> <5190AE4F.4000103@cn.fujitsu.com>
-	<20130513091902.GP11497@suse.de> <20130513143757.GP31899@kvack.org>
-Date: Mon, 13 May 2013 10:54:03 -0400
-In-Reply-To: <20130513143757.GP31899@kvack.org> (Benjamin LaHaise's message of
-	"Mon, 13 May 2013 10:37:57 -0400")
-Message-ID: <x49obcfnd6c.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 563D36B0034
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 10:56:53 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 14 May 2013 11:54:28 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id E80A12BB0051
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 00:56:46 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4DEgcr218088102
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 00:42:40 +1000
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4DEuiMd005004
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 00:56:44 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH -V2] mm/THP: Use pmd_populate to update the pmd with pgtable_t pointer
+Date: Mon, 13 May 2013 20:26:40 +0530
+Message-Id: <1368457000-20874-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
-Cc: Mel Gorman <mgorman@suse.de>, Tang Chen <tangchen@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
+To: linux-mm@kvack.org, akpm@linux-foundation.org, aarcange@redhat.com
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-Benjamin LaHaise <bcrl@kvack.org> writes:
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-> On Mon, May 13, 2013 at 10:19:02AM +0100, Mel Gorman wrote:
->> On Mon, May 13, 2013 at 05:11:43PM +0800, Tang Chen wrote:
-> ...
->> > If so, I'm wondering where should we put this callback pointers ?
->> > In struct page ?
->> > 
->> 
->> No, I would expect the callbacks to be part the address space operations
->> which can be found via page->mapping.
->
-> If someone adds those callbacks and provides a means for testing them, 
-> it would be pretty trivial to change the aio code to migrate its pinned 
-> pages on demand.
+We should not use set_pmd_at to update pmd_t with pgtable_t pointer. set_pmd_at
+is used to set pmd with huge pte entries and architectures like ppc64, clear
+few flags from the pte when saving a new entry. Without this change we observe
+bad pte errors like below on ppc64 with THP enabled.
 
-How do you propose to move the ring pages?
+BUG: Bad page map in process ld mm=0xc000001ee39f4780 pte:7fc3f37848000001 pmd:c000001ec0000000
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+ mm/huge_memory.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
-Cheers,
-Jeff
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 03a89a2..362c329 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2325,7 +2325,12 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 		pte_unmap(pte);
+ 		spin_lock(&mm->page_table_lock);
+ 		BUG_ON(!pmd_none(*pmd));
+-		set_pmd_at(mm, address, pmd, _pmd);
++		/*
++		 * We can only use set_pmd_at when establishing
++		 * hugepmds and never for establishing regular pmds that
++		 * points to regular pagetables. Use pmd_populate for that
++		 */
++		pmd_populate(mm, pmd, pmd_pgtable(_pmd));
+ 		spin_unlock(&mm->page_table_lock);
+ 		anon_vma_unlock_write(vma->anon_vma);
+ 		goto out;
+-- 
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
