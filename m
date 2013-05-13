@@ -1,44 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 46EA06B0039
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 05:26:02 -0400 (EDT)
-Date: Mon, 13 May 2013 10:25:23 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v6 07/31] list: add a new LRU list type
-Message-ID: <20130513092523.GA23384@suse.de>
-References: <1368382432-25462-1-git-send-email-glommer@openvz.org>
- <1368382432-25462-8-git-send-email-glommer@openvz.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1368382432-25462-8-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 4BD926B0034
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 05:40:37 -0400 (EDT)
+From: David Howells <dhowells@redhat.com>
+In-Reply-To: <1368293689-16410-17-git-send-email-jiang.liu@huawei.com>
+References: <1368293689-16410-17-git-send-email-jiang.liu@huawei.com> <1368293689-16410-1-git-send-email-jiang.liu@huawei.com>
+Subject: Re: [PATCH v6, part3 16/16] AVR32: fix building warnings caused by redifinitions of HZ
+Date: Mon, 13 May 2013 10:40:05 +0100
+Message-ID: <15932.1368438005@warthog.procyon.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@openvz.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, Dave Chinner <dchinner@redhat.com>
+To: Jiang Liu <liuj97@gmail.com>
+Cc: dhowells@redhat.com, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Haavard Skinnemoen <hskinnemoen@gmail.com>
 
-On Sun, May 12, 2013 at 10:13:28PM +0400, Glauber Costa wrote:
-> From: Dave Chinner <dchinner@redhat.com>
-> 
-> Several subsystems use the same construct for LRU lists - a list
-> head, a spin lock and and item count. They also use exactly the same
-> code for adding and removing items from the LRU. Create a generic
-> type for these LRU lists.
-> 
-> This is the beginning of generic, node aware LRUs for shrinkers to
-> work with.
-> 
-> [ glommer: enum defined constants for lru. Suggested by gthelen,
->   don't relock over retry ]
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> Signed-off-by: Glauber Costa <glommer@openvz.org>
-> Reviewed-by: Greg Thelen <gthelen@google.com>
+Jiang Liu <liuj97@gmail.com> wrote:
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+> -#ifndef HZ
+> +#ifndef __KERNEL__
+> +   /*
+> +    * Technically, this is wrong, but some old apps still refer to it.
+> +    * The proper way to get the HZ value is via sysconf(_SC_CLK_TCK).
+> +    */
+>  # define HZ		100
+>  #endif
 
--- 
-Mel Gorman
-SUSE Labs
+Better still, use asm-generic/param.h and uapi/asm-generic/param.h for AVR32
+instead.
+
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
