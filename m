@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 6991F6B0036
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 03:46:34 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id E1F956B0037
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 03:46:36 -0400 (EDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [patch v3 -mm 1/3] memcg: integrate soft reclaim tighter with zone shrinking code
-Date: Mon, 13 May 2013 09:46:10 +0200
-Message-Id: <1368431172-6844-2-git-send-email-mhocko@suse.cz>
+Subject: [patch v3 -mm 2/3] memcg: Get rid of soft-limit tree infrastructure
+Date: Mon, 13 May 2013 09:46:11 +0200
+Message-Id: <1368431172-6844-3-git-send-email-mhocko@suse.cz>
 In-Reply-To: <1368431172-6844-1-git-send-email-mhocko@suse.cz>
 References: <1368431172-6844-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -13,389 +13,342 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Glauber Costa <glommer@parallels.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, Balbir Singh <bsingharora@gmail.com>
 
-Memcg soft reclaim has been traditionally triggered from the global
-reclaim paths before calling shrink_zone. mem_cgroup_soft_limit_reclaim
-then picked up a group which exceeds the soft limit the most and
-reclaimed it with 0 priority to reclaim at least SWAP_CLUSTER_MAX pages.
-
-The infrastructure requires per-node-zone trees which hold over-limit
-groups and keep them up-to-date (via memcg_check_events) which is not
-cost free. Although this overhead hasn't turned out to be a bottle neck
-the implementation is suboptimal because mem_cgroup_update_tree has no
-idea which zones consumed memory over the limit so we could easily end
-up having a group on a node-zone tree having only few pages from that
-node-zone.
-
-This patch doesn't try to fix node-zone trees management because it
-seems that integrating soft reclaim into zone shrinking sounds much
-easier and more appropriate for several reasons.
-First of all 0 priority reclaim was a crude hack which might lead to
-big stalls if the group's LRUs are big and hard to reclaim (e.g. a lot
-of dirty/writeback pages).
-Soft reclaim should be applicable also to the targeted reclaim which is
-awkward right now without additional hacks.
-Last but not least the whole infrastructure eats quite some code.
-
-After this patch shrink_zone is done in 2 passes. First it tries to do the
-soft reclaim if appropriate (only for global reclaim for now to keep
-compatible with the original state) and fall back to ignoring soft limit
-if no group is eligible to soft reclaim or nothing has been scanned
-during the first pass. Only groups which are over their soft limit or
-any of their parents up the hierarchy is over the limit are considered
-eligible during the first pass.
-
-Soft limit tree which is not necessary anymore will be removed in the
-follow up patch to make this patch smaller and easier to review.
-
-Changes since v1
-- __shrink_zone doesn't return the number of shrunk groups as nr_scanned
-  test covers both no groups scanned and no pages from the required zone
-  as pointed by Johannes
+Now that the soft limit is integrated to the reclaim directly the whole
+soft-limit tree infrastructure is not needed anymore. Rip it out.
 
 Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- include/linux/memcontrol.h |   10 +--
- mm/memcontrol.c            |  161 ++++++--------------------------------------
- mm/vmscan.c                |   62 ++++++++++-------
- 3 files changed, 59 insertions(+), 174 deletions(-)
+ mm/memcontrol.c |  224 +------------------------------------------------------
+ 1 file changed, 1 insertion(+), 223 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index d6183f0..1833c95 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -179,9 +179,7 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- 	mem_cgroup_update_page_stat(page, idx, -1);
- }
- 
--unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
--						gfp_t gfp_mask,
--						unsigned long *total_scanned);
-+bool mem_cgroup_soft_reclaim_eligible(struct mem_cgroup *memcg);
- 
- void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
- static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
-@@ -358,11 +356,9 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
- }
- 
- static inline
--unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
--					    gfp_t gfp_mask,
--					    unsigned long *total_scanned)
-+bool mem_cgroup_soft_reclaim_eligible(struct mem_cgroup *memcg)
- {
--	return 0;
-+	return false;
- }
- 
- static inline void mem_cgroup_split_huge_fixup(struct page *head)
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index fe4f123..7e5d7a9 100644
+index 7e5d7a9..1223aaa 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2083,57 +2083,28 @@ static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
- }
- #endif
+@@ -39,7 +39,6 @@
+ #include <linux/limits.h>
+ #include <linux/export.h>
+ #include <linux/mutex.h>
+-#include <linux/rbtree.h>
+ #include <linux/slab.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
+@@ -137,7 +136,6 @@ static const char * const mem_cgroup_lru_names[] = {
+  */
+ enum mem_cgroup_events_target {
+ 	MEM_CGROUP_TARGET_THRESH,
+-	MEM_CGROUP_TARGET_SOFTLIMIT,
+ 	MEM_CGROUP_TARGET_NUMAINFO,
+ 	MEM_CGROUP_NTARGETS,
+ };
+@@ -173,10 +171,6 @@ struct mem_cgroup_per_zone {
  
--static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
--				   struct zone *zone,
--				   gfp_t gfp_mask,
--				   unsigned long *total_scanned)
+ 	struct mem_cgroup_reclaim_iter reclaim_iter[DEF_PRIORITY + 1];
+ 
+-	struct rb_node		tree_node;	/* RB tree node */
+-	unsigned long long	usage_in_excess;/* Set to the value by which */
+-						/* the soft limit is exceeded*/
+-	bool			on_tree;
+ 	struct mem_cgroup	*memcg;		/* Back pointer, we cannot */
+ 						/* use container_of	   */
+ };
+@@ -189,26 +183,6 @@ struct mem_cgroup_lru_info {
+ 	struct mem_cgroup_per_node *nodeinfo[0];
+ };
+ 
+-/*
+- * Cgroups above their limits are maintained in a RB-Tree, independent of
+- * their hierarchy representation
+- */
+-
+-struct mem_cgroup_tree_per_zone {
+-	struct rb_root rb_root;
+-	spinlock_t lock;
+-};
+-
+-struct mem_cgroup_tree_per_node {
+-	struct mem_cgroup_tree_per_zone rb_tree_per_zone[MAX_NR_ZONES];
+-};
+-
+-struct mem_cgroup_tree {
+-	struct mem_cgroup_tree_per_node *rb_tree_per_node[MAX_NUMNODES];
+-};
+-
+-static struct mem_cgroup_tree soft_limit_tree __read_mostly;
+-
+ struct mem_cgroup_threshold {
+ 	struct eventfd_ctx *eventfd;
+ 	u64 threshold;
+@@ -533,7 +507,6 @@ static bool move_file(void)
+  * limit reclaim to prevent infinite loops, if they ever occur.
+  */
+ #define	MEM_CGROUP_MAX_RECLAIM_LOOPS		100
+-#define	MEM_CGROUP_MAX_SOFT_LIMIT_RECLAIM_LOOPS	2
+ 
+ enum charge_type {
+ 	MEM_CGROUP_CHARGE_TYPE_CACHE = 0,
+@@ -764,164 +737,6 @@ page_cgroup_zoneinfo(struct mem_cgroup *memcg, struct page *page)
+ 	return mem_cgroup_zoneinfo(memcg, nid, zid);
+ }
+ 
+-static struct mem_cgroup_tree_per_zone *
+-soft_limit_tree_node_zone(int nid, int zid)
 -{
--	struct mem_cgroup *victim = NULL;
--	int total = 0;
--	int loop = 0;
--	unsigned long excess;
--	unsigned long nr_scanned;
--	struct mem_cgroup_reclaim_cookie reclaim = {
--		.zone = zone,
--		.priority = 0,
--	};
-+/*
-+ * A group is eligible for the soft limit reclaim if it is
-+ * 	a) is over its soft limit
-+ * 	b) any parent up the hierarchy is over its soft limit
-+ */
-+bool mem_cgroup_soft_reclaim_eligible(struct mem_cgroup *memcg)
-+{
-+	struct mem_cgroup *parent = memcg;
- 
--	excess = res_counter_soft_limit_excess(&root_memcg->res) >> PAGE_SHIFT;
--
--	while (1) {
--		victim = mem_cgroup_iter(root_memcg, victim, &reclaim);
--		if (!victim) {
--			loop++;
--			if (loop >= 2) {
--				/*
--				 * If we have not been able to reclaim
--				 * anything, it might because there are
--				 * no reclaimable pages under this hierarchy
--				 */
--				if (!total)
--					break;
--				/*
--				 * We want to do more targeted reclaim.
--				 * excess >> 2 is not to excessive so as to
--				 * reclaim too much, nor too less that we keep
--				 * coming back to reclaim from this cgroup
--				 */
--				if (total >= (excess >> 2) ||
--					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS))
--					break;
--			}
--			continue;
--		}
--		if (!mem_cgroup_reclaimable(victim, false))
--			continue;
--		total += mem_cgroup_shrink_node_zone(victim, gfp_mask, false,
--						     zone, &nr_scanned);
--		*total_scanned += nr_scanned;
--		if (!res_counter_soft_limit_excess(&root_memcg->res))
--			break;
-+	if (res_counter_soft_limit_excess(&memcg->res))
-+		return true;
-+
-+	/*
-+	 * If any parent up the hierarchy is over its soft limit then we
-+	 * have to obey and reclaim from this group as well.
-+	 */
-+	while((parent = parent_mem_cgroup(parent))) {
-+		if (res_counter_soft_limit_excess(&parent->res))
-+			return true;
- 	}
--	mem_cgroup_iter_break(root_memcg, victim);
--	return total;
-+
-+	return false;
- }
- 
- /*
-@@ -4751,98 +4722,6 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 	return ret;
- }
- 
--unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
--					    gfp_t gfp_mask,
--					    unsigned long *total_scanned)
--{
--	unsigned long nr_reclaimed = 0;
--	struct mem_cgroup_per_zone *mz, *next_mz = NULL;
--	unsigned long reclaimed;
--	int loop = 0;
--	struct mem_cgroup_tree_per_zone *mctz;
--	unsigned long long excess;
--	unsigned long nr_scanned;
--
--	if (order > 0)
--		return 0;
--
--	mctz = soft_limit_tree_node_zone(zone_to_nid(zone), zone_idx(zone));
--	/*
--	 * This loop can run a while, specially if mem_cgroup's continuously
--	 * keep exceeding their soft limit and putting the system under
--	 * pressure
--	 */
--	do {
--		if (next_mz)
--			mz = next_mz;
--		else
--			mz = mem_cgroup_largest_soft_limit_node(mctz);
--		if (!mz)
--			break;
--
--		nr_scanned = 0;
--		reclaimed = mem_cgroup_soft_reclaim(mz->memcg, zone,
--						    gfp_mask, &nr_scanned);
--		nr_reclaimed += reclaimed;
--		*total_scanned += nr_scanned;
--		spin_lock(&mctz->lock);
--
--		/*
--		 * If we failed to reclaim anything from this memory cgroup
--		 * it is time to move on to the next cgroup
--		 */
--		next_mz = NULL;
--		if (!reclaimed) {
--			do {
--				/*
--				 * Loop until we find yet another one.
--				 *
--				 * By the time we get the soft_limit lock
--				 * again, someone might have aded the
--				 * group back on the RB tree. Iterate to
--				 * make sure we get a different mem.
--				 * mem_cgroup_largest_soft_limit_node returns
--				 * NULL if no other cgroup is present on
--				 * the tree
--				 */
--				next_mz =
--				__mem_cgroup_largest_soft_limit_node(mctz);
--				if (next_mz == mz)
--					css_put(&next_mz->memcg->css);
--				else /* next_mz == NULL or other memcg */
--					break;
--			} while (1);
--		}
--		__mem_cgroup_remove_exceeded(mz->memcg, mz, mctz);
--		excess = res_counter_soft_limit_excess(&mz->memcg->res);
--		/*
--		 * One school of thought says that we should not add
--		 * back the node to the tree if reclaim returns 0.
--		 * But our reclaim could return 0, simply because due
--		 * to priority we are exposing a smaller subset of
--		 * memory to reclaim from. Consider this as a longer
--		 * term TODO.
--		 */
--		/* If excess == 0, no tree ops */
--		__mem_cgroup_insert_exceeded(mz->memcg, mz, mctz, excess);
--		spin_unlock(&mctz->lock);
--		css_put(&mz->memcg->css);
--		loop++;
--		/*
--		 * Could not reclaim anything and there are no more
--		 * mem cgroups to try or we seem to be looping without
--		 * reclaiming anything.
--		 */
--		if (!nr_reclaimed &&
--			(next_mz == NULL ||
--			loop > MEM_CGROUP_MAX_SOFT_LIMIT_RECLAIM_LOOPS))
--			break;
--	} while (!nr_reclaimed);
--	if (next_mz)
--		css_put(&next_mz->memcg->css);
--	return nr_reclaimed;
+-	return &soft_limit_tree.rb_tree_per_node[nid]->rb_tree_per_zone[zid];
 -}
 -
- /**
-  * mem_cgroup_force_empty_list - clears LRU of a group
-  * @memcg: group to clear
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index fa6a853..fe63a43 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -139,11 +139,21 @@ static bool global_reclaim(struct scan_control *sc)
- {
- 	return !sc->target_mem_cgroup;
- }
-+
-+static bool mem_cgroup_should_soft_reclaim(struct scan_control *sc)
-+{
-+	return global_reclaim(sc);
-+}
- #else
- static bool global_reclaim(struct scan_control *sc)
- {
- 	return true;
- }
-+
-+static bool mem_cgroup_should_soft_reclaim(struct scan_control *sc)
-+{
-+	return false;
-+}
- #endif
+-static struct mem_cgroup_tree_per_zone *
+-soft_limit_tree_from_page(struct page *page)
+-{
+-	int nid = page_to_nid(page);
+-	int zid = page_zonenum(page);
+-
+-	return &soft_limit_tree.rb_tree_per_node[nid]->rb_tree_per_zone[zid];
+-}
+-
+-static void
+-__mem_cgroup_insert_exceeded(struct mem_cgroup *memcg,
+-				struct mem_cgroup_per_zone *mz,
+-				struct mem_cgroup_tree_per_zone *mctz,
+-				unsigned long long new_usage_in_excess)
+-{
+-	struct rb_node **p = &mctz->rb_root.rb_node;
+-	struct rb_node *parent = NULL;
+-	struct mem_cgroup_per_zone *mz_node;
+-
+-	if (mz->on_tree)
+-		return;
+-
+-	mz->usage_in_excess = new_usage_in_excess;
+-	if (!mz->usage_in_excess)
+-		return;
+-	while (*p) {
+-		parent = *p;
+-		mz_node = rb_entry(parent, struct mem_cgroup_per_zone,
+-					tree_node);
+-		if (mz->usage_in_excess < mz_node->usage_in_excess)
+-			p = &(*p)->rb_left;
+-		/*
+-		 * We can't avoid mem cgroups that are over their soft
+-		 * limit by the same amount
+-		 */
+-		else if (mz->usage_in_excess >= mz_node->usage_in_excess)
+-			p = &(*p)->rb_right;
+-	}
+-	rb_link_node(&mz->tree_node, parent, p);
+-	rb_insert_color(&mz->tree_node, &mctz->rb_root);
+-	mz->on_tree = true;
+-}
+-
+-static void
+-__mem_cgroup_remove_exceeded(struct mem_cgroup *memcg,
+-				struct mem_cgroup_per_zone *mz,
+-				struct mem_cgroup_tree_per_zone *mctz)
+-{
+-	if (!mz->on_tree)
+-		return;
+-	rb_erase(&mz->tree_node, &mctz->rb_root);
+-	mz->on_tree = false;
+-}
+-
+-static void
+-mem_cgroup_remove_exceeded(struct mem_cgroup *memcg,
+-				struct mem_cgroup_per_zone *mz,
+-				struct mem_cgroup_tree_per_zone *mctz)
+-{
+-	spin_lock(&mctz->lock);
+-	__mem_cgroup_remove_exceeded(memcg, mz, mctz);
+-	spin_unlock(&mctz->lock);
+-}
+-
+-
+-static void mem_cgroup_update_tree(struct mem_cgroup *memcg, struct page *page)
+-{
+-	unsigned long long excess;
+-	struct mem_cgroup_per_zone *mz;
+-	struct mem_cgroup_tree_per_zone *mctz;
+-	int nid = page_to_nid(page);
+-	int zid = page_zonenum(page);
+-	mctz = soft_limit_tree_from_page(page);
+-
+-	/*
+-	 * Necessary to update all ancestors when hierarchy is used.
+-	 * because their event counter is not touched.
+-	 */
+-	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+-		mz = mem_cgroup_zoneinfo(memcg, nid, zid);
+-		excess = res_counter_soft_limit_excess(&memcg->res);
+-		/*
+-		 * We have to update the tree if mz is on RB-tree or
+-		 * mem is over its softlimit.
+-		 */
+-		if (excess || mz->on_tree) {
+-			spin_lock(&mctz->lock);
+-			/* if on-tree, remove it */
+-			if (mz->on_tree)
+-				__mem_cgroup_remove_exceeded(memcg, mz, mctz);
+-			/*
+-			 * Insert again. mz->usage_in_excess will be updated.
+-			 * If excess is 0, no tree ops.
+-			 */
+-			__mem_cgroup_insert_exceeded(memcg, mz, mctz, excess);
+-			spin_unlock(&mctz->lock);
+-		}
+-	}
+-}
+-
+-static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
+-{
+-	int node, zone;
+-	struct mem_cgroup_per_zone *mz;
+-	struct mem_cgroup_tree_per_zone *mctz;
+-
+-	for_each_node(node) {
+-		for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+-			mz = mem_cgroup_zoneinfo(memcg, node, zone);
+-			mctz = soft_limit_tree_node_zone(node, zone);
+-			mem_cgroup_remove_exceeded(memcg, mz, mctz);
+-		}
+-	}
+-}
+-
+-static struct mem_cgroup_per_zone *
+-__mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
+-{
+-	struct rb_node *rightmost = NULL;
+-	struct mem_cgroup_per_zone *mz;
+-
+-retry:
+-	mz = NULL;
+-	rightmost = rb_last(&mctz->rb_root);
+-	if (!rightmost)
+-		goto done;		/* Nothing to reclaim from */
+-
+-	mz = rb_entry(rightmost, struct mem_cgroup_per_zone, tree_node);
+-	/*
+-	 * Remove the node now but someone else can add it back,
+-	 * we will to add it back at the end of reclaim to its correct
+-	 * position in the tree.
+-	 */
+-	__mem_cgroup_remove_exceeded(mz->memcg, mz, mctz);
+-	if (!res_counter_soft_limit_excess(&mz->memcg->res) ||
+-		!css_tryget(&mz->memcg->css))
+-		goto retry;
+-done:
+-	return mz;
+-}
+-
+-static struct mem_cgroup_per_zone *
+-mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
+-{
+-	struct mem_cgroup_per_zone *mz;
+-
+-	spin_lock(&mctz->lock);
+-	mz = __mem_cgroup_largest_soft_limit_node(mctz);
+-	spin_unlock(&mctz->lock);
+-	return mz;
+-}
+-
+ /*
+  * Implementation Note: reading percpu statistics for memcg.
+  *
+@@ -1075,9 +890,6 @@ static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
+ 		case MEM_CGROUP_TARGET_THRESH:
+ 			next = val + THRESHOLDS_EVENTS_TARGET;
+ 			break;
+-		case MEM_CGROUP_TARGET_SOFTLIMIT:
+-			next = val + SOFTLIMIT_EVENTS_TARGET;
+-			break;
+ 		case MEM_CGROUP_TARGET_NUMAINFO:
+ 			next = val + NUMAINFO_EVENTS_TARGET;
+ 			break;
+@@ -1100,11 +912,8 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
+ 	/* threshold event is triggered in finer grain than soft limit */
+ 	if (unlikely(mem_cgroup_event_ratelimit(memcg,
+ 						MEM_CGROUP_TARGET_THRESH))) {
+-		bool do_softlimit;
+ 		bool do_numainfo __maybe_unused;
  
- static unsigned long get_lru_size(struct lruvec *lruvec, enum lru_list lru)
-@@ -1943,7 +1953,8 @@ static inline bool should_continue_reclaim(struct zone *zone,
- 	}
- }
+-		do_softlimit = mem_cgroup_event_ratelimit(memcg,
+-						MEM_CGROUP_TARGET_SOFTLIMIT);
+ #if MAX_NUMNODES > 1
+ 		do_numainfo = mem_cgroup_event_ratelimit(memcg,
+ 						MEM_CGROUP_TARGET_NUMAINFO);
+@@ -1112,8 +921,6 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
+ 		preempt_enable();
  
--static void shrink_zone(struct zone *zone, struct scan_control *sc)
-+static void
-+__shrink_zone(struct zone *zone, struct scan_control *sc, bool soft_reclaim)
- {
- 	unsigned long nr_reclaimed, nr_scanned;
- 
-@@ -1962,6 +1973,12 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 		do {
- 			struct lruvec *lruvec;
- 
-+			if (soft_reclaim &&
-+					!mem_cgroup_soft_reclaim_eligible(memcg)) {
-+				memcg = mem_cgroup_iter(root, memcg, &reclaim);
-+				continue;
-+			}
-+
- 			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
- 
- 			shrink_lruvec(lruvec, sc);
-@@ -1992,6 +2009,24 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
- 					 sc->nr_scanned - nr_scanned, sc));
- }
- 
-+
-+static void shrink_zone(struct zone *zone, struct scan_control *sc)
-+{
-+	bool do_soft_reclaim = mem_cgroup_should_soft_reclaim(sc);
-+	unsigned long nr_scanned = sc->nr_scanned;
-+
-+	__shrink_zone(zone, sc, do_soft_reclaim);
-+
-+	/*
-+	 * No group is over the soft limit or those that are do not have
-+	 * pages in the zone we are reclaiming so we have to reclaim everybody
-+	 */
-+	if (do_soft_reclaim && (sc->nr_scanned == nr_scanned)) {
-+		__shrink_zone(zone, sc, false);
-+		return;
-+	}
-+}
-+
- /* Returns true if compaction should go ahead for a high-order request */
- static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
- {
-@@ -2053,8 +2088,6 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- {
- 	struct zoneref *z;
- 	struct zone *zone;
--	unsigned long nr_soft_reclaimed;
--	unsigned long nr_soft_scanned;
- 	bool aborted_reclaim = false;
+ 		mem_cgroup_threshold(memcg);
+-		if (unlikely(do_softlimit))
+-			mem_cgroup_update_tree(memcg, page);
+ #if MAX_NUMNODES > 1
+ 		if (unlikely(do_numainfo))
+ 			atomic_inc(&memcg->numainfo_events);
+@@ -2955,9 +2762,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+ 	unlock_page_cgroup(pc);
  
  	/*
-@@ -2094,18 +2127,6 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 					continue;
- 				}
- 			}
--			/*
--			 * This steals pages from memory cgroups over softlimit
--			 * and returns the number of reclaimed pages and
--			 * scanned pages. This works for global memory pressure
--			 * and balancing, not for a memcg's limit.
--			 */
--			nr_soft_scanned = 0;
--			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
--						sc->order, sc->gfp_mask,
--						&nr_soft_scanned);
--			sc->nr_reclaimed += nr_soft_reclaimed;
--			sc->nr_scanned += nr_soft_scanned;
- 			/* need some check for avoid more shrink_zone() */
- 		}
+-	 * "charge_statistics" updated event counter. Then, check it.
+-	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+-	 * if they exceeds softlimit.
++	 * "charge_statistics" updated event counter.
+ 	 */
+ 	memcg_check_events(memcg, page);
+ }
+@@ -6086,8 +5891,6 @@ static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
+ 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+ 		mz = &pn->zoneinfo[zone];
+ 		lruvec_init(&mz->lruvec);
+-		mz->usage_in_excess = 0;
+-		mz->on_tree = false;
+ 		mz->memcg = memcg;
+ 	}
+ 	memcg->info.nodeinfo[node] = pn;
+@@ -6143,7 +5946,6 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+ 	int node;
+ 	size_t size = memcg_size();
  
-@@ -2628,8 +2649,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 	int i;
- 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
--	unsigned long nr_soft_reclaimed;
--	unsigned long nr_soft_scanned;
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
- 		.may_unmap = 1,
-@@ -2728,15 +2747,6 @@ loop_again:
+-	mem_cgroup_remove_from_trees(memcg);
+ 	free_css_id(&mem_cgroup_subsys, &memcg->css);
  
- 			sc.nr_scanned = 0;
+ 	for_each_node(node)
+@@ -6225,29 +6027,6 @@ struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg)
+ }
+ EXPORT_SYMBOL(parent_mem_cgroup);
  
--			nr_soft_scanned = 0;
--			/*
--			 * Call soft limit reclaim before calling shrink_zone.
--			 */
--			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
--							order, sc.gfp_mask,
--							&nr_soft_scanned);
--			sc.nr_reclaimed += nr_soft_reclaimed;
+-static void __init mem_cgroup_soft_limit_tree_init(void)
+-{
+-	struct mem_cgroup_tree_per_node *rtpn;
+-	struct mem_cgroup_tree_per_zone *rtpz;
+-	int tmp, node, zone;
 -
- 			/*
- 			 * We put equal pressure on every zone, unless
- 			 * one zone has way too many pages free
+-	for_each_node(node) {
+-		tmp = node;
+-		if (!node_state(node, N_NORMAL_MEMORY))
+-			tmp = -1;
+-		rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL, tmp);
+-		BUG_ON(!rtpn);
+-
+-		soft_limit_tree.rb_tree_per_node[node] = rtpn;
+-
+-		for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+-			rtpz = &rtpn->rb_tree_per_zone[zone];
+-			rtpz->rb_root = RB_ROOT;
+-			spin_lock_init(&rtpz->lock);
+-		}
+-	}
+-}
+-
+ static struct cgroup_subsys_state * __ref
+ mem_cgroup_css_alloc(struct cgroup *cont)
+ {
+@@ -7040,7 +6819,6 @@ static int __init mem_cgroup_init(void)
+ {
+ 	hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
+ 	enable_swap_cgroup();
+-	mem_cgroup_soft_limit_tree_init();
+ 	memcg_stock_init();
+ 	return 0;
+ }
 -- 
 1.7.10.4
 
