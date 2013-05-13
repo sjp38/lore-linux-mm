@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id CE2156B0033
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 04:12:45 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id DD6B96B0034
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 04:12:46 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 1/9] mm: vmscan: Limit the number of pages kswapd reclaims at each priority
-Date: Mon, 13 May 2013 09:12:32 +0100
-Message-Id: <1368432760-21573-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 2/9] mm: vmscan: Obey proportional scanning requirements for kswapd
+Date: Mon, 13 May 2013 09:12:33 +0100
+Message-Id: <1368432760-21573-3-git-send-email-mgorman@suse.de>
 In-Reply-To: <1368432760-21573-1-git-send-email-mgorman@suse.de>
 References: <1368432760-21573-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,123 +13,125 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-The number of pages kswapd can reclaim is bound by the number of pages it
-scans which is related to the size of the zone and the scanning priority. In
-many cases the priority remains low because it's reset every SWAP_CLUSTER_MAX
-reclaimed pages but in the event kswapd scans a large number of pages it
-cannot reclaim, it will raise the priority and potentially discard a large
-percentage of the zone as sc->nr_to_reclaim is ULONG_MAX. The user-visible
-effect is a reclaim "spike" where a large percentage of memory is suddenly
-freed. It would be bad enough if this was just unused memory but because
-of how anon/file pages are balanced it is possible that applications get
-pushed to swap unnecessarily.
+Simplistically, the anon and file LRU lists are scanned proportionally
+depending on the value of vm.swappiness although there are other factors
+taken into account by get_scan_count().  The patch "mm: vmscan: Limit
+the number of pages kswapd reclaims" limits the number of pages kswapd
+reclaims but it breaks this proportional scanning and may evenly shrink
+anon/file LRUs regardless of vm.swappiness.
 
-This patch limits the number of pages kswapd will reclaim to the high
-watermark. Reclaim will still overshoot due to it not being a hard limit as
-shrink_lruvec() will ignore the sc.nr_to_reclaim at DEF_PRIORITY but it
-prevents kswapd reclaiming the world at higher priorities. The number of
-pages it reclaims is not adjusted for high-order allocations as kswapd will
-reclaim excessively if it is to balance zones for high-order allocations.
+This patch preserves the proportional scanning and reclaim. It does mean
+that kswapd will reclaim more than requested but the number of pages will
+be related to the high watermark.
 
+[mhocko@suse.cz: Correct proportional reclaim for memcg and simplify]
+[kamezawa.hiroyu@jp.fujitsu.com: Recalculate scan based on target]
+[hannes@cmpxchg.org: Account for already scanned pages properly]
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
- mm/vmscan.c | 49 +++++++++++++++++++++++++++++--------------------
- 1 file changed, 29 insertions(+), 20 deletions(-)
+ mm/vmscan.c | 67 +++++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 59 insertions(+), 8 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index fa6a853..cdbc069 100644
+index cdbc069..26ad67f 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2601,6 +2601,32 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
- }
+@@ -1822,17 +1822,25 @@ out:
+ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+ {
+ 	unsigned long nr[NR_LRU_LISTS];
++	unsigned long targets[NR_LRU_LISTS];
+ 	unsigned long nr_to_scan;
+ 	enum lru_list lru;
+ 	unsigned long nr_reclaimed = 0;
+ 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+ 	struct blk_plug plug;
++	bool scan_adjusted = false;
  
- /*
-+ * kswapd shrinks the zone by the number of pages required to reach
-+ * the high watermark.
-+ */
-+static void kswapd_shrink_zone(struct zone *zone,
-+			       struct scan_control *sc,
-+			       unsigned long lru_pages)
-+{
-+	unsigned long nr_slab;
-+	struct reclaim_state *reclaim_state = current->reclaim_state;
-+	struct shrink_control shrink = {
-+		.gfp_mask = sc->gfp_mask,
-+	};
+ 	get_scan_count(lruvec, sc, nr);
+ 
++	/* Record the original scan target for proportional adjustments later */
++	memcpy(targets, nr, sizeof(nr));
 +
-+	/* Reclaim above the high watermark. */
-+	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
-+	shrink_zone(zone, sc);
+ 	blk_start_plug(&plug);
+ 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+ 					nr[LRU_INACTIVE_FILE]) {
++		unsigned long nr_anon, nr_file, percentage;
++		unsigned long nr_scanned;
 +
-+	reclaim_state->reclaimed_slab = 0;
-+	nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
-+	sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+ 		for_each_evictable_lru(lru) {
+ 			if (nr[lru]) {
+ 				nr_to_scan = min(nr[lru], SWAP_CLUSTER_MAX);
+@@ -1842,17 +1850,60 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+ 							    lruvec, sc);
+ 			}
+ 		}
 +
-+	if (nr_slab == 0 && !zone_reclaimable(zone))
-+		zone->all_unreclaimable = 1;
-+}
++		if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
++			continue;
 +
-+/*
-  * For kswapd, balance_pgdat() will work across all this node's zones until
-  * they are all at high_wmark_pages(zone).
-  *
-@@ -2627,24 +2653,15 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 	bool pgdat_is_balanced = false;
- 	int i;
- 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
--	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long nr_soft_reclaimed;
- 	unsigned long nr_soft_scanned;
- 	struct scan_control sc = {
- 		.gfp_mask = GFP_KERNEL,
- 		.may_unmap = 1,
- 		.may_swap = 1,
--		/*
--		 * kswapd doesn't want to be bailed out while reclaim. because
+ 		/*
+-		 * On large memory systems, scan >> priority can become
+-		 * really large. This is fine for the starting priority;
 -		 * we want to put equal scanning pressure on each zone.
--		 */
--		.nr_to_reclaim = ULONG_MAX,
- 		.order = order,
- 		.target_mem_cgroup = NULL,
- 	};
--	struct shrink_control shrink = {
--		.gfp_mask = sc.gfp_mask,
--	};
- loop_again:
- 	sc.priority = DEF_PRIORITY;
- 	sc.nr_reclaimed = 0;
-@@ -2716,7 +2733,7 @@ loop_again:
+-		 * However, if the VM has a harder time of freeing pages,
+-		 * with multiple processes reclaiming pages, the total
+-		 * freeing target can get unreasonably large.
++		 * For global direct reclaim, reclaim only the number of pages
++		 * requested. Less care is taken to scan proportionally as it
++		 * is more important to minimise direct reclaim stall latency
++		 * than it is to properly age the LRU lists.
  		 */
- 		for (i = 0; i <= end_zone; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
--			int nr_slab, testorder;
-+			int testorder;
- 			unsigned long balance_gap;
- 
- 			if (!populated_zone(zone))
-@@ -2764,16 +2781,8 @@ loop_again:
- 
- 			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
- 			    !zone_balanced(zone, testorder,
--					   balance_gap, end_zone)) {
--				shrink_zone(zone, &sc);
--
--				reclaim_state->reclaimed_slab = 0;
--				nr_slab = shrink_slab(&shrink, sc.nr_scanned, lru_pages);
--				sc.nr_reclaimed += reclaim_state->reclaimed_slab;
--
--				if (nr_slab == 0 && !zone_reclaimable(zone))
--					zone->all_unreclaimable = 1;
--			}
-+					   balance_gap, end_zone))
-+				kswapd_shrink_zone(zone, &sc, lru_pages);
- 
- 			/*
- 			 * If we're getting trouble reclaiming, start doing
+-		if (nr_reclaimed >= nr_to_reclaim &&
+-		    sc->priority < DEF_PRIORITY)
++		if (global_reclaim(sc) && !current_is_kswapd())
+ 			break;
++
++		/*
++		 * For kswapd and memcg, reclaim at least the number of pages
++		 * requested. Ensure that the anon and file LRUs shrink
++		 * proportionally what was requested by get_scan_count(). We
++		 * stop reclaiming one LRU and reduce the amount scanning
++		 * proportional to the original scan target.
++		 */
++		nr_file = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE];
++		nr_anon = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON];
++
++		if (nr_file > nr_anon) {
++			unsigned long scan_target = targets[LRU_INACTIVE_ANON] +
++						targets[LRU_ACTIVE_ANON] + 1;
++			lru = LRU_BASE;
++			percentage = nr_anon * 100 / scan_target;
++		} else {
++			unsigned long scan_target = targets[LRU_INACTIVE_FILE] +
++						targets[LRU_ACTIVE_FILE] + 1;
++			lru = LRU_FILE;
++			percentage = nr_file * 100 / scan_target;
++		}
++
++		/* Stop scanning the smaller of the LRU */
++		nr[lru] = 0;
++		nr[lru + LRU_ACTIVE] = 0;
++
++		/*
++		 * Recalculate the other LRU scan count based on its original
++		 * scan target and the percentage scanning already complete
++		 */
++		lru = (lru == LRU_FILE) ? LRU_BASE : LRU_FILE;
++		nr_scanned = targets[lru] - nr[lru];
++		nr[lru] = targets[lru] * (100 - percentage) / 100;
++		nr[lru] -= min(nr[lru], nr_scanned);
++
++		lru += LRU_ACTIVE;
++		nr_scanned = targets[lru] - nr[lru];
++		nr[lru] = targets[lru] * (100 - percentage) / 100;
++		nr[lru] -= min(nr[lru], nr_scanned);
++
++		scan_adjusted = true;
+ 	}
+ 	blk_finish_plug(&plug);
+ 	sc->nr_reclaimed += nr_reclaimed;
 -- 
 1.8.1.4
 
