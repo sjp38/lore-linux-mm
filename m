@@ -1,109 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 73C9F6B0037
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 14:30:06 -0400 (EDT)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1UbxVc-000795-44
-	for linux-mm@kvack.org; Mon, 13 May 2013 20:30:04 +0200
-Received: from 193.105.30.100 ([193.105.30.100])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 13 May 2013 20:30:04 +0200
-Received: from D.Maluka by 193.105.30.100 with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 13 May 2013 20:30:04 +0200
-From: Dmitry Maluka <D.Maluka@adbglobal.com>
-Subject: Yet another page fault deadlock
-Date: Mon, 13 May 2013 21:13:36 +0300
-Message-ID: <kmrak0$ip1$1@ger.gmane.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 36B696B0036
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 15:02:54 -0400 (EDT)
+Date: Mon, 13 May 2013 22:02:50 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RFC 2/2] virtio_balloon: auto-ballooning support
+Message-ID: <20130513190250.GA2496@redhat.com>
+References: <1368111229-29847-1-git-send-email-lcapitulino@redhat.com>
+ <1368111229-29847-3-git-send-email-lcapitulino@redhat.com>
+ <20130509211516.GC16446@optiplex.redhat.com>
+ <20130510092046.17be9bbb@redhat.com>
+ <20130513143441.GA13910@optiplex.redhat.com>
+ <20130513142511.3c2bde18@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130513142511.3c2bde18@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, riel@redhat.com, amit.shah@redhat.com, anton@enomsg.org
 
-Hi,
+On Mon, May 13, 2013 at 02:25:11PM -0400, Luiz Capitulino wrote:
+> On Mon, 13 May 2013 11:34:41 -0300
+> Rafael Aquini <aquini@redhat.com> wrote:
+> 
+> > You're right, and the host's member is used to communicate the configured size
+> > to guest's balloon device, however, by not changing it when the shrinker causes 
+> > the balloon to deflate will make the balloon thread to be woken up again 
+> > in order to chase the balloon size target again, won't it? Check
+> 
+> I don't see the balloon thread waking up after the shrinker executes in my
+> testing. Maybe this is so because it will only wake up when QEMU notifies
+> a config change.
 
-Sometimes we run into an interesting deadlock on mm->mmap_sem. I see it
-is similar to these deadlocks:
+Well that's also a problem.
+Need some mechanism to re-inflate balloon
+when guest memory pressure is down.
+virtio fs mechanism worth a look?
 
-https://lkml.org/lkml/2005/2/22/123
-https://lkml.org/lkml/2001/9/17/105
-
-in the sense that it is too triggered by page faults and is explained by
-"fair" rwsem semantics (pending write lock blocks further read locks).
-
-First, let me describe the prerequisites. It is an embedded MIPS
-platform. We have 2 custom kernel drivers (call them A and B):
-
-- Driver A implements hardware encryption/decryption. It acts both as a
-char device driver and as an in-kernel library with an API allowing
-other kernel modules to encrypt/decrypt data. Important point: driver A
-uses a single mutex (call it A_mutex) to protect all its operations,
-regardless of whether they are requested by user space or by another
-kernel module.
-
-- Driver B is a block device driver implementing a transparent encrypted
-storage. It uses driver A's in-kernel API for encryption during write
-and decryption during read.
-
-We have squashfs mounted on a block device provided by driver B. And we
-have a user-space process with a plenty of threads in it (call them
-thread 1, 2, 3, ...).
-
-Now, the sequence leading to the deadlock:
-
-1. Thread 1 needs to encrypt or decrypt some data. It uses char device
-interface provided by driver A. Upon driver entry, it first locks A_mutex.
-
-2. Thread 2 reads from a mmap'ed file on squashfs. Page fault is
-generated. do_page_fault() read-locks mm->mmap_sem. Then squashfs
-filemap fault handler is called, then read request is sent to driver B,
-then driver B calls an API function from driver A. This function first
-tries to lock A_mutex, and hangs on it.
-
-3. Thread 3 does a syscall which requires mm->mmap_sem write-locked
-(sometimes it is mmap, sometimes mprotect). It hangs on mm->mmap_sem.
-
-4. Thread 1 proceeds with handling the request from user space from step
-1. During copy_to_user() or copy_from_user() page fault is generated.
-do_page_fault() tries to read-lock mm->mmap_sem and hangs on it.
-
-This deadlock does not happen if we memset() the entire user space
-buffer in thread 1 before doing the syscall. I.e. we make sure that the
-buffer is fully mapped before the request to driver A, preventing demand
-paging during copy_to/from_user(). We are currently using it as a
-workaround.
-
-So... I realize that in our case the deadlock is caused by our
-proprietary component (driver A) whose authors were smart guys but not
-farsighted enough to anticipate this scenario. Now we are considering
-reworking driver A to make all copy_to/from_user() calls without A_mutex
-locked. This should remove the deadlock source, AFAICS.
-
-However, it looks like a general internal kernel architecture problem.
-The whole page fault handling procedure is done with mm->mmap_sem
-read-held, and due to rwsem semantics, down_read/down_write/down_read
-deadlock may happen if two threads are getting page fault and a third
-thread is trying to write-lock mm->mmap_sem. So all the code performing
-page fault handling procedure should be especially careful about
-avoiding such deadlock. But this is a complex procedure involving
-different subsystems, particularly, arbitrary block device driver. So
-any block device driver should be implemented with this in mind. While
-this is probably not documented anywhere.
-
-Perhaps the rule to avoid deadlocks should be "do not write a block
-device driver which protects its I/O with the same lock which is used to
-protect copy_to_user or copy_from_user operations elsewhere". From the
-wording it might seem that any sane driver should follow this anyway.
-But as you can see, in more complex cases (like our driver B using
-driver A) it is not so obvious.
-
-So I'm reporting this because it seems worth at least discussing, even
-if there is nothing to fix in vanilla kernel.
+> But anyway, I'll think how to improve this as suggested by Michael too, as
+> I seem to be changing num_pages' semantics according to the virtio spec.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
