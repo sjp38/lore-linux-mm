@@ -1,56 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 69FB16B0036
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 11:00:50 -0400 (EDT)
-Date: Mon, 13 May 2013 17:00:37 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH -V2] mm/THP: Use pmd_populate to update the pmd with
- pgtable_t pointer
-Message-ID: <20130513150037.GM27980@redhat.com>
-References: <1368457000-20874-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
+Date: Mon, 13 May 2013 11:01:47 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of get_user_pages() called get_user_pages_non_movable()
+Message-ID: <20130513150147.GQ31899@kvack.org>
+References: <1360056113-14294-1-git-send-email-linfeng@cn.fujitsu.com> <1360056113-14294-2-git-send-email-linfeng@cn.fujitsu.com> <20130205120137.GG21389@suse.de> <20130206004234.GD11197@blaptop> <20130206095617.GN21389@suse.de> <5190AE4F.4000103@cn.fujitsu.com> <20130513091902.GP11497@suse.de> <20130513143757.GP31899@kvack.org> <x49obcfnd6c.fsf@segfault.boston.devel.redhat.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1368457000-20874-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <x49obcfnd6c.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Tang Chen <tangchen@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>, Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Mon, May 13, 2013 at 08:26:40PM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-> 
-> We should not use set_pmd_at to update pmd_t with pgtable_t pointer. set_pmd_at
-> is used to set pmd with huge pte entries and architectures like ppc64, clear
-> few flags from the pte when saving a new entry. Without this change we observe
-> bad pte errors like below on ppc64 with THP enabled.
-> 
-> BUG: Bad page map in process ld mm=0xc000001ee39f4780 pte:7fc3f37848000001 pmd:c000001ec0000000
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
->  mm/huge_memory.c | 7 ++++++-
->  1 file changed, 6 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 03a89a2..362c329 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -2325,7 +2325,12 @@ static void collapse_huge_page(struct mm_struct *mm,
->  		pte_unmap(pte);
->  		spin_lock(&mm->page_table_lock);
->  		BUG_ON(!pmd_none(*pmd));
-> -		set_pmd_at(mm, address, pmd, _pmd);
-> +		/*
-> +		 * We can only use set_pmd_at when establishing
-> +		 * hugepmds and never for establishing regular pmds that
-> +		 * points to regular pagetables. Use pmd_populate for that
-> +		 */
-> +		pmd_populate(mm, pmd, pmd_pgtable(_pmd));
->  		spin_unlock(&mm->page_table_lock);
->  		anon_vma_unlock_write(vma->anon_vma);
->  		goto out;
+On Mon, May 13, 2013 at 10:54:03AM -0400, Jeff Moyer wrote:
+> How do you propose to move the ring pages?
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+It's the same problem as doing a TLB shootdown: flush the old pages from 
+userspace's mapping, copy any existing data to the new pages, then 
+repopulate the page tables.  It will likely require the addition of 
+address_space_operations for the mapping, but that's not too hard to do.
+
+		-ben
+-- 
+"Thought is the essence of where you are now."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
