@@ -1,153 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 2F24D6B0037
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 08:40:30 -0400 (EDT)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
-	Mon, 13 May 2013 08:40:29 -0400
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 10F7538C804F
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 08:40:18 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4DCeIH6313014
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 08:40:18 -0400
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4DCeELY013479
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 09:40:18 -0300
-From: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Subject: [PATCHv11 1/4] debugfs: add get/set for atomic types
-Date: Mon, 13 May 2013 07:40:00 -0500
-Message-Id: <1368448803-2089-2-git-send-email-sjenning@linux.vnet.ibm.com>
-In-Reply-To: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com>
-References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 40D0B6B0002
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 09:12:59 -0400 (EDT)
+Date: Mon, 13 May 2013 15:12:51 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V2 3/3] memcg: simplify lock of memcg page stat account
+Message-ID: <20130513131251.GB5246@dhcp22.suse.cz>
+References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com>
+ <1368421545-4974-1-git-send-email-handai.szj@taobao.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1368421545-4974-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, hughd@google.com, gthelen@google.com, Sha Zhengju <handai.szj@taobao.com>
 
-debugfs currently lack the ability to create attributes
-that set/get atomic_t values.
+On Mon 13-05-13 13:05:44, Sha Zhengju wrote:
+> From: Sha Zhengju <handai.szj@taobao.com>
+> 
+> After removing duplicated information like PCG_* flags in
+> 'struct page_cgroup'(commit 2ff76f1193), there's a problem between
+> "move" and "page stat accounting"(only FILE_MAPPED is supported now
+> but other stats will be added in future, and here I'd like to take
+> dirty page as an example):
+> 
+> Assume CPU-A does "page stat accounting" and CPU-B does "move"
+> 
+> CPU-A                        CPU-B
+> TestSet PG_dirty
+> (delay)              	move_lock_mem_cgroup()
+>                         if (PageDirty(page)) {
+>                              old_memcg->nr_dirty --
+>                              new_memcg->nr_dirty++
+>                         }
+>                         pc->mem_cgroup = new_memcg;
+>                         move_unlock_mem_cgroup()
+> 
+> move_lock_mem_cgroup()
+> memcg = pc->mem_cgroup
+> memcg->nr_dirty++
+> move_unlock_mem_cgroup()
+> 
+> while accounting information of new_memcg may be double-counted. So we
+> use a bigger lock to solve this problem:  (commit: 89c06bd52f)
+> 
+>       move_lock_mem_cgroup() <-- mem_cgroup_begin_update_page_stat()
+>       TestSetPageDirty(page)
+>       update page stats (without any checks)
+>       move_unlock_mem_cgroup() <-- mem_cgroup_begin_update_page_stat()
+> 
+> 
+> But this method also has its pros and cons: at present we use two layers
+> of lock avoidance(memcg_moving and memcg->moving_account) then spinlock
+> on memcg (see mem_cgroup_begin_update_page_stat()), but the lock
+> granularity is a little bigger that not only the critical section but
+> also some code logic is in the range of locking which may be deadlock
+> prone. While trying to add memcg dirty page accounting, it gets into
+> further difficulty with page cache radix-tree lock and even worse
+> mem_cgroup_begin_update_page_stat() requires nesting
+> (https://lkml.org/lkml/2013/1/2/48). However, when the current patch is
+> preparing, the lock nesting problem is longer possible as s390/mm has
+> reworked it out(commit:abf09bed), but it should be better
+> if we can make the lock simpler and recursive safe.
 
-This patch adds support for this through a new
-debugfs_create_atomic_t() function.
+This patch doesn't make the charge move locking recursive safe. It
+just tries to overcome the problem in the path where it doesn't exist
+anymore. mem_cgroup_begin_update_page_stat would still deadlock if it
+was re-entered.
 
-Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Acked-by: Mel Gorman <mgorman@suse.de>
----
- fs/debugfs/file.c       |   42 ++++++++++++++++++++++++++++++++++++++++++
- include/linux/debugfs.h |    2 ++
- lib/fault-inject.c      |   21 ---------------------
- 3 files changed, 44 insertions(+), 21 deletions(-)
+It makes PageCgroupUsed usage even more tricky because it uses it out of
+lock_page_cgroup context. It seems that this would work in this
+particular path because atomic_inc_and_test(_mapcount) will protect from
+double accounting but the whole dance around old_memcg seems pointless
+to me.
 
-diff --git a/fs/debugfs/file.c b/fs/debugfs/file.c
-index c5ca6ae..ff64bcd 100644
---- a/fs/debugfs/file.c
-+++ b/fs/debugfs/file.c
-@@ -21,6 +21,7 @@
- #include <linux/debugfs.h>
- #include <linux/io.h>
- #include <linux/slab.h>
-+#include <linux/atomic.h>
- 
- static ssize_t default_read_file(struct file *file, char __user *buf,
- 				 size_t count, loff_t *ppos)
-@@ -403,6 +404,47 @@ struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
- }
- EXPORT_SYMBOL_GPL(debugfs_create_size_t);
- 
-+static int debugfs_atomic_t_set(void *data, u64 val)
-+{
-+	atomic_set((atomic_t *)data, val);
-+	return 0;
-+}
-+static int debugfs_atomic_t_get(void *data, u64 *val)
-+{
-+	*val = atomic_read((atomic_t *)data);
-+	return 0;
-+}
-+DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t, debugfs_atomic_t_get,
-+			debugfs_atomic_t_set, "%lld\n");
-+DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t_ro, debugfs_atomic_t_get, NULL, "%lld\n");
-+DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t_wo, NULL, debugfs_atomic_t_set, "%lld\n");
-+
-+/**
-+ * debugfs_create_atomic_t - create a debugfs file that is used to read and
-+ * write an atomic_t value
-+ * @name: a pointer to a string containing the name of the file to create.
-+ * @mode: the permission that the file should have
-+ * @parent: a pointer to the parent dentry for this file.  This should be a
-+ *          directory dentry if set.  If this parameter is %NULL, then the
-+ *          file will be created in the root of the debugfs filesystem.
-+ * @value: a pointer to the variable that the file should read to and write
-+ *         from.
-+ */
-+struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
-+				 struct dentry *parent, atomic_t *value)
-+{
-+	/* if there are no write bits set, make read only */
-+	if (!(mode & S_IWUGO))
-+		return debugfs_create_file(name, mode, parent, value,
-+					&fops_atomic_t_ro);
-+	/* if there are no read bits set, make write only */
-+	if (!(mode & S_IRUGO))
-+		return debugfs_create_file(name, mode, parent, value,
-+					&fops_atomic_t_wo);
-+
-+	return debugfs_create_file(name, mode, parent, value, &fops_atomic_t);
-+}
-+EXPORT_SYMBOL_GPL(debugfs_create_atomic_t);
- 
- static ssize_t read_file_bool(struct file *file, char __user *user_buf,
- 			      size_t count, loff_t *ppos)
-diff --git a/include/linux/debugfs.h b/include/linux/debugfs.h
-index 63f2465..d68b4ea 100644
---- a/include/linux/debugfs.h
-+++ b/include/linux/debugfs.h
-@@ -79,6 +79,8 @@ struct dentry *debugfs_create_x64(const char *name, umode_t mode,
- 				  struct dentry *parent, u64 *value);
- struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
- 				     struct dentry *parent, size_t *value);
-+struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
-+				     struct dentry *parent, atomic_t *value);
- struct dentry *debugfs_create_bool(const char *name, umode_t mode,
- 				  struct dentry *parent, u32 *value);
- 
-diff --git a/lib/fault-inject.c b/lib/fault-inject.c
-index c5c7a76..d7d501e 100644
---- a/lib/fault-inject.c
-+++ b/lib/fault-inject.c
-@@ -182,27 +182,6 @@ static struct dentry *debugfs_create_stacktrace_depth(
- 
- #endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
- 
--static int debugfs_atomic_t_set(void *data, u64 val)
--{
--	atomic_set((atomic_t *)data, val);
--	return 0;
--}
--
--static int debugfs_atomic_t_get(void *data, u64 *val)
--{
--	*val = atomic_read((atomic_t *)data);
--	return 0;
--}
--
--DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t, debugfs_atomic_t_get,
--			debugfs_atomic_t_set, "%lld\n");
--
--static struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
--				struct dentry *parent, atomic_t *value)
--{
--	return debugfs_create_file(name, mode, parent, value, &fops_atomic_t);
--}
--
- struct dentry *fault_create_debugfs_attr(const char *name,
- 			struct dentry *parent, struct fault_attr *attr)
- {
+I am sorry but I do not think this is the right approach. IMO we should
+focus on mem_cgroup_begin_update_page_stat and make it really recursive
+safe - ideally without any additional overhead (which sounds like a real
+challenge)
+
+[...]
 -- 
-1.7.9.5
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
