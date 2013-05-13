@@ -1,56 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 1E08C6B0002
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 04:40:12 -0400 (EDT)
-Date: Mon, 13 May 2013 09:40:08 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [Query] Performance degradation with memory compaction (on QC
- chip-set)
-Message-ID: <20130513084008.GO11497@suse.de>
-References: <1310394396.24243.YahooMailNeo@web162006.mail.bf1.yahoo.com>
- <20110711145448.GI15285@suse.de>
- <1310462107.89450.YahooMailNeo@web162007.mail.bf1.yahoo.com>
- <20110712093510.GB7529@suse.de>
- <1310484381.60694.YahooMailNeo@web162011.mail.bf1.yahoo.com>
- <20110712154404.GD7529@suse.de>
- <1368414026.58026.YahooMailNeo@web160103.mail.bf1.yahoo.com>
+Message-ID: <5190AE4F.4000103@cn.fujitsu.com>
+Date: Mon, 13 May 2013 17:11:43 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1368414026.58026.YahooMailNeo@web160103.mail.bf1.yahoo.com>
+Subject: Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of
+ get_user_pages() called get_user_pages_non_movable()
+References: <1360056113-14294-1-git-send-email-linfeng@cn.fujitsu.com> <1360056113-14294-2-git-send-email-linfeng@cn.fujitsu.com> <20130205120137.GG21389@suse.de> <20130206004234.GD11197@blaptop> <20130206095617.GN21389@suse.de>
+In-Reply-To: <20130206095617.GN21389@suse.de>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan@kernel.org>, Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Sun, May 12, 2013 at 08:00:26PM -0700, PINTU KUMAR wrote:
-> Dear Mel Gorman,
-> 
-> I have one question about memory compaction.
-> Kernel version: kernel-3.4 (ARM)
-> Chipset: Qual-Comm MSM8930 dual-core.
-> 
-> We wanted to enable CONFIG_COMPACTION for our product with kernel-3.4.
-> But QC commented that, enabling compaction on their chip-set is causing performance degradation for some streaming scenarios (from the beginning).
-> 
-> I wanted to know is this possible always?
-> We used compaction with exynos processor and did not observe any performance degradation.
-> 
+Hi Mel,
 
-I suspect one of their drivers are using high-order allocations and
-hitting compaction as a result. Compaction is not guaranteed to cause
-overhead but if it's in use then the scanning and copying overhead can
-cause problems.
+On 02/06/2013 05:56 PM, Mel Gorman wrote:
+>
+> There is the possibility that callbacks could be introduced for
+> migrate_unpin() and migrate_pin() that takes a list of PFN pairs
+> (old,new). The unpin callback should release the old PFNs and barrier
+> against any operations until the migrate_pfn() callback is called with
+> the updated pfns to be repinned. Again it would fully depend on subsystems
+> implementing it properly.
+>
+> The callback interface would be more robust but puts a lot more work on
+> the driver side where your milage will vary.
+>
 
-> Please let me know your comments.
-> It will be helpful to decide on enabling compaction or not.
-> 
+I'm very interested in the "callback" way you said.
 
-Depends on workload and drivers.
+For memory hot-remove case, the aio pages are pined in memory and making
+the pages cannot be offlined, furthermore, the pages cannot be removed.
 
--- 
-Mel Gorman
-SUSE Labs
+IIUC, you mean implement migrate_unpin() and migrate_pin() callbacks in aio
+subsystem, and call them when hot-remove code tries to offline pages, 
+right ?
+
+If so, I'm wondering where should we put this callback pointers ?
+In struct page ?
+
+
+It has been a long time since this topic was discussed. But to solve this
+problem cleanly for hotplug guys and CMA guys, please give some more 
+comments.
+
+Thanks. :)
+
+>
+> To guarantee CMA can migrate pages pinned by drivers I think you need
+> migrate-related callsbacks to unpin, barrier the driver until migration
+> completes and repin.
+>
+> I do not know, or at least have no heard, of anyone working on such a
+> scheme.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
