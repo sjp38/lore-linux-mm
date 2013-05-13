@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 0222E6B007B
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 15:14:04 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 6535A6B0082
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 15:14:13 -0400 (EDT)
 Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Mon, 13 May 2013 15:14:03 -0400
+	Mon, 13 May 2013 15:14:12 -0400
 Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id BADB6C90048
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 15:14:00 -0400 (EDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4DJE0ps214326
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 15:14:00 -0400
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4DJDsO8001755
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 0BCDFC90052
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 15:14:09 -0400 (EDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4DJE8MF284268
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 15:14:09 -0400
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4DJDtCY010973
 	for <linux-mm@kvack.org>; Mon, 13 May 2013 13:13:56 -0600
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH RESEND v3 04/11] mm/page_alloc: protect pcp->batch accesses with ACCESS_ONCE
-Date: Mon, 13 May 2013 12:08:16 -0700
-Message-Id: <1368472103-3427-5-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [PATCH RESEND v3 03/11] mm/page_alloc: insert memory barriers to allow async update of pcp batch and high
+Date: Mon, 13 May 2013 12:08:15 -0700
+Message-Id: <1368472103-3427-4-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1368472103-3427-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1368472103-3427-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -26,44 +26,89 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Simon Jeons <simon.jeons@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mgorman@suse.de>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-pcp->batch could change at any point, avoid relying on it being a stable value.
+Introduce pageset_update() to perform a safe transision from one set of
+pcp->{batch,high} to a new set using memory barriers.
 
+This ensures that batch is always set to a safe value (1) prior to
+updating high, and ensure that high is fully updated before setting the
+real value of batch. It avoids ->batch ever rising above ->high.
+
+Suggested by Gilad Ben-Yossef <gilad@benyossef.com> in these threads:
+
+	https://lkml.org/lkml/2013/4/9/23
+	https://lkml.org/lkml/2013/4/10/49
+
+Also reproduces his proposed comment.
+
+Reviewed-by: Gilad Ben-Yossef <gilad@benyossef.com>
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- mm/page_alloc.c | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+ mm/page_alloc.c | 41 ++++++++++++++++++++++++++++++++---------
+ 1 file changed, 32 insertions(+), 9 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7e45b91..71d843d 100644
+index cea883d..7e45b91 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1182,10 +1182,12 @@ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
+@@ -4033,12 +4033,37 @@ static int __meminit zone_batchsize(struct zone *zone)
+ #endif
+ }
+ 
++/*
++ * pcp->high and pcp->batch values are related and dependent on one another:
++ * ->batch must never be higher then ->high.
++ * The following function updates them in a safe manner without read side
++ * locking.
++ *
++ * Any new users of pcp->batch and pcp->high should ensure they can cope with
++ * those fields changing asynchronously (acording the the above rule).
++ *
++ * mutex_is_locked(&pcp_batch_high_lock) required when calling this function
++ * outside of boot time (or some other assurance that no concurrent updaters
++ * exist).
++ */
++static void pageset_update(struct per_cpu_pages *pcp, unsigned long high,
++		unsigned long batch)
++{
++       /* start with a fail safe value for batch */
++	pcp->batch = 1;
++	smp_wmb();
++
++       /* Update high, then batch, in order */
++	pcp->high = high;
++	smp_wmb();
++
++	pcp->batch = batch;
++}
++
+ /* a companion to setup_pagelist_highmark() */
+ static void pageset_set_batch(struct per_cpu_pageset *p, unsigned long batch)
  {
- 	unsigned long flags;
- 	int to_drain;
-+	unsigned long batch;
+-	struct per_cpu_pages *pcp = &p->pcp;
+-	pcp->high = 6 * batch;
+-	pcp->batch = max(1UL, 1 * batch);
++	pageset_update(&p->pcp, 6 * batch, max(1UL, 1 * batch));
+ }
  
- 	local_irq_save(flags);
--	if (pcp->count >= pcp->batch)
--		to_drain = pcp->batch;
-+	batch = ACCESS_ONCE(pcp->batch);
-+	if (pcp->count >= batch)
-+		to_drain = batch;
- 	else
- 		to_drain = pcp->count;
- 	if (to_drain > 0) {
-@@ -1353,8 +1355,9 @@ void free_hot_cold_page(struct page *page, int cold)
- 		list_add(&page->lru, &pcp->lists[migratetype]);
- 	pcp->count++;
- 	if (pcp->count >= pcp->high) {
--		free_pcppages_bulk(zone, pcp->batch, pcp);
--		pcp->count -= pcp->batch;
-+		unsigned long batch = ACCESS_ONCE(pcp->batch);
-+		free_pcppages_bulk(zone, batch, pcp);
-+		pcp->count -= batch;
- 	}
+ static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
+@@ -4062,13 +4087,11 @@ static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
+ static void setup_pagelist_highmark(struct per_cpu_pageset *p,
+ 				unsigned long high)
+ {
+-	struct per_cpu_pages *pcp;
++	unsigned long batch = max(1UL, high / 4);
++	if ((high / 4) > (PAGE_SHIFT * 8))
++		batch = PAGE_SHIFT * 8;
  
- out:
+-	pcp = &p->pcp;
+-	pcp->high = high;
+-	pcp->batch = max(1UL, high/4);
+-	if ((high/4) > (PAGE_SHIFT * 8))
+-		pcp->batch = PAGE_SHIFT * 8;
++	pageset_update(&p->pcp, high, batch);
+ }
+ 
+ static void __meminit setup_zone_pageset(struct zone *zone)
 -- 
 1.8.2.2
 
