@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 72C076B0033
-	for <linux-mm@kvack.org>; Sun, 12 May 2013 22:11:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 18E596B0034
+	for <linux-mm@kvack.org>; Sun, 12 May 2013 22:11:01 -0400 (EDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 2/4] mm: introduce __swapcache_free
-Date: Mon, 13 May 2013 11:10:46 +0900
-Message-Id: <1368411048-3753-3-git-send-email-minchan@kernel.org>
+Subject: [RFC 3/4] mm: support remove_mapping in irqcontext
+Date: Mon, 13 May 2013 11:10:47 +0900
+Message-Id: <1368411048-3753-4-git-send-email-minchan@kernel.org>
 In-Reply-To: <1368411048-3753-1-git-send-email-minchan@kernel.org>
 References: <1368411048-3753-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,51 +13,232 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>
 
-The __swapcache_free is almost same with swapcache_free
-but only difference is that caller should pass stable swap_info_struct.
+This patch makes to use remove_mapping in irq context.
+For it, this patch adds irqcontext argument in some functions
+(ex, remove_maping and __remove_mapping) but these functions
+are not hot path so i believe it's not a problem.
 
-This function will be used by next patchsets.
+And it exports swap_info_get and check that we can get a
+swap_info_struct->s lock in advance in irq context.
+Because __swapcache_free must be succesful.
+Otherwise, If __swapcache_free can be failed, we should rollback
+things done by __delete_from_swap_cache and it could need memory
+allocation for radix tree node in irq context.
+
+More concern is handling for mem_cgroup_uncharge_swapcache in
+irqcontext, which isn't aware of irqcontext at the moment and it
+should be successful like above reason.
+
+After I review that code, I think it's not a big challenge if I missed
+somethings.
+
+My rough plan is following as,
+
+1. Make mctz->lock beging aware of irq by changing spin_lock with
+   spin_lock_irqsave.
+2. Introuduce new argument "locked" in __mem_cgroup_uncharge_common
+   so that __mem_cgroup_uncharge_common can avoid lock_page_cgroup in
+   irqcontext to avoid deadlock but caller in irqcontext should be held
+   it in advance by next patch.
+3. Introduce try_lock_page_cgroup, which will be used __swapcache_free.
+4. __remove_mapping can held a page_cgroup lock in advance before calling
+   __swapcache_free
+
+I'd like to listen memcg people's opinions before diving into coding.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/swapfile.c | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+ fs/splice.c          |  2 +-
+ include/linux/swap.h | 12 ++++++++++-
+ mm/swapfile.c        |  2 +-
+ mm/truncate.c        |  2 +-
+ mm/vmscan.c          | 56 +++++++++++++++++++++++++++++++++++++++++++---------
+ 5 files changed, 61 insertions(+), 13 deletions(-)
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 2966978..33ebdd5 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -634,20 +634,26 @@ void swap_free(swp_entry_t entry)
- 	}
+diff --git a/fs/splice.c b/fs/splice.c
+index e6b2559..db77694 100644
+--- a/fs/splice.c
++++ b/fs/splice.c
+@@ -70,7 +70,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
+ 		 * If we succeeded in removing the mapping, set LRU flag
+ 		 * and return good.
+ 		 */
+-		if (remove_mapping(mapping, page)) {
++		if (remove_mapping(mapping, page, false)) {
+ 			buf->flags |= PIPE_BUF_FLAG_LRU;
+ 			return 0;
+ 		}
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index ca031f7..eb126d2 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -274,7 +274,8 @@ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
+ 						unsigned long *nr_scanned);
+ extern unsigned long shrink_all_memory(unsigned long nr_pages);
+ extern int vm_swappiness;
+-extern int remove_mapping(struct address_space *mapping, struct page *page);
++extern int remove_mapping(struct address_space *mapping, struct page *page,
++				bool irqcontext);
+ extern unsigned long vm_total_pages;
+ 
+ #ifdef CONFIG_NUMA
+@@ -407,6 +408,9 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
  }
+ #endif
  
 +
-+void __swapcache_free(struct swap_info_struct *p,
-+			swp_entry_t entry, struct page *page)
++extern struct swap_info_struct *swap_info_get(swp_entry_t entry);
++
+ #else /* CONFIG_SWAP */
+ 
+ #define get_nr_swap_pages()			0L
+@@ -430,6 +434,12 @@ static inline void show_swap_cache_info(void)
+ #define free_swap_and_cache(swp)	is_migration_entry(swp)
+ #define swapcache_prepare(swp)		is_migration_entry(swp)
+ 
++
++struct swap_info_struct *swap_info_get(swp_entry_t entry)
 +{
-+	unsigned char count;
-+	count = swap_entry_free(p, entry, SWAP_HAS_CACHE);
-+	mem_cgroup_uncharge_swapcache(page, entry, count != 0);
++	return NULL;
 +}
 +
- /*
-  * Called after dropping swapcache to decrease refcnt to swap entries.
-  */
- void swapcache_free(swp_entry_t entry, struct page *page)
+ static inline int add_swap_count_continuation(swp_entry_t swp, gfp_t gfp_mask)
+ {
+ 	return 0;
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 33ebdd5..8a425d4 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -505,7 +505,7 @@ swp_entry_t get_swap_page_of_type(int type)
+ 	return (swp_entry_t) {0};
+ }
+ 
+-static struct swap_info_struct *swap_info_get(swp_entry_t entry)
++struct swap_info_struct *swap_info_get(swp_entry_t entry)
  {
  	struct swap_info_struct *p;
--	unsigned char count;
+ 	unsigned long offset, type;
+diff --git a/mm/truncate.c b/mm/truncate.c
+index c75b736..fa1dc60 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -131,7 +131,7 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
+ 	if (page_has_private(page) && !try_to_release_page(page, 0))
+ 		return 0;
  
- 	p = swap_info_get(entry);
- 	if (p) {
- 		spin_lock(&p->lock);
--		count = swap_entry_free(p, entry, SWAP_HAS_CACHE);
--		if (page)
--			mem_cgroup_uncharge_swapcache(page, entry, count != 0);
-+		__swapcache_free(p, entry, page);
- 		spin_unlock(&p->lock);
- 	}
+-	ret = remove_mapping(mapping, page);
++	ret = remove_mapping(mapping, page, false);
+ 
+ 	return ret;
  }
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index fa6a853..d14c9be 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -450,12 +450,18 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
+  * Same as remove_mapping, but if the page is removed from the mapping, it
+  * gets returned with a refcount of 0.
+  */
+-static int __remove_mapping(struct address_space *mapping, struct page *page)
++static int __remove_mapping(struct address_space *mapping, struct page *page,
++				bool irqcontext)
+ {
++	unsigned long flags;
++
+ 	BUG_ON(!PageLocked(page));
+ 	BUG_ON(mapping != page_mapping(page));
+ 
+-	spin_lock_irq(&mapping->tree_lock);
++	if (irqcontext)
++		spin_lock_irqsave(&mapping->tree_lock, flags);
++	else
++		spin_lock_irq(&mapping->tree_lock);
+ 	/*
+ 	 * The non racy check for a busy page.
+ 	 *
+@@ -490,17 +496,45 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
+ 	}
+ 
+ 	if (PageSwapCache(page)) {
++		struct swap_info_struct *p;
+ 		swp_entry_t swap = { .val = page_private(page) };
++		p = swap_info_get(swap);
++		/*
++		 * If we are irq context, check that we can get a
++		 * swap_info_strcut->lock before removing the page from
++		 * swap cache. Because __swapcache_free must be successful.
++		 * If __swapcache_free can be failed, we should rollback
++		 * things done by __delete_from_swap_cache and it needs
++		 * memory allocation for radix tree node in irqcontext
++		 * That's thing we really want to avoid.
++		 * TODO : memcg mem_cgroup_uncharge_swapcache handling
++		 * in irqcontext
++		 */
++		if (irqcontext && p && !spin_trylock(&p->lock)) {
++			page_unfreeze_refs(page, 2);
++			goto cannot_free;
++		}
++
+ 		__delete_from_swap_cache(page);
+-		spin_unlock_irq(&mapping->tree_lock);
+-		swapcache_free(swap, page);
++		if (irqcontext) {
++			spin_unlock_irqrestore(&mapping->tree_lock, flags);
++			if (p)
++				__swapcache_free(p, swap, page);
++			spin_unlock(&p->lock);
++		} else {
++			spin_unlock_irq(&mapping->tree_lock);
++			swapcache_free(swap, page);
++		}
+ 	} else {
+ 		void (*freepage)(struct page *);
+ 
+ 		freepage = mapping->a_ops->freepage;
+ 
+ 		__delete_from_page_cache(page);
+-		spin_unlock_irq(&mapping->tree_lock);
++		if (irqcontext)
++			spin_unlock_irqrestore(&mapping->tree_lock, flags);
++		else
++			spin_unlock_irq(&mapping->tree_lock);
+ 		mem_cgroup_uncharge_cache_page(page);
+ 
+ 		if (freepage != NULL)
+@@ -510,7 +544,10 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
+ 	return 1;
+ 
+ cannot_free:
+-	spin_unlock_irq(&mapping->tree_lock);
++	if (irqcontext)
++		spin_unlock_irqrestore(&mapping->tree_lock, flags);
++	else
++		spin_unlock_irq(&mapping->tree_lock);
+ 	return 0;
+ }
+ 
+@@ -520,9 +557,10 @@ cannot_free:
+  * successfully detached, return 1.  Assumes the caller has a single ref on
+  * this page.
+  */
+-int remove_mapping(struct address_space *mapping, struct page *page)
++int remove_mapping(struct address_space *mapping, struct page *page,
++			bool irqcontext)
+ {
+-	if (__remove_mapping(mapping, page)) {
++	if (__remove_mapping(mapping, page, irqcontext)) {
+ 		/*
+ 		 * Unfreezing the refcount with 1 rather than 2 effectively
+ 		 * drops the pagecache ref for us without requiring another
+@@ -904,7 +942,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			}
+ 		}
+ 
+-		if (!mapping || !__remove_mapping(mapping, page))
++		if (!mapping || !__remove_mapping(mapping, page, false))
+ 			goto keep_locked;
+ 
+ 		/*
 -- 
 1.8.2.1
 
