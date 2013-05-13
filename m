@@ -1,83 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 2F94C6B0038
-	for <linux-mm@kvack.org>; Sun, 12 May 2013 22:11:02 -0400 (EDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 4/4] mm: free reclaimed pages instantly without depending next reclaim
-Date: Mon, 13 May 2013 11:10:48 +0900
-Message-Id: <1368411048-3753-5-git-send-email-minchan@kernel.org>
-In-Reply-To: <1368411048-3753-1-git-send-email-minchan@kernel.org>
-References: <1368411048-3753-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id DA9616B0002
+	for <linux-mm@kvack.org>; Sun, 12 May 2013 22:19:58 -0400 (EDT)
+From: Libin <huawei.libin@huawei.com>
+Subject: [PATCH] char: Use vma_pages() to replace (vm_end - vm_start) >> PAGE_SHIFT
+Date: Mon, 13 May 2013 10:17:39 +0800
+Message-ID: <1368411459-52524-1-git-send-email-huawei.libin@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, guohanjun@huawei.com, wangyijing@huawei.com
 
-Normally, file I/O for reclaiming is asynchronous so that
-when page writeback is completed, reclaimed page will be
-rotated into LRU tail for fast reclaiming in next turn.
-But it makes unnecessary CPU overhead and more iteration with higher
-priority of reclaim could reclaim too many pages than needed
-pages.
+(*->vm_end - *->vm_start) >> PAGE_SHIFT operation is implemented
+as a inline funcion vma_pages() in linux/mm.h, so using it.
 
-This patch frees reclaimed pages by paging out instantly without
-rotating back them into LRU's tail when the I/O is completed so
-that we can get out of reclaim loop as soon as poosbile and avoid
-unnecessary CPU overhead for moving them.
-
-Signed-off-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Libin <huawei.libin@huawei.com>
 ---
- mm/filemap.c |  6 +++---
- mm/swap.c    | 14 +++++++++++++-
- 2 files changed, 16 insertions(+), 4 deletions(-)
+ drivers/char/mspec.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 7905fe7..8e2017b 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -618,12 +618,12 @@ EXPORT_SYMBOL(unlock_page);
-  */
- void end_page_writeback(struct page *page)
- {
--	if (TestClearPageReclaim(page))
--		rotate_reclaimable_page(page);
--
- 	if (!test_clear_page_writeback(page))
- 		BUG();
+diff --git a/drivers/char/mspec.c b/drivers/char/mspec.c
+index e1f60f9..f1d7fa4 100644
+--- a/drivers/char/mspec.c
++++ b/drivers/char/mspec.c
+@@ -267,7 +267,7 @@ mspec_mmap(struct file *file, struct vm_area_struct *vma,
+ 	if ((vma->vm_flags & VM_WRITE) == 0)
+ 		return -EPERM;
  
-+	if (TestClearPageReclaim(page))
-+		rotate_reclaimable_page(page);
-+
- 	smp_mb__after_clear_bit();
- 	wake_up_page(page, PG_writeback);
- }
-diff --git a/mm/swap.c b/mm/swap.c
-index dfd7d71..87f21632 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -324,7 +324,19 @@ static void pagevec_move_tail_fn(struct page *page, struct lruvec *lruvec,
- 	int *pgmoved = arg;
- 
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
--		enum lru_list lru = page_lru_base_type(page);
-+		enum lru_list lru;
-+
-+		if (!trylock_page(page))
-+			goto move_tail;
-+
-+		if (!remove_mapping(page_mapping(page), page, true)) {
-+			unlock_page(page);
-+			goto move_tail;
-+		}
-+		unlock_page(page);
-+		return;
-+move_tail:
-+		lru = page_lru_base_type(page);
- 		list_move_tail(&page->lru, &lruvec->lists[lru]);
- 		(*pgmoved)++;
- 	}
+-	pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
++	pages = vma_pages(vma);
+ 	vdata_size = sizeof(struct vma_data) + pages * sizeof(long);
+ 	if (vdata_size <= PAGE_SIZE)
+ 		vdata = kzalloc(vdata_size, GFP_KERNEL);
 -- 
 1.8.2.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
