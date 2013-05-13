@@ -1,103 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 282476B0033
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 11:06:46 -0400 (EDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 13 May 2013 20:32:59 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id DC694394004F
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 20:36:40 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r4DF6YXS56623194
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 20:36:35 +0530
-Received: from d28av01.in.ibm.com (loopback [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r4DF6dF1031051
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 15:06:39 GMT
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/THP: Use pmd_populate to update the pmd with pgtable_t pointer
-In-Reply-To: <87y5bj3pnc.fsf@linux.vnet.ibm.com>
-References: <1368347715-24597-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <871u9b56t2.fsf@linux.vnet.ibm.com> <20130513141357.GL27980@redhat.com> <87y5bj3pnc.fsf@linux.vnet.ibm.com>
-Date: Mon, 13 May 2013 20:36:38 +0530
-Message-ID: <87txm6537l.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id EE88E6B0036
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 11:08:20 -0400 (EDT)
+Message-ID: <1368457698.6828.34.camel@gandalf.local.home>
+Subject: Re: [page fault tracepoint 1/2] Add page fault trace event
+ definitions
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Mon, 13 May 2013 11:08:18 -0400
+In-Reply-To: <20130513112132.GA15168@Krystal>
+References: <1368079520-11015-1-git-send-email-fdeslaur@gmail.com>
+	 <518B464E.6010208@huawei.com> <518BA91E.3080406@zytor.com>
+	 <20130513112132.GA15168@Krystal>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, "zhangwei(Jovi)" <jovi.zhangwei@huawei.com>, Francis Deslauriers <fdeslaur@gmail.com>, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, fweisbec@gmail.com, raphael.beamonte@gmail.com, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Seiji Aguchi <seiji.aguchi@hds.com>
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
+On Mon, 2013-05-13 at 07:21 -0400, Mathieu Desnoyers wrote:
+> * H. Peter Anvin (hpa@zytor.com) wrote:
 
-> Andrea Arcangeli <aarcange@redhat.com> writes:
->
->> Hi Aneesh,
->>
->> On Mon, May 13, 2013 at 07:18:57PM +0530, Aneesh Kumar K.V wrote:
->>> 
->>> updated one fixing a compile warning.
->>> 
->>> From f721c77eb0d6aaf75758e8e93991a05207680ac8 Mon Sep 17 00:00:00 2001
->>> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->>> Date: Sun, 12 May 2013 01:59:00 +0530
->>> Subject: [PATCH] mm/THP: Use pmd_populate to update the pmd with pgtable_t
->>>  pointer
->>> 
->>> We should not use set_pmd_at to update pmd_t with pgtable_t pointer. set_pmd_at
->>> is used to set pmd with huge pte entries and architectures like ppc64, clear
->>> few flags from the pte when saving a new entry. Without this change we observe
->>> bad pte errors like below on ppc64 with THP enabled.
->>> 
->>> BUG: Bad page map in process ld mm=0xc000001ee39f4780 pte:7fc3f37848000001 pmd:c000001ec0000000
->>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->>> ---
->>>  mm/huge_memory.c | 2 +-
->>>  1 file changed, 1 insertion(+), 1 deletion(-)
->>> 
->>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->>> index 03a89a2..f0bad1f 100644
->>> --- a/mm/huge_memory.c
->>> +++ b/mm/huge_memory.c
->>> @@ -2325,7 +2325,7 @@ static void collapse_huge_page(struct mm_struct *mm,
->>>  		pte_unmap(pte);
->>>  		spin_lock(&mm->page_table_lock);
->>>  		BUG_ON(!pmd_none(*pmd));
->>> -		set_pmd_at(mm, address, pmd, _pmd);
->>> +		pmd_populate(mm, pmd, (pgtable_t)_pmd);
->>>  		spin_unlock(&mm->page_table_lock);
->>>  		anon_vma_unlock_write(vma->anon_vma);
->>>  		goto out;
->>
->> Great, looks like you found the ppc problem with gcc builds and that
->> explains also why it cannot happen on x86.
->
-> yes. That was the reason for the failure. 
->
+> Who is leading this IDT instrumentation effort ?
+> 
 
-The compiler crash was due to the fact that we didn't do hardware hash
-pte flush on pmdp_clear_flush. That means we had previous translations
-available while we did a hugepage copy on collapse. Once we fixed that we started
-hitting the above Bad page map error. The interesting part for THP on
-ppc64 is that we have 
+Seiji has been doing most of the work. I've just been busy doing other
+things but I need to start getting this tidied up, and hopefully this
+can get into 3.11.
 
-static inline void flush_tlb_range(struct vm_area_struct *vma,
-				   unsigned long start, unsigned long end)
-{
-}
+https://lkml.org/lkml/2013/4/5/401
 
-That means we don't really wait for those page table walks with local irq
-disabled to finish in both split page and collapse huge page. I handled
-that by looking at _PAGE_SPLITTING before we mark the pte _PAGE_BUSY. 
+-- Steve
 
-Details are captured here
-https://lists.ozlabs.org/pipermail/linuxppc-dev/2013-May/106406.html
-
-https://lists.ozlabs.org/pipermail/linuxppc-dev/2013-May/106410.html
-
-It would be nice if you could review the patches.
-
--aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
