@@ -1,124 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 413056B0036
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 21:48:11 -0400 (EDT)
-Date: Tue, 14 May 2013 11:48:05 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v6 00/31] kmemcg shrinkers
-Message-ID: <20130514014805.GA29466@dastard>
-References: <1368382432-25462-1-git-send-email-glommer@openvz.org>
- <20130513071359.GM32675@dastard>
- <51909D84.7040800@parallels.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id C4CC16B003B
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 21:57:09 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id E4BE33EE0C5
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:57:07 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id CFD9B45DE5B
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:57:07 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A9D8245DE5A
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:57:07 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 982171DB8050
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:57:07 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 388161DB804A
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:57:07 +0900 (JST)
+From: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Subject: [PATCH v5 0/8] kdump, vmcore: support mmap() on /proc/vmcore
+Date: Tue, 14 May 2013 10:57:06 +0900
+Message-ID: <20130514015622.18697.77191.stgit@localhost6.localdomain6>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <51909D84.7040800@parallels.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org
+To: vgoyal@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org
+Cc: cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org
 
-On Mon, May 13, 2013 at 12:00:04PM +0400, Glauber Costa wrote:
-> On 05/13/2013 11:14 AM, Dave Chinner wrote:
-> > On Sun, May 12, 2013 at 10:13:21PM +0400, Glauber Costa wrote:
-> >> Initial notes:
-> >> ==============
-> >>
-> >> Mel, Dave, this is the last round of fixes I have for the series. The fixes are
-> >> few, and I was mostly interested in getting this out based on an up2date tree
-> >> so Dave can verify it. This should apply fine ontop of Friday's linux-next.
-> >> Alternatively, please grab from branch "kmemcg-lru-shrinker" at:
-> >>
-> >> 	git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git
-> >>
-> >> Main changes from *v5:
-> >> * Rebased to linux-next, and fix the conflicts with the dcache.
-> >> * Make sure LRU_RETRY only retry once
-> >> * Prevent the bcache shrinker to scan the caches when disabled (by returning
-> >>   0 in the count function)
-> >> * Fix i915 return code when mutex cannot be acquired.
-> >> * Only scan less-than-batch objects in memcg scenarios
-> > 
-> > Ok, this is behaving a *lot* better than v5 in terms of initial
-> > balance and sustained behaviour under pure inode/dentry press
-> > workloads. The previous version was all over the place, not to
-> > mention unstable and prone to unrealted lockups in the block layer.
-> > 
-> 
-> Good to hear. About the problems you are seeing, if possible, I think
-> it would beneficial to do what Mel did, and run a test workload without
-> the upper half of the patches, IOW, excluding memcg. It should at least
-> give us an indication about whether or not the problem lies in the way
-> we are handling the LRU list, or in any memcg adaptation problem.
-> 
-> > However, I'm not sure that the LRUness of reclaim is working
-> > correctly at this point. When I switch from a write only workload to
-> > a read-only workload (i.e. fsmark finishes and find starts), I see
-> > this:
-> > 
-> >  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
-> > 1923037 1807201  93%    1.12K  68729       28   2199328K xfs_inode
-> > 1914624 490812  25%    0.22K  53184       36    425472K xfs_ili
-> > 
-> > Note the xfs_ili slab capacity - there's half a million objects
-> > still in the cache, and they are only present on *dirty* inodes.
-> 
-> May a xfs-ignorant kernel hacker ask you what exactly xfs_ili is ?
+Currently, read to /proc/vmcore is done by read_oldmem() that uses
+ioremap/iounmap per a single page. For example, if memory is 1GB,
+ioremap/iounmap is called (1GB / 4KB)-times, that is, 262144
+times. This causes big performance degradation.
 
-struct xfs_inode_log_item.
+In particular, the current main user of this mmap() is makedumpfile,
+which not only reads memory from /proc/vmcore but also does other
+processing like filtering, compression and IO work.
 
-It's the structure used to track the inode through the journalling
-subsystem, and it's only allocated when the inode is first modified.
-The embedded xfs_log_item is the abstraction used throughout the
-core transaction and journalling subsystems - every dirty metadata
-object in XFS has a xfs_log_item attached to it in some way.
+To address the issue, this patch implements mmap() on /proc/vmcore to
+improve read performance.
 
-> > Now, the read-only workload is iterating through a cold-cache lookup
-> > workload of 50 million inodes - at roughly 150,000/s. It's a
-> > touch-once workload, so shoul dbe turning the cache over completely
-> > every 10 seconds. However, in the time it's taken for me to explain
-> > this:
-> > 
-> >  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME                   
-> > 1954493 1764661  90%    1.12K  69831       28   2234592K xfs_inode
-> > 1643868 281962  17%    0.22K  45663       36    365304K xfs_ili   
-> > 
-> > Only 200k xfs_ili's have been freed. So the rate of reclaim of them
-> > is roughly 5k/s. Given the read-only nature of this workload, they
-> > should be gone from the cache in a few seconds. Another indication
-> > of problems here is the level of internal fragmentation of the
-> > xfs_ili slab. They should cycle out of the cache in LRU manner, just
-> > like inodes - the modify workload is a "touch once" workload as
-> > well, so there should be no internal fragmentation of the slab
-> > cache.
-> > 
-> 
-> Initial testing I have done indicates - although it does not undoubtly
-> prove  - that the problem may be with dentries, not inodes
+Benchmark
+=========
 
-That tallies with the stats I'm seeing showing a significant
-difference in the balance of allocated vs "free" dentries. On a 3.9 kernel,
-the is little difference between them - dentries move quickly to the
-LRU and are considered free, while this patchset starts the same
-they quickly diverge, with the free count dropping well away from
-the allocated count.
+You can see two benchmarks on terabyte memory system. Both show about
+40 seconds on 2TB system. This is almost equal to performance by
+experimental kernel-side memory filtering.
 
-....
+- makedumpfile mmap() benchmark, by Jingbai Ma
+  https://lkml.org/lkml/2013/3/27/19
 
-> You are seeing problems in the inode behavior, but since the dentry
-> cache may pin them, I believe it is possible that the change in behavior
-> in the dentry cache may drive the change in behavior in the inode cache,
-> by keeping inodes that should be freed, pinned. (So far, just a theory)
+- makedumpfile: benchmark on mmap() with /proc/vmcore on 2TB memory system
+  https://lkml.org/lkml/2013/3/26/914
 
-Yup, that's the theory I'm working to given the inode used vs free
-count differences reflect the differences in the dentry behaviour...
+ChangeLog
+=========
 
-Cheers,
+v4 => v5)
 
-Dave.
+- Rebase 3.10-rc1.
+- Introduce remap_vmalloc_range_partial() in order to remap vmalloc
+  memory in a part of vma area.
+- Allocate buffer for ELF note segment at 2nd kernel by vmalloc(). Use
+  remap_vmalloc_range_partial() to remap the memory to userspace.
+
+v3 => v4)
+
+- Rebase 3.9-rc7.
+- Drop clean-up patches orthogonal to the main topic of this patch set.
+- Copy ELF note segments in the 2nd kernel just as in v1. Allocate
+  vmcore objects per pages. => See [PATCH 5/8]
+- Map memory referenced by PT_LOAD entry directly even if the start or
+  end of the region doesn't fit inside page boundary, no longer copy
+  them as the previous v3. Then, holes, outside OS memory, are visible
+  from /proc/vmcore. => See [PATCH 7/8]
+
+v2 => v3)
+
+- Rebase 3.9-rc3.
+- Copy program headers separately from e_phoff in ELF note segment
+  buffer. Now there's no risk to allocate huge memory if program
+  header table positions after memory segment.
+- Add cleanup patch that removes unnecessary variable.
+- Fix wrongly using the variable that is buffer size configurable at
+  runtime. Instead, use the variable that has original buffer size.
+
+v1 => v2)
+
+- Clean up the existing codes: use e_phoff, and remove the assumption
+  on PT_NOTE entries.
+- Fix potential bug that ELF header size is not included in exported
+  vmcoreinfo size.
+- Divide patch modifying read_vmcore() into two: clean-up and primary
+  code change.
+- Put ELF note segments in page-size boundary on the 1st kernel
+  instead of copying them into the buffer on the 2nd kernel.
+
+Test
+====
+
+This patch set is composed based on v3.10-rc1, tested on x86_64,
+x86_32 both with 1GB and with 5GB (over 4GB) memory configurations.
+
+---
+
+HATAYAMA Daisuke (8):
+      vmcore: support mmap() on /proc/vmcore
+      vmcore: calculate vmcore file size from buffer size and total size of vmcore objects
+      vmcore: treat memory chunks referenced by PT_LOAD program header entries in page-size boundary in vmcore_list
+      vmcore: allocate ELF note segment in the 2nd kernel vmalloc memory
+      vmalloc: introduce remap_vmalloc_range_partial
+      vmalloc: make find_vm_area check in range
+      vmcore: clean up read_vmcore()
+      vmcore: allocate buffer for ELF headers on page-size alignment
+
+
+ fs/proc/vmcore.c        |  491 ++++++++++++++++++++++++++++++++---------------
+ include/linux/vmalloc.h |    4 
+ mm/vmalloc.c            |   65 ++++--
+ 3 files changed, 386 insertions(+), 174 deletions(-)
+
 -- 
-Dave Chinner
-david@fromorbit.com
+
+Thanks.
+HATAYAMA, Daisuke
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
