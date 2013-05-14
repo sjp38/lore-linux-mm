@@ -1,94 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 8A58B6B0087
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 12:08:22 -0400 (EDT)
-Date: Tue, 14 May 2013 17:08:19 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC][PATCH 7/7] drain batch list during long operations
-Message-ID: <20130514160818.GY11497@suse.de>
-References: <20130507211954.9815F9D1@viggo.jf.intel.com>
- <20130507212003.7990B2F5@viggo.jf.intel.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id E58EC6B008A
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 12:09:05 -0400 (EDT)
+Date: Tue, 14 May 2013 18:08:59 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: don't initialize kmem-cache destroying work for
+ root caches
+Message-ID: <20130514160859.GC5055@dhcp22.suse.cz>
+References: <1368535118-27369-1-git-send-email-avagin@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130507212003.7990B2F5@viggo.jf.intel.com>
+In-Reply-To: <1368535118-27369-1-git-send-email-avagin@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tim.c.chen@linux.intel.com
+To: Andrey Vagin <avagin@openvz.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, May 07, 2013 at 02:20:03PM -0700, Dave Hansen wrote:
+On Tue 14-05-13 16:38:38, Andrey Vagin wrote:
+> struct memcg_cache_params has a union. Different parts of this union are
+> used for root and non-root caches. A part with destroying work is used only
+> for non-root caches.
 > 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+> [  115.096202] BUG: unable to handle kernel paging request at 0000000fffffffe0
+> [  115.096785] IP: [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
+> [  115.097024] PGD 7ace1067 PUD 0
+> [  115.097024] Oops: 0000 [#4] SMP
+> [  115.097024] Modules linked in: netlink_diag af_packet_diag udp_diag tcp_diag inet_diag unix_diag ip6table_filter ip6_tables i2c_piix4 virtio_net virtio_balloon microcode i2c_core pcspkr floppy
+> [  115.097024] CPU: 0 PID: 1929 Comm: lt-vzctl Tainted: G      D      3.10.0-rc1+ #2
+> [  115.097024] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> [  115.097024] task: ffff88007b5aaee0 ti: ffff88007bf0c000 task.ti: ffff88007bf0c000
+> [  115.097024] RIP: 0010<ffffffff8116b641>]  [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
+> [  115.097024] RSP: 0018:ffff88007bf0de68  EFLAGS: 00010202
+> [  115.097024] RAX: 0000000fffffffe0 RBX: 00007fff4014f200 RCX: 0000000000000300
+> [  115.097024] RDX: 0000000000000005 RSI: 00000000000000d0 RDI: ffff88007d001300
+> [  115.097024] RBP: ffff88007bf0dea8 R08: 00007f849c3141b7 R09: ffffffff8118e100
+> [  115.097024] R10: 0000000000000001 R11: 0000000000000246 R12: 00000000000000d0
+> [  115.097024] R13: 0000000fffffffe0 R14: ffff88007d001300 R15: 0000000000001000
+> [  115.097024] FS:  00007f849cbb8b40(0000) GS:ffff88007fc00000(0000) knlGS:0000000000000000
+> [  115.097024] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [  115.097024] CR2: 0000000fffffffe0 CR3: 000000007bc38000 CR4: 00000000000006f0
+> [  115.097024] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> [  115.097024] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> [  115.097024] Stack:
+> [  115.097024]  ffffffff8118e100 ffffffff81149ea1 0000000000000008 00007fff4014f200
+> [  115.097024]  00007fff4014f200 0000000000000000 0000000000000000 0000000000001000
+> [  115.097024]  ffff88007bf0dee8 ffffffff8118e100 ffff880037598e00 00007fff4014f200
+> [  115.097024] Call Trace:
+> [  115.097024]  [<ffffffff8118e100>] ? getname_flags.part.34+0x30/0x140
+> [  115.097024]  [<ffffffff81149ea1>] ? vma_rb_erase+0x121/0x210
+> [  115.097024]  [<ffffffff8118e100>] getname_flags.part.34+0x30/0x140
+> [  115.097024]  [<ffffffff8118e248>] getname+0x38/0x60
+> [  115.097024]  [<ffffffff81181d55>] do_sys_open+0xc5/0x1e0
+> [  115.097024]  [<ffffffff81181e92>] SyS_open+0x22/0x30
+> [  115.097024]  [<ffffffff8161cb82>] system_call_fastpath+0x16/0x1b
+> [  115.097024] Code: f4 53 48 83 ec 18 8b 05 8e 53 b7 00 4c 8b 4d 08 21 f0 a8 10 74 0d 4c 89 4d c0 e8 1b 76 4a 00 4c 8b 4d c0 e9 92 00 00 00 4d 89 f5 <4d> 8b 45 00 65 4c 03 04 25 48 cd 00 00 49 8b 50 08 4d 8b 38 49
+> [  115.097024] RIP  [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
+> [  115.097024]  RSP <ffff88007bf0de68>
+> [  115.097024] CR2: 0000000fffffffe0
+> [  115.121352] ---[ end trace 16bb8e8408b97d0e ]---
 > 
-> This was a suggestion from Mel:
-> 
-> 	http://lkml.kernel.org/r/20120914085634.GM11157@csn.ul.ie
-> 
-> Any pages we collect on 'batch_for_mapping_removal' will have
-> their lock_page() held during the duration of their stay on the
-> list.  If some other user is trying to get at them during this
-> time, they might end up having to wait for a while, especially if
-> we go off and do pageout() on some other page.
-> 
-> This ensures that we drain the batch if we are about to perform a
-> writeout.
-> 
-> I added some statistics to the __remove_mapping_batch() code to
-> track how large the lists are that we pass in to it.  With this
-> patch, the average list length drops about 10% (from about 4.1 to
-> 3.8).  The workload here was a make -j4 kernel compile on a VM
-> with 200MB of RAM.
-> 
-> I've still got the statistics patch around if anyone is
-> interested.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Cc: Glauber Costa <glommer@parallels.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Balbir Singh <bsingharora@gmail.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Andrey Vagin <avagin@openvz.org>
+
+Forgot to add
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
++
+Cc: stable # 3.9
+
+Thanks
 > ---
+>  mm/memcontrol.c | 2 --
+>  1 file changed, 2 deletions(-)
 > 
->  linux.git-davehans/kernel/sched/fair.c |    2 ++
->  linux.git-davehans/mm/vmscan.c         |   10 ++++++++++
->  2 files changed, 12 insertions(+)
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index cb1c9de..764b9e4 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3141,8 +3141,6 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+>  			return -ENOMEM;
+>  		}
+>  
+> -		INIT_WORK(&s->memcg_params->destroy,
+> -				kmem_cache_destroy_work_func);
+>  		s->memcg_params->is_root_cache = true;
+>  
+>  		/*
+> -- 
+> 1.8.1.4
 > 
-> diff -puN kernel/sched/fair.c~drain-batch-list-during-long-operations kernel/sched/fair.c
-> --- linux.git/kernel/sched/fair.c~drain-batch-list-during-long-operations	2013-05-07 13:48:15.267113941 -0700
-> +++ linux.git-davehans/kernel/sched/fair.c	2013-05-07 13:48:15.275114295 -0700
-> @@ -5211,6 +5211,8 @@ more_balance:
->  		if (sd->balance_interval < sd->max_interval)
->  			sd->balance_interval *= 2;
->  	}
-> +	//if (printk_ratelimit())
-> +	//	printk("sd->balance_interval: %d\n", sd->balance_interval);
->  
->  	goto out;
->  
-
-heh
-
-> diff -puN mm/vmscan.c~drain-batch-list-during-long-operations mm/vmscan.c
-> --- linux.git/mm/vmscan.c~drain-batch-list-during-long-operations	2013-05-07 13:48:15.268113985 -0700
-> +++ linux.git-davehans/mm/vmscan.c	2013-05-07 13:48:15.272114163 -0700
-> @@ -936,6 +936,16 @@ static unsigned long shrink_page_list(st
->  			if (!sc->may_writepage)
->  				goto keep_locked;
->  
-> +			/*
-> +			 * We hold a bunch of page locks on the batch.
-> +			 * pageout() can take a while, so drain the
-> +			 * batch before we perform pageout.
-> +			 */
-> +			nr_reclaimed +=
-> +		               __remove_mapping_batch(&batch_for_mapping_removal,
-> +		                                      &ret_pages,
-> +		                                      &free_pages);
-> +
-
-There is also a wait_on_page_writeback() above that would affect
-memcg's but this alone alleviates a lot of my concerns about lock hold
-times.
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
