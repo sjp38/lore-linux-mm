@@ -1,108 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id E2E4E6B003D
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 03:11:01 -0400 (EDT)
-Date: Tue, 14 May 2013 17:10:46 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v7 04/31] dcache: remove dentries from LRU before putting
- on dispose list
-Message-ID: <20130514071046.GH29466@dastard>
-References: <1368382432-25462-1-git-send-email-glommer@openvz.org>
- <1368382432-25462-5-git-send-email-glommer@openvz.org>
- <20130514054640.GE29466@dastard>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 813D06B004D
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 03:13:44 -0400 (EDT)
+Date: Tue, 14 May 2013 09:13:41 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V2 0/3] memcg: simply lock of page stat accounting
+Message-ID: <20130514071341.GC5198@dhcp22.suse.cz>
+References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com>
+ <51918846.7090006@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130514054640.GE29466@dastard>
+In-Reply-To: <51918846.7090006@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@openvz.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, gthelen@google.com, Sha Zhengju <handai.szj@taobao.com>
 
-On Tue, May 14, 2013 at 03:46:40PM +1000, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
+On Tue 14-05-13 09:41:42, KAMEZAWA Hiroyuki wrote:
+> If you want to rewrite all things and make memcg cleaner, I don't stop it.
+> But, how about starting with this simeple one for your 1st purpose ? 
+> doesn't work ? dirty ?
 > 
-> One of the big problems with modifying the way the dcache shrinker
-> and LRU implementation works is that the LRU is abused in several
-> ways. One of these is shrink_dentry_list().
-> 
-> Basically, we can move a dentry off the LRU onto a different list
-> without doing any accounting changes, and then use dentry_lru_prune()
-> to remove it from what-ever list it is now on to do the LRU
-> accounting at that point.
-> 
-> This makes it -really hard- to change the LRU implementation. The
-> use of the per-sb LRU lock serialises movement of the dentries
-> between the different lists and the removal of them, and this is the
-> only reason that it works. If we want to break up the dentry LRU
-> lock and lists into, say, per-node lists, we remove the only
-> serialisation that allows this lru list/dispose list abuse to work.
-> 
-> To make this work effectively, the dispose list has to be isolated
-> from the LRU list - dentries have to be removed from the LRU
-> *before* being placed on the dispose list. This means that the LRU
-> accounting and isolation is completed before disposal is started,
-> and that means we can change the LRU implementation freely in
-> future.
-> 
-> This means that dentries *must* be marked with DCACHE_SHRINK_LIST
-> when they are placed on the dispose list so that we don't think that
-> parent dentries found in try_prune_one_dentry() are on the LRU when
-> the are actually on the dispose list. This would result in
-> accounting the dentry to the LRU a second time. Hence
-> dentry_lru_del() has to handle the DCACHE_SHRINK_LIST case
-> differently because the dentry isn't on the LRU list.
-> 
-> [ v2: don't decrement nr unused twice, spotted by Sha Zhengju ]
-> [ v7: (dchinner)
-> - shrink list leaks dentries when inode/parent can't be locked in
->   dentry_kill().
-> - fix the scope of the sb locking inside shrink_dcache_sb()
+> == this patch is untested. ==
 
-<sigh>
+And it is unnecessary as the trace is no longer possible as
+set_page_dirty is no longer called from page_remove_rmap see
+abf09bed3cceadd809f0356065c2ada6cee90d4a
 
-I need find a dealer that sells better crack.
-
-> @@ -883,9 +923,16 @@ void shrink_dcache_sb(struct super_block *sb)
+> From 95e405451f56933c4777e64bb02326ec0462f7a7 Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Tue, 14 May 2013 09:40:55 +0900
+> Subject: [PATCH] Allow nesting lock of memcg's page stat accouting.
+> 
+> Sha Zhengju and Michal Hocko pointed out that
+> mem_cgroup_begin/end_update_page_stat() should be nested lock.
+> https://lkml.org/lkml/2013/1/2/48
+> 
+> page_remove_rmap
+>   mem_cgroup_begin_update_page_stat		<<< 1
+>     set_page_dirty
+>       __set_page_dirty_buffers
+>         __set_page_dirty
+>           mem_cgroup_begin_update_page_stat	<<< 2
+>             move_lock_mem_cgroup
+>               spin_lock_irqsave(&memcg->move_lock, *flags);
+> 
+> This patch add a nesting functionality with per-thread counter.
+> 
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> ---
+>  include/linux/sched.h |    1 +
+>  mm/memcontrol.c       |   22 +++++++++++++++++++++-
+>  2 files changed, 22 insertions(+), 1 deletions(-)
+> 
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 84ceef5..cca3229 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1402,6 +1402,7 @@ struct task_struct {
+>  		unsigned long memsw_nr_pages; /* uncharged mem+swap usage */
+>  	} memcg_batch;
+>  	unsigned int memcg_kmem_skip_account;
+> +	unsigned int memcg_page_stat_accounting;
+>  #endif
+>  #ifdef CONFIG_HAVE_HW_BREAKPOINT
+>  	atomic_t ptrace_bp_refcnt;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 357371a..152f8df 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2352,12 +2352,30 @@ again:
+>  	 */
+>  	if (!mem_cgroup_stolen(memcg))
+>  		return;
+> +	/*
+> +	 * In some case, we need nested lock of this.
+> +	 * page_remove_rmap
+> +	 *   mem_cgroup_begin_update_page_stat		<<< 1
+> +	 *     set_page_dirty
+> +	 *       __set_page_dirty_buffers
+> +	 *         __set_page_dirty
+> +	 *           mem_cgroup_begin_update_page_stat	<<< 2
+> +	 *             move_lock_mem_cgroup
+> +	 *               spin_lock_irqsave(&memcg->move_lock, *flags);
+> +	 *
+> +	 * We avoid this deadlock by having per thread counter.
+> +	 */
+> +	if (current->memcg_page_stat_accounting > 0) {
+> +		current->memcg_page_stat_accounting++;
+> +		return;
+> +	}
 >  
->  	spin_lock(&sb->s_dentry_lru_lock);
->  	while (!list_empty(&sb->s_dentry_lru)) {
-> -		list_splice_init(&sb->s_dentry_lru, &tmp);
-> +		/*
-> +		 * account for removal here so we don't need to handle it later
-> +		 * even though the dentry is no longer on the lru list.
-> +		 */
->  		spin_unlock(&sb->s_dentry_lru_lock);
-> -		shrink_dentry_list(&tmp);
-> +		list_splice_init(&sb->s_dentry_lru, &tmp);
-> +		this_cpu_sub(nr_dentry_unused, sb->s_nr_dentry_unused);
-> +		sb->s_nr_dentry_unused = 0;
-> +
-> +		shrink_dcache_list(&tmp);
->  		spin_lock(&sb->s_dentry_lru_lock);
+>  	move_lock_mem_cgroup(memcg, flags);
+>  	if (memcg != pc->mem_cgroup || !PageCgroupUsed(pc)) {
+>  		move_unlock_mem_cgroup(memcg, flags);
+>  		goto again;
+>  	}
+> +	current->memcg_page_stat_accounting = 1;
+>  	*locked = true;
+>  }
+>  
+> @@ -2370,7 +2388,9 @@ void __mem_cgroup_end_update_page_stat(struct page *page, unsigned long *flags)
+>  	 * lock is held because a routine modifies pc->mem_cgroup
+>  	 * should take move_lock_mem_cgroup().
+>  	 */
+> -	move_unlock_mem_cgroup(pc->mem_cgroup, flags);
+> +	current->memcg_page_stat_accounting--;
+> +	if (!current->memcg_page_stat_accounting)
+> +		move_unlock_mem_cgroup(pc->mem_cgroup, flags);
+>  }
+>  
+>  void mem_cgroup_update_page_stat(struct page *page,
+> -- 
+> 1.7.4.1
+> 
+> 
+> 
 
-This is now completely wrong. It should end up like this:
-
-	while (!list_empty(&sb->s_dentry_lru)) {
-		/*
-		 * account for removal here so we don't need to handle it later
-		 * even though the dentry is no longer on the lru list.
-		 */
-		list_splice_init(&sb->s_dentry_lru, &tmp);
-		this_cpu_sub(nr_dentry_unused, sb->s_nr_dentry_unused);
-		sb->s_nr_dentry_unused = 0;
-		spin_unlock(&sb->s_dentry_lru_lock);
-
-		shrink_dcache_list(&tmp);
-
-		spin_lock(&sb->s_dentry_lru_lock);
-	}
-	spin_unlock(&sb->s_dentry_lru_lock);
-
--Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
