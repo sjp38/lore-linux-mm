@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id DE0126B0087
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 12:37:48 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 216486B0083
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 12:37:51 -0400 (EDT)
 From: Lukas Czerner <lczerner@redhat.com>
-Subject: [PATCH v4 03/20] ext4: use ->invalidatepage() length argument
-Date: Tue, 14 May 2013 18:37:17 +0200
-Message-Id: <1368549454-8930-4-git-send-email-lczerner@redhat.com>
+Subject: [PATCH v4 04/20] jbd: change journal_invalidatepage() to accept length
+Date: Tue, 14 May 2013 18:37:18 +0200
+Message-Id: <1368549454-8930-5-git-send-email-lczerner@redhat.com>
 In-Reply-To: <1368549454-8930-1-git-send-email-lczerner@redhat.com>
 References: <1368549454-8930-1-git-send-email-lczerner@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -14,81 +14,28 @@ To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, hughd@google.com, lczerner@redhat.com
 
 ->invalidatepage() aop now accepts range to invalidate so we can make
-use of it in all ext4 invalidatepage routines.
+use of it in journal_invalidatepage() and all the users in ext3 file
+system. Also update ext3 trace point to print out length argument.
 
 Signed-off-by: Lukas Czerner <lczerner@redhat.com>
 Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- fs/ext4/inode.c             |   30 +++++++++++++++++++-----------
- include/trace/events/ext4.h |   22 ++++++++++++----------
- 2 files changed, 31 insertions(+), 21 deletions(-)
+ fs/ext3/inode.c             |    6 +++---
+ fs/jbd/transaction.c        |   19 ++++++++++++++-----
+ include/linux/jbd.h         |    2 +-
+ include/trace/events/ext3.h |   12 +++++++-----
+ 4 files changed, 25 insertions(+), 14 deletions(-)
 
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 96d5927..ae58749 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -1415,21 +1415,28 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
- }
- 
- static void ext4_da_page_release_reservation(struct page *page,
--					     unsigned long offset)
-+					     unsigned int offset,
-+					     unsigned int length)
+diff --git a/fs/ext3/inode.c b/fs/ext3/inode.c
+index 349d4ce..b12936b 100644
+--- a/fs/ext3/inode.c
++++ b/fs/ext3/inode.c
+@@ -1828,15 +1828,15 @@ static void ext3_invalidatepage(struct page *page, unsigned int offset,
  {
- 	int to_release = 0;
- 	struct buffer_head *head, *bh;
- 	unsigned int curr_off = 0;
- 	struct inode *inode = page->mapping->host;
- 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-+	unsigned int stop = offset + length;
- 	int num_clusters;
- 	ext4_fsblk_t lblk;
+ 	journal_t *journal = EXT3_JOURNAL(page->mapping->host);
  
-+	BUG_ON(stop > PAGE_CACHE_SIZE || stop < length);
-+
- 	head = page_buffers(page);
- 	bh = head;
- 	do {
- 		unsigned int next_off = curr_off + bh->b_size;
- 
-+		if (next_off > stop)
-+			break;
-+
- 		if ((offset <= curr_off) && (buffer_delay(bh))) {
- 			to_release++;
- 			clear_buffer_delay(bh);
-@@ -2839,7 +2846,7 @@ static void ext4_da_invalidatepage(struct page *page, unsigned int offset,
- 	if (!page_has_buffers(page))
- 		goto out;
- 
--	ext4_da_page_release_reservation(page, offset);
-+	ext4_da_page_release_reservation(page, offset, length);
- 
- out:
- 	ext4_invalidatepage(page, offset, length);
-@@ -2993,29 +3000,29 @@ ext4_readpages(struct file *file, struct address_space *mapping,
- static void ext4_invalidatepage(struct page *page, unsigned int offset,
- 				unsigned int length)
- {
--	trace_ext4_invalidatepage(page, offset);
-+	trace_ext4_invalidatepage(page, offset, length);
- 
- 	/* No journalling happens on data buffers when this function is used */
- 	WARN_ON(page_has_buffers(page) && buffer_jbd(page_buffers(page)));
- 
--	block_invalidatepage(page, offset, PAGE_CACHE_SIZE - offset);
-+	block_invalidatepage(page, offset, length);
- }
- 
- static int __ext4_journalled_invalidatepage(struct page *page,
--					    unsigned long offset)
-+					    unsigned int offset,
-+					    unsigned int length)
- {
- 	journal_t *journal = EXT4_JOURNAL(page->mapping->host);
- 
--	trace_ext4_journalled_invalidatepage(page, offset);
-+	trace_ext4_journalled_invalidatepage(page, offset, length);
+-	trace_ext3_invalidatepage(page, offset);
++	trace_ext3_invalidatepage(page, offset, length);
  
  	/*
  	 * If it's a full truncate we just forget about the pending dirtying
@@ -97,39 +44,94 @@ index 96d5927..ae58749 100644
 +	if (offset == 0 && length == PAGE_CACHE_SIZE)
  		ClearPageChecked(page);
  
--	return jbd2_journal_invalidatepage(journal, page, offset,
--					   PAGE_CACHE_SIZE - offset);
-+	return jbd2_journal_invalidatepage(journal, page, offset, length);
+-	journal_invalidatepage(journal, page, offset);
++	journal_invalidatepage(journal, page, offset, length);
  }
  
- /* Wrapper for aops... */
-@@ -3023,7 +3030,7 @@ static void ext4_journalled_invalidatepage(struct page *page,
- 					   unsigned int offset,
- 					   unsigned int length)
+ static int ext3_releasepage(struct page *page, gfp_t wait)
+diff --git a/fs/jbd/transaction.c b/fs/jbd/transaction.c
+index 071d690..a1fef89 100644
+--- a/fs/jbd/transaction.c
++++ b/fs/jbd/transaction.c
+@@ -2020,16 +2020,20 @@ zap_buffer_unlocked:
+  * void journal_invalidatepage() - invalidate a journal page
+  * @journal: journal to use for flush
+  * @page:    page to flush
+- * @offset:  length of page to invalidate.
++ * @offset:  offset of the range to invalidate
++ * @length:  length of the range to invalidate
+  *
+- * Reap page buffers containing data after offset in page.
++ * Reap page buffers containing data in specified range in page.
+  */
+ void journal_invalidatepage(journal_t *journal,
+ 		      struct page *page,
+-		      unsigned long offset)
++		      unsigned int offset,
++		      unsigned int length)
  {
--	WARN_ON(__ext4_journalled_invalidatepage(page, offset) < 0);
-+	WARN_ON(__ext4_journalled_invalidatepage(page, offset, length) < 0);
- }
+ 	struct buffer_head *head, *bh, *next;
++	unsigned int stop = offset + length;
+ 	unsigned int curr_off = 0;
++	int partial_page = (offset || length < PAGE_CACHE_SIZE);
+ 	int may_free = 1;
  
- static int ext4_releasepage(struct page *page, gfp_t wait)
-@@ -4627,7 +4634,8 @@ static void ext4_wait_for_tail_page_commit(struct inode *inode)
- 				      inode->i_size >> PAGE_CACHE_SHIFT);
- 		if (!page)
- 			return;
--		ret = __ext4_journalled_invalidatepage(page, offset);
-+		ret = __ext4_journalled_invalidatepage(page, offset,
-+						PAGE_CACHE_SIZE - offset);
- 		unlock_page(page);
- 		page_cache_release(page);
- 		if (ret != -EBUSY)
-diff --git a/include/trace/events/ext4.h b/include/trace/events/ext4.h
-index 8ee15b9..dcfce96 100644
---- a/include/trace/events/ext4.h
-+++ b/include/trace/events/ext4.h
-@@ -444,16 +444,16 @@ DEFINE_EVENT(ext4__page_op, ext4_releasepage,
+ 	if (!PageLocked(page))
+@@ -2037,6 +2041,8 @@ void journal_invalidatepage(journal_t *journal,
+ 	if (!page_has_buffers(page))
+ 		return;
+ 
++	BUG_ON(stop > PAGE_CACHE_SIZE || stop < length);
++
+ 	/* We will potentially be playing with lists other than just the
+ 	 * data lists (especially for journaled data mode), so be
+ 	 * cautious in our locking. */
+@@ -2046,11 +2052,14 @@ void journal_invalidatepage(journal_t *journal,
+ 		unsigned int next_off = curr_off + bh->b_size;
+ 		next = bh->b_this_page;
+ 
++		if (next_off > stop)
++			return;
++
+ 		if (offset <= curr_off) {
+ 			/* This block is wholly outside the truncation point */
+ 			lock_buffer(bh);
+ 			may_free &= journal_unmap_buffer(journal, bh,
+-							 offset > 0);
++							 partial_page);
+ 			unlock_buffer(bh);
+ 		}
+ 		curr_off = next_off;
+@@ -2058,7 +2067,7 @@ void journal_invalidatepage(journal_t *journal,
+ 
+ 	} while (bh != head);
+ 
+-	if (!offset) {
++	if (!partial_page) {
+ 		if (may_free && try_to_free_buffers(page))
+ 			J_ASSERT(!page_has_buffers(page));
+ 	}
+diff --git a/include/linux/jbd.h b/include/linux/jbd.h
+index c8f3297..d02e16c 100644
+--- a/include/linux/jbd.h
++++ b/include/linux/jbd.h
+@@ -840,7 +840,7 @@ extern void	 journal_release_buffer (handle_t *, struct buffer_head *);
+ extern int	 journal_forget (handle_t *, struct buffer_head *);
+ extern void	 journal_sync_buffer (struct buffer_head *);
+ extern void	 journal_invalidatepage(journal_t *,
+-				struct page *, unsigned long);
++				struct page *, unsigned int, unsigned int);
+ extern int	 journal_try_to_free_buffers(journal_t *, struct page *, gfp_t);
+ extern int	 journal_stop(handle_t *);
+ extern int	 journal_flush (journal_t *);
+diff --git a/include/trace/events/ext3.h b/include/trace/events/ext3.h
+index 15d11a3..6797b9d 100644
+--- a/include/trace/events/ext3.h
++++ b/include/trace/events/ext3.h
+@@ -290,13 +290,14 @@ DEFINE_EVENT(ext3__page_op, ext3_releasepage,
  );
  
- DECLARE_EVENT_CLASS(ext4_invalidatepage_op,
+ TRACE_EVENT(ext3_invalidatepage,
 -	TP_PROTO(struct page *page, unsigned long offset),
 +	TP_PROTO(struct page *page, unsigned int offset, unsigned int length),
  
@@ -137,49 +139,31 @@ index 8ee15b9..dcfce96 100644
 +	TP_ARGS(page, offset, length),
  
  	TP_STRUCT__entry(
- 		__field(	dev_t,	dev			)
- 		__field(	ino_t,	ino			)
  		__field(	pgoff_t, index			)
 -		__field(	unsigned long, offset		)
--
 +		__field(	unsigned int, offset		)
 +		__field(	unsigned int, length		)
- 	),
+ 		__field(	ino_t,	ino			)
+ 		__field(	dev_t,	dev			)
  
+@@ -305,14 +306,15 @@ TRACE_EVENT(ext3_invalidatepage,
  	TP_fast_assign(
-@@ -461,24 +461,26 @@ DECLARE_EVENT_CLASS(ext4_invalidatepage_op,
- 		__entry->ino	= page->mapping->host->i_ino;
  		__entry->index	= page->index;
  		__entry->offset	= offset;
 +		__entry->length	= length;
+ 		__entry->ino	= page->mapping->host->i_ino;
+ 		__entry->dev	= page->mapping->host->i_sb->s_dev;
  	),
  
 -	TP_printk("dev %d,%d ino %lu page_index %lu offset %lu",
 +	TP_printk("dev %d,%d ino %lu page_index %lu offset %u length %u",
  		  MAJOR(__entry->dev), MINOR(__entry->dev),
  		  (unsigned long) __entry->ino,
--		  (unsigned long) __entry->index, __entry->offset)
-+		  (unsigned long) __entry->index,
-+		  __entry->offset, __entry->length)
+-		  __entry->index, __entry->offset)
++		  __entry->index, __entry->offset, __entry->length)
  );
  
- DEFINE_EVENT(ext4_invalidatepage_op, ext4_invalidatepage,
--	TP_PROTO(struct page *page, unsigned long offset),
-+	TP_PROTO(struct page *page, unsigned int offset, unsigned int length),
- 
--	TP_ARGS(page, offset)
-+	TP_ARGS(page, offset, length)
- );
- 
- DEFINE_EVENT(ext4_invalidatepage_op, ext4_journalled_invalidatepage,
--	TP_PROTO(struct page *page, unsigned long offset),
-+	TP_PROTO(struct page *page, unsigned int offset, unsigned int length),
- 
--	TP_ARGS(page, offset)
-+	TP_ARGS(page, offset, length)
- );
- 
- TRACE_EVENT(ext4_discard_blocks,
+ TRACE_EVENT(ext3_discard_blocks,
 -- 
 1.7.7.6
 
