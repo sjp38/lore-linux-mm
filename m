@@ -1,175 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 2E6496B003A
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:59:14 -0400 (EDT)
-Date: Tue, 14 May 2013 10:59:06 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v5 4/8] vmalloc: introduce remap_vmalloc_range_partial
-Message-ID: <20130514145906.GD16772@redhat.com>
-References: <20130514015622.18697.77191.stgit@localhost6.localdomain6>
- <20130514015729.18697.88256.stgit@localhost6.localdomain6>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 8B1CA6B003B
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 11:00:35 -0400 (EDT)
+Date: Tue, 14 May 2013 16:00:32 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC][PATCH 2/7] make 'struct page' and swp_entry_t variants of
+ swapcache_free().
+Message-ID: <20130514150032.GT11497@suse.de>
+References: <20130507211954.9815F9D1@viggo.jf.intel.com>
+ <20130507211957.603799B2@viggo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130514015729.18697.88256.stgit@localhost6.localdomain6>
+In-Reply-To: <20130507211957.603799B2@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Cc: ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, Rik Van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tim.c.chen@linux.intel.com
 
-On Tue, May 14, 2013 at 10:57:29AM +0900, HATAYAMA Daisuke wrote:
-> We want to allocate ELF note segment buffer on the 2nd kernel in
-> vmalloc space and remap it to user-space in order to reduce the risk
-> that memory allocation fails on system with huge number of CPUs and so
-> with huge ELF note segment that exceeds 11-order block size.
+On Tue, May 07, 2013 at 02:19:57PM -0700, Dave Hansen wrote:
 > 
-> Although there's already remap_vmalloc_range for the purpose of
-> remapping vmalloc memory to user-space, we need to specify user-space
-> range via vma. Mmap on /proc/vmcore needs to remap range across
-> multiple objects, so the interface that requires vma to cover full
-> range is problematic.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> This patch introduces remap_vmalloc_range_partial that receives
-> user-space range as a pair of base address and size and can be used
-> for mmap on /proc/vmcore case.
+> swapcache_free() takes two arguments:
 > 
-> remap_vmalloc_range is rewritten using remap_vmalloc_range_partial.
+> 	void swapcache_free(swp_entry_t entry, struct page *page)
 > 
-> Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-
-This also needs ACK of VM folks. CCing some of them.
-
-Thanks
-Vivek
-
+> Most of its callers (5/7) are from error handling paths haven't even
+> instantiated a page, so they pass page=NULL.  Both of the callers
+> that call in with a 'struct page' create and pass in a temporary
+> swp_entry_t.
+> 
+> Now that we are deferring clearing page_private() until after
+> swapcache_free() has been called, we can just create a variant
+> that takes a 'struct page' and does the temporary variable in
+> the helper.
+> 
+> That leaves all the other callers doing
+> 
+> 	swapcache_free(entry, NULL)
+> 
+> so create another helper for them that makes it clear that they
+> need only pass in a swp_entry_t.
+> 
+> One downside here is that delete_from_swap_cache() now does
+> an extra swap_address_space() call.  But, those are pretty
+> cheap (just some array index arithmetic).
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 > ---
 > 
->  include/linux/vmalloc.h |    4 +++
->  mm/vmalloc.c            |   63 +++++++++++++++++++++++++++++++++--------------
->  2 files changed, 48 insertions(+), 19 deletions(-)
+>  linux.git-davehans/drivers/staging/zcache/zcache-main.c |    2 +-
+>  linux.git-davehans/include/linux/swap.h                 |    3 ++-
+>  linux.git-davehans/mm/shmem.c                           |    2 +-
+>  linux.git-davehans/mm/swap_state.c                      |   13 +++++--------
+>  linux.git-davehans/mm/swapfile.c                        |   13 ++++++++++++-
+>  linux.git-davehans/mm/vmscan.c                          |    3 +--
+>  6 files changed, 22 insertions(+), 14 deletions(-)
 > 
-> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-> index 7d5773a..dd0a2c8 100644
-> --- a/include/linux/vmalloc.h
-> +++ b/include/linux/vmalloc.h
-> @@ -82,6 +82,10 @@ extern void *vmap(struct page **pages, unsigned int count,
->  			unsigned long flags, pgprot_t prot);
->  extern void vunmap(const void *addr);
+> diff -puN drivers/staging/zcache/zcache-main.c~make-page-and-swp_entry_t-variants drivers/staging/zcache/zcache-main.c
+> --- linux.git/drivers/staging/zcache/zcache-main.c~make-page-and-swp_entry_t-variants	2013-05-07 13:48:13.963056205 -0700
+> +++ linux.git-davehans/drivers/staging/zcache/zcache-main.c	2013-05-07 13:48:13.975056737 -0700
+> @@ -961,7 +961,7 @@ static int zcache_get_swap_cache_page(in
+>  		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+>  		 * clear SWAP_HAS_CACHE flag.
+>  		 */
+> -		swapcache_free(entry, NULL);
+> +		swapcache_free_entry(entry);
+>  		/* FIXME: is it possible to get here without err==-ENOMEM?
+>  		 * If not, we can dispense with the do loop, use goto retry */
+>  	} while (err != -ENOMEM);
+> diff -puN include/linux/swap.h~make-page-and-swp_entry_t-variants include/linux/swap.h
+> --- linux.git/include/linux/swap.h~make-page-and-swp_entry_t-variants	2013-05-07 13:48:13.964056249 -0700
+> +++ linux.git-davehans/include/linux/swap.h	2013-05-07 13:48:13.975056737 -0700
+> @@ -382,7 +382,8 @@ extern void swap_shmem_alloc(swp_entry_t
+>  extern int swap_duplicate(swp_entry_t);
+>  extern int swapcache_prepare(swp_entry_t);
+>  extern void swap_free(swp_entry_t);
+> -extern void swapcache_free(swp_entry_t, struct page *page);
+> +extern void swapcache_free_entry(swp_entry_t entry);
+> +extern void swapcache_free_page_entry(struct page *page);
+>  extern int free_swap_and_cache(swp_entry_t);
+>  extern int swap_type_of(dev_t, sector_t, struct block_device **);
+>  extern unsigned int count_swap_pages(int, int);
+> diff -puN mm/shmem.c~make-page-and-swp_entry_t-variants mm/shmem.c
+> --- linux.git/mm/shmem.c~make-page-and-swp_entry_t-variants	2013-05-07 13:48:13.966056339 -0700
+> +++ linux.git-davehans/mm/shmem.c	2013-05-07 13:48:13.976056781 -0700
+> @@ -871,7 +871,7 @@ static int shmem_writepage(struct page *
+>  	}
 >  
-> +extern int remap_vmalloc_range_partial(struct vm_area_struct *vma,
-> +				       unsigned long uaddr, void *kaddr,
-> +				       unsigned long size);
-> +
-
->  extern int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
->  							unsigned long pgoff);
->  void vmalloc_sync_all(void);
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 3875fa2..d9a9f4f6 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2148,42 +2148,44 @@ finished:
->  }
->  
->  /**
-> - *	remap_vmalloc_range  -  map vmalloc pages to userspace
-> - *	@vma:		vma to cover (map full range of vma)
-> - *	@addr:		vmalloc memory
-> - *	@pgoff:		number of pages into addr before first page to map
-> + *	remap_vmalloc_range_partial  -  map vmalloc pages to userspace
-> + *	@vma:		vma to cover
-> + *	@uaddr:		target user address to start at
-> + *	@kaddr:		virtual address of vmalloc kernel memory
-> + *	@size:		size of map area
->   *
->   *	Returns:	0 for success, -Exxx on failure
->   *
-> - *	This function checks that addr is a valid vmalloc'ed area, and
-> - *	that it is big enough to cover the vma. Will return failure if
-> - *	that criteria isn't met.
-> + *	This function checks that @kaddr is a valid vmalloc'ed area,
-> + *	and that it is big enough to cover the range starting at
-> + *	@uaddr in @vma. Will return failure if that criteria isn't
-> + *	met.
->   *
->   *	Similar to remap_pfn_range() (see mm/memory.c)
->   */
-> -int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
-> -						unsigned long pgoff)
-> +int remap_vmalloc_range_partial(struct vm_area_struct *vma, unsigned long uaddr,
-> +				void *kaddr, unsigned long size)
->  {
->  	struct vm_struct *area;
-> -	unsigned long uaddr = vma->vm_start;
-> -	unsigned long usize = vma->vm_end - vma->vm_start;
->  
-> -	if ((PAGE_SIZE-1) & (unsigned long)addr)
-> +	size = PAGE_ALIGN(size);
-> +
-> +	if (((PAGE_SIZE-1) & (unsigned long)uaddr) ||
-> +	    ((PAGE_SIZE-1) & (unsigned long)kaddr))
->  		return -EINVAL;
->  
-> -	area = find_vm_area(addr);
-> +	area = find_vm_area(kaddr);
->  	if (!area)
->  		return -EINVAL;
->  
->  	if (!(area->flags & VM_USERMAP))
->  		return -EINVAL;
->  
-> -	if (usize + (pgoff << PAGE_SHIFT) > area->size - PAGE_SIZE)
-> +	if (kaddr + size > area->addr + area->size)
->  		return -EINVAL;
->  
-> -	addr += pgoff << PAGE_SHIFT;
->  	do {
-> -		struct page *page = vmalloc_to_page(addr);
-> +		struct page *page = vmalloc_to_page(kaddr);
->  		int ret;
->  
->  		ret = vm_insert_page(vma, uaddr, page);
-> @@ -2191,14 +2193,37 @@ int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
->  			return ret;
->  
->  		uaddr += PAGE_SIZE;
-> -		addr += PAGE_SIZE;
-> -		usize -= PAGE_SIZE;
-> -	} while (usize > 0);
-> +		kaddr += PAGE_SIZE;
-> +		size -= PAGE_SIZE;
-> +	} while (size > 0);
->  
->  	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
->  
->  	return 0;
->  }
-> +EXPORT_SYMBOL(remap_vmalloc_range_partial);
-> +
-> +/**
-> + *	remap_vmalloc_range  -  map vmalloc pages to userspace
-> + *	@vma:		vma to cover (map full range of vma)
-> + *	@addr:		vmalloc memory
-> + *	@pgoff:		number of pages into addr before first page to map
-> + *
-> + *	Returns:	0 for success, -Exxx on failure
-> + *
-> + *	This function checks that addr is a valid vmalloc'ed area, and
-> + *	that it is big enough to cover the vma. Will return failure if
-> + *	that criteria isn't met.
-> + *
-> + *	Similar to remap_pfn_range() (see mm/memory.c)
-> + */
-> +int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
-> +						unsigned long pgoff)
-> +{
-> +	return remap_vmalloc_range_partial(vma, vma->vm_start,
-> +					   addr + (pgoff << PAGE_SHIFT),
-> +					   vma->vm_end - vma->vm_start);
-> +}
->  EXPORT_SYMBOL(remap_vmalloc_range);
->  
+>  	mutex_unlock(&shmem_swaplist_mutex);
+> -	swapcache_free(swap, NULL);
+> +	swapcache_free_entry(swap);
+>  redirty:
+>  	set_page_dirty(page);
+>  	if (wbc->for_reclaim)
+> diff -puN mm/swapfile.c~make-page-and-swp_entry_t-variants mm/swapfile.c
+> --- linux.git/mm/swapfile.c~make-page-and-swp_entry_t-variants	2013-05-07 13:48:13.968056427 -0700
+> +++ linux.git-davehans/mm/swapfile.c	2013-05-07 13:48:13.977056825 -0700
+> @@ -637,7 +637,7 @@ void swap_free(swp_entry_t entry)
 >  /*
+>   * Called after dropping swapcache to decrease refcnt to swap entries.
+>   */
+> -void swapcache_free(swp_entry_t entry, struct page *page)
+> +static void __swapcache_free(swp_entry_t entry, struct page *page)
+>  {
+>  	struct swap_info_struct *p;
+>  	unsigned char count;
+> @@ -651,6 +651,17 @@ void swapcache_free(swp_entry_t entry, s
+>  	}
+>  }
+>  
+> +void swapcache_free_entry(swp_entry_t entry)
+> +{
+> +	__swapcache_free(entry, NULL);
+> +}
+> +
+> +void swapcache_free_page_entry(struct page *page)
+> +{
+> +	swp_entry_t entry = { .val = page_private(page) };
+> +	__swapcache_free(entry, page);
+> +}
+
+Patch one moved the clearing of private_private and ClearPageSwapCache
+from __delete_from_swap_cache to two callers. Now that you have split
+the function, it would be a lot tidier if this helper looked like
+
+void swapcache_free_page_entry(struct page *page)
+{
+	swp_entry_t entry = { .val = page_private(page) };
+	__swapcache_free(entry, page);
+	set_page_private(page, 0);
+	ClearPageSwapCache(page);
+}
+
+and the callers were no longer responsible again. I suspect this would
+have been more obvious if patch 1 & 2 were collapsed together. Otherwise,
+independent of the rest of the series, this looks like a reasonable cleanup.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
