@@ -1,113 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id D033E6B0095
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 06:32:12 -0400 (EDT)
-Received: by mail-ve0-f180.google.com with SMTP id pa12so348154veb.39
-        for <linux-mm@kvack.org>; Tue, 14 May 2013 03:32:11 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 703AF6B0098
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 06:38:27 -0400 (EDT)
+Date: Tue, 14 May 2013 12:38:25 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/9] mm: vmscan: Flatten kswapd priority loop
+Message-ID: <20130514103825.GM5198@dhcp22.suse.cz>
+References: <1368432760-21573-1-git-send-email-mgorman@suse.de>
+ <1368432760-21573-4-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <kmrak0$ip1$1@ger.gmane.org>
-References: <kmrak0$ip1$1@ger.gmane.org>
-Date: Tue, 14 May 2013 18:32:11 +0800
-Message-ID: <CACVXFVNQVbe6MjWd9sH4wMK9fRCqxdvX2qSrep9GPfPPWOJ54A@mail.gmail.com>
-Subject: Re: Yet another page fault deadlock
-From: Ming Lei <tom.leiming@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1368432760-21573-4-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Maluka <D.Maluka@adbglobal.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, May 14, 2013 at 2:13 AM, Dmitry Maluka <D.Maluka@adbglobal.com> wrote:
-> Hi,
->
-> Sometimes we run into an interesting deadlock on mm->mmap_sem. I see it
-> is similar to these deadlocks:
->
-> https://lkml.org/lkml/2005/2/22/123
-> https://lkml.org/lkml/2001/9/17/105
->
-> in the sense that it is too triggered by page faults and is explained by
-> "fair" rwsem semantics (pending write lock blocks further read locks).
->
-> First, let me describe the prerequisites. It is an embedded MIPS
-> platform. We have 2 custom kernel drivers (call them A and B):
->
-> - Driver A implements hardware encryption/decryption. It acts both as a
-> char device driver and as an in-kernel library with an API allowing
-> other kernel modules to encrypt/decrypt data. Important point: driver A
-> uses a single mutex (call it A_mutex) to protect all its operations,
-> regardless of whether they are requested by user space or by another
-> kernel module.
->
-> - Driver B is a block device driver implementing a transparent encrypted
-> storage. It uses driver A's in-kernel API for encryption during write
-> and decryption during read.
->
-> We have squashfs mounted on a block device provided by driver B. And we
-> have a user-space process with a plenty of threads in it (call them
-> thread 1, 2, 3, ...).
->
-> Now, the sequence leading to the deadlock:
->
-> 1. Thread 1 needs to encrypt or decrypt some data. It uses char device
-> interface provided by driver A. Upon driver entry, it first locks A_mutex.
->
-> 2. Thread 2 reads from a mmap'ed file on squashfs. Page fault is
-> generated. do_page_fault() read-locks mm->mmap_sem. Then squashfs
-> filemap fault handler is called, then read request is sent to driver B,
-> then driver B calls an API function from driver A. This function first
-> tries to lock A_mutex, and hangs on it.
->
-> 3. Thread 3 does a syscall which requires mm->mmap_sem write-locked
-> (sometimes it is mmap, sometimes mprotect). It hangs on mm->mmap_sem.
->
-> 4. Thread 1 proceeds with handling the request from user space from step
-> 1. During copy_to_user() or copy_from_user() page fault is generated.
-> do_page_fault() tries to read-lock mm->mmap_sem and hangs on it.
+On Mon 13-05-13 09:12:34, Mel Gorman wrote:
+> kswapd stops raising the scanning priority when at least SWAP_CLUSTER_MAX
+> pages have been reclaimed or the pgdat is considered balanced. It then
+> rechecks if it needs to restart at DEF_PRIORITY and whether high-order
+> reclaim needs to be reset. This is not wrong per-se but it is confusing
+> to follow and forcing kswapd to stay at DEF_PRIORITY may require several
+> restarts before it has scanned enough pages to meet the high watermark even
+> at 100% efficiency. This patch irons out the logic a bit by controlling
+> when priority is raised and removing the "goto loop_again".
+> 
+> This patch has kswapd raise the scanning priority until it is scanning
+> enough pages that it could meet the high watermark in one shrink of the
+> LRU lists if it is able to reclaim at 100% efficiency. It will not raise
+> the scanning prioirty higher unless it is failing to reclaim any pages.
+> 
+> To avoid infinite looping for high-order allocation requests kswapd will
+> not reclaim for high-order allocations when it has reclaimed at least
+> twice the number of pages as the allocation request.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-If the user buffer passed to driver A is mapped against file on the block
-device, single thread 1 may still deadlock on the mutex A.
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
->
-> This deadlock does not happen if we memset() the entire user space
-> buffer in thread 1 before doing the syscall. I.e. we make sure that the
+> ---
+>  mm/vmscan.c | 86 +++++++++++++++++++++++++++++--------------------------------
+>  1 file changed, 41 insertions(+), 45 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 26ad67f..1c10ee5 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2654,8 +2654,12 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+>  /*
+>   * kswapd shrinks the zone by the number of pages required to reach
+>   * the high watermark.
+> + *
+> + * Returns true if kswapd scanned at least the requested number of pages to
+> + * reclaim. This is used to determine if the scanning priority needs to be
+> + * raised.
+>   */
+> -static void kswapd_shrink_zone(struct zone *zone,
+> +static bool kswapd_shrink_zone(struct zone *zone,
+>  			       struct scan_control *sc,
+>  			       unsigned long lru_pages)
+>  {
+> @@ -2675,6 +2679,8 @@ static void kswapd_shrink_zone(struct zone *zone,
+>  
+>  	if (nr_slab == 0 && !zone_reclaimable(zone))
+>  		zone->all_unreclaimable = 1;
+> +
+> +	return sc->nr_scanned >= sc->nr_to_reclaim;
+>  }
+>  
+>  /*
+> @@ -2701,26 +2707,26 @@ static void kswapd_shrink_zone(struct zone *zone,
+>  static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  							int *classzone_idx)
+>  {
+> -	bool pgdat_is_balanced = false;
+>  	int i;
+>  	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+>  	unsigned long nr_soft_reclaimed;
+>  	unsigned long nr_soft_scanned;
+>  	struct scan_control sc = {
+>  		.gfp_mask = GFP_KERNEL,
+> +		.priority = DEF_PRIORITY,
+>  		.may_unmap = 1,
+>  		.may_swap = 1,
+> +		.may_writepage = !laptop_mode,
+>  		.order = order,
+>  		.target_mem_cgroup = NULL,
+>  	};
+> -loop_again:
+> -	sc.priority = DEF_PRIORITY;
+> -	sc.nr_reclaimed = 0;
+> -	sc.may_writepage = !laptop_mode;
+>  	count_vm_event(PAGEOUTRUN);
+>  
+>  	do {
+>  		unsigned long lru_pages = 0;
+> +		bool raise_priority = true;
+> +
+> +		sc.nr_reclaimed = 0;
+>  
+>  		/*
+>  		 * Scan in the highmem->dma direction for the highest
+> @@ -2762,10 +2768,8 @@ loop_again:
+>  			}
+>  		}
+>  
+> -		if (i < 0) {
+> -			pgdat_is_balanced = true;
+> +		if (i < 0)
+>  			goto out;
+> -		}
+>  
+>  		for (i = 0; i <= end_zone; i++) {
+>  			struct zone *zone = pgdat->node_zones + i;
+> @@ -2832,8 +2836,16 @@ loop_again:
+>  
+>  			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
+>  			    !zone_balanced(zone, testorder,
+> -					   balance_gap, end_zone))
+> -				kswapd_shrink_zone(zone, &sc, lru_pages);
+> +					   balance_gap, end_zone)) {
+> +				/*
+> +				 * There should be no need to raise the
+> +				 * scanning priority if enough pages are
+> +				 * already being scanned that high
+> +				 * watermark would be met at 100% efficiency.
+> +				 */
+> +				if (kswapd_shrink_zone(zone, &sc, lru_pages))
+> +					raise_priority = false;
+> +			}
+>  
+>  			/*
+>  			 * If we're getting trouble reclaiming, start doing
+> @@ -2868,46 +2880,29 @@ loop_again:
+>  				pfmemalloc_watermark_ok(pgdat))
+>  			wake_up(&pgdat->pfmemalloc_wait);
+>  
+> -		if (pgdat_balanced(pgdat, order, *classzone_idx)) {
+> -			pgdat_is_balanced = true;
+> -			break;		/* kswapd: all done */
+> -		}
+> -
+>  		/*
+> -		 * We do this so kswapd doesn't build up large priorities for
+> -		 * example when it is freeing in parallel with allocators. It
+> -		 * matches the direct reclaim path behaviour in terms of impact
+> -		 * on zone->*_priority.
+> +		 * Fragmentation may mean that the system cannot be rebalanced
+> +		 * for high-order allocations in all zones. If twice the
+> +		 * allocation size has been reclaimed and the zones are still
+> +		 * not balanced then recheck the watermarks at order-0 to
+> +		 * prevent kswapd reclaiming excessively. Assume that a
+> +		 * process requested a high-order can direct reclaim/compact.
+>  		 */
+> -		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
+> -			break;
+> -	} while (--sc.priority >= 0);
+> -
+> -out:
+> -	if (!pgdat_is_balanced) {
+> -		cond_resched();
+> +		if (order && sc.nr_reclaimed >= 2UL << order)
+> +			order = sc.order = 0;
+>  
+> -		try_to_freeze();
+> +		/* Check if kswapd should be suspending */
+> +		if (try_to_freeze() || kthread_should_stop())
+> +			break;
+>  
+>  		/*
+> -		 * Fragmentation may mean that the system cannot be
+> -		 * rebalanced for high-order allocations in all zones.
+> -		 * At this point, if nr_reclaimed < SWAP_CLUSTER_MAX,
+> -		 * it means the zones have been fully scanned and are still
+> -		 * not balanced. For high-order allocations, there is
+> -		 * little point trying all over again as kswapd may
+> -		 * infinite loop.
+> -		 *
+> -		 * Instead, recheck all watermarks at order-0 as they
+> -		 * are the most important. If watermarks are ok, kswapd will go
+> -		 * back to sleep. High-order users can still perform direct
+> -		 * reclaim if they wish.
+> +		 * Raise priority if scanning rate is too low or there was no
+> +		 * progress in reclaiming pages
+>  		 */
+> -		if (sc.nr_reclaimed < SWAP_CLUSTER_MAX)
+> -			order = sc.order = 0;
+> -
+> -		goto loop_again;
+> -	}
+> +		if (raise_priority || !sc.nr_reclaimed)
+> +			sc.priority--;
+> +	} while (sc.priority >= 0 &&
+> +		 !pgdat_balanced(pgdat, order, *classzone_idx));
+>  
+>  	/*
+>  	 * If kswapd was reclaiming at a higher order, it has the option of
+> @@ -2936,6 +2931,7 @@ out:
+>  			compact_pgdat(pgdat, order);
+>  	}
+>  
+> +out:
+>  	/*
+>  	 * Return the order we were reclaiming at so prepare_kswapd_sleep()
+>  	 * makes a decision on the order we were last reclaiming at. However,
+> -- 
+> 1.8.1.4
+> 
 
-It can't be avoided 100% with the memset() workaround since the user
-buffer might be swapped out.
-
-> buffer is fully mapped before the request to driver A, preventing demand
-> paging during copy_to/from_user(). We are currently using it as a
-> workaround.
->
-> So... I realize that in our case the deadlock is caused by our
-> proprietary component (driver A) whose authors were smart guys but not
-> farsighted enough to anticipate this scenario. Now we are considering
-> reworking driver A to make all copy_to/from_user() calls without A_mutex
-> locked. This should remove the deadlock source, AFAICS.
-
-Looks there are some similar examples, one of them is b31ca3f5df( sysfs:
-fix deadlock).
-
->
-> However, it looks like a general internal kernel architecture problem.
-> The whole page fault handling procedure is done with mm->mmap_sem
-> read-held, and due to rwsem semantics, down_read/down_write/down_read
-> deadlock may happen if two threads are getting page fault and a third
-> thread is trying to write-lock mm->mmap_sem. So all the code performing
-> page fault handling procedure should be especially careful about
-> avoiding such deadlock. But this is a complex procedure involving
-> different subsystems, particularly, arbitrary block device driver. So
-> any block device driver should be implemented with this in mind. While
-> this is probably not documented anywhere.
-
-Maybe it is good to document the lock usage, but the rule isn't much
-complicated: if one lock may be held under mmap_sem, the lock can't be
-held before copy_to/from_user(), :-)
-
-
-Thanks,
 -- 
-Ming Lei
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
