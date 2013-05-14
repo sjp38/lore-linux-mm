@@ -1,43 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 41D926B0069
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 03:37:35 -0400 (EDT)
-Message-ID: <5191E9EA.9040709@parallels.com>
-Date: Tue, 14 May 2013 11:38:18 +0400
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 489086B006C
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 03:50:10 -0400 (EDT)
+Message-ID: <5191ECD7.2090900@parallels.com>
+Date: Tue, 14 May 2013 11:50:47 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 00/31] kmemcg shrinkers
-References: <1368382432-25462-1-git-send-email-glommer@openvz.org> <20130513071359.GM32675@dastard> <51909D84.7040800@parallels.com> <20130514014805.GA29466@dastard> <20130514052244.GC29466@dastard>
-In-Reply-To: <20130514052244.GC29466@dastard>
+Subject: Re: [PATCH v6 09/31] dcache: convert to use new lru list infrastructure
+References: <1368382432-25462-1-git-send-email-glommer@openvz.org> <1368382432-25462-10-git-send-email-glommer@openvz.org> <20130514065902.GG29466@dastard>
+In-Reply-To: <20130514065902.GG29466@dastard>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org
+Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
 
-On 05/14/2013 09:22 AM, Dave Chinner wrote:
-> I've found the problem. dentry_kill() returns the current dentry if
-> it cannot lock the dentry->d_inode or the dentry->d_parent, and when
-> that happens try_prune_one_dentry() silently fails to prune the
-> dentry.  But, at this point, we've already removed the dentry from
-> both the LRU and the shrink list, and so it gets dropped on the
-> floor.
+On 05/14/2013 10:59 AM, Dave Chinner wrote:
+> On Sun, May 12, 2013 at 10:13:30PM +0400, Glauber Costa wrote:
+>> From: Dave Chinner <dchinner@redhat.com>
+>>
+>> [ glommer: don't reintroduce double decrement of nr_unused_dentries,
+>>   adapted for new LRU return codes ]
+>> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+>> Signed-off-by: Glauber Costa <glommer@openvz.org>
+>> ---
 > 
-Great. I had already an idea that it had something to do with a dentry
-being removed from the LRU and not being put back, but I was looking at
-the wrong circumstance. oz, oz oi oi oi!
+> I'm seeing a panic on startup in d_kill() with an invalid d_child
+> list entry with this patch. I haven't got to the bottom of it yet.
+> 
+> .....
+> 
+>>  void shrink_dcache_sb(struct super_block *sb)
+>>  {
+>> -	LIST_HEAD(tmp);
+>> -
+>> -	spin_lock(&sb->s_dentry_lru_lock);
+>> -	while (!list_empty(&sb->s_dentry_lru)) {
+>> -		list_splice_init(&sb->s_dentry_lru, &tmp);
+>> -
+>> -		/*
+>> -		 * account for removal here so we don't need to handle it later
+>> -		 * even though the dentry is no longer on the lru list.
+>> -		 */
+>> -		this_cpu_sub(nr_dentry_unused, sb->s_nr_dentry_unused);
+>> -		sb->s_nr_dentry_unused = 0;
+>> -
+>> -		spin_unlock(&sb->s_dentry_lru_lock);
+>> -		shrink_dcache_list(&tmp);
+>> -		spin_lock(&sb->s_dentry_lru_lock);
+>> -	}
+>> -	spin_unlock(&sb->s_dentry_lru_lock);
+>> +	list_lru_dispose_all(&sb->s_dentry_lru, shrink_dcache_list);
+>>  }
+>>  EXPORT_SYMBOL(shrink_dcache_sb);
+> 
+> And here comes the fun part. This doesn't account for the
+> dentries that are freed from the superblock here.
+> 
+> So, it needs to be something like:
+> 
+> void shrink_dcache_sb(struct super_block *sb)
+> {
+> 	unsigned long disposed;
+> 
+> 	disposed = list_lru_dispose_all(&sb->s_dentry_lru,
+> 					shrink_dcache_list);
+> 
+> 	this_cpu_sub(nr_dentry_unused, disposed);
+> }
+> 
+> But, therein lies a problem. nr_dentry_unused is a 32 bit counter,
+> and we can return a 64 bit value here. So that means we have to bump
+> nr_dentry_unused to a long, not an int for these per-cpu counters to
+> work.
+> 
+> And then there's the problem that the sum of these counters only
+> uses an int. Which means if we get large numbers of negative values
+> on different CPU from unmounts, the summation will end up
+> overflowing and it'll all suck.
+> 
+> So, Glauber, what do you reckon? I've never likes this stupid
+> hand-rolled per-cpu counter stuff, and it's causing issues. Should
+> we just convert them to generic per-cpu counters because they are
+> 64bit clean and just handle out-of-range sums in the /proc update
+> code?
+> 
 
-> patch 4 needs some work:
-> 
-> 	- fix the above leak shrink list leak
-> 	- fix the scope of the sb locking inside shrink_dcache_sb()
-> 	- remove the readditional of dentry_lru_prune().
-I readded this just because there are more work that needs to be done
-upon prune that is always the same. This is specially true in later
-patches, IIRC. I don't think dentry_lru_prune() has anything to do
-directly with the problem we are seeing now, and this is just a question
-of duplicated code vs not. But I am ultimately fine either way.
+I am not against it, per se.
+But assuming that whoever did it did it for a reason, can't we just
+propagate 64 bit quantities everywhere? Moving to long instead of int
+should already give us some room, and is actually a sensible thing to
+do: There is no reason whatsoever to keep using ints around like this.
 
 
 --
