@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 0CADE6B00A3
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 12:38:13 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 581B76B00A7
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 12:38:16 -0400 (EDT)
 From: Lukas Czerner <lczerner@redhat.com>
-Subject: [PATCH v4 14/20] ext4: truncate_inode_pages() in orphan cleanup path
-Date: Tue, 14 May 2013 18:37:28 +0200
-Message-Id: <1368549454-8930-15-git-send-email-lczerner@redhat.com>
+Subject: [PATCH v4 15/20] ext4: use ext4_zero_partial_blocks in punch_hole
+Date: Tue, 14 May 2013 18:37:29 +0200
+Message-Id: <1368549454-8930-16-git-send-email-lczerner@redhat.com>
 In-Reply-To: <1368549454-8930-1-git-send-email-lczerner@redhat.com>
 References: <1368549454-8930-1-git-send-email-lczerner@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,30 +13,197 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, hughd@google.com, lczerner@redhat.com
 
-Currently we do not tell mm to zero out tail of the page before truncate
-in orphan_cleanup(). This is ok, because the page should not be
-uptodate, however this may eventually change and I might cause problems.
+We're doing to get rid of ext4_discard_partial_page_buffers() since it is
+duplicating some code and also partially duplicating work of
+truncate_pagecache_range(), moreover the old implementation was much
+clearer.
 
-Call truncate_inode_pages() as precautionary measure. Thanks Jan Kara
-for pointing this out.
+Now when the truncate_inode_pages_range() can handle truncating non page
+aligned regions we can use this to invalidate and zero out block aligned
+region of the punched out range and then use ext4_block_truncate_page()
+to zero the unaligned blocks on the start and end of the range. This
+will greatly simplify the punch hole code. Moreover after this commit we
+can get rid of the ext4_discard_partial_page_buffers() completely.
+
+We also introduce function ext4_prepare_punch_hole() to do come common
+operations before we attempt to do the actual punch hole on
+indirect or extent file which saves us some code duplication.
+
+This has been tested on ppc64 with 1k block size with fsx and xfstests
+without any problems.
 
 Signed-off-by: Lukas Czerner <lczerner@redhat.com>
 ---
- fs/ext4/super.c |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
+v4: Use start-len arguments in ext4_zero_partial_blocks()
 
-diff --git a/fs/ext4/super.c b/fs/ext4/super.c
-index dbc7c09..b971066 100644
---- a/fs/ext4/super.c
-+++ b/fs/ext4/super.c
-@@ -2173,6 +2173,7 @@ static void ext4_orphan_cleanup(struct super_block *sb,
- 			jbd_debug(2, "truncating inode %lu to %lld bytes\n",
- 				  inode->i_ino, inode->i_size);
- 			mutex_lock(&inode->i_mutex);
-+			truncate_inode_pages(inode->i_mapping, inode->i_size);
- 			ext4_truncate(inode);
- 			mutex_unlock(&inode->i_mutex);
- 			nr_truncates++;
+ fs/ext4/ext4.h  |    2 +
+ fs/ext4/inode.c |  118 +++++++++++++++++++++---------------------------------
+ 2 files changed, 48 insertions(+), 72 deletions(-)
+
+diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
+index 9f9719f..2d4b0aa 100644
+--- a/fs/ext4/ext4.h
++++ b/fs/ext4/ext4.h
+@@ -2100,6 +2100,8 @@ extern int ext4_block_truncate_page(handle_t *handle,
+ 		struct address_space *mapping, loff_t from);
+ extern int ext4_block_zero_page_range(handle_t *handle,
+ 		struct address_space *mapping, loff_t from, loff_t length);
++extern int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
++			     loff_t lstart, loff_t lend);
+ extern int ext4_discard_partial_page_buffers(handle_t *handle,
+ 		struct address_space *mapping, loff_t from,
+ 		loff_t length, int flags);
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index 34ebb62..44333a5 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -3692,6 +3692,41 @@ unlock:
+ 	return err;
+ }
+ 
++int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
++			     loff_t lstart, loff_t length)
++{
++	struct super_block *sb = inode->i_sb;
++	struct address_space *mapping = inode->i_mapping;
++	unsigned partial = lstart & (sb->s_blocksize - 1);
++	ext4_fsblk_t start, end;
++	loff_t byte_end = (lstart + length - 1);
++	int err = 0;
++
++	start = lstart >> sb->s_blocksize_bits;
++	end = byte_end >> sb->s_blocksize_bits;
++
++	/* Handle partial zero within the single block */
++	if (start == end) {
++		err = ext4_block_zero_page_range(handle, mapping,
++						 lstart, length);
++		return err;
++	}
++	/* Handle partial zero out on the start of the range */
++	if (partial) {
++		err = ext4_block_zero_page_range(handle, mapping,
++						 lstart, sb->s_blocksize);
++		if (err)
++			return err;
++	}
++	/* Handle partial zero out on the end of the range */
++	partial = byte_end & (sb->s_blocksize - 1);
++	if (partial != sb->s_blocksize - 1)
++		err = ext4_block_zero_page_range(handle, mapping,
++						 byte_end - partial,
++						 partial + 1);
++	return err;
++}
++
+ int ext4_can_truncate(struct inode *inode)
+ {
+ 	if (S_ISREG(inode->i_mode))
+@@ -3720,8 +3755,7 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
+ 	struct super_block *sb = inode->i_sb;
+ 	ext4_lblk_t first_block, stop_block;
+ 	struct address_space *mapping = inode->i_mapping;
+-	loff_t first_page, last_page, page_len;
+-	loff_t first_page_offset, last_page_offset;
++	loff_t first_block_offset, last_block_offset;
+ 	handle_t *handle;
+ 	unsigned int credits;
+ 	int ret = 0;
+@@ -3772,17 +3806,13 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
+ 		   offset;
+ 	}
+ 
+-	first_page = (offset + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+-	last_page = (offset + length) >> PAGE_CACHE_SHIFT;
++	first_block_offset = round_up(offset, sb->s_blocksize);
++	last_block_offset = round_down((offset + length), sb->s_blocksize) - 1;
+ 
+-	first_page_offset = first_page << PAGE_CACHE_SHIFT;
+-	last_page_offset = last_page << PAGE_CACHE_SHIFT;
+-
+-	/* Now release the pages */
+-	if (last_page_offset > first_page_offset) {
+-		truncate_pagecache_range(inode, first_page_offset,
+-					 last_page_offset - 1);
+-	}
++	/* Now release the pages and zero block aligned part of pages*/
++	if (last_block_offset > first_block_offset)
++		truncate_pagecache_range(inode, first_block_offset,
++					 last_block_offset);
+ 
+ 	/* Wait all existing dio workers, newcomers will block on i_mutex */
+ 	ext4_inode_block_unlocked_dio(inode);
+@@ -3802,66 +3832,10 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
+ 		goto out_dio;
+ 	}
+ 
+-	/*
+-	 * Now we need to zero out the non-page-aligned data in the
+-	 * pages at the start and tail of the hole, and unmap the
+-	 * buffer heads for the block aligned regions of the page that
+-	 * were completely zeroed.
+-	 */
+-	if (first_page > last_page) {
+-		/*
+-		 * If the file space being truncated is contained
+-		 * within a page just zero out and unmap the middle of
+-		 * that page
+-		 */
+-		ret = ext4_discard_partial_page_buffers(handle,
+-			mapping, offset, length, 0);
+-
+-		if (ret)
+-			goto out_stop;
+-	} else {
+-		/*
+-		 * zero out and unmap the partial page that contains
+-		 * the start of the hole
+-		 */
+-		page_len = first_page_offset - offset;
+-		if (page_len > 0) {
+-			ret = ext4_discard_partial_page_buffers(handle, mapping,
+-						offset, page_len, 0);
+-			if (ret)
+-				goto out_stop;
+-		}
+-
+-		/*
+-		 * zero out and unmap the partial page that contains
+-		 * the end of the hole
+-		 */
+-		page_len = offset + length - last_page_offset;
+-		if (page_len > 0) {
+-			ret = ext4_discard_partial_page_buffers(handle, mapping,
+-					last_page_offset, page_len, 0);
+-			if (ret)
+-				goto out_stop;
+-		}
+-	}
+-
+-	/*
+-	 * If i_size is contained in the last page, we need to
+-	 * unmap and zero the partial page after i_size
+-	 */
+-	if (inode->i_size >> PAGE_CACHE_SHIFT == last_page &&
+-	   inode->i_size % PAGE_CACHE_SIZE != 0) {
+-		page_len = PAGE_CACHE_SIZE -
+-			(inode->i_size & (PAGE_CACHE_SIZE - 1));
+-
+-		if (page_len > 0) {
+-			ret = ext4_discard_partial_page_buffers(handle,
+-					mapping, inode->i_size, page_len, 0);
+-
+-			if (ret)
+-				goto out_stop;
+-		}
+-	}
++	ret = ext4_zero_partial_blocks(handle, inode, offset,
++				       length);
++	if (ret)
++		goto out_stop;
+ 
+ 	first_block = (offset + sb->s_blocksize - 1) >>
+ 		EXT4_BLOCK_SIZE_BITS(sb);
 -- 
 1.7.7.6
 
