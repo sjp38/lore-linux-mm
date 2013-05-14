@@ -1,67 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id F3ABE6B0080
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 05:10:06 -0400 (EDT)
-Date: Tue, 14 May 2013 11:10:03 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V2 2/3] memcg: alter
- mem_cgroup_{update,inc,dec}_page_stat() args to memcg pointer
-Message-ID: <20130514091003.GJ5198@dhcp22.suse.cz>
-References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com>
- <1368421524-4937-1-git-send-email-handai.szj@taobao.com>
- <20130513122504.GA5246@dhcp22.suse.cz>
- <CAFj3OHXH35ej2bQ+U1+zk6kHg4jU3LneOg=bnoJJ6jQFpTm3Gw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 534ED6B0083
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 05:13:09 -0400 (EDT)
+Received: by mail-bk0-f52.google.com with SMTP id mz1so154904bkb.39
+        for <linux-mm@kvack.org>; Tue, 14 May 2013 02:13:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFj3OHXH35ej2bQ+U1+zk6kHg4jU3LneOg=bnoJJ6jQFpTm3Gw@mail.gmail.com>
+In-Reply-To: <20130513133809.GC5246@dhcp22.suse.cz>
+References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com>
+	<1368421545-4974-1-git-send-email-handai.szj@taobao.com>
+	<20130513131251.GB5246@dhcp22.suse.cz>
+	<20130513133809.GC5246@dhcp22.suse.cz>
+Date: Tue, 14 May 2013 17:13:07 +0800
+Message-ID: <CAFj3OHW=FCGu6rhChLV2HgUFSRxDur4e8bmugXnq++c-P8mNRg@mail.gmail.com>
+Subject: Re: [PATCH V2 3/3] memcg: simplify lock of memcg page stat account
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Sha Zhengju <handai.szj@taobao.com>
+To: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Sha Zhengju <handai.szj@taobao.com>
 
-On Tue 14-05-13 17:00:08, Sha Zhengju wrote:
-> On Mon, May 13, 2013 at 8:25 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Mon 13-05-13 13:05:24, Sha Zhengju wrote:
-> >> From: Sha Zhengju <handai.szj@taobao.com>
-> >>
-> >> Change the first argument of mem_cgroup_{update,inc,dec}_page_stat() from
-> >> 'struct page *' to 'struct mem_cgroup *', and so move PageCgroupUsed(pc)
-> >> checking out of mem_cgroup_update_page_stat(). This is a prepare patch for
-> >> the following memcg page stat lock simplifying.
-> >
-> > No, please do not do this because it just spreads memcg specific code
-> > out of memcontrol.c. Besides that the patch is not correct.
-> > [...]
-> >> --- a/mm/rmap.c
-> >> +++ b/mm/rmap.c
-> >> @@ -1109,12 +1109,24 @@ void page_add_file_rmap(struct page *page)
-> >>  {
-> >>       bool locked;
-> >>       unsigned long flags;
-> >> +     struct page_cgroup *pc;
-> >> +     struct mem_cgroup *memcg = NULL;
-> >>
-> >>       mem_cgroup_begin_update_page_stat(page, &locked, &flags);
-> >> +     pc = lookup_page_cgroup(page);
-> >> +
-> >> +     rcu_read_lock();
-> >> +     memcg = pc->mem_cgroup;
-> >
-> > a) unnecessary RCU take for memcg disabled and b) worse KABOOM in that case
-> > as page_cgroup is NULL. We really do not want to put
-> > mem_cgroup_disabled() tests all over the place. The idea behind
-> > mem_cgroup_begin_update_page_stat was to be almost a noop for !memcg
-> > (and the real noop for !CONFIG_MEMCG).
-> 
-> It's indeed an unwise behavior. How about also wrapping it in
-> mm/memcontrol.c or memcontrol.h?
+On Mon, May 13, 2013 at 9:38 PM, Michal Hocko <mhocko@suse.cz> wrote:
+>
+> On Mon 13-05-13 15:12:51, Michal Hocko wrote:
+> [...]
+> > I am sorry but I do not think this is the right approach. IMO we should
+> > focus on mem_cgroup_begin_update_page_stat and make it really recursive
+> > safe - ideally without any additional overhead (which sounds like a real
+> > challenge)
+>
+> Or maybe we should just not over complicate this and simply consider
+> recursivness when it starts being an issue. It is not a problem for
+> rmap accounting anymore and dirty pages accounting seems to be safe as
+> well and pages under writeback accounting was OK even previously.
+> It doesn't make much sense to block dirty pages accounting by a
+> non-existing problem.
+>
 
-I just think it doesn't make much sense to overcomplicate this -
-especially when this is not an issue anymore.
--- 
-Michal Hocko
-SUSE Labs
+Yes, the dirty/writeback accounting seems okay now. I sent this patch
+out to see if I can do something to simplify the locks but this
+approach seems to have its own drawbacks. Since you and Kame are NAK
+to this, in the order of importance I'll put the patch aside and
+continue the work of dirty page accounting. :)
+
+Thanks for the teaching!
+
+
+--
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
