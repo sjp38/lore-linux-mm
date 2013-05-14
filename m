@@ -1,200 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 897AE6B00A8
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 08:23:27 -0400 (EDT)
-Date: Tue, 14 May 2013 14:23:25 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 9/9] mm: vmscan: Move logic from balance_pgdat() to
- kswapd_shrink_zone()
-Message-ID: <20130514122325.GP5198@dhcp22.suse.cz>
-References: <1368432760-21573-1-git-send-email-mgorman@suse.de>
- <1368432760-21573-10-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1368432760-21573-10-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 2C6386B0071
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 08:41:07 -0400 (EDT)
+From: Andrey Vagin <avagin@openvz.org>
+Subject: [PATCH] memcg: don't initialize kmem-cache destroying work for root caches
+Date: Tue, 14 May 2013 16:38:38 +0400
+Message-Id: <1368535118-27369-1-git-send-email-avagin@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrey Vagin <avagin@openvz.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Mon 13-05-13 09:12:40, Mel Gorman wrote:
-> balance_pgdat() is very long and some of the logic can and should
-> be internal to kswapd_shrink_zone(). Move it so the flow of
-> balance_pgdat() is marginally easier to follow.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+struct memcg_cache_params has a union. Different parts of this union are
+used for root and non-root caches. A part with destroying work is used only
+for non-root caches.
 
-Looks good
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+[  115.096202] BUG: unable to handle kernel paging request at 0000000fffffffe0
+[  115.096785] IP: [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
+[  115.097024] PGD 7ace1067 PUD 0
+[  115.097024] Oops: 0000 [#4] SMP
+[  115.097024] Modules linked in: netlink_diag af_packet_diag udp_diag tcp_diag inet_diag unix_diag ip6table_filter ip6_tables i2c_piix4 virtio_net virtio_balloon microcode i2c_core pcspkr floppy
+[  115.097024] CPU: 0 PID: 1929 Comm: lt-vzctl Tainted: G      D      3.10.0-rc1+ #2
+[  115.097024] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+[  115.097024] task: ffff88007b5aaee0 ti: ffff88007bf0c000 task.ti: ffff88007bf0c000
+[  115.097024] RIP: 0010<ffffffff8116b641>]  [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
+[  115.097024] RSP: 0018:ffff88007bf0de68  EFLAGS: 00010202
+[  115.097024] RAX: 0000000fffffffe0 RBX: 00007fff4014f200 RCX: 0000000000000300
+[  115.097024] RDX: 0000000000000005 RSI: 00000000000000d0 RDI: ffff88007d001300
+[  115.097024] RBP: ffff88007bf0dea8 R08: 00007f849c3141b7 R09: ffffffff8118e100
+[  115.097024] R10: 0000000000000001 R11: 0000000000000246 R12: 00000000000000d0
+[  115.097024] R13: 0000000fffffffe0 R14: ffff88007d001300 R15: 0000000000001000
+[  115.097024] FS:  00007f849cbb8b40(0000) GS:ffff88007fc00000(0000) knlGS:0000000000000000
+[  115.097024] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  115.097024] CR2: 0000000fffffffe0 CR3: 000000007bc38000 CR4: 00000000000006f0
+[  115.097024] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[  115.097024] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[  115.097024] Stack:
+[  115.097024]  ffffffff8118e100 ffffffff81149ea1 0000000000000008 00007fff4014f200
+[  115.097024]  00007fff4014f200 0000000000000000 0000000000000000 0000000000001000
+[  115.097024]  ffff88007bf0dee8 ffffffff8118e100 ffff880037598e00 00007fff4014f200
+[  115.097024] Call Trace:
+[  115.097024]  [<ffffffff8118e100>] ? getname_flags.part.34+0x30/0x140
+[  115.097024]  [<ffffffff81149ea1>] ? vma_rb_erase+0x121/0x210
+[  115.097024]  [<ffffffff8118e100>] getname_flags.part.34+0x30/0x140
+[  115.097024]  [<ffffffff8118e248>] getname+0x38/0x60
+[  115.097024]  [<ffffffff81181d55>] do_sys_open+0xc5/0x1e0
+[  115.097024]  [<ffffffff81181e92>] SyS_open+0x22/0x30
+[  115.097024]  [<ffffffff8161cb82>] system_call_fastpath+0x16/0x1b
+[  115.097024] Code: f4 53 48 83 ec 18 8b 05 8e 53 b7 00 4c 8b 4d 08 21 f0 a8 10 74 0d 4c 89 4d c0 e8 1b 76 4a 00 4c 8b 4d c0 e9 92 00 00 00 4d 89 f5 <4d> 8b 45 00 65 4c 03 04 25 48 cd 00 00 49 8b 50 08 4d 8b 38 49
+[  115.097024] RIP  [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
+[  115.097024]  RSP <ffff88007bf0de68>
+[  115.097024] CR2: 0000000fffffffe0
+[  115.121352] ---[ end trace 16bb8e8408b97d0e ]---
 
-> ---
->  mm/vmscan.c | 110 +++++++++++++++++++++++++++++-------------------------------
->  1 file changed, 54 insertions(+), 56 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index e65fe46..0ba9d3a 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2705,18 +2705,53 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
->   * This is used to determine if the scanning priority needs to be raised.
->   */
->  static bool kswapd_shrink_zone(struct zone *zone,
-> +			       int classzone_idx,
->  			       struct scan_control *sc,
->  			       unsigned long lru_pages,
->  			       unsigned long *nr_attempted)
->  {
->  	unsigned long nr_slab;
-> +	int testorder = sc->order;
-> +	unsigned long balance_gap;
->  	struct reclaim_state *reclaim_state = current->reclaim_state;
->  	struct shrink_control shrink = {
->  		.gfp_mask = sc->gfp_mask,
->  	};
-> +	bool lowmem_pressure;
->  
->  	/* Reclaim above the high watermark. */
->  	sc->nr_to_reclaim = max(SWAP_CLUSTER_MAX, high_wmark_pages(zone));
-> +
-> +	/*
-> +	 * Kswapd reclaims only single pages with compaction enabled. Trying
-> +	 * too hard to reclaim until contiguous free pages have become
-> +	 * available can hurt performance by evicting too much useful data
-> +	 * from memory. Do not reclaim more than needed for compaction.
-> +	 */
-> +	if (IS_ENABLED(CONFIG_COMPACTION) && sc->order &&
-> +			compaction_suitable(zone, sc->order) !=
-> +				COMPACT_SKIPPED)
-> +		testorder = 0;
-> +
-> +	/*
-> +	 * We put equal pressure on every zone, unless one zone has way too
-> +	 * many pages free already. The "too many pages" is defined as the
-> +	 * high wmark plus a "gap" where the gap is either the low
-> +	 * watermark or 1% of the zone, whichever is smaller.
-> +	 */
-> +	balance_gap = min(low_wmark_pages(zone),
-> +		(zone->managed_pages + KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
-> +		KSWAPD_ZONE_BALANCE_GAP_RATIO);
-> +
-> +	/*
-> +	 * If there is no low memory pressure or the zone is balanced then no
-> +	 * reclaim is necessary
-> +	 */
-> +	lowmem_pressure = (buffer_heads_over_limit && is_highmem(zone));
-> +	if (!lowmem_pressure && zone_balanced(zone, testorder,
-> +						balance_gap, classzone_idx))
-> +		return true;
-> +
->  	shrink_zone(zone, sc);
->  
->  	reclaim_state->reclaimed_slab = 0;
-> @@ -2731,6 +2766,18 @@ static bool kswapd_shrink_zone(struct zone *zone,
->  
->  	zone_clear_flag(zone, ZONE_WRITEBACK);
->  
-> +	/*
-> +	 * If a zone reaches its high watermark, consider it to be no longer
-> +	 * congested. It's possible there are dirty pages backed by congested
-> +	 * BDIs but as pressure is relieved, speculatively avoid congestion
-> +	 * waits.
-> +	 */
-> +	if (!zone->all_unreclaimable &&
-> +	    zone_balanced(zone, testorder, 0, classzone_idx)) {
-> +		zone_clear_flag(zone, ZONE_CONGESTED);
-> +		zone_clear_flag(zone, ZONE_TAIL_LRU_DIRTY);
-> +	}
-> +
->  	return sc->nr_scanned >= sc->nr_to_reclaim;
->  }
->  
-> @@ -2866,8 +2913,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  		 */
->  		for (i = 0; i <= end_zone; i++) {
->  			struct zone *zone = pgdat->node_zones + i;
-> -			int testorder;
-> -			unsigned long balance_gap;
->  
->  			if (!populated_zone(zone))
->  				continue;
-> @@ -2888,61 +2933,14 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  			sc.nr_reclaimed += nr_soft_reclaimed;
->  
->  			/*
-> -			 * We put equal pressure on every zone, unless
-> -			 * one zone has way too many pages free
-> -			 * already. The "too many pages" is defined
-> -			 * as the high wmark plus a "gap" where the
-> -			 * gap is either the low watermark or 1%
-> -			 * of the zone, whichever is smaller.
-> -			 */
-> -			balance_gap = min(low_wmark_pages(zone),
-> -				(zone->managed_pages +
-> -					KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
-> -				KSWAPD_ZONE_BALANCE_GAP_RATIO);
-> -			/*
-> -			 * Kswapd reclaims only single pages with compaction
-> -			 * enabled. Trying too hard to reclaim until contiguous
-> -			 * free pages have become available can hurt performance
-> -			 * by evicting too much useful data from memory.
-> -			 * Do not reclaim more than needed for compaction.
-> +			 * There should be no need to raise the scanning
-> +			 * priority if enough pages are already being scanned
-> +			 * that that high watermark would be met at 100%
-> +			 * efficiency.
->  			 */
-> -			testorder = order;
-> -			if (IS_ENABLED(CONFIG_COMPACTION) && order &&
-> -					compaction_suitable(zone, order) !=
-> -						COMPACT_SKIPPED)
-> -				testorder = 0;
-> -
-> -			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
-> -			    !zone_balanced(zone, testorder,
-> -					   balance_gap, end_zone)) {
-> -				/*
-> -				 * There should be no need to raise the
-> -				 * scanning priority if enough pages are
-> -				 * already being scanned that high
-> -				 * watermark would be met at 100% efficiency.
-> -				 */
-> -				if (kswapd_shrink_zone(zone, &sc, lru_pages,
-> -						       &nr_attempted))
-> -					raise_priority = false;
-> -			}
-> -
-> -			if (zone->all_unreclaimable) {
-> -				if (end_zone && end_zone == i)
-> -					end_zone--;
-> -				continue;
-> -			}
-> -
-> -			if (zone_balanced(zone, testorder, 0, end_zone))
-> -				/*
-> -				 * If a zone reaches its high watermark,
-> -				 * consider it to be no longer congested. It's
-> -				 * possible there are dirty pages backed by
-> -				 * congested BDIs but as pressure is relieved,
-> -				 * speculatively avoid congestion waits
-> -				 * or writing pages from kswapd context.
-> -				 */
-> -				zone_clear_flag(zone, ZONE_CONGESTED);
-> -				zone_clear_flag(zone, ZONE_TAIL_LRU_DIRTY);
-> +			if (kswapd_shrink_zone(zone, end_zone, &sc,
-> +					lru_pages, &nr_attempted))
-> +				raise_priority = false;
->  		}
->  
->  		/*
-> -- 
-> 1.8.1.4
-> 
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Glauber Costa <glommer@parallels.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Balbir Singh <bsingharora@gmail.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Andrey Vagin <avagin@openvz.org>
+---
+ mm/memcontrol.c | 2 --
+ 1 file changed, 2 deletions(-)
 
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index cb1c9de..764b9e4 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3141,8 +3141,6 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+ 			return -ENOMEM;
+ 		}
+ 
+-		INIT_WORK(&s->memcg_params->destroy,
+-				kmem_cache_destroy_work_func);
+ 		s->memcg_params->is_root_cache = true;
+ 
+ 		/*
 -- 
-Michal Hocko
-SUSE Labs
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
