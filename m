@@ -1,39 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id C199B6B0033
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 20:42:10 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D48173EE0C0
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 09:42:08 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id C413145DE55
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 09:42:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id A1B4C45DE53
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 09:42:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 925CC1DB8038
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 09:42:08 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E5B7B1DB803C
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 09:42:07 +0900 (JST)
-Message-ID: <51918846.7090006@jp.fujitsu.com>
-Date: Tue, 14 May 2013 09:41:42 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Message-ID: <5191926A.2090608@cn.fujitsu.com>
+Date: Tue, 14 May 2013 09:24:58 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 0/3] memcg: simply lock of page stat accounting
-References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1368421410-4795-1-git-send-email-handai.szj@taobao.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of
+ get_user_pages() called get_user_pages_non_movable()
+References: <1360056113-14294-1-git-send-email-linfeng@cn.fujitsu.com> <1360056113-14294-2-git-send-email-linfeng@cn.fujitsu.com> <20130205120137.GG21389@suse.de> <20130206004234.GD11197@blaptop> <20130206095617.GN21389@suse.de> <5190AE4F.4000103@cn.fujitsu.com> <20130513091902.GP11497@suse.de> <20130513143757.GP31899@kvack.org> <x49obcfnd6c.fsf@segfault.boston.devel.redhat.com> <20130513150147.GQ31899@kvack.org>
+In-Reply-To: <20130513150147.GQ31899@kvack.org>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, akpm@linux-foundation.org, hughd@google.com, gthelen@google.com, Sha Zhengju <handai.szj@taobao.com>
+To: Benjamin LaHaise <bcrl@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan@kernel.org>, Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-If you want to rewrite all things and make memcg cleaner, I don't stop it.
-But, how about starting with this simeple one for your 1st purpose ? 
-doesn't work ? dirty ?
+Hi Mel, Benjamin, Jeff,
 
-== this patch is untested. ==
- 
+On 05/13/2013 11:01 PM, Benjamin LaHaise wrote:
+> On Mon, May 13, 2013 at 10:54:03AM -0400, Jeff Moyer wrote:
+>> How do you propose to move the ring pages?
+>
+> It's the same problem as doing a TLB shootdown: flush the old pages from
+> userspace's mapping, copy any existing data to the new pages, then
+> repopulate the page tables.  It will likely require the addition of
+> address_space_operations for the mapping, but that's not too hard to do.
+>
+
+I think we add migrate_unpin() callback to decrease page->count if 
+necessary,
+and migrate the page to a new page, and add migrate_pin() callback to pin
+the new page again.
+
+The migrate procedure will work just as before. We use callbacks to 
+decrease
+the page->count before migration starts, and increase it when the migration
+is done.
+
+And migrate_pin() and migrate_unpin() callbacks will be added to
+struct address_space_operations.
+
+Is that right ?
+
+If so, I'll be working on it.
+
+Thanks. :)
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
