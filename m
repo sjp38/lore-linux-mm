@@ -1,59 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 9EFCF6B00B1
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:50:15 -0400 (EDT)
-Date: Tue, 14 May 2013 10:50:03 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v5 3/8] vmalloc: make find_vm_area check in range
-Message-ID: <20130514145003.GC16772@redhat.com>
-References: <20130514015622.18697.77191.stgit@localhost6.localdomain6>
- <20130514015723.18697.34468.stgit@localhost6.localdomain6>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 091256B00B5
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:52:53 -0400 (EDT)
+Date: Tue, 14 May 2013 16:52:52 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: don't initialize kmem-cache destroying work for
+ root caches
+Message-ID: <20130514145252.GT5198@dhcp22.suse.cz>
+References: <1368535118-27369-1-git-send-email-avagin@openvz.org>
+ <20130514144031.GR5198@dhcp22.suse.cz>
+ <20130514144427.GS5198@dhcp22.suse.cz>
+ <51924EE3.9020708@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130514015723.18697.34468.stgit@localhost6.localdomain6>
+In-Reply-To: <51924EE3.9020708@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Cc: ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, Rik Van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Andrey Vagin <avagin@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, May 14, 2013 at 10:57:23AM +0900, HATAYAMA Daisuke wrote:
-> Currently, __find_vmap_area searches for the kernel VM area starting
-> at a given address. This patch changes this behavior so that it
-> searches for the kernel VM area to which the address belongs. This
-> change is needed by remap_vmalloc_range_partial to be introduced in
-> later patch that receives any position of kernel VM area as target
-> address.
-> 
-> This patch changes the condition (addr > va->va_start) to the
-> equivalent (addr >= va->va_end) by taking advantage of the fact that
-> each kernel VM area is non-overlapping.
-> 
-> Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+On Tue 14-05-13 18:49:07, Glauber Costa wrote:
+> On 05/14/2013 06:44 PM, Michal Hocko wrote:
+> > On Tue 14-05-13 16:40:31, Michal Hocko wrote:
+> >> On Tue 14-05-13 16:38:38, Andrey Vagin wrote:
+> >>> struct memcg_cache_params has a union. Different parts of this union are
+> >>> used for root and non-root caches. A part with destroying work is used only
+> >>> for non-root caches.
+> >>
+> >> but memcg_update_cache_size is called only for !root caches AFAICS
+> >> (check memcg_update_all_caches)
+> > 
+> > Ohh, I am blind. memcg_update_all_caches skips all !root caches.
+> > Then the patch looks correct. If Glauber has nothing against then thise
+> > should be marked for stable (3.9)
+> > 
+> This was recently introduced by the commit that moved the initialization
+> earlier (15cf17d26e08ee9). It basically moved too much, and I didn't
+> catch it. If that patch is in 3.9, then yes, this needs to go to stable.
+> Otherwise it is not affected.
 
-This will require ack from mm folks. CCing some of them. 
+git describe tells it was merged in v3.9-rc2~7
 
-Thanks
-Vivek
+> However, I do remember Andrey telling me that he hit this bug in both
+> 3.9 and 3.10-rc1, so yes, stable it is.
 
-> ---
-> 
->  mm/vmalloc.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index d365724..3875fa2 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -292,7 +292,7 @@ static struct vmap_area *__find_vmap_area(unsigned long addr)
->  		va = rb_entry(n, struct vmap_area, rb_node);
->  		if (addr < va->va_start)
->  			n = n->rb_left;
-> -		else if (addr > va->va_start)
-> +		else if (addr >= va->va_end)
->  			n = n->rb_right;
->  		else
->  			return va;
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
