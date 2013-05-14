@@ -1,39 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 5794E6B0033
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 13:34:45 -0400 (EDT)
-Message-ID: <51927531.8010507@redhat.com>
-Date: Tue, 14 May 2013 13:32:33 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC 4/4] mm: free reclaimed pages instantly without depending
- next reclaim
-References: <1368411048-3753-1-git-send-email-minchan@kernel.org> <1368411048-3753-5-git-send-email-minchan@kernel.org>
-In-Reply-To: <1368411048-3753-5-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id A2BEE6B0036
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 14:20:44 -0400 (EDT)
+Received: by mail-vc0-f176.google.com with SMTP id ib11so931847vcb.35
+        for <linux-mm@kvack.org>; Tue, 14 May 2013 11:20:43 -0700 (PDT)
+From: Konrad Rzeszutek Wilk <konrad@kernel.org>
+Subject: [PATCH] Fixes, cleanups, compile warning fixes, and documentation update for Xen tmem driver (v2).
+Date: Tue, 14 May 2013 14:09:17 -0400
+Message-Id: <1368554966-30469-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>
+To: bob.liu@oracle.com, dan.magenheimer@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, xen-devel@lists.xensource.com
 
-On 05/12/2013 10:10 PM, Minchan Kim wrote:
-> Normally, file I/O for reclaiming is asynchronous so that
-> when page writeback is completed, reclaimed page will be
-> rotated into LRU tail for fast reclaiming in next turn.
-> But it makes unnecessary CPU overhead and more iteration with higher
-> priority of reclaim could reclaim too many pages than needed
-> pages.
->
-> This patch frees reclaimed pages by paging out instantly without
-> rotating back them into LRU's tail when the I/O is completed so
-> that we can get out of reclaim loop as soon as poosbile and avoid
-> unnecessary CPU overhead for moving them.
->
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+Heya,
 
-I like this approach and am looking forward to your v2 series,
-with the reworked patch 3/4.
+These nine patches fix the tmem driver to:
+ - not emit a compile warning anymore (reported by 0 day test compile tool)
+ - remove the various nofrontswap, nocleancache, noselfshrinking, noselfballooning,
+   selfballooning, selfshrinking bootup options.
+ - said options are now folded in the tmem driver as module options and are
+   much shorter (and also there are only four of them now).
+ - add documentation to explain these parameters in kernel-parameters.txt
+ - And lastly add some logic to not enable selfshrinking and selfballooning
+   if frontswap functionality is off.
+
+That is it. Tested and ready to go. If nobody objects will put on my queue
+for Linus on Monday.
+
+ Documentation/kernel-parameters.txt |   21 ++++++++
+ drivers/xen/Kconfig                 |    7 +--
+ drivers/xen/tmem.c                  |   87 ++++++++++++++++-------------------
+ drivers/xen/xen-selfballoon.c       |   47 ++----------------
+ 4 files changed, 69 insertions(+), 93 deletions(-)
+
+(oh nice, more deletions!)
+
+Konrad Rzeszutek Wilk (9):
+      xen/tmem: Cleanup. Remove the parts that say temporary.
+      xen/tmem: Move all of the boot and module parameters to the top of the file.
+      xen/tmem: Split out the different module/boot options.
+      xen/tmem: Fix compile warning.
+      xen/tmem: s/disable_// and change the logic.
+      xen/tmem: Remove the boot options and fold them in the tmem.X parameters.
+      xen/tmem: Remove the usage of 'noselfshrink' and use 'tmem.selfshrink' bool instead.
+      xen/tmem: Remove the usage of '[no|]selfballoon' and use 'tmem.selfballooning' bool instead.
+      xen/tmem: Don't use self[ballooning|shrinking] if frontswap is off.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
