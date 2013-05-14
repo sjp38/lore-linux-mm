@@ -1,57 +1,43 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id E6BBA6B0034
-	for <linux-mm@kvack.org>; Fri, 31 May 2013 17:46:38 -0400 (EDT)
-Date: Fri, 31 May 2013 14:46:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm, memcg: add oom killer delay
-Message-Id: <20130531144636.6b34c6ba48105482d1241a40@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.02.1305291817280.520@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1305291817280.520@chino.kir.corp.google.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [3.10-rc1 SLUB?] kmemcheck reports read from freed/unallocated memory
+Date: Tue, 14 May 2013 21:06:06 +0900
+Message-ID: <201305142106.AAG35418.JOSFOLFMHOFVQt@I-love.SAKURA.ne.jp>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+Content-Type: text/plain; charset=us-ascii
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+List-Id: linux-mm.kvack.org
 
-On Wed, 29 May 2013 18:18:10 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+I got below warning. The problem might be in SLUB code.
 
-> Completely disabling the oom killer for a memcg is problematic if
-> userspace is unable to address the condition itself, usually because it
-> is unresponsive.  This scenario creates a memcg deadlock: tasks are
-> sitting in TASK_KILLABLE waiting for the limit to be increased, a task to
-> exit or move, or the oom killer reenabled and userspace is unable to do
-> so.
-> 
-> An additional possible use case is to defer oom killing within a memcg
-> for a set period of time, probably to prevent unnecessary kills due to
-> temporary memory spikes, before allowing the kernel to handle the
-> condition.
-> 
-> This patch adds an oom killer delay so that a memcg may be configured to
-> wait at least a pre-defined number of milliseconds before calling the oom
-> killer.  If the oom condition persists for this number of milliseconds,
-> the oom killer will be called the next time the memory controller
-> attempts to charge a page (and memory.oom_control is set to 0).  This
-> allows userspace to have a short period of time to respond to the
-> condition before deferring to the kernel to kill a task.
-> 
-> Admins may set the oom killer delay using the new interface:
-> 
-> 	# echo 60000 > memory.oom_delay_millisecs
-> 
-> This will defer oom killing to the kernel only after 60 seconds has
-> elapsed by putting the task to sleep for 60 seconds.
+  WARNING: kmemcheck: Caught 64-bit read from freed memory (ffff88007a1297a0)
+  6098127a0088ffff0000000001000000c0c6fe790088ffff0800000000000000
+   f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f f
+   ^
+  RIP: 0010:[<ffffffff8113e023>]  [<ffffffff8113e023>] __kmalloc+0xb3/0x1a0
+  RSP: 0018:ffff880079a17be8  EFLAGS: 00010246
+  RAX: 0000000000000000 RBX: 0000000000000010 RCX: ffff88007b9d5580
+  RDX: 0000000000000427 RSI: ffffffff81c23600 RDI: 00000000001d5580
+  RBP: ffff880079a17c18 R08: ffff880079a16000 R09: 0000000000000001
+  R10: 0000000000000000 R11: 0000000000000004 R12: ffff88007ac03c80
+  R13: 00000000000000d0 R14: ffff88007a1297a0 R15: ffffffff8119a5bd
+  FS:  00007f1b62687700(0000) GS:ffff88007b200000(0000) knlGS:0000000000000000
+  CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+  CR2: ffff88007a6346c8 CR3: 0000000073cc0000 CR4: 00000000000407f0
+  DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+  DR3: 0000000000000000 DR6: 00000000ffff4ff0 DR7: 0000000000000400
+   [<ffffffff8119a5bd>] load_elf_binary+0x29d/0xe70
+   [<ffffffff8114dd9f>] search_binary_handler+0x1af/0x400
+   [<ffffffff811989fc>] load_script+0x24c/0x290
+   [<ffffffff8114dd9f>] search_binary_handler+0x1af/0x400
+   [<ffffffff8114fd16>] do_execve_common+0x2a6/0x370
+   [<ffffffff8114fde9>] do_execve+0x9/0x10
+   [<ffffffff8114fe28>] SyS_execve+0x38/0x60
+   [<ffffffff817a7b09>] stub_execve+0x69/0xa0
+   [<ffffffffffffffff>] 0xffffffffffffffff
 
-How often is that delay actually useful, in the real world?
+Kernel config is at http://I-love.SAKURA.ne.jp/tmp/config-3.10-rc1-kmemcheck
+Full dmesg is at http://I-love.SAKURA.ne.jp/tmp/dmesg-3.10-rc1-kmemcheck.txt
 
-IOW, in what proportion of cases does the system just remain stuck for
-60 seconds and then get an oom-killing?
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Regards.
