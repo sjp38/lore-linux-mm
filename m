@@ -1,106 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id A109C6B0071
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 11:51:21 -0400 (EDT)
-Date: Tue, 14 May 2013 16:51:17 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC][PATCH 5/7] create __remove_mapping_batch()
-Message-ID: <20130514155117.GW11497@suse.de>
-References: <20130507211954.9815F9D1@viggo.jf.intel.com>
- <20130507212001.49F5E197@viggo.jf.intel.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 20EF66B0073
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 11:58:03 -0400 (EDT)
+Date: Tue, 14 May 2013 11:57:55 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH v5 5/8] vmcore: allocate ELF note segment in the 2nd
+ kernel vmalloc memory
+Message-ID: <20130514155755.GH13674@redhat.com>
+References: <20130514015622.18697.77191.stgit@localhost6.localdomain6>
+ <20130514015734.18697.32447.stgit@localhost6.localdomain6>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130507212001.49F5E197@viggo.jf.intel.com>
+In-Reply-To: <20130514015734.18697.32447.stgit@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, tim.c.chen@linux.intel.com
+To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Cc: ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org
 
-On Tue, May 07, 2013 at 02:20:01PM -0700, Dave Hansen wrote:
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> __remove_mapping_batch() does logically the same thing as
-> __remove_mapping().
-> 
-> We batch like this so that several pages can be freed with a
-> single mapping->tree_lock acquisition/release pair.  This reduces
-> the number of atomic operations and ensures that we do not bounce
-> cachelines around.
-> 
-> It has shown some substantial performance benefits on
-> microbenchmarks.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> ---
-> 
->  linux.git-davehans/mm/vmscan.c |   50 +++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 50 insertions(+)
-> 
-> diff -puN mm/vmscan.c~create-remove_mapping_batch mm/vmscan.c
-> --- linux.git/mm/vmscan.c~create-remove_mapping_batch	2013-05-07 14:00:01.432361260 -0700
-> +++ linux.git-davehans/mm/vmscan.c	2013-05-07 14:19:32.341148892 -0700
-> @@ -555,6 +555,56 @@ int remove_mapping(struct address_space
->  	return 0;
->  }
->  
-> +/*
-> + * pages come in here (via remove_list) locked and leave unlocked
-> + * (on either ret_pages or free_pages)
-> + *
-> + * We do this batching so that we free batches of pages with a
-> + * single mapping->tree_lock acquisition/release.  This optimization
-> + * only makes sense when the pages on remove_list all share a
-> + * page->mapping.  If this is violated you will BUG_ON().
-> + */
-> +static int __remove_mapping_batch(struct list_head *remove_list,
-> +				  struct list_head *ret_pages,
-> +				  struct list_head *free_pages)
+On Tue, May 14, 2013 at 10:57:35AM +0900, HATAYAMA Daisuke wrote:
+
+[..]
+> +/* Merges all the PT_NOTE headers into one. */
+> +static int __init merge_note_headers_elf32(char *elfptr, size_t *elfsz,
+> +					   char **notesegptr, size_t *notesegsz,
+> +					   struct list_head *vc_list)
 > +{
-> +	int nr_reclaimed = 0;
-> +	struct address_space *mapping;
-> +	struct page *page;
-> +	LIST_HEAD(need_free_mapping);
-> +
-> +	if (list_empty(remove_list))
-> +		return 0;
-> +
-> +	mapping = lru_to_page(remove_list)->mapping;
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	while (!list_empty(remove_list)) {
-> +		int freed;
-> +		page = lru_to_page(remove_list);
-> +		BUG_ON(!PageLocked(page));
-> +		BUG_ON(page->mapping != mapping);
-> +		list_del(&page->lru);
-> +
-> +		freed = __remove_mapping_nolock(mapping, page);
 
-Nit, it's not freed, it's detached but rather than complaining the
-ambiguity can be removed with
+Given that we are copying notes in second kernel, we are not using vc_list
+in merge_note_headers() any more. So remove vc_list from paramter list
+here.
 
-if (!__remove_mapping_nolock(mapping, page)) {
-	unlock_page(page);
-	list_add(&page->lru, ret_pages);
-	continue;
-}
+For local parameters we could simply use notes_buf (instead of notesgptr)
+and notes_sz (instead of notesgsz). It seems mroe readable.
 
-list_add(&page->lru, &need_free_mapping);
-
-The same comments I had before about potentially long page lock hold
-times still apply at this point. Andrew's concerns about the worst-case
-scenario where no adjacent page on the LRU has the same mapping also
-still applies. Is there any noticable overhead with his suggested
-workload of a single threaded process that opens files touching one page
-in each file until reclaim starts?
-
-This would be easier to review it it was merged with the next patch that
-actually uses this function.
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
