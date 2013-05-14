@@ -1,35 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 1A2B26B009E
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 07:49:36 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id bv13so363621pdb.0
-        for <linux-mm@kvack.org>; Tue, 14 May 2013 04:49:35 -0700 (PDT)
-Message-ID: <519224C7.3010908@gmail.com>
-Date: Tue, 14 May 2013 19:49:27 +0800
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 6EC046B00A0
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 07:49:41 -0400 (EDT)
+Received: by mail-da0-f42.google.com with SMTP id r6so266749dad.1
+        for <linux-mm@kvack.org>; Tue, 14 May 2013 04:49:40 -0700 (PDT)
+Message-ID: <519224CE.6030303@gmail.com>
+Date: Tue, 14 May 2013 19:49:34 +0800
 From: majianpeng <majianpeng@gmail.com>
 MIME-Version: 1.0
-Subject: [PATCH 0/3] mm/kmemleak.c: Fix some trivial problems.
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH 1/3] mm/kmemleak.c: Use %u to print ->checksum.
+Content-Type: multipart/mixed;
+ boundary="------------080509040303010101050606"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
+To: catalin.marinas@arm.com
 Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-Jianpeng Ma (3):
-  mm/kmemleak.c: Use %u to print ->checksum.
-  mm/kmemleak.c: Use list_for_each_entry_safe to reconstruct function   
-     scan_gray_list.
-  mm/kmemleak.c: Merge the consecutive scan-areas.
+This is a multi-part message in MIME format.
+--------------080509040303010101050606
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 
- mm/kmemleak.c | 36 +++++++++++++++++++++---------------
- 1 file changed, 21 insertions(+), 15 deletions(-)
+Signed-off-by: Jianpeng Ma <majianpeng@gmail.com>
+---
+ mm/kmemleak.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index c8d7f31..b1525db 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -386,7 +386,7 @@ static void dump_object_info(struct kmemleak_object *object)
+     pr_notice("  min_count = %d\n", object->min_count);
+     pr_notice("  count = %d\n", object->count);
+     pr_notice("  flags = 0x%lx\n", object->flags);
+-    pr_notice("  checksum = %d\n", object->checksum);
++    pr_notice("  checksum = %u\n", object->checksum);
+     pr_notice("  backtrace:\n");
+     print_stack_trace(&trace, 4);
+ }
 -- 
 1.8.3.rc1.44.gb387c77
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+
+--------------080509040303010101050606
+Content-Type: text/x-patch;
+ name="0001-mm-kmemleak.c-Use-u-to-print-checksum.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="0001-mm-kmemleak.c-Use-u-to-print-checksum.patch"
+
+
+--------------080509040303010101050606--
