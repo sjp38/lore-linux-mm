@@ -1,204 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 1351F6B00B0
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:00:44 -0400 (EDT)
-Message-ID: <519243B2.8030102@parallels.com>
-Date: Tue, 14 May 2013 18:01:22 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 1B7446B00AD
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:40:34 -0400 (EDT)
+Date: Tue, 14 May 2013 16:40:31 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: don't initialize kmem-cache destroying work for
+ root caches
+Message-ID: <20130514144031.GR5198@dhcp22.suse.cz>
+References: <1368535118-27369-1-git-send-email-avagin@openvz.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 09/31] dcache: convert to use new lru list infrastructure
-References: <1368382432-25462-1-git-send-email-glommer@openvz.org> <1368382432-25462-10-git-send-email-glommer@openvz.org> <20130514065902.GG29466@dastard>
-In-Reply-To: <20130514065902.GG29466@dastard>
-Content-Type: multipart/mixed;
-	boundary="------------010708050508050409090900"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1368535118-27369-1-git-send-email-avagin@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Glauber Costa <glommer@openvz.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
+To: Andrey Vagin <avagin@openvz.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Konstantin Khlebnikov <khlebnikov@openvz.org>, Glauber Costa <glommer@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
---------------010708050508050409090900
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+On Tue 14-05-13 16:38:38, Andrey Vagin wrote:
+> struct memcg_cache_params has a union. Different parts of this union are
+> used for root and non-root caches. A part with destroying work is used only
+> for non-root caches.
 
-On 05/14/2013 10:59 AM, Dave Chinner wrote:
-> On Sun, May 12, 2013 at 10:13:30PM +0400, Glauber Costa wrote:
->> From: Dave Chinner <dchinner@redhat.com>
->>
->> [ glommer: don't reintroduce double decrement of nr_unused_dentries,
->>   adapted for new LRU return codes ]
->> Signed-off-by: Dave Chinner <dchinner@redhat.com>
->> Signed-off-by: Glauber Costa <glommer@openvz.org>
->> ---
+but memcg_update_cache_size is called only for !root caches AFAICS
+(check memcg_update_all_caches)
 > 
-> I'm seeing a panic on startup in d_kill() with an invalid d_child
-> list entry with this patch. I haven't got to the bottom of it yet.
+> [  115.096202] BUG: unable to handle kernel paging request at 0000000fffffffe0
+> [  115.096785] IP: [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
+> [  115.097024] PGD 7ace1067 PUD 0
+> [  115.097024] Oops: 0000 [#4] SMP
+> [  115.097024] Modules linked in: netlink_diag af_packet_diag udp_diag tcp_diag inet_diag unix_diag ip6table_filter ip6_tables i2c_piix4 virtio_net virtio_balloon microcode i2c_core pcspkr floppy
+> [  115.097024] CPU: 0 PID: 1929 Comm: lt-vzctl Tainted: G      D      3.10.0-rc1+ #2
+> [  115.097024] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> [  115.097024] task: ffff88007b5aaee0 ti: ffff88007bf0c000 task.ti: ffff88007bf0c000
+> [  115.097024] RIP: 0010<ffffffff8116b641>]  [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
+> [  115.097024] RSP: 0018:ffff88007bf0de68  EFLAGS: 00010202
+> [  115.097024] RAX: 0000000fffffffe0 RBX: 00007fff4014f200 RCX: 0000000000000300
+> [  115.097024] RDX: 0000000000000005 RSI: 00000000000000d0 RDI: ffff88007d001300
+> [  115.097024] RBP: ffff88007bf0dea8 R08: 00007f849c3141b7 R09: ffffffff8118e100
+> [  115.097024] R10: 0000000000000001 R11: 0000000000000246 R12: 00000000000000d0
+> [  115.097024] R13: 0000000fffffffe0 R14: ffff88007d001300 R15: 0000000000001000
+> [  115.097024] FS:  00007f849cbb8b40(0000) GS:ffff88007fc00000(0000) knlGS:0000000000000000
+> [  115.097024] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [  115.097024] CR2: 0000000fffffffe0 CR3: 000000007bc38000 CR4: 00000000000006f0
+> [  115.097024] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> [  115.097024] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> [  115.097024] Stack:
+> [  115.097024]  ffffffff8118e100 ffffffff81149ea1 0000000000000008 00007fff4014f200
+> [  115.097024]  00007fff4014f200 0000000000000000 0000000000000000 0000000000001000
+> [  115.097024]  ffff88007bf0dee8 ffffffff8118e100 ffff880037598e00 00007fff4014f200
+> [  115.097024] Call Trace:
+> [  115.097024]  [<ffffffff8118e100>] ? getname_flags.part.34+0x30/0x140
+> [  115.097024]  [<ffffffff81149ea1>] ? vma_rb_erase+0x121/0x210
+> [  115.097024]  [<ffffffff8118e100>] getname_flags.part.34+0x30/0x140
+> [  115.097024]  [<ffffffff8118e248>] getname+0x38/0x60
+> [  115.097024]  [<ffffffff81181d55>] do_sys_open+0xc5/0x1e0
+> [  115.097024]  [<ffffffff81181e92>] SyS_open+0x22/0x30
+> [  115.097024]  [<ffffffff8161cb82>] system_call_fastpath+0x16/0x1b
+> [  115.097024] Code: f4 53 48 83 ec 18 8b 05 8e 53 b7 00 4c 8b 4d 08 21 f0 a8 10 74 0d 4c 89 4d c0 e8 1b 76 4a 00 4c 8b 4d c0 e9 92 00 00 00 4d 89 f5 <4d> 8b 45 00 65 4c 03 04 25 48 cd 00 00 49 8b 50 08 4d 8b 38 49
+> [  115.097024] RIP  [<ffffffff8116b641>] kmem_cache_alloc+0x41/0x1f0
+> [  115.097024]  RSP <ffff88007bf0de68>
+> [  115.097024] CR2: 0000000fffffffe0
+> [  115.121352] ---[ end trace 16bb8e8408b97d0e ]---
 > 
+> Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Cc: Glauber Costa <glommer@parallels.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Balbir Singh <bsingharora@gmail.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Andrey Vagin <avagin@openvz.org>
+> ---
+>  mm/memcontrol.c | 2 --
+>  1 file changed, 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index cb1c9de..764b9e4 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3141,8 +3141,6 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+>  			return -ENOMEM;
+>  		}
+>  
+> -		INIT_WORK(&s->memcg_params->destroy,
+> -				kmem_cache_destroy_work_func);
+>  		s->memcg_params->is_root_cache = true;
+>  
+>  		/*
+> -- 
+> 1.8.1.4
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
-My wild guess is that your patch does not prune correctly, as I
-described in my last message.
-
-> .....
-> 
->>  void shrink_dcache_sb(struct super_block *sb)
->>  {
->> -	LIST_HEAD(tmp);
->> -
->> -	spin_lock(&sb->s_dentry_lru_lock);
->> -	while (!list_empty(&sb->s_dentry_lru)) {
->> -		list_splice_init(&sb->s_dentry_lru, &tmp);
->> -
->> -		/*
->> -		 * account for removal here so we don't need to handle it later
->> -		 * even though the dentry is no longer on the lru list.
->> -		 */
->> -		this_cpu_sub(nr_dentry_unused, sb->s_nr_dentry_unused);
->> -		sb->s_nr_dentry_unused = 0;
->> -
->> -		spin_unlock(&sb->s_dentry_lru_lock);
->> -		shrink_dcache_list(&tmp);
->> -		spin_lock(&sb->s_dentry_lru_lock);
->> -	}
->> -	spin_unlock(&sb->s_dentry_lru_lock);
->> +	list_lru_dispose_all(&sb->s_dentry_lru, shrink_dcache_list);
->>  }
->>  EXPORT_SYMBOL(shrink_dcache_sb);
-> 
-> And here comes the fun part. This doesn't account for the
-> dentries that are freed from the superblock here.
-> 
-> So, it needs to be something like:
-> 
-> void shrink_dcache_sb(struct super_block *sb)
-> {
-> 	unsigned long disposed;
-> 
-> 	disposed = list_lru_dispose_all(&sb->s_dentry_lru,
-> 					shrink_dcache_list);
-> 
-> 	this_cpu_sub(nr_dentry_unused, disposed);
-> }
-> 
-> But, therein lies a problem. nr_dentry_unused is a 32 bit counter,
-> and we can return a 64 bit value here. So that means we have to bump
-> nr_dentry_unused to a long, not an int for these per-cpu counters to
-> work.
-> 
-> And then there's the problem that the sum of these counters only
-> uses an int. Which means if we get large numbers of negative values
-> on different CPU from unmounts, the summation will end up
-> overflowing and it'll all suck.
-> 
-> So, Glauber, what do you reckon? I've never likes this stupid
-> hand-rolled per-cpu counter stuff, and it's causing issues. Should
-> we just convert them to generic per-cpu counters because they are
-> 64bit clean and just handle out-of-range sums in the /proc update
-> code?
-> 
-
-One option would be to add the following patch to the beginning of the
-series.
-
-
-
-
---------------010708050508050409090900
-Content-Type: text/x-patch; name="dentry.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename="dentry.patch"
-
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 3a3adc4..a8be4c9 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -116,12 +116,12 @@ struct dentry_stat_t dentry_stat = {
- 	.age_limit = 45,
- };
- 
--static DEFINE_PER_CPU(unsigned int, nr_dentry);
--static DEFINE_PER_CPU(unsigned int, nr_dentry_unused);
-+static DEFINE_PER_CPU(long, nr_dentry);
-+static DEFINE_PER_CPU(long, nr_dentry_unused);
- 
- #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
- /* scan possible cpus instead of online and avoid worrying about CPU hotplug. */
--static int get_nr_dentry(void)
-+static long get_nr_dentry(void)
- {
- 	int i;
- 	int sum = 0;
-@@ -130,7 +130,7 @@ static int get_nr_dentry(void)
- 	return sum < 0 ? 0 : sum;
- }
- 
--static int get_nr_dentry_unused(void)
-+static long get_nr_dentry_unused(void)
- {
- 	int i;
- 	int sum = 0;
-@@ -144,7 +144,7 @@ int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
- {
- 	dentry_stat.nr_dentry = get_nr_dentry();
- 	dentry_stat.nr_unused = get_nr_dentry_unused();
--	return proc_dointvec(table, write, buffer, lenp, ppos);
-+	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
- }
- #endif
- 
-diff --git a/include/linux/dcache.h b/include/linux/dcache.h
-index 4d24a12..bd08285 100644
---- a/include/linux/dcache.h
-+++ b/include/linux/dcache.h
-@@ -54,11 +54,11 @@ struct qstr {
- #define hashlen_len(hashlen)  ((u32)((hashlen) >> 32))
- 
- struct dentry_stat_t {
--	int nr_dentry;
--	int nr_unused;
--	int age_limit;          /* age in seconds */
--	int want_pages;         /* pages requested by system */
--	int dummy[2];
-+	long nr_dentry;
-+	long nr_unused;
-+	long age_limit;          /* age in seconds */
-+	long want_pages;         /* pages requested by system */
-+	long dummy[2];
- };
- extern struct dentry_stat_t dentry_stat;
- 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 67e1040..e875f60 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1267,12 +1267,12 @@ struct super_block {
- 	/* s_dentry_lru_lock protects s_dentry_lru and s_nr_dentry_unused */
- 	spinlock_t		s_dentry_lru_lock ____cacheline_aligned_in_smp;
- 	struct list_head	s_dentry_lru;	/* unused dentry lru */
--	int			s_nr_dentry_unused;	/* # of dentry on lru */
-+	long			s_nr_dentry_unused;	/* # of dentry on lru */
- 
- 	/* s_inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
- 	spinlock_t		s_inode_lru_lock ____cacheline_aligned_in_smp;
- 	struct list_head	s_inode_lru;		/* unused inode lru */
--	int			s_nr_inodes_unused;	/* # of inodes on lru */
-+	long			s_nr_inodes_unused;	/* # of inodes on lru */
- 
- 	struct block_device	*s_bdev;
- 	struct backing_dev_info *s_bdi;
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 9edcf45..0dc51c0 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1493,7 +1493,7 @@ static struct ctl_table fs_table[] = {
- 	{
- 		.procname	= "dentry-state",
- 		.data		= &dentry_stat,
--		.maxlen		= 6*sizeof(int),
-+		.maxlen		= 6*sizeof(long),
- 		.mode		= 0444,
- 		.proc_handler	= proc_nr_dentry,
- 	},
-
---------------010708050508050409090900--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
