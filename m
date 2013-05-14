@@ -1,157 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 599F26B009A
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 06:51:56 -0400 (EDT)
-Date: Tue, 14 May 2013 12:51:54 +0200
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 95AF66B009D
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 07:25:17 -0400 (EDT)
+Date: Tue, 14 May 2013 13:25:14 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 4/9] mm: vmscan: Decide whether to compact the pgdat
- based on reclaim progress
-Message-ID: <20130514105154.GN5198@dhcp22.suse.cz>
+Subject: Re: [PATCH 6/9] mm: vmscan: Have kswapd writeback pages based on
+ dirty pages encountered, not priority
+Message-ID: <20130514112514.GO5198@dhcp22.suse.cz>
 References: <1368432760-21573-1-git-send-email-mgorman@suse.de>
- <1368432760-21573-5-git-send-email-mgorman@suse.de>
+ <1368432760-21573-7-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1368432760-21573-5-git-send-email-mgorman@suse.de>
+In-Reply-To: <1368432760-21573-7-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 13-05-13 09:12:35, Mel Gorman wrote:
-> In the past, kswapd makes a decision on whether to compact memory after the
-> pgdat was considered balanced. This more or less worked but it is late to
-> make such a decision and does not fit well now that kswapd makes a decision
-> whether to exit the zone scanning loop depending on reclaim progress.
+On Mon 13-05-13 09:12:37, Mel Gorman wrote:
+> Currently kswapd queues dirty pages for writeback if scanning at an elevated
+> priority but the priority kswapd scans at is not related to the number
+> of unqueued dirty encountered.  Since commit "mm: vmscan: Flatten kswapd
+> priority loop", the priority is related to the size of the LRU and the
+> zone watermark which is no indication as to whether kswapd should write
+> pages or not.
 > 
-> This patch will compact a pgdat if at least the requested number of pages
-> were reclaimed from unbalanced zones for a given priority. If any zone is
-> currently balanced, kswapd will not call compaction as it is expected the
-> necessary pages are already available.
+> This patch tracks if an excessive number of unqueued dirty pages are being
+> encountered at the end of the LRU.  If so, it indicates that dirty pages
+> are being recycled before flusher threads can clean them and flags the
+> zone so that kswapd will start writing pages until the zone is balanced.
 > 
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
+I do not see the direct reclaim clearing the flag. Although direct
+reclaim ignores the flag it still sets it without clearing it. This
+means that you rely on parallel kswapd to clear it.
+We do the same thing with ZONE_CONGESTED but I think this should be at
+least documented somewhere.
+
+Other than that
 Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
 > ---
->  mm/vmscan.c | 59 ++++++++++++++++++++++++++++++-----------------------------
->  1 file changed, 30 insertions(+), 29 deletions(-)
+>  include/linux/mmzone.h |  9 +++++++++
+>  mm/vmscan.c            | 31 +++++++++++++++++++++++++------
+>  2 files changed, 34 insertions(+), 6 deletions(-)
 > 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 5c76737..2aaf72f 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -495,6 +495,10 @@ typedef enum {
+>  	ZONE_CONGESTED,			/* zone has many dirty pages backed by
+>  					 * a congested BDI
+>  					 */
+> +	ZONE_TAIL_LRU_DIRTY,		/* reclaim scanning has recently found
+> +					 * many dirty file pages at the tail
+> +					 * of the LRU.
+> +					 */
+>  } zone_flags_t;
+>  
+>  static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
+> @@ -517,6 +521,11 @@ static inline int zone_is_reclaim_congested(const struct zone *zone)
+>  	return test_bit(ZONE_CONGESTED, &zone->flags);
+>  }
+>  
+> +static inline int zone_is_reclaim_dirty(const struct zone *zone)
+> +{
+> +	return test_bit(ZONE_TAIL_LRU_DIRTY, &zone->flags);
+> +}
+> +
+>  static inline int zone_is_reclaim_locked(const struct zone *zone)
+>  {
+>  	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
 > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 1c10ee5..cd09803 100644
+> index 1505c57..d6c916d 100644
 > --- a/mm/vmscan.c
 > +++ b/mm/vmscan.c
-> @@ -2661,7 +2661,8 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
->   */
->  static bool kswapd_shrink_zone(struct zone *zone,
->  			       struct scan_control *sc,
-> -			       unsigned long lru_pages)
-> +			       unsigned long lru_pages,
-> +			       unsigned long *nr_attempted)
+> @@ -676,13 +676,14 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  				      struct zone *zone,
+>  				      struct scan_control *sc,
+>  				      enum ttu_flags ttu_flags,
+> -				      unsigned long *ret_nr_dirty,
+> +				      unsigned long *ret_nr_unqueued_dirty,
+>  				      unsigned long *ret_nr_writeback,
+>  				      bool force_reclaim)
 >  {
->  	unsigned long nr_slab;
->  	struct reclaim_state *reclaim_state = current->reclaim_state;
-> @@ -2677,6 +2678,9 @@ static bool kswapd_shrink_zone(struct zone *zone,
->  	nr_slab = shrink_slab(&shrink, sc->nr_scanned, lru_pages);
->  	sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+>  	LIST_HEAD(ret_pages);
+>  	LIST_HEAD(free_pages);
+>  	int pgactivate = 0;
+> +	unsigned long nr_unqueued_dirty = 0;
+>  	unsigned long nr_dirty = 0;
+>  	unsigned long nr_congested = 0;
+>  	unsigned long nr_reclaimed = 0;
+> @@ -808,14 +809,17 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		if (PageDirty(page)) {
+>  			nr_dirty++;
 >  
-> +	/* Account for the number of pages attempted to reclaim */
-> +	*nr_attempted += sc->nr_to_reclaim;
+> +			if (!PageWriteback(page))
+> +				nr_unqueued_dirty++;
 > +
->  	if (nr_slab == 0 && !zone_reclaimable(zone))
->  		zone->all_unreclaimable = 1;
+>  			/*
+>  			 * Only kswapd can writeback filesystem pages to
+> -			 * avoid risk of stack overflow but do not writeback
+> -			 * unless under significant pressure.
+> +			 * avoid risk of stack overflow but only writeback
+> +			 * if many dirty pages have been encountered.
+>  			 */
+>  			if (page_is_file_cache(page) &&
+>  					(!current_is_kswapd() ||
+> -					 sc->priority >= DEF_PRIORITY - 2)) {
+> +					 !zone_is_reclaim_dirty(zone))) {
+>  				/*
+>  				 * Immediately reclaim when written back.
+>  				 * Similar in principal to deactivate_page()
+> @@ -960,7 +964,7 @@ keep:
+>  	list_splice(&ret_pages, page_list);
+>  	count_vm_events(PGACTIVATE, pgactivate);
+>  	mem_cgroup_uncharge_end();
+> -	*ret_nr_dirty += nr_dirty;
+> +	*ret_nr_unqueued_dirty += nr_unqueued_dirty;
+>  	*ret_nr_writeback += nr_writeback;
+>  	return nr_reclaimed;
+>  }
+> @@ -1373,6 +1377,15 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  			(nr_taken >> (DEF_PRIORITY - sc->priority)))
+>  		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
 >  
-> @@ -2724,7 +2728,9 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  
->  	do {
->  		unsigned long lru_pages = 0;
-> +		unsigned long nr_attempted = 0;
->  		bool raise_priority = true;
-> +		bool pgdat_needs_compaction = (order > 0);
->  
->  		sc.nr_reclaimed = 0;
->  
-> @@ -2774,7 +2780,21 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  		for (i = 0; i <= end_zone; i++) {
->  			struct zone *zone = pgdat->node_zones + i;
->  
-> +			if (!populated_zone(zone))
-> +				continue;
+> +	/*
+> +	 * Similarly, if many dirty pages are encountered that are not
+> +	 * currently being written then flag that kswapd should start
+> +	 * writing back pages.
+> +	 */
+> +	if (global_reclaim(sc) && nr_dirty &&
+> +			nr_dirty >= (nr_taken >> (DEF_PRIORITY - sc->priority)))
+> +		zone_set_flag(zone, ZONE_TAIL_LRU_DIRTY);
 > +
->  			lru_pages += zone_reclaimable_pages(zone);
-> +
-> +			/*
-> +			 * If any zone is currently balanced then kswapd will
-> +			 * not call compaction as it is expected that the
-> +			 * necessary pages are already available.
-> +			 */
-> +			if (pgdat_needs_compaction &&
-> +					zone_watermark_ok(zone, order,
-> +						low_wmark_pages(zone),
-> +						*classzone_idx, 0))
-> +				pgdat_needs_compaction = false;
+>  	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
+>  		zone_idx(zone),
+>  		nr_scanned, nr_reclaimed,
+> @@ -2769,8 +2782,12 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  				end_zone = i;
+>  				break;
+>  			} else {
+> -				/* If balanced, clear the congested flag */
+> +				/*
+> +				 * If balanced, clear the dirty and congested
+> +				 * flags
+> +				 */
+>  				zone_clear_flag(zone, ZONE_CONGESTED);
+> +				zone_clear_flag(zone, ZONE_TAIL_LRU_DIRTY);
+>  			}
+>  		}
+>  
+> @@ -2888,8 +2905,10 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  				 * possible there are dirty pages backed by
+>  				 * congested BDIs but as pressure is relieved,
+>  				 * speculatively avoid congestion waits
+> +				 * or writing pages from kswapd context.
+>  				 */
+>  				zone_clear_flag(zone, ZONE_CONGESTED);
+> +				zone_clear_flag(zone, ZONE_TAIL_LRU_DIRTY);
 >  		}
 >  
 >  		/*
-> @@ -2843,7 +2863,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  				 * already being scanned that high
->  				 * watermark would be met at 100% efficiency.
->  				 */
-> -				if (kswapd_shrink_zone(zone, &sc, lru_pages))
-> +				if (kswapd_shrink_zone(zone, &sc, lru_pages,
-> +						       &nr_attempted))
->  					raise_priority = false;
->  			}
->  
-> @@ -2896,6 +2917,13 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  			break;
->  
->  		/*
-> +		 * Compact if necessary and kswapd is reclaiming at least the
-> +		 * high watermark number of pages as requsted
-> +		 */
-> +		if (pgdat_needs_compaction && sc.nr_reclaimed > nr_attempted)
-> +			compact_pgdat(pgdat, order);
-> +
-> +		/*
->  		 * Raise priority if scanning rate is too low or there was no
->  		 * progress in reclaiming pages
->  		 */
-> @@ -2904,33 +2932,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  	} while (sc.priority >= 0 &&
->  		 !pgdat_balanced(pgdat, order, *classzone_idx));
->  
-> -	/*
-> -	 * If kswapd was reclaiming at a higher order, it has the option of
-> -	 * sleeping without all zones being balanced. Before it does, it must
-> -	 * ensure that the watermarks for order-0 on *all* zones are met and
-> -	 * that the congestion flags are cleared. The congestion flag must
-> -	 * be cleared as kswapd is the only mechanism that clears the flag
-> -	 * and it is potentially going to sleep here.
-> -	 */
-> -	if (order) {
-> -		int zones_need_compaction = 1;
-> -
-> -		for (i = 0; i <= end_zone; i++) {
-> -			struct zone *zone = pgdat->node_zones + i;
-> -
-> -			if (!populated_zone(zone))
-> -				continue;
-> -
-> -			/* Check if the memory needs to be defragmented. */
-> -			if (zone_watermark_ok(zone, order,
-> -				    low_wmark_pages(zone), *classzone_idx, 0))
-> -				zones_need_compaction = 0;
-> -		}
-> -
-> -		if (zones_need_compaction)
-> -			compact_pgdat(pgdat, order);
-> -	}
-> -
->  out:
->  	/*
->  	 * Return the order we were reclaiming at so prepare_kswapd_sleep()
 > -- 
 > 1.8.1.4
 > 
