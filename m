@@ -1,94 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 889E16B004D
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 14:20:55 -0400 (EDT)
-Received: by mail-vc0-f175.google.com with SMTP id hv10so927837vcb.20
-        for <linux-mm@kvack.org>; Tue, 14 May 2013 11:20:54 -0700 (PDT)
-From: Konrad Rzeszutek Wilk <konrad@kernel.org>
-Subject: [PATCH 9/9] xen/tmem: Don't use self[ballooning|shrinking] if frontswap is off.
-Date: Tue, 14 May 2013 14:09:26 -0400
-Message-Id: <1368554966-30469-10-git-send-email-konrad.wilk@oracle.com>
-In-Reply-To: <1368554966-30469-1-git-send-email-konrad.wilk@oracle.com>
-References: <1368554966-30469-1-git-send-email-konrad.wilk@oracle.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 511CB6B0039
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 14:35:06 -0400 (EDT)
+Received: by mail-gg0-f181.google.com with SMTP id 21so160533ggh.26
+        for <linux-mm@kvack.org>; Tue, 14 May 2013 11:35:05 -0700 (PDT)
+Date: Tue, 14 May 2013 11:35:00 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: 3.9.0: panic during boot - kernel BUG at include/linux/gfp.h:323!
+Message-ID: <20130514183500.GN6795@mtj.dyndns.org>
+References: <22600323.7586117.1367826906910.JavaMail.root@redhat.com>
+ <5191B101.1070000@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5191B101.1070000@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bob.liu@oracle.com, dan.magenheimer@oracle.com, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, xen-devel@lists.xensource.com
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Lingzhu Xiang <lxiang@redhat.com>
+Cc: CAI Qian <caiqian@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-There is no point. We would just squeeze the guest to put more and
-more pages in the swap disk without any purpose.
+Hello,
 
-The only time it makes sense to use the selfballooning and shrinking
-is when frontswap is being utilized.
+On Tue, May 14, 2013 at 11:35:29AM +0800, Lingzhu Xiang wrote:
+> On 05/06/2013 03:55 PM, CAI Qian wrote:
+> >[    0.928031] ------------[ cut here ]------------
+> >[    0.934231] kernel BUG at include/linux/gfp.h:323!
+...
+> >[    1.662913]  [<ffffffff812e3aa8>] alloc_cpumask_var_node+0x28/0x90
+> >[    1.671224]  [<ffffffff81a0bdb3>] wq_numa_init+0x10d/0x1be
+> >[    1.686085]  [<ffffffff81a0bec8>] init_workqueues+0x64/0x341
 
-Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
----
- Documentation/kernel-parameters.txt |    3 ++-
- drivers/xen/tmem.c                  |    8 ++++++++
- drivers/xen/xen-selfballoon.c       |   15 ++++++---------
- 3 files changed, 16 insertions(+), 10 deletions(-)
+Does the following patch make the problem go away?  The dynamic paths
+should be safe as they are synchronized against CPU hot plug paths and
+don't allocate anything on nodes w/o any CPUs.
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 3de01ed..6e3b18a 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -3014,7 +3014,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+Thanks.
+
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index 4aa9f5b..232c1bb 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -4895,7 +4895,8 @@ static void __init wq_numa_init(void)
+ 	BUG_ON(!tbl);
  
- 	tmem.frontswap=0|1 [KNL, XEN]
- 			Default is on (1). Disable the usage of the frontswap
--			API to send swap pages to the hypervisor.
-+			API to send swap pages to the hypervisor. If disabled
-+			the selfballooning and selfshrinking are force disabled.
+ 	for_each_node(node)
+-		BUG_ON(!alloc_cpumask_var_node(&tbl[node], GFP_KERNEL, node));
++		BUG_ON(!alloc_cpumask_var_node(&tbl[node], GFP_KERNEL,
++				node_online(node) ? node : NUMA_NO_NODE));
  
- 	tmem.selfballooning=0|1 [KNL, XEN]
- 			Default is on (1). Disable the driving of swap pages
-diff --git a/drivers/xen/tmem.c b/drivers/xen/tmem.c
-index c1df0ff..18e8bd8 100644
---- a/drivers/xen/tmem.c
-+++ b/drivers/xen/tmem.c
-@@ -403,6 +403,14 @@ static int xen_tmem_init(void)
- 	}
- #endif
- #ifdef CONFIG_XEN_SELFBALLOONING
-+	/*
-+	 * There is no point of driving pages to the swap system if they
-+	 * aren't going anywhere in tmem universe.
-+	 */
-+	if (!frontswap) {
-+		selfshrinking = false;
-+		selfballooning = false;
-+	}
- 	xen_selfballoon_init(selfballooning, selfshrinking);
- #endif
- 	return 0;
-diff --git a/drivers/xen/xen-selfballoon.c b/drivers/xen/xen-selfballoon.c
-index 5d637e2..f70984a8 100644
---- a/drivers/xen/xen-selfballoon.c
-+++ b/drivers/xen/xen-selfballoon.c
-@@ -53,15 +53,12 @@
-  * System configuration note: Selfballooning should not be enabled on
-  * systems without a sufficiently large swap device configured; for best
-  * results, it is recommended that total swap be increased by the size
-- * of the guest memory.  Also, while technically not required to be
-- * configured, it is highly recommended that frontswap also be configured
-- * and enabled when selfballooning is running.  So, selfballooning
-- * is disabled by default if frontswap is not configured and can only
-- * be enabled with the "tmem.selfballooning=1" kernel boot option; similarly
-- * selfballooning is enabled by default if frontswap is configured and
-- * can be disabled with the "tmem.selfballooning=0" kernel boot option.  Finally,
-- * when frontswap is configured,frontswap-selfshrinking can be disabled
-- * with the "tmem.selfshrink=0" kernel boot option.
-+ * of the guest memory. Note, that selfballooning should be disabled by default
-+ * if frontswap is not configured.  Similarly selfballooning should be enabled
-+ * by default if frontswap is configured and can be disabled with the
-+ * "tmem.selfballooning=0" kernel boot option.  Finally, when frontswap is
-+ * configured, frontswap-selfshrinking can be disabled  with the
-+ * "tmem.selfshrink=0" kernel boot option.
-  *
-  * Selfballooning is disallowed in domain0 and force-disabled.
-  *
--- 
-1.7.7.6
+ 	for_each_possible_cpu(cpu) {
+ 		node = cpu_to_node(cpu);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
