@@ -1,167 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 4DC456B0074
-	for <linux-mm@kvack.org>; Mon, 13 May 2013 21:57:57 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 972663EE0CB
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:57:53 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 874DE45DE53
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:57:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 63ECE45DD78
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:57:53 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3E646E08006
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:57:53 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DAACAE08003
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 10:57:52 +0900 (JST)
-From: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Subject: [PATCH v5 8/8] vmcore: support mmap() on /proc/vmcore
-Date: Tue, 14 May 2013 10:57:52 +0900
-Message-ID: <20130514015752.18697.80784.stgit@localhost6.localdomain6>
-In-Reply-To: <20130514015622.18697.77191.stgit@localhost6.localdomain6>
-References: <20130514015622.18697.77191.stgit@localhost6.localdomain6>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 6AC296B007D
+	for <linux-mm@kvack.org>; Mon, 13 May 2013 22:02:51 -0400 (EDT)
+Date: Tue, 14 May 2013 12:02:48 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v6 04/31] dcache: remove dentries from LRU before putting
+ on dispose list
+Message-ID: <20130514020248.GB29466@dastard>
+References: <1368382432-25462-1-git-send-email-glommer@openvz.org>
+ <1368382432-25462-5-git-send-email-glommer@openvz.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1368382432-25462-5-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vgoyal@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org
-Cc: cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org
+To: Glauber Costa <glommer@openvz.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, kamezawa.hiroyu@jp.fujitsu.com, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, Dave Chinner <dchinner@redhat.com>
 
-This patch introduces mmap_vmcore().
+On Sun, May 12, 2013 at 10:13:25PM +0400, Glauber Costa wrote:
+> From: Dave Chinner <dchinner@redhat.com>
+> 
+> One of the big problems with modifying the way the dcache shrinker
+> and LRU implementation works is that the LRU is abused in several
+> ways. One of these is shrink_dentry_list().
+> 
+> Basically, we can move a dentry off the LRU onto a different list
+> without doing any accounting changes, and then use dentry_lru_prune()
+> to remove it from what-ever list it is now on to do the LRU
+> accounting at that point.
+> 
+> This makes it -really hard- to change the LRU implementation. The
+> use of the per-sb LRU lock serialises movement of the dentries
+> between the different lists and the removal of them, and this is the
+> only reason that it works. If we want to break up the dentry LRU
+> lock and lists into, say, per-node lists, we remove the only
+> serialisation that allows this lru list/dispose list abuse to work.
+> 
+> To make this work effectively, the dispose list has to be isolated
+> from the LRU list - dentries have to be removed from the LRU
+> *before* being placed on the dispose list. This means that the LRU
+> accounting and isolation is completed before disposal is started,
+> and that means we can change the LRU implementation freely in
+> future.
+> 
+> This means that dentries *must* be marked with DCACHE_SHRINK_LIST
+> when they are placed on the dispose list so that we don't think that
+> parent dentries found in try_prune_one_dentry() are on the LRU when
+> the are actually on the dispose list. This would result in
+> accounting the dentry to the LRU a second time. Hence
+> dentry_lru_prune() has to handle the DCACHE_SHRINK_LIST case
+> differently because the dentry isn't on the LRU list.
+> 
+> [ v2: don't decrement nr unused twice, spotted by Sha Zhengju ]
+> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> Signed-off-by: Glauber Costa <glommer@openvz.org>
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  fs/dcache.c | 93 ++++++++++++++++++++++++++++++++++++++++++++++---------------
+>  1 file changed, 71 insertions(+), 22 deletions(-)
+> 
+> diff --git a/fs/dcache.c b/fs/dcache.c
+> index 795c15d..868abf9 100644
+> --- a/fs/dcache.c
+> +++ b/fs/dcache.c
+> @@ -331,7 +331,6 @@ static void dentry_lru_add(struct dentry *dentry)
+>  static void __dentry_lru_del(struct dentry *dentry)
+>  {
+>  	list_del_init(&dentry->d_lru);
+> -	dentry->d_flags &= ~DCACHE_SHRINK_LIST;
+>  	dentry->d_sb->s_nr_dentry_unused--;
+>  	this_cpu_dec(nr_dentry_unused);
+>  }
+> @@ -341,6 +340,8 @@ static void __dentry_lru_del(struct dentry *dentry)
+>   */
+>  static void dentry_lru_del(struct dentry *dentry)
+>  {
+> +	BUG_ON(dentry->d_flags & DCACHE_SHRINK_LIST);
+> +
+>  	if (!list_empty(&dentry->d_lru)) {
+>  		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+>  		__dentry_lru_del(dentry);
+> @@ -348,15 +349,39 @@ static void dentry_lru_del(struct dentry *dentry)
+>  	}
+>  }
+>  
+> +static void dentry_lru_prune(struct dentry *dentry)
+> +{
+> +	/*
+> +	 * inform the fs via d_prune that this dentry is about to be
+> +	 * unhashed and destroyed.
+> +	 */
+> +	if (dentry->d_flags & DCACHE_OP_PRUNE)
+> +		dentry->d_op->d_prune(dentry);
+> +
+> +	if (list_empty(&dentry->d_lru))
+> +		return;
+> +
+> +	if ((dentry->d_flags & DCACHE_SHRINK_LIST)) {
+> +		list_del_init(&dentry->d_lru);
+> +		dentry->d_flags &= ~DCACHE_SHRINK_LIST;
+> +	} else {
+> +		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
+> +		__dentry_lru_del(dentry);
+> +		spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
+> +	}
+> +}
 
-Don't permit writable nor executable mapping even with mprotect()
-because this mmap() is aimed at reading crash dump memory.
-Non-writable mapping is also requirement of remap_pfn_range() when
-mapping linear pages on non-consecutive physical pages; see
-is_cow_mapping().
+Re-adding this function is wrong - it went away because the act of
+calling ->d_prune is independent of the presence of the dentry on
+the LRU.
 
-Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by
-remap_vmalloc_range_pertial at the same time for a single
-vma. do_munmap() can correctly clean partially remapped vma with two
-functions in abnormal case. See zap_pte_range(), vm_normal_page() and
-their comments for details.
+> @@ -479,14 +504,8 @@ relock:
+>  
+>  	if (ref)
+>  		dentry->d_count--;
+> -	/*
+> -	 * inform the fs via d_prune that this dentry is about to be
+> -	 * unhashed and destroyed.
+> -	 */
+> -	if (dentry->d_flags & DCACHE_OP_PRUNE)
+> -		dentry->d_op->d_prune(dentry);
+>  
+> -	dentry_lru_del(dentry);
+> +	dentry_lru_prune(dentry);
+>  	/* if it was on the hash then remove it */
+>  	__d_drop(dentry);
+>  	return d_kill(dentry, parent);
 
-On x86-32 PAE kernels, mmap() supports at most 16TB memory only. This
-limitation comes from the fact that the third argument of
-remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned long.
+So this change is not necessary.
 
-Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
----
+> @@ -914,14 +970,7 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
+>  		do {
+>  			struct inode *inode;
+>  
+> -			/*
+> -			 * inform the fs that this dentry is about to be
+> -			 * unhashed and destroyed.
+> -			 */
+> -			if (dentry->d_flags & DCACHE_OP_PRUNE)
+> -				dentry->d_op->d_prune(dentry);
+> -
+> -			dentry_lru_del(dentry);
+> +			dentry_lru_prune(dentry);
+>  			__d_shrink(dentry);
+>  
+>  			if (dentry->d_count != 0) {
 
- fs/proc/vmcore.c |   86 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 86 insertions(+), 0 deletions(-)
+Nor is this one.
 
-diff --git a/fs/proc/vmcore.c b/fs/proc/vmcore.c
-index ad6da17..d4b88f6 100644
---- a/fs/proc/vmcore.c
-+++ b/fs/proc/vmcore.c
-@@ -20,6 +20,7 @@
- #include <linux/init.h>
- #include <linux/crash_dump.h>
- #include <linux/list.h>
-+#include <linux/vmalloc.h>
- #include <asm/uaccess.h>
- #include <asm/io.h>
- #include "internal.h"
-@@ -200,9 +201,94 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
- 	return acc;
- }
- 
-+static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
-+{
-+	size_t size = vma->vm_end - vma->vm_start;
-+	u64 start, end, len, tsz;
-+	struct vmcore *m;
-+
-+	start = (u64)vma->vm_pgoff << PAGE_SHIFT;
-+	end = start + size;
-+
-+	if (size > vmcore_size || end > vmcore_size)
-+		return -EINVAL;
-+
-+	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
-+		return -EPERM;
-+
-+	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
-+	vma->vm_flags |= VM_MIXEDMAP;
-+
-+	len = 0;
-+
-+	if (start < elfcorebuf_sz) {
-+		u64 pfn;
-+
-+		tsz = elfcorebuf_sz - start;
-+		if (size < tsz)
-+			tsz = size;
-+		pfn = __pa(elfcorebuf + start) >> PAGE_SHIFT;
-+		if (remap_pfn_range(vma, vma->vm_start, pfn, tsz,
-+				    vma->vm_page_prot))
-+			return -EAGAIN;
-+		size -= tsz;
-+		start += tsz;
-+		len += tsz;
-+
-+		if (size == 0)
-+			return 0;
-+	}
-+
-+	if (start < elfcorebuf_sz + elfnotesegbuf_sz) {
-+		void *kaddr;
-+
-+		tsz = elfcorebuf_sz + elfnotesegbuf_sz - start;
-+		if (size < tsz)
-+			tsz = size;
-+		kaddr = elfnotesegbuf + start - elfcorebuf_sz;
-+		if (remap_vmalloc_range_partial(vma, vma->vm_start + len,
-+						kaddr, tsz)) {
-+			do_munmap(vma->vm_mm, vma->vm_start, len);
-+			return -EAGAIN;
-+		}
-+		size -= tsz;
-+		start += tsz;
-+		len += tsz;
-+
-+		if (size == 0)
-+			return 0;
-+	}
-+
-+	list_for_each_entry(m, &vmcore_list, list) {
-+		if (start < m->offset + m->size) {
-+			u64 paddr = 0;
-+
-+			tsz = m->offset + m->size - start;
-+			if (size < tsz)
-+				tsz = size;
-+			paddr = m->paddr + start - m->offset;
-+			if (remap_pfn_range(vma, vma->vm_start + len,
-+					    paddr >> PAGE_SHIFT, tsz,
-+					    vma->vm_page_prot)) {
-+				do_munmap(vma->vm_mm, vma->vm_start, len);
-+				return -EAGAIN;
-+			}
-+			size -= tsz;
-+			start += tsz;
-+			len += tsz;
-+
-+			if (size == 0)
-+				return 0;
-+		}
-+	}
-+
-+	return 0;
-+}
-+
- static const struct file_operations proc_vmcore_operations = {
- 	.read		= read_vmcore,
- 	.llseek		= default_llseek,
-+	.mmap		= mmap_vmcore,
- };
- 
- static struct vmcore* __init get_new_element(void)
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
