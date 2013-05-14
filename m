@@ -1,73 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id AD8806B0032
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 12:37:26 -0400 (EDT)
-MIME-Version: 1.0
-Message-ID: <b9131728-5cf8-4979-a6de-ac14cc409b28@default>
-Date: Tue, 14 May 2013 09:37:08 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCHv11 3/4] zswap: add to mm/
-References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1368448803-2089-4-git-send-email-sjenning@linux.vnet.ibm.com>
- <51920197.9070105@oracle.com> <20130514160040.GB4024@medulla>
-In-Reply-To: <20130514160040.GB4024@medulla>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 417496B0093
+	for <linux-mm@kvack.org>; Tue, 14 May 2013 12:37:42 -0400 (EDT)
+From: Lukas Czerner <lczerner@redhat.com>
+Subject: [PATCH v4 00/20] change invalidatepage prototype to accept length
+Date: Tue, 14 May 2013 18:37:14 +0200
+Message-Id: <1368549454-8930-1-git-send-email-lczerner@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>, Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org, akpm@linux-foundation.org, hughd@google.com, lczerner@redhat.com
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Subject: Re: [PATCHv11 3/4] zswap: add to mm/
->=20
-> On Tue, May 14, 2013 at 05:19:19PM +0800, Bob Liu wrote:
-> > Hi Seth,
->=20
-> Hi Bob, thanks for the review!
->=20
-> >
-> > > +=09/* reclaim space if needed */
-> > > +=09if (zswap_is_full()) {
-> > > +=09=09zswap_pool_limit_hit++;
-> > > +=09=09if (zbud_reclaim_page(tree->pool, 8)) {
-> >
-> > My idea is to wake up a kernel thread here to do the reclaim.
-> > Once zswap is full(20% percent of total mem currently), the kernel
-> > thread should reclaim pages from it. Not only reclaim one page, it
-> > should depend on the current memory pressure.
-> > And then the API in zbud may like this:
-> > zbud_reclaim_page(pool, nr_pages_to_reclaim, nr_retry);
->=20
-> So kswapd for zswap.  I'm not opposed to the idea if a case can be
-> made for the complexity.  I must say, I don't see that case though.
->=20
-> The policy can evolve as deficiencies are demonstrated and solutions are
-> found.
+Hi,
 
-Hmmm... it is fairly easy to demonstrate the deficiency if
-one tries.  I actually first saw it occur on a real (though
-early) EL6 system which started some graphics-related service
-that caused a very brief swapstorm that was invisible during
-normal boot but clogged up RAM with compressed pages which
-later caused reduced weird benchmarking performance.
+This set of patches are aimed to allow truncate_inode_pages_range() handle
+ranges which are not aligned at the end of the page. Currently it will
+hit BUG_ON() when the end of the range is not aligned. Punch hole feature
+however can benefit from this ability saving file systems some work not
+forcing them to implement their own invalidate code to handle unaligned
+ranges.
 
-I think Mel's unpredictability concern applies equally here...
-this may be a "long-term source of bugs and strange memory
-management behavior."
+In order for this to woke we need change ->invalidatepage() address space
+operation to to accept range to invalidate by adding 'length' argument in
+addition to 'offset'. This is different from my previous attempt to create
+new aop ->invalidatepage_range (http://lwn.net/Articles/514828/) which I
+reconsidered to be unnecessary.
 
-> Can I get your ack on this pending the other changes?
+It would be for the best if this series could go through ext4 branch since
+there are a lot of ext4 changes which are based on dev branch of ext4 
+(git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git)
 
-I'd like to hear Mel's feedback about this, but perhaps
-a compromise to allow for zswap merging would be to add
-something like the following to zswap's Kconfig comment:
+For description purposes this patch set can be divided into following
+groups:
 
-"Zswap reclaim policy is still primitive.  Until it improves,
-zswap should be considered experimental and is not recommended
-for production use."
+patch 0001:    Change ->invalidatepage() prototype adding 'length' argument
+	and changing all the instances. In very simple cases file
+	system methods are completely adapted, otherwise only
+	prototype is changed and the rest will follow. This patch
+	also implement the 'range' invalidation in
+	block_invalidatepage().
 
-If Mel agrees with the unpredictability and also agrees
-with the Kconfig compromise, I am willing to ack.
+patch 0002 - 0009:
+	Make the use of new 'length' argument in the file system
+	itself. Some file systems can take advantage of it trying
+	to invalidate only portion of the page if possible, some
+	can't, however none of the file systems currently attempt
+	to truncate non page aligned ranges.
+
+
+patch 0010:    Teach truncate_inode_pages_range() to handle non page aligned
+	ranges.
+
+patch 0011 - 0020:
+	Ext4 changes build on top of previous changes, simplifying
+	punch hole code. Not all changes are realated specifically
+	to invalidatepage() change, but all are related to the punch
+	hole feature.
+
+Even though this patch set would mainly affect functionality of the file
+file systems implementing punch hole I've tested all the following file
+system using xfstests without noticing any bugs related to this change.
+
+ext3, ext4, xfs, btrfs, gfs2 and reiserfs
+
+I've also tested block size < page size on ext4 with xfstests and fsx.
+
+
+v3 -> v4: Some minor changes based on the reviews. Added two ext4 patches
+	  as suggested by Jan Kara.
+
+Thanks!
+-Lukas
+
+-- 
+ Documentation/filesystems/Locking |    6 +-
+ Documentation/filesystems/vfs.txt |   20 +-
+ fs/9p/vfs_addr.c                  |    5 +-
+ fs/afs/file.c                     |   10 +-
+ fs/btrfs/disk-io.c                |    3 +-
+ fs/btrfs/extent_io.c              |    2 +-
+ fs/btrfs/inode.c                  |    3 +-
+ fs/buffer.c                       |   21 ++-
+ fs/ceph/addr.c                    |   15 +-
+ fs/cifs/file.c                    |    5 +-
+ fs/exofs/inode.c                  |    6 +-
+ fs/ext3/inode.c                   |    9 +-
+ fs/ext4/ext4.h                    |   14 +-
+ fs/ext4/extents.c                 |   96 ++++++----
+ fs/ext4/inode.c                   |  402 ++++++++++++++-----------------------
+ fs/ext4/super.c                   |    1 +
+ fs/f2fs/data.c                    |    3 +-
+ fs/f2fs/node.c                    |    3 +-
+ fs/gfs2/aops.c                    |   17 +-
+ fs/jbd/transaction.c              |   19 ++-
+ fs/jbd2/transaction.c             |   24 ++-
+ fs/jfs/jfs_metapage.c             |    5 +-
+ fs/logfs/file.c                   |    3 +-
+ fs/logfs/segment.c                |    3 +-
+ fs/nfs/file.c                     |    8 +-
+ fs/ntfs/aops.c                    |    2 +-
+ fs/ocfs2/aops.c                   |    5 +-
+ fs/reiserfs/inode.c               |   12 +-
+ fs/ubifs/file.c                   |    5 +-
+ fs/xfs/xfs_aops.c                 |   14 +-
+ fs/xfs/xfs_trace.h                |   15 +-
+ include/linux/buffer_head.h       |    3 +-
+ include/linux/fs.h                |    2 +-
+ include/linux/jbd.h               |    2 +-
+ include/linux/jbd2.h              |    2 +-
+ include/linux/mm.h                |    3 +-
+ include/trace/events/ext3.h       |   12 +-
+ include/trace/events/ext4.h       |   64 ++++---
+ mm/readahead.c                    |    2 +-
+ mm/truncate.c                     |  117 ++++++++----
+ 40 files changed, 503 insertions(+), 460 deletions(-)
+
+[PATCH v4 01/20] mm: change invalidatepage prototype to accept
+[PATCH v4 02/20] jbd2: change jbd2_journal_invalidatepage to accept
+[PATCH v4 03/20] ext4: use ->invalidatepage() length argument
+[PATCH v4 04/20] jbd: change journal_invalidatepage() to accept
+[PATCH v4 05/20] xfs: use ->invalidatepage() length argument
+[PATCH v4 06/20] ocfs2: use ->invalidatepage() length argument
+[PATCH v4 07/20] ceph: use ->invalidatepage() length argument
+[PATCH v4 08/20] gfs2: use ->invalidatepage() length argument
+[PATCH v4 09/20] reiserfs: use ->invalidatepage() length argument
+[PATCH v4 10/20] mm: teach truncate_inode_pages_range() to handle
+[PATCH v4 11/20] Revert "ext4: remove no longer used functions in
+[PATCH v4 12/20] ext4: Call ext4_jbd2_file_inode() after zeroing
+[PATCH v4 13/20] Revert "ext4: fix fsx truncate failure"
+[PATCH v4 14/20] ext4: truncate_inode_pages() in orphan cleanup path
+[PATCH v4 15/20] ext4: use ext4_zero_partial_blocks in punch_hole
+[PATCH v4 16/20] ext4: remove unused discard_partial_page_buffers
+[PATCH v4 17/20] ext4: remove unused code from ext4_remove_blocks()
+[PATCH v4 18/20] ext4: update ext4_ext_remove_space trace point
+[PATCH v4 19/20] ext4: make punch hole code path work with bigalloc
+[PATCH v4 20/20] ext4: Allow punch hole with bigalloc enabled
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
