@@ -1,141 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id E3F466B0032
-	for <linux-mm@kvack.org>; Tue, 14 May 2013 20:33:11 -0400 (EDT)
-Message-ID: <1368577954.31689.63.camel@pasglop>
-Subject: Re: [PATCH v5, part4 31/41] mm/ppc: prepare for removing
- num_physpages and simplify mem_init()
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 15 May 2013 10:32:34 +1000
-In-Reply-To: <1368028298-7401-32-git-send-email-jiang.liu@huawei.com>
-References: <1368028298-7401-1-git-send-email-jiang.liu@huawei.com>
-	 <1368028298-7401-32-git-send-email-jiang.liu@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Message-ID: <5192EE40.7060407@cn.fujitsu.com>
+Date: Wed, 15 May 2013 10:09:04 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of
+ get_user_pages() called get_user_pages_non_movable()
+References: <1360056113-14294-2-git-send-email-linfeng@cn.fujitsu.com> <20130205120137.GG21389@suse.de> <20130206004234.GD11197@blaptop> <20130206095617.GN21389@suse.de> <5190AE4F.4000103@cn.fujitsu.com> <20130513091902.GP11497@suse.de> <20130513143757.GP31899@kvack.org> <x49obcfnd6c.fsf@segfault.boston.devel.redhat.com> <20130513150147.GQ31899@kvack.org> <5191926A.2090608@cn.fujitsu.com> <20130514135850.GG13845@kvack.org>
+In-Reply-To: <20130514135850.GG13845@kvack.org>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>, David Howells <dhowells@redhat.com>, Mark Salter <msalter@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org
+To: Benjamin LaHaise <bcrl@kvack.org>, Mel Gorman <mgorman@suse.de>
+Cc: Jeff Moyer <jmoyer@redhat.com>, Minchan Kim <minchan@kernel.org>, Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Wed, 2013-05-08 at 23:51 +0800, Jiang Liu wrote:
-> Prepare for removing num_physpages and simplify mem_init().
+Hi Benjamin, Mel,
 
-No objection, I haven't had a chance to actually build/boot test though.
+Please see below.
 
-BTW. A recommended way of doing so which is pretty easy even if you
-don't have access to powerpc hardware nowadays is to use
-qemu-system-ppc64 with -M pseries.
+On 05/14/2013 09:58 PM, Benjamin LaHaise wrote:
+> On Tue, May 14, 2013 at 09:24:58AM +0800, Tang Chen wrote:
+>> Hi Mel, Benjamin, Jeff,
+>>
+>> On 05/13/2013 11:01 PM, Benjamin LaHaise wrote:
+>>> On Mon, May 13, 2013 at 10:54:03AM -0400, Jeff Moyer wrote:
+>>>> How do you propose to move the ring pages?
+>>>
+>>> It's the same problem as doing a TLB shootdown: flush the old pages from
+>>> userspace's mapping, copy any existing data to the new pages, then
+>>> repopulate the page tables.  It will likely require the addition of
+>>> address_space_operations for the mapping, but that's not too hard to do.
+>>>
+>>
+>> I think we add migrate_unpin() callback to decrease page->count if
+>> necessary,
+>> and migrate the page to a new page, and add migrate_pin() callback to pin
+>> the new page again.
+>
+> You can't just decrease the page count for this to work.  The pages are
+> pinned because aio_complete() can occur at any time and needs to have a
+> place to write the completion events.  When changing pages, aio has to
+> take the appropriate lock when changing one page for another.
 
-You can find cross compilers for the kernel on kernel.org and you can
-feed qemu with some distro installer ISO.
+In aio_complete(),
 
-Cheers,
-Ben.
+aio_complete() {
+	......
+	spin_lock_irqsave(&ctx->completion_lock, flags);
+	//write the completion event.
+	spin_unlock_irqrestore(&ctx->completion_lock, flags);
+	......
+}
 
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: linuxppc-dev@lists.ozlabs.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
->  arch/powerpc/mm/mem.c |   56 +++++++++++--------------------------------------
->  1 file changed, 12 insertions(+), 44 deletions(-)
-> 
-> diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
-> index b890245..4e24f1c 100644
-> --- a/arch/powerpc/mm/mem.c
-> +++ b/arch/powerpc/mm/mem.c
-> @@ -299,46 +299,27 @@ void __init paging_init(void)
->  
->  void __init mem_init(void)
->  {
-> -#ifdef CONFIG_NEED_MULTIPLE_NODES
-> -	int nid;
-> -#endif
-> -	pg_data_t *pgdat;
-> -	unsigned long i;
-> -	struct page *page;
-> -	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
-> -
->  #ifdef CONFIG_SWIOTLB
->  	swiotlb_init(0);
->  #endif
->  
-> -	num_physpages = memblock_phys_mem_size() >> PAGE_SHIFT;
->  	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
->  
->  #ifdef CONFIG_NEED_MULTIPLE_NODES
-> -        for_each_online_node(nid) {
-> -		if (NODE_DATA(nid)->node_spanned_pages != 0) {
-> -			printk("freeing bootmem node %d\n", nid);
-> -			free_all_bootmem_node(NODE_DATA(nid));
-> -		}
-> +	{
-> +		pg_data_t *pgdat;
-> +
-> +		for_each_online_pgdat(pgdat)
-> +			if (pgdat->node_spanned_pages != 0) {
-> +				printk("freeing bootmem node %d\n",
-> +					pgdat->node_id);
-> +				free_all_bootmem_node(pgdat);
-> +			}
->  	}
->  #else
->  	max_mapnr = max_pfn;
->  	free_all_bootmem();
->  #endif
-> -	for_each_online_pgdat(pgdat) {
-> -		for (i = 0; i < pgdat->node_spanned_pages; i++) {
-> -			if (!pfn_valid(pgdat->node_start_pfn + i))
-> -				continue;
-> -			page = pgdat_page_nr(pgdat, i);
-> -			if (PageReserved(page))
-> -				reservedpages++;
-> -		}
-> -	}
-> -
-> -	codesize = (unsigned long)&_sdata - (unsigned long)&_stext;
-> -	datasize = (unsigned long)&_edata - (unsigned long)&_sdata;
-> -	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
-> -	bsssize = (unsigned long)&__bss_stop - (unsigned long)&__bss_start;
->  
->  #ifdef CONFIG_HIGHMEM
->  	{
-> @@ -348,13 +329,9 @@ void __init mem_init(void)
->  		for (pfn = highmem_mapnr; pfn < max_mapnr; ++pfn) {
->  			phys_addr_t paddr = (phys_addr_t)pfn << PAGE_SHIFT;
->  			struct page *page = pfn_to_page(pfn);
-> -			if (memblock_is_reserved(paddr))
-> -				continue;
-> -			free_highmem_page(page);
-> -			reservedpages--;
-> +			if (!memblock_is_reserved(paddr))
-> +				free_highmem_page(page);
->  		}
-> -		printk(KERN_DEBUG "High memory: %luk\n",
-> -		       totalhigh_pages << (PAGE_SHIFT-10));
->  	}
->  #endif /* CONFIG_HIGHMEM */
->  
-> @@ -367,16 +344,7 @@ void __init mem_init(void)
->  		(mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) - 1;
->  #endif
->  
-> -	printk(KERN_INFO "Memory: %luk/%luk available (%luk kernel code, "
-> -	       "%luk reserved, %luk data, %luk bss, %luk init)\n",
-> -		nr_free_pages() << (PAGE_SHIFT-10),
-> -		num_physpages << (PAGE_SHIFT-10),
-> -		codesize >> 10,
-> -		reservedpages << (PAGE_SHIFT-10),
-> -		datasize >> 10,
-> -		bsssize >> 10,
-> -		initsize >> 10);
-> -
-> +	mem_init_print_info(NULL);
->  #ifdef CONFIG_PPC32
->  	pr_info("Kernel virtual memory layout:\n");
->  	pr_info("  * 0x%08lx..0x%08lx  : fixmap\n", FIXADDR_START, FIXADDR_TOP);
+So for this problem, I think we can hold ctx->completion_lock in the aio
+callbacks to prevent aio subsystem accessing pages who are being migrated.
+
+>
+>> The migrate procedure will work just as before. We use callbacks to
+>> decrease
+>> the page->count before migration starts, and increase it when the migration
+>> is done.
+>>
+>> And migrate_pin() and migrate_unpin() callbacks will be added to
+>> struct address_space_operations.
+>
+> I think the existing migratepage operation in address_space_operations can
+> be used.  Does it get called when hot unplug occurs?  That is: is testing
+> with the migrate_pages syscall similar enough to the memory removal case?
+>
+
+But as I said, for anonymous pages such as aio ring buffer, they don't have
+address_space_operations. So where should we put the callbacks' pointers ?
+
+Add something like address_space_operations to struct anon_vma ?
+
+Thanks. :)
+
+
+
+
 
 
 --
