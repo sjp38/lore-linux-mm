@@ -1,56 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 2A6426B0032
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 17:38:13 -0400 (EDT)
-Received: by mail-oa0-f44.google.com with SMTP id n12so2865844oag.17
-        for <linux-mm@kvack.org>; Wed, 15 May 2013 14:38:12 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20130515090602.28109.90142.stgit@localhost6.localdomain6>
-References: <20130515090507.28109.28956.stgit@localhost6.localdomain6> <20130515090602.28109.90142.stgit@localhost6.localdomain6>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Wed, 15 May 2013 17:37:52 -0400
-Message-ID: <CAHGf_=q-91cYOMPFfSGLsWWst7STgp6pxX4__9UMYUGh=Ef3oA@mail.gmail.com>
-Subject: Re: [PATCH v6 4/8] vmalloc: make find_vm_area check in range
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 7289C6B0036
+	for <linux-mm@kvack.org>; Wed, 15 May 2013 17:39:04 -0400 (EDT)
+Date: Wed, 15 May 2013 14:39:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 7/9] mm: vmscan: Block kswapd if it is encountering
+ pages under writeback
+Message-Id: <20130515143902.2a381d9a5e11298bf58771d8@linux-foundation.org>
+In-Reply-To: <1368432760-21573-8-git-send-email-mgorman@suse.de>
+References: <1368432760-21573-1-git-send-email-mgorman@suse.de>
+	<1368432760-21573-8-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Cc: vgoyal@redhat.com, "Eric W. Biederman" <ebiederm@xmission.com>, Andrew Morton <akpm@linux-foundation.org>, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, LKML <linux-kernel@vger.kernel.org>, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "riel@redhat.com" <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, May 15, 2013 at 5:06 AM, HATAYAMA Daisuke
-<d.hatayama@jp.fujitsu.com> wrote:
-> Currently, __find_vmap_area searches for the kernel VM area starting
-> at a given address. This patch changes this behavior so that it
-> searches for the kernel VM area to which the address belongs. This
-> change is needed by remap_vmalloc_range_partial to be introduced in
-> later patch that receives any position of kernel VM area as target
-> address.
->
-> This patch changes the condition (addr > va->va_start) to the
-> equivalent (addr >= va->va_end) by taking advantage of the fact that
-> each kernel VM area is non-overlapping.
->
-> Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-> ---
->
->  mm/vmalloc.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
->
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index d365724..3875fa2 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -292,7 +292,7 @@ static struct vmap_area *__find_vmap_area(unsigned long addr)
->                 va = rb_entry(n, struct vmap_area, rb_node);
->                 if (addr < va->va_start)
->                         n = n->rb_left;
-> -               else if (addr > va->va_start)
-> +               else if (addr >= va->va_end)
->                         n = n->rb_right;
+On Mon, 13 May 2013 09:12:38 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
-OK. This is natural definition. Looks good.
+> Historically, kswapd used to congestion_wait() at higher priorities if it
+> was not making forward progress. This made no sense as the failure to make
+> progress could be completely independent of IO. It was later replaced by
+> wait_iff_congested() and removed entirely by commit 258401a6 (mm: don't
+> wait on congested zones in balance_pgdat()) as it was duplicating logic
+> in shrink_inactive_list().
+> 
+> This is problematic. If kswapd encounters many pages under writeback and
+> it continues to scan until it reaches the high watermark then it will
+> quickly skip over the pages under writeback and reclaim clean young
+> pages or push applications out to swap.
+> 
+> The use of wait_iff_congested() is not suited to kswapd as it will only
+> stall if the underlying BDI is really congested or a direct reclaimer was
+> unable to write to the underlying BDI. kswapd bypasses the BDI congestion
+> as it sets PF_SWAPWRITE but even if this was taken into account then it
+> would cause direct reclaimers to stall on writeback which is not desirable.
+> 
+> This patch sets a ZONE_WRITEBACK flag if direct reclaim or kswapd is
+> encountering too many pages under writeback. If this flag is set and
+> kswapd encounters a PageReclaim page under writeback then it'll assume
+> that the LRU lists are being recycled too quickly before IO can complete
+> and block waiting for some IO to complete.
+> 
+>
+> ...
+>
+>  		if (PageWriteback(page)) {
+> -			/*
+> -			 * memcg doesn't have any dirty pages throttling so we
+> -			 * could easily OOM just because too many pages are in
+> -			 * writeback and there is nothing else to reclaim.
+> -			 *
+> -			 * Check __GFP_IO, certainly because a loop driver
+> -			 * thread might enter reclaim, and deadlock if it waits
+> -			 * on a page for which it is needed to do the write
+> -			 * (loop masks off __GFP_IO|__GFP_FS for this reason);
+> -			 * but more thought would probably show more reasons.
+> -			 *
+> -			 * Don't require __GFP_FS, since we're not going into
+> -			 * the FS, just waiting on its writeback completion.
+> -			 * Worryingly, ext4 gfs2 and xfs allocate pages with
+> -			 * grab_cache_page_write_begin(,,AOP_FLAG_NOFS), so
+> -			 * testing may_enter_fs here is liable to OOM on them.
+> -			 */
+> -			if (global_reclaim(sc) ||
+> +			/* Case 1 above */
+> +			if (current_is_kswapd() &&
+> +			    PageReclaim(page) &&
+> +			    zone_is_reclaim_writeback(zone)) {
+> +				wait_on_page_writeback(page);
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+wait_on_page_writeback() is problematic.
+
+- The page could be against data which is at the remote end of the
+  disk and the wait takes far too long.
+
+- The page could be against a really slow device, perhaps one which
+  has a (relatively!) large amount of dirty data pending.
+
+- (What happens if the wait is against a page which is backed by a
+  device which is failing or was unplugged or is taking 60 seconds per
+  -EIO or whatever?)
+
+- (Can the wait be against an NFS/NBD/whatever page whose ethernet
+  cable got unplugged?)
+
+- The termination of wait_on_page_writeback() simply doesn't tell us
+  what we want to know here: that there has been a useful amount of
+  writeback completion against the pages on the tail of this LRU.
+
+  We really don't care when *this* page's write completes.  What we
+  want to know is whether reclaim can usefully restart polling the LRU.
+  These are different things, and can sometimes be very different.
+
+These problems were observed in testing and this is why the scanner's
+wait_on_page() (and, iirc, wait_on_buffer()) calls were replaced with
+congestion_wait() sometime back in the 17th century.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
