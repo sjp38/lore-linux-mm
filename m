@@ -1,222 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 7D6116B0002
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 05:07:57 -0400 (EDT)
-From: Glauber Costa <glommer@openvz.org>
-Subject: [PATCH] fs: bump inode and dentry counters to long
-Date: Wed, 15 May 2013 13:08:49 +0400
-Message-Id: <1368608929-12582-1-git-send-email-glommer@openvz.org>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id DFECF6B0002
+	for <linux-mm@kvack.org>; Wed, 15 May 2013 05:35:26 -0400 (EDT)
+Message-ID: <5193564F.9090408@cn.fujitsu.com>
+Date: Wed, 15 May 2013 17:33:03 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v6 1/8] vmcore: clean up read_vmcore()
+References: <20130515090507.28109.28956.stgit@localhost6.localdomain6> <20130515090545.28109.86085.stgit@localhost6.localdomain6>
+In-Reply-To: <20130515090545.28109.86085.stgit@localhost6.localdomain6>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org
-Cc: Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>
+To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Cc: vgoyal@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
 
-There are situations in very large machines in which we can have a large
-quantity of dirty inodes, unused dentries, etc. This is particularly
-true when umounting a filesystem, where eventually since every live
-object will eventually be discarded.
+=E4=BA=8E 2013=E5=B9=B405=E6=9C=8815=E6=97=A5 17:05, HATAYAMA Daisuke =E5=
+=86=99=E9=81=93:
+> Rewrite part of read=5Fvmcore() that reads objects in vmcore=5Flist in the
+> same way as part reading ELF headers, by which some duplicated and
+> redundant codes are removed.
+>=20
+> Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+> Acked-by: Vivek Goyal <vgoyal@redhat.com>
 
-Dave Chinner reported a problem with this while experimenting with the
-shrinker revamp patchset. So we believe it is time for a change. This
-patch just moves int to longs. Machines where it matters should have a
-big long anyway.
+This cleanup really makes the code more clear.
 
-Signed-off-by: Glauber Costa <glommer@openvz.org>
-Cc: Dave Chinner <dchinner@redhat.com
-Cc: Al Viro <viro@zeniv.linux.org.uk>
----
- fs/dcache.c             |  6 +++---
- fs/inode.c              | 18 +++++++++---------
- fs/internal.h           |  2 +-
- include/linux/dcache.h  | 10 +++++-----
- include/linux/fs.h      |  4 ++--
- include/uapi/linux/fs.h |  6 +++---
- kernel/sysctl.c         |  6 +++---
- 7 files changed, 26 insertions(+), 26 deletions(-)
+Just one minor nitpick below.
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index f09b908..59f5851 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -117,10 +117,10 @@ struct dentry_stat_t dentry_stat = {
- 	.age_limit = 45,
- };
- 
--static DEFINE_PER_CPU(unsigned int, nr_dentry);
-+static DEFINE_PER_CPU(long, nr_dentry);
- 
- #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
--static int get_nr_dentry(void)
-+static long get_nr_dentry(void)
- {
- 	int i;
- 	int sum = 0;
-@@ -133,7 +133,7 @@ int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
- 		   size_t *lenp, loff_t *ppos)
- {
- 	dentry_stat.nr_dentry = get_nr_dentry();
--	return proc_dointvec(table, write, buffer, lenp, ppos);
-+	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
- }
- #endif
- 
-diff --git a/fs/inode.c b/fs/inode.c
-index 00d5fc3..ff29765 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -70,33 +70,33 @@ EXPORT_SYMBOL(empty_aops);
-  */
- struct inodes_stat_t inodes_stat;
- 
--static DEFINE_PER_CPU(unsigned int, nr_inodes);
--static DEFINE_PER_CPU(unsigned int, nr_unused);
-+static DEFINE_PER_CPU(unsigned long, nr_inodes);
-+static DEFINE_PER_CPU(unsigned long, nr_unused);
- 
- static struct kmem_cache *inode_cachep __read_mostly;
- 
--static int get_nr_inodes(void)
-+static long get_nr_inodes(void)
- {
- 	int i;
--	int sum = 0;
-+	long sum = 0;
- 	for_each_possible_cpu(i)
- 		sum += per_cpu(nr_inodes, i);
- 	return sum < 0 ? 0 : sum;
- }
- 
--static inline int get_nr_inodes_unused(void)
-+static inline long get_nr_inodes_unused(void)
- {
- 	int i;
--	int sum = 0;
-+	long sum = 0;
- 	for_each_possible_cpu(i)
- 		sum += per_cpu(nr_unused, i);
- 	return sum < 0 ? 0 : sum;
- }
- 
--int get_nr_dirty_inodes(void)
-+long get_nr_dirty_inodes(void)
- {
- 	/* not actually dirty inodes, but a wild approximation */
--	int nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
-+	long nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
- 	return nr_dirty > 0 ? nr_dirty : 0;
- }
- 
-@@ -109,7 +109,7 @@ int proc_nr_inodes(ctl_table *table, int write,
- {
- 	inodes_stat.nr_inodes = get_nr_inodes();
- 	inodes_stat.nr_unused = get_nr_inodes_unused();
--	return proc_dointvec(table, write, buffer, lenp, ppos);
-+	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
- }
- #endif
- 
-diff --git a/fs/internal.h b/fs/internal.h
-index eaa75f7..cd5009f 100644
---- a/fs/internal.h
-+++ b/fs/internal.h
-@@ -117,7 +117,7 @@ extern void inode_add_lru(struct inode *inode);
-  */
- extern void inode_wb_list_del(struct inode *inode);
- 
--extern int get_nr_dirty_inodes(void);
-+extern long get_nr_dirty_inodes(void);
- extern void evict_inodes(struct super_block *);
- extern int invalidate_inodes(struct super_block *, bool);
- 
-diff --git a/include/linux/dcache.h b/include/linux/dcache.h
-index 1a6bb81..1a82bdb 100644
---- a/include/linux/dcache.h
-+++ b/include/linux/dcache.h
-@@ -54,11 +54,11 @@ struct qstr {
- #define hashlen_len(hashlen)  ((u32)((hashlen) >> 32))
- 
- struct dentry_stat_t {
--	int nr_dentry;
--	int nr_unused;
--	int age_limit;          /* age in seconds */
--	int want_pages;         /* pages requested by system */
--	int dummy[2];
-+	long nr_dentry;
-+	long nr_unused;
-+	long age_limit;          /* age in seconds */
-+	long want_pages;         /* pages requested by system */
-+	long dummy[2];
- };
- extern struct dentry_stat_t dentry_stat;
- 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 0a9a6766..34036c0 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1265,12 +1265,12 @@ struct super_block {
- 	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */
- 	/* s_dentry_lru, s_nr_dentry_unused protected by dcache.c lru locks */
- 	struct list_head	s_dentry_lru;	/* unused dentry lru */
--	int			s_nr_dentry_unused;	/* # of dentry on lru */
-+	long			s_nr_dentry_unused;	/* # of dentry on lru */
- 
- 	/* s_inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
- 	spinlock_t		s_inode_lru_lock ____cacheline_aligned_in_smp;
- 	struct list_head	s_inode_lru;		/* unused inode lru */
--	int			s_nr_inodes_unused;	/* # of inodes on lru */
-+	long			s_nr_inodes_unused;	/* # of inodes on lru */
- 
- 	struct block_device	*s_bdev;
- 	struct backing_dev_info *s_bdi;
-diff --git a/include/uapi/linux/fs.h b/include/uapi/linux/fs.h
-index a4ed56c..6c28b61 100644
---- a/include/uapi/linux/fs.h
-+++ b/include/uapi/linux/fs.h
-@@ -49,9 +49,9 @@ struct files_stat_struct {
- };
- 
- struct inodes_stat_t {
--	int nr_inodes;
--	int nr_unused;
--	int dummy[5];		/* padding for sysctl ABI compatibility */
-+	long nr_inodes;
-+	long nr_unused;
-+	long dummy[5];		/* padding for sysctl ABI compatibility */
- };
- 
- 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 9edcf45..fb90f7c 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1456,14 +1456,14 @@ static struct ctl_table fs_table[] = {
- 	{
- 		.procname	= "inode-nr",
- 		.data		= &inodes_stat,
--		.maxlen		= 2*sizeof(int),
-+		.maxlen		= 2*sizeof(long),
- 		.mode		= 0444,
- 		.proc_handler	= proc_nr_inodes,
- 	},
- 	{
- 		.procname	= "inode-state",
- 		.data		= &inodes_stat,
--		.maxlen		= 7*sizeof(int),
-+		.maxlen		= 7*sizeof(long),
- 		.mode		= 0444,
- 		.proc_handler	= proc_nr_inodes,
- 	},
-@@ -1493,7 +1493,7 @@ static struct ctl_table fs_table[] = {
- 	{
- 		.procname	= "dentry-state",
- 		.data		= &dentry_stat,
--		.maxlen		= 6*sizeof(int),
-+		.maxlen		= 6*sizeof(long),
- 		.mode		= 0444,
- 		.proc_handler	= proc_nr_dentry,
- 	},
--- 
-1.8.1.4
+Acked-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+
+> ---
+>=20
+>  fs/proc/vmcore.c |   68 ++++++++++++++++--------------------------------=
+------
+>  1 files changed, 20 insertions(+), 48 deletions(-)
+>=20
+> diff --git a/fs/proc/vmcore.c b/fs/proc/vmcore.c
+> index 17f7e08..ab0c92e 100644
+> --- a/fs/proc/vmcore.c
+> +++ b/fs/proc/vmcore.c
+> @@ -118,27 +118,6 @@ static ssize=5Ft read=5Ffrom=5Foldmem(char *buf, siz=
+e=5Ft count,
+>  	return read;
+>  }
+> =20
+> -/* Maps vmcore file offset to respective physical address in memroy. */
+> -static u64 map=5Foffset=5Fto=5Fpaddr(loff=5Ft offset, struct list=5Fhead=
+ *vc=5Flist,
+> -					struct vmcore **m=5Fptr)
+> -{
+> -	struct vmcore *m;
+> -	u64 paddr;
+> -
+> -	list=5Ffor=5Feach=5Fentry(m, vc=5Flist, list) {
+> -		u64 start, end;
+> -		start =3D m->offset;
+> -		end =3D m->offset + m->size - 1;
+> -		if (offset >=3D start && offset <=3D end) {
+> -			paddr =3D m->paddr + offset - start;
+> -			*m=5Fptr =3D m;
+> -			return paddr;
+> -		}
+> -	}
+> -	*m=5Fptr =3D NULL;
+> -	return 0;
+> -}
+> -
+>  /* Read from the ELF header and then the crash dump. On error, negative =
+value is
+>   * returned otherwise number of bytes read are returned.
+>   */
+> @@ -147,8 +126,8 @@ static ssize=5Ft read=5Fvmcore(struct file *file, cha=
+r =5F=5Fuser *buffer,
+>  {
+>  	ssize=5Ft acc =3D 0, tmp;
+>  	size=5Ft tsz;
+> -	u64 start, nr=5Fbytes;
+> -	struct vmcore *curr=5Fm =3D NULL;
+> +	u64 start;
+> +	struct vmcore *m =3D NULL;
+> =20
+>  	if (buflen =3D=3D 0 || *fpos >=3D vmcore=5Fsize)
+>  		return 0;
+> @@ -174,33 +153,26 @@ static ssize=5Ft read=5Fvmcore(struct file *file, c=
+har =5F=5Fuser *buffer,
+>  			return acc;
+>  	}
+> =20
+> -	start =3D map=5Foffset=5Fto=5Fpaddr(*fpos, &vmcore=5Flist, &curr=5Fm);
+> -	if (!curr=5Fm)
+> -        	return -EINVAL;
+> -
+> -	while (buflen) {
+> -		tsz =3D min=5Ft(size=5Ft, buflen, PAGE=5FSIZE - (start & ~PAGE=5FMASK)=
+);
+> -
+> -		/* Calculate left bytes in current memory segment. */
+> -		nr=5Fbytes =3D (curr=5Fm->size - (start - curr=5Fm->paddr));
+> -		if (tsz > nr=5Fbytes)
+> -			tsz =3D nr=5Fbytes;
+> -
+> -		tmp =3D read=5Ffrom=5Foldmem(buffer, tsz, &start, 1);
+> -		if (tmp < 0)
+> -			return tmp;
+> -		buflen -=3D tsz;
+> -		*fpos +=3D tsz;
+> -		buffer +=3D tsz;
+> -		acc +=3D tsz;
+> -		if (start >=3D (curr=5Fm->paddr + curr=5Fm->size)) {
+> -			if (curr=5Fm->list.next =3D=3D &vmcore=5Flist)
+> -				return acc;	/*EOF*/
+> -			curr=5Fm =3D list=5Fentry(curr=5Fm->list.next,
+> -						struct vmcore, list);
+> -			start =3D curr=5Fm->paddr;
+> +	list=5Ffor=5Feach=5Fentry(m, &vmcore=5Flist, list) {
+> +		if (*fpos < m->offset + m->size) {
+> +			tsz =3D m->offset + m->size - *fpos;
+> +			if (buflen < tsz)
+> +				tsz =3D buflen;
+
+if (tsz > buflen)
+        tsz =3D buflen;
+
+seems better.
+
+Or you can use a min=5Ft here:
+
+tsz =3D min=5Ft(size=5Ft, m->offset + m->size - *fpos, buflen);
+
+
+> +			start =3D m->paddr + *fpos - m->offset;
+> +			tmp =3D read=5Ffrom=5Foldmem(buffer, tsz, &start, 1);
+> +			if (tmp < 0)
+> +				return tmp;
+> +			buflen -=3D tsz;
+> +			*fpos +=3D tsz;
+> +			buffer +=3D tsz;
+> +			acc +=3D tsz;
+> +
+> +			/* leave now if filled buffer already */
+> +			if (buflen =3D=3D 0)
+> +				return acc;
+>  		}
+>  	}
+> +
+>  	return acc;
+>  }
+> =20
+>=20
+>=20
+
+=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
