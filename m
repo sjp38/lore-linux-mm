@@ -1,42 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 7838B6B0033
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 18:14:58 -0400 (EDT)
-Message-ID: <519408D6.10903@redhat.com>
-Date: Wed, 15 May 2013 18:14:46 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCHv11 3/4] zswap: add to mm/
-References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com> <1368448803-2089-4-git-send-email-sjenning@linux.vnet.ibm.com> <15c5b1da-132a-4c9e-9f24-bc272d3865d5@default> <20130514163541.GC4024@medulla> <f0272a06-141a-4d33-9976-ee99467f3aa2@default>
-In-Reply-To: <f0272a06-141a-4d33-9976-ee99467f3aa2@default>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 0DBA86B0032
+	for <linux-mm@kvack.org>; Wed, 15 May 2013 18:53:32 -0400 (EDT)
+Date: Wed, 15 May 2013 15:53:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/4] mm: pagevec: Defer deciding what LRU to add a page
+ to until pagevec drain time
+Message-Id: <20130515155330.35036978515a6d8e0fe98feb@linux-foundation.org>
+In-Reply-To: <1368440482-27909-3-git-send-email-mgorman@suse.de>
+References: <1368440482-27909-1-git-send-email-mgorman@suse.de>
+	<1368440482-27909-3-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>, Theodore Tso <tytso@mit.edu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>
 
-On 05/14/2013 04:18 PM, Dan Magenheimer wrote:
+On Mon, 13 May 2013 11:21:20 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
-> It's unfortunate that my proposed topic for LSFMM was pre-empted
-> by the zsmalloc vs zbud discussion and zswap vs zcache, because
-> I think the real challenge of zswap (or zcache) and the value to
-> distros and end users requires us to get this right BEFORE users
-> start filing bugs about performance weirdness.  After which most
-> users and distros will simply default to 0% (i.e. turn zswap off)
-> because zswap unpredictably sometimes sucks.
+> mark_page_accessed cannot activate an inactive page that is located on
+> an inactive LRU pagevec. Hints from filesystems may be ignored as a
+> result. In preparation for fixing that problem, this patch removes the
+> per-LRU pagevecs and leaves just one pagevec. The final LRU the page is
+> added to is deferred until the pagevec is drained.
+> 
+> This means that fewer pagevecs are available and potentially there is
+> greater contention on the LRU lock. However, this only applies in the case
+> where there is an almost perfect mix of file, anon, active and inactive
+> pages being added to the LRU. In practice I expect that we are adding
+> stream of pages of a particular time and that the changes in contention
+> will barely be measurable.
+> 
+> ...
+>
+> index c612a6a..0911579 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -39,7 +39,7 @@
+>  /* How many pages do we try to swap or page in/out together? */
+>  int page_cluster;
+>  
+> -static DEFINE_PER_CPU(struct pagevec[NR_LRU_LISTS], lru_add_pvecs);
+> +static DEFINE_PER_CPU(struct pagevec, lru_add_pvec);
+>  static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
+>  static DEFINE_PER_CPU(struct pagevec, lru_deactivate_pvecs);
+>  
+> @@ -460,13 +460,18 @@ EXPORT_SYMBOL(mark_page_accessed);
+>   */
 
-I'm not sure we can get it right before people actually start
-using it for real world setups, instead of just running benchmarks
-on it.
+The comment preceding __lru_cache_add() needs an update.
 
-The sooner we get the code out there, where users can play with
-it (even if it is disabled by default and needs a sysfs or
-sysctl config option to enable it), the sooner we will know how
-well it works, and what needs to be changed.
+>  void __lru_cache_add(struct page *page, enum lru_list lru)
+>  {
+> -	struct pagevec *pvec = &get_cpu_var(lru_add_pvecs)[lru];
+> +	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
+> +
+> +	if (is_active_lru(lru))
+> +		SetPageActive(page);
+> +	else
+> +		ClearPageActive(page);
 
--- 
-All rights reversed
+The whole use of `enum lru_list' here has always made my cry, but I'll weep
+about that in [4/4].
+
+>  	page_cache_get(page);
+>  	if (!pagevec_space(pvec))
+>  		__pagevec_lru_add(pvec, lru);
+>  	pagevec_add(pvec, page);
+> -	put_cpu_var(lru_add_pvecs);
+> +	put_cpu_var(lru_add_pvec);
+>  }
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
