@@ -1,167 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 213E16B003C
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 05:06:29 -0400 (EDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id C61343EE0B6
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 18:06:27 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id B3C7545DE53
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 18:06:27 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 9012D45DE4D
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 18:06:27 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B2B31DB8044
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 18:06:27 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1F4F81DB803C
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 18:06:27 +0900 (JST)
-From: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Subject: [PATCH v6 8/8] vmcore: support mmap() on /proc/vmcore
-Date: Wed, 15 May 2013 18:06:26 +0900
-Message-ID: <20130515090626.28109.95938.stgit@localhost6.localdomain6>
-In-Reply-To: <20130515090507.28109.28956.stgit@localhost6.localdomain6>
-References: <20130515090507.28109.28956.stgit@localhost6.localdomain6>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 7D6116B0002
+	for <linux-mm@kvack.org>; Wed, 15 May 2013 05:07:57 -0400 (EDT)
+From: Glauber Costa <glommer@openvz.org>
+Subject: [PATCH] fs: bump inode and dentry counters to long
+Date: Wed, 15 May 2013 13:08:49 +0400
+Message-Id: <1368608929-12582-1-git-send-email-glommer@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vgoyal@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org
-Cc: cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
+To: linux-fsdevel@vger.kernel.org
+Cc: Mel Gorman <mgorman@suse.de>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>
 
-This patch introduces mmap_vmcore().
+There are situations in very large machines in which we can have a large
+quantity of dirty inodes, unused dentries, etc. This is particularly
+true when umounting a filesystem, where eventually since every live
+object will eventually be discarded.
 
-Don't permit writable nor executable mapping even with mprotect()
-because this mmap() is aimed at reading crash dump memory.
-Non-writable mapping is also requirement of remap_pfn_range() when
-mapping linear pages on non-consecutive physical pages; see
-is_cow_mapping().
+Dave Chinner reported a problem with this while experimenting with the
+shrinker revamp patchset. So we believe it is time for a change. This
+patch just moves int to longs. Machines where it matters should have a
+big long anyway.
 
-Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by
-remap_vmalloc_range_pertial at the same time for a single
-vma. do_munmap() can correctly clean partially remapped vma with two
-functions in abnormal case. See zap_pte_range(), vm_normal_page() and
-their comments for details.
-
-On x86-32 PAE kernels, mmap() supports at most 16TB memory only. This
-limitation comes from the fact that the third argument of
-remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned long.
-
-Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Signed-off-by: Glauber Costa <glommer@openvz.org>
+Cc: Dave Chinner <dchinner@redhat.com
+Cc: Al Viro <viro@zeniv.linux.org.uk>
 ---
+ fs/dcache.c             |  6 +++---
+ fs/inode.c              | 18 +++++++++---------
+ fs/internal.h           |  2 +-
+ include/linux/dcache.h  | 10 +++++-----
+ include/linux/fs.h      |  4 ++--
+ include/uapi/linux/fs.h |  6 +++---
+ kernel/sysctl.c         |  6 +++---
+ 7 files changed, 26 insertions(+), 26 deletions(-)
 
- fs/proc/vmcore.c |   86 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 files changed, 86 insertions(+), 0 deletions(-)
-
-diff --git a/fs/proc/vmcore.c b/fs/proc/vmcore.c
-index 7f2041c..2c72487 100644
---- a/fs/proc/vmcore.c
-+++ b/fs/proc/vmcore.c
-@@ -20,6 +20,7 @@
- #include <linux/init.h>
- #include <linux/crash_dump.h>
- #include <linux/list.h>
-+#include <linux/vmalloc.h>
- #include <asm/uaccess.h>
- #include <asm/io.h>
- #include "internal.h"
-@@ -200,9 +201,94 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
- 	return acc;
- }
- 
-+static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
-+{
-+	size_t size = vma->vm_end - vma->vm_start;
-+	u64 start, end, len, tsz;
-+	struct vmcore *m;
-+
-+	start = (u64)vma->vm_pgoff << PAGE_SHIFT;
-+	end = start + size;
-+
-+	if (size > vmcore_size || end > vmcore_size)
-+		return -EINVAL;
-+
-+	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
-+		return -EPERM;
-+
-+	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
-+	vma->vm_flags |= VM_MIXEDMAP;
-+
-+	len = 0;
-+
-+	if (start < elfcorebuf_sz) {
-+		u64 pfn;
-+
-+		tsz = elfcorebuf_sz - start;
-+		if (size < tsz)
-+			tsz = size;
-+		pfn = __pa(elfcorebuf + start) >> PAGE_SHIFT;
-+		if (remap_pfn_range(vma, vma->vm_start, pfn, tsz,
-+				    vma->vm_page_prot))
-+			return -EAGAIN;
-+		size -= tsz;
-+		start += tsz;
-+		len += tsz;
-+
-+		if (size == 0)
-+			return 0;
-+	}
-+
-+	if (start < elfcorebuf_sz + elfnotes_sz) {
-+		void *kaddr;
-+
-+		tsz = elfcorebuf_sz + elfnotes_sz - start;
-+		if (size < tsz)
-+			tsz = size;
-+		kaddr = elfnotes_buf + start - elfcorebuf_sz;
-+		if (remap_vmalloc_range_partial(vma, vma->vm_start + len,
-+						kaddr, tsz)) {
-+			do_munmap(vma->vm_mm, vma->vm_start, len);
-+			return -EAGAIN;
-+		}
-+		size -= tsz;
-+		start += tsz;
-+		len += tsz;
-+
-+		if (size == 0)
-+			return 0;
-+	}
-+
-+	list_for_each_entry(m, &vmcore_list, list) {
-+		if (start < m->offset + m->size) {
-+			u64 paddr = 0;
-+
-+			tsz = m->offset + m->size - start;
-+			if (size < tsz)
-+				tsz = size;
-+			paddr = m->paddr + start - m->offset;
-+			if (remap_pfn_range(vma, vma->vm_start + len,
-+					    paddr >> PAGE_SHIFT, tsz,
-+					    vma->vm_page_prot)) {
-+				do_munmap(vma->vm_mm, vma->vm_start, len);
-+				return -EAGAIN;
-+			}
-+			size -= tsz;
-+			start += tsz;
-+			len += tsz;
-+
-+			if (size == 0)
-+				return 0;
-+		}
-+	}
-+
-+	return 0;
-+}
-+
- static const struct file_operations proc_vmcore_operations = {
- 	.read		= read_vmcore,
- 	.llseek		= default_llseek,
-+	.mmap		= mmap_vmcore,
+diff --git a/fs/dcache.c b/fs/dcache.c
+index f09b908..59f5851 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -117,10 +117,10 @@ struct dentry_stat_t dentry_stat = {
+ 	.age_limit = 45,
  };
  
- static struct vmcore* __init get_new_element(void)
+-static DEFINE_PER_CPU(unsigned int, nr_dentry);
++static DEFINE_PER_CPU(long, nr_dentry);
+ 
+ #if defined(CONFIG_SYSCTL) && defined(CONFIG_PROC_FS)
+-static int get_nr_dentry(void)
++static long get_nr_dentry(void)
+ {
+ 	int i;
+ 	int sum = 0;
+@@ -133,7 +133,7 @@ int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
+ 		   size_t *lenp, loff_t *ppos)
+ {
+ 	dentry_stat.nr_dentry = get_nr_dentry();
+-	return proc_dointvec(table, write, buffer, lenp, ppos);
++	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+ }
+ #endif
+ 
+diff --git a/fs/inode.c b/fs/inode.c
+index 00d5fc3..ff29765 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -70,33 +70,33 @@ EXPORT_SYMBOL(empty_aops);
+  */
+ struct inodes_stat_t inodes_stat;
+ 
+-static DEFINE_PER_CPU(unsigned int, nr_inodes);
+-static DEFINE_PER_CPU(unsigned int, nr_unused);
++static DEFINE_PER_CPU(unsigned long, nr_inodes);
++static DEFINE_PER_CPU(unsigned long, nr_unused);
+ 
+ static struct kmem_cache *inode_cachep __read_mostly;
+ 
+-static int get_nr_inodes(void)
++static long get_nr_inodes(void)
+ {
+ 	int i;
+-	int sum = 0;
++	long sum = 0;
+ 	for_each_possible_cpu(i)
+ 		sum += per_cpu(nr_inodes, i);
+ 	return sum < 0 ? 0 : sum;
+ }
+ 
+-static inline int get_nr_inodes_unused(void)
++static inline long get_nr_inodes_unused(void)
+ {
+ 	int i;
+-	int sum = 0;
++	long sum = 0;
+ 	for_each_possible_cpu(i)
+ 		sum += per_cpu(nr_unused, i);
+ 	return sum < 0 ? 0 : sum;
+ }
+ 
+-int get_nr_dirty_inodes(void)
++long get_nr_dirty_inodes(void)
+ {
+ 	/* not actually dirty inodes, but a wild approximation */
+-	int nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
++	long nr_dirty = get_nr_inodes() - get_nr_inodes_unused();
+ 	return nr_dirty > 0 ? nr_dirty : 0;
+ }
+ 
+@@ -109,7 +109,7 @@ int proc_nr_inodes(ctl_table *table, int write,
+ {
+ 	inodes_stat.nr_inodes = get_nr_inodes();
+ 	inodes_stat.nr_unused = get_nr_inodes_unused();
+-	return proc_dointvec(table, write, buffer, lenp, ppos);
++	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+ }
+ #endif
+ 
+diff --git a/fs/internal.h b/fs/internal.h
+index eaa75f7..cd5009f 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -117,7 +117,7 @@ extern void inode_add_lru(struct inode *inode);
+  */
+ extern void inode_wb_list_del(struct inode *inode);
+ 
+-extern int get_nr_dirty_inodes(void);
++extern long get_nr_dirty_inodes(void);
+ extern void evict_inodes(struct super_block *);
+ extern int invalidate_inodes(struct super_block *, bool);
+ 
+diff --git a/include/linux/dcache.h b/include/linux/dcache.h
+index 1a6bb81..1a82bdb 100644
+--- a/include/linux/dcache.h
++++ b/include/linux/dcache.h
+@@ -54,11 +54,11 @@ struct qstr {
+ #define hashlen_len(hashlen)  ((u32)((hashlen) >> 32))
+ 
+ struct dentry_stat_t {
+-	int nr_dentry;
+-	int nr_unused;
+-	int age_limit;          /* age in seconds */
+-	int want_pages;         /* pages requested by system */
+-	int dummy[2];
++	long nr_dentry;
++	long nr_unused;
++	long age_limit;          /* age in seconds */
++	long want_pages;         /* pages requested by system */
++	long dummy[2];
+ };
+ extern struct dentry_stat_t dentry_stat;
+ 
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 0a9a6766..34036c0 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1265,12 +1265,12 @@ struct super_block {
+ 	struct list_head	s_mounts;	/* list of mounts; _not_ for fs use */
+ 	/* s_dentry_lru, s_nr_dentry_unused protected by dcache.c lru locks */
+ 	struct list_head	s_dentry_lru;	/* unused dentry lru */
+-	int			s_nr_dentry_unused;	/* # of dentry on lru */
++	long			s_nr_dentry_unused;	/* # of dentry on lru */
+ 
+ 	/* s_inode_lru_lock protects s_inode_lru and s_nr_inodes_unused */
+ 	spinlock_t		s_inode_lru_lock ____cacheline_aligned_in_smp;
+ 	struct list_head	s_inode_lru;		/* unused inode lru */
+-	int			s_nr_inodes_unused;	/* # of inodes on lru */
++	long			s_nr_inodes_unused;	/* # of inodes on lru */
+ 
+ 	struct block_device	*s_bdev;
+ 	struct backing_dev_info *s_bdi;
+diff --git a/include/uapi/linux/fs.h b/include/uapi/linux/fs.h
+index a4ed56c..6c28b61 100644
+--- a/include/uapi/linux/fs.h
++++ b/include/uapi/linux/fs.h
+@@ -49,9 +49,9 @@ struct files_stat_struct {
+ };
+ 
+ struct inodes_stat_t {
+-	int nr_inodes;
+-	int nr_unused;
+-	int dummy[5];		/* padding for sysctl ABI compatibility */
++	long nr_inodes;
++	long nr_unused;
++	long dummy[5];		/* padding for sysctl ABI compatibility */
+ };
+ 
+ 
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 9edcf45..fb90f7c 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -1456,14 +1456,14 @@ static struct ctl_table fs_table[] = {
+ 	{
+ 		.procname	= "inode-nr",
+ 		.data		= &inodes_stat,
+-		.maxlen		= 2*sizeof(int),
++		.maxlen		= 2*sizeof(long),
+ 		.mode		= 0444,
+ 		.proc_handler	= proc_nr_inodes,
+ 	},
+ 	{
+ 		.procname	= "inode-state",
+ 		.data		= &inodes_stat,
+-		.maxlen		= 7*sizeof(int),
++		.maxlen		= 7*sizeof(long),
+ 		.mode		= 0444,
+ 		.proc_handler	= proc_nr_inodes,
+ 	},
+@@ -1493,7 +1493,7 @@ static struct ctl_table fs_table[] = {
+ 	{
+ 		.procname	= "dentry-state",
+ 		.data		= &dentry_stat,
+-		.maxlen		= 6*sizeof(int),
++		.maxlen		= 6*sizeof(long),
+ 		.mode		= 0444,
+ 		.proc_handler	= proc_nr_dentry,
+ 	},
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
