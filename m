@@ -1,53 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 6F8526B0033
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 14:10:53 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id w60so1926732wes.17
-        for <linux-mm@kvack.org>; Wed, 15 May 2013 11:10:51 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 35C876B0032
+	for <linux-mm@kvack.org>; Wed, 15 May 2013 14:55:25 -0400 (EDT)
+Date: Wed, 15 May 2013 14:55:06 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCHv11 3/4] zswap: add to mm/
+Message-ID: <20130515185506.GA23342@phenom.dumpdata.com>
+References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1368448803-2089-4-git-send-email-sjenning@linux.vnet.ibm.com>
+ <15c5b1da-132a-4c9e-9f24-bc272d3865d5@default>
+ <20130514163541.GC4024@medulla>
+ <f0272a06-141a-4d33-9976-ee99467f3aa2@default>
+ <20130514225501.GA11956@cerebellum>
+ <4d74f5db-11c1-4f58-97f4-8d96bbe601ac@default>
 MIME-Version: 1.0
-In-Reply-To: <1368637812-7329-1-git-send-email-sanweidaying@gmail.com>
-References: <1368637812-7329-1-git-send-email-sanweidaying@gmail.com>
-Date: Wed, 15 May 2013 21:10:51 +0300
-Message-ID: <CAOJsxLFEP1VvNib2ORWE+CSszCo9YGEiS0d946Fgs_22yfeEOQ@mail.gmail.com>
-Subject: Re: [PATCH] mm, slab: corrected the comment 'kmem_cache_alloc' to 'slab_alloc_node'
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4d74f5db-11c1-4f58-97f4-8d96bbe601ac@default>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouping Liu <sanweidaying@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Zhouping Liu <zliu@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, LKML <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Wed, May 15, 2013 at 8:10 PM, Zhouping Liu <sanweidaying@gmail.com> wrote:
-> From: Zhouping Liu <zliu@redhat.com>
->
-> commit 48356303ff(mm, slab: Rename __cache_alloc() -> slab_alloc())
-> forgot to update the comment 'kmem_cache_alloc' to 'slab_alloc_node'.
->
-> Signed-off-by: Zhouping Liu <zliu@redhat.com>
-> ---
->  mm/slab.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 8ccd296..8efb5f7 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -3339,7 +3339,7 @@ done:
->  }
->
->  /**
-> - * kmem_cache_alloc_node - Allocate an object on the specified node
-> + * slab_alloc_node - Allocate an object on the specified node
->   * @cachep: The cache to allocate from.
->   * @flags: See kmalloc().
->   * @nodeid: node number of the target node.
+> Sorry, but I don't think that's appropriate for a patch in the MM subsystem.
 
-The point of the comment is to document kernel API and whereas
-slab_alloc_node() is internal to the slab allocator. Can you please
-just move it on top of kmem_cache_alloc_node() definition in the same
-file?
+I am heading to the airport shortly so this email is a bit hastily typed.
 
-                        Pekka
+Perhaps a compromise can be reached where this code is merged as a driver
+not a core mm component. There is a high bar to be in the MM - it has to
+work with many many different configurations. 
+
+And drivers don't have such a high bar. They just need to work on a specific
+issue and that is it. If zswap ended up in say, drivers/mm that would make
+it more palpable I think.
+
+Thoughts?
+> 
+> Thanks,
+> Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
