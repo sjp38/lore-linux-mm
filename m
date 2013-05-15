@@ -1,104 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id B75066B0032
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 16:37:50 -0400 (EDT)
-Date: Wed, 15 May 2013 13:37:48 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/9] Reduce system disruption due to kswapd V4
-Message-Id: <20130515133748.5db2c6fb61c72ec61381d941@linux-foundation.org>
-In-Reply-To: <1368432760-21573-1-git-send-email-mgorman@suse.de>
-References: <1368432760-21573-1-git-send-email-mgorman@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 9CC446B0032
+	for <linux-mm@kvack.org>; Wed, 15 May 2013 16:45:22 -0400 (EDT)
+Message-ID: <5193F3CC.8020205@redhat.com>
+Date: Wed, 15 May 2013 16:45:00 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCHv11 3/4] zswap: add to mm/
+References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com> <1368448803-2089-4-git-send-email-sjenning@linux.vnet.ibm.com> <15c5b1da-132a-4c9e-9f24-bc272d3865d5@default> <20130514163541.GC4024@medulla> <f0272a06-141a-4d33-9976-ee99467f3aa2@default> <20130514225501.GA11956@cerebellum> <4d74f5db-11c1-4f58-97f4-8d96bbe601ac@default> <20130515185506.GA23342@phenom.dumpdata.com> <57917f43-ab37-4e82-b659-522e427fda7f@default>
+In-Reply-To: <57917f43-ab37-4e82-b659-522e427fda7f@default>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Mon, 13 May 2013 09:12:31 +0100 Mel Gorman <mgorman@suse.de> wrote:
-
-> This series does not fix all the current known problems with reclaim but
-> it addresses one important swapping bug when there is background IO.
-> 
-> ...
+On 05/15/2013 03:35 PM, Dan Magenheimer wrote:
+>> From: Konrad Rzeszutek Wilk
+>> Subject: Re: [PATCHv11 3/4] zswap: add to mm/
+>>
+>>> Sorry, but I don't think that's appropriate for a patch in the MM subsystem.
+>>
+>> I am heading to the airport shortly so this email is a bit hastily typed.
+>>
+>> Perhaps a compromise can be reached where this code is merged as a driver
+>> not a core mm component. There is a high bar to be in the MM - it has to
+>> work with many many different configurations.
+>>
+>> And drivers don't have such a high bar. They just need to work on a specific
+>> issue and that is it. If zswap ended up in say, drivers/mm that would make
+>> it more palpable I think.
+>>
+>> Thoughts?
 >
-> This was tested using memcached+memcachetest while some background IO
-> was in progress as implemented by the parallel IO tests implement in MM
-> Tests. memcachetest benchmarks how many operations/second memcached can
-> service and it is run multiple times. It starts with no background IO and
-> then re-runs the test with larger amounts of IO in the background to roughly
-> simulate a large copy in progress.  The expectation is that the IO should
-> have little or no impact on memcachetest which is running entirely in memory.
-> 
->                                         3.10.0-rc1                  3.10.0-rc1
->                                            vanilla            lessdisrupt-v4
-> Ops memcachetest-0M             22155.00 (  0.00%)          22180.00 (  0.11%)
-> Ops memcachetest-715M           22720.00 (  0.00%)          22355.00 ( -1.61%)
-> Ops memcachetest-2385M           3939.00 (  0.00%)          23450.00 (495.33%)
-> Ops memcachetest-4055M           3628.00 (  0.00%)          24341.00 (570.92%)
-> Ops io-duration-0M                  0.00 (  0.00%)              0.00 (  0.00%)
-> Ops io-duration-715M               12.00 (  0.00%)              7.00 ( 41.67%)
-> Ops io-duration-2385M             118.00 (  0.00%)             21.00 ( 82.20%)
-> Ops io-duration-4055M             162.00 (  0.00%)             36.00 ( 77.78%)
-> Ops swaptotal-0M                    0.00 (  0.00%)              0.00 (  0.00%)
-> Ops swaptotal-715M             140134.00 (  0.00%)             18.00 ( 99.99%)
-> Ops swaptotal-2385M            392438.00 (  0.00%)              0.00 (  0.00%)
-> Ops swaptotal-4055M            449037.00 (  0.00%)          27864.00 ( 93.79%)
-> Ops swapin-0M                       0.00 (  0.00%)              0.00 (  0.00%)
-> Ops swapin-715M                     0.00 (  0.00%)              0.00 (  0.00%)
-> Ops swapin-2385M               148031.00 (  0.00%)              0.00 (  0.00%)
-> Ops swapin-4055M               135109.00 (  0.00%)              0.00 (  0.00%)
-> Ops minorfaults-0M            1529984.00 (  0.00%)        1530235.00 ( -0.02%)
-> Ops minorfaults-715M          1794168.00 (  0.00%)        1613750.00 ( 10.06%)
-> Ops minorfaults-2385M         1739813.00 (  0.00%)        1609396.00 (  7.50%)
-> Ops minorfaults-4055M         1754460.00 (  0.00%)        1614810.00 (  7.96%)
-> Ops majorfaults-0M                  0.00 (  0.00%)              0.00 (  0.00%)
-> Ops majorfaults-715M              185.00 (  0.00%)            180.00 (  2.70%)
-> Ops majorfaults-2385M           24472.00 (  0.00%)            101.00 ( 99.59%)
-> Ops majorfaults-4055M           22302.00 (  0.00%)            229.00 ( 98.97%)
+> Hmmm...
+>
+> To me, that sounds like a really good compromise.
 
-I doubt if many people have the context to understand what these
-numbers really mean.  I don't.
+Come on, we all know that is nonsense.
 
-> Note how the vanilla kernels performance collapses when there is enough
-> IO taking place in the background. This drop in performance is part of
-> what users complain of when they start backups. Note how the swapin and
-> major fault figures indicate that processes were being pushed to swap
-> prematurely. With the series applied, there is no noticable performance
-> drop and while there is still some swap activity, it's tiny.
-> 
->                             3.10.0-rc1  3.10.0-rc1
->                                vanilla lessdisrupt-v4
-> Page Ins                       1234608      101892
-> Page Outs                     12446272    11810468
-> Swap Ins                        283406           0
-> Swap Outs                       698469       27882
-> Direct pages scanned                 0      136480
-> Kswapd pages scanned           6266537     5369364
-> Kswapd pages reclaimed         1088989      930832
-> Direct pages reclaimed               0      120901
-> Kswapd efficiency                  17%         17%
-> Kswapd velocity               5398.371    4635.115
-> Direct efficiency                 100%         88%
-> Direct velocity                  0.000     117.817
-> Percentage direct scans             0%          2%
-> Page writes by reclaim         1655843     4009929
-> Page writes file                957374     3982047
-> Page writes anon                698469       27882
-> Page reclaim immediate            5245        1745
-> Page rescued immediate               0           0
-> Slabs scanned                    33664       25216
-> Direct inode steals                  0           0
-> Kswapd inode steals              19409         778
+Sure, the zswap and zbud code may not be in their final state yet,
+but they belong in the mm/ directory, together with the cleancache
+code and all the other related bits of code.
 
-The reduction in inode steals might be a significant thing? 
-prune_icache_sb() does invalidate_mapping_pages() and can have the bad
-habit of shooting down a vast number of pagecache pages (for a large
-file) in a single hit.  Did this workload use large (and clean) files? 
-Did you run any test which would expose this effect?
+Lets put them in their final destination, and hope the code attracts
+attention by as many MM developers as can spare the time to help
+improve it.
 
-> ...
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
