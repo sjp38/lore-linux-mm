@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id D8EC36B0033
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 13:41:09 -0400 (EDT)
-Message-ID: <5193C8AA.206@redhat.com>
-Date: Wed, 15 May 2013 13:40:58 -0400
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 03E626B0033
+	for <linux-mm@kvack.org>; Wed, 15 May 2013 13:46:12 -0400 (EDT)
+Message-ID: <5193C9DA.8030504@redhat.com>
+Date: Wed, 15 May 2013 13:46:02 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] mm: Activate !PageLRU pages on mark_page_accessed
- if page is on local pagevec
-References: <1368440482-27909-1-git-send-email-mgorman@suse.de> <1368440482-27909-4-git-send-email-mgorman@suse.de>
-In-Reply-To: <1368440482-27909-4-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 4/4] mm: Remove lru parameter from __pagevec_lru_add and
+ remove parts of pagevec API
+References: <1368440482-27909-1-git-send-email-mgorman@suse.de> <1368440482-27909-5-git-send-email-mgorman@suse.de>
+In-Reply-To: <1368440482-27909-5-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,19 +18,18 @@ To: Mel Gorman <mgorman@suse.de>
 Cc: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>, Theodore Tso <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>
 
 On 05/13/2013 06:21 AM, Mel Gorman wrote:
-
-> In this case a PageActive page is added to the inactivate list and later the
-> inactive/active stats will get skewed. While the PageActive checks in vmscan
-> could be removed and potentially dealt with, a skew in the statistics would
-> be very difficult to detect. Hence this patch deals just with the common case
-> where a page being marked accessed has just been added to the local pagevec.
+> Now that the LRU to add a page to is decided at LRU-add time, remove the
+> misleading lru parameter from __pagevec_lru_add. A consequence of this is
+> that the pagevec_lru_add_file, pagevec_lru_add_anon and similar helpers
+> are misleading as the caller no longer has direct control over what LRU
+> the page is added to. Unused helpers are removed by this patch and existing
+> users of pagevec_lru_add_file() are converted to use lru_cache_add_file()
+> directly and use the per-cpu pagevecs instead of creating their own pagevec.
 >
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Reviewed-by: Jan Kara <jack@suse.cz>
 
-After thinking about it some more, I suspect the possible issue
-I outlined before should not be an issue in practice.
-
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 
 -- 
