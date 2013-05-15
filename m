@@ -1,10 +1,10 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 177DF6B0032
-	for <linux-mm@kvack.org>; Wed, 15 May 2013 16:56:11 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 019956B0032
+	for <linux-mm@kvack.org>; Wed, 15 May 2013 17:36:33 -0400 (EDT)
 MIME-Version: 1.0
-Message-ID: <25f0f975-d9aa-4e00-bc34-acfd9b86b6bd@default>
-Date: Wed, 15 May 2013 13:55:44 -0700 (PDT)
+Message-ID: <9a2b2fe9-4694-4cee-9131-a159b58e8bf5@default>
+Date: Wed, 15 May 2013 14:36:04 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
 Subject: RE: [PATCHv11 3/4] zswap: add to mm/
 References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com>
@@ -15,31 +15,27 @@ References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com>
  <20130514225501.GA11956@cerebellum>
  <4d74f5db-11c1-4f58-97f4-8d96bbe601ac@default>
  <20130515185506.GA23342@phenom.dumpdata.com>
- <20130515200942.GA17724@cerebellum> <5193EEE7.80603@sr71.net>
-In-Reply-To: <5193EEE7.80603@sr71.net>
-Content-Type: text/plain; charset=us-ascii
+ <57917f43-ab37-4e82-b659-522e427fda7f@default> <5193F3CC.8020205@redhat.com>
+In-Reply-To: <5193F3CC.8020205@redhat.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Konrad Wilk <konrad.wilk@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Konrad Wilk <konrad.wilk@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-> From: Dave Hansen [mailto:dave@sr71.net]
-> Sent: Wednesday, May 15, 2013 2:24 PM
-> To: Seth Jennings
-> Cc: Konrad Rzeszutek Wilk; Dan Magenheimer; Andrew Morton; Greg Kroah-Har=
-tman; Nitin Gupta; Minchan
-> Kim; Robert Jennings; Jenifer Hopper; Mel Gorman; Johannes Weiner; Rik va=
-n Riel; Larry Woodman;
-> Benjamin Herrenschmidt; Joe Perches; Joonsoo Kim; Cody P Schafer; Hugh Di=
-ckens; Paul Mackerras; linux-
-> mm@kvack.org; linux-kernel@vger.kernel.org; devel@driverdev.osuosl.org
+> From: Rik van Riel [mailto:riel@redhat.com]
 > Subject: Re: [PATCHv11 3/4] zswap: add to mm/
 >=20
-> On 05/15/2013 01:09 PM, Seth Jennings wrote:
-> > On Wed, May 15, 2013 at 02:55:06PM -0400, Konrad Rzeszutek Wilk wrote:
+> On 05/15/2013 03:35 PM, Dan Magenheimer wrote:
+> >> From: Konrad Rzeszutek Wilk
+> >> Subject: Re: [PATCHv11 3/4] zswap: add to mm/
+> >>
 > >>> Sorry, but I don't think that's appropriate for a patch in the MM sub=
 system.
+> >>
+> >> I am heading to the airport shortly so this email is a bit hastily typ=
+ed.
 > >>
 > >> Perhaps a compromise can be reached where this code is merged as a dri=
 ver
@@ -52,22 +48,57 @@ ecific
 > >> issue and that is it. If zswap ended up in say, drivers/mm that would =
 make
 > >> it more palpable I think.
+> >>
+> >> Thoughts?
+> >
+> > Hmmm...
+> >
+> > To me, that sounds like a really good compromise.
 >=20
-> The issue is not whether it is a loadable module or a driver.  Nobody
-> here is stupid enough to say, "hey, now it's a driver/module, all of the
-> complex VM interactions are finally fixed!"
+> Come on, we all know that is nonsense.
 >=20
-> If folks don't want this in their system, there's a way to turn it off,
-> today, with the sysfs tunables.  We don't need _another_ way to turn it
-> off at runtime (unloading the module/driver).
+> Sure, the zswap and zbud code may not be in their final state yet,
+> but they belong in the mm/ directory, together with the cleancache
+> code and all the other related bits of code.
+>=20
+> Lets put them in their final destination, and hope the code attracts
+> attention by as many MM developers as can spare the time to help
+> improve it.
 
-The issue is we KNOW the complex VM interactions are NOT fixed
-and there has been very very little breadth testing (i.e.
-across a wide range of workloads, and any attempts to show
-how much harm can come from enabling it.)
+Hi Rik --
 
-That's (at least borderline) acceptable in a driver that can
-be unloaded, but not in MM code IMHO.
+Seth has been hell-bent on getting SOME code into the kernel
+for over a year, since he found out that enabling zcache, a staging
+driver, resulted in a tainted kernel.  First it was promoting
+zcache+zsmalloc out of staging.  Then it was zswap+zsmalloc without
+writeback, then zswap+zsmalloc with writeback, and now zswap+zbud
+with writeback but without a sane policy for writeback.  All of
+that time, I've been arguing and trying to integrate compression more
+deeply and sensibly into MM, rather than just enabling compression as
+a toy that happens to speed up a few benchmarks.  (This,
+in a nutshell, was the feedback I got at LSFMM12 from Andrea and
+Mel... and I think also from you.)  Seth has resisted every
+step of the way, then integrated the functionality in question,
+adapted my code (or Nitin's), and called it his own.
+
+If you disagree with any of my arguments earlier in this thread,
+please say so.  Else, please reinforce that the MM subsystem
+needs to dynamically adapt to a broad range of workloads,
+which zswap does not (yet) do.  Zswap is not simple, it is
+simplistic*.
+
+IMHO, it may be OK for a driver to be ham-handed in its memory
+use, but that's not OK for something in mm/.  So I think merging
+zswap as a driver is a perfectly sensible compromise which lets
+Seth get his code upstream, allows users (and leading-edge distros)
+to experiment with compression, avoids these endless arguments,
+and allows those who care to move forward on how to deeply
+integrate compression into MM.
+
+Dan
+
+* simplistic, n., The tendency to oversimplify an issue or a problem
+  by ignoring complexities or complications.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
