@@ -1,163 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id A17376B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 16:44:45 -0400 (EDT)
-Date: Thu, 16 May 2013 16:44:37 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [PATCH v6 8/8] vmcore: support mmap() on /proc/vmcore
-Message-ID: <20130516204437.GH5904@redhat.com>
-References: <20130515090507.28109.28956.stgit@localhost6.localdomain6>
- <20130515090626.28109.95938.stgit@localhost6.localdomain6>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 7A4F86B0032
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 16:56:59 -0400 (EDT)
+Message-ID: <51954802.1040309@oracle.com>
+Date: Thu, 16 May 2013 16:56:34 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130515090626.28109.95938.stgit@localhost6.localdomain6>
+Subject: Re: [RFC v2 0/2] virtio_balloon: auto-ballooning support
+References: <1368111229-29847-1-git-send-email-lcapitulino@redhat.com>
+In-Reply-To: <1368111229-29847-1-git-send-email-lcapitulino@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-Cc: ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, riel@redhat.com, aquini@redhat.com, mst@redhat.com, amit.shah@redhat.com, anton@enomsg.org
 
-On Wed, May 15, 2013 at 06:06:26PM +0900, HATAYAMA Daisuke wrote:
-> This patch introduces mmap_vmcore().
+On 05/09/2013 10:53 AM, Luiz Capitulino wrote:
+> Hi,
 > 
-> Don't permit writable nor executable mapping even with mprotect()
-> because this mmap() is aimed at reading crash dump memory.
-> Non-writable mapping is also requirement of remap_pfn_range() when
-> mapping linear pages on non-consecutive physical pages; see
-> is_cow_mapping().
+> This series is a respin of automatic ballooning support I started
+> working on last year. Patch 2/2 contains all relevant technical
+> details and performance measurements results.
 > 
-> Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by
-> remap_vmalloc_range_pertial at the same time for a single
-> vma. do_munmap() can correctly clean partially remapped vma with two
-> functions in abnormal case. See zap_pte_range(), vm_normal_page() and
-> their comments for details.
-> 
-> On x86-32 PAE kernels, mmap() supports at most 16TB memory only. This
-> limitation comes from the fact that the third argument of
-> remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned long.
-> 
-> Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
-> ---
+> This is in RFC state because it's a work in progress.
 
-This one looks fine to me assuming vm folks like
-remap_vmalloc_range_partial().
+Hi Luiz,
 
-Acked-by: Vivek Goyal <vgoyal@redhat.com>
+Is there a virtio spec patch I could use to get it implemented on
+kvmtool?
 
-Thanks
-Vivek
 
-> 
->  fs/proc/vmcore.c |   86 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  1 files changed, 86 insertions(+), 0 deletions(-)
-> 
-> diff --git a/fs/proc/vmcore.c b/fs/proc/vmcore.c
-> index 7f2041c..2c72487 100644
-> --- a/fs/proc/vmcore.c
-> +++ b/fs/proc/vmcore.c
-> @@ -20,6 +20,7 @@
->  #include <linux/init.h>
->  #include <linux/crash_dump.h>
->  #include <linux/list.h>
-> +#include <linux/vmalloc.h>
->  #include <asm/uaccess.h>
->  #include <asm/io.h>
->  #include "internal.h"
-> @@ -200,9 +201,94 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
->  	return acc;
->  }
->  
-> +static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
-> +{
-> +	size_t size = vma->vm_end - vma->vm_start;
-> +	u64 start, end, len, tsz;
-> +	struct vmcore *m;
-> +
-> +	start = (u64)vma->vm_pgoff << PAGE_SHIFT;
-> +	end = start + size;
-> +
-> +	if (size > vmcore_size || end > vmcore_size)
-> +		return -EINVAL;
-> +
-> +	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
-> +		return -EPERM;
-> +
-> +	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
-> +	vma->vm_flags |= VM_MIXEDMAP;
-> +
-> +	len = 0;
-> +
-> +	if (start < elfcorebuf_sz) {
-> +		u64 pfn;
-> +
-> +		tsz = elfcorebuf_sz - start;
-> +		if (size < tsz)
-> +			tsz = size;
-> +		pfn = __pa(elfcorebuf + start) >> PAGE_SHIFT;
-> +		if (remap_pfn_range(vma, vma->vm_start, pfn, tsz,
-> +				    vma->vm_page_prot))
-> +			return -EAGAIN;
-> +		size -= tsz;
-> +		start += tsz;
-> +		len += tsz;
-> +
-> +		if (size == 0)
-> +			return 0;
-> +	}
-> +
-> +	if (start < elfcorebuf_sz + elfnotes_sz) {
-> +		void *kaddr;
-> +
-> +		tsz = elfcorebuf_sz + elfnotes_sz - start;
-> +		if (size < tsz)
-> +			tsz = size;
-> +		kaddr = elfnotes_buf + start - elfcorebuf_sz;
-> +		if (remap_vmalloc_range_partial(vma, vma->vm_start + len,
-> +						kaddr, tsz)) {
-> +			do_munmap(vma->vm_mm, vma->vm_start, len);
-> +			return -EAGAIN;
-> +		}
-> +		size -= tsz;
-> +		start += tsz;
-> +		len += tsz;
-> +
-> +		if (size == 0)
-> +			return 0;
-> +	}
-> +
-> +	list_for_each_entry(m, &vmcore_list, list) {
-> +		if (start < m->offset + m->size) {
-> +			u64 paddr = 0;
-> +
-> +			tsz = m->offset + m->size - start;
-> +			if (size < tsz)
-> +				tsz = size;
-> +			paddr = m->paddr + start - m->offset;
-> +			if (remap_pfn_range(vma, vma->vm_start + len,
-> +					    paddr >> PAGE_SHIFT, tsz,
-> +					    vma->vm_page_prot)) {
-> +				do_munmap(vma->vm_mm, vma->vm_start, len);
-> +				return -EAGAIN;
-> +			}
-> +			size -= tsz;
-> +			start += tsz;
-> +			len += tsz;
-> +
-> +			if (size == 0)
-> +				return 0;
-> +		}
-> +	}
-> +
-> +	return 0;
-> +}
-> +
->  static const struct file_operations proc_vmcore_operations = {
->  	.read		= read_vmcore,
->  	.llseek		= default_llseek,
-> +	.mmap		= mmap_vmcore,
->  };
->  
->  static struct vmcore* __init get_new_element(void)
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
