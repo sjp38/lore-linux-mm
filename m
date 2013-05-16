@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 289856B0033
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 07:11:34 -0400 (EDT)
-Date: Thu, 16 May 2013 14:10:48 +0300
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 22D396B0034
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 07:11:49 -0400 (EDT)
+Date: Thu, 16 May 2013 14:11:04 +0300
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: [PATCH v2 03/10] frv: uaccess s/might_sleep/might_fault/
-Message-ID: <89d860b7fb23b35e6a15beda9df6ebccf820a2f6.1368702323.git.mst@redhat.com>
+Subject: [PATCH v2 04/10] m32r: uaccess s/might_sleep/might_fault/
+Message-ID: <8b99c8a5fb9dc4ee9a39f96ecb3b9c02c97a8ba2.1368702323.git.mst@redhat.com>
 References: <cover.1368702323.git.mst@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -21,29 +21,66 @@ is if they fault. Make this explicit.
 
 Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
 ---
- arch/frv/include/asm/uaccess.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ arch/m32r/include/asm/uaccess.h | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/arch/frv/include/asm/uaccess.h b/arch/frv/include/asm/uaccess.h
-index 0b67ec5..3ac9a59 100644
---- a/arch/frv/include/asm/uaccess.h
-+++ b/arch/frv/include/asm/uaccess.h
-@@ -280,14 +280,14 @@ extern long __memcpy_user(void *dst, const void *src, unsigned long count);
- static inline unsigned long __must_check
- __copy_to_user(void __user *to, const void *from, unsigned long n)
- {
--       might_sleep();
-+       might_fault();
-        return __copy_to_user_inatomic(to, from, n);
- }
+diff --git a/arch/m32r/include/asm/uaccess.h b/arch/m32r/include/asm/uaccess.h
+index 1c7047b..84fe7ba 100644
+--- a/arch/m32r/include/asm/uaccess.h
++++ b/arch/m32r/include/asm/uaccess.h
+@@ -216,7 +216,7 @@ extern int fixup_exception(struct pt_regs *regs);
+ ({									\
+ 	long __gu_err = 0;						\
+ 	unsigned long __gu_val;						\
+-	might_sleep();							\
++	might_fault();							\
+ 	__get_user_size(__gu_val,(ptr),(size),__gu_err);		\
+ 	(x) = (__typeof__(*(ptr)))__gu_val;				\
+ 	__gu_err;							\
+@@ -227,7 +227,7 @@ extern int fixup_exception(struct pt_regs *regs);
+ 	long __gu_err = -EFAULT;					\
+ 	unsigned long __gu_val = 0;					\
+ 	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
+-	might_sleep();							\
++	might_fault();							\
+ 	if (access_ok(VERIFY_READ,__gu_addr,size))			\
+ 		__get_user_size(__gu_val,__gu_addr,(size),__gu_err);	\
+ 	(x) = (__typeof__(*(ptr)))__gu_val;				\
+@@ -295,7 +295,7 @@ do {									\
+ #define __put_user_nocheck(x,ptr,size)					\
+ ({									\
+ 	long __pu_err;							\
+-	might_sleep();							\
++	might_fault();							\
+ 	__put_user_size((x),(ptr),(size),__pu_err);			\
+ 	__pu_err;							\
+ })
+@@ -305,7 +305,7 @@ do {									\
+ ({									\
+ 	long __pu_err = -EFAULT;					\
+ 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
+-	might_sleep();							\
++	might_fault();							\
+ 	if (access_ok(VERIFY_WRITE,__pu_addr,size))			\
+ 		__put_user_size((x),__pu_addr,(size),__pu_err);		\
+ 	__pu_err;							\
+@@ -597,7 +597,7 @@ unsigned long __generic_copy_from_user(void *, const void __user *, unsigned lon
+  */
+ #define copy_to_user(to,from,n)				\
+ ({							\
+-	might_sleep();					\
++	might_fault();					\
+ 	__generic_copy_to_user((to),(from),(n));	\
+ })
  
- static inline unsigned long
- __copy_from_user(void *to, const void __user *from, unsigned long n)
- {
--       might_sleep();
-+       might_fault();
-        return __copy_from_user_inatomic(to, from, n);
- }
+@@ -638,7 +638,7 @@ unsigned long __generic_copy_from_user(void *, const void __user *, unsigned lon
+  */
+ #define copy_from_user(to,from,n)			\
+ ({							\
+-	might_sleep();					\
++	might_fault();					\
+ 	__generic_copy_from_user((to),(from),(n));	\
+ })
  
 -- 
 MST
