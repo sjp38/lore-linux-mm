@@ -1,222 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 31FC66B0038
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 16:35:02 -0400 (EDT)
-Subject: [RFCv2][PATCH 5/5] batch shrink_page_list() locking operations
-From: Dave Hansen <dave@sr71.net>
-Date: Thu, 16 May 2013 13:34:34 -0700
-References: <20130516203427.E3386936@viggo.jf.intel.com>
-In-Reply-To: <20130516203427.E3386936@viggo.jf.intel.com>
-Message-Id: <20130516203434.41DFD429@viggo.jf.intel.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id A17376B0032
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 16:44:45 -0400 (EDT)
+Date: Thu, 16 May 2013 16:44:37 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [PATCH v6 8/8] vmcore: support mmap() on /proc/vmcore
+Message-ID: <20130516204437.GH5904@redhat.com>
+References: <20130515090507.28109.28956.stgit@localhost6.localdomain6>
+ <20130515090626.28109.95938.stgit@localhost6.localdomain6>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130515090626.28109.95938.stgit@localhost6.localdomain6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, tim.c.chen@linux.intel.com, Dave Hansen <dave@sr71.net>
+To: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+Cc: ebiederm@xmission.com, akpm@linux-foundation.org, cpw@sgi.com, kumagai-atsushi@mxc.nes.nec.co.jp, lisa.mitchell@hp.com, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, zhangyanfei@cn.fujitsu.com, jingbai.ma@hp.com, linux-mm@kvack.org, riel@redhat.com, walken@google.com, hughd@google.com, kosaki.motohiro@jp.fujitsu.com
 
+On Wed, May 15, 2013 at 06:06:26PM +0900, HATAYAMA Daisuke wrote:
+> This patch introduces mmap_vmcore().
+> 
+> Don't permit writable nor executable mapping even with mprotect()
+> because this mmap() is aimed at reading crash dump memory.
+> Non-writable mapping is also requirement of remap_pfn_range() when
+> mapping linear pages on non-consecutive physical pages; see
+> is_cow_mapping().
+> 
+> Set VM_MIXEDMAP flag to remap memory by remap_pfn_range and by
+> remap_vmalloc_range_pertial at the same time for a single
+> vma. do_munmap() can correctly clean partially remapped vma with two
+> functions in abnormal case. See zap_pte_range(), vm_normal_page() and
+> their comments for details.
+> 
+> On x86-32 PAE kernels, mmap() supports at most 16TB memory only. This
+> limitation comes from the fact that the third argument of
+> remap_pfn_range(), pfn, is of 32-bit length on x86-32: unsigned long.
+> 
+> Signed-off-by: HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>
+> ---
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
-changes for v2:
- * remove batch_has_same_mapping() helper.  A local varible makes
-   the check cheaper and cleaner
- * Move batch draining later to where we already know
-   page_mapping().  This probably fixes a truncation race anyway
- * rename batch_for_mapping_removal -> batch_for_mapping_rm.  It
-   caused a line over 80 chars and needed shortening anyway.
- * Note: we only set 'batch_mapping' when there are pages in the
-   batch_for_mapping_rm list
+This one looks fine to me assuming vm folks like
+remap_vmalloc_range_partial().
 
---
+Acked-by: Vivek Goyal <vgoyal@redhat.com>
 
-We batch like this so that several pages can be freed with a
-single mapping->tree_lock acquisition/release pair.  This reduces
-the number of atomic operations and ensures that we do not bounce
-cachelines around.
+Thanks
+Vivek
 
-Tim Chen's earlier version of these patches just unconditionally
-created large batches of pages, even if they did not share a
-page_mapping().  This is a bit suboptimal for a few reasons:
-1. if we can not consolidate lock acquisitions, it makes little
-   sense to batch
-2. The page locks are held for long periods of time, so we only
-   want to do this when we are sure that we will gain a
-   substantial throughput improvement because we pay a latency
-   cost by holding the locks.
-
-This patch makes sure to only batch when all the pages on
-'batch_for_mapping_rm' continue to share a page_mapping().
-This only happens in practice in cases where pages in the same
-file are close to each other on the LRU.  That seems like a
-reasonable assumption.
-
-In a 128MB virtual machine doing kernel compiles, the average
-batch size when calling __remove_mapping_batch() is around 5,
-so this does seem to do some good in practice.
-
-On a 160-cpu system doing kernel compiles, I still saw an
-average batch length of about 2.8.  One promising feature:
-as the memory pressure went up, the average batches seem to
-have gotten larger.
-
-It has shown some substantial performance benefits on
-microbenchmarks.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
-
- linux.git-davehans/mm/vmscan.c |   95 +++++++++++++++++++++++++++++++++++++----
- 1 file changed, 86 insertions(+), 9 deletions(-)
-
-diff -puN mm/vmscan.c~create-remove_mapping_batch mm/vmscan.c
---- linux.git/mm/vmscan.c~create-remove_mapping_batch	2013-05-16 13:27:25.775185544 -0700
-+++ linux.git-davehans/mm/vmscan.c	2013-05-16 13:27:25.779185721 -0700
-@@ -552,6 +552,61 @@ int remove_mapping(struct address_space
- 	return 0;
- }
- 
-+/*
-+ * pages come in here (via remove_list) locked and leave unlocked
-+ * (on either ret_pages or free_pages)
-+ *
-+ * We do this batching so that we free batches of pages with a
-+ * single mapping->tree_lock acquisition/release.  This optimization
-+ * only makes sense when the pages on remove_list all share a
-+ * page_mapping().  If this is violated you will BUG_ON().
-+ */
-+static int __remove_mapping_batch(struct list_head *remove_list,
-+				  struct list_head *ret_pages,
-+				  struct list_head *free_pages)
-+{
-+	int nr_reclaimed = 0;
-+	struct address_space *mapping;
-+	struct page *page;
-+	LIST_HEAD(need_free_mapping);
-+
-+	if (list_empty(remove_list))
-+		return 0;
-+
-+	mapping = page_mapping(lru_to_page(remove_list));
-+	spin_lock_irq(&mapping->tree_lock);
-+	while (!list_empty(remove_list)) {
-+		page = lru_to_page(remove_list);
-+		BUG_ON(!PageLocked(page));
-+		BUG_ON(page_mapping(page) != mapping);
-+		list_del(&page->lru);
-+
-+		if (!__remove_mapping(mapping, page)) {
-+			unlock_page(page);
-+			list_add(&page->lru, ret_pages);
-+			continue;
-+		}
-+		list_add(&page->lru, &need_free_mapping);
-+	}
-+	spin_unlock_irq(&mapping->tree_lock);
-+
-+	while (!list_empty(&need_free_mapping)) {
-+		page = lru_to_page(&need_free_mapping);
-+		list_move(&page->list, free_pages);
-+		mapping_release_page(mapping, page);
-+		/*
-+		 * At this point, we have no other references and there is
-+		 * no way to pick any more up (removed from LRU, removed
-+		 * from pagecache). Can use non-atomic bitops now (and
-+		 * we obviously don't have to worry about waking up a process
-+		 * waiting on the page lock, because there are no references.
-+		 */
-+		__clear_page_locked(page);
-+		nr_reclaimed++;
-+	}
-+	return nr_reclaimed;
-+}
-+
- /**
-  * putback_lru_page - put previously isolated page onto appropriate LRU list
-  * @page: page to be put back to appropriate lru list
-@@ -700,6 +755,8 @@ static unsigned long shrink_page_list(st
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
-+	LIST_HEAD(batch_for_mapping_rm);
-+	struct address_space *batch_mapping = NULL;
- 	int pgactivate = 0;
- 	unsigned long nr_dirty = 0;
- 	unsigned long nr_congested = 0;
-@@ -718,6 +775,7 @@ static unsigned long shrink_page_list(st
- 		cond_resched();
- 
- 		page = lru_to_page(page_list);
-+
- 		list_del(&page->lru);
- 
- 		if (!trylock_page(page))
-@@ -776,6 +834,10 @@ static unsigned long shrink_page_list(st
- 				nr_writeback++;
- 				goto keep_locked;
- 			}
-+			/*
-+			 * batch_for_mapping_rm could be drained here
-+			 * if its lock_page()s hurt latency elsewhere.
-+			 */
- 			wait_on_page_writeback(page);
- 		}
- 
-@@ -805,6 +867,18 @@ static unsigned long shrink_page_list(st
- 		}
- 
- 		mapping = page_mapping(page);
-+		/*
-+		 * batching only makes sense when we can save lock
-+		 * acquisitions, so drain the previously-batched
-+		 * pages when we move over to a different mapping
-+		 */
-+		if (batch_mapping && (batch_mapping != mapping)) {
-+			nr_reclaimed +=
-+				__remove_mapping_batch(&batch_for_mapping_rm,
-+							&ret_pages,
-+							&free_pages);
-+			batch_mapping = NULL;
-+		}
- 
- 		/*
- 		 * The page is mapped into the page tables of one or more
-@@ -922,17 +996,18 @@ static unsigned long shrink_page_list(st
- 			}
- 		}
- 
--		if (!mapping || !__remove_mapping(mapping, page))
-+		if (!mapping)
- 			goto keep_locked;
--
- 		/*
--		 * At this point, we have no other references and there is
--		 * no way to pick any more up (removed from LRU, removed
--		 * from pagecache). Can use non-atomic bitops now (and
--		 * we obviously don't have to worry about waking up a process
--		 * waiting on the page lock, because there are no references.
-+		 * This list contains pages all in the same mapping, but
-+		 * in effectively random order and we hold lock_page()
-+		 * on *all* of them.  This can potentially cause lock
-+		 * ordering issues, but the reclaim code only trylocks
-+		 * them which saves us.
- 		 */
--		__clear_page_locked(page);
-+		list_add(&page->lru, &batch_for_mapping_rm);
-+		batch_mapping = mapping;
-+		continue;
- free_it:
- 		nr_reclaimed++;
- 
-@@ -963,7 +1038,9 @@ keep:
- 		list_add(&page->lru, &ret_pages);
- 		VM_BUG_ON(PageLRU(page) || PageUnevictable(page));
- 	}
--
-+	nr_reclaimed += __remove_mapping_batch(&batch_for_mapping_rm,
-+						&ret_pages,
-+						&free_pages);
- 	/*
- 	 * Tag a zone as congested if all the dirty pages encountered were
- 	 * backed by a congested BDI. In this case, reclaimers should just
-_
+> 
+>  fs/proc/vmcore.c |   86 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 files changed, 86 insertions(+), 0 deletions(-)
+> 
+> diff --git a/fs/proc/vmcore.c b/fs/proc/vmcore.c
+> index 7f2041c..2c72487 100644
+> --- a/fs/proc/vmcore.c
+> +++ b/fs/proc/vmcore.c
+> @@ -20,6 +20,7 @@
+>  #include <linux/init.h>
+>  #include <linux/crash_dump.h>
+>  #include <linux/list.h>
+> +#include <linux/vmalloc.h>
+>  #include <asm/uaccess.h>
+>  #include <asm/io.h>
+>  #include "internal.h"
+> @@ -200,9 +201,94 @@ static ssize_t read_vmcore(struct file *file, char __user *buffer,
+>  	return acc;
+>  }
+>  
+> +static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
+> +{
+> +	size_t size = vma->vm_end - vma->vm_start;
+> +	u64 start, end, len, tsz;
+> +	struct vmcore *m;
+> +
+> +	start = (u64)vma->vm_pgoff << PAGE_SHIFT;
+> +	end = start + size;
+> +
+> +	if (size > vmcore_size || end > vmcore_size)
+> +		return -EINVAL;
+> +
+> +	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
+> +		return -EPERM;
+> +
+> +	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
+> +	vma->vm_flags |= VM_MIXEDMAP;
+> +
+> +	len = 0;
+> +
+> +	if (start < elfcorebuf_sz) {
+> +		u64 pfn;
+> +
+> +		tsz = elfcorebuf_sz - start;
+> +		if (size < tsz)
+> +			tsz = size;
+> +		pfn = __pa(elfcorebuf + start) >> PAGE_SHIFT;
+> +		if (remap_pfn_range(vma, vma->vm_start, pfn, tsz,
+> +				    vma->vm_page_prot))
+> +			return -EAGAIN;
+> +		size -= tsz;
+> +		start += tsz;
+> +		len += tsz;
+> +
+> +		if (size == 0)
+> +			return 0;
+> +	}
+> +
+> +	if (start < elfcorebuf_sz + elfnotes_sz) {
+> +		void *kaddr;
+> +
+> +		tsz = elfcorebuf_sz + elfnotes_sz - start;
+> +		if (size < tsz)
+> +			tsz = size;
+> +		kaddr = elfnotes_buf + start - elfcorebuf_sz;
+> +		if (remap_vmalloc_range_partial(vma, vma->vm_start + len,
+> +						kaddr, tsz)) {
+> +			do_munmap(vma->vm_mm, vma->vm_start, len);
+> +			return -EAGAIN;
+> +		}
+> +		size -= tsz;
+> +		start += tsz;
+> +		len += tsz;
+> +
+> +		if (size == 0)
+> +			return 0;
+> +	}
+> +
+> +	list_for_each_entry(m, &vmcore_list, list) {
+> +		if (start < m->offset + m->size) {
+> +			u64 paddr = 0;
+> +
+> +			tsz = m->offset + m->size - start;
+> +			if (size < tsz)
+> +				tsz = size;
+> +			paddr = m->paddr + start - m->offset;
+> +			if (remap_pfn_range(vma, vma->vm_start + len,
+> +					    paddr >> PAGE_SHIFT, tsz,
+> +					    vma->vm_page_prot)) {
+> +				do_munmap(vma->vm_mm, vma->vm_start, len);
+> +				return -EAGAIN;
+> +			}
+> +			size -= tsz;
+> +			start += tsz;
+> +			len += tsz;
+> +
+> +			if (size == 0)
+> +				return 0;
+> +		}
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+>  static const struct file_operations proc_vmcore_operations = {
+>  	.read		= read_vmcore,
+>  	.llseek		= default_llseek,
+> +	.mmap		= mmap_vmcore,
+>  };
+>  
+>  static struct vmcore* __init get_new_element(void)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
