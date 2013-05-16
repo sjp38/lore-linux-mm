@@ -1,54 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id D21AF6B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 00:28:38 -0400 (EDT)
-Received: by mail-la0-f49.google.com with SMTP id fp13so1888580lab.8
-        for <linux-mm@kvack.org>; Wed, 15 May 2013 21:28:37 -0700 (PDT)
-Message-ID: <51946071.4030101@openvz.org>
-Date: Thu, 16 May 2013 08:28:33 +0400
-From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Message-ID: <5194748A.5070700@cn.fujitsu.com>
+Date: Thu, 16 May 2013 13:54:18 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 0/3] memcg: simply lock of page stat accounting
-References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com> <519380FC.1040504@openvz.org> <20130515134110.GD5455@dhcp22.suse.cz>
-In-Reply-To: <20130515134110.GD5455@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH V2 1/2] mm: hotplug: implement non-movable version of
+ get_user_pages() called get_user_pages_non_movable()
+References: <1360056113-14294-1-git-send-email-linfeng@cn.fujitsu.com> <1360056113-14294-2-git-send-email-linfeng@cn.fujitsu.com> <20130205120137.GG21389@suse.de> <20130206004234.GD11197@blaptop> <20130206095617.GN21389@suse.de> <5190AE4F.4000103@cn.fujitsu.com> <20130513091902.GP11497@suse.de> <5191B5B3.7080406@cn.fujitsu.com> <20130515132453.GB11497@suse.de>
+In-Reply-To: <20130515132453.GB11497@suse.de>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, hughd@google.com, gthelen@google.com, Sha Zhengju <handai.szj@taobao.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan@kernel.org>, Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, bcrl@kvack.org, viro@zeniv.linux.org.uk, khlebnikov@openvz.org, walken@google.com, kamezawa.hiroyu@jp.fujitsu.com, riel@redhat.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, zab@redhat.com, jmoyer@redhat.com, linux-mm@kvack.org, linux-aio@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-Michal Hocko wrote:
-> On Wed 15-05-13 16:35:08, Konstantin Khlebnikov wrote:
->> Sha Zhengju wrote:
->>> Hi,
->>>
->>> This is my second attempt to make memcg page stat lock simpler, the
->>> first version: http://www.spinics.net/lists/linux-mm/msg50037.html.
->>>
->>> In this version I investigate the potential race conditions among
->>> page stat, move_account, charge, uncharge and try to prove it race
->>> safe of my proposing lock scheme. The first patch is the basis of
->>> the patchset, so if I've made some stupid mistake please do not
->>> hesitate to point it out.
->>
->> I have a provocational question. Who needs these numbers? I mean
->> per-cgroup nr_mapped and so on.
+Hi Mel,
+
+On 05/15/2013 09:24 PM, Mel Gorman wrote:
+> If it is to be an address space operations sturcture then you'll need a
+> pseudo mapping structure for anonymous pages that are pinned by aio --
+> similar in principal to how swapper_space is used for managing PageSwapCache
+> or how anon_vma structures can be associated with a page.
 >
-> Well, I guess it makes some sense to know how much page cache and anon
-> memory is charged to the group. I am using that to monitor the per-group
-> memory usage. I can imagine a even better coverage - something
-> /proc/meminfo like.
+> However, I warn you that you may find that the address_space is the
+> wrong level to register such callbacks, it just seemed like the obvious
+> first choice. A potential alternative implementation is to create a 1:1
+> association between pages and a long-lived holder that is stored on a hash
+> table (similar style of arrangement as page_waitqueue).  A page is looked up
+> in the hash table and if an entry exists, it points to an callback structure
+> to the subsystem holding the pin. It's up to the subsystem to register the
+> callbacks when it is about to pin a page (get_user_pages_longlived(....,
+> &release_ops) and figure out how to release the pin safely.
 >
 
-I think page counters from lru-vectors can give enough information for that.
+OK, I'll try to figure out a proper place to put the callbacks.
+But I think we need to add something new to struct page. I'm just
+not sure if it is OK. Maybe we can discuss more about it when I send
+a RFC patch.
 
-If somebody needs more detailed information there are enough ways to get it.
-Amount of mapped pages can be estimated via summing rss counters from mm-structs.
-Exact numbers can be obtained via examining /proc/pid/pagemap.
+Thanks for the advices, and I'll try them.
 
-I don't think that simulating 'Mapped' line in /proc/mapfile is a worth reason
-for adding such weird stuff into the rmap code on map/unmap paths.
+Thanks. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
