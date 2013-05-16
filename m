@@ -1,33 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 7EDBE6B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 11:02:10 -0400 (EDT)
-Date: Thu, 16 May 2013 16:01:56 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC PATCH v2 11/11] ARM64: mm: THP support.
-Message-ID: <20130516150155.GG18308@arm.com>
-References: <1368006763-30774-1-git-send-email-steve.capper@linaro.org>
- <1368006763-30774-12-git-send-email-steve.capper@linaro.org>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 4EF6F6B0032
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 11:30:41 -0400 (EDT)
+Message-ID: <5194FB84.3000409@redhat.com>
+Date: Thu, 16 May 2013 11:30:12 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1368006763-30774-12-git-send-email-steve.capper@linaro.org>
+Subject: Re: [PATCHv11 2/4] zbud: add to mm/
+References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com> <1368448803-2089-3-git-send-email-sjenning@linux.vnet.ibm.com> <3dfa0c20-ab39-4839-aaeb-46d51314afd4@default> <20130513205927.GA19183@medulla>
+In-Reply-To: <20130513205927.GA19183@medulla>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <Will.Deacon@arm.com>, "patches@linaro.org" <patches@linaro.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Wed, May 08, 2013 at 10:52:43AM +0100, Steve Capper wrote:
-> Bring Transparent HugePage support to ARM. The size of a
-> transparent huge page depends on the normal page size. A
-> transparent huge page is always represented as a pmd.
-> 
-> If PAGE_SIZE is 4KB, THPs are 2MB.
-> If PAGE_SIZE is 64KB, THPs are 512MB.
-> 
-> Signed-off-by: Steve Capper <steve.capper@linaro.org>
+On 05/13/2013 04:59 PM, Seth Jennings wrote:
+> On Mon, May 13, 2013 at 08:43:36AM -0700, Dan Magenheimer wrote:
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+>> The above appears to be a new addition to my original zbud design.
+>> While it may appear to be a good idea for improving LRU-ness, I
+>> suspect it may have unexpected side effects in that I think far
+>> fewer "fat" zpages will be buddied, which will result in many more
+>> unbuddied pages containing a single fat zpage, which means much worse
+>> overall density on many workloads.
+>
+> Yes, I see what you are saying.  While I can't think of a workload that would
+> cause this kind of allocation pattern in practice, I also don't have a way to
+> measure the impact this first-fit fast path code has on density.
+>
+>>
+>> This may not be apparent in kernbench or specjbb or any workload
+>> where the vast majority of zpages compress to less than PAGE_SIZE/2,
+>> but for a zsize distribution that is symmetric or "skews fat",
+>> it may become very apparent.
+>
+> I'd personally think it should be kept because 1) it makes a fast allocation
+> path and 2) improves LRU locality.  But, without numbers to demonstrate a
+> performance improvements or impacts on density, I wouldn't be opposed to taking
+> it out if it is a point of contention.
+>
+> Anyone else care to weigh in?
+
+I have no idea how much the "LRU-ness" of the compressed swap
+cache matters, since the entire thing will be full of not
+recently used data.
+
+I can certainly see Dan's point too, but there simply is not
+enough data to measure this.
+
+Would it be an idea to merge this patch, and then send a follow-up
+patch that:
+1) makes this optimization a (debugfs) tunable, and
+2) exports statistics on how well pages are packing
+
+That way we would be able to figure out which way should be the
+default.
+
+I'm giving the patch my Acked-by, because I want this code to
+finally move forward.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
