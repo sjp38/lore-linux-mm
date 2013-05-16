@@ -1,56 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 57AD86B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 10:59:04 -0400 (EDT)
-Date: Thu, 16 May 2013 15:58:48 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC PATCH v2 08/11] ARM64: mm: Swap PTE_FILE and
- PTE_PROT_NONE bits.
-Message-ID: <20130516145848.GE18308@arm.com>
-References: <1368006763-30774-1-git-send-email-steve.capper@linaro.org>
- <1368006763-30774-9-git-send-email-steve.capper@linaro.org>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id C8E726B0033
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 10:59:16 -0400 (EDT)
+Message-ID: <5194F431.9050003@redhat.com>
+Date: Thu, 16 May 2013 10:58:57 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1368006763-30774-9-git-send-email-steve.capper@linaro.org>
+Subject: Re: [PATCHv11 1/4] debugfs: add get/set for atomic types
+References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com> <1368448803-2089-2-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1368448803-2089-2-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <Will.Deacon@arm.com>, "patches@linaro.org" <patches@linaro.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Wed, May 08, 2013 at 10:52:40AM +0100, Steve Capper wrote:
-> Under ARM64, PTEs can be broadly categorised as follows:
->    - Present and valid: Bit #0 is set. The PTE is valid and memory
->      access to the region may fault.
-> 
->    - Present and invalid: Bit #0 is clear and bit #1 is set.
->      Represents present memory with PROT_NONE protection. The PTE
->      is an invalid entry, and the user fault handler will raise a
->      SIGSEGV.
-> 
->    - Not present (file): Bits #0 and #1 are clear, bit #2 is set.
->      Memory represented has been paged out. The PTE is an invalid
->      entry, and the fault handler will try and re-populate the
->      memory where necessary.
-> 
-> Huge PTEs are block descriptors that have bit #1 clear. If we wish
-> to represent PROT_NONE huge PTEs we then run into a problem as
-> there is no way to distinguish between regular and huge PTEs if we
-> set bit #1.
-> 
-> As huge PTEs are always present, the meaning of bits #1 and #2 can
-> be swapped for invalid PTEs. This patch swaps the PTE_FILE and
-> PTE_PROT_NONE constants, allowing us to represent PROT_NONE huge
-> PTEs.
+On 05/13/2013 08:40 AM, Seth Jennings wrote:
+> debugfs currently lack the ability to create attributes
+> that set/get atomic_t values.
+>
+> This patch adds support for this through a new
+> debugfs_create_atomic_t() function.
+>
+> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+> Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Acked-by: Mel Gorman <mgorman@suse.de>
 
-I guess we'll never get a huge_(pte|pmd)_file() (but we can shift the
-file bits up anyway).
+Acked-by: Rik van Riel <riel@redhat.com>
 
-> Signed-off-by: Steve Capper <steve.capper@linaro.org>
 
-Apart from the comments you already got:
-
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
