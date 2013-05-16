@@ -1,42 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 41DB46B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 09:52:50 -0400 (EDT)
-Date: Thu, 16 May 2013 14:52:34 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC PATCH v2 06/11] ARM64: mm: Restore memblock limit when
- map_mem finished.
-Message-ID: <20130516135233.GB18308@arm.com>
-References: <1368006763-30774-1-git-send-email-steve.capper@linaro.org>
- <1368006763-30774-7-git-send-email-steve.capper@linaro.org>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 1B5EB6B0033
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 09:54:31 -0400 (EDT)
+Date: Thu, 16 May 2013 15:54:28 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/9] Reduce system disruption due to kswapd V4
+Message-ID: <20130516135428.GG13848@dhcp22.suse.cz>
+References: <1368432760-21573-1-git-send-email-mgorman@suse.de>
+ <20130515133748.5db2c6fb61c72ec61381d941@linux-foundation.org>
+ <20130516103344.GF11497@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1368006763-30774-7-git-send-email-steve.capper@linaro.org>
+In-Reply-To: <20130516103344.GF11497@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <Will.Deacon@arm.com>, "patches@linaro.org" <patches@linaro.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Rik van Riel <riel@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Johannes Weiner <hannes@cmpxchg.org>, dormando <dormando@rydia.net>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, May 08, 2013 at 10:52:38AM +0100, Steve Capper wrote:
-> In paging_init the memblock limit is set to restrict any addresses
-> returned by early_alloc to fit within the initial direct kernel
-> mapping in swapper_pg_dir. This allows map_mem to allocate puds,
-> pmds and ptes from the initial direct kernel mapping.
-> 
-> The limit stays low after paging_init() though, meaning any
-> bootmem allocations will be from a restricted subset of memory.
-> Gigabyte huge pages, for instance, are normally allocated from
-> bootmem as their order (18) is too large for the default buddy
-> allocator (MAX_ORDER = 11).
-> 
-> This patch restores the memblock limit when map_mem has finished,
-> allowing gigabyte huge pages (and other objects) to be allocated
-> from all of bootmem.
-> 
-> Signed-off-by: Steve Capper <steve.capper@linaro.org>
+On Thu 16-05-13 11:33:45, Mel Gorman wrote:
+[...]
+> swapin in this case is an indication as to whether we are swap trashing.
+> 	The closer the swapin/swapout ratio is to 0, the worse the
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+I guess you meant the ratio is closer to 1 not zero.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
