@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id D97EA6B0034
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 07:16:31 -0400 (EDT)
-Date: Thu, 16 May 2013 14:15:48 +0300
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 778D46B0032
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 07:17:18 -0400 (EDT)
+Date: Thu, 16 May 2013 14:15:58 +0300
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: [PATCH v2 08/10] tile: uaccess s/might_sleep/might_fault/
-Message-ID: <018bba1e097552bc4054e6d90e3f03e7c9a632bb.1368702323.git.mst@redhat.com>
+Subject: [PATCH v2 09/10] x86: uaccess s/might_sleep/might_fault/
+Message-ID: <4fe705ad6d48e166bfe77c1401140008eac8f6f6.1368702323.git.mst@redhat.com>
 References: <cover.1368702323.git.mst@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -20,21 +20,22 @@ The only reason uaccess routines might sleep
 is if they fault. Make this explicit.
 
 Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+Acked-by: Ingo Molnar <mingo@kernel.org>
 ---
- arch/tile/include/asm/uaccess.h | 2 +-
+ arch/x86/include/asm/uaccess_64.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/tile/include/asm/uaccess.h b/arch/tile/include/asm/uaccess.h
-index 8a082bc..e4d44bd 100644
---- a/arch/tile/include/asm/uaccess.h
-+++ b/arch/tile/include/asm/uaccess.h
-@@ -442,7 +442,7 @@ extern unsigned long __copy_in_user_inatomic(
- static inline unsigned long __must_check
- __copy_in_user(void __user *to, const void __user *from, unsigned long n)
+diff --git a/arch/x86/include/asm/uaccess_64.h b/arch/x86/include/asm/uaccess_64.h
+index 142810c..4f7923d 100644
+--- a/arch/x86/include/asm/uaccess_64.h
++++ b/arch/x86/include/asm/uaccess_64.h
+@@ -235,7 +235,7 @@ extern long __copy_user_nocache(void *dst, const void __user *src,
+ static inline int
+ __copy_from_user_nocache(void *dst, const void __user *src, unsigned size)
  {
 -	might_sleep();
 +	might_fault();
- 	return __copy_in_user_inatomic(to, from, n);
+ 	return __copy_user_nocache(dst, src, size, 1);
  }
  
 -- 
