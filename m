@@ -1,139 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id F3E3B6B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 09:41:09 -0400 (EDT)
-Date: Thu, 16 May 2013 14:41:04 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/4] mm: Activate !PageLRU pages on mark_page_accessed if
- page is on local pagevec
-Message-ID: <20130516134104.GH11497@suse.de>
-References: <1368440482-27909-1-git-send-email-mgorman@suse.de>
- <1368440482-27909-4-git-send-email-mgorman@suse.de>
- <20130515155500.ffe53764d9018c80572544cc@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 41DB46B0032
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 09:52:50 -0400 (EDT)
+Date: Thu, 16 May 2013 14:52:34 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC PATCH v2 06/11] ARM64: mm: Restore memblock limit when
+ map_mem finished.
+Message-ID: <20130516135233.GB18308@arm.com>
+References: <1368006763-30774-1-git-send-email-steve.capper@linaro.org>
+ <1368006763-30774-7-git-send-email-steve.capper@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130515155500.ffe53764d9018c80572544cc@linux-foundation.org>
+In-Reply-To: <1368006763-30774-7-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexey Lyahkov <alexey.lyashkov@gmail.com>, Andrew Perepechko <anserper@ya.ru>, Robin Dong <sanbai@taobao.com>, Theodore Tso <tytso@mit.edu>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bernd Schubert <bernd.schubert@fastmail.fm>, David Howells <dhowells@redhat.com>, Trond Myklebust <Trond.Myklebust@netapp.com>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux-ext4 <linux-ext4@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux-mm <linux-mm@kvack.org>
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Michal Hocko <mhocko@suse.cz>, Ken Chen <kenchen@google.com>, Mel Gorman <mgorman@suse.de>, Will Deacon <Will.Deacon@arm.com>, "patches@linaro.org" <patches@linaro.org>
 
-On Wed, May 15, 2013 at 03:55:00PM -0700, Andrew Morton wrote:
-> > @@ -441,8 +462,17 @@ void activate_page(struct page *page)
-> >  void mark_page_accessed(struct page *page)
-> >  {
-> >  	if (!PageActive(page) && !PageUnevictable(page) &&
-> > -			PageReferenced(page) && PageLRU(page)) {
-> > -		activate_page(page);
-> > +			PageReferenced(page)) {
-> > +
-> > +		/*
-> > +		 * If the page is on the LRU, promote immediately. Otherwise,
-> > +		 * assume the page is on a pagevec, mark it active and it'll
-> > +		 * be moved to the active LRU on the next drain
-> > +		 */
-> > +		if (PageLRU(page))
-> > +			activate_page(page);
-> > +		else
-> > +			__lru_cache_activate_page(page);
-> >  		ClearPageReferenced(page);
-> >  	} else if (!PageReferenced(page)) {
-> >  		SetPageReferenced(page);
+On Wed, May 08, 2013 at 10:52:38AM +0100, Steve Capper wrote:
+> In paging_init the memblock limit is set to restrict any addresses
+> returned by early_alloc to fit within the initial direct kernel
+> mapping in swapper_pg_dir. This allows map_mem to allocate puds,
+> pmds and ptes from the initial direct kernel mapping.
 > 
-> For starters, activate_page() doesn't "promote immediately".  It sticks
-> the page into yet another pagevec for deferred activation.
+> The limit stays low after paging_init() though, meaning any
+> bootmem allocations will be from a restricted subset of memory.
+> Gigabyte huge pages, for instance, are normally allocated from
+> bootmem as their order (18) is too large for the default buddy
+> allocator (MAX_ORDER = 11).
 > 
-
-True, comment updated.
-
-> Also, I really worry about the fact that
-> activate_page()->drain->__activate_page() will simply skip over the
-> page if it has PageActive set!  So PageActive does something useful if
-> the page is in the add-to-lru pagevec but nothing useful if the page is
-> in the activate-it-soon pagevec.  This is a confusing, unobvious bug
-> attractant.
+> This patch restores the memblock limit when map_mem has finished,
+> allowing gigabyte huge pages (and other objects) to be allocated
+> from all of bootmem.
 > 
+> Signed-off-by: Steve Capper <steve.capper@linaro.org>
 
->From mark_page_accessed, we only call activate_page() for !PageActive
-and PageLRU. The PageLRU is key, if it's set, the pages *must* be on the
-inactive list or they'd trigger BUG_ON(PageActive) checks within
-vmscan.c. Am I missing your point?
-
-If I remove the PageActive check in mark_page_accessed then pages that
-are already on the active list will always get moved to the top of the
-active list. If that page is frequently passed to mark_page_accessed(),
-it will both potentially increase the lifetime of the page and the
-amount of LRU churn. This would be very unexpected.
-
-> Secondly, I really don't see how this code avoids the races.  Suppose
-> the page gets spilled from the to-add-to-lru pagevec and onto the real
-> LRU while mark_page_accessed() is concurrently executing. 
-
-Good question. The key here is that __lru_cache_activate_page only
-searches the pagevec for the local CPU. If the current CPU is draining the
-to_add_to_lru pagevec, it cannot also be simultaneously setting PageActive
-in mark_page_accessed. It was discussed in the changelog here.
-
-"Note that only pages on the local pagevec are considered on purpose. A
-!PageLRU page could be in the process of being released, reclaimed,
-migrated or on a remote pagevec that is currently being drained. Marking
-it PageActive is vunerable to races where PageLRU and Active bits are
-checked at the wrong time."
-
-Subtle comments on the code belong in the changelog, right?
-
-> We end up
-> setting PageActive on a page which is on the inactive LRU?  Maybe this
-> is a can't-happen, in which case it's nowhere near clear enough *why*
-> this can't happen.
-> 
-
-I don't think it can happen. If I'm wrong, PageActive checks in vmscan.c
-will trigger.
-
-How about putting this fix on top?
-
----8<---
-mm: Activate !PageLRU pages on mark_page_accessed if page is on local pagevec -fix
-
-Give the comments a beefier arm.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-
-diff --git a/mm/swap.c b/mm/swap.c
-index 5646e31..49eb93f 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -439,7 +439,13 @@ static void __lru_cache_activate_page(struct page *page)
- 
- 	/*
- 	 * Search backwards on the optimistic assumption that the page being
--	 * activated has just been added to this pagevec
-+	 * activated has just been added to this pagevec. Note that only
-+	 * the local pagevec is examined as a !PageLRU page could be in the
-+	 * process of being released, reclaimed, migrated or on a remote
-+	 * pagevec that is currently being drained. Furthermore, marking
-+	 * a remote pagevec's page PageActive potentially hits a race where
-+	 * a page is marked PageActive just after it is added to the inactive
-+	 * list causing accounting errors and BUG_ON checks to trigger.
- 	 */
- 	for (i = pagevec_count(pvec) - 1; i >= 0; i--) {
- 		struct page *pagevec_page = pvec->pages[i];
-@@ -466,9 +472,10 @@ void mark_page_accessed(struct page *page)
- 			PageReferenced(page)) {
- 
- 		/*
--		 * If the page is on the LRU, promote immediately. Otherwise,
--		 * assume the page is on a pagevec, mark it active and it'll
--		 * be moved to the active LRU on the next drain
-+		 * If the page is on the LRU, queue it for activation via
-+		 * activate_page_pvecs. Otherwise, assume the page is on a
-+		 * pagevec, mark it active and it'll be moved to the active
-+		 * LRU on the next drain.
- 		 */
- 		if (PageLRU(page))
- 			activate_page(page);
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
