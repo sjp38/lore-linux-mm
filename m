@@ -1,39 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 034746B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 09:18:07 -0400 (EDT)
-Date: Thu, 16 May 2013 15:18:04 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm/THP: Use pmd_populate to update the pmd with
- pgtable_t pointer
-Message-ID: <20130516131804.GO5181@redhat.com>
-References: <1368347715-24597-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <871u9b56t2.fsf@linux.vnet.ibm.com>
- <20130513141357.GL27980@redhat.com>
- <87y5bj3pnc.fsf@linux.vnet.ibm.com>
- <87txm6537l.fsf@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id E43616B0033
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 09:28:49 -0400 (EDT)
+Date: Thu, 16 May 2013 15:28:46 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V2 0/3] memcg: simply lock of page stat accounting
+Message-ID: <20130516132846.GE13848@dhcp22.suse.cz>
+References: <1368421410-4795-1-git-send-email-handai.szj@taobao.com>
+ <519380FC.1040504@openvz.org>
+ <20130515134110.GD5455@dhcp22.suse.cz>
+ <51946071.4030101@openvz.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87txm6537l.fsf@linux.vnet.ibm.com>
+In-Reply-To: <51946071.4030101@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, hughd@google.com, gthelen@google.com, Sha Zhengju <handai.szj@taobao.com>
 
-Hi Aneesh,
+On Thu 16-05-13 08:28:33, Konstantin Khlebnikov wrote:
+> Michal Hocko wrote:
+> >On Wed 15-05-13 16:35:08, Konstantin Khlebnikov wrote:
+> >>Sha Zhengju wrote:
+> >>>Hi,
+> >>>
+> >>>This is my second attempt to make memcg page stat lock simpler, the
+> >>>first version: http://www.spinics.net/lists/linux-mm/msg50037.html.
+> >>>
+> >>>In this version I investigate the potential race conditions among
+> >>>page stat, move_account, charge, uncharge and try to prove it race
+> >>>safe of my proposing lock scheme. The first patch is the basis of
+> >>>the patchset, so if I've made some stupid mistake please do not
+> >>>hesitate to point it out.
+> >>
+> >>I have a provocational question. Who needs these numbers? I mean
+> >>per-cgroup nr_mapped and so on.
+> >
+> >Well, I guess it makes some sense to know how much page cache and anon
+> >memory is charged to the group. I am using that to monitor the per-group
+> >memory usage. I can imagine a even better coverage - something
+> >/proc/meminfo like.
+> >
+> 
+> I think page counters from lru-vectors can give enough information for that.
 
-On Mon, May 13, 2013 at 08:36:38PM +0530, Aneesh Kumar K.V wrote:
-> https://lists.ozlabs.org/pipermail/linuxppc-dev/2013-May/106406.html
+not for dirty and writeback data which is the next step.
 
-You need ACCESS_ONCE() in all "pgd = ACCESS_ONCE(*pgdp)", "pud =
-ACCESS_ONCE(*pudp)" otherwise the compiler could decide your change is
-a noop.
+> If somebody needs more detailed information there are enough ways to get it.
+> Amount of mapped pages can be estimated via summing rss counters from mm-structs.
+> Exact numbers can be obtained via examining /proc/pid/pagemap.
 
-I think you could remove the #ifdef CONFIG_TRANSPARENT_HUGEPAGE too.
+How do you find out whether given pages were charged to the group of
+interest - e.g. shared data or taks that has moved from a different
+group without move_at_immigrate?
 
-Thanks,
-Andrea
+> I don't think that simulating 'Mapped' line in /proc/mapfile is a worth reason
+> for adding such weird stuff into the rmap code on map/unmap paths.
+
+The accounting code is trying to be not intrusive as much as possible.
+This patchset makes it more complicated without a good reason and that
+is why it has been Nacked by me.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
