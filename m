@@ -1,37 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id BB6736B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 12:27:53 -0400 (EDT)
-Date: Thu, 16 May 2013 09:27:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 0/2] return value from shrinkers
-Message-Id: <20130516092746.d838ea18.akpm@linux-foundation.org>
-In-Reply-To: <20130516075205.GD24072@caracas.corpusers.net>
-References: <1368454595-5121-1-git-send-email-oskar.andero@sonymobile.com>
-	<20130515160532.c965e92707c354100e25f79b@linux-foundation.org>
-	<20130516075205.GD24072@caracas.corpusers.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 7F5666B0032
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 12:46:21 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <b12c2e22-f41c-490d-9d74-c85aa397e017@default>
+Date: Thu, 16 May 2013 09:45:43 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCHv11 3/4] zswap: add to mm/
+References: <1368448803-2089-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1368448803-2089-4-git-send-email-sjenning@linux.vnet.ibm.com>
+ <15c5b1da-132a-4c9e-9f24-bc272d3865d5@default>
+ <20130514163541.GC4024@medulla>
+ <f0272a06-141a-4d33-9976-ee99467f3aa2@default> <519408D6.10903@redhat.com>
+In-Reply-To: <519408D6.10903@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oskar Andero <oskar.andero@sonymobile.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Lekanovic, Radovan" <Radovan.Lekanovic@sonymobile.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, Joe Perches <joe@perches.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Hugh Dickens <hughd@google.com>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Jonathan Corbet <corbet@lwn.net>
 
-On Thu, 16 May 2013 09:52:05 +0200 Oskar Andero <oskar.andero@sonymobile.com> wrote:
+> From: Rik van Riel [mailto:riel@redhat.com]
+> Sent: Wednesday, May 15, 2013 4:15 PM
+> To: Dan Magenheimer
+> Cc: Seth Jennings; Andrew Morton; Greg Kroah-Hartman; Nitin Gupta; Mincha=
+n Kim; Konrad Wilk; Robert
+> Jennings; Jenifer Hopper; Mel Gorman; Johannes Weiner; Larry Woodman; Ben=
+jamin Herrenschmidt; Dave
+> Hansen; Joe Perches; Joonsoo Kim; Cody P Schafer; Hugh Dickens; Paul Mack=
+erras; linux-mm@kvack.org;
+> linux-kernel@vger.kernel.org; devel@driverdev.osuosl.org
+> Subject: Re: [PATCHv11 3/4] zswap: add to mm/
+>=20
+> On 05/14/2013 04:18 PM, Dan Magenheimer wrote:
+>=20
+> > It's unfortunate that my proposed topic for LSFMM was pre-empted
+> > by the zsmalloc vs zbud discussion and zswap vs zcache, because
+> > I think the real challenge of zswap (or zcache) and the value to
+> > distros and end users requires us to get this right BEFORE users
+> > start filing bugs about performance weirdness.  After which most
+> > users and distros will simply default to 0% (i.e. turn zswap off)
+> > because zswap unpredictably sometimes sucks.
+>=20
+> I'm not sure we can get it right before people actually start
+> using it for real world setups, instead of just running benchmarks
+> on it.
+>=20
+> The sooner we get the code out there, where users can play with
+> it (even if it is disabled by default and needs a sysfs or
+> sysctl config option to enable it), the sooner we will know how
+> well it works, and what needs to be changed.
 
-> > If we want the capability to return more than a binary yes/no message
-> > to callers then yes, we could/should enumerate the shrinker return
-> > values.  But as that is a different concept from errnos, it should be
-> > done with a different and shrinker-specific namespace.
-> 
-> Agreed, but even if there right now is only a binary return message, is a
-> hardcoded -1 considered to be acceptable for an interface? IMHO, it is not
-> very readable nor intuitive for the users of the interface. Why not, as you
-> mention, add a define or enum in shrinker.h instead, e.g. SHRINKER_STOP or
-> something.
+/me sets stage of first Star Wars (1977)
 
-That sounds OK to me.
+/me envisions self as Obi-Wan Kenobi, old and tired of fighting,
+in lightsaber battle with protege Darth Vader / Anakin Skywalker
+
+/me sadly turns off lightsaber, holds useless handle at waist,
+takes a deep breath, and promptly gets sliced into oblivion.
+
+Time for A New Hope(tm).
+
+(/me cc's Jon Corbet for a longshot last chance of making LWN's
+Kernel Development Quotes of the Week.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
