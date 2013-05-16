@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id CE7A36B0032
-	for <linux-mm@kvack.org>; Thu, 16 May 2013 07:15:48 -0400 (EDT)
-Date: Thu, 16 May 2013 14:10:03 +0300
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 184DF6B0033
+	for <linux-mm@kvack.org>; Thu, 16 May 2013 07:16:27 -0400 (EDT)
+Date: Thu, 16 May 2013 14:15:36 +0300
 From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: [PATCH v2 01/10] asm-generic: uaccess s/might_sleep/might_fault/
-Message-ID: <0138f31b9c0f1764a0d6bbed2ee9aa3aedea6815.1368702323.git.mst@redhat.com>
+Subject: [PATCH v2 07/10] powerpc: uaccess s/might_sleep/might_fault/
+Message-ID: <2aa6c3da21a28120126732b5e0b4ecd6cba8ca3b.1368702323.git.mst@redhat.com>
 References: <cover.1368702323.git.mst@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -21,58 +21,84 @@ is if they fault. Make this explicit.
 
 Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
 ---
- include/asm-generic/uaccess.h | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ arch/powerpc/include/asm/uaccess.h | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
 
-diff --git a/include/asm-generic/uaccess.h b/include/asm-generic/uaccess.h
-index c184aa8..dc1269c 100644
---- a/include/asm-generic/uaccess.h
-+++ b/include/asm-generic/uaccess.h
-@@ -163,7 +163,7 @@ static inline __must_check long __copy_to_user(void __user *to,
- 
- #define put_user(x, ptr)					\
- ({								\
--	might_sleep();						\
-+	might_fault();						\
- 	access_ok(VERIFY_WRITE, ptr, sizeof(*ptr)) ?		\
- 		__put_user(x, ptr) :				\
- 		-EFAULT;					\
-@@ -225,7 +225,7 @@ extern int __put_user_bad(void) __attribute__((noreturn));
- 
- #define get_user(x, ptr)					\
- ({								\
--	might_sleep();						\
-+	might_fault();						\
- 	access_ok(VERIFY_READ, ptr, sizeof(*ptr)) ?		\
- 		__get_user(x, ptr) :				\
- 		-EFAULT;					\
-@@ -255,7 +255,7 @@ extern int __get_user_bad(void) __attribute__((noreturn));
- static inline long copy_from_user(void *to,
- 		const void __user * from, unsigned long n)
+diff --git a/arch/powerpc/include/asm/uaccess.h b/arch/powerpc/include/asm/uaccess.h
+index 4db4959..9485b43 100644
+--- a/arch/powerpc/include/asm/uaccess.h
++++ b/arch/powerpc/include/asm/uaccess.h
+@@ -178,7 +178,7 @@ do {								\
+ 	long __pu_err;						\
+ 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
+ 	if (!is_kernel_addr((unsigned long)__pu_addr))		\
+-		might_sleep();					\
++		might_fault();					\
+ 	__chk_user_ptr(ptr);					\
+ 	__put_user_size((x), __pu_addr, (size), __pu_err);	\
+ 	__pu_err;						\
+@@ -188,7 +188,7 @@ do {								\
+ ({									\
+ 	long __pu_err = -EFAULT;					\
+ 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
+-	might_sleep();							\
++	might_fault();							\
+ 	if (access_ok(VERIFY_WRITE, __pu_addr, size))			\
+ 		__put_user_size((x), __pu_addr, (size), __pu_err);	\
+ 	__pu_err;							\
+@@ -268,7 +268,7 @@ do {								\
+ 	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
+ 	__chk_user_ptr(ptr);					\
+ 	if (!is_kernel_addr((unsigned long)__gu_addr))		\
+-		might_sleep();					\
++		might_fault();					\
+ 	__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
+ 	(x) = (__typeof__(*(ptr)))__gu_val;			\
+ 	__gu_err;						\
+@@ -282,7 +282,7 @@ do {								\
+ 	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
+ 	__chk_user_ptr(ptr);					\
+ 	if (!is_kernel_addr((unsigned long)__gu_addr))		\
+-		might_sleep();					\
++		might_fault();					\
+ 	__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
+ 	(x) = (__typeof__(*(ptr)))__gu_val;			\
+ 	__gu_err;						\
+@@ -294,7 +294,7 @@ do {								\
+ 	long __gu_err = -EFAULT;					\
+ 	unsigned long  __gu_val = 0;					\
+ 	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
+-	might_sleep();							\
++	might_fault();							\
+ 	if (access_ok(VERIFY_READ, __gu_addr, (size)))			\
+ 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
+ 	(x) = (__typeof__(*(ptr)))__gu_val;				\
+@@ -419,14 +419,14 @@ static inline unsigned long __copy_to_user_inatomic(void __user *to,
+ static inline unsigned long __copy_from_user(void *to,
+ 		const void __user *from, unsigned long size)
  {
 -	might_sleep();
 +	might_fault();
- 	if (access_ok(VERIFY_READ, from, n))
- 		return __copy_from_user(to, from, n);
- 	else
-@@ -265,7 +265,7 @@ static inline long copy_from_user(void *to,
- static inline long copy_to_user(void __user *to,
- 		const void *from, unsigned long n)
- {
--	might_sleep();
-+	might_fault();
- 	if (access_ok(VERIFY_WRITE, to, n))
- 		return __copy_to_user(to, from, n);
- 	else
-@@ -336,7 +336,7 @@ __clear_user(void __user *to, unsigned long n)
- static inline __must_check unsigned long
- clear_user(void __user *to, unsigned long n)
- {
--	might_sleep();
-+	might_fault();
- 	if (!access_ok(VERIFY_WRITE, to, n))
- 		return n;
+ 	return __copy_from_user_inatomic(to, from, size);
+ }
  
+ static inline unsigned long __copy_to_user(void __user *to,
+ 		const void *from, unsigned long size)
+ {
+-	might_sleep();
++	might_fault();
+ 	return __copy_to_user_inatomic(to, from, size);
+ }
+ 
+@@ -434,7 +434,7 @@ extern unsigned long __clear_user(void __user *addr, unsigned long size);
+ 
+ static inline unsigned long clear_user(void __user *addr, unsigned long size)
+ {
+-	might_sleep();
++	might_fault();
+ 	if (likely(access_ok(VERIFY_WRITE, addr, size)))
+ 		return __clear_user(addr, size);
+ 	if ((unsigned long)addr < TASK_SIZE) {
 -- 
 MST
 
